@@ -1409,6 +1409,10 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
         def _check(ignored):
             # are we really right after the first prefix?
             state = ss.bucket_counter.get_state()
+            if state["last-complete-prefix"] is None:
+                d2 = fireEventually()
+                d2.addCallback(_check)
+                return d2
             self.failUnlessEqual(state["last-complete-prefix"],
                                  ss.bucket_counter.prefixes[0])
             ss.bucket_counter.cpu_slice = 100.0 # finish as fast as possible
@@ -1445,10 +1449,14 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
         d = fireEventually()
 
         def _after_first_prefix(ignored):
+            state = ss.bucket_counter.state
+            if state["last-complete-prefix"] is None:
+                d2 = fireEventually()
+                d2.addCallback(_after_first_prefix)
+                return d2
             ss.bucket_counter.cpu_slice = 100.0 # finish as fast as possible
             # now sneak in and mess with its state, to make sure it cleans up
             # properly at the end of the cycle
-            state = ss.bucket_counter.state
             self.failUnlessEqual(state["last-complete-prefix"],
                                  ss.bucket_counter.prefixes[0])
             state["bucket-counts"][-12] = {}
@@ -1633,6 +1641,10 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         # processed.
         def _after_first_bucket(ignored):
             initial_state = lc.get_state()
+            if "cycle-to-date" not in initial_state:
+                d2 = fireEventually()
+                d2.addCallback(_after_first_bucket)
+                return d2
             self.failUnlessIn("cycle-to-date", initial_state)
             self.failUnlessIn("estimated-remaining-cycle", initial_state)
             self.failUnlessIn("estimated-current-cycle", initial_state)
@@ -1833,7 +1845,10 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         # examine the state right after the first bucket has been processed
         def _after_first_bucket(ignored):
             p = lc.get_progress()
-            self.failUnless(p["cycle-in-progress"], p)
+            if not p["cycle-in-progress"]:
+                d2 = fireEventually()
+                d2.addCallback(_after_first_bucket)
+                return d2
         d.addCallback(_after_first_bucket)
         d.addCallback(lambda ign: self.render1(webstatus))
         def _check_html_in_cycle(html):
@@ -1974,7 +1989,10 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         # examine the state right after the first bucket has been processed
         def _after_first_bucket(ignored):
             p = lc.get_progress()
-            self.failUnless(p["cycle-in-progress"], p)
+            if not p["cycle-in-progress"]:
+                d2 = fireEventually()
+                d2.addCallback(_after_first_bucket)
+                return d2
         d.addCallback(_after_first_bucket)
         d.addCallback(lambda ign: self.render1(webstatus))
         def _check_html_in_cycle(html):
@@ -2246,6 +2264,10 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             # have to interrupt it even earlier, before it's finished the
             # first bucket).
             s = lc.get_state()
+            if "cycle-to-date" not in s:
+                d2 = fireEventually()
+                d2.addCallback(_check)
+                return d2
             self.failUnlessIn("cycle-to-date", s)
             self.failUnlessIn("estimated-remaining-cycle", s)
             self.failUnlessIn("estimated-current-cycle", s)
@@ -2362,7 +2384,12 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         # now examine the state right after the first bucket has been
         # processed.
         def _after_first_bucket(ignored):
-            so_far = lc.get_state()["cycle-to-date"]
+            s = lc.get_state()
+            if "cycle-to-date" not in s:
+                d2 = fireEventually()
+                d2.addCallback(_after_first_bucket)
+                return d2
+            so_far = s["cycle-to-date"]
             rec = so_far["space-recovered"]
             self.failUnlessEqual(rec["examined-buckets"], 1)
             self.failUnlessEqual(rec["examined-shares"], 0)
