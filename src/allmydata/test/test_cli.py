@@ -7,11 +7,12 @@ import urllib
 from allmydata.util import fileutil, hashutil
 from allmydata import uri
 
-# at least import the CLI scripts, even if we don't have any real tests for
-# them yet.
+# Test that the scripts can be imported -- although the actual tests of their functionality are
+# done by invoking them in a subprocess.
 from allmydata.scripts import tahoe_ls, tahoe_get, tahoe_put, tahoe_rm, tahoe_cp
-from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases
 _hush_pyflakes = [tahoe_ls, tahoe_get, tahoe_put, tahoe_rm, tahoe_cp]
+
+from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases
 
 from allmydata.scripts import cli, debug, runner
 from allmydata.test.common import SystemTestMixin
