@@ -9,9 +9,9 @@ from allmydata import uri
 
 # at least import the CLI scripts, even if we don't have any real tests for
 # them yet.
-from allmydata.scripts import tahoe_ls, tahoe_get, tahoe_put, tahoe_rm
+from allmydata.scripts import tahoe_ls, tahoe_get, tahoe_put, tahoe_rm, tahoe_cp
 from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases
-_hush_pyflakes = [tahoe_ls, tahoe_get, tahoe_put, tahoe_rm]
+_hush_pyflakes = [tahoe_ls, tahoe_get, tahoe_put, tahoe_rm, tahoe_cp]
 
 from allmydata.scripts import cli, debug, runner
 from allmydata.test.common import SystemTestMixin
