@@ -231,7 +231,7 @@ failing.
 If that isn't enough, look at the detailed foolscap logging messages instead,
 by running the tests like this:
 
- make test FLOGFILE=flog.out.bz2 FLOGLEVEL=1 FLOGTWISTED=1
+ make test FLOGFILE=flog.out.bz2 FLOGLEVEL=1 FLOGTOTWISTED=1
 
 The first environment variable will cause foolscap log events to be written
 to ./flog.out.bz2 (instead of merely being recorded in the circular buffers
