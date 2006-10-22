@@ -33,6 +33,7 @@ KiB=1024
 MiB=1024*KiB
 GiB=1024*MiB
 TiB=1024*GiB
+PiB=1024*TiB
 
 class Sizes:
     def __init__(self, mode, file_size, arity=2):
@@ -138,14 +139,16 @@ def fmt(num, trim=False):
         s = "%.2fM" % (num / MiB)
     elif num < TiB:
         s = "%.2fG" % (num / GiB)
+    elif num < PiB:
+        s = "%.2fT" % (num / TiB)
     else:
         s = "big"
     if trim:
-        s = re.sub(r'(\.0+)([kMG#])',
+        s = re.sub(r'(\.0+)([kMGT#])',
                    lambda m: m.group(2),
                    s)
     else:
-        s = re.sub(r'(\.0+)([kMG#])',
+        s = re.sub(r'(\.0+)([kMGT#])',
                    lambda m: (" "*len(m.group(1))+m.group(2)),
                    s)
     if s.endswith("#"):
@@ -163,7 +166,7 @@ def text():
     print "Size     blocksize  overhead   overhead     k  d  alacrity"
     print "                    (bytes)      (%)"
     print "-------  -------    --------   --------  ---- --  --------"
-    sizes = [2 ** i for i in range(7, 32)]
+    sizes = [2 ** i for i in range(7, 41)]
     for file_size in sizes:
         s = Sizes(mode, file_size, arity)
         out = ""
