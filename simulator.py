@@ -35,7 +35,7 @@ class Node:
         while numshares and permuted:
             pid,node = permuted.pop(0)
             tried += 1
-            last_givento = node
+            last_givento = pid
             if node.accept_share(fileid, sharesize):
                 givento.append((pid,node))
                 numshares -= 1
@@ -132,11 +132,11 @@ class Queen:
         return permuted
 
     def delete(self, fileid):
-        peers = self.permute_peers(fileid)
+        permuted = self.permute_peers(fileid)
         size, tried, last_givento = self.living_files[fileid]
-        peer = ""
-        while tried and peer < last_givento:
-            peer,node = permuted.pop(0)
+        pid = ""
+        while tried and pid < last_givento:
+            pid,node = permuted.pop(0)
             had_it = node.delete_share(fileid)
             if had_it:
                 tried -= 1
