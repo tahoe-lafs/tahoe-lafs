@@ -195,11 +195,11 @@ class Simulator:
         import gc
         gc.collect()
 
-        def1 = graph.DataDefinition(vname='uvn', rrdfile='/tmp/utilization.rrd', ds_name='utilizationds')
-        area1 = graph.Area(value=def1.vname, color="#990033", legend='utilizationlegend')
+        def1 = graph.DataDefinition(vname="a", rrdfile='/tmp/utilization.rrd', ds_name='utilizationds')
+        area1 = graph.Area(value="a", color="#990033", legend='utilizationlegend')
         g = graph.Graph('/tmp/utilization.png', imgformat='PNG', width=540, height=100, vertical_label='utilizationverticallabel', title='utilizationtitle', lower_limit=0)
-        g.data.append(area1)
         g.data.append(def1)
+        g.data.append(area1)
         g.write()
 
     def add_file(self):
