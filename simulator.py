@@ -2,7 +2,12 @@
 
 import sha as shamodule
 import os, random
-import rrdtool
+
+from pkg_resources import require
+require('PyRRD')
+from pyrrd import graph
+from pyrrd.rrd import DataSource, RRD, RRA
+
 
 def sha(s):
     return shamodule.new(s).digest()
@@ -110,9 +115,11 @@ class Node:
         return True
 
 class Queen:
-    def __init__(self):
+    def __init__(self, simulator):
         self.living_files = {}
         self.utilization = 0 # total size of all active files
+        self.simulator = simulator
+        self.simulator.stamp_utilization(self.utilization)
 
     def get_all_nodes(self):
         return self.all_nodes
@@ -120,10 +127,10 @@ class Queen:
     def please_preserve(self, fileid, size, tried, last_givento):
         self.living_files[fileid] = (size, tried, last_givento)
         self.utilization += size
+        self.simulator.stamp_utilization(self.utilization)
 
     def please_delete(self, fileid):
         self.delete(fileid)
-
 
     def permute_peers(self, fileid):
         permuted = [(sha(fileid+n.nid),n)
@@ -141,6 +148,7 @@ class Queen:
             if had_it:
                 tried -= 1
         self.utilization -= size
+        self.simulator.stamp_utilization(self.utilization)
         del self.living_files[fileid]
 
 class Simulator:
@@ -153,11 +161,18 @@ class Simulator:
     P_NODEAVAIL = 1.0
 
     def __init__(self):
-        self.queen = q = Queen()
+        self.time = 1164783600 # small numbers of seconds since the epoch confuse rrdtool
+        self.prevstamptime = int(self.time)
+
+        ds = DataSource(ds_name='utilizationds', ds_type='GAUGE', heartbeat=1)
+        rra = RRA(cf='AVERAGE', xff=0.1, steps=1, rows=1200)
+        self.rrd = RRD("/tmp/utilization.rrd", ds=[ds], rra=[rra], start=self.time)
+        self.rrd.create()
+
+        self.queen = q = Queen(self)
         self.all_nodes = [Node(randomid(), q, self)
                           for i in range(self.NUM_NODES)]
         q.all_nodes = self.all_nodes
-        self.time = 0
         self.next = []
         self.schedule_events()
         self.verbose = False
@@ -168,6 +183,24 @@ class Simulator:
         self.published_files = []
         self.failed_files = 0
         self.lost_data_bytes = 0 # bytes deleted to make room for new shares
+
+    def stamp_utilization(self, utilization):
+        if int(self.time) > (self.prevstamptime+1):
+            self.rrd.bufferValue(self.time, utilization)
+            self.prevstamptime = int(self.time)
+
+    def write_graph(self):
+        self.rrd.update()
+        self.rrd = None
+        import gc
+        gc.collect()
+
+        def1 = graph.DataDefinition(vname='uvn', rrdfile='/tmp/utilization.rrd', ds_name='utilizationds')
+        area1 = graph.Area(value=def1.vname, color="#990033", legend='utilizationlegend')
+        g = graph.Graph('/tmp/utilization.png', imgformat='PNG', width=540, height=100, vertical_label='utilizationverticallabel', title='utilizationtitle', lower_limit=0)
+        g.data.append(area1)
+        g.data.append(def1)
+        g.write()
 
     def add_file(self):
         size = random.randrange(1000)
@@ -224,7 +257,7 @@ class Simulator:
         elif etype == "DELNODE":
             #self.del_node()
             pass
-        self.print_stats(current_time, etype)
+        # self.print_stats(current_time, etype)
 
     def print_stats_header(self):
         print "time:  added   failed   lost  avg_tried"
@@ -247,7 +280,7 @@ def main():
 #                   )
     global s
     s = Simulator()
-    s.print_stats_header()
+    # s.print_stats_header()
     for i in range(1000):
         s.do_event()
     print "%d files added, %d files deleted" % (s.added_files, s.deleted_files)
