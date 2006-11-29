@@ -236,12 +236,16 @@ class Simulator:
             avg_tried = sum(self.published_files) / len(self.published_files)
         print time, etype, self.added_data, self.failed_files, self.lost_data_bytes, avg_tried, len(self.queen.living_files), self.queen.utilization
 
+global s
+s = None
+
 def main():
 #    rrdtool.create("foo.rrd",
 #                   "--step 10",
 #                   "DS:files-added:DERIVE::0:1000",
 #                   "RRA:AVERAGE:1:1:1200",
 #                   )
+    global s
     s = Simulator()
     s.print_stats_header()
     for i in range(1000):
@@ -251,3 +255,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
+
