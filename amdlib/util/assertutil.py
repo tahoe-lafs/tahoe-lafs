@@ -11,7 +11,7 @@ Tests useful in assertion checking, prints out nicely formated messages too.
 
 from humanreadable import hr
 
-import Log
+from twisted.python import log
 
 def _assert(___cond=False, *___args, **___kwargs):
     if ___cond:
@@ -48,10 +48,12 @@ def precondition(___cond=False, *___args, **___kwargs):
                 msgbuf.append("%s: %s %s" % ((___kwargs.items()[0][0],) + tuple(map(hr, (___kwargs.items()[0][1], type(___kwargs.items()[0][1]),)))))
         msgbuf.extend([", %s: %s %s" % tuple(map(hr, (k, v, type(v),))) for k, v in ___kwargs.items()[1:]])
     except Exception, le:
-        Log.Log(Log.ERR, 'assertutil', "INTERNAL ERROR IN pyutil.assertutil. %s %s %s" % (type(le), repr(le), le.args,))
+        log.msg("assertutil.precondition(): INTERNAL ERROR IN pyutil.assertutil. %s %s %s" % (type(le), repr(le), le.args,))
+        log.err()
         raise le
     except:
-        Log.Log(Log.ERR, 'assertutil', "INTERNAL ERROR IN pyutil.assertutil.")
+        log.msg("assertutil.precondition(): INTERNAL ERROR IN pyutil.assertutil.")
+        log.err()
         raise
 
     raise AssertionError, "".join(msgbuf)
