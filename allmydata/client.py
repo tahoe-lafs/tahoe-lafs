@@ -1,8 +1,11 @@
 
-from foolscap import Tub
+from foolscap import Tub, Referenceable
 from twisted.application import service
 from twisted.python import log
 import os.path
+
+class Storage(service.MultiService, Referenceable):
+    pass
 
 class Client(service.MultiService):
     CERTFILE = "client.pem"
@@ -18,6 +21,10 @@ class Client(service.MultiService):
             f.write(self.tub.getCertData())
             f.close()
         self.queen = None # self.queen is either None or a RemoteReference
+        self.urls = {}
+        s = Storage()
+        s.setServiceParent(self)
+        #self.urls["storage"] = self.tub.registerReference(s, "storage")
 
     def startService(self):
         service.MultiService.startService(self)
@@ -34,6 +41,7 @@ class Client(service.MultiService):
         log.msg("connected to queen")
         self.queen = queen
         queen.notifyOnDisconnect(self._lost_queen)
+        queen.callRemote("hello", urls=self.urls)
 
     def _lost_queen(self):
         log.msg("lost connection to queen")
