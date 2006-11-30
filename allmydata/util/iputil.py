@@ -7,7 +7,7 @@ from twisted.internet.protocol import DatagramProtocol
 #from twisted.internet.interfaces import IReactorMulticast
 #from amdlib.util.nattraverso.utils import is_rfc1918_ip, is_bogus_ip
 
-def get_local_ip_for(target):
+def get_local_ip_for(target='A.ROOT-SERVERS.NET'):
     """Find out what our IP address is for use by a given target.
 
     Returns a Deferred which will be fired with a string that holds the IP
