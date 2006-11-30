@@ -22,8 +22,9 @@ class Queen(service.MultiService):
         self.urls = {}
         r = Roster()
         r.setServiceParent(self)
-        self.urls["roster"] = self.tub.registerReference(r, "roster")
+        #self.urls["roster"] = self.tub.registerReference(r, "roster")
 
     def startService(self):
         service.MultiService.startService(self)
-        log.msg("queen running, roster is at %s" % self.urls["roster"])
+        log.msg("queen running")
+        #log.msg(" roster is at %s" % self.urls["roster"])

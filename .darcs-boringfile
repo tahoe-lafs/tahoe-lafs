@@ -36,3 +36,4 @@
 
 ^client-basedir($|/)
 ^queen-basedir($|/)
+^_trial_temp($|/)

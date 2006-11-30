@@ -35,7 +35,8 @@ class Client(service.MultiService):
             log.msg("no queen_pburl, cannot connect")
 
     def stopService(self):
-        self.connector.stopConnecting()
+        if self.queen_pburl:
+            self.connector.stopConnecting()
 
     def _got_queen(self, queen):
         log.msg("connected to queen")
