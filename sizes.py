@@ -37,7 +37,7 @@ PiB=1024*TiB
 
 class Sizes:
     def __init__(self, mode, file_size, arity=2):
-        MAX_SEGSIZE = 1*MiB
+        MAX_SEGSIZE = 2*MiB
         self.mode = mode
         self.file_size = file_size
         self.seg_size = seg_size = 1.0 * min(MAX_SEGSIZE, file_size)
@@ -132,7 +132,8 @@ class Sizes:
 
 def fmt(num, trim=False):
     if num < KiB:
-        s = str(num) + "#"
+        #s = str(num) + "#"
+        s = "%.2f#" % num
     elif num < MiB:
         s = "%.2fk" % (num / KiB)
     elif num < GiB:
@@ -166,7 +167,12 @@ def text():
     print "Size     blocksize  overhead   overhead     k  d  alacrity"
     print "                    (bytes)      (%)"
     print "-------  -------    --------   --------  ---- --  --------"
-    sizes = [2 ** i for i in range(7, 41)]
+    #sizes = [2 ** i for i in range(7, 41)]
+    radix = math.sqrt(10); expstep = 2
+    radix = 2; expstep = 2
+    #radix = 10; expstep = 1
+    maxexp = int(math.ceil(math.log(1e12, radix)))+2
+    sizes = [radix ** i for i in range(2,maxexp,expstep)]
     for file_size in sizes:
         s = Sizes(mode, file_size, arity)
         out = ""
