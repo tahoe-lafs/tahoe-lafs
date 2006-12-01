@@ -88,6 +88,7 @@ class Client(service.MultiService, Referenceable):
             if nodeid not in self.connections:
                 d = self.tub.getReference(pburl)
                 def _got_reference(ref):
+                    log.msg("connected to %s" % nodeid)
                     if nodeid in self.all_peers:
                         self.connections[nodeid] = ref
                 d.addCallback(_got_reference)
@@ -96,7 +97,7 @@ class Client(service.MultiService, Referenceable):
         for nodeid in lost_peers:
             log.msg("lost peer %s" % nodeid)
             if nodeid in self.all_peers:
-                del self.all_peers[nodeid]
+                self.all_peers.remove(nodeid)
             else:
                 log.msg("weird, I didn't have an entry for them")
             if nodeid in self.connections:
