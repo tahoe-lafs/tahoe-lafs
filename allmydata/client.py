@@ -15,9 +15,8 @@ class Storage(service.MultiService, Referenceable):
 class Client(service.MultiService):
     CERTFILE = "client.pem"
 
-    def __init__(self, queen_host, queen_pburl):
+    def __init__(self, queen_pburl):
         service.MultiService.__init__(self)
-        self.queen_host = queen_host
         self.queen_pburl = queen_pburl
         if os.path.exists(self.CERTFILE):
             self.tub = Tub(certData=open(self.CERTFILE, "rb").read())
@@ -41,7 +40,7 @@ class Client(service.MultiService):
     def startService(self):
         # note: this class can only be started and stopped once.
         service.MultiService.startService(self)
-        d = get_local_ip_for(self.queen_host)
+        d = get_local_ip_for()
         d.addCallback(self._setup_services)
         if self.queen_pburl:
             self.connector = self.tub.connectTo(self.queen_pburl,

@@ -5,7 +5,7 @@ from allmydata import client
 
 class Basic(unittest.TestCase):
     def testLoadable(self):
-        c = client.Client("yumyum", "")
+        c = client.Client("")
         c.startService()
         return c.stopService()
 
