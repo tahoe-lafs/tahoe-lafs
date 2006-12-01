@@ -10,3 +10,7 @@ run-client:
 test:
 	trial allmydata
 
+create_dirs:
+	mkdir queen-basedir
+	mkdir client-basedir
+	mkdir client-basedir/storage
