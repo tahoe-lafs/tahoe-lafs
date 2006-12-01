@@ -81,7 +81,7 @@ class AuthorizedKeysChecker(conchc.SSHPublicKeyDatabase):
 class ModifiedColoredManhole(manhole.ColoredManhole):
     def connectionMade(self):
         manhole.ColoredManhole.connectionMade(self)
-        self.keyHandlers["\x08"] = self.handle_DELETE
+        self.keyHandlers["\x08"] = self.handle_BACKSPACE
         self.keyHandlers["\x15"] = self.handle_KILLLINE
 
     def handle_KILLLINE(self):
