@@ -12,7 +12,7 @@ reactor.installResolver(BlockingResolver())
 class Storage(service.MultiService, Referenceable):
     pass
 
-class Client(service.MultiService):
+class Client(service.MultiService, Referenceable):
     CERTFILE = "client.pem"
     AUTHKEYSFILE = "authorized_keys"
 
@@ -63,7 +63,7 @@ class Client(service.MultiService):
         log.msg("connected to queen")
         self.queen = queen
         queen.notifyOnDisconnect(self._lost_queen)
-        queen.callRemote("hello", urls=self.urls)
+        queen.callRemote("hello", nodeid=self.tub.tubID, self=self, urls=self.urls)
 
     def _lost_queen(self):
         log.msg("lost connection to queen")

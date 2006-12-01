@@ -6,8 +6,19 @@ import os.path
 from allmydata.util.iputil import get_local_ip_for
 
 class Roster(service.MultiService, Referenceable):
-    def remote_hello(self, urls):
-        print "contact from %s" % urls
+    def __init__(self):
+        service.MultiService.__init__(self)
+        self.active_peers = {}
+
+    def remote_hello(self, nodeid, node, urls):
+        log.msg("contact from %s" % nodeid)
+        self.active_peers[nodeid] = urls
+        node.notifyOnDisconnect(self._lost_node, nodeid)
+
+    def _lost_node(self, nodeid):
+        log.msg("lost contact with %s" % nodeid)
+        del self.active_peers[nodeid]
+
 
 class Queen(service.MultiService):
     CERTFILE = "queen.pem"
