@@ -6,7 +6,10 @@ from twisted.application import service
 from twisted.python import log
 from allmydata.util.iputil import get_local_ip_for
 
-from twisted.internet import reactor
+from twisted.internet import defer, reactor
+# this BlockingResolver is because otherwise unit tests must sometimes deal
+# with a leftover DNS lookup thread. I'd prefer to not do this, and use the
+# default ThreadedResolver
 from twisted.internet.base import BlockingResolver
 reactor.installResolver(BlockingResolver())
 
@@ -108,7 +111,7 @@ class Client(service.MultiService, Referenceable):
 
     def get_remote_service(self, nodeid, servicename):
         if nodeid not in self.connections:
-            raise IndexError("no connection to that peer")
+            return defer.fail(IndexError("no connection to that peer"))
         d = self.connections[nodeid].callRemote("get_service",
                                                 name=servicename)
         return d
