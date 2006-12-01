@@ -27,6 +27,7 @@ class Client(service.MultiService, Referenceable):
             f = open(self.CERTFILE, "wb")
             f.write(self.tub.getCertData())
             f.close()
+        self.nodeid = self.tub.tubID
         self.tub.setServiceParent(self)
         self.queen = None # self.queen is either None or a RemoteReference
         self.all_peers = set()
@@ -68,7 +69,7 @@ class Client(service.MultiService, Referenceable):
         self.queen = queen
         queen.notifyOnDisconnect(self._lost_queen)
         queen.callRemote("hello",
-                         nodeid=self.tub.tubID, node=self, pburl=self.my_pburl)
+                         nodeid=self.nodeid, node=self, pburl=self.my_pburl)
 
     def _lost_queen(self):
         log.msg("lost connection to queen")
@@ -79,7 +80,7 @@ class Client(service.MultiService, Referenceable):
 
     def remote_add_peers(self, new_peers):
         for nodeid, pburl in new_peers:
-            if nodeid == self.tub.tubID:
+            if nodeid == self.nodeid:
                 continue
             log.msg("adding peer %s" % nodeid)
             if nodeid in self.all_peers:
