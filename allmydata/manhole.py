@@ -133,9 +133,14 @@ class _BaseManhole(service.MultiService):
 
         def makeNamespace():
             # close over 'self' so we can get access to .parent later
-            namespace = {
-                'app': self.parent,
-                }
+            import types
+            import debugshell
+            debugshell.app = self.parent # make client/queen accesible via 'app'
+            namespace = {}
+            for sym in dir(debugshell):
+                if sym.startswith('__') and sym.endswith('__'):
+                    continue
+                namespace[sym] = getattr(debugshell, sym)
             return namespace
 
         def makeProtocol():
