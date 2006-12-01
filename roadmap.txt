@@ -1,0 +1,37 @@
+
+Connection Management: Brian
+ v1: foolscap, no relay, live == connected-to-queen, broadcast updates, full mesh
+ v2: live != connected-to-queen, connect on demand
+ v3: relay?
+
+Encoding: Zooko
+ v1: fake it (replication), no merkle trees
+ v2: mnet codec
+ v3: merkle tree to verify each share
+ v4: merkle tree to verify each segment
+
+Peer selection:
+ v1: permuted peer list, consistent hash
+
+filetable maintenance:
+ v1: steal webfront code, encodingsdb, queen.set_filetable_uri
+
+checker/repairer:
+ v1: none
+ v2: centralized checker, repair agent
+ v3: nodes also check their own files
+
+storage: RobK
+ v1: no deletion, one directory per verifierid, one owner per share,
+     leases never expire
+ v2: leases expire, delete expired data on demand, multiple owners per share
+
+
+back pocket ideas:
+ when nodes are unable to reach storage servers, make a note of it, inform
+ queen eventually. queen then puts server under observation or otherwise
+ looks for differences between their self-reported availability and the
+ experiences of others
+
+big questions:
+ convergence?
