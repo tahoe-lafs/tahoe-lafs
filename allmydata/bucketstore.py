@@ -41,6 +41,7 @@ class BucketStore(service.MultiService, Referenceable):
         # for now, only returns those created by this process, in this run
         bucket = self._buckets.get(verifierid)
         if bucket:
+            precondition(bucket.is_complete())
             return BucketReader(bucket)
         elif os.path.exists(self._get_bucket_dir(verifierid)):
             bucket_dir = self._get_bucket_dir(verifierid)
