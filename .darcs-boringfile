@@ -34,6 +34,6 @@
 (^|/)Thumbs\.db$
 (^|/)autom4te\.cache($|/)
 
-^client-basedir($|/)
+^client-basedir
 ^queen-basedir($|/)
 ^_trial_temp($|/)
