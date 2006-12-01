@@ -12,6 +12,7 @@ class Roster(service.MultiService, Referenceable):
 class Queen(service.MultiService):
     CERTFILE = "queen.pem"
     PORTNUMFILE = "queen.port"
+    AUTHKEYSFILE = "authorized_keys"
 
     def __init__(self):
         service.MultiService.__init__(self)
@@ -31,6 +32,11 @@ class Queen(service.MultiService):
         # any services with the Tub until after that point
         self.tub.setServiceParent(self)
         self.urls = {}
+        if os.path.exists(self.AUTHKEYSFILE):
+            from allmydata import manhole
+            m = manhole.AuthorizedKeysManhole(8021, self.AUTHKEYSFILE)
+            m.setServiceParent(self)
+            log.msg("AuthorizedKeysManhole listening on 8021")
 
     def _setup_tub(self, local_ip):
         l = self.tub.getListeners()[0]

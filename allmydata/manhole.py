@@ -123,9 +123,8 @@ class _BaseManhole(service.MultiService):
 
         def makeNamespace():
             # close over 'self' so we can get access to .parent later
-            client = self.parent
             namespace = {
-                'client': client,
+                'app': self.parent,
                 }
             return namespace
 
