@@ -4,7 +4,8 @@ from allmydata import client
 from twisted.application import service
 
 queen_pburl = "pb://jekyv6ghn7zinppk7wcvfmk7o4gw76hb@192.168.1.101:42552/roster"
-c = client.Client(queen_pburl)
+yumyum_queen = "pb://cznyjh2pi4bybn3g7pi36bdfnwz356vk@192.168.1.98:56510/roster"
+c = client.Client(yumyum_queen)
 
 application = service.Application("allmydata_client")
 c.setServiceParent(application)
