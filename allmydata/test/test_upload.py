@@ -52,6 +52,13 @@ class NextPeer(unittest.TestCase):
                  "good", # 4
                  ]
 
+    def compare_landlords(self, u, c, expected):
+        exp = [(peerid, bucketnum, c.peers[peerid])
+               for peerid, bucketnum in expected]
+        landlords = [(peerid, bucketnum, proxy.remote_bucket)
+                     for peerid, bucketnum, proxy in u.landlords]
+        self.failUnlessEqual(landlords, exp)
+
     def test_0(self):
         c = FakeClient([])
         u = NextPeerUploader(c)
@@ -74,10 +81,9 @@ class NextPeer(unittest.TestCase):
         d = u.start()
         def _check(res):
             self.failUnlessEqual(u.goodness_points, 2)
-            self.failUnlessEqual(u.landlords,
-                                 [(0, 0, c.peers[0]),
-                                  (4, 1, c.peers[4]),
-                                  ])
+            self.compare_landlords(u, c, [(0, 0),
+                                          (4, 1),
+                                          ])
         d.addCallback(_check)
         return d
 
@@ -90,11 +96,10 @@ class NextPeer(unittest.TestCase):
         d = u.start()
         def _check(res):
             self.failUnlessEqual(u.goodness_points, 3)
-            self.failUnlessEqual(u.landlords,
-                                 [(0, 0, c.peers[0]),
-                                  (4, 1, c.peers[4]),
-                                  (0, 2, c.peers[0]),
-                                  ])
+            self.compare_landlords(u, c, [(0, 0),
+                                          (4, 1),
+                                          (0, 2),
+                                          ])
         d.addCallback(_check)
         return d
 
@@ -114,11 +119,10 @@ class NextPeer(unittest.TestCase):
         d = u.start()
         def _check(res):
             self.failUnlessEqual(u.goodness_points, 3)
-            self.failUnlessEqual(u.landlords,
-                                 [(0, 0, c.peers[0]),
-                                  (3, 1, c.peers[3]),
-                                  (0, 2, c.peers[0]),
-                                  ])
+            self.compare_landlords(u, c, [(0, 0),
+                                          (3, 1),
+                                          (0, 2),
+                                          ])
         d.addCallback(_check)
         return d
 
