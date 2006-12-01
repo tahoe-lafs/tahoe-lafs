@@ -9,12 +9,12 @@ from twisted.internet import reactor
 from twisted.internet.base import BlockingResolver
 reactor.installResolver(BlockingResolver())
 
-class Storage(service.MultiService, Referenceable):
-    name = "storage"
-    pass
+from allmydata.storageserver import StorageServer
 
 class Client(service.MultiService, Referenceable):
     CERTFILE = "client.pem"
+    AUTHKEYSFILE = "authorized_keys"
+    STOREDIR = 'storage'
 
     def __init__(self, queen_pburl):
         service.MultiService.__init__(self)
@@ -31,7 +31,7 @@ class Client(service.MultiService, Referenceable):
         self.queen = None # self.queen is either None or a RemoteReference
         self.all_peers = set()
         self.connections = {}
-        s = Storage()
+        s = StorageServer(self.STOREDIR)
         s.setServiceParent(self)
 
         AUTHKEYSFILEBASE = "authorized_keys."
