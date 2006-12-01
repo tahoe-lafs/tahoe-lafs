@@ -7,10 +7,15 @@ run-queen:
 run-client:
 	cd client-basedir && PYTHONPATH=.. twistd -noy ../client.tac
 
+run-client2:
+	cd client-basedir2 && PYTHONPATH=.. twistd -noy ../client.tac
+
 test:
 	trial allmydata
 
 create_dirs:
-	mkdir queen-basedir
-	mkdir client-basedir
-	mkdir client-basedir/storage
+	mkdir -p queen-basedir
+	mkdir -p client-basedir
+	mkdir -p client-basedir2
+	mkdir -p client-basedir/storage
+	mkdir -p client-basedir2/storage
