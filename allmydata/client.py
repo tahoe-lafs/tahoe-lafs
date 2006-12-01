@@ -102,3 +102,9 @@ class Client(service.MultiService, Referenceable):
                 log.msg("weird, I didn't have an entry for them")
             if nodeid in self.connections:
                 del self.connections[nodeid]
+
+    def get_remote_service(self, nodeid, servicename):
+        if nodeid not in self.connections:
+            raise IndexError("no connection to that peer")
+        d = self.connections[nodeid].callRemote("get_service", name=servicename)
+        return d
