@@ -102,6 +102,7 @@ class Bucket:
         precondition(len(data) + self._bytes_written <= self._size)
         self._data.write(data)
         self._data.flush()
+        self._bytes_written += len(data)
 
     def finalise(self):
         precondition(self._bytes_written == self._size)
