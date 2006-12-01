@@ -83,12 +83,12 @@ class Bucket:
         self._write_attr('bucket_num', str(bucket_num))
 
     def _write_attr(self, name, val):
-        f = file(os.path.join(self._bucket_dir, 'name'), 'wb')
+        f = file(os.path.join(self._bucket_dir, name), 'wb')
         f.write(val)
         f.close()
 
     def _read_attr(self, name):
-        f = file(os.path.join(self._bucket_dir, 'name'), 'wb')
+        f = file(os.path.join(self._bucket_dir, name), 'wb')
         data = f.read()
         f.close()
         return data
