@@ -15,7 +15,6 @@ class Storage(service.MultiService, Referenceable):
 
 class Client(service.MultiService, Referenceable):
     CERTFILE = "client.pem"
-    AUTHKEYSFILE = "authorized_keys"
 
     def __init__(self, queen_pburl):
         service.MultiService.__init__(self)
@@ -35,11 +34,14 @@ class Client(service.MultiService, Referenceable):
         s = Storage()
         s.setServiceParent(self)
 
-        if os.path.exists(self.AUTHKEYSFILE):
-            from allmydata import manhole
-            m = manhole.AuthorizedKeysManhole(8022, self.AUTHKEYSFILE)
-            m.setServiceParent(self)
-            log.msg("AuthorizedKeysManhole listening on 8022")
+        AUTHKEYSFILEBASE = "authorized_keys."
+        for f in os.listdir("."):
+            if f.startswith(AUTHKEYSFILEBASE):
+                portnum = int(f[len(AUTHKEYSFILEBASE):])
+                from allmydata import manhole
+                m = manhole.AuthorizedKeysManhole(portnum, f)
+                m.setServiceParent(self)
+                log.msg("AuthorizedKeysManhole listening on %d" % portnum)
 
     def _setup_tub(self, local_ip):
         portnum = 0
