@@ -42,6 +42,10 @@ class BucketStore(service.MultiService, Referenceable):
         bucket = self._buckets.get(verifierid)
         if bucket:
             return BucketReader(bucket)
+        elif os.path.exists(self._get_bucket_dir(verifierid)):
+            bucket_dir = self._get_bucket_dir(verifierid)
+            bucket = Bucket(bucket_dir, verifierid, None, None)
+            return BucketReader(bucket)
         else:
             return NoSuchBucketError()
 
@@ -72,15 +76,24 @@ class BucketReader(Referenceable):
 
 class Bucket:
     def __init__(self, bucket_dir, verifierid, bucket_num, size):
-        os.mkdir(bucket_dir)
+        if not os.path.isdir(bucket_dir):
+            os.mkdir(bucket_dir)
         self._bucket_dir = bucket_dir
-        self._size = size
         self._verifierid = verifierid
 
-        self._data = file(os.path.join(self._bucket_dir, 'data'), 'wb')
-        self._bytes_written = 0
+        if size is not None:
+            self._size = size
+            self._data = file(os.path.join(self._bucket_dir, 'data'), 'wb')
+            self._bytes_written = 0
+        else:
+            precondition(os.path.exists(os.path.join(self._bucket_dir, 'closed')))
+            self._size = os.path.getsize(os.path.join(self._bucket_dir, 'data'))
+            self._bytes_written = self._size
 
-        self._write_attr('bucket_num', str(bucket_num))
+        if bucket_num is not None:
+            self._write_attr('bucket_num', str(bucket_num))
+        #else:
+            #bucket_num = int(self._read_attr('bucket_num'))
 
     def _write_attr(self, name, val):
         f = file(os.path.join(self._bucket_dir, name), 'wb')
@@ -107,6 +120,7 @@ class Bucket:
     def finalise(self):
         precondition(self._bytes_written == self._size)
         self._data.close()
+        self._write_attr('closed', '')
 
     def is_complete(self):
         return os.path.getsize(os.path.join(self._bucket_dir, 'data')) == self._size
