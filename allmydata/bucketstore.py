@@ -88,7 +88,7 @@ class Bucket:
         f.close()
 
     def _read_attr(self, name):
-        f = file(os.path.join(self._bucket_dir, name), 'wb')
+        f = file(os.path.join(self._bucket_dir, name), 'rb')
         data = f.read()
         f.close()
         return data
