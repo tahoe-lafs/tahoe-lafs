@@ -15,7 +15,8 @@ class StorageServer(service.MultiService, Referenceable):
     name = 'storageserver'
 
     def __init__(self, store_dir):
-        precondition(os.path.isdir(store_dir))
+        if not os.path.isdir(store_dir):
+            os.mkdir(store_dir)
         service.MultiService.__init__(self)
         self._bucketstore = BucketStore(store_dir)
         self._bucketstore.setServiceParent(self)

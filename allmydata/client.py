@@ -13,7 +13,6 @@ from allmydata.storageserver import StorageServer
 
 class Client(service.MultiService, Referenceable):
     CERTFILE = "client.pem"
-    AUTHKEYSFILE = "authorized_keys"
     STOREDIR = 'storage'
 
     def __init__(self, queen_pburl):
