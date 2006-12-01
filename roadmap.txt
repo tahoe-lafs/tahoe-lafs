@@ -1,6 +1,6 @@
 
 Connection Management: Brian
- v1: foolscap, no relay, live == connected-to-queen, broadcast updates, full mesh
+*v1: foolscap, no relay, live == connected-to-queen, broadcast updates, full mesh
  v2: live != connected-to-queen, connect on demand
  v3: relay?
 
