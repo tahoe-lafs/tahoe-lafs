@@ -78,6 +78,16 @@ class AuthorizedKeysChecker(conchc.SSHPublicKeyDatabase):
                 continue
         return 0
 
+class ModifiedColoredManhole(manhole.ColoredManhole):
+    def connectionMade(self):
+        manhole.ColoredManhole.connectionMade(self)
+        self.keyHandlers["\x08"] = self.handle_DELETE
+        self.keyHandlers["\x15"] = self.handle_KILLLINE
+
+    def handle_KILLLINE(self):
+        self.handle_END()
+        for i in range(len(self.lineBuffer)):
+            self.handle_BACKSPACE()
 
 class _BaseManhole(service.MultiService):
     """This provides remote access to a python interpreter (a read/exec/print
@@ -130,7 +140,7 @@ class _BaseManhole(service.MultiService):
 
         def makeProtocol():
             namespace = makeNamespace()
-            p = insults.ServerProtocol(manhole.ColoredManhole, namespace)
+            p = insults.ServerProtocol(ModifiedColoredManhole, namespace)
             return p
 
         self.using_ssh = using_ssh
