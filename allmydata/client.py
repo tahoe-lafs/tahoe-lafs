@@ -1,5 +1,6 @@
 
 import os.path
+import sha
 from foolscap import Tub, Referenceable
 from twisted.application import service
 from twisted.python import log
@@ -108,5 +109,20 @@ class Client(service.MultiService, Referenceable):
     def get_remote_service(self, nodeid, servicename):
         if nodeid not in self.connections:
             raise IndexError("no connection to that peer")
-        d = self.connections[nodeid].callRemote("get_service", name=servicename)
+        d = self.connections[nodeid].callRemote("get_service",
+                                                name=servicename)
         return d
+
+
+    def permute_peerids(self, key, max_count=None):
+        # TODO: eventually reduce memory consumption by doing an insertion
+        # sort of at most max_count elements
+        results = []
+        for nodeid in self.all_peers:
+            permuted = sha.new(key + nodeid).digest()
+            results.append((permuted, nodeid))
+        results.sort()
+        results = [r[1] for r in results]
+        if max_count is None:
+            return results
+        return results[:max_count]
