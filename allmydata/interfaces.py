@@ -2,9 +2,9 @@
 from foolscap.schema import StringConstraint, ListOf, TupleOf, Any, Nothing
 from foolscap import RemoteInterface
 
-Nodeid = StringConstraint(20) # base32 encoded 20-byte SHA1 hash
-PBURL = StringConstraint()
-Tubid = StringConstraint()
+Nodeid = StringConstraint(20) # binary format 20-byte SHA1 hash
+PBURL = StringConstraint(150)
+Verifierid = StringConstraint(20)
 ShareData = StringConstraint(20000)
 # these three are here because Foolscap does not yet support the kind of
 # restriction I really want to apply to these.
@@ -25,8 +25,8 @@ class RIClient(RemoteInterface):
         return Nothing()
 
 class RIStorageServer(RemoteInterface):
-    def allocate_bucket(verifierid=Nodeid, bucket_num=int, size=int,
-                        leaser=Tubid):
+    def allocate_bucket(verifierid=Verifierid, bucket_num=int, size=int,
+                        leaser=Nodeid):
         return RIBucketWriter_
 
 

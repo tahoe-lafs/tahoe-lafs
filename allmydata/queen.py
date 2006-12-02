@@ -5,6 +5,7 @@ from twisted.application import service
 from twisted.python import log
 import os.path
 from allmydata.util.iputil import get_local_ip_for
+from allmydata.util import idlib
 from zope.interface import implements
 from allmydata.interfaces import RIQueenRoster
 
@@ -17,7 +18,7 @@ class Roster(service.MultiService, Referenceable):
         self.connections = {}
 
     def remote_hello(self, nodeid, node, pburl):
-        log.msg("contact from %s" % nodeid)
+        log.msg("contact from %s" % idlib.b2a(nodeid))
         eventually(self._educate_the_new_peer, node)
         eventually(self._announce_new_peer, nodeid, pburl)
         self.phonebook[nodeid] = pburl
@@ -33,7 +34,7 @@ class Roster(service.MultiService, Referenceable):
                                   new_peers=[(new_nodeid, new_node_pburl)])
 
     def _lost_node(self, nodeid):
-        log.msg("lost contact with %s" % nodeid)
+        log.msg("lost contact with %s" % idlib.b2a(nodeid))
         del self.phonebook[nodeid]
         del self.connections[nodeid]
         eventually(self._announce_lost_peer, nodeid)

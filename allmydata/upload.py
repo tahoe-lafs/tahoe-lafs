@@ -1,6 +1,7 @@
 
 from twisted.python import failure
 from twisted.internet import defer
+from allmydata.util import idlib
 
 class NotEnoughPeersError(Exception):
     pass
@@ -64,7 +65,7 @@ class Uploader:
         d = self._peer.get_remote_service(peerid, "storageserver")
         def _got_peer(service):
             bucket_num = len(self.landlords)
-            if self.debug: print "asking %s" % peerid
+            if self.debug: print "asking %s" % idlib.b2a(peerid)
             d2 = service.callRemote("allocate_bucket",
                                     verifierid=self._verifierid,
                                     bucket_num=bucket_num,
@@ -72,7 +73,7 @@ class Uploader:
                                     leaser=self._peer.nodeid)
             def _allocate_response(bucket):
                 if self.debug:
-                    print " peerid %s will grant us a lease" % peerid
+                    print " peerid %s will grant us a lease" % idlib.b2a(peerid)
                 self.landlords.append( (peerid, bucket_num, bucket) )
                 self.goodness_points += 1
                 if self.goodness_points >= self.target_goodness:
@@ -83,7 +84,7 @@ class Uploader:
             return d2
         d.addCallback(_got_peer)
         def _done_with_peer(res):
-            if self.debug: print "done with peer %s:" % peerid
+            if self.debug: print "done with peer %s:" % idlib.b2a(peerid)
             if isinstance(res, failure.Failure):
                 if res.check(HaveAllPeersError):
                     if self.debug: print " all done"

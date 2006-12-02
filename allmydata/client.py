@@ -16,6 +16,7 @@ from twisted.internet.base import BlockingResolver
 reactor.installResolver(BlockingResolver())
 
 from allmydata.storageserver import StorageServer
+from allmydata.util import idlib
 
 class Client(service.MultiService, Referenceable):
     implements(RIClient)
@@ -32,7 +33,7 @@ class Client(service.MultiService, Referenceable):
             f = open(self.CERTFILE, "wb")
             f.write(self.tub.getCertData())
             f.close()
-        self.nodeid = self.tub.tubID
+        self.nodeid = idlib.a2b(self.tub.tubID)
         self.tub.setServiceParent(self)
         self.queen = None # self.queen is either None or a RemoteReference
         self.all_peers = set()
@@ -90,21 +91,21 @@ class Client(service.MultiService, Referenceable):
         for nodeid, pburl in new_peers:
             if nodeid == self.nodeid:
                 continue
-            log.msg("adding peer %s" % nodeid)
+            log.msg("adding peer %s" % idlib.b2a(nodeid))
             if nodeid in self.all_peers:
                 log.msg("weird, I already had an entry for them")
             self.all_peers.add(nodeid)
             if nodeid not in self.connections:
                 d = self.tub.getReference(pburl)
                 def _got_reference(ref):
-                    log.msg("connected to %s" % nodeid)
+                    log.msg("connected to %s" % idlib.b2a(nodeid))
                     if nodeid in self.all_peers:
                         self.connections[nodeid] = ref
                 d.addCallback(_got_reference)
 
     def remote_lost_peers(self, lost_peers):
         for nodeid in lost_peers:
-            log.msg("lost peer %s" % nodeid)
+            log.msg("lost peer %s" % idlib.b2a(nodeid))
             if nodeid in self.all_peers:
                 self.all_peers.remove(nodeid)
             else:
