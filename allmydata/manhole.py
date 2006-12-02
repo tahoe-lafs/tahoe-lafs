@@ -133,7 +133,6 @@ class _BaseManhole(service.MultiService):
 
         def makeNamespace():
             # close over 'self' so we can get access to .parent later
-            import types
             import debugshell
             debugshell.app = self.parent # make client/queen accesible via 'app'
             namespace = {}

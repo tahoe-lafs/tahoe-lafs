@@ -5,7 +5,6 @@ import random
 from twisted.trial import unittest
 from twisted.application import service
 from twisted.internet import defer
-from twisted.python import log
 from foolscap import Tub
 from foolscap.eventual import flushEventualQueue
 

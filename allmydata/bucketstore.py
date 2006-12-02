@@ -7,7 +7,7 @@ from allmydata.util import idlib
 from zope.interface import implements
 from allmydata.interfaces import RIBucketWriter
 
-from amdlib.util.assertutil import precondition
+from amdlib.util.assertutil import precondition, _assert
 
 class NoSuchBucketError(Failure):
     pass

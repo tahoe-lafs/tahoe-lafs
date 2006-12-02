@@ -2,9 +2,6 @@ import os
 
 from foolscap import Referenceable
 from twisted.application import service
-from twisted.python.failure import Failure
-
-from amdlib.util.assertutil import precondition
 
 from allmydata.bucketstore import BucketStore
 from zope.interface import implements
