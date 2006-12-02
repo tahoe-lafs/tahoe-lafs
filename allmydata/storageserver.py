@@ -7,11 +7,14 @@ from twisted.python.failure import Failure
 from amdlib.util.assertutil import precondition
 
 from allmydata.bucketstore import BucketStore
+from zope.interface import implements
+from allmydata.interfaces import RIStorageServer
 
 class BucketAlreadyExistsError(Exception):
     pass
 
 class StorageServer(service.MultiService, Referenceable):
+    implements(RIStorageServer)
     name = 'storageserver'
 
     def __init__(self, store_dir):

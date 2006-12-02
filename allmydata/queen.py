@@ -5,8 +5,12 @@ from twisted.application import service
 from twisted.python import log
 import os.path
 from allmydata.util.iputil import get_local_ip_for
+from zope.interface import implements
+from allmydata.interfaces import RIQueenRoster
 
 class Roster(service.MultiService, Referenceable):
+    implements(RIQueenRoster)
+
     def __init__(self):
         service.MultiService.__init__(self)
         self.phonebook = {}

@@ -33,5 +33,10 @@ back pocket ideas:
  looks for differences between their self-reported availability and the
  experiences of others
 
+ store filetable URI in the first 10 peers that appear after your own nodeid
+ each entry has a sequence number, maybe a timestamp
+ on recovery, find the newest
+
 big questions:
  convergence?
+ peer list maintenance: lots of entries

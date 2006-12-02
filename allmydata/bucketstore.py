@@ -4,6 +4,8 @@ from foolscap import Referenceable
 from twisted.application import service
 from twisted.python.failure import Failure
 from allmydata.util import idlib
+from zope.interface import implements
+from allmydata.interfaces import RIBucketWriter
 
 from amdlib.util.assertutil import precondition
 
@@ -44,6 +46,8 @@ class BucketStore(service.MultiService, Referenceable):
             return NoSuchBucketError()
 
 class Lease(Referenceable):
+    implements(RIBucketWriter)
+
     def __init__(self, verifierid, leaser, bucket):
         self._leaser = leaser
         self._verifierid = verifierid

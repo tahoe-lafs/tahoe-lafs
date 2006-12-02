@@ -5,6 +5,8 @@ from foolscap import Tub, Referenceable
 from twisted.application import service
 from twisted.python import log
 from allmydata.util.iputil import get_local_ip_for
+from zope.interface import implements
+from allmydata.interfaces import RIClient
 
 from twisted.internet import defer, reactor
 # this BlockingResolver is because otherwise unit tests must sometimes deal
@@ -16,6 +18,7 @@ reactor.installResolver(BlockingResolver())
 from allmydata.storageserver import StorageServer
 
 class Client(service.MultiService, Referenceable):
+    implements(RIClient)
     CERTFILE = "client.pem"
     STOREDIR = 'storage'
 
