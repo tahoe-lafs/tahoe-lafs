@@ -7,6 +7,7 @@ from twisted.application import service
 from twisted.internet import defer
 from twisted.python import log
 from foolscap import Tub
+from foolscap.eventual import flushEventualQueue
 
 from allmydata import client
 
@@ -129,4 +130,6 @@ class StorageTest(unittest.TestCase):
         return rssd
 
     def tearDown(self):
-        return self.svc.stopService()
+        d = self.svc.stopService()
+        d.addCallback(lambda res: flushEventualQueue())
+        return d
