@@ -1,0 +1,182 @@
+The "Denver Airport" Protocol
+
+ (discussed whilst returning robk to DEN, 12/1/06)
+
+This is a scaling improvement on the "Select Peers" phase of Tahoe2. The
+problem it tries to address is the storage and maintenance of the 1M-long
+peer list, and the relative difficulty of gathering long-term reliability
+information on a useful numbers of those peers.
+
+In DEN, each node maintains a Chord-style set of connections to other nodes:
+log2(N) "finger" connections to distant peers (the first of which is halfway
+across the ring, the second is 1/4 across, then 1/8th, etc). These
+connections need to be kept alive with relatively short timeouts (5s?), so
+any breaks can be rejoined quickly. In addition to the finger connections,
+each node must also remain aware of K "successor" nodes (those which are
+immediately clockwise of the starting point). The node is not required to
+maintain connections to these, but it should remain informed about their
+contact information, so that it can create connections when necessary. We
+probably need a connection open to the immediate successor at all times.
+
+Since inbound connections exist too, each node has something like 2*log2(N)
+plus up to 2*K connections.
+
+Each node keeps history of uptime/availability of the nodes that it remains
+connected to. Each message that is sent to these peers includes an estimate
+of that peer's availability from the point of view of the outside world. The
+receiving node will average these reports together to determine what kind of
+reliability they should announce to anyone they accept leases for. This
+reliability is expressed as a percentage uptime: P=1.0 means the peer is
+available 24/7, P=0.0 means it is almost never reachable.
+
+
+When a node wishes to publish a file, it creates a list of (verifierid,
+sharenum) tuples, and computes a hash of each tuple. These hashes then
+represent starting points for the landlord search:
+
+ starting_points = [(sharenum,sha(verifierid + str(sharenum)))
+                    for sharenum in range(256)]
+
+The node then constructs a reservation message that contains enough
+information for the potential landlord to evaluate the lease, *and* to make a
+connection back to the starting node:
+
+ message = [verifierid, sharesize, requestor_pburl, starting_points]
+
+The node looks through its list of finger connections and splits this message
+into up to log2(N) smaller messages, each of which contains only the starting
+points that should be sent to that finger connection. Specifically we sent a
+starting_point to a finger A if the nodeid of that finger is <= the
+starting_point and if the next finger B is > starting_point. Each message
+sent out can contain multiple starting_points, each for a different share.
+
+When a finger node receives this message, it performs the same splitting
+algorithm, sending each starting_point to other fingers. Eventually a
+starting_point is received by a node that knows that the starting_point lies
+between itself and its immediate successor. At this point the message
+switches from the "hop" mode (following fingers) to the "search" mode
+(following successors).
+
+While in "search" mode, each node interprets the message as a lease request.
+It checks its storage pool to see if it can accomodate the reservation. If
+so, it uses requestor_pburl to contact the originator and announces its
+willingness to host the given sharenum. This message will include the
+reliability measurement derived from the host's counterclockwise neighbors.
+
+If the recipient cannot host the share, it forwards the request on to the
+next successor, which repeats the cycle. Each message has a maximum hop count
+which limits the number of peers which may be searched before giving up. If a
+node sees itself to be the last such hop, it must establish a connection to
+the originator and let them know that this sharenum could not be hosted.
+
+The originator sends out something like 100 or 200 starting points, and
+expects to get back responses (positive or negative) in a reasonable amount
+of time. (perhaps if we receive half of the responses in time T, wait for a
+total of 2T for the remaining ones). If no response is received with the
+timeout, either re-send the requests for those shares (to different fingers)
+or send requests for completely different shares.
+
+Each share represents some fraction of a point "S", such that the points for
+enough shares to reconstruct the whole file total to 1.0 points. I.e., if we
+construct 100 shares such that we need 25 of them to reconstruct the file,
+then each share represents .04 points.
+
+As the positive responses come in, we accumulate two counters: the capacity
+counter (which gets a full S points for each positive response), and the
+reliability counter (which gets S*(reliability-of-host) points). The capacity
+counter is not allowed to go above some limit (like 4x), as determined by
+provisioning. The node keeps adding leases until the reliability counter has
+gone above some other threshold (larger but close to 1.0).
+
+[ at download time, each host will be able to provide the share back with
+  probability P times an exponential decay factor related to peer death. Sum
+  these probabilities to get the average number of shares that will be
+  available. The interesting thing is actually the distribution of these
+  probabilities, and what threshold you have to pick to get a sufficiently
+  high chance of recovering the file. If there are N identical peers with
+  probability P, the number of recovered shares will have a gaussian
+  distribution with an average of N*P and a stddev of (??). The PMF of this
+  function is an S-curve, with a sharper slope when N is large. The
+  probability of recovering the file is the value of this S curve at the
+  threshold value (the number of necessary shares).
+
+  P is not actually constant across all peers, rather we assume that it has
+  its own distribution: maybe gaussian, more likely exponential (power law).
+  This changes the shape of the S-curve. Assuming that we can characterize
+  the distribution of P with perhaps two parameters (say meanP and stddevP),
+  the S-curve is a function of meanP, stddevP, N, and threshold...
+
+  To get 99.99% or 99.999% recoverability, we must choose a threshold value
+  high enough to accomodate the random variations and uncertainty about the
+  real values of P for each of the hosts we've selected. By counting
+  reliability points, we are trying to estimate meanP/stddevP, so we know
+  which S-curve to look at. The threshold is fixed at 1.0, since that's what
+  erasure coding tells us we need to recover the file. The job is then to add
+  hosts (increasing N and possibly changing meanP/stddevP) until our
+  recoverability probability is as high as we want.
+]
+
+The originator takes all acceptance messages and adds them in order to the
+list of landlords that will be used to host the file. It stops when it gets
+enough reliability points. Note that it does *not* discriminate against
+unreliable hosts: they are less likely to have been found in the first place,
+so we don't need to discriminate against them a second time. We do, however,
+use the reliability points to acknowledge that sending data to an unreliable
+peer is not as useful as sending it to a reliable one (there is still value
+in doing so, though). The remaining reservation-acceptance messages are
+cancelled and then put aside: if we need to make a second pass, we ask those
+peers first.
+
+Shares are then created and published as in Tahoe2. If we lose a connection
+during the encoding, that share is lost. If we lose enough shares, we might
+want to generate more to make up for them: this is done by using the leftover
+acceptance messages first, then triggering a new Chord search for the
+as-yet-unaccepted sharenums. These new peers will get shares from all
+segments that have not yet been finished, then a second pass will be made to
+catch them up on the earlier segments.
+
+Properties of this approach:
+ the total number of peers that each node must know anything about is bounded
+ to something like 2*log2(N) + K, probably on the order of 50 to 100 total.
+ This is the biggest advantage, since in tahoe2 each node must know at least
+ the nodeid of all 1M peers. The maintenance traffic should be much less as a
+ result.
+
+ each node must maintain open (keep-alived) connections to something like
+ 2*log2(N) peers. In tahoe2, this number is 0 (well, probably 1 for the
+ queen).
+
+ during upload, each node must actively use 100 connections to a random set
+ of peers to push data (just like tahoe2).
+
+ The probability that any given share-request gets a response is equal to the
+ number of hops it travels through times the chance that a peer dies while
+ holding on to the message. This should be pretty small, as the message
+ should only be held by a peer for a few seconds (more if their network is
+ busy). In tahoe2, each share-request always gets a response, since they are
+ made directly to the target.
+
+I visualize the peer-lookup process as the originator creating a
+message-in-a-bottle for each share. Each message says "Dear Sir/Madam, I
+would like to store X bytes of data for file Y (share #Z) on a system close
+to (but not below) nodeid STARTING_POINT. If you find this amenable, please
+contact me at PBURL so we can make arrangements.". These messages are then
+bundled together according to their rough destination (STARTING_POINT) and
+sent somewhere in the right direction.
+
+Download happens the same way: lookup messages are disseminated towards the
+STARTING_POINT and then search one successor at a time from there. There are
+two ways that the share might go missing: if the node is now offline (or has
+for some reason lost its shares), or if new nodes have joined since the
+original upload and the search depth (maximum hop count) is too small to
+accomodate the churn. Both result in the same amount of localized traffic. In
+the latter case, a storage node might want to migrate the share closer to the
+starting point, or perhaps just send them a note to remember a pointer for
+the share.
+
+Checking: anyone who wishes to do a filecheck needs to send out a lookup
+message for every potential share. These lookup messages could have a higher
+search depth than usual. It would be useful to know how many peers each
+message went through before being returned: this might be useful to perform
+repair by instructing the old host (which is further from the starting point
+than you'd like) to push their share closer towards the starting point.
