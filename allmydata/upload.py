@@ -13,31 +13,6 @@ class HaveAllPeersError(Exception):
 class TooFullError(Exception):
     pass
 
-class WriterProxy:
-    # make this look like a writable file
-    def __init__(self, remote_bucket):
-        self.remote_bucket = remote_bucket
-        self.good = True
-
-    def _broken(self, why):
-        self.good = False
-        # do something else here
-        return why
-
-    def write(self, data):
-        d = self.remote_bucket.callRemote("write", data=data)
-        d.addErrback(self._broken)
-
-    def seek(self, offset, whence=0):
-        d = self.remote_bucket.callRemote("seek", offset=offset, whence=whence)
-        d.addErrback(self._broken)
-
-    def close(self):
-        if self._broken:
-            raise SomethingBrokeError()
-        d = self.remote_bucket.callRemote("close")
-        d.addErrback(self._broken)
-
 class Uploader:
     debug = False
 
@@ -98,8 +73,7 @@ class Uploader:
             def _allocate_response(bucket):
                 if self.debug:
                     print " peerid %s will grant us a lease" % peerid
-                writer = WriterProxy(bucket)
-                self.landlords.append( (peerid, bucket_num, writer) )
+                self.landlords.append( (peerid, bucket_num, bucket) )
                 self.goodness_points += 1
                 if self.goodness_points >= self.target_goodness:
                     if self.debug: print " we're done!"

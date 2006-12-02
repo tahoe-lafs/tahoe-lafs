@@ -1,8 +1,35 @@
 
 from twisted.trial import unittest
 from twisted.internet import defer
+from cStringIO import StringIO
 
 from allmydata import upload
+
+class StringBucketProxy:
+    # This is for unit tests: make a StringIO look like a RIBucketWriter.
+
+    def __init__(self):
+        self.data = StringIO()
+        self.size = None
+        self.done = False
+
+    def callRemote(self, methname, **kwargs):
+        if methname == "write":
+            return defer.maybeDeferred(self.write, **kwargs)
+        elif methname == "set_size":
+            return defer.maybeDeferred(self.set_size, **kwargs)
+        elif methname == "close":
+            return defer.maybeDeferred(self.close, **kwargs)
+        else:
+            return defer.fail(NameError("no such method named %s" % methname))
+
+    def write(self, data):
+        self.data.write(data)
+    def set_size(self, size):
+        self.size = size
+    def close(self):
+        self.done = True
+
 
 class FakePeer:
     def __init__(self, peerid, response):
@@ -55,9 +82,7 @@ class NextPeer(unittest.TestCase):
     def compare_landlords(self, u, c, expected):
         exp = [(peerid, bucketnum, c.peers[peerid])
                for peerid, bucketnum in expected]
-        landlords = [(peerid, bucketnum, proxy.remote_bucket)
-                     for peerid, bucketnum, proxy in u.landlords]
-        self.failUnlessEqual(landlords, exp)
+        self.failUnlessEqual(u.landlords, exp)
 
     def test_0(self):
         c = FakeClient([])
