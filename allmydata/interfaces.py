@@ -29,8 +29,8 @@ class RIStorageServer(RemoteInterface):
     def allocate_bucket(verifierid=Verifierid, bucket_num=int, size=int,
                         leaser=Nodeid):
         return RIBucketWriter_
-    def get_bucket(verifierid=Verifierid):
-        return RIBucketReader_
+    def get_buckets(verifierid=Verifierid):
+        return ListOf(TupleOf(int, RIBucketReader_))
 
 class RIBucketWriter(RemoteInterface):
     def write(data=ShareData):

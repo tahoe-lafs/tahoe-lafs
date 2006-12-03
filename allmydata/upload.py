@@ -121,6 +121,7 @@ class FileUploader:
 
     def _got_all_peers(self, res):
         d = self._encoder.do_upload(self.landlords)
+        d.addCallback(lambda res: self._verifierid)
         return d
 
 def netstring(s):

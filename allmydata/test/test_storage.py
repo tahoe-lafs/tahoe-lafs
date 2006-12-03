@@ -62,24 +62,21 @@ class StorageTest(unittest.TestCase):
         rssd.addCallback(get_node_again)
         rssd.addCallback(get_storageserver)
 
-        def get_bucket(storageserver):
-            return storageserver.callRemote('get_bucket', verifierid=vid)
-        rssd.addCallback(get_bucket)
+        def get_buckets(storageserver):
+            return storageserver.callRemote('get_buckets', verifierid=vid)
+        rssd.addCallback(get_buckets)
 
-        def read_bucket(bucket):
+        def read_buckets(buckets):
+            self.failUnlessEqual(len(buckets), 1)
+            bucket_num, bucket = buckets[0]
+            self.failUnlessEqual(bucket_num, bnum)
+
             def check_data(bytes_read):
                 self.failUnlessEqual(bytes_read, data)
             d = bucket.callRemote('read')
             d.addCallback(check_data)
-
-            def get_bucket_num(junk):
-                return bucket.callRemote('get_bucket_num')
-            d.addCallback(get_bucket_num)
-            def check_bucket_num(bucket_num):
-                self.failUnlessEqual(bucket_num, bnum)
-            d.addCallback(check_bucket_num)
             return d
-        rssd.addCallback(read_bucket)
+        rssd.addCallback(read_buckets)
 
         return rssd
 

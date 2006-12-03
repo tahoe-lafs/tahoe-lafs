@@ -11,6 +11,7 @@ from twisted.internet import defer
 
 from allmydata.storageserver import StorageServer
 from allmydata.upload import Uploader
+from allmydata.download import Downloader
 from allmydata.util import idlib
 
 class Client(node.Node, Referenceable):
@@ -27,6 +28,7 @@ class Client(node.Node, Referenceable):
         self.connections = {}
         self.add_service(StorageServer(os.path.join(basedir, self.STOREDIR)))
         self.add_service(Uploader())
+        self.add_service(Downloader())
         self.queen_pburl = None
         self.queen_connector = None
 

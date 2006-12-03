@@ -6,6 +6,7 @@ from allmydata import client, queen
 import os
 from foolscap.eventual import flushEventualQueue
 from twisted.python import log
+from allmydata.util import idlib
 
 class SystemTest(unittest.TestCase):
     def setUp(self):
@@ -60,18 +61,25 @@ class SystemTest(unittest.TestCase):
         return d
     test_connections.timeout = 20
 
-    def test_upload(self):
+    def test_upload_and_download(self):
+        DATA = "Some data to upload\n"
         d = self.set_up_nodes()
-        def _upload(res):
+        def _do_upload(res):
             log.msg("UPLOADING")
             u = self.clients[0].getServiceNamed("uploader")
-            d1 = u.upload_data("Some data to upload\n")
+            d1 = u.upload_data(DATA)
             return d1
-        d.addCallback(_upload)
-        def _done(res):
-            log.msg("DONE")
-            print "upload finished"
-        d.addCallback(_done)
+        d.addCallback(_do_upload)
+        def _upload_done(verifierid):
+            log.msg("upload finished: verifierid=%s" % idlib.b2a(verifierid))
+            dl = self.clients[1].getServiceNamed("downloader")
+            d1 = dl.download_to_data(verifierid)
+            return d1
+        d.addCallback(_upload_done)
+        def _download_done(data):
+            log.msg("download finished")
+            self.failUnlessEqual(data, DATA)
+        d.addCallback(_download_done)
         return d
-    test_upload.timeout = 20
+    test_upload_and_download.timeout = 20
 

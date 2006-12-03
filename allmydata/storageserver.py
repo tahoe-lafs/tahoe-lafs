@@ -29,5 +29,5 @@ class StorageServer(service.MultiService, Referenceable):
                                                   idlib.b2a(leaser))
         return lease
 
-    def remote_get_bucket(self, verifierid):
-        return self._bucketstore.get_bucket(verifierid)
+    def remote_get_buckets(self, verifierid):
+        return self._bucketstore.get_buckets(verifierid)

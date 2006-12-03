@@ -37,13 +37,15 @@ class BucketStore(service.MultiService, Referenceable):
         self._leases.add(lease)
         return lease
 
-    def get_bucket(self, verifierid):
+    def get_buckets(self, verifierid):
         # for now, only returns those created by this process, in this run
         bucket_dir = self._get_bucket_dir(verifierid)
         if os.path.exists(bucket_dir):
-            return BucketReader(ReadBucket(bucket_dir, verifierid))
+            b = ReadBucket(bucket_dir, verifierid)
+            br = BucketReader(b)
+            return [(b.get_bucket_num(), br)]
         else:
-            return NoSuchBucketError()
+            return []
 
 class Lease(Referenceable):
     implements(RIBucketWriter)
