@@ -33,8 +33,8 @@ class FileUploader:
         filehandle.seek(0)
 
     def make_encoder(self):
-        self._encoder = encode.Encoder(self._filehandle, 4)
         self._shares = 4
+        self._encoder = encode.Encoder(self._filehandle, self._shares)
         self._share_size = self._size
 
     def set_verifierid(self, vid):
