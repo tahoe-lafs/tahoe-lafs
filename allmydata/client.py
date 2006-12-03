@@ -7,12 +7,7 @@ from zope.interface import implements
 from allmydata.interfaces import RIClient
 from allmydata import node
 
-from twisted.internet import defer, reactor
-# this BlockingResolver is because otherwise unit tests must sometimes deal
-# with a leftover DNS lookup thread. I'd prefer to not do this, and use the
-# default ThreadedResolver
-from twisted.internet.base import BlockingResolver
-reactor.installResolver(BlockingResolver())
+from twisted.internet import defer
 
 from allmydata.storageserver import StorageServer
 from allmydata.upload import Uploader
@@ -34,7 +29,10 @@ class Client(node.Node, Referenceable):
         self.add_service(Uploader())
         self.queen_pburl = None
         self.queen_connector = None
-        self.my_pburl = None
+
+    def tub_ready(self):
+        self.my_pburl = self.tub.registerReference(self)
+        self.maybe_connect_to_queen()
 
     def set_queen_pburl(self, queen_pburl):
         self.queen_pburl = queen_pburl
@@ -52,10 +50,6 @@ class Client(node.Node, Referenceable):
             return
         self.queen_connector = self.tub.connectTo(self.queen_pburl,
                                                   self._got_queen)
-
-    def tub_ready(self, tub):
-        self.my_pburl = self.tub.registerReference(self)
-        self.maybe_connect_to_queen()
 
     def stopService(self):
         if self.queen_connector:

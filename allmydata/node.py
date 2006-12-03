@@ -12,6 +12,7 @@ class Node(service.MultiService):
     NODETYPE = "unknown NODETYPE"
     PORTNUMFILE = None
     CERTFILE = None
+    LOCAL_IP_FILE = "local_ip"
 
     def __init__(self, basedir="."):
         service.MultiService.__init__(self)
@@ -50,8 +51,15 @@ class Node(service.MultiService):
                 log.msg("AuthorizedKeysManhole listening on %d" % portnum)
 
     def _setup_tub(self, local_ip):
+        # we can't get a dynamically-assigned portnum until our Tub is
+        # running, which means after startService.
         l = self.tub.getListeners()[0]
         portnum = l.getPortnum()
+        local_ip_filename = os.path.join(self.basedir, self.LOCAL_IP_FILE)
+        if os.path.exists(local_ip_filename):
+            f = open(local_ip_filename, "r")
+            local_ip = f.read()
+            f.close()
         self.tub.setLocation("%s:%d" % (local_ip, portnum))
         if not os.path.exists(self._portnumfile):
             # record which port we're listening on, so we can grab the same
@@ -62,8 +70,8 @@ class Node(service.MultiService):
         self.tub.setLocation("%s:%d" % (local_ip, l.getPortnum()))
         return self.tub
 
-    def tub_ready(self, tub):
-        # this is called when the Tub has a location
+    def tub_ready(self):
+        # called when the Tub is available for registerReference
         pass
 
     def add_service(self, s):
@@ -73,8 +81,7 @@ class Node(service.MultiService):
     def startService(self):
         # note: this class can only be started and stopped once.
         service.MultiService.startService(self)
-        d = get_local_ip_for()
-        d.addCallback(self._setup_tub)
-        d.addCallback(self.tub_ready)
-        d.addCallback(lambda res: log.msg("%s running" % self.NODETYPE))
-
+        local_ip = get_local_ip_for()
+        self._setup_tub(local_ip)
+        self.tub_ready()
+        log.msg("%s running" % self.NODETYPE)

@@ -1,4 +1,5 @@
 
+import os.path
 from foolscap import Referenceable
 from foolscap.eventual import eventually
 from twisted.application import service
@@ -53,8 +54,12 @@ class Queen(node.Node):
         node.Node.__init__(self, basedir)
         self.urls = {}
 
-    def tub_ready(self, tub):
+    def tub_ready(self):
         r = self.add_service(Roster())
         self.urls["roster"] = self.tub.registerReference(r, "roster")
         log.msg(" roster is at %s" % self.urls["roster"])
+        f = open(os.path.join(self.basedir, "roster_pburl"), "w")
+        f.write(self.urls["roster"] + "\n")
+        f.close()
+
 
