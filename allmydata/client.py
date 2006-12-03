@@ -1,5 +1,5 @@
 
-import sha
+import os, sha
 from foolscap import Referenceable
 from twisted.application import service
 from twisted.python import log
@@ -25,7 +25,7 @@ class Client(node.Node, Referenceable):
         self.queen = None # self.queen is either None or a RemoteReference
         self.all_peers = set()
         self.connections = {}
-        self.add_service(StorageServer(self.STOREDIR))
+        self.add_service(StorageServer(os.path.join(basedir, self.STOREDIR)))
         self.add_service(Uploader())
         self.queen_pburl = None
         self.queen_connector = None
