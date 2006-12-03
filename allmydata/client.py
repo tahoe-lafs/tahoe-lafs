@@ -82,11 +82,13 @@ class Client(node.Node, Referenceable):
             self.all_peers.add(nodeid)
             if nodeid not in self.connections:
                 d = self.tub.getReference(pburl)
-                def _got_reference(ref):
-                    self.log("connected to %s" % idlib.b2a(nodeid))
-                    if nodeid in self.all_peers:
-                        self.connections[nodeid] = ref
-                d.addCallback(_got_reference)
+                def _got_reference(ref, which_nodeid):
+                    self.log("connected to %s" % idlib.b2a(which_nodeid))
+                    if which_nodeid in self.all_peers:
+                        self.connections[which_nodeid] = ref
+                    else:
+                        log.msg(" ignoring it because we no longer want to talk to them")
+                d.addCallback(_got_reference, nodeid)
 
     def remote_lost_peers(self, lost_peers):
         for nodeid in lost_peers:
