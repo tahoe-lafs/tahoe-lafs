@@ -46,6 +46,8 @@ class FileUploader:
 
 
     def start(self):
+        if self.debug:
+            print "starting upload"
         # first step: who should we upload to?
 
         # maybe limit max_peers to 2*len(self.shares), to reduce memory
@@ -53,6 +55,8 @@ class FileUploader:
         max_peers = None
 
         self.permuted = self._peer.permute_peerids(self._verifierid, max_peers)
+        for p in self.permuted:
+            assert isinstance(p, str)
         # we will shrink self.permuted as we give up on peers
         self.peer_index = 0
         self.goodness_points = 0

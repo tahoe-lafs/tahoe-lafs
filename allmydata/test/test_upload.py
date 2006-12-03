@@ -56,13 +56,14 @@ class FakeClient:
             if r == "disconnected":
                 self.peers.append(None)
             else:
-                self.peers.append(FakePeer(peerid, r))
+                self.peers.append(FakePeer(str(peerid), r))
 
     def permute_peerids(self, key, max_peers):
         assert max_peers == None
-        return range(len(self.peers))
+        return [str(i) for i in range(len(self.peers))]
+
     def get_remote_service(self, peerid, name):
-        peer = self.peers[peerid]
+        peer = self.peers[int(peerid)]
         if not peer:
             return defer.fail(IndexError("no connection to that peer"))
         return defer.succeed(peer)
@@ -80,7 +81,7 @@ class NextPeer(unittest.TestCase):
                  ]
 
     def compare_landlords(self, u, c, expected):
-        exp = [(peerid, bucketnum, c.peers[peerid])
+        exp = [(str(peerid), bucketnum, c.peers[peerid])
                for peerid, bucketnum in expected]
         self.failUnlessEqual(u.landlords, exp)
 
