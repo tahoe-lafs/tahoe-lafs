@@ -18,18 +18,20 @@ class Roster(service.MultiService, Referenceable):
         self.connections = {}
 
     def remote_hello(self, nodeid, node, pburl):
-        log.msg("contact from %s" % idlib.b2a(nodeid))
-        eventually(self._educate_the_new_peer, node)
-        eventually(self._announce_new_peer, nodeid, pburl)
+        log.msg("roster: contact from %s" % idlib.b2a(nodeid))
+        eventually(self._educate_the_new_peer,
+                   node, list(self.phonebook.items()))
+        eventually(self._announce_new_peer,
+                   nodeid, pburl, list(self.connections.values()))
         self.phonebook[nodeid] = pburl
         self.connections[nodeid] = node
         node.notifyOnDisconnect(self._lost_node, nodeid)
 
-    def _educate_the_new_peer(self, node):
-        node.callRemote("add_peers", new_peers=list(self.phonebook.items()))
+    def _educate_the_new_peer(self, node, new_peers):
+        node.callRemote("add_peers", new_peers=new_peers)
 
-    def _announce_new_peer(self, new_nodeid, new_node_pburl):
-        for targetnode in self.connections.values():
+    def _announce_new_peer(self, new_nodeid, new_node_pburl, peers):
+        for targetnode in peers:
             targetnode.callRemote("add_peers",
                                   new_peers=[(new_nodeid, new_node_pburl)])
 

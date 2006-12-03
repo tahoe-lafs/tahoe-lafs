@@ -77,7 +77,8 @@ class Client(node.Node, Referenceable):
                 continue
             self.log("adding peer %s" % idlib.b2a(nodeid))
             if nodeid in self.all_peers:
-                log.msg("weird, I already had an entry for them")
+                self.log("weird, I already had an entry for them")
+                return
             self.all_peers.add(nodeid)
             if nodeid not in self.connections:
                 d = self.tub.getReference(pburl)
@@ -100,8 +101,8 @@ class Client(node.Node, Referenceable):
     def get_remote_service(self, nodeid, servicename):
         if nodeid not in self.connections:
             return defer.fail(IndexError("no connection to that peer"))
-        d = self.connections[nodeid].callRemote("get_service",
-                                                name=servicename)
+        peer = self.connections[nodeid]
+        d = peer.callRemote("get_service", name=servicename)
         return d
 
 
