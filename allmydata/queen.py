@@ -34,7 +34,7 @@ class Roster(service.MultiService, Referenceable):
                                   new_peers=[(new_nodeid, new_node_pburl)])
 
     def _lost_node(self, nodeid):
-        log.msg("lost contact with %s" % idlib.b2a(nodeid))
+        log.msg("roster: lost contact with %s" % idlib.b2a(nodeid))
         del self.phonebook[nodeid]
         del self.connections[nodeid]
         eventually(self._announce_lost_peer, nodeid)
@@ -57,7 +57,7 @@ class Queen(node.Node):
     def tub_ready(self):
         r = self.add_service(Roster())
         self.urls["roster"] = self.tub.registerReference(r, "roster")
-        log.msg(" roster is at %s" % self.urls["roster"])
+        self.log(" roster is at %s" % self.urls["roster"])
         f = open(os.path.join(self.basedir, "roster_pburl"), "w")
         f.write(self.urls["roster"] + "\n")
         f.close()

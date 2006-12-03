@@ -29,6 +29,7 @@ class Node(service.MultiService):
             f.write(self.tub.getCertData())
             f.close()
         self.nodeid = idlib.a2b(self.tub.tubID)
+        self.short_nodeid = self.tub.tubID[:4] # ready for printing
         portnum = 0
         assert self.PORTNUMFILE, "Your node.Node subclass must provide PORTNUMFILE"
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
@@ -48,7 +49,10 @@ class Node(service.MultiService):
                 from allmydata import manhole
                 m = manhole.AuthorizedKeysManhole(portnum, keyfile)
                 m.setServiceParent(self)
-                log.msg("AuthorizedKeysManhole listening on %d" % portnum)
+                self.log("AuthorizedKeysManhole listening on %d" % portnum)
+
+    def log(self, msg):
+        log.msg(self.short_nodeid + ": " + msg)
 
     def _setup_tub(self, local_ip):
         # we can't get a dynamically-assigned portnum until our Tub is
@@ -84,4 +88,4 @@ class Node(service.MultiService):
         local_ip = get_local_ip_for()
         self._setup_tub(local_ip)
         self.tub_ready()
-        log.msg("%s running" % self.NODETYPE)
+        self.log("%s running" % self.NODETYPE)

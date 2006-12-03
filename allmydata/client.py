@@ -46,7 +46,7 @@ class Client(node.Node, Referenceable):
         if self.queen_connector:
             return
         if not self.queen_pburl:
-            log.msg("no queen_pburl, cannot connect")
+            self.log("no queen_pburl, cannot connect")
             return
         self.queen_connector = self.tub.connectTo(self.queen_pburl,
                                                   self._got_queen)
@@ -58,14 +58,14 @@ class Client(node.Node, Referenceable):
         return service.MultiService.stopService(self)
 
     def _got_queen(self, queen):
-        log.msg("connected to queen")
+        self.log("connected to queen")
         self.queen = queen
         queen.notifyOnDisconnect(self._lost_queen)
         queen.callRemote("hello",
                          nodeid=self.nodeid, node=self, pburl=self.my_pburl)
 
     def _lost_queen(self):
-        log.msg("lost connection to queen")
+        self.log("lost connection to queen")
         self.queen = None
 
     def remote_get_service(self, name):
@@ -75,25 +75,25 @@ class Client(node.Node, Referenceable):
         for nodeid, pburl in new_peers:
             if nodeid == self.nodeid:
                 continue
-            log.msg("adding peer %s" % idlib.b2a(nodeid))
+            self.log("adding peer %s" % idlib.b2a(nodeid))
             if nodeid in self.all_peers:
                 log.msg("weird, I already had an entry for them")
             self.all_peers.add(nodeid)
             if nodeid not in self.connections:
                 d = self.tub.getReference(pburl)
                 def _got_reference(ref):
-                    log.msg("connected to %s" % idlib.b2a(nodeid))
+                    self.log("connected to %s" % idlib.b2a(nodeid))
                     if nodeid in self.all_peers:
                         self.connections[nodeid] = ref
                 d.addCallback(_got_reference)
 
     def remote_lost_peers(self, lost_peers):
         for nodeid in lost_peers:
-            log.msg("lost peer %s" % idlib.b2a(nodeid))
+            self.log("lost peer %s" % idlib.b2a(nodeid))
             if nodeid in self.all_peers:
                 self.all_peers.remove(nodeid)
             else:
-                log.msg("weird, I didn't have an entry for them")
+                self.log("weird, I didn't have an entry for them")
             if nodeid in self.connections:
                 del self.connections[nodeid]
 
