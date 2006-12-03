@@ -6,6 +6,9 @@ from twisted.application import service
 from allmydata.util import idlib
 from allmydata import encode
 
+from cStringIO import StringIO
+import sha
+
 class NotEnoughPeersError(Exception):
     pass
 
@@ -16,12 +19,6 @@ class HaveAllPeersError(Exception):
 # this wants to live in storage, not here
 class TooFullError(Exception):
     pass
-
-def upload_a_file(peer, filename):
-    u = Uploader(peer)
-    u.set_filehandle(open(filename,"rb"))
-    u.set_verifierid(hashthingy(filethingy))
-    u.make_encoder()
 
 class FileUploader:
     debug = False
@@ -133,7 +130,7 @@ class Uploader(service.MultiService):
     """
     name = "uploader"
 
-    def _compute_verifierid(self, filehandle):
+    def _compute_verifierid(self, f):
         hasher = sha.new(netstring("allmydata_v1_verifierid"))
         f.seek(0)
         hasher.update(f.read())
@@ -141,11 +138,24 @@ class Uploader(service.MultiService):
         # note: this is only of the plaintext data, no encryption yet
         return hasher.digest()
 
-    def upload_file_by_name(self, filename):
+    def upload_filename(self, filename):
+        f = open(filename, "rb")
+        def _done(res):
+            f.close()
+            return res
+        d = self.upload_filehandle(f)
+        d.addBoth(_done)
+        return d
+
+    def upload_data(self, data):
+        f = StringIO(data)
+        return self.upload_filehandle(f)
+
+    def upload_filehandle(self, f):
         assert self.parent
         assert self.running
-        f = open(filename, "rb")
         u = FileUploader(self.parent)
+        u.set_filehandle(f)
         u.set_verifierid(self._compute_verifierid(f))
         u.make_encoder()
         d = u.start()
