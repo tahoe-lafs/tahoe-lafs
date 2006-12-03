@@ -1,5 +1,5 @@
 
-from twisted.python import failure
+from twisted.python import failure, log
 from twisted.internet import defer
 from twisted.application import service
 
@@ -43,6 +43,7 @@ class FileUploader:
 
 
     def start(self):
+        log.msg("starting upload")
         if self.debug:
             print "starting upload"
         # first step: who should we upload to?
