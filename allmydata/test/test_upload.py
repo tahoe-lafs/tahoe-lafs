@@ -67,7 +67,7 @@ class FakeClient:
             return defer.fail(IndexError("no connection to that peer"))
         return defer.succeed(peer)
 
-class NextPeerUploader(upload.Uploader):
+class NextPeerUploader(upload.FileUploader):
     def _got_all_peers(self, res):
         return res
 
@@ -150,4 +150,3 @@ class NextPeer(unittest.TestCase):
                                           ])
         d.addCallback(_check)
         return d
-

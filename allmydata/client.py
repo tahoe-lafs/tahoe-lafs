@@ -1,12 +1,11 @@
 
-import os.path
 import sha
-from foolscap import Tub, Referenceable
+from foolscap import Referenceable
 from twisted.application import service
 from twisted.python import log
-from allmydata.util.iputil import get_local_ip_for
 from zope.interface import implements
 from allmydata.interfaces import RIClient
+from allmydata import node
 
 from twisted.internet import defer, reactor
 # this BlockingResolver is because otherwise unit tests must sometimes deal
@@ -16,62 +15,53 @@ from twisted.internet.base import BlockingResolver
 reactor.installResolver(BlockingResolver())
 
 from allmydata.storageserver import StorageServer
+from allmydata.upload import Uploader
 from allmydata.util import idlib
 
-class Client(service.MultiService, Referenceable):
+class Client(node.Node, Referenceable):
     implements(RIClient)
     CERTFILE = "client.pem"
+    PORTNUMFILE = "client.port"
     STOREDIR = 'storage'
+    NODETYPE = "client"
 
-    def __init__(self, queen_pburl):
-        service.MultiService.__init__(self)
-        self.queen_pburl = queen_pburl
-        if os.path.exists(self.CERTFILE):
-            self.tub = Tub(certData=open(self.CERTFILE, "rb").read())
-        else:
-            self.tub = Tub()
-            f = open(self.CERTFILE, "wb")
-            f.write(self.tub.getCertData())
-            f.close()
-        self.nodeid = idlib.a2b(self.tub.tubID)
-        self.tub.setServiceParent(self)
+    def __init__(self, basedir="."):
+        node.Node.__init__(self, basedir)
         self.queen = None # self.queen is either None or a RemoteReference
         self.all_peers = set()
         self.connections = {}
-        s = StorageServer(self.STOREDIR)
-        s.setServiceParent(self)
+        self.add_service(StorageServer(self.STOREDIR))
+        self.add_service(Uploader())
+        self.queen_pburl = None
+        self.queen_connector = None
+        self.my_pburl = None
 
-        AUTHKEYSFILEBASE = "authorized_keys."
-        for f in os.listdir("."):
-            if f.startswith(AUTHKEYSFILEBASE):
-                portnum = int(f[len(AUTHKEYSFILEBASE):])
-                from allmydata import manhole
-                m = manhole.AuthorizedKeysManhole(portnum, f)
-                m.setServiceParent(self)
-                log.msg("AuthorizedKeysManhole listening on %d" % portnum)
+    def set_queen_pburl(self, queen_pburl):
+        self.queen_pburl = queen_pburl
+        self.maybe_connect_to_queen()
 
-    def _setup_tub(self, local_ip):
-        portnum = 0
-        l = self.tub.listenOn("tcp:%d" % portnum)
-        self.tub.setLocation("%s:%d" % (local_ip, l.getPortnum()))
-        self.my_pburl = self.tub.registerReference(self)
-
-    def startService(self):
-        # note: this class can only be started and stopped once.
-        service.MultiService.startService(self)
-        d = get_local_ip_for()
-        d.addCallback(self._setup_tub)
-        if self.queen_pburl:
-            # TODO: maybe this should wait for tub.setLocation ?
-            self.connector = self.tub.connectTo(self.queen_pburl,
-                                                self._got_queen)
-        else:
+    def maybe_connect_to_queen(self):
+        if not self.running:
+            return
+        if not self.my_pburl:
+            return
+        if self.queen_connector:
+            return
+        if not self.queen_pburl:
             log.msg("no queen_pburl, cannot connect")
+            return
+        self.queen_connector = self.tub.connectTo(self.queen_pburl,
+                                                  self._got_queen)
+
+    def tub_ready(self, tub):
+        self.my_pburl = self.tub.registerReference(self)
+        self.maybe_connect_to_queen()
 
     def stopService(self):
-        if self.queen_pburl:
-            self.connector.stopConnecting()
-        service.MultiService.stopService(self)
+        if self.queen_connector:
+            self.queen_connector.stopConnecting()
+            self.queen_connector = None
+        return service.MultiService.stopService(self)
 
     def _got_queen(self, queen):
         log.msg("connected to queen")

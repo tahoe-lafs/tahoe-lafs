@@ -1,7 +1,10 @@
 
 from twisted.python import failure
 from twisted.internet import defer
+from twisted.application import service
+
 from allmydata.util import idlib
+from allmydata import encode
 
 class NotEnoughPeersError(Exception):
     pass
@@ -14,25 +17,32 @@ class HaveAllPeersError(Exception):
 class TooFullError(Exception):
     pass
 
-class Uploader:
+def upload_a_file(peer, filename):
+    u = Uploader(peer)
+    u.set_filehandle(open(filename,"rb"))
+    u.set_verifierid(hashthingy(filethingy))
+    u.make_encoder()
+
+class FileUploader:
     debug = False
 
     def __init__(self, peer):
         self._peer = peer
 
-    def set_encoder(self, encoder):
-        self._encoder = encoder
+    def set_filehandle(self, filehandle):
+        self._filehandle = filehandle
+        filehandle.seek(0, 2)
+        self._size = filehandle.tell()
+        filehandle.seek(0)
+
+    def make_encoder(self):
+        self._encoder = encode.Encoder(self._filehandle, 4)
+        self._shares = 4
+        self._share_size = self._size
 
     def set_verifierid(self, vid):
         assert isinstance(vid, str)
         self._verifierid = vid
-
-    def set_filesize(self, size):
-        self._size = size
-
-    def _calculate_parameters(self):
-        self._shares = 100
-        self._share_size = self._size / 25
 
 
     def start(self):
@@ -109,5 +119,31 @@ class Uploader:
 
     def _got_all_peers(self, res):
         d = self._encoder.do_upload(self.landlords)
+        return d
+
+def netstring(s):
+    return "%d:%s," % (len(s), s)
+
+class Uploader(service.MultiService):
+    """I am a service that allows file uploading.
+    """
+    name = "uploader"
+
+    def _compute_verifierid(self, filehandle):
+        hasher = sha.new(netstring("allmydata_v1_verifierid"))
+        f.seek(0)
+        hasher.update(f.read())
+        f.seek(0)
+        # note: this is only of the plaintext data, no encryption yet
+        return hasher.digest()
+
+    def upload_file_by_name(self, filename):
+        assert self.parent
+        assert self.running
+        f = open(filename, "rb")
+        u = FileUploader(self.parent)
+        u.set_verifierid(self._compute_verifierid(f))
+        u.make_encoder()
+        d = u.start()
         return d
 
