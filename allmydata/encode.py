@@ -7,9 +7,10 @@ class Encoder(object):
         self.m = m
 
     def do_upload(self, landlords):
+        dl = []
         data = self.infile.read()
         for (peerid, bucket_num, remotebucket) in landlords:
-            remotebucket.callRemote('write', data)
-            remotebucket.callRemote('finalise')
+            dl.append(remotebucket.callRemote('write', data))
+            dl.append(remotebucket.callRemote('close'))
 
-        return defer.succeed()
+        return defer.DeferredList(dl)
