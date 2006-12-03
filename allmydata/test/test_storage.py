@@ -46,7 +46,7 @@ class StorageTest(unittest.TestCase):
             def write_some(junk, bytes):
                 return bucket.callRemote('write', data=bytes)
             def finalise(junk):
-                return bucket.callRemote('finalise')
+                return bucket.callRemote('close')
             off1 = len(data) / 2
             off2 = 3 * len(data) / 4
             d = defer.succeed(None)
@@ -109,7 +109,7 @@ class StorageTest(unittest.TestCase):
             def write_some(junk, bytes):
                 return bucket.callRemote('write', data=bytes)
             def finalise(junk):
-                return bucket.callRemote('finalise')
+                return bucket.callRemote('close')
             off1 = len(data) / 2
             off2 = 3 * len(data) / 4
             d = defer.succeed(None)
@@ -122,11 +122,22 @@ class StorageTest(unittest.TestCase):
             return d
         rssd.addCallback(write_to_bucket)
 
-        def should_fail(f):
-            f.trap(AssertionError)
-
-        rssd.addCallbacks(self.fail, should_fail)
+        self.deferredShouldFail(rssd, ftype=AssertionError)
         return rssd
+
+    def deferredShouldFail(self, d, ftype=None, checker=None):
+
+        def _worked(res):
+            self.fail("hey, this was supposed to fail, not return %s" % res)
+        if not ftype and not checker:
+            d.addCallbacks(_worked,
+                           lambda f: None)
+        elif ftype and not checker:
+            d.addCallbacks(_worked,
+                           lambda f: f.trap(ftype) or None)
+        else:
+            d.addCallbacks(_worked,
+                           checker)
 
     def tearDown(self):
         d = self.svc.stopService()

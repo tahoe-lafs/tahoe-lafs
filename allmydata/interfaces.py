@@ -6,11 +6,12 @@ Nodeid = StringConstraint(20) # binary format 20-byte SHA1 hash
 PBURL = StringConstraint(150)
 Verifierid = StringConstraint(20)
 ShareData = StringConstraint(20000)
-# these three are here because Foolscap does not yet support the kind of
+# these four are here because Foolscap does not yet support the kind of
 # restriction I really want to apply to these.
 RIClient_ = Any()
 Referenceable_ = Any()
 RIBucketWriter_ = Any()
+RIBucketReader_ = Any()
 
 class RIQueenRoster(RemoteInterface):
     def hello(nodeid=Nodeid, node=RIClient_, pburl=PBURL):
@@ -28,7 +29,8 @@ class RIStorageServer(RemoteInterface):
     def allocate_bucket(verifierid=Verifierid, bucket_num=int, size=int,
                         leaser=Nodeid):
         return RIBucketWriter_
-
+    def get_bucket(verifierid=Verifierid):
+        return RIBucketReader_
 
 class RIBucketWriter(RemoteInterface):
     def write(data=ShareData):
@@ -39,5 +41,13 @@ class RIBucketWriter(RemoteInterface):
 
     def close():
         return Nothing()
+
+
+class RIBucketReader(RemoteInterface):
+    def get_bucket_num():
+        return int
+
+    def read():
+        return ShareData
 
 

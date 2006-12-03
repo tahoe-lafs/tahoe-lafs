@@ -6,6 +6,7 @@ from twisted.application import service
 from allmydata.bucketstore import BucketStore
 from zope.interface import implements
 from allmydata.interfaces import RIStorageServer
+from allmydata.util import idlib
 
 class BucketAlreadyExistsError(Exception):
     pass
@@ -24,7 +25,8 @@ class StorageServer(service.MultiService, Referenceable):
     def remote_allocate_bucket(self, verifierid, bucket_num, size, leaser):
         if self._bucketstore.has_bucket(verifierid):
             raise BucketAlreadyExistsError()
-        lease = self._bucketstore.allocate_bucket(verifierid, bucket_num, size, leaser)
+        lease = self._bucketstore.allocate_bucket(verifierid, bucket_num, size,
+                                                  idlib.b2a(leaser))
         return lease
 
     def remote_get_bucket(self, verifierid):

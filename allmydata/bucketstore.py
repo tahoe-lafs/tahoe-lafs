@@ -5,7 +5,7 @@ from twisted.application import service
 from twisted.python.failure import Failure
 from allmydata.util import idlib
 from zope.interface import implements
-from allmydata.interfaces import RIBucketWriter
+from allmydata.interfaces import RIBucketWriter, RIBucketReader
 
 from amdlib.util.assertutil import precondition, _assert
 
@@ -59,10 +59,12 @@ class Lease(Referenceable):
     def remote_write(self, data):
         self._bucket.write(data)
 
-    def remote_finalise(self):
-        self._bucket.finalise()
+    def remote_close(self):
+        self._bucket.close()
 
 class BucketReader(Referenceable):
+    implements(RIBucketReader)
+
     def __init__(self, bucket):
         self._bucket = bucket
 
@@ -112,7 +114,7 @@ class WriteBucket(Bucket):
         self._data.flush()
         self._bytes_written += len(data)
 
-    def finalise(self):
+    def close(self):
         precondition(self._bytes_written == self._size)
         self._data.close()
         self._write_attr('closed', '')
