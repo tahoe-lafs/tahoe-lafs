@@ -8,7 +8,7 @@ Connection Management: Brian
 
 Encoding: Zooko
 *v1: fake it (replication), no merkle trees
- v2: mnet codec
+ v2: mnet codec, Reed-Solomon?
  v3: merkle tree to verify each share
  v4: merkle tree to verify each segment
 
@@ -16,21 +16,30 @@ Peer selection:
 *v1: permuted peer list, consistent hash
 
 filetable maintenance:
- v1: steal webfront code, encodingsdb, queen.set_filetable_uri
+*v1: queen-based tree of MutableDirectoryNodes, persisted to queen's disk
+     no accounts
+ v2: move tree to client side, serialize to a file, upload,
+     queen.set_filetable_uri (still no accounts, just one global tree)
+ v3: break world up into accounts, separate mutable spaces. Maybe
+     implement SSKs
 
 checker/repairer:
- v1: none
+*v1: none
  v2: centralized checker, repair agent
  v3: nodes also check their own files
 
 storage: RobK
 *v1: no deletion, one directory per verifierid, one owner per share,
      leases never expire
+ v2: multiple shares per verifierid [zooko]
  v2: leases expire, delete expired data on demand, multiple owners per share
 
-UI:
+UI: (brian)
  webish? webfront? PB + CLI tool? FUSE?
- v1:
+*v1: readonly webish (nevow, URLs are filepaths)
+ v2: read/write webish
+ v3: PB+CLI tool
+ v4: FUSE
 
 back pocket ideas:
  when nodes are unable to reach storage servers, make a note of it, inform
