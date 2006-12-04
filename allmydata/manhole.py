@@ -81,8 +81,15 @@ class AuthorizedKeysChecker(conchc.SSHPublicKeyDatabase):
 class ModifiedColoredManhole(manhole.ColoredManhole):
     def connectionMade(self):
         manhole.ColoredManhole.connectionMade(self)
+        # look in twisted.conch.recvline.RecvLine for hints
         self.keyHandlers["\x08"] = self.handle_BACKSPACE
         self.keyHandlers["\x15"] = self.handle_KILLLINE
+        self.keyHandlers["\x01"] = self.handle_HOME
+        self.keyHandlers["\x04"] = self.handle_DELETE
+        self.keyHandlers["\x05"] = self.handle_END
+        self.keyHandlers["\x0b"] = self.handle_KILLLINE # really kill-to-end
+        #self.keyHandlers["\xe2"] = self.handle_BACKWARDS_WORD # M-b
+        #self.keyHandlers["\xe6"] = self.handle_FORWARDS_WORD # M-f
 
     def handle_KILLLINE(self):
         self.handle_END()
