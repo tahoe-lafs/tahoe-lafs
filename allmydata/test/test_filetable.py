@@ -19,9 +19,15 @@ class FileTable(unittest.TestCase):
         self.failUnlessRaises(BadFileError, root.remove, "two")
         self.failUnlessRaises(BadFileError, root.remove, "three")
 
+        self.failUnlessEqual(root.get("one"), "vid-one")
+        self.failUnlessRaises(BadFileError, root.get, "missing")
+
         # now play with directories
         subdir1 = root.add_directory("subdir1")
         self.failUnless(isinstance(subdir1, MutableDirectoryNode))
+        subdir1a = root.get("subdir1")
+        self.failUnless(isinstance(subdir1a, MutableDirectoryNode))
+        self.failUnlessEqual(subdir1a._basedir, subdir1._basedir)
         entries = root.list()
         self.failUnlessEqual(len(entries), 2)
         one_index = entries.index( ("one", "vid-one") )

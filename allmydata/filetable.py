@@ -27,14 +27,6 @@ class MutableDirectoryNode(Referenceable):
         if name == "." or name == ".." or "/" in name:
             raise DeadDirectoryNodeError("bad filename component")
 
-    # this is private
-    def get_child(self, name):
-        self.validate_name(name)
-        absname = os.path.join(self._basedir, name)
-        if os.path.isdir(absname):
-            return self.make_subnode(absname)
-        raise DeadDirectoryNodeError("no such directory")
-
     # these are the public methods, available to anyone who holds a reference
 
     def list(self):
@@ -54,6 +46,21 @@ class MutableDirectoryNode(Referenceable):
             # anything else is ignored
         return results
     remote_list = list
+
+    def get(self, name):
+        self.validate_name(name)
+        absname = os.path.join(self._basedir, name)
+        if os.path.isdir(absname):
+            return self.make_subnode(absname)
+        elif os.path.isfile(absname):
+            f = open(absname, "rb")
+            data = f.read()
+            f.close()
+            return data
+        else:
+            raise BadFileError("there is nothing named '%s' in this directory"
+                               % name)
+    remote_get = get
 
     def add_directory(self, name):
         self.validate_name(name)

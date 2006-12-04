@@ -55,6 +55,9 @@ class RIMutableDirectoryNode(RemoteInterface):
                        maxLength=100,
                        )
 
+    def get(name=str):
+        return (RIMutableDirectoryNode_, Verifierid)
+
     def add_directory(name=str):
         return RIMutableDirectoryNode_
 
