@@ -195,10 +195,14 @@ class FileHandle:
     def finish(self):
         pass
 
+class IDownloader(Interface):
+    def download(verifierid, target):
+        pass
 
 class Downloader(service.MultiService):
     """I am a service that allows file downloading.
     """
+    implements(IDownloader)
     name = "downloader"
 
     def download(self, verifierid, t):

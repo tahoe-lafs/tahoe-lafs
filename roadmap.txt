@@ -28,6 +28,9 @@ storage: RobK
      leases never expire
  v2: leases expire, delete expired data on demand, multiple owners per share
 
+UI:
+ webish? webfront? PB + CLI tool? FUSE?
+ v1:
 
 back pocket ideas:
  when nodes are unable to reach storage servers, make a note of it, inform

@@ -14,6 +14,7 @@ from allmydata.storageserver import StorageServer
 from allmydata.upload import Uploader
 from allmydata.download import Downloader
 from allmydata.vdrive import VDrive
+from allmydata.webish import WebishServer
 
 class Client(node.Node, Referenceable):
     implements(RIClient)
@@ -21,6 +22,7 @@ class Client(node.Node, Referenceable):
     PORTNUMFILE = "client.port"
     STOREDIR = 'storage'
     NODETYPE = "client"
+    WEBPORTFILE = "webport"
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
@@ -31,6 +33,12 @@ class Client(node.Node, Referenceable):
         self.add_service(Uploader())
         self.add_service(Downloader())
         self.add_service(VDrive())
+        WEBPORTFILE = os.path.join(self.basedir, self.WEBPORTFILE)
+        if os.path.exists(WEBPORTFILE):
+            f = open(WEBPORTFILE, "r")
+            webport = int(f.read())
+            f.close()
+            self.add_service(WebishServer(webport))
         self.queen_pburl = None
         self.queen_connector = None
 
@@ -73,6 +81,8 @@ class Client(node.Node, Referenceable):
 
     def _got_vdrive_root(self, root):
         self.getServiceNamed("vdrive").set_root(root)
+        if "webish" in self.namedServices:
+            self.getServiceNamed("webish").set_root_dirnode(root)
 
     def _lost_queen(self):
         self.log("lost connection to queen")

@@ -1,0 +1,36 @@
+<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+  <head>
+    <title n:render="title"></title>
+    <link href="http://www.allmydata.com/common/css/styles.css"
+          rel="stylesheet" type="text/css"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  </head>
+  <body>
+
+<h1><p n:render="header"></p></h1>
+
+<div><a href=".">Refresh this view</a></div>
+<div><a href="..">Parent Directory</a></div>
+
+<table n:render="sequence" n:data="children" border="1">
+  <tr n:pattern="header">
+    <td>Filename</td>
+    <td>Type</td>
+    <td>fileid</td>
+  </tr>
+  <tr n:pattern="item" n:render="row">
+    <td><n:slot name="filename"/></td>
+    <td><n:slot name="type"/></td>
+    <td><n:slot name="fileid"/></td>
+  </tr>
+
+  <tr n:pattern="empty"><td>directory is empty!</td></tr>
+
+</table>
+
+<!-- <div n:render="forms"/> -->
+
+<!-- <div class="results" n:render="results"/> -->
+
+  </body>
+</html>
