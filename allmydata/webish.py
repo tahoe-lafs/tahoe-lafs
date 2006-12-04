@@ -37,15 +37,30 @@ class Welcome(rend.Page):
     addSlash = True
     docFactory = getxmlfile("welcome.xhtml")
 
-class IUpload(annotate.TypedInterface):
+class IDirectoryEditor(annotate.TypedInterface):
     def upload(contents=annotate.FileUpload(label="Choose a file to upload: ",
                                             required=True,
                                             requiredFailMessage="Do iT!"),
                ctx=annotate.Context(),
                ):
+        # Each method gets a box. The string in the autocallable(action=)
+        # argument is put on the border of the box, as well as in the submit
+        # button. The top-most contents of the box are the method's
+        # docstring, if any. Each row contains a string for the argument
+        # followed by the argument's input box. If you do not provide an
+        # action= argument to autocallable, the method name is capitalized
+        # and used instead.
         #"""Upload a file"""
         pass
     upload = annotate.autocallable(upload, action="Upload file")
+
+    def mkdir(name=annotate.String("Create a new directory named: ",
+                                   required=True,
+                                   requiredFailMessage="You must choose a directory"),
+               ):
+        #"""Create a directory."""
+        pass
+    mkdir = annotate.autocallable(mkdir, action="Make directory")
 
 class Directory(rend.Page):
     addSlash = True
@@ -104,7 +119,7 @@ class Directory(rend.Page):
 
     # this tells formless about what functions can be invoked, giving it
     # enough information to construct form contents
-    implements(IUpload)
+    implements(IDirectoryEditor)
 
     child_webform_css = webform.defaultCSS
     def render_forms(self, ctx, data):
@@ -126,6 +141,15 @@ class Directory(rend.Page):
         return d
         return url.here.add("results",
                             "upload of '%s' complete!" % contents.filename)
+
+    def mkdir(self, name):
+        log.msg("making new webish directory")
+        d = self._dirnode.callRemote("add_directory", name)
+        def _done(res):
+            log.msg("webish mkdir complete")
+            return res
+        d.addCallback(_done)
+        return d
 
 class WebDownloadTarget:
     implements(IDownloadTarget)
