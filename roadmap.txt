@@ -1,4 +1,6 @@
 
+['*' means complete]
+
 Connection Management: Brian
 *v1: foolscap, no relay, live == connected-to-queen, broadcast updates, full mesh
  v2: live != connected-to-queen, connect on demand
@@ -37,6 +39,13 @@ back pocket ideas:
  each entry has a sequence number, maybe a timestamp
  on recovery, find the newest
 
+ multiple categories of leases: delete the lowest ones first
+  active leases
+  expired leases
+  interrupted leases (partially filled, not closed, they might come back)
+
+
 big questions:
  convergence?
  peer list maintenance: lots of entries
+
