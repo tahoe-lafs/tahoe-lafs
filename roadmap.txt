@@ -5,13 +5,13 @@ Connection Management: Brian
  v3: relay?
 
 Encoding: Zooko
- v1: fake it (replication), no merkle trees
+*v1: fake it (replication), no merkle trees
  v2: mnet codec
  v3: merkle tree to verify each share
  v4: merkle tree to verify each segment
 
 Peer selection:
- v1: permuted peer list, consistent hash
+*v1: permuted peer list, consistent hash
 
 filetable maintenance:
  v1: steal webfront code, encodingsdb, queen.set_filetable_uri
@@ -22,7 +22,7 @@ checker/repairer:
  v3: nodes also check their own files
 
 storage: RobK
- v1: no deletion, one directory per verifierid, one owner per share,
+*v1: no deletion, one directory per verifierid, one owner per share,
      leases never expire
  v2: leases expire, delete expired data on demand, multiple owners per share
 
