@@ -83,3 +83,27 @@ class SystemTest(unittest.TestCase):
         return d
     test_upload_and_download.timeout = 20
 
+    def test_vdrive(self):
+        DATA = "Some data to publish to the virtual drive\n"
+        d = self.set_up_nodes()
+        def _do_publish(res):
+            log.msg("PUBLISHING")
+            v0 = self.clients[0].getServiceNamed("vdrive")
+            d1 = v0.make_directory("/", "subdir1")
+            d1.addCallback(lambda subdir1:
+                           v0.put_file_by_data(subdir1, "data", DATA))
+            return d1
+        d.addCallback(_do_publish)
+        def _publish_done(res):
+            log.msg("publish finished")
+            v1 = self.clients[1].getServiceNamed("vdrive")
+            d1 = v1.get_file_to_data("/subdir1/data")
+            return d1
+        d.addCallback(_publish_done)
+        def _get_done(data):
+            log.msg("get finished")
+            self.failUnlessEqual(data, DATA)
+        d.addCallback(_get_done)
+        return d
+    test_vdrive.timeout = 20
+

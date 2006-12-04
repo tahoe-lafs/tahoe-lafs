@@ -1,12 +1,12 @@
 
+import os
+from zope.interface import Interface, implements
 from twisted.python import failure, log
 from twisted.internet import defer
 from twisted.application import service
 
 from allmydata.util import idlib
 from allmydata import encode
-
-from cStringIO import StringIO
 
 class NotEnoughPeersError(Exception):
     pass
@@ -23,13 +23,18 @@ class FileDownloader:
         assert isinstance(verifierid, str)
         self._verifierid = verifierid
 
-    def set_filehandle(self, filehandle):
-        self._filehandle = filehandle
+    def set_download_target(self, target):
+        self._target = target
+        self._target.register_canceller(self._cancel)
+
+    def _cancel(self):
+        pass
 
     def make_decoder(self):
         n = self._shares = 4
         k = self._desired_shares = 2
-        self._decoder = encode.Decoder(self._filehandle, k, n,
+        self._target.open()
+        self._decoder = encode.Decoder(self._target, k, n,
                                        self._verifierid)
 
     def start(self):
@@ -103,43 +108,118 @@ class FileDownloader:
         for peerid, buckets in self.landlords:
             all_buckets.extend(buckets)
         d = self._decoder.start(all_buckets)
+        def _done(res):
+            self._target.close()
+            return self._target.finish()
+        def _fail(res):
+            self._target.fail()
+            return res
+        d.addCallbacks(_done, _fail)
         return d
 
 def netstring(s):
     return "%d:%s," % (len(s), s)
+
+class IDownloadTarget(Interface):
+    def open():
+        """Called before any calls to write() or close()."""
+    def write(data):
+        pass
+    def close():
+        pass
+    def fail():
+        """fail() is called to indicate that the download has failed. No
+        further methods will be invoked on the IDownloadTarget after fail()."""
+    def register_canceller(cb):
+        """The FileDownloader uses this to register a no-argument function
+        that the target can call to cancel the download. Once this canceller
+        is invoked, no further calls to write() or close() will be made."""
+    def finish(self):
+        """When the FileDownloader is done, this finish() function will be
+        called. Whatever it returns will be returned to the invoker of
+        Downloader.download.
+        """
+
+class FileName:
+    implements(IDownloadTarget)
+    def __init__(self, filename):
+        self._filename = filename
+    def open(self):
+        self.f = open(self._filename, "wb")
+        return self.f
+    def write(self, data):
+        self.f.write(data)
+    def close(self):
+        self.f.close()
+    def fail(self):
+        self.f.close()
+        os.unlink(self._filename)
+    def register_canceller(self, cb):
+        pass # we won't use it
+    def finish(self):
+        pass
+
+class Data:
+    implements(IDownloadTarget)
+    def __init__(self):
+        self._data = []
+    def open(self):
+        pass
+    def write(self, data):
+        self._data.append(data)
+    def close(self):
+        self.data = "".join(self._data)
+        del self._data
+    def fail(self):
+        del self._data
+    def register_canceller(self, cb):
+        pass # we won't use it
+    def finish(self):
+        return self.data
+
+class FileHandle:
+    implements(IDownloadTarget)
+    def __init__(self, filehandle):
+        self._filehandle = filehandle
+    def open(self):
+        pass
+    def write(self, data):
+        self._filehandle.write(data)
+    def close(self):
+        # the originator of the filehandle reserves the right to close it
+        pass
+    def fail(self):
+        pass
+    def register_canceller(self, cb):
+        pass
+    def finish(self):
+        pass
+
 
 class Downloader(service.MultiService):
     """I am a service that allows file downloading.
     """
     name = "downloader"
 
-    def download_to_filename(self, verifierid, filename):
-        f = open(filename, "wb")
-        def _done(res):
-            f.close()
-            return res
-        d = self.download_filehandle(verifierid, f)
-        d.addBoth(_done)
-        return d
-
-    def download_to_data(self, verifierid):
-        f = StringIO()
-        d = self.download_filehandle(verifierid, f)
-        def _done(res):
-            return f.getvalue()
-        d.addCallback(_done)
-        return d
-
-    def download_filehandle(self, verifierid, f):
+    def download(self, verifierid, t):
         assert self.parent
         assert self.running
         assert isinstance(verifierid, str)
-        assert f.write
-        assert f.close
+        t = IDownloadTarget(t)
+        assert t.write
+        assert t.close
         dl = FileDownloader(self.parent, verifierid)
-        dl.set_filehandle(f)
+        dl.set_download_target(t)
         dl.make_decoder()
         d = dl.start()
         return d
+
+    # utility functions
+    def download_to_data(self, verifierid):
+        return self.download(verifierid, Data())
+    def download_to_filename(self, verifierid, filename):
+        return self.download(verifierid, FileName(filename))
+    def download_to_filehandle(self, verifierid, filehandle):
+        return self.download(verifierid, FileHandle(filehandle))
 
 

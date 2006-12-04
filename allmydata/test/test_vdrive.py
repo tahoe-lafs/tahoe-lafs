@@ -66,4 +66,3 @@ class Traverse(unittest.TestCase):
                       self.failUnlessEqual(sorted(files),
                                            ["2.a", "2.b", "d2.1"]))
         return d
-

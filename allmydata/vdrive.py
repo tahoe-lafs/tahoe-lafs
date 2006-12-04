@@ -3,7 +3,7 @@
 
 from twisted.application import service
 from twisted.internet import defer
-from allmydata.upload import Data, FileHandle, FileName
+from allmydata import upload, download
 
 class VDrive(service.MultiService):
     name = "vdrive"
@@ -40,6 +40,20 @@ class VDrive(service.MultiService):
         d.addCallback(_check)
         return d
 
+    def get_verifierid_from_parent(self, parent, filename):
+        assert not isinstance(parent, str), "'%s' isn't a directory node" % (parent,)
+        d = parent.callRemote("list")
+        def _find(table):
+            for name,target in table:
+                if name == filename:
+                    assert isinstance(target, str), "Hey, %s isn't a file" % filename
+                    return target
+            else:
+                raise KeyError("no such file '%s' in '%s'" %
+                               (filename, [t[0] for t in table]))
+        d.addCallback(_find)
+        return d
+
     def get_root(self):
         return self.gvd_root
 
@@ -64,10 +78,10 @@ class VDrive(service.MultiService):
         I return a deferred that will fire when the operation is complete.
         """
 
-        u = self.parent.getServiceNamed("uploader")
+        ul = self.parent.getServiceNamed("uploader")
         d = self.dirpath(dir_or_path)
         def _got_dir(dirnode):
-            d1 = u.upload(uploadable)
+            d1 = ul.upload(uploadable)
             d1.addCallback(lambda vid:
                            dirnode.callRemote("add_file", name, vid))
             return d1
@@ -75,14 +89,60 @@ class VDrive(service.MultiService):
         return d
 
     def put_file_by_filename(self, dir_or_path, name, filename):
-        return self.put_file(dir_or_path, name, FileName(filename))
+        return self.put_file(dir_or_path, name, upload.FileName(filename))
     def put_file_by_data(self, dir_or_path, name, data):
-        return self.put_file(dir_or_path, name, Data(data))
+        return self.put_file(dir_or_path, name, upload.Data(data))
     def put_file_by_filehandle(self, dir_or_path, name, filehandle):
-        return self.put_file(dir_or_path, name, FileHandle(filehandle))
+        return self.put_file(dir_or_path, name, upload.FileHandle(filehandle))
 
     def make_directory(self, dir_or_path, name):
         d = self.dirpath(dir_or_path)
         d.addCallback(lambda parent: parent.callRemote("add_directory", name))
         return d
+
+
+    def get_file(self, dir_and_name_or_path, download_target):
+        """Retrieve a file from the virtual drive and put it somewhere.
+
+        The file to be retrieved may either be specified as a (dir, name)
+        tuple or as a full /-delimited pathname. In the former case, 'dir'
+        can be either a DirectoryNode or a pathname.
+
+        The download target must be an IDownloadTarget instance like
+        allmydata.download.Data, .FileName, or .FileHandle .
+        """
+
+        dl = self.parent.getServiceNamed("downloader")
+
+        if isinstance(dir_and_name_or_path, tuple):
+            dir_or_path, name = dir_and_name_or_path
+            d = self.dirpath(dir_or_path)
+            def _got_dir(dirnode):
+                return self.get_verifierid_from_parent(dirnode, name)
+            d.addCallback(_got_dir)
+        else:
+            rslash = dir_and_name_or_path.rfind("/")
+            if rslash == -1:
+                # we're looking for a file in the root directory
+                dir = self.gvd_root
+                name = dir_and_name_or_path
+                d = self.get_verifierid_from_parent(dir, name)
+            else:
+                dirpath = dir_and_name_or_path[:rslash]
+                name = dir_and_name_or_path[rslash+1:]
+                d = self.dirpath(dirpath)
+                d.addCallback(lambda dir:
+                              self.get_verifierid_from_parent(dir, name))
+
+        def _got_verifierid(verifierid):
+            return dl.download(verifierid, download_target)
+        d.addCallback(_got_verifierid)
+        return d
+
+    def get_file_to_filename(self, from_where, filename):
+        return self.get_file(from_where, download.FileName(filename))
+    def get_file_to_data(self, from_where):
+        return self.get_file(from_where, download.Data())
+    def get_file_to_filehandle(self, from_where, filehandle):
+        return self.get_file(from_where, download.FileHandle(filehandle))
 
