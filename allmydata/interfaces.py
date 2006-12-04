@@ -39,17 +39,11 @@ class RIBucketWriter(RemoteInterface):
     def write(data=ShareData):
         return Nothing()
 
-    def set_size(size=int):
-        return Nothing()
-
     def close():
         return Nothing()
 
 
 class RIBucketReader(RemoteInterface):
-    def get_bucket_num():
-        return int
-
     def read():
         return ShareData
 

@@ -128,7 +128,6 @@ class ReadBucket(Bucket, Referenceable):
 
     def get_bucket_num(self):
         return int(self._read_attr('bucket_num'))
-    remote_get_bucket_num = get_bucket_num
 
     def read(self):
         return self._read_attr('data')

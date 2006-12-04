@@ -16,8 +16,6 @@ class StringBucketProxy:
     def callRemote(self, methname, **kwargs):
         if methname == "write":
             return defer.maybeDeferred(self.write, **kwargs)
-        elif methname == "set_size":
-            return defer.maybeDeferred(self.set_size, **kwargs)
         elif methname == "close":
             return defer.maybeDeferred(self.close, **kwargs)
         else:
@@ -25,8 +23,6 @@ class StringBucketProxy:
 
     def write(self, data):
         self.data.write(data)
-    def set_size(self, size):
-        self.size = size
     def close(self):
         self.done = True
 
