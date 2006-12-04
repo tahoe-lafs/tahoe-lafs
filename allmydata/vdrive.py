@@ -106,6 +106,8 @@ class VDrive(service.MultiService):
         d.addCallback(lambda parent: parent.callRemote("add_directory", name))
         return d
 
+    def remove(self, something): # TODO
+        pass
 
     def get_file(self, dir_and_name_or_path, download_target):
         """Retrieve a file from the virtual drive and put it somewhere.

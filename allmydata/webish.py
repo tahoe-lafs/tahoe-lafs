@@ -1,12 +1,14 @@
 
 from twisted.application import service, internet
 from twisted.web import static, resource, server
-from twisted.python import util
-from nevow import inevow, rend, loaders, appserver, tags as T
+from twisted.python import util, log
+from nevow import inevow, rend, loaders, appserver, url, tags as T
 from allmydata.util import idlib
 from allmydata.download import IDownloadTarget#, IDownloader
+from allmydata import upload
 from zope.interface import implements
 import urllib
+from formless import annotate, webform
 
 def getxmlfile(name):
     return loaders.xmlfile(util.sibpath(__file__, "web/%s" % name))
@@ -26,8 +28,7 @@ class WebishServer(service.MultiService):
         internet.TCPServer(webport, site).setServiceParent(self)
 
     def set_root_dirnode(self, dirnode):
-        dl = self.parent.getServiceNamed("downloader")
-        self.root.putChild("vdrive", Directory(dirnode, "/", dl))
+        self.root.putChild("vdrive", Directory(dirnode, "/", self.parent))
         #print "REMEMBERING", self.site, dl, IDownloader
         #self.site.remember(dl, IDownloader)
 
@@ -36,14 +37,24 @@ class Welcome(rend.Page):
     addSlash = True
     docFactory = getxmlfile("welcome.xhtml")
 
+class IUpload(annotate.TypedInterface):
+    def upload(contents=annotate.FileUpload(label="Choose a file to upload: ",
+                                            required=True,
+                                            requiredFailMessage="Do iT!"),
+               ctx=annotate.Context(),
+               ):
+        #"""Upload a file"""
+        pass
+    upload = annotate.autocallable(upload, action="Upload file")
+
 class Directory(rend.Page):
     addSlash = True
     docFactory = getxmlfile("directory.xhtml")
 
-    def __init__(self, dirnode, dirname, downloader):
+    def __init__(self, dirnode, dirname, client):
         self._dirnode = dirnode
         self._dirname = dirname
-        self._downloader = downloader
+        self._client = client
 
     def childFactory(self, ctx, name):
         if name.startswith("freeform"): # ick
@@ -52,7 +63,7 @@ class Directory(rend.Page):
             args = inevow.IRequest(ctx).args
             filename = args["filename"][0]
             verifierid = args["verifierid"][0]
-            return Downloader(self._downloader,
+            return Downloader(self._client.getServiceNamed("downloader"),
                               self._dirname, filename, idlib.a2b(verifierid))
         if self._dirname == "/":
             dirname = "/" + name
@@ -60,7 +71,7 @@ class Directory(rend.Page):
             dirname = self._dirname + "/" + name
         d = self._dirnode.callRemote("get", name)
         d.addCallback(lambda newnode:
-                      Directory(newnode, dirname, self._downloader))
+                      Directory(newnode, dirname, self._client))
         return d
 
     def render_title(self, ctx, data):
@@ -90,6 +101,31 @@ class Directory(rend.Page):
             ctx.fillSlots("type", "DIR")
             ctx.fillSlots("fileid", "-")
         return ctx.tag
+
+    # this tells formless about what functions can be invoked, giving it
+    # enough information to construct form contents
+    implements(IUpload)
+
+    child_webform_css = webform.defaultCSS
+    def render_forms(self, ctx, data):
+        return webform.renderForms()
+
+    def upload(self, contents, ctx):
+        # contents is a cgi.FieldStorage instance
+        log.msg("starting webish upload")
+
+        uploader = self._client.getServiceNamed("uploader")
+        d = uploader.upload(upload.Data(contents.value))
+        name = contents.filename
+        d.addCallback(lambda vid:
+                      self._dirnode.callRemote("add_file", name, vid))
+        def _done(res):
+            log.msg("webish upload complete")
+            return res
+        d.addCallback(_done)
+        return d
+        return url.here.add("results",
+                            "upload of '%s' complete!" % contents.filename)
 
 class WebDownloadTarget:
     implements(IDownloadTarget)
@@ -143,3 +179,5 @@ class Downloader(resource.Resource):
         dl = self._downloader
         dl.download(self._verifierid, t)
         return server.NOT_DONE_YET
+
+
