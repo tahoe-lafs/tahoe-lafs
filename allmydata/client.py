@@ -23,6 +23,7 @@ class Client(node.Node, Referenceable):
     STOREDIR = 'storage'
     NODETYPE = "client"
     WEBPORTFILE = "webport"
+    QUEEN_PBURL_FILE = "roster_pburl"
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
@@ -40,6 +41,11 @@ class Client(node.Node, Referenceable):
             f.close()
             self.add_service(WebishServer(webport))
         self.queen_pburl = None
+        QUEEN_PBURL_FILE = os.path.join(self.basedir, self.QUEEN_PBURL_FILE)
+        if os.path.exists(QUEEN_PBURL_FILE):
+            f = open(QUEEN_PBURL_FILE, "r")
+            self.queen_pburl = f.read().strip()
+            f.close()
         self.queen_connector = None
 
     def tub_ready(self):
