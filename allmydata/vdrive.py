@@ -3,6 +3,7 @@
 
 from twisted.application import service
 from twisted.internet import defer
+from twisted.python import log
 from allmydata import upload, download
 
 class VDrive(service.MultiService):
@@ -78,6 +79,7 @@ class VDrive(service.MultiService):
         I return a deferred that will fire when the operation is complete.
         """
 
+        log.msg("putting file to '%s'" % name)
         ul = self.parent.getServiceNamed("uploader")
         d = self.dirpath(dir_or_path)
         def _got_dir(dirnode):
@@ -86,6 +88,10 @@ class VDrive(service.MultiService):
                            dirnode.callRemote("add_file", name, vid))
             return d1
         d.addCallback(_got_dir)
+        def _done(res):
+            log.msg("finished putting file to '%s'" % name)
+            return res
+        d.addCallback(_done)
         return d
 
     def put_file_by_filename(self, dir_or_path, name, filename):
@@ -112,6 +118,7 @@ class VDrive(service.MultiService):
         allmydata.download.Data, .FileName, or .FileHandle .
         """
 
+        log.msg("getting file from %s" % (dir_and_name_or_path,))
         dl = self.parent.getServiceNamed("downloader")
 
         if isinstance(dir_and_name_or_path, tuple):
@@ -137,6 +144,10 @@ class VDrive(service.MultiService):
         def _got_verifierid(verifierid):
             return dl.download(verifierid, download_target)
         d.addCallback(_got_verifierid)
+        def _done(res):
+            log.msg("finished getting file")
+            return res
+        d.addCallback(_done)
         return d
 
     def get_file_to_filename(self, from_where, filename):
