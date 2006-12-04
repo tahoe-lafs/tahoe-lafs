@@ -5,7 +5,7 @@ from foolscap import RemoteInterface
 Nodeid = StringConstraint(20) # binary format 20-byte SHA1 hash
 PBURL = StringConstraint(150)
 Verifierid = StringConstraint(20)
-ShareData = StringConstraint(20000)
+ShareData = StringConstraint(100000)
 # these four are here because Foolscap does not yet support the kind of
 # restriction I really want to apply to these.
 RIClient_ = Any()
