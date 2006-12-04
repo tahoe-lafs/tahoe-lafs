@@ -37,7 +37,7 @@ storage: RobK
 UI: (brian)
  webish? webfront? PB + CLI tool? FUSE?
 *v1: readonly webish (nevow, URLs are filepaths)
- v2: read/write webish
+*v2: read/write webish
  v3: PB+CLI tool
  v4: FUSE
 
