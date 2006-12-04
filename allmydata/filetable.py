@@ -20,6 +20,9 @@ class MutableDirectoryNode(Referenceable):
     def __init__(self, basedir):
         self._basedir = basedir
 
+    def make_subnode(self, basedir):
+        return self.__class__(basedir)
+
     def validate_name(self, name):
         if name == "." or name == ".." or "/" in name:
             raise DeadDirectoryNodeError("bad filename component")
@@ -29,7 +32,7 @@ class MutableDirectoryNode(Referenceable):
         self.validate_name(name)
         absname = os.path.join(self._basedir, name)
         if os.path.isdir(absname):
-            return MutableDirectoryNode(absname)
+            return self.make_subnode(absname)
         raise DeadDirectoryNodeError("no such directory")
 
     # these are the public methods, available to anyone who holds a reference
@@ -42,7 +45,7 @@ class MutableDirectoryNode(Referenceable):
         for name in os.listdir(self._basedir):
             absname = os.path.join(self._basedir, name)
             if os.path.isdir(absname):
-                results.append( (name, MutableDirectoryNode(absname)) )
+                results.append( (name, self.make_subnode(absname)) )
             elif os.path.isfile(absname):
                 f = open(absname, "rb")
                 data = f.read()
@@ -61,7 +64,7 @@ class MutableDirectoryNode(Referenceable):
             raise BadDirectoryError("the directory '%s' already exists "
                                     "(but isn't a directory)" % name)
         os.mkdir(absname)
-        return MutableDirectoryNode(absname)
+        return self.make_subnode(absname)
     remote_add_directory = add_directory
 
     def add_file(self, name, data):

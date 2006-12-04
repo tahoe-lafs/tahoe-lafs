@@ -29,13 +29,13 @@ class VDrive(service.MultiService):
             def _find(table, subdir):
                 for name,target in table:
                     if name == subdir:
-                        return subdir
+                        return target
                 else:
                     raise KeyError("no such directory '%s' in '%s'" %
                                    (subdir, [t[0] for t in table]))
             d.addCallback(_find, piece)
         def _check(subdir):
-            assert not isinstance(subdir, str)
+            assert not isinstance(subdir, str), "Hey, %s shouldn't be a string" % subdir
             return subdir
         d.addCallback(_check)
         return d
