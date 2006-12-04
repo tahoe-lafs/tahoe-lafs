@@ -151,3 +151,27 @@ class NextPeer(unittest.TestCase):
                                           ])
         d.addCallback(_check)
         return d
+
+    responses3 = ["good", # 0
+                 "good", # 1
+                 "good", # 2
+                 "good", # 3
+                 "good", # 4
+                 ]
+
+    def test_4(self):
+        c = FakeClient(self.responses3)
+        u = NextPeerUploader(c)
+        u._verifierid = "verifierid"
+        u._shares = 4
+        u._share_size = 100
+        d = u.start()
+        def _check(res):
+            self.failUnlessEqual(u.goodness_points, 4)
+            self.compare_landlords(u, c, [(0, 0),
+                                          (1, 1),
+                                          (2, 2),
+                                          (3, 3),
+                                          ])
+        d.addCallback(_check)
+        return d
