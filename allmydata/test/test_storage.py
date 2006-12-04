@@ -25,10 +25,10 @@ class StorageTest(unittest.TestCase):
 
     def test_create_bucket(self):
         """
-        checks that the storage server can return bucket data accurately.
+        Check that the storage server can return bucket data accurately.
         """
         vid = os.urandom(20)
-        bnum = random.randint(0,100)
+        bnum = random.randrange(0, 256)
         data = os.urandom(random.randint(1024, 16384))
 
         rssd = self.tub.getReference(self.node.my_pburl)
@@ -86,10 +86,10 @@ class StorageTest(unittest.TestCase):
 
     def test_overwrite(self):
         """
-        checks that the storage server rejects an attempt to write to much data
+        Check that the storage server rejects an attempt to write too much data.
         """
         vid = os.urandom(20)
-        bnum = random.randint(0,100)
+        bnum = random.randrange(0, 256)
         data = os.urandom(random.randint(1024, 16384))
 
         rssd = self.tub.getReference(self.node.my_pburl)
