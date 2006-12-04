@@ -22,11 +22,12 @@ class StorageServer(service.MultiService, Referenceable):
         self._bucketstore = BucketStore(store_dir)
         self._bucketstore.setServiceParent(self)
 
-    def remote_allocate_bucket(self, verifierid, bucket_num, size, leaser):
+    def remote_allocate_bucket(self, verifierid, bucket_num, size, leaser,
+                               canary):
         if self._bucketstore.has_bucket(verifierid):
             raise BucketAlreadyExistsError()
         lease = self._bucketstore.allocate_bucket(verifierid, bucket_num, size,
-                                                  idlib.b2a(leaser))
+                                                  idlib.b2a(leaser), canary)
         return lease
 
     def remote_get_buckets(self, verifierid):

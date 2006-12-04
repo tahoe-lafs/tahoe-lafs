@@ -1,7 +1,9 @@
 
+from zope.interface import Interface, implements
 from twisted.python import failure, log
 from twisted.internet import defer
 from twisted.application import service
+from foolscap import Referenceable
 
 from allmydata.util import idlib
 from allmydata import encode
@@ -33,6 +35,7 @@ class FileUploader:
         filehandle.seek(0)
 
     def make_encoder(self):
+        self._needed_shares = 4
         self._shares = 4
         self._encoder = encode.Encoder(self._filehandle, self._shares)
         self._share_size = self._size
@@ -53,6 +56,7 @@ class FileUploader:
         max_peers = None
 
         self.permuted = self._peer.permute_peerids(self._verifierid, max_peers)
+        self._total_peers = len(self.permuted)
         for p in self.permuted:
             assert isinstance(p, str)
         # we will shrink self.permuted as we give up on peers
@@ -68,7 +72,12 @@ class FileUploader:
     def _check_next_peer(self):
         if len(self.permuted) == 0:
             # there are no more to check
-            raise NotEnoughPeersError
+            raise NotEnoughPeersError("%s goodness, want %s, have %d "
+                                      "landlords, %d total peers" %
+                                      (self.goodness_points,
+                                       self.target_goodness,
+                                       len(self.landlords),
+                                       self._total_peers))
         if self.peer_index >= len(self.permuted):
             self.peer_index = 0
 
@@ -82,7 +91,8 @@ class FileUploader:
                                     verifierid=self._verifierid,
                                     bucket_num=bucket_num,
                                     size=self._share_size,
-                                    leaser=self._peer.nodeid)
+                                    leaser=self._peer.nodeid,
+                                    canary=Referenceable())
             def _allocate_response(bucket):
                 if self.debug:
                     print " peerid %s will grant us a lease" % idlib.b2a(peerid)
@@ -127,6 +137,40 @@ class FileUploader:
 def netstring(s):
     return "%d:%s," % (len(s), s)
 
+class IUploadable(Interface):
+    def get_filehandle():
+        pass
+    def close_filehandle(f):
+        pass
+
+class FileName:
+    implements(IUploadable)
+    def __init__(self, filename):
+        self._filename = filename
+    def get_filehandle(self):
+        return open(self._filename, "rb")
+    def close_filehandle(self, f):
+        f.close()
+
+class Data:
+    implements(IUploadable)
+    def __init__(self, data):
+        self._data = data
+    def get_filehandle(self):
+        return StringIO(self._data)
+    def close_filehandle(self, f):
+        pass
+
+class FileHandle:
+    implements(IUploadable)
+    def __init__(self, filehandle):
+        self._filehandle = filehandle
+    def get_filehandle(self):
+        return self._filehandle
+    def close_filehandle(self, f):
+        # the originator of the filehandle reserves the right to close it
+        pass
+
 class Uploader(service.MultiService):
     """I am a service that allows file uploading.
     """
@@ -140,26 +184,26 @@ class Uploader(service.MultiService):
         # note: this is only of the plaintext data, no encryption yet
         return hasher.digest()
 
-    def upload_filename(self, filename):
-        f = open(filename, "rb")
+    def upload(self, f):
+        assert self.parent
+        assert self.running
+        f = IUploadable(f)
+        fh = f.get_filehandle()
+        u = FileUploader(self.parent)
+        u.set_filehandle(fh)
+        u.set_verifierid(self._compute_verifierid(fh))
+        u.make_encoder()
+        d = u.start()
         def _done(res):
-            f.close()
+            f.close_filehandle(fh)
             return res
-        d = self.upload_filehandle(f)
         d.addBoth(_done)
         return d
 
+    # utility functions
     def upload_data(self, data):
-        f = StringIO(data)
-        return self.upload_filehandle(f)
-
-    def upload_filehandle(self, f):
-        assert self.parent
-        assert self.running
-        u = FileUploader(self.parent)
-        u.set_filehandle(f)
-        u.set_verifierid(self._compute_verifierid(f))
-        u.make_encoder()
-        d = u.start()
-        return d
-
+        return self.upload(Data(data))
+    def upload_filename(self, filename):
+        return self.upload(FileName(filename))
+    def upload_filehandle(self, filehandle):
+        return self.upload(FileHandle(filehandle))

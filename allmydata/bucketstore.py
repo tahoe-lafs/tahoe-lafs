@@ -27,13 +27,14 @@ class BucketStore(service.MultiService, Referenceable):
     def has_bucket(self, verifierid):
         return os.path.exists(self._get_bucket_dir(verifierid))
 
-    def allocate_bucket(self, verifierid, bucket_num, size, leaser_credentials):
+    def allocate_bucket(self, verifierid, bucket_num, size,
+                        leaser_credentials, canary):
         bucket_dir = self._get_bucket_dir(verifierid)
         precondition(not os.path.exists(bucket_dir))
         precondition(isinstance(bucket_num, int))
         bucket = WriteBucket(bucket_dir, verifierid, bucket_num, size)
         bucket.set_leaser(leaser_credentials)
-        lease = Lease(verifierid, leaser_credentials, bucket)
+        lease = Lease(verifierid, leaser_credentials, bucket, canary)
         self._leases.add(lease)
         return lease
 
@@ -42,18 +43,18 @@ class BucketStore(service.MultiService, Referenceable):
         bucket_dir = self._get_bucket_dir(verifierid)
         if os.path.exists(bucket_dir):
             b = ReadBucket(bucket_dir, verifierid)
-            br = BucketReader(b)
-            return [(b.get_bucket_num(), br)]
+            return [(b.get_bucket_num(), b)]
         else:
             return []
 
 class Lease(Referenceable):
     implements(RIBucketWriter)
 
-    def __init__(self, verifierid, leaser, bucket):
+    def __init__(self, verifierid, leaser, bucket, canary):
         self._leaser = leaser
         self._verifierid = verifierid
         self._bucket = bucket
+        canary.notifyOnDisconnect(self._lost_canary)
 
     def get_bucket(self):
         return self._bucket
@@ -64,17 +65,8 @@ class Lease(Referenceable):
     def remote_close(self):
         self._bucket.close()
 
-class BucketReader(Referenceable):
-    implements(RIBucketReader)
-
-    def __init__(self, bucket):
-        self._bucket = bucket
-
-    def remote_get_bucket_num(self):
-        return self._bucket.get_bucket_num()
-
-    def remote_read(self):
-        return self._bucket.read()
+    def _lost_canary(self):
+        pass
 
 class Bucket:
     def __init__(self, bucket_dir, verifierid):
@@ -127,14 +119,17 @@ class WriteBucket(Bucket):
             _assert(os.path.getsize(os.path.join(self._bucket_dir, 'data')) == self._size)
         return complete
 
-class ReadBucket(Bucket):
+class ReadBucket(Bucket, Referenceable):
+    implements(RIBucketReader)
+
     def __init__(self, bucket_dir, verifierid):
         Bucket.__init__(self, bucket_dir, verifierid)
         precondition(self.is_complete()) # implicitly asserts bucket_dir exists
 
     def get_bucket_num(self):
         return int(self._read_attr('bucket_num'))
+    remote_get_bucket_num = get_bucket_num
 
     def read(self):
         return self._read_attr('data')
-
+    remote_read = read

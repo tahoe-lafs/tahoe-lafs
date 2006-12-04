@@ -8,6 +8,7 @@ from allmydata.util import idlib
 from zope.interface import implements
 from allmydata.interfaces import RIQueenRoster
 from allmydata import node
+from allmydata.filetable import GlobalVirtualDrive
 
 class Roster(service.MultiService, Referenceable):
     implements(RIQueenRoster)
@@ -16,6 +17,10 @@ class Roster(service.MultiService, Referenceable):
         service.MultiService.__init__(self)
         self.phonebook = {}
         self.connections = {}
+        self.gvd_root = None
+
+    def set_gvd_root(self, root):
+        self.gvd_root = root
 
     def remote_hello(self, nodeid, node, pburl):
         log.msg("roster: contact from %s" % idlib.b2a(nodeid))
@@ -26,6 +31,7 @@ class Roster(service.MultiService, Referenceable):
         self.phonebook[nodeid] = pburl
         self.connections[nodeid] = node
         node.notifyOnDisconnect(self._lost_node, nodeid)
+        return self.gvd_root
 
     def _educate_the_new_peer(self, nodeid, node, new_peers):
         log.msg("roster: educating %s (%d)" % (idlib.b2a(nodeid)[:4], len(new_peers)))
@@ -56,6 +62,7 @@ class Queen(node.Node):
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
+        self.gvd = self.add_service(GlobalVirtualDrive(basedir))
         self.urls = {}
 
     def tub_ready(self):
@@ -65,5 +72,5 @@ class Queen(node.Node):
         f = open(os.path.join(self.basedir, "roster_pburl"), "w")
         f.write(self.urls["roster"] + "\n")
         f.close()
-
+        r.set_gvd_root(self.gvd.get_root())
 

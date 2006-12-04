@@ -12,10 +12,12 @@ RIClient_ = Any()
 Referenceable_ = Any()
 RIBucketWriter_ = Any()
 RIBucketReader_ = Any()
+RIMutableDirectoryNode_ = Any()
+RIMutableFileNode_ = Any()
 
 class RIQueenRoster(RemoteInterface):
     def hello(nodeid=Nodeid, node=RIClient_, pburl=PBURL):
-        return Nothing()
+        return RIMutableDirectoryNode_ # the virtual drive root
 
 class RIClient(RemoteInterface):
     def get_service(name=str):
@@ -27,7 +29,8 @@ class RIClient(RemoteInterface):
 
 class RIStorageServer(RemoteInterface):
     def allocate_bucket(verifierid=Verifierid, bucket_num=int, size=int,
-                        leaser=Nodeid):
+                        leaser=Nodeid, canary=Referenceable_):
+        # if the canary is lost before close(), the bucket is deleted
         return RIBucketWriter_
     def get_buckets(verifierid=Verifierid):
         return ListOf(TupleOf(int, RIBucketReader_))
@@ -51,3 +54,20 @@ class RIBucketReader(RemoteInterface):
         return ShareData
 
 
+class RIMutableDirectoryNode(RemoteInterface):
+    def list():
+        return ListOf( TupleOf(str, # name, relative to directory
+                               (RIMutableDirectoryNode_, Verifierid)),
+                       maxLength=100,
+                       )
+
+    def add_directory(name=str):
+        return RIMutableDirectoryNode_
+
+    def add_file(name=str, data=Verifierid):
+        return Nothing()
+
+    def remove(name=str):
+        return Nothing()
+
+    # need more to move directories

@@ -9,10 +9,11 @@ from allmydata import node
 
 from twisted.internet import defer
 
+from allmydata.util import idlib
 from allmydata.storageserver import StorageServer
 from allmydata.upload import Uploader
 from allmydata.download import Downloader
-from allmydata.util import idlib
+from allmydata.vdrive import VDrive
 
 class Client(node.Node, Referenceable):
     implements(RIClient)
@@ -29,6 +30,7 @@ class Client(node.Node, Referenceable):
         self.add_service(StorageServer(os.path.join(basedir, self.STOREDIR)))
         self.add_service(Uploader())
         self.add_service(Downloader())
+        self.add_service(VDrive())
         self.queen_pburl = None
         self.queen_connector = None
 
@@ -63,14 +65,21 @@ class Client(node.Node, Referenceable):
         self.log("connected to queen")
         self.queen = queen
         queen.notifyOnDisconnect(self._lost_queen)
-        queen.callRemote("hello",
-                         nodeid=self.nodeid, node=self, pburl=self.my_pburl)
+        d = queen.callRemote("hello",
+                             nodeid=self.nodeid,
+                             node=self,
+                             pburl=self.my_pburl)
+        d.addCallback(self._got_vdrive_root)
+
+    def _got_vdrive_root(self, root):
+        self.getServiceNamed("vdrive").set_root(root)
 
     def _lost_queen(self):
         self.log("lost connection to queen")
         self.queen = None
 
     def remote_get_service(self, name):
+        # TODO: 'vdrive' should not be public in the medium term
         return self.getServiceNamed(name)
 
     def remote_add_peers(self, new_peers):

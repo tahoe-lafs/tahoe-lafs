@@ -5,10 +5,13 @@ import random
 from twisted.trial import unittest
 from twisted.application import service
 from twisted.internet import defer
-from foolscap import Tub
+from foolscap import Tub, Referenceable
 from foolscap.eventual import flushEventualQueue
 
 from allmydata import client
+
+class Canary(Referenceable):
+    pass
 
 class StorageTest(unittest.TestCase):
 
@@ -39,6 +42,7 @@ class StorageTest(unittest.TestCase):
                                             bucket_num=bnum,
                                             size=len(data),
                                             leaser=self.node.nodeid,
+                                            canary=Canary(),
                                             )
         rssd.addCallback(create_bucket)
 
@@ -99,6 +103,7 @@ class StorageTest(unittest.TestCase):
                                             bucket_num=bnum,
                                             size=len(data),
                                             leaser=self.node.nodeid,
+                                            canary=Canary(),
                                             )
         rssd.addCallback(create_bucket)
 

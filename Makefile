@@ -9,6 +9,8 @@ run-client:
 
 run-client2:
 	cd client-basedir2 && PYTHONPATH=.. twistd -noy ../client.tac
+run-client3:
+	cd client-basedir3 && PYTHONPATH=.. twistd -noy ../client.tac
 
 test:
 	trial allmydata
