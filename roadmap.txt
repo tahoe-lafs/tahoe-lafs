@@ -39,11 +39,14 @@ back pocket ideas:
  each entry has a sequence number, maybe a timestamp
  on recovery, find the newest
 
- multiple categories of leases: delete the lowest ones first
-  active leases
-  expired leases
-  interrupted leases (partially filled, not closed, they might come back)
-
+ multiple categories of leases:
+  committed leases -- we will not delete these in any case, but will instead tell an uploader that we are full
+   active leases
+   in-progress leases (partially filled, not closed, pb connection is currently open)
+  uncommitted leases -- we will delete these in order to make room for new lease requests
+   interrupted leases (partially filled, not closed, pb connection is currently not open, but they might come back)
+   expired leases
+  (I'm not sure about the precedence of these last two.  Probably deleting expired leases instead of deleting interrupted leases would be okay.)
 
 big questions:
  convergence?
