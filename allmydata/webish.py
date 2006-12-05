@@ -52,6 +52,12 @@ class Welcome(rend.Page):
     addSlash = True
     docFactory = getxmlfile("welcome.xhtml")
 
+    def data_queen_pburl(self, ctx, data):
+        return IClient(ctx).queen_pburl
+    def data_connected_to_queen(self, ctx, data):
+        if IClient(ctx).queen:
+            return "yes"
+        return "no"
     def data_num_peers(self, ctx, data):
         #client = inevow.ISite(ctx)._client
         client = IClient(ctx)
