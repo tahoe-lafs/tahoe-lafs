@@ -86,11 +86,23 @@ class Directory(rend.Page):
             ctx.fillSlots("filename", T.a(href=dlurl)[name])
             ctx.fillSlots("type", "FILE")
             ctx.fillSlots("fileid", idlib.b2a(target))
+
+            # this creates a button which will cause our child__delete method
+            # to be invoked, which deletes the file and then redirects the
+            # browser back to this directory
+            del_url = url.here.child("_delete")
+            #del_url = del_url.add("verifierid", idlib.b2a(target))
+            del_url = del_url.add("name", name)
+            delete = T.form(action=del_url, method="post")[
+                T.input(type='submit', value='del', name="del"),
+                ]
+            ctx.fillSlots("delete", delete)
         else:
             # directory
             ctx.fillSlots("filename", T.a(href=name)[name])
             ctx.fillSlots("type", "DIR")
             ctx.fillSlots("fileid", "-")
+            ctx.fillSlots("delete", "-")
         return ctx.tag
 
     child_webform_css = webform.defaultCSS
@@ -151,6 +163,16 @@ class Directory(rend.Page):
             log.msg("webish mkdir complete")
             return res
         d.addCallback(_done)
+        return d
+
+    def child__delete(self, ctx):
+        # perform the delete, then redirect back to the directory page
+        args = inevow.IRequest(ctx).args
+        vdrive = self._client.getServiceNamed("vdrive")
+        d = vdrive.remove(self._dirnode, args["name"][0])
+        def _deleted(res):
+            return url.here.up()
+        d.addCallback(_deleted)
         return d
 
 class WebDownloadTarget:

@@ -106,8 +106,23 @@ class VDrive(service.MultiService):
         d.addCallback(lambda parent: parent.callRemote("add_directory", name))
         return d
 
-    def remove(self, something): # TODO
-        pass
+    def remove(self, parent, name):
+        assert not isinstance(parent, str)
+        log.msg("vdrive removing %s" % name)
+        # first find the verifierid
+        d = self.get_verifierid_from_parent(parent, name)
+        def _got_verifierid(vid):
+            # TODO: delete the file's shares using this
+            pass
+        d.addCallback(_got_verifierid)
+        def _delete_from_parent(res):
+            return parent.callRemote("remove", name)
+        d.addCallback(_delete_from_parent)
+        def _done(res):
+            log.msg("vdrive done removing %s" % name)
+        d.addCallback(_done)
+        return d
+
 
     def get_file(self, dir_and_name_or_path, download_target):
         """Retrieve a file from the virtual drive and put it somewhere.

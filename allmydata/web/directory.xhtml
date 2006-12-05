@@ -17,11 +17,13 @@
     <td>Filename</td>
     <td>Type</td>
     <td>fileid</td>
+    <td></td>
   </tr>
   <tr n:pattern="item" n:render="row">
     <td><n:slot name="filename"/></td>
     <td><n:slot name="type"/></td>
     <td><n:slot name="fileid"/></td>
+    <td><n:slot name="delete"/></td>
   </tr>
 
   <tr n:pattern="empty"><td>directory is empty!</td></tr>

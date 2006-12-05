@@ -90,6 +90,7 @@ class MutableDirectoryNode(Referenceable):
             os.unlink(absname)
         else:
             raise BadFileError("Cannot delete non-existent file '%s'" % name)
+    remote_remove = remove
 
 
 class GlobalVirtualDrive(service.MultiService):
