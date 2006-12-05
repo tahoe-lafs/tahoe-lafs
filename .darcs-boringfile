@@ -40,4 +40,9 @@
 ^\.buildbot($|/)
 ^MANIFEST$
 ^dist($|/)
+^debian($|/)
 
+^(dapper|sid)/debian/allmydata
+^(dapper|sid)/debian/files$
+^build($|/)
+^build-stamp$

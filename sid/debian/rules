@@ -1,0 +1,15 @@
+#! /usr/bin/make -f
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+DEB_PYTHON_SYSTEM=pycentral
+
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/class/python-distutils.mk
+
+
+install/python-foolscap::
+	dh_installdocs client.tac queen.tac
+
+clean::
+	-rm -rf build

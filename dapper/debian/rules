@@ -1,0 +1,60 @@
+#!/usr/bin/make -f
+# Sample debian/rules that uses debhelper.
+# GNU copyright 1997 to 1999 by Joey Hess.
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+# This is the debhelper compatability version to use.
+export DH_COMPAT=4
+
+build: build-stamp
+build-stamp:
+	dh_testdir
+
+	## Build for all python versions
+	python2.4 setup.py build
+
+	touch build-stamp
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f build-stamp
+	rm -rf build
+	find . -name '*.pyc' |xargs -r rm
+	dh_clean
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+
+	## Python 2.4
+	python2.4 setup.py build
+	python2.4 setup.py install --prefix=debian/allmydata/usr
+
+
+# Build architecture-independent files here.
+binary-indep: build install
+	dh_testdir
+	dh_testroot
+	dh_installdocs -i client.tac queen.tac
+	dh_installchangelogs -i
+	dh_compress -i -X.py
+	dh_fixperms
+	dh_python
+	dh_installdeb
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary-arch:
+# nothing to do
+
+binary: binary-indep
+.PHONY: build clean binary-indep binary-arch binary install
+
+
+

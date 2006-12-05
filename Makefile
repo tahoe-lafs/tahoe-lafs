@@ -21,3 +21,15 @@ create_dirs:
 	mkdir -p client-basedir2
 	mkdir -p client-basedir/storage
 	mkdir -p client-basedir2/storage
+
+deb-dapper:
+	rm -f debian
+	ln -s dapper/debian debian
+	chmod a+x debian/rules
+	fakeroot debian/rules binary
+
+deb-sid:
+	rm -f debian
+	ln -s sid/debian debian
+	chmod a+x debian/rules
+	fakeroot debian/rules binary
