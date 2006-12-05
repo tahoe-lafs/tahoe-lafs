@@ -13,6 +13,7 @@ class Node(service.MultiService):
     PORTNUMFILE = None
     CERTFILE = None
     LOCAL_IP_FILE = "local_ip"
+    NODEIDFILE = "my_nodeid"
 
     def __init__(self, basedir="."):
         service.MultiService.__init__(self)
@@ -29,6 +30,9 @@ class Node(service.MultiService):
             f.write(self.tub.getCertData())
             f.close()
         self.nodeid = idlib.a2b(self.tub.tubID)
+        f = open(os.path.join(self.basedir, self.NODEIDFILE), "w")
+        f.write(idlib.b2a(self.nodeid) + "\n")
+        f.close()
         self.short_nodeid = self.tub.tubID[:4] # ready for printing
         portnum = 0
         assert self.PORTNUMFILE, "Your node.Node subclass must provide PORTNUMFILE"
