@@ -6,12 +6,15 @@ from nevow import inevow, rend, loaders, appserver, url, tags as T
 from allmydata.util import idlib
 from allmydata.download import IDownloadTarget#, IDownloader
 from allmydata import upload
-from zope.interface import implements
+from zope.interface import implements, Interface
 import urllib
 from formless import annotate, webform
 
 def getxmlfile(name):
     return loaders.xmlfile(util.sibpath(__file__, "web/%s" % name))
+
+class IClient(Interface):
+    pass
 
 class WebishServer(service.MultiService):
     name = "webish"
@@ -27,8 +30,20 @@ class WebishServer(service.MultiService):
         self.site = site = appserver.NevowSite(root)
         internet.TCPServer(webport, site).setServiceParent(self)
 
+    def startService(self):
+        service.MultiService.startService(self)
+        # to make various services available to render_* methods, we stash a
+        # reference to the client on the NevowSite. This will be available by
+        # adapting the 'context' argument to a special marker interface named
+        # IClient.
+        self.site.remember(self.parent, IClient)
+        # I thought you could do the same with an existing interface, but
+        # apparently 'ISite' does not exist
+        #self.site._client = self.parent
+
     def set_root_dirnode(self, dirnode):
-        self.root.putChild("vdrive", Directory(dirnode, "/", self.parent))
+        self.root.putChild("vdrive", Directory(dirnode, "/"))
+        # I tried doing it this way and for some reason it didn't seem to work
         #print "REMEMBERING", self.site, dl, IDownloader
         #self.site.remember(dl, IDownloader)
 
@@ -37,15 +52,33 @@ class Welcome(rend.Page):
     addSlash = True
     docFactory = getxmlfile("welcome.xhtml")
 
+    def data_num_peers(self, ctx, data):
+        #client = inevow.ISite(ctx)._client
+        client = IClient(ctx)
+        return len(client.all_peers)
+    def data_num_connected_peers(self, ctx, data):
+        return len(IClient(ctx).connections)
+    def data_peers(self, ctx, data):
+        return sorted(IClient(ctx).all_peers)
+    def render_row(self, ctx, data):
+        if data in IClient(ctx).connections:
+            connected = "yes"
+        else:
+            connected = "no"
+        ctx.fillSlots("peerid", idlib.b2a(data))
+        ctx.fillSlots("connected", connected)
+        return ctx.tag
 
 class Directory(rend.Page):
     addSlash = True
     docFactory = getxmlfile("directory.xhtml")
 
-    def __init__(self, dirnode, dirname, client):
+    def __init__(self, dirnode, dirname):
         self._dirnode = dirnode
         self._dirname = dirname
-        self._client = client
+
+    def get_service(self, ctx, name):
+        return IClient(ctx).getServiceNamed(name)
 
     def childFactory(self, ctx, name):
         if name.startswith("freeform"): # ick
@@ -54,15 +87,14 @@ class Directory(rend.Page):
             args = inevow.IRequest(ctx).args
             filename = args["filename"][0]
             verifierid = args["verifierid"][0]
-            return Downloader(self._client.getServiceNamed("downloader"),
+            return Downloader(self.get_service(ctx, "downloader"),
                               self._dirname, filename, idlib.a2b(verifierid))
         if self._dirname == "/":
             dirname = "/" + name
         else:
             dirname = self._dirname + "/" + name
         d = self._dirnode.callRemote("get", name)
-        d.addCallback(lambda newnode:
-                      Directory(newnode, dirname, self._client))
+        d.addCallback(lambda newnode: Directory(newnode, dirname))
         return d
 
     def render_title(self, ctx, data):
@@ -135,7 +167,7 @@ class Directory(rend.Page):
         # contents is a cgi.FieldStorage instance
         log.msg("starting webish upload")
 
-        uploader = self._client.getServiceNamed("uploader")
+        uploader = self.get_service(ctx, "uploader")
         d = uploader.upload(upload.Data(contents.value))
         name = contents.filename
         d.addCallback(lambda vid:
@@ -168,7 +200,7 @@ class Directory(rend.Page):
     def child__delete(self, ctx):
         # perform the delete, then redirect back to the directory page
         args = inevow.IRequest(ctx).args
-        vdrive = self._client.getServiceNamed("vdrive")
+        vdrive = self.get_service(ctx, "vdrive")
         d = vdrive.remove(self._dirnode, args["name"][0])
         def _deleted(res):
             return url.here.up()

@@ -7,9 +7,29 @@
   </head>
   <body>
 
-<h1>Welcome To AllMyData!</h1>
+<h1>Welcome To AllMyData! (tahoe2)</h1>
 
 <p>To view the global shared filestore, <a href="vdrive">Click Here!</a></p>
+
+<h2>Mesh Status</h2>
+
+<div>Known Peers: <span n:render="string" n:data="num_peers" /></div>
+<div>Connected Peers: <span n:render="string" n:data="num_connected_peers" /></div>
+
+<div>
+<table n:render="sequence" n:data="peers" border="1">
+  <tr n:pattern="header">
+    <td>PeerID</td>
+    <td>Connected?</td>
+  </tr>
+  <tr n:pattern="item" n:render="row">
+    <td><tt><n:slot name="peerid"/></tt></td>
+    <td><n:slot name="connected"/></td>
+  </tr>
+  <tr n:pattern="empty"><td>no peers!</td></tr>
+</table>
+</div>
+
 
   </body>
 </html>
