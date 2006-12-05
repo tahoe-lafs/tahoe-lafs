@@ -1,0 +1,4 @@
+#!/usr/bin/python
+
+from allmydata.scripts import runner
+runner.run()
