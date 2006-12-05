@@ -33,7 +33,7 @@ install: build
 
 	## Python 2.4
 	python2.4 setup.py build
-	python2.4 setup.py install --prefix=debian/allmydata/usr
+	python2.4 setup.py install --prefix=debian/allmydata-tahoe/usr
 
 
 # Build architecture-independent files here.
