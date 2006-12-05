@@ -37,30 +37,6 @@ class Welcome(rend.Page):
     addSlash = True
     docFactory = getxmlfile("welcome.xhtml")
 
-class IDirectoryEditor(annotate.TypedInterface):
-    def upload(contents=annotate.FileUpload(label="Choose a file to upload: ",
-                                            required=True,
-                                            requiredFailMessage="Do iT!"),
-               ctx=annotate.Context(),
-               ):
-        # Each method gets a box. The string in the autocallable(action=)
-        # argument is put on the border of the box, as well as in the submit
-        # button. The top-most contents of the box are the method's
-        # docstring, if any. Each row contains a string for the argument
-        # followed by the argument's input box. If you do not provide an
-        # action= argument to autocallable, the method name is capitalized
-        # and used instead.
-        #"""Upload a file"""
-        pass
-    upload = annotate.autocallable(upload, action="Upload file")
-
-    def mkdir(name=annotate.String("Create a new directory named: ",
-                                   required=True,
-                                   requiredFailMessage="You must choose a directory"),
-               ):
-        #"""Create a directory."""
-        pass
-    mkdir = annotate.autocallable(mkdir, action="Make directory")
 
 class Directory(rend.Page):
     addSlash = True
@@ -117,13 +93,31 @@ class Directory(rend.Page):
             ctx.fillSlots("fileid", "-")
         return ctx.tag
 
-    # this tells formless about what functions can be invoked, giving it
-    # enough information to construct form contents
-    implements(IDirectoryEditor)
-
     child_webform_css = webform.defaultCSS
     def render_forms(self, ctx, data):
         return webform.renderForms()
+
+    def bind_upload(self, ctx):
+        """upload1"""
+        # Note: this comment is no longer accurate, as it reflects the older
+        # (apparently deprecated) formless.autocallable /
+        # annotate.TypedInterface approach.
+
+        # Each method gets a box. The string in the autocallable(action=)
+        # argument is put on the border of the box, as well as in the submit
+        # button. The top-most contents of the box are the method's
+        # docstring, if any. Each row contains a string for the argument
+        # followed by the argument's input box. If you do not provide an
+        # action= argument to autocallable, the method name is capitalized
+        # and used instead.
+        up = annotate.FileUpload(label="Choose a file to upload: ",
+                                 required=True,
+                                 requiredFailMessage="Do iT!")
+        contentsarg = annotate.Argument("contents", up)
+
+        ctxarg = annotate.Argument("ctx", annotate.Context())
+        meth = annotate.Method(arguments=[contentsarg, ctxarg])
+        return annotate.MethodBinding("upload", meth, action="Upload File")
 
     def upload(self, contents, ctx):
         # contents is a cgi.FieldStorage instance
@@ -142,7 +136,15 @@ class Directory(rend.Page):
         return url.here.add("results",
                             "upload of '%s' complete!" % contents.filename)
 
+    def bind_mkdir(self, ctx):
+        """Make new directory 1"""
+        namearg = annotate.Argument("name",
+                                    annotate.String("New directory name: "))
+        meth = annotate.Method(arguments=[namearg])
+        return annotate.MethodBinding("mkdir", meth, action="Make Directory")
+
     def mkdir(self, name):
+        """mkdir2"""
         log.msg("making new webish directory")
         d = self._dirnode.callRemote("add_directory", name)
         def _done(res):
