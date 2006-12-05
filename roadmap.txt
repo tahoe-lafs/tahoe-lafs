@@ -32,12 +32,14 @@ storage: RobK
 *v1: no deletion, one directory per verifierid, one owner per share,
      leases never expire
  v2: multiple shares per verifierid [zooko]
+ v2.5: deletion
  v2: leases expire, delete expired data on demand, multiple owners per share
 
 UI: (brian)
  webish? webfront? PB + CLI tool? FUSE?
 *v1: readonly webish (nevow, URLs are filepaths)
-*v2: read/write webish
+*v2: read/write webish, mkdir, del (files)
+ v2.5: del (directories)
  v3: PB+CLI tool
  v4: FUSE
 
