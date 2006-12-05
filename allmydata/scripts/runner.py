@@ -161,7 +161,7 @@ def stop(config):
     pid = int(pid)
 
     timer = 0
-    os.kill(pid, signal.TERM)
+    os.kill(pid, signal.SIGTERM)
     time.sleep(0.1)
     while timer < 5:
         # poll once per second until twistd.pid goes away, up to 5 seconds
