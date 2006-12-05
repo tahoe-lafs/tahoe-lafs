@@ -38,4 +38,6 @@
 ^queen-basedir($|/)
 ^_trial_temp($|/)
 ^\.buildbot($|/)
+^MANIFEST$
+^dist($|/)
 
