@@ -20,12 +20,35 @@ class RestartOptions(usage.Options):
 
 class CreateClientOptions(usage.Options):
     optParameters = [
-        ["basedir", "C", ".", "which directory to create the client in"],
+        ["basedir", "C", None, "which directory to create the client in"],
         ]
+
+    def parseArgs(self, *args):
+        if len(args) > 0:
+            self['basedir'] = args[0]
+        if len(args) > 1:
+            raise usage.UsageError("I wasn't expecting so many arguments")
+
+    def postOptions(self):
+        if self['basedir'] is None:
+            raise usage.UsageError("<basedir> parameter is required")
+        self['basedir'] = os.path.abspath(self['basedir'])
+
 class CreateQueenOptions(usage.Options):
     optParameters = [
-        ["basedir", "C", ".", "which directory to create the queen in"],
+        ["basedir", "C", None, "which directory to create the queen in"],
         ]
+
+    def parseArgs(self, *args):
+        if len(args) > 0:
+            self['basedir'] = args[0]
+        if len(args) > 1:
+            raise usage.UsageError("I wasn't expecting so many arguments")
+
+    def postOptions(self):
+        if self['basedir'] is None:
+            raise usage.UsageError("<basedir> parameter is required")
+        self['basedir'] = os.path.abspath(self['basedir'])
 
 client_tac = """
 # -*- python -*-
@@ -54,12 +77,12 @@ c.setServiceParent(application)
 class Options(usage.Options):
     synopsis = "Usage:  allmydata <command> [command options]"
 
-    subcommands = [
-        ["create-client", None, CreateClientOptions],
-        ["create-queen", None, CreateQueenOptions],
-        ["start", None, StartOptions],
-        ["stop", None, StopOptions],
-        ["restart", None, RestartOptions],
+    subCommands = [
+        ["create-client", None, CreateClientOptions, "Create a client node."],
+        ["create-queen", None, CreateQueenOptions, "Create a queen node."],
+        ["start", None, StartOptions, "Start a node (of any type)."],
+        ["stop", None, StopOptions, "Stop a node."],
+        ["restart", None, RestartOptions, "Restart a node."],
         ]
 
     def postOptions(self):
@@ -99,7 +122,7 @@ def create_client(config):
     f = open(os.path.join(basedir, "client.tac"), "w")
     f.write(client_tac)
     f.close()
-    print "client created, please copy roster_pburl into the directory"
+    print "client created in %s, please copy roster_pburl into the directory" % basedir
 
 def create_queen(config):
     basedir = config['basedir']
@@ -107,7 +130,7 @@ def create_queen(config):
     f = open(os.path.join(basedir, "queen.tac"), "w")
     f.write(queen_tac)
     f.close()
-    print "queen created"
+    print "queen created in %s" % basedir
 
 def start(config):
     basedir = config['basedir']
