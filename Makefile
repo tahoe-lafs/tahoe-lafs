@@ -15,6 +15,11 @@ run-client3:
 test:
 	trial allmydata
 
+test-figleaf:
+	trial --reporter=bwverbose-figleaf allmydata
+	figleaf2html -d coverage-html -x allmydata/test/figleaf.excludes
+# after doing test-figleaf, point your browser at coverage-html/index.html
+
 create_dirs:
 	mkdir -p queen-basedir
 	mkdir -p client-basedir

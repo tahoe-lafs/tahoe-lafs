@@ -46,3 +46,6 @@
 ^(dapper|sid)/debian/files$
 ^build($|/)
 ^build-stamp$
+^\.figleaf$
+^coverage-html($|/)
+^twisted/plugins/dropin\.cache$
