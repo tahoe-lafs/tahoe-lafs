@@ -147,9 +147,10 @@ def start(config):
     rc = os.system("twistd -y %s" % tac)
     if rc == 0:
         print "node probably started"
+        return 0
     else:
         print "node probably not started"
-    return 1
+        return 1
 
 def stop(config):
     basedir = config['basedir']
