@@ -20,6 +20,9 @@ test-figleaf:
 	figleaf2html -d coverage-html -x allmydata/test/figleaf.excludes
 # after doing test-figleaf, point your browser at coverage-html/index.html
 
+figleaf-output:
+	figleaf2html -d coverage-html -x allmydata/test/figleaf.excludes
+
 create_dirs:
 	mkdir -p queen-basedir
 	mkdir -p client-basedir
