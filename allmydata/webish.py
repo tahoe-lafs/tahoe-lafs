@@ -323,3 +323,8 @@ class WebishServer(service.MultiService):
         # I tried doing it this way and for some reason it didn't seem to work
         #print "REMEMBERING", self.site, dl, IDownloader
         #self.site.remember(dl, IDownloader)
+
+# TODO: figleaf gets confused when the last line of a file is a comment. I
+# suspect an off-by-one error in the code that decides which lines are code
+# and which are not.
+pass

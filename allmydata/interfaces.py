@@ -68,3 +68,8 @@ class RIMutableDirectoryNode(RemoteInterface):
         return Nothing()
 
     # need more to move directories
+
+# TODO: figleaf gets confused when the last line of a file is a comment. I
+# suspect an off-by-one error in the code that decides which lines are code
+# and which are not.
+pass
