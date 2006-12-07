@@ -37,7 +37,7 @@ class Client(node.Node, Referenceable):
         WEBPORTFILE = os.path.join(self.basedir, self.WEBPORTFILE)
         if os.path.exists(WEBPORTFILE):
             f = open(WEBPORTFILE, "r")
-            webport = int(f.read())
+            webport = f.read() # strports string
             f.close()
             self.add_service(WebishServer(webport))
         self.queen_pburl = None

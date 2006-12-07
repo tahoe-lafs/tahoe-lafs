@@ -1,5 +1,5 @@
 
-from twisted.application import service, internet
+from twisted.application import service, strports
 from twisted.web import static, resource, server
 from twisted.python import util, log
 from nevow import inevow, rend, loaders, appserver, url, tags as T
@@ -18,7 +18,6 @@ class IClient(Interface):
 
 class WebishServer(service.MultiService):
     name = "webish"
-    WEBPORTFILE = "webport"
 
     def __init__(self, webport):
         service.MultiService.__init__(self)
@@ -28,7 +27,9 @@ class WebishServer(service.MultiService):
         root.putChild("vdrive",
                       static.Data("sorry, still initializing", "text/plain"))
         self.site = site = appserver.NevowSite(root)
-        internet.TCPServer(webport, site).setServiceParent(self)
+        s = strports.service(webport, site)
+        s.setServiceParent(self)
+        self.listener = s # stash it so the tests can query for the portnum
 
     def startService(self):
         service.MultiService.startService(self)
