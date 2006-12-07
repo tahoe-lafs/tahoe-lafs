@@ -103,13 +103,13 @@ class SystemTest(unittest.TestCase):
             v0 = self.clients[0].getServiceNamed("vdrive")
             d1 = v0.make_directory("/", "subdir1")
             d1.addCallback(lambda subdir1:
-                           v0.put_file_by_data(subdir1, "data", DATA))
+                           v0.put_file_by_data(subdir1, "mydata567", DATA))
             return d1
         d.addCallback(_do_publish)
         def _publish_done(res):
             log.msg("publish finished")
             v1 = self.clients[1].getServiceNamed("vdrive")
-            d1 = v1.get_file_to_data("/subdir1/data")
+            d1 = v1.get_file_to_data("/subdir1/mydata567")
             return d1
         d.addCallback(_publish_done)
         def _get_done(data):
@@ -133,12 +133,11 @@ class SystemTest(unittest.TestCase):
         d.addCallback(lambda res: getPage(base + "vdrive/subdir1"))
         def _got_subdir1(page):
             # there ought to be an href for our file
-            self.failUnless(">data</a>" in page)
+            self.failUnless(">mydata567</a>" in page)
         d.addCallback(_got_subdir1)
-        if False: # not implemented yet
-            d.addCallback(lambda res: getPage(base + "vdrive/subdir/data"))
-            def _got_data(page):
-                self.failUnlessEqual(page, self.data)
-            d.addCallback(_got_data)
+        d.addCallback(lambda res: getPage(base + "vdrive/subdir1/mydata567"))
+        def _got_data(page):
+            self.failUnlessEqual(page, self.data)
+        d.addCallback(_got_data)
         return d
 
