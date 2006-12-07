@@ -7,6 +7,7 @@ import os
 from foolscap.eventual import flushEventualQueue
 from twisted.python import log
 from allmydata.util import idlib
+from twisted.web.client import getPage
 
 class SystemTest(unittest.TestCase):
     def setUp(self):
@@ -37,11 +38,22 @@ class SystemTest(unittest.TestCase):
             basedir = "client%d" % i
             if not os.path.isdir(basedir):
                 os.mkdir(basedir)
+            if i == 0:
+                f = open(os.path.join(basedir, "webport"), "w")
+                f.write("tcp:0:interface=127.0.0.1")
+                f.close()
             c = self.add_service(client.Client(basedir=basedir))
             c.set_queen_pburl(self.queen_pburl)
             self.clients.append(c)
         log.msg("STARTING")
-        return self.wait_for_connections()
+        d = self.wait_for_connections()
+        def _connected(res):
+            # now find out where the web port was
+            l = self.clients[0].getServiceNamed("webish").listener
+            port = l._port.getHost().port
+            self.webish_url = "http://localhost:%d/" % port
+        d.addCallback(_connected)
+        return d
 
     def wait_for_connections(self, ignored=None):
         for c in self.clients:
@@ -84,7 +96,7 @@ class SystemTest(unittest.TestCase):
     test_upload_and_download.timeout = 20
 
     def test_vdrive(self):
-        DATA = "Some data to publish to the virtual drive\n"
+        self.data = DATA = "Some data to publish to the virtual drive\n"
         d = self.set_up_nodes()
         def _do_publish(res):
             log.msg("PUBLISHING")
@@ -104,6 +116,29 @@ class SystemTest(unittest.TestCase):
             log.msg("get finished")
             self.failUnlessEqual(data, DATA)
         d.addCallback(_get_done)
+        d.addCallback(self._test_web)
         return d
     test_vdrive.timeout = 20
+
+    def _test_web(self, res):
+        base = self.webish_url
+        d = getPage(base)
+        def _got_welcome(page):
+            expected = "Connected Peers: <span>%d</span>" % (self.numclients-1)
+            self.failUnless(expected in page,
+                            "I didn't see the right 'connected peers' message "
+                            "in: %s" % page
+                            )
+        d.addCallback(_got_welcome)
+        d.addCallback(lambda res: getPage(base + "vdrive/subdir1"))
+        def _got_subdir1(page):
+            # there ought to be an href for our file
+            self.failUnless(">data</a>" in page)
+        d.addCallback(_got_subdir1)
+        if False: # not implemented yet
+            d.addCallback(lambda res: getPage(base + "vdrive/subdir/data"))
+            def _got_data(page):
+                self.failUnlessEqual(page, self.data)
+            d.addCallback(_got_data)
+        return d
 
