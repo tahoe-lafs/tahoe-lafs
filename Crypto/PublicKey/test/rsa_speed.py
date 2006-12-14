@@ -4,9 +4,9 @@
 # Contributed by Joris Bontje.
 
 import time, pprint
-from Crypto.PublicKey import *
-from Crypto.Util.randpool import RandomPool
-from Crypto.Util import number
+from allmydata.Crypto.PublicKey import *
+from allmydata.Crypto.Util.randpool import RandomPool
+from allmydata.Crypto.Util import number
 
 pool = RandomPool()
 pool.stir()

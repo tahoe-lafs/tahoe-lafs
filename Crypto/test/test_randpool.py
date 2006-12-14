@@ -5,8 +5,8 @@
 __revision__ = "$Id: test_randpool.py,v 1.3 2003/02/28 15:24:01 akuchling Exp $"
 
 from sancho.unittest import TestScenario, parse_args, run_scenarios
-from Crypto.Hash import SHA
-from Crypto.Util import randpool
+from allmydata.Crypto.Hash import SHA
+from allmydata.Crypto.Util import randpool
 
 tested_modules = [ "Crypto.Util.randpool" ]
 

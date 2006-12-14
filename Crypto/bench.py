@@ -17,7 +17,7 @@ sys.path.insert(0, s)
 s = os.path.join(os.getcwd(), 'test')
 sys.path.insert(0, s)
 
-from Crypto.Util import bench
+from allmydata.Crypto.Util import bench
 
 args = sys.argv[1:]
 quiet = "--quiet" in args

@@ -3,9 +3,9 @@
 """ Example of Chaumian blinding """
 
 import time, pprint, os, sha
-from Crypto.PublicKey import *
-from Crypto.Util.randpool import RandomPool
-from Crypto.Util import number
+from allmydata.Crypto.PublicKey import *
+from allmydata.Crypto.Util.randpool import RandomPool
+from allmydata.Crypto.Util import number
 import cPickle as pickle
 
 # Globals

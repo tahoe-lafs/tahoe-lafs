@@ -1,6 +1,6 @@
 
 import time
-from Crypto.Util import number
+from allmydata.Crypto.Util import number
 
 # Test of prime-generation speed
 

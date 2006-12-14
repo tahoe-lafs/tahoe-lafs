@@ -12,9 +12,9 @@
 
 __revision__ = "$Id: qNEW.py,v 1.8 2003/04/04 15:13:35 akuchling Exp $"
 
-from Crypto.PublicKey import pubkey
-from Crypto.Util.number import *
-from Crypto.Hash import SHA
+from allmydata.Crypto.PublicKey import pubkey
+from allmydata.Crypto.Util.number import *
+from allmydata.Crypto.Hash import SHA
 
 class error (Exception):
     pass

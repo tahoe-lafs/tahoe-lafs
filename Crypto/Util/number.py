@@ -14,7 +14,7 @@ __revision__ = "$Id: number.py,v 1.13 2003/04/04 18:21:07 akuchling Exp $"
 
 bignum = long
 try:
-    from Crypto.PublicKey import _fastmath
+    from allmydata.Crypto.PublicKey import _fastmath
 except ImportError:
     _fastmath = None
 

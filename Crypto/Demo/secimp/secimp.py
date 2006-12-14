@@ -57,7 +57,7 @@ def secimport(name, globals=None, locals=None, fromlist=None):
             # require a huge key and would double the size of the
             # *.pys file.
             import marshal
-            from Crypto.Hash import MD5
+            from allmydata.Crypto.Hash import MD5
             fp.close()                  # Close the original *.pyc file
             from testkey import *       # Get the key for verification
             signature=marshal.load(secfile) # Read signature

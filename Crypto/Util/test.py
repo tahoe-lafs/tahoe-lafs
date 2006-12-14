@@ -17,8 +17,8 @@ import random
 import string
 import testdata
 
-from Crypto.Cipher import *
-from Crypto.Util.number import long_to_bytes
+from allmydata.Crypto.Cipher import *
+from allmydata.Crypto.Util.number import long_to_bytes
 
 def die(string):
     import sys

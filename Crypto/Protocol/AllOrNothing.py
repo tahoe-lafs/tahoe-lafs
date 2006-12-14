@@ -21,7 +21,7 @@ __revision__ = "$Id: AllOrNothing.py,v 1.8 2003/02/28 15:23:20 akuchling Exp $"
 
 import operator
 import string
-from Crypto.Util.number import bytes_to_long, long_to_bytes
+from allmydata.Crypto.Util.number import bytes_to_long, long_to_bytes
 
 
 
@@ -200,7 +200,7 @@ class AllOrNothing:
         # TBD: Not a very secure algorithm.  Eventually, I'd like to use JHy's
         # kernelrand module
         import time
-        from Crypto.Util import randpool
+        from allmydata.Crypto.Util import randpool
         # TBD: key_size * 2 to work around possible bug in RandomPool?
         pool = randpool.RandomPool(key_size * 2)
         while key_size > pool.entropy:
@@ -270,7 +270,7 @@ Where:
             aslong = 1
 
     # ugly hack to force __import__ to give us the end-path module
-    module = __import__('Crypto.Cipher.'+ciphermodule, None, None, ['new'])
+    module = __import__('allmydata.Crypto.Cipher.'+ciphermodule, None, None, ['new'])
 
     a = AllOrNothing(module)
     print 'Original text:\n=========='

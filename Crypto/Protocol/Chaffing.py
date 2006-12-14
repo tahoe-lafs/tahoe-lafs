@@ -44,7 +44,7 @@ http://theory.lcs.mit.edu/~rivest/chaffing.txt
 
 __revision__ = "$Id: Chaffing.py,v 1.7 2003/02/28 15:23:21 akuchling Exp $"
 
-from Crypto.Util.number import bytes_to_long
+from allmydata.Crypto.Util.number import bytes_to_long
 
 class Chaff:
     """Class implementing the chaff adding algorithm.
@@ -146,7 +146,7 @@ class Chaff:
     def _randnum(self, size):
         # TBD: Not a very secure algorithm.
         # TBD: size * 2 to work around possible bug in RandomPool
-        from Crypto.Util import randpool
+        from allmydata.Crypto.Util import randpool
         import time
         pool = randpool.RandomPool(size * 2)
         while size > pool.entropy:
@@ -181,7 +181,7 @@ likely to effect their Safety and Happiness.
 
     # now get MACs for all the text blocks.  The key is obvious...
     print 'Calculating MACs...'
-    from Crypto.Hash import HMAC, SHA
+    from allmydata.Crypto.Hash import HMAC, SHA
     key = 'Jefferson'
     macs = [HMAC.new(key, block, digestmod=SHA).digest()
             for block in blocks]

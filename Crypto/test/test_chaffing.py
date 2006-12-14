@@ -5,7 +5,7 @@
 __revision__ = "$Id: test_chaffing.py,v 1.2 2003/02/28 15:23:59 akuchling Exp $"
 
 from sancho.unittest import TestScenario, parse_args, run_scenarios
-from Crypto.Protocol import Chaffing
+from allmydata.Crypto.Protocol import Chaffing
 
 tested_modules = [ "Crypto.Protocol.Chaffing" ]
 

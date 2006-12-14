@@ -11,7 +11,7 @@
     forgotten pass phrase !
 """
 import exceptions,os,string,time,sys
-from CryptoWorld import Ciphers,Hashes,Utils
+from allmydata.CryptoWorld import Ciphers,Hashes,Utils
 from CommandLine import Application,SwitchOption,ArgumentOption
 
 # Globals

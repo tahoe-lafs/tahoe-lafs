@@ -13,13 +13,13 @@
 
 __revision__ = "$Id: DSA.py,v 1.16 2004/05/06 12:52:54 akuchling Exp $"
 
-from Crypto.PublicKey.pubkey import *
-from Crypto.Util import number
-from Crypto.Util.number import bytes_to_long, long_to_bytes
-from Crypto.Hash import SHA
+from allmydata.Crypto.PublicKey.pubkey import *
+from allmydata.Crypto.Util import number
+from allmydata.Crypto.Util.number import bytes_to_long, long_to_bytes
+from allmydata.Crypto.Hash import SHA
 
 try:
-    from Crypto.PublicKey import _fastmath
+    from allmydata.Crypto.PublicKey import _fastmath
 except ImportError:
     _fastmath = None
 

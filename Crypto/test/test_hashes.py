@@ -7,7 +7,7 @@ __revision__ = "$Id: test_hashes.py,v 1.4 2004/08/13 22:23:12 akuchling Exp $"
 import time, string, binascii
 from sancho.unittest import TestScenario, parse_args, run_scenarios
 
-from Crypto.Hash import *
+from allmydata.Crypto.Hash import *
 import testdata
 
 tested_modules = [ "Crypto.Hash.MD2", "Crypto.Hash.MD4", "Crypto.Hash.MD5",

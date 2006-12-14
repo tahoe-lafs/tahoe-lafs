@@ -13,7 +13,7 @@
 __revision__ = "$Id: pubkey.py,v 1.11 2003/04/03 20:36:14 akuchling Exp $"
 
 import types, warnings
-from Crypto.Util.number import *
+from allmydata.Crypto.Util.number import *
 
 # Basic public key class
 class pubkey:

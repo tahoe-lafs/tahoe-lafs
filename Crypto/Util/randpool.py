@@ -13,9 +13,9 @@
 __revision__ = "$Id: randpool.py,v 1.14 2004/05/06 12:56:54 akuchling Exp $"
 
 import time, array, types, warnings, os.path
-from Crypto.Util.number import long_to_bytes
+from allmydata.Crypto.Util.number import long_to_bytes
 try:
-    import Crypto.Util.winrandom as winrandom
+    import allmydata.Crypto.Util.winrandom as winrandom
 except:
     winrandom = None
 
@@ -54,7 +54,7 @@ class RandomPool:
 
     def __init__(self, numbytes = 160, cipher=None, hash=None):
         if hash is None:
-            from Crypto.Hash import SHA as hash
+            from allmydata.Crypto.Hash import SHA as hash
 
         # The cipher argument is vestigial; it was removed from
         # version 1.1 so RandomPool would work even in the limited
@@ -64,7 +64,7 @@ class RandomPool:
 
         if isinstance(hash, types.StringType):
             # ugly hack to force __import__ to give us the end-path module
-            hash = __import__('Crypto.Hash.'+hash,
+            hash = __import__('allmydata.Crypto.Hash.'+hash,
                               None, None, ['new'])
             warnings.warn("'hash' parameter should now be a hashing module")
 

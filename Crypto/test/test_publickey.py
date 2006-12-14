@@ -6,9 +6,9 @@ __revision__ = "$Id: test_publickey.py,v 1.7 2003/04/04 19:38:28 akuchling Exp $
 
 import sys, cPickle
 from sancho.unittest import TestScenario, parse_args, run_scenarios
-from Crypto.PublicKey import *
-from Crypto.Util.randpool import RandomPool
-from Crypto.Util import number
+from allmydata.Crypto.PublicKey import *
+from allmydata.Crypto.Util.randpool import RandomPool
+from allmydata.Crypto.Util import number
 
 tested_modules = [ "Crypto.PublicKey.RSA", "Crypto.PublicKey.DSA",
                    "Crypto.PublicKey.ElGamal", "Crypto.PublicKey.qNEW"]

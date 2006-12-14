@@ -4,7 +4,7 @@
 # the listed directories.
 
 from testkey import *
-from Crypto.Hash import MD5
+from allmydata.Crypto.Hash import MD5
 import os, glob, sys
 import marshal, compileall
 

@@ -1,8 +1,8 @@
 
 import sys
-import Crypto.PublicKey.DSA
+import allmydata.Crypto.PublicKey.DSA
 
-key = Crypto.PublicKey.DSA.construct((
+key = allmydata.Crypto.PublicKey.DSA.construct((
  # y
  0x43E9162E224CBD1B66D7C27EB7E795392310B5E7AC6E0B1F60021F5E03F90E851CB7F76603FAE73907154371AE04EDBF0D9D557DF03488F34C18324B8DFEF5D2L,
  # g
@@ -17,8 +17,8 @@ key = Crypto.PublicKey.DSA.construct((
 
 if __name__ == '__main__':
     # Running this script directly will generate a new key and print it out
-    from Crypto.PublicKey import DSA
-    from Crypto.Util.randpool import KeyboardRandomPool
+    from allmydata.Crypto.PublicKey import DSA
+    from allmydata.Crypto.Util.randpool import KeyboardRandomPool
 
     pool = KeyboardRandomPool(numbytes = 64)
     pool.randomize()
@@ -31,7 +31,7 @@ if __name__ == '__main__':
         print >>sys.stderr, 'Usage: '+sys.argv[0]+' [keylen]'
         sys.exit(1)
     key = DSA.generate(keylen, pool.get_bytes, sys.stdout.write)
-    print "key = Crypto.PublicKey.DSA.construct(("
+    print "key = allmydata.Crypto.PublicKey.DSA.construct(("
     for field in key.keydata:
         print " #", field
         print " " + hex(getattr(key, field)) + ","

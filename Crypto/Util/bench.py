@@ -4,7 +4,7 @@ from pyutil.assertutil import _assert, precondition, postcondition
 from pyutil.randutil import insecurerandstr
 from pyutil import benchutil
 
-from Crypto.Cipher import AES
+from allmydata.Crypto.Cipher import AES
 
 MODE_CTR = AES.MODE_CTR # MODE_CTR is same value for all ciphers in pycrypto 2.0.1
 
@@ -73,7 +73,7 @@ class CipherRunner:
         if decrypted != self.text:
             raise "FAILURE!  decrypted does match original plaintext, self.text[:64]: %r, decrypted[:64]: %r" % (self.text[:64], decrypted[:64],)
 
-from Crypto.Cipher import *
+from allmydata.Crypto.Cipher import *
 def bench_aes_ctr():
     c = CipherRunner(AES, AES.MODE_CTR)
 
