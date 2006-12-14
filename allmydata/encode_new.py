@@ -202,3 +202,5 @@ class RIStorageBucketReader(RemoteInterface):
         return str
     #def read(size=int, offset=int):
     #    return str
+
+"figleaf doesn't like the last line of the file to be a comment"
