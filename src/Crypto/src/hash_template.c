@@ -236,7 +236,7 @@ _MODULE_NAME (void)
 	PyObject *m;
 
 	ALGtype.ob_type = &PyType_Type;
-	m = Py_InitModule("Crypto.Hash." _MODULE_STRING, ALG_functions);
+	m = Py_InitModule("allmydata.Crypto.Hash." _MODULE_STRING, ALG_functions);
 
 	/* Add some symbolic constants to the module */
 	PyModule_AddIntConstant(m, "digest_size", DIGEST_SIZE);
