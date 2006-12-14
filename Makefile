@@ -40,6 +40,7 @@ pyflakes:
 
 clean:
 	rm -rf build
+	rm -f debian
 
 create_dirs:
 	mkdir -p queen-basedir
