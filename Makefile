@@ -35,6 +35,9 @@ test-figleaf:
 figleaf-output:
 	figleaf2html -d coverage-html -x allmydata/test/figleaf.excludes
 
+pyflakes:
+	pyflakes src/allmydata
+
 clean:
 	rm -rf build
 
