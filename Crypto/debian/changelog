@@ -1,0 +1,137 @@
+python-amdcrypto (2.0.1.allmydata2) unstable; urgency=low
+
+  * Pulled in zooko's CTR-mode patches, including the one that handles
+    encryption chunks that are not multiples of the cipher's blocksize.
+  * Changed the package name to avoid confusion with the
+    not-entirely-compatible normal python-crypto package.
+  * Changed this into a native package, since the changes relative to the
+    best remaining upstream source (2.0.1 from
+    http://www.amk.ca/python/code/crypto) are kinda weird (add debian/*,
+    remove non-free algorithms, add zooko's patch). This source tarball is
+    kept in a darcs repository in hanford:~warner/trees-pycrypto/trunk.
+
+ -- Brian Warner <warner@allmydata.com>  Mon,  5 Jun 2006 16:45:58 -0700
+
+python-crypto (2.0.1+dfsg1-1) unstable; urgency=low
+
+  * Acknowlegde NMUs (closes: #318055, #318012).
+  * Packaged new upstream version (closes: #325517).
+    - 2.0.1 includes fix for AMD64, presumingly also closes: #297516.
+
+ -- Andreas Rottmann <rotty@debian.org>  Tue,  4 Oct 2005 00:10:40 +0200
+
+python-crypto (2.0+dp1-2.3) unstable; urgency=low
+
+  * NMU.
+  * Add python2.4-crypto package, drop python2.1 and python2.2 packages
+    (closes: #313349).
+
+ -- Matthias Klose <doko@debian.org>  Mon, 29 Aug 2005 07:18:38 +0000
+
+python-crypto (2.0+dp1-2.2) unstable; urgency=low
+
+  * NMU to fix build failures on some architectures
+  * Remove -O3 gcc option on m68k architecture to fix FTBFS due to an
+    internal compiler error
+  * Standards version 3.6.2 (no changes required)
+  * Relax the versioned build dependency of libgmp3-dev to 4.1.4-8
+    instead of -9. Some architectures only have -8 at this point
+    which is sufficient.
+
+ -- Bastian Kleineidam <calvin@debian.org>  Fri, 12 Aug 2005 11:04:21 +0200
+
+python-crypto (2.0+dp1-2.1) unstable; urgency=low
+
+  * NMU to make package installable again
+  * Added missing build dependency on (versioned) libgmp3-dev, otherwise
+    the _fastmath module won't be compiled.
+  * Recompile against libgmp3c2 (Closes: #318055)
+
+ -- Bastian Kleineidam <calvin@debian.org>  Tue,  9 Aug 2005 10:54:41 +0200
+
+python-crypto (2.0+dp1-2) unstable; urgency=medium
+
+  * Added missing build-dependency on tetex-bin and tetex-extra (closes:
+    #288602).
+
+ -- Andreas Rottmann <rotty@debian.org>  Tue,  4 Jan 2005 17:47:27 +0100
+
+python-crypto (2.0+dp1-1) unstable; urgency=medium
+
+  * Again remove problematic code from orig tarball, which the NMU did
+    miss (not to mention that the orig tarball from the NMU wasn't
+    pristine and contained .pyc files). Urgency medium, so sarge won't end
+    up with problematic code.
+  * Include the manual in binary packages (closes: #273622).
+  * Switch to CDBS.
+  * Lowercase description synopsis, as suggested by lintian/developer's
+    reference.
+  * Advertice the newly-included (since 2.0) SHA256 module in the
+    description.
+
+ -- Andreas Rottmann <rotty@debian.org>  Sat,  1 Jan 2005 14:47:12 +0100
+
+python-crypto (2.0-1) unstable; urgency=medium
+
+  * NMU.
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Tue, 17 Aug 2004 23:44:24 +0200
+
+python-crypto (1.9a6+dp2-1) unstable; urgency=low
+
+  * Transitioned to Python 2.3.
+  * Removed accidential junk form .orig.tar.gz.
+  
+ -- Andreas Rottmann <rotty@debian.org>  Sat,  9 Aug 2003 12:41:23 +0200
+
+python-crypto (1.9a6+dp1-2) unstable; urgency=low
+
+  * Fixed Section (python instead of interpreters).
+
+ -- Andreas Rottmann <rotty@debian.org>  Sun, 20 Jul 2003 15:21:37 +0200
+
+python-crypto (1.9a6+dp1-1) unstable; urgency=low
+
+  * New upstream release.
+  * Bump Standards-Version to 3.6.0 (no changes).
+
+ -- Andreas Rottmann <rotty@debian.org>  Sun, 13 Jul 2003 18:26:54 +0200
+
+python-crypto (1.9a4+dp1-4) unstable; urgency=low
+
+  * Use dh_python.
+      + Build-depend on debhelper >= 4.1.29.
+      + Build-depend on python.
+  * Bump Standards-Version to 3.5.8.
+  
+ -- Andreas Rottmann <rotty@debian.org>  Thu, 20 Feb 2003 14:55:12 +0100
+
+python-crypto (1.9a4+dp1-3) unstable; urgency=low
+
+  * Cipher/__init__.py: Remove 'RC5' and 'IDEA' from __all__.
+
+ -- Andreas Rottmann <rotty@debian.org>  Fri, 14 Feb 2003 01:10:26 +0100
+
+python-crypto (1.9a4+dp1-2) unstable; urgency=low
+
+  * debian/control: Added python2.x dependencies to binary packages.
+  * debian/control: Fixed 'Cryptpgraphic' typo (closes: #162884).
+
+ -- Andreas Rottmann <rotty@debian.org>  Thu,  7 Nov 2002 22:05:27 +0100
+
+python-crypto (1.9a4+dp1-1) unstable; urgency=low
+
+  * Removed problematic algorithms from source code.
+      + Added README.Debian with details.
+      + Updated package descriptions.
+  * Include docs in all pythonX.Y-crypto packages.
+
+ -- Andreas Rottmann <rotty@debian.org>  Wed, 11 Sep 2002 13:15:45 +0200
+
+python-crypto (1.9a4-1) unstable; urgency=low
+
+  * Initial Release (closes: #159717)
+
+ -- Andreas Rottmann <rotty@debian.org>  Thu,  5 Sep 2002 14:53:33 +0200
+

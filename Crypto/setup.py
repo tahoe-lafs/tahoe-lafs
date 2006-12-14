@@ -1,27 +1,36 @@
-#! /usr/bin/python
+#! /usr/bin/env python
 
-#from setuptools import setup, find_packages
-from distutils.core import setup
+__revision__ = "$Id: setup.py,v 1.30 2005/06/14 01:20:22 akuchling Exp $"
+
+from distutils import core
 from distutils.core import Extension
 from distutils.command.build_ext import build_ext
 import os, sys
 
+if sys.version[0:1] == '1':
+    raise RuntimeError, ("The Python Cryptography Toolkit requires "
+                         "Python 2.x to build.")
 
-# we build and install a copy of pycrypto as allmydata.Crypto, because we've
-# made some improvements that have not yet made it upstream (specifically a
-# much faster version of CTR mode). To accomplish this, we must include a
-# couple of pieces from the pycrypto setup.py file here.
+debug_build_kw = {}
+
+DEBUG_BUILD=False
+# DEBUG_BUILD=True
+if DEBUG_BUILD:
+    debug_build_kw.update({
+        'extra_compile_args': ['-O0', '-g',],
+        'extra_link_args': ['-g',],
+        'undef_macros': ['NDEBUG',], })
 
 if sys.platform == 'win32':
     HTONS_LIBS = ['ws2_32']
     plat_ext = [
                 Extension("Crypto.Util.winrandom",
                           libraries = HTONS_LIBS + ['advapi32'],
-                          include_dirs=['Crypto/src/'],
+                          include_dirs=['src/'],
                           extra_compile_args=['-O0 -g',],
                           extra_link_args=['-g',],
                           undef_macros=['NDEBUG',],
-                          sources=["Crypto/src/winrand.c"],
+                          sources=["src/winrand.c"],
                           **debug_build_kw)
                ]
 else:
@@ -77,52 +86,51 @@ def cc_remove_option (compiler, option):
 
 class PCTBuildExt (build_ext):
     def build_extensions(self):
-        debug_build_kw = {}
         self.extensions += [
             # Hash functions
-            Extension("allmydata.Crypto.Hash.MD4",
-                      include_dirs=['Crypto/src/'],
-                      sources=["Crypto/src/MD4.c"],
+            Extension("Crypto.Hash.MD4",
+                      include_dirs=['src/'],
+                      sources=["src/MD4.c"],
                       **debug_build_kw),
-            Extension("allmydata.Crypto.Hash.SHA256",
-                      include_dirs=['Crypto/src/'],
-                      sources=["Crypto/src/SHA256.c"],
+            Extension("Crypto.Hash.SHA256",
+                      include_dirs=['src/'],
+                      sources=["src/SHA256.c"],
                       **debug_build_kw),
 
             # Block encryption algorithms
-            Extension("allmydata.Crypto.Cipher.AES",
-                      include_dirs=['Crypto/src/'],
-                      sources=["Crypto/src/AES.c"],
+            Extension("Crypto.Cipher.AES",
+                      include_dirs=['src/'],
+                      sources=["src/AES.c"],
                       **debug_build_kw),
-            Extension("allmydata.Crypto.Cipher.ARC2",
-                      include_dirs=['Crypto/src/'],
-                      sources=["Crypto/src/ARC2.c"],
+            Extension("Crypto.Cipher.ARC2",
+                      include_dirs=['src/'],
+                      sources=["src/ARC2.c"],
                       **debug_build_kw),
-            Extension("allmydata.Crypto.Cipher.Blowfish",
-                      include_dirs=['Crypto/src/'],
-                      sources=["Crypto/src/Blowfish.c"],
+            Extension("Crypto.Cipher.Blowfish",
+                      include_dirs=['src/'],
+                      sources=["src/Blowfish.c"],
                       **debug_build_kw),
-            Extension("allmydata.Crypto.Cipher.CAST",
-                      include_dirs=['Crypto/src/'],
-                      sources=["Crypto/src/CAST.c"],
+            Extension("Crypto.Cipher.CAST",
+                      include_dirs=['src/'],
+                      sources=["src/CAST.c"],
                       **debug_build_kw),
-            Extension("allmydata.Crypto.Cipher.DES",
-                      include_dirs=['Crypto/src/'],
-                      sources=["Crypto/src/DES.c"],
+            Extension("Crypto.Cipher.DES",
+                      include_dirs=['src/'],
+                      sources=["src/DES.c"],
                       **debug_build_kw),
-            Extension("allmydata.Crypto.Cipher.DES3",
-                      include_dirs=['Crypto/src/'],
-                      sources=["Crypto/src/DES3.c"],
+            Extension("Crypto.Cipher.DES3",
+                      include_dirs=['src/'],
+                      sources=["src/DES3.c"],
                       **debug_build_kw),
 
             # Stream ciphers
-            Extension("allmydata.Crypto.Cipher.ARC4",
-                      include_dirs=['Crypto/src/'],
-                      sources=["Crypto/src/ARC4.c"],
+            Extension("Crypto.Cipher.ARC4",
+                      include_dirs=['src/'],
+                      sources=["src/ARC4.c"],
                       **debug_build_kw),
-            Extension("allmydata.Crypto.Cipher.XOR",
-                      include_dirs=['Crypto/src/'],
-                      sources=["Crypto/src/XOR.c"],
+            Extension("Crypto.Cipher.XOR",
+                      include_dirs=['src/'],
+                      sources=["src/XOR.c"],
                       **debug_build_kw),
             ]
 
@@ -139,16 +147,13 @@ class PCTBuildExt (build_ext):
         inc_dirs = self.compiler.include_dirs + ['/usr/include']
         exts = []
         if (self.compiler.find_library_file(lib_dirs, 'gmp')):
-            exts.append(Extension("allmydata.Crypto.PublicKey._fastmath",
-                                  include_dirs=['Crypto/src/'],
+            exts.append(Extension("Crypto.PublicKey._fastmath",
+                                  include_dirs=['src/'],
                                   libraries=['gmp'],
-                                  sources=["Crypto/src/_fastmath.c"]))
+                                  sources=["src/_fastmath.c"]))
         self.extensions += exts
 
 
-# these are the setup() args for the original pycrypto module. We only use a
-# subset of them.
-"""
 kw = {'name':"pycrypto",
       'version':"2.0.1",
       'description':"Cryptographic modules for Python.",
@@ -165,8 +170,13 @@ kw = {'name':"pycrypto",
       'ext_modules':[Extension("Crypto.Hash.MD2",
                              include_dirs=['src/'],
                              sources=["src/MD2.c"],
-                               **debug_build_kw)],
-      'classifiers': [
+                               **debug_build_kw)]
+     }
+
+# If we're running Python 2.3, add extra information
+if hasattr(core, 'setup_keywords'):
+    if 'classifiers' in core.setup_keywords:
+        kw['classifiers'] = [
           'Development Status :: 4 - Beta',
           'License :: Public Domain',
           'Intended Audience :: Developers',
@@ -175,31 +185,9 @@ kw = {'name':"pycrypto",
           'Operating System :: MacOS :: MacOS X',
           'Topic :: Security :: Cryptography',
           ]
-     }
-"""
+    if 'download_url' in core.setup_keywords:
+        kw['download_url'] = ('http://www.amk.ca/files/python/crypto/'
+                              '%s-%s.tar.gz' % (kw['name'], kw['version']) )
 
-# this is our actual setup() call
-setup(
-    name="AllMyData",
-    version="0.0.1",
-    #packages=find_packages('.'),
-    packages=["allmydata", "allmydata/test", "allmydata/util",
-              "allmydata/scripts",
-              "allmydata.Crypto", "allmydata.Crypto.Hash",
-              "allmydata.Crypto.Cipher", "allmydata.Crypto.Util",
-              "allmydata.Crypto.Protocol", "allmydata.Crypto.PublicKey"
-              ],
-    package_dir={ "allmydata.Crypto": "Crypto" },
-    scripts = ["bin/allmydata"],
-    package_data={ 'allmydata': ['web/*.xhtml'] },
-
-    cmdclass= {'build_ext': PCTBuildExt},
-      # One module is defined here, because build_ext won't be
-      # called unless there's at least one extension module defined.
-    ext_modules=[Extension("allmydata.Crypto.Hash.MD2",
-                           include_dirs=['Crypto/src/'],
-                           sources=["Crypto/src/MD2.c"])],
-
-    description="AllMyData (tahoe2)",
-    )
+core.setup(**kw)
 

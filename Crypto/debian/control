@@ -1,0 +1,60 @@
+Source: python-amdcrypto
+Section: python
+Priority: optional
+Maintainer: Andreas Rottmann <rotty@debian.org>
+Build-Depends: cdbs, debhelper (>= 4.2), python, python2.3-dev, python2.4-dev, ed, tetex-bin, tetex-extra, libgmp3-dev (>= 4.1.4-10)
+Standards-Version: 3.6.2
+
+Package: python-amdcrypto
+Architecture: any
+Depends: ${python:Depends}
+Conflicts: python-crypto
+Provides: python-crypto
+Description: cryptographic algorithms and protocols for Python
+ A collection of cryptographic algorithms and protocols, implemented
+ for use from Python. Among the contents of the package:
+ .
+  * Hash functions: MD2, MD4.
+  * Block encryption algorithms: AES, ARC2, Blowfish, CAST, DES, Triple-DES.
+  * Stream encryption algorithms: ARC4, simple XOR.
+  * Public-key algorithms: RSA, DSA, ElGamal, qNEW.
+  * Protocols: All-or-nothing transforms, chaffing/winnowing.
+  * Miscellaneous: RFC1751 module for converting 128-key keys 
+    into a set of English words, primality testing.
+ .
+ This is an empty dummy package that always depends on a package built
+ for Debian's default Python version.
+
+Package: python2.3-amdcrypto
+Architecture: any
+Depends: ${shlibs:Depends}, python2.3
+Conflicts: python2.3-crypto
+Provides: python2.3-crypto
+Description: cryptographic algorithms and protocols for Python
+ A collection of cryptographic algorithms and protocols, implemented
+ for use from Python. Among the contents of the package:
+ .
+  * Hash functions: MD2, MD4, SHA256.
+  * Block encryption algorithms: AES, ARC2, Blowfish, CAST, DES, Triple-DES.
+  * Stream encryption algorithms: ARC4, simple XOR.
+  * Public-key algorithms: RSA, DSA, ElGamal, qNEW.
+  * Protocols: All-or-nothing transforms, chaffing/winnowing.
+  * Miscellaneous: RFC1751 module for converting 128-key keys 
+    into a set of English words, primality testing.
+
+Package: python2.4-amdcrypto
+Architecture: any
+Depends: ${shlibs:Depends}, python2.4
+Conflicts: python2.4-crypto
+Provides: python2.4-crypto
+Description: cryptographic algorithms and protocols for Python
+ A collection of cryptographic algorithms and protocols, implemented
+ for use from Python. Among the contents of the package:
+ .
+  * Hash functions: MD2, MD4.
+  * Block encryption algorithms: AES, ARC2, Blowfish, CAST, DES, Triple-DES.
+  * Stream encryption algorithms: ARC4, simple XOR.
+  * Public-key algorithms: RSA, DSA, ElGamal, qNEW.
+  * Protocols: All-or-nothing transforms, chaffing/winnowing.
+  * Miscellaneous: RFC1751 module for converting 128-key keys 
+    into a set of English words, primality testing.
