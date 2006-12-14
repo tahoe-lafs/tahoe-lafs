@@ -2,7 +2,7 @@
 
 import math
 from twisted.internet import defer
-from allmydata.chunk import HashTree
+from allmydata.chunk import HashTree, roundup_pow2
 from Crypto.Cipher import AES
 import sha
 
@@ -160,8 +160,13 @@ class Encoder(object):
         self.root_hash = t[0]
         # now send just the necessary pieces out to each shareholder
         for i in range(self.num_shares):
-            needed_hash_indices = t.needed_for(i)
-            dl.append(self.send_one_share_hash_tree(i, needed_hash_indices))
+            # the HashTree is given a list of leaves: 0,1,2,3..n .
+            # These become nodes A+0,A+1,A+2.. of the tree, where A=n-1
+            tree_width = roundup_pow2(self.num_shares)
+            base_index = i + tree_width - 1
+            needed_hash_indices = t.needed_for(base_index)
+            hashes = [(hi, t[hi]) for hi in needed_hash_indices]
+            dl.append(self.send_one_share_hash_tree(i, hashes))
         return defer.DeferredList(dl)
 
     def send_one_share_hash_tree(self, share_num, needed_hashes):

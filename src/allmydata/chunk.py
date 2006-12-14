@@ -135,7 +135,7 @@ class CompleteBinaryTreeMixin:
 
   def needed_for(self, i):
     """
-    Return a list of nodes that are necessary for the hash chain.
+    Return a list of node indices that are necessary for the hash chain.
     """
     if i < 0 or i >= len(self):
       raise IndexError('index out of range: ' + repr(i))
