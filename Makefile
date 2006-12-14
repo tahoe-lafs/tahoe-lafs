@@ -24,11 +24,12 @@ else
 PP=PYTHONPATH=$(shell python ./builddir.py)
 endif
 
+TEST=allmydata
 test: build
-	$(PP) trial allmydata
+	$(PP) trial $(TEST)
 
 test-figleaf:
-	$(PP) trial --reporter=bwverbose-figleaf allmydata
+	$(PP) trial --reporter=bwverbose-figleaf $(TEST)
 	figleaf2html -d coverage-html -x allmydata/test/figleaf.excludes
 # after doing test-figleaf, point your browser at coverage-html/index.html
 
