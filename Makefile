@@ -12,16 +12,31 @@ run-client2:
 run-client3:
 	cd client-basedir3 && PYTHONPATH=.. twistd -noy ../client.tac
 
-test:
-	trial allmydata
+.PHONY: build
+build:
+	python setup.py build
+# where does this go? in a platform-specific directory under build/ . Use
+# builddir.py to locate it.
+
+ifneq ($(PYTHONPATH),)
+PP=PYTHONPATH=${PYTHONPATH}:$(shell python ./builddir.py)
+else
+PP=PYTHONPATH=$(shell python ./builddir.py)
+endif
+
+test: build
+	$(PP) trial allmydata
 
 test-figleaf:
-	trial --reporter=bwverbose-figleaf allmydata
+	$(PP) trial --reporter=bwverbose-figleaf allmydata
 	figleaf2html -d coverage-html -x allmydata/test/figleaf.excludes
 # after doing test-figleaf, point your browser at coverage-html/index.html
 
 figleaf-output:
 	figleaf2html -d coverage-html -x allmydata/test/figleaf.excludes
+
+clean:
+	rm -rf build
 
 create_dirs:
 	mkdir -p queen-basedir
