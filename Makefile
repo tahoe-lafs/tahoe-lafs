@@ -30,11 +30,11 @@ test: build
 
 test-figleaf:
 	$(PP) trial --reporter=bwverbose-figleaf $(TEST)
-	figleaf2html -d coverage-html -x allmydata/test/figleaf.excludes
+	figleaf2html -d coverage-html -x src/allmydata/test/figleaf.excludes
 # after doing test-figleaf, point your browser at coverage-html/index.html
 
 figleaf-output:
-	figleaf2html -d coverage-html -x allmydata/test/figleaf.excludes
+	figleaf2html -d coverage-html -x src/allmydata/test/figleaf.excludes
 
 pyflakes:
 	pyflakes src/allmydata
