@@ -133,7 +133,7 @@ class CompleteBinaryTreeMixin:
     else:
       return self.lchild(parent)
 
-  def needed(self, i):
+  def needed_for(self, i):
     """
     Return a list of nodes that are necessary for the hash chain.
     """

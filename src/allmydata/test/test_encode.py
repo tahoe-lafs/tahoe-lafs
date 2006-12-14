@@ -10,7 +10,7 @@ class MyEncoder(encode_new.Encoder):
         return defer.succeed(None)
 
 class Encode(unittest.TestCase):
-    def OFFtest_1(self):
+    def test_1(self):
         e = MyEncoder()
         data = StringIO("some data to encode\n")
         e.setup(data)

@@ -145,11 +145,10 @@ class Encoder(object):
         # all_hashes[1] is the left child, == hash(ah[3]+ah[4])
         # all_hashes[n] == hash(all_hashes[2*n+1] + all_hashes[2*n+2])
         self.share_root_hashes[share_num] = t[0]
-        ll = self.landlords[share_num]
         if False:
             block = "".join(all_hashes)
-            return ll.callRemote("write", block, offset=0)
-        return ll.callRemote("put_subshare_hashes", all_hashes)
+            return self.send(share_num, "write", block, offset=0)
+        return self.send(share_num, "put_subshare_hashes", all_hashes)
 
     def send_all_share_hash_trees(self):
         dl = []
@@ -166,13 +165,12 @@ class Encoder(object):
         return defer.DeferredList(dl)
 
     def send_one_share_hash_tree(self, share_num, needed_hashes):
-        ll = self.landlords[share_num]
-        return ll.callRemote("put_share_hashes", needed_hashes)
+        return self.send(share_num, "put_share_hashes", needed_hashes)
 
     def close_all_shareholders(self):
         dl = []
-        for ll in self.landlords:
-            dl.append(ll.callRemote("close"))
+        for share_num in range(self.num_shares):
+            dl.append(self.send(share_num, "close"))
         return defer.DeferredList(dl)
 
     def done(self):
