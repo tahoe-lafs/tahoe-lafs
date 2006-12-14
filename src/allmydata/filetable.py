@@ -108,6 +108,16 @@ class GlobalVirtualDrive(service.MultiService):
         return self._root
 
 
+
+
+# interesting feature ideas:
+#  pubsub for MutableDirectoryNode: get rapid notification of changes
+#  caused by someone else
+#
+#  bind a local physical directory to the MutableDirectoryNode contents:
+#  each time the vdrive changes, update the local drive to match, and
+#  vice versa.
+
 class Node:
     pass
 
@@ -128,11 +138,3 @@ class MutableDirectoryNode2(Node):
     """I hold an SSK identifier for a mutable directory. When
     dereferenced, I will have a list of child nodes."""
     pass
-
-# interesting feature ideas:
-#  pubsub for MutableDirectoryNode: get rapid notification of changes
-#  caused by someone else
-#
-#  bind a local physical directory to the MutableDirectoryNode contents:
-#  each time the vdrive changes, update the local drive to match, and
-#  vice versa.
