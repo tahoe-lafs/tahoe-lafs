@@ -107,34 +107,3 @@ class GlobalVirtualDrive(service.MultiService):
     def get_root(self):
         return self._root
 
-
-
-
-# interesting feature ideas:
-#  pubsub for MutableDirectoryNode: get rapid notification of changes
-#  caused by someone else
-#
-#  bind a local physical directory to the MutableDirectoryNode contents:
-#  each time the vdrive changes, update the local drive to match, and
-#  vice versa.
-
-class Node:
-    pass
-
-class MutableFileNode(Node):
-    """I hold an SSK identifier for a mutable file. My 'contents' are
-    defined to be the most recent version of the SSK's payload that can
-    be found. This SSK identifier must be dereferenced to get the
-    contents."""
-    pass
-class ImmutableFileNode(Node):
-    """I hold a CHK identifier for an immutable file. I may have some
-    metadata as well: ctime, mtime, content-type, and filesize."""
-    pass
-class ImmutableDirectoryNode(Node):
-    """I hold a list of child nodes."""
-    pass
-class MutableDirectoryNode2(Node):
-    """I hold an SSK identifier for a mutable directory. When
-    dereferenced, I will have a list of child nodes."""
-    pass
