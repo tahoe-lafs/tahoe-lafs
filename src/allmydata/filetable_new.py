@@ -265,13 +265,19 @@ class _SubTreeMixin(object):
 class _MutableSubTreeMixin(object):
 
     def add(self, path, child, opener, work_queue):
-        d = self.find_lowest_containing_subtree_for_path(path, opener)
+        assert len(path) > 0
+        d = self.find_lowest_containing_subtree_for_path(path[:-1], opener)
         def _found(res):
             subtree, prepath, postpath = res
             assert IMutableSubTree.providedBy(subtree)
+            # postpath is from the top of the subtree to the directory where
+            # this child should be added. add_subpath wants the path from the
+            # top of the subtree to the child itself, so we need to append
+            # the child's name here.
+            addpath = postpath + [path[-1]]
             # this add_path will cause some steps to be added, as well as the
             # internal node to be modified
-            d1 = subtree.add_subpath(postpath, child, work_queue)
+            d1 = subtree.add_subpath(addpath, child, work_queue)
             if subtree.mutation_affects_parent():
                 def _added(boxname):
                     work_queue.add_addpath(boxname, prepath)
