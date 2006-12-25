@@ -84,6 +84,16 @@ class ISubTree(Interface):
         either (True, node), or (False, next_subtree_spec, prepath, postpath).
         """
 
+    def serialize():
+        """Return a series of nested lists which describe my structure
+        in a form that can be bencoded."""
+
+    def unserialize(serialized_data):
+        """Populate all nodes from serialized_data, previously created by
+        calling my serialize() method. 'serialized_data' is a series of
+        nested lists (s-expressions), probably recorded in bencoded form."""
+
+
 class IMutableSubTree(Interface):
     def mutation_affects_parent():
         """This returns True for CHK nodes where you must inform the parent
@@ -106,7 +116,7 @@ class IMutableSubTree(Interface):
         everything has been added to the work queue.
         """
 
-    def serialize_to_file():
+    def serialize_to_file(f):
         """Write a bencoded data structure to the given filehandle that can
         be used to reproduce the contents of this subtree."""
 
@@ -191,17 +201,14 @@ class SubTreeNode:
         for i in range(1, len(data), 2):
             name = data[i]
             child_data = data[i+1]
-            assert isinstance(child_data, list)
+            assert isinstance(child_data, (list, tuple))
             child_type = child_data[0]
             if child_type == "DIRECTORY":
                 child = SubTreeNode(self.enclosing_tree)
                 child.unserialize(child_data)
                 self.node_children[name] = child
-            elif child_type == "LINK":
-                self.child_specifications[name] = child_data[1]
             else:
-                raise RuntimeError("unknown serialized-node type '%s'" %
-                                   child_type)
+                self.child_specifications[name] = child_data
 
 class _SubTreeMixin(object):
 
