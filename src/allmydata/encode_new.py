@@ -5,6 +5,8 @@ from twisted.internet import defer
 from allmydata.chunk import HashTree, roundup_pow2
 from Crypto.Cipher import AES
 import sha
+from allmydata.util import mathutil
+from allmydata.util.assertutil import _assert, precondition
 
 def hash(data):
     return sha.new(data).digest()
@@ -67,13 +69,18 @@ class Encoder(object):
         infile.seek(0, 2)
         self.file_size = infile.tell()
         infile.seek(0, 0)
-        fsize = 1.0 * self.file_size
-        self.segment_size = 1024
-        self.num_segments = int(math.ceil(fsize / self.segment_size))
 
         self.num_shares = 100
         self.required_shares = 25
+
+        # The segment size needs to be an even multiple of required_shares.  
+        # (See encode_segment().)
+        self.segment_size = mathutil.next_multiple(1024, self.required_shares)
+        self.num_segments = mathutil.div_ceil(self.file_size, self.segment_size)
+
         self.share_size = self.file_size / self.required_shares
+
+        self.fecer = rs_code.RSCode(self.num_shares, self.required_shares)
 
     def get_reservation_size(self):
         self.num_shares = 100
@@ -104,8 +111,16 @@ class Encoder(object):
         return d
 
     def encode_segment(self, crypttext):
-        shares = [crypttext] * self.num_shares
-        return shares
+        precondition((len(crypttext) % self.required_shares) == 0, len(crypttext), self.required_shares, len(crypttext) % self.required_shares)
+        subshares = [[] for x in range(self.num_shares)]
+        # Note string slices aren't an efficient way to use memory, so when we 
+        # upgrade from the unusably slow py_ecc prototype to a fast ECC we 
+        # should also fix up this memory usage (by using the array module).
+        for i in range(0, len(crypttext), self.required_shares):
+            words = self.fecer.Encode(crypttext[i:i+self.required_shares])
+            for (subshare, word,) in zip(subshares, words):
+                subshare.append(word)
+        return [ ''.join(subshare) for subshare in subshares ]
 
     def do_segment(self, segnum):
         segment_plaintext = self.infile.read(self.segment_size)
