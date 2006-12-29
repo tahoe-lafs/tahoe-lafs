@@ -43,10 +43,10 @@ tree is sent to the shareholder after all the data has been sent. At
 retrieval time, the decoder will ask for specific pieces of this tree before
 asking for subshares, whichever it needs to validate those subshares.
 
-[TODO: we don't really need to generate this whole subshare hash tree
+(Note: we don't really need to generate this whole subshare hash tree
 ourselves. It would be sufficient to have the shareholder generate it and
 just tell us the root. This gives us an extra level of validation on the
-transfer, though, and it is relatively cheap to compute.]
+transfer, though, and it is relatively cheap to compute.)
 
 Each of these subshare hash trees has a root hash. The collection of these
 root hashes for all shares are collected into the 'share hash tree', which
@@ -72,11 +72,12 @@ class Encoder(object):
         self.num_segments = int(math.ceil(fsize / self.segment_size))
 
         self.num_shares = 100
-        self.share_size = self.file_size / 25
+        self.required_shares = 25
+        self.share_size = self.file_size / self.required_shares
 
     def get_reservation_size(self):
         self.num_shares = 100
-        self.share_size = self.file_size / 25
+        self.share_size = self.file_size / self.required_shares
         overhead = self.compute_overhead()
         return self.share_size + overhead
 
@@ -85,7 +86,7 @@ class Encoder(object):
         self.cryptor = AES.new(key=self.key, mode=AES.MODE_CTR,
                                counterstart="\x00"*16)
         self.segment_num = 0
-        self.subshare_hashes = [[]] * self.num_shares
+        self.subshare_hashes = [[] for x in range(self.num_shares)]
         # subshare_hashes[i] is a list that will be accumulated and then send
         # to landlord[i]. This list contains a hash of each segment_share
         # that we sent to that landlord.
