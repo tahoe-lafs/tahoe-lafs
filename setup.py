@@ -187,10 +187,13 @@ setup(
               "allmydata.scripts",
               "allmydata.Crypto", "allmydata.Crypto.Hash",
               "allmydata.Crypto.Cipher", "allmydata.Crypto.Util",
-              "allmydata.Crypto.Protocol", "allmydata.Crypto.PublicKey"
+              "allmydata.Crypto.Protocol", "allmydata.Crypto.PublicKey",
+              "allmydata.py_ecc",
               ],
     package_dir={ "allmydata": "src/allmydata",
-                  "allmydata.Crypto": "src/Crypto" },
+                  "allmydata.Crypto": "src/Crypto",
+                  "allmydata.py_ecc": "src/py_ecc",
+                  },
     scripts = ["bin/allmydata"],
     package_data={ 'allmydata': ['web/*.xhtml'] },
 
