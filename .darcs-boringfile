@@ -49,3 +49,5 @@
 ^\.figleaf$
 ^coverage-html($|/)
 ^twisted/plugins/dropin\.cache$
+^\.figleaf\.el$
+
