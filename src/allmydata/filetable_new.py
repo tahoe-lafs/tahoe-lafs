@@ -413,7 +413,7 @@ class MutableCHKDirectorySubTree(_MutableDirectorySubTree):
 
     def upload_my_serialized_form(self, work_queue):
         # this is the CHK form
-        f, filename = work_queue.create_tempfile()
+        f, filename = work_queue.create_tempfile(".chkdir")
         self.serialize_to_file(f)
         f.close()
         boxname = work_queue.create_boxname()
@@ -441,7 +441,7 @@ class MutableSSKDirectorySubTree(_MutableDirectorySubTree):
 
     def upload_my_serialized_form(self, work_queue):
         # this is the SSK form
-        f, filename = work_queue.create_tempfile()
+        f, filename = work_queue.create_tempfile(".sskdir")
         self.serialize_to_file(f)
         f.close()
         work_queue.add_upload_ssk(filename, self.get_write_capability(),

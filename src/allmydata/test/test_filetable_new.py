@@ -28,7 +28,7 @@ class FakeWorkQueue(object):
         self.first_commands = []
         self.last_commands = []
 
-    def create_tempfile(self):
+    def create_tempfile(self, suffix=""):
         self.tempfile_number += 1
         self.first_commands.append("create_tempfile-%d" % self.tempfile_number)
         return (StringIO(), "dummy_filename-%d" % self.tempfile_number)
