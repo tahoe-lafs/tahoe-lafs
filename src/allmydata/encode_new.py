@@ -7,6 +7,7 @@ from Crypto.Cipher import AES
 import sha
 from allmydata.util import mathutil
 from allmydata.util.assertutil import _assert, precondition
+from allmydata.py_ecc import rs_code
 
 def hash(data):
     return sha.new(data).digest()
