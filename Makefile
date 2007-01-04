@@ -36,7 +36,8 @@ test-figleaf:
 	$(PP) trial --reporter=bwverbose-figleaf $(TEST)
 
 figleaf-output:
-	figleaf2html -d coverage-html -x src/allmydata/test/figleaf.excludes
+	$(PP) python misc/figleaf2html -d coverage-html -x src/allmydata/test/figleaf.excludes
+	@echo "now point your browser at coverage-html/index.html"
 # after doing test-figleaf and figleaf-output, point your browser at
 # coverage-html/index.html
 
