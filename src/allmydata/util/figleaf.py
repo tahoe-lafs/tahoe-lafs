@@ -91,7 +91,7 @@ class LineGrabber:
         """
         self.lines = set()
 
-        self.ast = parser.suite(fp.read().strip())
+        self.ast = parser.suite(fp.read())
         self.tree = parser.ast2tuple(self.ast, True)
 
         self.find_terminal_nodes(self.tree)

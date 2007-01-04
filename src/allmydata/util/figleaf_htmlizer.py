@@ -145,18 +145,53 @@ def report_as_html(coverage, directory, exclude_patterns=[], root=None):
 	pcnt_75 = [ x for x in pcnts if x >= 75 ]
 	pcnt_50 = [ x for x in pcnts if x >= 50 ]
 
+        ## index.html
 	index_fp = open('%s/index.html' % (directory,), 'w')
+        # summary info
 	index_fp.write('<title>figleaf code coverage report</title>\n')
-	index_fp.write('<h2>Summary</h2> %d files total: %d files &gt; 90%%, %d files &gt; 75%%, %d files &gt; 50%%<p>' % (len(pcnts), len(pcnt_90), len(pcnt_75), len(pcnt_50)))
-	index_fp.write('<table border=1><tr><th>Filename</th><th># lines</th><th># covered</th><th>% covered</th></tr>\n')
-	index_fp.write('<tr><td><b>totals:</b></td><td><b>%d</b></td><td><b>%d</b></td><td><b>%.1f%%</b></td></tr><tr></tr>\n' % (summary_lines, summary_cover, summary_pcnt,))
+	index_fp.write('<h2>Summary</h2> %d files total: %d files &gt; '
+                       '90%%, %d files &gt; 75%%, %d files &gt; 50%%<p>'
+                       % (len(pcnts), len(pcnt_90),
+                          len(pcnt_75), len(pcnt_50)))
+        # sorted by percentage covered
+        index_fp.write('<h3>Sorted by Coverage Percentage</h3>\n')
+	index_fp.write('<table border=1><tr><th>Filename</th>'
+                       '<th># lines</th><th># covered</th>'
+                       '<th>% covered</th></tr>\n')
+	index_fp.write('<tr><td><b>totals:</b></td><td><b>%d</b></td>'
+                       '<td><b>%d</b></td><td><b>%.1f%%</b></td></tr>'
+                       '<tr></tr>\n'
+                       % (summary_lines, summary_cover, summary_pcnt,))
 
-	for filename, (n_lines, n_covered, percent_covered, display_filename) in info_dict_items:
+	for filename, stuff in info_dict_items:
+                (n_lines, n_covered, percent_covered, display_filename) = stuff
 		html_outfile = make_html_filename(display_filename)
 
-		index_fp.write('<tr><td><a href="./%s">%s</a></td><td>%d</td><td>%d</td><td>%.1f</td></tr>\n' % (html_outfile, display_filename, n_lines, n_covered, percent_covered,))
+		index_fp.write('<tr><td><a href="./%s">%s</a></td>'
+                               '<td>%d</td><td>%d</td><td>%.1f</td></tr>\n'
+                               % (html_outfile, display_filename, n_lines,
+                                  n_covered, percent_covered,))
 
 	index_fp.write('</table>\n')
+
+        # sorted by module name
+        index_fp.write('<h3>Sorted by Module Name (alphabetical)</h3>\n')
+        info_dict_items.sort()
+	index_fp.write('<table border=1><tr><th>Filename</th>'
+                       '<th># lines</th><th># covered</th>'
+                       '<th>% covered</th></tr>\n')
+
+	for filename, stuff in info_dict_items:
+                (n_lines, n_covered, percent_covered, display_filename) = stuff
+		html_outfile = make_html_filename(display_filename)
+
+		index_fp.write('<tr><td><a href="./%s">%s</a></td>'
+                               '<td>%d</td><td>%d</td><td>%.1f</td></tr>\n'
+                               % (html_outfile, display_filename, n_lines,
+                                  n_covered, percent_covered,))
+
+	index_fp.write('</table>\n')
+
 	index_fp.close()
 
 	logger.info('reported on %d file(s) total\n' % len(info_dict))
