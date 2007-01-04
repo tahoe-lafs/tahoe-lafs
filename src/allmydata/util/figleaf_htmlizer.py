@@ -26,7 +26,7 @@ def read_exclude_patterns(f):
 
 	return exclude_patterns
 
-def report_as_html(coverage, directory, exclude_patterns=[], ):
+def report_as_html(coverage, directory, exclude_patterns=[], root=None):
 	### now, output.
 
 	keys = coverage.keys()
@@ -44,6 +44,16 @@ def report_as_html(coverage, directory, exclude_patterns=[], ):
 
 		if k.endswith('figleaf.py'):
 			continue
+
+                display_filename = k
+                if root:
+                        if not k.startswith(root):
+                                continue
+                        display_filename = k[len(root):]
+                        assert not display_filename.startswith("/")
+                        assert display_filename.endswith(".py")
+                        display_filename = display_filename[:-3] # trim .py
+                        display_filename = display_filename.replace("/", ".")
 
                 if not k.startswith("/"):
                         continue
@@ -100,9 +110,9 @@ def report_as_html(coverage, directory, exclude_patterns=[], ):
 			pcnt = n_covered * 100. / n_lines
 		except ZeroDivisionError:
 			pcnt = 100
-		info_dict[k] = (n_lines, n_covered, pcnt)
+		info_dict[k] = (n_lines, n_covered, pcnt, display_filename)
 
-		html_outfile = make_html_filename(os.path.basename(k))
+		html_outfile = make_html_filename(display_filename)
 		html_outfp = open(os.path.join(directory, html_outfile), 'w')
 		html_outfp.write('source file: <b>%s</b><br>\n' % (k,))
 		html_outfp.write('file stats: <b>%d lines, %d executed: %.1f%% covered</b>\n' % (n_lines, n_covered, pcnt))
@@ -141,10 +151,10 @@ def report_as_html(coverage, directory, exclude_patterns=[], ):
 	index_fp.write('<table border=1><tr><th>Filename</th><th># lines</th><th># covered</th><th>% covered</th></tr>\n')
 	index_fp.write('<tr><td><b>totals:</b></td><td><b>%d</b></td><td><b>%d</b></td><td><b>%.1f%%</b></td></tr><tr></tr>\n' % (summary_lines, summary_cover, summary_pcnt,))
 
-	for filename, (n_lines, n_covered, percent_covered,) in info_dict_items:
-		html_outfile = make_html_filename(os.path.basename(filename))
+	for filename, (n_lines, n_covered, percent_covered, display_filename) in info_dict_items:
+		html_outfile = make_html_filename(display_filename)
 
-		index_fp.write('<tr><td><a href="./%s">%s</a></td><td>%d</td><td>%d</td><td>%.1f</td></tr>\n' % (html_outfile, filename, n_lines, n_covered, percent_covered,))
+		index_fp.write('<tr><td><a href="./%s">%s</a></td><td>%d</td><td>%d</td><td>%.1f</td></tr>\n' % (html_outfile, display_filename, n_lines, n_covered, percent_covered,))
 
 	index_fp.write('</table>\n')
 	index_fp.close()
@@ -159,8 +169,7 @@ def prepare_reportdir(dirname='html'):
 		pass
 
 def make_html_filename(orig):
-	orig = os.path.splitdrive(orig)[1].replace('_', '__')
-	return orig.replace(os.path.sep, '_') + '.html'
+        return orig + ".html"
 
 def escape_html(s):
 	s = s.replace("&", "&amp;")
@@ -175,13 +184,17 @@ def main():
 	option_parser = OptionParser()
 
 	option_parser.add_option('-x', '--exclude-patterns', action="store",
-							 dest="exclude_patterns_file",
-							 help="file containing regexp patterns to exclude")
+                                 dest="exclude_patterns_file",
+                                 help="file containing regexp patterns to exclude")
 
 	option_parser.add_option('-d', '--output-directory', action='store',
 				 dest="output_dir",
 				 default = "html",
 				 help="directory for HTML output")
+        option_parser.add_option('-r', '--root', action="store",
+                                 dest="root",
+                                 default=None,
+                                 help="only pay attention to modules under this directory")
 
 	option_parser.add_option('-q', '--quiet', action='store_true', dest='quiet', help='Suppress all but error messages')
 
@@ -189,6 +202,11 @@ def main():
 
 	if options.quiet:
 		logging.disable(logging.DEBUG)
+
+        if options.root:
+                options.root = os.path.abspath(options.root)
+                if options.root[-1] != "/":
+                        options.root = options.root + "/"
 
 	### load
 
@@ -207,5 +225,7 @@ def main():
 
 	### make directory
 	prepare_reportdir(options.output_dir)
-	report_as_html(coverage, options.output_dir, read_exclude_patterns(options.exclude_patterns_file))
+	report_as_html(coverage, options.output_dir,
+                       read_exclude_patterns(options.exclude_patterns_file),
+                       options.root)
 
