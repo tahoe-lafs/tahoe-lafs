@@ -33,9 +33,6 @@ Other figleaf problems:
 
 """
 
-# TODO: pull some of figleaf into our tree so we can customize it more
-# easily.
-
 from twisted.trial.reporter import TreeReporter, VerboseTextReporter
 
 # These plugins are registered via twisted/plugins/allmydata_trial.py . See
@@ -62,7 +59,7 @@ from twisted.trial.reporter import TreeReporter, VerboseTextReporter
 # in printSummary. To include import, we have to start in our own import and
 # finish in printSummary.
 
-import figleaf
+from allmydata.util import figleaf
 figleaf.start()
 
 class FigleafReporter(TreeReporter):

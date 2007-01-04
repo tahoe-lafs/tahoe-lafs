@@ -25,16 +25,20 @@ PP=PYTHONPATH=$(shell python ./builddir.py)
 endif
 
 TEST=allmydata
+REPORTER=
+
+# use 'make test REPORTER=--reporter=bwverbose' from buildbot, to supress the
+# ansi color sequences
 test: build
-	$(PP) trial $(TEST)
+	$(PP) trial $(REPORTER) $(TEST)
 
 test-figleaf:
 	$(PP) trial --reporter=bwverbose-figleaf $(TEST)
-	figleaf2html -d coverage-html -x src/allmydata/test/figleaf.excludes
-# after doing test-figleaf, point your browser at coverage-html/index.html
 
 figleaf-output:
 	figleaf2html -d coverage-html -x src/allmydata/test/figleaf.excludes
+# after doing test-figleaf and figleaf-output, point your browser at
+# coverage-html/index.html
 
 pyflakes:
 	pyflakes src/allmydata
