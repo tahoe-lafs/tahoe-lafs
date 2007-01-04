@@ -16,28 +16,41 @@ def longest_common_prefix_2(a, b):
             return a[:i]
     return ""
 
-def write_el(r2):
-    filenames = sorted(r2.keys())
-    out = open(".figleaf.el", "w")
-    out.write("(setq figleaf-results '(\n")
-    for f in filenames:
-        linenumbers = r2[f]
-        out.write(' ("%s" (%s))\n' % (f, " ".join([str(ln)
-                                                   for ln in linenumbers])))
-    out.write(" ))\n")
-    out.close()
+## def write_el(r2):
+##     filenames = sorted(r2.keys())
+##     out = open(".figleaf.el", "w")
+##     out.write("(setq figleaf-results '(\n")
+##     for f in filenames:
+##         linenumbers = r2[f]
+##         out.write(' ("%s" (%s))\n' % (f, " ".join([str(ln)
+##                                                    for ln in linenumbers])))
+##     out.write(" ))\n")
+##     out.close()
 
 def write_el(r2, source):
     filenames = sorted(r2.keys())
     out = open(".figleaf.el", "w")
+    out.write("""
+;; This is an elisp-readable form of the figleaf coverage data. It defines a
+;; single top-level hash table in which the load-path-relative filename (like
+;; allmydata/download.py) is the key, and the value is a three-element list.
+;; The first element of this list is a list of line numbers that represent
+;; actual code. The second is a list of line numbers for lines which got used
+;; during the unit test. The third is a list of line numbers for code lines
+;; that were not covered (since 'code' and 'covered' start as sets, this last
+;; list is equal to 'code - covered').
+
+""")
     out.write("(let ((results (make-hash-table :test 'equal)))\n")
     for f in filenames:
         covered_linenumbers = r2[f]
         code_linenumbers = source[f]
-        out.write(" (puthash \"%s\" '((%s) (%s)) results)\n"
+        uncovered_code = code_linenumbers - covered_linenumbers
+        out.write(" (puthash \"%s\" '((%s) (%s) (%s)) results)\n"
                   % (f,
-                     " ".join([str(ln) for ln in sorted(covered_linenumbers)]),
                      " ".join([str(ln) for ln in sorted(code_linenumbers)]),
+                     " ".join([str(ln) for ln in sorted(covered_linenumbers)]),
+                     " ".join([str(ln) for ln in sorted(uncovered_code)]),
                      ))
     out.write(" results)\n")
     out.close()

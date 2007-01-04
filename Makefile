@@ -41,6 +41,9 @@ figleaf-output:
 # after doing test-figleaf and figleaf-output, point your browser at
 # coverage-html/index.html
 
+.figleaf.el: .figleaf
+	python misc/figleaf2el.py .figleaf `python ./builddir.py`
+
 pyflakes:
 	pyflakes src/allmydata
 
