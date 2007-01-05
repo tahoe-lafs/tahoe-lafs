@@ -6,7 +6,7 @@ from Crypto.Cipher import AES
 import sha
 from allmydata.util import mathutil
 from allmydata.util.assertutil import precondition
-from allmydata.py_ecc import rs_code
+from allmydata.encode import ReplicatingEncoder, PyRSEncoder
 
 def hash(data):
     return sha.new(data).digest()
@@ -70,6 +70,12 @@ def pad(s, l, c='\x00'):
     """
     return s + c * mathutil.pad_size(len(s), l)
 
+KiB=1024
+MiB=1024*KiB
+GiB=1024*MiB
+TiB=1024*GiB
+PiB=1024*TiB
+
 class Encoder(object):
 
     def setup(self, infile):
@@ -81,14 +87,15 @@ class Encoder(object):
         self.num_shares = 100
         self.required_shares = 25
 
-        # The segment size needs to be an even multiple of required_shares.  
-        # (See encode_segment().)
-        self.segment_size = mathutil.next_multiple(1024, self.required_shares)
+        self.segment_size = min(2*MiB, self.file_size)
         self.num_segments = mathutil.div_ceil(self.file_size, self.segment_size)
 
-        self.share_size = self.file_size / self.required_shares
+    def setup_encoder(self):
+        self.encoder = ReplicatingEncoder()
+        self.encoder.set_params(self.segment_size, self.required_shares,
+                                self.num_shares)
+        self.share_size = self.encoder.get_share_size()
 
-        self.fecer = rs_code.RSCode(self.num_shares, self.required_shares)
 
     def get_reservation_size(self):
         self.num_shares = 100
@@ -109,6 +116,7 @@ class Encoder(object):
 
     def start(self):
         self.setup_encryption()
+        self.setup_encoder()
         d = defer.succeed(None)
         for i in range(self.num_segments):
             d.addCallback(lambda res: self.do_segment(i))
@@ -118,26 +126,17 @@ class Encoder(object):
         d.addCallback(lambda res: self.done())
         return d
 
-    def encode_segment(self, crypttext):
-        precondition((len(crypttext) % self.required_shares) == 0, len(crypttext), self.required_shares, len(crypttext) % self.required_shares)
-        subshares = [[] for x in range(self.num_shares)]
-        # Note string slices aren't an efficient way to use memory, so when we 
-        # upgrade from the unusably slow py_ecc prototype to a fast ECC we 
-        # should also fix up this memory usage (by using the array module).
-        for i in range(0, len(crypttext), self.required_shares):
-            words = self.fecer.Encode([ord(x) for x in crypttext[i:i+self.required_shares]])
-            for (subshare, word,) in zip(subshares, words):
-                subshare.append(word)
-        return [ ''.join(subshare) for subshare in subshares ]
-
     def do_segment(self, segnum):
         segment_plaintext = self.infile.read(self.segment_size)
         segment_crypttext = self.cryptor.encrypt(segment_plaintext)
         del segment_plaintext
-        subshares_for_this_segment = self.encode_segment(pad(segment_crypttext, self.segment_size))
-        del segment_crypttext
+        d = self.encoder.encode(segment_crypttext)
+        d.addCallback(self._encoded_segment)
+        return d
+
+    def _encoded_segment(self, subshare_tuples):
         dl = []
-        for share_num,subshare in enumerate(subshares_for_this_segment):
+        for share_num,subshare in subshare_tuples:
             d = self.send_subshare(share_num, self.segment_num, subshare)
             dl.append(d)
             self.subshare_hashes[share_num].append(hash(subshare))
