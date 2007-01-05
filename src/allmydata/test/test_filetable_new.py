@@ -1,5 +1,4 @@
 
-import os
 from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer

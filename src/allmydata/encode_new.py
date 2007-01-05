@@ -1,12 +1,11 @@
-#! /usr/bin/python
+# -*- test-case-name: allmydata.test.test_encode -*-
 
-import math
 from twisted.internet import defer
 from allmydata.chunk import HashTree, roundup_pow2
 from Crypto.Cipher import AES
 import sha
 from allmydata.util import mathutil
-from allmydata.util.assertutil import _assert, precondition
+from allmydata.util.assertutil import precondition
 from allmydata.py_ecc import rs_code
 
 def hash(data):
