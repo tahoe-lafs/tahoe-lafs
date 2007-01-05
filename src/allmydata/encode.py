@@ -100,14 +100,18 @@ class PyRSEncoder(object):
 
     # TODO: this will write a 733kB file called 'ffield.lut.8' in the current
     # directory the first time it is run, to cache the lookup table for later
-    # use. It appears to take about 15 seconds to create this the first time.
-    # Make sure this file winds up somewhere reasonable.
+    # use. It appears to take about 15 seconds to create this the first time,
+    # and about 0.5s to load it in each time afterwards. Make sure this file
+    # winds up somewhere reasonable.
 
     # TODO: the encoder/decoder RSCode object depends upon the number of
     # required/total shares, but not upon the data. We could probably save a
     # lot of initialization time by caching a single instance and using it
     # any time we use the same required/total share numbers (which will
     # probably be always).
+
+    # on my workstation (fluxx, a 3.5GHz Athlon), this encodes data at a rate
+    # of 6.7kBps. Zooko's mom's 1.8GHz G5 got 2.2kBps .
 
     def set_params(self, data_size, required_shares, total_shares):
         assert required_shares <= total_shares

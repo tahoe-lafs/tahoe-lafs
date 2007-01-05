@@ -81,12 +81,16 @@ class Tester:
         return d
 
     def test_encode(self):
+        if os.uname()[1] == "slave3" and self.enc_class == PyRSEncoder:
+            raise unittest.SkipTest("slave3 is really slow")
         return self.do_test(1000, 25, 100)
 
     def test_encode1(self):
         return self.do_test(8, 8, 16)
 
     def test_encode2(self):
+        if os.uname()[1] == "slave3" and self.enc_class == PyRSEncoder:
+            raise unittest.SkipTest("slave3 is really slow")
         return self.do_test(123, 25, 100)
 
     def test_sizes(self):
