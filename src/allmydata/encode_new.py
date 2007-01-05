@@ -60,8 +60,16 @@ hash tree is put into the URI.
 
 """
 
+def pad(s, l, c='\x00'):
+    """
+    Return string s with enough chars c appended to it to make its length be
+    an even multiple of l bytes.
 
-
+    @param s the original string
+    @param l the length of the resulting padded string in bytes
+    @param c the pad char
+    """
+    return s + c * mathutil.pad_size(len(s), l)
 
 class Encoder(object):
 
@@ -118,7 +126,7 @@ class Encoder(object):
         # upgrade from the unusably slow py_ecc prototype to a fast ECC we 
         # should also fix up this memory usage (by using the array module).
         for i in range(0, len(crypttext), self.required_shares):
-            words = self.fecer.Encode(crypttext[i:i+self.required_shares])
+            words = self.fecer.Encode([ord(x) for x in crypttext[i:i+self.required_shares]])
             for (subshare, word,) in zip(subshares, words):
                 subshare.append(word)
         return [ ''.join(subshare) for subshare in subshares ]
@@ -127,7 +135,7 @@ class Encoder(object):
         segment_plaintext = self.infile.read(self.segment_size)
         segment_crypttext = self.cryptor.encrypt(segment_plaintext)
         del segment_plaintext
-        subshares_for_this_segment = self.encode_segment(segment_crypttext)
+        subshares_for_this_segment = self.encode_segment(pad(segment_crypttext, self.segment_size))
         del segment_crypttext
         dl = []
         for share_num,subshare in enumerate(subshares_for_this_segment):
