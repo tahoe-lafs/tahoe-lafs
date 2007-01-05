@@ -1,4 +1,5 @@
 
+from zope.interface import Interface
 from foolscap.schema import StringConstraint, ListOf, TupleOf, Any, Nothing
 from foolscap import RemoteInterface
 
@@ -69,7 +70,78 @@ class RIMutableDirectoryNode(RemoteInterface):
 
     # need more to move directories
 
-# TODO: figleaf gets confused when the last line of a file is a comment. I
-# suspect an off-by-one error in the code that decides which lines are code
-# and which are not.
-pass
+
+class IEncoder(Interface):
+    def set_params(data_size, required_shares, total_shares):
+        """Set up the parameters of this encoder.
+
+        See encode() for a description of how these parameters are used.
+        """
+
+    def get_encoder_type():
+        """Return an integer that describes the type of this encoder.
+
+        There must be a global table of encoder classes. This method returns
+        an index into this table; the value at this index is an encoder
+        class, and this encoder is an instance of that class.
+        """
+
+    def get_serialized_params(): # TODO: maybe, maybe not
+        """Return a string that describes the parameters of this encoder.
+
+        This string can be passed to the decoder to prepare it for handling
+        the encoded shares we create. It might contain more information than
+        was presented to set_params(), if there is some flexibility of
+        parameter choice.
+
+        This string is intended to be embedded in the URI, so there are
+        several restrictions on its contents. At the moment I'm thinking that
+        this means it may contain hex digits and colons, and nothing else.
+        The idea is that the URI contains '%d:%s.' %
+        (encoder.get_encoder_type(), encoder.get_serialized_params()), and
+        this is enough information to construct a compatible decoder.
+        """
+
+    def get_share_size():
+        """Return the length of the shares that encode() will produce.
+        """
+
+    def encode(data):
+        """Encode a chunk of data. This may be called multiple times. Each
+        call is independent.
+
+        The data must be a string with a length that exactly matches the
+        data_size promised by set_params().
+
+        For each call, encode() will return a Deferred that fires with a list
+        of 'total_shares' tuples. Each tuple is of the form (sharenum,
+        share), where sharenum is an int (from 0 total_shares-1), and share
+        is a string. The get_share_size() method can be used to determine the
+        length of the 'share' strings returned by encode().
+
+        The memory usage of this function is expected to be on the order of
+        total_shares * get_share_size().
+        """
+
+class IDecoder(Interface):
+    def set_serialized_params(params):
+        """Set up the parameters of this encoder, from a string returned by
+        encoder.get_serialized_params()."""
+
+    def decode(some_shares):
+        """Decode a partial list of shares into data.
+
+        'some_shares' must be a list of (sharenum, share) tuples, a subset of
+        the shares returned by IEncoder.encode(). Each share must be of the
+        same length. The share tuples may appear in any order, but of course
+        each tuple must have a sharenum that correctly matches the associated
+        share data string.
+
+        This returns a Deferred which fires with a string. This string will
+        always have a length equal to the 'data_size' value passed into the
+        original IEncoder.set_params() call.
+
+        The length of 'some_shares' must be equal or greater than the value
+        of 'required_shares' passed into the original IEncoder.set_params()
+        call.
+        """

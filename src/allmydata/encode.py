@@ -1,9 +1,48 @@
+# -*- test-case-name: allmydata.test.test_encode_share -*-
+
+from zope.interface import implements
 from twisted.internet import defer
 import sha
-from allmydata.util import idlib
+from allmydata.util import idlib, mathutil
+from allmydata.interfaces import IEncoder, IDecoder
+from allmydata.py_ecc import rs_code
 
 def netstring(s):
     return "%d:%s," % (len(s), s)
+
+class ReplicatingEncoder(object):
+    implements(IEncoder)
+    ENCODER_TYPE = 0
+
+    def set_params(self, data_size, required_shares, total_shares):
+        self.data_size = data_size
+        self.required_shares = required_shares
+        self.total_shares = total_shares
+
+    def get_encoder_type(self):
+        return self.ENCODER_TYPE
+
+    def get_serialized_params(self):
+        return "%d" % self.required_shares
+
+    def get_share_size(self):
+        return self.data_size
+
+    def encode(self, data):
+        shares = [(i,data) for i in range(self.total_shares)]
+        return defer.succeed(shares)
+
+class ReplicatingDecoder(object):
+    implements(IDecoder)
+
+    def set_serialized_params(self, params):
+        self.required_shares = int(params)
+
+    def decode(self, some_shares):
+        assert len(some_shares) >= self.required_shares
+        data = some_shares[0][1]
+        return defer.succeed(data)
+
 
 class Encoder(object):
     def __init__(self, infile, m):
@@ -48,3 +87,99 @@ class Decoder(object):
         if self._verifierid:
             assert self._verifierid == vid, "%s != %s" % (idlib.b2a(self._verifierid), idlib.b2a(vid))
 
+
+class PyRSEncoder(object):
+    ENCODER_TYPE = 1
+
+    # we will break the data into vectors in which each element is a single
+    # byte (i.e. a single number from 0 to 255), and the length of the vector
+    # is equal to the number of required_shares. We use padding to make the
+    # last chunk of data long enough to match, and we record the data_size in
+    # the serialized parameters to strip this padding out on the receiving
+    # end.
+
+    def set_params(self, data_size, required_shares, total_shares):
+        self.data_size = data_size
+        self.required_shares = required_shares
+        self.total_shares = total_shares
+        self.chunk_size = required_shares
+        self.num_chunks = mathutil.div_ceil(data_size, self.chunk_size)
+        self.last_chunk_padding = mathutil.pad_size(data_size, required_shares)
+        self.share_size = self.num_chunks
+        self.encoder = rs_code.RSCode(total_shares, required_shares)
+
+    def get_encoder_type(self):
+        return self.ENCODER_TYPE
+
+    def get_serialized_params(self):
+        return "%d:%d:%d" % (self.data_size, self.required_shares,
+                             self.total_shares)
+
+    def get_share_size(self):
+        return self.share_size
+
+    def encode(self, data):
+        share_data = [ [] for i in range(self.total_shares)]
+        for i in range(self.num_chunks):
+            offset = i*self.chunk_size
+            chunk = data[offset:offset+self.chunk_size]
+            if i == self.num_chunks-1:
+                chunk = chunk + "\x00"*self.last_chunk_padding
+            assert len(chunk) == self.chunk_size
+            input_vector = [ord(x) for x in chunk]
+            output_vector = self.encoder.Encode(input_vector)
+            assert len(output_vector) == self.total_shares
+            for i2,out in enumerate(output_vector):
+                out_chars = [chr(x) for x in out]
+                out_string = "".join(out_chars)
+                share_data[i2].append(out_string)
+
+        shares = [ (i, "".join(share_data[i]))
+                   for i in range(self.total_shares) ]
+        return defer.succeed(shares)
+
+class PyRSDecoder(object):
+
+    def set_serialized_params(self, params):
+        pieces = params.split(":")
+        self.data_size = int(pieces[0])
+        self.required_shares = int(pieces[1])
+        self.total_shares = int(pieces[2])
+
+        self.chunk_size = self.required_shares
+        self.num_chunks = mathutil.div_ceil(self.data_size, self.chunk_size)
+        self.last_chunk_padding = mathutil.pad_size(self.data_size,
+                                                    self.required_shares)
+        self.share_size = self.num_chunks
+        self.encoder = rs_code.RSCode(self.total_shares, self.required_shares)
+
+    def decode(self, some_shares):
+        chunk_size = self.chunk_size
+        assert len(some_shares) >= self.required_shares
+        chunks = [ [] for i in range(self.num_chunks) ]
+        have_shares = {}
+        for share_num, share_data in some_shares:
+            have_shares[share_num] = share_data
+        for i in range(self.num_chunks):
+            offset = i*chunk_size
+            received_vector = []
+            for j in range(self.total_shares):
+                share = have_shares.get(j)
+                if share is not None:
+                    v1 = [ord(x) for x in share[offset:offset+chunk_size]]
+                    received_vector.append(v1)
+                else:
+                    received_vector.append(None)
+            decoded_vector = self.encoder.DecodeImmediate(received_vector)
+            if i == self.num_chunks-1:
+                decoded_vector = decoded_vector[:-self.last_chunk_padding]
+            chunk = "".join([chr(x) for x in decoded_vector])
+            chunks.append(chunk)
+        data = "".join(chunks)
+        return defer.succeed(data)
+
+
+all_encoders = {
+    ReplicatingEncoder.ENCODER_TYPE: (ReplicatingEncoder, ReplicatingDecoder),
+    PyRSEncoder.ENCODER_TYPE: (PyRSEncoder, PyRSDecoder),
+    }
