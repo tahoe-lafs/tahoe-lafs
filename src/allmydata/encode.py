@@ -99,6 +99,7 @@ class PyRSEncoder(object):
     # end.
 
     def set_params(self, data_size, required_shares, total_shares):
+        assert required_shares <= total_shares
         self.data_size = data_size
         self.required_shares = required_shares
         self.total_shares = total_shares
@@ -106,7 +107,7 @@ class PyRSEncoder(object):
         self.num_chunks = mathutil.div_ceil(data_size, self.chunk_size)
         self.last_chunk_padding = mathutil.pad_size(data_size, required_shares)
         self.share_size = self.num_chunks
-        self.encoder = rs_code.RSCode(total_shares, required_shares)
+        self.encoder = rs_code.RSCode(total_shares, required_shares, 8)
 
     def get_encoder_type(self):
         return self.ENCODER_TYPE
@@ -121,18 +122,23 @@ class PyRSEncoder(object):
     def encode(self, data):
         share_data = [ [] for i in range(self.total_shares)]
         for i in range(self.num_chunks):
+            # we take self.chunk_size bytes from the input string, and
+            # turn it into self.total_shares bytes.
             offset = i*self.chunk_size
+            # Note string slices aren't an efficient way to use memory, so
+            # when we upgrade from the unusably slow py_ecc prototype to a
+            # fast ECC we should also fix up this memory usage (by using the
+            # array module).
             chunk = data[offset:offset+self.chunk_size]
             if i == self.num_chunks-1:
                 chunk = chunk + "\x00"*self.last_chunk_padding
             assert len(chunk) == self.chunk_size
             input_vector = [ord(x) for x in chunk]
+            assert len(input_vector) == self.required_shares
             output_vector = self.encoder.Encode(input_vector)
             assert len(output_vector) == self.total_shares
             for i2,out in enumerate(output_vector):
-                out_chars = [chr(x) for x in out]
-                out_string = "".join(out_chars)
-                share_data[i2].append(out_string)
+                share_data[i2].append(chr(out))
 
         shares = [ (i, "".join(share_data[i]))
                    for i in range(self.total_shares) ]
@@ -151,31 +157,45 @@ class PyRSDecoder(object):
         self.last_chunk_padding = mathutil.pad_size(self.data_size,
                                                     self.required_shares)
         self.share_size = self.num_chunks
-        self.encoder = rs_code.RSCode(self.total_shares, self.required_shares)
+        self.encoder = rs_code.RSCode(self.total_shares, self.required_shares,
+                                      8)
+        #print "chunk_size: %d" % self.chunk_size
+        #print "num_chunks: %d" % self.num_chunks
+        #print "last_chunk_padding: %d" % self.last_chunk_padding
+        #print "share_size: %d" % self.share_size
+        #print "total_shares: %d" % self.total_shares
+        #print "required_shares: %d" % self.required_shares
 
     def decode(self, some_shares):
         chunk_size = self.chunk_size
         assert len(some_shares) >= self.required_shares
-        chunks = [ [] for i in range(self.num_chunks) ]
+        chunks = []
         have_shares = {}
         for share_num, share_data in some_shares:
             have_shares[share_num] = share_data
-        for i in range(self.num_chunks):
-            offset = i*chunk_size
+        for i in range(self.share_size):
+            # this takes one byte from each share, and turns the combination
+            # into a single chunk
+            #print "PULLING"
             received_vector = []
             for j in range(self.total_shares):
                 share = have_shares.get(j)
                 if share is not None:
-                    v1 = [ord(x) for x in share[offset:offset+chunk_size]]
-                    received_vector.append(v1)
+                    received_vector.append(ord(share[i]))
                 else:
                     received_vector.append(None)
             decoded_vector = self.encoder.DecodeImmediate(received_vector)
-            if i == self.num_chunks-1:
-                decoded_vector = decoded_vector[:-self.last_chunk_padding]
+            assert len(decoded_vector) == self.chunk_size
+            #print "DECODED: %d" % len(decoded_vector)
             chunk = "".join([chr(x) for x in decoded_vector])
+            #print "appending %d bytes" % len(chunk)
             chunks.append(chunk)
         data = "".join(chunks)
+        #print "pre-stripped length: %d" % len(data)
+        if self.last_chunk_padding:
+            data = data[:-self.last_chunk_padding]
+        #print "post-stripped length: %d" % len(data)
+        assert len(data) == chunk_size
         return defer.succeed(data)
 
 

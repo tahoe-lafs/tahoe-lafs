@@ -76,7 +76,11 @@ class Tester:
     def test_encode(self):
         return self.do_test(1000, 25, 100)
 
+    def test_encode1(self):
+        return self.do_test(8, 8, 16)
+
     def test_sizes(self):
+        raise unittest.SkipTest("omg this would take forever")
         d = defer.succeed(None)
         for i in range(1, 100):
             d.addCallback(lambda res,size: self.do_test(size, 4, 10), i)
