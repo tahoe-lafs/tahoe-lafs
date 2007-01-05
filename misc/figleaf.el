@@ -47,6 +47,7 @@
     (dolist (ov (overlays-in (point-min) (point-max)))
       (delete-overlay ov))
     (setq figleaf-this-buffer-is-annotated nil)
+    (message "Removed annotations")
 ))
 
 (defun figleaf-annotate (&optional show-code)
@@ -91,6 +92,7 @@
                            'face '(:box "red")
                            )
               )
+            (message "Added annotations")
             )
           )
       (message "unable to find coverage for this file"))
