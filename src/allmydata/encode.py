@@ -111,7 +111,10 @@ class PyRSEncoder(object):
     # probably be always).
 
     # on my workstation (fluxx, a 3.5GHz Athlon), this encodes data at a rate
-    # of 6.7kBps. Zooko's mom's 1.8GHz G5 got 2.2kBps .
+    # of 6.7kBps. Zooko's mom's 1.8GHz G5 got 2.2kBps . slave3 took 40s to
+    # construct the LUT and encodes at 1.5kBps, and for some reason took more
+    # than 20 minutes to run the test_encode_share tests, so I disabled most
+    # of them.
 
     def set_params(self, data_size, required_shares, total_shares):
         assert required_shares <= total_shares
