@@ -2,6 +2,7 @@
 import os
 from twisted.trial import unittest
 from twisted.internet import defer
+from twisted.python import log
 from allmydata.encode import PyRSEncoder, PyRSDecoder, ReplicatingEncoder, ReplicatingDecoder
 import random
 
@@ -14,6 +15,7 @@ class Tester:
         enc = self.enc_class()
         enc.set_params(size, required_shares, total_shares)
         serialized_params = enc.get_serialized_params()
+        log.msg("serialized_params: %s" % serialized_params)
         d = enc.encode(data0)
         def _done(shares):
             self.failUnlessEqual(len(shares), total_shares)
@@ -31,20 +33,23 @@ class Tester:
             self.failUnless(data1 == data0)
 
         def _decode_all_ordered(res):
+            log.msg("_decode_all_ordered")
             # can we decode using all of the shares?
             return _decode(self.shares)
         d.addCallback(_decode_all_ordered)
         d.addCallback(_check_data)
 
         def _decode_all_shuffled(res):
+            log.msg("_decode_all_shuffled")
             # can we decode, using all the shares, but in random order?
             shuffled_shares = self.shares[:]
             random.shuffle(shuffled_shares)
             return _decode(shuffled_shares)
         d.addCallback(_decode_all_shuffled)
         d.addCallback(_check_data)
-        
+
         def _decode_some(res):
+            log.msg("_decode_some")
             # decode with a minimal subset of the shares
             some_shares = self.shares[:required_shares]
             return _decode(some_shares)
@@ -52,6 +57,7 @@ class Tester:
         d.addCallback(_check_data)
 
         def _decode_some_random(res):
+            log.msg("_decode_some_random")
             # use a randomly-selected minimal subset
             some_shares = random.sample(self.shares, required_shares)
             return _decode(some_shares)
@@ -59,6 +65,7 @@ class Tester:
         d.addCallback(_check_data)
 
         def _decode_multiple(res):
+            log.msg("_decode_multiple")
             # make sure we can re-use the decoder object
             shares1 = random.sample(self.shares, required_shares)
             shares2 = random.sample(self.shares, required_shares)
@@ -78,6 +85,9 @@ class Tester:
 
     def test_encode1(self):
         return self.do_test(8, 8, 16)
+
+    def test_encode2(self):
+        return self.do_test(123, 25, 100)
 
     def test_sizes(self):
         raise unittest.SkipTest("omg this would take forever")

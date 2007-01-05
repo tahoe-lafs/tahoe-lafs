@@ -98,6 +98,17 @@ class PyRSEncoder(object):
     # the serialized parameters to strip this padding out on the receiving
     # end.
 
+    # TODO: this will write a 733kB file called 'ffield.lut.8' in the current
+    # directory the first time it is run, to cache the lookup table for later
+    # use. It appears to take about 15 seconds to create this the first time.
+    # Make sure this file winds up somewhere reasonable.
+
+    # TODO: the encoder/decoder RSCode object depends upon the number of
+    # required/total shares, but not upon the data. We could probably save a
+    # lot of initialization time by caching a single instance and using it
+    # any time we use the same required/total share numbers (which will
+    # probably be always).
+
     def set_params(self, data_size, required_shares, total_shares):
         assert required_shares <= total_shares
         self.data_size = data_size
@@ -159,12 +170,13 @@ class PyRSDecoder(object):
         self.share_size = self.num_chunks
         self.encoder = rs_code.RSCode(self.total_shares, self.required_shares,
                                       8)
-        #print "chunk_size: %d" % self.chunk_size
-        #print "num_chunks: %d" % self.num_chunks
-        #print "last_chunk_padding: %d" % self.last_chunk_padding
-        #print "share_size: %d" % self.share_size
-        #print "total_shares: %d" % self.total_shares
-        #print "required_shares: %d" % self.required_shares
+        if False:
+            print "chunk_size: %d" % self.chunk_size
+            print "num_chunks: %d" % self.num_chunks
+            print "last_chunk_padding: %d" % self.last_chunk_padding
+            print "share_size: %d" % self.share_size
+            print "total_shares: %d" % self.total_shares
+            print "required_shares: %d" % self.required_shares
 
     def decode(self, some_shares):
         chunk_size = self.chunk_size
@@ -176,7 +188,6 @@ class PyRSDecoder(object):
         for i in range(self.share_size):
             # this takes one byte from each share, and turns the combination
             # into a single chunk
-            #print "PULLING"
             received_vector = []
             for j in range(self.total_shares):
                 share = have_shares.get(j)
@@ -186,16 +197,12 @@ class PyRSDecoder(object):
                     received_vector.append(None)
             decoded_vector = self.encoder.DecodeImmediate(received_vector)
             assert len(decoded_vector) == self.chunk_size
-            #print "DECODED: %d" % len(decoded_vector)
             chunk = "".join([chr(x) for x in decoded_vector])
-            #print "appending %d bytes" % len(chunk)
             chunks.append(chunk)
         data = "".join(chunks)
-        #print "pre-stripped length: %d" % len(data)
         if self.last_chunk_padding:
             data = data[:-self.last_chunk_padding]
-        #print "post-stripped length: %d" % len(data)
-        assert len(data) == chunk_size
+        assert len(data) == self.data_size
         return defer.succeed(data)
 
 
