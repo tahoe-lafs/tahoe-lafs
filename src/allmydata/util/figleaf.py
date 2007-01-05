@@ -60,12 +60,12 @@ import os
 import threading
 from cPickle import dump, load
 
-# import builtin sets if in > 2.4, otherwise use 'sets' module.
-if 'set' not in dir(__builtins__):
-    from sets import Set as set
+### import builtin sets if in > 2.4, otherwise use 'sets' module.
+# we require 2.4 or later
+assert set
 
 
-from token import *
+from token import tok_name, NEWLINE, STRING, INDENT, DEDENT, COLON
 import parser, types, symbol
 
 def get_token_name(x):
@@ -355,7 +355,7 @@ def get_info():
 #############
 
 def display_ast():
-    l = figleaf._LineGrabber(open(sys.argv[1]))
+    l = LineGrabber(open(sys.argv[1]))
     l.pretty_print()
 
 def main():

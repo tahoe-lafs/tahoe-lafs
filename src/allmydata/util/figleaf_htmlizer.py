@@ -1,7 +1,6 @@
 #! /usr/bin/env python
 import sys
 import figleaf
-from cPickle import load
 import os
 import re
 
