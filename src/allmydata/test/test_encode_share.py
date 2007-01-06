@@ -104,7 +104,52 @@ class PyRS(unittest.TestCase, Tester):
     enc_class = PyRSEncoder
     dec_class = PyRSDecoder
 
-
 class Replicating(unittest.TestCase, Tester):
     enc_class = ReplicatingEncoder
     dec_class = ReplicatingDecoder
+
+
+class BenchPyRS(unittest.TestCase):
+    enc_class = PyRSEncoder
+    def test_big(self):
+        import time
+        size = 10000
+        required_shares = 25
+        total_shares = 100
+        import os
+        # this lets us use a persistent lookup table, stored outside the
+        # _trial_temp directory (which is deleted each time trial is run)
+        os.symlink("../ffield.lut.8", "ffield.lut.8")
+        enc = self.enc_class()
+        self.start()
+        enc.set_params(size, required_shares, total_shares)
+        serialized_params = enc.get_serialized_params()
+        print "encoder ready", self.stop()
+        self.start()
+        data0 = os.urandom(size)
+        print "data ready", self.stop()
+        self.start()
+        d = enc.encode(data0)
+        def _done(shares):
+            now_shares = time.time()
+            print "shares ready", self.stop()
+            self.start()
+            self.failUnlessEqual(len(shares), total_shares)
+        d.addCallback(_done)
+        d.addCallback(lambda res: enc.encode(data0))
+        d.addCallback(_done)
+        d.addCallback(lambda res: enc.encode(data0))
+        d.addCallback(_done)
+        return d
+
+    def start(self):
+        self.start_time = time.time()
+
+    def stop(self):
+        self.end_time = time.time()
+        return (self.end_time - self.start_time)
+
+
+# to benchmark the encoder, delete this line
+del BenchPyRS
+# and then run 'make test TEST=allmydata.test.test_encode_share.BenchPyRS'
