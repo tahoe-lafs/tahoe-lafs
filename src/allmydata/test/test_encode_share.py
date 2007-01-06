@@ -1,5 +1,5 @@
 
-import os
+import os, time
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import log
@@ -112,11 +112,9 @@ class Replicating(unittest.TestCase, Tester):
 class BenchPyRS(unittest.TestCase):
     enc_class = PyRSEncoder
     def test_big(self):
-        import time
         size = 10000
         required_shares = 25
         total_shares = 100
-        import os
         # this lets us use a persistent lookup table, stored outside the
         # _trial_temp directory (which is deleted each time trial is run)
         os.symlink("../ffield.lut.8", "ffield.lut.8")
