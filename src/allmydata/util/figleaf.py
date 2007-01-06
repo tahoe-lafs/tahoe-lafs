@@ -158,10 +158,10 @@ class CodeTracer:
     """
     Basic code coverage tracking, using sys.settrace.
     """
-    def __init__(self, ignore_prefix=None):
+    def __init__(self, ignore_prefixes=[]):
         self.c = {}
         self.started = False
-        self.ignore_prefix = ignore_prefix
+        self.ignore_prefixes = ignore_prefixes
 
     def start(self):
         """
@@ -187,9 +187,9 @@ class CodeTracer:
         global trace function.
         """
         if e is 'call':
-            if self.ignore_prefix and \
-                   f.f_code.co_filename.startswith(self.ignore_prefix):
-                return
+            for p in self.ignore_prefixes:
+                if f.f_code.co_filename.startswith(p):
+                    return
 
             return self.t
 
@@ -316,7 +316,7 @@ def annotate_coverage(in_fp, out_fp, covered, all_lines,
 
 _t = None
 
-def start(ignore_python_lib=True):
+def start(ignore_python_lib=True, ignore_prefixes=[]):
     """
     Start tracing code coverage.  If 'ignore_python_lib' is True,
     ignore all files that live below the same directory as the 'os'
@@ -324,10 +324,10 @@ def start(ignore_python_lib=True):
     """
     global _t
     if _t is None:
-        ignore_path = None
+        ignore_prefixes = ignore_prefixes[:]
         if ignore_python_lib:
-            ignore_path = os.path.realpath(os.path.dirname(os.__file__))
-        _t = CodeTracer(ignore_path)
+            ignore_prefixes.append(os.path.realpath(os.path.dirname(os.__file__)))
+        _t = CodeTracer(ignore_prefixes)
 
     _t.start()
 

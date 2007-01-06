@@ -32,7 +32,7 @@ REPORTER=
 test: build
 	$(PP) trial $(REPORTER) $(TEST)
 
-test-figleaf:
+test-figleaf: build
 	$(PP) trial --reporter=bwverbose-figleaf $(TEST)
 
 figleaf-output:
