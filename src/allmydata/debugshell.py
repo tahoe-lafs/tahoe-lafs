@@ -1,5 +1,9 @@
 import os
 
+# 'app' is overwritten by manhole when the connection is established. We set
+# it to None now to keep pyflakes from complaining.
+app = None
+
 def get_random_bucket_on(nodeid, size=200):
     d = app.get_remote_service(nodeid, 'storageserver')
     def get_bucket(rss):
