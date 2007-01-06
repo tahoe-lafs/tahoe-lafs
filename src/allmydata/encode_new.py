@@ -2,7 +2,7 @@
 
 from twisted.internet import defer
 from allmydata.chunk import HashTree, roundup_pow2
-from Crypto.Cipher import AES
+from allmydata.Crypto.Cipher import AES
 import sha
 from allmydata.util import mathutil
 from allmydata.encode import PyRSEncoder
