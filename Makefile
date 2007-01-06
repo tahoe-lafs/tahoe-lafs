@@ -58,14 +58,36 @@ create_dirs:
 	mkdir -p client-basedir/storage
 	mkdir -p client-basedir2/storage
 
-deb-dapper:
+DEBVER=`head -1 debian/changelog | sed -e 's/^[^(]*(\([^)]*\)).*$$/\1/' | sed -e 's/^\([0-9]\+\.[0-9]\+\.[0-9]\+\).*$$/\1/'`
+DEBSTRING=$(DEBVER)-T`date +%s`
+DEBCOMMENTS="'make deb' build"
+
+show:
+	echo $(DEBVER)
+	echo $(DEBSTRING)
+
+.PHONY: setup-dapper setup-sid deb-dapper deb-sid increment-deb-version
+.PHONY: deb-dapper-head deb-sid-head
+
+setup-dapper:
 	rm -f debian
 	ln -s dapper/debian debian
 	chmod a+x debian/rules
-	fakeroot debian/rules binary
 
-deb-sid:
+setup-sid:
 	rm -f debian
 	ln -s sid/debian debian
 	chmod a+x debian/rules
+
+
+deb-dapper: setup-dapper
+	fakeroot debian/rules binary
+deb-sid: setup-sid
+	fakeroot debian/rules binary
+
+increment-deb-version:
+	debchange --newversion $(DEBSTRING) $(DEBCOMMENTS)
+deb-dapper-head: setup-dapper increment-deb-version
+	fakeroot debian/rules binary
+deb-sid-head: setup-sid increment-deb-version
 	fakeroot debian/rules binary
