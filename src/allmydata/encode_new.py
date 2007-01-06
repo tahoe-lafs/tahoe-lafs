@@ -5,8 +5,7 @@ from allmydata.chunk import HashTree, roundup_pow2
 from Crypto.Cipher import AES
 import sha
 from allmydata.util import mathutil
-from allmydata.util.assertutil import precondition
-from allmydata.encode import ReplicatingEncoder, PyRSEncoder
+from allmydata.encode import PyRSEncoder
 
 def hash(data):
     return sha.new(data).digest()
@@ -91,7 +90,7 @@ class Encoder(object):
         self.num_segments = mathutil.div_ceil(self.file_size, self.segment_size)
 
     def setup_encoder(self):
-        self.encoder = ReplicatingEncoder()
+        self.encoder = PyRSEncoder()
         self.encoder.set_params(self.segment_size, self.required_shares,
                                 self.num_shares)
         self.share_size = self.encoder.get_share_size()
