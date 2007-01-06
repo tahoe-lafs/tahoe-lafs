@@ -1,8 +1,10 @@
 
-import os, shutil
+import os, shutil, sha
 from zope.interface import Interface, implements
+from twisted.internet import defer
 from allmydata.util import bencode
 from allmydata.util.idlib import b2a
+from allmydata.Crypto.Cipher import AES
 
 class IWorkQueue(Interface):
     """Each filetable root is associated a work queue, which is persisted on
@@ -77,6 +79,9 @@ class IWorkQueue(Interface):
     def add_delete_box(boxname):
         """When executed, this step deletes the given box."""
 
+class NotCapableError(Exception):
+    """You have tried to write to a read-only node."""
+
 
 class Step(object):
     def setup(self, stepname, basedir):
@@ -101,7 +106,7 @@ class UploadSSKStep(Step):
         previous_version = bencode.bdecode(f.read())
         f.close()
 
-        n = SSKNode()
+        n = MutableSSKTracker()
         n.set_version(previous_version)
         n.set_write_capability(write_cap)
         f = open(source_filename, "rb")
@@ -149,7 +154,7 @@ class WorkQueue(object):
                 self.seqnum = max(self.seqnum, sn)
         # each of these files contains one string per line, and the first
         # line specifies what kind of step it is
-        assert seqnum < 1000 # TODO: don't let this grow unboundedly
+        assert self.seqnum < 1000 # TODO: don't let this grow unboundedly
 
     def create_tempfile(self, suffix=""):
         randomname = b2a(os.random(10))
@@ -243,8 +248,8 @@ class WorkQueue(object):
         will fire when the step completes."""
         next_step = self.get_next_step()
         if next_step:
-            steptype, lines = self.get_next_step()
-            return self.dispatch_step(steptype, lines)
+            stepname, steptype, lines = self.get_next_step()
+            return self.dispatch_step(stepname, steptype, lines)
         return None
 
     def get_next_step(self):
@@ -260,9 +265,9 @@ class WorkQueue(object):
         assert lines[-1] == ""
         lines.pop(-1)
         steptype = lines[0]
-        return steptype, lines
+        return stepname, steptype, lines
 
-    def dispatch_step(self, steptype, lines):
+    def dispatch_step(self, stepname, steptype, lines):
         handlername = "step_" + steptype
         if not hasattr(self, handlername):
             raise RuntimeError("unknown workqueue step type '%s'" % steptype)
@@ -286,7 +291,7 @@ class WorkQueue(object):
 
     def step_addpath(self, boxname, *path):
         data = self.read_from_box(boxname)
-        child_spec = something.unserialize(data)
+        child_spec = unserialize(data)
         return self.root.add_subpath(path, child_spec, self)
 
     def step_retain_ssk(self, index_a, read_key_a):
@@ -311,6 +316,26 @@ def make_aes_key():
     return os.urandom(16)
 def make_rsa_key():
     raise NotImplementedError
+def hash_sha(data):
+    return sha.new(data).digest()
+def hash_sha_to_key(data):
+    return sha.new(data).digest()[:AES_KEY_LENGTH]
+def aes_encrypt(key, plaintext):
+    assert isinstance(key, str)
+    assert len(key) == AES_KEY_LENGTH
+    cryptor = AES.new(key=key, mode=AES.MODE_CTR, counterstart="\x00"*16)
+    crypttext = cryptor.encrypt(plaintext)
+    return crypttext
+def aes_decrypt(key, crypttext):
+    assert isinstance(key, str)
+    assert len(key) == AES_KEY_LENGTH
+    cryptor = AES.new(key=key, mode=AES.MODE_CTR, counterstart="\x00"*16)
+    plaintext = cryptor.decrypt(crypttext)
+    return plaintext
+def serialize(objects):
+    return bencode.bencode(objects)
+def unserialize(data):
+    return bencode.bdecode(data)
 
 class MutableSSKTracker(object):
     """I represent a mutable file, indexed by an SSK.
@@ -320,9 +345,9 @@ class MutableSSKTracker(object):
         # if you create the node this way, you will have both read and write
         # capabilities
         self.priv_key, self.pub_key = make_rsa_key()
-        self.ssk_index = sha(self.pub_key.serialized())
+        self.ssk_index = hash_sha(self.pub_key.serialized())
         self.write_key = make_aes_key()
-        self.read_key = sha(self.write_key)[:AES_KEY_LENGTH]
+        self.read_key = hash_sha_to_key(self.write_key)
         self.version = 0
 
     def set_version(self, version):
@@ -336,11 +361,11 @@ class MutableSSKTracker(object):
         # set_read_capability and set_write_capability, make sure the keys
         # match
         (self.ssk_index, self.write_key) = write_cap
-        self.read_key = sha(self.write_key)[:AES_KEY_LENGTH]
+        self.read_key = hash_sha_to_key(self.write_key)
 
     def extract_readwrite_from_published(self, published_data, write_key):
         self.write_key = write_key
-        self.read_key = sha(self.write_key)[:AES_KEY_LENGTH]
+        self.read_key = hash_sha_to_key(self.write_key)
         self._extract(published_data)
         self.priv_key = aes_decrypt(write_key, self.encrypted_privkey)
         assert self.priv_key.is_this_your_pub_key(self.pub_key)
@@ -364,12 +389,12 @@ class MutableSSKTracker(object):
 
     def get_write_capability(self):
         if not self.write_key:
-            raise NotCapableError("This SSKNode is read-only")
+            raise NotCapableError("This MutableSSKTracker is read-only")
         return (self.ssk_index, self.write_key)
 
     def write_new_version(self, data):
         if not self.write_key:
-            raise NotCapableError("This SSKNode is read-only")
+            raise NotCapableError("This MutableSSKTracker is read-only")
         encrypted_privkey = aes_encrypt(self.write_key,
                                         self.priv_key.serialized())
         encrypted_data = aes_encrypt(self.read_key, data)
@@ -383,17 +408,17 @@ class MutableSSKTracker(object):
         return published_data
 
 def make_new_SSK_node():
-    n = SSKNode()
+    n = MutableSSKTracker()
     n.create()
     return n
 
 def extract_readwrite_SSK_node(published_data, write_key):
-    n = SSKNode()
+    n = MutableSSKTracker()
     n.extract_readwrite_SSK_node(published_data, write_key)
     return n
 
 def extract_readonly_SSK_node(published_data, read_key):
-    n = SSKNode()
+    n = MutableSSKTracker()
     n.extract_readonly_from_published(published_data, read_key)
     return n
 
