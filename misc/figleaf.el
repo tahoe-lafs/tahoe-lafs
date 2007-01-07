@@ -50,6 +50,18 @@
     (message "Removed annotations")
 ))
 
+;; in emacs22, it will be possible to put the annotations in the fringe. Set
+;; a display property for one of the characters in the line, using
+;; (right-fringe BITMAP FACE), where BITMAP should probably be right-triangle
+;; or so, and FACE should probably be '(:foreground "red"). We can also
+;; create new bitmaps, with faces. To do tartans will require a lot of
+;; bitmaps, and you've only got about 8 pixels to work with.
+
+;; unfortunately emacs21 gives us less control over the fringe. We can use
+;; overlays to put letters on the left or right margins (in the text area,
+;; overriding actual program text), and to modify the text being displayed
+;; (by changing its background color, or adding a box around each word).
+
 (defun figleaf-annotate (&optional show-code)
   (interactive "P")
   (let ((allcoverage (load-figleaf-annotations))
