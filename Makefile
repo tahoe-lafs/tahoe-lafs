@@ -1,4 +1,6 @@
 
+default: build
+
 .PHONY: run-queen run-client test
 
 run-queen:
