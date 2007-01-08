@@ -2,7 +2,7 @@
 from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
-from allmydata import filetable_new as ft
+from allmydata import filetree_new as ft
 from allmydata import workqueue
 from cStringIO import StringIO
 
