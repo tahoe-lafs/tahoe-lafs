@@ -35,6 +35,7 @@ test: build
 	$(PP) trial $(REPORTER) $(TEST)
 
 test-figleaf: build
+	rm -f .figleaf
 	$(PP) trial --reporter=bwverbose-figleaf $(TEST)
 
 figleaf-output:
