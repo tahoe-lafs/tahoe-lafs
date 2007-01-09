@@ -45,7 +45,7 @@ figleaf-output:
 # coverage-html/index.html
 
 .figleaf.el: .figleaf
-	python misc/figleaf2el.py .figleaf `python ./builddir.py`
+	$(PP) python misc/figleaf2el.py .figleaf `python ./builddir.py`
 
 pyflakes:
 	pyflakes src/allmydata

@@ -55,7 +55,9 @@ def write_el(r2, source):
     out.write(" results)\n")
     out.close()
 
-import figleaf
+#import figleaf
+from allmydata.util import figleaf
+
 def examine_source(filename):
     f = open(filename, "r")
     lines = figleaf.get_lines(f)

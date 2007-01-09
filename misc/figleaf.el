@@ -126,7 +126,7 @@
   nil
   " FA"
   '(
-    ("\C-ca" . figleaf-toggle-annotations)
+    ("\C-c\C-a" . figleaf-toggle-annotations)
     )
 
   () ; forms run on mode entry/exit
