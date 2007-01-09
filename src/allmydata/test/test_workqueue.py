@@ -147,11 +147,17 @@ class Items(unittest.TestCase):
         f.write("stuff")
         f.close()
         self.failUnless(os.path.exists(tmpfilename))
+        # likewise this unreferenced box should get deleted
+        boxname = wq.create_boxname()
+        wq.write_to_box(boxname, "contents of box")
+        boxfile = os.path.join(wq.boxesdir, boxname)
+        self.failUnless(os.path.exists(boxfile))
 
         d = wq.run_all_steps()
         def _check(res):
             self.failUnlessEqual(len(wq.dispatched_steps), 5)
             self.failUnlessEqual(wq.dispatched_steps[0][0], "upload_chk")
             self.failIf(os.path.exists(tmpfilename))
+            self.failIf(os.path.exists(boxfile))
         d.addCallback(_check)
         return d
