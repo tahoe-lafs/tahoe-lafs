@@ -258,7 +258,21 @@ class WorkQueue(object):
             d = self.dispatch_step(steptype, lines)
             d.addCallback(self._delete_step, stepname)
             return d
+        # no steps pending, it is safe to clean out leftover files
+        self._clean_leftover_files()
         return None
+
+    def _clean_leftover_files(self):
+        # there are no steps pending, therefore any leftover files in our
+        # filesdir are orphaned and can be deleted. This catches things like
+        # a tempfile being created but the application gets interrupted
+        # before the upload step which references it gets created, or if an
+        # upload step gets written but the remaining sequence (addpath,
+        # delete_box) does not.
+        for n in os.listdir(self.filesdir):
+            os.unlink(os.path.join(self.filesdir, n))
+        for n in os.listdir(self.boxesdir):
+            os.unlink(os.path.join(self.boxesdir, n))
 
     def get_next_step(self):
         stepnames = [n for n in os.listdir(self.basedir)
@@ -296,11 +310,21 @@ class WorkQueue(object):
                     if n.startswith("step-")])
     def get_all_steps(self):
         # returns a list of (steptype, lines) for all steps
-        steps = []
+        stepnames = []
         for stepname in os.listdir(self.basedir):
             if stepname.startswith("step-"):
-                steps.append(self._get_step(stepname)[1:])
+                stepnames.append(stepname)
+        stepnames.sort()
+        steps = []
+        for stepname in stepnames:
+            steps.append(self._get_step(stepname)[1:])
         return steps
+    def run_all_steps(self, ignored=None):
+        d = self.run_next_step()
+        if d:
+            d.addCallback(self.run_all_steps)
+            return d
+        return defer.succeed(None)
 
 
     def open_tempfile(self, filename):
