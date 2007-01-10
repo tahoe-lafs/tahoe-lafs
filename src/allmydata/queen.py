@@ -4,11 +4,17 @@ from foolscap import Referenceable
 from foolscap.eventual import eventually
 from twisted.application import service
 from twisted.python import log
+from twisted.internet.error import ConnectionLost, ConnectionDone
 from allmydata.util import idlib
 from zope.interface import implements
 from allmydata.interfaces import RIQueenRoster
 from allmydata import node
 from allmydata.filetable import GlobalVirtualDrive
+
+
+def sendOnly(call, methname, *args, **kwargs):
+    d = call(methname, *args, **kwargs)
+    d.addErrback(lambda f: f.trap((ConnectionLost, ConnectionDone)))
 
 class Roster(service.MultiService, Referenceable):
     implements(RIQueenRoster)
@@ -51,7 +57,11 @@ class Roster(service.MultiService, Referenceable):
 
     def _announce_lost_peer(self, lost_nodeid):
         for targetnode in self.connections.values():
-            targetnode.callRemote("lost_peers", lost_peers=[lost_nodeid])
+            # use sendOnly, because if they go away then we assume it's
+            # because they crashed and they've lost all their peer
+            # connections anyways.
+            sendOnly(targetnode.callRemote, "lost_peers",
+                     lost_peers=[lost_nodeid])
 
 
 

@@ -10,15 +10,25 @@ from allmydata.util import idlib
 from twisted.web.client import getPage
 
 class SystemTest(unittest.TestCase):
+    # it takes a little while for a disconnected loopback TCP connection to
+    # be noticed by the other side. This is not directly visible to us, so we
+    # have to wait for time to pass rather than just waiting on a deferred.
+    # This is unfortunate, both because it arbitrarily slows down the test
+    # process, and because it is hard to predict what the minimum time
+    # necessary would be (on a slow or heavily loaded system, 100ms might not
+    # be enough).
+    DISCONNECT_DELAY = 0.1
+
     def setUp(self):
         self.sparent = service.MultiService()
         self.sparent.startService()
     def tearDown(self):
+        log.msg("shutting down SystemTest services")
         d = self.sparent.stopService()
         d.addCallback(lambda res: flushEventualQueue())
         def _done(res):
             d1 = defer.Deferred()
-            reactor.callLater(0.1, d1.callback, None)
+            reactor.callLater(self.DISCONNECT_DELAY, d1.callback, None)
             return d1
         d.addCallback(_done)
         return d
@@ -55,6 +65,21 @@ class SystemTest(unittest.TestCase):
         d.addCallback(_connected)
         return d
 
+    def add_extra_node(self, client_num):
+        # this node is *not* parented to our self.sparent, so we can shut it
+        # down separately from the rest, to exercise the connection-lost code
+        basedir = "client%d" % client_num
+        if not os.path.isdir(basedir):
+            os.mkdir(basedir)
+        c = client.Client(basedir=basedir)
+        self.clients.append(c)
+        c.set_queen_pburl(self.queen_pburl)
+        self.numclients += 1
+        c.startService()
+        d = self.wait_for_connections()
+        d.addCallback(lambda res: c)
+        return d
+
     def wait_for_connections(self, ignored=None):
         for c in self.clients:
             if len(c.connections) != self.numclients - 1:
@@ -66,10 +91,19 @@ class SystemTest(unittest.TestCase):
 
     def test_connections(self):
         d = self.set_up_nodes()
-        def _check(res):
+        d.addCallback(lambda res: self.add_extra_node(5))
+        def _check(extra_node):
             for c in self.clients:
-                self.failUnlessEqual(len(c.connections), 4)
+                self.failUnlessEqual(len(c.connections), 5)
+            return extra_node
         d.addCallback(_check)
+        def _shutdown_extra_node(extra_node):
+            d1 = extra_node.stopService()
+            d2 = defer.Deferred()
+            reactor.callLater(self.DISCONNECT_DELAY, d2.callback, None)
+            d1.addCallback(lambda res: d2)
+            return d1
+        d.addCallback(_shutdown_extra_node)
         return d
     test_connections.timeout = 20
 
