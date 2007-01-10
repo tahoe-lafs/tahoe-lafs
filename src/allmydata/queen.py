@@ -14,7 +14,9 @@ from allmydata.filetable import GlobalVirtualDrive
 
 def sendOnly(call, methname, *args, **kwargs):
     d = call(methname, *args, **kwargs)
-    d.addErrback(lambda f: f.trap((ConnectionLost, ConnectionDone)))
+    def _trap(f):
+        f.trap(ConnectionLost, ConnectionDone)
+    d.addErrback(_trap)
 
 class Roster(service.MultiService, Referenceable):
     implements(RIQueenRoster)
