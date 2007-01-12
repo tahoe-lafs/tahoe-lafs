@@ -71,7 +71,7 @@ class RIMutableDirectoryNode(RemoteInterface):
     # need more to move directories
 
 
-class IEncoder(Interface):
+class ICodecEncoder(Interface):
     def set_params(data_size, required_shares, total_shares):
         """Set up the parameters of this encoder.
 
@@ -123,7 +123,7 @@ class IEncoder(Interface):
         total_shares * get_share_size().
         """
 
-class IDecoder(Interface):
+class ICodecDecoder(Interface):
     def set_serialized_params(params):
         """Set up the parameters of this encoder, from a string returned by
         encoder.get_serialized_params()."""
@@ -132,16 +132,16 @@ class IDecoder(Interface):
         """Decode a partial list of shares into data.
 
         'some_shares' must be a list of (sharenum, share) tuples, a subset of
-        the shares returned by IEncoder.encode(). Each share must be of the
-        same length. The share tuples may appear in any order, but of course
-        each tuple must have a sharenum that correctly matches the associated
-        share data string.
+        the shares returned by ICodecEncode.encode(). Each share must be of
+        the same length. The share tuples may appear in any order, but of
+        course each tuple must have a sharenum that correctly matches the
+        associated share data string.
 
         This returns a Deferred which fires with a string. This string will
         always have a length equal to the 'data_size' value passed into the
-        original IEncoder.set_params() call.
+        original ICodecEncode.set_params() call.
 
         The length of 'some_shares' must be equal or greater than the value
-        of 'required_shares' passed into the original IEncoder.set_params()
-        call.
+        of 'required_shares' passed into the original
+        ICodecEncode.set_params() call.
         """

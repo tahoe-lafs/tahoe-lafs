@@ -4,14 +4,14 @@ from zope.interface import implements
 from twisted.internet import defer
 import sha
 from allmydata.util import idlib, mathutil
-from allmydata.interfaces import IEncoder, IDecoder
+from allmydata.interfaces import ICodecEncoder, ICodecDecoder
 from allmydata.py_ecc import rs_code
 
 def netstring(s):
     return "%d:%s," % (len(s), s)
 
 class ReplicatingEncoder(object):
-    implements(IEncoder)
+    implements(ICodecEncoder)
     ENCODER_TYPE = 0
 
     def set_params(self, data_size, required_shares, total_shares):
@@ -33,7 +33,7 @@ class ReplicatingEncoder(object):
         return defer.succeed(shares)
 
 class ReplicatingDecoder(object):
-    implements(IDecoder)
+    implements(ICodecDecoder)
 
     def set_serialized_params(self, params):
         self.required_shares = int(params)
@@ -89,6 +89,7 @@ class Decoder(object):
 
 
 class PyRSEncoder(object):
+    implements(ICodecEncoder)
     ENCODER_TYPE = 1
 
     # we will break the data into vectors in which each element is a single
@@ -163,6 +164,7 @@ class PyRSEncoder(object):
         return defer.succeed(shares)
 
 class PyRSDecoder(object):
+    implements(ICodecDecoder)
 
     def set_serialized_params(self, params):
         pieces = params.split(":")
