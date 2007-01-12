@@ -6,7 +6,7 @@ from twisted.application import service
 from foolscap import Referenceable
 
 from allmydata.util import idlib
-from allmydata import encode
+from allmydata import codec
 
 from cStringIO import StringIO
 import sha
@@ -37,7 +37,7 @@ class FileUploader:
     def make_encoder(self):
         self._needed_shares = 4
         self._shares = 4
-        self._encoder = encode.Encoder(self._filehandle, self._shares)
+        self._encoder = codec.Encoder(self._filehandle, self._shares)
         self._share_size = self._size
 
     def set_verifierid(self, vid):

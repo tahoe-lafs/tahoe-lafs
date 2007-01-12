@@ -5,7 +5,7 @@ from allmydata.chunk import HashTree, roundup_pow2
 from allmydata.Crypto.Cipher import AES
 import sha
 from allmydata.util import mathutil
-from allmydata.encode import PyRSEncoder
+from allmydata.codec import PyRSEncoder
 
 def hash(data):
     return sha.new(data).digest()

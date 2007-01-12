@@ -6,7 +6,7 @@ from twisted.internet import defer
 from twisted.application import service
 
 from allmydata.util import idlib
-from allmydata import encode
+from allmydata import codec
 
 class NotEnoughPeersError(Exception):
     pass
@@ -34,8 +34,8 @@ class FileDownloader:
         n = self._shares = 4
         k = self._desired_shares = 2
         self._target.open()
-        self._decoder = encode.Decoder(self._target, k, n,
-                                       self._verifierid)
+        self._decoder = codec.Decoder(self._target, k, n,
+                                      self._verifierid)
 
     def start(self):
         log.msg("starting download")

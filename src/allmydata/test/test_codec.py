@@ -3,7 +3,7 @@ import os, time
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import log
-from allmydata.encode import PyRSEncoder, PyRSDecoder, ReplicatingEncoder, ReplicatingDecoder
+from allmydata.codec import PyRSEncoder, PyRSDecoder, ReplicatingEncoder, ReplicatingDecoder
 import random
 
 class Tester:
