@@ -62,6 +62,9 @@ class Lease(Referenceable):
     def remote_write(self, data):
         self._bucket.write(data)
 
+    def remote_set_metadata(self, metadata):
+        self._bucket.set_metadata(metadata)
+
     def remote_close(self):
         self._bucket.close()
 
@@ -93,6 +96,7 @@ class WriteBucket(Bucket):
         precondition(not os.path.exists(bucket_dir))
         os.mkdir(bucket_dir)
 
+        self._open = True
         self._size = size
         self._data = file(os.path.join(self._bucket_dir, 'data'), 'wb')
         self._bytes_written = 0
@@ -103,15 +107,21 @@ class WriteBucket(Bucket):
         self._write_attr('leases', leaser)
 
     def write(self, data):
+        precondition(self._open)
         precondition(len(data) + self._bytes_written <= self._size)
         self._data.write(data)
         self._data.flush()
         self._bytes_written += len(data)
 
+    def set_metadata(self, metadata):
+        precondition(self._open)
+        self._write_attr('metadata', metadata)
+
     def close(self):
         precondition(self._bytes_written == self._size)
         self._data.close()
         self._write_attr('closed', '')
+        self._open = False
 
     def is_complete(self):
         complete = Bucket.is_complete(self)
@@ -132,3 +142,7 @@ class ReadBucket(Bucket, Referenceable):
     def read(self):
         return self._read_attr('data')
     remote_read = read
+
+    def get_metadata(self):
+        return self._read_attr('metadata')
+    remote_get_metadata = get_metadata

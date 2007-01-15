@@ -1,6 +1,6 @@
 
 from zope.interface import Interface
-from foolscap.schema import StringConstraint, ListOf, TupleOf, Any, Nothing
+from foolscap.schema import StringConstraint, ListOf, TupleOf, Any
 from foolscap import RemoteInterface
 
 Nodeid = StringConstraint(20) # binary format 20-byte SHA1 hash
@@ -24,9 +24,9 @@ class RIClient(RemoteInterface):
     def get_service(name=str):
         return Referenceable_
     def add_peers(new_peers=ListOf(TupleOf(Nodeid, PBURL), maxLength=100)):
-        return Nothing()
+        return None
     def lost_peers(lost_peers=ListOf(Nodeid)):
-        return Nothing()
+        return None
 
 class RIStorageServer(RemoteInterface):
     def allocate_bucket(verifierid=Verifierid, bucket_num=int, size=int,
@@ -38,15 +38,18 @@ class RIStorageServer(RemoteInterface):
 
 class RIBucketWriter(RemoteInterface):
     def write(data=ShareData):
-        return Nothing()
-
+        return None
+    def set_metadata(metadata=str):
+        return None
     def close():
-        return Nothing()
+        return None
 
 
 class RIBucketReader(RemoteInterface):
     def read():
         return ShareData
+    def get_metadata():
+        return str
 
 
 class RIMutableDirectoryNode(RemoteInterface):
@@ -63,10 +66,10 @@ class RIMutableDirectoryNode(RemoteInterface):
         return RIMutableDirectoryNode_
 
     def add_file(name=str, data=Verifierid):
-        return Nothing()
+        return None
 
     def remove(name=str):
-        return Nothing()
+        return None
 
     # need more to move directories
 

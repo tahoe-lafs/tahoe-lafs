@@ -49,6 +49,8 @@ class StorageTest(unittest.TestCase):
         def write_to_bucket(bucket):
             def write_some(junk, bytes):
                 return bucket.callRemote('write', data=bytes)
+            def set_metadata(junk, metadata):
+                return bucket.callRemote('set_metadata', metadata)
             def finalise(junk):
                 return bucket.callRemote('close')
             off1 = len(data) / 2
@@ -56,6 +58,7 @@ class StorageTest(unittest.TestCase):
             d = defer.succeed(None)
             d.addCallback(write_some, data[:off1])
             d.addCallback(write_some, data[off1:off2])
+            d.addCallback(set_metadata, "metadata")
             d.addCallback(write_some, data[off2:])
             d.addCallback(finalise)
             return d
@@ -79,6 +82,11 @@ class StorageTest(unittest.TestCase):
                 self.failUnlessEqual(bytes_read, data)
             d = bucket.callRemote('read')
             d.addCallback(check_data)
+
+            def check_metadata(metadata):
+                self.failUnlessEqual(metadata, 'metadata')
+            d.addCallback(lambda res: bucket.callRemote('get_metadata'))
+            d.addCallback(check_metadata)
             return d
         rssd.addCallback(read_buckets)
 
