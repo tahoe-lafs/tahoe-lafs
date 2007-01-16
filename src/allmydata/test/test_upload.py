@@ -1,7 +1,6 @@
 
 from twisted.trial import unittest
 from twisted.internet import defer
-from twisted.application import service
 from cStringIO import StringIO
 
 from allmydata import upload, download

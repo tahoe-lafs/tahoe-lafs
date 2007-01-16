@@ -6,7 +6,6 @@ from allmydata import client, queen
 import os
 from foolscap.eventual import flushEventualQueue
 from twisted.python import log
-from allmydata.util import idlib
 from twisted.web.client import getPage
 
 class SystemTest(unittest.TestCase):

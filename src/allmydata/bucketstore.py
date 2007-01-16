@@ -2,7 +2,7 @@ import os
 
 from foolscap import Referenceable
 from twisted.application import service
-from twisted.python import log
+#from twisted.python import log
 from allmydata.util import idlib
 from zope.interface import implements
 from allmydata.interfaces import RIBucketWriter, RIBucketReader
