@@ -32,12 +32,12 @@ class Roster(service.MultiService, Referenceable):
 
     def remote_hello(self, nodeid, node, pburl):
         log.msg("roster: contact from %s" % idlib.b2a(nodeid))
+        self.phonebook[nodeid] = pburl
+        self.connections[nodeid] = node
         eventually(self._educate_the_new_peer,
                    nodeid, node, list(self.phonebook.items()))
         eventually(self._announce_new_peer,
                    nodeid, pburl, list(self.connections.values()))
-        self.phonebook[nodeid] = pburl
-        self.connections[nodeid] = node
         node.notifyOnDisconnect(self._lost_node, nodeid)
         return self.gvd_root
 

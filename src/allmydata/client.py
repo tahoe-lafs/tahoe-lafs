@@ -100,8 +100,6 @@ class Client(node.Node, Referenceable):
 
     def remote_add_peers(self, new_peers):
         for nodeid, pburl in new_peers:
-            if nodeid == self.nodeid:
-                continue
             self.log("adding peer %s" % idlib.b2a(nodeid))
             if nodeid in self.all_peers:
                 self.log("weird, I already had an entry for them")

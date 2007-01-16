@@ -81,7 +81,7 @@ class SystemTest(unittest.TestCase):
 
     def wait_for_connections(self, ignored=None):
         for c in self.clients:
-            if len(c.connections) != self.numclients - 1:
+            if len(c.connections) != self.numclients:
                 d = defer.Deferred()
                 d.addCallback(self.wait_for_connections)
                 reactor.callLater(0.05, d.callback, None)
@@ -92,17 +92,17 @@ class SystemTest(unittest.TestCase):
         d = self.set_up_nodes()
         d.addCallback(lambda res: self.add_extra_node(5))
         def _check(extra_node):
+            self.extra_node = extra_node
             for c in self.clients:
-                self.failUnlessEqual(len(c.connections), 5)
-            return extra_node
+                self.failUnlessEqual(len(c.connections), 6)
         d.addCallback(_check)
-        def _shutdown_extra_node(extra_node):
-            d1 = extra_node.stopService()
+        def _shutdown_extra_node(res):
+            d1 = self.extra_node.stopService()
             d2 = defer.Deferred()
-            reactor.callLater(self.DISCONNECT_DELAY, d2.callback, None)
-            d1.addCallback(lambda res: d2)
+            reactor.callLater(self.DISCONNECT_DELAY, d2.callback, res)
+            d1.addCallback(lambda ignored: d2)
             return d1
-        d.addCallback(_shutdown_extra_node)
+        d.addBoth(_shutdown_extra_node)
         return d
     test_connections.timeout = 20
 
@@ -161,7 +161,7 @@ class SystemTest(unittest.TestCase):
         base = self.webish_url
         d = getPage(base)
         def _got_welcome(page):
-            expected = "Connected Peers: <span>%d</span>" % (self.numclients-1)
+            expected = "Connected Peers: <span>%d</span>" % (self.numclients)
             self.failUnless(expected in page,
                             "I didn't see the right 'connected peers' message "
                             "in: %s" % page
