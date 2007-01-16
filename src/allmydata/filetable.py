@@ -74,10 +74,10 @@ class MutableDirectoryNode(Referenceable):
         return self.make_subnode(absname)
     remote_add_directory = add_directory
 
-    def add_file(self, name, data):
+    def add_file(self, name, uri):
         self.validate_name(name)
         f = open(os.path.join(self._basedir, name), "wb")
-        f.write(data)
+        f.write(uri)
         f.close()
     remote_add_file = add_file
 

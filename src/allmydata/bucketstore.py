@@ -2,15 +2,12 @@ import os
 
 from foolscap import Referenceable
 from twisted.application import service
-from twisted.python.failure import Failure
+from twisted.python import log
 from allmydata.util import idlib
 from zope.interface import implements
 from allmydata.interfaces import RIBucketWriter, RIBucketReader
 
 from allmydata.util.assertutil import precondition, _assert
-
-class NoSuchBucketError(Failure):
-    pass
 
 class BucketStore(service.MultiService, Referenceable):
     def __init__(self, store_dir):
@@ -94,6 +91,8 @@ class WriteBucket(Bucket):
     def __init__(self, bucket_dir, verifierid, bucket_num, size):
         Bucket.__init__(self, bucket_dir, verifierid)
         precondition(not os.path.exists(bucket_dir))
+        #log.msg("WriteBucket [%s]: creating bucket %s"
+        #        % (idlib.b2a(verifierid), bucket_dir))
         os.mkdir(bucket_dir)
 
         self._open = True
@@ -119,6 +118,8 @@ class WriteBucket(Bucket):
 
     def close(self):
         precondition(self._bytes_written == self._size)
+        #log.msg("WriteBucket.close [%s] (%s)"
+        #        % (idlib.b2a(self._verifierid), self._bucket_dir))
         self._data.close()
         self._write_attr('closed', '')
         self._open = False

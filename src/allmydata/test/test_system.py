@@ -116,16 +116,20 @@ class SystemTest(unittest.TestCase):
             d1 = u.upload_data(DATA)
             return d1
         d.addCallback(_do_upload)
-        def _upload_done(verifierid):
-            log.msg("upload finished: verifierid=%s" % idlib.b2a(verifierid))
+        def _upload_done(uri):
+            log.msg("upload finished: uri is %s" % (uri,))
             dl = self.clients[1].getServiceNamed("downloader")
-            d1 = dl.download_to_data(verifierid)
+            d1 = dl.download_to_data(uri)
             return d1
         d.addCallback(_upload_done)
         def _download_done(data):
             log.msg("download finished")
             self.failUnlessEqual(data, DATA)
         d.addCallback(_download_done)
+        def _oops(res):
+            log.msg("oops, an error orccurred, finishing: %s" % res)
+            return res
+        d.addErrback(_oops)
         return d
     test_upload_and_download.timeout = 20
 

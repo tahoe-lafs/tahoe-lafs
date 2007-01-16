@@ -17,3 +17,8 @@ class Basic(unittest.TestCase):
         self.failUnlessEqual(c.permute_peerids("two"), ['0','4','2','1','3'])
         c.all_peers = []
         self.failUnlessEqual(c.permute_peerids("one"), [])
+
+        c2 = client.Client("")
+        c2.all_peers = ["%d" % i for i in range(5)]
+        self.failUnlessEqual(c2.permute_peerids("one"), ['3','1','0','4','2'])
+

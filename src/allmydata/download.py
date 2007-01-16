@@ -1,11 +1,12 @@
 
-import os
+import os, sha
 from zope.interface import Interface, implements
 from twisted.python import failure, log
 from twisted.internet import defer
 from twisted.application import service
 
-from allmydata.util import idlib
+from allmydata.util import idlib, bencode
+from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata import codec
 
 class NotEnoughPeersError(Exception):
@@ -15,13 +16,21 @@ class HaveAllPeersError(Exception):
     # we use this to jump out of the loop
     pass
 
+def unpack_uri(uri):
+    assert uri.startswith("URI:")
+    return bencode.bdecode(uri[4:])
+
 class FileDownloader:
     debug = False
 
-    def __init__(self, peer, verifierid):
+    def __init__(self, peer, verifierid, encoding_params):
         self._peer = peer
         assert isinstance(verifierid, str)
+        assert len(verifierid) == 20
         self._verifierid = verifierid
+        self._decoder = codec.ReplicatingDecoder()
+        self._decoder.set_serialized_params(encoding_params)
+        self.needed_shares = self._decoder.get_required_shares()
 
     def set_download_target(self, target):
         self._target = target
@@ -30,15 +39,8 @@ class FileDownloader:
     def _cancel(self):
         pass
 
-    def make_decoder(self):
-        n = self._shares = 4
-        k = self._desired_shares = 2
-        self._target.open()
-        self._decoder = codec.Decoder(self._target, k, n,
-                                      self._verifierid)
-
     def start(self):
-        log.msg("starting download")
+        log.msg("starting download [%s]" % (idlib.b2a(self._verifierid),))
         if self.debug:
             print "starting download"
         # first step: who should we download from?
@@ -75,7 +77,7 @@ class FileDownloader:
                                                              bucket_nums)
 
                     self.landlords.append( (peerid, buckets) )
-                if len(self.landlords) >= self._desired_shares:
+                if len(self.landlords) >= self.needed_shares:
                     if self.debug: print " we're done!"
                     raise HaveAllPeersError
                 # otherwise we fall through to search more peers
@@ -107,7 +109,34 @@ class FileDownloader:
         all_buckets = []
         for peerid, buckets in self.landlords:
             all_buckets.extend(buckets)
-        d = self._decoder.start(all_buckets)
+        # TODO: try to avoid pulling multiple shares from the same peer
+        all_buckets = all_buckets[:self.needed_shares]
+        # retrieve all shares
+        dl = []
+        shares = []
+        for (bucket_num, bucket) in all_buckets:
+            d0 = bucket.callRemote("get_metadata")
+            d1 = bucket.callRemote("read")
+            d2 = DeferredListShouldSucceed([d0, d1])
+            def _got(res):
+                sharenum_s, sharedata = res
+                sharenum = bencode.bdecode(sharenum_s)
+                shares.append((sharenum, sharedata))
+            d2.addCallback(_got)
+            dl.append(d2)
+        d = DeferredListShouldSucceed(dl)
+
+        d.addCallback(lambda res: self._decoder.decode(shares))
+
+        def _write(data):
+            self._target.open()
+            hasher = sha.new(netstring("allmydata_v1_verifierid"))
+            hasher.update(data)
+            vid = hasher.digest()
+            assert self._verifierid == vid, "%s != %s" % (idlib.b2a(self._verifierid), idlib.b2a(vid))
+            self._target.write(data)
+        d.addCallback(_write)
+
         def _done(res):
             self._target.close()
             return self._target.finish()
@@ -204,26 +233,29 @@ class Downloader(service.MultiService):
     """
     implements(IDownloader)
     name = "downloader"
+    debug = False
 
-    def download(self, verifierid, t):
+    def download(self, uri, t):
+        (verifierid, params) = unpack_uri(uri)
         assert self.parent
         assert self.running
         assert isinstance(verifierid, str)
         t = IDownloadTarget(t)
         assert t.write
         assert t.close
-        dl = FileDownloader(self.parent, verifierid)
+        dl = FileDownloader(self.parent, verifierid, params)
         dl.set_download_target(t)
-        dl.make_decoder()
+        if self.debug:
+            dl.debug = True
         d = dl.start()
         return d
 
     # utility functions
-    def download_to_data(self, verifierid):
-        return self.download(verifierid, Data())
-    def download_to_filename(self, verifierid, filename):
-        return self.download(verifierid, FileName(filename))
-    def download_to_filehandle(self, verifierid, filehandle):
-        return self.download(verifierid, FileHandle(filehandle))
+    def download_to_data(self, uri):
+        return self.download(uri, Data())
+    def download_to_filename(self, uri, filename):
+        return self.download(uri, FileName(filename))
+    def download_to_filehandle(self, uri, filehandle):
+        return self.download(uri, FileHandle(filehandle))
 
 

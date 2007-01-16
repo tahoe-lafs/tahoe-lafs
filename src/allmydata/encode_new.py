@@ -129,6 +129,7 @@ class Encoder(object):
         segment_plaintext = self.infile.read(self.segment_size)
         segment_crypttext = self.cryptor.encrypt(segment_plaintext)
         del segment_plaintext
+        assert self.encoder.max_shares == self.num_shares
         d = self.encoder.encode(segment_crypttext)
         d.addCallback(self._encoded_segment)
         return d

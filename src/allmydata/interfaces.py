@@ -6,6 +6,7 @@ from foolscap import RemoteInterface
 Nodeid = StringConstraint(20) # binary format 20-byte SHA1 hash
 PBURL = StringConstraint(150)
 Verifierid = StringConstraint(20)
+URI = StringConstraint(100) # kind of arbitrary
 ShareData = StringConstraint(100000)
 # these four are here because Foolscap does not yet support the kind of
 # restriction I really want to apply to these.
@@ -65,7 +66,7 @@ class RIMutableDirectoryNode(RemoteInterface):
     def add_directory(name=str):
         return RIMutableDirectoryNode_
 
-    def add_file(name=str, data=Verifierid):
+    def add_file(name=str, uri=URI):
         return None
 
     def remove(name=str):
@@ -75,7 +76,7 @@ class RIMutableDirectoryNode(RemoteInterface):
 
 
 class ICodecEncoder(Interface):
-    def set_params(data_size, required_shares, total_shares):
+    def set_params(data_size, required_shares, max_shares):
         """Set up the parameters of this encoder.
 
         See encode() for a description of how these parameters are used.
@@ -109,27 +110,57 @@ class ICodecEncoder(Interface):
         """Return the length of the shares that encode() will produce.
         """
 
-    def encode(data):
+    def encode(data, num_shares=None):
         """Encode a chunk of data. This may be called multiple times. Each
         call is independent.
 
         The data must be a string with a length that exactly matches the
         data_size promised by set_params().
 
+        'num_shares', if provided, must be equal or less than the
+        'max_shares' set in set_params. If 'num_shares' is left at None, this
+        method will produce 'max_shares' shares. This can be used to minimize
+        the work that the encoder needs to do if we initially thought that we
+        would need, say, 100 shares, but now that it is time to actually
+        encode the data we only have 75 peers to send data to.
+
         For each call, encode() will return a Deferred that fires with a list
         of 'total_shares' tuples. Each tuple is of the form (sharenum,
-        share), where sharenum is an int (from 0 total_shares-1), and share
-        is a string. The get_share_size() method can be used to determine the
-        length of the 'share' strings returned by encode().
+        sharedata), where sharenum is an int (from 0 total_shares-1), and
+        sharedata is a string. The get_share_size() method can be used to
+        determine the length of the 'sharedata' strings returned by encode().
+
+        The (sharenum, sharedata) tuple must be kept together during storage
+        and retrieval. Specifically, the share data is useless by itself: the
+        decoder needs to be told which share is which by providing it with
+        both the share number and the actual share data.
 
         The memory usage of this function is expected to be on the order of
         total_shares * get_share_size().
         """
+        # design note: we could embed the share number in the sharedata by
+        # returning bencode((sharenum,sharedata)). The advantage would be
+        # making it easier to keep these two pieces together, and probably
+        # avoiding a round trip when reading the remote bucket (although this
+        # could be achieved by changing RIBucketReader.read to
+        # read_data_and_metadata). The disadvantage is that the share number
+        # wants to be exposed to the storage/bucket layer (specifically to
+        # handle the next stage of peer-selection algorithm in which we
+        # propose to keep share#A on a given peer and they are allowed to
+        # tell us that they already have share#B). Also doing this would make
+        # the share size somewhat variable (one-digit sharenumbers will be a
+        # byte shorter than two-digit sharenumbers), unless we zero-pad the
+        # sharenumbers based upon the max_total_shares declared in
+        # set_params.
 
 class ICodecDecoder(Interface):
     def set_serialized_params(params):
         """Set up the parameters of this encoder, from a string returned by
         encoder.get_serialized_params()."""
+
+    def get_required_shares():
+        """Return the number of shares needed to reconstruct the data.
+        set_serialized_params() must be called before this."""
 
     def decode(some_shares):
         """Decode a partial list of shares into data.

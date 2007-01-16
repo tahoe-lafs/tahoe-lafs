@@ -10,17 +10,23 @@ class Tester:
     #enc_class = PyRSEncoder
     #dec_class = PyRSDecoder
 
-    def do_test(self, size, required_shares, total_shares):
+    def do_test(self, size, required_shares, max_shares, fewer_shares=None):
         data0 = os.urandom(size)
         enc = self.enc_class()
-        enc.set_params(size, required_shares, total_shares)
+        enc.set_params(size, required_shares, max_shares)
         serialized_params = enc.get_serialized_params()
         log.msg("serialized_params: %s" % serialized_params)
         d = enc.encode(data0)
-        def _done(shares):
-            self.failUnlessEqual(len(shares), total_shares)
+        def _done_encoding_all(shares):
+            self.failUnlessEqual(len(shares), max_shares)
             self.shares = shares
-        d.addCallback(_done)
+        d.addCallback(_done_encoding_all)
+        if fewer_shares is not None:
+            # also validate that the num_shares= parameter works
+            d.addCallback(lambda res: enc.encode(data0, fewer_shares))
+            def _check_fewer_shares(some_shares):
+                self.failUnlessEqual(len(some_shares), fewer_shares)
+            d.addCallback(_check_fewer_shares)
 
         def _decode(shares):
             dec = self.dec_class()
@@ -91,7 +97,7 @@ class Tester:
     def test_encode2(self):
         if os.uname()[1] == "slave3" and self.enc_class == PyRSEncoder:
             raise unittest.SkipTest("slave3 is really slow")
-        return self.do_test(123, 25, 100)
+        return self.do_test(123, 25, 100, 90)
 
     def test_sizes(self):
         raise unittest.SkipTest("omg this would take forever")
@@ -114,13 +120,13 @@ class BenchPyRS(unittest.TestCase):
     def test_big(self):
         size = 10000
         required_shares = 25
-        total_shares = 100
+        max_shares = 100
         # this lets us use a persistent lookup table, stored outside the
         # _trial_temp directory (which is deleted each time trial is run)
         os.symlink("../ffield.lut.8", "ffield.lut.8")
         enc = self.enc_class()
         self.start()
-        enc.set_params(size, required_shares, total_shares)
+        enc.set_params(size, required_shares, max_shares)
         serialized_params = enc.get_serialized_params()
         print "encoder ready", self.stop()
         self.start()
@@ -132,7 +138,7 @@ class BenchPyRS(unittest.TestCase):
             now_shares = time.time()
             print "shares ready", self.stop()
             self.start()
-            self.failUnlessEqual(len(shares), total_shares)
+            self.failUnlessEqual(len(shares), max_shares)
         d.addCallback(_done)
         d.addCallback(lambda res: enc.encode(data0))
         d.addCallback(_done)

@@ -1,9 +1,10 @@
 
 from twisted.trial import unittest
 from twisted.internet import defer
+from twisted.application import service
 from cStringIO import StringIO
 
-from allmydata import upload
+from allmydata import upload, download
 
 class StringBucketProxy:
     # This is for unit tests: make a StringIO look like a RIBucketWriter.
@@ -64,8 +65,10 @@ class FakeClient:
             return defer.fail(IndexError("no connection to that peer"))
         return defer.succeed(peer)
 
+
 class NextPeerUploader(upload.FileUploader):
-    def _got_all_peers(self, res):
+    _size = 100
+    def _got_enough_peers(self, res):
         return res
 
 class NextPeer(unittest.TestCase):
@@ -81,12 +84,12 @@ class NextPeer(unittest.TestCase):
                for peerid, bucketnum in expected]
         self.failUnlessEqual(u.landlords, exp)
 
+    VERIFIERID = "\x00" * 20
     def test_0(self):
         c = FakeClient([])
         u = NextPeerUploader(c)
-        u._verifierid = "verifierid"
-        u._shares = 2
-        u._share_size = 100
+        u.set_verifierid(self.VERIFIERID)
+        u.set_params(2, 2, 2)
         d = u.start()
         def _check(f):
             f.trap(upload.NotEnoughPeersError)
@@ -97,9 +100,8 @@ class NextPeer(unittest.TestCase):
     def test_1(self):
         c = FakeClient(self.responses)
         u = NextPeerUploader(c)
-        u._verifierid = "verifierid"
-        u._shares = 2
-        u._share_size = 100
+        u.set_verifierid(self.VERIFIERID)
+        u.set_params(2, 2, 2)
         d = u.start()
         def _check(res):
             self.failUnlessEqual(u.goodness_points, 2)
@@ -112,9 +114,8 @@ class NextPeer(unittest.TestCase):
     def test_2(self):
         c = FakeClient(self.responses)
         u = NextPeerUploader(c)
-        u._verifierid = "verifierid"
-        u._shares = 3
-        u._share_size = 100
+        u.set_verifierid(self.VERIFIERID)
+        u.set_params(3, 3, 3)
         d = u.start()
         def _check(res):
             self.failUnlessEqual(u.goodness_points, 3)
@@ -135,9 +136,8 @@ class NextPeer(unittest.TestCase):
     def test_3(self):
         c = FakeClient(self.responses2)
         u = NextPeerUploader(c)
-        u._verifierid = "verifierid"
-        u._shares = 3
-        u._share_size = 100
+        u.set_verifierid(self.VERIFIERID)
+        u.set_params(3, 3, 3)
         d = u.start()
         def _check(res):
             self.failUnlessEqual(u.goodness_points, 3)
@@ -158,9 +158,8 @@ class NextPeer(unittest.TestCase):
     def test_4(self):
         c = FakeClient(self.responses3)
         u = NextPeerUploader(c)
-        u._verifierid = "verifierid"
-        u._shares = 4
-        u._share_size = 100
+        u.set_verifierid(self.VERIFIERID)
+        u.set_params(4, 4, 4)
         d = u.start()
         def _check(res):
             self.failUnlessEqual(u.goodness_points, 4)
@@ -170,4 +169,89 @@ class NextPeer(unittest.TestCase):
                                           (3, 3),
                                           ])
         d.addCallback(_check)
+        return d
+
+
+class FakePeer2:
+    def __init__(self, peerid):
+        self.peerid = peerid
+        self.data = ""
+
+    def callRemote(self, methname, *args, **kwargs):
+        if methname == "allocate_bucket":
+            return defer.maybeDeferred(self._allocate_bucket, *args, **kwargs)
+        if methname == "write":
+            return defer.maybeDeferred(self._write, *args, **kwargs)
+        if methname == "set_metadata":
+            return defer.maybeDeferred(self._set_metadata, *args, **kwargs)
+        if methname == "close":
+            return defer.maybeDeferred(self._close, *args, **kwargs)
+        return defer.maybeDeferred(self._bad_name, methname)
+
+    def _allocate_bucket(self, verifierid, bucket_num, size, leaser, canary):
+        self.allocated_size = size
+        return self
+    def _write(self, data):
+        self.data = self.data + data
+    def _set_metadata(self, metadata):
+        self.metadata = metadata
+    def _close(self):
+        pass
+    def _bad_name(self, methname):
+        raise NameError("FakePeer2 has no such method named '%s'" % methname)
+
+class FakeClient2:
+    nodeid = "fakeclient"
+    def __init__(self, max_peers):
+        self.peers = []
+        for peerid in range(max_peers):
+            self.peers.append(FakePeer2(str(peerid)))
+
+    def permute_peerids(self, key, max_peers):
+        assert max_peers == None
+        return [str(i) for i in range(len(self.peers))]
+
+    def get_remote_service(self, peerid, name):
+        peer = self.peers[int(peerid)]
+        if not peer:
+            return defer.fail(IndexError("no connection to that peer"))
+        return defer.succeed(peer)
+
+class Uploader(unittest.TestCase):
+    def setUp(self):
+        node = self.node = FakeClient2(10)
+        u = self.u = upload.Uploader()
+        u.running = 1
+        u.parent = node
+
+    def _check(self, uri):
+        self.failUnless(isinstance(uri, str))
+        self.failUnless(uri.startswith("URI:"))
+        verifierid, params = download.unpack_uri(uri)
+        self.failUnless(isinstance(verifierid, str))
+        self.failUnlessEqual(len(verifierid), 20)
+        self.failUnless(isinstance(params, str))
+        peers = self.node.peers
+        self.failUnlessEqual(peers[0].allocated_size,
+                             len(peers[0].data))
+    def testData(self):
+        data = "This is some data to upload"
+        d = self.u.upload_data(data)
+        d.addCallback(self._check)
+        return d
+
+    def testFileHandle(self):
+        data = "This is some data to upload"
+        d = self.u.upload_filehandle(StringIO(data))
+        d.addCallback(self._check)
+        return d
+
+    def testFilename(self):
+        fn = "Uploader-testFilename.data"
+        f = open(fn, "w")
+        data = "This is some data to upload"
+        f.write(data)
+        f.close()
+        d = self.u.upload_filename(fn)
+        d.addCallback(self._check)
         return d

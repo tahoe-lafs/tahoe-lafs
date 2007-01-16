@@ -140,6 +140,7 @@ class Client(node.Node, Referenceable):
         # sort of at most max_count elements
         results = []
         for nodeid in self.all_peers:
+            assert isinstance(nodeid, str)
             permuted = sha.new(key + nodeid).digest()
             results.append((permuted, nodeid))
         results.sort()
