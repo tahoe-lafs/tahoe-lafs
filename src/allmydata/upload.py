@@ -270,12 +270,9 @@ class Uploader(service.MultiService):
         if self.debug:
             u.debug = True
         u.set_filehandle(fh)
-        # TODO: change this to (2,2,4) once Foolscap is fixed to allow
-        # connect-to-self and Client is fixed to include ourselves in the
-        # peerlist. Otherwise this usually fails because we give a share to
-        # the eventual downloader, and they won't try to get a share from
-        # themselves.
-        u.set_params(2, 3, 4)
+        # push two shares, require that we get two back. TODO: this is
+        # temporary, of course.
+        u.set_params(2, 2, 4)
         u.set_verifierid(self._compute_verifierid(fh))
         d = u.start()
         def _done(res):
