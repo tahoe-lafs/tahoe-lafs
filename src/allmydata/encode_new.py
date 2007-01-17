@@ -206,19 +206,18 @@ class Encoder(object):
 
 
 from foolscap import RemoteInterface
-from foolscap.schema import ListOf, TupleOf, Nothing
-_None = Nothing()
+from foolscap.schema import ListOf, TupleOf
 
 
 class RIStorageBucketWriter(RemoteInterface):
     def put_subshare(segment_number=int, subshare=str):
-        return _None
+        return None
     def put_segment_hashes(all_hashes=ListOf(str)):
-        return _None
+        return None
     def put_share_hashes(needed_hashes=ListOf(TupleOf(int,str))):
-        return _None
+        return None
     #def write(data=str, offset=int):
-    #    return _None
+    #    return None
 class RIStorageBucketReader(RemoteInterface):
     def get_share_hashes():
         return ListOf(TupleOf(int,str))
@@ -228,5 +227,3 @@ class RIStorageBucketReader(RemoteInterface):
         return str
     #def read(size=int, offset=int):
     #    return str
-
-"figleaf doesn't like the last line of the file to be a comment"
