@@ -24,10 +24,12 @@
   <tr n:pattern="header">
     <td>PeerID</td>
     <td>Connected?</td>
+    <td>PBURL</td>
   </tr>
   <tr n:pattern="item" n:render="row">
     <td><tt><n:slot name="peerid"/></tt></td>
     <td><n:slot name="connected"/></td>
+    <td><n:slot name="pburl"/></td>
   </tr>
   <tr n:pattern="empty"><td>no peers!</td></tr>
 </table>

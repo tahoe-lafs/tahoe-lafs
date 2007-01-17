@@ -29,6 +29,7 @@ class Client(node.Node, Referenceable):
         node.Node.__init__(self, basedir)
         self.queen = None # self.queen is either None or a RemoteReference
         self.all_peers = set()
+        self.peer_pburls = {}
         self.connections = {}
         self.add_service(StorageServer(os.path.join(basedir, self.STOREDIR)))
         self.add_service(Uploader())
@@ -105,6 +106,7 @@ class Client(node.Node, Referenceable):
                 self.log("weird, I already had an entry for them")
                 return
             self.all_peers.add(nodeid)
+            self.peer_pburls[nodeid] = pburl
             if nodeid not in self.connections:
                 d = self.tub.getReference(pburl)
                 def _got_reference(ref, which_nodeid):
@@ -122,6 +124,8 @@ class Client(node.Node, Referenceable):
                 self.all_peers.remove(nodeid)
             else:
                 self.log("weird, I didn't have an entry for them")
+            if nodeid in self.peer_pburls:
+                del self.peer_pburls[nodeid]
             if nodeid in self.connections:
                 del self.connections[nodeid]
 

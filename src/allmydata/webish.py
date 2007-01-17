@@ -39,15 +39,25 @@ class Welcome(rend.Page):
         return len(client.all_peers)
     def data_num_connected_peers(self, ctx, data):
         return len(IClient(ctx).connections)
+
     def data_peers(self, ctx, data):
-        return sorted(IClient(ctx).all_peers)
+        d = []
+        client = IClient(ctx)
+        for nodeid in sorted(client.all_peers):
+            if nodeid in client.connections:
+                connected = "yes"
+            else:
+                connected = "no"
+            pburl = client.peer_pburls[nodeid]
+            row = (idlib.b2a(nodeid), connected, pburl)
+            d.append(row)
+        return d
+
     def render_row(self, ctx, data):
-        if data in IClient(ctx).connections:
-            connected = "yes"
-        else:
-            connected = "no"
-        ctx.fillSlots("peerid", idlib.b2a(data))
+        nodeid_a, connected, pburl = data
+        ctx.fillSlots("peerid", nodeid_a)
         ctx.fillSlots("connected", connected)
+        ctx.fillSlots("pburl", pburl)
         return ctx.tag
 
     # this is a form where users can download files by URI
