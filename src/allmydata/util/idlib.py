@@ -12,3 +12,6 @@ def a2b(i):
         print "b32decode failed on a %s byte string '%s'" % (len(i), i)
         raise
 
+
+def peerid_to_short_string(peerid):
+    return b2a(peerid)[:4]

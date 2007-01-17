@@ -77,6 +77,9 @@ class FileUploader:
         max_peers = None
 
         self.permuted = self._peer.permute_peerids(self._verifierid, max_peers)
+        self.peers_who_said_yes = []
+        self.peers_who_said_no = []
+        self.peers_who_had_errors = []
 
         self._total_peers = len(self.permuted)
         for p in self.permuted:
@@ -103,12 +106,20 @@ class FileUploader:
                      self._total_peers))
         if len(self.permuted) == 0:
             # there are no more to check
-            raise NotEnoughPeersError("%s goodness, want %s, have %d "
-                                      "landlords, %d total peers" %
-                                      (self.goodness_points,
-                                       self.target_goodness,
-                                       len(self.landlords),
-                                       self._total_peers))
+            yes = ",".join([peerid_to_short_string(p)
+                            for p in self.peers_who_said_yes])
+            no = ",".join([peerid_to_short_string(p)
+                           for p in self.peers_who_said_no])
+            err = ",".join([peerid_to_short_string(p)
+                            for p in self.peers_who_had_errors])
+            msg = ("%s goodness, want %s, have %d "
+                   "landlords, %d total peers, "
+                   "peers:yes=%s;no=%s;err=%s" %
+                   (self.goodness_points, self.target_goodness,
+                    len(self.landlords), self._total_peers,
+                    yes, no, err))
+            log.msg("NotEnoughPeersError: %s" % msg)
+            raise NotEnoughPeersError(msg)
         if self.peer_index >= len(self.permuted):
             self.peer_index = 0
 
@@ -127,6 +138,7 @@ class FileUploader:
             def _allocate_response(bucket):
                 if self.debug:
                     print " peerid %s will grant us a lease" % idlib.b2a(peerid)
+                self.peers_who_said_yes.append(peerid)
                 self.landlords.append( (peerid, bucket_num, bucket) )
                 self.goodness_points += 1
                 if (self.goodness_points >= self.target_goodness and
@@ -146,10 +158,13 @@ class FileUploader:
                     return
                 if res.check(TooFullError):
                     if self.debug: print " too full"
+                    self.peers_who_said_no.append(peerid)
                 elif res.check(IndexError):
                     if self.debug: print " no connection"
+                    self.peers_who_had_errors.append(peerid)
                 else:
                     if self.debug: print " other error:", res
+                    self.peers_who_had_errors.append(peerid)
                 self.permuted.remove(peerid) # this peer was unusable
             else:
                 if self.debug: print " they gave us a lease"
