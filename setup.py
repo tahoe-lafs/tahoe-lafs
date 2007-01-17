@@ -184,7 +184,7 @@ setup(
     version="0.0.1",
     #packages=find_packages('.'),
     packages=["allmydata", "allmydata.test", "allmydata.util",
-              "allmydata.scripts",
+              "allmydata.filetree", "allmydata.scripts",
               "allmydata.Crypto", "allmydata.Crypto.Hash",
               "allmydata.Crypto.Cipher", "allmydata.Crypto.Util",
               "allmydata.Crypto.Protocol", "allmydata.Crypto.PublicKey",
