@@ -9,6 +9,7 @@ from allmydata.util import idlib, bencode
 from allmydata.util.idlib import peerid_to_short_string as shortid
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata import codec
+from allmydata.uri import pack_uri
 
 from cStringIO import StringIO
 import sha
@@ -67,6 +68,7 @@ class FileUploader:
         total_shares = self.max_shares
         needed_shares = self.min_shares
         self._encoder = codec.ReplicatingEncoder()
+        self._codec_name = self._encoder.get_encoder_type()
         self._encoder.set_params(self._size, needed_shares, total_shares)
         self._share_size = self._encoder.get_share_size()
 
@@ -93,7 +95,7 @@ class FileUploader:
         return d
 
     def _compute_uri(self, params):
-        return "URI:%s" % bencode.bencode((self._verifierid, params))
+        return pack_uri(self._codec_name, params, self._verifierid)
 
     def _build_not_enough_peers_error(self):
         yes = ",".join([shortid(p) for p in self.peers_who_said_yes])

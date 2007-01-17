@@ -8,6 +8,7 @@ from twisted.application import service
 from allmydata.util import idlib, bencode
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata import codec
+from allmydata.uri import unpack_uri
 
 class NotEnoughPeersError(Exception):
     pass
@@ -16,20 +17,17 @@ class HaveAllPeersError(Exception):
     # we use this to jump out of the loop
     pass
 
-def unpack_uri(uri):
-    assert uri.startswith("URI:")
-    return bencode.bdecode(uri[4:])
-
 class FileDownloader:
     debug = False
 
-    def __init__(self, peer, verifierid, encoding_params):
+    def __init__(self, peer, uri):
         self._peer = peer
+        (codec_name, codec_params, verifierid) = unpack_uri(uri)
         assert isinstance(verifierid, str)
         assert len(verifierid) == 20
         self._verifierid = verifierid
-        self._decoder = codec.ReplicatingDecoder()
-        self._decoder.set_serialized_params(encoding_params)
+        self._decoder = codec.get_decoder_by_name(codec_name)
+        self._decoder.set_serialized_params(codec_params)
         self.needed_shares = self._decoder.get_required_shares()
 
     def set_download_target(self, target):
@@ -236,14 +234,12 @@ class Downloader(service.MultiService):
     debug = False
 
     def download(self, uri, t):
-        (verifierid, params) = unpack_uri(uri)
         assert self.parent
         assert self.running
-        assert isinstance(verifierid, str)
         t = IDownloadTarget(t)
         assert t.write
         assert t.close
-        dl = FileDownloader(self.parent, verifierid, params)
+        dl = FileDownloader(self.parent, uri)
         dl.set_download_target(t)
         if self.debug:
             dl.debug = True

@@ -4,6 +4,7 @@ from twisted.internet import defer
 from cStringIO import StringIO
 
 from allmydata import upload, download
+from allmydata.uri import unpack_uri
 
 class StringBucketProxy:
     # This is for unit tests: make a StringIO look like a RIBucketWriter.
@@ -226,10 +227,10 @@ class Uploader(unittest.TestCase):
     def _check(self, uri):
         self.failUnless(isinstance(uri, str))
         self.failUnless(uri.startswith("URI:"))
-        verifierid, params = download.unpack_uri(uri)
+        codec_name, codec_params, verifierid = unpack_uri(uri)
         self.failUnless(isinstance(verifierid, str))
         self.failUnlessEqual(len(verifierid), 20)
-        self.failUnless(isinstance(params, str))
+        self.failUnless(isinstance(codec_params, str))
         peers = self.node.peers
         self.failUnlessEqual(peers[0].allocated_size,
                              len(peers[0].data))

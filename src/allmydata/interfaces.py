@@ -83,7 +83,7 @@ class ICodecEncoder(Interface):
         """
 
     def get_encoder_type():
-        """Return an integer that describes the type of this encoder.
+        """Return a short string that describes the type of this encoder.
 
         There must be a global table of encoder classes. This method returns
         an index into this table; the value at this index is an encoder
@@ -100,10 +100,11 @@ class ICodecEncoder(Interface):
 
         This string is intended to be embedded in the URI, so there are
         several restrictions on its contents. At the moment I'm thinking that
-        this means it may contain hex digits and colons, and nothing else.
-        The idea is that the URI contains '%d:%s.' %
-        (encoder.get_encoder_type(), encoder.get_serialized_params()), and
-        this is enough information to construct a compatible decoder.
+        this means it may contain hex digits and hyphens, and nothing else.
+        The idea is that the URI contains something like '%s:%s:%s' %
+        (encoder.get_encoder_name(), encoder.get_serialized_params(),
+        b2a(verifierid)), and this is enough information to construct a
+        compatible decoder.
         """
 
     def get_share_size():

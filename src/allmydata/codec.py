@@ -12,7 +12,7 @@ def netstring(s):
 
 class ReplicatingEncoder(object):
     implements(ICodecEncoder)
-    ENCODER_TYPE = 0
+    ENCODER_TYPE = "rep"
 
     def set_params(self, data_size, required_shares, max_shares):
         self.data_size = data_size
@@ -96,7 +96,7 @@ class Decoder(object):
 
 class PyRSEncoder(object):
     implements(ICodecEncoder)
-    ENCODER_TYPE = 1
+    ENCODER_TYPE = "pyrs"
 
     # we will break the data into vectors in which each element is a single
     # byte (i.e. a single number from 0 to 255), and the length of the vector
@@ -138,7 +138,7 @@ class PyRSEncoder(object):
         return self.ENCODER_TYPE
 
     def get_serialized_params(self):
-        return "%d:%d:%d" % (self.data_size, self.required_shares,
+        return "%d-%d-%d" % (self.data_size, self.required_shares,
                              self.max_shares)
 
     def get_share_size(self):
@@ -179,7 +179,7 @@ class PyRSDecoder(object):
     implements(ICodecDecoder)
 
     def set_serialized_params(self, params):
-        pieces = params.split(":")
+        pieces = params.split("-")
         self.data_size = int(pieces[0])
         self.required_shares = int(pieces[1])
         self.max_shares = int(pieces[2])
@@ -234,3 +234,8 @@ all_encoders = {
     ReplicatingEncoder.ENCODER_TYPE: (ReplicatingEncoder, ReplicatingDecoder),
     PyRSEncoder.ENCODER_TYPE: (PyRSEncoder, PyRSDecoder),
     }
+
+def get_decoder_by_name(name):
+    decoder_class = all_encoders[name][1]
+    return decoder_class()
+
