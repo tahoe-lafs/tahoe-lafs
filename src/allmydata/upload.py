@@ -185,7 +185,7 @@ class FileUploader:
                 if self.debug: print " no connection"
                 self.peers_who_had_errors.append(peerid)
             else:
-                if self.debug: print " other error:", res
+                if self.debug: print " other error:", f
                 self.peers_who_had_errors.append(peerid)
                 log.msg("FileUploader._check_peer(%s): err" % shortid(peerid))
                 log.msg(f)
