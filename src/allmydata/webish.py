@@ -127,7 +127,7 @@ class Directory(rend.Page):
             ctx.fillSlots("filename",
                           T.a(href=dlurl)[html.escape(name)])
             ctx.fillSlots("type", "FILE")
-            uri = idlib.b2a(target)
+            uri = target
             dl_uri_url = url.root.child("download_uri").child(uri)
             # add a filename= query argument to give it a Content-Type
             dl_uri_url = dl_uri_url.add("filename", name)
@@ -137,7 +137,7 @@ class Directory(rend.Page):
             # to be invoked, which deletes the file and then redirects the
             # browser back to this directory
             del_url = url.here.child("_delete")
-            #del_url = del_url.add("uri", idlib.b2a(target))
+            #del_url = del_url.add("uri", target)
             del_url = del_url.add("name", name)
             delete = T.form(action=del_url, method="post")[
                 T.input(type='submit', value='del', name="del"),
@@ -287,13 +287,13 @@ class Root(rend.Page):
                 filename = req.args["filename"][0]
             if len(segments) > 1:
                 # http://host/download_uri/URIGOESHERE
-                uri_a = segments[1]
+                uri = segments[1]
             elif "uri" in req.args:
                 # http://host/download_uri?uri=URIGOESHERE
-                uri_a = req.args["uri"][0]
+                uri = req.args["uri"][0]
             else:
                 return rend.NotFound
-            child = Downloader(dl, filename, idlib.a2b(uri_a))
+            child = Downloader(dl, filename, uri)
             return child, ()
         return rend.Page.locateChild(self, ctx, segments)
 
