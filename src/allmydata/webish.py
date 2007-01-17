@@ -121,7 +121,7 @@ class Directory(rend.Page):
             dl_uri_url = url.root.child("download_uri").child(uri)
             # add a filename= query argument to give it a Content-Type
             dl_uri_url = dl_uri_url.add("filename", name)
-            ctx.fillSlots("fileid", T.a(href=dl_uri_url)[html.escape(uri)])
+            ctx.fillSlots("uri", T.a(href=dl_uri_url)[html.escape(uri)])
 
             # this creates a button which will cause our child__delete method
             # to be invoked, which deletes the file and then redirects the
@@ -139,7 +139,7 @@ class Directory(rend.Page):
             ctx.fillSlots("filename",
                           T.a(href=subdir_url)[html.escape(name)])
             ctx.fillSlots("type", "DIR")
-            ctx.fillSlots("fileid", "-")
+            ctx.fillSlots("uri", "-")
             ctx.fillSlots("delete", "-")
         return ctx.tag
 
