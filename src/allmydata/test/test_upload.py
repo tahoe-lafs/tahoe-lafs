@@ -3,7 +3,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from cStringIO import StringIO
 
-from allmydata import upload, download
+from allmydata import upload
 from allmydata.uri import unpack_uri
 
 class StringBucketProxy:

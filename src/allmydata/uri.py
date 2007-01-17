@@ -1,5 +1,5 @@
 
-from allmydata.util import bencode, idlib
+from allmydata.util import idlib
 
 # the URI shall be an ascii representation of the file. It shall contain
 # enough information to retrieve and validate the contents. It shall be
