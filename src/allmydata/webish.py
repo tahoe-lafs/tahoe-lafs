@@ -127,7 +127,7 @@ class Directory(rend.Page):
             # to be invoked, which deletes the file and then redirects the
             # browser back to this directory
             del_url = url.here.child("_delete")
-            #del_url = del_url.add("verifierid", idlib.b2a(target))
+            #del_url = del_url.add("uri", idlib.b2a(target))
             del_url = del_url.add("name", name)
             delete = T.form(action=del_url, method="post")[
                 T.input(type='submit', value='del', name="del"),
@@ -243,10 +243,10 @@ class TypedFile(static.File):
                                        self.defaultType)
 
 class Downloader(resource.Resource):
-    def __init__(self, downloader, name, verifierid):
+    def __init__(self, downloader, name, uri):
         self._downloader = downloader
         self._name = name
-        self._verifierid = verifierid
+        self._uri = uri
 
     def render(self, ctx):
         req = inevow.IRequest(ctx)
@@ -262,7 +262,7 @@ class Downloader(resource.Resource):
         t = WebDownloadTarget(req)
         #dl = IDownloader(ctx)
         dl = self._downloader
-        dl.download(self._verifierid, t)
+        dl.download(self._uri, t)
         return server.NOT_DONE_YET
 
 

@@ -41,7 +41,7 @@ class VDrive(service.MultiService):
         d.addCallback(_check)
         return d
 
-    def get_verifierid_from_parent(self, parent, filename):
+    def get_uri_from_parent(self, parent, filename):
         assert not isinstance(parent, str), "'%s' isn't a directory node" % (parent,)
         d = parent.callRemote("list")
         def _find(table):
@@ -110,12 +110,12 @@ class VDrive(service.MultiService):
     def remove(self, parent, name):
         assert not isinstance(parent, str)
         log.msg("vdrive removing %s" % name)
-        # first find the verifierid
-        d = self.get_verifierid_from_parent(parent, name)
-        def _got_verifierid(vid):
+        # first find the uri
+        d = self.get_uri_from_parent(parent, name)
+        def _got_uri(vid):
             # TODO: delete the file's shares using this
             pass
-        d.addCallback(_got_verifierid)
+        d.addCallback(_got_uri)
         def _delete_from_parent(res):
             return parent.callRemote("remove", name)
         d.addCallback(_delete_from_parent)
@@ -143,7 +143,7 @@ class VDrive(service.MultiService):
             dir_or_path, name = dir_and_name_or_path
             d = self.dirpath(dir_or_path)
             def _got_dir(dirnode):
-                return self.get_verifierid_from_parent(dirnode, name)
+                return self.get_uri_from_parent(dirnode, name)
             d.addCallback(_got_dir)
         else:
             rslash = dir_and_name_or_path.rfind("/")
@@ -151,17 +151,17 @@ class VDrive(service.MultiService):
                 # we're looking for a file in the root directory
                 dir = self.gvd_root
                 name = dir_and_name_or_path
-                d = self.get_verifierid_from_parent(dir, name)
+                d = self.get_uri_from_parent(dir, name)
             else:
                 dirpath = dir_and_name_or_path[:rslash]
                 name = dir_and_name_or_path[rslash+1:]
                 d = self.dirpath(dirpath)
                 d.addCallback(lambda dir:
-                              self.get_verifierid_from_parent(dir, name))
+                              self.get_uri_from_parent(dir, name))
 
-        def _got_verifierid(verifierid):
-            return dl.download(verifierid, download_target)
-        d.addCallback(_got_verifierid)
+        def _got_uri(uri):
+            return dl.download(uri, download_target)
+        d.addCallback(_got_uri)
         def _done(res):
             log.msg("finished getting file")
             return res
