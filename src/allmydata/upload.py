@@ -106,11 +106,11 @@ class FileUploader:
                      self._total_peers))
         if len(self.permuted) == 0:
             # there are no more to check
-            yes = ",".join([peerid_to_short_string(p)
+            yes = ",".join([idlib.peerid_to_short_string(p)
                             for p in self.peers_who_said_yes])
-            no = ",".join([peerid_to_short_string(p)
+            no = ",".join([idlib.peerid_to_short_string(p)
                            for p in self.peers_who_said_no])
-            err = ",".join([peerid_to_short_string(p)
+            err = ",".join([idlib.peerid_to_short_string(p)
                             for p in self.peers_who_had_errors])
             msg = ("%s goodness, want %s, have %d "
                    "landlords, %d total peers, "
