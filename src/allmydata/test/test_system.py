@@ -125,10 +125,6 @@ class SystemTest(unittest.TestCase):
             log.msg("download finished")
             self.failUnlessEqual(data, DATA)
         d.addCallback(_download_done)
-        def _oops(res):
-            log.msg("oops, an error orccurred, finishing: %s" % res)
-            return res
-        d.addErrback(_oops)
         return d
     test_upload_and_download.timeout = 20
 

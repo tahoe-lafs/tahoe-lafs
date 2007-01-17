@@ -254,12 +254,12 @@ class MultipleSubTrees(unittest.TestCase):
         o = FakeOpener({("CHK-Directory", "dir_three_uri"): st2})
 
         d = defer.succeed(None)
-        #d.addCallback(lambda res:
-        #              st1.get(["one", "two", "three", "four", "five"], o))
+        d.addCallback(lambda res:
+                      st1.get(["one", "two", "three", "four", "five"], o))
         def _got_five(res):
             self.failUnless(IDirectoryNode.providedBy(res))
             self.failUnlessIdentical(res, five)
-        #d.addCallback(_got_five)
+        d.addCallback(_got_five)
 
         d.addCallback(lambda res:
                       st1.add(["one", "two", "six"],

@@ -13,6 +13,8 @@ class BadDirectoryError(Exception):
     """There was a problem with the directory being referenced."""
 class BadFileError(Exception):
     """The file being referenced does not exist."""
+class BadNameError(Exception):
+    """Bad filename component"""
 
 class MutableDirectoryNode(Referenceable):
     implements(RIMutableDirectoryNode)
@@ -25,7 +27,7 @@ class MutableDirectoryNode(Referenceable):
 
     def validate_name(self, name):
         if name == "." or name == ".." or "/" in name:
-            raise DeadDirectoryNodeError("bad filename component")
+            raise BadNameError("'%s' is not cool" % name)
 
     # these are the public methods, available to anyone who holds a reference
 

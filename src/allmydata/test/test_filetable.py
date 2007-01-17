@@ -1,8 +1,8 @@
 
 import os
 from twisted.trial import unittest
-from allmydata.filetable import MutableDirectoryNode, \
-     DeadDirectoryNodeError, BadDirectoryError, BadFileError
+from allmydata.filetable import (MutableDirectoryNode, DeadDirectoryNodeError,
+                                 BadDirectoryError, BadFileError, BadNameError)
 
 
 class FileTable(unittest.TestCase):
@@ -21,6 +21,9 @@ class FileTable(unittest.TestCase):
 
         self.failUnlessEqual(root.get("one"), "vid-one")
         self.failUnlessRaises(BadFileError, root.get, "missing")
+        self.failUnlessRaises(BadNameError, root.get, "/etc/passwd") # evil
+        self.failUnlessRaises(BadNameError, root.get, "..") # sneaky
+        self.failUnlessRaises(BadNameError, root.get, ".") # dumb
 
         # now play with directories
         subdir1 = root.add_directory("subdir1")
