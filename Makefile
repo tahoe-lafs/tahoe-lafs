@@ -1,19 +1,6 @@
 
 default: build
 
-.PHONY: run-queen run-client test
-
-run-queen:
-	cd queen-basedir && PYTHONPATH=.. twistd -noy ../queen.tac
-
-run-client:
-	cd client-basedir && PYTHONPATH=.. twistd -noy ../client.tac
-
-run-client2:
-	cd client-basedir2 && PYTHONPATH=.. twistd -noy ../client.tac
-run-client3:
-	cd client-basedir3 && PYTHONPATH=.. twistd -noy ../client.tac
-
 .PHONY: build
 build:
 	python setup.py build
@@ -21,10 +8,24 @@ build:
 # builddir.py to locate it.
 
 ifneq ($(PYTHONPATH),)
-PP=PYTHONPATH=${PYTHONPATH}:$(shell python ./builddir.py)
+PP=PYTHONPATH=${PYTHONPATH}:$(shell python ./builddir.py -a)
 else
-PP=PYTHONPATH=$(shell python ./builddir.py)
+PP=PYTHONPATH=$(shell python ./builddir.py -a)
 endif
+
+.PHONY: run-queen run-client test
+
+run-queen:
+	cd queen-basedir && PYTHONPATH=.. twistd -noy ../queen.tac
+
+run-client: build
+	cd client-basedir && $(PP) twistd -noy ../client.tac
+
+run-client2:
+	cd client-basedir2 && PYTHONPATH=.. twistd -noy ../client.tac
+run-client3:
+	cd client-basedir3 && PYTHONPATH=.. twistd -noy ../client.tac
+
 
 TEST=allmydata
 REPORTER=
