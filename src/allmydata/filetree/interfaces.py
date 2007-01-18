@@ -3,11 +3,9 @@ from zope.interface import Interface
 
 class INode(Interface):
     """This is some sort of retrievable node."""
-    pass
 
 class IFileNode(Interface):
     """This is a file which can be retrieved."""
-    pass
 
 class IDirectoryNode(Interface):
     """This is a directory which can be listed."""
