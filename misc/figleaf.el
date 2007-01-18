@@ -132,3 +132,9 @@
   () ; forms run on mode entry/exit
 )
 
+(defun maybe-enable-figleaf-mode ()
+  (if (string-match "/src/allmydata/" (buffer-file-name))
+      (figleaf-annotation-minor-mode t)
+    ))
+
+(add-hook 'python-mode-hook 'maybe-enable-figleaf-mode)
