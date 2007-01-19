@@ -21,27 +21,67 @@ class SubTreeNode:
 
     def __init__(self, tree):
         self.enclosing_tree = tree
-        # node_children maps child name to another SubTreeNode instance. This
-        # is only for internal directory nodes. All Files and external links
-        # are listed in child_specifications instead.
-        self.node_children = {}
-        # child_specifications maps child name to a string which describes
-        # how to obtain the actual child. For example, if "foo.jpg" in this
-        # node represents a FILE with a uri of "fooURI", then
-        # self.child_specifications["foo.jpg"] = "(FILE,fooURI")
+        # subdirectory_node_children maps child name to another SubTreeNode
+        # instance. This is only for internal directory nodes. All other
+        # nodes are listed in child_specifications instead.
+        self.subdirectory_node_children = {}
+        # child_specifications maps child name to a specification tuple which
+        # describes how to obtain the actual child. For example, if "foo.jpg"
+        # in this node represents a CHK-encoded FILE with a uri of "fooURI",
+        # then self.child_specifications["foo.jpg"] = ("CHKFILE","fooURI")
         self.child_specifications = {}
 
+    def is_directory(self):
+        return True
+
     def list(self):
-        return sorted(self.node_children.keys() +
+        return sorted(self.subdirectory_node_children.keys() +
                       self.child_specifications.keys())
 
-    def serialize(self):
+    def get(self, childname):
+        if childname in self.subdirectory_node_children:
+            return self.subdirectory_node_children[childname]
+        elif childname in self.child_specifications:
+            return to_node(self.child_specifications[childname])
+        else:
+            raise NoSuchChildError("no child named '%s'" % (childname,))
+
+    def get_subtree(self):
+        return self.enclosing_tree
+
+    def delete(self, childname):
+        assert self.enclosing_tree.is_mutable()
+        if childname in self.subdirectory_node_children:
+            del self.subdirectory_node_children[childname]
+        elif childname in self.child_specifications:
+            del to_node(self.child_specifications[childname])
+        else:
+            raise NoSuchChildError("no child named '%s'" % (childname,))
+
+    def add_subdir(self, childname):
+        assert childname not in self.subdirectory_node_children
+        assert childname not in self.child_specifications
+        newnode = SubTreeNode(self.enclosing_tree)
+        self.subdirectory_node_children[childname] = newnode
+        return newnode
+
+    def add(self, childname, node):
+        assert childname not in self.subdirectory_node_children
+        assert childname not in self.child_specifications
+        spec = to_spec(node)
+        self.child_specifications[childname] = spec
+        return self
+
+    def serialize_to_sexprs(self):
         # note: this is a one-pass recursive serialization that will result
         # in the whole file table being held in memory. This is only
         # appropriate for directories with fewer than, say, 10k nodes. If we
         # support larger directories, we should turn this into some kind of
         # generator instead, and write the serialized data directly to a
         # tempfile.
+        #
+        # ["DIRECTORY", name1, child1, name2, child2..]
+
         data = ["DIRECTORY"]
         for name in sorted(self.node_children.keys()):
             data.append(name)
@@ -51,7 +91,7 @@ class SubTreeNode:
             data.append(self.child_specifications[name].serialize())
         return data
 
-    def unserialize(self, data):
+    def populate_from_sexprs(self, data):
         assert data[0] == "DIRECTORY"
         assert len(data) % 2 == 1
         for i in range(1, len(data), 2):
@@ -61,97 +101,14 @@ class SubTreeNode:
             child_type = child_data[0]
             if child_type == "DIRECTORY":
                 child = SubTreeNode(self.enclosing_tree)
-                child.unserialize(child_data)
+                child.populate_from_sexprs(child_data)
                 self.node_children[name] = child
             else:
                 self.child_specifications[name] = child_data
 
-class _SubTreeMixin(object):
-
-    def get(self, path, opener):
-        """Return a Deferred that fires with the node at the given path, or
-        None if there is no such node. This will traverse and even create
-        subtrees as necessary."""
-        d = self.get_node_for_path(path)
-        def _done(res):
-            if res == None:
-                # traversal done, unable to find the node
-                return None
-            if res[0] == True:
-                # found the node
-                node = res[1]
-                assert INode.providedBy(node)
-                return node
-            # otherwise, we must open and recurse into a new subtree
-            next_subtree_spec = res[1]
-            subpath = res[2]
-            d1 = opener.open(next_subtree_spec, self.is_mutable())
-            def _opened(next_subtree):
-                assert ISubTree.providedBy(next_subtree)
-                return next_subtree.get(subpath, opener)
-            d1.addCallback(_opened)
-            return d1
-        d.addCallback(_done)
-        return d
-
-    def find_lowest_containing_subtree_for_path(self, path, opener):
-        """Find the subtree which contains the target path, opening new
-        subtrees if necessary. Return a Deferred that fires with (subtree,
-        prepath, postpath), where prepath is the list of path components that
-        got to the subtree, and postpath is the list of remaining path
-        components (indicating a subpath within the resulting subtree). This
-        will traverse and even create subtrees as necessary."""
-        d = self.get_or_create_node_for_path(path)
-        def _done(res):
-            if res[0] == True:
-                node = res[1]
-                # found the node in our own tree. The whole path we were
-                # given was used internally, and is therefore the postpath
-                return (self, [], path)
-            # otherwise, we must open and recurse into a new subtree
-            ignored, next_subtree_spec, prepath, postpath = res
-            d1 = opener.open(next_subtree_spec, self.is_mutable())
-            def _opened(next_subtree):
-                assert ISubTree.providedBy(next_subtree)
-                f = next_subtree.find_lowest_containing_subtree_for_path
-                return f(postpath, opener)
-            d1.addCallback(_opened)
-            def _found(res2):
-                subtree, prepath2, postpath2 = res2
-                return (subtree, prepath + prepath2, postpath2)
-            d1.addCallback(_found)
-            return d1
-        d.addCallback(_done)
-        return d
 
 
-class _MutableSubTreeMixin(object):
-
-    def add(self, path, child, opener, work_queue):
-        assert len(path) > 0
-        d = self.find_lowest_containing_subtree_for_path(path[:-1], opener)
-        def _found(res):
-            subtree, prepath, postpath = res
-            assert IMutableSubTree.providedBy(subtree)
-            # postpath is from the top of the subtree to the directory where
-            # this child should be added. add_subpath wants the path from the
-            # top of the subtree to the child itself, so we need to append
-            # the child's name here.
-            addpath = postpath + [path[-1]]
-            # this add_path will cause some steps to be added, as well as the
-            # internal node to be modified
-            d1 = subtree.add_subpath(addpath, child, work_queue)
-            if subtree.mutation_affects_parent():
-                def _added(boxname):
-                    work_queue.add_addpath(boxname, prepath)
-                d1.addCallback(_added)
-            return d1
-        d.addCallback(_found)
-        return d
-
-
-
-class _DirectorySubTree(_SubTreeMixin):
+class _DirectorySubTree(object):
     """I represent a set of connected directories that all share the same
     access control: any given person can read or write anything in this tree
     as a group, and it is not possible to give access to some pieces of this
@@ -167,99 +124,60 @@ class _DirectorySubTree(_SubTreeMixin):
     """
     implements(ISubTree)
 
+
     def new(self):
         self.root = SubTreeNode(self)
+        self.mutable = True # sure, why not
 
-    def unserialize(self, serialized_data):
-        """Populate all nodes from serialized_data, previously created by
-        calling my serialize() method. 'serialized_data' is a series of
-        nested lists (s-expressions), probably recorded in bencoded form."""
-        self.root = SubTreeNode(self)
-        self.root.unserialize(serialized_data)
+    def populate_from_specification(self, spec, parent_is_mutable, downloader):
+        return self.populate_from_node(to_node(spec),
+                                       parent_is_mutable, downloader)
+
+    def populate_from_data(self, data):
+        self.root = SubTreeNode()
+        self.root.populate_from_sexprs(bencode.bdecode(data))
         return self
 
     def serialize(self):
         """Return a series of nested lists which describe my structure
         in a form that can be bencoded."""
-        return self.root.serialize()
-
-    def is_mutable(self):
-        return IMutableSubTree.providedBy(self)
-
-    def get_node_for_path(self, path):
-        # this is restricted to traversing our own subtree.
-        subpath = path
-        node = self.root
-        while subpath:
-            name = subpath.pop(0)
-            if name in node.node_children:
-                node = node.node_children[name]
-                assert isinstance(node, SubTreeNode)
-                continue
-            if name in node.child_specifications:
-                # the path takes us out of this SubTree and into another
-                next_subtree_spec = node.child_specifications[name]
-                result = (False, next_subtree_spec, subpath)
-                return defer.succeed(result)
-            return defer.succeed(None)
-        # we've run out of path components, so we must be at the terminus
-        result = (True, node)
-        return defer.succeed(result)
-
-    def get_or_create_node_for_path(self, path):
-        # this is restricted to traversing our own subtree, but will create
-        # internal directory nodes as necessary
-        prepath = []
-        postpath = path[:]
-        node = self.root
-        while postpath:
-            name = postpath.pop(0)
-            prepath.append(name)
-            if name in node.node_children:
-                node = node.node_children[name]
-                assert isinstance(node, SubTreeNode)
-                continue
-            if name in node.child_specifications:
-                # the path takes us out of this SubTree and into another
-                next_subtree_spec = node.child_specifications[name]
-                result = (False, next_subtree_spec, prepath, postpath)
-                return defer.succeed(result)
-            # need to create a new node
-            new_node = SubTreeNode(self)
-            node.node_children[name] = new_node
-            node = new_node
-            continue
-        # we've run out of path components, so we must be at the terminus
-        result = (True, node)
-        return defer.succeed(result)
-
-class ImmutableDirectorySubTree(_DirectorySubTree):
-    pass
-
-class _MutableDirectorySubTree(_DirectorySubTree, _MutableSubTreeMixin):
-    implements(IMutableSubTree)
-
-    def add_subpath(self, subpath, child, work_queue):
-        prepath = subpath[:-1]
-        name = subpath[-1]
-        d = self.get_node_for_path(prepath)
-        def _found(results):
-            assert results is not None
-            assert results[0] == True
-            node = results[1]
-            # modify the in-RAM copy
-            node.child_specifications[name] = child
-            # now serialize and upload ourselves
-            boxname = self.upload_my_serialized_form(work_queue)
-            # our caller will perform the addpath, if necessary
-            return boxname
-        d.addCallback(_found)
-        return d
+        return self.root.serialize_to_sexprs()
 
     def serialize_to_file(self, f):
         f.write(bencode.bencode(self.serialize()))
 
-class MutableCHKDirectorySubTree(_MutableDirectorySubTree):
+    def is_mutable(self):
+        return self.mutable
+
+    def get_node_for_path(self, path):
+        # this is restricted to traversing our own subtree. Returns
+        # (found_path, node, remaining_path)
+        found_path = []
+        remaining_path = path[:]
+        node = self.root
+        while remaining_path:
+            name = remaining_path[0]
+            if name in node.node_children:
+                node = node.node_children[name]
+                assert isinstance(node, SubTreeNode)
+                found_path.append(name)
+                remaining_path.pop(0)
+                continue
+            if name in node.child_specifications:
+                # the path takes us out of this subtree and into another
+                next_subtree_spec = node.child_specifications[name]
+                node = to_node(next_subtree_spec)
+                found_path.append(name)
+                remaining_path.pop(0)
+                break
+            # The node *would* be in this subtree if it existed, but it
+            # doesn't. Leave found_path and remaining_path alone, and node
+            # points at the last parent node that was on the path.
+            break
+        return (found_path, node, remaining_path)
+
+class CHKDirectorySubTree(_DirectorySubTree):
+    # maybe mutable, maybe not
 
     def mutation_affects_parent(self):
         return True
@@ -267,7 +185,14 @@ class MutableCHKDirectorySubTree(_MutableDirectorySubTree):
     def set_uri(self, uri):
         self.old_uri = uri
 
-    def upload_my_serialized_form(self, work_queue):
+    def populate_from_node(self, node, parent_is_mutable, downloader):
+        node = ICHKDirectoryNode(node)
+        self.mutable = parent_is_mutable
+        d = downloader.download(node.get_uri(), download.Data())
+        d.addCallback(self.populate_from_data)
+        return d
+
+    def update(self, prepath, work_queue):
         # this is the CHK form
         f, filename = work_queue.create_tempfile(".chkdir")
         self.serialize_to_file(f)
@@ -277,20 +202,31 @@ class MutableCHKDirectorySubTree(_MutableDirectorySubTree):
         work_queue.add_delete_tempfile(filename)
         work_queue.add_retain_uri_from_box(boxname)
         work_queue.add_delete_box(boxname)
+        work_queue.add_addpath(boxname, prepath)
         work_queue.add_unlink_uri(self.old_uri)
         # TODO: think about how self.old_uri will get updated. I *think* that
         # this whole instance will get replaced, so it ought to be ok. But
         # this needs investigation.
         return boxname
 
-class MutableSSKDirectorySubTree(_MutableDirectorySubTree):
+class SSKDirectorySubTree(_DirectorySubTree):
 
     def new(self):
-        _MutableDirectorySubTree.new(self)
+        _DirectorySubTree.new(self)
         self.version = 0
+        # TODO: populate
 
     def mutation_affects_parent(self):
         return False
+
+    def populate_from_node(self, node, parent_is_mutable, downloader):
+        node = ISSKDirectoryNode(node)
+        self.read_capability = node.get_read_capability()
+        self.write_capability = node.get_write_capability()
+        self.mutable = bool(self.write_capability)
+        d = downloader.download_ssk(self.read_capability, download.Data())
+        d.addCallback(self.populate_from_data)
+        return d
 
     def set_version(self, version):
         self.version = version
@@ -300,9 +236,9 @@ class MutableSSKDirectorySubTree(_MutableDirectorySubTree):
         f, filename = work_queue.create_tempfile(".sskdir")
         self.serialize_to_file(f)
         f.close()
-        work_queue.add_upload_ssk(filename, self.get_write_capability(),
+        work_queue.add_upload_ssk(filename, self.write_capability,
                                   self.version)
         self.version = self.version + 1
         work_queue.add_delete_tempfile(filename)
-        work_queue.add_retain_ssk(self.get_read_capability())
+        work_queue.add_retain_ssk(self.read_capability)
 

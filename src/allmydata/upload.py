@@ -279,6 +279,11 @@ class FileHandle:
         # the originator of the filehandle reserves the right to close it
         pass
 
+class IUploader(Interface):
+    def upload(uploadable):
+        """Upload the file. 'uploadable' must impement IUploadable. This
+        returns a Deferred which fires with the URI of the file."""
+
 class Uploader(service.MultiService):
     """I am a service that allows file uploading.
     """
@@ -296,7 +301,7 @@ class Uploader(service.MultiService):
         return hasher.digest()
 
     def upload(self, f):
-        # this returns (verifierid, encoding_params)
+        # this returns the URI
         assert self.parent
         assert self.running
         f = IUploadable(f)

@@ -5,7 +5,7 @@ from twisted.internet import defer
 from allmydata.filetree.interfaces import IOpener, IDirectoryNode
 from allmydata.filetree.directory import (ImmutableDirectorySubTree,
                                           SubTreeNode,
-                                          MutableCHKDirectorySubTree)
+                                          CHKDirectorySubTree)
 from allmydata.filetree.specification import (CHKFileSpecification,
                                               CHKDirectorySpecification)
 from allmydata import workqueue
@@ -303,3 +303,9 @@ class MultipleSubTrees(unittest.TestCase):
 
 
         return d
+
+del OneSubTree
+del MultipleSubTrees
+
+class Redirect(unittest.TestCase):
+    pass

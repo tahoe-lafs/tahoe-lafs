@@ -2,16 +2,39 @@
 from zope.interface import Interface
 
 class INode(Interface):
-    """This is some sort of retrievable node."""
+    """This is some sort of retrievable node. All objects which implement
+    other I*Node interfaces also implement this one."""
+    def is_directory():
+        """Return True if this node is an internal directory node."""
 
 class IFileNode(Interface):
     """This is a file which can be retrieved."""
+    def get_uri():
+        """Return the URI of the target file. This URI can be passed
+        to an IDownloader to retrieve the data."""
 
 class IDirectoryNode(Interface):
     """This is a directory which can be listed."""
+    # these calls do not modify the subtree
     def list():
-        """Return a list of names which are children of this node."""
+        """Return a dictionary mapping each childname to a node. These nodes
+        implement various I*Node interfaces depending upon what they can do."""
+    def get(childname):
+        """Return a child node. Raises NoSuchChildError if there is no
+        child of that name."""
+    def get_subtree():
+        """Return the ISubTree which contains this node."""
 
+    # the following calls modify the subtree. After calling them, you must
+    # tell the enclosing subtree to serialize and upload itself. They can
+    # only be called if this directory node is associated with a mutable
+    # subtree.
+    def delete(childname):
+        """Delete any child referenced by this name."""
+    def add_subdir(childname):
+        """Create a new directory node, and return it."""
+    def add(childname, node):
+        """Add a new node to this path. Returns self."""
 
 class ISubTree(Interface):
     """A subtree is a collection of Nodes: files, directories, other trees.
@@ -27,25 +50,27 @@ class ISubTree(Interface):
     a DirectoryNode, or it might be a FileNode.
     """
 
-    def get(path, opener):
-        """Return a Deferred that fires with the node at the given path, or
-        None if there is no such node. This will traverse and create subtrees
-        as necessary."""
+    def populate_from_specification(spec, parent_is_mutable, downloader):
+        """Given a specification tuple, arrange to populate this subtree by
+        pulling data from some source (possibly the mesh, or the queen, or an
+        HTTP server, or the local filesystem). Return a Deferred that will
+        fire (with self) when this subtree is ready for use (specifically
+        when it is ready for get() and add() calls).
+        """
 
-    def add(path, child, opener, work_queue):
-        """Add 'child' (which must implement INode) to the tree at 'path'
-        (which must be a list of pathname components). This will schedule all
-        the work necessary to cause the child to be added reliably."""
+    def populate_from_node(node, parent_is_mutable, downloader):
+        """Like populate_from_specification."""
 
-    def find_lowest_containing_subtree_for_path(path, opener):
-        # not for external use. This is used internally by add().
-        """Find the subtree which contains the target path, opening new
-        subtrees if necessary. Return a Deferred that fires with (subtree,
-        prepath, postpath), where prepath is the list of path components that
-        got to the subtree, and postpath is the list of remaining path
-        components (indicating a subpath within the resulting subtree). This
-        will traverse and even create subtrees as necessary."""
+    def populate_from_data(data):
+        """Used internally by populate_from_specification. This is called
+        with a sequence of bytes that describes the contents of the subtree,
+        probably a bencoded tuple or s-expression. Returns self.
+        """
 
+    def unserialize(serialized_data):
+        """Populate all nodes from serialized_data, previously created by
+        calling my serialize() method. 'serialized_data' is a series of
+        nested lists (s-expressions), probably recorded in bencoded form."""
 
     def is_mutable():
         """This returns True if we have the ability to modify this subtree.
@@ -54,63 +79,85 @@ class ISubTree(Interface):
         """
 
     def get_node_for_path(path):
-        """Ask this subtree to follow the path through its internal nodes. If
-        the path terminates within this subtree, return (True, node), where
-        'node' implements INode (and also IMutableNode if this subtree
-        is_mutable). If the path takes us beyond this subtree, return (False,
-        next_subtree_spec, subpath), where 'next_subtree_spec' is a string
-        that can be passed to an Opener to create a new subtree, and
-        'subpath' is the subset of 'path' that can be passed to this new
-        subtree. If the path cannot be found within the subtree (and it is
-        not in the domain of some child subtree), return None.
+        """Ask this subtree to follow the path through its internal nodes.
+
+        Returns a tuple of (found_path, node, remaining_path). This method
+        operations synchronously, and does not return a Deferred.
+
+        (found_path=path, found_node, [])
+        If the path terminates within this subtree, found_path=path and
+        remaining_path=[], and the node will be an internal IDirectoryNode.
+
+        (found_path, last_node, remaining_path)
+        If the path does not terminate within this subtree but neither does
+        it exit this subtree, the last internal IDirectoryNode that *was* on
+        the path will be returned in 'node'. The path components that led to
+        this node will be in found_path, and the remaining components will be
+        in remaining_path. If you want to create the target node, loop over
+        remaining_path as follows::
+
+         while remaining_path:
+           node = node.add_subdir(remaining_path.pop(0))
+
+        (found_path, exit_node, remaining_path)
+        If the path leaves this subtree, 'node' will be a different kind of
+        INode (probably one that points at a child directory of some sort),
+        found_path will be the components that led to this point, and
+        remaining_path will be the remaining components. If you still wish to
+        locate the target, use 'node' to open a new subtree, then provide
+        'remaining_path' to the new subtree's get_node_for_path() method.
+
         """
 
-    def get_or_create_node_for_path(path):
-        """Like get_node_for_path, but instead of returning None, the subtree
-        will create internal nodes as necessary. Therefore it always returns
-        either (True, node), or (False, next_subtree_spec, prepath, postpath).
+    def update(prepath, workqueue):
+        """Perform and schedule whatever work is necessary to record this
+        subtree to persistent storage and update the parent at 'prepath'
+        with a new child specification.
+
+        For directory subtrees, this will cause the subtree to serialize
+        itself to a file, then add instructions to the workqueue to first
+        upload this file to the mesh, then add the file's URI to the parent's
+        subtree. The second instruction will possibly cause recursion, until
+        some subtree is updated which does not require notifying the parent.
         """
 
     def serialize():
         """Return a series of nested lists which describe my structure
         in a form that can be bencoded."""
 
-    def unserialize(serialized_data):
-        """Populate all nodes from serialized_data, previously created by
-        calling my serialize() method. 'serialized_data' is a series of
-        nested lists (s-expressions), probably recorded in bencoded form."""
 
-
-class IMutableSubTree(Interface):
-    def mutation_affects_parent():
-        """This returns True for CHK nodes where you must inform the parent
-        of the new URI each time you change the child subtree. It returns
-        False for SSK nodes (or other nodes which have a pointer stored in
-        some mutable form).
-        """
-
-    def add_subpath(subpath, child_spec, work_queue):
-        """Ask this subtree to add the given child to an internal node at the
-        given subpath. The subpath must not exit the subtree through another
-        subtree (specifically get_subtree_for_path(subpath) must either
-        return None or (True,node), and in the latter case, this subtree will
-        create new internal nodes as necessary).
-
-        The subtree will probably serialize itself to a file and add steps to
-        the work queue to accomplish its goals.
-
-        This returns a Deferred (the value of which is ignored) when
-        everything has been added to the work queue.
-        """
-
-    def serialize_to_file(f):
-        """Write a bencoded data structure to the given filehandle that can
-        be used to reproduce the contents of this subtree."""
-
-class ISubTreeSpecification(Interface):
-    def serialize():
-        """Return a tuple that describes this subtree. This tuple can be
-        passed to IOpener.open() to reconstitute the subtree."""
+#class IMutableSubTree(Interface):
+#    def mutation_affects_parent():
+#        """This returns True for CHK nodes where you must inform the parent
+#        of the new URI each time you change the child subtree. It returns
+#        False for SSK nodes (or other nodes which have a pointer stored in
+#        some mutable form).
+#        """
+#
+#    def add_subpath(subpath, child_spec, work_queue):
+#        """Ask this subtree to add the given child to an internal node at the
+#        given subpath. The subpath must not exit the subtree through another
+#        subtree (specifically get_subtree_for_path(subpath) must either
+#        return None or (True,node), and in the latter case, this subtree will
+#        create new internal nodes as necessary).
+#
+#        The subtree will probably serialize itself to a file and add steps to
+#        the work queue to accomplish its goals.
+#
+#        This returns a Deferred (the value of which is ignored) when
+#        everything has been added to the work queue.
+#        """
+#
+#    def serialize_to_file(f):
+#        """Write a bencoded data structure to the given filehandle that can
+#        be used to reproduce the contents of this subtree."""
+#
+#class ISubTreeSpecification(Interface):
+#    def serialize():
+#        """Return a tuple that describes this subtree. This tuple can be
+#        passed to IOpener.open() to reconstitute the subtree. It can also be
+#        bencoded and stuffed in a series of persistent bytes somewhere on the
+#        mesh or in a file."""
 
 class IOpener(Interface):
     def open(subtree_specification, parent_is_mutable):
@@ -120,4 +167,52 @@ class IOpener(Interface):
         this by performing network IO: reading a file from the mesh, or from
         local disk, or asking some central-service node for the current
         value."""
+
+
+class IVirtualDrive(Interface):
+
+    # commands to manipulate files
+
+    def list(path):
+        """List the contents of the directory at the given path.
+
+        'path' is a list of strings (empty to refer to the root directory)
+        and must refer to a DIRECTORY node. This method returns a Deferred
+        that fires with a dictionary that maps strings to filetypes. The
+        strings are useful as path name components. The filetypes are
+        Interfaces: either IDirectoryNode if path+[childname] can be used in
+        a 'list' method, or IFileNode if path+[childname] can be used in a
+        'download' method.
+        """
+
+    def download(path, target):
+        """Download the file at the given path to 'target'.
+
+        'path' must refer to a FILE. 'target' must implement IDownloadTarget.
+        This returns a Deferred that fires (with 'target') when the download
+        is complete.
+        """
+
+    def upload_now(path, uploadable):
+        """Upload a file to the given path. The path must not already exist.
+
+        path[:-1] must refer to a writable DIRECTORY node. 'uploadable' must
+        implement IUploadable. This returns a Deferred that fires (with
+        'uploadable') when the upload is complete.
+        """
+
+    def upload_later(path, filename):
+        """Upload a file from disk to the given path.
+        """
+
+    def delete(path):
+        """Delete the file or directory at the given path.
+
+        Returns a Deferred that fires (with self) when the delete is
+        complete.
+        """
+
+    # commands to manipulate subtrees
+
+    # ... detach subtree, merge subtree, etc
 

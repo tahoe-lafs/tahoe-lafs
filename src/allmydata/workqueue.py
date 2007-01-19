@@ -26,7 +26,7 @@ class IWorkQueue(Interface):
 
     def create_tempfile(suffix=""):
         """Return (f, filename)."""
-    def create_boxname():
+    def create_boxname(contents=None):
         """Return a unique box name (as a string)."""
 
     def add_upload_chk(source_filename, stash_uri_in_boxname):
@@ -155,6 +155,9 @@ class WorkQueue(object):
         # each of these files contains one string per line, and the first
         # line specifies what kind of step it is
         assert self.seqnum < 1000 # TODO: don't let this grow unboundedly
+
+    def set_vdrive(self, vdrive):
+        self.vdrive = vdrive
 
     def create_tempfile(self, suffix=""):
         randomname = b2a(os.urandom(10))
@@ -342,8 +345,8 @@ class WorkQueue(object):
 
     def step_addpath(self, boxname, *path):
         data = self.read_from_box(boxname)
-        child_spec = unserialize(data)
-        return self.root.add_subpath(path, child_spec, self)
+        child_node = unserialize(data) # TODO: unserialize ?
+        return self.vdrive.add(path, node)
 
     def step_retain_ssk(self, index_a, read_key_a):
         pass
