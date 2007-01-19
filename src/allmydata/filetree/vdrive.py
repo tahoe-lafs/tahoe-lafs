@@ -1,14 +1,21 @@
 
-from allmydata.filetree import interfaces, opener
+from zope.interface import implements
+from allmydata.filetree import opener
+from allmydata.filetree.interfaces import (IVirtualDrive, ISubTree, IFileNode,
+                                           IDirectoryNode, NoSuchDirectoryError,
+                                           NoSuchChildError, PathAlreadyExistsError,
+                                           PathDoesNotExistError,
+                                           )
+from allmydata.upload import IUploadable
 
 class VirtualDrive(object):
-    implements(interfaces.IVirtualDrive)
+    implements(IVirtualDrive)
 
     def __init__(self, workqueue, downloader, root_specification):
         self.workqueue = workqueue
         workqueue.set_vdrive(self)
         # TODO: queen?
-        self.opener = Opener(queen, downloader)
+        self.opener = opener.Opener(self.queen, downloader)
         self.root_specification = root_specification
 
     # these methods are used to walk through our subtrees
@@ -59,7 +66,7 @@ class VirtualDrive(object):
         def _got_directory(node):
             if not node:
                 raise NoSuchDirectoryError
-            assert interfaces.IDirectoryNode(node)
+            assert IDirectoryNode(node)
             return node
         d.addCallback(_got_directory)
         return d

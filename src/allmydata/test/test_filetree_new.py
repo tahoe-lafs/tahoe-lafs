@@ -1,4 +1,5 @@
 
+"""
 from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -309,3 +310,4 @@ del MultipleSubTrees
 
 class Redirect(unittest.TestCase):
     pass
+"""

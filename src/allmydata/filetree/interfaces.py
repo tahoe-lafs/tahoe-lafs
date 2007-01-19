@@ -216,3 +216,21 @@ class IVirtualDrive(Interface):
 
     # ... detach subtree, merge subtree, etc
 
+
+# TODO
+
+class ICHKDirectoryNode(Interface):
+    pass
+class ISSKDirectoryNode(Interface):
+    pass
+
+
+
+class NoSuchChildError(Exception):
+    pass
+class NoSuchDirectoryError(Exception):
+    pass
+class PathAlreadyExistsError(Exception):
+    pass
+class PathDoesNotExistError(Exception):
+    pass

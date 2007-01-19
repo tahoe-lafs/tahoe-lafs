@@ -1,10 +1,12 @@
 
 from zope.interface import implements
-from twisted.internet import defer
 from allmydata.filetree.interfaces import (INode,
                                            IDirectoryNode,
                                            ISubTree,
-                                           IMutableSubTree)
+                                           ICHKDirectoryNode, ISSKDirectoryNode,
+                                           NoSuchChildError,
+                                           )
+from allmydata import download
 from allmydata.util import bencode
 
 # interesting feature ideas:
@@ -14,6 +16,14 @@ from allmydata.util import bencode
 #  bind a local physical directory to the MutableDirectoryNode contents:
 #  each time the vdrive changes, update the local drive to match, and
 #  vice versa.
+
+
+def to_node(spec):
+    # TODO
+    pass
+def to_spec(node):
+    # TODO
+    pass
 
 
 class SubTreeNode:
@@ -54,7 +64,7 @@ class SubTreeNode:
         if childname in self.subdirectory_node_children:
             del self.subdirectory_node_children[childname]
         elif childname in self.child_specifications:
-            del to_node(self.child_specifications[childname])
+            del self.child_specifications[childname]
         else:
             raise NoSuchChildError("no child named '%s'" % (childname,))
 

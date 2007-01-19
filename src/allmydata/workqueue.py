@@ -346,7 +346,7 @@ class WorkQueue(object):
     def step_addpath(self, boxname, *path):
         data = self.read_from_box(boxname)
         child_node = unserialize(data) # TODO: unserialize ?
-        return self.vdrive.add(path, node)
+        return self.vdrive.add(path, child_node)
 
     def step_retain_ssk(self, index_a, read_key_a):
         pass
