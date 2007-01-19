@@ -223,7 +223,7 @@ class FileHandle:
         pass
 
 class IDownloader(Interface):
-    def download(verifierid, target):
+    def download(uri, target):
         pass
 
 class Downloader(service.MultiService):
