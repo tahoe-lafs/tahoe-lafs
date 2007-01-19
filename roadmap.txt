@@ -6,14 +6,21 @@ Connection Management: Brian
  v2: live != connected-to-queen, connect on demand
  v3: relay?
 
-Encoding: Zooko
-*v1: fake it (replication), no merkle trees
- v2: mnet codec, Reed-Solomon?
+File Encoding: Brian
+*v1: single-segment, no merkle trees
+ v2: multiple-segment (LFE)
  v3: merkle tree to verify each share
  v4: merkle tree to verify each segment
 
+Share Encoding: Zooko
+*v1: fake it (replication)
+*v2: PyRS
+ v3: C-based Reed-Solomon
+
 Peer selection:
 *v1: permuted peer list, consistent hash
+ v2: reliability/goodness-point counting?
+ v3: denver airport (chord)?
 
 filetable maintenance:
 *v1: queen-based tree of MutableDirectoryNodes, persisted to queen's disk
@@ -22,6 +29,7 @@ filetable maintenance:
      queen.set_filetable_uri (still no accounts, just one global tree)
  v3: break world up into accounts, separate mutable spaces. Maybe
      implement SSKs
+ v4: filetree
 
 checker/repairer:
 *v1: none
