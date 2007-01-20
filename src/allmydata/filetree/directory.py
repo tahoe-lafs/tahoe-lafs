@@ -5,7 +5,7 @@ from allmydata.filetree.interfaces import (
     ICHKDirectoryNode, ISSKDirectoryNode,
     NoSuchChildError,
     )
-from allmydata.filetree.basenode import BaseURINode
+from allmydata.filetree.basenode import BaseDataNode
 from allmydata import download
 from allmydata.util import bencode
 
@@ -43,9 +43,6 @@ class SubTreeNode:
 #        # in this node represents a CHK-encoded FILE with a uri of "fooURI",
 #        # then self.child_specifications["foo.jpg"] = ("CHKFILE","fooURI")
 #        self.child_specifications = {}
-
-    def is_directory(self):
-        return True
 
     def list(self):
         return sorted(self.children.keys())
@@ -179,9 +176,14 @@ class _DirectorySubTree(object):
                 break
         return (found_path, node, remaining_path)
 
-class CHKDirectorySubTreeNode(BaseURINode):
+class CHKDirectorySubTreeNode(BaseDataNode):
     implements(ICHKDirectoryNode)
     prefix = "CHKDirectory"
+
+    def get_base_data(self):
+        return self.uri
+    def set_base_data(self, data):
+        self.uri = data
 
     def get_uri(self):
         return self.uri
@@ -189,9 +191,6 @@ class CHKDirectorySubTreeNode(BaseURINode):
 
 class CHKDirectorySubTree(_DirectorySubTree):
     # maybe mutable, maybe not
-
-    def mutation_affects_parent(self):
-        return True
 
     def set_uri(self, uri):
         self.old_uri = uri
@@ -209,6 +208,7 @@ class CHKDirectorySubTree(_DirectorySubTree):
         self.serialize_to_file(f)
         f.close()
         boxname = work_queue.create_boxname()
+        # mutation affects our parent
         work_queue.add_upload_chk(filename, boxname)
         work_queue.add_delete_tempfile(filename)
         work_queue.add_retain_uri_from_box(boxname)
@@ -225,8 +225,6 @@ class SSKDirectorySubTreeNode(object):
     implements(INode, ISSKDirectoryNode)
     prefix = "SSKDirectory"
 
-    def is_directory(self):
-        return False
     def serialize_node(self):
         data = (self.read_cap, self.write_cap)
         return "%s:%s" % (self.prefix, bencode.bencode(data))
@@ -248,9 +246,6 @@ class SSKDirectorySubTree(_DirectorySubTree):
         self.version = 0
         # TODO: populate
 
-    def mutation_affects_parent(self):
-        return False
-
     def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
         node = ISSKDirectoryNode(node)
         self.read_capability = node.get_read_capability()
@@ -268,6 +263,7 @@ class SSKDirectorySubTree(_DirectorySubTree):
         f, filename = work_queue.create_tempfile(".sskdir")
         self.serialize_to_file(f)
         f.close()
+        # mutation does not affect our parent
         work_queue.add_upload_ssk(filename, self.write_capability,
                                   self.version)
         self.version = self.version + 1

@@ -4,17 +4,16 @@ from zope.interface import Interface
 class INode(Interface):
     """This is some sort of retrievable node. All objects which implement
     other I*Node interfaces also implement this one."""
-    def is_directory():
-        """Return True if this node is an internal directory node."""
     def serialize_node():
         """Return a data structure which contains enough information to build
-        this node again in the future (by calling vdrive.make_node(). For
-        IDirectoryNodes, this will be a list. For all other nodes this will
-        be a string."""
+        this node again in the future (by calling
+        vdrive.make_node_from_serialized(). For IDirectoryNodes, this will be
+        a list. For all other nodes this will be a string."""
     def populate_node(data, node_maker):
-        """vdrive.make_node() will first use the prefix inside 'data' to
-        decide what kind of Node to create. It will then call this function
-        to populate the new Node from the data returned by serialize_node."""
+        """vdrive.make_node_from_serialized() will first use the prefix
+        inside 'data' to decide what kind of Node to create. It will then
+        call this function to populate the new Node from the data returned by
+        serialize_node."""
 
 class IFileNode(Interface):
     """This is a file which can be retrieved."""
@@ -81,12 +80,6 @@ class ISubTree(Interface):
         Return a Deferred that will fire (with self) when this subtree is
         ready for use (specifically when it is ready for get() and add()
         calls).
-        """
-
-    def populate_from_data(data):
-        """Used internally by populate_from_node. This is called with a
-        sequence of bytes that describes the contents of the subtree,
-        probably a bencoded tuple or s-expression. Returns self.
         """
 
     def is_mutable():
@@ -194,7 +187,7 @@ class IVirtualDrive(Interface):
 
     # internal methods
 
-    def make_node(serialized):
+    def make_node_from_serialized(serialized):
         """Given a string produced by original_node.serialize_node(), produce
         an equivalent node.
         """

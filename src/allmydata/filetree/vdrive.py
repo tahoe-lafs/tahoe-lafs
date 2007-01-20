@@ -8,6 +8,9 @@ from allmydata.filetree.interfaces import (
     )
 from allmydata.upload import IUploadable
 
+# this list is used by VirtualDrive.make_node_from_serialized() to convert
+# node specification strings (found inside the serialized form of subtrees)
+# into Nodes (which live in the in-RAM form of subtrees).
 all_node_types = [
     directory.CHKDirectorySubTreeNode,
     directory.SSKDirectorySubTreeNode,
@@ -57,7 +60,7 @@ class VirtualDrive(object):
 
     def _get_closest_node_2(self, res, parent_is_mutable):
         (found_path, node, remaining_path) = res
-        if node.is_directory():
+        if IDirectoryNode.providedBy(node):
             # traversal done
             return (node, remaining_path)
         # otherwise, we must open and recurse into a new subtree
@@ -125,7 +128,7 @@ class VirtualDrive(object):
         return d
 
     # these are called when loading and creating nodes
-    def make_node(self, serialized):
+    def make_node_from_serialized(self, serialized):
         # this turns a string into an INode, which contains information about
         # the file or directory (like a URI), but does not contain the actual
         # contents. An IOpener can be used later to retrieve the contents
@@ -139,7 +142,7 @@ class VirtualDrive(object):
         for node_class in all_node_types:
             if prefix == node_class.prefix:
                 node = node_class()
-                node.populate_node(serialized, self.make_node)
+                node.populate_node(serialized, self.make_node_from_serialized)
                 return node
         raise RuntimeError("unable to handle subtree type '%s'" % prefix)
 
