@@ -46,7 +46,7 @@ class MutableDirectoryNode(Referenceable):
                 f.close()
                 results.append( (name, data) )
             # anything else is ignored
-        return results
+        return sorted(results)
     remote_list = list
 
     def get(self, name):
