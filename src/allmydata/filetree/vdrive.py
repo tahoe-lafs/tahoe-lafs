@@ -1,8 +1,8 @@
 
 from zope.interface import implements
-from allmydata.filetree import opener, directory, redirect
+from allmydata.filetree import opener, directory, file, redirect
 from allmydata.filetree.interfaces import (
-    IVirtualDrive, INode, ISubTree, IFileNode, IDirectoryNode,
+    IVirtualDrive, INodeMaker, INode, ISubTree, IFileNode, IDirectoryNode,
     NoSuchDirectoryError, NoSuchChildError, PathAlreadyExistsError,
     PathDoesNotExistError,
     )
@@ -12,8 +12,11 @@ from allmydata.upload import IUploadable
 # node specification strings (found inside the serialized form of subtrees)
 # into Nodes (which live in the in-RAM form of subtrees).
 all_node_types = [
+    directory.LocalFileSubTreeNode,
     directory.CHKDirectorySubTreeNode,
     directory.SSKDirectorySubTreeNode,
+    file.CHKFileNode,
+    file.SSKFileNode,
     redirect.LocalFileRedirectionNode,
     redirect.QueenRedirectionNode,
     redirect.HTTPRedirectionNode,
@@ -21,7 +24,7 @@ all_node_types = [
 ]
 
 class VirtualDrive(object):
-    implements(IVirtualDrive)
+    implements(IVirtualDrive, INodeMaker)
 
     def __init__(self, workqueue, downloader, root_node):
         assert INode(root_node)
@@ -33,6 +36,8 @@ class VirtualDrive(object):
         self.root_node = root_node
 
     # these are called when loading and creating nodes
+
+    # INodeMaker
     def make_node_from_serialized(self, serialized):
         # this turns a string into an INode, which contains information about
         # the file or directory (like a URI), but does not contain the actual
@@ -47,14 +52,14 @@ class VirtualDrive(object):
         for node_class in all_node_types:
             if prefix == node_class.prefix:
                 node = node_class()
-                node.populate_node(body, self.make_node_from_serialized)
+                node.populate_node(body, self)
                 return node
-        raise RuntimeError("unable to handle subtree type '%s'" % prefix)
+        raise RuntimeError("unable to handle node type '%s'" % prefix)
 
+    # ISubTreeMaker
     def make_subtree_from_node(self, node, parent_is_mutable):
         assert INode(node)
-        return self.opener.open(node, parent_is_mutable,
-                                self.make_subtree_from_node)
+        return self.opener.open(node, parent_is_mutable, self)
 
     # these methods are used to walk through our subtrees
 

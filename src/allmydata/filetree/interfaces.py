@@ -17,8 +17,11 @@ class INode(Interface):
         .prefix ."""
     def populate_node(body, node_maker):
         """vdrive.make_node_from_serialized() will first use the prefix from
-        the .prefix attribute to decide what kind of Node to create. It will
-        then call this function with the body to populate the new Node."""
+        the .prefix attribute to decide what kind of Node to create. They
+        will then call this populate_node() method with the body to populate
+        the new Node. 'node_maker' provides INodeMaker, which provides that
+        same make_node_from_serialized function to create any internal child
+        nodes that might be necessary."""
 
 class IFileNode(Interface):
     """This is a file which can be retrieved."""
@@ -188,6 +191,21 @@ class ISubTree(Interface):
         (and not yet mutated). It will also return the correct value for
         subtrees which do not change their identity when they are mutated
         (SSKDirectorySubTrees and redirections).
+        """
+
+class INodeMaker(Interface):
+    def make_node_from_serialized(serialized):
+        """Turn a string into an INode, which contains information about
+        the file or directory (like a URI), but does not contain the actual
+        contents. An IOpener can be used later to retrieve the contents
+        (which means downloading the file if this is an IFileNode, or
+        perhaps creating a new subtree from the contents)."""
+
+class ISubTreeMaker(Interface):
+    def make_subtree_from_node(node, parent_is_mutable):
+        """Turn an INode into an ISubTree (using an internal opener to
+        download the data, if necessary).
+        This returns a Deferred that fires with the ISubTree instance.
         """
 
 #class IMutableSubTree(Interface):

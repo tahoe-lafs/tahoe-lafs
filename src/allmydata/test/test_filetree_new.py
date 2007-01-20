@@ -1,7 +1,7 @@
 
 #from zope.interface import implements
 from twisted.trial import unittest
-#from twisted.internet import defer
+from twisted.internet import defer
 #from allmydata.filetree.interfaces import IOpener, IDirectoryNode
 #from allmydata.filetree.directory import (ImmutableDirectorySubTree,
 #                                          SubTreeNode,
@@ -314,8 +314,15 @@ class Redirect(unittest.TestCase):
 
 import os.path
 from allmydata.filetree import directory, redirect, vdrive
-from allmydata.filetree.interfaces import (ISubTree, INode, IDirectoryNode)
+from allmydata.filetree.interfaces import (ISubTree, INode, IDirectoryNode, IFileNode)
 from allmydata.filetree.file import CHKFileNode
+from allmydata.util import bencode
+
+class InPairs(unittest.TestCase):
+    def test_in_pairs(self):
+        l = range(8)
+        pairs = list(directory.in_pairs(l))
+        self.failUnlessEqual(pairs, [(0,1), (2,3), (4,5), (6,7)])
 
 class Stuff(unittest.TestCase):
 
@@ -372,11 +379,14 @@ class Stuff(unittest.TestCase):
         del root, subdir1, subdir2, subdir3, subdir4
         # leaving file1 for later use
 
-        # now serialize it and reconstruct it
+        # now serialize it and examine the results
         f = StringIO()
         subtree.serialize_subtree_to_file(f)
         data = f.getvalue()
         #print data
+        unpacked = bencode.bdecode(data)
+        #print unpacked
+        del f, data, unpacked
 
         node = subtree.create_node_now()
         self.failUnless(isinstance(node, directory.LocalFileSubTreeNode))
@@ -384,9 +394,14 @@ class Stuff(unittest.TestCase):
         self.failUnless(isinstance(node_s, str))
         self.failUnless(node_s.startswith("LocalFileDirectory:"))
         self.failUnless("dirtree.save" in node_s)
+        del node, node_s
 
-        # now reconstruct it
-        d = v.make_subtree_from_node(node, False)
+        d = defer.maybeDeferred(subtree.update_now, None)
+        def _updated(node):
+            # now reconstruct it
+            return v.make_subtree_from_node(node, False)
+        d.addCallback(_updated)
+
         def _opened(new_subtree):
             res = new_subtree.get_node_for_path([])
             (found_path, root, remaining_path) = res
@@ -396,7 +411,9 @@ class Stuff(unittest.TestCase):
             self.failUnless(IDirectoryNode.providedBy(root))
             self.failUnlessEqual(root.list(), ["foo.txt", "subdir1"])
             file1a = root.get("foo.txt")
-            self.failUnless(isinstance(CHKFileNode, file1a))
+            self.failUnless(INode(file1a))
+            self.failUnless(isinstance(file1a, CHKFileNode))
+            self.failUnless(IFileNode(file1a))
             self.failUnlessEqual(file1a.get_uri(), "uri1")
             subdir1 = root.get("subdir1")
             subdir2 = subdir1.get("subdir2")
@@ -405,7 +422,6 @@ class Stuff(unittest.TestCase):
             self.failUnlessEqual(subdir2.list(), [])
         d.addCallback(_opened)
         return d
-    testDirectory.todo = "not working yet"
 
     def testVdrive(self):
         # create some stuff, see if we can import everything

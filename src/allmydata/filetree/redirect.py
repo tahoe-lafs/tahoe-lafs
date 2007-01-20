@@ -3,7 +3,7 @@ from cStringIO import StringIO
 from zope.interface import implements
 from twisted.internet import defer
 
-from allmydata.filetree.interfaces import ISubTree
+from allmydata.filetree.interfaces import ISubTree, INodeMaker
 from allmydata.filetree.basenode import BaseDataNode
 from allmydata.util import bencode
 
@@ -33,7 +33,8 @@ class _BaseRedirection(object):
         return self.child_node.serialize_node()
 
     def _populate_from_data(self, data, node_maker):
-        self.child_node = node_maker(data)
+        assert INodeMaker(node_maker)
+        self.child_node = node_maker.make_node_from_serialized(data)
         return self
 
 
@@ -64,7 +65,9 @@ class LocalFileRedirection(_BaseRedirection):
         # note: we don't cache the contents of the file. TODO: consider
         # doing this based upon mtime. It is important that we be able to
         # notice if the file has been changed.
-        return defer.succeed(self._populate_from_data(data, node_maker))
+        d = defer.succeed(data)
+        d.addCallback(self._populate_from_data, node_maker)
+        return d
 
     def is_mutable(self):
         return True
@@ -161,10 +164,11 @@ class QueenOrLocalFileRedirection(_BaseRedirection):
         # TODO: queen?
         # TODO: pubsub so we can cache the queen's results
         d = self._queen.callRemote("lookup_handle", self.handle)
-        d.addCallback(self._choose_winner, local_version_and_data, node_maker)
+        d.addCallback(self._choose_winner, local_version_and_data)
+        d.addCallback(self._populate_from_data, node_maker)
         return d
 
-    def _choose_winner(self, queen_version_and_data, local_version_and_data, node_maker):
+    def _choose_winner(self, queen_version_and_data, local_version_and_data):
         queen_version, queen_data = bencode.bdecode(queen_version_and_data)
         local_version, local_data = bencode.bdecode(local_version_and_data)
         if queen_version > local_version:
@@ -174,7 +178,7 @@ class QueenOrLocalFileRedirection(_BaseRedirection):
             data = local_data
             self.version = local_version
         # NOTE: two layers of bencoding here, TODO
-        return self._populate_from_data(data, node_maker)
+        return data
 
     def is_mutable(self):
         return True

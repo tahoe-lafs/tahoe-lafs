@@ -3,7 +3,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from cStringIO import StringIO
 from allmydata.filetree.interfaces import (
-    INode, IDirectoryNode, ISubTree,
+    INode, INodeMaker, IDirectoryNode, ISubTree,
     ICHKDirectoryNode, ISSKDirectoryNode,
     NoSuchChildError,
     )
@@ -19,16 +19,13 @@ from allmydata.util import bencode
 #  each time the vdrive changes, update the local drive to match, and
 #  vice versa.
 
-# from the itertools 'recipes' page
-from itertools import izip, tee
-def pairwise(iterable):
-    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
-    a, b = tee(iterable)
-    try:
-        b.next()
-    except StopIteration:
-        pass
+from itertools import islice, izip
+def in_pairs(iterable):
+    "s -> (s0,s1), (s2,s3), (s4,s5), ..."
+    a = islice(iterable, 0, None, 2)
+    b = islice(iterable, 1, None, 2)
     return izip(a, b)
+
 
 class SubTreeNode:
     implements(INode, IDirectoryNode)
@@ -95,15 +92,16 @@ class SubTreeNode:
             data.append(self.children[name].serialize_node())
         return data
 
-    def populate_node(self, data, node_maker):
+    def populate_dirnode(self, data, node_maker):
+        assert INodeMaker(node_maker)
         assert len(data) % 2 == 0
-        for (name, child_data) in pairwise(data):
+        for (name, child_data) in in_pairs(data):
             if isinstance(child_data, (list, tuple)):
                 child = SubTreeNode(self.enclosing_tree)
-                child.populate_node(child_data)
+                child.populate_dirnode(child_data, node_maker)
             else:
                 assert isinstance(child_data, str)
-                child = node_maker(child_data)
+                child = node_maker.make_node_from_serialized(child_data)
             self.children[name] = child
 
 
@@ -141,7 +139,7 @@ class _DirectorySubTree(object):
 
     def _populate_from_data(self, data, node_maker):
         self.root = SubTreeNode(self)
-        self.root.populate_node(bencode.bdecode(data), node_maker)
+        self.root.populate_dirnode(bencode.bdecode(data), node_maker)
         return self
 
     def serialize_subtree_to_file(self, f):
@@ -205,14 +203,16 @@ class LocalFileSubTree(_DirectorySubTree):
         f = open(self.filename, "rb")
         data = f.read()
         f.close()
-        return defer.succeed(self._populate_from_data(node_maker))
+        d = defer.succeed(data)
+        d.addCallback(self._populate_from_data, node_maker)
+        return d
 
     def create_node_now(self):
         return LocalFileSubTreeNode().new(self.filename)
 
     def _update(self):
         f = open(self.filename, "wb")
-        self.serialize_to_file(f)
+        self.serialize_subtree_to_file(f)
         f.close()
 
     def update_now(self, uploader):
@@ -258,7 +258,7 @@ class CHKDirectorySubTree(_DirectorySubTree):
 
     def update_now(self, uploader):
         f = StringIO()
-        self.serialize_to_file(f)
+        self.serialize_subtree_to_file(f)
         data = f.getvalue()
         d = uploader.upload_data(data)
         def _uploaded(uri):
@@ -271,7 +271,7 @@ class CHKDirectorySubTree(_DirectorySubTree):
         # this is the CHK form
         old_uri = self.uri
         f, filename = workqueue.create_tempfile(".chkdir")
-        self.serialize_to_file(f)
+        self.serialize_subtree_to_file(f)
         f.close()
         boxname = workqueue.create_boxname()
         workqueue.add_upload_chk(filename, boxname)
@@ -339,7 +339,7 @@ class SSKDirectorySubTree(_DirectorySubTree):
             raise RuntimeError("This SSKDirectorySubTree is not mutable")
 
         f = StringIO()
-        self.serialize_to_file(f)
+        self.serialize_subtree_to_file(f)
         data = f.getvalue()
 
         self.version += 1
@@ -350,7 +350,7 @@ class SSKDirectorySubTree(_DirectorySubTree):
     def update(self, workqueue):
         # this is the SSK form
         f, filename = workqueue.create_tempfile(".sskdir")
-        self.serialize_to_file(f)
+        self.serialize_subtree_to_file(f)
         f.close()
 
         oldversion = self.version

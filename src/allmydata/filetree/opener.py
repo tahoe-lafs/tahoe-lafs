@@ -3,7 +3,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from allmydata.filetree import interfaces, directory, redirect
 #from allmydata.filetree.file import CHKFile, MutableSSKFile, ImmutableSSKFile
-from allmydata.filetree.interfaces import INode, IDirectoryNode
+from allmydata.filetree.interfaces import INode, IDirectoryNode, INodeMaker
 
 all_openable_subtree_types = [
     directory.LocalFileSubTree,
@@ -27,6 +27,7 @@ class Opener(object):
 
     def _create(self, node, parent_is_mutable, node_maker):
         assert INode(node)
+        assert INodeMaker(node_maker)
         for subtree_class in all_openable_subtree_types:
             if isinstance(node, subtree_class.node_class):
                 subtree = subtree_class()
@@ -41,6 +42,7 @@ class Opener(object):
     def open(self, node, parent_is_mutable, node_maker):
         assert INode(node)
         assert not isinstance(node, IDirectoryNode)
+        assert INodeMaker(node_maker)
 
         # is it in cache? To check this we need to use the node's serialized
         # form, since nodes are instances and don't compare by value
