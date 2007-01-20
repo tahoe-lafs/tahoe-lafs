@@ -25,7 +25,11 @@ class IWorkQueue(Interface):
     """
 
     def create_tempfile(suffix=""):
-        """Return (f, filename)."""
+        """Return (f, filename), where 'f' is an open filehandle, and
+        'filename' is a string that can be passed to other workqueue steps to
+        refer to that same file later. NOTE: 'filename' is not an absolute
+        path, rather it will be interpreted relative to some directory known
+        only by the workqueue."""
     def create_boxname(contents=None):
         """Return a unique box name (as a string)."""
 
@@ -40,11 +44,16 @@ class IWorkQueue(Interface):
         'add_subpath' step will reference this boxname and retrieve the URI.
         """
 
-    def add_upload_ssk(source_filename, write_capability, previous_version):
+    def add_upload_ssk(write_capability, previous_version, source_filename):
         """This step uploads a file to the mesh in a way that replaces the
         previous version and does not require a change to the ID referenced
         by the parent.
         """
+
+    def add_queen_update_handle(handle, source_filename):
+        """Arrange for a central queen to be notified that the given handle
+        has been updated with the contents of the given tempfile. This will
+        send a set_handle() message to the queen."""
 
     def add_retain_ssk(read_capability):
         """Arrange for the given SSK to be kept alive."""
@@ -59,8 +68,8 @@ class IWorkQueue(Interface):
         file."""
 
     def add_addpath(boxname, path):
-        """When executed, this step will retrieve the URI from the given box
-        and call root.add(path, URIishthingyTODO, etc).
+        """When executed, this step will retrieve the serialized INode from
+        the given box and call vdrive.add(path, node) .
         """
 
     def add_unlink_uri(uri):

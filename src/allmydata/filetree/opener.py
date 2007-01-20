@@ -3,15 +3,16 @@ from zope.interface import implements
 from twisted.internet import defer
 from allmydata.filetree import interfaces, directory, redirect
 #from allmydata.filetree.file import CHKFile, MutableSSKFile, ImmutableSSKFile
-#from allmydata.filetree.specification import unserialize_subtree_specification
+from allmydata.filetree.interfaces import INode, IDirectoryNode
 
 all_openable_subtree_types = [
+    directory.LocalFileSubTree,
     directory.CHKDirectorySubTree,
     directory.SSKDirectorySubTree,
     redirect.LocalFileRedirection,
     redirect.QueenRedirection,
-    redirect.HTTPRedirection,
     redirect.QueenOrLocalFileRedirection,
+    redirect.HTTPRedirection,
     ]
 
 # the Opener can turn an INode (which describes a subtree, like a directory
@@ -24,31 +25,36 @@ class Opener(object):
         self._downloader = downloader
         self._cache = {}
 
-    def _create(self, spec, parent_is_mutable):
-        assert isinstance(spec, tuple)
+    def _create(self, node, parent_is_mutable, node_maker):
+        assert INode(node)
         for subtree_class in all_openable_subtree_types:
-            if spec[0] == subtree_class.stype:
+            if isinstance(node, subtree_class.node_class):
                 subtree = subtree_class()
-                d = subtree.populate_from_specification(spec,
-                                                        parent_is_mutable,
-                                                        self._downloader)
+                d = subtree.populate_from_node(node,
+                                               parent_is_mutable,
+                                               node_maker,
+                                               self._downloader)
                 return d
         raise RuntimeError("unable to handle subtree specification '%s'"
-                           % (spec,))
+                           % (node,))
 
-    def open(self, subtree_specification, parent_is_mutable):
-        spec = interfaces.ISubTreeSpecification(subtree_specification)
+    def open(self, node, parent_is_mutable, node_maker):
+        assert INode(node)
+        assert not isinstance(node, IDirectoryNode)
 
-        # is it in cache?
-        if spec in self._cache:
-            return defer.succeed(self._cache[spec])
+        # is it in cache? To check this we need to use the node's serialized
+        # form, since nodes are instances and don't compare by value
+        node_s = node.serialize_node()
+        if node_s in self._cache:
+            return defer.succeed(self._cache[node_s])
 
-        d = defer.maybeDeferred(self._create, spec, parent_is_mutable)
-        d.addCallback(self._add_to_cache, spec)
+        d = defer.maybeDeferred(self._create,
+                                node, parent_is_mutable, node_maker)
+        d.addCallback(self._add_to_cache, node_s)
         return d
 
-    def _add_to_cache(self, subtree, spec):
-        self._cache[spec] = subtree
+    def _add_to_cache(self, subtree, node_s):
+        self._cache[node_s] = subtree
         # TODO: remove things from the cache eventually
         return subtree
 

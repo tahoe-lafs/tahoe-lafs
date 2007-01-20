@@ -69,6 +69,10 @@ class ISubTree(Interface):
     a DirectoryNode, or it might be a FileNode.
     """
 
+    # All ISubTree-providing instances must have a class-level attribute
+    # named .node_class which references the matching INode-providing class.
+    # This is used by the Opener to turn nodes into subtrees.
+
     def populate_from_node(node, parent_is_mutable, node_maker, downloader):
         """Subtrees are created by opener.open() being called with an INode
         which describes both the kind of subtree to be created and a way to
@@ -129,18 +133,62 @@ class ISubTree(Interface):
         given filehandle (using only .write()). This string should be
         suitable for uploading to the mesh or storing in a local file."""
 
-    def update(prepath, workqueue):
-        """Perform and schedule whatever work is necessary to record this
-        subtree to persistent storage and update the parent at 'prepath'
-        with a new child specification.
+    def update_now(uploader):
+        """Perform whatever work is necessary to record this subtree to
+        persistent storage.
+
+        This returns an Inode, or a Deferred that fires (with an INode) when
+        the subtree has been persisted.
 
         For directory subtrees, this will cause the subtree to serialize
-        itself to a file, then add instructions to the workqueue to first
-        upload this file to the mesh, then add the file's URI to the parent's
-        subtree. The second instruction will possibly cause recursion, until
-        some subtree is updated which does not require notifying the parent.
+        itself to a file, then upload this file to the mesh, then create an
+        INode-providing instance which describes where the file wound up. For
+        redirections, this will cause the subtree to modify the redirection's
+        persistent storage, then return the (unmodified) INode that describes
+        the redirection.
+
+        This form does not use the workqueue. If the node is shut down before
+        the Deferred fires, a redirection or SSK subtree might be left in its
+        previous state, or it might have been updated.
         """
 
+    def update(workqueue):
+        """Perform and schedule whatever work is necessary to record this
+        subtree to persistent storage.
+
+        Returns a boxname or None, synchronously. This function does not
+        return a Deferred.
+
+        If the parent subtree needs to be modified with the new identity of
+        this subtree (i.e. for CHKDirectorySubTree instances), this will
+        return a boxname in which the serialized INode will be placed once
+        the added workqueue steps have completed. The caller should add
+        'addpath' steps to the workqueue using this boxname (which will
+        eventually cause recursion on other subtrees, until some subtree is
+        updated which does not require notifying the parent). update() will
+        add steps to delete the box at the end of the workqueue.
+
+        If the parent subtree does not need to be modified (i.e. for
+        SSKDirectorySubTree instances, or redirections), this will return
+        None.
+
+        This is like update_now(), but uses the workqueue to insure
+        consistency in the face of node shutdowns. Once our intentions have
+        been recorded in the workqueue, if the node is shut down before the
+        upload steps have completed, the update will eventually complete the
+        next time the node is started.
+        """
+
+    def create_node_now():
+        """FOR TESTING ONLY. Immediately create and return an INode which
+        describes the current state of this subtree. This does not perform
+        any upload or persistence work, and thus depends upon any internal
+        state having been previously set correctly. In general this will
+        return the correct value for subtrees which have just been created
+        (and not yet mutated). It will also return the correct value for
+        subtrees which do not change their identity when they are mutated
+        (SSKDirectorySubTrees and redirections).
+        """
 
 #class IMutableSubTree(Interface):
 #    def mutation_affects_parent():
@@ -176,13 +224,12 @@ class ISubTree(Interface):
 #        mesh or in a file."""
 
 class IOpener(Interface):
-    def open(subtree_specification, parent_is_mutable):
-        """I can take an ISubTreeSpecification-providing specification of a
-        subtree and return a Deferred which fires with an instance that
-        provides ISubTree (and maybe even IMutableSubTree). I probably do
-        this by performing network IO: reading a file from the mesh, or from
-        local disk, or asking some central-service node for the current
-        value."""
+    def open(subtree_node, parent_is_mutable, node_maker):
+        """I can take an INode-providing specification of a subtree and
+        return a Deferred which fires with an instance that provides ISubTree
+        (and maybe even IMutableSubTree). I probably do this by performing
+        network IO: reading a file from the mesh, or from local disk, or
+        asking some central-service node for the current value."""
 
 
 class IVirtualDrive(Interface):
@@ -195,6 +242,13 @@ class IVirtualDrive(Interface):
     def make_node_from_serialized(serialized):
         """Given a string produced by original_node.serialize_node(), produce
         an equivalent node.
+        """
+    def make_subtree_from_node(node, parent_is_mutable):
+        """Given an INode, create an ISubTree.
+
+        This returns a Deferred that fires (with the new subtree) when the
+        subtree is ready for use. This uses an IOpener to download the
+        subtree data, if necessary.
         """
 
     # commands to manipulate files

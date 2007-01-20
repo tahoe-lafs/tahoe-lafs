@@ -284,6 +284,9 @@ class IUploader(Interface):
         """Upload the file. 'uploadable' must impement IUploadable. This
         returns a Deferred which fires with the URI of the file."""
 
+    def upload_ssk(write_capability, new_version, uploadable):
+        pass # TODO
+
 class Uploader(service.MultiService):
     """I am a service that allows file uploading.
     """

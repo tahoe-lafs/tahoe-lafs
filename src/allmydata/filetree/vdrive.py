@@ -51,10 +51,15 @@ class VirtualDrive(object):
                 return node
         raise RuntimeError("unable to handle subtree type '%s'" % prefix)
 
+    def make_subtree_from_node(self, node, parent_is_mutable):
+        assert INode(node)
+        return self.opener.open(node, parent_is_mutable,
+                                self.make_subtree_from_node)
+
     # these methods are used to walk through our subtrees
 
     def _get_root(self):
-        return self.opener.open(self.root_node, False)
+        return self.make_subtree_from_node(self.root_node, False)
 
     def _get_node(self, path):
         d = self._get_closest_node(path)
@@ -84,7 +89,7 @@ class VirtualDrive(object):
             # traversal done
             return (node, remaining_path)
         # otherwise, we must open and recurse into a new subtree
-        d = self.opener.open(node, parent_is_mutable)
+        d = self.make_subtree_from_node(node, parent_is_mutable)
         def _opened(next_subtree):
             next_subtree = ISubTree(next_subtree)
             return self._get_closest_node_1(next_subtree, remaining_path)
@@ -147,6 +152,15 @@ class VirtualDrive(object):
         d.addCallback(_got_closest)
         return d
 
+    def _get_subtree_path(self, path):
+        # compute a list of [(subtree1, subpath1), ...], which represents
+        # which parts of 'path' traverse which subtrees. This can be used to
+        # present the virtual drive to the user in a form that includes
+        # redirection nodes (which do not consume path segments), or to
+        # figure out which subtrees need to be updated when the identity of a
+        # lower subtree (i.e. CHK) is changed.
+        pass # TODO
+
     # these are called by the workqueue
 
     def add(self, path, new_node):
@@ -164,9 +178,13 @@ class VirtualDrive(object):
             node.add(new_node_path, new_node)
             subtree = node.get_subtree()
             # now, tell the subtree to serialize and upload itself, using the
-            # workqueue. The subtree will also queue a step to notify its
-            # parent (using 'prepath'), if necessary.
-            return subtree.update(prepath, self.workqueue)
+            # workqueue.
+            boxname = subtree.update(self.workqueue)
+            if boxname:
+                # the parent needs to be notified, so queue a step to notify
+                # them (using 'prepath')
+                self.workqueue.add_addpath(boxname, prepath)
+            return self # TODO: what wold be the most useful?
         d.addCallback(_add_new_node)
         return d
 
@@ -210,7 +228,10 @@ class VirtualDrive(object):
             node.delete(orphan_path)
             # now serialize and upload
             subtree = node.get_subtree()
-            return subtree.update(prepath, self.workqueue)
+            boxname = subtree.update(self.workqueue)
+            if boxname:
+                self.workqueue.add_addpath(boxname, prepath)
+            return self
         d.addCallback(_got_parent)
         return d
 

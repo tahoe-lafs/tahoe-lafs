@@ -6,6 +6,10 @@ class BaseDataNode(object):
     implements(INode)
     prefix = None # must be set by subclass
 
+    def new(self, data):
+        self.set_base_data(data)
+        return self
+
     def get_base_data(self):
         raise NotImplementedError # must be provided by subclass
     def set_base_data(self, data):

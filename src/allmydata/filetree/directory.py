@@ -1,5 +1,7 @@
 
 from zope.interface import implements
+from twisted.internet import defer
+from cStringIO import StringIO
 from allmydata.filetree.interfaces import (
     INode, IDirectoryNode, ISubTree,
     ICHKDirectoryNode, ISSKDirectoryNode,
@@ -127,6 +129,7 @@ class _DirectorySubTree(object):
         # create a new, empty directory
         self.root = SubTreeNode(self)
         self.mutable = True # sure, why not
+        return self
 
     def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
         # self.populate_from_node must be defined by the subclass (CHK or
@@ -182,6 +185,7 @@ class LocalFileSubTreeNode(BaseDataNode):
 
     def new(self, filename):
         self.filename = filename
+        return self
 
     def get_base_data(self):
         return self.filename
@@ -189,9 +193,11 @@ class LocalFileSubTreeNode(BaseDataNode):
         self.filename = data
 
 class LocalFileSubTree(_DirectorySubTree):
+    node_class = LocalFileSubTreeNode
+
     def new(self, filename):
         self.filename = filename
-        _DirectorySubTree.new(self)
+        return _DirectorySubTree.new(self)
 
     def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
         self.mutable = True # probably
@@ -201,10 +207,24 @@ class LocalFileSubTree(_DirectorySubTree):
         f.close()
         return defer.succeed(self._populate_from_data(node_maker))
 
-    def update(self, prepath, work_queue):
+    def create_node_now(self):
+        return LocalFileSubTreeNode().new(self.filename)
+
+    def _update(self):
         f = open(self.filename, "wb")
         self.serialize_to_file(f)
         f.close()
+
+    def update_now(self, uploader):
+        self._update()
+        return self.create_node_now()
+
+    def update(self, work_queue):
+        # TODO: this may suffer from the same execute-too-early problem as
+        # redirect.LocalFileRedirection
+        self._update()
+        return None
+
 
 class CHKDirectorySubTreeNode(BaseDataNode):
     implements(ICHKDirectoryNode)
@@ -221,9 +241,10 @@ class CHKDirectorySubTreeNode(BaseDataNode):
 
 class CHKDirectorySubTree(_DirectorySubTree):
     # maybe mutable, maybe not
+    node_class = CHKDirectorySubTreeNode
 
     def set_uri(self, uri):
-        self.old_uri = uri
+        self.uri = uri
 
     def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
         assert ICHKDirectoryNode(node)
@@ -232,22 +253,37 @@ class CHKDirectorySubTree(_DirectorySubTree):
         d.addCallback(self._populate_from_data, node_maker)
         return d
 
-    def update(self, prepath, work_queue):
+    def create_node_now(self):
+        return CHKDirectorySubTreeNode().new(self.uri)
+
+    def update_now(self, uploader):
+        f = StringIO()
+        self.serialize_to_file(f)
+        data = f.getvalue()
+        d = uploader.upload_data(data)
+        def _uploaded(uri):
+            self.uri = uri
+            return self.create_node_now()
+        d.addCallback(_uploaded)
+        return d
+
+    def update(self, workqueue):
         # this is the CHK form
-        f, filename = work_queue.create_tempfile(".chkdir")
+        old_uri = self.uri
+        f, filename = workqueue.create_tempfile(".chkdir")
         self.serialize_to_file(f)
         f.close()
-        boxname = work_queue.create_boxname()
-        # mutation affects our parent
-        work_queue.add_upload_chk(filename, boxname)
-        work_queue.add_delete_tempfile(filename)
-        work_queue.add_retain_uri_from_box(boxname)
-        work_queue.add_delete_box(boxname)
-        work_queue.add_addpath(boxname, prepath)
-        work_queue.add_unlink_uri(self.old_uri)
+        boxname = workqueue.create_boxname()
+        workqueue.add_upload_chk(filename, boxname)
+        workqueue.add_delete_tempfile(filename)
+        workqueue.add_retain_uri_from_box(boxname)
+        workqueue.add_delete_box(boxname)
+        workqueue.add_unlink_uri(old_uri)
         # TODO: think about how self.old_uri will get updated. I *think* that
         # this whole instance will get replaced, so it ought to be ok. But
         # this needs investigation.
+
+        # mutation affects our parent, so we return a boxname for them
         return boxname
 
 
@@ -265,14 +301,20 @@ class SSKDirectorySubTreeNode(object):
         return self.read_cap
     def get_write_capability(self):
         return self.write_cap
+    def set_read_capability(self, read_cap):
+        self.read_cap = read_cap
+    def set_write_capability(self, write_cap):
+        self.write_cap = write_cap
 
 
 class SSKDirectorySubTree(_DirectorySubTree):
+    node_class = SSKDirectorySubTreeNode
 
     def new(self):
         _DirectorySubTree.new(self)
         self.version = 0
         # TODO: populate
+        return self
 
     def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
         node = ISSKDirectoryNode(node)
@@ -286,15 +328,36 @@ class SSKDirectorySubTree(_DirectorySubTree):
     def set_version(self, version):
         self.version = version
 
-    def upload_my_serialized_form(self, work_queue):
+    def create_node_now(self):
+        node = SSKDirectorySubTreeNode()
+        node.set_read_capability(self.read_capability)
+        node.set_write_capability(self.write_capability)
+        return node
+
+    def update_now(self, uploader):
+        if not self.write_capability:
+            raise RuntimeError("This SSKDirectorySubTree is not mutable")
+
+        f = StringIO()
+        self.serialize_to_file(f)
+        data = f.getvalue()
+
+        self.version += 1
+        d = uploader.upload_ssk_data(self.write_capability, self.version, data)
+        d.addCallback(lambda ignored: self.create_node_now())
+        return d
+
+    def update(self, workqueue):
         # this is the SSK form
-        f, filename = work_queue.create_tempfile(".sskdir")
+        f, filename = workqueue.create_tempfile(".sskdir")
         self.serialize_to_file(f)
         f.close()
-        # mutation does not affect our parent
-        work_queue.add_upload_ssk(filename, self.write_capability,
-                                  self.version)
-        self.version = self.version + 1
-        work_queue.add_delete_tempfile(filename)
-        work_queue.add_retain_ssk(self.read_capability)
 
+        oldversion = self.version
+        self.version = self.version + 1
+
+        workqueue.add_upload_ssk(self.write_capability, oldversion, filename)
+        workqueue.add_delete_tempfile(filename)
+        workqueue.add_retain_ssk(self.read_capability)
+        # mutation does not affect our parent
+        return None

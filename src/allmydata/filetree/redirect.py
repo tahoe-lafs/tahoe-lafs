@@ -12,6 +12,7 @@ class LocalFileRedirectionNode(BaseDataNode):
 
     def new(self, handle):
         self.handle = handle
+        return self
 
     def get_base_data(self):
         return self.handle
@@ -23,6 +24,7 @@ class _BaseRedirection(object):
 
     def new(self, child_node):
         self.child_node = child_node
+        return self
 
     def get_node_for_path(self, path):
         return ([], self.child_node, path)
@@ -34,12 +36,13 @@ class _BaseRedirection(object):
         self.child_node = node_maker(data)
         return self
 
+
 class LocalFileRedirection(_BaseRedirection):
-    stype = "LocalFileRedirection"
+    node_class = LocalFileRedirectionNode
 
     def new(self, handle, child_node):
         self.filename = handle
-        _BaseRedirection.new(self, child_node)
+        return _BaseRedirection.new(self, child_node)
 
     def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
         # return a Deferred that fires (with self) when this node is ready
@@ -66,20 +69,35 @@ class LocalFileRedirection(_BaseRedirection):
     def is_mutable(self):
         return True
 
-    def update(self, prepath, workqueue):
+    def create_node_now(self):
+        return LocalFileRedirectionNode().new(self.filename)
+
+    def _update(self):
         f = open(self.filename, "wb")
         self.serialize_subtree_to_file(f)
         f.close()
 
+    def update_now(self, uploader):
+        self._update()
+        return self.create_node_now()
+
+    def update(self, workqueue):
+        # TODO: this happens too early, before earlier items in the workqueue
+        # have been executed. This might not be a problem, if our update()
+        # method isn't actually called until everything earlier has been
+        # executed anyways. Need to ponder this.
+        self._update()
+        return None
 
 class QueenRedirectionNode(LocalFileRedirectionNode):
     prefix = "QueenRedirection"
 
 class QueenRedirection(_BaseRedirection):
-    style = "QueenRedirection"
+    node_class = QueenRedirectionNode
 
     def new(self, handle):
         self.handle = handle
+        return self
 
     def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
         # this specifies a handle for which the Queen maintains a serialized
@@ -95,23 +113,38 @@ class QueenRedirection(_BaseRedirection):
     def is_mutable(self):
         return True # TODO: maybe, maybe not
 
-    def update(self, prepath, workqueue):
+    def create_node_now(self):
+        return QueenRedirectionNode().new(self.handle)
+
+    def update_now(self, uploader):
         f = StringIO()
         self.serialize_subtree_to_file(f)
         d = self._queen.callRemote("set_handle", self.handle, f.getvalue())
+        def _done(res):
+            return self.create_node_now()
+        d.addCallback(_done)
         return d
+
+    def update(self, workqueue):
+        f, filename = workqueue.create_tempfile(".toqueen")
+        self.serialize_subtree_to_file(f)
+        f.close()
+        workqueue.add_queen_update_handle(self.handle, filename)
+        workqueue.add_delete_tempfile(filename)
+        return None
 
 class QueenOrLocalFileRedirectionNode(LocalFileRedirectionNode):
     prefix = "QueenOrLocalFileRedirection"
 
 class QueenOrLocalFileRedirection(_BaseRedirection):
-    stype = "QueenOrLocalFileRedirection"
+    node_class = QueenOrLocalFileRedirectionNode
 
     def new(self, handle, child_node):
         self.handle = handle
         self.version = 0
         self.child_node = child_node
         # TODO
+        return self
 
     def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
         # there is a local file which contains a bencoded serialized
@@ -146,22 +179,48 @@ class QueenOrLocalFileRedirection(_BaseRedirection):
     def is_mutable(self):
         return True
 
-    def update(self, prepath, workqueue):
+    def create_node_now(self):
+        return QueenOrLocalFileRedirectionNode().new(self.handle)
+
+    def _update(self):
         self.version += 1
         f = StringIO()
         self.serialize_subtree_to_file(f)
         version_and_data = bencode.bencode((self.version, f.getvalue()))
+        return version_and_data
+
+    def update_now(self, uploader):
+        version_and_data = self._update()
         f = open(self.filename, "wb")
         f.write(version_and_data)
         f.close()
+
         d = self._queen.callRemote("set_handle", self.handle, version_and_data)
+        def _done(res):
+            return self.create_node_now()
+        d.addCallback(_done)
         return d
+
+    def update(self, workqueue):
+        version_and_data = self._update()
+        # TODO: this may have the same problem as LocalFileRedirection.update
+        f = open(self.filename, "wb")
+        f.write(version_and_data)
+        f.close()
+
+        f, filename = workqueue.create_tempfile(".toqueen")
+        self.serialize_subtree_to_file(f)
+        f.close()
+        workqueue.add_queen_update_handle(self.handle, filename)
+        workqueue.add_delete_tempfile(filename)
+        return None
 
 class HTTPRedirectionNode(BaseDataNode):
     prefix = "HTTPRedirection"
 
     def new(self, url):
         self.url = url
+        return self
 
     def get_base_data(self):
         return self.url
@@ -169,19 +228,29 @@ class HTTPRedirectionNode(BaseDataNode):
         self.url = data
 
 class HTTPRedirection(_BaseRedirection):
-    stype = "HTTPRedirection"
+    node_class = HTTPRedirectionNode
+
+    def new(self, url):
+        self.url = url
 
     def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
         # this specifies a URL at which there is a bencoded serialized
         # subtree specification.
+        self.url = node.url
         assert isinstance(node, HTTPRedirectionNode)
         from twisted.web import client
-        d = client.getPage(node.url)
+        d = client.getPage(self.url)
         d.addCallback(self._populate_from_data, node_maker)
         return d
 
     def is_mutable(self):
         return False
 
-    def update(self, prepath, workqueue):
+    def create_node_now(self):
+        return HTTPRedirectionNode().new(self.url)
+
+    def update_now(self, uploader):
+        raise RuntimeError("HTTPRedirection is not mutable")
+
+    def update(self, workqueue):
         raise RuntimeError("HTTPRedirection is not mutable")

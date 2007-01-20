@@ -1,11 +1,11 @@
 
-from zope.interface import implements
+#from zope.interface import implements
 from twisted.trial import unittest
-from twisted.internet import defer
-from allmydata.filetree.interfaces import IOpener, IDirectoryNode
-from allmydata.filetree.directory import (#ImmutableDirectorySubTree,
-                                          SubTreeNode,
-                                          CHKDirectorySubTree)
+#from twisted.internet import defer
+#from allmydata.filetree.interfaces import IOpener, IDirectoryNode
+#from allmydata.filetree.directory import (ImmutableDirectorySubTree,
+#                                          SubTreeNode,
+#                                          CHKDirectorySubTree)
 #from allmydata.filetree.specification import (CHKFileSpecification,
 #                                              CHKDirectorySpecification)
 from allmydata import workqueue
@@ -324,11 +324,16 @@ class Stuff(unittest.TestCase):
         dl = None
         if not root_node:
             root_node = directory.LocalFileSubTreeNode()
-            root_node.new("dirtree.save")
+            root_node.new("rootdirtree.save")
         v = vdrive.VirtualDrive(wq, dl, root_node)
         return v
 
     def testDirectory(self):
+        # TODO: we only need this VirtualDrive for the opener. Perhaps
+        # make_subtree_from_node should move out of that class and into a
+        # module-level function.
+        v = self.makeVirtualDrive("test_filetree_new/testDirectory")
+
         # create an empty directory (stored locally)
         subtree = directory.LocalFileSubTree()
         subtree.new("dirtree.save")
@@ -352,6 +357,7 @@ class Stuff(unittest.TestCase):
         self.failUnlessIdentical(root.get("foo.txt"), file1)
         subdir1a = root.get("subdir1")
         self.failUnlessIdentical(subdir1, subdir1a)
+        del subdir1a
         self.failUnless(IDirectoryNode.providedBy(subdir1))
         self.failUnlessEqual(subdir1.list(), [])
         self.failUnlessIdentical(subdir1.get_subtree(), subtree)
@@ -363,16 +369,43 @@ class Stuff(unittest.TestCase):
         subdir2.delete("subdir4")
         self.failUnlessEqual(subdir2.list(), ["subdir3"])
 
+        del root, subdir1, subdir2, subdir3, subdir4
+        # leaving file1 for later use
+
         # now serialize it and reconstruct it
         f = StringIO()
         subtree.serialize_subtree_to_file(f)
         data = f.getvalue()
         #print data
 
-        # hrm, something is missing here.. subtree to ??? to node to subtree
+        node = subtree.create_node_now()
+        self.failUnless(isinstance(node, directory.LocalFileSubTreeNode))
+        node_s = node.serialize_node()
+        self.failUnless(isinstance(node_s, str))
+        self.failUnless(node_s.startswith("LocalFileDirectory:"))
+        self.failUnless("dirtree.save" in node_s)
 
-        v = self.makeVirtualDrive("test_filetree_new/testDirectory")
-        #node = v.make_node_from_serialized(data)
+        # now reconstruct it
+        d = v.make_subtree_from_node(node, False)
+        def _opened(new_subtree):
+            res = new_subtree.get_node_for_path([])
+            (found_path, root, remaining_path) = res
+            self.failUnlessEqual(found_path, [])
+            self.failUnlessEqual(remaining_path, [])
+            self.failUnless(INode.providedBy(root))
+            self.failUnless(IDirectoryNode.providedBy(root))
+            self.failUnlessEqual(root.list(), ["foo.txt", "subdir1"])
+            file1a = root.get("foo.txt")
+            self.failUnless(isinstance(CHKFileNode, file1a))
+            self.failUnlessEqual(file1a.get_uri(), "uri1")
+            subdir1 = root.get("subdir1")
+            subdir2 = subdir1.get("subdir2")
+            self.failUnlessEqual(subdir2.list(), ["subdir3"])
+            subdir2.delete("subdir3")
+            self.failUnlessEqual(subdir2.list(), [])
+        d.addCallback(_opened)
+        return d
+    testDirectory.todo = "not working yet"
 
     def testVdrive(self):
         # create some stuff, see if we can import everything
@@ -389,6 +422,6 @@ class Stuff(unittest.TestCase):
 
     def start():
         root_node = redirect.LocalFileRedirectionNode()
-        root_node.new("handle", dirtree)
+#        root_node.new("handle", dirtree)
         root = redirect.LocalFileRedirection()
         # wow, bootstrapping is hard
