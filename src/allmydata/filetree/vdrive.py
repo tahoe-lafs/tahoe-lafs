@@ -28,8 +28,28 @@ class VirtualDrive(object):
         self.workqueue = workqueue
         workqueue.set_vdrive(self)
         # TODO: queen?
+        self.queen = None
         self.opener = opener.Opener(self.queen, downloader)
         self.root_node = root_node
+
+    # these are called when loading and creating nodes
+    def make_node_from_serialized(self, serialized):
+        # this turns a string into an INode, which contains information about
+        # the file or directory (like a URI), but does not contain the actual
+        # contents. An IOpener can be used later to retrieve the contents
+        # (which means downloading the file if this is an IFileNode, or
+        # perhaps creating a new subtree from the contents)
+
+        # maybe include parent_is_mutable?
+        assert isinstance(serialized, str)
+        prefix, body = serialized.split(":", 2)
+
+        for node_class in all_node_types:
+            if prefix == node_class.prefix:
+                node = node_class()
+                node.populate_node(body, self.make_node_from_serialized)
+                return node
+        raise RuntimeError("unable to handle subtree type '%s'" % prefix)
 
     # these methods are used to walk through our subtrees
 
@@ -126,25 +146,6 @@ class VirtualDrive(object):
             return (prepath, node, remaining_path)
         d.addCallback(_got_closest)
         return d
-
-    # these are called when loading and creating nodes
-    def make_node_from_serialized(self, serialized):
-        # this turns a string into an INode, which contains information about
-        # the file or directory (like a URI), but does not contain the actual
-        # contents. An IOpener can be used later to retrieve the contents
-        # (which means downloading the file if this is an IFileNode, or
-        # perhaps creating a new subtree from the contents)
-
-        # maybe include parent_is_mutable?
-        assert isinstance(serialized, str)
-        colon = serialized.index(":")
-        prefix = serialized[:colon]
-        for node_class in all_node_types:
-            if prefix == node_class.prefix:
-                node = node_class()
-                node.populate_node(serialized, self.make_node_from_serialized)
-                return node
-        raise RuntimeError("unable to handle subtree type '%s'" % prefix)
 
     # these are called by the workqueue
 

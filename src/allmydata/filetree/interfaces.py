@@ -4,16 +4,21 @@ from zope.interface import Interface
 class INode(Interface):
     """This is some sort of retrievable node. All objects which implement
     other I*Node interfaces also implement this one."""
+
+    # the INode-implementing class must have an attribute named .prefix which
+    # contains a string.
+
     def serialize_node():
         """Return a data structure which contains enough information to build
         this node again in the future (by calling
         vdrive.make_node_from_serialized(). For IDirectoryNodes, this will be
-        a list. For all other nodes this will be a string."""
-    def populate_node(data, node_maker):
-        """vdrive.make_node_from_serialized() will first use the prefix
-        inside 'data' to decide what kind of Node to create. It will then
-        call this function to populate the new Node from the data returned by
-        serialize_node."""
+        a list. For all other nodes this will be a string of the form
+        'prefix:body', where 'prefix' must be the same as the class attribute
+        .prefix ."""
+    def populate_node(body, node_maker):
+        """vdrive.make_node_from_serialized() will first use the prefix from
+        the .prefix attribute to decide what kind of Node to create. It will
+        then call this function with the body to populate the new Node."""
 
 class IFileNode(Interface):
     """This is a file which can be retrieved."""

@@ -12,7 +12,6 @@ class BaseDataNode(object):
         raise NotImplementedError # must be provided by subclass
     def serialize_node(self):
         return "%s:%s" % (self.prefix, self.get_base_data())
-    def populate_node(self, data, node_maker):
-        assert data.startswith(self.prefix + ":")
-        self.set_base_data(data[len(self.prefix)+1:])
+    def populate_node(self, body, node_maker):
+        self.set_base_data(body)
 

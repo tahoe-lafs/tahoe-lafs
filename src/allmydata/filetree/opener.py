@@ -14,6 +14,9 @@ all_openable_subtree_types = [
     redirect.QueenOrLocalFileRedirection,
     ]
 
+# the Opener can turn an INode (which describes a subtree, like a directory
+# or a redirection) into the fully-populated subtree.
+
 class Opener(object):
     implements(interfaces.IOpener)
     def __init__(self, queen, downloader):

@@ -37,6 +37,10 @@ class _BaseRedirection(object):
 class LocalFileRedirection(_BaseRedirection):
     stype = "LocalFileRedirection"
 
+    def new(self, handle, child_node):
+        self.filename = handle
+        _BaseRedirection.new(self, child_node)
+
     def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
         # return a Deferred that fires (with self) when this node is ready
         # for use

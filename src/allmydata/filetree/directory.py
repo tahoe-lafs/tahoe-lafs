@@ -124,6 +124,7 @@ class _DirectorySubTree(object):
 
 
     def new(self):
+        # create a new, empty directory
         self.root = SubTreeNode(self)
         self.mutable = True # sure, why not
 
@@ -135,7 +136,7 @@ class _DirectorySubTree(object):
         # to populate_from_data()
         raise NotImplementedError
 
-    def populate_from_data(self, data, node_maker):
+    def _populate_from_data(self, data, node_maker):
         self.root = SubTreeNode(self)
         self.root.populate_node(bencode.bdecode(data), node_maker)
         return self
@@ -176,6 +177,35 @@ class _DirectorySubTree(object):
                 break
         return (found_path, node, remaining_path)
 
+class LocalFileSubTreeNode(BaseDataNode):
+    prefix = "LocalFileDirectory"
+
+    def new(self, filename):
+        self.filename = filename
+
+    def get_base_data(self):
+        return self.filename
+    def set_base_data(self, data):
+        self.filename = data
+
+class LocalFileSubTree(_DirectorySubTree):
+    def new(self, filename):
+        self.filename = filename
+        _DirectorySubTree.new(self)
+
+    def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
+        self.mutable = True # probably
+        self.filename = node.filename
+        f = open(self.filename, "rb")
+        data = f.read()
+        f.close()
+        return defer.succeed(self._populate_from_data(node_maker))
+
+    def update(self, prepath, work_queue):
+        f = open(self.filename, "wb")
+        self.serialize_to_file(f)
+        f.close()
+
 class CHKDirectorySubTreeNode(BaseDataNode):
     implements(ICHKDirectoryNode)
     prefix = "CHKDirectory"
@@ -199,7 +229,7 @@ class CHKDirectorySubTree(_DirectorySubTree):
         assert ICHKDirectoryNode(node)
         self.mutable = parent_is_mutable
         d = downloader.download(node.get_uri(), download.Data())
-        d.addCallback(self.populate_from_data, node_maker)
+        d.addCallback(self._populate_from_data, node_maker)
         return d
 
     def update(self, prepath, work_queue):
@@ -228,10 +258,8 @@ class SSKDirectorySubTreeNode(object):
     def serialize_node(self):
         data = (self.read_cap, self.write_cap)
         return "%s:%s" % (self.prefix, bencode.bencode(data))
-    def populate_node(self, data, node_maker):
-        assert data.startswith(self.prefix + ":")
-        capdata = data[len(self.prefix)+1:]
-        self.read_cap, self.write_cap = bencode.bdecode(capdata)
+    def populate_node(self, body, node_maker):
+        self.read_cap, self.write_cap = bencode.bdecode(body)
 
     def get_read_capability(self):
         return self.read_cap
@@ -252,7 +280,7 @@ class SSKDirectorySubTree(_DirectorySubTree):
         self.write_capability = node.get_write_capability()
         self.mutable = bool(self.write_capability)
         d = downloader.download_ssk(self.read_capability, download.Data())
-        d.addCallback(self.populate_from_data, node_maker)
+        d.addCallback(self._populate_from_data, node_maker)
         return d
 
     def set_version(self, version):

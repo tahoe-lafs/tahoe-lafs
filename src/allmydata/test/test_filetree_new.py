@@ -1,17 +1,17 @@
 
-"""
 from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
 from allmydata.filetree.interfaces import IOpener, IDirectoryNode
-from allmydata.filetree.directory import (ImmutableDirectorySubTree,
+from allmydata.filetree.directory import (#ImmutableDirectorySubTree,
                                           SubTreeNode,
                                           CHKDirectorySubTree)
-from allmydata.filetree.specification import (CHKFileSpecification,
-                                              CHKDirectorySpecification)
+#from allmydata.filetree.specification import (CHKFileSpecification,
+#                                              CHKDirectorySpecification)
 from allmydata import workqueue
 from cStringIO import StringIO
 
+"""
 class FakeOpener(object):
     implements(IOpener)
     def __init__(self, objects={}):
@@ -311,3 +311,28 @@ del MultipleSubTrees
 class Redirect(unittest.TestCase):
     pass
 """
+
+from allmydata.filetree import directory, redirect, vdrive
+
+class Load(unittest.TestCase):
+
+    def testCreate(self):
+        # create some stuff, see if we can import everything
+        wq = workqueue.WorkQueue("test_filetree_new/Load/1.workqueue")
+        dl = None
+
+        # create an empty directory (stored locally) as our root
+        root = directory.LocalFileSubTree()
+        root.new("dirtree.save")
+
+        # and a node to point to it
+        root_node = directory.LocalFileSubTreeNode()
+        root_node.new("dirtree.save")
+
+        v = vdrive.VirtualDrive(wq, dl, root_node)
+
+    def start():
+        root_node = redirect.LocalFileRedirectionNode()
+        root_node.new("handle", dirtree)
+        root = redirect.LocalFileRedirection()
+        # wow, bootstrapping is hard
