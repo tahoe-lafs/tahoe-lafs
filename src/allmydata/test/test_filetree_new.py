@@ -312,14 +312,70 @@ class Redirect(unittest.TestCase):
     pass
 """
 
+import os.path
 from allmydata.filetree import directory, redirect, vdrive
+from allmydata.filetree.interfaces import (ISubTree, INode, IDirectoryNode)
+from allmydata.filetree.file import CHKFileNode
 
-class Load(unittest.TestCase):
+class Stuff(unittest.TestCase):
 
-    def testCreate(self):
-        # create some stuff, see if we can import everything
-        wq = workqueue.WorkQueue("test_filetree_new/Load/1.workqueue")
+    def makeVirtualDrive(self, basedir, root_node=None):
+        wq = workqueue.WorkQueue(os.path.join(basedir, "1.workqueue"))
         dl = None
+        if not root_node:
+            root_node = directory.LocalFileSubTreeNode()
+            root_node.new("dirtree.save")
+        v = vdrive.VirtualDrive(wq, dl, root_node)
+        return v
+
+    def testDirectory(self):
+        # create an empty directory (stored locally)
+        subtree = directory.LocalFileSubTree()
+        subtree.new("dirtree.save")
+        self.failUnless(ISubTree.providedBy(subtree))
+
+        # get the root IDirectoryNode (which is still empty) and examine it
+        (found_path, root, remaining_path) = subtree.get_node_for_path([])
+        self.failUnlessEqual(found_path, [])
+        self.failUnlessEqual(remaining_path, [])
+        self.failUnless(INode.providedBy(root))
+        self.failUnless(IDirectoryNode.providedBy(root))
+        self.failUnlessEqual(root.list(), [])
+        self.failUnlessIdentical(root.get_subtree(), subtree)
+
+        # now add some children to it
+        subdir1 = root.add_subdir("subdir1")
+        file1 = CHKFileNode()
+        file1.new("uri1")
+        root.add("foo.txt", file1)
+        self.failUnlessEqual(root.list(), ["foo.txt", "subdir1"])
+        self.failUnlessIdentical(root.get("foo.txt"), file1)
+        subdir1a = root.get("subdir1")
+        self.failUnlessIdentical(subdir1, subdir1a)
+        self.failUnless(IDirectoryNode.providedBy(subdir1))
+        self.failUnlessEqual(subdir1.list(), [])
+        self.failUnlessIdentical(subdir1.get_subtree(), subtree)
+
+        subdir2 = subdir1.add_subdir("subdir2")
+        subdir3 = subdir2.add_subdir("subdir3")
+        subdir4 = subdir2.add_subdir("subdir4")
+
+        subdir2.delete("subdir4")
+        self.failUnlessEqual(subdir2.list(), ["subdir3"])
+
+        # now serialize it and reconstruct it
+        f = StringIO()
+        subtree.serialize_subtree_to_file(f)
+        data = f.getvalue()
+        #print data
+
+        # hrm, something is missing here.. subtree to ??? to node to subtree
+
+        v = self.makeVirtualDrive("test_filetree_new/testDirectory")
+        #node = v.make_node_from_serialized(data)
+
+    def testVdrive(self):
+        # create some stuff, see if we can import everything
 
         # create an empty directory (stored locally) as our root
         root = directory.LocalFileSubTree()
@@ -329,7 +385,7 @@ class Load(unittest.TestCase):
         root_node = directory.LocalFileSubTreeNode()
         root_node.new("dirtree.save")
 
-        v = vdrive.VirtualDrive(wq, dl, root_node)
+        v = self.makeVirtualDrive("test_filetree_new/testVdrive", root_node)
 
     def start():
         root_node = redirect.LocalFileRedirectionNode()

@@ -8,6 +8,9 @@ class CHKFileNode(BaseDataNode):
     implements(IFileNode)
     prefix = "CHKFile"
 
+    def new(self, uri):
+        self.uri = uri
+
     def get_base_data(self):
         return self.uri
     def set_base_data(self, data):
