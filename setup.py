@@ -194,7 +194,7 @@ setup(
                   "allmydata.Crypto": "src/Crypto",
                   "allmydata.py_ecc": "src/py_ecc",
                   },
-    scripts = ["bin/allmydata"],
+    scripts = ["bin/allmydata-tahoe"],
     package_data={ 'allmydata': ['web/*.xhtml'] },
 
     cmdclass= {'build_ext': PCTBuildExt},
