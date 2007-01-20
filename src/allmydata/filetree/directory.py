@@ -1,11 +1,11 @@
 
 from zope.interface import implements
-from allmydata.filetree.interfaces import (INode,
-                                           IDirectoryNode,
-                                           ISubTree,
-                                           ICHKDirectoryNode, ISSKDirectoryNode,
-                                           NoSuchChildError,
-                                           )
+from allmydata.filetree.interfaces import (
+    INode, IDirectoryNode, ISubTree,
+    ICHKDirectoryNode, ISSKDirectoryNode,
+    NoSuchChildError,
+    )
+from allmydata.filetree.basenode import BaseURINode
 from allmydata import download
 from allmydata.util import bencode
 
@@ -17,42 +17,42 @@ from allmydata.util import bencode
 #  each time the vdrive changes, update the local drive to match, and
 #  vice versa.
 
-
-def to_node(spec):
-    # TODO
-    pass
-def to_spec(node):
-    # TODO
-    pass
-
+# from the itertools 'recipes' page
+from itertools import izip, tee
+def pairwise(iterable):
+    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+    a, b = tee(iterable)
+    try:
+        b.next()
+    except StopIteration:
+        pass
+    return izip(a, b)
 
 class SubTreeNode:
     implements(INode, IDirectoryNode)
 
     def __init__(self, tree):
         self.enclosing_tree = tree
-        # subdirectory_node_children maps child name to another SubTreeNode
-        # instance. This is only for internal directory nodes. All other
-        # nodes are listed in child_specifications instead.
-        self.subdirectory_node_children = {}
-        # child_specifications maps child name to a specification tuple which
-        # describes how to obtain the actual child. For example, if "foo.jpg"
-        # in this node represents a CHK-encoded FILE with a uri of "fooURI",
-        # then self.child_specifications["foo.jpg"] = ("CHKFILE","fooURI")
-        self.child_specifications = {}
+        self.children = {}
+#        # subdirectory_node_children maps child name to another SubTreeNode
+#        # instance. This is only for internal directory nodes. All other
+#        # nodes are listed in child_specifications instead.
+#        self.subdirectory_node_children = {}
+#        # child_specifications maps child name to a specification tuple which
+#        # describes how to obtain the actual child. For example, if "foo.jpg"
+#        # in this node represents a CHK-encoded FILE with a uri of "fooURI",
+#        # then self.child_specifications["foo.jpg"] = ("CHKFILE","fooURI")
+#        self.child_specifications = {}
 
     def is_directory(self):
         return True
 
     def list(self):
-        return sorted(self.subdirectory_node_children.keys() +
-                      self.child_specifications.keys())
+        return sorted(self.children.keys())
 
     def get(self, childname):
-        if childname in self.subdirectory_node_children:
-            return self.subdirectory_node_children[childname]
-        elif childname in self.child_specifications:
-            return to_node(self.child_specifications[childname])
+        if childname in self.children:
+            return self.children[childname]
         else:
             raise NoSuchChildError("no child named '%s'" % (childname,))
 
@@ -61,28 +61,24 @@ class SubTreeNode:
 
     def delete(self, childname):
         assert self.enclosing_tree.is_mutable()
-        if childname in self.subdirectory_node_children:
-            del self.subdirectory_node_children[childname]
-        elif childname in self.child_specifications:
-            del self.child_specifications[childname]
+        if childname in self.children:
+            del self.children[childname]
         else:
             raise NoSuchChildError("no child named '%s'" % (childname,))
 
     def add_subdir(self, childname):
-        assert childname not in self.subdirectory_node_children
-        assert childname not in self.child_specifications
+        assert childname not in self.children
         newnode = SubTreeNode(self.enclosing_tree)
-        self.subdirectory_node_children[childname] = newnode
+        self.children[childname] = newnode
         return newnode
 
     def add(self, childname, node):
-        assert childname not in self.subdirectory_node_children
-        assert childname not in self.child_specifications
-        spec = to_spec(node)
-        self.child_specifications[childname] = spec
+        assert childname not in self.children
+        assert INode(node)
+        self.children[childname] = node
         return self
 
-    def serialize_to_sexprs(self):
+    def serialize_node(self):
         # note: this is a one-pass recursive serialization that will result
         # in the whole file table being held in memory. This is only
         # appropriate for directories with fewer than, say, 10k nodes. If we
@@ -90,31 +86,26 @@ class SubTreeNode:
         # generator instead, and write the serialized data directly to a
         # tempfile.
         #
-        # ["DIRECTORY", name1, child1, name2, child2..]
+        # [name1, child1, name2, child2..]
+        #
+        #  child1 is either a list for subdirs, or a string for non-subdirs
 
-        data = ["DIRECTORY"]
-        for name in sorted(self.node_children.keys()):
+        data = []
+        for name in sorted(self.children.keys()):
             data.append(name)
-            data.append(self.node_children[name].serialize())
-        for name in sorted(self.child_specifications.keys()):
-            data.append(name)
-            data.append(self.child_specifications[name].serialize())
+            data.append(self.children[name].serialize_node())
         return data
 
-    def populate_from_sexprs(self, data):
-        assert data[0] == "DIRECTORY"
-        assert len(data) % 2 == 1
-        for i in range(1, len(data), 2):
-            name = data[i]
-            child_data = data[i+1]
-            assert isinstance(child_data, (list, tuple))
-            child_type = child_data[0]
-            if child_type == "DIRECTORY":
+    def populate_node(self, data, node_maker):
+        assert len(data) % 2 == 0
+        for (name, child_data) in pairwise(data):
+            if isinstance(child_data, (list, tuple)):
                 child = SubTreeNode(self.enclosing_tree)
-                child.populate_from_sexprs(child_data)
-                self.node_children[name] = child
+                child.populate_node(child_data)
             else:
-                self.child_specifications[name] = child_data
+                assert isinstance(child_data, str)
+                child = node_maker(child_data)
+            self.children[name] = child
 
 
 
@@ -139,22 +130,22 @@ class _DirectorySubTree(object):
         self.root = SubTreeNode(self)
         self.mutable = True # sure, why not
 
-    def populate_from_specification(self, spec, parent_is_mutable, downloader):
-        return self.populate_from_node(to_node(spec),
-                                       parent_is_mutable, downloader)
+    def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
+        # self.populate_from_node must be defined by the subclass (CHK or
+        # SSK), since it controls how the spec is interpreted. It will
+        # probably use the contents of the node to figure out what to
+        # download from the mesh, then pass this downloaded serialized data
+        # to populate_from_data()
+        raise NotImplementedError
 
-    def populate_from_data(self, data):
-        self.root = SubTreeNode()
-        self.root.populate_from_sexprs(bencode.bdecode(data))
+    def populate_from_data(self, data, node_maker):
+        self.root = SubTreeNode(self)
+        self.root.populate_node(bencode.bdecode(data), node_maker)
         return self
 
-    def serialize(self):
-        """Return a series of nested lists which describe my structure
-        in a form that can be bencoded."""
-        return self.root.serialize_to_sexprs()
-
-    def serialize_to_file(self, f):
-        f.write(bencode.bencode(self.serialize()))
+    def serialize_subtree_to_file(self, f):
+        sexprs = self.root.serialize_node()
+        bencode.bwrite(sexprs, f)
 
     def is_mutable(self):
         return self.mutable
@@ -167,24 +158,34 @@ class _DirectorySubTree(object):
         node = self.root
         while remaining_path:
             name = remaining_path[0]
-            if name in node.node_children:
-                node = node.node_children[name]
-                assert isinstance(node, SubTreeNode)
+            try:
+                childnode = node.get(name)
+            except NoSuchChildError:
+                # The node *would* be in this subtree if it existed, but it
+                # doesn't. Leave found_path and remaining_path alone, and
+                # node points at the last parent node that was on the path.
+                break
+            if IDirectoryNode.providedBy(childnode):
+                # recurse
+                node = childnode
                 found_path.append(name)
                 remaining_path.pop(0)
                 continue
-            if name in node.child_specifications:
+            else:
                 # the path takes us out of this subtree and into another
-                next_subtree_spec = node.child_specifications[name]
-                node = to_node(next_subtree_spec)
+                node = childnode # next subtree node
                 found_path.append(name)
                 remaining_path.pop(0)
                 break
-            # The node *would* be in this subtree if it existed, but it
-            # doesn't. Leave found_path and remaining_path alone, and node
-            # points at the last parent node that was on the path.
-            break
         return (found_path, node, remaining_path)
+
+class CHKDirectorySubTreeNode(BaseURINode):
+    implements(ICHKDirectoryNode)
+    prefix = "CHKDirectory"
+
+    def get_uri(self):
+        return self.uri
+
 
 class CHKDirectorySubTree(_DirectorySubTree):
     # maybe mutable, maybe not
@@ -195,11 +196,11 @@ class CHKDirectorySubTree(_DirectorySubTree):
     def set_uri(self, uri):
         self.old_uri = uri
 
-    def populate_from_node(self, node, parent_is_mutable, downloader):
-        node = ICHKDirectoryNode(node)
+    def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
+        assert ICHKDirectoryNode(node)
         self.mutable = parent_is_mutable
         d = downloader.download(node.get_uri(), download.Data())
-        d.addCallback(self.populate_from_data)
+        d.addCallback(self.populate_from_data, node_maker)
         return d
 
     def update(self, prepath, work_queue):
@@ -219,6 +220,27 @@ class CHKDirectorySubTree(_DirectorySubTree):
         # this needs investigation.
         return boxname
 
+
+class SSKDirectorySubTreeNode(object):
+    implements(INode, ISSKDirectoryNode)
+    prefix = "SSKDirectory"
+
+    def is_directory(self):
+        return False
+    def serialize_node(self):
+        data = (self.read_cap, self.write_cap)
+        return "%s:%s" % (self.prefix, bencode.bencode(data))
+    def populate_node(self, data, node_maker):
+        assert data.startswith(self.prefix + ":")
+        capdata = data[len(self.prefix)+1:]
+        self.read_cap, self.write_cap = bencode.bdecode(capdata)
+
+    def get_read_capability(self):
+        return self.read_cap
+    def get_write_capability(self):
+        return self.write_cap
+
+
 class SSKDirectorySubTree(_DirectorySubTree):
 
     def new(self):
@@ -229,13 +251,13 @@ class SSKDirectorySubTree(_DirectorySubTree):
     def mutation_affects_parent(self):
         return False
 
-    def populate_from_node(self, node, parent_is_mutable, downloader):
+    def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
         node = ISSKDirectoryNode(node)
         self.read_capability = node.get_read_capability()
         self.write_capability = node.get_write_capability()
         self.mutable = bool(self.write_capability)
         d = downloader.download_ssk(self.read_capability, download.Data())
-        d.addCallback(self.populate_from_data)
+        d.addCallback(self.populate_from_data, node_maker)
         return d
 
     def set_version(self, version):

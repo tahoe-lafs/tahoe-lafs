@@ -6,12 +6,27 @@ class INode(Interface):
     other I*Node interfaces also implement this one."""
     def is_directory():
         """Return True if this node is an internal directory node."""
+    def serialize_node():
+        """Return a data structure which contains enough information to build
+        this node again in the future (by calling vdrive.make_node(). For
+        IDirectoryNodes, this will be a list. For all other nodes this will
+        be a string."""
+    def populate_node(data, node_maker):
+        """vdrive.make_node() will first use the prefix inside 'data' to
+        decide what kind of Node to create. It will then call this function
+        to populate the new Node from the data returned by serialize_node."""
 
 class IFileNode(Interface):
     """This is a file which can be retrieved."""
+    # TODO: not sure which of these to provide.. should URIs contain "CHK" or
+    # "SSK" in them? Or should that be a detail of IDownloader?
     def get_uri():
         """Return the URI of the target file. This URI can be passed
         to an IDownloader to retrieve the data."""
+    def download(downloader, target):
+        """Download the file to the given target (using the provided
+        downloader). Return a deferred that fires (with 'target') when the
+        download is complete."""
 
 class IDirectoryNode(Interface):
     """This is a directory which can be listed."""
@@ -50,27 +65,29 @@ class ISubTree(Interface):
     a DirectoryNode, or it might be a FileNode.
     """
 
-    def populate_from_specification(spec, parent_is_mutable, downloader):
-        """Given a specification tuple, arrange to populate this subtree by
-        pulling data from some source (possibly the mesh, or the queen, or an
-        HTTP server, or the local filesystem). Return a Deferred that will
-        fire (with self) when this subtree is ready for use (specifically
-        when it is ready for get() and add() calls).
-        """
+    def populate_from_node(node, parent_is_mutable, node_maker, downloader):
+        """Subtrees are created by opener.open() being called with an INode
+        which describes both the kind of subtree to be created and a way to
+        obtain its contents. open() uses the node to create a new instance of
+        the appropriate subtree type, then calls this populate_from_node()
+        method.
 
-    def populate_from_node(node, parent_is_mutable, downloader):
-        """Like populate_from_specification."""
+        Each subtree's populate_from_node() method is expected to use the
+        downloader to obtain a file with the subtree's serialized contents
+        (probably by pulling data from some source, like the mesh, the queen,
+        an HTTP server, or somewhere on the local filesystem), then
+        unserialize them and populate the subtree's state.
+
+        Return a Deferred that will fire (with self) when this subtree is
+        ready for use (specifically when it is ready for get() and add()
+        calls).
+        """
 
     def populate_from_data(data):
-        """Used internally by populate_from_specification. This is called
-        with a sequence of bytes that describes the contents of the subtree,
+        """Used internally by populate_from_node. This is called with a
+        sequence of bytes that describes the contents of the subtree,
         probably a bencoded tuple or s-expression. Returns self.
         """
-
-    def unserialize(serialized_data):
-        """Populate all nodes from serialized_data, previously created by
-        calling my serialize() method. 'serialized_data' is a series of
-        nested lists (s-expressions), probably recorded in bencoded form."""
 
     def is_mutable():
         """This returns True if we have the ability to modify this subtree.
@@ -109,6 +126,11 @@ class ISubTree(Interface):
 
         """
 
+    def serialize_subtree_to_file(f):
+        """Create a string which describes my structure and write it to the
+        given filehandle (using only .write()). This string should be
+        suitable for uploading to the mesh or storing in a local file."""
+
     def update(prepath, workqueue):
         """Perform and schedule whatever work is necessary to record this
         subtree to persistent storage and update the parent at 'prepath'
@@ -120,10 +142,6 @@ class ISubTree(Interface):
         subtree. The second instruction will possibly cause recursion, until
         some subtree is updated which does not require notifying the parent.
         """
-
-    def serialize():
-        """Return a series of nested lists which describe my structure
-        in a form that can be bencoded."""
 
 
 #class IMutableSubTree(Interface):
@@ -170,6 +188,16 @@ class IOpener(Interface):
 
 
 class IVirtualDrive(Interface):
+
+    def __init__(workqueue, downloader, root_node):
+        pass
+
+    # internal methods
+
+    def make_node(serialized):
+        """Given a string produced by original_node.serialize_node(), produce
+        an equivalent node.
+        """
 
     # commands to manipulate files
 
@@ -220,9 +248,13 @@ class IVirtualDrive(Interface):
 # TODO
 
 class ICHKDirectoryNode(Interface):
-    pass
+    def get_uri():
+        pass
 class ISSKDirectoryNode(Interface):
-    pass
+    def get_read_capability():
+        pass
+    def get_write_capability():
+        pass
 
 
 

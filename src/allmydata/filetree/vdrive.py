@@ -1,27 +1,37 @@
 
 from zope.interface import implements
-from allmydata.filetree import opener
-from allmydata.filetree.interfaces import (IVirtualDrive, ISubTree, IFileNode,
-                                           IDirectoryNode, NoSuchDirectoryError,
-                                           NoSuchChildError, PathAlreadyExistsError,
-                                           PathDoesNotExistError,
-                                           )
+from allmydata.filetree import opener, directory, redirect
+from allmydata.filetree.interfaces import (
+    IVirtualDrive, INode, ISubTree, IFileNode, IDirectoryNode,
+    NoSuchDirectoryError, NoSuchChildError, PathAlreadyExistsError,
+    PathDoesNotExistError,
+    )
 from allmydata.upload import IUploadable
+
+all_node_types = [
+    directory.CHKDirectorySubTreeNode,
+    directory.SSKDirectorySubTreeNode,
+    redirect.LocalFileRedirectionNode,
+    redirect.QueenRedirectionNode,
+    redirect.HTTPRedirectionNode,
+    redirect.QueenOrLocalFileRedirectionNode,
+]
 
 class VirtualDrive(object):
     implements(IVirtualDrive)
 
-    def __init__(self, workqueue, downloader, root_specification):
+    def __init__(self, workqueue, downloader, root_node):
+        assert INode(root_node)
         self.workqueue = workqueue
         workqueue.set_vdrive(self)
         # TODO: queen?
         self.opener = opener.Opener(self.queen, downloader)
-        self.root_specification = root_specification
+        self.root_node = root_node
 
     # these methods are used to walk through our subtrees
 
     def _get_root(self):
-        return self.opener.open(self.root_specification, False)
+        return self.opener.open(self.root_node, False)
 
     def _get_node(self, path):
         d = self._get_closest_node(path)
@@ -113,6 +123,25 @@ class VirtualDrive(object):
             return (prepath, node, remaining_path)
         d.addCallback(_got_closest)
         return d
+
+    # these are called when loading and creating nodes
+    def make_node(self, serialized):
+        # this turns a string into an INode, which contains information about
+        # the file or directory (like a URI), but does not contain the actual
+        # contents. An IOpener can be used later to retrieve the contents
+        # (which means downloading the file if this is an IFileNode, or
+        # perhaps creating a new subtree from the contents)
+
+        # maybe include parent_is_mutable?
+        assert isinstance(serialized, str)
+        colon = serialized.index(":")
+        prefix = serialized[:colon]
+        for node_class in all_node_types:
+            if prefix == node_class.prefix:
+                node = node_class()
+                node.populate_node(serialized, self.make_node)
+                return node
+        raise RuntimeError("unable to handle subtree type '%s'" % prefix)
 
     # these are called by the workqueue
 
