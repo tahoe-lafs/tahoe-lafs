@@ -44,7 +44,7 @@ class SubTreeNode:
 #        self.child_specifications = {}
 
     def list(self):
-        return sorted(self.children.keys())
+        return self.children
 
     def get(self, childname):
         if childname in self.children:

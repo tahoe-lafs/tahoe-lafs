@@ -335,10 +335,10 @@ class Stuff(unittest.TestCase):
         v = vdrive.VirtualDrive(wq, dl, root_node)
         return v
 
+    def failUnlessListsAreEqual(self, list1, list2):
+        self.failUnlessEqual(sorted(list1), sorted(list2))
+
     def testDirectory(self):
-        # TODO: we only need this VirtualDrive for the opener. Perhaps
-        # make_subtree_from_node should move out of that class and into a
-        # module-level function.
         stm = vdrive.SubTreeMaker(None, None)
 
         # create an empty directory (stored locally)
@@ -352,7 +352,7 @@ class Stuff(unittest.TestCase):
         self.failUnlessEqual(remaining_path, [])
         self.failUnless(INode.providedBy(root))
         self.failUnless(IDirectoryNode.providedBy(root))
-        self.failUnlessEqual(root.list(), [])
+        self.failUnlessListsAreEqual(root.list().keys(), [])
         self.failUnlessIdentical(root.get_subtree(), subtree)
 
         # now add some children to it
@@ -360,13 +360,14 @@ class Stuff(unittest.TestCase):
         file1 = CHKFileNode()
         file1.new("uri1")
         root.add("foo.txt", file1)
-        self.failUnlessEqual(root.list(), ["foo.txt", "subdir1"])
+        self.failUnlessListsAreEqual(root.list().keys(),
+                                     ["foo.txt", "subdir1"])
         self.failUnlessIdentical(root.get("foo.txt"), file1)
         subdir1a = root.get("subdir1")
         self.failUnlessIdentical(subdir1, subdir1a)
         del subdir1a
         self.failUnless(IDirectoryNode.providedBy(subdir1))
-        self.failUnlessEqual(subdir1.list(), [])
+        self.failUnlessListsAreEqual(subdir1.list().keys(), [])
         self.failUnlessIdentical(subdir1.get_subtree(), subtree)
 
         subdir2 = subdir1.add_subdir("subdir2")
@@ -374,7 +375,7 @@ class Stuff(unittest.TestCase):
         subdir4 = subdir2.add_subdir("subdir4")
 
         subdir2.delete("subdir4")
-        self.failUnlessEqual(subdir2.list(), ["subdir3"])
+        self.failUnlessListsAreEqual(subdir2.list().keys(), ["subdir3"])
 
         del root, subdir1, subdir2, subdir3, subdir4
         # leaving file1 for later use
@@ -409,7 +410,8 @@ class Stuff(unittest.TestCase):
             self.failUnlessEqual(remaining_path, [])
             self.failUnless(INode.providedBy(root))
             self.failUnless(IDirectoryNode.providedBy(root))
-            self.failUnlessEqual(root.list(), ["foo.txt", "subdir1"])
+            self.failUnlessListsAreEqual(root.list().keys(),
+                                         ["foo.txt", "subdir1"])
             file1a = root.get("foo.txt")
             self.failUnless(INode(file1a))
             self.failUnless(isinstance(file1a, CHKFileNode))
@@ -417,27 +419,23 @@ class Stuff(unittest.TestCase):
             self.failUnlessEqual(file1a.get_uri(), "uri1")
             subdir1 = root.get("subdir1")
             subdir2 = subdir1.get("subdir2")
-            self.failUnlessEqual(subdir2.list(), ["subdir3"])
+            self.failUnlessListsAreEqual(subdir2.list().keys(), ["subdir3"])
             subdir2.delete("subdir3")
-            self.failUnlessEqual(subdir2.list(), [])
+            self.failUnlessListsAreEqual(subdir2.list().keys(), [])
         d.addCallback(_opened)
         return d
 
     def testVdrive(self):
-        # create some stuff, see if we can import everything
+        topdir = directory.LocalFileSubTree().new("vdrive-dirtree.save")
+        topdir.update_now(None)
+        root = redirect.LocalFileRedirection().new("vdrive-root",
+                                                   topdir.create_node_now())
+        root.update_now(None)
+        wq = self.makeVirtualDrive("vdrive", root.create_node_now())
 
-        # create an empty directory (stored locally) as our root
-        root = directory.LocalFileSubTree()
-        root.new("dirtree.save")
+        d = wq.list([])
+        def _listed(contents):
+            self.failUnlessEqual(contents, {})
+        d.addCallback(_listed)
+        return d
 
-        # and a node to point to it
-        root_node = directory.LocalFileSubTreeNode()
-        root_node.new("dirtree.save")
-
-        v = self.makeVirtualDrive("test_filetree_new/testVdrive", root_node)
-
-    def start():
-        root_node = redirect.LocalFileRedirectionNode()
-#        root_node.new("handle", dirtree)
-        root = redirect.LocalFileRedirection()
-        # wow, bootstrapping is hard

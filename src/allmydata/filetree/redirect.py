@@ -30,7 +30,7 @@ class _BaseRedirection(object):
         return ([], self.child_node, path)
 
     def serialize_subtree_to_file(self, f):
-        return self.child_node.serialize_node()
+        f.write(self.child_node.serialize_node())
 
     def _populate_from_data(self, data, node_maker):
         assert INodeMaker(node_maker)

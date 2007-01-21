@@ -46,6 +46,8 @@ class NodeMaker(object):
                 return node
         raise RuntimeError("unable to handle node type '%s'" % prefix)
 
+
+
 all_openable_subtree_types = [
     directory.LocalFileSubTree,
     directory.CHKDirectorySubTree,
@@ -102,6 +104,7 @@ class SubTreeMaker(object):
         return subtree
 
 
+
 class VirtualDrive(object):
     implements(IVirtualDrive)
 
@@ -137,12 +140,8 @@ class VirtualDrive(object):
         return d
 
     def _get_closest_node_1(self, subtree, path):
-        d = subtree.get_node_for_path(path)
-        d.addCallback(self._get_closest_node_2, subtree.is_mutable())
-        return d
-
-    def _get_closest_node_2(self, res, parent_is_mutable):
-        (found_path, node, remaining_path) = res
+        (found_path, node, remaining_path) = subtree.get_node_for_path(path)
+        parent_is_mutable = subtree.is_mutable()
         if IDirectoryNode.providedBy(node):
             # traversal done
             return (node, remaining_path)
