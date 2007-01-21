@@ -20,6 +20,9 @@ class CHKFileNode(BaseDataNode):
     def get_uri(self):
         return self.uri
 
+    def is_leaf_subtree(self):
+        return True
+
 class SSKFileNode(object):
     implements(INode, IFileNode)
     prefix = "SSKFile"
@@ -36,4 +39,7 @@ class SSKFileNode(object):
         return self.read_cap
     def get_write_capability(self):
         return self.write_cap
+
+    def is_leaf_subtree(self):
+        return True
 

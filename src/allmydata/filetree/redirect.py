@@ -19,6 +19,9 @@ class LocalFileRedirectionNode(BaseDataNode):
     def set_base_data(self, data):
         self.handle = data
 
+    def is_leaf_subtree(self):
+        return False
+
 class _BaseRedirection(object):
     implements(ISubTree)
 
@@ -230,6 +233,9 @@ class HTTPRedirectionNode(BaseDataNode):
         return self.url
     def set_base_data(self, data):
         self.url = data
+
+    def is_leaf_subtree(self):
+        return False
 
 class HTTPRedirection(_BaseRedirection):
     node_class = HTTPRedirectionNode

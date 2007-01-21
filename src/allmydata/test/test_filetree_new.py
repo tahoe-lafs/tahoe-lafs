@@ -469,8 +469,8 @@ class Stuff(unittest.TestCase):
                                             {"c": child2, "d": child3})
         d.addCallback(_listed4)
 
-        #d.addCallback(lambda res: v._get_file_uri(["b","c"]))
-        #d.addCallback(self.failUnlessEqual, "uri2")
+        d.addCallback(lambda res: v._get_file_uri(["b","c"]))
+        d.addCallback(self.failUnlessEqual, "uri2")
 
         d.addCallback(lambda res: v.list(["bogus"]))
         def _listed_bogus(res):

@@ -106,7 +106,7 @@ class VirtualDrive(object):
     def _get_closest_node_1(self, subtree, path):
         (found_path, node, remaining_path) = subtree.get_node_for_path(path)
         parent_is_mutable = subtree.is_mutable()
-        if IDirectoryNode.providedBy(node):
+        if IDirectoryNode.providedBy(node) or node.is_leaf_subtree():
             # traversal done
             return (node, remaining_path)
         # otherwise, we must open and recurse into a new subtree

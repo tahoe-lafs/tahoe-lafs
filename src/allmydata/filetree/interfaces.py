@@ -23,6 +23,27 @@ class INode(Interface):
         provides that same make_node_from_serialized function to create any
         internal child nodes that might be necessary."""
 
+    def is_leaf_subtree():
+        """Return True if this node does not refer to a traversable
+        subtree. When searching for the node that describes a path, the
+        search will stop at the first leaf node found. IFileNodes should
+        return True here.
+        """
+# TODO: there is a slightly confusing mixture of IDirectoryNodes and all
+# other kinds of nodes. It is convenient to mix them because that way list()
+# can point at nodes of all sorts, but IDirectoryNodes are very different
+# than the rest (because they to not represent distinct subtrees). There
+# might be a better way to factor this.
+
+# TODO: 'node' is a problematic term here. It refers to nodes in the graph of
+# connected subtrees. It also refers to nodes in the graph of directories and
+# links within a single subtree. And the interface named INode is
+# unfortunately a homonym with "inode", the data structure we previously used
+# to represent information about an uploaded file which was too large to keep
+# locally (the list of blockids), which meant the inode itself was uploaded.
+# We no longer use inodes, but using a word that sounds just like it may
+# cause confusion.
+
 class IFileNode(Interface):
     """This is a file which can be retrieved."""
     # TODO: not sure which of these to provide.. should URIs contain "CHK" or

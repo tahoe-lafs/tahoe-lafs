@@ -104,6 +104,8 @@ class SubTreeNode:
                 child = node_maker.make_node_from_serialized(child_data)
             self.children[name] = child
 
+    def is_leaf_subtree(self):
+        return False
 
 
 class _DirectorySubTree(object):
@@ -190,6 +192,9 @@ class LocalFileSubTreeNode(BaseDataNode):
     def set_base_data(self, data):
         self.filename = data
 
+    def is_leaf_subtree(self):
+        return False
+
 class LocalFileSubTree(_DirectorySubTree):
     node_class = LocalFileSubTreeNode
 
@@ -237,6 +242,9 @@ class CHKDirectorySubTreeNode(BaseDataNode):
 
     def get_uri(self):
         return self.uri
+
+    def is_leaf_subtree(self):
+        return False
 
 
 class CHKDirectorySubTree(_DirectorySubTree):
@@ -305,6 +313,9 @@ class SSKDirectorySubTreeNode(object):
         self.read_cap = read_cap
     def set_write_capability(self, write_cap):
         self.write_cap = write_cap
+
+    def is_leaf_subtree(self):
+        return False
 
 
 class SSKDirectorySubTree(_DirectorySubTree):
