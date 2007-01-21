@@ -316,7 +316,8 @@ import os.path
 from twisted.python.failure import Failure
 from allmydata.filetree import directory, redirect, vdrive
 from allmydata.filetree.interfaces import (ISubTree, INode, IDirectoryNode,
-                                           IFileNode, NoSuchDirectoryError)
+                                           IFileNode, NoSuchDirectoryError,
+                                           NoSuchChildError)
 from allmydata.filetree.file import CHKFileNode
 from allmydata.util import bencode
 
@@ -432,6 +433,13 @@ class Stuff(unittest.TestCase):
         d.addCallback(_opened)
         return d
 
+    def shouldFail(self, res, expected_failure, which):
+        if isinstance(res, Failure):
+            res.trap(expected_failure)
+        else:
+            self.fail("%s was supposed to raise %s, not get '%s'" %
+                      (which, expected_failure, res))
+
     def testVdrive(self):
         topdir = directory.LocalFileSubTree().new("vdrive-dirtree.save")
         topdir.update_now(None)
@@ -473,12 +481,10 @@ class Stuff(unittest.TestCase):
         d.addCallback(self.failUnlessEqual, "uri2")
 
         d.addCallback(lambda res: v.list(["bogus"]))
-        def _listed_bogus(res):
-            if isinstance(res, Failure):
-                res.trap(NoSuchDirectoryError)
-            else:
-                self.fail("list(bogus) was supposed to fail")
-        d.addBoth(_listed_bogus)
+        d.addBoth(self.shouldFail, NoSuchDirectoryError, "list(bogus)")
+
+        d.addCallback(lambda res: v._get_file_uri(["b", "bogus"]))
+        d.addBoth(self.shouldFail, NoSuchChildError, "_get_file_uri(b/bogus)")
 
         return d
 
