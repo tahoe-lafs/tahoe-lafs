@@ -339,7 +339,7 @@ class Stuff(unittest.TestCase):
         # TODO: we only need this VirtualDrive for the opener. Perhaps
         # make_subtree_from_node should move out of that class and into a
         # module-level function.
-        v = self.makeVirtualDrive("test_filetree_new/testDirectory")
+        stm = vdrive.SubTreeMaker(None, None)
 
         # create an empty directory (stored locally)
         subtree = directory.LocalFileSubTree()
@@ -399,7 +399,7 @@ class Stuff(unittest.TestCase):
         d = defer.maybeDeferred(subtree.update_now, None)
         def _updated(node):
             # now reconstruct it
-            return v.make_subtree_from_node(node, False)
+            return stm.make_subtree_from_node(node, False)
         d.addCallback(_updated)
 
         def _opened(new_subtree):

@@ -11,17 +11,17 @@ class INode(Interface):
     def serialize_node():
         """Return a data structure which contains enough information to build
         this node again in the future (by calling
-        vdrive.make_node_from_serialized(). For IDirectoryNodes, this will be
-        a list. For all other nodes this will be a string of the form
+        INodeMaker.make_node_from_serialized(). For IDirectoryNodes, this
+        will be a list. For all other nodes this will be a string of the form
         'prefix:body', where 'prefix' must be the same as the class attribute
         .prefix ."""
     def populate_node(body, node_maker):
-        """vdrive.make_node_from_serialized() will first use the prefix from
-        the .prefix attribute to decide what kind of Node to create. They
-        will then call this populate_node() method with the body to populate
-        the new Node. 'node_maker' provides INodeMaker, which provides that
-        same make_node_from_serialized function to create any internal child
-        nodes that might be necessary."""
+        """INodeMaker.make_node_from_serialized() will first use the prefix
+        from the .prefix attribute to decide what kind of Node to create.
+        They will then call this populate_node() method with the body to
+        populate the new Node. 'node_maker' provides INodeMaker, which
+        provides that same make_node_from_serialized function to create any
+        internal child nodes that might be necessary."""
 
 class IFileNode(Interface):
     """This is a file which can be retrieved."""
@@ -74,14 +74,14 @@ class ISubTree(Interface):
 
     # All ISubTree-providing instances must have a class-level attribute
     # named .node_class which references the matching INode-providing class.
-    # This is used by the Opener to turn nodes into subtrees.
+    # This is used by the ISubTreeMaker to turn nodes into subtrees.
 
     def populate_from_node(node, parent_is_mutable, node_maker, downloader):
-        """Subtrees are created by opener.open() being called with an INode
-        which describes both the kind of subtree to be created and a way to
-        obtain its contents. open() uses the node to create a new instance of
-        the appropriate subtree type, then calls this populate_from_node()
-        method.
+        """Subtrees are created by ISubTreeMaker.open() being called with an
+        INode which describes both the kind of subtree to be created and a
+        way to obtain its contents. open() uses the node to create a new
+        instance of the appropriate subtree type, then calls this
+        populate_from_node() method.
 
         Each subtree's populate_from_node() method is expected to use the
         downloader to obtain a file with the subtree's serialized contents
@@ -195,79 +195,28 @@ class ISubTree(Interface):
 
 class INodeMaker(Interface):
     def make_node_from_serialized(serialized):
-        """Turn a string into an INode, which contains information about
-        the file or directory (like a URI), but does not contain the actual
-        contents. An IOpener can be used later to retrieve the contents
-        (which means downloading the file if this is an IFileNode, or
-        perhaps creating a new subtree from the contents)."""
+        """Turn a string into an INode, which contains information about the
+        file or directory (like a URI), but does not contain the actual
+        contents. An ISubTreeMaker can be used later to retrieve the contents
+        (which means downloading the file if this is an IFileNode, or perhaps
+        creating a new subtree from the contents)."""
 
 class ISubTreeMaker(Interface):
     def make_subtree_from_node(node, parent_is_mutable):
-        """Turn an INode into an ISubTree (using an internal opener to
-        download the data, if necessary).
-        This returns a Deferred that fires with the ISubTree instance.
+        """Turn an INode into an ISubTree.
+
+        I accept an INode-providing specification of a subtree, and return a
+        Deferred that fires with an ISubTree-providing instance. I will
+        perform network IO and download the serialized data that the INode
+        references, if necessary, or ask the queen (or other provider) for a
+        pointer, or read it from local disk.
         """
-
-#class IMutableSubTree(Interface):
-#    def mutation_affects_parent():
-#        """This returns True for CHK nodes where you must inform the parent
-#        of the new URI each time you change the child subtree. It returns
-#        False for SSK nodes (or other nodes which have a pointer stored in
-#        some mutable form).
-#        """
-#
-#    def add_subpath(subpath, child_spec, work_queue):
-#        """Ask this subtree to add the given child to an internal node at the
-#        given subpath. The subpath must not exit the subtree through another
-#        subtree (specifically get_subtree_for_path(subpath) must either
-#        return None or (True,node), and in the latter case, this subtree will
-#        create new internal nodes as necessary).
-#
-#        The subtree will probably serialize itself to a file and add steps to
-#        the work queue to accomplish its goals.
-#
-#        This returns a Deferred (the value of which is ignored) when
-#        everything has been added to the work queue.
-#        """
-#
-#    def serialize_to_file(f):
-#        """Write a bencoded data structure to the given filehandle that can
-#        be used to reproduce the contents of this subtree."""
-#
-#class ISubTreeSpecification(Interface):
-#    def serialize():
-#        """Return a tuple that describes this subtree. This tuple can be
-#        passed to IOpener.open() to reconstitute the subtree. It can also be
-#        bencoded and stuffed in a series of persistent bytes somewhere on the
-#        mesh or in a file."""
-
-class IOpener(Interface):
-    def open(subtree_node, parent_is_mutable, node_maker):
-        """I can take an INode-providing specification of a subtree and
-        return a Deferred which fires with an instance that provides ISubTree
-        (and maybe even IMutableSubTree). I probably do this by performing
-        network IO: reading a file from the mesh, or from local disk, or
-        asking some central-service node for the current value."""
 
 
 class IVirtualDrive(Interface):
 
     def __init__(workqueue, downloader, root_node):
         pass
-
-    # internal methods
-
-    def make_node_from_serialized(serialized):
-        """Given a string produced by original_node.serialize_node(), produce
-        an equivalent node.
-        """
-    def make_subtree_from_node(node, parent_is_mutable):
-        """Given an INode, create an ISubTree.
-
-        This returns a Deferred that fires (with the new subtree) when the
-        subtree is ready for use. This uses an IOpener to download the
-        subtree data, if necessary.
-        """
 
     # commands to manipulate files
 

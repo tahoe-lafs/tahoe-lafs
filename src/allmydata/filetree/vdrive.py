@@ -1,16 +1,18 @@
 
 from zope.interface import implements
-from allmydata.filetree import opener, directory, file, redirect
+from twisted.internet import defer
+from allmydata.filetree import directory, file, redirect
 from allmydata.filetree.interfaces import (
-    IVirtualDrive, INodeMaker, INode, ISubTree, IFileNode, IDirectoryNode,
+    IVirtualDrive, ISubTreeMaker,
+    INodeMaker, INode, ISubTree, IFileNode, IDirectoryNode,
     NoSuchDirectoryError, NoSuchChildError, PathAlreadyExistsError,
     PathDoesNotExistError,
     )
 from allmydata.upload import IUploadable
 
-# this list is used by VirtualDrive.make_node_from_serialized() to convert
-# node specification strings (found inside the serialized form of subtrees)
-# into Nodes (which live in the in-RAM form of subtrees).
+# this list is used by NodeMaker to convert node specification strings (found
+# inside the serialized form of subtrees) into Nodes (which live in the
+# in-RAM form of subtrees).
 all_node_types = [
     directory.LocalFileSubTreeNode,
     directory.CHKDirectorySubTreeNode,
@@ -23,27 +25,15 @@ all_node_types = [
     redirect.QueenOrLocalFileRedirectionNode,
 ]
 
-class VirtualDrive(object):
-    implements(IVirtualDrive, INodeMaker)
+class NodeMaker(object):
+    implements(INodeMaker)
 
-    def __init__(self, workqueue, downloader, root_node):
-        assert INode(root_node)
-        self.workqueue = workqueue
-        workqueue.set_vdrive(self)
-        # TODO: queen?
-        self.queen = None
-        self.opener = opener.Opener(self.queen, downloader)
-        self.root_node = root_node
-
-    # these are called when loading and creating nodes
-
-    # INodeMaker
     def make_node_from_serialized(self, serialized):
         # this turns a string into an INode, which contains information about
         # the file or directory (like a URI), but does not contain the actual
-        # contents. An IOpener can be used later to retrieve the contents
-        # (which means downloading the file if this is an IFileNode, or
-        # perhaps creating a new subtree from the contents)
+        # contents. An ISubTreeMaker can be used later to retrieve the
+        # contents (which means downloading the file if this is an IFileNode,
+        # or perhaps creating a new subtree from the contents)
 
         # maybe include parent_is_mutable?
         assert isinstance(serialized, str)
@@ -56,15 +46,78 @@ class VirtualDrive(object):
                 return node
         raise RuntimeError("unable to handle node type '%s'" % prefix)
 
-    # ISubTreeMaker
+all_openable_subtree_types = [
+    directory.LocalFileSubTree,
+    directory.CHKDirectorySubTree,
+    directory.SSKDirectorySubTree,
+    redirect.LocalFileRedirection,
+    redirect.QueenRedirection,
+    redirect.QueenOrLocalFileRedirection,
+    redirect.HTTPRedirection,
+    ]
+
+class SubTreeMaker(object):
+    implements(ISubTreeMaker)
+
+    def __init__(self, queen, downloader):
+        # this is created with everything it might need to download and
+        # create subtrees. That means a Downloader and a reference to the
+        # queen.
+        self._queen = queen
+        self._downloader = downloader
+        self._node_maker = NodeMaker()
+        self._cache = {}
+
+    def _create(self, node, parent_is_mutable):
+        assert INode(node)
+        assert INodeMaker(self._node_maker)
+        for subtree_class in all_openable_subtree_types:
+            if isinstance(node, subtree_class.node_class):
+                subtree = subtree_class()
+                d = subtree.populate_from_node(node,
+                                               parent_is_mutable,
+                                               self._node_maker,
+                                               self._downloader)
+                return d
+        raise RuntimeError("unable to handle subtree specification '%s'"
+                           % (node,))
+
     def make_subtree_from_node(self, node, parent_is_mutable):
         assert INode(node)
-        return self.opener.open(node, parent_is_mutable, self)
+        assert not isinstance(node, IDirectoryNode)
+
+        # is it in cache? To check this we need to use the node's serialized
+        # form, since nodes are instances and don't compare by value
+        node_s = node.serialize_node()
+        if node_s in self._cache:
+            return defer.succeed(self._cache[node_s])
+
+        d = defer.maybeDeferred(self._create, node, parent_is_mutable)
+        d.addCallback(self._add_to_cache, node_s)
+        return d
+
+    def _add_to_cache(self, subtree, node_s):
+        self._cache[node_s] = subtree
+        # TODO: remove things from the cache eventually
+        return subtree
+
+
+class VirtualDrive(object):
+    implements(IVirtualDrive)
+
+    def __init__(self, workqueue, downloader, root_node):
+        assert INode(root_node)
+        self.workqueue = workqueue
+        workqueue.set_vdrive(self)
+        # TODO: queen?
+        self.queen = None
+        self.root_node = root_node
+        self.subtree_maker = SubTreeMaker(self.queen, downloader)
 
     # these methods are used to walk through our subtrees
 
     def _get_root(self):
-        return self.make_subtree_from_node(self.root_node, False)
+        return self.subtree_maker.make_subtree_from_node(self.root_node, False)
 
     def _get_node(self, path):
         d = self._get_closest_node(path)
@@ -94,7 +147,7 @@ class VirtualDrive(object):
             # traversal done
             return (node, remaining_path)
         # otherwise, we must open and recurse into a new subtree
-        d = self.make_subtree_from_node(node, parent_is_mutable)
+        d = self.subtree_maker.make_subtree_from_node(node, parent_is_mutable)
         def _opened(next_subtree):
             next_subtree = ISubTree(next_subtree)
             return self._get_closest_node_1(next_subtree, remaining_path)
