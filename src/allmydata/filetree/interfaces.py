@@ -230,6 +230,9 @@ class IVirtualDrive(Interface):
         Interfaces: either IDirectoryNode if path+[childname] can be used in
         a 'list' method, or IFileNode if path+[childname] can be used in a
         'download' method.
+
+        The Deferred will errback (with NoSuchDirectoryError) if the path
+        does not point to an actual directory.
         """
 
     def download(path, target):

@@ -313,8 +313,10 @@ class Redirect(unittest.TestCase):
 """
 
 import os.path
+from twisted.python.failure import Failure
 from allmydata.filetree import directory, redirect, vdrive
-from allmydata.filetree.interfaces import (ISubTree, INode, IDirectoryNode, IFileNode)
+from allmydata.filetree.interfaces import (ISubTree, INode, IDirectoryNode,
+                                           IFileNode, NoSuchDirectoryError)
 from allmydata.filetree.file import CHKFileNode
 from allmydata.util import bencode
 
@@ -466,6 +468,17 @@ class Stuff(unittest.TestCase):
             self.failUnlessContentsAreEqual(contents,
                                             {"c": child2, "d": child3})
         d.addCallback(_listed4)
+
+        #d.addCallback(lambda res: v._get_file_uri(["b","c"]))
+        #d.addCallback(self.failUnlessEqual, "uri2")
+
+        d.addCallback(lambda res: v.list(["bogus"]))
+        def _listed_bogus(res):
+            if isinstance(res, Failure):
+                res.trap(NoSuchDirectoryError)
+            else:
+                self.fail("list(bogus) was supposed to fail")
+        d.addBoth(_listed_bogus)
 
         return d
 
