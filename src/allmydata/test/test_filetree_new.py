@@ -332,22 +332,44 @@ class InPairs(unittest.TestCase):
         pairs = list(directory.in_pairs(l))
         self.failUnlessEqual(pairs, [(0,1), (2,3), (4,5), (6,7)])
 
-class StubDownloader(object):
-    implements(IDownloader)
+class FakeMesh(object):
+    implements(IDownloader, IUploader)
 
-class StubUploader(object):
-    implements(IUploader)
+    def __init__(self):
+        self.files = {}
+    def upload_filename(self, filename):
+        uri = "stub-uri-%d" % len(self.files)
+        data = open(filename,"r").read()
+        self.files[uri] = data
+        return defer.succeed(uri)
+    def download(self, uri, target):
+        target.open()
+        target.write(self.files[uri])
+        target.close()
+        return defer.maybeDeferred(target.finish)
 
-class Stuff(unittest.TestCase):
+
+class VDrive(unittest.TestCase):
 
     def makeVirtualDrive(self, basedir, root_node=None):
         wq = workqueue.WorkQueue(os.path.join(basedir, "1.workqueue"))
-        dl = StubDownloader()
-        ul = StubUploader()
+        dl = ul = FakeMesh()
         if not root_node:
             root_node = directory.LocalFileSubTreeNode()
             root_node.new("rootdirtree.save")
         v = vdrive.VirtualDrive(wq, dl, ul, root_node)
+        return v
+
+    def makeLocalTree(self, basename):
+        # create a LocalFileRedirection pointing at a LocalFileSubTree.
+        # Returns a VirtualDrive instance.
+        topdir = directory.LocalFileSubTree().new("%s-dirtree.save" % basename)
+        topdir.update_now(None)
+        root = redirect.LocalFileRedirection().new("%s-root" % basename,
+                                                   topdir.create_node_now())
+        root.update_now(None)
+        v = self.makeVirtualDrive("%s-vdrive" % basename,
+                                  root.create_node_now())
         return v
 
     def failUnlessListsAreEqual(self, list1, list2):
@@ -359,7 +381,7 @@ class Stuff(unittest.TestCase):
         self.failUnlessEqual(c1a, c2a)
 
     def testDirectory(self):
-        stm = vdrive.SubTreeMaker(None, StubDownloader())
+        stm = vdrive.SubTreeMaker(None, FakeMesh())
 
         # create an empty directory (stored locally)
         subtree = directory.LocalFileSubTree()
@@ -453,12 +475,7 @@ class Stuff(unittest.TestCase):
                       (which, expected_failure, res))
 
     def testVdrive(self):
-        topdir = directory.LocalFileSubTree().new("vdrive-dirtree.save")
-        topdir.update_now(None)
-        root = redirect.LocalFileRedirection().new("vdrive-root",
-                                                   topdir.create_node_now())
-        root.update_now(None)
-        v = self.makeVirtualDrive("vdrive", root.create_node_now())
+        v = self.makeLocalTree("vdrive")
 
         d = v.list([])
         def _listed(contents):
@@ -497,6 +514,34 @@ class Stuff(unittest.TestCase):
 
         d.addCallback(lambda res: v._get_file_uri(["b", "bogus"]))
         d.addBoth(self.shouldFail, NoSuchChildError, "_get_file_uri(b/bogus)")
+
+        return d
+
+    def testUpload(self):
+        v = self.makeLocalTree("upload")
+        filename = "upload1"
+        DATA = "here is some data\n"
+        f = open(filename, "w")
+        f.write(DATA)
+        f.close()
+
+        rc = v.upload_later(["a","b","upload1"], filename)
+        self.failUnlessIdentical(rc, None)
+
+        d = v.workqueue.flush()
+
+        d.addCallback(lambda res: v.list([]))
+        d.addCallback(lambda contents:
+                      self.failUnlessListsAreEqual(contents.keys(), ["a"]))
+        d.addCallback(lambda res: v.list(["a"]))
+        d.addCallback(lambda contents:
+                      self.failUnlessListsAreEqual(contents.keys(), ["b"]))
+        d.addCallback(lambda res: v.list(["a","b"]))
+        d.addCallback(lambda contents:
+                      self.failUnlessListsAreEqual(contents.keys(),
+                                                   ["upload1"]))
+        d.addCallback(lambda res: v.download_as_data(["a","b","upload1"]))
+        d.addCallback(self.failUnlessEqual, DATA)
 
         return d
 

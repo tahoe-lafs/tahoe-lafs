@@ -1,4 +1,5 @@
 
+import os.path
 from zope.interface import implements
 from twisted.internet import defer
 from allmydata.filetree import directory, file, redirect
@@ -82,6 +83,7 @@ class VirtualDrive(object):
         self.workqueue = workqueue
         workqueue.set_vdrive(self)
         workqueue.set_uploader(uploader)
+        self._downloader = downloader
         # TODO: queen?
         self.queen = None
         self.root_node = root_node
@@ -225,10 +227,20 @@ class VirtualDrive(object):
         return d
 
     def download(self, path, target):
+        # TODO: does this mean download it right now? or schedule it in the
+        # workqueue for eventual download? should we add download steps to
+        # the workqueue?
         assert isinstance(path, list)
         d = self._get_file_uri(path)
-        d.addCallback(lambda uri: self.downloader.download(uri, target))
+        d.addCallback(lambda uri: self._downloader.download(uri, target))
         return d
+
+    def download_as_data(self, path):
+        # TODO: this is kind of goofy.. think of a better download API that
+        # is appropriate for this class
+        from allmydata import download
+        target = download.Data()
+        return self.download(path, target)
 
     def upload_now(self, path, uploadable):
         assert isinstance(path, list)
@@ -251,6 +263,7 @@ class VirtualDrive(object):
 
     def upload_later(self, path, filename):
         assert isinstance(path, list)
+        filename = os.path.abspath(filename)
         boxname = self.workqueue.create_boxname()
         self.workqueue.add_upload_chk(filename, boxname)
         self.workqueue.add_addpath(boxname, path)

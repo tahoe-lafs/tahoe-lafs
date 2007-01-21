@@ -1,12 +1,13 @@
 
 import os, shutil, sha
-from zope.interface import Interface, implements
+from zope.interface import implements
 from twisted.internet import defer
 from allmydata.util import bencode
 from allmydata.util.idlib import b2a
 from allmydata.Crypto.Cipher import AES
 from allmydata.filetree.nodemaker import NodeMaker
 from allmydata.filetree.interfaces import INode
+from allmydata.filetree.file import CHKFileNode
 from allmydata.interfaces import IWorkQueue, NotCapableError, IUploader
 
 
@@ -101,20 +102,21 @@ class WorkQueue(object):
     def create_boxname(self, contents=None):
         boxname = b2a(os.urandom(10))
         if contents is not None:
-            assert INode(contents)
-            self.write_to_box(boxname, contents.serialize_node())
+            self.write_to_box(boxname, contents)
         return boxname
-    def write_to_box(self, boxname, data):
+    def write_to_box(self, boxname, contents):
+        assert INode(contents)
         f = open(os.path.join(self.boxesdir, boxname), "w")
-        f.write(data)
+        f.write(contents.serialize_node())
         f.flush()
         os.fsync(f)
         f.close()
     def read_from_box(self, boxname):
         f = open(os.path.join(self.boxesdir, boxname), "r")
         data = f.read()
+        node = self._node_maker.make_node_from_serialized(data)
         f.close()
-        return data
+        return node
 
     def _create_step(self, end, lines):
         assert end in ("first", "last")
@@ -139,8 +141,10 @@ class WorkQueue(object):
 
     # methods to add entries to the queue
     def add_upload_chk(self, source_filename, stash_uri_in_boxname):
-        # source_filename is absolute, and can point to things outside our
-        # workqueue.
+        # If source_filename is absolute, it will point to something outside
+        # of our workqueue (this is how user files are uploaded). If it is
+        # relative, it points to something inside self.filesdir (this is how
+        # serialized directories and tempfiles are uploaded)
         lines = ["upload_chk", source_filename, stash_uri_in_boxname]
         self._create_step_first(lines)
 
@@ -277,15 +281,25 @@ class WorkQueue(object):
     # dispatch method here and an add_ method above.
 
 
-    def step_upload_chk(self, source_filename, index_a, write_key_a):
-        pass
+    def step_upload_chk(self, source_filename, stash_uri_in_boxname):
+        # we use relative filenames for tempfiles created by
+        # workqueue.create_tempfile, and absolute filenames for everything
+        # that comes from the vdrive. That means using os.path.abspath() on
+        # user files in VirtualDrive methods.
+        filename = os.path.join(self.filesdir, source_filename)
+        d = self._uploader.upload_filename(filename)
+        def _uploaded(uri):
+            node = CHKFileNode().new(uri)
+            self.write_to_box(stash_uri_in_boxname, node)
+        d.addCallback(_uploaded)
+        return d
+
     def step_upload_ssk(self, source_filename, index_a, write_key_a, prev_ver):
         pass
 
     def step_addpath(self, boxname, *path):
         path = list(path)
-        data = self.read_from_box(boxname)
-        child_node = self._node_maker.make_node_from_serialized(data)
+        child_node = self.read_from_box(boxname)
         return self.vdrive.add(path, child_node)
 
     def step_retain_ssk(self, index_a, read_key_a):

@@ -276,6 +276,9 @@ class IWorkQueue(Interface):
         mode). This URI includes unlink rights. It does not mark the file for
         retention.
 
+        Non-absolute filenames are interpreted relative to the workqueue's
+        special just-for-tempfiles directory.
+
         When the upload is complete, the resulting URI is stashed in a 'box'
         with the specified name. This is basically a local variable. A later
         'add_subpath' step will reference this boxname and retrieve the URI.

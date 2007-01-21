@@ -4,6 +4,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from allmydata import workqueue
 from allmydata.util import idlib
+from allmydata.filetree.file import CHKFileNode
 
 class FakeWorkQueue(workqueue.WorkQueue):
 
@@ -65,8 +66,10 @@ class Items(unittest.TestCase):
     def testBox(self):
         wq = self.wq("testBox")
         boxname = wq.create_boxname()
-        wq.write_to_box(boxname, "contents of box")
-        self.failUnlessEqual(wq.read_from_box(boxname), "contents of box")
+        wq.write_to_box(boxname, CHKFileNode().new("uri goes here"))
+        out = wq.read_from_box(boxname)
+        self.failUnless(isinstance(out, CHKFileNode))
+        self.failUnlessEqual(out.get_uri(), "uri goes here")
 
     def testCHK(self):
         wq = self.wq("testCHK")
@@ -149,7 +152,7 @@ class Items(unittest.TestCase):
         self.failUnless(os.path.exists(tmpfilename))
         # likewise this unreferenced box should get deleted
         boxname = wq.create_boxname()
-        wq.write_to_box(boxname, "contents of box")
+        wq.write_to_box(boxname, CHKFileNode().new("uri here"))
         boxfile = os.path.join(wq.boxesdir, boxname)
         self.failUnless(os.path.exists(boxfile))
 
