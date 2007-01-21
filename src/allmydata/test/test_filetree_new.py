@@ -338,6 +338,11 @@ class Stuff(unittest.TestCase):
     def failUnlessListsAreEqual(self, list1, list2):
         self.failUnlessEqual(sorted(list1), sorted(list2))
 
+    def failUnlessContentsAreEqual(self, c1, c2):
+        c1a = dict([(k,v.serialize_node()) for k,v in c1.items()])
+        c2a = dict([(k,v.serialize_node()) for k,v in c2.items()])
+        self.failUnlessEqual(c1a, c2a)
+
     def testDirectory(self):
         stm = vdrive.SubTreeMaker(None, None)
 
@@ -431,11 +436,36 @@ class Stuff(unittest.TestCase):
         root = redirect.LocalFileRedirection().new("vdrive-root",
                                                    topdir.create_node_now())
         root.update_now(None)
-        wq = self.makeVirtualDrive("vdrive", root.create_node_now())
+        v = self.makeVirtualDrive("vdrive", root.create_node_now())
 
-        d = wq.list([])
+        d = v.list([])
         def _listed(contents):
             self.failUnlessEqual(contents, {})
         d.addCallback(_listed)
+
+        child1 = CHKFileNode().new("uri1")
+        d.addCallback(lambda res: v.add_node(["a"], child1))
+        d.addCallback(lambda res: v.workqueue.flush())
+        d.addCallback(lambda res: v.list([]))
+        def _listed2(contents):
+            self.failUnlessListsAreEqual(contents.keys(), ["a"])
+            self.failUnlessContentsAreEqual(contents, {"a": child1})
+        d.addCallback(_listed2)
+        child2 = CHKFileNode().new("uri2")
+        child3 = CHKFileNode().new("uri3")
+        d.addCallback(lambda res: v.add_node(["b","c"], child2))
+        d.addCallback(lambda res: v.add_node(["b","d"], child3))
+        d.addCallback(lambda res: v.workqueue.flush())
+        d.addCallback(lambda res: v.list([]))
+        def _listed3(contents):
+            self.failUnlessListsAreEqual(contents.keys(), ["a","b"])
+        d.addCallback(_listed3)
+        d.addCallback(lambda res: v.list(["b"]))
+        def _listed4(contents):
+            self.failUnlessListsAreEqual(contents.keys(), ["c","d"])
+            self.failUnlessContentsAreEqual(contents,
+                                            {"c": child2, "d": child3})
+        d.addCallback(_listed4)
+
         return d
 

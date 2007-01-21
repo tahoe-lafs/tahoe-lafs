@@ -245,11 +245,11 @@ class IVirtualDrive(Interface):
 
         path[:-1] must refer to a writable DIRECTORY node. 'uploadable' must
         implement IUploadable. This returns a Deferred that fires (with
-        'uploadable') when the upload is complete.
+        'uploadable') when the upload is complete. Do not use the workqueue.
         """
 
     def upload_later(path, filename):
-        """Upload a file from disk to the given path.
+        """Upload a file from disk to the given path. Use the workqueue.
         """
 
     def delete(path):
@@ -257,6 +257,10 @@ class IVirtualDrive(Interface):
 
         Returns a Deferred that fires (with self) when the delete is
         complete.
+        """
+
+    def add_node(path, node):
+        """Add a node to the given path. Use the workqueue.
         """
 
     # commands to manipulate subtrees

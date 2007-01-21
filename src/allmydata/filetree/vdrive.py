@@ -10,43 +10,7 @@ from allmydata.filetree.interfaces import (
     )
 from allmydata.upload import IUploadable
 
-# this list is used by NodeMaker to convert node specification strings (found
-# inside the serialized form of subtrees) into Nodes (which live in the
-# in-RAM form of subtrees).
-all_node_types = [
-    directory.LocalFileSubTreeNode,
-    directory.CHKDirectorySubTreeNode,
-    directory.SSKDirectorySubTreeNode,
-    file.CHKFileNode,
-    file.SSKFileNode,
-    redirect.LocalFileRedirectionNode,
-    redirect.QueenRedirectionNode,
-    redirect.HTTPRedirectionNode,
-    redirect.QueenOrLocalFileRedirectionNode,
-]
-
-class NodeMaker(object):
-    implements(INodeMaker)
-
-    def make_node_from_serialized(self, serialized):
-        # this turns a string into an INode, which contains information about
-        # the file or directory (like a URI), but does not contain the actual
-        # contents. An ISubTreeMaker can be used later to retrieve the
-        # contents (which means downloading the file if this is an IFileNode,
-        # or perhaps creating a new subtree from the contents)
-
-        # maybe include parent_is_mutable?
-        assert isinstance(serialized, str)
-        prefix, body = serialized.split(":", 2)
-
-        for node_class in all_node_types:
-            if prefix == node_class.prefix:
-                node = node_class()
-                node.populate_node(body, self)
-                return node
-        raise RuntimeError("unable to handle node type '%s'" % prefix)
-
-
+from allmydata.filetree.nodemaker import NodeMaker
 
 all_openable_subtree_types = [
     directory.LocalFileSubTree,
@@ -204,7 +168,7 @@ class VirtualDrive(object):
         def _got_closest((node, remaining_path)):
             prepath_len = len(path) - len(remaining_path)
             prepath = path[:prepath_len]
-            assert path[prepath_len:] == remaining_path
+            assert path[prepath_len:] == remaining_path, "um, path=%s, prepath=%s, prepath_len=%d, remaining_path=%s" % (path, prepath, prepath_len, remaining_path)
             return (prepath, node, remaining_path)
         d.addCallback(_got_closest)
         return d
@@ -226,6 +190,7 @@ class VirtualDrive(object):
         d = self._get_closest_node_and_prepath(parent_path)
         def _got_closest((prepath, node, remaining_path)):
             # now tell it to create any necessary parent directories
+            remaining_path = remaining_path[:]
             while remaining_path:
                 node = node.add_subdir(remaining_path.pop(0))
             # 'node' is now the directory where the child wants to go
@@ -248,16 +213,19 @@ class VirtualDrive(object):
     # these are user-visible
 
     def list(self, path):
+        assert isinstance(path, list)
         d = self._get_directory(path)
         d.addCallback(lambda node: node.list())
         return d
 
     def download(self, path, target):
+        assert isinstance(path, list)
         d = self._get_file_uri(path)
         d.addCallback(lambda uri: self.downloader.download(uri, target))
         return d
 
     def upload_now(self, path, uploadable):
+        assert isinstance(path, list)
         # note: the first few steps of this do not use the workqueue, but I
         # think things should remain consistent anyways. If the node is shut
         # down before the file has finished uploading, then we forget all
@@ -266,17 +234,24 @@ class VirtualDrive(object):
         d = self._child_should_not_exist(path)
         # then we upload the file
         d.addCallback(lambda ignored: self.uploader.upload(uploadable))
-        d.addCallback(lambda uri: self.workqueue.create_boxname(uri))
-        d.addCallback(lambda boxname:
-                      self.workqueue.add_addpath(boxname, path))
+        def _uploaded(uri):
+            assert isinstance(uri, str)
+            new_node = file.CHKFileNode().new(uri)
+            boxname = self.workqueue.create_boxname(new_node)
+            self.workqueue.add_addpath(boxname, path)
+            self.workqueue.add_delete_box(boxname)
+        d.addCallback(_uploaded)
         return d
 
     def upload_later(self, path, filename):
+        assert isinstance(path, list)
         boxname = self.workqueue.create_boxname()
         self.workqueue.add_upload_chk(filename, boxname)
         self.workqueue.add_addpath(boxname, path)
+        self.workqueue.add_delete_box(boxname)
 
     def delete(self, path):
+        assert isinstance(path, list)
         parent_path = path[:-1]
         orphan_path = path[-1]
         d = self._get_closest_node_and_prepath(parent_path)
@@ -288,7 +263,16 @@ class VirtualDrive(object):
             boxname = subtree.update(self.workqueue)
             if boxname:
                 self.workqueue.add_addpath(boxname, prepath)
+                self.workqueue.add_delete_box(boxname)
             return self
         d.addCallback(_got_parent)
         return d
+
+    def add_node(self, path, node):
+        assert isinstance(path, list)
+        assert INode(node)
+        assert not IDirectoryNode.providedBy(node)
+        boxname = self.workqueue.create_boxname(node)
+        self.workqueue.add_addpath(boxname, path)
+        self.workqueue.add_delete_box(boxname)
 

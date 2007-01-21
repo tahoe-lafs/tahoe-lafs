@@ -10,6 +10,7 @@ class CHKFileNode(BaseDataNode):
 
     def new(self, uri):
         self.uri = uri
+        return self
 
     def get_base_data(self):
         return self.uri

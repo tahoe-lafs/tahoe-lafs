@@ -153,7 +153,7 @@ class Items(unittest.TestCase):
         boxfile = os.path.join(wq.boxesdir, boxname)
         self.failUnless(os.path.exists(boxfile))
 
-        d = wq.run_all_steps()
+        d = wq.flush()
         def _check(res):
             self.failUnlessEqual(len(wq.dispatched_steps), 5)
             self.failUnlessEqual(wq.dispatched_steps[0][0], "upload_chk")

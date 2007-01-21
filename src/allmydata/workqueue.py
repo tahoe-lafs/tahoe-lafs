@@ -5,6 +5,8 @@ from twisted.internet import defer
 from allmydata.util import bencode
 from allmydata.util.idlib import b2a
 from allmydata.Crypto.Cipher import AES
+from allmydata.filetree.nodemaker import NodeMaker
+from allmydata.filetree.interfaces import INode
 
 class IWorkQueue(Interface):
     """Each filetable root is associated a work queue, which is persisted on
@@ -22,6 +24,20 @@ class IWorkQueue(Interface):
     application is started, the step can be re-started without problems. The
     placement of the 'retain' commands depends upon how long we might expect
     the app to be offline.
+
+    tempfiles: the workqueue has a special directory where temporary files
+    are stored. create_tempfile() generates these files, while steps like
+    add_upload_chk() use them. The add_delete_tempfile() will delete the
+    tempfile. All tempfiles are deleted when the workqueue becomes empty,
+    since at that point none of them can still be referenced.
+
+    boxes: there is another special directory where named slots (called
+    'boxes') hold serialized INode specifications (the strings which are
+    returned by INode.serialize_node()). Boxes are created by calling
+    create_boxname(). Boxes are filled either at the time of creation or by
+    steps like add_upload_chk(). Boxes are used by steps like add_addpath()
+    and add_retain_uri_from_box. Boxes are deleted by add_delete_box(), as
+    well as when the workqueue becomes empty.
     """
 
     def create_tempfile(suffix=""):
@@ -31,7 +47,11 @@ class IWorkQueue(Interface):
         path, rather it will be interpreted relative to some directory known
         only by the workqueue."""
     def create_boxname(contents=None):
-        """Return a unique box name (as a string)."""
+        """Return a unique box name (as a string). If 'contents' are
+        provided, it must be an instance that provides INode, and the
+        serialized form of the node will be written into the box. Otherwise
+        the boxname can be used by steps like add_upload_chk to hold the
+        generated uri."""
 
     def add_upload_chk(source_filename, stash_uri_in_boxname):
         """This step uploads a file to the mesh and obtains a content-based
@@ -88,6 +108,14 @@ class IWorkQueue(Interface):
     def add_delete_box(boxname):
         """When executed, this step deletes the given box."""
 
+
+    # methods for use in unit tests
+
+    def flush():
+        """Execute all steps in the WorkQueue right away. Return a Deferred
+        that fires (with self) when the queue is empty.
+        """
+
 class NotCapableError(Exception):
     """You have tried to write to a read-only node."""
 
@@ -132,6 +160,7 @@ class WorkQueue(object):
     def __init__(self, basedir):
         assert basedir.endswith("workqueue")
         self.basedir = basedir
+        self._node_maker = NodeMaker()
         self.seqnum = 0
         self.tmpdir = os.path.join(basedir, "tmp")
         #self.trashdir = os.path.join(basedir, "trash")
@@ -174,8 +203,12 @@ class WorkQueue(object):
         f = open(os.path.join(self.filesdir, filename), "wb")
         return (f, filename)
 
-    def create_boxname(self):
-        return b2a(os.urandom(10))
+    def create_boxname(self, contents=None):
+        boxname = b2a(os.urandom(10))
+        if contents is not None:
+            assert INode(contents)
+            self.write_to_box(boxname, contents.serialize_node())
+        return boxname
     def write_to_box(self, boxname, data):
         f = open(os.path.join(self.boxesdir, boxname), "w")
         f.write(data)
@@ -309,7 +342,7 @@ class WorkQueue(object):
         if not hasattr(self, handlername):
             raise RuntimeError("unknown workqueue step type '%s'" % steptype)
         handler = getattr(self, handlername)
-        d = defer.maybeDeferred(handler, *lines[1:])
+        d = defer.maybeDeferred(handler, *lines)
         return d
 
     def _delete_step(self, res, stepname):
@@ -337,6 +370,8 @@ class WorkQueue(object):
             d.addCallback(self.run_all_steps)
             return d
         return defer.succeed(None)
+    def flush(self):
+        return self.run_all_steps()
 
 
     def open_tempfile(self, filename):
@@ -353,8 +388,9 @@ class WorkQueue(object):
         pass
 
     def step_addpath(self, boxname, *path):
+        path = list(path)
         data = self.read_from_box(boxname)
-        child_node = unserialize(data) # TODO: unserialize ?
+        child_node = self._node_maker.make_node_from_serialized(data)
         return self.vdrive.add(path, child_node)
 
     def step_retain_ssk(self, index_a, read_key_a):
