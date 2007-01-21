@@ -11,6 +11,9 @@ from allmydata.interfaces import IDownloader, IUploader
 from allmydata import workqueue
 from cStringIO import StringIO
 
+class FakeMesh(object):
+    implements(IDownloader, IUploader)
+
 """
 class FakeOpener(object):
     implements(IOpener)
@@ -332,15 +335,19 @@ class InPairs(unittest.TestCase):
 class StubDownloader(object):
     implements(IDownloader)
 
+class StubUploader(object):
+    implements(IUploader)
+
 class Stuff(unittest.TestCase):
 
     def makeVirtualDrive(self, basedir, root_node=None):
         wq = workqueue.WorkQueue(os.path.join(basedir, "1.workqueue"))
         dl = StubDownloader()
+        ul = StubUploader()
         if not root_node:
             root_node = directory.LocalFileSubTreeNode()
             root_node.new("rootdirtree.save")
-        v = vdrive.VirtualDrive(wq, dl, root_node)
+        v = vdrive.VirtualDrive(wq, dl, ul, root_node)
         return v
 
     def failUnlessListsAreEqual(self, list1, list2):

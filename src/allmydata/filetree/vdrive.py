@@ -8,8 +8,8 @@ from allmydata.filetree.interfaces import (
     NoSuchDirectoryError, NoSuchChildError, PathAlreadyExistsError,
     PathDoesNotExistError,
     )
-from allmydata.upload import IUploadable
-from allmydata.interfaces import IDownloader
+from allmydata.interfaces import (IDownloader, IUploadable, IUploader,
+                                  IWorkQueue)
 
 from allmydata.filetree.nodemaker import NodeMaker
 
@@ -74,10 +74,14 @@ class SubTreeMaker(object):
 class VirtualDrive(object):
     implements(IVirtualDrive)
 
-    def __init__(self, workqueue, downloader, root_node):
+    def __init__(self, workqueue, downloader, uploader, root_node):
+        assert IWorkQueue(workqueue)
+        assert IDownloader(downloader)
+        assert IUploader(uploader)
         assert INode(root_node)
         self.workqueue = workqueue
         workqueue.set_vdrive(self)
+        workqueue.set_uploader(uploader)
         # TODO: queen?
         self.queen = None
         self.root_node = root_node
