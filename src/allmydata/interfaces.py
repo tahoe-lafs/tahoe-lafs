@@ -180,3 +180,46 @@ class ICodecDecoder(Interface):
         of 'required_shares' passed into the original
         ICodecEncode.set_params() call.
         """
+
+class IDownloadTarget(Interface):
+    def open():
+        """Called before any calls to write() or close()."""
+    def write(data):
+        """Output some data to the target."""
+    def close():
+        """Inform the target that there is no more data to be written."""
+    def fail():
+        """fail() is called to indicate that the download has failed. No
+        further methods will be invoked on the IDownloadTarget after fail()."""
+    def register_canceller(cb):
+        """The FileDownloader uses this to register a no-argument function
+        that the target can call to cancel the download. Once this canceller
+        is invoked, no further calls to write() or close() will be made."""
+    def finish(self):
+        """When the FileDownloader is done, this finish() function will be
+        called. Whatever it returns will be returned to the invoker of
+        Downloader.download.
+        """
+
+class IDownloader(Interface):
+    def download(uri, target):
+        """Perform a CHK download, sending the data to the given target.
+        'target' must provide IDownloadTarget."""
+
+class IUploadable(Interface):
+    def get_filehandle():
+        """Return a filehandle from which the data to be uploaded can be
+        read. It must implement .read, .seek, and .tell (since the latter two
+        are used to determine the length of the data)."""
+    def close_filehandle(f):
+        """The upload is finished. This provides the same filehandle as was
+        returned by get_filehandle. This is an appropriate place to close the
+        filehandle."""
+
+class IUploader(Interface):
+    def upload(uploadable):
+        """Upload the file. 'uploadable' must impement IUploadable. This
+        returns a Deferred which fires with the URI of the file."""
+
+    def upload_ssk(write_capability, new_version, uploadable):
+        pass # TODO

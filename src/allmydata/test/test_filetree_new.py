@@ -1,8 +1,8 @@
 
-#from zope.interface import implements
+from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
-#from allmydata.filetree.interfaces import IOpener, IDirectoryNode
+from allmydata.interfaces import IDownloader, IUploader
 #from allmydata.filetree.directory import (ImmutableDirectorySubTree,
 #                                          SubTreeNode,
 #                                          CHKDirectorySubTree)
@@ -19,6 +19,7 @@ class FakeOpener(object):
     def open(self, subtree_specification, parent_is_mutable):
         #print "open", subtree_specification, subtree_specification.serialize(), parent_is_mutable
         return defer.succeed(self.objects[subtree_specification.serialize()])
+
 
 class FakeWorkQueue(object):
     implements(workqueue.IWorkQueue)
@@ -319,6 +320,7 @@ from allmydata.filetree.interfaces import (ISubTree, INode, IDirectoryNode,
                                            IFileNode, NoSuchDirectoryError,
                                            NoSuchChildError)
 from allmydata.filetree.file import CHKFileNode
+from allmydata.interfaces import IDownloader
 from allmydata.util import bencode
 
 class InPairs(unittest.TestCase):
@@ -327,11 +329,14 @@ class InPairs(unittest.TestCase):
         pairs = list(directory.in_pairs(l))
         self.failUnlessEqual(pairs, [(0,1), (2,3), (4,5), (6,7)])
 
+class StubDownloader(object):
+    implements(IDownloader)
+
 class Stuff(unittest.TestCase):
 
     def makeVirtualDrive(self, basedir, root_node=None):
         wq = workqueue.WorkQueue(os.path.join(basedir, "1.workqueue"))
-        dl = None
+        dl = StubDownloader()
         if not root_node:
             root_node = directory.LocalFileSubTreeNode()
             root_node.new("rootdirtree.save")
@@ -347,7 +352,7 @@ class Stuff(unittest.TestCase):
         self.failUnlessEqual(c1a, c2a)
 
     def testDirectory(self):
-        stm = vdrive.SubTreeMaker(None, None)
+        stm = vdrive.SubTreeMaker(None, StubDownloader())
 
         # create an empty directory (stored locally)
         subtree = directory.LocalFileSubTree()

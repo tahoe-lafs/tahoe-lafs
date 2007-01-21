@@ -4,7 +4,7 @@ from twisted.web import static, resource, server, html
 from twisted.python import util, log
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from allmydata.util import idlib
-from allmydata.download import IDownloadTarget#, IDownloader
+from allmydata.interfaces import IDownloadTarget#, IDownloader
 from allmydata import upload
 from zope.interface import implements, Interface
 import urllib

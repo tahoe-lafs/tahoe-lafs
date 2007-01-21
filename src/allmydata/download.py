@@ -1,6 +1,6 @@
 
 import os, sha
-from zope.interface import Interface, implements
+from zope.interface import implements
 from twisted.python import failure, log
 from twisted.internet import defer
 from twisted.application import service
@@ -9,6 +9,7 @@ from allmydata.util import idlib, bencode
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata import codec
 from allmydata.uri import unpack_uri
+from allmydata.interfaces import IDownloadTarget, IDownloader
 
 class NotEnoughPeersError(Exception):
     pass
@@ -147,26 +148,6 @@ class FileDownloader:
 def netstring(s):
     return "%d:%s," % (len(s), s)
 
-class IDownloadTarget(Interface):
-    def open():
-        """Called before any calls to write() or close()."""
-    def write(data):
-        pass
-    def close():
-        pass
-    def fail():
-        """fail() is called to indicate that the download has failed. No
-        further methods will be invoked on the IDownloadTarget after fail()."""
-    def register_canceller(cb):
-        """The FileDownloader uses this to register a no-argument function
-        that the target can call to cancel the download. Once this canceller
-        is invoked, no further calls to write() or close() will be made."""
-    def finish(self):
-        """When the FileDownloader is done, this finish() function will be
-        called. Whatever it returns will be returned to the invoker of
-        Downloader.download.
-        """
-
 class FileName:
     implements(IDownloadTarget)
     def __init__(self, filename):
@@ -220,10 +201,6 @@ class FileHandle:
     def register_canceller(self, cb):
         pass
     def finish(self):
-        pass
-
-class IDownloader(Interface):
-    def download(uri, target):
         pass
 
 class Downloader(service.MultiService):

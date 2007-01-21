@@ -1,5 +1,5 @@
 
-from zope.interface import Interface, implements
+from zope.interface import implements
 from twisted.python import failure, log
 from twisted.internet import defer
 from twisted.application import service
@@ -10,6 +10,7 @@ from allmydata.util.idlib import peerid_to_short_string as shortid
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata import codec
 from allmydata.uri import pack_uri
+from allmydata.interfaces import IUploadable, IUploader
 
 from cStringIO import StringIO
 import sha
@@ -245,12 +246,6 @@ class FileUploader:
 def netstring(s):
     return "%d:%s," % (len(s), s)
 
-class IUploadable(Interface):
-    def get_filehandle():
-        pass
-    def close_filehandle(f):
-        pass
-
 class FileName:
     implements(IUploadable)
     def __init__(self, filename):
@@ -279,17 +274,10 @@ class FileHandle:
         # the originator of the filehandle reserves the right to close it
         pass
 
-class IUploader(Interface):
-    def upload(uploadable):
-        """Upload the file. 'uploadable' must impement IUploadable. This
-        returns a Deferred which fires with the URI of the file."""
-
-    def upload_ssk(write_capability, new_version, uploadable):
-        pass # TODO
-
 class Uploader(service.MultiService):
     """I am a service that allows file uploading.
     """
+    implements(IUploader)
     name = "uploader"
     uploader_class = FileUploader
     debug = False

@@ -9,6 +9,7 @@ from allmydata.filetree.interfaces import (
     PathDoesNotExistError,
     )
 from allmydata.upload import IUploadable
+from allmydata.interfaces import IDownloader
 
 from allmydata.filetree.nodemaker import NodeMaker
 
@@ -30,6 +31,7 @@ class SubTreeMaker(object):
         # create subtrees. That means a Downloader and a reference to the
         # queen.
         self._queen = queen
+        assert IDownloader(downloader)
         self._downloader = downloader
         self._node_maker = NodeMaker()
         self._cache = {}
