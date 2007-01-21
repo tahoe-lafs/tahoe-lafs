@@ -1,6 +1,6 @@
 
 import os.path
-from foolscap import Referenceable
+from foolscap import Referenceable, DeadReferenceError
 from foolscap.eventual import eventually
 from twisted.application import service
 from twisted.python import log
@@ -15,7 +15,7 @@ from allmydata.filetable import GlobalVirtualDrive
 def sendOnly(call, methname, *args, **kwargs):
     d = call(methname, *args, **kwargs)
     def _trap(f):
-        f.trap(ConnectionLost, ConnectionDone)
+        f.trap(DeadReferenceError, ConnectionLost, ConnectionDone)
     d.addErrback(_trap)
 
 class Roster(service.MultiService, Referenceable):
