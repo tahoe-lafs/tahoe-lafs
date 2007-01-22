@@ -29,8 +29,15 @@ class _BaseRedirection(object):
         self.child_node = child_node
         return self
 
+    def mutation_modifies_parent(self):
+        return False
+
     def get_node_for_path(self, path):
         return ([], self.child_node, path)
+
+    def put_node_at_path(self, path, node):
+        assert path == []
+        self.child_node = node
 
     def serialize_subtree_to_file(self, f):
         f.write(self.child_node.serialize_node())

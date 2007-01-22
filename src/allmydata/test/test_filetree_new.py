@@ -334,15 +334,26 @@ class InPairs(unittest.TestCase):
 
 class FakeMesh(object):
     implements(IDownloader, IUploader)
+    debug = False
 
     def __init__(self):
         self.files = {}
     def upload_filename(self, filename):
         uri = "stub-uri-%d" % len(self.files)
+        if self.debug:
+            print "FakeMesh.upload_filename(%s) -> %s" % (filename, uri)
         data = open(filename,"r").read()
         self.files[uri] = data
         return defer.succeed(uri)
+    def upload_data(self, data):
+        uri = "stub-uri-%d" % len(self.files)
+        if self.debug:
+            print "FakeMesh.upload_data(%s) -> %s" % (data, uri)
+        self.files[uri] = data
+        return defer.succeed(uri)
     def download(self, uri, target):
+        if self.debug:
+            print "FakeMesh.download(%s)" % uri
         target.open()
         target.write(self.files[uri])
         target.close()
@@ -351,9 +362,14 @@ class FakeMesh(object):
 
 class VDrive(unittest.TestCase):
 
-    def makeVirtualDrive(self, basedir, root_node=None):
+    def makeVirtualDrive(self, basedir, root_node=None, mesh=None):
         wq = workqueue.WorkQueue(os.path.join(basedir, "1.workqueue"))
-        dl = ul = FakeMesh()
+        if mesh:
+            assert IUploader.providedBy(mesh)
+            assert IDownloader.providedBy(mesh)
+            dl = ul = mesh
+        else:
+            dl = ul = FakeMesh()
         if not root_node:
             root_node = directory.LocalFileSubTreeNode()
             root_node.new("rootdirtree.save")
@@ -371,6 +387,22 @@ class VDrive(unittest.TestCase):
         v = self.makeVirtualDrive("%s-vdrive" % basename,
                                   root.create_node_now())
         return v
+
+    def makeCHKTree(self, basename):
+        # create a LocalFileRedirection pointing at a CHKDirectorySubTree.
+        # Returns a VirtualDrive instance.
+        mesh = FakeMesh()
+        topdir = directory.CHKDirectorySubTree().new()
+        d = topdir.update_now(mesh)
+        def _updated(topnode):
+            root = redirect.LocalFileRedirection()
+            root.new("%s-root" % basename, topnode)
+            return root.update_now(mesh)
+        d.addCallback(_updated)
+        d.addCallback(lambda rootnode:
+                      self.makeVirtualDrive("%s-vdrive" % basename,
+                                            rootnode, mesh))
+        return d
 
     def failUnlessListsAreEqual(self, list1, list2):
         self.failUnlessEqual(sorted(list1), sorted(list2))
@@ -541,6 +573,38 @@ class VDrive(unittest.TestCase):
                       self.failUnlessListsAreEqual(contents.keys(),
                                                    ["upload1"]))
         d.addCallback(lambda res: v.download_as_data(["a","b","upload1"]))
+        d.addCallback(self.failUnlessEqual, DATA)
+
+        return d
+
+    def testCHKDirUpload(self):
+        DATA = "here is some data\n"
+        d = defer.maybeDeferred(self.makeCHKTree, "upload")
+        def _made(v):
+            self.v = v
+
+            filename = "upload1"
+            f = open(filename, "w")
+            f.write(DATA)
+            f.close()
+
+            rc = v.upload_later(["a","b","upload1"], filename)
+            self.failUnlessIdentical(rc, None)
+
+            return v.workqueue.flush()
+        d.addCallback(_made)
+
+        d.addCallback(lambda res: self.v.list([]))
+        d.addCallback(lambda contents:
+                      self.failUnlessListsAreEqual(contents.keys(), ["a"]))
+        d.addCallback(lambda res: self.v.list(["a"]))
+        d.addCallback(lambda contents:
+                      self.failUnlessListsAreEqual(contents.keys(), ["b"]))
+        d.addCallback(lambda res: self.v.list(["a","b"]))
+        d.addCallback(lambda contents:
+                      self.failUnlessListsAreEqual(contents.keys(),
+                                                   ["upload1"]))
+        d.addCallback(lambda res: self.v.download_as_data(["a","b","upload1"]))
         d.addCallback(self.failUnlessEqual, DATA)
 
         return d

@@ -308,8 +308,36 @@ class IWorkQueue(Interface):
         file."""
 
     def add_addpath(boxname, path):
-        """When executed, this step will retrieve the serialized INode from
-        the given box and call vdrive.add(path, node) .
+        """When executed, this step pulls a node specification from 'boxname'
+        and figures out which subtrees must be modified to allow that node to
+        live at the 'path' (which is an absolute path). This will probably
+        cause one or more 'add_modify_subtree' or 'add_modify_redirection'
+        steps to be added to the workqueue.
+        """
+
+    def add_modify_subtree(subtree_node, localpath, new_node_boxname,
+                           new_subtree_boxname=None):
+        """When executed, this step retrieves the subtree specified by
+        'subtree_node', pulls a node specification out of 'new_node_boxname',
+        then modifies it such that a subtree-relative 'localpath' points to
+        the new node. It then serializes the subtree in its new form, and
+        optionally puts a node that describes the new subtree in
+        'new_node_boxname'.
+
+        The idea is that 'subtree_node' will refer a CHKDirectorySubTree, and
+        'new_node_boxname' will contain the CHKFileNode that points to a
+        newly-uploaded file. When the CHKDirectorySubTree is modified, it
+        acquires a new URI, which will be stuffed (in the form of a
+        CHKDirectorySubTreeNode) into 'new_subtree_boxname'. A following step
+        would then read from 'new_subtree_boxname' and modify some other
+        subtree with the contents.
+
+        If 'subtree_node' refers to a redirection subtree like
+        LocalFileRedirection or QueenRedirection, then 'localpath' is
+        ignored, because redirection subtrees don't consume path components
+        and have no internal directory structure (they just have the one
+        redirection target). Redirection subtrees generally retain a constant
+        identity, so it is unlikely that 'new_subtree_boxname' will be used.
         """
 
     def add_unlink_uri(uri):

@@ -180,6 +180,34 @@ class _DirectorySubTree(object):
                 break
         return (found_path, node, remaining_path)
 
+    def put_node_at_path(self, path, new_node):
+        assert len(path) > 0
+        child_name = path[-1]
+
+        # first step: get (or create) the parent directory
+        node = self.root
+        for subdir_name in path[:-1]:
+            # TODO: peeking at private attributes is naughty, but using
+            # node.get() and catching NoSuchChildError would be slightly
+            # ugly. Reconsider the IDirectoryNode.get() API.
+            childnode = node.children.get(subdir_name)
+            if childnode:
+                assert IDirectoryNode.providedBy(childnode)
+            else:
+                # we have to create new directories until the parent exists
+                childnode = node.add_subdir(subdir_name)
+            node = childnode
+
+        # 'node' is now pointing at the parent directory
+        if child_name in node.children:
+            # oops, there's already something there. We can replace it.
+            # TODO: How do we free the subtree that was just orphaned?
+            node.delete(child_name)
+
+        # now we can finally add the new node
+        node.add(child_name, new_node)
+
+
 class LocalFileSubTreeNode(BaseDataNode):
     prefix = "LocalFileDirectory"
 
@@ -211,6 +239,9 @@ class LocalFileSubTree(_DirectorySubTree):
         d = defer.succeed(data)
         d.addCallback(self._populate_from_data, node_maker)
         return d
+
+    def mutation_modifies_parent(self):
+        return False
 
     def create_node_now(self):
         return LocalFileSubTreeNode().new(self.filename)
@@ -251,6 +282,10 @@ class CHKDirectorySubTree(_DirectorySubTree):
     # maybe mutable, maybe not
     node_class = CHKDirectorySubTreeNode
 
+    def new(self):
+        self.uri = None
+        return _DirectorySubTree.new(self)
+
     def set_uri(self, uri):
         self.uri = uri
 
@@ -259,7 +294,14 @@ class CHKDirectorySubTree(_DirectorySubTree):
         self.mutable = parent_is_mutable
         d = downloader.download(node.get_uri(), download.Data())
         d.addCallback(self._populate_from_data, node_maker)
+        def _populated(res):
+            self.uri = node.get_uri()
+            return self
+        d.addCallback(_populated)
         return d
+
+    def mutation_modifies_parent(self):
+        return True
 
     def create_node_now(self):
         return CHKDirectorySubTreeNode().new(self.uri)
@@ -286,7 +328,8 @@ class CHKDirectorySubTree(_DirectorySubTree):
         workqueue.add_delete_tempfile(filename)
         workqueue.add_retain_uri_from_box(boxname)
         workqueue.add_delete_box(boxname)
-        workqueue.add_unlink_uri(old_uri)
+        if old_uri:
+            workqueue.add_unlink_uri(old_uri)
         # TODO: think about how self.old_uri will get updated. I *think* that
         # this whole instance will get replaced, so it ought to be ok. But
         # this needs investigation.
@@ -338,6 +381,9 @@ class SSKDirectorySubTree(_DirectorySubTree):
 
     def set_version(self, version):
         self.version = version
+
+    def mutation_modifies_parent(self):
+        return False
 
     def create_node_now(self):
         node = SSKDirectorySubTreeNode()

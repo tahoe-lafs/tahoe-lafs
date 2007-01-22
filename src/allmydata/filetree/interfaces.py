@@ -121,6 +121,13 @@ class ISubTree(Interface):
         IMutableSubTree to actually exercise these mutation rights.
         """
 
+    def mutation_modifies_parent():
+        """This returns True if any modification to this subtree will result
+        in it getting a new identity, and thus requiring its parent be
+        notified. This is True for CHKDirectorySubTree, but False for
+        SSKDirectorySubTree and all redirections.
+        """
+
     def get_node_for_path(path):
         """Ask this subtree to follow the path through its internal nodes.
 
@@ -150,6 +157,13 @@ class ISubTree(Interface):
         locate the target, use 'node' to open a new subtree, then provide
         'remaining_path' to the new subtree's get_node_for_path() method.
 
+        """
+
+    def put_node_at_path(path, node):
+        """Add the given node to this subtree, at 'path'.
+
+        This may create internal directory subnodes as necessary. This must
+        run synchronously, and returns None.
         """
 
     def serialize_subtree_to_file(f):
@@ -204,6 +218,7 @@ class ISubTree(Interface):
         """
 
     def create_node_now():
+        # TODO: this is no longer just for testing.. vdrive.addpath needs it
         """FOR TESTING ONLY. Immediately create and return an INode which
         describes the current state of this subtree. This does not perform
         any upload or persistence work, and thus depends upon any internal

@@ -84,6 +84,7 @@ class VirtualDrive(object):
         workqueue.set_vdrive(self)
         workqueue.set_uploader(uploader)
         self._downloader = downloader
+        self._uploader = uploader
         # TODO: queen?
         self.queen = None
         self.root_node = root_node
@@ -181,42 +182,111 @@ class VirtualDrive(object):
         d.addCallback(_got_closest)
         return d
 
-    def _get_subtree_path(self, path):
+    def get_subtrees_for_path(self, path):
         # compute a list of [(subtree1, subpath1), ...], which represents
         # which parts of 'path' traverse which subtrees. This can be used to
         # present the virtual drive to the user in a form that includes
         # redirection nodes (which do not consume path segments), or to
         # figure out which subtrees need to be updated when the identity of a
         # lower subtree (i.e. CHK) is changed.
-        pass # TODO
+
+        # TODO: it might be useful to add some items to the return value.
+        # Like if there is a node already present at that path, to return it.
+        d = self._get_root()
+        results = []
+        d.addCallback(self._get_subtrees_for_path_1, results, path)
+        return d
+
+    def _get_subtrees_for_path_1(self, subtree, results, path):
+        (found_path, node, remaining_path) = subtree.get_node_for_path(path)
+        if IDirectoryNode.providedBy(node):
+            # traversal done. We are looking at the final subtree, and the
+            # entire path (found_path + remaining_path) will live in here.
+            r = (subtree, (found_path + remaining_path))
+            results.append(r)
+            return results
+        if node.is_leaf_subtree():
+            # for this assert to fail, we found a File or something where we
+            # were expecting to find another subdirectory.
+            assert len(remaining_path) == 0
+            results.append((subtree, found_path))
+            return results
+        # otherwise we must open and recurse into a new subtree
+        results.append((subtree, found_path))
+        parent_is_mutable = subtree.is_mutable()
+        d = self.subtree_maker.make_subtree_from_node(node, parent_is_mutable)
+        def _opened(next_subtree):
+            next_subtree = ISubTree(next_subtree)
+            return self._get_subtrees_for_path_1(next_subtree, results,
+                                                 remaining_path)
+        d.addCallback(_opened)
+        return d
+
 
     # these are called by the workqueue
 
-    def add(self, path, new_node):
-        parent_path = path[:-1]
-        new_node_path = path[-1]
-        d = self._get_closest_node_and_prepath(parent_path)
-        def _got_closest((prepath, node, remaining_path)):
-            # now tell it to create any necessary parent directories
-            remaining_path = remaining_path[:]
-            while remaining_path:
-                node = node.add_subdir(remaining_path.pop(0))
-            # 'node' is now the directory where the child wants to go
-            return node, prepath
-        d.addCallback(_got_closest)
-        def _add_new_node((node, prepath)):
-            node.add(new_node_path, new_node)
-            subtree = node.get_subtree()
-            # now, tell the subtree to serialize and upload itself, using the
-            # workqueue.
-            boxname = subtree.update(self.workqueue)
-            if boxname:
-                # the parent needs to be notified, so queue a step to notify
-                # them (using 'prepath')
-                self.workqueue.add_addpath(boxname, prepath)
-            return self # TODO: what wold be the most useful?
-        d.addCallback(_add_new_node)
+    def addpath_with_node(self, path, new_node):
+        new_node_boxname = self.workqueue.create_boxname(new_node)
+        self.workqueue.add_delete_box(new_node_boxname)
+        return self.addpath(path, new_node_boxname)
+
+    def addpath(self, path, new_node_boxname):
+        # this adds a block of steps to the workqueue which, when complete,
+        # will result in the new_node existing in the virtual drive at
+        # 'path'.
+
+        # First we figure out which subtrees are involved
+        d = self.get_subtrees_for_path(path)
+
+        # then we walk through them from the bottom, arranging to modify them
+        # as necessary
+        def _got_subtrees(subtrees, new_node_boxname):
+            for (subtree, subpath) in reversed(subtrees):
+                assert subtree.is_mutable()
+                must_update = subtree.mutation_modifies_parent()
+                subtree_node = subtree.create_node_now()
+                new_subtree_boxname = None
+                if must_update:
+                    new_subtree_boxname = self.workqueue.create_boxname()
+                    self.workqueue.add_delete_box(new_subtree_boxname)
+                    self.workqueue.add_modify_subtree(subtree_node, subpath,
+                                                      new_node_boxname,
+                                                      new_subtree_boxname)
+                    # the box filled by the modify_subtree will be propagated
+                    # upwards
+                    new_node_boxname = new_subtree_boxname
+                else:
+                    # the buck stops here
+                    self.workqueue.add_modify_subtree(subtree_node, subpath,
+                                                      new_node_boxname)
+                    return
+        d.addCallback(_got_subtrees, new_node_boxname)
         return d
+
+    def modify_subtree(self, subtree_node, localpath, new_node,
+                       new_subtree_boxname=None):
+        # TODO: I'm lying here, we don't know who the parent is, so we can't
+        # really say whether they're mutable or not. But we're pretty sure
+        # that the new subtree is supposed to be mutable, because we asserted
+        # that earlier (although I suppose perhaps someone could change a
+        # QueenRedirection or an SSK file while we're offline in the middle
+        # of our workqueue..). Tell the new subtree that their parent is
+        # mutable so we can be sure it will believe that it itself is
+        # mutable.
+        parent_is_mutable = True
+        d = self.subtree_maker.make_subtree_from_node(subtree_node,
+                                                      parent_is_mutable)
+        def _got_subtree(subtree):
+            assert subtree.is_mutable()
+            subtree.put_node_at_path(localpath, new_node)
+            return subtree.update_now(self._uploader)
+        d.addCallback(_got_subtree)
+        if new_subtree_boxname:
+            d.addCallback(lambda new_subtree_node:
+                          self.workqueue.write_to_box(new_subtree_boxname,
+                                                      new_subtree_node))
+        return d
+
 
     # these are user-visible
 
@@ -251,7 +321,7 @@ class VirtualDrive(object):
         uploadable = IUploadable(uploadable)
         d = self._child_should_not_exist(path)
         # then we upload the file
-        d.addCallback(lambda ignored: self.uploader.upload(uploadable))
+        d.addCallback(lambda ignored: self._uploader.upload(uploadable))
         def _uploaded(uri):
             assert isinstance(uri, str)
             new_node = file.CHKFileNode().new(uri)

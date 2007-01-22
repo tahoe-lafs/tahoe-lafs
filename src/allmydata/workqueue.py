@@ -48,6 +48,8 @@ class UploadSSKStep(Step):
 
 class WorkQueue(object):
     implements(IWorkQueue)
+    debug = False
+
     def __init__(self, basedir):
         assert basedir.endswith("workqueue")
         self.basedir = basedir
@@ -175,17 +177,31 @@ class WorkQueue(object):
         lines.extend(path)
         self._create_step_first(lines)
 
+    def add_modify_subtree(self, subtree_node, localpath, new_node_boxname,
+                           new_subtree_boxname=None):
+        assert isinstance(localpath, (list, tuple))
+        box1 = self.create_boxname(subtree_node)
+        self.add_delete_box(box1)
+        # TODO: it would probably be easier if steps were represented in
+        # directories, with a separate file for each argument
+        if new_subtree_boxname is None:
+            new_subtree_boxname = ""
+        lines = ["modify_subtree",
+                 box1, new_node_boxname, new_subtree_boxname]
+        lines.extend(localpath)
+        self._create_step_first(lines)
+
     def add_unlink_uri(self, uri):
         lines = ["unlink_uri", uri]
         self._create_step_last(lines)
 
     def add_delete_tempfile(self, filename):
         lines = ["delete_tempfile", filename]
-        self._create_step_first(lines)
+        self._create_step_last(lines)
 
     def add_delete_box(self, boxname):
         lines = ["delete_box", boxname]
-        self._create_step_first(lines)
+        self._create_step_last(lines)
 
 
     # methods to perform work
@@ -282,6 +298,9 @@ class WorkQueue(object):
 
 
     def step_upload_chk(self, source_filename, stash_uri_in_boxname):
+        if self.debug:
+            print "STEP_UPLOAD_CHK(%s -> %s)" % (source_filename,
+                                                 stash_uri_in_boxname)
         # we use relative filenames for tempfiles created by
         # workqueue.create_tempfile, and absolute filenames for everything
         # that comes from the vdrive. That means using os.path.abspath() on
@@ -289,6 +308,8 @@ class WorkQueue(object):
         filename = os.path.join(self.filesdir, source_filename)
         d = self._uploader.upload_filename(filename)
         def _uploaded(uri):
+            if self.debug:
+                print " -> %s" % uri
             node = CHKFileNode().new(uri)
             self.write_to_box(stash_uri_in_boxname, node)
         d.addCallback(_uploaded)
@@ -298,9 +319,21 @@ class WorkQueue(object):
         pass
 
     def step_addpath(self, boxname, *path):
+        if self.debug:
+            print "STEP_ADDPATH(%s -> %s)" % (boxname, "/".join(path))
         path = list(path)
-        child_node = self.read_from_box(boxname)
-        return self.vdrive.add(path, child_node)
+        return self.vdrive.addpath(path, boxname)
+    def step_modify_subtree(self, subtree_node_boxname, new_node_boxname,
+                            new_subtree_boxname, *localpath):
+        # the weird order of arguments is a consequence of the fact that
+        # localpath is variable-length and new_subtree_boxname is optional.
+        if not new_subtree_boxname:
+            new_subtree_boxname = None
+        subtree_node = self.read_from_box(subtree_node_boxname)
+        new_node = self.read_from_box(new_node_boxname)
+        localpath = list(localpath)
+        return self.vdrive.modify_subtree(subtree_node, localpath,
+                                          new_node, new_subtree_boxname)
 
     def step_retain_ssk(self, index_a, read_key_a):
         pass
@@ -309,11 +342,18 @@ class WorkQueue(object):
     def step_retain_uri_from_box(self, boxname):
         pass
     def step_unlink_uri(self, uri):
+        if self.debug:
+            print "STEP_UNLINK_URI(%s)" % uri
         pass
 
     def step_delete_tempfile(self, filename):
+        if self.debug:
+            print "STEP_DELETE_TEMPFILE(%s)" % filename
+        assert not filename.startswith("/")
         os.unlink(os.path.join(self.filesdir, filename))
     def step_delete_box(self, boxname):
+        if self.debug:
+            print "DELETE_BOX", boxname
         os.unlink(os.path.join(self.boxesdir, boxname))
 
 

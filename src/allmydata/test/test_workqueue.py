@@ -121,19 +121,19 @@ class Items(unittest.TestCase):
                                         ["box1"]))
         self.failUnlessEqual(steps[2], ("addpath",
                                         ["box1", "home", "warner", "foo.txt"]))
-        self.failUnlessEqual(steps[3], ("delete_box",
-                                        ["box1"]))
-        self.failUnlessEqual(steps[4],
+        self.failUnlessEqual(steps[3],
                              ("upload_chk",
                               [os.path.join(wq.filesdir, tmpfilename),
                                "box2"]))
-        self.failUnlessEqual(steps[5],
-                             ("delete_tempfile", [tmpfilename]))
-        self.failUnlessEqual(steps[6],
+        self.failUnlessEqual(steps[4],
                              ("retain_uri_from_box", ["box2"]))
-        self.failUnlessEqual(steps[7], ("delete_box", ["box2"]))
-        self.failUnlessEqual(steps[8], ("unlink_uri",
+        self.failUnlessEqual(steps[5], ("delete_box",
+                                        ["box1"]))
+        self.failUnlessEqual(steps[6], ("unlink_uri",
                                         ["olduri"]))
+        self.failUnlessEqual(steps[7],
+                             ("delete_tempfile", [tmpfilename]))
+        self.failUnlessEqual(steps[8], ("delete_box", ["box2"]))
         self.failUnlessEqual(steps[9], ("unlink_uri", ["oldchk"]))
 
     def testRun(self):

@@ -12,6 +12,9 @@ class CHKFileNode(BaseDataNode):
         self.uri = uri
         return self
 
+    def put_node_at_path(self, path, node):
+        raise RuntimeError
+
     def get_base_data(self):
         return self.uri
     def set_base_data(self, data):
@@ -26,6 +29,9 @@ class CHKFileNode(BaseDataNode):
 class SSKFileNode(object):
     implements(INode, IFileNode)
     prefix = "SSKFile"
+
+    def put_node_at_path(self, path, node):
+        raise RuntimeError
 
     def serialize_node(self):
         data = (self.read_cap, self.write_cap)
