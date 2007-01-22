@@ -51,6 +51,12 @@ figleaf-output:
 pyflakes:
 	pyflakes src/allmydata
 
+count-lines:
+	@echo -n "lines: "
+	@cat `find src -name '*.py'` |wc --lines
+	@echo -n "TODO: "
+	@grep TODO `find src -name '*.py'` | wc --lines
+
 clean:
 	rm -rf build
 	rm -f debian
