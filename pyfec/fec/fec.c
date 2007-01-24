@@ -577,6 +577,7 @@ fec_encode_all(const fec_t* code, const gf*restrict const*restrict const src, gf
 }
 
 #if 0
+/* By turning the nested loop inside out, we might incur different cache usage and therefore go slower or faster.  However in practice I'm not able to detect a difference, since >90% of the time is spent in my Python test script anyway.  :-) */
 void
 fec_encode_all(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned char*restrict const share_ids, unsigned char num_share_ids, size_t sz) {
     for (unsigned j=0; j < code->k; j++) {
