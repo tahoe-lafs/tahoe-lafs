@@ -7,18 +7,6 @@ import sys
 
 import fec
 
-def shuffle(nums_and_shares):
-    """ Make sure that if nums_and_shares[i][0] < len(nums_and_shares), that i == nums_and_shares[i][0]. """
-    i = 0
-    while i < len(nums_and_shares):
-        num, share = nums_and_shares[i]
-        if num >= len(nums_and_shares) or num == i:
-            i += 1
-        else:
-            nums_and_shares[i] = nums_and_shares[num]
-            nums_and_shares[num] = (num, share,)
-    _assert([ (i, (num, share,),) for (i, (num, share,),) in enumerate(nums_and_shares) if num < len(nums_and_shares) and num != i ] == [], [ (i, (num, share,),) for (i, (num, share,),) in enumerate(nums_and_shares) if num < len(nums_and_shares) and num != i ])
-
 def _h(k, m, ss):
     # sys.stdout.write("k: %s, m: %s,  len(ss): %r, len(ss[0]): %r" % (k, m, len(ss), len(ss[0]),)) ; sys.stdout.flush()
     encer = fec.Encoder(k, m)
@@ -28,7 +16,6 @@ def _h(k, m, ss):
     _assert(isinstance(nums_and_shares, list), nums_and_shares)
     _assert(len(nums_and_shares) == m, len(nums_and_shares), m)
     nums_and_shares = random.sample(nums_and_shares, k)
-    shuffle(nums_and_shares)
     shares = [ x[1] for x in nums_and_shares ]
     nums = [ x[0] for x in nums_and_shares ]
     # sys.stdout.write("about to construct Decoder.\n") ; sys.stdout.flush()

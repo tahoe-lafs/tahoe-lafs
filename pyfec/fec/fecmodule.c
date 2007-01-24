@@ -322,6 +322,8 @@ Decoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
     return 0;
 }
 
+#define SWAP(a,b,t) {t tmp; tmp=a; a=b; b=tmp;}
+
 static char Decoder_decode__doc__[] = "\
 Decode a list shares into a list of segments.\n\
 @param shares a sequence of buffers containing share data (for best performance, make it a tuple instead of a list)\n\
@@ -392,6 +394,20 @@ Decoder_decode(Decoder *self, PyObject *args) {
             goto err;
         }
         oldsz = sz;
+    }
+
+    /* move src packets into position */
+    for (i=0; i<self->kk;) {
+        if (csharenums[i] >= self->kk || csharenums[i] == i)
+            i++;
+        else {
+            /* put pkt in the right position. */
+            unsigned char c = csharenums[i];
+
+            SWAP (csharenums[i], csharenums[c], int);
+            SWAP (cshares[i], cshares[c], gf*);
+            SWAP (fastsharesitems[i], fastsharesitems[c], PyObject*);
+        }
     }
 
     /* Allocate space for all of the recovered shares. */
