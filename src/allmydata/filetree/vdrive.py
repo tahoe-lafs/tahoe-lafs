@@ -2,15 +2,14 @@
 import os.path
 from zope.interface import implements
 from twisted.internet import defer
-from allmydata.filetree import directory, file, redirect
+from allmydata.filetree import directory, redirect
 from allmydata.filetree.interfaces import (
     IVirtualDrive, ISubTreeMaker,
     INodeMaker, INode, ISubTree, IFileNode, IDirectoryNode,
     NoSuchDirectoryError, NoSuchChildError, PathAlreadyExistsError,
     PathDoesNotExistError,
     )
-from allmydata.interfaces import (IDownloader, IUploadable, IUploader,
-                                  IWorkQueue)
+from allmydata.interfaces import IDownloader, IUploader, IWorkQueue
 
 from allmydata.filetree.nodemaker import NodeMaker
 
