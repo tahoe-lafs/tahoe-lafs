@@ -177,6 +177,12 @@ class WorkQueue(object):
         lines.extend(path)
         self._create_step_first(lines)
 
+    def add_deletepath(self, path):
+        assert isinstance(path, (list, tuple))
+        lines = ["deletepath"]
+        lines.extend(path)
+        self._create_step_first(lines)
+
     def add_modify_subtree(self, subtree_node, localpath, new_node_boxname,
                            new_subtree_boxname=None):
         assert isinstance(localpath, (list, tuple))
@@ -184,6 +190,8 @@ class WorkQueue(object):
         self.add_delete_box(box1)
         # TODO: it would probably be easier if steps were represented in
         # directories, with a separate file for each argument
+        if new_node_boxname is None:
+            new_node_boxname = ""
         if new_subtree_boxname is None:
             new_subtree_boxname = ""
         lines = ["modify_subtree",
@@ -323,6 +331,13 @@ class WorkQueue(object):
             print "STEP_ADDPATH(%s -> %s)" % (boxname, "/".join(path))
         path = list(path)
         return self.vdrive.addpath(path, boxname)
+
+    def step_deletepath(self, *path):
+        if self.debug:
+            print "STEP_DELETEPATH(%s)" % "/".join(path)
+        path = list(path)
+        return self.vdrive.deletepath(path)
+
     def step_modify_subtree(self, subtree_node_boxname, new_node_boxname,
                             new_subtree_boxname, *localpath):
         # the weird order of arguments is a consequence of the fact that
@@ -330,7 +345,9 @@ class WorkQueue(object):
         if not new_subtree_boxname:
             new_subtree_boxname = None
         subtree_node = self.read_from_box(subtree_node_boxname)
-        new_node = self.read_from_box(new_node_boxname)
+        new_node = None
+        if new_node_boxname:
+            new_node = self.read_from_box(new_node_boxname)
         localpath = list(localpath)
         return self.vdrive.modify_subtree(subtree_node, localpath,
                                           new_node, new_subtree_boxname)

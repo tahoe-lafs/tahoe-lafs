@@ -74,6 +74,7 @@ class SubTreeMaker(object):
 
 class VirtualDrive(object):
     implements(IVirtualDrive)
+    debug = False
 
     def __init__(self, workqueue, downloader, uploader, root_node):
         assert IWorkQueue(workqueue)
@@ -242,6 +243,8 @@ class VirtualDrive(object):
         # as necessary
         def _got_subtrees(subtrees, new_node_boxname):
             for (subtree, subpath) in reversed(subtrees):
+                if self.debug:
+                    print "SUBTREE", subtree, subpath
                 assert subtree.is_mutable()
                 must_update = subtree.mutation_modifies_parent()
                 subtree_node = subtree.create_node_now()
@@ -263,6 +266,11 @@ class VirtualDrive(object):
         d.addCallback(_got_subtrees, new_node_boxname)
         return d
 
+    def deletepath(self, path):
+        if self.debug:
+            print "DELETEPATH(%s)" % (path,)
+        return self.addpath(path, None)
+
     def modify_subtree(self, subtree_node, localpath, new_node,
                        new_subtree_boxname=None):
         # TODO: I'm lying here, we don't know who the parent is, so we can't
@@ -278,7 +286,10 @@ class VirtualDrive(object):
                                                       parent_is_mutable)
         def _got_subtree(subtree):
             assert subtree.is_mutable()
-            subtree.put_node_at_path(localpath, new_node)
+            if new_node:
+                subtree.put_node_at_path(localpath, new_node)
+            else:
+                subtree.delete_node_at_path(localpath)
             return subtree.update_now(self._uploader)
         d.addCallback(_got_subtree)
         if new_subtree_boxname:
@@ -312,26 +323,18 @@ class VirtualDrive(object):
         target = download.Data()
         return self.download(path, target)
 
-    def upload_now(self, path, uploadable):
+    def upload_data(self, path, data):
         assert isinstance(path, list)
-        # note: the first few steps of this do not use the workqueue, but I
-        # think things should remain consistent anyways. If the node is shut
-        # down before the file has finished uploading, then we forget all
-        # abou the file.
-        uploadable = IUploadable(uploadable)
-        d = self._child_should_not_exist(path)
-        # then we upload the file
-        d.addCallback(lambda ignored: self._uploader.upload(uploadable))
-        def _uploaded(uri):
-            assert isinstance(uri, str)
-            new_node = file.CHKFileNode().new(uri)
-            boxname = self.workqueue.create_boxname(new_node)
-            self.workqueue.add_addpath(boxname, path)
-            self.workqueue.add_delete_box(boxname)
-        d.addCallback(_uploaded)
-        return d
+        f, tempfilename = self.workqueue.create_tempfile()
+        f.write(data)
+        f.close()
+        boxname = self.workqueue.create_boxname()
+        self.workqueue.add_upload_chk(tempfilename, boxname)
+        self.workqueue.add_addpath(boxname, path)
+        self.workqueue.add_delete_box(boxname)
+        self.workqueue.add_delete_tempfile(tempfilename)
 
-    def upload_later(self, path, filename):
+    def upload(self, path, filename):
         assert isinstance(path, list)
         filename = os.path.abspath(filename)
         boxname = self.workqueue.create_boxname()
@@ -341,21 +344,7 @@ class VirtualDrive(object):
 
     def delete(self, path):
         assert isinstance(path, list)
-        parent_path = path[:-1]
-        orphan_path = path[-1]
-        d = self._get_closest_node_and_prepath(parent_path)
-        def _got_parent((prepath, node, remaining_path)):
-            assert not remaining_path
-            node.delete(orphan_path)
-            # now serialize and upload
-            subtree = node.get_subtree()
-            boxname = subtree.update(self.workqueue)
-            if boxname:
-                self.workqueue.add_addpath(boxname, prepath)
-                self.workqueue.add_delete_box(boxname)
-            return self
-        d.addCallback(_got_parent)
-        return d
+        self.workqueue.add_deletepath(path)
 
     def add_node(self, path, node):
         assert isinstance(path, list)

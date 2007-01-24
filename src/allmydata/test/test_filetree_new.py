@@ -323,10 +323,11 @@ from allmydata.filetree.interfaces import (ISubTree, INode, IDirectoryNode,
                                            IFileNode, NoSuchDirectoryError,
                                            NoSuchChildError)
 from allmydata.filetree.file import CHKFileNode
+from allmydata import upload
 from allmydata.interfaces import IDownloader
 from allmydata.util import bencode
 
-class InPairs(unittest.TestCase):
+class Utils(unittest.TestCase):
     def test_in_pairs(self):
         l = range(8)
         pairs = list(directory.in_pairs(l))
@@ -338,19 +339,28 @@ class FakeMesh(object):
 
     def __init__(self):
         self.files = {}
+
+    def upload(self, uploadable):
+        uri = "stub-uri-%d" % len(self.files)
+        if self.debug:
+            print "FakeMesh.upload -> %s" % uri
+        assert upload.IUploadable.providedBy(uploadable)
+        f = uploadable.get_filehandle()
+        data = f.read()
+        uploadable.close_filehandle(f)
+        self.files[uri] = data
+        return defer.succeed(uri)
+
     def upload_filename(self, filename):
-        uri = "stub-uri-%d" % len(self.files)
         if self.debug:
-            print "FakeMesh.upload_filename(%s) -> %s" % (filename, uri)
-        data = open(filename,"r").read()
-        self.files[uri] = data
-        return defer.succeed(uri)
+            print "FakeMesh.upload_filename(%s)" % filename
+        return self.upload(upload.FileName(filename))
+
     def upload_data(self, data):
-        uri = "stub-uri-%d" % len(self.files)
         if self.debug:
-            print "FakeMesh.upload_data(%s) -> %s" % (data, uri)
-        self.files[uri] = data
-        return defer.succeed(uri)
+            print "FakeMesh.upload_data(%s)" % data
+        return self.upload(upload.Data(data))
+
     def download(self, uri, target):
         if self.debug:
             print "FakeMesh.download(%s)" % uri
@@ -363,7 +373,9 @@ class FakeMesh(object):
 class VDrive(unittest.TestCase):
 
     def makeVirtualDrive(self, basedir, root_node=None, mesh=None):
-        wq = workqueue.WorkQueue(os.path.join(basedir, "1.workqueue"))
+        wq = workqueue.WorkQueue(os.path.join("test_filetree",
+                                              "VDrive",
+                                              basedir, "1.workqueue"))
         if mesh:
             assert IUploader.providedBy(mesh)
             assert IDownloader.providedBy(mesh)
@@ -557,7 +569,7 @@ class VDrive(unittest.TestCase):
         f.write(DATA)
         f.close()
 
-        rc = v.upload_later(["a","b","upload1"], filename)
+        rc = v.upload(["a","b","upload1"], filename)
         self.failUnlessIdentical(rc, None)
 
         d = v.workqueue.flush()
@@ -579,16 +591,16 @@ class VDrive(unittest.TestCase):
 
     def testCHKDirUpload(self):
         DATA = "here is some data\n"
-        d = defer.maybeDeferred(self.makeCHKTree, "upload")
+        filename = "upload1"
+        f = open(filename, "w")
+        f.write(DATA)
+        f.close()
+
+        d = defer.maybeDeferred(self.makeCHKTree, "chk-upload")
         def _made(v):
             self.v = v
 
-            filename = "upload1"
-            f = open(filename, "w")
-            f.write(DATA)
-            f.close()
-
-            rc = v.upload_later(["a","b","upload1"], filename)
+            rc = v.upload(["a","b","upload1"], filename)
             self.failUnlessIdentical(rc, None)
 
             return v.workqueue.flush()
@@ -609,3 +621,47 @@ class VDrive(unittest.TestCase):
 
         return d
 
+    def testCHKDirDelete(self):
+        DATA = "here is some data\n"
+        filename = "upload1"
+        f = open(filename, "w")
+        f.write(DATA)
+        f.close()
+
+        d = defer.maybeDeferred(self.makeCHKTree, "chk-delete")
+        def _made(v):
+            self.v = v
+        d.addCallback(_made)
+
+        d.addCallback(lambda r:
+                      self.v.upload(["a","b","upload1"], filename))
+        d.addCallback(lambda r:
+                      self.v.upload_data(["a","b","upload2"], DATA))
+        d.addCallback(lambda r:
+                      self.v.upload(["a","c","upload3"], filename))
+        d.addCallback(lambda r:
+                      self.v.workqueue.flush())
+
+        d.addCallback(lambda r: self.v.list([]))
+        d.addCallback(lambda contents:
+                      self.failUnlessListsAreEqual(contents.keys(), ["a"]))
+        d.addCallback(lambda r: self.v.list(["a"]))
+        d.addCallback(lambda contents:
+                      self.failUnlessListsAreEqual(contents.keys(), ["b","c"]))
+        d.addCallback(lambda r: self.v.list(["a","b"]))
+        d.addCallback(lambda contents:
+                      self.failUnlessListsAreEqual(contents.keys(),
+                                                   ["upload1", "upload2"]))
+        #d.addCallback(lambda r: self.v.download_as_data(["a","b","upload1"]))
+        #d.addCallback(self.failUnlessEqual, DATA)
+
+        # now delete it
+        d.addCallback(lambda r: self.v.delete(["a","b","upload2"]))
+        d.addCallback(lambda r: self.v.workqueue.flush())
+        d.addCallback(lambda r: self.v.list(["a","b"]))
+        d.addCallback(lambda contents:
+                      self.failUnlessListsAreEqual(contents.keys(),
+                                                   ["upload1"]))
+
+
+        return d

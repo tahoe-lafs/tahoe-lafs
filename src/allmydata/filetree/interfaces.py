@@ -166,6 +166,12 @@ class ISubTree(Interface):
         run synchronously, and returns None.
         """
 
+    def delete_node_at_path(path):
+        """Delete the node at the the given path.
+
+        This must run synchronously, and returns None.
+        """
+
     def serialize_subtree_to_file(f):
         """Create a string which describes my structure and write it to the
         given filehandle (using only .write()). This string should be
@@ -279,16 +285,18 @@ class IVirtualDrive(Interface):
         is complete.
         """
 
-    def upload_now(path, uploadable):
-        """Upload a file to the given path. The path must not already exist.
+    def upload_data(path, data):
+        """Upload a string to the given path. The path must not already exist.
 
-        path[:-1] must refer to a writable DIRECTORY node. 'uploadable' must
-        implement IUploadable. This returns a Deferred that fires (with
-        'uploadable') when the upload is complete. Do not use the workqueue.
+        path[:-1] must refer to a writable DIRECTORY node.
+
+        This uses the workqueue, and returns None.
         """
 
-    def upload_later(path, filename):
-        """Upload a file from disk to the given path. Use the workqueue.
+    def upload(path, filename):
+        """Upload a file from disk to the given path.
+
+        This uses the workqueue, and returns None.
         """
 
     def delete(path):

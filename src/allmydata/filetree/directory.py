@@ -207,6 +207,25 @@ class _DirectorySubTree(object):
         # now we can finally add the new node
         node.add(child_name, new_node)
 
+    def delete_node_at_path(self, path):
+        assert len(path) > 0
+        child_name = path[-1]
+
+        # first step: get the parent directory
+        node = self.root
+        for subdir_name in path[:-1]:
+            subdir_node = node.get(subdir_name) # may raise NoSuchChildError
+            node = subdir_node
+
+        # 'node' is now pointing at the parent directory. Let's make sure the
+        # path they want to delete actually exists. We don't really care what
+        # the child *is*, just that it exists.
+        node.get(child_name) # may raise NoSuchChildError
+
+        # now delete it
+        # TODO: How do we free the subtree that was just orphaned?
+        node.delete(child_name)
+
 
 class LocalFileSubTreeNode(BaseDataNode):
     prefix = "LocalFileDirectory"

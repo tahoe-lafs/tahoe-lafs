@@ -224,6 +224,15 @@ class IUploader(Interface):
     def upload_ssk(write_capability, new_version, uploadable):
         pass # TODO
 
+    def upload_data(data):
+        """Like upload(), but accepts a string."""
+
+    def upload_filename(filename):
+        """Like upload(), but accepts an absolute pathname."""
+
+    def upload_filehandle(filehane):
+        """Like upload(), but accepts an open filehandle."""
+
 
 class IWorkQueue(Interface):
     """Each filetable root is associated a work queue, which is persisted on
@@ -315,6 +324,13 @@ class IWorkQueue(Interface):
         steps to be added to the workqueue.
         """
 
+    def add_deletepath(path):
+        """When executed, finds the subtree that contains the node at 'path'
+        and modifies it (and any necessary parent subtrees) to delete that
+        path. This will probably cause one or more 'add_modify_subtree' or
+        'add_modify_redirection' steps to be added to the workqueue.
+        """
+
     def add_modify_subtree(subtree_node, localpath, new_node_boxname,
                            new_subtree_boxname=None):
         """When executed, this step retrieves the subtree specified by
@@ -322,7 +338,8 @@ class IWorkQueue(Interface):
         then modifies it such that a subtree-relative 'localpath' points to
         the new node. It then serializes the subtree in its new form, and
         optionally puts a node that describes the new subtree in
-        'new_node_boxname'.
+        'new_node_boxname'. If 'new_node_boxname' is None, this deletes the
+        given path.
 
         The idea is that 'subtree_node' will refer a CHKDirectorySubTree, and
         'new_node_boxname' will contain the CHKFileNode that points to a
