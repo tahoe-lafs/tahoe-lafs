@@ -510,8 +510,8 @@ fec_free (fec_t *p) {
  * the encoding matrix.
  */
 fec_t *
-fec_new (int k, int n) {
-    int row, col;
+fec_new (unsigned char k, unsigned char n) {
+    unsigned char row, col;
     gf *p, *tmp_m;
 
     fec_t *retval;
@@ -521,10 +521,6 @@ fec_new (int k, int n) {
     if (fec_initialized == 0)
         init_fec ();
 
-    if (k < 1 || k > 256 || n > 256 || k > n) {
-        ERR("Invalid parameters k %d n %d GF_SIZE %d", k, n, 255);
-        return NULL;
-    }
     retval = (fec_t *) my_malloc (sizeof (fec_t), "new_code");
     retval->k = k;
     retval->n = n;
@@ -605,7 +601,7 @@ fec_encode_all(const fec_t* code, const gf*restrict const*restrict const src, gf
  * @param matrix a space allocated for a k by k matrix
  */
 void
-build_decode_matrix_into_space(const fec_t*restrict const code, const int*const restrict index, const int k, gf*restrict const matrix) {
+build_decode_matrix_into_space(const fec_t*restrict const code, const unsigned char*const restrict index, const unsigned char k, gf*restrict const matrix) {
     unsigned i;
     gf* p;
     for (i=0, p=matrix; i < k; i++, p += k) {
@@ -620,7 +616,7 @@ build_decode_matrix_into_space(const fec_t*restrict const code, const int*const 
 }
 
 void
-fec_decode_all(const fec_t* code, const gf*restrict const*restrict const inpkts, gf*restrict const*restrict const outpkts, const unsigned*restrict const index, unsigned sz) {
+fec_decode_all(const fec_t* code, const gf*restrict const*restrict const inpkts, gf*restrict const*restrict const outpkts, const unsigned char*restrict const index, size_t sz) {
     gf m_dec[code->k * code->k];
     build_decode_matrix_into_space(code, index, code->k, m_dec);
 

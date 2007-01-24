@@ -52,7 +52,7 @@ typedef struct {
 } fec_t;
 
 void fec_free (fec_t *p);
-fec_t *fec_new (int k, int n);
+fec_t *fec_new (unsigned char k, unsigned char n);
 
 /**
  * @param inpkts the "primary shares" i.e. the chunks of the input data
@@ -68,6 +68,6 @@ void fec_encode_all(const fec_t* code, const gf*restrict const*restrict const sr
  * @param index an array of the shareids of the packets in inpkts
  * @param sz size of a packet in bytes
  */
-void fec_decode_all(const fec_t* code, const gf*restrict const*restrict const inpkts, gf*restrict const*restrict const outpkts, const unsigned*restrict const index, unsigned sz);
+void fec_decode_all(const fec_t* code, const gf*restrict const*restrict const inpkts, gf*restrict const*restrict const outpkts, const unsigned char*restrict const index, size_t sz);
 
 /* end of file */

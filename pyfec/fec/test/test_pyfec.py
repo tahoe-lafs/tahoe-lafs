@@ -33,7 +33,7 @@ def _h(k, m, ss):
     nums = [ x[0] for x in nums_and_shares ]
     # sys.stdout.write("about to construct Decoder.\n") ; sys.stdout.flush()
     decer = fec.Decoder(k, m)
-    # sys.stdout.write("about to decode.\n") ; sys.stdout.flush()
+    # sys.stdout.write("about to decode from %s.\n"%nums) ; sys.stdout.flush()
     decoded = decer.decode(shares, nums)
     # sys.stdout.write("decoded.\n") ; sys.stdout.flush()
     _assert(len(decoded) == len(ss), len(decoded), len(ss))
@@ -64,17 +64,14 @@ def pad_size(n, k):
         return 0
 
 def _test_random():
-    # m = random.randrange(1, 255)
-    m = 99
-    # k = random.randrange(1, m+1)
-    k = 33
-    # l = random.randrange(0, 2**16)
-    l = 2**12
+    m = random.randrange(1, 255)
+    k = random.randrange(1, m+1)
+    l = random.randrange(0, 2**16)
     ss = [ randstr(l/k) + '\x00' * pad_size(l/k, k) for x in range(k) ]
     _h(k, m, ss)
 
 def test_random():
-    for i in range(2**9):
+    for i in range(2**10):
         sys.stdout.write(",")
         _test_random()
         sys.stdout.write(".")

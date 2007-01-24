@@ -340,7 +340,7 @@ Decoder_decode(Decoder *self, PyObject *args) {
         return NULL;
 
     const gf*restrict cshares[self->kk];
-    unsigned csharenums[self->kk];
+    unsigned char csharenums[self->kk];
     gf*restrict recoveredcstrs[self->kk]; /* self->kk is actually an upper bound -- we probably won't need all of this space. */
     PyObject*restrict recoveredpystrs[self->kk]; /* self->kk is actually an upper bound -- we probably won't need all of this space. */
     unsigned i;
@@ -374,7 +374,12 @@ Decoder_decode(Decoder *self, PyObject *args) {
     for (i=0; i<self->kk; i++) {
         if (!PyInt_Check(fastsharenumsitems[i]))
             goto err;
-        csharenums[i] = PyInt_AsLong(fastsharenumsitems[i]);
+        long tmpl = PyInt_AsLong(fastsharenumsitems[i]);
+        if (tmpl < 0 || tmpl >= UCHAR_MAX) {
+            py_raise_fec_error("Precondition violation: Share ids can't be less than zero or greater than 255.  %ld\n", tmpl);
+            goto err;
+        }
+        csharenums[i] = (unsigned char)tmpl;
         if (csharenums[i] >= self->kk)
             needtorecover+=1;
 
