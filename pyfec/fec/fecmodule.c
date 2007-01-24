@@ -85,7 +85,7 @@ Encoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
 static char Encoder_encode__doc__[] = "\
 Encode data into m packets.\
 @param inshares: a sequence of k buffers of data to encode -- these are the k primary shares, i.e. the input data split into k pieces (for best performance, make it a tuple instead of a list)\n\
-@param desired_shares_nums optional sorted sequence of sharenums indicating which shares to produce and return;  If None, all m shares will be returned (in order).  (For best performance, make it a tuple instead of a list.)\n\
+@param desired_shares_ids optional sorted sequence of shareids indicating which shares to produce and return;  If None, all m shares will be returned (in order).  (For best performance, make it a tuple instead of a list.)\n\
 @returns: a list of buffers containing the requested shares\n\
 ";
 

@@ -85,9 +85,9 @@ class ICodecEncoder(Interface):
     def get_encoder_type():
         """Return a short string that describes the type of this encoder.
 
-        There must be a global table of encoder classes. This method returns
-        an index into this table; the value at this index is an encoder
-        class, and this encoder is an instance of that class.
+        There is required to be a global table of encoder classes. This method
+        returns an index into this table; the value at this index is an
+        encoder class, and this encoder is an instance of that class.
         """
 
     def get_serialized_params(): # TODO: maybe, maybe not
@@ -111,30 +111,31 @@ class ICodecEncoder(Interface):
         """Return the length of the shares that encode() will produce.
         """
 
-    def encode(data, num_shares=None):
+    def encode(inshares, desired_share_ids=None):
         """Encode a chunk of data. This may be called multiple times. Each
         call is independent.
 
-        The data must be a string with a length that exactly matches the
-        data_size promised by set_params().
+        The data is required to be a string with a length that exactly
+        matches the data_size promised by set_params().
 
-        'num_shares', if provided, must be equal or less than the
-        'max_shares' set in set_params. If 'num_shares' is left at None, this
-        method will produce 'max_shares' shares. This can be used to minimize
-        the work that the encoder needs to do if we initially thought that we
-        would need, say, 100 shares, but now that it is time to actually
-        encode the data we only have 75 peers to send data to.
+        'num_shares', if provided, is required to be equal or less than the
+        'max_shares' set in set_params. If 'num_shares' is left at None,
+        this method will produce 'max_shares' shares. This can be used to
+        minimize the work that the encoder needs to do if we initially
+        thought that we would need, say, 100 shares, but now that it is time
+        to actually encode the data we only have 75 peers to send data to.
 
-        For each call, encode() will return a Deferred that fires with a list
-        of 'total_shares' tuples. Each tuple is of the form (sharenum,
-        sharedata), where sharenum is an int (from 0 total_shares-1), and
-        sharedata is a string. The get_share_size() method can be used to
-        determine the length of the 'sharedata' strings returned by encode().
-
-        The (sharenum, sharedata) tuple must be kept together during storage
-        and retrieval. Specifically, the share data is useless by itself: the
-        decoder needs to be told which share is which by providing it with
-        both the share number and the actual share data.
+        For each call, encode() will return a Deferred that fires with two
+        lists, one containing shares and the other containing the sharenums,
+        which is an int from 0 to num_shares-1. The get_share_size() method
+        can be used to determine the length of the 'sharedata' strings
+        returned by encode().
+        
+        The sharedatas and their corresponding sharenums are required to be
+        kept together during storage and retrieval. Specifically, the share
+        data is useless by itself: the decoder needs to be told which share is
+        which by providing it with both the share number and the actual
+        share data.
 
         The memory usage of this function is expected to be on the order of
         total_shares * get_share_size().
@@ -161,24 +162,26 @@ class ICodecDecoder(Interface):
 
     def get_required_shares():
         """Return the number of shares needed to reconstruct the data.
-        set_serialized_params() must be called before this."""
+        set_serialized_params() is required to be called before this."""
 
-    def decode(some_shares):
+    def decode(some_shares, their_shareids):
         """Decode a partial list of shares into data.
 
-        'some_shares' must be a list of (sharenum, share) tuples, a subset of
-        the shares returned by ICodecEncode.encode(). Each share must be of
-        the same length. The share tuples may appear in any order, but of
-        course each tuple must have a sharenum that correctly matches the
-        associated share data string.
+        'some_shares' is required to be a list of buffers of sharedata, a
+        subset of the shares returned by ICodecEncode.encode(). Each share is
+        required to be of the same length.  The i'th element of their_shareids
+        is required to be the share id (or "share num") of the i'th buffer in
+        some_shares.
 
-        This returns a Deferred which fires with a string. This string will
-        always have a length equal to the 'data_size' value passed into the
-        original ICodecEncode.set_params() call.
+        This returns a Deferred which fires with a sequence of buffers. This
+        sequence will contain all of the segments of the original data, in
+        order.  The sum of the lengths of all of the buffers will be the
+        'data_size' value passed into the original ICodecEncode.set_params()
+        call.
 
-        The length of 'some_shares' must be equal or greater than the value
-        of 'required_shares' passed into the original
-        ICodecEncode.set_params() call.
+        The length of 'some_shares' is required to be exactly the value of
+        'required_shares' passed into the original ICodecEncode.set_params()
+        call.
         """
 
 class IDownloadTarget(Interface):
