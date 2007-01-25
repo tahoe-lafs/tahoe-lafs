@@ -95,7 +95,7 @@ Encoder_encode(Encoder *self, PyObject *args) {
     PyObject* desired_shares_ids = NULL; /* The shareids of the shares that should be returned. */
     PyObject* result = NULL;
 
-    if (!PyArg_ParseTuple(args, "O!|O!", &PyList_Type, &inshares, &PyList_Type, &desired_shares_ids))
+    if (!PyArg_ParseTuple(args, "O|O", &inshares, &desired_shares_ids))
         return NULL;
 
     gf* check_shares_produced[self->mm - self->kk]; /* This is an upper bound -- we will actually use only num_check_shares_produced of these elements (see below). */
