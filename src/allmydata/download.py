@@ -127,7 +127,8 @@ class FileDownloader:
 
         d.addCallback(lambda res: self._decoder.decode(shares))
 
-        def _write(data):
+        def _write(decoded_shares):
+            data = "".join(decoded_shares)
             self._target.open()
             hasher = sha.new(netstring("allmydata_v1_verifierid"))
             hasher.update(data)

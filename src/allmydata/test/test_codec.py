@@ -34,7 +34,8 @@ class Tester:
             d1 = dec.decode(shares)
             return d1
 
-        def _check_data(data1):
+        def _check_data(decoded_shares):
+            data1 = "".join(decoded_shares)
             self.failUnlessEqual(len(data1), len(data0))
             self.failUnless(data1 == data0)
 
