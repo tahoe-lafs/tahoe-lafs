@@ -152,7 +152,7 @@ Encoder_encode(Encoder *self, PyObject *args) {
             py_raise_fec_error("Precondition violation: %u'th item is required to offer the single-segment read character buffer protocol, but it does not.\n", i);
             goto err;
         }
-        if (PyObject_AsCharBuffer(fastinsharesitems[i], &(incshares[i]), &sz))
+        if (PyObject_AsReadBuffer(fastinsharesitems[i], &(incshares[i]), &sz))
             goto err;
         if (oldsz != 0 && oldsz != sz) {
             py_raise_fec_error("Precondition violation: Input shares are required to be all the same length.  oldsz: %Zu, sz: %Zu\n", oldsz, sz);
@@ -385,9 +385,11 @@ Decoder_decode(Decoder *self, PyObject *args) {
         if (csharenums[i] >= self->kk)
             needtorecover+=1;
 
-        if (!PyObject_CheckReadBuffer(fastsharesitems[i]))
+        if (!PyObject_CheckReadBuffer(fastsharesitems[i])) {
+            py_raise_fec_error("Precondition violation: %u'th item is required to offer the single-segment read character buffer protocol, but it does not.\n", i);
             goto err;
-        if (PyObject_AsCharBuffer(fastsharesitems[i], &(cshares[i]),  &sz))
+        }
+        if (PyObject_AsReadBuffer(fastsharesitems[i], &(cshares[i]),  &sz))
             goto err;
         if (oldsz != 0 && oldsz != sz) {
             py_raise_fec_error("Precondition violation: Input shares are required to be all the same length.  oldsz: %Zu, sz: %Zu\n", oldsz, sz);
