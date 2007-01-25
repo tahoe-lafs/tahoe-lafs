@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from pyutil.assertutil import _assert, precondition
-
 import random
 import sys
 
@@ -13,8 +11,8 @@ def _h(k, m, ss):
     # sys.stdout.write("constructed.\n") ; sys.stdout.flush()
     nums_and_shares = list(enumerate(encer.encode(ss)))
     # sys.stdout.write("encoded.\n") ; sys.stdout.flush()
-    _assert(isinstance(nums_and_shares, list), nums_and_shares)
-    _assert(len(nums_and_shares) == m, len(nums_and_shares), m)
+    assert isinstance(nums_and_shares, list), nums_and_shares
+    assert len(nums_and_shares) == m, (len(nums_and_shares), m,)
     nums_and_shares = random.sample(nums_and_shares, k)
     shares = [ x[1] for x in nums_and_shares ]
     nums = [ x[0] for x in nums_and_shares ]
@@ -23,8 +21,8 @@ def _h(k, m, ss):
     # sys.stdout.write("about to decode from %s.\n"%nums) ; sys.stdout.flush()
     decoded = decer.decode(shares, nums)
     # sys.stdout.write("decoded.\n") ; sys.stdout.flush()
-    _assert(len(decoded) == len(ss), len(decoded), len(ss))
-    _assert(tuple([str(s) for s in decoded]) == tuple([str(s) for s in ss]), tuple([str(s) for s in decoded]), tuple([str(s) for s in ss]))
+    assert len(decoded) == len(ss), (len(decoded), len(ss),)
+    assert tuple([str(s) for s in decoded]) == tuple([str(s) for s in ss]), (tuple([str(s) for s in decoded]), tuple([str(s) for s in ss]),)
 
 def randstr(n):
     return ''.join(map(chr, map(random.randrange, [0]*n, [256]*n)))
@@ -58,9 +56,10 @@ def _test_random():
     _h(k, m, ss)
 
 def test_random():
-    for i in range(2**10):
-        sys.stdout.write(",")
+    for i in range(2**5):
+        # sys.stdout.write(",")
         _test_random()
-        sys.stdout.write(".")
-
+        # sys.stdout.write(".")
+    print "%d randomized tests pass." % (i+1)
 test_random()
+
