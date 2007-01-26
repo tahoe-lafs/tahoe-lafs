@@ -105,3 +105,29 @@ def encode_file_stringy(inf, cb, k, m, chunksize=4096):
         # print "...finished to encode()"
         cb(res, indatasize)
 
+def bench():
+    FILESIZE=1000000
+    CHUNKSIZE=4096
+    import os, time
+    left=FILESIZE
+    outfile = open("tmpranddata", "wb")
+    try:
+        while left:
+            d = os.urandom(min(left, CHUNKSIZE))
+            outfile.write(d)
+            left -= len(d)
+        outfile.flush()
+        outfile = None
+        infile = open("tmpranddata", "rb")
+        def cb(s, l):
+            pass
+        st = time.time()
+        encode_file(infile, cb, 25, 100, 4096)
+        so = time.time()
+        infile.close()
+        infile = None
+        print "Encoded %s byte file in %0.2f seconds, or %0.2f million bytes per second" % (FILESIZE, so-st, FILESIZE/((so-st)*1000000),)
+        return so-st
+    finally:
+        os.remove("tmpranddata")
+
