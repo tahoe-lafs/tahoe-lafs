@@ -41,12 +41,20 @@ if DEBUGMODE:
     extra_link_args.append("-g")
     undef_macros.append('NDEBUG')
 
-trove_classifiers="""
-XYZ insert trove classifiers here.
-"""
+trove_classifiers=[
+    "Development Status :: 4 - Beta", 
+    "Environment :: No Input/Output (Daemon)", 
+    "Intended Audience :: Developers", 
+    "License :: OSI Approved :: GNU General Public License (GPL)", 
+    "Natural Language :: English", 
+    "Operating System :: OS Independent", 
+    "Programming Language :: C", 
+    "Programming Language :: Python", 
+    "Topic :: System :: Archiving :: Backup", 
+    ]
 
 setup(name='pyfec',
-      versions='0.9',
+      version='0.9',
       summary='Provides a fast C implementation of Reed-Solomon erasure coding with a Python interface.',
       description='Erasure coding is the generation of extra redundant packets of information such that if some packets are lost ("erased") then the original data can be recovered from the remaining packets.  This package contains an optimized implementation along with a Python interface.',
       author='Zooko O\'Whielacronx',
@@ -55,6 +63,6 @@ setup(name='pyfec',
       license='GNU GPL',
       platform='Any',
       packages=['fec'],
-      classifiers=trove_classifiers.split("\n"),
+      classifiers=trove_classifiers,
       ext_modules=[Extension('fec', ['fec/fec.c', 'fec/fecmodule.c',], extra_link_args=extra_link_args, extra_compile_args=extra_compile_args, undef_macros=undef_macros),],
       )
