@@ -557,10 +557,9 @@ fec_new (unsigned char k, unsigned char n) {
     tmp_m[0] = 1;
     for (col = 1; col < k; col++)
         tmp_m[col] = 0;
-    for (p = tmp_m + k, row = 0; row < n - 1; row++, p += k) {
+    for (p = tmp_m + k, row = 0; row < n - 1; row++, p += k)
         for (col = 0; col < k; col++)
             p[col] = gf_exp[modnn (row * col)];
-    }
 
     /*
      * quick code to build systematic matrix: invert the top
