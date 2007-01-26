@@ -105,6 +105,45 @@ def encode_file_stringy(inf, cb, k, m, chunksize=4096):
         # print "...finished to encode()"
         cb(res, indatasize)
 
+def encode_file_not_really(inf, cb, k, m, chunksize=4096):
+    """
+    Read in the contents of inf, and call cb with the results.
+
+    @param inf the file object from which to read the data
+    @param cb the callback to be invoked with the results
+    @param k the number of shares required to reconstruct the file
+    @param m the total number of shares created
+    @param chunksize how much data to read from inf for each of the k input 
+        shares
+    """
+    enc = fec.Encoder(k, m)
+    l = tuple([ array.array('c') for i in range(k) ])
+    indatasize = k*chunksize # will be reset to shorter upon EOF
+    ZEROES=array.array('c', ['\x00'])*chunksize
+    while indatasize == k*chunksize:
+        # This loop body executes once per segment.
+        i = 0
+        while (i<len(l)):
+            # This loop body executes once per chunk.
+            a = l[i]
+            i += 1
+            del a[:]
+            try:
+                a.fromfile(inf, chunksize)
+            except EOFError:
+                indatasize = i*chunksize + len(a)
+                
+                # padding
+                a.fromstring("\x00" * (chunksize-len(a)))
+                while (i<len(l)):
+                    a[:] = ZEROES
+                    i += 1
+
+        # print "about to encode()... len(l[0]): %s, l[0]: %s" % (len(l[0]), type(l[0]),),
+        # res = enc.encode(l)
+        # print "...finished to encode()"
+        cb(l, indatasize)
+
 def bench():
     FILESIZE=1000000
     CHUNKSIZE=4096
