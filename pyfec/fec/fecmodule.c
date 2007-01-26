@@ -96,11 +96,23 @@ Encoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
     if (!PyArg_ParseTupleAndKeywords(args, kwdict, "ii", kwlist, &self->kk, &self->mm))
         return -1;
 
-    self->fec_matrix = fec_new(self->kk, self->mm);
-    if(self->fec_matrix == NULL) {
-        py_raise_fec_error(fec_error); /* xyz */
-        return -1;
+    if (self->kk < 1) {
+        py_raise_fec_error("Precondition violation: first argument is required to be greater than or equal to 1, but it was %d", self->kk);
+	return -1;
     }
+    if (self->mm < 1) {
+        py_raise_fec_error("Precondition violation: second argument is required to be greater than or equal to 1, but it was %d", self->mm);
+	return -1;
+    }
+    if (self->mm > 255) {
+        py_raise_fec_error("Precondition violation: second argument is required to be less than or equal to 255, but it was %d", self->mm);
+	return -1;
+    }
+    if (self->kk > self->mm) {
+        py_raise_fec_error("Precondition violation: first argument is required to be less than or equal to the second argument, but they were %d and %d respectively", self->kk, self->mm);
+	return -1;
+    }
+    self->fec_matrix = fec_new(self->kk, self->mm);
 
     return 0;
 }
@@ -333,14 +345,27 @@ Decoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
         "m",
         NULL
     };
+
     if (!PyArg_ParseTupleAndKeywords(args, kwdict, "ii", kwlist, &self->kk, &self->mm))
         return -1;
 
-    self->fec_matrix = fec_new(self->kk, self->mm);
-    if(self->fec_matrix == NULL) {
-        py_raise_fec_error(fec_error); /* xyz */
-        return -1;
+    if (self->kk < 1) {
+        py_raise_fec_error("Precondition violation: first argument is required to be greater than or equal to 1, but it was %d", self->kk);
+	return -1;
     }
+    if (self->mm < 1) {
+        py_raise_fec_error("Precondition violation: second argument is required to be greater than or equal to 1, but it was %d", self->mm);
+	return -1;
+    }
+    if (self->mm > 255) {
+        py_raise_fec_error("Precondition violation: second argument is required to be less than or equal to 255, but it was %d", self->mm);
+	return -1;
+    }
+    if (self->kk > self->mm) {
+        py_raise_fec_error("Precondition violation: first argument is required to be less than or equal to the second argument, but they were %d and %d respectively", self->kk, self->mm);
+	return -1;
+    }
+    self->fec_matrix = fec_new(self->kk, self->mm);
 
     return 0;
 }
