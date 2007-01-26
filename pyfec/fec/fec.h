@@ -1,4 +1,32 @@
+/**
+ * pyfec -- fast forward error correction library with Python interface
+ *
+ * Copyright (C) 2007 Allmydata, Inc.
+ * Author: Zooko Wilcox-O'Hearn
+ * mailto:zooko@zooko.com
+ * 
+ * This file is part of pyfec.
+ * 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
 /*
+ * Much of this work is derived from the "fec" software by Luigi Rizzo, et 
+ * al., the copyright notice and licence terms of which are included below 
+ * for reference.
+ * 
  * fec.h -- forward error correction based on Vandermonde matrices
  * 980614
  * (C) 1997-98 Luigi Rizzo (luigi@iet.unipi.it)
