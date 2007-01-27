@@ -24,6 +24,43 @@ import fec
 
 import array
 
+def encode_to_files(inf, prefix, k, m):
+    """
+    Encode inf, writing the shares to named $prefix+$shareid.
+    """
+    l = [ open(prefix+str(shareid), "wb") for shareid in range(m) ]
+    def cb(shares, len):
+        assert len(shares) == len(l)
+        for i in range(len(shares)):
+            l.write(share)
+
+    encode_file(inf, cb, k, m, chunksize=4096)
+ 
+def decode_from_files(outf, prefix, k, m):
+    """
+    Decode from the first k files in the current directory whose names begin 
+    with prefix, writing the results to outf.
+    """
+    import os
+    infs = []
+    shareids = []
+    for f in os.listdir("."):
+        if f.startswith(prefix):
+            infs.append(open(f, "rb"))
+            shareids.append(int(f[len(prefix):]))
+            if len(infs) == k:
+                break
+
+    CHUNKSIZE = 4096
+    dec = fec.Decoder(k, m)
+    while True:
+        x = [ inf.read(CHUNKSIZE) for inf in infs ]
+        decshares = dec.decode(x, shareids)
+        for decshare in decshares:
+            outf.write(decshare)
+        if len(x[-1]) != CHUNKSIZE:
+            break
+
 def encode_file(inf, cb, k, m, chunksize=4096):
     """
     Read in the contents of inf, encode, and call cb with the results.
