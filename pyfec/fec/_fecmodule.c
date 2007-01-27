@@ -212,7 +212,7 @@ Encoder_encode(Encoder *self, PyObject *args) {
     assert (check_share_index == num_check_shares_produced);
 
     /* Encode any check shares that are needed. */
-    fec_encode_all(self->fec_matrix, incshares, check_shares_produced, c_desired_shares_ids, num_desired_shares, sz);
+    fec_encode(self->fec_matrix, incshares, check_shares_produced, c_desired_shares_ids, num_desired_shares, sz);
 
     /* Wrap all requested shares up into a Python list of Python strings. */
     result = PyList_New(num_desired_shares);
@@ -383,14 +383,14 @@ Decode a list shares into a list of segments.\n\
 static PyObject *
 Decoder_decode(Decoder *self, PyObject *args) {
     PyObject*restrict shares;
-    PyObject*restrict sharenums;
+    PyObject*restrict shareids;
     PyObject* result = NULL;
 
-    if (!PyArg_ParseTuple(args, "O!O!", &PyList_Type, &shares, &PyList_Type, &sharenums))
+    if (!PyArg_ParseTuple(args, "O!O!", &PyList_Type, &shares, &PyList_Type, &shareids))
         return NULL;
 
     const gf*restrict cshares[self->kk];
-    unsigned char csharenums[self->kk];
+    unsigned char cshareids[self->kk];
     gf*restrict recoveredcstrs[self->kk]; /* self->kk is actually an upper bound -- we probably won't need all of this space. */
     PyObject*restrict recoveredpystrs[self->kk]; /* self->kk is actually an upper bound -- we probably won't need all of this space. */
     unsigned i;
@@ -399,38 +399,38 @@ Decoder_decode(Decoder *self, PyObject *args) {
     PyObject*restrict fastshares = PySequence_Fast(shares, "First argument was not a sequence.");
     if (!fastshares)
         goto err;
-    PyObject*restrict fastsharenums = PySequence_Fast(sharenums, "Second argument was not a sequence.");
-    if (!fastsharenums)
+    PyObject*restrict fastshareids = PySequence_Fast(shareids, "Second argument was not a sequence.");
+    if (!fastshareids)
         goto err;
 
     if (PySequence_Fast_GET_SIZE(fastshares) != self->kk) {
         py_raise_fec_error("Precondition violation: Wrong length -- first argument is required to contain exactly k shares.  len(first): %d, k: %d", PySequence_Fast_GET_SIZE(fastshares), self->kk); 
         goto err;
     }
-    if (PySequence_Fast_GET_SIZE(fastsharenums) != self->kk) {
-        py_raise_fec_error("Precondition violation: Wrong length -- sharenums is required to contain exactly k shares.  len(sharenums): %d, k: %d", PySequence_Fast_GET_SIZE(fastsharenums), self->kk); 
+    if (PySequence_Fast_GET_SIZE(fastshareids) != self->kk) {
+        py_raise_fec_error("Precondition violation: Wrong length -- shareids is required to contain exactly k shares.  len(shareids): %d, k: %d", PySequence_Fast_GET_SIZE(fastshareids), self->kk); 
         goto err;
     }
 
-    /* Construct a C array of gf*'s of the data and another of C ints of the sharenums. */
+    /* Construct a C array of gf*'s of the data and another of C ints of the shareids. */
     unsigned needtorecover=0;
-    PyObject** fastsharenumsitems = PySequence_Fast_ITEMS(fastsharenums);
-    if (!fastsharenumsitems)
+    PyObject** fastshareidsitems = PySequence_Fast_ITEMS(fastshareids);
+    if (!fastshareidsitems)
         goto err;
     PyObject** fastsharesitems = PySequence_Fast_ITEMS(fastshares);
     if (!fastsharesitems)
         goto err;
     int sz, oldsz = 0;
     for (i=0; i<self->kk; i++) {
-        if (!PyInt_Check(fastsharenumsitems[i]))
+        if (!PyInt_Check(fastshareidsitems[i]))
             goto err;
-        long tmpl = PyInt_AsLong(fastsharenumsitems[i]);
+        long tmpl = PyInt_AsLong(fastshareidsitems[i]);
         if (tmpl < 0 || tmpl >= UCHAR_MAX) {
             py_raise_fec_error("Precondition violation: Share ids can't be less than zero or greater than 255.  %ld\n", tmpl);
             goto err;
         }
-        csharenums[i] = (unsigned char)tmpl;
-        if (csharenums[i] >= self->kk)
+        cshareids[i] = (unsigned char)tmpl;
+        if (cshareids[i] >= self->kk)
             needtorecover+=1;
 
         if (!PyObject_CheckReadBuffer(fastsharesitems[i])) {
@@ -448,13 +448,13 @@ Decoder_decode(Decoder *self, PyObject *args) {
 
     /* move src packets into position */
     for (i=0; i<self->kk;) {
-        if (csharenums[i] >= self->kk || csharenums[i] == i)
+        if (cshareids[i] >= self->kk || cshareids[i] == i)
             i++;
         else {
             /* put pkt in the right position. */
-            unsigned char c = csharenums[i];
+            unsigned char c = cshareids[i];
 
-            SWAP (csharenums[i], csharenums[c], int);
+            SWAP (cshareids[i], cshareids[c], int);
             SWAP (cshares[i], cshares[c], gf*);
             SWAP (fastsharesitems[i], fastsharesitems[c], PyObject*);
         }
@@ -471,7 +471,7 @@ Decoder_decode(Decoder *self, PyObject *args) {
     }
 
     /* Decode any recovered shares that are needed. */
-    fec_decode_all(self->fec_matrix, cshares, recoveredcstrs, csharenums, sz);
+    fec_decode(self->fec_matrix, cshares, recoveredcstrs, cshareids, sz);
 
     /* Wrap up both original primary shares and decoded shares into a Python list of Python strings. */
     unsigned nextrecoveredix=0;
@@ -479,7 +479,7 @@ Decoder_decode(Decoder *self, PyObject *args) {
     if (result == NULL)
         goto err;
     for (i=0; i<self->kk; i++) {
-        if (csharenums[i] == i) {
+        if (cshareids[i] == i) {
             /* Original primary share. */
             Py_INCREF(fastsharesitems[i]);
             if (PyList_SetItem(result, i, fastsharesitems[i]) == -1) {
@@ -502,7 +502,7 @@ Decoder_decode(Decoder *self, PyObject *args) {
     Py_XDECREF(result); result = NULL;
   cleanup:
     Py_XDECREF(fastshares); fastshares=NULL;
-    Py_XDECREF(fastsharenums); fastsharenums=NULL;
+    Py_XDECREF(fastshareids); fastshareids=NULL;
     return result;
 }
 

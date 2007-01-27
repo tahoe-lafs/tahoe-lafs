@@ -580,7 +580,7 @@ fec_new (unsigned char k, unsigned char n) {
 }
 
 void
-fec_encode_all(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned char*restrict const share_ids, unsigned char num_share_ids, size_t sz) {
+fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned char*restrict const share_ids, unsigned char num_share_ids, size_t sz) {
     unsigned i, j;
     unsigned char fecnum;
     gf* p;
@@ -601,7 +601,7 @@ fec_encode_all(const fec_t* code, const gf*restrict const*restrict const src, gf
 #if 0
 /* By turning the nested loop inside out, we might incur different cache usage and therefore go slower or faster.  However in practice I'm not able to detect a difference, since >90% of the time is spent in my Python test script anyway.  :-) */
 void
-fec_encode_all(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned char*restrict const share_ids, unsigned char num_share_ids, size_t sz) {
+fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned char*restrict const share_ids, unsigned char num_share_ids, size_t sz) {
     for (unsigned j=0; j < code->k; j++) {
         unsigned fecs_ix = 0; /* index into the fecs array */
         for (unsigned i=0; i<num_share_ids; i++) {
@@ -639,7 +639,7 @@ build_decode_matrix_into_space(const fec_t*restrict const code, const unsigned c
 }
 
 void
-fec_decode_all(const fec_t* code, const gf*restrict const*restrict const inpkts, gf*restrict const*restrict const outpkts, const unsigned char*restrict const index, size_t sz) {
+fec_decode(const fec_t* code, const gf*restrict const*restrict const inpkts, gf*restrict const*restrict const outpkts, const unsigned char*restrict const index, size_t sz) {
     gf m_dec[code->k * code->k];
     build_decode_matrix_into_space(code, index, code->k, m_dec);
 

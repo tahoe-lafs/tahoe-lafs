@@ -85,17 +85,17 @@ fec_t *fec_new (unsigned char k, unsigned char n);
 /**
  * @param inpkts the "primary shares" i.e. the chunks of the input data
  * @param fecs buffers into which the secondary shares will be written
- * @param share_ids the numbers of the desired shares -- including both primary shares (the id < k) which fec_encode_all() ignores and check shares (the id >= k) which fec_encode_all() will produce and store into the buffers of the fecs parameter
+ * @param share_ids the numbers of the desired shares -- including both primary shares (the id < k) which fec_encode() ignores and check shares (the id >= k) which fec_encode() will produce and store into the buffers of the fecs parameter
  * @param num_share_ids the length of the share_ids array
  */
-void fec_encode_all(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned char*restrict const share_ids, unsigned char num_share_ids, size_t sz);
+void fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned char*restrict const share_ids, unsigned char num_share_ids, size_t sz);
 
 /**
  * @param inpkts an array of packets (size k)
- * @param outpkts an array of buffers into which the output packets will be written
+ * @param outpkts an array of buffers into which the reconstructed output packets will be written (only packets which are not present in the inpkts input will be reconstructed and written to outpkts)
  * @param index an array of the shareids of the packets in inpkts
  * @param sz size of a packet in bytes
  */
-void fec_decode_all(const fec_t* code, const gf*restrict const*restrict const inpkts, gf*restrict const*restrict const outpkts, const unsigned char*restrict const index, size_t sz);
+void fec_decode(const fec_t* code, const gf*restrict const*restrict const inpkts, gf*restrict const*restrict const outpkts, const unsigned char*restrict const index, size_t sz);
 
 /* end of file */
