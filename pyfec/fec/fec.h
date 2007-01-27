@@ -69,11 +69,11 @@ typedef unsigned char gf;
 typedef struct {
   unsigned long magic;
   unsigned char k, n;                     /* parameters of the code */
-  gf *enc_matrix;
+  gf* enc_matrix;
 } fec_t;
 
-void fec_free (fec_t *p);
-fec_t *fec_new (unsigned char k, unsigned char n);
+void fec_free (fec_t* p);
+fec_t* fec_new (unsigned char k, unsigned char n);
 
 /**
  * @param inpkts the "primary shares" i.e. the chunks of the input data
