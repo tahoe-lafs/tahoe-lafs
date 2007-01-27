@@ -584,39 +584,16 @@ fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*res
     unsigned i, j;
     unsigned char fecnum;
     gf* p;
-    unsigned fecs_ix = 0; /* index into the fecs array */
 
     for (i=0; i<num_share_ids; i++) {
         fecnum=share_ids[i];
-        if (fecnum >= code->k) {
-            memset(fecs[fecs_ix], 0, sz);
-            p = &(code->enc_matrix[fecnum * code->k]);
-            for (j = 0; j < code->k; j++)
-                addmul (fecs[fecs_ix], src[j], p[j], sz);
-            fecs_ix++;
-        }
+        assert (fecnum >= code->k);
+        memset(fecs[i], 0, sz);
+        p = &(code->enc_matrix[fecnum * code->k]);
+        for (j = 0; j < code->k; j++)
+            addmul (fecs[i], src[j], p[j], sz);
     }
 }
-
-#if 0
-/* By turning the nested loop inside out, we might incur different cache usage and therefore go slower or faster.  However in practice I'm not able to detect a difference, since >90% of the time is spent in my Python test script anyway.  :-) */
-void
-fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned char*restrict const share_ids, unsigned char num_share_ids, size_t sz) {
-    for (unsigned j=0; j < code->k; j++) {
-        unsigned fecs_ix = 0; /* index into the fecs array */
-        for (unsigned i=0; i<num_share_ids; i++) {
-            unsigned char fecnum=share_ids[i];
-            if (fecnum >= code->k) {
-                if (j == 0)
-                    memset(fecs[fecs_ix], 0, sz);
-                gf* p = &(code->enc_matrix[fecnum * code->k]);
-                addmul (fecs[fecs_ix], src[j], p[j], sz);
-                fecs_ix++;
-            }
-        }
-    }
-}
-#endif
 
 /**
  * Build decode matrix into some memory space.

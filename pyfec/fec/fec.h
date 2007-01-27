@@ -64,13 +64,6 @@
  * OF SUCH DAMAGE.
  */
 
-/*
- * If you get a error returned (negative value) from a fec_* function, 
- * look in here for the error message.
- */
-
-extern char fec_error[];
-
 typedef unsigned char gf;
 
 typedef struct {
