@@ -181,7 +181,7 @@ class ISubTree(Interface):
         """Perform whatever work is necessary to record this subtree to
         persistent storage.
 
-        This returns an Inode, or a Deferred that fires (with an INode) when
+        This returns an INode, or a Deferred that fires (with an INode) when
         the subtree has been persisted.
 
         For directory subtrees, this will cause the subtree to serialize

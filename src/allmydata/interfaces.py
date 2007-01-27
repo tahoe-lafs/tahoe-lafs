@@ -338,18 +338,18 @@ class IWorkQueue(Interface):
                            new_subtree_boxname=None):
         """When executed, this step retrieves the subtree specified by
         'subtree_node', pulls a node specification out of 'new_node_boxname',
-        then modifies it such that a subtree-relative 'localpath' points to
-        the new node. It then serializes the subtree in its new form, and
+        then modifies the subtree such that a subtree-relative 'localpath'
+        points to the new node. If 'new_node_boxname' is None, this deletes
+        the given path. It then serializes the subtree in its new form, and
         optionally puts a node that describes the new subtree in
-        'new_node_boxname'. If 'new_node_boxname' is None, this deletes the
-        given path.
+        'new_subtree_boxname' for use by another add_modify_subtree step.
 
         The idea is that 'subtree_node' will refer a CHKDirectorySubTree, and
         'new_node_boxname' will contain the CHKFileNode that points to a
         newly-uploaded file. When the CHKDirectorySubTree is modified, it
         acquires a new URI, which will be stuffed (in the form of a
-        CHKDirectorySubTreeNode) into 'new_subtree_boxname'. A following step
-        would then read from 'new_subtree_boxname' and modify some other
+        CHKDirectorySubTreeNode) into 'new_subtree_boxname'. A subsequent
+        step would then read from 'new_subtree_boxname' and modify some other
         subtree with the contents.
 
         If 'subtree_node' refers to a redirection subtree like
