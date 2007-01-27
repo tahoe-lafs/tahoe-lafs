@@ -64,5 +64,5 @@ setup(name='pyfec',
       platform='Any',
       packages=['fec'],
       classifiers=trove_classifiers,
-      ext_modules=[Extension('fec', ['fec/fec.c', 'fec/fecmodule.c',], extra_link_args=extra_link_args, extra_compile_args=extra_compile_args, undef_macros=undef_macros),],
+      ext_modules=[Extension('_fec', ['fec/fec.c', 'fec/_fecmodule.c',], extra_link_args=extra_link_args, extra_compile_args=extra_compile_args, undef_macros=undef_macros),],
       )

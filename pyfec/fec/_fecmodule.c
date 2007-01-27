@@ -120,7 +120,7 @@ Encoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
 static char Encoder_encode__doc__[] = "\
 Encode data into m packets.\
 @param inshares: a sequence of k buffers of data to encode -- these are the k primary shares, i.e. the input data split into k pieces (for best performance, make it a tuple instead of a list)\n\
-@param desired_shares_ids optional sorted sequence of shareids indicating which shares to produce and return;  If None, all m shares will be returned (in order).  (For best performance, make it a tuple instead of a list.)\n\
+@param desired_shares_nums optional sorted sequence of sharenums indicating which shares to produce and return;  If None, all m shares will be returned (in order).  (For best performance, make it a tuple instead of a list.)\n\
 @returns: a list of buffers containing the requested shares; Note that if any of the input shares were 'primary shares', i.e. their shareid was < k, then the result sequence will contain a Python reference to the same Python object as was passed in.  As long as the Python object in question is immutable (i.e. a string) then you don't have to think about this detail, but if it is mutable (i.e. an array), then you have to be aware that if you subsequently mutate the contents of that object then that will also change the contents of the sequence that was returned from this call to encode().\n\
 ";
 
@@ -375,7 +375,7 @@ Decoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
 static char Decoder_decode__doc__[] = "\
 Decode a list shares into a list of segments.\n\
 @param shares a sequence of buffers containing share data (for best performance, make it a tuple instead of a list)\n\
-@param sharenums a sequence of integers of the sharenumber for each share in shares (for best performance, make it a tuple instead of a list)\n\
+@param shareids a sequence of integers of the shareid for each share in shares (for best performance, make it a tuple instead of a list)\n\
 \n\
 @return a list of strings containing the segment data (i.e. ''.join(retval) yields a string containing the decoded data)\n\
 ";
@@ -573,7 +573,7 @@ static PyMethodDef fec_methods[] = {
 #define PyMODINIT_FUNC void
 #endif
 PyMODINIT_FUNC
-initfec (void) {
+init_fec(void) {
     PyObject *module;
     PyObject *module_dict;
 
@@ -582,7 +582,7 @@ initfec (void) {
     if (PyType_Ready(&Decoder_type) < 0)
         return;
 
-    module = Py_InitModule3 ("fec", fec_methods, fec__doc__);
+    module = Py_InitModule3("_fec", fec_methods, fec__doc__);
     if (module == NULL)
       return;
 
@@ -592,8 +592,8 @@ initfec (void) {
     PyModule_AddObject(module, "Encoder", (PyObject *)&Encoder_type);
     PyModule_AddObject(module, "Decoder", (PyObject *)&Decoder_type);
 
-    module_dict = PyModule_GetDict (module);
-    py_fec_error = PyErr_NewException ("fec.Error", NULL, NULL);
-    PyDict_SetItemString (module_dict, "Error", py_fec_error);
+    module_dict = PyModule_GetDict(module);
+    py_fec_error = PyErr_NewException("_fec.Error", NULL, NULL);
+    PyDict_SetItemString(module_dict, "Error", py_fec_error);
 }
 
