@@ -27,6 +27,7 @@ import array
 def bench_encode_to_files_shuffle_decode_from_files():
     FILESIZE=1000000
     CHUNKSIZE=4096
+    PREFIX="testshare"
     K=25
     M=100
     import os, time
@@ -41,13 +42,18 @@ def bench_encode_to_files_shuffle_decode_from_files():
         outfile = None
         infile = open("tmpranddata", "rb")
         st = time.time()
-        fec.filefec.encode_to_files(infile, "testshare", K, M)
+        fec.filefec.encode_to_files(infile, PREFIX, K, M)
         so = time.time()
         print "Encoded %s byte file into %d share files in %0.2f seconds, or %0.2f million bytes per second" % (FILESIZE, M, so-st, FILESIZE/((so-st)*1000000),)
         enctime = so-st
+        # Now delete m-k of the tempfiles at random.
+        tempfs = [ f for f in os.listdir(".") if f.startwith(PREFIX) ]
+        tempfs.shuffle()
+        for victimtempf in tempfs[:M-K]:
+            os.remove(victimtempf)
         recoveredfile = open("tmpranddata-recovered", "wb")
         st = time.time()
-        fec.filefec.decode_from_files(recoveredfile, "testshare", K, M)
+        fec.filefec.decode_from_files(recoveredfile, PREFIX, K, M)
         so = time.time()
         print "Encoded %s byte file from %d share files in %0.2f seconds, or %0.2f million bytes per second" % (FILESIZE, K, so-st, FILESIZE/((so-st)*1000000),)
         return enctime + (so-st)
