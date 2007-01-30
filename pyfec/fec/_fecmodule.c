@@ -135,14 +135,14 @@ Encoder_encode(Encoder *self, PyObject *args) {
 
     gf* check_shares_produced[self->mm - self->kk]; /* This is an upper bound -- we will actually use only num_check_shares_produced of these elements (see below). */
     PyObject* pystrs_produced[self->mm - self->kk]; /* This is an upper bound -- we will actually use only num_check_shares_produced of these elements (see below). */
-    unsigned num_check_shares_produced = 0; /* The first num_check_shares_produced elements of the check_shares_produced array and of the pystrs_produced array will be used. */
+    unsigned char num_check_shares_produced = 0; /* The first num_check_shares_produced elements of the check_shares_produced array and of the pystrs_produced array will be used. */
     const gf* incshares[self->kk];
     unsigned char num_desired_shares;
     PyObject* fast_desired_shares_ids = NULL;
     PyObject** fast_desired_shares_ids_items;
     unsigned char c_desired_shares_ids[self->mm];
-    unsigned i;
-    unsigned prev_desired_id = 256; /* impossible value */
+    unsigned char c_desired_checkshares_ids[self->mm - self->kk];
+    unsigned char i;
     if (desired_shares_ids) {
         fast_desired_shares_ids = PySequence_Fast(desired_shares_ids, "Second argument (optional) was not a sequence.");
         num_desired_shares = PySequence_Fast_GET_SIZE(fast_desired_shares_ids);
@@ -151,11 +151,6 @@ Encoder_encode(Encoder *self, PyObject *args) {
             if (!PyInt_Check(fast_desired_shares_ids_items[i]))
                 goto err;
             c_desired_shares_ids[i] = PyInt_AsLong(fast_desired_shares_ids_items[i]);
-            if (prev_desired_id != 256 && prev_desired_id >= c_desired_shares_ids[i]) {
-                py_raise_fec_error("Precondition violation: first argument is required to be in order -- each requested shareid in the sequence must be a higher number than the previous one.  current requested shareid: %u, previous requested shareid: %u\n", c_desired_shares_ids[i], prev_desired_id);
-                goto err;
-            }
-            prev_desired_id = c_desired_shares_ids[i];
             if (c_desired_shares_ids[i] >= self->kk)
                 num_check_shares_produced++;
         }
@@ -181,7 +176,7 @@ Encoder_encode(Encoder *self, PyObject *args) {
     PyObject** fastinsharesitems = PySequence_Fast_ITEMS(fastinshares);
     if (!fastinsharesitems)
         goto err;
-    int sz, oldsz = 0;
+    Py_ssize_t sz, oldsz = 0;
     for (i=0; i<self->kk; i++) {
         if (!PyObject_CheckReadBuffer(fastinsharesitems[i])) {
             py_raise_fec_error("Precondition violation: %u'th item is required to offer the single-segment read character buffer protocol, but it does not.\n", i);
@@ -200,6 +195,7 @@ Encoder_encode(Encoder *self, PyObject *args) {
     unsigned check_share_index = 0; /* index into the check_shares_produced and (parallel) pystrs_produced arrays */
     for (i=0; i<num_desired_shares; i++) {
         if (c_desired_shares_ids[i] >= self->kk) {
+            c_desired_checkshares_ids[check_share_index] = c_desired_shares_ids[i];
             pystrs_produced[check_share_index] = PyString_FromStringAndSize(NULL, sz);
             if (pystrs_produced[check_share_index] == NULL)
                 goto err;
@@ -212,7 +208,7 @@ Encoder_encode(Encoder *self, PyObject *args) {
     assert (check_share_index == num_check_shares_produced);
 
     /* Encode any check shares that are needed. */
-    fec_encode(self->fec_matrix, incshares, check_shares_produced, c_desired_shares_ids, num_desired_shares, sz);
+    fec_encode(self->fec_matrix, incshares, check_shares_produced, c_desired_checkshares_ids, num_check_shares_produced, sz);
 
     /* Wrap all requested shares up into a Python list of Python strings. */
     result = PyList_New(num_desired_shares);
@@ -386,14 +382,14 @@ Decoder_decode(Decoder *self, PyObject *args) {
     PyObject*restrict shareids;
     PyObject* result = NULL;
 
-    if (!PyArg_ParseTuple(args, "O!O!", &PyList_Type, &shares, &PyList_Type, &shareids))
+    if (!PyArg_ParseTuple(args, "OO", &shares, &shareids))
         return NULL;
 
     const gf*restrict cshares[self->kk];
     unsigned char cshareids[self->kk];
     gf*restrict recoveredcstrs[self->kk]; /* self->kk is actually an upper bound -- we probably won't need all of this space. */
     PyObject*restrict recoveredpystrs[self->kk]; /* self->kk is actually an upper bound -- we probably won't need all of this space. */
-    unsigned i;
+    unsigned char i;
     for (i=0; i<self->kk; i++)
         recoveredpystrs[i] = NULL;
     PyObject*restrict fastshares = PySequence_Fast(shares, "First argument was not a sequence.");
@@ -413,14 +409,14 @@ Decoder_decode(Decoder *self, PyObject *args) {
     }
 
     /* Construct a C array of gf*'s of the data and another of C ints of the shareids. */
-    unsigned needtorecover=0;
+    unsigned char needtorecover=0;
     PyObject** fastshareidsitems = PySequence_Fast_ITEMS(fastshareids);
     if (!fastshareidsitems)
         goto err;
     PyObject** fastsharesitems = PySequence_Fast_ITEMS(fastshares);
     if (!fastsharesitems)
         goto err;
-    int sz, oldsz = 0;
+    Py_ssize_t sz, oldsz = 0;
     for (i=0; i<self->kk; i++) {
         if (!PyInt_Check(fastshareidsitems[i]))
             goto err;
@@ -437,7 +433,7 @@ Decoder_decode(Decoder *self, PyObject *args) {
             py_raise_fec_error("Precondition violation: %u'th item is required to offer the single-segment read character buffer protocol, but it does not.\n", i);
             goto err;
         }
-        if (PyObject_AsReadBuffer(fastsharesitems[i], &(cshares[i]),  &sz))
+        if (PyObject_AsReadBuffer(fastsharesitems[i], &(cshares[i]), &sz))
             goto err;
         if (oldsz != 0 && oldsz != sz) {
             py_raise_fec_error("Precondition violation: Input shares are required to be all the same length.  oldsz: %Zu, sz: %Zu\n", oldsz, sz);
@@ -474,7 +470,7 @@ Decoder_decode(Decoder *self, PyObject *args) {
     fec_decode(self->fec_matrix, cshares, recoveredcstrs, cshareids, sz);
 
     /* Wrap up both original primary shares and decoded shares into a Python list of Python strings. */
-    unsigned nextrecoveredix=0;
+    unsigned char nextrecoveredix=0;
     result = PyList_New(self->kk);
     if (result == NULL)
         goto err;

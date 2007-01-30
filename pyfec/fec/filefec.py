@@ -22,21 +22,21 @@
 
 import fec
 
-import array
+import array, random
 
 def encode_to_files(inf, prefix, k, m):
     """
     Encode inf, writing the shares to named $prefix+$shareid.
     """
     l = [ open(prefix+str(shareid), "wb") for shareid in range(m) ]
-    def cb(shares, len):
+    def cb(shares, length):
         assert len(shares) == len(l)
         for i in range(len(shares)):
-            l.write(share)
+            l[i].write(shares[i])
 
     encode_file(inf, cb, k, m, chunksize=4096)
  
-def decode_from_files(outf, prefix, k, m):
+def decode_from_files(outf, filesize, prefix, k, m):
     """
     Decode from the first k files in the current directory whose names begin 
     with prefix, writing the results to outf.
@@ -44,7 +44,9 @@ def decode_from_files(outf, prefix, k, m):
     import os
     infs = []
     shareids = []
-    for f in os.listdir("."):
+    listd = os.listdir(".")
+    random.shuffle(listd)
+    for f in listd:
         if f.startswith(prefix):
             infs.append(open(f, "rb"))
             shareids.append(int(f[len(prefix):]))
@@ -57,9 +59,12 @@ def decode_from_files(outf, prefix, k, m):
         x = [ inf.read(CHUNKSIZE) for inf in infs ]
         decshares = dec.decode(x, shareids)
         for decshare in decshares:
-            outf.write(decshare)
-        if len(x[-1]) != CHUNKSIZE:
-            break
+            if filesize >= len(decshare):
+                outf.write(decshare)
+                filesize -= len(decshare)
+            else: 
+                outf.write(decshare[:filesize])
+                return
 
 def encode_file(inf, cb, k, m, chunksize=4096):
     """
@@ -110,6 +115,7 @@ def encode_file(inf, cb, k, m, chunksize=4096):
                 # padding
                 a.fromstring("\x00" * (chunksize-len(a)))
                 while (i<len(l)):
+                    a = l[i]
                     a[:] = ZEROES
                     i += 1
 
@@ -144,7 +150,7 @@ def encode_file_stringy(inf, cb, k, m, chunksize=4096):
     while indatasize == k*chunksize:
         # This loop body executes once per segment.
         i = 0
-	l = []
+        l = []
         ZEROES = '\x00'*chunksize
         while i<k:
             # This loop body executes once per chunk.
