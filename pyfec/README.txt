@@ -133,14 +133,14 @@ A C compiler is required.  For the Python API, Python version 2.5 is required.
 
  * Performance Measurements
 
-On Peter's fancy Intel Mac laptop (Core Duo 2?), it encoded from a file at
-about 6.2 million bytes per second.
+On Peter's fancy Intel Mac laptop (2.16 GHz Core Duo), it encoded from a file
+at about 6.2 million bytes per second.
 
 On my old PowerPC G4 867 MHz Mac laptop, it encoded from a file at about 1.3
 million bytes per second.
 
 On my Athlon 64 2.4 GHz workstation (running Linux), it encoded from a file at
-about 3.7 million bytes per second and decoded at about 5.5 million bytes per
+about 4.9 million bytes per second and decoded at about 5.8 million bytes per
 second.
 
 
