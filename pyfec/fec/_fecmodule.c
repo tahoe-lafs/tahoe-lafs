@@ -120,7 +120,7 @@ Encoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
 static char Encoder_encode__doc__[] = "\
 Encode data into m packets.\
 @param inshares: a sequence of k buffers of data to encode -- these are the k primary shares, i.e. the input data split into k pieces (for best performance, make it a tuple instead of a list)\n\
-@param desired_shares_nums optional sorted sequence of sharenums indicating which shares to produce and return;  If None, all m shares will be returned (in order).  (For best performance, make it a tuple instead of a list.)\n\
+@param desired_shares_ids optional sequence of shareids indicating which shares to produce and return;  If None, all m shares will be returned (in order).  (For best performance, make it a tuple instead of a list.)\n\
 @returns: a list of buffers containing the requested shares; Note that if any of the input shares were 'primary shares', i.e. their shareid was < k, then the result sequence will contain a Python reference to the same Python object as was passed in.  As long as the Python object in question is immutable (i.e. a string) then you don't have to think about this detail, but if it is mutable (i.e. an array), then you have to be aware that if you subsequently mutate the contents of that object then that will also change the contents of the sequence that was returned from this call to encode().\n\
 ";
 
