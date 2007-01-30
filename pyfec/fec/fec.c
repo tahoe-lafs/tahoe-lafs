@@ -146,7 +146,7 @@ static gf gf_mul_table[256][256];
  * multiplication of two numbers can be resolved without calling modnn
  */
 static void
-init_mul_table () {
+_init_mul_table(void) {
   int i, j;
   for (i = 0; i < 256; i++)
       for (j = 0; j < 256; j++)
@@ -504,8 +504,8 @@ invert_vdm (gf * src, int k) {
 static int fec_initialized = 0;
 static void
 init_fec (void) {
-    generate_gf ();
-    init_mul_table ();
+    generate_gf();
+    _init_mul_table();
     fec_initialized = 1;
 }
 

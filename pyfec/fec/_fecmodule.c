@@ -182,7 +182,7 @@ Encoder_encode(Encoder *self, PyObject *args) {
             py_raise_fec_error("Precondition violation: %u'th item is required to offer the single-segment read character buffer protocol, but it does not.\n", i);
             goto err;
         }
-        if (PyObject_AsReadBuffer(fastinsharesitems[i], &(incshares[i]), &sz))
+        if (PyObject_AsReadBuffer(fastinsharesitems[i], (const void**)&(incshares[i]), &sz))
             goto err;
         if (oldsz != 0 && oldsz != sz) {
             py_raise_fec_error("Precondition violation: Input shares are required to be all the same length.  oldsz: %Zu, sz: %Zu\n", oldsz, sz);
@@ -199,7 +199,7 @@ Encoder_encode(Encoder *self, PyObject *args) {
             pystrs_produced[check_share_index] = PyString_FromStringAndSize(NULL, sz);
             if (pystrs_produced[check_share_index] == NULL)
                 goto err;
-            check_shares_produced[check_share_index] = PyString_AsString(pystrs_produced[check_share_index]);
+            check_shares_produced[check_share_index] = (gf*)PyString_AsString(pystrs_produced[check_share_index]);
             if (check_shares_produced[check_share_index] == NULL)
                 goto err;
             check_share_index++;
@@ -433,7 +433,7 @@ Decoder_decode(Decoder *self, PyObject *args) {
             py_raise_fec_error("Precondition violation: %u'th item is required to offer the single-segment read character buffer protocol, but it does not.\n", i);
             goto err;
         }
-        if (PyObject_AsReadBuffer(fastsharesitems[i], &(cshares[i]), &sz))
+        if (PyObject_AsReadBuffer(fastsharesitems[i], (const void**)&(cshares[i]), &sz))
             goto err;
         if (oldsz != 0 && oldsz != sz) {
             py_raise_fec_error("Precondition violation: Input shares are required to be all the same length.  oldsz: %Zu, sz: %Zu\n", oldsz, sz);
@@ -451,7 +451,7 @@ Decoder_decode(Decoder *self, PyObject *args) {
             unsigned char c = cshareids[i];
 
             SWAP (cshareids[i], cshareids[c], int);
-            SWAP (cshares[i], cshares[c], gf*);
+            SWAP (cshares[i], cshares[c], const gf*);
             SWAP (fastsharesitems[i], fastsharesitems[c], PyObject*);
         }
     }
@@ -461,7 +461,7 @@ Decoder_decode(Decoder *self, PyObject *args) {
         recoveredpystrs[i] = PyString_FromStringAndSize(NULL, sz);
         if (recoveredpystrs[i] == NULL)
             goto err;
-        recoveredcstrs[i] = PyString_AsString(recoveredpystrs[i]);
+        recoveredcstrs[i] = (gf*)PyString_AsString(recoveredpystrs[i]);
         if (recoveredcstrs[i] == NULL)
             goto err;
     }
