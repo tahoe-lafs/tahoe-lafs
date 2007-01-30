@@ -1,7 +1,5 @@
 #! /usr/bin/env python
 
-__revision__ = "$Id: setup.py,v 1.30 2005/06/14 01:20:22 akuchling Exp $"
-
 from distutils import core
 from distutils.core import Extension
 from distutils.command.build_ext import build_ext
@@ -24,7 +22,7 @@ if DEBUG_BUILD:
 if sys.platform == 'win32':
     HTONS_LIBS = ['ws2_32']
     plat_ext = [
-                Extension("Crypto.Util.winrandom",
+                Extension("allmydata.Crypto.Util.winrandom",
                           libraries = HTONS_LIBS + ['advapi32'],
                           include_dirs=['src/'],
                           extra_compile_args=['-O0 -g',],
@@ -88,47 +86,47 @@ class PCTBuildExt (build_ext):
     def build_extensions(self):
         self.extensions += [
             # Hash functions
-            Extension("Crypto.Hash.MD4",
+            Extension("allmydata.Crypto.Hash.MD4",
                       include_dirs=['src/'],
                       sources=["src/MD4.c"],
                       **debug_build_kw),
-            Extension("Crypto.Hash.SHA256",
+            Extension("allmydata.Crypto.Hash.SHA256",
                       include_dirs=['src/'],
                       sources=["src/SHA256.c"],
                       **debug_build_kw),
 
             # Block encryption algorithms
-            Extension("Crypto.Cipher.AES",
+            Extension("allmydata.Crypto.Cipher.AES",
                       include_dirs=['src/'],
                       sources=["src/AES.c"],
                       **debug_build_kw),
-            Extension("Crypto.Cipher.ARC2",
+            Extension("allmydata.Crypto.Cipher.ARC2",
                       include_dirs=['src/'],
                       sources=["src/ARC2.c"],
                       **debug_build_kw),
-            Extension("Crypto.Cipher.Blowfish",
+            Extension("allmydata.Crypto.Cipher.Blowfish",
                       include_dirs=['src/'],
                       sources=["src/Blowfish.c"],
                       **debug_build_kw),
-            Extension("Crypto.Cipher.CAST",
+            Extension("allmydata.Crypto.Cipher.CAST",
                       include_dirs=['src/'],
                       sources=["src/CAST.c"],
                       **debug_build_kw),
-            Extension("Crypto.Cipher.DES",
+            Extension("allmydata.Crypto.Cipher.DES",
                       include_dirs=['src/'],
                       sources=["src/DES.c"],
                       **debug_build_kw),
-            Extension("Crypto.Cipher.DES3",
+            Extension("allmydata.Crypto.Cipher.DES3",
                       include_dirs=['src/'],
                       sources=["src/DES3.c"],
                       **debug_build_kw),
 
             # Stream ciphers
-            Extension("Crypto.Cipher.ARC4",
+            Extension("allmydata.Crypto.Cipher.ARC4",
                       include_dirs=['src/'],
                       sources=["src/ARC4.c"],
                       **debug_build_kw),
-            Extension("Crypto.Cipher.XOR",
+            Extension("allmydata.Crypto.Cipher.XOR",
                       include_dirs=['src/'],
                       sources=["src/XOR.c"],
                       **debug_build_kw),
@@ -147,7 +145,7 @@ class PCTBuildExt (build_ext):
         inc_dirs = self.compiler.include_dirs + ['/usr/include']
         exts = []
         if (self.compiler.find_library_file(lib_dirs, 'gmp')):
-            exts.append(Extension("Crypto.PublicKey._fastmath",
+            exts.append(Extension("allmydata.Crypto.PublicKey._fastmath",
                                   include_dirs=['src/'],
                                   libraries=['gmp'],
                                   sources=["src/_fastmath.c"]))
@@ -162,12 +160,12 @@ kw = {'name':"pycrypto",
       'url':"http://www.amk.ca/python/code/crypto",
 
       'cmdclass' : {'build_ext':PCTBuildExt},
-      'packages' : ["Crypto", "Crypto.Hash", "Crypto.Cipher", "Crypto.Util",
-                  "Crypto.Protocol", "Crypto.PublicKey"],
-      'package_dir' : { "Crypto":"." },
+      'packages' : ["allmydata.Crypto", "allmydata.Crypto.Hash", "allmydata.Crypto.Cipher", "allmydata.Crypto.Util",
+                  "allmydata.Crypto.Protocol", "allmydata.Crypto.PublicKey"],
+      'package_dir' : { "allmydata.Crypto":"." },
       # One module is defined here, because build_ext won't be
       # called unless there's at least one extension module defined.
-      'ext_modules':[Extension("Crypto.Hash.MD2",
+      'ext_modules':[Extension("allmydata.Crypto.Hash.MD2",
                              include_dirs=['src/'],
                              sources=["src/MD2.c"],
                                **debug_build_kw)]
