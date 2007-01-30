@@ -128,7 +128,8 @@ reading a file and encoding it piece by piece.
 
  * Dependencies
 
-A C compiler is required.  For the Python API, Python version 2.5 is required.
+A C compiler is required.  For the Python API, we have tested it with Python
+v2.4 and v2.5.
 
 
  * Performance Measurements
