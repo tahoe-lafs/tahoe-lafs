@@ -68,6 +68,7 @@ count-lines:
 clean:
 	rm -rf build
 	rm -f debian
+	rm -rf instdir
 
 create_dirs:
 	mkdir -p queen-basedir
