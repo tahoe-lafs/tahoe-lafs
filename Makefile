@@ -1,16 +1,24 @@
 
 default: build
 
+BASE=$(shell pwd)
+
 .PHONY: build
-build:
-	python setup.py build
-# where does this go? in a platform-specific directory under build/ . Use
-# builddir.py to locate it.
+build: build-pyfec build-Crypto
+	python setup.py install --prefix=$(BASE)/instdir
+
+build-pyfec:
+	cd src/pyfec && python ./setup.py install --prefix=$(BASE)/instdir
+
+build-Crypto:
+	cd src/Crypto && python ./setup.py install --prefix=$(BASE)/instdir
+
+INSTDIR=$(PWD)/instdir/lib/python$(shell python -c 'import sys;print sys.version_info[0]').$(shell python -c 'import sys;print sys.version_info[1]')/site-packages
 
 ifneq ($(PYTHONPATH),)
-PP=PYTHONPATH=${PYTHONPATH}:$(shell python ./builddir.py -a)
+PP=PYTHONPATH=${PYTHONPATH}:$(INSTDIR)
 else
-PP=PYTHONPATH=$(shell python ./builddir.py -a)
+PP=PYTHONPATH=$(INSTDIR)
 endif
 
 .PHONY: run-queen run-client test
