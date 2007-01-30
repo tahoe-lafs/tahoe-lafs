@@ -1,8 +1,10 @@
- * Intro
+ * Intro and Licence
 
 This package implements an "erasure code", or "forward error correction code".
-It is licensed under the GNU General Public License (see the COPYING file for
-details).
+It is offered under the GNU General Public License v2 or (at your option) any
+later version, with the added permission that, in the case that you are
+obligated to release a derived work under this licence (as per section 2.b of
+the GPL), you may delay the fulfillment of this obligation for up to 12 months.
 
 The most widely known example of an erasure code is the RAID-5 algorithm which
 makes it so that in the event of the loss of any one hard drive, the stored
@@ -124,13 +126,28 @@ See also the filefec.py module which has a utility function for efficiently
 reading a file and encoding it piece by piece.
 
 
+ * Dependencies
+
+A C compiler is required.  For the Python API, Python version 2.5 is required.
+
+
+ * Performance Measurements
+
+On Peter's fancy Intel Mac laptop (Core Duo 2?), it encoded from a file at
+about 6.2 million bytes per second.
+
+On my old PowerPC G4 867 MHz Mac laptop, it encoded from a file at about 1.3
+million bytes per second.
+
+On my Athlon 64 2.4 GHz workstation (running Linux), it encoded from a file at
+about 3.7 million bytes per second and decoded at about 5.5 million bytes per
+second.
+
+
 Enjoy!
 
 Zooko Wilcox-O'Hearn
 2007-01-27
 San Francisco
 
-
-On Peter's fancy Intel Mac laptop, it did about 6.21 million bytes per second from file.
-On my old PowerPC G4 Mac laptop, it did around 1.3 million bytes per second from file.
 
