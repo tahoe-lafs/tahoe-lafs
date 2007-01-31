@@ -2,9 +2,10 @@
 
 This package implements an "erasure code", or "forward error correction code".
 It is offered under the GNU General Public License v2 or (at your option) any
-later version, with the added permission that, in the case that you are
-obligated to release a derived work under this licence (as per section 2.b of
-the GPL), you may delay the fulfillment of this obligation for up to 12 months.
+later version.  This package also comes with the added permission that, in the
+case that you are obligated to release a derived work under this licence (as
+per section 2.b of the GPL), you may delay the fulfillment of this obligation
+for up to 12 months.
 
 The most widely known example of an erasure code is the RAID-5 algorithm which
 makes it so that in the event of the loss of any one hard drive, the stored
@@ -14,8 +15,8 @@ element, it can be parameterized to choose in advance the number of elements
 whose loss it can tolerate.
 
 This package is largely based on the old "fec" library by Luigi Rizzo et al.,
-which is a simple, mature, and optimized implementation of erasure coding.  The
-pyfec package makes several changes from the original "fec" package, including
+which is a mature and optimized implementation of erasure coding.  The pyfec
+package makes several changes from the original "fec" package, including
 addition of the Python API, refactoring of the C API to be faster (for the way
 that I use it, at least), and a few clean-ups and micro-optimizations of the
 core code itself.
@@ -148,7 +149,7 @@ second.
 Enjoy!
 
 Zooko Wilcox-O'Hearn
-2007-01-27
-San Francisco
+2007-01-30
+Boulder, Colorado
 
 

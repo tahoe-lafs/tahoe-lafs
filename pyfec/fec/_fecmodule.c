@@ -10,7 +10,10 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * of the License, or (at your option) any later version.  This program also
+ * comes with the added permission that, in the case that you are obligated to
+ * release a derived work under this licence (as per section 2.b of the GPL),
+ * you may delay the fulfillment of this obligation for up to 12 months.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
