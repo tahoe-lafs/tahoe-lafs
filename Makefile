@@ -60,10 +60,12 @@ pyflakes:
 	pyflakes src/allmydata
 
 count-lines:
+	@echo -n "files: "
+	@find src -name '*.py' |grep -v /build/ |wc --lines
 	@echo -n "lines: "
-	@cat `find src -name '*.py'` |wc --lines
+	@cat `find src -name '*.py' |grep -v /build/` |wc --lines
 	@echo -n "TODO: "
-	@grep TODO `find src -name '*.py'` | wc --lines
+	@grep TODO `find src -name '*.py' |grep -v /build/` | wc --lines
 
 clean:
 	rm -rf build
