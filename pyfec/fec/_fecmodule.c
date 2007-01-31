@@ -110,8 +110,8 @@ Encoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
         py_raise_fec_error("Precondition violation: second argument is required to be greater than or equal to 1, but it was %d", self->mm);
 	return -1;
     }
-    if (self->mm > 256) {
-        py_raise_fec_error("Precondition violation: second argument is required to be less than or equal to 256, but it was %d", self->mm);
+    if (self->mm > 255) {
+        py_raise_fec_error("Precondition violation: second argument is required to be less than or equal to 255, but it was %d", self->mm);
 	return -1;
     }
     if (self->kk > self->mm) {
@@ -363,8 +363,8 @@ Decoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
         py_raise_fec_error("Precondition violation: second argument is required to be greater than or equal to 1, but it was %d", self->mm);
 	return -1;
     }
-    if (self->mm > 256) {
-        py_raise_fec_error("Precondition violation: second argument is required to be less than or equal to 256, but it was %d", self->mm);
+    if (self->mm > 255) {
+        py_raise_fec_error("Precondition violation: second argument is required to be less than or equal to 255, but it was %d", self->mm);
 	return -1;
     }
     if (self->kk > self->mm) {
