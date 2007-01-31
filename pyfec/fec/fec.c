@@ -434,14 +434,14 @@ _invert_mat(gf* src, unsigned k) {
  * p = coefficients of the matrix (p_i)
  * q = values of the polynomial (known)
  */
-void
-_invert_vdm (gf* src, unsigned k) {
-    unsigned i, j, row, col;
+int
+_invert_vdm (gf * src, int k) {
+    int i, j, row, col;
     gf *b, *c, *p;
     gf t, xx;
 
     if (k == 1)                   /* degenerate case, matrix must be p^0 = 1 */
-        return;
+        return 0;
     /*
      * c holds the coefficient of P(x) = Prod (x - p_i), i=0..k-1
      * b holds the coefficient for the matrix inversion
@@ -486,7 +486,7 @@ _invert_vdm (gf* src, unsigned k) {
     free (c);
     free (b);
     free (p);
-    return;
+    return 0;
 }
 
 static int fec_initialized = 0;
@@ -565,7 +565,7 @@ fec_new(unsigned k, unsigned n) {
 
 void
 fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned*restrict const block_nums, size_t num_block_nums, size_t sz) {
-    unsigned i, j;
+    unsigned char i, j;
     unsigned fecnum;
     gf* p;
 
@@ -586,7 +586,7 @@ fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*res
  */
 void
 build_decode_matrix_into_space(const fec_t*restrict const code, const unsigned*const restrict index, const unsigned k, gf*restrict const matrix) {
-    unsigned i;
+    unsigned char i;
     gf* p;
     for (i=0, p=matrix; i < k; i++, p += k) {
         if (index[i] < k) {
@@ -604,11 +604,11 @@ fec_decode(const fec_t* code, const gf*restrict const*restrict const inpkts, gf*
     gf m_dec[code->k * code->k];
     build_decode_matrix_into_space(code, index, code->k, m_dec);
 
-    unsigned outix=0;
-    for (unsigned row=0; row<code->k; row++) {
+    unsigned char outix=0;
+    for (unsigned char row=0; row<code->k; row++) {
         if (index[row] >= code->k) {
             memset(outpkts[outix], 0, sz);
-            for (unsigned col=0; col < code->k; col++)
+            for (unsigned char col=0; col < code->k; col++)
                 addmul(outpkts[outix], inpkts[col], m_dec[row * code->k + col], sz);
             outix++;
         }

@@ -208,7 +208,7 @@ Encoder_encode(Encoder *self, PyObject *args) {
     }
     
     /* Allocate space for all of the check blocks. */
-    unsigned check_block_index = 0; /* index into the check_blocks_produced and (parallel) pystrs_produced arrays */
+    unsigned char check_block_index = 0; /* index into the check_blocks_produced and (parallel) pystrs_produced arrays */
     for (i=0; i<num_desired_blocks; i++) {
         if (c_desired_blocks_nums[i] >= self->kk) {
             c_desired_checkblocks_ids[check_block_index] = c_desired_blocks_nums[i];
