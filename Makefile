@@ -17,7 +17,10 @@ clean-pyfec:
 build-Crypto:
 	cd src/Crypto && $(PYTHON) ./setup.py install --prefix=$(BASE)/instdir
 
-INSTDIR=$(PWD)/instdir/lib/python$(shell python -c 'import sys;print sys.version_info[0]').$(shell python -c 'import sys;print sys.version_info[1]')/site-packages
+clean-Crypto:
+	cd src/Crypto && python ./setup.py clean
+
+INSTDIR=$(BASE)/instdir/lib/python$(shell $(PYTHON) -c 'import sys;print sys.version_info[0]').$(shell $(PYTHON) -c 'import sys;print sys.version_info[1]')/site-packages
 
 ifneq ($(PYTHONPATH),)
 PP=PYTHONPATH=${PYTHONPATH}:$(INSTDIR)
