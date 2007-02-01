@@ -30,17 +30,6 @@ import sys
 
 import fec
 
-from base64 import b32encode
-def ab(x): # debuggery
-    if len(x) >= 3:
-        return "%s:%s" % (len(x), b32encode(x[-3:]),)
-    elif len(x) == 2:
-        return "%s:%s" % (len(x), b32encode(x[-2:]),)
-    elif len(x) == 1:
-        return "%s:%s" % (len(x), b32encode(x[-1:]),)
-    elif len(x) == 0:
-        return "%s:%s" % (len(x), "--empty--",)
-
 def _h(k, m, ss):
     # sys.stdout.write("k: %s, m: %s,  len(ss): %r, len(ss[0]): %r" % (k, m, len(ss), len(ss[0]),)) ; sys.stdout.flush()
     encer = fec.Encoder(k, m)
@@ -58,7 +47,7 @@ def _h(k, m, ss):
     decoded = decer.decode(blocks, nums)
     # sys.stdout.write("decoded.\n") ; sys.stdout.flush()
     assert len(decoded) == len(ss), (len(decoded), len(ss),)
-    assert tuple([str(s) for s in decoded]) == tuple([str(s) for s in ss]), (tuple([ab(str(s)) for s in decoded]), tuple([ab(str(s)) for s in ss]),)
+    assert tuple([str(s) for s in decoded]) == tuple([str(s) for s in ss]), (tuple([str(s) for s in decoded]), tuple([str(s) for s in ss]),)
 
 def randstr(n):
     return ''.join(map(chr, map(random.randrange, [0]*n, [256]*n)))
