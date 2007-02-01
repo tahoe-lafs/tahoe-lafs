@@ -113,19 +113,21 @@ class FileDownloader:
         # retrieve all shares
         dl = []
         shares = []
+        shareids = []
         for (bucket_num, bucket) in all_buckets:
             d0 = bucket.callRemote("get_metadata")
             d1 = bucket.callRemote("read")
             d2 = DeferredListShouldSucceed([d0, d1])
             def _got(res):
-                sharenum_s, sharedata = res
-                sharenum = bencode.bdecode(sharenum_s)
-                shares.append((sharenum, sharedata))
+                shareid_s, sharedata = res
+                shareid = bencode.bdecode(shareid_s)
+                shares.append(sharedata)
+                shareids.append(shareid)
             d2.addCallback(_got)
             dl.append(d2)
         d = DeferredListShouldSucceed(dl)
 
-        d.addCallback(lambda res: self._decoder.decode(shares))
+        d.addCallback(lambda res: self._decoder.decode(shares, shareids))
 
         def _write(decoded_shares):
             data = "".join(decoded_shares)
