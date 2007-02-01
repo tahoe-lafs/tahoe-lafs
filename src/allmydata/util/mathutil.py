@@ -34,3 +34,18 @@ def pad_size(n, k):
 
 def is_power_of_k(n, k):
     return k**int(math.log(n, k) + 0.5) == n
+
+def next_power_of_k(n, k):
+    if n == 0:
+        x = 0
+    else:
+        x = int(math.log(n, k) + 0.5)
+    r = k**x
+    if k**x < n:
+        return k**(x+1)
+    else:
+        return k**x
+    
+def ave(l):
+    return sum(l) / len(l)
+
