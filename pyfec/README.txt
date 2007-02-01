@@ -146,10 +146,22 @@ about 4.9 million bytes per second and decoded at about 5.8 million bytes per
 second.
 
 
+ * Acknowledgements
+
+Thanks to the author of the original fec lib, Luigi Rizzo, and the folks that
+contributed to it: Phil Karn, Robert Morelos-Zaragoza, Hari Thirumoorthy, and
+Dan Rubenstein.  Thanks to the Mnet hackers who wrote an earlier Python
+wrapper, especially Myers Carpenter and Hauke Johannknecht.  Thanks to Brian
+Warner for help with the API and documentation.  Thanks to the creators of GCC
+(starting with Richard M.  Stallman) and Valgrind (starting with Julian Seward)
+for a pair of excellent tools.  Thanks to my coworkers at Allmydata -- 
+http://allmydata.com -- Fabrice Grinda, Peter Secor, Rob Kinninmont, Brian 
+Warner, Zandr Milewski, Justin Boreta, Mark Meras for sponsoring this work and 
+releasing it under a Free Software licence.
+
+
 Enjoy!
 
 Zooko Wilcox-O'Hearn
-2007-01-30
+2007-08-01
 Boulder, Colorado
-
-
