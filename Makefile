@@ -11,10 +11,13 @@ build: build-pyfec build-Crypto
 build-pyfec:
 	cd src/pyfec && $(PYTHON) ./setup.py install --prefix=$(BASE)/instdir
 
+clean-pyfec:
+	cd src/pyfec && python ./setup.py clean
+
 build-Crypto:
 	cd src/Crypto && $(PYTHON) ./setup.py install --prefix=$(BASE)/instdir
 
-INSTDIR=$(BASE)/instdir/lib/python$(shell $(PYTHON) -c 'import sys;print sys.version_info[0]').$(shell $(PYTHON) -c 'import sys;print sys.version_info[1]')/site-packages
+INSTDIR=$(PWD)/instdir/lib/python$(shell python -c 'import sys;print sys.version_info[0]').$(shell python -c 'import sys;print sys.version_info[1]')/site-packages
 
 ifneq ($(PYTHONPATH),)
 PP=PYTHONPATH=${PYTHONPATH}:$(INSTDIR)
@@ -69,7 +72,7 @@ count-lines:
 	@echo -n "TODO: "
 	@grep TODO `find src -name '*.py' |grep -v /build/` | wc --lines
 
-clean:
+clean: clean-pyfec clean-Crypto
 	rm -rf build
 	rm -f debian
 	rm -rf instdir
