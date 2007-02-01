@@ -87,7 +87,7 @@ def pad_size(n, k):
 def _test_random():
     m = random.randrange(1, 257)
     k = random.randrange(1, m+1)
-    l = random.randrange(0, 2**16)
+    l = random.randrange(0, 2**15)
     ss = [ randstr(l/k) for x in range(k) ]
     _h(k, m, ss)
 
