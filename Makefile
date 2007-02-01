@@ -2,18 +2,19 @@
 default: build
 
 BASE=$(shell pwd)
+PYTHON=python
 
 .PHONY: build
 build: build-pyfec build-Crypto
-	python setup.py install --prefix=$(BASE)/instdir
+	$(PYTHON) setup.py install --prefix=$(BASE)/instdir
 
 build-pyfec:
-	cd src/pyfec && python ./setup.py install --prefix=$(BASE)/instdir
+	cd src/pyfec && $(PYTHON) ./setup.py install --prefix=$(BASE)/instdir
 
 build-Crypto:
-	cd src/Crypto && python ./setup.py install --prefix=$(BASE)/instdir
+	cd src/Crypto && $(PYTHON) ./setup.py install --prefix=$(BASE)/instdir
 
-INSTDIR=$(PWD)/instdir/lib/python$(shell python -c 'import sys;print sys.version_info[0]').$(shell python -c 'import sys;print sys.version_info[1]')/site-packages
+INSTDIR=$(PWD)/instdir/lib/python$(shell $(PYTHON) -c 'import sys;print sys.version_info[0]').$(shell $(PYTHON) -c 'import sys;print sys.version_info[1]')/site-packages
 
 ifneq ($(PYTHONPATH),)
 PP=PYTHONPATH=${PYTHONPATH}:$(INSTDIR)
@@ -35,26 +36,27 @@ run-client3:
 	cd client-basedir3 && PYTHONPATH=.. twistd -noy ../client.tac
 
 
+TRIAL=trial
 TEST=allmydata
 REPORTER=
 
 # use 'make test REPORTER=--reporter=bwverbose' from buildbot, to supress the
 # ansi color sequences
 test: build
-	$(PP) trial $(REPORTER) $(TEST)
+	$(PP) $(TRIAL) $(REPORTER) $(TEST)
 
 test-figleaf: build
 	rm -f .figleaf
-	$(PP) trial --reporter=bwverbose-figleaf $(TEST)
+	$(PP) $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
 
 figleaf-output:
-	$(PP) python misc/figleaf2html -d coverage-html -r `python ./builddir.py`
+	$(PP) $(PYTHON) misc/figleaf2html -d coverage-html -r `$(PYTHON) ./builddir.py`
 	@echo "now point your browser at coverage-html/index.html"
 # after doing test-figleaf and figleaf-output, point your browser at
 # coverage-html/index.html
 
 .figleaf.el: .figleaf
-	$(PP) python misc/figleaf2el.py .figleaf `python ./builddir.py`
+	$(PP) $(PYTHON) misc/figleaf2el.py .figleaf `$(PYTHON) ./builddir.py`
 
 pyflakes:
 	pyflakes src/allmydata
