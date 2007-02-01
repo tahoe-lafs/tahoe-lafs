@@ -91,6 +91,12 @@ def _test_random():
     ss = [ randstr(l/k) for x in range(k) ]
     _h(k, m, ss)
 
+def _test_random_with_l(l):
+    m = 83
+    k = 19
+    ss = [ randstr(l/k) for x in range(k) ]
+    _h(k, m, ss)
+
 def test_random(noisy=True):
     for i in range(2**5):
         # sys.stdout.write(",")
