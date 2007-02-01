@@ -55,7 +55,7 @@ trove_classifiers=[
     ]
 
 setup(name='pyfec',
-      version='0.9',
+      version='0.99',
       summary='Provides a fast C implementation of Reed-Solomon erasure coding with a Python interface.',
       description='Erasure coding is the generation of extra redundant packets of information such that if some packets are lost ("erased") then the original data can be recovered from the remaining packets.  This package contains an optimized implementation along with a Python interface.',
       author='Zooko O\'Whielacronx',
