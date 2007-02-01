@@ -98,6 +98,6 @@ def test_random():
         # sys.stdout.write(".")
     print "%d randomized tests pass." % (i+1)
 
-if __name__ == "__init__":
+if __name__ == "__main__":
     test_random()
 
