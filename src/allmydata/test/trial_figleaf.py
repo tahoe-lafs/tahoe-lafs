@@ -60,11 +60,8 @@ from twisted.trial.reporter import TreeReporter, VerboseTextReporter
 # finish in printSummary.
 
 from allmydata.util import figleaf
-# don't cover py_ecc, it takes forever
-from allmydata.py_ecc import rs_code
 import os
-py_ecc_dir = os.path.realpath(os.path.dirname(rs_code.__file__))
-figleaf.start(ignore_prefixes=[py_ecc_dir])
+figleaf.start()
 
 
 class FigleafReporter(TreeReporter):

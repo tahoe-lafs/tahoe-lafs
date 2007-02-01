@@ -4,11 +4,24 @@ from zope.interface import implements
 from twisted.internet import defer
 import sha
 from allmydata.util import idlib, mathutil
+from allmydata.util.assertutil import _assert, precondition
 from allmydata.interfaces import ICodecEncoder, ICodecDecoder
-from allmydata.py_ecc import rs_code
+import fec
 
 def netstring(s):
     return "%d:%s," % (len(s), s)
+
+from base64 import b32encode
+def ab(x): # debuggery
+    if len(x) >= 3:
+        return "%s:%s" % (len(x), b32encode(x[-3:]),)
+    elif len(x) == 2:
+        return "%s:%s" % (len(x), b32encode(x[-2:]),)
+    elif len(x) == 1:
+        return "%s:%s" % (len(x), b32encode(x[-1:]),)
+    elif len(x) == 0:
+        return "%s:%s" % (len(x), "--empty--",)
+
 
 class ReplicatingEncoder(object):
     implements(ICodecEncoder)
@@ -28,12 +41,11 @@ class ReplicatingEncoder(object):
     def get_share_size(self):
         return self.data_size
 
-    def encode(self, data, num_shares=None):
-        if num_shares is None:
-            num_shares = self.max_shares
-        assert num_shares <= self.max_shares
-        shares = [(i,data) for i in range(num_shares)]
-        return defer.succeed(shares)
+    def encode(self, data, desired_shareids=None):
+        if desired_shareids is None:
+            desired_shareids = range(self.max_shares)
+        shares = [data for i in desired_shareids]
+        return defer.succeed((shares, desired_shareids))
 
 class ReplicatingDecoder(object):
     implements(ICodecDecoder)
@@ -44,10 +56,10 @@ class ReplicatingDecoder(object):
     def get_required_shares(self):
         return self.required_shares
 
-    def decode(self, some_shares):
-        assert len(some_shares) >= self.required_shares
-        data = some_shares[0][1]
-        return defer.succeed(data)
+    def decode(self, some_shares, their_shareids):
+        assert len(some_shares) == self.required_shares
+        assert len(some_shares) == len(their_shareids)
+        return defer.succeed(some_shares[0])
 
 
 class Encoder(object):
@@ -68,7 +80,7 @@ class Encoder(object):
 class Decoder(object):
     def __init__(self, outfile, k, m, verifierid):
         self.outfile = outfile
-        self.k = 2
+        self.k = k
         self.m = m
         self._verifierid = verifierid
 
@@ -94,107 +106,57 @@ class Decoder(object):
             assert self._verifierid == vid, "%s != %s" % (idlib.b2a(self._verifierid), idlib.b2a(vid))
 
 
-class PyRSEncoder(object):
+class CRSEncoder(object):
     implements(ICodecEncoder)
-    ENCODER_TYPE = "pyrs"
-
-    # we will break the data into vectors in which each element is a single
-    # byte (i.e. a single number from 0 to 255), and the length of the vector
-    # is equal to the number of required_shares. We use padding to make the
-    # last chunk of data long enough to match, and we record the data_size in
-    # the serialized parameters to strip this padding out on the receiving
-    # end.
-
-    # TODO: this will write a 733kB file called 'ffield.lut.8' in the current
-    # directory the first time it is run, to cache the lookup table for later
-    # use. It appears to take about 15 seconds to create this the first time,
-    # and about 0.5s to load it in each time afterwards. Make sure this file
-    # winds up somewhere reasonable.
-
-    # TODO: the encoder/decoder RSCode object depends upon the number of
-    # required/total shares, but not upon the data. We could probably save a
-    # lot of initialization time by caching a single instance and using it
-    # any time we use the same required/total share numbers (which will
-    # probably be always).
-
-    # on my workstation (fluxx, a 3.5GHz Athlon), this encodes data at a rate
-    # of 6.7kBps. Zooko's mom's 1.8GHz G5 got 2.2kBps . slave3 took 40s to
-    # construct the LUT and encodes at 1.5kBps, and for some reason took more
-    # than 20 minutes to run the test_encode_share tests, so I disabled most
-    # of them. (uh, hello, it's running figleaf)
+    ENCODER_TYPE = 2
 
     def set_params(self, data_size, required_shares, max_shares):
         assert required_shares <= max_shares
         self.data_size = data_size
         self.required_shares = required_shares
         self.max_shares = max_shares
-        self.chunk_size = required_shares
-        self.num_chunks = mathutil.div_ceil(data_size, self.chunk_size)
-        self.last_chunk_padding = mathutil.pad_size(data_size, required_shares)
-        self.share_size = self.num_chunks
-        self.encoder = rs_code.RSCode(max_shares, required_shares, 8)
+        self.share_size = mathutil.div_ceil(data_size, required_shares)
+        self.last_share_padding = mathutil.pad_size(self.share_size, required_shares)
+        self.encoder = fec.Encoder(required_shares, max_shares)
 
     def get_encoder_type(self):
         return self.ENCODER_TYPE
 
     def get_serialized_params(self):
-        return "%d-%d-%d" % (self.data_size, self.required_shares,
+        return "%d:%d:%d" % (self.data_size, self.required_shares,
                              self.max_shares)
 
     def get_share_size(self):
         return self.share_size
 
-    def encode(self, data, num_shares=None):
-        if num_shares is None:
-            num_shares = self.max_shares
-        assert num_shares <= self.max_shares
-        # we create self.max_shares shares, then throw out any extra ones
-        # so that we always return exactly num_shares shares.
+    def encode(self, inshares, desired_share_ids=None):
+        precondition(desired_share_ids is None or len(desired_share_ids) <= self.max_shares, desired_share_ids, self.max_shares)
 
-        share_data = [ [] for i in range(self.max_shares)]
-        for i in range(self.num_chunks):
-            # we take self.chunk_size bytes from the input string, and
-            # turn it into self.max_shares bytes.
-            offset = i*self.chunk_size
-            # Note string slices aren't an efficient way to use memory, so
-            # when we upgrade from the unusably slow py_ecc prototype to a
-            # fast ECC we should also fix up this memory usage (by using the
-            # array module).
-            chunk = data[offset:offset+self.chunk_size]
-            if i == self.num_chunks-1:
-                chunk = chunk + "\x00"*self.last_chunk_padding
-            assert len(chunk) == self.chunk_size
-            input_vector = [ord(x) for x in chunk]
-            assert len(input_vector) == self.required_shares
-            output_vector = self.encoder.Encode(input_vector)
-            assert len(output_vector) == self.max_shares
-            for i2,out in enumerate(output_vector):
-                share_data[i2].append(chr(out))
+        if desired_share_ids is None:
+            desired_share_ids = range(self.max_shares)
 
-        shares = [ (i, "".join(share_data[i]))
-                   for i in range(num_shares) ]
-        return defer.succeed(shares)
+        for inshare in inshares:
+            assert len(inshare) == self.share_size, (len(inshare), self.share_size, self.data_size, self.required_shares)
+        shares = self.encoder.encode(inshares, desired_share_ids)
 
-class PyRSDecoder(object):
+        return defer.succeed((shares, desired_share_ids))
+
+class CRSDecoder(object):
     implements(ICodecDecoder)
 
     def set_serialized_params(self, params):
-        pieces = params.split("-")
+        pieces = params.split(":")
         self.data_size = int(pieces[0])
         self.required_shares = int(pieces[1])
         self.max_shares = int(pieces[2])
 
         self.chunk_size = self.required_shares
         self.num_chunks = mathutil.div_ceil(self.data_size, self.chunk_size)
-        self.last_chunk_padding = mathutil.pad_size(self.data_size,
-                                                    self.required_shares)
         self.share_size = self.num_chunks
-        self.encoder = rs_code.RSCode(self.max_shares, self.required_shares,
-                                      8)
+        self.decoder = fec.Decoder(self.required_shares, self.max_shares)
         if False:
             print "chunk_size: %d" % self.chunk_size
             print "num_chunks: %d" % self.num_chunks
-            print "last_chunk_padding: %d" % self.last_chunk_padding
             print "share_size: %d" % self.share_size
             print "max_shares: %d" % self.max_shares
             print "required_shares: %d" % self.required_shares
@@ -202,37 +164,15 @@ class PyRSDecoder(object):
     def get_required_shares(self):
         return self.required_shares
 
-    def decode(self, some_shares):
-        chunk_size = self.chunk_size
-        assert len(some_shares) >= self.required_shares
-        chunks = []
-        have_shares = {}
-        for share_num, share_data in some_shares:
-            have_shares[share_num] = share_data
-        for i in range(self.share_size):
-            # this takes one byte from each share, and turns the combination
-            # into a single chunk
-            received_vector = []
-            for j in range(self.max_shares):
-                share = have_shares.get(j)
-                if share is not None:
-                    received_vector.append(ord(share[i]))
-                else:
-                    received_vector.append(None)
-            decoded_vector = self.encoder.DecodeImmediate(received_vector)
-            assert len(decoded_vector) == self.chunk_size
-            chunk = "".join([chr(x) for x in decoded_vector])
-            chunks.append(chunk)
-        data = "".join(chunks)
-        if self.last_chunk_padding:
-            data = data[:-self.last_chunk_padding]
-        assert len(data) == self.data_size
-        return defer.succeed(data)
+    def decode(self, some_shares, their_shareids):
+        precondition(len(some_shares) == len(their_shareids), len(some_shares), len(their_shareids))
+        precondition(len(some_shares) == self.required_shares, len(some_shares), self.required_shares)
+        return defer.succeed(self.decoder.decode(some_shares, their_shareids))
 
 
 all_encoders = {
     ReplicatingEncoder.ENCODER_TYPE: (ReplicatingEncoder, ReplicatingDecoder),
-    PyRSEncoder.ENCODER_TYPE: (PyRSEncoder, PyRSDecoder),
+    CRSEncoder.ENCODER_TYPE: (CRSEncoder, CRSDecoder),
     }
 
 def get_decoder_by_name(name):

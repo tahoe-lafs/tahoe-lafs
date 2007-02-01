@@ -112,48 +112,35 @@ class ICodecEncoder(Interface):
         """
 
     def encode(inshares, desired_share_ids=None):
-        """Encode a chunk of data. This may be called multiple times. Each
-        call is independent.
+        """Encode some data. This may be called multiple times. Each call is 
+        independent.
 
-        The data is required to be a string with a length that exactly
-        matches the data_size promised by set_params().
+        inshares is a sequence of length required_shares, containing buffers,
+        where each buffer contains the next contiguous non-overlapping
+        segment of the input data.  Each buffer is required to be the same
+        length, and the sum of the lengths of the buffers is required to be
+        exactly the data_size promised by set_params().  (This implies that
+        the data has to be padded before being passed to encode(), unless of
+        course it already happens to be an even multiple of required_shares in
+        length.) 
 
-        'num_shares', if provided, is required to be equal or less than the
-        'max_shares' set in set_params. If 'num_shares' is left at None,
-        this method will produce 'max_shares' shares. This can be used to
-        minimize the work that the encoder needs to do if we initially
-        thought that we would need, say, 100 shares, but now that it is time
-        to actually encode the data we only have 75 peers to send data to.
+        'desired_share_ids', if provided, is required to be a sequence of ints,
+        each of which is required to be >= 0 and < max_shares.
 
         For each call, encode() will return a Deferred that fires with two
-        lists, one containing shares and the other containing the sharenums,
-        which is an int from 0 to num_shares-1. The get_share_size() method
-        can be used to determine the length of the 'sharedata' strings
-        returned by encode().
+        lists, one containing shares and the other containing the shareids.
+        The get_share_size() method can be used to determine the length of the 
+        share strings returned by encode().
         
-        The sharedatas and their corresponding sharenums are required to be
-        kept together during storage and retrieval. Specifically, the share
-        data is useless by itself: the decoder needs to be told which share is
-        which by providing it with both the share number and the actual
-        share data.
+        The shares and their corresponding shareids are required to be kept 
+        together during storage and retrieval. Specifically, the share data is 
+        useless by itself: the decoder needs to be told which share is which 
+        by providing it with both the shareid and the actual share data.
 
         The memory usage of this function is expected to be on the order of
-        total_shares * get_share_size().
+
+        (max_shares - required_shares) * get_share_size().
         """
-        # design note: we could embed the share number in the sharedata by
-        # returning bencode((sharenum,sharedata)). The advantage would be
-        # making it easier to keep these two pieces together, and probably
-        # avoiding a round trip when reading the remote bucket (although this
-        # could be achieved by changing RIBucketReader.read to
-        # read_data_and_metadata). The disadvantage is that the share number
-        # wants to be exposed to the storage/bucket layer (specifically to
-        # handle the next stage of peer-selection algorithm in which we
-        # propose to keep share#A on a given peer and they are allowed to
-        # tell us that they already have share#B). Also doing this would make
-        # the share size somewhat variable (one-digit sharenumbers will be a
-        # byte shorter than two-digit sharenumbers), unless we zero-pad the
-        # sharenumbers based upon the max_total_shares declared in
-        # set_params.
 
 class ICodecDecoder(Interface):
     def set_serialized_params(params):
@@ -167,17 +154,21 @@ class ICodecDecoder(Interface):
     def decode(some_shares, their_shareids):
         """Decode a partial list of shares into data.
 
-        'some_shares' is required to be a list of buffers of sharedata, a
+        'some_shares' is required to be a sequence of buffers of sharedata, a
         subset of the shares returned by ICodecEncode.encode(). Each share is
         required to be of the same length.  The i'th element of their_shareids
-        is required to be the share id (or "share num") of the i'th buffer in
-        some_shares.
+        is required to be the shareid of the i'th buffer in some_shares.
 
         This returns a Deferred which fires with a sequence of buffers. This
         sequence will contain all of the segments of the original data, in
         order.  The sum of the lengths of all of the buffers will be the
         'data_size' value passed into the original ICodecEncode.set_params()
-        call.
+        call.  Note that some of the elements in the result sequence may be 
+        references to the elements of the some_shares input sequence.  In 
+        particular, this means that if those share objects are mutable (e.g. 
+        arrays) and if they are changed then both the input (the 'some_shares'
+        parameter) and the output (the value given when the deferred is
+        triggered) will change.
 
         The length of 'some_shares' is required to be exactly the value of
         'required_shares' passed into the original ICodecEncode.set_params()

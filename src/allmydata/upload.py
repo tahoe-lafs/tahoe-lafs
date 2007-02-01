@@ -216,7 +216,7 @@ class FileUploader:
         assert sorted(self.sharemap.keys()) == range(len(landlords))
         # encode all the data at once: this class does not use segmentation
         data = self._filehandle.read()
-        d = self._encoder.encode(data, len(landlords))
+        d = self._encoder.encode(data, self.sharemap.keys())
         d.addCallback(self._send_all_shares)
         d.addCallback(lambda res: self._encoder.get_serialized_params())
         return d
@@ -229,17 +229,16 @@ class FileUploader:
                       bucket.callRemote("close"))
         return d
 
-    def _send_all_shares(self, shares):
+    def _send_all_shares(self, (shares, shareids)):
         dl = []
-        for share in shares:
-            (sharenum,sharedata) = share
+        for (shareid, share) in zip(shareids, shares):
             if self.debug:
-                log.msg(" writing share %d" % sharenum)
-            metadata = bencode.bencode(sharenum)
-            assert len(sharedata) == self._share_size
-            assert isinstance(sharedata, str)
-            bucket = self.sharemap[sharenum]
-            d = self._send_one_share(bucket, sharedata, metadata)
+                log.msg(" writing share %d" % shareid)
+            metadata = bencode.bencode(shareid)
+            assert len(share) == self._share_size
+            assert isinstance(share, str)
+            bucket = self.sharemap[shareid]
+            d = self._send_one_share(bucket, share, metadata)
             dl.append(d)
         return DeferredListShouldSucceed(dl)
 

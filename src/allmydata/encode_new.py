@@ -5,7 +5,7 @@ from allmydata.chunk import HashTree, roundup_pow2
 from allmydata.Crypto.Cipher import AES
 import sha
 from allmydata.util import mathutil
-from allmydata.codec import PyRSEncoder
+from allmydata.codec import CRSEncoder
 
 def hash(data):
     return sha.new(data).digest()
@@ -90,15 +90,13 @@ class Encoder(object):
         self.num_segments = mathutil.div_ceil(self.file_size, self.segment_size)
 
     def setup_encoder(self):
-        self.encoder = PyRSEncoder()
+        self.encoder = CRSEncoder()
         self.encoder.set_params(self.segment_size, self.required_shares,
                                 self.num_shares)
-        self.share_size = self.encoder.get_share_size()
-
 
     def get_reservation_size(self):
         self.num_shares = 100
-        self.share_size = self.file_size / self.required_shares
+        self.share_size = mathutil.div_ceil(self.file_size, self.required_shares)
         overhead = self.compute_overhead()
         return self.share_size + overhead
 
@@ -126,52 +124,57 @@ class Encoder(object):
         return d
 
     def do_segment(self, segnum):
-        segment_plaintext = self.infile.read(self.segment_size)
-        segment_crypttext = self.cryptor.encrypt(segment_plaintext)
-        del segment_plaintext
-        assert self.encoder.max_shares == self.num_shares
-        d = self.encoder.encode(segment_crypttext)
+        chunks = []
+        subsharesize = self.encoder.get_share_size()
+        for i in range(self.required_shares):
+            d = self.infile.read(subsharesize)
+            if len(d) < subsharesize:
+                # padding
+                d += ('\x00' * (subsharesize - len(d)))
+            d = self.cryptor.encrypt(d)
+            chunks.append(d)
+        d = self.encoder.encode(chunks)
         d.addCallback(self._encoded_segment)
         return d
 
-    def _encoded_segment(self, subshare_tuples):
+    def _encoded_segment(self, (shares, shareids)):
         dl = []
-        for share_num,subshare in subshare_tuples:
-            d = self.send_subshare(share_num, self.segment_num, subshare)
+        for shareid,subshare in zip(shareids, shares):
+            d = self.send_subshare(shareid, self.segment_num, subshare)
             dl.append(d)
-            self.subshare_hashes[share_num].append(hash(subshare))
+            self.subshare_hashes[shareid].append(hash(subshare))
         self.segment_num += 1
         return defer.DeferredList(dl)
 
-    def send_subshare(self, share_num, segment_num, subshare):
+    def send_subshare(self, shareid, segment_num, subshare):
         #if False:
         #    offset = hash_size + segment_num * segment_size
-        #    return self.send(share_num, "write", subshare, offset)
-        return self.send(share_num, "put_subshare", segment_num, subshare)
+        #    return self.send(shareid, "write", subshare, offset)
+        return self.send(shareid, "put_subshare", segment_num, subshare)
 
-    def send(self, share_num, methname, *args, **kwargs):
-        ll = self.landlords[share_num]
+    def send(self, shareid, methname, *args, **kwargs):
+        ll = self.landlords[shareid]
         return ll.callRemote(methname, *args, **kwargs)
 
     def send_all_subshare_hash_trees(self):
         dl = []
-        for share_num,hashes in enumerate(self.subshare_hashes):
+        for shareid,hashes in enumerate(self.subshare_hashes):
             # hashes is a list of the hashes of all subshares that were sent
-            # to shareholder[share_num].
-            dl.append(self.send_one_subshare_hash_tree(share_num, hashes))
+            # to shareholder[shareid].
+            dl.append(self.send_one_subshare_hash_tree(shareid, hashes))
         return defer.DeferredList(dl)
 
-    def send_one_subshare_hash_tree(self, share_num, subshare_hashes):
+    def send_one_subshare_hash_tree(self, shareid, subshare_hashes):
         t = HashTree(subshare_hashes)
         all_hashes = list(t)
         # all_hashes[0] is the root hash, == hash(ah[1]+ah[2])
         # all_hashes[1] is the left child, == hash(ah[3]+ah[4])
         # all_hashes[n] == hash(all_hashes[2*n+1] + all_hashes[2*n+2])
-        self.share_root_hashes[share_num] = t[0]
+        self.share_root_hashes[shareid] = t[0]
         if False:
             block = "".join(all_hashes)
-            return self.send(share_num, "write", block, offset=0)
-        return self.send(share_num, "put_subshare_hashes", all_hashes)
+            return self.send(shareid, "write", block, offset=0)
+        return self.send(shareid, "put_subshare_hashes", all_hashes)
 
     def send_all_share_hash_trees(self):
         dl = []
@@ -192,13 +195,13 @@ class Encoder(object):
             dl.append(self.send_one_share_hash_tree(i, hashes))
         return defer.DeferredList(dl)
 
-    def send_one_share_hash_tree(self, share_num, needed_hashes):
-        return self.send(share_num, "put_share_hashes", needed_hashes)
+    def send_one_share_hash_tree(self, shareid, needed_hashes):
+        return self.send(shareid, "put_share_hashes", needed_hashes)
 
     def close_all_shareholders(self):
         dl = []
-        for share_num in range(self.num_shares):
-            dl.append(self.send(share_num, "close"))
+        for shareid in range(self.num_shares):
+            dl.append(self.send(shareid, "close"))
         return defer.DeferredList(dl)
 
     def done(self):
