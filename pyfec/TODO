@@ -1,0 +1,3 @@
+ * try Duff's device in _addmul1()?
+ * make sure it compiles with cygwin gcc -mno-cygwin
+ * try compiling with Microsoft compiler
