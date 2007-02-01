@@ -111,8 +111,8 @@ Encoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
         py_raise_fec_error("Precondition violation: second argument is required to be greater than or equal to 1, but it was %d", self->mm);
 	return -1;
     }
-    if (self->mm > 255) {
-        py_raise_fec_error("Precondition violation: second argument is required to be less than or equal to 255, but it was %d", self->mm);
+    if (self->mm > 256) {
+        py_raise_fec_error("Precondition violation: second argument is required to be less than or equal to 256, but it was %d", self->mm);
 	return -1;
     }
     if (self->kk > self->mm) {
@@ -142,14 +142,14 @@ Encoder_encode(Encoder *self, PyObject *args) {
 
     gf* check_shares_produced[self->mm - self->kk]; /* This is an upper bound -- we will actually use only num_check_shares_produced of these elements (see below). */
     PyObject* pystrs_produced[self->mm - self->kk]; /* This is an upper bound -- we will actually use only num_check_shares_produced of these elements (see below). */
-    unsigned char num_check_shares_produced = 0; /* The first num_check_shares_produced elements of the check_shares_produced array and of the pystrs_produced array will be used. */
+    unsigned num_check_shares_produced = 0; /* The first num_check_shares_produced elements of the check_shares_produced array and of the pystrs_produced array will be used. */
     const gf* incshares[self->kk];
-    unsigned char num_desired_shares;
+    unsigned num_desired_shares;
     PyObject* fast_desired_shares_ids = NULL;
     PyObject** fast_desired_shares_ids_items;
-    unsigned char c_desired_shares_ids[self->mm];
-    unsigned char c_desired_checkshares_ids[self->mm - self->kk];
-    unsigned char i;
+    unsigned c_desired_shares_ids[self->mm];
+    unsigned c_desired_checkshares_ids[self->mm - self->kk];
+    unsigned i;
     if (desired_shares_ids) {
         fast_desired_shares_ids = PySequence_Fast(desired_shares_ids, "Second argument (optional) was not a sequence.");
         num_desired_shares = PySequence_Fast_GET_SIZE(fast_desired_shares_ids);
@@ -360,8 +360,8 @@ Decoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
         py_raise_fec_error("Precondition violation: second argument is required to be greater than or equal to 1, but it was %d", self->mm);
 	return -1;
     }
-    if (self->mm > 255) {
-        py_raise_fec_error("Precondition violation: second argument is required to be less than or equal to 255, but it was %d", self->mm);
+    if (self->mm > 256) {
+        py_raise_fec_error("Precondition violation: second argument is required to be less than or equal to 256, but it was %d", self->mm);
 	return -1;
     }
     if (self->kk > self->mm) {
@@ -393,10 +393,10 @@ Decoder_decode(Decoder *self, PyObject *args) {
         return NULL;
 
     const gf*restrict cshares[self->kk];
-    unsigned char cshareids[self->kk];
+    unsigned cshareids[self->kk];
     gf*restrict recoveredcstrs[self->kk]; /* self->kk is actually an upper bound -- we probably won't need all of this space. */
     PyObject*restrict recoveredpystrs[self->kk]; /* self->kk is actually an upper bound -- we probably won't need all of this space. */
-    unsigned char i;
+    unsigned i;
     for (i=0; i<self->kk; i++)
         recoveredpystrs[i] = NULL;
     PyObject*restrict fastshares = PySequence_Fast(shares, "First argument was not a sequence.");
@@ -416,7 +416,7 @@ Decoder_decode(Decoder *self, PyObject *args) {
     }
 
     /* Construct a C array of gf*'s of the data and another of C ints of the shareids. */
-    unsigned char needtorecover=0;
+    unsigned needtorecover=0;
     PyObject** fastshareidsitems = PySequence_Fast_ITEMS(fastshareids);
     if (!fastshareidsitems)
         goto err;
@@ -428,11 +428,11 @@ Decoder_decode(Decoder *self, PyObject *args) {
         if (!PyInt_Check(fastshareidsitems[i]))
             goto err;
         long tmpl = PyInt_AsLong(fastshareidsitems[i]);
-        if (tmpl < 0 || tmpl >= UCHAR_MAX) {
+        if (tmpl < 0 || tmpl > 255) {
             py_raise_fec_error("Precondition violation: Share ids can't be less than zero or greater than 255.  %ld\n", tmpl);
             goto err;
         }
-        cshareids[i] = (unsigned char)tmpl;
+        cshareids[i] = (unsigned)tmpl;
         if (cshareids[i] >= self->kk)
             needtorecover+=1;
 
@@ -455,7 +455,7 @@ Decoder_decode(Decoder *self, PyObject *args) {
             i++;
         else {
             /* put pkt in the right position. */
-            unsigned char c = cshareids[i];
+            unsigned c = cshareids[i];
 
             SWAP (cshareids[i], cshareids[c], int);
             SWAP (cshares[i], cshares[c], const gf*);
@@ -477,7 +477,7 @@ Decoder_decode(Decoder *self, PyObject *args) {
     fec_decode(self->fec_matrix, cshares, recoveredcstrs, cshareids, sz);
 
     /* Wrap up both original primary shares and decoded shares into a Python list of Python strings. */
-    unsigned char nextrecoveredix=0;
+    unsigned nextrecoveredix=0;
     result = PyList_New(self->kk);
     if (result == NULL)
         goto err;

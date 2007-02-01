@@ -128,7 +128,7 @@ modnn(int x) {
  * many numbers by the same constant. In this case the first call sets the
  * constant, and others perform the multiplications.  A value related to the
  * multiplication is held in a local variable declared with USE_GF_MULC . See
- * usage in addmul1().
+ * usage in _addmul1().
  */
 static gf gf_mul_table[256][256];
 
@@ -174,7 +174,7 @@ my_malloc (int sz, char *err_string) {
 }
 
 #define NEW_GF_MATRIX(rows, cols) \
-    (gf *)my_malloc(rows * cols * sizeof(gf), " ## __LINE__ ## " )
+    (gf*)my_malloc(rows * cols, " ## __LINE__ ## " )
 
 /*
  * initialize the data structures used for computations in GF.
@@ -252,15 +252,13 @@ generate_gf (void) {
  * calls are unfrequent in my typical apps so I did not bother.
  */
 #define addmul(dst, src, c, sz)                 \
-    if (c != 0) addmul1(dst, src, c, sz)
+    if (c != 0) _addmul1(dst, src, c, sz)
 
 #define UNROLL 16               /* 1, 4, 8, 16 */
 static void
-addmul1 (gf * dst1, const gf * src1, gf c, int sz) {
+_addmul1(register gf*restrict dst, const register gf*restrict src, gf c, size_t sz) {
     USE_GF_MULC;
-    register gf *dst = dst1;
-    register const gf *src = src1;
-    gf *lim = &dst[sz - UNROLL + 1];
+    const gf* lim = &dst[sz - UNROLL + 1];
 
     GF_MULC0 (c);
 
@@ -297,8 +295,8 @@ addmul1 (gf * dst1, const gf * src1, gf c, int sz) {
  * computes C = AB where A is n*k, B is k*m, C is n*m
  */
 static void
-matmul (gf * a, gf * b, gf * c, int n, int k, int m) {
-    int row, col, i;
+_matmul(gf * a, gf * b, gf * c, unsigned n, unsigned k, unsigned m) {
+    unsigned row, col, i;
 
     for (row = 0; row < n; row++) {
         for (col = 0; col < m; col++) {
@@ -313,20 +311,21 @@ matmul (gf * a, gf * b, gf * c, int n, int k, int m) {
 }
 
 /*
- * invert_mat() takes a matrix and produces its inverse
+ * _invert_mat() takes a matrix and produces its inverse
  * k is the size of the matrix.
  * (Gauss-Jordan, adapted from Numerical Recipes in C)
  * Return non-zero if singular.
  */
-static int
-invert_mat (gf * src, int k) {
+static void
+_invert_mat(gf* src, unsigned k) {
     gf c, *p;
-    int irow, icol, row, col, i, ix;
+    unsigned irow = 0;
+    unsigned icol = 0;
+    unsigned row, col, i, ix;
 
-    int error = -1;
-    int *indxc = (int *) my_malloc (k * sizeof (int), "indxc");
-    int *indxr = (int *) my_malloc (k * sizeof (int), "indxr");
-    int *ipiv = (int *) my_malloc (k * sizeof (int), "ipiv");
+    unsigned* indxc = (unsigned*) my_malloc (k * sizeof(unsigned), "indxc");
+    unsigned* indxr = (unsigned*) my_malloc (k * sizeof(unsigned), "indxr");
+    unsigned* ipiv = (unsigned*) my_malloc (k * sizeof(unsigned), "ipiv");
     gf *id_row = NEW_GF_MATRIX (1, k);
     gf *temp_row = NEW_GF_MATRIX (1, k);
 
@@ -343,7 +342,6 @@ invert_mat (gf * src, int k) {
          * Zeroing column 'col', look for a non-zero element.
          * First try on the diagonal, if it fails, look elsewhere.
          */
-        irow = icol = -1;
         if (ipiv[col] != 1 && src[col * k + col] != 0) {
             irow = col;
             icol = col;
@@ -364,10 +362,6 @@ invert_mat (gf * src, int k) {
                     }
                 }
             }
-        }
-        if (icol == -1) {
-          ERR("Pivot not found!");
-          goto fail;
         }
       found_piv:
         ++(ipiv[icol]);
@@ -416,26 +410,17 @@ invert_mat (gf * src, int k) {
         }
         id_row[icol] = 0;
     }                           /* done all columns */
-    for (col = k - 1; col >= 0; col--) {
-        if (indxr[col] < 0 || indxr[col] >= k) {
-            ERR("AARGH, indxr[col] %d\n", indxr[col]);
-            goto fail;
-        } else if (indxc[col] < 0 || indxc[col] >= k) {
-            ERR("AARGH, indxc[col] %d\n", indxc[col]);
-            goto fail;
-        } else if (indxr[col] != indxc[col]) {
+    for (col = k; col > 0; col--)
+        if (indxr[col-1] != indxc[col-1])
             for (row = 0; row < k; row++)
-                SWAP (src[row * k + indxr[col]], src[row * k + indxc[col]], gf);
-        }
-    }
-    error = 0;
+                SWAP (src[row * k + indxr[col-1]], src[row * k + indxc[col-1]], gf);
   fail:
     free (indxc);
     free (indxr);
     free (ipiv);
     free (id_row);
     free (temp_row);
-    return error;
+    return;
 }
 
 /*
@@ -449,14 +434,14 @@ invert_mat (gf * src, int k) {
  * p = coefficients of the matrix (p_i)
  * q = values of the polynomial (known)
  */
-int
-invert_vdm (gf * src, int k) {
-    int i, j, row, col;
+void
+_invert_vdm (gf* src, unsigned k) {
+    unsigned i, j, row, col;
     gf *b, *c, *p;
     gf t, xx;
 
     if (k == 1)                   /* degenerate case, matrix must be p^0 = 1 */
-        return 0;
+        return;
     /*
      * c holds the coefficient of P(x) = Prod (x - p_i), i=0..k-1
      * b holds the coefficient for the matrix inversion
@@ -491,9 +476,9 @@ invert_vdm (gf * src, int k) {
         xx = p[row];
         t = 1;
         b[k - 1] = 1;             /* this is in fact c[k] */
-        for (i = k - 2; i >= 0; i--) {
-            b[i] = c[i + 1] ^ gf_mul (xx, b[i + 1]);
-            t = gf_mul (xx, t) ^ b[i];
+        for (i = k - 1; i > 0; i--) {
+            b[i-1] = c[i] ^ gf_mul (xx, b[i]);
+            t = gf_mul (xx, t) ^ b[i-1];
         }
         for (col = 0; col < k; col++)
             src[col * k + row] = gf_mul (inverse[t], b[col]);
@@ -501,7 +486,7 @@ invert_vdm (gf * src, int k) {
     free (c);
     free (b);
     free (p);
-    return 0;
+    return;
 }
 
 static int fec_initialized = 0;
@@ -531,13 +516,9 @@ fec_free (fec_t *p) {
     free (p);
 }
 
-/*
- * create a new encoder, returning a descriptor. This contains k,n and
- * the encoding matrix.
- */
 fec_t *
-fec_new (unsigned char k, unsigned char n) {
-    unsigned char row, col;
+fec_new(unsigned k, unsigned n) {
+    unsigned row, col;
     gf *p, *tmp_m;
 
     fec_t *retval;
@@ -569,8 +550,8 @@ fec_new (unsigned char k, unsigned char n) {
      * k*k vandermonde matrix, multiply right the bottom n-k rows
      * by the inverse, and construct the identity matrix at the top.
      */
-    invert_vdm (tmp_m, k);        /* much faster than invert_mat */
-    matmul (tmp_m + k * k, tmp_m, retval->enc_matrix + k * k, n - k, k, k);
+    _invert_vdm (tmp_m, k);        /* much faster than _invert_mat */
+    _matmul(tmp_m + k * k, tmp_m, retval->enc_matrix + k * k, n - k, k, k);
     /*
      * the upper matrix is I so do not bother with a slow multiply
      */
@@ -583,9 +564,9 @@ fec_new (unsigned char k, unsigned char n) {
 }
 
 void
-fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned char*restrict const share_ids, unsigned char num_share_ids, size_t sz) {
+fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned*restrict const share_ids, size_t num_share_ids, size_t sz) {
     unsigned i, j;
-    unsigned char fecnum;
+    unsigned fecnum;
     gf* p;
 
     for (i=0; i<num_share_ids; i++) {
@@ -594,7 +575,7 @@ fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*res
         memset(fecs[i], 0, sz);
         p = &(code->enc_matrix[fecnum * code->k]);
         for (j = 0; j < code->k; j++)
-            addmul (fecs[i], src[j], p[j], sz);
+            addmul(fecs[i], src[j], p[j], sz);
     }
 }
 
@@ -604,7 +585,7 @@ fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*res
  * @param matrix a space allocated for a k by k matrix
  */
 void
-build_decode_matrix_into_space(const fec_t*restrict const code, const unsigned char*const restrict index, const unsigned char k, gf*restrict const matrix) {
+build_decode_matrix_into_space(const fec_t*restrict const code, const unsigned*const restrict index, const unsigned k, gf*restrict const matrix) {
     unsigned i;
     gf* p;
     for (i=0, p=matrix; i < k; i++, p += k) {
@@ -615,11 +596,11 @@ build_decode_matrix_into_space(const fec_t*restrict const code, const unsigned c
             memcpy(p, &(code->enc_matrix[index[i] * code->k]), k);
         }
     }
-    invert_mat (matrix, k);
+    _invert_mat (matrix, k);
 }
 
 void
-fec_decode(const fec_t* code, const gf*restrict const*restrict const inpkts, gf*restrict const*restrict const outpkts, const unsigned char*restrict const index, size_t sz) {
+fec_decode(const fec_t* code, const gf*restrict const*restrict const inpkts, gf*restrict const*restrict const outpkts, const unsigned*restrict const index, size_t sz) {
     gf m_dec[code->k * code->k];
     build_decode_matrix_into_space(code, index, code->k, m_dec);
 

@@ -71,12 +71,16 @@ typedef unsigned char gf;
 
 typedef struct {
   unsigned long magic;
-  unsigned char k, n;                     /* parameters of the code */
+  unsigned k, n;                     /* parameters of the code */
   gf* enc_matrix;
 } fec_t;
 
-void fec_free (fec_t* p);
-fec_t* fec_new (unsigned char k, unsigned char n);
+/**
+ * param k the number of shares required to reconstruct
+ * param m the total number of share created
+ */
+fec_t* fec_new(unsigned k, unsigned m);
+void fec_free(fec_t* p);
 
 /**
  * @param inpkts the "primary shares" i.e. the chunks of the input data
@@ -84,7 +88,7 @@ fec_t* fec_new (unsigned char k, unsigned char n);
  * @param share_ids the numbers of the desired shares -- including both primary shares (the id < k) which fec_encode() ignores and check shares (the id >= k) which fec_encode() will produce and store into the buffers of the fecs parameter
  * @param num_share_ids the length of the share_ids array
  */
-void fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned char*restrict const share_ids, unsigned char num_share_ids, size_t sz);
+void fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned*restrict const share_ids, size_t num_share_ids, size_t sz);
 
 /**
  * @param inpkts an array of packets (size k)
@@ -92,6 +96,6 @@ void fec_encode(const fec_t* code, const gf*restrict const*restrict const src, g
  * @param index an array of the shareids of the packets in inpkts
  * @param sz size of a packet in bytes
  */
-void fec_decode(const fec_t* code, const gf*restrict const*restrict const inpkts, gf*restrict const*restrict const outpkts, const unsigned char*restrict const index, size_t sz);
+void fec_decode(const fec_t* code, const gf*restrict const*restrict const inpkts, gf*restrict const*restrict const outpkts, const unsigned*restrict const index, size_t sz);
 
 /* end of file */
