@@ -14,7 +14,7 @@ build-pyfec:
 build-Crypto:
 	cd src/Crypto && $(PYTHON) ./setup.py install --prefix=$(BASE)/instdir
 
-INSTDIR=$(PWD)/instdir/lib/python$(shell $(PYTHON) -c 'import sys;print sys.version_info[0]').$(shell $(PYTHON) -c 'import sys;print sys.version_info[1]')/site-packages
+INSTDIR=$(BASE)/instdir/lib/python$(shell $(PYTHON) -c 'import sys;print sys.version_info[0]').$(shell $(PYTHON) -c 'import sys;print sys.version_info[1]')/site-packages
 
 ifneq ($(PYTHONPATH),)
 PP=PYTHONPATH=${PYTHONPATH}:$(INSTDIR)
