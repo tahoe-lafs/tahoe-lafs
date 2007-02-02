@@ -1,5 +1,5 @@
 
-import os, time
+import os
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import log

@@ -60,7 +60,6 @@ from twisted.trial.reporter import TreeReporter, VerboseTextReporter
 # finish in printSummary.
 
 from allmydata.util import figleaf
-import os
 figleaf.start()
 
 
