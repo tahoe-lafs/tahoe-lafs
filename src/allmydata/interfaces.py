@@ -115,17 +115,47 @@ class ICodecEncoder(Interface):
         """Encode some data. This may be called multiple times. Each call is 
         independent.
 
-        inshares is a sequence of length required_shares, containing buffers,
-        where each buffer contains the next contiguous non-overlapping
-        segment of the input data.  Each buffer is required to be the same
-        length, and the sum of the lengths of the buffers is required to be
-        exactly the data_size promised by set_params().  (This implies that
-        the data has to be padded before being passed to encode(), unless of
-        course it already happens to be an even multiple of required_shares in
-        length.) 
+        inshares is a sequence of length required_shares, containing buffers
+        (i.e. strings), where each buffer contains the next contiguous
+        non-overlapping segment of the input data. Each buffer is required to
+        be the same length, and the sum of the lengths of the buffers is
+        required to be exactly the data_size promised by set_params(). (This
+        implies that the data has to be padded before being passed to
+        encode(), unless of course it already happens to be an even multiple
+        of required_shares in length.)
 
-        'desired_share_ids', if provided, is required to be a sequence of ints,
-        each of which is required to be >= 0 and < max_shares.
+         QUESTION for zooko: that implies that 'data_size' must be an
+         integral multiple of 'required_shares', right? Which means these
+         restrictions should be documented in set_params() rather than (or in
+         addition to) encode(), since that's where they must really be
+         honored. This restriction feels like an abstraction leak, but maybe
+         it is cleaner to enforce constraints on 'data_size' rather than
+         quietly implement internal padding. I dunno.
+
+         ALSO: the requirement to break up your data into 'required_shares'
+         chunks before calling encode() feels a bit surprising, at least from
+         the point of view of a user who doesn't know how FEC works. It feels
+         like an implementation detail that has leaked outside the
+         abstraction barrier. Can you imagine a use case in which the data to
+         be encoded might already be available in pre-segmented chunks, such
+         that it is faster or less work to make encode() take a list rather
+         than splitting a single string?
+
+         ALSO ALSO: I think 'inshares' is a misleading term, since encode()
+         is supposed to *produce* shares, so what it *accepts* should be
+         something other than shares. Other places in this interface use the
+         word 'data' for that-which-is-not-shares.. maybe we should use that
+         term?
+
+         ALSO*3: given that we need to keep share0+shareid0 attached from
+         encode() to the eventual decode(), would it be better to return and
+         accept a zip() of these two lists? i.e. [(share0,shareid0),
+         (share1,shareid1),...]
+
+        'desired_share_ids', if provided, is required to be a sequence of
+        ints, each of which is required to be >= 0 and < max_shares. If not
+        provided, encode() will produce 'max_shares' shares, as if
+        'desired_share_ids' were set to range(max_shares).
 
         For each call, encode() will return a Deferred that fires with two
         lists, one containing shares and the other containing the shareids.
