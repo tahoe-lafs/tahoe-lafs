@@ -22,6 +22,9 @@ clean-Crypto:
 
 INSTDIR=$(BASE)/instdir/lib/python$(shell $(PYTHON) -c 'import sys;print sys.version_info[0]').$(shell $(PYTHON) -c 'import sys;print sys.version_info[1]')/site-packages
 
+show-instdir:
+	@echo $(INSTDIR)
+
 ifneq ($(PYTHONPATH),)
 PP=PYTHONPATH=${PYTHONPATH}:$(INSTDIR)
 else
@@ -56,13 +59,13 @@ test-figleaf: build
 	$(PP) $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
 
 figleaf-output:
-	$(PP) $(PYTHON) misc/figleaf2html -d coverage-html -r `$(PYTHON) ./builddir.py`
+	$(PP) $(PYTHON) misc/figleaf2html -d coverage-html -r $(INSTDIR)
 	@echo "now point your browser at coverage-html/index.html"
 # after doing test-figleaf and figleaf-output, point your browser at
 # coverage-html/index.html
 
 .figleaf.el: .figleaf
-	$(PP) $(PYTHON) misc/figleaf2el.py .figleaf `$(PYTHON) ./builddir.py`
+	$(PP) $(PYTHON) misc/figleaf2el.py .figleaf $(INSTDIR)
 
 pyflakes:
 	pyflakes src/allmydata
