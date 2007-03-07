@@ -22,13 +22,17 @@ that I use it, at least), and a few clean-ups and micro-optimizations of the
 core code itself.
 
 
- * How to obtain the source
+ * Community
 
 The source is currently available via darcs on the web with the command:
 
 darcs get http://www.allmydata.com/source/pyfec
 
 More information on darcs is available at http://darcs.net
+
+Please join the pyfec mailing list and submit patches:
+
+<https://postman.allmydata.com/cgi-bin/mailman/listinfo/pyfec> 
 
 
  * Overview
