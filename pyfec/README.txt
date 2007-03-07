@@ -22,6 +22,15 @@ that I use it, at least), and a few clean-ups and micro-optimizations of the
 core code itself.
 
 
+ * How to obtain the source
+
+The source is currently available via darcs on the web with the command:
+
+darcs get http://www.allmydata.com/source/pyfec
+
+More information on darcs is available at http://darcs.net
+
+
  * Overview
 
 This package performs two operations, encoding and decoding.  Encoding takes
