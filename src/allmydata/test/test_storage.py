@@ -21,7 +21,8 @@ class StorageTest(unittest.TestCase):
         self.node.setServiceParent(self.svc)
         self.tub = Tub()
         self.tub.setServiceParent(self.svc)
-        return self.svc.startService()
+        self.svc.startService()
+        return self.node.when_tub_ready()
 
     def test_create_bucket(self):
         """

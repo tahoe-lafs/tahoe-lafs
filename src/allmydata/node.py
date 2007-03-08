@@ -1,10 +1,11 @@
 
-from twisted.application import service
 import os.path
+from twisted.python import log
+from twisted.application import service
+from twisted.internet import defer
 from foolscap import Tub
 from allmydata.util.iputil import get_local_addresses
-from allmydata.util import idlib
-from twisted.python import log
+from allmydata.util import idlib, observer
 
 class Node(service.MultiService):
     # this implements common functionality of both Client nodes and the Queen
@@ -18,6 +19,7 @@ class Node(service.MultiService):
     def __init__(self, basedir="."):
         service.MultiService.__init__(self)
         self.basedir = os.path.abspath(basedir)
+        self._tub_ready_observerlist = observer.OneShotObserverList()
         assert self.CERTFILE, "Your node.Node subclass must provide CERTFILE"
         certfile = os.path.join(self.basedir, self.CERTFILE)
         if os.path.exists(certfile):
@@ -55,6 +57,37 @@ class Node(service.MultiService):
                 m.setServiceParent(self)
                 self.log("AuthorizedKeysManhole listening on %d" % portnum)
 
+    def startService(self):
+        """Start the node. Returns a Deferred that fires (with self) when it
+        is ready to go.
+
+        Many callers don't pay attention to the return value from
+        startService, since they aren't going to do anything special when it
+        finishes. If they are (for example unit tests which need to wait for
+        the node to fully start up before it gets shut down), they can wait
+        for the Deferred I return to fire. In particular, you should wait for
+        my startService() Deferred to fire before you call my stopService()
+        method.
+        """
+
+        # note: this class can only be started and stopped once.
+        service.MultiService.startService(self)
+        d = defer.succeed(None)
+        d.addCallback(lambda res: get_local_addresses())
+        d.addCallback(self._setup_tub)
+        d.addCallback(lambda res: self.tub_ready())
+        def _ready(res):
+            self.log("%s running" % self.NODETYPE)
+            self._tub_ready_observerlist.fire(self)
+            return self
+        d.addCallback(_ready)
+        return d
+
+    def shutdown(self):
+        """Shut down the node. Returns a Deferred that fires (with None) when
+        it finally stops kicking."""
+        return self.stopService()
+
     def log(self, msg):
         log.msg(self.short_nodeid + ": " + msg)
 
@@ -86,15 +119,10 @@ class Node(service.MultiService):
         # called when the Tub is available for registerReference
         pass
 
+    def when_tub_ready(self):
+        return self._tub_ready_observerlist.when_fired()
+
     def add_service(self, s):
         s.setServiceParent(self)
         return s
-
-    def startService(self):
-        # note: this class can only be started and stopped once.
-        service.MultiService.startService(self)
-        local_addresses = get_local_addresses()
-        self._setup_tub(local_addresses)
-        self.tub_ready()
-        self.log("%s running" % self.NODETYPE)
 

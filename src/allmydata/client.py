@@ -29,6 +29,7 @@ class Client(node.Node, Referenceable):
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
         self.queen = None # self.queen is either None or a RemoteReference
+        self.my_pburl = None
         self.all_peers = set()
         self.peer_pburls = {}
         self.connections = {}

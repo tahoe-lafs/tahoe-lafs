@@ -40,10 +40,16 @@ class SystemTest(unittest.TestCase):
         self.numclients = NUMCLIENTS
         if not os.path.isdir("queen"):
             os.mkdir("queen")
-        q = self.queen = self.add_service(queen.Queen(basedir="queen"))
+        self.queen = self.add_service(queen.Queen(basedir="queen"))
+        d = self.queen.when_tub_ready()
+        d.addCallback(self._set_up_nodes_2)
+        return d
+
+    def _set_up_nodes_2(self, res):
+        q = self.queen
         self.queen_pburl = q.urls["roster"]
         self.clients = []
-        for i in range(NUMCLIENTS):
+        for i in range(self.numclients):
             basedir = "client%d" % i
             if not os.path.isdir(basedir):
                 os.mkdir(basedir)

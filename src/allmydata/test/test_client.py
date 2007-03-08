@@ -6,8 +6,9 @@ from allmydata import client
 class Basic(unittest.TestCase):
     def test_loadable(self):
         c = client.Client("")
-        c.startService()
-        return c.stopService()
+        d = c.startService()
+        d.addCallback(lambda res: c.stopService())
+        return d
 
     def test_permute(self):
         c = client.Client("")
