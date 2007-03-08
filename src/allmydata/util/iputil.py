@@ -1,10 +1,10 @@
 
 # adapted from nattraverso.ipdiscover
 
-import os
-from cStringIO import StringIO
+import subprocess
 import re
 import socket
+from cStringIO import StringIO
 from twisted.internet import reactor
 from twisted.internet.protocol import DatagramProtocol
 from twisted.internet.utils import getProcessOutput
@@ -18,7 +18,10 @@ def get_local_addresses():
     # lines.
 
     cmd = "/sbin/ifconfig"
-    p = os.popen(cmd)
+    #p = os.popen(cmd)
+    c = subprocess.Popen(["ifconfig"], stdout=subprocess.PIPE)
+    output = c.communicate()[0]
+    p = StringIO(output)
     addresses = []
     for line in p.readlines():
         # linux shows: "   inet addr:1.2.3.4  Bcast:1.2.3.255..."
