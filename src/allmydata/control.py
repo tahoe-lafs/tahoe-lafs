@@ -29,5 +29,7 @@ class ControlServer(Referenceable, service.Service):
         for line in open("/proc/self/status", "r").readlines():
             name, right = line.split(":",2)
             if name in stat_names:
-                stats[name] = int(right.strip()) * 1024
+                assert right.endswith(" kB\n")
+                right = right[:-4]
+                stats[name] = int(right) * 1024
         return stats
