@@ -6,6 +6,7 @@ from allmydata.interfaces import RIControlClient
 
 
 class ControlServer(Referenceable, service.Service):
+    implements(RIControlClient)
 
     def remote_upload_from_file_to_uri(self, filename):
         uploader = self.parent.getServiceNamed("uploader")
@@ -24,6 +25,7 @@ class ControlServer(Referenceable, service.Service):
                       "VmSize",
                       #"VmHWM",
                       "VmData")
+        stats = {}
         for line in open("/proc/self/status", "r").readlines():
             name, right = line.split(":",2)
             if name in stat_names:

@@ -2,7 +2,6 @@
 from twisted.application import service
 import os.path
 from foolscap import Tub
-from foolscap.eventual import fireEventually
 from allmydata.util.iputil import get_local_addresses
 from allmydata.util import idlib
 from twisted.python import log
