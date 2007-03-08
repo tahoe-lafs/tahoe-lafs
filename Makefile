@@ -64,6 +64,16 @@ figleaf-output:
 # after doing test-figleaf and figleaf-output, point your browser at
 # coverage-html/index.html
 
+# this command is meant to be run with an
+ifdef UPLOAD_TARGET
+upload-figleaf:
+	rsync -a coverage-html/ $(UPLOAD_TARGET)
+else
+upload-figleaf:
+	echo "this target is meant to be run with UPLOAD_TARGET=host:/path/"
+	/bin/false
+endif
+
 .figleaf.el: .figleaf
 	$(PP) $(PYTHON) misc/figleaf2el.py .figleaf $(INSTDIR)
 
