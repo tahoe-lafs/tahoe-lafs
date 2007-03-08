@@ -17,8 +17,8 @@ def get_local_addresses():
     # this. For right now, I'm running ifconfig and grepping for the 'inet '
     # lines.
 
-    cmd = "ifconfig"
-    p = os.popen("ifconfig")
+    cmd = "/sbin/ifconfig"
+    p = os.popen(cmd)
     addresses = []
     for line in p.readlines():
         # linux shows: "   inet addr:1.2.3.4  Bcast:1.2.3.255..."
@@ -37,8 +37,8 @@ def get_local_addresses_async():
     # lines.
 
     # I'd love to do this synchronously.
-    cmd = "ifconfig"
-    d = getProcessOutput("ifconfig")
+    cmd = "/sbin/ifconfig"
+    d = getProcessOutput(cmd)
     def _parse(output):
         addresses = []
         for line in StringIO(output).readlines():
