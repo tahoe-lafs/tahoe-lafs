@@ -4,8 +4,7 @@ from twisted.python import log
 from twisted.application import service
 from twisted.internet import defer
 from foolscap import Tub
-from allmydata.util.iputil import get_local_addresses
-from allmydata.util import idlib, observer
+from allmydata.util import idlib, observer, iputil
 
 class Node(service.MultiService):
     # this implements common functionality of both Client nodes and the Queen
@@ -73,7 +72,7 @@ class Node(service.MultiService):
         # note: this class can only be started and stopped once.
         service.MultiService.startService(self)
         d = defer.succeed(None)
-        d.addCallback(lambda res: get_local_addresses())
+        d.addCallback(lambda res: iputil.get_local_addresses_async())
         d.addCallback(self._setup_tub)
         d.addCallback(lambda res: self.tub_ready())
         def _ready(res):
