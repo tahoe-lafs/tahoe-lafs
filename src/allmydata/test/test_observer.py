@@ -11,6 +11,7 @@ def nextTurn(res=None):
 class Observer(unittest.TestCase):
     def test_oneshot(self):
         ol = observer.OneShotObserverList()
+        rep = repr(ol)
         d1 = ol.when_fired()
         d2 = ol.when_fired()
         def _addmore(res):
@@ -20,6 +21,7 @@ class Observer(unittest.TestCase):
             return d3
         d1.addCallback(_addmore)
         ol.fire("result")
+        rep = repr(ol)
         d4 = ol.when_fired()
         dl = defer.DeferredList([d1,d2,d4])
         return dl
@@ -34,9 +36,26 @@ class Observer(unittest.TestCase):
             d2.addCallback(self.failUnlessEqual, "result")
             return d2
         d.addCallback(_addmore)
-        ol.fire("result")
+        ol.fire_if_not_fired("result")
         ol.fire_if_not_fired("result2")
         return d
+
+    def test_lazy_oneshot(self):
+        ol = observer.LazyOneShotObserverList()
+        d1 = ol.when_fired()
+        d2 = ol.when_fired()
+        def _addmore(res):
+            self.failUnlessEqual(res, "result")
+            d3 = ol.when_fired()
+            d3.addCallback(self.failUnlessEqual, "result")
+            return d3
+        d1.addCallback(_addmore)
+        def _get_result():
+            return "result"
+        ol.fire(_get_result)
+        d4 = ol.when_fired()
+        dl = defer.DeferredList([d1,d2,d4])
+        return dl
 
     def test_observerlist(self):
         ol = observer.ObserverList()
