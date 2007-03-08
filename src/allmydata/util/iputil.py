@@ -1,6 +1,7 @@
 
 # adapted from nattraverso.ipdiscover
 
+import os
 from cStringIO import StringIO
 import re
 import socket
@@ -15,6 +16,27 @@ def get_local_addresses():
     # eventually I want to use somebody else's cross-platform library for
     # this. For right now, I'm running ifconfig and grepping for the 'inet '
     # lines.
+
+    cmd = "ifconfig"
+    p = os.popen("ifconfig")
+    addresses = []
+    for line in p.readlines():
+        # linux shows: "   inet addr:1.2.3.4  Bcast:1.2.3.255..."
+        # OS-X shows: "   inet 1.2.3.4 ..."
+        m = re.match("^\s+inet\s+[a-z:]*([\d\.]+)\s", line)
+        if m:
+            addresses.append(m.group(1))
+    return addresses
+
+def get_local_addresses_async():
+    """Return a Deferred that fires with a list of IPv4 addresses (as
+    dotted-quad strings) that are currently configured on this host.
+    """
+    # eventually I want to use somebody else's cross-platform library for
+    # this. For right now, I'm running ifconfig and grepping for the 'inet '
+    # lines.
+
+    # I'd love to do this synchronously.
     cmd = "ifconfig"
     d = getProcessOutput("ifconfig")
     def _parse(output):
