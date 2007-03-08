@@ -11,7 +11,10 @@ def get_local_ip_for(target='A.ROOT-SERVERS.NET'):
     Returns a string that holds the IP address which could be used by
     'target' to connect to us. It might work for them, it might not.
     """
-    target_ipaddr = socket.gethostbyname(target)
+    try:
+        target_ipaddr = socket.gethostbyname(target)
+    except socket.gaierror:
+        return "127.0.0.1"
     udpprot = DatagramProtocol()
     port = reactor.listenUDP(0, udpprot)
     udpprot.transport.connect(target_ipaddr, 7)
