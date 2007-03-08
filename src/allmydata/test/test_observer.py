@@ -51,17 +51,6 @@ class Observer(unittest.TestCase):
         ol.notify(3)
         def _check(res):
             self.failUnlessEqual(l1, [1,2])
-            if l2 == [3,2]:
-                msg = ("ObserverList does not yet guarantee ordering of "
-                       "its calls, although it should. This only actually "
-                       "ever fails under windows because time.time() has "
-                       "low resolution and because Twisted does not "
-                       "guarantee ordering of consecutive "
-                       "reactor.callLater(0) calls, although it should. "
-                       "This will be fixed by adding a dependency upon "
-                       "Foolscap and using foolscap.eventual.eventually() "
-                       "instead of callLater(0)")
-                self.todo = msg
             self.failUnlessEqual(l2, [2,3])
         d = nextTurn()
         d.addCallback(_check)
