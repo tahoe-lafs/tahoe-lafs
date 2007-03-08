@@ -15,6 +15,7 @@ from allmydata.upload import Uploader
 from allmydata.download import Downloader
 from allmydata.vdrive import VDrive
 from allmydata.webish import WebishServer
+from allmydata.control import ControlServer
 
 class Client(node.Node, Referenceable):
     implements(RIClient)
@@ -51,6 +52,7 @@ class Client(node.Node, Referenceable):
 
     def tub_ready(self):
         self.my_pburl = self.tub.registerReference(self)
+        self.register_control()
         self.maybe_connect_to_queen()
 
     def set_queen_pburl(self, queen_pburl):
@@ -69,6 +71,15 @@ class Client(node.Node, Referenceable):
             return
         self.queen_connector = self.tub.connectTo(self.queen_pburl,
                                                   self._got_queen)
+
+    def register_control(self):
+        c = ControlServer()
+        c.setServiceParent(self)
+        control_url = self.tub.registerReference(c)
+        f = open("control.pburl", "w")
+        f.write(control_url + "\n")
+        f.close()
+        os.chmod("control.pburl", 0600)
 
     def stopService(self):
         if self.queen_connector:

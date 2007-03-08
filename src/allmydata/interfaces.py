@@ -1,6 +1,6 @@
 
 from zope.interface import Interface
-from foolscap.schema import StringConstraint, ListOf, TupleOf, Any
+from foolscap.schema import StringConstraint, ListOf, TupleOf, Any, DictOf
 from foolscap import RemoteInterface
 
 Nodeid = StringConstraint(20) # binary format 20-byte SHA1 hash
@@ -407,3 +407,26 @@ class IWorkQueue(Interface):
 
 class NotCapableError(Exception):
     """You have tried to write to a read-only node."""
+
+class RIControlClient(RemoteInterface):
+    def upload_from_file_to_uri(filename=str):
+        """Upload a file to the mesh. This accepts a filename (which must be
+        absolute) that points to a file on the node's local disk. The node
+        will read the contents of this file, upload it to the mesh, then
+        return the URI at which it was uploaded.
+        """
+        return URI
+
+    def download_from_uri_to_file(uri=URI, filename=str):
+        """Download a file from the mesh, placing it on the node's local disk
+        at the given filename (which must be absolute[?]). Returns the
+        absolute filename where the file was written."""
+        return str
+
+    # debug stuff
+
+    def get_memory_usage():
+        """Return a dict describes the amount of memory currently in use. The
+        keys are 'VmPeak', 'VmSize', and 'VmData'. The values are integers,
+        measuring memory consupmtion in bytes."""
+        return DictOf(str, int)
