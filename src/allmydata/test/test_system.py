@@ -110,7 +110,6 @@ class SystemTest(unittest.TestCase):
             return d1
         d.addBoth(_shutdown_extra_node)
         return d
-    test_connections.timeout = 20
 
     def test_upload_and_download(self):
         DATA = "Some data to upload\n"
@@ -132,7 +131,6 @@ class SystemTest(unittest.TestCase):
             self.failUnlessEqual(data, DATA)
         d.addCallback(_download_done)
         return d
-    test_upload_and_download.timeout = 20
 
     def test_vdrive(self):
         self.data = DATA = "Some data to publish to the virtual drive\n"
@@ -157,7 +155,6 @@ class SystemTest(unittest.TestCase):
         d.addCallback(_get_done)
         d.addCallback(self._test_web)
         return d
-    test_vdrive.timeout = 20
 
     def _test_web(self, res):
         base = self.webish_url
