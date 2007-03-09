@@ -93,6 +93,9 @@ count-lines:
 	@echo -n "TODO: "
 	@grep TODO `find src -name '*.py' |grep -v /build/` | wc --lines
 
+check-memory:
+	$(PP) $(PYTHON) src/allmydata/test/check_memory.py
+
 clean: clean-pyfec clean-Crypto
 	rm -rf build
 	rm -f debian
