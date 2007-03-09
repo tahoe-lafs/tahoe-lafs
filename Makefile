@@ -4,22 +4,6 @@ default: build
 BASE=$(shell pwd)
 PYTHON=python
 
-.PHONY: build
-build: build-pyfec build-Crypto
-	$(PYTHON) setup.py install --prefix=$(BASE)/instdir
-
-build-pyfec:
-	cd src/pyfec && $(PYTHON) ./setup.py install --prefix=$(BASE)/instdir
-
-clean-pyfec:
-	cd src/pyfec && python ./setup.py clean
-
-build-Crypto:
-	cd src/Crypto && $(PYTHON) ./setup.py install --prefix=$(BASE)/instdir
-
-clean-Crypto:
-	cd src/Crypto && python ./setup.py clean
-
 INSTDIR=$(BASE)/instdir/lib/python$(shell $(PYTHON) -c 'import sys;print sys.version_info[0]').$(shell $(PYTHON) -c 'import sys;print sys.version_info[1]')/site-packages
 
 show-instdir:
@@ -30,6 +14,27 @@ PP=PYTHONPATH=${PYTHONPATH}:$(INSTDIR)
 else
 PP=PYTHONPATH=$(INSTDIR)
 endif
+
+.PHONY: build
+build: build-pyfec build-Crypto
+	$(PYTHON) setup.py install --prefix=$(BASE)/instdir
+
+build-pyfec:
+	cd src/pyfec && $(PYTHON) ./setup.py install --prefix=$(BASE)/instdir
+
+test-pyfec:
+	$(PP) $(PYTHON) src/pyfec/fec/test/test_pyfec.py
+
+clean-pyfec:
+	cd src/pyfec && python ./setup.py clean
+
+
+build-Crypto:
+	cd src/Crypto && $(PYTHON) ./setup.py install --prefix=$(BASE)/instdir
+
+clean-Crypto:
+	cd src/Crypto && python ./setup.py clean
+
 
 .PHONY: run-queen run-client test
 
