@@ -53,4 +53,5 @@
 ^instdir($|/)
 ^src/pyfec/build($|/)
 ^src/Crypto/build($|/)
+^_test_memory($|/)
 
