@@ -39,6 +39,8 @@ class Roster(service.MultiService, Referenceable):
         eventually(self._announce_new_peer,
                    nodeid, pburl, list(self.connections.values()))
         node.notifyOnDisconnect(self._lost_node, nodeid)
+
+    def remote_get_global_vdrive(self):
         return self.gvd_root
 
     def _educate_the_new_peer(self, nodeid, node, new_peers):

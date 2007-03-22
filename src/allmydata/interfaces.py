@@ -19,7 +19,11 @@ RIMutableFileNode_ = Any()
 
 class RIQueenRoster(RemoteInterface):
     def hello(nodeid=Nodeid, node=RIClient_, pburl=PBURL):
+        return None
+
+    def get_global_vdrive():
         return RIMutableDirectoryNode_ # the virtual drive root
+       
 
 class RIClient(RemoteInterface):
     def get_service(name=str):

@@ -96,6 +96,7 @@ class Client(node.Node, Referenceable):
                              nodeid=self.nodeid,
                              node=self,
                              pburl=self.my_pburl)
+        d.addCallback(lambda x: queen.callRemote("get_global_vdrive"))
         d.addCallback(self._got_vdrive_root)
 
     def _got_vdrive_root(self, root):
