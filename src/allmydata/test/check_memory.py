@@ -1,6 +1,6 @@
 #! /usr/bin/python
 
-import sys, os, shutil
+import os, shutil
 
 from twisted.internet import defer, reactor, protocol, error
 from twisted.application import service
@@ -76,6 +76,15 @@ class SystemFramework:
         # the peers will start running, eventually they will connect to each
         # other and the queen
 
+    def touch_keepalive(self):
+        f = open(self.keepalive_file, "w")
+        f.write("If the node notices this file at startup, it will poll and\n")
+        f.write("terminate as soon as the file goes away. This prevents\n")
+        f.write("leaving processes around if the test harness has an\n")
+        f.write("internal failure and neglects to kil off the node\n")
+        f.write("itself. The contents of this file are ignored.\n")
+        f.close()
+
     def start_client(self):
         log.msg("MAKING CLIENT")
         clientdir = self.clientdir = os.path.join(self.basedir, "client")
@@ -85,13 +94,9 @@ class SystemFramework:
         f = open(os.path.join(clientdir, "roster_pburl"), "w")
         f.write(self.queen_pburl + "\n")
         f.close()
-        f = open(os.path.join(clientdir, "suicide_prevention_hotline"), "w")
-        f.write("If the node notices this file at startup, it will poll and\n")
-        f.write("terminate as soon as the file goes away. This prevents\n")
-        f.write("leaving processes around if the test harness has an\n")
-        f.write("internal failure and neglects to kil off the node\n")
-        f.write("itself. The contents of this file are ignored.\n")
-        f.close()
+        self.keepalive_file = os.path.join(clientdir, "suicide_prevention_hotline")
+        self.touch_keepalive()
+        # now start updating the mtime.
 
         pp = ClientWatcher()
         cmd = ["twistd", "-y", "client.tac"]
