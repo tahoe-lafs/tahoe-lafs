@@ -29,9 +29,7 @@ class Client(node.Node, Referenceable):
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
         self.queen = None # self.queen is either None or a RemoteReference
-        self.all_peers = set()
-        self.peer_pburls = {}
-        self.connections = {}
+        self.introducer_client = None
         self.add_service(StorageServer(os.path.join(basedir, self.STOREDIR)))
         self.add_service(Uploader())
         self.add_service(Downloader())
@@ -52,6 +50,9 @@ class Client(node.Node, Referenceable):
 
     def tub_ready(self):
         self.my_pburl = self.tub.registerReference(self)
+        if self.queen_pburl:
+            self.introducer_client = IntroducerClient(self.tub, self.queen_pburl, self.my_pburl)
+        self.register_control()
         self.maybe_connect_to_queen()
 
     def set_queen_pburl(self, queen_pburl):
@@ -70,6 +71,15 @@ class Client(node.Node, Referenceable):
             return
         self.queen_connector = self.tub.connectTo(self.queen_pburl,
                                                   self._got_queen)
+
+    def register_control(self):
+        c = ControlServer()
+        c.setServiceParent(self)
+        control_url = self.tub.registerReference(c)
+        f = open("control.pburl", "w")
+        f.write(control_url + "\n")
+        f.close()
+        os.chmod("control.pburl", 0600)
 
     def stopService(self):
         if self.introducer_client:

@@ -1,6 +1,6 @@
 
 from zope.interface import Interface
-from foolscap.schema import StringConstraint, ListOf, TupleOf, Any
+from foolscap.schema import StringConstraint, ListOf, SetOf, TupleOf, Any
 from foolscap import RemoteInterface
 
 Nodeid = StringConstraint(20) # binary format 20-byte SHA1 hash
