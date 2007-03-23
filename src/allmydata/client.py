@@ -29,7 +29,6 @@ class Client(node.Node, Referenceable):
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
         self.queen = None # self.queen is either None or a RemoteReference
-        self.my_pburl = None
         self.all_peers = set()
         self.peer_pburls = {}
         self.connections = {}
@@ -53,7 +52,6 @@ class Client(node.Node, Referenceable):
 
     def tub_ready(self):
         self.my_pburl = self.tub.registerReference(self)
-        self.register_control()
         self.maybe_connect_to_queen()
 
     def set_queen_pburl(self, queen_pburl):
@@ -73,29 +71,13 @@ class Client(node.Node, Referenceable):
         self.queen_connector = self.tub.connectTo(self.queen_pburl,
                                                   self._got_queen)
 
-    def register_control(self):
-        c = ControlServer()
-        c.setServiceParent(self)
-        control_url = self.tub.registerReference(c)
-        f = open("control.pburl", "w")
-        f.write(control_url + "\n")
-        f.close()
-        os.chmod("control.pburl", 0600)
-
     def stopService(self):
-        if self.queen_connector:
-            self.queen_connector.stopConnecting()
-            self.queen_connector = None
+        if self.introducer_client:
+            self.introducer_client.stop()
         return service.MultiService.stopService(self)
 
     def _got_queen(self, queen):
         self.log("connected to queen")
-        self.queen = queen
-        queen.notifyOnDisconnect(self._lost_queen)
-        d = queen.callRemote("hello",
-                             nodeid=self.nodeid,
-                             node=self,
-                             pburl=self.my_pburl)
         d.addCallback(lambda x: queen.callRemote("get_global_vdrive"))
         d.addCallback(self._got_vdrive_root)
 
@@ -104,43 +86,9 @@ class Client(node.Node, Referenceable):
         if "webish" in self.namedServices:
             self.getServiceNamed("webish").set_root_dirnode(root)
 
-    def _lost_queen(self):
-        self.log("lost connection to queen")
-        self.queen = None
-
     def remote_get_service(self, name):
         # TODO: 'vdrive' should not be public in the medium term
         return self.getServiceNamed(name)
-
-    def remote_add_peers(self, new_peers):
-        for nodeid, pburl in new_peers:
-            self.log("adding peer %s" % idlib.b2a(nodeid))
-            if nodeid in self.all_peers:
-                self.log("weird, I already had an entry for them")
-                return
-            self.all_peers.add(nodeid)
-            self.peer_pburls[nodeid] = pburl
-            if nodeid not in self.connections:
-                d = self.tub.getReference(pburl)
-                def _got_reference(ref, which_nodeid):
-                    self.log("connected to %s" % idlib.b2a(which_nodeid))
-                    if which_nodeid in self.all_peers:
-                        self.connections[which_nodeid] = ref
-                    else:
-                        log.msg(" ignoring it because we no longer want to talk to them")
-                d.addCallback(_got_reference, nodeid)
-
-    def remote_lost_peers(self, lost_peers):
-        for nodeid in lost_peers:
-            self.log("lost peer %s" % idlib.b2a(nodeid))
-            if nodeid in self.all_peers:
-                self.all_peers.remove(nodeid)
-            else:
-                self.log("weird, I didn't have an entry for them")
-            if nodeid in self.peer_pburls:
-                del self.peer_pburls[nodeid]
-            if nodeid in self.connections:
-                del self.connections[nodeid]
 
     def get_remote_service(self, nodeid, servicename):
         if nodeid not in self.connections:

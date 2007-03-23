@@ -12,14 +12,16 @@ class Basic(unittest.TestCase):
 
     def test_permute(self):
         c = client.Client("")
-        c.all_peers = ["%d" % i for i in range(5)]
+        for k in ["%d" % i for i in range(5)]:
+            c.connections[k] = None
         self.failUnlessEqual(c.permute_peerids("one"), ['3','1','0','4','2'])
         self.failUnlessEqual(c.permute_peerids("one", 3), ['3','1','0'])
         self.failUnlessEqual(c.permute_peerids("two"), ['0','4','2','1','3'])
-        c.all_peers = []
+        c.connections.clear()
         self.failUnlessEqual(c.permute_peerids("one"), [])
 
         c2 = client.Client("")
-        c2.all_peers = ["%d" % i for i in range(5)]
+        for k in ["%d" % i for i in range(5)]:
+            c2.connections[k] = None
         self.failUnlessEqual(c2.permute_peerids("one"), ['3','1','0','4','2'])
 

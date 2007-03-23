@@ -1,6 +1,6 @@
 
 from zope.interface import Interface
-from foolscap.schema import StringConstraint, ListOf, TupleOf, Any, DictOf
+from foolscap.schema import StringConstraint, ListOf, TupleOf, Any
 from foolscap import RemoteInterface
 
 Nodeid = StringConstraint(20) # binary format 20-byte SHA1 hash
@@ -8,7 +8,7 @@ PBURL = StringConstraint(150)
 Verifierid = StringConstraint(20)
 URI = StringConstraint(100) # kind of arbitrary
 ShareData = StringConstraint(100000)
-# these four are here because Foolscap does not yet support the kind of
+# these six are here because Foolscap does not yet support the kind of
 # restriction I really want to apply to these.
 RIClient_ = Any()
 Referenceable_ = Any()
@@ -17,21 +17,23 @@ RIBucketReader_ = Any()
 RIMutableDirectoryNode_ = Any()
 RIMutableFileNode_ = Any()
 
-class RIQueenRoster(RemoteInterface):
-    def hello(nodeid=Nodeid, node=RIClient_, pburl=PBURL):
+class RIIntroducerClient(RemoteInterface):
+    def new_peers(pburls=SetOf(PBURL)):
         return None
 
+class RIIntroducer(RemoteInterface):
+    def hello(node=RIIntroducerClient, pburl=PBURL):
+        return None
+
+class RIQueenRoster(RemoteInterface):
     def get_global_vdrive():
         return RIMutableDirectoryNode_ # the virtual drive root
-       
 
-class RIClient(RemoteInterface):
+class RIClient(RIIntroducerClient):
     def get_service(name=str):
         return Referenceable_
-    def add_peers(new_peers=ListOf(TupleOf(Nodeid, PBURL), maxLength=100)):
-        return None
-    def lost_peers(lost_peers=ListOf(Nodeid)):
-        return None
+    def get_nodeid():
+        return Nodeid
 
 class RIStorageServer(RemoteInterface):
     def allocate_bucket(verifierid=Verifierid, bucket_num=int, size=int,

@@ -36,20 +36,15 @@ class Welcome(rend.Page):
     def data_num_peers(self, ctx, data):
         #client = inevow.ISite(ctx)._client
         client = IClient(ctx)
-        return len(client.all_peers)
+        return len(client.connections)
     def data_num_connected_peers(self, ctx, data):
         return len(IClient(ctx).connections)
 
     def data_peers(self, ctx, data):
         d = []
         client = IClient(ctx)
-        for nodeid in sorted(client.all_peers):
-            if nodeid in client.connections:
-                connected = "yes"
-            else:
-                connected = "no"
-            pburl = client.peer_pburls[nodeid]
-            row = (idlib.b2a(nodeid), connected, pburl)
+        for nodeid in sorted(client.connections.keys()):
+            row = (idlib.b2a(nodeid), "yes", "?")
             d.append(row)
         return d
 
