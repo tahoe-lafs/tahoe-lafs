@@ -1,6 +1,6 @@
 
 from zope.interface import Interface
-from foolscap.schema import StringConstraint, ListOf, SetOf, TupleOf, Any
+from foolscap.schema import StringConstraint, ListOf, TupleOf, Any
 from foolscap import RemoteInterface
 
 Nodeid = StringConstraint(20) # binary format 20-byte SHA1 hash
@@ -16,6 +16,8 @@ RIBucketWriter_ = Any()
 RIBucketReader_ = Any()
 RIMutableDirectoryNode_ = Any()
 RIMutableFileNode_ = Any()
+def SetOf(*args, **kwargs): return Any()
+def DictOf(*args, **kwargs): return Any()
 
 class RIIntroducerClient(RemoteInterface):
     def new_peers(pburls=SetOf(PBURL)):
@@ -25,11 +27,7 @@ class RIIntroducer(RemoteInterface):
     def hello(node=RIIntroducerClient, pburl=PBURL):
         return None
 
-class RIQueenRoster(RemoteInterface):
-    def get_global_vdrive():
-        return RIMutableDirectoryNode_ # the virtual drive root
-
-class RIClient(RIIntroducerClient):
+class RIClient(RemoteInterface):
     def get_service(name=str):
         return Referenceable_
     def get_nodeid():

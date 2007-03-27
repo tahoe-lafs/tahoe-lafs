@@ -122,7 +122,8 @@ def create_client(config):
     f = open(os.path.join(basedir, "client.tac"), "w")
     f.write(client_tac)
     f.close()
-    print "client created in %s, please copy roster_pburl into the directory" % basedir
+    print "client created in %s" % basedir
+    print " please copy introducer.furl and vdrive.furl into the directory"
 
 def create_queen(config):
     basedir = config['basedir']

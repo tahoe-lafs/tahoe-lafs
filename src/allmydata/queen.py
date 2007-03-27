@@ -1,35 +1,8 @@
 
 import os.path
-from foolscap import Referenceable, DeadReferenceError
-from foolscap.eventual import eventually
-from twisted.application import service
-from twisted.python import log
-from twisted.internet.error import ConnectionLost, ConnectionDone
-from allmydata.util import idlib
-from zope.interface import implements
-from allmydata.interfaces import RIQueenRoster, RIIntroducer
 from allmydata import node
 from allmydata.filetable import GlobalVirtualDrive
-
-
-def sendOnly(call, methname, *args, **kwargs):
-    d = call(methname, *args, **kwargs)
-    def _trap(f):
-        f.trap(DeadReferenceError, ConnectionLost, ConnectionDone)
-    d.addErrback(_trap)
-
-class Roster(service.MultiService, Referenceable):
-    implements(RIQueenRoster)
-
-    def __init__(self):
-        self.gvd_root = None
-
-    def set_gvd_root(self, root):
-        self.gvd_root = root
-
-    def remote_get_global_vdrive(self):
-        return self.gvd_root
-
+from allmydata.introducer import Introducer
 
 
 class Queen(node.Node):
@@ -39,15 +12,21 @@ class Queen(node.Node):
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
-        self.gvd = self.add_service(GlobalVirtualDrive(basedir))
         self.urls = {}
 
     def tub_ready(self):
-        r = self.add_service(Roster())
-        self.urls["roster"] = self.tub.registerReference(r, "roster")
-        self.log(" roster is at %s" % self.urls["roster"])
-        f = open(os.path.join(self.basedir, "roster_pburl"), "w")
-        f.write(self.urls["roster"] + "\n")
+        r = self.add_service(Introducer())
+        self.urls["introducer"] = self.tub.registerReference(r, "introducer")
+        self.log(" introducer is at %s" % self.urls["introducer"])
+        f = open(os.path.join(self.basedir, "introducer.furl"), "w")
+        f.write(self.urls["introducer"] + "\n")
         f.close()
-        r.set_gvd_root(self.gvd.get_root())
+
+        gvd = self.add_service(GlobalVirtualDrive(self.basedir))
+        self.urls["vdrive"] = self.tub.registerReference(gvd.get_root(),
+                                                         "vdrive")
+        self.log(" vdrive is at %s" % self.urls["vdrive"])
+        f = open(os.path.join(self.basedir, "vdrive.furl"), "w")
+        f.write(self.urls["vdrive"] + "\n")
+        f.close()
 

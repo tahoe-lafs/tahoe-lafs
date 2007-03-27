@@ -65,13 +65,19 @@ class SystemFramework:
 
     def make_nodes(self):
         q = self.queen
-        self.queen_pburl = q.urls["roster"]
+        self.queen_pburl = q.urls["introducer"]
+        vdrive_furl = q.urls["vdrive"]
         self.nodes = []
         for i in range(self.numnodes):
             nodedir = os.path.join(self.basedir, "node%d" % i)
             os.mkdir(nodedir)
+            f = open(os.path.join(nodedir, "introducer.furl"), "w")
+            f.write(self.queen_pburl)
+            f.close()
+            f = open(os.path.join(nodedir, "vdrive.furl"), "w")
+            f.write(vdrive_furl)
+            f.close()
             c = self.add_service(client.Client(basedir=nodedir))
-            c.set_queen_pburl(self.queen_pburl)
             self.nodes.append(c)
         # the peers will start running, eventually they will connect to each
         # other and the queen
@@ -81,7 +87,7 @@ class SystemFramework:
         f.write("If the node notices this file at startup, it will poll and\n")
         f.write("terminate as soon as the file goes away. This prevents\n")
         f.write("leaving processes around if the test harness has an\n")
-        f.write("internal failure and neglects to kil off the node\n")
+        f.write("internal failure and neglects to kill off the node\n")
         f.write("itself. The contents of this file are ignored.\n")
         f.close()
 
@@ -91,7 +97,7 @@ class SystemFramework:
         config = {'basedir': clientdir}
         runner.create_client(config)
         log.msg("DONE MAKING CLIENT")
-        f = open(os.path.join(clientdir, "roster_pburl"), "w")
+        f = open(os.path.join(clientdir, "introducer.furl"), "w")
         f.write(self.queen_pburl + "\n")
         f.close()
         self.keepalive_file = os.path.join(clientdir, "suicide_prevention_hotline")

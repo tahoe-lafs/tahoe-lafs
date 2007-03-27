@@ -28,31 +28,29 @@ class Welcome(rend.Page):
     docFactory = getxmlfile("welcome.xhtml")
 
     def data_queen_pburl(self, ctx, data):
-        return IClient(ctx).queen_pburl
+        return IClient(ctx).introducer_furl
     def data_connected_to_queen(self, ctx, data):
-        if IClient(ctx).queen:
+        if IClient(ctx).connected_to_vdrive:
             return "yes"
         return "no"
     def data_num_peers(self, ctx, data):
         #client = inevow.ISite(ctx)._client
         client = IClient(ctx)
-        return len(client.connections)
+        return len(client.get_all_peerids())
     def data_num_connected_peers(self, ctx, data):
-        return len(IClient(ctx).connections)
+        return len(IClient(ctx).get_all_peerids())
 
     def data_peers(self, ctx, data):
         d = []
         client = IClient(ctx)
-        for nodeid in sorted(client.connections.keys()):
-            row = (idlib.b2a(nodeid), "yes", "?")
+        for nodeid in sorted(client.get_all_peerids()):
+            row = (idlib.b2a(nodeid),)
             d.append(row)
         return d
 
     def render_row(self, ctx, data):
-        nodeid_a, connected, pburl = data
+        (nodeid_a,) = data
         ctx.fillSlots("peerid", nodeid_a)
-        ctx.fillSlots("connected", connected)
-        ctx.fillSlots("pburl", pburl)
         return ctx.tag
 
     # this is a form where users can download files by URI

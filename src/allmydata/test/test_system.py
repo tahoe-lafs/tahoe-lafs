@@ -47,18 +47,18 @@ class SystemTest(unittest.TestCase):
 
     def _set_up_nodes_2(self, res):
         q = self.queen
-        self.queen_pburl = q.urls["roster"]
+        self.queen_furl = q.urls["introducer"]
+        self.vdrive_furl = q.urls["vdrive"]
         self.clients = []
         for i in range(self.numclients):
             basedir = "client%d" % i
             if not os.path.isdir(basedir):
                 os.mkdir(basedir)
             if i == 0:
-                f = open(os.path.join(basedir, "webport"), "w")
-                f.write("tcp:0:interface=127.0.0.1")
-                f.close()
+                open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
+            open(os.path.join(basedir, "introducer.furl"), "w").write(self.queen_furl)
+            open(os.path.join(basedir, "vdrive.furl"), "w").write(self.vdrive_furl)
             c = self.add_service(client.Client(basedir=basedir))
-            c.set_queen_pburl(self.queen_pburl)
             self.clients.append(c)
         log.msg("STARTING")
         d = self.wait_for_connections()
@@ -76,9 +76,11 @@ class SystemTest(unittest.TestCase):
         basedir = "client%d" % client_num
         if not os.path.isdir(basedir):
             os.mkdir(basedir)
+        open(os.path.join(basedir, "introducer.furl"), "w").write(self.queen_furl)
+        open(os.path.join(basedir, "vdrive.furl"), "w").write(self.vdrive_furl)
+
         c = client.Client(basedir=basedir)
         self.clients.append(c)
-        c.set_queen_pburl(self.queen_pburl)
         self.numclients += 1
         c.startService()
         d = self.wait_for_connections()
@@ -87,7 +89,7 @@ class SystemTest(unittest.TestCase):
 
     def wait_for_connections(self, ignored=None):
         for c in self.clients:
-            if len(c.connections) != self.numclients:
+            if not c.introducer_client or len(c.get_all_peerids()) != self.numclients:
                 d = defer.Deferred()
                 d.addCallback(self.wait_for_connections)
                 reactor.callLater(0.05, d.callback, None)
@@ -96,18 +98,21 @@ class SystemTest(unittest.TestCase):
 
     def test_connections(self):
         d = self.set_up_nodes()
+        self.extra_node = None
         d.addCallback(lambda res: self.add_extra_node(5))
         def _check(extra_node):
             self.extra_node = extra_node
             for c in self.clients:
-                self.failUnlessEqual(len(c.connections), 6)
+                self.failUnlessEqual(len(c.get_all_peerids()), 6)
         d.addCallback(_check)
         def _shutdown_extra_node(res):
-            d1 = self.extra_node.stopService()
-            d2 = defer.Deferred()
-            reactor.callLater(self.DISCONNECT_DELAY, d2.callback, res)
-            d1.addCallback(lambda ignored: d2)
-            return d1
+            if self.extra_node:
+                d1 = self.extra_node.stopService()
+                d2 = defer.Deferred()
+                reactor.callLater(self.DISCONNECT_DELAY, d2.callback, res)
+                d1.addCallback(lambda ignored: d2)
+                return d1
+            return res
         d.addBoth(_shutdown_extra_node)
         return d
 
