@@ -90,3 +90,6 @@ def bench_read_encode_and_drop():
     finally:
         os.remove("tmpranddata")
 
+if __name__ == "__main__":
+    bench_encode_to_files_shuffle_decode_from_files()
+

@@ -151,6 +151,9 @@ v2.4 and v2.5.
 On Peter's fancy Intel Mac laptop (2.16 GHz Core Duo), it encoded from a file
 at about 6.2 million bytes per second.
 
+On my even fancier Intel Mac laptop (2.33 GHz Core Duo), it encoded from a file
+at about 6.8 million bytes per second.
+
 On my old PowerPC G4 867 MHz Mac laptop, it encoded from a file at about 1.3
 million bytes per second.
 
