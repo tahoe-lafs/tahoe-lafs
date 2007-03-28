@@ -2,8 +2,7 @@
 
 from zope.interface import implements
 from twisted.internet import defer
-import sha
-from allmydata.util import idlib, mathutil
+from allmydata.util import mathutil
 from allmydata.util.assertutil import precondition
 from allmydata.interfaces import ICodecEncoder, ICodecDecoder
 import fec

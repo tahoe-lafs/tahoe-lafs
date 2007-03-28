@@ -1,7 +1,6 @@
 
 import os
 from twisted.trial import unittest
-from twisted.internet import defer
 from twisted.python import log
 from allmydata.codec import ReplicatingEncoder, ReplicatingDecoder, CRSEncoder, CRSDecoder
 import random
