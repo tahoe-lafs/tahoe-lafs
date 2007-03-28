@@ -23,10 +23,34 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import fec
+import easyfec, fec
 
 import array, random
 
+def encode_to_files_easyfec(inf, prefix, k, m):
+    """
+    Encode inf, writing the shares to named $prefix+$shareid.
+    """
+    l = [ open(prefix+str(shareid), "wb") for shareid in range(m) ]
+    def cb(shares, length):
+        assert len(shares) == len(l)
+        for i in range(len(shares)):
+            l[i].write(shares[i])
+
+    encode_file_stringy_easyfec(inf, cb, k, m, chunksize=4096)
+ 
+def encode_to_files_stringy(inf, prefix, k, m):
+    """
+    Encode inf, writing the shares to named $prefix+$shareid.
+    """
+    l = [ open(prefix+str(shareid), "wb") for shareid in range(m) ]
+    def cb(shares, length):
+        assert len(shares) == len(l)
+        for i in range(len(shares)):
+            l[i].write(shares[i])
+
+    encode_file_stringy(inf, cb, k, m, chunksize=4096)
+ 
 def encode_to_files(inf, prefix, k, m):
     """
     Encode inf, writing the shares to named $prefix+$shareid.
@@ -214,3 +238,34 @@ def encode_file_not_really(inf, cb, k, m, chunksize=4096):
         # res = enc.encode(l)
         # print "...finished to encode()"
         cb(l, indatasize)
+
+def encode_file_stringy_easyfec(inf, cb, k, m, chunksize=4096):
+    """
+    Read in the contents of inf, encode, and call cb with the results.
+
+    First, chunksize*k bytes will be read from inf, then encoded into m
+    "result shares".  Then cb will be invoked, passing a list of the m result
+    shares as its first argument, and the length of the encoded data as its
+    second argument.  (The length of the encoded data is always equal to
+    k*chunksize, until the last iteration, when the end of the file has been
+    reached and less than k*chunksize bytes could be read from the file.)
+    This procedure is iterated until the end of the file is reached, in which
+    case the space of the input that is unused is filled with zeroes before
+    encoding.
+
+    @param inf the file object from which to read the data
+    @param cb the callback to be invoked with the results
+    @param k the number of shares required to reconstruct the file
+    @param m the total number of shares created
+    @param chunksize how much data to read from inf for each of the k input 
+        shares
+    """
+    enc = easyfec.Encoder(k, m)
+
+    indatasize = k*chunksize # will be reset to shorter upon EOF
+    indata = inf.read(indatasize)
+    while indata:
+        res = enc.encode(indata)
+        cb(res, indatasize)
+        indata = inf.read(indatasize)
+

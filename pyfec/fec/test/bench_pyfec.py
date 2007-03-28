@@ -27,14 +27,22 @@ import fec
 
 import array, random
 
-def bench_encode_to_files_shuffle_decode_from_files(verbose=False):
-    FILESIZE=1000000
+def f_easyfec(filesize):
+    return bench_encode_to_files_shuffle_decode_from_files(filesize, verbose=False, encodefunc=fec.filefec.encode_to_files_easyfec)
+    
+def f_fec_stringy(filesize):
+    return bench_encode_to_files_shuffle_decode_from_files(filesize, verbose=False, encodefunc=fec.filefec.encode_to_files_stringy)
+    
+def f_fec(filesize):
+    return bench_encode_to_files_shuffle_decode_from_files(filesize, verbose=False, encodefunc=fec.filefec.encode_to_files)
+    
+def bench_encode_to_files_shuffle_decode_from_files(filesize=1000000, verbose=False, encodefunc=fec.filefec.encode_to_files):
     CHUNKSIZE=4096
     PREFIX="testshare"
     K=25
     M=100
     import os, time
-    left=FILESIZE
+    left=filesize
     outfile = open("tmpranddata", "wb")
     try:
         while left:
@@ -45,10 +53,10 @@ def bench_encode_to_files_shuffle_decode_from_files(verbose=False):
         outfile = None
         infile = open("tmpranddata", "rb")
         st = time.time()
-        fec.filefec.encode_to_files(infile, PREFIX, K, M)
+        encodefunc(infile, PREFIX, K, M)
         so = time.time()
         if verbose:
-            print "Encoded %s byte file into %d share files in %0.2f seconds, or %0.2f million bytes per second" % (FILESIZE, M, so-st, FILESIZE/((so-st)*1000000),)
+            print "Encoded %s byte file into %d share files in %0.2f seconds, or %0.2f million bytes per second" % (filesize, M, so-st, filesize/((so-st)*filesize),)
         enctime = so-st
         # Now delete m-k of the tempfiles at random.
         tempfs = [ f for f in os.listdir(".") if f.startswith(PREFIX) ]
@@ -57,10 +65,10 @@ def bench_encode_to_files_shuffle_decode_from_files(verbose=False):
             os.remove(victimtempf)
         recoveredfile = open("tmpranddata-recovered", "wb")
         st = time.time()
-        fec.filefec.decode_from_files(recoveredfile, 1000000, PREFIX, K, M)
+        fec.filefec.decode_from_files(recoveredfile, filesize, PREFIX, K, M)
         so = time.time()
         if verbose:
-            print "Decoded %s byte file from %d share files in %0.2f seconds, or %0.2f million bytes per second" % (FILESIZE, K, so-st, FILESIZE/((so-st)*1000000),)
+            print "Decoded %s byte file from %d share files in %0.2f seconds, or %0.2f million bytes per second" % (filesize, K, so-st, filesize/((so-st)*filesize),)
         return enctime + (so-st)
     finally:
         # os.remove("tmpranddata")
