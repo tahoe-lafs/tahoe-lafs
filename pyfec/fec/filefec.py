@@ -6,10 +6,13 @@
 # 
 # This file is part of pyfec.
 # 
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.  This program also comes with the added permission that,
+# in the case that you are obligated to release a derived work under this
+# licence (as per section 2.b of the GPL), you may delay the fulfillment of
+# this obligation for up to 12 months.
 # 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -59,9 +62,12 @@ def decode_from_files(outf, filesize, prefix, k, m):
         x = [ inf.read(CHUNKSIZE) for inf in infs ]
         decshares = dec.decode(x, shareids)
         for decshare in decshares:
+            if len(decshare) == 0:
+                raise "error -- probably share was too short -- was it stored in a file which got truncated? chunksizes: %s" % ([len(chunk) for chunk in x],)
             if filesize >= len(decshare):
                 outf.write(decshare)
                 filesize -= len(decshare)
+                # print "filesize is now %s after subtracting %s" % (filesize, len(decshare),)
             else: 
                 outf.write(decshare[:filesize])
                 return
