@@ -92,27 +92,14 @@ class Encoder(object):
         self.segment_size = min(2*MiB, self.file_size)
         self.num_segments = mathutil.div_ceil(self.file_size, self.segment_size)
 
-    def setup_encoder(self):
-        self.encoder = CRSEncoder()
-        self.encoder.set_params(self.segment_size, self.required_shares,
-                                self.num_shares)
-
     def get_reservation_size(self):
         self.num_shares = 100
         self.share_size = mathutil.div_ceil(self.file_size, self.required_shares)
         overhead = self.compute_overhead()
         return self.share_size + overhead
 
-    def setup_encryption(self):
-        self.key = "\x00"*16
-        self.cryptor = AES.new(key=self.key, mode=AES.MODE_CTR,
-                               counterstart="\x00"*16)
-        self.segment_num = 0
-        self.subshare_hashes = [[] for x in range(self.num_shares)]
-        # subshare_hashes[i] is a list that will be accumulated and then send
-        # to landlord[i]. This list contains a hash of each segment_share
-        # that we sent to that landlord.
-        self.share_root_hashes = [None] * self.num_shares
+    def set_shareholders(self, landlords):
+        self.landlords = landlords.copy()
 
     def start(self):
         self.setup_encryption()
@@ -125,6 +112,22 @@ class Encoder(object):
         d.addCallback(lambda res: self.close_all_shareholders())
         d.addCallback(lambda res: self.done())
         return d
+
+    def setup_encryption(self):
+        self.key = "\x00"*16
+        self.cryptor = AES.new(key=self.key, mode=AES.MODE_CTR,
+                               counterstart="\x00"*16)
+        self.segment_num = 0
+        self.subshare_hashes = [[] for x in range(self.num_shares)]
+        # subshare_hashes[i] is a list that will be accumulated and then send
+        # to landlord[i]. This list contains a hash of each segment_share
+        # that we sent to that landlord.
+        self.share_root_hashes = [None] * self.num_shares
+
+    def setup_encoder(self):
+        self.encoder = CRSEncoder()
+        self.encoder.set_params(self.segment_size, self.required_shares,
+                                self.num_shares)
 
     def do_segment(self, segnum):
         chunks = []
@@ -171,9 +174,6 @@ class Encoder(object):
         #    offset = hash_size + segment_num * segment_size
         #    return self.send(shareid, "write", subshare, offset)
         return self.send(shareid, "put_subshare", segment_num, subshare)
-
-    def set_landlords(self, landlords):
-        self.landlords = landlords.copy()
 
     def send(self, shareid, methname, *args, **kwargs):
         ll = self.landlords[shareid]
