@@ -217,17 +217,24 @@ class ICodecEncoder(Interface):
 
         For each call, encode() will return a Deferred that fires with two
         lists, one containing shares and the other containing the shareids.
-        The get_share_size() method can be used to determine the length of the 
-        share strings returned by encode().
-        
+        The get_share_size() method can be used to determine the length of
+        the share strings returned by encode(). Each shareid is a small
+        integer, exactly as passed into 'desired_share_ids' (or
+        range(max_shares), if desired_share_ids was not provided).
+
         The shares and their corresponding shareids are required to be kept 
         together during storage and retrieval. Specifically, the share data is 
         useless by itself: the decoder needs to be told which share is which 
         by providing it with both the shareid and the actual share data.
 
-        The memory usage of this function is expected to be on the order of
+        This function will allocate an amount of memory roughly equal to::
 
-        (max_shares - required_shares) * get_share_size().
+         (max_shares - required_shares) * get_share_size()
+
+        When combined with the memory that the caller must allocate to
+        provide the input data, this leads to a memory footprint roughly
+        equal to the size of the resulting encoded shares (i.e. the expansion
+        factor times the size of the input segment).
         """
 
         # rejected ideas:
