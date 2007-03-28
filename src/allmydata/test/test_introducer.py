@@ -5,6 +5,7 @@ from twisted.python import log
 defer.setDebugging(True)
 
 from foolscap import Tub, Referenceable
+from foolscap.eventual import flushEventualQueue
 from twisted.application import service
 from allmydata.introducer import IntroducerClient, Introducer
 from allmydata.util import idlib
@@ -25,6 +26,7 @@ class TestIntroducer(unittest.TestCase):
         d = defer.Deferred()
         reactor.callLater(1.1, d.callback, None)
         d.addCallback(lambda res: self.parent.stopService())
+        d.addCallback(flushEventualQueue)
         return d
 
 
