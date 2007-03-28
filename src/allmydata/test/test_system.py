@@ -89,7 +89,8 @@ class SystemTest(unittest.TestCase):
 
     def wait_for_connections(self, ignored=None):
         for c in self.clients:
-            if not c.introducer_client or len(c.get_all_peerids()) != self.numclients:
+            if (not c.introducer_client or
+                len(list(c.get_all_peerids())) != self.numclients):
                 d = defer.Deferred()
                 d.addCallback(self.wait_for_connections)
                 reactor.callLater(0.05, d.callback, None)
@@ -103,7 +104,7 @@ class SystemTest(unittest.TestCase):
         def _check(extra_node):
             self.extra_node = extra_node
             for c in self.clients:
-                self.failUnlessEqual(len(c.get_all_peerids()), 6)
+                self.failUnlessEqual(len(list(c.get_all_peerids())), 6)
         d.addCallback(_check)
         def _shutdown_extra_node(res):
             if self.extra_node:

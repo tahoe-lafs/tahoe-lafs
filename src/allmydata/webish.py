@@ -36,9 +36,7 @@ class Welcome(rend.Page):
     def data_num_peers(self, ctx, data):
         #client = inevow.ISite(ctx)._client
         client = IClient(ctx)
-        return len(client.get_all_peerids())
-    def data_num_connected_peers(self, ctx, data):
-        return len(IClient(ctx).get_all_peerids())
+        return len(list(client.get_all_peerids()))
 
     def data_peers(self, ctx, data):
         d = []
