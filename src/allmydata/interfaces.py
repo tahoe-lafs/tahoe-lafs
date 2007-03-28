@@ -314,7 +314,7 @@ class IEncoder(Interface):
     def set_shareholders(shareholders):
         """I take a dictionary that maps share identifiers (small integers,
         starting at 0) to RemoteReferences that provide RIBucketWriter. This
-        mus be called before start().
+        must be called before start().
         """
 
     def start():
@@ -325,6 +325,39 @@ class IEncoder(Interface):
         I return a Deferred that fires with the root hash.
         """
 
+class IDecoder(Interface):
+    """I take a list of shareholders and some setup information, then
+    download, validate, decode, and decrypt data from them, writing the
+    results to an output file.
+
+    I do not locate the shareholders, that is left to the IDownloader. I must
+    be given a dict of RemoteReferences to storage buckets that are ready to
+    send data.
+    """
+
+    def setup(outfile):
+        """I take a file-like object (providing write and close) to which all
+        the plaintext data will be written.
+
+        TODO: producer/consumer . Maybe write() should return a Deferred that
+        indicates when it will accept more data? But probably having the
+        IDecoder be a producer is easier to glue to IConsumer pieces.
+        """
+
+    def set_shareholders(shareholders):
+        """I take a dictionary that maps share identifiers (small integers)
+        to RemoteReferences that provide RIBucketReader. This must be called
+        before start()."""
+
+    def start():
+        """I start the download. This process involves retrieving data and
+        hash chains from the shareholders, using the hashes to validate the
+        data, decoding the shares into segments, decrypting the segments,
+        then writing the resulting plaintext to the output file.
+
+        I return a Deferred that will fire (with self) when the download is
+        complete.
+        """
 
 class IDownloadTarget(Interface):
     def open():
