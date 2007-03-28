@@ -1,0 +1,64 @@
+
+Welcome to the AllMyData "tahoe" project. This project implements a
+scalable distributed fault-tolerant filestore.
+
+The main application code is in the 'allmydata' package, under src/allmydata/
+. There is also a patched version of PyCrypto (adding a faster CTR-mode) in
+src/Crypto/ which gets installed to the 'allmydata.Crypto' package (since the
+API is different than the normal Crypto package). It also includes Zooko's
+PyFEC library, a fast python wrapper around the Rizzo 'fec' C library,
+installed to the 'pyfec' package and located in src/pyfec/ .
+
+DEPENDENCIES:
+
+ Python 2.4 or newer (tested against both 2.4 and 2.5)
+  http://python.org/
+ Twisted (probably 2.4.0 or newer) (subpackages 'core', 'web'
+  http://twistedmatrix.com/
+  You'll want the following subpackages: core, web, trial, conch.
+  Note that Twisted requires zope.interface, and that the standard
+  batteries-included Twisted distribution includes a copy.
+ Foolscap (probably 0.0.7 or newer)
+  - note: since the Foolscap wire protocol is not yet compatible from one
+    release to the next, make sure all of your nodes are using the same
+    version of Foolscap
+  http://twistedmatrix.com/trac/wiki/FoolsCap
+ Nevow (probably 0.9.0 or later)
+  http://divmod.org/trac/wiki/DivmodNevow
+
+BUILDING:
+
+ Just type 'make'. If the desired version of 'python' is not already on your
+ $PATH, then type 'make PYTHON=/path/to/your/preferred/python'.
+
+ 'make test' runs the unit test suite.
+
+ 'make deb-dapper' or 'make deb-sid' will construct a debian package named
+ 'allmydata-tahoe'.
+
+RUNNING:
+
+ The installed package creates an 'allmydata-tahoe' executable, usually in
+ /usr/bin . This tool is used to create, start, and stop nodes.
+
+ Somewhere in your mesh there must be a central 'queen' node. This is
+ constructed by running 'allmydata-tahoe create-queen --basedir WHERE'. Once
+ constructed, you can start the queen by running 'allmydata-tahoe start
+ --basedir WHERE'. Inside that base directory, there will be a pair of files
+ 'introducer.furl' and 'vdrive.furl'. Make a copy of these, as they'll be
+ needed on the client nodes.
+
+ To construct a client node, pick a new working directory for it, then run
+ 'allmydata-tahoe create-client --basedir $HERE'. Copy the two .furl files
+ from the queen into this new directory, then run 'allmydata-tahoe start
+ --basedir $HERE'. After that, the client node should be off and running. The
+ first thing it will do is connect to the queen and introduce itself to all
+ other nodes on the mesh. You can follow its progress by looking at the
+ $HERE/twistd.log file.
+
+ To actually use the client, enable the web interface by writing a port
+ number (like "8080") into a file named $HERE/webport and then restarting the
+ node with 'allmydata-tahoe restart --basedir $HERE'. This will prompt the
+ client node to run a webserver on the desired port, through which you can
+ view, upload, download, and delete files.
+
