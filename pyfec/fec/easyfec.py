@@ -18,7 +18,8 @@ class Encoder(object):
         """
         chunksize = div_ceil(len(data), self.fec.k)
         numchunks = div_ceil(len(data), chunksize)
-        l = [ data[i:i+chunksize] for i in range(numchunks) ]
+        l = [ data[i:i+chunksize] for i in range(0, len(data), chunksize) ]
+        # padding
         if len(l[-1]) != len(l[0]):
             l[-1] = l[-1] + ('\x00'*(len(l[0])-len(l[-1])))
         return self.fec.encode(l)
