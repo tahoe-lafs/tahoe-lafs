@@ -60,7 +60,9 @@ py_raise_fec_error(const char *format, ...) {
 }
 
 static char Encoder__doc__[] = "\
-Hold static encoder state (an in-memory table for matrix multiplication), and k and m parameters, and provide {encode()} method.\n\
+Hold static encoder state (an in-memory table for matrix multiplication), and k and m parameters, and provide {encode()} method.\n\n\
+@param k: the number of packets required for reconstruction \n\
+@param m: the number of packets generated \n\
 ";
 
 typedef struct {
@@ -87,11 +89,6 @@ Encoder_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
     return (PyObject *)self;
 }
-
-static char Encoder_init__doc__[] = "\
-@param k: the number of packets required for reconstruction \n\
-@param m: the number of packets generated \n\
-"; 
 
 static int
 Encoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
@@ -315,7 +312,9 @@ static PyTypeObject Encoder_type = {
 };
 
 static char Decoder__doc__[] = "\
-Hold static decoder state (an in-memory table for matrix multiplication), and k and m parameters, and provide {decode()} method.\n\
+Hold static decoder state (an in-memory table for matrix multiplication), and k and m parameters, and provide {decode()} method.\n\n\
+@param k: the number of packets required for reconstruction \n\
+@param m: the number of packets generated \n\
 ";
 
 typedef struct {
@@ -342,11 +341,6 @@ Decoder_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
     return (PyObject *)self;
 }
-
-static char Decoder_init__doc__[] = "\
-@param k: the number of packets required for reconstruction \n\
-@param m: the number of packets generated \n\
-"; 
 
 static int
 Decoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
@@ -406,10 +400,11 @@ Decoder_decode(Decoder *self, PyObject *args) {
     unsigned i;
     for (i=0; i<self->kk; i++)
         recoveredpystrs[i] = NULL;
+    PyObject*restrict fastshareids = NULL;
     PyObject*restrict fastshares = PySequence_Fast(shares, "First argument was not a sequence.");
     if (!fastshares)
         goto err;
-    PyObject*restrict fastshareids = PySequence_Fast(shareids, "Second argument was not a sequence.");
+    fastshareids = PySequence_Fast(shareids, "Second argument was not a sequence.");
     if (!fastshareids)
         goto err;
 
