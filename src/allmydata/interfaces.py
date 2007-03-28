@@ -99,7 +99,22 @@ class ICodecEncoder(Interface):
         data. For example, set_params(1000, 5, 5) offers no redundancy at
         all, whereas set_params(1000, 1, 10) provides 10x redundancy.
 
+        Numerical Restrictions: 'data_size' is required to be an integral
+        multiple of 'required_shares'. In general, the caller should choose
+        required_shares and max_shares based upon their reliability
+        requirements and the number of peers available (the total storage
+        space used is roughly equal to max_shares*data_size/required_shares),
+        then choose data_size to achieve the memory footprint desired (larger
+        data_size means more efficient operation, smaller data_size means
+        smaller memory footprint).
+
+        In addition, 'max_shares' must be equal to or greater than
+        'required_shares'. Of course, setting them to be equal causes
+        encode() to degenerate into a particularly slow form of the 'split'
+        utility.
+
         See encode() for more details about how these parameters are used.
+
         set_params() must be called before any other ICodecEncoder methods
         may be invoked.
         """
@@ -133,6 +148,36 @@ class ICodecEncoder(Interface):
         """Return the length of the shares that encode() will produce.
         """
 
+    def encode_proposal(data, desired_share_ids=None):
+        """Encode some data.
+
+        'data' must be a string (or other buffer object), and len(data) must
+        be equal to the 'data_size' value passed earlier to set_params().
+
+        This will return a Deferred that will fire with two lists. The first
+        is a list of shares, each of which is a string (or other buffer
+        object) such that len(share) is the same as what get_share_size()
+        returned earlier. The second is a list of shareids, in which each is
+        an integer. The lengths of the two lists will always be equal to each
+        other. The user should take care to keep each share closely
+        associated with its shareid, as one is useless without the other.
+
+        The length of this output list will normally be the same as the value
+        provided to the 'max_shares' parameter of set_params(). This may be
+        different if 'desired_share_ids' is provided.
+
+        'desired_share_ids', if provided, is required to be a sequence of
+        ints, each of which is required to be >= 0 and < max_shares. If not
+        provided, encode() will produce 'max_shares' shares, as if
+        'desired_share_ids' were set to range(max_shares). You might use this
+        if you initially thought you were going to use 10 peers, started
+        encoding, and then two of the peers dropped out: you could use
+        desired_share_ids= to skip the work (both memory and CPU) of
+        producing shares for the peers which are no longer available.
+
+        """
+        pass
+
     def encode(inshares, desired_share_ids=None):
         """Encode some data. This may be called multiple times. Each call is 
         independent.
@@ -145,14 +190,6 @@ class ICodecEncoder(Interface):
         implies that the data has to be padded before being passed to
         encode(), unless of course it already happens to be an even multiple
         of required_shares in length.)
-
-         QUESTION for zooko: that implies that 'data_size' must be an
-         integral multiple of 'required_shares', right? Which means these
-         restrictions should be documented in set_params() rather than (or in
-         addition to) encode(), since that's where they must really be
-         honored. This restriction feels like an abstraction leak, but maybe
-         it is cleaner to enforce constraints on 'data_size' rather than
-         quietly implement internal padding. I dunno.
 
          ALSO: the requirement to break up your data into 'required_shares'
          chunks before calling encode() feels a bit surprising, at least from
@@ -168,11 +205,6 @@ class ICodecEncoder(Interface):
          something other than shares. Other places in this interface use the
          word 'data' for that-which-is-not-shares.. maybe we should use that
          term?
-
-         ALSO*3: given that we need to keep share0+shareid0 attached from
-         encode() to the eventual decode(), would it be better to return and
-         accept a zip() of these two lists? i.e. [(share0,shareid0),
-         (share1,shareid1),...]
 
         'desired_share_ids', if provided, is required to be a sequence of
         ints, each of which is required to be >= 0 and < max_shares. If not
@@ -197,6 +229,22 @@ class ICodecEncoder(Interface):
 
         (max_shares - required_shares) * get_share_size().
         """
+
+        # rejected ideas:
+        #
+        #  returning a list of (shareidN,shareN) tuples instead of a pair of
+        #  lists (shareids..,shares..). Brian thought the tuples would
+        #  encourage users to keep the share and shareid together throughout
+        #  later processing, Zooko pointed out that the code to iterate
+        #  through two lists is not really more complicated than using a list
+        #  of tuples and there's also a performance improvement
+        #
+        #  having 'data_size' not required to be an integral multiple of
+        #  'required_shares'. Doing this would require encode() to perform
+        #  padding internally, and we'd prefer to have any padding be done
+        #  explicitly by the caller. Yes, it is an abstraction leak, but
+        #  hopefully not an onerous one.
+
 
 class ICodecDecoder(Interface):
     def set_serialized_params(params):

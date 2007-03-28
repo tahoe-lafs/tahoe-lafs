@@ -139,7 +139,10 @@ class Encoder(object):
 
     def _encoded_segment(self, (shares, shareids)):
         dl = []
-        for shareid,subshare in zip(shareids, shares):
+        for i in range(len(shares)):
+            subshare = shares[i]
+            shareid = shareids[i]
+        #for shareid,subshare in zip(shareids, shares):
             d = self.send_subshare(shareid, self.segment_num, subshare)
             dl.append(d)
             self.subshare_hashes[shareid].append(hash(subshare))
