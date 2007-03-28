@@ -151,13 +151,17 @@ Encoder_encode(Encoder *self, PyObject *args) {
     unsigned c_desired_shares_ids[self->mm];
     unsigned c_desired_checkshares_ids[self->mm - self->kk];
     unsigned i;
+    for (i=0; i<self->mm - self->kk; i++)
+        pystrs_produced[i] = NULL;
     if (desired_shares_ids) {
         fast_desired_shares_ids = PySequence_Fast(desired_shares_ids, "Second argument (optional) was not a sequence.");
         num_desired_shares = PySequence_Fast_GET_SIZE(fast_desired_shares_ids);
         fast_desired_shares_ids_items = PySequence_Fast_ITEMS(fast_desired_shares_ids);
         for (i=0; i<num_desired_shares; i++) {
-            if (!PyInt_Check(fast_desired_shares_ids_items[i]))
+            if (!PyInt_Check(fast_desired_shares_ids_items[i])) {
+                py_raise_fec_error("Precondition violation: second argument is required to contain int.");
                 goto err;
+            }
             c_desired_shares_ids[i] = PyInt_AsLong(fast_desired_shares_ids_items[i]);
             if (c_desired_shares_ids[i] >= self->kk)
                 num_check_shares_produced++;
@@ -169,8 +173,6 @@ Encoder_encode(Encoder *self, PyObject *args) {
         num_check_shares_produced = self->mm - self->kk;
     }
 
-    for (i=0; i<num_check_shares_produced; i++)
-        pystrs_produced[i] = NULL;
     PyObject* fastinshares = PySequence_Fast(inshares, "First argument was not a sequence.");
     if (!fastinshares)
         goto err;
@@ -426,8 +428,10 @@ Decoder_decode(Decoder *self, PyObject *args) {
         goto err;
     Py_ssize_t sz, oldsz = 0;
     for (i=0; i<self->kk; i++) {
-        if (!PyInt_Check(fastshareidsitems[i]))
+        if (!PyInt_Check(fastshareidsitems[i])) {
+            py_raise_fec_error("Precondition violation: second argument is required to contain int.");
             goto err;
+        }
         long tmpl = PyInt_AsLong(fastshareidsitems[i]);
         if (tmpl < 0 || tmpl > 255) {
             py_raise_fec_error("Precondition violation: Share ids can't be less than zero or greater than 255.  %ld\n", tmpl);

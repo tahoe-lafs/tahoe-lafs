@@ -92,12 +92,33 @@ def _test_random():
     _h(k, m, ss)
 
 def test_random():
-    for i in range(2**7):
+    for i in range(2**5):
         # sys.stdout.write(",")
         _test_random()
         # sys.stdout.write(".")
     print "%d randomized tests pass." % (i+1)
 
+def test_bad_args_enc():
+    encer = fec.Encoder(2, 4)
+    try:
+        encer.encode(["a", "b", ], ["c", "d",])
+    except fec.Error, e:
+        assert "econd argument is required to contain int" in str(e), e
+    else:
+        raise "Should have gotten fec.Error for wrong type of second argument."
+
+def test_bad_args_dec():
+    decer = fec.Decoder(2, 4)
+    try:
+        decer.decode(["a", "b", ], ["c", "d",])
+    except fec.Error, e:
+        assert "econd argument is required to contain int" in str(e), e
+    else:
+        raise "Should have gotten fec.Error for wrong type of second argument."
+    
+
 if __name__ == "__main__":
+    test_bad_args_dec()
+    test_bad_args_enc()
     test_random()
 
