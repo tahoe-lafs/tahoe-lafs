@@ -29,6 +29,8 @@ class TooFullError(Exception):
 
 class FileUploader:
     debug = False
+    ENCODERCLASS = codec.CRSEncoder
+
 
     def __init__(self, peer):
         self._peer = peer
@@ -68,7 +70,7 @@ class FileUploader:
         # create the encoder, so we can know how large the shares will be
         total_shares = self.max_shares
         needed_shares = self.min_shares
-        self._encoder = codec.ReplicatingEncoder()
+        self._encoder = self.ENCODERCLASS()
         self._codec_name = self._encoder.get_encoder_type()
         self._needed_shares = needed_shares
         paddedsize = self._size + mathutil.pad_size(self._size, needed_shares)

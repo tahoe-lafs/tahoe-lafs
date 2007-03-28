@@ -15,7 +15,8 @@ File Encoding: Brian
 Share Encoding: Zooko
 *v1: fake it (replication)
 *v2: PyRS
- v3: C-based Reed-Solomon
+*v2.5: ICodec-based codecs, but still using replication
+*v3: C-based Reed-Solomon
 
 Peer selection:
 *v1: permuted peer list, consistent hash

@@ -121,7 +121,7 @@ class Decoder(object):
 
 class CRSEncoder(object):
     implements(ICodecEncoder)
-    ENCODER_TYPE = 2
+    ENCODER_TYPE = "crs"
 
     def set_params(self, data_size, required_shares, max_shares):
         assert required_shares <= max_shares
@@ -136,7 +136,7 @@ class CRSEncoder(object):
         return self.ENCODER_TYPE
 
     def get_serialized_params(self):
-        return "%d:%d:%d" % (self.data_size, self.required_shares,
+        return "%d-%d-%d" % (self.data_size, self.required_shares,
                              self.max_shares)
 
     def get_share_size(self):
@@ -158,7 +158,7 @@ class CRSDecoder(object):
     implements(ICodecDecoder)
 
     def set_serialized_params(self, params):
-        pieces = params.split(":")
+        pieces = params.split("-")
         self.data_size = int(pieces[0])
         self.required_shares = int(pieces[1])
         self.max_shares = int(pieces[2])
@@ -180,7 +180,7 @@ class CRSDecoder(object):
     def decode(self, some_shares, their_shareids):
         precondition(len(some_shares) == len(their_shareids), len(some_shares), len(their_shareids))
         precondition(len(some_shares) == self.required_shares, len(some_shares), self.required_shares)
-        return defer.succeed(self.decoder.decode(some_shares, their_shareids))
+        return defer.succeed(self.decoder.decode(some_shares, [int(s) for s in their_shareids]))
 
 
 all_encoders = {
