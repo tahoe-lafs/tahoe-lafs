@@ -283,6 +283,49 @@ class ICodecDecoder(Interface):
         call.
         """
 
+class IEncoder(Interface):
+    """I take a sequence of plaintext bytes and a list of shareholders, then
+    encrypt, encode, hash, and deliver shares to those shareholders. I will
+    compute all the necessary Merkle hash trees that are necessary to
+    validate the data that eventually comes back from the shareholders. I
+    provide the root hash of the hash tree, and the encoding parameters, both
+    of which must be included in the URI.
+
+    I do not choose shareholders, that is left to the IUploader. I must be
+    given a dict of RemoteReferences to storage buckets that are ready and
+    willing to receive data.
+    """
+
+    def setup(infile):
+        """I take a file-like object (providing seek, tell, and read) from
+        which all the plaintext data that is to be uploaded can be read. I
+        will seek to the beginning of the file before reading any data.
+        setup() must be called before making any other calls, in particular
+        before calling get_reservation_size().
+        """
+
+    def get_reservation_size():
+        """I return the size of the data that will be stored on each
+        shareholder. It is useful to determine this size before asking
+        potential shareholders whether they will grant a lease or not, since
+        their answers will depend upon how much space we need.
+        """
+
+    def set_shareholders(shareholders):
+        """I take a dictionary that maps share identifiers (small integers,
+        starting at 0) to RemoteReferences that provide RIBucketWriter. This
+        mus be called before start().
+        """
+
+    def start():
+        """I start the upload. This process involves reading data from the
+        input file, encrypting it, encoding the pieces, uploading the shares
+        to the shareholders, then sending the hash trees.
+
+        I return a Deferred that fires with the root hash.
+        """
+
+
 class IDownloadTarget(Interface):
     def open():
         """Called before any calls to write() or close()."""

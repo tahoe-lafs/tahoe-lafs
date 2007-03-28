@@ -1,11 +1,13 @@
 # -*- test-case-name: allmydata.test.test_encode -*-
 
+from zope.interface import implements
 from twisted.internet import defer
 from allmydata.chunk import HashTree, roundup_pow2
 from allmydata.Crypto.Cipher import AES
 import sha
 from allmydata.util import mathutil
 from allmydata.codec import CRSEncoder
+from allmydata.interfaces import IEncoder
 
 def hash(data):
     return sha.new(data).digest()
@@ -76,6 +78,7 @@ TiB=1024*GiB
 PiB=1024*TiB
 
 class Encoder(object):
+    implements(IEncoder)
 
     def setup(self, infile):
         self.infile = infile
@@ -168,6 +171,9 @@ class Encoder(object):
         #    offset = hash_size + segment_num * segment_size
         #    return self.send(shareid, "write", subshare, offset)
         return self.send(shareid, "put_subshare", segment_num, subshare)
+
+    def set_landlords(self, landlords):
+        self.landlords = landlords.copy()
 
     def send(self, shareid, methname, *args, **kwargs):
         ll = self.landlords[shareid]
