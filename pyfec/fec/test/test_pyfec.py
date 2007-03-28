@@ -101,20 +101,42 @@ def test_random():
 def test_bad_args_enc():
     encer = fec.Encoder(2, 4)
     try:
-        encer.encode(["a", "b", ], ["c", "d",])
+        encer.encode(["a", "b", ], ["c", "I am not an integer shareid",])
     except fec.Error, e:
-        assert "econd argument is required to contain int" in str(e), e
+        assert "Precondition violation: second argument is required to contain int" in str(e), e
     else:
         raise "Should have gotten fec.Error for wrong type of second argument."
 
+    try:
+        encer.encode(["a", "b", ], 98) # not a sequence at all
+    except TypeError, e:
+        assert "Second argument (optional) was not a sequence" in str(e), e
+    else:
+        raise "Should have gotten TypeError for wrong type of second argument."
+
 def test_bad_args_dec():
     decer = fec.Decoder(2, 4)
+
+    try:
+        decer.decode(98, [0, 1]) # first argument is not a sequence
+    except TypeError, e:
+        assert "First argument was not a sequence" in str(e), e
+    else:
+        raise "Should have gotten TypeError for wrong type of second argument."
+
     try:
         decer.decode(["a", "b", ], ["c", "d",])
     except fec.Error, e:
-        assert "econd argument is required to contain int" in str(e), e
+        assert "Precondition violation: second argument is required to contain int" in str(e), e
     else:
         raise "Should have gotten fec.Error for wrong type of second argument."
+
+    try:
+        decer.decode(["a", "b", ], 98) # not a sequence at all
+    except TypeError, e:
+        assert "Second argument was not a sequence" in str(e), e
+    else:
+        raise "Should have gotten TypeError for wrong type of second argument."
     
 
 if __name__ == "__main__":

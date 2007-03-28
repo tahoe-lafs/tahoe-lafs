@@ -151,10 +151,14 @@ Encoder_encode(Encoder *self, PyObject *args) {
     unsigned c_desired_shares_ids[self->mm];
     unsigned c_desired_checkshares_ids[self->mm - self->kk];
     unsigned i;
+    PyObject* fastinshares = NULL;
+
     for (i=0; i<self->mm - self->kk; i++)
         pystrs_produced[i] = NULL;
     if (desired_shares_ids) {
         fast_desired_shares_ids = PySequence_Fast(desired_shares_ids, "Second argument (optional) was not a sequence.");
+        if (!fast_desired_shares_ids)
+            goto err;
         num_desired_shares = PySequence_Fast_GET_SIZE(fast_desired_shares_ids);
         fast_desired_shares_ids_items = PySequence_Fast_ITEMS(fast_desired_shares_ids);
         for (i=0; i<num_desired_shares; i++) {
@@ -173,7 +177,7 @@ Encoder_encode(Encoder *self, PyObject *args) {
         num_check_shares_produced = self->mm - self->kk;
     }
 
-    PyObject* fastinshares = PySequence_Fast(inshares, "First argument was not a sequence.");
+    fastinshares = PySequence_Fast(inshares, "First argument was not a sequence.");
     if (!fastinshares)
         goto err;
 
