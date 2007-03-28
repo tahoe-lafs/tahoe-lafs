@@ -125,14 +125,29 @@ class Encoder(object):
 
     def do_segment(self, segnum):
         chunks = []
-        subsharesize = self.encoder.get_share_size()
+        # the ICodecEncoder API wants to receive a total of self.segment_size
+        # bytes on each encode() call, broken up into a number of
+        # identically-sized pieces. Due to the way the codec algorithm works,
+        # these pieces need to be the same size as the share which the codec
+        # will generate. Therefore we must feed it with input_piece_size that
+        # equals the output share size.
+        input_piece_size = self.encoder.get_share_size()
+
+        # as a result, the number of input pieces per encode() call will be
+        # equal to the number of required shares with which the codec was
+        # constructed. You can think of the codec as chopping up a
+        # 'segment_size' of data into 'required_shares' shares (not doing any
+        # fancy math at all, just doing a split), then creating some number
+        # of additional shares which can be substituted if the primary ones
+        # are unavailable
+
         for i in range(self.required_shares):
-            d = self.infile.read(subsharesize)
-            if len(d) < subsharesize:
+            input_piece = self.infile.read(input_piece_size)
+            if len(input_piece) < input_piece_size:
                 # padding
-                d += ('\x00' * (subsharesize - len(d)))
-            d = self.cryptor.encrypt(d)
-            chunks.append(d)
+                input_piece += ('\x00' * (input_piece_size - len(input_piece)))
+            encrypted_piece = self.cryptor.encrypt(input_piece)
+            chunks.append(encrypted_piece)
         d = self.encoder.encode(chunks)
         d.addCallback(self._encoded_segment)
         return d
@@ -142,7 +157,6 @@ class Encoder(object):
         for i in range(len(shares)):
             subshare = shares[i]
             shareid = shareids[i]
-        #for shareid,subshare in zip(shareids, shares):
             d = self.send_subshare(shareid, self.segment_num, subshare)
             dl.append(d)
             self.subshare_hashes[shareid].append(hash(subshare))
