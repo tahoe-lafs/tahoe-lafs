@@ -83,7 +83,25 @@ class ICodecEncoder(Interface):
     def set_params(data_size, required_shares, max_shares):
         """Set up the parameters of this encoder.
 
-        See encode() for a description of how these parameters are used.
+        This prepares the encoder to perform an operation that converts a
+        single block of data into a number of shares, such that a future
+        ICodecDecoder can use a subset of these shares to recover the
+        original data. This operation is invoked by calling encode(). Once
+        the encoding parameters are set up, the encode operation can be
+        invoked multiple times.
+
+        set_params() prepares the encoder to accept blocks of input data that
+        are exactly 'data_size' bytes in length. The encoder will be prepared
+        to produce 'max_shares' shares for each encode() operation (although
+        see the 'desired_share_ids' to use less CPU). The encoding math will
+        be chosen such that the decoder can get by with as few as
+        'required_shares' of these shares and still reproduce the original
+        data. For example, set_params(1000, 5, 5) offers no redundancy at
+        all, whereas set_params(1000, 1, 10) provides 10x redundancy.
+
+        See encode() for more details about how these parameters are used.
+        set_params() must be called before any other ICodecEncoder methods
+        may be invoked.
         """
 
     def get_encoder_type():
@@ -159,7 +177,11 @@ class ICodecEncoder(Interface):
         'desired_share_ids', if provided, is required to be a sequence of
         ints, each of which is required to be >= 0 and < max_shares. If not
         provided, encode() will produce 'max_shares' shares, as if
-        'desired_share_ids' were set to range(max_shares).
+        'desired_share_ids' were set to range(max_shares). You might use this
+        if you initially thought you were going to use 10 peers, started
+        encoding, and then two of the peers dropped out: you could use
+        desired_share_ids= to skip the work (both memory and CPU) of
+        producing shares for the peers which are no longer available.
 
         For each call, encode() will return a Deferred that fires with two
         lists, one containing shares and the other containing the shareids.
@@ -195,14 +217,18 @@ class ICodecDecoder(Interface):
 
         This returns a Deferred which fires with a sequence of buffers. This
         sequence will contain all of the segments of the original data, in
-        order.  The sum of the lengths of all of the buffers will be the
+        order. The sum of the lengths of all of the buffers will be the
         'data_size' value passed into the original ICodecEncode.set_params()
-        call.  Note that some of the elements in the result sequence may be 
-        references to the elements of the some_shares input sequence.  In 
-        particular, this means that if those share objects are mutable (e.g. 
-        arrays) and if they are changed then both the input (the 'some_shares'
-        parameter) and the output (the value given when the deferred is
-        triggered) will change.
+        call. To get back the single original input block of data, use
+        ''.join(output_buffers), or you may wish to simply write them in
+        order to an output file.
+
+        Note that some of the elements in the result sequence may be
+        references to the elements of the some_shares input sequence. In
+        particular, this means that if those share objects are mutable (e.g.
+        arrays) and if they are changed, then both the input (the
+        'some_shares' parameter) and the output (the value given when the
+        deferred is triggered) will change.
 
         The length of 'some_shares' is required to be exactly the value of
         'required_shares' passed into the original ICodecEncode.set_params()
