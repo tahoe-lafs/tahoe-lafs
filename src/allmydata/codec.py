@@ -28,7 +28,7 @@ class ReplicatingEncoder(object):
     ENCODER_TYPE = "rep"
 
     def set_params(self, data_size, required_shares, max_shares):
-        assert required_shares % data_size == 0
+        assert data_size % required_shares == 0
         assert required_shares <= max_shares
         self.data_size = data_size
         self.required_shares = required_shares
@@ -44,7 +44,7 @@ class ReplicatingEncoder(object):
         return self.data_size
 
     def encode(self, inshares, desired_shareids=None):
-        assert isinstance(data, list)
+        assert isinstance(inshares, list)
         for inshare in inshares:
             assert isinstance(inshare, str)
             assert self.required_shares * len(inshare) == self.data_size
@@ -66,7 +66,13 @@ class ReplicatingDecoder(object):
     def decode(self, some_shares, their_shareids):
         assert len(some_shares) == self.required_shares
         assert len(some_shares) == len(their_shareids)
-        return defer.succeed([some_shares[0]])
+        data = some_shares[0]
+
+        chunksize = mathutil.div_ceil(len(data), self.required_shares)
+        numchunks = mathutil.div_ceil(len(data), chunksize)
+        l = [ data[i:i+chunksize] for i in range(0, len(data), chunksize) ]
+
+        return defer.succeed(l)
 
 
 class Encoder(object):

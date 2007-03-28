@@ -39,7 +39,7 @@ class FakePeer:
 
     def _callRemote(self, methname, **kwargs):
         assert methname == "allocate_bucket"
-        assert kwargs["size"] == 100
+        #assert kwargs["size"] == 100
         assert kwargs["leaser"] == "fakeclient"
         if self.response == "good":
             return self

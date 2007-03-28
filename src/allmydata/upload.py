@@ -5,7 +5,7 @@ from twisted.internet import defer
 from twisted.application import service
 from foolscap import Referenceable
 
-from allmydata.util import idlib, bencode
+from allmydata.util import idlib, bencode, mathutil
 from allmydata.util.idlib import peerid_to_short_string as shortid
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata import codec
@@ -70,7 +70,9 @@ class FileUploader:
         needed_shares = self.min_shares
         self._encoder = codec.ReplicatingEncoder()
         self._codec_name = self._encoder.get_encoder_type()
-        self._encoder.set_params(self._size, needed_shares, total_shares)
+        self._needed_shares = needed_shares
+        paddedsize = self._size + mathutil.pad_size(self._size, needed_shares)
+        self._encoder.set_params(paddedsize, needed_shares, total_shares)
         self._share_size = self._encoder.get_share_size()
 
         # first step: who should we upload to?
@@ -216,7 +218,15 @@ class FileUploader:
         assert sorted(self.sharemap.keys()) == range(len(landlords))
         # encode all the data at once: this class does not use segmentation
         data = self._filehandle.read()
-        d = self._encoder.encode(data, self.sharemap.keys())
+
+        # xyz i am about to go away anyway.
+        chunksize = mathutil.div_ceil(len(data), self._needed_shares)
+        numchunks = mathutil.div_ceil(len(data), chunksize)
+        l = [ data[i:i+chunksize] for i in range(0, len(data), chunksize) ]
+        # padding
+        if len(l[-1]) != len(l[0]):
+            l[-1] = l[-1] + ('\x00'*(len(l[0])-len(l[-1])))
+        d = self._encoder.encode(l, self.sharemap.keys())
         d.addCallback(self._send_all_shares)
         d.addCallback(lambda res: self._encoder.get_serialized_params())
         return d

@@ -35,8 +35,14 @@ class Tester:
             return d1
 
         def _check_data(decoded_shares):
+            self.failUnlessEqual(len(''.join(decoded_shares)), len(''.join(data0s)))
             self.failUnlessEqual(len(decoded_shares), len(data0s))
-            self.failUnless(tuple(decoded_shares) == tuple(data0s))
+            for (i, (x, y)) in enumerate(zip(data0s, decoded_shares)):
+                self.failUnlessEqual(x, y, "%s: %r != %r....  first share was %r" % (str(i), x, y, data0s[0],))
+            self.failUnless(''.join(decoded_shares) == ''.join(data0s), "%s" % ("???",))
+            # 0data0sclipped = tuple(data0s)
+            # data0sclipped[-1] = 
+            # self.failUnless(tuple(decoded_shares) == tuple(data0s))
 
         def _decode_some(res):
             log.msg("_decode_some")
@@ -85,13 +91,7 @@ class Tester:
         return self.do_test(8, 8, 16)
 
     def test_encode2(self):
-        return self.do_test(123, 25, 100, 90)
-
-    def test_sizes(self):
-        d = defer.succeed(None)
-        for i in range(1, 100):
-            d.addCallback(lambda res,size: self.do_test(size, 4, 10), i)
-        return d
+        return self.do_test(125, 25, 100, 90)
 
 class Replicating(unittest.TestCase, Tester):
     enc_class = ReplicatingEncoder
