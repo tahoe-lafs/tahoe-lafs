@@ -27,6 +27,8 @@ class Welcome(rend.Page):
     addSlash = True
     docFactory = getxmlfile("welcome.xhtml")
 
+    def data_my_nodeid(self, ctx, data):
+        return idlib.b2a(IClient(ctx).nodeid)
     def data_queen_pburl(self, ctx, data):
         return IClient(ctx).introducer_furl
     def data_connected_to_queen(self, ctx, data):

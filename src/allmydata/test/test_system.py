@@ -1,9 +1,10 @@
 
+import os
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.application import service
 from allmydata import client, queen
-import os
+from allmydata.util import idlib
 from foolscap.eventual import flushEventualQueue
 from twisted.python import log
 from twisted.web.client import getPage
@@ -171,6 +172,10 @@ class SystemTest(unittest.TestCase):
                             "I didn't see the right 'connected peers' message "
                             "in: %s" % page
                             )
+            expected = "My nodeid: <span>%s</span>" % idlib.b2a(self.clients[0].nodeid)
+            self.failUnless(expected in page,
+                            "I didn't see the right 'My nodeid' message "
+                            "in: %s" % page)
         d.addCallback(_got_welcome)
         d.addCallback(lambda res: getPage(base + "vdrive/subdir1"))
         def _got_subdir1(page):
