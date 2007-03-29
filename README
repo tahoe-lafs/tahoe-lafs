@@ -13,9 +13,12 @@ DEPENDENCIES:
 
  Python 2.4 or newer (tested against both 2.4 and 2.5)
   http://python.org/
- Twisted (probably 2.4.0 or newer) (subpackages 'core', 'web'
+ Twisted (probably 2.4.0 or newer)
   http://twistedmatrix.com/
-  You'll want the following subpackages: core, web, trial, conch.
+  The default subpackages should all be included by default, but in
+    case they aren't they are the following:
+   * core (the standard Twisted package)
+   * web, trial, conch
   Note that Twisted requires zope.interface, and that the standard
   batteries-included Twisted distribution includes a copy.
  Foolscap (probably 0.0.7 or newer)
@@ -25,6 +28,8 @@ DEPENDENCIES:
   http://twistedmatrix.com/trac/wiki/FoolsCap
  Nevow (probably 0.9.0 or later)
   http://divmod.org/trac/wiki/DivmodNevow
+ PyOpenSSL (0.6 or later)
+  http://pyopenssl.sourceforge.net
 
 BUILDING:
 
