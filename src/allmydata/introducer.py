@@ -62,6 +62,15 @@ class IntroducerClient(service.Service, Referenceable):
     def _new_peer(self, pburl):
         if pburl in self.reconnectors:
             return
+        # TODO: rather than using the TubID as a nodeid, we should use
+        # something else. The thing that requires the least additional
+        # mappings is to use the foolscap "identifier" (the last component of
+        # the pburl), since these are unguessable. Before we can do that,
+        # though, we need a way to conveniently make these identifiers
+        # persist from one run of the client program to the next. Also, using
+        # the foolscap identifier would mean that anyone who knows the name
+        # of the node also has all the secrets they need to contact and use
+        # them, which may or may not be what we want.
         m = re.match(r'pb://(\w+)@', pburl)
         assert m
         nodeid = idlib.a2b(m.group(1))
