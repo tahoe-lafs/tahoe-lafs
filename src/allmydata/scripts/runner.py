@@ -118,7 +118,15 @@ def run():
 
 def create_client(config):
     basedir = config['basedir']
-    os.mkdir(basedir)
+    if os.path.exists(basedir):
+        if os.listdir(basedir):
+            print "The base directory already exists: %s" % basedir
+            print "To avoid clobbering anything, I am going to quit now"
+            print "Please use a different directory, or delete this one"
+            return -1
+        # we're willing to use an empty directory
+    else:
+        os.mkdir(basedir)
     f = open(os.path.join(basedir, "client.tac"), "w")
     f.write(client_tac)
     f.close()
@@ -127,7 +135,15 @@ def create_client(config):
 
 def create_queen(config):
     basedir = config['basedir']
-    os.mkdir(basedir)
+    if os.path.exists(basedir):
+        if os.listdir(basedir):
+            print "The base directory already exists: %s" % basedir
+            print "To avoid clobbering anything, I am going to quit now"
+            print "Please use a different directory, or delete this one"
+            return -1
+        # we're willing to use an empty directory
+    else:
+        os.mkdir(basedir)
     f = open(os.path.join(basedir, "queen.tac"), "w")
     f.write(queen_tac)
     f.close()
