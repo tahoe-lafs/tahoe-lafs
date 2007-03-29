@@ -42,10 +42,11 @@
 ^dist($|/)
 ^debian($|/)
 
-^(dapper|sid)/debian/allmydata
-^(dapper|sid)/debian/files$
+^(dapper|sid|feisty)/debian/allmydata
+^(dapper|sid|feisty)/debian/files$
 ^build($|/)
 ^build-stamp$
+^python-build-stamp-2.[45]$
 ^\.figleaf$
 ^coverage-html($|/)
 ^twisted/plugins/dropin\.cache$

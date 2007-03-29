@@ -16,7 +16,6 @@ install/allmydata-tahoe::
 	python setup.py install --root=$(STAGING_DIR)
 
 	dh_pycentral
-	dh_python
 
 clean::
 	-rm -rf build
