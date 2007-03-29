@@ -1,0 +1,22 @@
+#! /usr/bin/make -f
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+DEB_PYTHON_SYSTEM=pycentral
+
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/class/python-distutils.mk
+
+STAGING_DIR=$(CURDIR)/debian/allmydata-tahoe
+
+install/allmydata-tahoe::
+	mkdir -pm755 $(STAGING_DIR)
+	cd src/pyfec && python setup.py install --root=$(STAGING_DIR)
+	cd src/Crypto && python setup.py install --root=$(STAGING_DIR)
+	python setup.py install --root=$(STAGING_DIR)
+
+	dh_pycentral
+	dh_python
+
+clean::
+	-rm -rf build

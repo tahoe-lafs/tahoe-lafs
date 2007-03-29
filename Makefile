@@ -116,8 +116,10 @@ show:
 	echo $(DEBVER)
 	echo $(DEBSTRING)
 
-.PHONY: setup-dapper setup-sid deb-dapper deb-sid increment-deb-version
-.PHONY: deb-dapper-head deb-sid-head
+.PHONY: setup-dapper setup-sid setup-feisty
+.PHONY: deb-dapper deb-sid deb-feisty
+.PHONY: increment-deb-version
+.PHONY: deb-dapper-head deb-sid-head deb-feisty-head
 
 setup-dapper:
 	rm -f debian
@@ -129,10 +131,17 @@ setup-sid:
 	ln -s sid/debian debian
 	chmod a+x debian/rules
 
+setup-feisty:
+	rm -f debian
+	ln -s feisty/debian debian
+	chmod a+x debian/rules
+
 
 deb-dapper: setup-dapper
 	fakeroot debian/rules binary
 deb-sid: setup-sid
+	fakeroot debian/rules binary
+deb-feisty: setup-feisty
 	fakeroot debian/rules binary
 
 increment-deb-version:
@@ -141,6 +150,6 @@ deb-dapper-head: setup-dapper increment-deb-version
 	fakeroot debian/rules binary
 deb-sid-head: setup-sid increment-deb-version
 	fakeroot debian/rules binary
+deb-feisty-head: setup-feisty increment-deb-version
+	fakeroot debian/rules binary
 
-# dummy line
-#
