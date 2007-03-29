@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python
 
 from zope.interface import implements
 from twisted.trial.itrial import IReporter

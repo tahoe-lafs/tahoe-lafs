@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python
 
 from foolscap import Tub
 from foolscap.eventual import eventually

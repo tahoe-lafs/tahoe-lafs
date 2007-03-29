@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python
 
 from twisted.trial import unittest
 from twisted.internet import defer
