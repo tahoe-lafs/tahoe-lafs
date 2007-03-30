@@ -198,6 +198,10 @@ class FileUploader:
         @type alreadygot: a set of sharenums
         @type allocated: a set of sharenums
         """
+        # TODO: some future version of Foolscap might not convert inbound
+        # sets into sets.Set on us, even when we're using 2.4
+        alreadygot = set(alreadygot)
+        allocated = set(allocated)
         log.msg("%s._got_response(%s, %s, %s): self.unallocated_sharenums: %s, unhandled: %s" % (self, (alreadygot, allocated), peer, shares_we_requested, self.unallocated_sharenums, shares_we_requested - alreadygot - allocated))
         self.unallocated_sharenums -= alreadygot
         self.unallocated_sharenums -= allocated
