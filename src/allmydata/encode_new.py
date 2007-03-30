@@ -4,13 +4,9 @@ from zope.interface import implements
 from twisted.internet import defer
 from allmydata.chunk import HashTree, roundup_pow2
 from allmydata.Crypto.Cipher import AES
-import sha
-from allmydata.util import mathutil
+from allmydata.util import mathutil, hashutil
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder
-
-def hash(data):
-    return sha.new(data).digest()
 
 """
 
@@ -165,7 +161,8 @@ class Encoder(object):
             shareid = shareids[i]
             d = self.send_subshare(shareid, self.segment_num, subshare)
             dl.append(d)
-            self.subshare_hashes[shareid].append(hash(subshare))
+            subshare_hash = hashutil.tagged_hash("encoded subshare", subshare)
+            self.subshare_hashes[shareid].append(subshare_hash)
         self.segment_num += 1
         return defer.DeferredList(dl)
 
