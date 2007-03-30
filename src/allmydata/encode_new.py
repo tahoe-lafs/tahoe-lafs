@@ -5,6 +5,7 @@ from twisted.internet import defer
 from allmydata.chunk import HashTree, roundup_pow2
 from allmydata.Crypto.Cipher import AES
 from allmydata.util import mathutil, hashutil
+from allmydata.util.assertutil import _assert
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder
 
@@ -88,12 +89,32 @@ class Encoder(object):
         self.required_shares = self.NEEDED_SHARES
 
         self.segment_size = min(2*MiB, self.file_size)
+        # this must be a multiple of self.required_shares
+        self.segment_size = mathutil.next_multiple(self.segment_size,
+                                                   self.required_shares)
         self.setup_codec()
 
     def setup_codec(self):
+        assert self.segment_size % self.required_shares == 0
         self._codec = CRSEncoder()
-        self._codec.set_params(self.segment_size, self.required_shares,
-                               self.num_shares)
+        self._codec.set_params(self.segment_size,
+                               self.required_shares, self.num_shares)
+
+        # the "tail" is the last segment. This segment may or may not be
+        # shorter than all other segments. We use the "tail codec" to handle
+        # it. If the tail is short, we use a different codec instance. In
+        # addition, the tail codec must be fed data which has been padded out
+        # to the right size.
+        self.tail_size = self.file_size % self.segment_size
+        if not self.tail_size:
+            self.tail_size = self.segment_size
+
+        # the tail codec is responsible for encoding tail_size bytes
+        padded_tail_size = mathutil.next_multiple(self.tail_size,
+                                                  self.required_shares)
+        self._tail_codec = CRSEncoder()
+        self._tail_codec.set_params(padded_tail_size,
+                                    self.required_shares, self.num_shares)
 
     def get_share_size(self):
         share_size = mathutil.div_ceil(self.file_size, self.required_shares)
@@ -105,6 +126,11 @@ class Encoder(object):
         return self._codec.get_block_size()
 
     def set_shareholders(self, landlords):
+        assert isinstance(landlords, dict)
+        for k in landlords:
+            # it would be nice to:
+            #assert RIBucketWriter.providedBy(landlords[k])
+            pass
         self.landlords = landlords.copy()
 
     def start(self):
@@ -116,8 +142,11 @@ class Encoder(object):
         self.setup_encryption()
         self.setup_codec()
         d = defer.succeed(None)
-        for i in range(self.num_segments):
+
+        for i in range(self.num_segments-1):
             d.addCallback(lambda res: self.do_segment(i))
+        d.addCallback(lambda res: self.do_tail_segment(self.num_segments-1))
+
         d.addCallback(lambda res: self.send_all_subshare_hash_trees())
         d.addCallback(lambda res: self.send_all_share_hash_trees())
         d.addCallback(lambda res: self.close_all_shareholders())
@@ -137,13 +166,14 @@ class Encoder(object):
 
     def do_segment(self, segnum):
         chunks = []
+        codec = self._codec
         # the ICodecEncoder API wants to receive a total of self.segment_size
         # bytes on each encode() call, broken up into a number of
         # identically-sized pieces. Due to the way the codec algorithm works,
         # these pieces need to be the same size as the share which the codec
         # will generate. Therefore we must feed it with input_piece_size that
         # equals the output share size.
-        input_piece_size = self._codec.get_block_size()
+        input_piece_size = codec.get_block_size()
 
         # as a result, the number of input pieces per encode() call will be
         # equal to the number of required shares with which the codec was
@@ -155,25 +185,41 @@ class Encoder(object):
 
         for i in range(self.required_shares):
             input_piece = self.infile.read(input_piece_size)
+            # non-tail segments should be the full segment size
+            assert len(input_piece) == input_piece_size
+            encrypted_piece = self.cryptor.encrypt(input_piece)
+            chunks.append(encrypted_piece)
+        d = codec.encode(chunks)
+        d.addCallback(self._encoded_segment, segnum)
+        return d
+
+    def do_tail_segment(self, segnum):
+        chunks = []
+        codec = self._tail_codec
+        input_piece_size = codec.get_block_size()
+
+        for i in range(self.required_shares):
+            input_piece = self.infile.read(input_piece_size)
             if len(input_piece) < input_piece_size:
                 # padding
                 input_piece += ('\x00' * (input_piece_size - len(input_piece)))
             encrypted_piece = self.cryptor.encrypt(input_piece)
             chunks.append(encrypted_piece)
-        d = self._codec.encode(chunks)
-        d.addCallback(self._encoded_segment)
+        d = codec.encode(chunks)
+        d.addCallback(self._encoded_segment, segnum)
         return d
 
-    def _encoded_segment(self, (shares, shareids)):
+    def _encoded_segment(self, (shares, shareids), segnum):
+        _assert(set(shareids) == set(self.landlords.keys()),
+                shareids=shareids, landlords=self.landlords)
         dl = []
         for i in range(len(shares)):
             subshare = shares[i]
             shareid = shareids[i]
-            d = self.send_subshare(shareid, self.segment_num, subshare)
+            d = self.send_subshare(shareid, segnum, subshare)
             dl.append(d)
             subshare_hash = hashutil.tagged_hash("encoded subshare", subshare)
             self.subshare_hashes[shareid].append(subshare_hash)
-        self.segment_num += 1
         return defer.DeferredList(dl)
 
     def send_subshare(self, shareid, segment_num, subshare):

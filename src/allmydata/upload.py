@@ -5,7 +5,6 @@ from twisted.application import service
 from foolscap import Referenceable
 
 from allmydata.util import idlib
-from allmydata.util.assertutil import _assert
 from allmydata import encode_new
 from allmydata.uri import pack_uri
 from allmydata.interfaces import IUploadable, IUploader
@@ -28,16 +27,26 @@ class PeerTracker:
     def __init__(self, peerid, permutedid, connection, sharesize, blocksize, verifierid):
         self.peerid = peerid
         self.permutedid = permutedid
-        self.connection = connection
+        self.connection = connection # to an RIClient
         self.buckets = {} # k: shareid, v: IRemoteBucketWriter
         self.sharesize = sharesize
         self.blocksize = blocksize
         self.verifierid = verifierid
+        self._storageserver = None
 
     def query(self, sharenums):
-        d = self.connection.callRemote("allocate_buckets", self.verifierid,
-                                       sharenums, self.sharesize,
-                                       self.blocksize, canary=Referenceable())
+        if not self._storageserver:
+            d = self.connection.callRemote("get_service", "storageserver")
+            d.addCallback(self._got_storageserver)
+            d.addCallback(lambda res: self._query(sharenums))
+            return d
+        return self._query(sharenums)
+    def _got_storageserver(self, storageserver):
+        self._storageserver = storageserver
+    def _query(self, sharenums):
+        d = self._storageserver.callRemote("allocate_buckets", self.verifierid,
+                                           sharenums, self.sharesize,
+                                           self.blocksize, canary=Referenceable())
         d.addCallback(self._got_reply)
         return d
         
@@ -194,7 +203,7 @@ class FileUploader:
         self.unallocated_sharenums -= allocated
 
         if allocated:
-            self.usable_peers.add(peer)
+            self.used_peers.add(peer)
 
         if shares_we_requested - alreadygot - allocated:
             log.msg("%s._got_response(%s, %s, %s): self.unallocated_sharenums: %s, unhandled: %s HE'S FULL" % (self, (alreadygot, allocated), peer, shares_we_requested, self.unallocated_sharenums, shares_we_requested - alreadygot - allocated))
@@ -222,7 +231,11 @@ class FileUploader:
     def _compute_uri(self, roothash):
         codec_type = self._encoder._codec.get_encoder_type()
         codec_params = self._encoder._codec.get_serialized_params()
-        return pack_uri(codec_type, codec_params, self._verifierid, roothash, self.needed_shares, self.total_shares, self._size, self._encoder.segment_size)
+        tail_codec_params = self._encoder._tail_codec.get_serialized_params()
+        return pack_uri(codec_type, codec_params, tail_codec_params,
+                        self._verifierid,
+                        roothash, self.needed_shares, self.total_shares,
+                        self._size, self._encoder.segment_size)
 
 
 def netstring(s):

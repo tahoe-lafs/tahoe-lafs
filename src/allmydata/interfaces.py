@@ -9,7 +9,7 @@ Hash = StringConstraint(HASH_SIZE) # binary format 32-byte SHA256 hash
 Nodeid = StringConstraint(20) # binary format 20-byte SHA1 hash
 PBURL = StringConstraint(150)
 Verifierid = StringConstraint(20)
-URI = StringConstraint(100) # kind of arbitrary
+URI = StringConstraint(200) # kind of arbitrary
 ShareData = StringConstraint(100000)
 # these six are here because Foolscap does not yet support the kind of
 # restriction I really want to apply to these.
@@ -38,6 +38,9 @@ class RIClient(RemoteInterface):
 
 class RIBucketWriter(RemoteInterface):
     def put_block(segmentnum=int, data=ShareData):
+        """@param data: For most segments, this data will be 'blocksize'
+        bytes in length. The last segment might be shorter.
+        """
         return None
     
     def put_block_hashes(blockhashes=ListOf(Hash)):
@@ -68,6 +71,9 @@ class RIStorageServer(RemoteInterface):
 
 class RIBucketReader(RemoteInterface):
     def get_block(blocknum=int):
+        """Most blocks will be the same size. The last block might be shorter
+        than the others.
+        """
         return ShareData
     def get_block_hashes():
         return ListOf(Hash)

@@ -5,8 +5,7 @@ from twisted.python import log
 from twisted.internet import defer
 from twisted.application import service
 
-from allmydata.util import idlib, bencode, mathutil
-from allmydata.util.deferredutil import DeferredListShouldSucceed
+from allmydata.util import idlib, mathutil
 from allmydata.util.assertutil import _assert
 from allmydata import codec
 from allmydata.Crypto.Cipher import AES
@@ -47,6 +46,7 @@ class Output:
 
     def finish(self):
         return self.downloadable.finish()
+
 
 class BlockDownloader:
     def __init__(self, bucket, blocknum, parent):
@@ -131,18 +131,23 @@ class FileDownloader:
     def __init__(self, client, uri, downloadable):
         self._client = client
         self._downloadable = downloadable
-        (codec_name, codec_params, verifierid, roothash, needed_shares, total_shares, size, segment_size) = unpack_uri(uri)
+        (codec_name, codec_params, tail_codec_params, verifierid, roothash, needed_shares, total_shares, size, segment_size) = unpack_uri(uri)
         assert isinstance(verifierid, str)
         assert len(verifierid) == 20
         self._verifierid = verifierid
         self._roothash = roothash
-        self._decoder = codec.get_decoder_by_name(codec_name)
-        self._decoder.set_serialized_params(codec_params)
+
+        self._codec = codec.get_decoder_by_name(codec_name)
+        self._codec.set_serialized_params(codec_params)
+        self._tail_codec = codec.get_decoder_by_name(codec_name)
+        self._tail_codec.set_serialized_params(tail_codec_params)
+
+
         self._total_segments = mathutil.div_ceil(size, segment_size)
         self._current_segnum = 0
         self._segment_size = segment_size
         self._size = size
-        self._num_needed_shares = self._decoder.get_needed_shares()
+        self._num_needed_shares = self._codec.get_needed_shares()
 
         key = "\x00" * 16
         self._output = Output(downloadable, key)
@@ -173,14 +178,16 @@ class FileDownloader:
     def _get_all_shareholders(self):
         dl = []
         for (permutedpeerid, peerid, connection) in self._client.get_permuted_peers(self._verifierid):
-            d = connection.callRemote("get_buckets", self._verifierid)
+            d = connection.callRemote("get_service", "storageserver")
+            d.addCallback(lambda ss: ss.callRemote("get_buckets",
+                                                   self._verifierid))
             d.addCallbacks(self._got_response, self._got_error,
                            callbackArgs=(connection,))
             dl.append(d)
         return defer.DeferredList(dl)
 
     def _got_response(self, buckets, connection):
-        for sharenum, bucket in buckets:
+        for sharenum, bucket in buckets.iteritems():
             self._share_buckets.setdefault(sharenum, set()).add(bucket)
         
     def _got_error(self, f):
@@ -193,30 +200,34 @@ class FileDownloader:
         self.active_buckets = {}
         self._output.open()
 
-    def _download_all_segments(self):
-        d = self._download_segment(self._current_segnum)
-        def _done(res):
-            if self._current_segnum == self._total_segments:
-                return None
-            return self._download_segment(self._current_segnum)
-        d.addCallback(_done)
+    def _download_all_segments(self, res):
+        d = defer.succeed(None)
+        for segnum in range(self._total_segments-1):
+            d.addCallback(self._download_segment, segnum)
+        d.addCallback(self._download_tail_segment, self._total_segments-1)
         return d
 
-    def _download_segment(self, segnum):
+    def _download_segment(self, res, segnum):
         segmentdler = SegmentDownloader(self, segnum, self._num_needed_shares)
         d = segmentdler.start()
         d.addCallback(lambda (shares, shareids):
-                      self._decoder.decode(shares, shareids))
+                      self._codec.decode(shares, shareids))
         def _done(res):
-            self._current_segnum += 1
-            if self._current_segnum == self._total_segments:
-                data = ''.join(res)
-                padsize = mathutil.pad_size(self._size, self._segment_size)
-                data = data[:-padsize]
-                self._output.write(data)
-            else:
-                for buf in res:
-                    self._output.write(buf)
+            for buf in res:
+                self._output.write(buf)
+        d.addCallback(_done)
+        return d
+
+    def _download_tail_segment(self, res, segnum):
+        segmentdler = SegmentDownloader(self, segnum, self._num_needed_shares)
+        d = segmentdler.start()
+        d.addCallback(lambda (shares, shareids):
+                      self._tail_codec.decode(shares, shareids))
+        def _done(res):
+            # trim off any padding added by the upload side
+            data = ''.join(res)
+            tail_size = self._size % self._segment_size
+            self._output.write(data[:tail_size])
         d.addCallback(_done)
         return d
 
@@ -302,8 +313,7 @@ class Downloader(service.MultiService):
         t = IDownloadTarget(t)
         assert t.write
         assert t.close
-        dl = FileDownloader(self.parent, uri)
-        dl.set_download_target(t)
+        dl = FileDownloader(self.parent, uri, t)
         if self.debug:
             dl.debug = True
         d = dl.start()

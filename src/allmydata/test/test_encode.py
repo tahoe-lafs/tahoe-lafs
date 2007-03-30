@@ -2,6 +2,7 @@
 
 from twisted.trial import unittest
 from twisted.internet import defer
+from foolscap import eventual
 from allmydata import encode_new, download
 from allmydata.uri import pack_uri
 from cStringIO import StringIO
@@ -14,15 +15,39 @@ class MyEncoder(encode_new.Encoder):
                 print " ", [i for i,h in args[0]]
         return defer.succeed(None)
 
-class Encode(unittest.TestCase):
-    def test_1(self):
-        e = MyEncoder()
-        data = StringIO("some data to encode\n")
-        e.setup(data)
-        d = e.start()
-        return d
-
 class FakePeer:
+    def __init__(self, mode="good"):
+        self.ss = FakeStorageServer(mode)
+
+    def callRemote(self, methname, *args, **kwargs):
+        def _call():
+            meth = getattr(self, methname)
+            return meth(*args, **kwargs)
+        return defer.maybeDeferred(_call)
+
+    def get_service(self, sname):
+        assert sname == "storageserver"
+        return self.ss
+
+class FakeStorageServer:
+    def __init__(self, mode):
+        self.mode = mode
+    def callRemote(self, methname, *args, **kwargs):
+        def _call():
+            meth = getattr(self, methname)
+            return meth(*args, **kwargs)
+        d = eventual.fireEventually()
+        d.addCallback(lambda res: _call())
+        return d
+    def allocate_buckets(self, verifierid, sharenums, shareize, blocksize, canary):
+        if self.mode == "full":
+            return (set(), {},)
+        elif self.mode == "already got them":
+            return (set(sharenums), {},)
+        else:
+            return (set(), dict([(shnum, FakeBucketWriter(),) for shnum in sharenums]),)
+
+class FakeBucketWriter:
     def __init__(self):
         self.blocks = {}
         self.block_hashes = None
@@ -65,7 +90,7 @@ class FakePeer:
         return self.share_hashes
 
 
-class UpDown(unittest.TestCase):
+class Encode(unittest.TestCase):
     def test_send(self):
         e = encode_new.Encoder()
         data = "happy happy joy joy" * 4
@@ -79,7 +104,7 @@ class UpDown(unittest.TestCase):
         shareholders = {}
         all_shareholders = []
         for shnum in range(NUM_SHARES):
-            peer = FakePeer()
+            peer = FakeBucketWriter()
             shareholders[shnum] = peer
             all_shareholders.append(peer)
         e.set_shareholders(shareholders)
@@ -104,20 +129,24 @@ class UpDown(unittest.TestCase):
 
         return d
 
-    def test_send_and_recover(self):
+class Roundtrip(unittest.TestCase):
+    def send_and_recover(self, NUM_SHARES, NUM_PEERS, NUM_SEGMENTS=4):
         e = encode_new.Encoder()
         data = "happy happy joy joy" * 4
         e.setup(StringIO(data))
-        NUM_SHARES = 100
+
         assert e.num_shares == NUM_SHARES # else we'll be completely confused
         e.segment_size = 25 # force use of multiple segments
         e.setup_codec() # need to rebuild the codec for that change
-        NUM_SEGMENTS = 4
+
         assert (NUM_SEGMENTS-1)*e.segment_size < len(data) <= NUM_SEGMENTS*e.segment_size
         shareholders = {}
         all_shareholders = []
+        all_peers = []
+        for i in range(NUM_PEERS):
+            all_peers.append(FakeBucketWriter())
         for shnum in range(NUM_SHARES):
-            peer = FakePeer()
+            peer = all_peers[shnum % NUM_PEERS]
             shareholders[shnum] = peer
             all_shareholders.append(peer)
         e.set_shareholders(shareholders)
@@ -125,6 +154,7 @@ class UpDown(unittest.TestCase):
         def _uploaded(roothash):
             URI = pack_uri(e._codec.get_encoder_type(),
                            e._codec.get_serialized_params(),
+                           e._tail_codec.get_serialized_params(),
                            "V" * 20,
                            roothash,
                            e.required_shares,
@@ -138,7 +168,7 @@ class UpDown(unittest.TestCase):
             for shnum in range(NUM_SHARES):
                 fd._share_buckets[shnum] = set([all_shareholders[shnum]])
             fd._got_all_shareholders(None)
-            d2 = fd._download_all_segments()
+            d2 = fd._download_all_segments(None)
             d2.addCallback(fd._done)
             return d2
         d.addCallback(_uploaded)
@@ -147,3 +177,7 @@ class UpDown(unittest.TestCase):
         d.addCallback(_downloaded)
 
         return d
+
+    def test_one_share_per_peer(self):
+        return self.send_and_recover(100, 100)
+

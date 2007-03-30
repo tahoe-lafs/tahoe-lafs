@@ -29,6 +29,8 @@ class BucketWriter(Referenceable):
         self.finalhome = finalhome
         self.blocksize = blocksize
         self.closed = False
+        fileutil.make_dirs(incominghome)
+        fileutil.make_dirs(finalhome)
         self._write_file('blocksize', str(blocksize))
 
     def _write_file(self, fname, data):
@@ -51,7 +53,7 @@ class BucketWriter(Referenceable):
         precondition(not self.closed)
         self._write_file('sharehashree', bencode.bencode(sharehashes))
 
-    def close(self):
+    def remote_close(self):
         precondition(not self.closed)
         # TODO assert or check the completeness and consistency of the data that has been written
         fileutil.rename(self.incominghome, self.finalhome)
@@ -72,7 +74,7 @@ class BucketReader(Referenceable):
     def remote_get_block(self, blocknum):
         f = open(os.path.join(self.home, 'data'), 'rb')
         f.seek(self.blocksize * blocknum)
-        return f.read(self.blocksize)
+        return f.read(self.blocksize) # this might be short for the last block
 
     def remote_get_block_hashes(self):
         return str2l(self._read_file('blockhashes'))
@@ -101,8 +103,9 @@ class StorageServer(service.MultiService, Referenceable):
         alreadygot = set()
         bucketwriters = {} # k: shnum, v: BucketWriter
         for shnum in sharenums:
-            incominghome = os.path.join(self.incomingdir, idlib.a2b(verifierid), "%d"%shnum)
-            finalhome = os.path.join(self.storedir, idlib.a2b(verifierid), "%d"%shnum)
+            incominghome = os.path.join(self.incomingdir,
+                                        idlib.b2a(verifierid) +  "%d"%shnum)
+            finalhome = os.path.join(self.storedir, idlib.b2a(verifierid), "%d"%shnum)
             if os.path.exists(incominghome) or os.path.exists(finalhome):
                 alreadygot.add(shnum)
             else:
