@@ -7,6 +7,7 @@ from twisted.application import service
 
 from allmydata.util import idlib, bencode, mathutil
 from allmydata.util.deferredutil import DeferredListShouldSucceed
+from allmydata.util.assertutil import _assert
 from allmydata import codec
 from allmydata.Crypto.Cipher import AES
 from allmydata.uri import unpack_uri
@@ -27,13 +28,24 @@ class Output:
                                   counterstart="\x00"*16)
         self._verifierid_hasher = sha.new(netstring("allmydata_v1_verifierid"))
         self._fileid_hasher = sha.new(netstring("allmydata_v1_fileid"))
+        self.length = 0
+
+    def open(self):
+        self.downloadable.open()
+
     def write(self, crypttext):
+        self.length += len(crypttext)
         self._verifierid_hasher.update(crypttext)
         plaintext = self._decryptor.decrypt(crypttext)
         self._fileid_hasher.update(plaintext)
         self.downloadable.write(plaintext)
-    def finish(self):
+
+    def close(self):
+        self.verifierid = self._verifierid_hasher.digest()
+        self.fileid = self._fileid_hasher.digest()
         self.downloadable.close()
+
+    def finish(self):
         return self.downloadable.finish()
 
 class BlockDownloader:
@@ -51,10 +63,12 @@ class BlockDownloader:
         self.parent.hold_block(self.blocknum, data)
 
     def _got_block_error(self, f):
+        log.msg("BlockDownloader[%d] got error: %s" % (self.blocknum, f))
         self.parent.bucket_failed(self.blocknum, self.bucket)
 
 class SegmentDownloader:
-    def __init__(self, segmentnumber, needed_shares):
+    def __init__(self, parent, segmentnumber, needed_shares):
+        self.parent = parent
         self.segmentnumber = segmentnumber
         self.needed_blocks = needed_shares
         self.blocks = {} # k: blocknum, v: data
@@ -66,7 +80,14 @@ class SegmentDownloader:
         d = self._try()
         def _done(res):
             if len(self.blocks) >= self.needed_blocks:
-                return self.blocks
+                # we only need self.needed_blocks blocks
+                # we want to get the smallest blockids, because they are
+                # more likely to be fast "primary blocks"
+                blockids = sorted(self.blocks.keys())[:self.needed_blocks]
+                blocks = []
+                for blocknum in blockids:
+                    blocks.append(self.blocks[blocknum])
+                return (blocks, blockids)
             else:
                 return self._download()
         d.addCallback(_done)
@@ -79,14 +100,19 @@ class SegmentDownloader:
             if not otherblocknums:
                 raise NotEnoughPeersError
             blocknum = random.choice(otherblocknums)
-            self.parent.active_buckets[blocknum] = random.choice(self.parent._share_buckets[blocknum])
+            bucket = random.choice(list(self.parent._share_buckets[blocknum]))
+            self.parent.active_buckets[blocknum] = bucket
 
         # Now we have enough buckets, in self.parent.active_buckets.
-        l = []
+
+        # in test cases, bd.start might mutate active_buckets right away, so
+        # we need to put off calling start() until we've iterated all the way
+        # through it
+        downloaders = []
         for blocknum, bucket in self.parent.active_buckets.iteritems():
             bd = BlockDownloader(bucket, blocknum, self)
-            d = bd.start(self.segmentnumber)
-            l.append(d)
+            downloaders.append(bd)
+        l = [bd.start(self.segmentnumber) for bd in downloaders]
         return defer.DeferredList(l)
 
     def hold_block(self, blocknum, data):
@@ -115,7 +141,11 @@ class FileDownloader:
         self._total_segments = mathutil.div_ceil(size, segment_size)
         self._current_segnum = 0
         self._segment_size = segment_size
-        self._needed_shares = self._decoder.get_needed_shares()
+        self._size = size
+        self._num_needed_shares = self._decoder.get_needed_shares()
+
+        key = "\x00" * 16
+        self._output = Output(downloadable, key)
 
         # future:
         # self._share_hash_tree = ??
@@ -134,9 +164,6 @@ class FileDownloader:
         self.active_buckets = {} # k: shnum, v: bucket
         self._share_buckets = {} # k: shnum, v: set of buckets
 
-        key = "\x00" * 16
-        self._output = Output(self._downloadable, key)
- 
         d = defer.maybeDeferred(self._get_all_shareholders)
         d.addCallback(self._got_all_shareholders)
         d.addCallback(self._download_all_segments)
@@ -160,11 +187,12 @@ class FileDownloader:
         self._client.log("Somebody failed. -- %s" % (f,))
 
     def _got_all_shareholders(self, res):
-        if len(self._share_buckets) < self._needed_shares:
+        if len(self._share_buckets) < self._num_needed_shares:
             raise NotEnoughPeersError
 
         self.active_buckets = {}
-        
+        self._output.open()
+
     def _download_all_segments(self):
         d = self._download_segment(self._current_segnum)
         def _done(res):
@@ -175,74 +203,33 @@ class FileDownloader:
         return d
 
     def _download_segment(self, segnum):
-        segmentdler = SegmentDownloader(segnum, self._needed_shares)
+        segmentdler = SegmentDownloader(self, segnum, self._num_needed_shares)
         d = segmentdler.start()
-        d.addCallback(self._decoder.decode)
+        d.addCallback(lambda (shares, shareids):
+                      self._decoder.decode(shares, shareids))
         def _done(res):
             self._current_segnum += 1
             if self._current_segnum == self._total_segments:
                 data = ''.join(res)
                 padsize = mathutil.pad_size(self._size, self._segment_size)
                 data = data[:-padsize]
-                self.output.write(data)
+                self._output.write(data)
             else:
                 for buf in res:
-                    self.output.write(buf)
+                    self._output.write(buf)
         d.addCallback(_done)
         return d
 
     def _done(self, res):
+        self._output.close()
+        #print "VERIFIERID: %s" % idlib.b2a(self._output.verifierid)
+        #print "FILEID: %s" % idlib.b2a(self._output.fileid)
+        #assert self._verifierid == self._output.verifierid
+        #assert self._fileid = self._output.fileid
+        _assert(self._output.length == self._size,
+                got=self._output.length, expected=self._size)
         return self._output.finish()
-        
-    def _write_data(self, data):
-        self._verifierid_hasher.update(data)
-        
-        
 
-# old stuff
-    def _got_all_peers(self, res):
-        all_buckets = []
-        for peerid, buckets in self.landlords:
-            all_buckets.extend(buckets)
-        # TODO: try to avoid pulling multiple shares from the same peer
-        all_buckets = all_buckets[:self.needed_shares]
-        # retrieve all shares
-        dl = []
-        shares = []
-        shareids = []
-        for (bucket_num, bucket) in all_buckets:
-            d0 = bucket.callRemote("get_metadata")
-            d1 = bucket.callRemote("read")
-            d2 = DeferredListShouldSucceed([d0, d1])
-            def _got(res):
-                shareid_s, sharedata = res
-                shareid = bencode.bdecode(shareid_s)
-                shares.append(sharedata)
-                shareids.append(shareid)
-            d2.addCallback(_got)
-            dl.append(d2)
-        d = DeferredListShouldSucceed(dl)
-
-        d.addCallback(lambda res: self._decoder.decode(shares, shareids))
-
-        def _write(decoded_shares):
-            data = "".join(decoded_shares)
-            self._target.open()
-            hasher = sha.new(netstring("allmydata_v1_verifierid"))
-            hasher.update(data)
-            vid = hasher.digest()
-            assert self._verifierid == vid, "%s != %s" % (idlib.b2a(self._verifierid), idlib.b2a(vid))
-            self._target.write(data)
-        d.addCallback(_write)
-
-        def _done(res):
-            self._target.close()
-            return self._target.finish()
-        def _fail(res):
-            self._target.fail()
-            return res
-        d.addCallbacks(_done, _fail)
-        return d
 
 def netstring(s):
     return "%d:%s," % (len(s), s)
