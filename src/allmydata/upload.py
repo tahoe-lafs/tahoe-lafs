@@ -82,7 +82,7 @@ class FileUploader:
 
         # create the encoder, so we can know how large the shares will be
         self._encoder = encode_new.Encoder()
-        self._encoder.setup(infile)
+        self._encoder.setup(self._filehandle)
         share_size = self._encoder.get_share_size()
         block_size = self._encoder.get_block_size()
 
@@ -189,8 +189,9 @@ class FileUploader:
         return self._encoder.start()
 
     def _compute_uri(self, roothash):
-        params = self._encoder.get_serialized_params()
-        return pack_uri(self._encoder.get_encoder_type(), params, self._verifierid, roothash, self.needed_shares, self.total_shares, self._size, self._encoder.segment_size)
+        codec_type = self._encoder._codec.get_encoder_type()
+        codec_params = self._encoder._codec.get_serialized_params()
+        return pack_uri(codec_type, codec_params, self._verifierid, roothash, self.needed_shares, self.total_shares, self._size, self._encoder.segment_size)
 
 
 def netstring(s):
