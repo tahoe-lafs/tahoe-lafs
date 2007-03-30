@@ -1,13 +1,14 @@
 
-import os, sha
+import os, random, sha
 from zope.interface import implements
-from twisted.python import failure, log
+from twisted.python import log
 from twisted.internet import defer
 from twisted.application import service
 
-from allmydata.util import idlib, bencode
+from allmydata.util import idlib, bencode, mathutil
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata import codec
+from allmydata.Crypto.Cipher import AES
 from allmydata.uri import unpack_uri
 from allmydata.interfaces import IDownloadTarget, IDownloader
 
@@ -18,92 +19,187 @@ class HaveAllPeersError(Exception):
     # we use this to jump out of the loop
     pass
 
+
+class Output:
+    def __init__(self, downloadable, key):
+        self.downloadable = downloadable
+        self._decryptor = AES.new(key=key, mode=AES.MODE_CTR,
+                                  counterstart="\x00"*16)
+        self._verifierid_hasher = sha.new(netstring("allmydata_v1_verifierid"))
+        self._fileid_hasher = sha.new(netstring("allmydata_v1_fileid"))
+    def write(self, crypttext):
+        self._verifierid_hasher.update(crypttext)
+        plaintext = self._decryptor.decrypt(crypttext)
+        self._fileid_hasher.update(plaintext)
+        self.downloadable.write(plaintext)
+    def finish(self):
+        self.downloadable.close()
+        return self.downloadable.finish()
+
+class BlockDownloader:
+    def __init__(self, bucket, blocknum, parent):
+        self.bucket = bucket
+        self.blocknum = blocknum
+        self.parent = parent
+        
+    def start(self, segnum):
+        d = self.bucket.callRemote('get_block', segnum)
+        d.addCallbacks(self._hold_block, self._got_block_error)
+        return d
+
+    def _hold_block(self, data):
+        self.parent.hold_block(self.blocknum, data)
+
+    def _got_block_error(self, f):
+        self.parent.bucket_failed(self.blocknum, self.bucket)
+
+class SegmentDownloader:
+    def __init__(self, segmentnumber, needed_shares):
+        self.segmentnumber = segmentnumber
+        self.needed_blocks = needed_shares
+        self.blocks = {} # k: blocknum, v: data
+
+    def start(self):
+        return self._download()
+
+    def _download(self):
+        d = self._try()
+        def _done(res):
+            if len(self.blocks) >= self.needed_blocks:
+                return self.blocks
+            else:
+                return self._download()
+        d.addCallback(_done)
+        return d
+
+    def _try(self):
+        while len(self.parent.active_buckets) < self.needed_blocks:
+            # need some more
+            otherblocknums = list(set(self.parent._share_buckets.keys()) - set(self.parent.active_buckets.keys()))
+            if not otherblocknums:
+                raise NotEnoughPeersError
+            blocknum = random.choice(otherblocknums)
+            self.parent.active_buckets[blocknum] = random.choice(self.parent._share_buckets[blocknum])
+
+        # Now we have enough buckets, in self.parent.active_buckets.
+        l = []
+        for blocknum, bucket in self.parent.active_buckets.iteritems():
+            bd = BlockDownloader(bucket, blocknum, self)
+            d = bd.start(self.segmentnumber)
+            l.append(d)
+        return defer.DeferredList(l)
+
+    def hold_block(self, blocknum, data):
+        self.blocks[blocknum] = data
+
+    def bucket_failed(self, shnum, bucket):
+        del self.parent.active_buckets[shnum]
+        s = self.parent._share_buckets[shnum]
+        s.remove(bucket)
+        if not s:
+            del self.parent._share_buckets[shnum]
+        
 class FileDownloader:
     debug = False
 
-    def __init__(self, peer, uri):
-        self._peer = peer
-        (codec_name, codec_params, verifierid) = unpack_uri(uri)
+    def __init__(self, client, uri, downloadable):
+        self._client = client
+        self._downloadable = downloadable
+        (codec_name, codec_params, verifierid, roothash, needed_shares, total_shares, size, segment_size) = unpack_uri(uri)
         assert isinstance(verifierid, str)
         assert len(verifierid) == 20
         self._verifierid = verifierid
+        self._roothash = roothash
         self._decoder = codec.get_decoder_by_name(codec_name)
         self._decoder.set_serialized_params(codec_params)
-        self.needed_shares = self._decoder.get_required_shares()
+        self._total_segments = mathutil.div_ceil(size, segment_size)
+        self._current_segnum = 0
+        self._segment_size = segment_size
+        self._needed_shares = self._decoder.get_needed_shares()
 
-    def set_download_target(self, target):
-        self._target = target
-        self._target.register_canceller(self._cancel)
-
-    def _cancel(self):
-        pass
+        # future:
+        # self._share_hash_tree = ??
+        # self._subshare_hash_trees = {} # k:shnum, v: hashtree
+        # each time we start using a new shnum, we must acquire a share hash
+        # from one of the buckets that provides that shnum, then validate it against
+        # the rest of the share hash tree that they provide. Then, each time we
+        # get a block in that share, we must validate the block against the rest
+        # of the subshare hash tree that that bucket will provide.
 
     def start(self):
         log.msg("starting download [%s]" % (idlib.b2a(self._verifierid),))
         if self.debug:
             print "starting download"
         # first step: who should we download from?
+        self.active_buckets = {} # k: shnum, v: bucket
+        self._share_buckets = {} # k: shnum, v: set of buckets
 
-        # maybe limit max_peers to 2*len(self.shares), to reduce memory
-        # footprint
-        max_peers = None
-
-        self.permuted = self._peer.get_permuted_connections(self._verifierid, max_peers)
-        for p in self.permuted:
-            assert isinstance(p, str)
-        self.landlords = [] # list of (peerid, bucket_num, remotebucket)
-
-        d = defer.maybeDeferred(self._check_next_peer)
-        d.addCallback(self._got_all_peers)
+        key = "\x00" * 16
+        self._output = Output(self._downloadable, key)
+ 
+        d = defer.maybeDeferred(self._get_all_shareholders)
+        d.addCallback(self._got_all_shareholders)
+        d.addCallback(self._download_all_segments)
+        d.addCallback(self._done)
         return d
 
-    def _check_next_peer(self):
-        if len(self.permuted) == 0:
-            # there are no more to check
+    def _get_all_shareholders(self):
+        dl = []
+        for (permutedpeerid, peerid, connection) in self._client.get_permuted_peers(self._verifierid):
+            d = connection.callRemote("get_buckets", self._verifierid)
+            d.addCallbacks(self._got_response, self._got_error,
+                           callbackArgs=(connection,))
+            dl.append(d)
+        return defer.DeferredList(dl)
+
+    def _got_response(self, buckets, connection):
+        for sharenum, bucket in buckets:
+            self._share_buckets.setdefault(sharenum, set()).add(bucket)
+        
+    def _got_error(self, f):
+        self._client.log("Somebody failed. -- %s" % (f,))
+
+    def _got_all_shareholders(self, res):
+        if len(self._share_buckets) < self._needed_shares:
             raise NotEnoughPeersError
-        peerid = self.permuted.pop(0)
 
-        d = self._peer.get_remote_service(peerid, "storageserver")
-        def _got_peer(service):
-            bucket_num = len(self.landlords)
-            if self.debug: print "asking %s" % idlib.b2a(peerid)
-            d2 = service.callRemote("get_buckets", verifierid=self._verifierid)
-            def _got_response(buckets):
-                if buckets:
-                    bucket_nums = [num for (num,bucket) in buckets]
-                    if self.debug:
-                        print " peerid %s has buckets %s" % (idlib.b2a(peerid),
-                                                             bucket_nums)
-
-                    self.landlords.append( (peerid, buckets) )
-                if len(self.landlords) >= self.needed_shares:
-                    if self.debug: print " we're done!"
-                    raise HaveAllPeersError
-                # otherwise we fall through to search more peers
-            d2.addCallback(_got_response)
-            return d2
-        d.addCallback(_got_peer)
-
-        def _done_with_peer(res):
-            if self.debug: print "done with peer %s:" % idlib.b2a(peerid)
-            if isinstance(res, failure.Failure):
-                if res.check(HaveAllPeersError):
-                    if self.debug: print " all done"
-                    # we're done!
-                    return
-                if res.check(IndexError):
-                    if self.debug: print " no connection"
-                else:
-                    if self.debug: print " other error:", res
-            else:
-                if self.debug: print " they had data for us"
-            # we get here for either good peers (when we still need more), or
-            # after checking a bad peer (and thus still need more). So now we
-            # need to grab a new peer.
-            return self._check_next_peer()
-        d.addBoth(_done_with_peer)
+        self.active_buckets = {}
+        
+    def _download_all_segments(self):
+        d = self._download_segment(self._current_segnum)
+        def _done(res):
+            if self._current_segnum == self._total_segments:
+                return None
+            return self._download_segment(self._current_segnum)
+        d.addCallback(_done)
         return d
 
+    def _download_segment(self, segnum):
+        segmentdler = SegmentDownloader(segnum, self._needed_shares)
+        d = segmentdler.start()
+        d.addCallback(self._decoder.decode)
+        def _done(res):
+            self._current_segnum += 1
+            if self._current_segnum == self._total_segments:
+                data = ''.join(res)
+                padsize = mathutil.pad_size(self._size, self._segment_size)
+                data = data[:-padsize]
+                self.output.write(data)
+            else:
+                for buf in res:
+                    self.output.write(buf)
+        d.addCallback(_done)
+        return d
+
+    def _done(self, res):
+        return self._output.finish()
+        
+    def _write_data(self, data):
+        self._verifierid_hasher.update(data)
+        
+        
+
+# old stuff
     def _got_all_peers(self, res):
         all_buckets = []
         for peerid, buckets in self.landlords:

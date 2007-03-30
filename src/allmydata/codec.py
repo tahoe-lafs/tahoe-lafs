@@ -42,6 +42,9 @@ class ReplicatingEncoder(object):
     def get_share_size(self):
         return self.data_size
 
+    def get_block_size(self):
+        return self.data_size
+
     def encode(self, inshares, desired_shareids=None):
         assert isinstance(inshares, list)
         for inshare in inshares:
@@ -59,7 +62,7 @@ class ReplicatingDecoder(object):
     def set_serialized_params(self, params):
         self.required_shares = int(params)
 
-    def get_required_shares(self):
+    def get_needed_shares(self):
         return self.required_shares
 
     def decode(self, some_shares, their_shareids):
@@ -97,6 +100,9 @@ class CRSEncoder(object):
     def get_share_size(self):
         return self.share_size
 
+    def get_block_size(self):
+        return self.share_size
+
     def encode(self, inshares, desired_share_ids=None):
         precondition(desired_share_ids is None or len(desired_share_ids) <= self.max_shares, desired_share_ids, self.max_shares)
 
@@ -129,7 +135,7 @@ class CRSDecoder(object):
             print "max_shares: %d" % self.max_shares
             print "required_shares: %d" % self.required_shares
 
-    def get_required_shares(self):
+    def get_needed_shares(self):
         return self.required_shares
 
     def decode(self, some_shares, their_shareids):

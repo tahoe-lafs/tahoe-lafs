@@ -57,7 +57,11 @@ class RIBucketWriter(RemoteInterface):
 class RIStorageServer(RemoteInterface):
     def allocate_buckets(verifierid=Verifierid, sharenums=SetOf(int),
                          sharesize=int, blocksize=int, canary=Referenceable_):
-        # if the canary is lost before close(), the bucket is deleted
+        """
+        @param canary: If the canary is lost before close(), the bucket is deleted.
+        @return: tuple of (alreadygot, allocated), where alreadygot is what we
+            already have and is what we hereby agree to accept
+        """
         return TupleOf(SetOf(int), DictOf(int, RIBucketWriter))
     def get_buckets(verifierid=Verifierid):
         return DictOf(int, RIBucketReader_)
@@ -66,7 +70,7 @@ class RIBucketReader(RemoteInterface):
     def get_block(blocknum=int):
         return ShareData
     def get_block_hashes():
-        return ListOf(Hash))
+        return ListOf(Hash)
     def get_share_hashes():
         return ListOf(TupleOf(int, Hash))
 
@@ -155,6 +159,10 @@ class ICodecEncoder(Interface):
         (encoder.get_encoder_name(), encoder.get_serialized_params(),
         b2a(verifierid)), and this is enough information to construct a
         compatible decoder.
+        """
+
+    def get_block_size():
+        """Return the length of the shares that encode() will produce.
         """
 
     def get_share_size():
@@ -271,7 +279,7 @@ class ICodecDecoder(Interface):
         """Set up the parameters of this encoder, from a string returned by
         encoder.get_serialized_params()."""
 
-    def get_required_shares():
+    def get_needed_shares():
         """Return the number of shares needed to reconstruct the data.
         set_serialized_params() is required to be called before this."""
 
