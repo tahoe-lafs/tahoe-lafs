@@ -55,8 +55,7 @@ class FakeClient:
             else:
                 self.peers.append(FakePeer(str(peerid), r))
 
-    def permute_peerids(self, key, max_peers):
-        assert max_peers == None
+    def get_permuted_connections(self, key):
         return [str(i) for i in range(len(self.peers))]
 
     def get_remote_service(self, peerid, name):
@@ -202,13 +201,12 @@ class FakePeer2:
 
 class FakeClient2:
     nodeid = "fakeclient"
-    def __init__(self, max_peers):
+    def __init__(self, num_peers):
         self.peers = []
-        for peerid in range(max_peers):
+        for peerid in range(num_peers):
             self.peers.append(FakePeer2(str(peerid)))
 
-    def permute_peerids(self, key, max_peers):
-        assert max_peers == None
+    def get_permuted_connections(self, key):
         return [str(i) for i in range(len(self.peers))]
 
     def get_remote_service(self, peerid, name):

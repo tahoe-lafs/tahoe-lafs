@@ -2,15 +2,14 @@
 import os
 from twisted.trial import unittest
 
-from allmydata import client
+from allmydata import client, introducer
 
-class MyClient(client.Client):
-    def __init__(self, basedir):
+class MyIntroducerClient(introducer.IntroducerClient):
+    def __init__(self):
         self.connections = {}
-        client.Client.__init__(self, basedir)
 
-    def get_all_peerids(self):
-        return self.connections
+def permute(c, key):
+    return [ y for x, y, z in c.get_permuted_peers(key) ]
 
 class Basic(unittest.TestCase):
     def test_loadable(self):
@@ -25,17 +24,18 @@ class Basic(unittest.TestCase):
         os.mkdir(basedir)
         open(os.path.join(basedir, "introducer.furl"), "w").write("")
         open(os.path.join(basedir, "vdrive.furl"), "w").write("")
-        c = MyClient(basedir)
+        c = client.Client(basedir)
+        c.introducer_client = MyIntroducerClient()
         for k in ["%d" % i for i in range(5)]:
-            c.connections[k] = None
-        self.failUnlessEqual(c.permute_peerids("one"), ['3','1','0','4','2'])
-        self.failUnlessEqual(c.permute_peerids("one", 3), ['3','1','0'])
-        self.failUnlessEqual(c.permute_peerids("two"), ['0','4','2','1','3'])
-        c.connections.clear()
-        self.failUnlessEqual(c.permute_peerids("one"), [])
+            c.introducer_client.connections[k] = None
+        self.failUnlessEqual(permute(c, "one"), ['3','1','0','4','2'])
+        self.failUnlessEqual(permute(c, "two"), ['0','4','2','1','3'])
+        c.introducer_client.connections.clear()
+        self.failUnlessEqual(permute(c, "one"), [])
 
-        c2 = MyClient(basedir)
+        c2 = client.Client(basedir)
+        c2.introducer_client = MyIntroducerClient()
         for k in ["%d" % i for i in range(5)]:
-            c2.connections[k] = None
-        self.failUnlessEqual(c2.permute_peerids("one"), ['3','1','0','4','2'])
+            c2.introducer_client.connections[k] = None
+        self.failUnlessEqual(permute(c2, "one"), ['3','1','0','4','2'])
 

@@ -7,6 +7,7 @@ from allmydata import node
 
 from twisted.internet import defer
 
+from allmydata.Crypto.Util.number import bytes_to_long
 from allmydata.storageserver import StorageServer
 from allmydata.upload import Uploader
 from allmydata.download import Downloader
@@ -101,16 +102,14 @@ class Client(node.Node, Referenceable):
     def get_all_peerids(self):
         return self.introducer_client.connections.iterkeys()
 
-    def permute_peerids(self, key, max_count=None):
-        # TODO: eventually reduce memory consumption by doing an insertion
-        # sort of at most max_count elements
+    def get_permuted_peers(self, key):
+        """
+        @return: list of (permuted-peerid, peerid, connection,)
+        """
         results = []
-        for nodeid in self.get_all_peerids():
-            assert isinstance(nodeid, str)
-            permuted = sha.new(key + nodeid).digest()
-            results.append((permuted, nodeid))
+        for peerid, connection in self.introducer_client.connections.iteritems():
+            assert isinstance(peerid, str)
+            permuted = bytes_to_long(sha.new(key + peerid).digest())
+            results.append((permuted, peerid, connection))
         results.sort()
-        results = [r[1] for r in results]
-        if max_count is None:
-            return results
-        return results[:max_count]
+        return results

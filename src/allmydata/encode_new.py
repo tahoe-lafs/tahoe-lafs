@@ -32,29 +32,29 @@ number of segments or log(number of segments)).
 
 
 Each segment (A,B,C) is read into memory, encrypted, and encoded into
-subshares. The 'share' (say, share #1) that makes it out to a host is a
-collection of these subshares (subshare A1, B1, C1), plus some hash-tree
+blocks. The 'share' (say, share #1) that makes it out to a host is a
+collection of these blocks (block A1, B1, C1), plus some hash-tree
 information necessary to validate the data upon retrieval. Only one segment
-is handled at a time: all subshares for segment A are delivered before any
+is handled at a time: all blocks for segment A are delivered before any
 work is begun on segment B.
 
-As subshares are created, we retain the hash of each one. The list of
-subshare hashes for a single share (say, hash(A1), hash(B1), hash(C1)) is
+As blocks are created, we retain the hash of each one. The list of
+block hashes for a single share (say, hash(A1), hash(B1), hash(C1)) is
 used to form the base of a Merkle hash tree for that share (hashtrees[1]).
-This hash tree has one terminal leaf per subshare. The complete subshare hash
+This hash tree has one terminal leaf per block. The complete block hash
 tree is sent to the shareholder after all the data has been sent. At
 retrieval time, the decoder will ask for specific pieces of this tree before
-asking for subshares, whichever it needs to validate those subshares.
+asking for blocks, whichever it needs to validate those blocks.
 
-(Note: we don't really need to generate this whole subshare hash tree
+(Note: we don't really need to generate this whole block hash tree
 ourselves. It would be sufficient to have the shareholder generate it and
 just tell us the root. This gives us an extra level of validation on the
 transfer, though, and it is relatively cheap to compute.)
 
-Each of these subshare hash trees has a root hash. The collection of these
+Each of these block hash trees has a root hash. The collection of these
 root hashes for all shares are collected into the 'share hash tree', which
-has one terminal leaf per share. After sending the subshares and the complete
-subshare hash tree to each shareholder, we send them the portion of the share
+has one terminal leaf per share. After sending the blocks and the complete
+block hash tree to each shareholder, we send them the portion of the share
 hash tree that is necessary to validate their share. The root of the share
 hash tree is put into the URI.
 
@@ -197,7 +197,7 @@ class Encoder(object):
         if False:
             block = "".join(all_hashes)
             return self.send(shareid, "write", block, offset=0)
-        return self.send(shareid, "put_subshare_hashes", all_hashes)
+        return self.send(shareid, "put_block_hashes", all_hashes)
 
     def send_all_share_hash_trees(self):
         dl = []
@@ -229,27 +229,3 @@ class Encoder(object):
 
     def done(self):
         return self.root_hash
-
-
-from foolscap import RemoteInterface
-from foolscap.schema import ListOf, TupleOf
-
-
-class RIStorageBucketWriter(RemoteInterface):
-    def put_subshare(segment_number=int, subshare=str):
-        return None
-    def put_segment_hashes(all_hashes=ListOf(str)):
-        return None
-    def put_share_hashes(needed_hashes=ListOf(TupleOf(int,str))):
-        return None
-    #def write(data=str, offset=int):
-    #    return None
-class RIStorageBucketReader(RemoteInterface):
-    def get_share_hashes():
-        return ListOf(TupleOf(int,str))
-    def get_segment_hashes(which=ListOf(int)):
-        return ListOf(str)
-    def get_subshare(segment_number=int):
-        return str
-    #def read(size=int, offset=int):
-    #    return str

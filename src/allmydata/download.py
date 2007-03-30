@@ -48,7 +48,7 @@ class FileDownloader:
         # footprint
         max_peers = None
 
-        self.permuted = self._peer.permute_peerids(self._verifierid, max_peers)
+        self.permuted = self._peer.get_permuted_connections(self._verifierid, max_peers)
         for p in self.permuted:
             assert isinstance(p, str)
         self.landlords = [] # list of (peerid, bucket_num, remotebucket)

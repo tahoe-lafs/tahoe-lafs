@@ -3,6 +3,9 @@ from zope.interface import Interface
 from foolscap.schema import StringConstraint, ListOf, TupleOf, Any
 from foolscap import RemoteInterface
 
+HASH_SIZE=32
+
+Hash = StringConstraint(HASH_SIZE) # binary format 32-byte SHA256 hash
 Nodeid = StringConstraint(20) # binary format 20-byte SHA1 hash
 PBURL = StringConstraint(150)
 Verifierid = StringConstraint(20)
@@ -33,29 +36,39 @@ class RIClient(RemoteInterface):
     def get_nodeid():
         return Nodeid
 
-class RIStorageServer(RemoteInterface):
-    def allocate_bucket(verifierid=Verifierid, bucket_num=int, size=int,
-                        leaser=Nodeid, canary=Referenceable_):
-        # if the canary is lost before close(), the bucket is deleted
-        return RIBucketWriter_
-    def get_buckets(verifierid=Verifierid):
-        return ListOf(TupleOf(int, RIBucketReader_))
-
 class RIBucketWriter(RemoteInterface):
-    def write(data=ShareData):
+    def put_block(segmentnum=int, data=ShareData):
         return None
-    def set_metadata(metadata=str):
+    
+    def put_block_hashes(blockhashes=ListOf(Hash)):
         return None
-    def close():
+        
+    def put_share_hashes(sharehashes=ListOf(TupleOf(int, Hash))):
         return None
 
+    def close():
+        """
+        If the data that has been written is incomplete or inconsistent then
+        the server will throw the data away, else it will store it for future
+        retrieval.
+        """
+        return None
+
+class RIStorageServer(RemoteInterface):
+    def allocate_buckets(verifierid=Verifierid, sharenums=SetOf(int),
+                         sharesize=int, blocksize=int, canary=Referenceable_):
+        # if the canary is lost before close(), the bucket is deleted
+        return TupleOf(SetOf(int), DictOf(int, RIBucketWriter))
+    def get_buckets(verifierid=Verifierid):
+        return DictOf(int, RIBucketReader_)
 
 class RIBucketReader(RemoteInterface):
-    def read():
+    def get_block(blocknum=int):
         return ShareData
-    def get_metadata():
-        return str
-
+    def get_block_hashes():
+        return ListOf(Hash))
+    def get_share_hashes():
+        return ListOf(TupleOf(int, Hash))
 
 class RIMutableDirectoryNode(RemoteInterface):
     def list():
@@ -291,12 +304,12 @@ class ICodecDecoder(Interface):
         """
 
 class IEncoder(Interface):
-    """I take a sequence of plaintext bytes and a list of shareholders, then
-    encrypt, encode, hash, and deliver shares to those shareholders. I will
-    compute all the necessary Merkle hash trees that are necessary to
-    validate the data that eventually comes back from the shareholders. I
-    provide the root hash of the hash tree, and the encoding parameters, both
-    of which must be included in the URI.
+    """I take a file-like object that provides a sequence of bytes and a list
+    of shareholders, then encrypt, encode, hash, and deliver shares to those
+    shareholders. I will compute all the necessary Merkle hash trees that are
+    necessary to validate the data that eventually comes back from the
+    shareholders. I provide the root hash of the hash tree, and the encoding
+    parameters, both of which must be included in the URI.
 
     I do not choose shareholders, that is left to the IUploader. I must be
     given a dict of RemoteReferences to storage buckets that are ready and
@@ -408,7 +421,6 @@ class IUploader(Interface):
 
     def upload_ssk(write_capability, new_version, uploadable):
         pass # TODO
-
     def upload_data(data):
         """Like upload(), but accepts a string."""
 
