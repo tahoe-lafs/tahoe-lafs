@@ -165,10 +165,6 @@ class ICodecEncoder(Interface):
         """Return the length of the shares that encode() will produce.
         """
 
-    def get_share_size():
-        """Return the length of the shares that encode() will produce.
-        """
-
     def encode_proposal(data, desired_share_ids=None):
         """Encode some data.
 
@@ -332,11 +328,25 @@ class IEncoder(Interface):
         before calling get_reservation_size().
         """
 
-    def get_reservation_size():
+    def get_share_size():
         """I return the size of the data that will be stored on each
-        shareholder. It is useful to determine this size before asking
-        potential shareholders whether they will grant a lease or not, since
-        their answers will depend upon how much space we need.
+        shareholder. This is aggregate amount of data that will be sent to
+        the shareholder, summed over all the put_block() calls I will ever
+        make.
+
+        TODO: this might also include some amount of overhead, like the size
+        of all the hashes. We need to decide whether this is useful or not.
+
+        It is useful to determine this size before asking potential
+        shareholders whether they will grant a lease or not, since their
+        answers will depend upon how much space we need.
+        """
+
+    def get_block_size(): # TODO: can we avoid exposing this?
+        """I return the size of the individual blocks that will be delivered
+        to a shareholder's put_block() method. By knowing this, the
+        shareholder will be able to keep all blocks in a single file and
+        still provide random access when reading them.
         """
 
     def set_shareholders(shareholders):

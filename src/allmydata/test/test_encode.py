@@ -62,6 +62,7 @@ class UpDown(unittest.TestCase):
         NUM_SHARES = 100
         assert e.num_shares == NUM_SHARES # else we'll be completely confused
         e.segment_size = 25 # force use of multiple segments
+        e.setup_codec() # need to rebuild the codec for that change
         NUM_SEGMENTS = 4
         assert (NUM_SEGMENTS-1)*e.segment_size < len(data) <= NUM_SEGMENTS*e.segment_size
         shareholders = {}

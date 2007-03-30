@@ -75,6 +75,8 @@ PiB=1024*TiB
 
 class Encoder(object):
     implements(IEncoder)
+    NEEDED_SHARES = 25
+    TOTAL_SHARES = 100
 
     def setup(self, infile):
         self.infile = infile
@@ -82,28 +84,37 @@ class Encoder(object):
         self.file_size = infile.tell()
         infile.seek(0, 0)
 
-        self.num_shares = 100
-        self.required_shares = 25
+        self.num_shares = self.TOTAL_SHARES
+        self.required_shares = self.NEEDED_SHARES
 
         self.segment_size = min(2*MiB, self.file_size)
+        self.setup_codec()
 
-    def get_reservation_size(self):
+    def setup_codec(self):
+        self._codec = CRSEncoder()
+        self._codec.set_params(self.segment_size, self.required_shares,
+                               self.num_shares)
+
+    def get_share_size(self):
         share_size = mathutil.div_ceil(self.file_size, self.required_shares)
         overhead = self.compute_overhead()
         return share_size + overhead
     def compute_overhead(self):
         return 0
+    def get_block_size(self):
+        return self._codec.get_block_size()
 
     def set_shareholders(self, landlords):
         self.landlords = landlords.copy()
 
     def start(self):
+        #paddedsize = self._size + mathutil.pad_size(self._size, self.needed_shares)
         self.num_segments = mathutil.div_ceil(self.file_size,
                                               self.segment_size)
         self.share_size = mathutil.div_ceil(self.file_size,
                                             self.required_shares)
         self.setup_encryption()
-        self.setup_encoder()
+        self.setup_codec()
         d = defer.succeed(None)
         for i in range(self.num_segments):
             d.addCallback(lambda res: self.do_segment(i))
@@ -124,11 +135,6 @@ class Encoder(object):
         # that we sent to that landlord.
         self.share_root_hashes = [None] * self.num_shares
 
-    def setup_encoder(self):
-        self.encoder = CRSEncoder()
-        self.encoder.set_params(self.segment_size, self.required_shares,
-                                self.num_shares)
-
     def do_segment(self, segnum):
         chunks = []
         # the ICodecEncoder API wants to receive a total of self.segment_size
@@ -137,7 +143,7 @@ class Encoder(object):
         # these pieces need to be the same size as the share which the codec
         # will generate. Therefore we must feed it with input_piece_size that
         # equals the output share size.
-        input_piece_size = self.encoder.get_share_size()
+        input_piece_size = self._codec.get_block_size()
 
         # as a result, the number of input pieces per encode() call will be
         # equal to the number of required shares with which the codec was
@@ -154,7 +160,7 @@ class Encoder(object):
                 input_piece += ('\x00' * (input_piece_size - len(input_piece)))
             encrypted_piece = self.cryptor.encrypt(input_piece)
             chunks.append(encrypted_piece)
-        d = self.encoder.encode(chunks)
+        d = self._codec.encode(chunks)
         d.addCallback(self._encoded_segment)
         return d
 

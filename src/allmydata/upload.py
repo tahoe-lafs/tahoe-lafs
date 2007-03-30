@@ -5,7 +5,7 @@ from twisted.application import service
 from foolscap import Referenceable
 
 from allmydata.util import idlib, mathutil
-from allmydata import codec
+from allmydata import encode_new
 from allmydata.uri import pack_uri
 from allmydata.interfaces import IUploadable, IUploader
 
@@ -45,8 +45,6 @@ class PeerTracker:
 
 class FileUploader:
     debug = False
-    ENCODERCLASS = codec.CRSEncoder
-
 
     def __init__(self, client):
         self._client = client
@@ -83,20 +81,16 @@ class FileUploader:
         assert self.needed_shares
 
         # create the encoder, so we can know how large the shares will be
-        self._encoder = self.ENCODERCLASS()
-        self._last_seg_encoder = self.ENCODERCLASS() # This one is for encoding the final segment, which might be shorter than the others.
-        self._codec_name = self._encoder.get_encoder_type()
-        self._encoder.set_params(self.segment_size, self.needed_shares, self.total_shares)
-xyz
+        self._encoder = encode_new.Encoder()
+        self._encoder.setup(infile)
+        share_size = self._encoder.get_share_size()
+        block_size = self._encoder.get_block_size()
 
-        paddedsize = self._size + mathutil.pad_size(self._size, self.needed_shares)
-
-        self._block_size = self._encoder.get_block_size()
-
-        # first step: who should we upload to?
+        # we are responsible for locating the shareholders. self._encoder is
+        # responsible for handling the data and sending out the shares.
         peers = self._client.get_permuted_peers(self._verifierid)
         assert peers
-        trackers = [ (permutedid, PeerTracker(peerid, conn, self._share_size, self._block_size, self._verifierid),)
+        trackers = [ (permutedid, PeerTracker(peerid, conn, share_size, block_size, self._verifierid),)
                      for permutedid, peerid, conn in peers ]
         ring_things = [] # a list of (position_in_ring, whatami, x) where whatami is 0 if x is a sharenum or else 1 if x is a PeerTracker instance
         ring_things.extend([ (permutedpeerid, 1, peer,) for permutedpeerid, peer in trackers ])
@@ -196,7 +190,7 @@ xyz
 
     def _compute_uri(self, roothash):
         params = self._encoder.get_serialized_params()
-        return pack_uri(self._codec_name, params, self._verifierid, roothash, self.needed_shares, self.total_shares, self._size, self._encoder.segment_size)
+        return pack_uri(self._encoder.get_encoder_type(), params, self._verifierid, roothash, self.needed_shares, self.total_shares, self._size, self._encoder.segment_size)
 
 
 def netstring(s):

@@ -39,9 +39,6 @@ class ReplicatingEncoder(object):
     def get_serialized_params(self):
         return "%d" % self.required_shares
 
-    def get_share_size(self):
-        return self.data_size
-
     def get_block_size(self):
         return self.data_size
 
@@ -96,9 +93,6 @@ class CRSEncoder(object):
     def get_serialized_params(self):
         return "%d-%d-%d" % (self.data_size, self.required_shares,
                              self.max_shares)
-
-    def get_share_size(self):
-        return self.share_size
 
     def get_block_size(self):
         return self.share_size
