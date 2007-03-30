@@ -21,8 +21,8 @@ def unpack_uri(uri):
     header, codec_name, codec_params, verifierid_s, roothash_s, needed_shares_s, total_shares_s, size_s, segment_size_s = uri.split(":")
     verifierid = idlib.a2b(verifierid_s)
     roothash = idlib.a2b(roothash_s)
-    needed_shares = idlib.a2b(needed_shares_s)
-    total_shares = idlib.a2b(total_shares_s)
+    needed_shares = int(needed_shares_s)
+    total_shares = int(total_shares_s)
     size = int(size_s)
     segment_size = int(segment_size_s)
     return codec_name, codec_params, verifierid, roothash, needed_shares, total_shares, size, segment_size
