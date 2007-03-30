@@ -48,8 +48,6 @@ or eat  your children, but it might.  Use at your own risk.
 """
 
 import sha
-import os
-#import os.path
 
 from allmydata.util.hashutil import tagged_hash, tagged_pair_hash
 
