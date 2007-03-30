@@ -86,18 +86,22 @@ class Encoder(object):
         self.required_shares = 25
 
         self.segment_size = min(2*MiB, self.file_size)
-        self.num_segments = mathutil.div_ceil(self.file_size, self.segment_size)
 
     def get_reservation_size(self):
-        self.num_shares = 100
-        self.share_size = mathutil.div_ceil(self.file_size, self.required_shares)
+        share_size = mathutil.div_ceil(self.file_size, self.required_shares)
         overhead = self.compute_overhead()
-        return self.share_size + overhead
+        return share_size + overhead
+    def compute_overhead(self):
+        return 0
 
     def set_shareholders(self, landlords):
         self.landlords = landlords.copy()
 
     def start(self):
+        self.num_segments = mathutil.div_ceil(self.file_size,
+                                              self.segment_size)
+        self.share_size = mathutil.div_ceil(self.file_size,
+                                            self.required_shares)
         self.setup_encryption()
         self.setup_encoder()
         d = defer.succeed(None)
@@ -167,10 +171,7 @@ class Encoder(object):
         return defer.DeferredList(dl)
 
     def send_subshare(self, shareid, segment_num, subshare):
-        #if False:
-        #    offset = hash_size + segment_num * segment_size
-        #    return self.send(shareid, "write", subshare, offset)
-        return self.send(shareid, "put_subshare", segment_num, subshare)
+        return self.send(shareid, "put_block", segment_num, subshare)
 
     def send(self, shareid, methname, *args, **kwargs):
         ll = self.landlords[shareid]
@@ -191,9 +192,6 @@ class Encoder(object):
         # all_hashes[1] is the left child, == hash(ah[3]+ah[4])
         # all_hashes[n] == hash(all_hashes[2*n+1] + all_hashes[2*n+2])
         self.share_root_hashes[shareid] = t[0]
-        if False:
-            block = "".join(all_hashes)
-            return self.send(shareid, "write", block, offset=0)
         return self.send(shareid, "put_block_hashes", all_hashes)
 
     def send_all_share_hash_trees(self):
