@@ -29,37 +29,37 @@ import array, random
 
 def encode_to_files_easyfec(inf, prefix, k, m):
     """
-    Encode inf, writing the shares to named $prefix+$shareid.
+    Encode inf, writing the shares to a file named $prefix+$sharenum.
     """
-    l = [ open(prefix+str(shareid), "wb") for shareid in range(m) ]
-    def cb(shares, length):
-        assert len(shares) == len(l)
-        for i in range(len(shares)):
-            l[i].write(shares[i])
+    l = [ open(prefix+str(sharenum), "wb") for sharenum in range(m) ]
+    def cb(blocks, length):
+        assert len(blocks) == len(l)
+        for i in range(len(blocks)):
+            l[i].write(blocks[i])
 
     encode_file_stringy_easyfec(inf, cb, k, m, chunksize=4096)
  
 def encode_to_files_stringy(inf, prefix, k, m):
     """
-    Encode inf, writing the shares to named $prefix+$shareid.
+    Encode inf, writing the shares to a file named named $prefix+$sharenum.
     """
-    l = [ open(prefix+str(shareid), "wb") for shareid in range(m) ]
-    def cb(shares, length):
-        assert len(shares) == len(l)
-        for i in range(len(shares)):
-            l[i].write(shares[i])
+    l = [ open(prefix+str(sharenum), "wb") for sharenum in range(m) ]
+    def cb(blocks, length):
+        assert len(blocks) == len(l)
+        for i in range(len(blocks)):
+            l[i].write(blocks[i])
 
     encode_file_stringy(inf, cb, k, m, chunksize=4096)
  
 def encode_to_files(inf, prefix, k, m):
     """
-    Encode inf, writing the shares to named $prefix+$shareid.
+    Encode inf, writing the shares to named $prefix+$sharenum.
     """
-    l = [ open(prefix+str(shareid), "wb") for shareid in range(m) ]
-    def cb(shares, length):
-        assert len(shares) == len(l)
-        for i in range(len(shares)):
-            l[i].write(shares[i])
+    l = [ open(prefix+str(sharenum), "wb") for sharenum in range(m) ]
+    def cb(blocks, length):
+        assert len(blocks) == len(l)
+        for i in range(len(blocks)):
+            l[i].write(blocks[i])
 
     encode_file(inf, cb, k, m, chunksize=4096)
  
@@ -70,13 +70,13 @@ def decode_from_files(outf, filesize, prefix, k, m):
     """
     import os
     infs = []
-    shareids = []
+    sharenums = []
     listd = os.listdir(".")
     random.shuffle(listd)
     for f in listd:
         if f.startswith(prefix):
             infs.append(open(f, "rb"))
-            shareids.append(int(f[len(prefix):]))
+            sharenums.append(int(f[len(prefix):]))
             if len(infs) == k:
                 break
 
@@ -84,31 +84,31 @@ def decode_from_files(outf, filesize, prefix, k, m):
     dec = fec.Decoder(k, m)
     while True:
         x = [ inf.read(CHUNKSIZE) for inf in infs ]
-        decshares = dec.decode(x, shareids)
-        for decshare in decshares:
-            if len(decshare) == 0:
+        decblocks = dec.decode(x, sharenums)
+        for decblock in decblocks:
+            if len(decblock) == 0:
                 raise "error -- probably share was too short -- was it stored in a file which got truncated? chunksizes: %s" % ([len(chunk) for chunk in x],)
-            if filesize >= len(decshare):
-                outf.write(decshare)
-                filesize -= len(decshare)
-                # print "filesize is now %s after subtracting %s" % (filesize, len(decshare),)
+            if filesize >= len(decblock):
+                outf.write(decblock)
+                filesize -= len(decblock)
+                # print "filesize is now %s after subtracting %s" % (filesize, len(decblock),)
             else: 
-                outf.write(decshare[:filesize])
+                outf.write(decblock[:filesize])
                 return
 
 def encode_file(inf, cb, k, m, chunksize=4096):
     """
     Read in the contents of inf, encode, and call cb with the results.
 
-    First, k "input shares" will be read from inf, each input share being of 
-    size chunksize.  Then these k shares will be encoded into m "result 
-    shares".  Then cb will be invoked, passing a list of the m result shares 
+    First, k "input blocks" will be read from inf, each input block being of 
+    size chunksize.  Then these k blocks will be encoded into m "result 
+    blocks".  Then cb will be invoked, passing a list of the m result blocks 
     as its first argument, and the length of the encoded data as its second 
     argument.  (The length of the encoded data is always equal to k*chunksize, 
     until the last iteration, when the end of the file has been reached and 
     less than k*chunksize bytes could be read from the file.)  This procedure 
     is iterated until the end of the file is reached, in which case the space 
-    of the input shares that is unused is filled with zeroes before encoding.
+    of the input blocks that is unused is filled with zeroes before encoding.
 
     Note that the sequence passed in calls to cb() contains mutable array
     objects in its first k elements whose contents will be overwritten when 
@@ -123,7 +123,7 @@ def encode_file(inf, cb, k, m, chunksize=4096):
     @param k the number of shares required to reconstruct the file
     @param m the total number of shares created
     @param chunksize how much data to read from inf for each of the k input 
-        shares
+        blocks
     """
     enc = fec.Encoder(k, m)
     l = tuple([ array.array('c') for i in range(k) ])
@@ -158,14 +158,14 @@ def encode_file_stringy(inf, cb, k, m, chunksize=4096):
     """
     Read in the contents of inf, encode, and call cb with the results.
 
-    First, k "input shares" will be read from inf, each input share being of 
-    size chunksize.  Then these k shares will be encoded into m "result 
-    shares".  Then cb will be invoked, passing a list of the m result shares 
+    First, k "input blocks" will be read from inf, each input block being of 
+    size chunksize.  Then these k blocks will be encoded into m "result 
+    blocks".  Then cb will be invoked, passing a list of the m result blocks 
     as its first argument, and the length of the encoded data as its second 
     argument.  (The length of the encoded data is always equal to k*chunksize, 
     until the last iteration, when the end of the file has been reached and 
     less than k*chunksize bytes could be read from the file.)  This procedure 
-    is iterated until the end of the file is reached, in which case the space 
+    is iterated until the end of the file is reached, in which case the part 
     of the input shares that is unused is filled with zeroes before encoding.
 
     @param inf the file object from which to read the data
@@ -173,7 +173,7 @@ def encode_file_stringy(inf, cb, k, m, chunksize=4096):
     @param k the number of shares required to reconstruct the file
     @param m the total number of shares created
     @param chunksize how much data to read from inf for each of the k input 
-        shares
+        blocks
     """
     enc = fec.Encoder(k, m)
     indatasize = k*chunksize # will be reset to shorter upon EOF
@@ -209,7 +209,7 @@ def encode_file_not_really(inf, cb, k, m, chunksize=4096):
     @param k the number of shares required to reconstruct the file
     @param m the total number of shares created
     @param chunksize how much data to read from inf for each of the k input 
-        shares
+        blocks
     """
     enc = fec.Encoder(k, m)
     l = tuple([ array.array('c') for i in range(k) ])
@@ -244,8 +244,8 @@ def encode_file_stringy_easyfec(inf, cb, k, m, chunksize=4096):
     Read in the contents of inf, encode, and call cb with the results.
 
     First, chunksize*k bytes will be read from inf, then encoded into m
-    "result shares".  Then cb will be invoked, passing a list of the m result
-    shares as its first argument, and the length of the encoded data as its
+    "result blocks".  Then cb will be invoked, passing a list of the m result
+    blocks as its first argument, and the length of the encoded data as its
     second argument.  (The length of the encoded data is always equal to
     k*chunksize, until the last iteration, when the end of the file has been
     reached and less than k*chunksize bytes could be read from the file.)
@@ -258,7 +258,7 @@ def encode_file_stringy_easyfec(inf, cb, k, m, chunksize=4096):
     @param k the number of shares required to reconstruct the file
     @param m the total number of shares created
     @param chunksize how much data to read from inf for each of the k input 
-        shares
+        blocks
     """
     enc = easyfec.Encoder(k, m)
 

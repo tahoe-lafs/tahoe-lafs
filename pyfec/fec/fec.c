@@ -564,13 +564,13 @@ fec_new(unsigned k, unsigned n) {
 }
 
 void
-fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned*restrict const share_ids, size_t num_share_ids, size_t sz) {
+fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned*restrict const block_nums, size_t num_block_nums, size_t sz) {
     unsigned i, j;
     unsigned fecnum;
     gf* p;
 
-    for (i=0; i<num_share_ids; i++) {
-        fecnum=share_ids[i];
+    for (i=0; i<num_block_nums; i++) {
+        fecnum=block_nums[i];
         assert (fecnum >= code->k);
         memset(fecs[i], 0, sz);
         p = &(code->enc_matrix[fecnum * code->k]);

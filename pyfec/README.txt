@@ -39,63 +39,63 @@ Please join the pyfec mailing list and submit patches:
 
 This package performs two operations, encoding and decoding.  Encoding takes
 some input data and expands its size by producing extra "check blocks", also
-called "secondary shares".  Decoding takes some data -- any combination of
-blocks of the original data (called "primary shares") and "secondary shares",
+called "secondary blocks".  Decoding takes some data -- any combination of
+blocks of the original data (called "primary blocks") and "secondary blocks",
 and produces the original data.
 
 The encoding is parameterized by two integers, k and m.  m is the total number
-of shares produced, and k is how many of those shares are necessary to
+of blocks produced, and k is how many of those blocks are necessary to
 reconstruct the original data.  m is required to be at least 1 and at most 256,
 and k is required to be at least 1 and at most m.
 
 (Note that when k == m then there is no point in doing erasure coding -- it
 degenerates to the equivalent of the Unix "split" utility which simply splits
 the input into successive segments.  Similarly, when k == 1 it degenerates to
-the equivalent of the unix "cp" utility -- each share is a complete copy of the
+the equivalent of the unix "cp" utility -- each block is a complete copy of the
 input data.)
 
-Note that each "primary share" is a segment of the original data, so its size
-is 1/k'th of the size of original data, and each "secondary share" is of the
-same size, so the total space used by all the shares is m/k times the size of
-the original data (plus some padding to fill out the last primary share to be
+Note that each "primary block" is a segment of the original data, so its size
+is 1/k'th of the size of original data, and each "secondary block" is of the
+same size, so the total space used by all the blocks is m/k times the size of
+the original data (plus some padding to fill out the last primary block to be
 the same size as all the others).
 
-The decoding step requires as input k of the shares which were produced by the
+The decoding step requires as input k of the blocks which were produced by the
 encoding step.  The decoding step produces as output the data that was earlier
 input to the encoding step.
 
 
  * API
 
-Each share is associated with "shareid".  The shareid of each primary share is
-its index (starting from zero), so the 0'th share is the first primary share,
-which is the first few bytes of the file, the 1'st share is the next primary
-share, which is the next few bytes of the file, and so on.  The last primary
-share has shareid k-1.  The shareid of each secondary share is an arbitrary
+Each block is associated with "blocknum".  The blocknum of each primary block is
+its index (starting from zero), so the 0'th block is the first primary block,
+which is the first few bytes of the file, the 1'st block is the next primary
+block, which is the next few bytes of the file, and so on.  The last primary
+block has blocknum k-1.  The blocknum of each secondary block is an arbitrary
 integer between k and 256 inclusive.  (When using the Python API, if you don't
-specify which shareids you want for your secondary shares when invoking
-encode(), then it will by default provide the shares with ids from k to m-1
+specify which blocknums you want for your secondary blocks when invoking
+encode(), then it will by default provide the blocks with ids from k to m-1
 inclusive.)
 
  ** C API
 
 fec_encode() takes as input an array of k pointers, where each pointer points
 to a memory buffer containing the input data (i.e., the i'th buffer contains
-the i'th primary share).  There is also a second parameter which is an array of
-the shareids of the secondary shares which are to be produced.  (Each element
-in that array is required to be the shareid of a secondary share, i.e. it is
+the i'th primary block).  There is also a second parameter which is an array of
+the blocknums of the secondary blocks which are to be produced.  (Each element
+in that array is required to be the blocknum of a secondary block, i.e. it is
 required to be >= k and < m.)
 
-The output from fec_encode() is the requested set of secondary shares which are
+The output from fec_encode() is the requested set of secondary blocks which are
 written into output buffers provided by the caller.
 
 fec_decode() takes as input an array of k pointers, where each pointer points
-to a buffer containing a share.  There is also a separate input parameter which
-is an array of shareids, indicating the shareid of each of the shares which is
+to a buffer containing a block.  There is also a separate input parameter which
+is an array of blocknums, indicating the blocknum of each of the blocks which is
 being passed in.
 
-The output from fec_decode() is the set of primary shares which were missing
-from the input and had to be reconstructed.  These reconstructed shares are
+The output from fec_decode() is the set of primary blocks which were missing
+from the input and had to be reconstructed.  These reconstructed blocks are
 written into putput buffers provided by the caller.
 
  ** Python API
@@ -106,21 +106,21 @@ tuple) and a "buffer" is any object that implements the Python buffer protocol
 (such as a string or array).  The contents that are required to be present in
 these buffers are the same as for the C API.
 
-encode() also takes a list of desired shareids.  Unlike the C API, the Python
-API accepts shareids of primary shares as well as secondary shares in its list
-of desired shareids.  encode() returns a list of buffer objects which contain
-the shares requested.  For each requested share which is a primary share, the
-resulting list contains a reference to the apppropriate primary share from the
-input list.  For each requested share which is a secondary share, the list
-contains a newly created string object containing that share.
+encode() also takes a list of desired blocknums.  Unlike the C API, the Python
+API accepts blocknums of primary blocks as well as secondary blocks in its list
+of desired blocknums.  encode() returns a list of buffer objects which contain
+the blocks requested.  For each requested block which is a primary block, the
+resulting list contains a reference to the apppropriate primary block from the
+input list.  For each requested block which is a secondary block, the list
+contains a newly created string object containing that block.
 
-decode() also takes a list of integers indicating the shareids of the shares
+decode() also takes a list of integers indicating the blocknums of the blocks
 being passed int.  decode() returns a list of buffer objects which contain all
-of the primary shares of the original data (in order).  For each primary share
+of the primary blocks of the original data (in order).  For each primary block
 which was present in the input list, then the result list simply contains a
 reference to the object that was passed in the input list.  For each primary
-share which was not present in the input, the result list contains a newly
-created string object containing that primary share.
+block which was not present in the input, the result list contains a newly
+created string object containing that primary block.
 
 Beware of a "gotcha" that can result from the combination of mutable data and
 the fact that the Python API returns references to inputs when possible.

@@ -24,6 +24,6 @@ class Encoder(object):
             l[-1] = l[-1] + ('\x00'*(len(l[0])-len(l[-1])))
         return self.fec.encode(l)
         
-    def decode(self, shares):
-        return self.fec.decode(shares)
+    def decode(self, blocks):
+        return self.fec.decode(blocks)
         

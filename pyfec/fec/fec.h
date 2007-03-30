@@ -76,24 +76,24 @@ typedef struct {
 } fec_t;
 
 /**
- * param k the number of shares required to reconstruct
- * param m the total number of share created
+ * param k the number of blocks required to reconstruct
+ * param m the total number of blocks created
  */
 fec_t* fec_new(unsigned k, unsigned m);
 void fec_free(fec_t* p);
 
 /**
- * @param inpkts the "primary shares" i.e. the chunks of the input data
- * @param fecs buffers into which the secondary shares will be written
- * @param share_ids the numbers of the desired shares -- including both primary shares (the id < k) which fec_encode() ignores and check shares (the id >= k) which fec_encode() will produce and store into the buffers of the fecs parameter
- * @param num_share_ids the length of the share_ids array
+ * @param inpkts the "primary blocks" i.e. the chunks of the input data
+ * @param fecs buffers into which the secondary blocks will be written
+ * @param block_nums the numbers of the desired blocks -- including both primary blocks (the id < k) which fec_encode() ignores and check blocks (the id >= k) which fec_encode() will produce and store into the buffers of the fecs parameter
+ * @param num_block_nums the length of the block_nums array
  */
-void fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned*restrict const share_ids, size_t num_share_ids, size_t sz);
+void fec_encode(const fec_t* code, const gf*restrict const*restrict const src, gf*restrict const*restrict const fecs, const unsigned*restrict const block_nums, size_t num_block_nums, size_t sz);
 
 /**
  * @param inpkts an array of packets (size k)
  * @param outpkts an array of buffers into which the reconstructed output packets will be written (only packets which are not present in the inpkts input will be reconstructed and written to outpkts)
- * @param index an array of the shareids of the packets in inpkts
+ * @param index an array of the blocknums of the packets in inpkts
  * @param sz size of a packet in bytes
  */
 void fec_decode(const fec_t* code, const gf*restrict const*restrict const inpkts, gf*restrict const*restrict const outpkts, const unsigned*restrict const index, size_t sz);

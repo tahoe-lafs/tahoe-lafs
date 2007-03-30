@@ -45,17 +45,17 @@ def _h(k, m, ss):
     # sys.stdout.write("k: %s, m: %s,  len(ss): %r, len(ss[0]): %r" % (k, m, len(ss), len(ss[0]),)) ; sys.stdout.flush()
     encer = fec.Encoder(k, m)
     # sys.stdout.write("constructed.\n") ; sys.stdout.flush()
-    nums_and_shares = list(enumerate(encer.encode(ss)))
+    nums_and_blocks = list(enumerate(encer.encode(ss)))
     # sys.stdout.write("encoded.\n") ; sys.stdout.flush()
-    assert isinstance(nums_and_shares, list), nums_and_shares
-    assert len(nums_and_shares) == m, (len(nums_and_shares), m,)
-    nums_and_shares = random.sample(nums_and_shares, k)
-    shares = [ x[1] for x in nums_and_shares ]
-    nums = [ x[0] for x in nums_and_shares ]
+    assert isinstance(nums_and_blocks, list), nums_and_blocks
+    assert len(nums_and_blocks) == m, (len(nums_and_blocks), m,)
+    nums_and_blocks = random.sample(nums_and_blocks, k)
+    blocks = [ x[1] for x in nums_and_blocks ]
+    nums = [ x[0] for x in nums_and_blocks ]
     # sys.stdout.write("about to construct Decoder.\n") ; sys.stdout.flush()
     decer = fec.Decoder(k, m)
     # sys.stdout.write("about to decode from %s.\n"%nums) ; sys.stdout.flush()
-    decoded = decer.decode(shares, nums)
+    decoded = decer.decode(blocks, nums)
     # sys.stdout.write("decoded.\n") ; sys.stdout.flush()
     assert len(decoded) == len(ss), (len(decoded), len(ss),)
     assert tuple([str(s) for s in decoded]) == tuple([str(s) for s in ss]), (tuple([ab(str(s)) for s in decoded]), tuple([ab(str(s)) for s in ss]),)
@@ -101,7 +101,7 @@ def test_random():
 def test_bad_args_enc():
     encer = fec.Encoder(2, 4)
     try:
-        encer.encode(["a", "b", ], ["c", "I am not an integer shareid",])
+        encer.encode(["a", "b", ], ["c", "I am not an integer blocknum",])
     except fec.Error, e:
         assert "Precondition violation: second argument is required to contain int" in str(e), e
     else:

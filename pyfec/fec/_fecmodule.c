@@ -124,131 +124,131 @@ Encoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
 static char Encoder_encode__doc__[] = "\
 Encode data into m packets.\n\
 \n\
-@param inshares: a sequence of k buffers of data to encode -- these are the k primary shares, i.e. the input data split into k pieces (for best performance, make it a tuple instead of a list);  All shares are required to be the same length.\n\
-@param desired_shares_ids optional sequence of shareids indicating which shares to produce and return;  If None, all m shares will be returned (in order).  (For best performance, make it a tuple instead of a list.)\n\
-@returns: a list of buffers containing the requested shares; Note that if any of the input shares were 'primary shares', i.e. their shareid was < k, then the result sequence will contain a Python reference to the same Python object as was passed in.  As long as the Python object in question is immutable (i.e. a string) then you don't have to think about this detail, but if it is mutable (i.e. an array), then you have to be aware that if you subsequently mutate the contents of that object then that will also change the contents of the sequence that was returned from this call to encode().\n\
+@param inblocks: a sequence of k buffers of data to encode -- these are the k primary blocks, i.e. the input data split into k pieces (for best performance, make it a tuple instead of a list);  All blocks are required to be the same length.\n\
+@param desired_blocks_nums optional sequence of blocknums indicating which blocks to produce and return;  If None, all m blocks will be returned (in order).  (For best performance, make it a tuple instead of a list.)\n\
+@returns: a list of buffers containing the requested blocks; Note that if any of the input blocks were 'primary blocks', i.e. their blocknum was < k, then the result sequence will contain a Python reference to the same Python object as was passed in.  As long as the Python object in question is immutable (i.e. a string) then you don't have to think about this detail, but if it is mutable (i.e. an array), then you have to be aware that if you subsequently mutate the contents of that object then that will also change the contents of the sequence that was returned from this call to encode().\n\
 ";
 
 static PyObject *
 Encoder_encode(Encoder *self, PyObject *args) {
-    PyObject* inshares;
-    PyObject* desired_shares_ids = NULL; /* The shareids of the shares that should be returned. */
+    PyObject* inblocks;
+    PyObject* desired_blocks_nums = NULL; /* The blocknums of the blocks that should be returned. */
     PyObject* result = NULL;
 
-    if (!PyArg_ParseTuple(args, "O|O", &inshares, &desired_shares_ids))
+    if (!PyArg_ParseTuple(args, "O|O", &inblocks, &desired_blocks_nums))
         return NULL;
 
-    gf* check_shares_produced[self->mm - self->kk]; /* This is an upper bound -- we will actually use only num_check_shares_produced of these elements (see below). */
-    PyObject* pystrs_produced[self->mm - self->kk]; /* This is an upper bound -- we will actually use only num_check_shares_produced of these elements (see below). */
-    unsigned num_check_shares_produced = 0; /* The first num_check_shares_produced elements of the check_shares_produced array and of the pystrs_produced array will be used. */
-    const gf* incshares[self->kk];
-    unsigned num_desired_shares;
-    PyObject* fast_desired_shares_ids = NULL;
-    PyObject** fast_desired_shares_ids_items;
-    unsigned c_desired_shares_ids[self->mm];
-    unsigned c_desired_checkshares_ids[self->mm - self->kk];
+    gf* check_blocks_produced[self->mm - self->kk]; /* This is an upper bound -- we will actually use only num_check_blocks_produced of these elements (see below). */
+    PyObject* pystrs_produced[self->mm - self->kk]; /* This is an upper bound -- we will actually use only num_check_blocks_produced of these elements (see below). */
+    unsigned num_check_blocks_produced = 0; /* The first num_check_blocks_produced elements of the check_blocks_produced array and of the pystrs_produced array will be used. */
+    const gf* incblocks[self->kk];
+    unsigned num_desired_blocks;
+    PyObject* fast_desired_blocks_nums = NULL;
+    PyObject** fast_desired_blocks_nums_items;
+    unsigned c_desired_blocks_nums[self->mm];
+    unsigned c_desired_checkblocks_ids[self->mm - self->kk];
     unsigned i;
-    PyObject* fastinshares = NULL;
+    PyObject* fastinblocks = NULL;
 
     for (i=0; i<self->mm - self->kk; i++)
         pystrs_produced[i] = NULL;
-    if (desired_shares_ids) {
-        fast_desired_shares_ids = PySequence_Fast(desired_shares_ids, "Second argument (optional) was not a sequence.");
-        if (!fast_desired_shares_ids)
+    if (desired_blocks_nums) {
+        fast_desired_blocks_nums = PySequence_Fast(desired_blocks_nums, "Second argument (optional) was not a sequence.");
+        if (!fast_desired_blocks_nums)
             goto err;
-        num_desired_shares = PySequence_Fast_GET_SIZE(fast_desired_shares_ids);
-        fast_desired_shares_ids_items = PySequence_Fast_ITEMS(fast_desired_shares_ids);
-        for (i=0; i<num_desired_shares; i++) {
-            if (!PyInt_Check(fast_desired_shares_ids_items[i])) {
+        num_desired_blocks = PySequence_Fast_GET_SIZE(fast_desired_blocks_nums);
+        fast_desired_blocks_nums_items = PySequence_Fast_ITEMS(fast_desired_blocks_nums);
+        for (i=0; i<num_desired_blocks; i++) {
+            if (!PyInt_Check(fast_desired_blocks_nums_items[i])) {
                 py_raise_fec_error("Precondition violation: second argument is required to contain int.");
                 goto err;
             }
-            c_desired_shares_ids[i] = PyInt_AsLong(fast_desired_shares_ids_items[i]);
-            if (c_desired_shares_ids[i] >= self->kk)
-                num_check_shares_produced++;
+            c_desired_blocks_nums[i] = PyInt_AsLong(fast_desired_blocks_nums_items[i]);
+            if (c_desired_blocks_nums[i] >= self->kk)
+                num_check_blocks_produced++;
         }
     } else {
-        num_desired_shares = self->mm;
-        for (i=0; i<num_desired_shares; i++)
-            c_desired_shares_ids[i] = i;
-        num_check_shares_produced = self->mm - self->kk;
+        num_desired_blocks = self->mm;
+        for (i=0; i<num_desired_blocks; i++)
+            c_desired_blocks_nums[i] = i;
+        num_check_blocks_produced = self->mm - self->kk;
     }
 
-    fastinshares = PySequence_Fast(inshares, "First argument was not a sequence.");
-    if (!fastinshares)
+    fastinblocks = PySequence_Fast(inblocks, "First argument was not a sequence.");
+    if (!fastinblocks)
         goto err;
 
-    if (PySequence_Fast_GET_SIZE(fastinshares) != self->kk) {
-        py_raise_fec_error("Precondition violation: Wrong length -- first argument is required to contain exactly k shares.  len(first): %d, k: %d", PySequence_Fast_GET_SIZE(fastinshares), self->kk); 
+    if (PySequence_Fast_GET_SIZE(fastinblocks) != self->kk) {
+        py_raise_fec_error("Precondition violation: Wrong length -- first argument is required to contain exactly k blocks.  len(first): %d, k: %d", PySequence_Fast_GET_SIZE(fastinblocks), self->kk); 
         goto err;
     }
 
     /* Construct a C array of gf*'s of the input data. */
-    PyObject** fastinsharesitems = PySequence_Fast_ITEMS(fastinshares);
-    if (!fastinsharesitems)
+    PyObject** fastinblocksitems = PySequence_Fast_ITEMS(fastinblocks);
+    if (!fastinblocksitems)
         goto err;
     Py_ssize_t sz, oldsz = 0;
     for (i=0; i<self->kk; i++) {
-        if (!PyObject_CheckReadBuffer(fastinsharesitems[i])) {
+        if (!PyObject_CheckReadBuffer(fastinblocksitems[i])) {
             py_raise_fec_error("Precondition violation: %u'th item is required to offer the single-segment read character buffer protocol, but it does not.\n", i);
             goto err;
         }
-        if (PyObject_AsReadBuffer(fastinsharesitems[i], (const void**)&(incshares[i]), &sz))
+        if (PyObject_AsReadBuffer(fastinblocksitems[i], (const void**)&(incblocks[i]), &sz))
             goto err;
         if (oldsz != 0 && oldsz != sz) {
-            py_raise_fec_error("Precondition violation: Input shares are required to be all the same length.  oldsz: %Zu, sz: %Zu\n", oldsz, sz);
+            py_raise_fec_error("Precondition violation: Input blocks are required to be all the same length.  oldsz: %Zu, sz: %Zu\n", oldsz, sz);
             goto err;
         }
         oldsz = sz;
     }
     
-    /* Allocate space for all of the check shares. */
-    unsigned check_share_index = 0; /* index into the check_shares_produced and (parallel) pystrs_produced arrays */
-    for (i=0; i<num_desired_shares; i++) {
-        if (c_desired_shares_ids[i] >= self->kk) {
-            c_desired_checkshares_ids[check_share_index] = c_desired_shares_ids[i];
-            pystrs_produced[check_share_index] = PyString_FromStringAndSize(NULL, sz);
-            if (pystrs_produced[check_share_index] == NULL)
+    /* Allocate space for all of the check blocks. */
+    unsigned check_block_index = 0; /* index into the check_blocks_produced and (parallel) pystrs_produced arrays */
+    for (i=0; i<num_desired_blocks; i++) {
+        if (c_desired_blocks_nums[i] >= self->kk) {
+            c_desired_checkblocks_ids[check_block_index] = c_desired_blocks_nums[i];
+            pystrs_produced[check_block_index] = PyString_FromStringAndSize(NULL, sz);
+            if (pystrs_produced[check_block_index] == NULL)
                 goto err;
-            check_shares_produced[check_share_index] = (gf*)PyString_AsString(pystrs_produced[check_share_index]);
-            if (check_shares_produced[check_share_index] == NULL)
+            check_blocks_produced[check_block_index] = (gf*)PyString_AsString(pystrs_produced[check_block_index]);
+            if (check_blocks_produced[check_block_index] == NULL)
                 goto err;
-            check_share_index++;
+            check_block_index++;
         }
     }
-    assert (check_share_index == num_check_shares_produced);
+    assert (check_block_index == num_check_blocks_produced);
 
-    /* Encode any check shares that are needed. */
-    fec_encode(self->fec_matrix, incshares, check_shares_produced, c_desired_checkshares_ids, num_check_shares_produced, sz);
+    /* Encode any check blocks that are needed. */
+    fec_encode(self->fec_matrix, incblocks, check_blocks_produced, c_desired_checkblocks_ids, num_check_blocks_produced, sz);
 
-    /* Wrap all requested shares up into a Python list of Python strings. */
-    result = PyList_New(num_desired_shares);
+    /* Wrap all requested blocks up into a Python list of Python strings. */
+    result = PyList_New(num_desired_blocks);
     if (result == NULL)
         goto err;
-    check_share_index = 0;
-    for (i=0; i<num_desired_shares; i++) {
-        if (c_desired_shares_ids[i] < self->kk) {
-            Py_INCREF(fastinsharesitems[c_desired_shares_ids[i]]);
-            if (PyList_SetItem(result, i, fastinsharesitems[c_desired_shares_ids[i]]) == -1) {
-                Py_DECREF(fastinsharesitems[c_desired_shares_ids[i]]);
+    check_block_index = 0;
+    for (i=0; i<num_desired_blocks; i++) {
+        if (c_desired_blocks_nums[i] < self->kk) {
+            Py_INCREF(fastinblocksitems[c_desired_blocks_nums[i]]);
+            if (PyList_SetItem(result, i, fastinblocksitems[c_desired_blocks_nums[i]]) == -1) {
+                Py_DECREF(fastinblocksitems[c_desired_blocks_nums[i]]);
                 goto err;
             }
         } else {
-            if (PyList_SetItem(result, i, pystrs_produced[check_share_index]) == -1)
+            if (PyList_SetItem(result, i, pystrs_produced[check_block_index]) == -1)
                 goto err;
-            pystrs_produced[check_share_index] = NULL;
-            check_share_index++;
+            pystrs_produced[check_block_index] = NULL;
+            check_block_index++;
         }
     }
 
     goto cleanup;
   err:
-    for (i=0; i<num_check_shares_produced; i++)
+    for (i=0; i<num_check_blocks_produced; i++)
         Py_XDECREF(pystrs_produced[i]);
     Py_XDECREF(result); result = NULL;
   cleanup:
-    Py_XDECREF(fastinshares); fastinshares=NULL;
-    Py_XDECREF(fast_desired_shares_ids); fast_desired_shares_ids=NULL;
+    Py_XDECREF(fastinblocks); fastinblocks=NULL;
+    Py_XDECREF(fast_desired_blocks_nums); fast_desired_blocks_nums=NULL;
     return result;
 }
 
@@ -377,77 +377,77 @@ Decoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
 #define SWAP(a,b,t) {t tmp; tmp=a; a=b; b=tmp;}
 
 static char Decoder_decode__doc__[] = "\
-Decode a list shares into a list of segments.\n\
-@param shares a sequence of buffers containing share data (for best performance, make it a tuple instead of a list)\n\
-@param shareids a sequence of integers of the shareid for each share in shares (for best performance, make it a tuple instead of a list)\n\
+Decode a list blocks into a list of segments.\n\
+@param blocks a sequence of buffers containing block data (for best performance, make it a tuple instead of a list)\n\
+@param blocknums a sequence of integers of the blocknum for each block in blocks (for best performance, make it a tuple instead of a list)\n\
 \n\
 @return a list of strings containing the segment data (i.e. ''.join(retval) yields a string containing the decoded data)\n\
 ";
 
 static PyObject *
 Decoder_decode(Decoder *self, PyObject *args) {
-    PyObject*restrict shares;
-    PyObject*restrict shareids;
+    PyObject*restrict blocks;
+    PyObject*restrict blocknums;
     PyObject* result = NULL;
 
-    if (!PyArg_ParseTuple(args, "OO", &shares, &shareids))
+    if (!PyArg_ParseTuple(args, "OO", &blocks, &blocknums))
         return NULL;
 
-    const gf*restrict cshares[self->kk];
-    unsigned cshareids[self->kk];
+    const gf*restrict cblocks[self->kk];
+    unsigned cblocknums[self->kk];
     gf*restrict recoveredcstrs[self->kk]; /* self->kk is actually an upper bound -- we probably won't need all of this space. */
     PyObject*restrict recoveredpystrs[self->kk]; /* self->kk is actually an upper bound -- we probably won't need all of this space. */
     unsigned i;
     for (i=0; i<self->kk; i++)
         recoveredpystrs[i] = NULL;
-    PyObject*restrict fastshareids = NULL;
-    PyObject*restrict fastshares = PySequence_Fast(shares, "First argument was not a sequence.");
-    if (!fastshares)
+    PyObject*restrict fastblocknums = NULL;
+    PyObject*restrict fastblocks = PySequence_Fast(blocks, "First argument was not a sequence.");
+    if (!fastblocks)
         goto err;
-    fastshareids = PySequence_Fast(shareids, "Second argument was not a sequence.");
-    if (!fastshareids)
+    fastblocknums = PySequence_Fast(blocknums, "Second argument was not a sequence.");
+    if (!fastblocknums)
         goto err;
 
-    if (PySequence_Fast_GET_SIZE(fastshares) != self->kk) {
-        py_raise_fec_error("Precondition violation: Wrong length -- first argument is required to contain exactly k shares.  len(first): %d, k: %d", PySequence_Fast_GET_SIZE(fastshares), self->kk); 
+    if (PySequence_Fast_GET_SIZE(fastblocks) != self->kk) {
+        py_raise_fec_error("Precondition violation: Wrong length -- first argument is required to contain exactly k blocks.  len(first): %d, k: %d", PySequence_Fast_GET_SIZE(fastblocks), self->kk); 
         goto err;
     }
-    if (PySequence_Fast_GET_SIZE(fastshareids) != self->kk) {
-        py_raise_fec_error("Precondition violation: Wrong length -- shareids is required to contain exactly k shares.  len(shareids): %d, k: %d", PySequence_Fast_GET_SIZE(fastshareids), self->kk); 
+    if (PySequence_Fast_GET_SIZE(fastblocknums) != self->kk) {
+        py_raise_fec_error("Precondition violation: Wrong length -- blocknums is required to contain exactly k blocks.  len(blocknums): %d, k: %d", PySequence_Fast_GET_SIZE(fastblocknums), self->kk); 
         goto err;
     }
 
-    /* Construct a C array of gf*'s of the data and another of C ints of the shareids. */
+    /* Construct a C array of gf*'s of the data and another of C ints of the blocknums. */
     unsigned needtorecover=0;
-    PyObject** fastshareidsitems = PySequence_Fast_ITEMS(fastshareids);
-    if (!fastshareidsitems)
+    PyObject** fastblocknumsitems = PySequence_Fast_ITEMS(fastblocknums);
+    if (!fastblocknumsitems)
         goto err;
-    PyObject** fastsharesitems = PySequence_Fast_ITEMS(fastshares);
-    if (!fastsharesitems)
+    PyObject** fastblocksitems = PySequence_Fast_ITEMS(fastblocks);
+    if (!fastblocksitems)
         goto err;
     Py_ssize_t sz, oldsz = 0;
     for (i=0; i<self->kk; i++) {
-        if (!PyInt_Check(fastshareidsitems[i])) {
+        if (!PyInt_Check(fastblocknumsitems[i])) {
             py_raise_fec_error("Precondition violation: second argument is required to contain int.");
             goto err;
         }
-        long tmpl = PyInt_AsLong(fastshareidsitems[i]);
+        long tmpl = PyInt_AsLong(fastblocknumsitems[i]);
         if (tmpl < 0 || tmpl > 255) {
-            py_raise_fec_error("Precondition violation: Share ids can't be less than zero or greater than 255.  %ld\n", tmpl);
+            py_raise_fec_error("Precondition violation: block nums can't be less than zero or greater than 255.  %ld\n", tmpl);
             goto err;
         }
-        cshareids[i] = (unsigned)tmpl;
-        if (cshareids[i] >= self->kk)
+        cblocknums[i] = (unsigned)tmpl;
+        if (cblocknums[i] >= self->kk)
             needtorecover+=1;
 
-        if (!PyObject_CheckReadBuffer(fastsharesitems[i])) {
+        if (!PyObject_CheckReadBuffer(fastblocksitems[i])) {
             py_raise_fec_error("Precondition violation: %u'th item is required to offer the single-segment read character buffer protocol, but it does not.\n", i);
             goto err;
         }
-        if (PyObject_AsReadBuffer(fastsharesitems[i], (const void**)&(cshares[i]), &sz))
+        if (PyObject_AsReadBuffer(fastblocksitems[i], (const void**)&(cblocks[i]), &sz))
             goto err;
         if (oldsz != 0 && oldsz != sz) {
-            py_raise_fec_error("Precondition violation: Input shares are required to be all the same length.  oldsz: %Zu, sz: %Zu\n", oldsz, sz);
+            py_raise_fec_error("Precondition violation: Input blocks are required to be all the same length.  oldsz: %Zu, sz: %Zu\n", oldsz, sz);
             goto err;
         }
         oldsz = sz;
@@ -455,19 +455,19 @@ Decoder_decode(Decoder *self, PyObject *args) {
 
     /* move src packets into position */
     for (i=0; i<self->kk;) {
-        if (cshareids[i] >= self->kk || cshareids[i] == i)
+        if (cblocknums[i] >= self->kk || cblocknums[i] == i)
             i++;
         else {
             /* put pkt in the right position. */
-            unsigned c = cshareids[i];
+            unsigned c = cblocknums[i];
 
-            SWAP (cshareids[i], cshareids[c], int);
-            SWAP (cshares[i], cshares[c], const gf*);
-            SWAP (fastsharesitems[i], fastsharesitems[c], PyObject*);
+            SWAP (cblocknums[i], cblocknums[c], int);
+            SWAP (cblocks[i], cblocks[c], const gf*);
+            SWAP (fastblocksitems[i], fastblocksitems[c], PyObject*);
         }
     }
 
-    /* Allocate space for all of the recovered shares. */
+    /* Allocate space for all of the recovered blocks. */
     for (i=0; i<needtorecover; i++) {
         recoveredpystrs[i] = PyString_FromStringAndSize(NULL, sz);
         if (recoveredpystrs[i] == NULL)
@@ -477,24 +477,24 @@ Decoder_decode(Decoder *self, PyObject *args) {
             goto err;
     }
 
-    /* Decode any recovered shares that are needed. */
-    fec_decode(self->fec_matrix, cshares, recoveredcstrs, cshareids, sz);
+    /* Decode any recovered blocks that are needed. */
+    fec_decode(self->fec_matrix, cblocks, recoveredcstrs, cblocknums, sz);
 
-    /* Wrap up both original primary shares and decoded shares into a Python list of Python strings. */
+    /* Wrap up both original primary blocks and decoded blocks into a Python list of Python strings. */
     unsigned nextrecoveredix=0;
     result = PyList_New(self->kk);
     if (result == NULL)
         goto err;
     for (i=0; i<self->kk; i++) {
-        if (cshareids[i] == i) {
-            /* Original primary share. */
-            Py_INCREF(fastsharesitems[i]);
-            if (PyList_SetItem(result, i, fastsharesitems[i]) == -1) {
-                Py_DECREF(fastsharesitems[i]);
+        if (cblocknums[i] == i) {
+            /* Original primary block. */
+            Py_INCREF(fastblocksitems[i]);
+            if (PyList_SetItem(result, i, fastblocksitems[i]) == -1) {
+                Py_DECREF(fastblocksitems[i]);
                 goto err;
             }
         } else {
-            /* Recovered share. */
+            /* Recovered block. */
             if (PyList_SetItem(result, i, recoveredpystrs[nextrecoveredix]) == -1)
                 goto err;
             recoveredpystrs[nextrecoveredix] = NULL;
@@ -508,8 +508,8 @@ Decoder_decode(Decoder *self, PyObject *args) {
         Py_XDECREF(recoveredpystrs[i]);
     Py_XDECREF(result); result = NULL;
   cleanup:
-    Py_XDECREF(fastshares); fastshares=NULL;
-    Py_XDECREF(fastshareids); fastshareids=NULL;
+    Py_XDECREF(fastblocks); fastblocks=NULL;
+    Py_XDECREF(fastblocknums); fastblocknums=NULL;
     return result;
 }
 
