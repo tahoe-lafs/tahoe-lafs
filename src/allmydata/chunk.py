@@ -47,21 +47,12 @@ or implied.  It probably won't make your computer catch on fire,
 or eat  your children, but it might.  Use at your own risk.
 """
 
-import sha
-
 from allmydata.util.hashutil import tagged_hash, tagged_pair_hash
 
 __version__ = '1.0.0-allmydata'
 
 BLOCK_SIZE     = 65536
 MAX_CHUNK_SIZE = BLOCK_SIZE + 4096
-
-def hash(s):
-  """
-  Cryptographic hash function used by this module.
-  """
-  return sha.new(s).digest()
-
 
 def roundup_pow2(x):
   """
