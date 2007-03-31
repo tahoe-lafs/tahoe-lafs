@@ -2,6 +2,7 @@
 
 from zope.interface import implements
 from twisted.internet import defer
+from twisted.python import log
 from allmydata.chunk import HashTree, roundup_pow2
 from allmydata.Crypto.Cipher import AES
 from allmydata.util import mathutil, hashutil
@@ -220,7 +221,9 @@ class Encoder(object):
             dl.append(d)
             subshare_hash = hashutil.tagged_hash("encoded subshare", subshare)
             self.subshare_hashes[shareid].append(subshare_hash)
-        return defer.DeferredList(dl)
+        dl = defer.DeferredList(dl)
+        dl.addCallback(lambda res: log.msg("%s uploaded %s / %s bytes of your file." % (self, self.segment_size*(segnum+1), self.segment_size*self.num_segments)))
+        return dl
 
     def send_subshare(self, shareid, segment_num, subshare):
         return self.send(shareid, "put_block", segment_num, subshare)
