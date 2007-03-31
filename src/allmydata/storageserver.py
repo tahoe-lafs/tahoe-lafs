@@ -10,7 +10,7 @@ from allmydata.util import bencode, fileutil, idlib
 from allmydata.util.assertutil import _assert, precondition
 
 # store/
-# store/incoming # temp dirs named $VERIFIERID/$SHARENUM that will be moved to store/ on success
+# store/incoming # temp dirs named $VERIFIERID/$SHARENUM which will be moved to store/$VERIFIERID/$SHARENUM on success
 # store/$VERIFIERID
 # store/$VERIFIERID/$SHARENUM
 # store/$VERIFIERID/$SHARENUM/blocksize
@@ -30,7 +30,6 @@ class BucketWriter(Referenceable):
         self.blocksize = blocksize
         self.closed = False
         fileutil.make_dirs(incominghome)
-        fileutil.make_dirs(finalhome)
         self._write_file('blocksize', str(blocksize))
 
     def _write_file(self, fname, data):
@@ -56,7 +55,14 @@ class BucketWriter(Referenceable):
     def remote_close(self):
         precondition(not self.closed)
         # TODO assert or check the completeness and consistency of the data that has been written
+        fileutil.make_dirs(os.path.dirname(self.finalhome))
         fileutil.rename(self.incominghome, self.finalhome)
+        try:
+            os.rmdir(os.path.dirname(self.incominghome))
+        except OSError:
+            # Perhaps the directory wasn't empty.  In any case, ignore the error.
+            pass
+            
         self.closed = True
 
 def str2l(s):
@@ -103,8 +109,7 @@ class StorageServer(service.MultiService, Referenceable):
         alreadygot = set()
         bucketwriters = {} # k: shnum, v: BucketWriter
         for shnum in sharenums:
-            incominghome = os.path.join(self.incomingdir,
-                                        idlib.b2a(verifierid) +  "%d"%shnum)
+            incominghome = os.path.join(self.incomingdir, idlib.b2a(verifierid), "%d"%shnum)
             finalhome = os.path.join(self.storedir, idlib.b2a(verifierid), "%d"%shnum)
             if os.path.exists(incominghome) or os.path.exists(finalhome):
                 alreadygot.add(shnum)
