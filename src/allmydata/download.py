@@ -187,6 +187,7 @@ class FileDownloader:
         return defer.DeferredList(dl)
 
     def _got_response(self, buckets, connection):
+        _assert(isinstance(buckets, dict), buckets) # soon foolscap will check this for us with its DictOf schema constraint
         for sharenum, bucket in buckets.iteritems():
             self._share_buckets.setdefault(sharenum, set()).add(bucket)
         
