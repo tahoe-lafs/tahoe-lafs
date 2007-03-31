@@ -116,7 +116,12 @@ class StorageServer(service.MultiService, Referenceable):
     def remote_get_buckets(self, verifierid):
         bucketreaders = {} # k: sharenum, v: BucketReader
         verifierdir = os.path.join(self.storedir, idlib.b2a(verifierid))
-        for f in os.listdir(verifierdir):
-            _assert(NUM_RE.match(f), f)
-            bucketreaders[int(f)] = BucketReader(os.path.join(verifierdir, f))
+        try:
+            for f in os.listdir(verifierdir):
+                _assert(NUM_RE.match(f), f)
+                bucketreaders[int(f)] = BucketReader(os.path.join(verifierdir, f))
+        except OSError:
+            # Commonly caused by there being no buckets at all.
+            pass
+
         return bucketreaders
