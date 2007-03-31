@@ -19,7 +19,7 @@ from allmydata.util.assertutil import _assert, precondition
 # store/$VERIFIERID/$SHARENUM/sharehashtree
 
 # $SHARENUM matches this regex:
-NUM_RE=re.compile("[1-9][0-9]*")
+NUM_RE=re.compile("[0-9]*")
 
 class BucketWriter(Referenceable):
     implements(RIBucketWriter)
@@ -117,6 +117,6 @@ class StorageServer(service.MultiService, Referenceable):
         bucketreaders = {} # k: sharenum, v: BucketReader
         verifierdir = os.path.join(self.storedir, idlib.b2a(verifierid))
         for f in os.listdir(verifierdir):
-            _assert(NUM_RE.match(f))
+            _assert(NUM_RE.match(f), f)
             bucketreaders[int(f)] = BucketReader(os.path.join(verifierdir, f))
         return bucketreaders
