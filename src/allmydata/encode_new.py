@@ -222,7 +222,10 @@ class Encoder(object):
             subshare_hash = hashutil.tagged_hash("encoded subshare", subshare)
             self.subshare_hashes[shareid].append(subshare_hash)
         dl = defer.DeferredList(dl)
-        dl.addCallback(lambda res: log.msg("%s uploaded %s / %s bytes of your file." % (self, self.segment_size*(segnum+1), self.segment_size*self.num_segments)))
+        def _logit(res):
+            log.msg("%s uploaded %s / %s bytes of your file." % (self, self.segment_size*(segnum+1), self.segment_size*self.num_segments))
+            return res
+        dl.addCallback(_logit)
         return dl
 
     def send_subshare(self, shareid, segment_num, subshare):
