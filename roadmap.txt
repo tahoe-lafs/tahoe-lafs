@@ -18,12 +18,12 @@ Share Encoding:
 *v2.5: ICodec-based codecs, but still using replication
 *v3: C-based Reed-Solomon
 
-Peer selection:
+Peer Selection:
 *v1: permuted peer list, consistent hash
  v2: reliability/goodness-point counting?
  v3: denver airport (chord)?
 
-filetable maintenance:
+Filetable Maintenance:
 *v1: queen-based tree of MutableDirectoryNodes, persisted to queen's disk
      no accounts
  v2: move tree to client side, serialize to a file, upload,
@@ -32,12 +32,12 @@ filetable maintenance:
      implement SSKs
  v4: filetree
 
-checker/repairer:
+Checker/Repairer:
 *v1: none
  v2: centralized checker, repair agent
  v3: nodes also check their own files
 
-storage:
+Storage:
 *v1: no deletion, one directory per verifierid, one owner per share,
      leases never expire
 *v2: multiple shares per verifierid [zooko]
@@ -45,7 +45,6 @@ storage:
  v2: leases expire, delete expired data on demand, multiple owners per share
 
 UI:
- webish? webfront? PB + CLI tool? FUSE?
 *v1: readonly webish (nevow, URLs are filepaths)
 *v2: read/write webish, mkdir, del (files)
  v2.5: del (directories)
