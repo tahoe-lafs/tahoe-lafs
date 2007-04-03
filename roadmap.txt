@@ -8,7 +8,7 @@ Connection Management: Brian
 
 File Encoding: Brian
 *v1: single-segment, no merkle trees
- v2: multiple-segment (LFE)
+*v2: multiple-segment (LFE)
  v3: merkle tree to verify each share
  v4: merkle tree to verify each segment
 
