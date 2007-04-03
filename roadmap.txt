@@ -40,7 +40,7 @@ checker/repairer:
 storage:
 *v1: no deletion, one directory per verifierid, one owner per share,
      leases never expire
- v2: multiple shares per verifierid [zooko]
+*v2: multiple shares per verifierid [zooko]
  v2.5: deletion
  v2: leases expire, delete expired data on demand, multiple owners per share
 
