@@ -51,6 +51,11 @@ UI:
  v3: PB+CLI tool
  v4: FUSE
 
+Operations/Deployment:
+ v1: doc how to set up a network (introducer, vdriver server, nodes)
+ v2: Windows port and testing
+ v3: Trac instance
+
 back pocket ideas:
  when nodes are unable to reach storage servers, make a note of it, inform
  queen eventually. queen then puts server under observation or otherwise
