@@ -1,18 +1,18 @@
 
 ['*' means complete]
 
-Connection Management: Brian
+Connection Management:
 *v1: foolscap, no relay, live == connected-to-queen, broadcast updates, full mesh
  v2: live != connected-to-queen, connect on demand
  v3: relay?
 
-File Encoding: Brian
+File Encoding:
 *v1: single-segment, no merkle trees
 *v2: multiple-segment (LFE)
  v3: merkle tree to verify each share
  v4: merkle tree to verify each segment
 
-Share Encoding: Zooko
+Share Encoding:
 *v1: fake it (replication)
 *v2: PyRS
 *v2.5: ICodec-based codecs, but still using replication
@@ -37,14 +37,14 @@ checker/repairer:
  v2: centralized checker, repair agent
  v3: nodes also check their own files
 
-storage: RobK
+storage:
 *v1: no deletion, one directory per verifierid, one owner per share,
      leases never expire
  v2: multiple shares per verifierid [zooko]
  v2.5: deletion
  v2: leases expire, delete expired data on demand, multiple owners per share
 
-UI: (brian)
+UI:
  webish? webfront? PB + CLI tool? FUSE?
 *v1: readonly webish (nevow, URLs are filepaths)
 *v2: read/write webish, mkdir, del (files)
