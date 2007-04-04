@@ -31,10 +31,16 @@ DEPENDENCIES:
  PyOpenSSL (0.6 or later)
   http://pyopenssl.sourceforge.net
 
+ a C compiler (if building on Windows, cygwin gcc with mingw32 support)
+  http://gcc.gnu.org/
+  http://www.cygwin.com/
+ GNU make
+
 BUILDING:
 
- Just type 'make'. If the desired version of 'python' is not already on your
- $PATH, then type 'make PYTHON=/path/to/your/preferred/python'.
+ Just type 'make'. This works on Windows too, provided that you have the 
+ dependencies mentioned above.  If the desired version of 'python' is not 
+ already on your PATH, then type 'make PYTHON=/path/to/your/preferred/python'.
 
  'make test' runs the unit test suite.
 
@@ -43,8 +49,10 @@ BUILDING:
 
 RUNNING:
 
- The installed package creates an 'allmydata-tahoe' executable, usually in
- /usr/bin . This tool is used to create, start, and stop nodes.
+ If you installed one of the debian packages constructed by "make deb-*" then 
+ it creates an 'allmydata-tahoe' executable, usually in /usr/bin . If you 
+ didn't install a package you can find allmydata-tahoe in instdir/scripts.  
+ This tool is used to create, start, and stop nodes.  
 
  Somewhere in your mesh there must be a central 'queen' node. This is
  constructed by running 'allmydata-tahoe create-queen --basedir WHERE'. Once

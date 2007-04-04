@@ -1,26 +1,40 @@
-
 default: build
 
 BASE=$(shell pwd)
 PYTHON=python
+INSTDIR=$(BASE)/instdir
 
-INSTDIR=$(BASE)/instdir/lib/python$(shell $(PYTHON) -c 'import sys;print sys.version_info[0]').$(shell $(PYTHON) -c 'import sys;print sys.version_info[1]')/site-packages
+UNAME=$(shell uname)
+ifeq ($(findstring CYGWIN,$(UNAME)),CYGWIN)
+EXTRA_SETUP_ARGS=build -c mingw32
+PATHDIR := $(shell cygpath -m $(INSTDIR))
+INSTDIR := $(shell cygpath -w $(INSTDIR))
+TRIAL=$(PYTHON) `cygpath -m \`type -p trial\` `
+ifneq ($(PYTHONPATH),)
+PYTHONPATH := $(shell cygpath -m $(PYTHONPATH))
+endif
+else
+EXTRA_SETUP_ARGS=
+PATHDIR := $(INSTDIR)
+TRIAL=trial
+endif
 
 show-instdir:
 	@echo $(INSTDIR)
 
+PATHSEP=$(shell python -c 'import os; print os.pathsep')
 ifneq ($(PYTHONPATH),)
-PP=PYTHONPATH=${PYTHONPATH}:$(INSTDIR)
+PP=PYTHONPATH=$(PYTHONPATH)$(PATHSEP)$(PATHDIR)
 else
-PP=PYTHONPATH=$(INSTDIR)
+PP=PYTHONPATH=$(PATHDIR)
 endif
 
 .PHONY: build
 build: build-pyfec build-Crypto
-	$(PYTHON) setup.py install --prefix=$(BASE)/instdir
+	$(PYTHON) setup.py $(EXTRA_SETUP_ARGS) install --install-lib="$(INSTDIR)" --install-scripts="$(INSTDIR)/scripts"
 
 build-pyfec:
-	cd src/pyfec && $(PYTHON) ./setup.py install --prefix=$(BASE)/instdir
+	cd src/pyfec && $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --install-lib="$(INSTDIR)" --install-scripts="$(INSTDIR)/scripts"
 
 test-pyfec:
 	$(PP) $(PYTHON) src/pyfec/fec/test/test_pyfec.py
@@ -30,7 +44,7 @@ clean-pyfec:
 
 
 build-Crypto:
-	cd src/Crypto && $(PYTHON) ./setup.py install --prefix=$(BASE)/instdir
+	cd src/Crypto && $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --install-lib="$(INSTDIR)" --install-scripts="$(INSTDIR)/scripts"
 
 clean-Crypto:
 	cd src/Crypto && python ./setup.py clean
@@ -50,7 +64,6 @@ run-client3:
 	cd client-basedir3 && PYTHONPATH=.. twistd -noy ../client.tac
 
 
-TRIAL=trial
 TEST=allmydata
 REPORTER=
 
