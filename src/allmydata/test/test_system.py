@@ -10,14 +10,6 @@ from twisted.python import log
 from twisted.web.client import getPage
 
 class SystemTest(unittest.TestCase):
-    # it takes a little while for a disconnected loopback TCP connection to
-    # be noticed by the other side. This is not directly visible to us, so we
-    # have to wait for time to pass rather than just waiting on a deferred.
-    # This is unfortunate, both because it arbitrarily slows down the test
-    # process, and because it is hard to predict what the minimum time
-    # necessary would be (on a slow or heavily loaded system, 100ms might not
-    # be enough).
-    DISCONNECT_DELAY = 0.1
 
     def setUp(self):
         self.sparent = service.MultiService()
@@ -25,12 +17,7 @@ class SystemTest(unittest.TestCase):
     def tearDown(self):
         log.msg("shutting down SystemTest services")
         d = self.sparent.stopService()
-        d.addCallback(lambda res: flushEventualQueue())
-        def _done(res):
-            d1 = defer.Deferred()
-            reactor.callLater(self.DISCONNECT_DELAY, d1.callback, None)
-            return d1
-        d.addCallback(_done)
+        d.addCallback(flushEventualQueue)
         return d
 
     def add_service(self, s):
@@ -109,11 +96,7 @@ class SystemTest(unittest.TestCase):
         d.addCallback(_check)
         def _shutdown_extra_node(res):
             if self.extra_node:
-                d1 = self.extra_node.stopService()
-                d2 = defer.Deferred()
-                reactor.callLater(self.DISCONNECT_DELAY, d2.callback, res)
-                d1.addCallback(lambda ignored: d2)
-                return d1
+                return self.extra_node.stopService()
             return res
         d.addBoth(_shutdown_extra_node)
         return d

@@ -1,5 +1,6 @@
 
 from twisted.trial import unittest
+from foolscap.eventual import flushEventualQueue
 
 from allmydata import queen
 
@@ -8,5 +9,6 @@ class Basic(unittest.TestCase):
         q = queen.Queen()
         d = q.startService()
         d.addCallback(lambda res: q.stopService())
+        d.addCallback(flushEventualQueue)
         return d
 

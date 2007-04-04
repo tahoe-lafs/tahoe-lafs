@@ -23,12 +23,10 @@ class TestIntroducer(unittest.TestCase):
         self.parent.startService()
     def tearDown(self):
         log.msg("TestIntroducer.tearDown")
-        d = defer.Deferred()
-        reactor.callLater(1.1, d.callback, None)
+        d = defer.succeed(None)
         d.addCallback(lambda res: self.parent.stopService())
         d.addCallback(flushEventualQueue)
         return d
-
 
 
     def poll(self, check_f, pollinterval=0.01):
