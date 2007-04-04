@@ -129,10 +129,10 @@ show:
 	echo $(DEBVER)
 	echo $(DEBSTRING)
 
-.PHONY: setup-dapper setup-sid setup-feisty
-.PHONY: deb-dapper deb-sid deb-feisty
+.PHONY: setup-dapper setup-sid setup-edgy setup-feisty
+.PHONY: deb-dapper deb-sid deb-edgy deb-feisty
 .PHONY: increment-deb-version
-.PHONY: deb-dapper-head deb-sid-head deb-feisty-head
+.PHONY: deb-dapper-head deb-sid-head deb-edgy-head deb-feisty-head
 
 setup-dapper:
 	rm -f debian
@@ -142,6 +142,12 @@ setup-dapper:
 setup-sid:
 	rm -f debian
 	ln -s sid/debian debian
+	chmod a+x debian/rules
+
+# edgy uses the feisty control files for now
+setup-edgy:
+	rm -f debian
+	ln -s feisty/debian debian
 	chmod a+x debian/rules
 
 setup-feisty:
@@ -154,6 +160,8 @@ deb-dapper: setup-dapper
 	fakeroot debian/rules binary
 deb-sid: setup-sid
 	fakeroot debian/rules binary
+deb-edgy: setup-edgy
+	fakeroot debian/rules binary
 deb-feisty: setup-feisty
 	fakeroot debian/rules binary
 
@@ -162,6 +170,8 @@ increment-deb-version:
 deb-dapper-head: setup-dapper increment-deb-version
 	fakeroot debian/rules binary
 deb-sid-head: setup-sid increment-deb-version
+	fakeroot debian/rules binary
+deb-edgy-head: setup-edgy increment-deb-version
 	fakeroot debian/rules binary
 deb-feisty-head: setup-feisty increment-deb-version
 	fakeroot debian/rules binary
