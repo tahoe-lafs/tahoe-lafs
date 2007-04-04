@@ -1,26 +1,19 @@
 
 from zope.interface import Interface
-from foolscap.schema import StringConstraint, ListOf, TupleOf, Any
-from foolscap import RemoteInterface
+from foolscap.schema import StringConstraint, ListOf, TupleOf, SetOf, DictOf
+from foolscap import RemoteInterface, Referenceable
 
 HASH_SIZE=32
 
-Hash = StringConstraint(HASH_SIZE) # binary format 32-byte SHA256 hash
-Nodeid = StringConstraint(20) # binary format 20-byte SHA1 hash
+Hash = StringConstraint(maxLength=HASH_SIZE,
+                        minLength=HASH_SIZE)# binary format 32-byte SHA256 hash
+Nodeid = StringConstraint(maxLength=20,
+                          minLength=20) # binary format 20-byte SHA1 hash
 PBURL = StringConstraint(150)
 Verifierid = StringConstraint(20)
 URI = StringConstraint(200) # kind of arbitrary
+MAX_BUCKETS = 200  # per peer
 ShareData = StringConstraint(100000)
-# these six are here because Foolscap does not yet support the kind of
-# restriction I really want to apply to these.
-RIClient_ = Any()
-Referenceable_ = Any()
-RIBucketWriter_ = Any()
-RIBucketReader_ = Any()
-RIMutableDirectoryNode_ = Any()
-RIMutableFileNode_ = Any()
-def SetOf(*args, **kwargs): return Any()
-def DictOf(*args, **kwargs): return Any()
 
 class RIIntroducerClient(RemoteInterface):
     def new_peers(pburls=SetOf(PBURL)):
@@ -32,7 +25,7 @@ class RIIntroducer(RemoteInterface):
 
 class RIClient(RemoteInterface):
     def get_service(name=str):
-        return Referenceable_
+        return Referenceable
     def get_nodeid():
         return Nodeid
 
@@ -57,18 +50,6 @@ class RIBucketWriter(RemoteInterface):
         """
         return None
 
-class RIStorageServer(RemoteInterface):
-    def allocate_buckets(verifierid=Verifierid, sharenums=SetOf(int),
-                         sharesize=int, blocksize=int, canary=Referenceable_):
-        """
-        @param canary: If the canary is lost before close(), the bucket is deleted.
-        @return: tuple of (alreadygot, allocated), where alreadygot is what we
-            already have and is what we hereby agree to accept
-        """
-        return TupleOf(SetOf(int), DictOf(int, RIBucketWriter))
-    def get_buckets(verifierid=Verifierid):
-        return DictOf(int, RIBucketReader_)
-
 class RIBucketReader(RemoteInterface):
     def get_block(blocknum=int):
         """Most blocks will be the same size. The last block might be shorter
@@ -80,6 +61,23 @@ class RIBucketReader(RemoteInterface):
     def get_share_hashes():
         return ListOf(TupleOf(int, Hash))
 
+class RIStorageServer(RemoteInterface):
+    def allocate_buckets(verifierid=Verifierid,
+                         sharenums=SetOf(int, maxLength=MAX_BUCKETS),
+                         sharesize=int, blocksize=int, canary=Referenceable):
+        """
+        @param canary: If the canary is lost before close(), the bucket is deleted.
+        @return: tuple of (alreadygot, allocated), where alreadygot is what we
+            already have and is what we hereby agree to accept
+        """
+        return TupleOf(SetOf(int, maxLength=MAX_BUCKETS),
+                       DictOf(int, RIBucketWriter, maxKeys=MAX_BUCKETS))
+    def get_buckets(verifierid=Verifierid):
+        return DictOf(int, RIBucketReader, maxKeys=MAX_BUCKETS)
+
+# hm, we need a solution for forward references in schemas
+from foolscap.schema import Any
+RIMutableDirectoryNode_ = Any() # TODO: how can we avoid this?
 class RIMutableDirectoryNode(RemoteInterface):
     def list():
         return ListOf( TupleOf(str, # name, relative to directory

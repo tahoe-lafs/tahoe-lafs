@@ -21,7 +21,7 @@ DEPENDENCIES:
    * web, trial, conch
   Note that Twisted requires zope.interface, and that the standard
   batteries-included Twisted distribution includes a copy.
- Foolscap (probably 0.0.7 or newer)
+ Foolscap (0.1.2 or newer)
   - note: since the Foolscap wire protocol is not yet compatible from one
     release to the next, make sure all of your nodes are using the same
     version of Foolscap

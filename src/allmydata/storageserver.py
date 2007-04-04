@@ -4,7 +4,8 @@ from foolscap import Referenceable
 from twisted.application import service
 
 from zope.interface import implements
-from allmydata.interfaces import RIStorageServer, RIBucketWriter
+from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
+     RIBucketReader
 from allmydata import interfaces
 from allmydata.util import bencode, fileutil, idlib
 from allmydata.util.assertutil import _assert, precondition
@@ -70,6 +71,8 @@ def str2l(s):
     return [ s[i:i+interfaces.HASH_SIZE] for i in range(0, len(s), interfaces.HASH_SIZE) ]
 
 class BucketReader(Referenceable):
+    implements(RIBucketReader)
+
     def __init__(self, home):
         self.home = home
         self.blocksize = int(self._read_file('blocksize'))
