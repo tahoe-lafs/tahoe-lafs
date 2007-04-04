@@ -565,7 +565,7 @@ class VDrive(unittest.TestCase):
         v = self.makeLocalTree("upload")
         filename = "upload1"
         DATA = "here is some data\n"
-        f = open(filename, "w")
+        f = open(filename, "wb")
         f.write(DATA)
         f.close()
 
@@ -592,7 +592,7 @@ class VDrive(unittest.TestCase):
     def testCHKDirUpload(self):
         DATA = "here is some data\n"
         filename = "upload1"
-        f = open(filename, "w")
+        f = open(filename, "wb")
         f.write(DATA)
         f.close()
 
@@ -624,7 +624,7 @@ class VDrive(unittest.TestCase):
     def testCHKDirDelete(self):
         DATA = "here is some data\n"
         filename = "upload1"
-        f = open(filename, "w")
+        f = open(filename, "wb")
         f.write(DATA)
         f.close()
 

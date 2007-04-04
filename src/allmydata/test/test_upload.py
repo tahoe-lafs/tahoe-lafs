@@ -43,7 +43,7 @@ class GoodServer(unittest.TestCase):
 
     def testFilename(self):
         fn = "Uploader-testFilename.data"
-        f = open(fn, "w")
+        f = open(fn, "wb")
         data = "This is some data to upload"
         f.write(data)
         f.close()

@@ -28,7 +28,7 @@ class Reuse(unittest.TestCase):
         # files in the tmpdir are not: these are either in the process of
         # being added or in the process of being removed.
         tmpfile = os.path.join(wq.tmpdir, "foo")
-        f = open(tmpfile, "w")
+        f = open(tmpfile, "wb")
         f.write("foo")
         f.close()
         # files created with create_tempfile *are* retained, however
