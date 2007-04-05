@@ -2,7 +2,7 @@
 ['*' means complete]
 
 Connection Management:
-*v1: foolscap, no relay, live == connected-to-queen, broadcast updates, full mesh
+*v1: foolscap, no relay, live=connected-to-queen, broadcast updates, full mesh
  v2: live != connected-to-queen, connect on demand
  v3: relay?
 
@@ -18,10 +18,24 @@ Share Encoding:
 *v2.5: ICodec-based codecs, but still using replication
 *v3: C-based Reed-Solomon
 
-Peer Selection:
+URI:
+*v1: really big
+ v2: derive more information from version and filesize, to remove codec_name,
+     codec_params, tail_codec_params, needed_shares, total_shares, segment_size
+
+Upload Peer Selection:
 *v1: permuted peer list, consistent hash
- v2: reliability/goodness-point counting?
- v3: denver airport (chord)?
+*v2: permute peers by verifierid and arrange around ring, intermixed with
+     shareids on the same range, each share goes to the
+     next-clockwise-available peer
+ v3: reliability/goodness-point counting?
+ v4: denver airport (chord)?
+
+Download Peer Selection:
+*v1: ask all peers
+ v2: permute peers and shareids as in upload, ask next-clockwise peers first
+     (the "A" list), if necessary ask the ones after them, etc.
+ v3: denver airport?
 
 Filetable Maintenance:
 *v1: queen-based tree of MutableDirectoryNodes, persisted to queen's disk
@@ -41,18 +55,19 @@ Storage:
 *v1: no deletion, one directory per verifierid, one owner per share,
      leases never expire
 *v2: multiple shares per verifierid [zooko]
- v2.5: deletion
- v2: leases expire, delete expired data on demand, multiple owners per share
+ v3: deletion
+ v4: leases expire, delete expired data on demand, multiple owners per share
 
 UI:
 *v1: readonly webish (nevow, URLs are filepaths)
 *v2: read/write webish, mkdir, del (files)
  v2.5: del (directories)
- v3: PB+CLI tool
+ v3: PB+CLI tool.
+ v3.5: XUIL?
  v4: FUSE
 
 Operations/Deployment:
- v1: doc how to set up a network (introducer, vdriver server, nodes)
+ v1: doc how to set up a network (introducer, vdrive server, nodes)
  v2: Windows port and testing
  v3: Trac instance
 
@@ -67,13 +82,19 @@ back pocket ideas:
  on recovery, find the newest
 
  multiple categories of leases:
-  committed leases -- we will not delete these in any case, but will instead tell an uploader that we are full
-   active leases
-   in-progress leases (partially filled, not closed, pb connection is currently open)
-  uncommitted leases -- we will delete these in order to make room for new lease requests
-   interrupted leases (partially filled, not closed, pb connection is currently not open, but they might come back)
-   expired leases
-  (I'm not sure about the precedence of these last two.  Probably deleting expired leases instead of deleting interrupted leases would be okay.)
+  1: committed leases -- we will not delete these in any case, but will instead
+     tell an uploader that we are full
+   1a: active leases
+   1b: in-progress leases (partially filled, not closed, pb connection is
+       currently open)
+  2: uncommitted leases -- we will delete these in order to make room for new
+     lease requests
+   2a: interrupted leases (partially filled, not closed, pb connection is
+       currently not open, but they might come back)
+   2b: expired leases
+
+  (I'm not sure about the precedence of these last two. Probably deleting
+  expired leases instead of deleting interrupted leases would be okay.)
 
 big questions:
  convergence?
