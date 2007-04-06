@@ -4,6 +4,11 @@ def b2a(i):
     assert isinstance(i, str), "tried to idlib.b2a non-string '%s'" % (i,)
     return b32encode(i).lower()
 
+def b2a_or_none(i):
+    if i is None:
+        return None
+    return b2a(i)
+
 def a2b(i):
     assert isinstance(i, str), "tried to idlib.a2b non-string '%s'" % (i,)
     try:

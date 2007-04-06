@@ -1,3 +1,4 @@
+# -*- test-case-name: allmydata.test.test_hashtree -*-
 
 """
 Read and write chunks from files.
@@ -133,6 +134,10 @@ class CompleteBinaryTreeMixin:
       here = self.parent(here)
     return needed
 
+def empty_leaf_hash(i):
+  return tagged_hash('Merkle tree empty leaf', "%d" % i)
+def pair_hash(a, b):
+  return tagged_pair_hash('Merkle tree internal node', a, b)
 
 class HashTree(CompleteBinaryTreeMixin, list):
   """
@@ -165,13 +170,104 @@ class HashTree(CompleteBinaryTreeMixin, list):
     end   = roundup_pow2(len(L))
     L     = L + [None] * (end - start)
     for i in range(start, end):
-      L[i] = tagged_hash('Merkle tree empty leaf', "%d"%i)
+      L[i] = empty_leaf_hash(i)
     # Form each row of the tree.
     rows = [L]
     while len(rows[-1]) != 1:
       last = rows[-1]
-      rows += [[tagged_pair_hash('Merkle tree internal node', last[2*i], last[2*i+1]) for i in xrange(len(last)//2)]]
+      rows += [[pair_hash(last[2*i], last[2*i+1])
+                for i in xrange(len(last)//2)]]
     # Flatten the list of rows into a single list.
     rows.reverse()
     self[:] = sum(rows, [])
+
+
+class NotEnoughHashesError(Exception):
+  pass
+
+class BadHashError(Exception):
+  pass
+
+class IncompleteHashTree(CompleteBinaryTreeMixin, list):
+  """I am a hash tree which may or may not be complete. I can be used to
+  validate inbound data from some untrustworthy provider who has a subset of
+  leaves and a sufficient subset of internal nodes.
+
+  Initially I am completely unpopulated. Over time, I will become filled with
+  hashes, just enough to validate particular leaf nodes.
+
+  If you desire to validate leaf number N, first find out which hashes I need
+  by calling needed_hashes(N). This will return a list of node numbers (which
+  will nominally be the sibling chain between the given leaf and the root,
+  but if I already have some of those nodes, needed_hashes(N) will only
+  return a subset). Obtain these hashes from the data provider, then tell me
+  about them with set_hash(i, HASH). Once I have enough hashes, you can tell
+  me the hash of the leaf with set_leaf_hash(N, HASH), and I will either
+  return None or raise BadHashError.
+
+  The first hash to be set will probably be 0 (the root hash), since this is
+  the one that will come from someone more trustworthy than the data
+  provider.
+
+  """
+
+  def __init__(self, num_leaves):
+    L = [None] * num_leaves
+    start = len(L)
+    end   = roundup_pow2(len(L))
+    self.first_leaf_num = end - 1
+    L     = L + [None] * (end - start)
+    rows = [L]
+    while len(rows[-1]) != 1:
+      last = rows[-1]
+      rows += [[None for i in xrange(len(last)//2)]]
+    # Flatten the list of rows into a single list.
+    rows.reverse()
+    self[:] = sum(rows, [])
+
+  def needed_hashes(self, leafnum):
+    hashnum = self.first_leaf_num + leafnum
+    maybe_needed = self.needed_for(hashnum)
+    maybe_needed += [0] # need the root too
+    return set([i for i in maybe_needed if self[i] is None])
+
+  def set_hash(self, i, newhash):
+    # note that we don't attempt to validate these
+    self[i] = newhash
+
+  def set_leaf(self, leafnum, leafhash):
+    hashnum = self.first_leaf_num + leafnum
+    needed = self.needed_hashes(leafnum)
+    if needed:
+      msg = "we need hashes " + ",".join([str(i) for i in needed])
+      raise NotEnoughHashesError(msg)
+    assert self[0] is not None # we can't validate without a root
+    added = set() # we'll remove these if the check fails
+    self[hashnum] = leafhash
+    added.add(hashnum)
+
+    # now propagate hash checks upwards until we reach the root
+    here = hashnum
+    while here != 0:
+      us = [here, self.sibling(here)]
+      us.sort()
+      leftnum, rightnum = us
+      lefthash = self[leftnum]
+      righthash = self[rightnum]
+      parent = self.parent(here)
+      parenthash = self[parent]
+
+      ourhash = pair_hash(lefthash, righthash)
+      if parenthash is not None:
+        if ourhash != parenthash:
+          for i in added:
+            self[i] = None
+          raise BadHashError("h([%d]+[%d]) != h[%d]" % (leftnum, rightnum,
+                                                        parent))
+      else:
+        self[parent] = ourhash
+        added.add(parent)
+      here = self.parent(here)
+
+    return None
 
