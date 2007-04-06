@@ -28,19 +28,21 @@ class NoArgumentException(Exception):
 class HumanReadable(unittest.TestCase):
     def test_repr(self):
         hr = humanreadable.hr
-        self.failUnlessEqual(hr(foo), "<foo() at test_utils.py:2>")
+        self.failUnlessEqual(hr(foo), "<foo() at test_util.py:2>")
         self.failUnlessEqual(hr(self.test_repr),
-                             "<bound method HumanReadable.test_repr of <allmydata.test.test_utils.HumanReadable testMethod=test_repr>>")
+                             "<bound method HumanReadable.test_repr of <allmydata.test.test_util.HumanReadable testMethod=test_repr>>")
         self.failUnlessEqual(hr(1L), "1")
         self.failUnlessEqual(hr(10**40),
                              "100000000000000000...000000000000000000")
-        self.failUnlessEqual(hr(self), "<allmydata.test.test_utils.HumanReadable testMethod=test_repr>")
+        self.failUnlessEqual(hr(self), "<allmydata.test.test_util.HumanReadable testMethod=test_repr>")
         self.failUnlessEqual(hr([1,2]), "[1, 2]")
         self.failUnlessEqual(hr({1:2}), "{1:2}")
         try:
             raise RuntimeError
         except Exception, e:
-            self.failUnlessEqual(hr(e), "<RuntimeError: ()>")
+            self.failUnless(
+                hr(e) == "<RuntimeError: ()>" # python-2.4
+                or hr(e) == "RuntimeError()") # python-2.5
         try:
             raise RuntimeError("oops")
         except Exception, e:
