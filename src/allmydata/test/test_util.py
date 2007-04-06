@@ -14,6 +14,7 @@ class IDLib(unittest.TestCase):
         self.failUnlessEqual(idlib.b2a_or_none("\x12\x34"), "ci2a====")
     def test_a2b(self):
         self.failUnlessEqual(idlib.a2b("ci2a===="), "\x12\x34")
+        self.failUnlessRaises(TypeError, idlib.a2b, "bogus")
     def test_peerid(self):
         # these are 160-bit numbers
         peerid = "\x80" + "\x00" * 19
