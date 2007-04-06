@@ -3,11 +3,11 @@
 from twisted.trial import unittest
 from twisted.internet import defer
 from foolscap import eventual
-from allmydata import encode_new, download
+from allmydata import encode, download
 from allmydata.uri import pack_uri
 from cStringIO import StringIO
 
-class MyEncoder(encode_new.Encoder):
+class MyEncoder(encode.Encoder):
     def send(self, share_num, methname, *args, **kwargs):
         if False and share_num < 10:
             print "send[%d].%s()" % (share_num, methname)
@@ -92,7 +92,7 @@ class FakeBucketWriter:
 
 class Encode(unittest.TestCase):
     def test_send(self):
-        e = encode_new.Encoder()
+        e = encode.Encoder()
         data = "happy happy joy joy" * 4
         e.setup(StringIO(data))
         NUM_SHARES = 100
@@ -131,7 +131,7 @@ class Encode(unittest.TestCase):
 
 class Roundtrip(unittest.TestCase):
     def send_and_recover(self, NUM_SHARES, NUM_PEERS, NUM_SEGMENTS=4):
-        e = encode_new.Encoder()
+        e = encode.Encoder()
         data = "happy happy joy joy" * 4
         e.setup(StringIO(data))
 

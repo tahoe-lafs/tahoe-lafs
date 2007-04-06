@@ -5,7 +5,7 @@ from twisted.application import service
 from foolscap import Referenceable
 
 from allmydata.util import idlib
-from allmydata import encode_new
+from allmydata import encode
 from allmydata.uri import pack_uri
 from allmydata.interfaces import IUploadable, IUploader
 
@@ -92,7 +92,7 @@ class FileUploader:
         assert self.needed_shares
 
         # create the encoder, so we can know how large the shares will be
-        self._encoder = encode_new.Encoder()
+        self._encoder = encode.Encoder()
         self._encoder.setup(self._filehandle)
         share_size = self._encoder.get_share_size()
         block_size = self._encoder.get_block_size()
