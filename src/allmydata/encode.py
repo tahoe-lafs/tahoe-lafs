@@ -229,11 +229,8 @@ class Encoder(object):
         return dl
 
     def send_subshare(self, shareid, segment_num, subshare):
-        return self.send(shareid, "put_block", segment_num, subshare)
-
-    def send(self, shareid, methname, *args, **kwargs):
-        ll = self.landlords[shareid]
-        return ll.callRemote(methname, *args, **kwargs)
+        sh = self.landlords[shareid]
+        return sh.callRemote("put_block", segment_num, subshare)
 
     def send_all_subshare_hash_trees(self):
         dl = []
@@ -250,7 +247,8 @@ class Encoder(object):
         # all_hashes[1] is the left child, == hash(ah[3]+ah[4])
         # all_hashes[n] == hash(all_hashes[2*n+1] + all_hashes[2*n+2])
         self.share_root_hashes[shareid] = t[0]
-        return self.send(shareid, "put_block_hashes", all_hashes)
+        sh = self.landlords[shareid]
+        return sh.callRemote("put_block_hashes", all_hashes)
 
     def send_all_share_hash_trees(self):
         dl = []
@@ -272,12 +270,13 @@ class Encoder(object):
         return defer.DeferredList(dl)
 
     def send_one_share_hash_tree(self, shareid, needed_hashes):
-        return self.send(shareid, "put_share_hashes", needed_hashes)
+        sh = self.landlords[shareid]
+        return sh.callRemote("put_share_hashes", needed_hashes)
 
     def close_all_shareholders(self):
         dl = []
         for shareid in range(self.num_shares):
-            dl.append(self.send(shareid, "close"))
+            dl.append(self.landlords[shareid].callRemote("close"))
         return defer.DeferredList(dl)
 
     def done(self):

@@ -7,14 +7,6 @@ from allmydata import encode, download
 from allmydata.uri import pack_uri
 from cStringIO import StringIO
 
-class MyEncoder(encode.Encoder):
-    def send(self, share_num, methname, *args, **kwargs):
-        if False and share_num < 10:
-            print "send[%d].%s()" % (share_num, methname)
-            if methname == "put_share_hashes":
-                print " ", [i for i,h in args[0]]
-        return defer.succeed(None)
-
 class FakePeer:
     def __init__(self, mode="good"):
         self.ss = FakeStorageServer(mode)
