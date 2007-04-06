@@ -129,12 +129,12 @@ class FileUploader:
         log.msg(" still need homes for %d shares, still have %d usable peers" % (len(self.unallocated_sharenums), len(self.usable_peers)))
         if not self.unallocated_sharenums:
             # Finished allocating places for all shares.
-            log.msg("%s._locate_all_shareholders() Finished allocating places for all shares.")
+            log.msg("%s._locate_all_shareholders() Finished allocating places for all shares." % self)
             log.msg("used_peers is %s" % (self.used_peers,))
             return self.used_peers
         if not self.usable_peers:
             # Ran out of peers who have space.
-            log.msg("%s._locate_all_shareholders() Ran out of peers who have space.")
+            log.msg("%s._locate_all_shareholders() Ran out of peers who have space." % self)
             if len(self.unallocated_sharenums) < (self.total_shares - self.shares_of_happiness):
                 # But we allocated places for enough shares.
                 log.msg("%s._locate_all_shareholders() But we allocated places for enough shares.")

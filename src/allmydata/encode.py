@@ -233,6 +233,7 @@ class Encoder(object):
         return sh.callRemote("put_block", segment_num, subshare)
 
     def send_all_subshare_hash_trees(self):
+        log.msg("%s sending hash trees" % self)
         dl = []
         for shareid,hashes in enumerate(self.subshare_hashes):
             # hashes is a list of the hashes of all subshares that were sent
@@ -280,4 +281,5 @@ class Encoder(object):
         return defer.DeferredList(dl)
 
     def done(self):
+        log.msg("%s: upload done" % self)
         return self.root_hash
