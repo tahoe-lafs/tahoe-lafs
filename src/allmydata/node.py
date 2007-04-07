@@ -30,9 +30,8 @@ class Node(service.MultiService):
             f = open(certfile, "wb")
             f.write(self.tub.getCertData())
             f.close()
-        if False: # TODO: once foolscap-0.1.1 is released, enable this
-            self.tub.setOption("logLocalFailures", True)
-            self.tub.setOption("logRemoteFailures", True)
+        self.tub.setOption("logLocalFailures", True)
+        self.tub.setOption("logRemoteFailures", True)
         self.nodeid = idlib.a2b(self.tub.tubID)
         f = open(os.path.join(self.basedir, self.NODEIDFILE), "w")
         f.write(idlib.b2a(self.nodeid) + "\n")
