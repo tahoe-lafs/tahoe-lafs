@@ -144,6 +144,13 @@ def report_as_html(coverage, directory, exclude_patterns=[], root=None):
 	pcnt_75 = [ x for x in pcnts if x >= 75 ]
 	pcnt_50 = [ x for x in pcnts if x >= 50 ]
 
+        stats_fp = open('%s/stats.out' % (directory,), 'w')
+        stats_fp.write("total files: %d\n" % len(pcnts))
+        stats_fp.write("total source lines: %d\n" % summary_lines)
+        stats_fp.write("total covered lines: %d\n" % summary_cover)
+        stats_fp.write("total coverage percentage: %.1f\n" % summary_pcnt)
+        stats_fp.close()
+
         ## index.html
 	index_fp = open('%s/index.html' % (directory,), 'w')
         # summary info
