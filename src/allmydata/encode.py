@@ -151,7 +151,7 @@ class Encoder(object):
         d.addCallback(lambda res: self.send_all_subshare_hash_trees())
         d.addCallback(lambda res: self.send_all_share_hash_trees())
         d.addCallback(lambda res: self.close_all_shareholders())
-        d.addCallback(lambda res: self.done())
+        d.addCallbacks(lambda res: self.done(), self.err)
         return d
 
     def setup_encryption(self):
@@ -233,7 +233,7 @@ class Encoder(object):
         return sh.callRemote("put_block", segment_num, subshare)
 
     def send_all_subshare_hash_trees(self):
-        log.msg("%s sending hash trees" % self)
+        log.msg("%s sending subshare hash trees" % self)
         dl = []
         for shareid,hashes in enumerate(self.subshare_hashes):
             # hashes is a list of the hashes of all subshares that were sent
@@ -252,6 +252,7 @@ class Encoder(object):
         return sh.callRemote("put_block_hashes", all_hashes)
 
     def send_all_share_hash_trees(self):
+        log.msg("%s sending all share hash trees" % self)
         dl = []
         for h in self.share_root_hashes:
             assert h
@@ -275,6 +276,7 @@ class Encoder(object):
         return sh.callRemote("put_share_hashes", needed_hashes)
 
     def close_all_shareholders(self):
+        log.msg("%s: closing shareholders" % self)
         dl = []
         for shareid in range(self.num_shares):
             dl.append(self.landlords[shareid].callRemote("close"))
@@ -283,3 +285,7 @@ class Encoder(object):
     def done(self):
         log.msg("%s: upload done" % self)
         return self.root_hash
+
+    def err(self, f):
+        log.msg("%s: upload failed: %s" % (self, f))
+        return f
