@@ -4,10 +4,17 @@ from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.application import service
 from allmydata import client, queen
-from allmydata.util import idlib
+from allmydata.util import idlib, fileutil
 from foolscap.eventual import flushEventualQueue
 from twisted.python import log
 from twisted.web.client import getPage
+
+def flush_but_dont_ignore(res):
+    d = flushEventualQueue()
+    def _done(ignored):
+        return res
+    d.addCallback(_done)
+    return d
 
 class SystemTest(unittest.TestCase):
 
@@ -17,8 +24,11 @@ class SystemTest(unittest.TestCase):
     def tearDown(self):
         log.msg("shutting down SystemTest services")
         d = self.sparent.stopService()
-        d.addCallback(flushEventualQueue)
+        d.addBoth(flush_but_dont_ignore)
         return d
+
+    def getdir(self, subdir):
+        return os.path.join(self.basedir, subdir)
 
     def add_service(self, s):
         s.setServiceParent(self.sparent)
@@ -26,9 +36,10 @@ class SystemTest(unittest.TestCase):
 
     def set_up_nodes(self, NUMCLIENTS=5):
         self.numclients = NUMCLIENTS
-        if not os.path.isdir("queen"):
-            os.mkdir("queen")
-        self.queen = self.add_service(queen.Queen(basedir="queen"))
+        queendir = self.getdir("queen")
+        if not os.path.isdir(queendir):
+            fileutil.make_dirs(queendir)
+        self.queen = self.add_service(queen.Queen(basedir=queendir))
         d = self.queen.when_tub_ready()
         d.addCallback(self._set_up_nodes_2)
         return d
@@ -39,9 +50,9 @@ class SystemTest(unittest.TestCase):
         self.vdrive_furl = q.urls["vdrive"]
         self.clients = []
         for i in range(self.numclients):
-            basedir = "client%d" % i
+            basedir = self.getdir("client%d" % i)
             if not os.path.isdir(basedir):
-                os.mkdir(basedir)
+                fileutil.make_dirs(basedir)
             if i == 0:
                 open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
             open(os.path.join(basedir, "introducer.furl"), "w").write(self.queen_furl)
@@ -61,9 +72,9 @@ class SystemTest(unittest.TestCase):
     def add_extra_node(self, client_num):
         # this node is *not* parented to our self.sparent, so we can shut it
         # down separately from the rest, to exercise the connection-lost code
-        basedir = "client%d" % client_num
+        basedir = self.getdir("client%d" % client_num)
         if not os.path.isdir(basedir):
-            os.mkdir(basedir)
+            fileutil.make_dirs(basedir)
         open(os.path.join(basedir, "introducer.furl"), "w").write(self.queen_furl)
         open(os.path.join(basedir, "vdrive.furl"), "w").write(self.vdrive_furl)
 
@@ -86,6 +97,7 @@ class SystemTest(unittest.TestCase):
         return defer.succeed(None)
 
     def test_connections(self):
+        self.basedir = "test_system/SystemTest/test_connections"
         d = self.set_up_nodes()
         self.extra_node = None
         d.addCallback(lambda res: self.add_extra_node(5))
@@ -100,8 +112,10 @@ class SystemTest(unittest.TestCase):
             return res
         d.addBoth(_shutdown_extra_node)
         return d
+    test_connections.timeout = 300
 
     def test_upload_and_download(self):
+        self.basedir = "test_system/SystemTest/test_upload_and_download"
         DATA = "Some data to upload\n"
         d = self.set_up_nodes()
         def _do_upload(res):
@@ -121,8 +135,10 @@ class SystemTest(unittest.TestCase):
             self.failUnlessEqual(data, DATA)
         d.addCallback(_download_done)
         return d
+    test_upload_and_download.timeout = 300
 
     def test_vdrive(self):
+        self.basedir = "test_system/SystemTest/test_vdrive"
         self.data = DATA = "Some data to publish to the virtual drive\n"
         d = self.set_up_nodes()
         def _do_publish(res):
@@ -145,6 +161,7 @@ class SystemTest(unittest.TestCase):
         d.addCallback(_get_done)
         d.addCallback(self._test_web)
         return d
+    test_vdrive.timeout = 300
 
     def _test_web(self, res):
         base = self.webish_url
