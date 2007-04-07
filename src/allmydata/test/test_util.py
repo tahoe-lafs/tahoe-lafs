@@ -46,7 +46,9 @@ class HumanReadable(unittest.TestCase):
         try:
             raise RuntimeError("oops")
         except Exception, e:
-            self.failUnlessEqual(hr(e), "<RuntimeError: 'oops'>")
+            self.failUnless(
+                hr(e) == "<RuntimeError: 'oops'>" # python-2.4
+                or hr(e) == "<RuntimeError('oops',)") # python-2.5
         try:
             raise NoArgumentException
         except Exception, e:
