@@ -63,7 +63,7 @@ setup(name='pyfec',
       url='http://zooko.com/repos/pyfec',
       license='GNU GPL',
       platform='Any',
-      packages=['fec'],
+      packages=['fec', 'fec.test'],
       classifiers=trove_classifiers,
       ext_modules=[Extension('_fec', ['fec/fec.c', 'fec/_fecmodule.c',], extra_link_args=extra_link_args, extra_compile_args=extra_compile_args, undef_macros=undef_macros),],
       )

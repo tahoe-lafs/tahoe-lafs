@@ -91,12 +91,13 @@ def _test_random():
     ss = [ randstr(l/k) for x in range(k) ]
     _h(k, m, ss)
 
-def test_random():
+def test_random(noisy=True):
     for i in range(2**5):
         # sys.stdout.write(",")
         _test_random()
         # sys.stdout.write(".")
-    print "%d randomized tests pass." % (i+1)
+    if noisy:
+        print "%d randomized tests pass." % (i+1)
 
 def test_bad_args_enc():
     encer = fec.Encoder(2, 4)
@@ -137,7 +138,19 @@ def test_bad_args_dec():
         assert "Second argument was not a sequence" in str(e), e
     else:
         raise "Should have gotten TypeError for wrong type of second argument."
-    
+
+try:
+    from twisted.trial import unittest
+    class TestPyFec(unittest.TestCase):
+        def test_random(self):
+            test_random(False)
+        def test_bad_args_enc(self):
+            test_bad_args_enc()
+        def test_bad_args_dec(self):
+            test_bad_args_dec()
+except ImportError:
+    # trial is unavailable, oh well
+    pass
 
 if __name__ == "__main__":
     test_bad_args_dec()
