@@ -48,11 +48,13 @@ class HumanReadable(unittest.TestCase):
         except Exception, e:
             self.failUnless(
                 hr(e) == "<RuntimeError: 'oops'>" # python-2.4
-                or hr(e) == "<RuntimeError('oops',)") # python-2.5
+                or hr(e) == "RuntimeError('oops',)") # python-2.5
         try:
             raise NoArgumentException
         except Exception, e:
-            self.failUnlessEqual(hr(e), "<NoArgumentException>")
+            self.failUnless(
+                hr(e) == "<NoArgumentException>" # python-2.4
+                or hr(e) == "NoArgumentException()") # python-2.5
 
 
 class MyList(list):
