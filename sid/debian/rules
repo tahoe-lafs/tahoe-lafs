@@ -14,8 +14,5 @@ build/allmydata-tahoe::
 	cd src/Crypto && python2.4 setup.py install --prefix=$(PREFIX)
 	python2.4 setup.py install --prefix=$(PREFIX)
 
-install/allmydata-tahoe::
-	dh_installdocs client.tac queen.tac
-
 clean::
 	-rm -rf build

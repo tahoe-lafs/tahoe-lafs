@@ -42,7 +42,7 @@ install: build
 binary-indep: build install
 	dh_testdir
 	dh_testroot
-	dh_installdocs -i client.tac queen.tac
+	dh_installdocs -i
 	dh_installchangelogs -i
 	dh_compress -i -X.py
 	dh_fixperms
