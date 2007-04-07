@@ -108,12 +108,6 @@ class CRSDecoder(object):
         self.num_chunks = mathutil.div_ceil(self.data_size, self.chunk_size)
         self.share_size = self.num_chunks
         self.decoder = fec.Decoder(self.required_shares, self.max_shares)
-        if False:
-            print "chunk_size: %d" % self.chunk_size
-            print "num_chunks: %d" % self.num_chunks
-            print "share_size: %d" % self.share_size
-            print "max_shares: %d" % self.max_shares
-            print "required_shares: %d" % self.required_shares
 
     def get_needed_shares(self):
         return self.required_shares
