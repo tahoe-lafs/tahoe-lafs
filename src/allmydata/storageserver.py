@@ -51,7 +51,7 @@ class BucketWriter(Referenceable):
 
     def remote_put_share_hashes(self, sharehashes):
         precondition(not self.closed)
-        self._write_file('sharehashree', bencode.bencode(sharehashes))
+        self._write_file('sharehashes', bencode.bencode(sharehashes))
 
     def remote_close(self):
         precondition(not self.closed)
@@ -89,8 +89,11 @@ class BucketReader(Referenceable):
         return str2l(self._read_file('blockhashes'))
 
     def remote_get_share_hashes(self):
-        return bencode.bdecode(self._read_file('sharehashes'))
-   
+        hashes = bencode.bdecode(self._read_file('sharehashes'))
+        # tuples come through bdecode(bencode()) as lists, which violates the
+        # schema
+        return [tuple(i) for i in hashes]
+
 class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer)
     name = 'storageserver'
