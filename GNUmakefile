@@ -64,7 +64,7 @@ run-client3:
 	cd client-basedir3 && PYTHONPATH=.. twistd -noy ../client.tac
 
 
-TEST=allmydata
+TEST=allmydata fec
 REPORTER=
 
 # use 'make test REPORTER=--reporter=bwverbose' from buildbot, to supress the
