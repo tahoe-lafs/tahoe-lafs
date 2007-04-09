@@ -39,6 +39,8 @@ typedef int Py_ssize_t;
 
 #include "fec.h"
 
+#include "stdarg.h"
+
 static PyObject *py_fec_error;
 static PyObject *py_raise_fec_error (const char *format, ...);
 
