@@ -15,9 +15,9 @@ installed to the 'pyfec' package and located in src/pyfec/ .
 
 DEPENDENCIES:
 
- Python 2.4 or newer (tested against both 2.4 and 2.5)
+ * Python 2.4 or newer (tested against both 2.4 and 2.5)
   http://python.org/
- Twisted (probably 2.4.0 or newer)
+ * Twisted (tested against both 2.4 and 2.5)
   http://twistedmatrix.com/
   The default subpackages should all be included by default, but in
     case they aren't they are the following:
@@ -25,26 +25,28 @@ DEPENDENCIES:
    * web, trial, conch
   Note that Twisted requires zope.interface, and that the standard
   batteries-included Twisted distribution includes a copy.
- Foolscap (0.1.2 or newer)
+ * Foolscap (0.1.2 or newer)
   - note: since the Foolscap wire protocol is not yet compatible from one
     release to the next, make sure all of your nodes are using the same
     version of Foolscap
   http://twistedmatrix.com/trac/wiki/FoolsCap
- Nevow (probably 0.9.0 or later)
+ * Nevow (probably 0.9.0 or later)
   http://divmod.org/trac/wiki/DivmodNevow
- PyOpenSSL (0.6 or later)
+ * PyOpenSSL (0.6 or later)
   http://pyopenssl.sourceforge.net
 
- a C compiler (if building on Windows, cygwin gcc with mingw32 support)
-  http://gcc.gnu.org/
-  http://www.cygwin.com/
- GNU make
+ * a C compiler
+ * GNU make
 
 BUILDING:
 
  Just type 'make'. This works on Windows too, provided that you have the 
- dependencies mentioned above.  If the desired version of 'python' is not 
- already on your PATH, then type 'make PYTHON=/path/to/your/preferred/python'.
+ dependencies mentioned above (either a normal cygwin build or a mingw-style
+ native build is supported by the makefile -- the cygwin build is the
+ default).
+
+ If the desired version of 'python' is not already on your PATH, then type
+ 'make PYTHON=/path/to/your/preferred/python'.
 
  'make test' runs the unit test suite.
 
