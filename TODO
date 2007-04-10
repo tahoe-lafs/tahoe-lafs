@@ -1,3 +1,4 @@
+* port to Windows
 * extirpate all references to "queen" or "metatracker"
 * set up public trac, buildbot reports, mailing list, download page
 * write announcement
