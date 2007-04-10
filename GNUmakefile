@@ -3,31 +3,45 @@ default: build
 BASE=$(shell pwd)
 PYTHON=python
 INSTDIR=$(BASE)/instdir
+PATHSEP=$(shell python -c 'import os ; print os.pathsep')
+TRIALPATH=$(shell which trial.py)
+ifeq ($(TRIALPATH),)
+TRIALPATH=$(shell which trial)
+endif
 
-UNAME=$(shell uname)
-ifeq ($(findstring CYGWIN,$(UNAME)),CYGWIN)
-EXTRA_SETUP_ARGS=build -c mingw32
-PATHDIR := $(shell cygpath -m $(INSTDIR))
-INSTDIR := $(shell cygpath -w $(INSTDIR))
-TRIAL=$(PYTHON) `cygpath -m \`type -p trial\` `
-ifneq ($(PYTHONPATH),)
-PYTHONPATH := $(shell cygpath -m $(PYTHONPATH))
-endif
-else
 EXTRA_SETUP_ARGS=
-PATHDIR := $(INSTDIR)
-TRIAL=trial
+REACTOR=poll
+
+PLAT = $(strip $(shell python -c "import sys ; print sys.platform"))
+ifeq ($(PLAT),cygwin)
+ # The platform is Windows with cygwin build tools and the cygwin Python interpreter.
+ INSTDIR := $(shell cygpath -u $(INSTDIR))
+else
+ ifeq ($(PLAT),win32)
+  # The platform is Windows with cygwin build tools and the native Python interpreter.
+  EXTRA_SETUP_ARGS=build -c mingw32
+  REACTOR=iocp
+  INSTDIR := $(shell cygpath -w $(INSTDIR))
+  TRIALPATH := $(shell cygpath -w $(TRIALPATH))
+  ifneq ($(PYTHONPATH),)
+   PYTHONPATH := $(shell cygpath -w $(PYTHONPATH))
+  endif
+ endif
 endif
+
+ifneq ($(PYTHONPATH),)
+PYTHONPATH := "$(PYTHONPATH)$(PATHSEP)$(INSTDIR)"
+else
+PYTHONPATH := "$(INSTDIR)"
+endif
+
+TRIAL=$(PYTHON) -u "$(TRIALPATH)" --reactor=$(REACTOR)
+# $(error $(TRIAL))
 
 show-instdir:
 	@echo $(INSTDIR)
 
-PATHSEP=$(shell python -c 'import os; print os.pathsep')
-ifneq ($(PYTHONPATH),)
-PP=PYTHONPATH=$(PYTHONPATH)$(PATHSEP)$(PATHDIR)
-else
-PP=PYTHONPATH=$(PATHDIR)
-endif
+PP=PYTHONPATH=$(PYTHONPATH)
 
 .PHONY: build
 build: build-pyfec build-Crypto
@@ -63,8 +77,9 @@ run-client2:
 run-client3:
 	cd client-basedir3 && PYTHONPATH=.. twistd -noy ../client.tac
 
-
+ifeq ($(TEST),)
 TEST=allmydata fec
+endif
 REPORTER=
 
 # use 'make test REPORTER=--reporter=bwverbose' from buildbot, to supress the
