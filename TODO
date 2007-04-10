@@ -1,8 +1,0 @@
-* port to Windows
-* extirpate all references to "queen" or "metatracker"
-* set up public trac, buildbot reports, mailing list, download page
-* write announcement
-
-* encryption
-* checking hashes
-* make minimal uri by deterministic derivation of some stuff other than crypto bits and filesize

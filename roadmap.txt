@@ -66,10 +66,12 @@ UI:
  v3.5: XUIL?
  v4: FUSE
 
-Operations/Deployment:
- v1: doc how to set up a network (introducer, vdrive server, nodes)
- v2: Windows port and testing
- v3: Trac instance
+Operations/Deployment/Doc/Free Software/Community:
+ * Windows port and testing (iputil)
+ * Trac instance
+ * extirpate all references to "queen" and "metatracker"
+ * set up public trac, buildbot reports, mailing list, download page
+ * write announcement
 
 back pocket ideas:
  when nodes are unable to reach storage servers, make a note of it, inform
