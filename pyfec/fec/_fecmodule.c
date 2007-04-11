@@ -71,8 +71,8 @@ typedef struct {
     PyObject_HEAD
 
     /* expose these */
-    int kk;
-    int mm;
+    unsigned short kk;
+    unsigned short mm;
 
     /* internal */
     fec_t* fec_matrix;
@@ -111,16 +111,16 @@ Encoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
         py_raise_fec_error("Precondition violation: second argument is required to be greater than or equal to 1, but it was %d", self->mm);
 	return -1;
     }
-    if (self->mm > 255) {
-        py_raise_fec_error("Precondition violation: second argument is required to be less than or equal to 255, but it was %d", self->mm);
+    if (inm > 256) {
+        py_raise_fec_error("Precondition violation: second argument is required to be less than or equal to 256, but it was %d", self->mm);
 	return -1;
     }
     if (ink > inm) {
         py_raise_fec_error("Precondition violation: first argument is required to be less than or equal to the second argument, but they were %d and %d respectively", ink, inm);
 	return -1;
     }
-    self->kk = (unsigned char)ink;
-    self->mm = (unsigned char)inm;
+    self->kk = (unsigned short)ink;
+    self->mm = (unsigned short)inm;
     self->fec_matrix = fec_new(self->kk, self->mm);
 
     return 0;
@@ -326,8 +326,8 @@ typedef struct {
     PyObject_HEAD
 
     /* expose these */
-    int kk;
-    int mm;
+    unsigned short kk;
+    unsigned short mm;
 
     /* internal */
     fec_t* fec_matrix;
@@ -367,16 +367,16 @@ Decoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
         py_raise_fec_error("Precondition violation: second argument is required to be greater than or equal to 1, but it was %d", self->mm);
 	return -1;
     }
-    if (self->mm > 255) {
-        py_raise_fec_error("Precondition violation: second argument is required to be less than or equal to 255, but it was %d", self->mm);
+    if (inm > 256) {
+        py_raise_fec_error("Precondition violation: second argument is required to be less than or equal to 256, but it was %d", self->mm);
 	return -1;
     }
     if (ink > inm) {
         py_raise_fec_error("Precondition violation: first argument is required to be less than or equal to the second argument, but they were %d and %d respectively", ink, inm);
 	return -1;
     }
-    self->kk = (unsigned char)ink;
-    self->mm = (unsigned char)inm;
+    self->kk = (unsigned short)ink;
+    self->mm = (unsigned short)inm;
     self->fec_matrix = fec_new(self->kk, self->mm);
 
     return 0;

@@ -434,14 +434,14 @@ _invert_mat(gf* src, unsigned k) {
  * p = coefficients of the matrix (p_i)
  * q = values of the polynomial (known)
  */
-int
-_invert_vdm (gf * src, int k) {
-    int i, j, row, col;
+void
+_invert_vdm (gf* src, unsigned k) {
+    unsigned i, j, row, col;
     gf *b, *c, *p;
     gf t, xx;
 
     if (k == 1)                   /* degenerate case, matrix must be p^0 = 1 */
-        return 0;
+        return;
     /*
      * c holds the coefficient of P(x) = Prod (x - p_i), i=0..k-1
      * b holds the coefficient for the matrix inversion
@@ -486,7 +486,7 @@ _invert_vdm (gf * src, int k) {
     free (c);
     free (b);
     free (p);
-    return 0;
+    return;
 }
 
 static int fec_initialized = 0;
