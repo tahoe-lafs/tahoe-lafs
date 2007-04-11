@@ -4,7 +4,7 @@ BASE=$(shell pwd)
 PYTHON=python
 INSTDIR=$(BASE)/instdir
 PATHSEP=$(shell python -c 'import os ; print os.pathsep')
-TRIALPATH=$(shell which trial.py)
+TRIALPATH=$(shell which trial.py 2>/dev/null)
 ifeq ($(TRIALPATH),)
 TRIALPATH=$(shell which trial)
 endif
