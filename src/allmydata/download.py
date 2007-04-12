@@ -5,7 +5,7 @@ from twisted.python import log
 from twisted.internet import defer
 from twisted.application import service
 
-from allmydata.util import idlib, mathutil
+from allmydata.util import idlib, mathutil, hashutil
 from allmydata.util.assertutil import _assert
 from allmydata import codec, chunk
 from allmydata.Crypto.Cipher import AES
@@ -47,15 +47,59 @@ class Output:
     def finish(self):
         return self.downloadable.finish()
 
+class ValidatedBucket:
+    def __init__(self, sharenum, bucket, share_hash_tree, num_blocks):
+        self.sharenum = sharenum
+        self.bucket = bucket
+        self.share_hash_tree = share_hash_tree
+        self.block_hash_tree = chunk.IncompleteHashTree(num_blocks)
+
+    def get_block(self, blocknum):
+        d1 = self.bucket.callRemote('get_block', blocknum)
+        # we might also need to grab some elements of our block hash tree, to
+        # validate the requested block up to the share hash
+        if self.block_hash_tree.needed_hashes(leaves=[blocknum]):
+            d2 = self.bucket.callRemote('get_block_hashes')
+        else:
+            d2 = defer.succeed(None)
+        # we might need to grab some elements of the share hash tree to
+        # validate from our share hash up to the hashroot
+        if self.share_hash_tree.needed_hashes(leaves=[self.sharenum]):
+            d3 = self.bucket.callRemote('get_share_hashes')
+        else:
+            d3 = defer.succeed(None)
+        d = defer.gatherResults([d1, d2, d3])
+        d.addCallback(self._got_data, blocknum)
+        return d
+
+    def _got_data(self, res, blocknum):
+        blockdata, blockhashes, sharehashes = res
+        blockhash = hashutil.tagged_hash("encoded subshare", blockdata)
+        if blockhashes:
+            bh = dict(enumerate(blockhashes))
+            self.block_hash_tree.set_hashes(bh, {blocknum: blockhash},
+                                            must_validate=True)
+        if sharehashes:
+            sh = dict(sharehashes)
+            sharehash = self.block_hash_tree[0]
+            self.share_hash_tree.set_hashes(sh, {self.sharenum: sharehash},
+                                            must_validate=True)
+        # If we made it here, the block is good. If the hash trees didn't
+        # like what they saw, they would have raised a BadHashError, causing
+        # our caller to see a Failure and thus ignore this block (as well as
+        # dropping this bucket).
+        return blockdata
+
+
 
 class BlockDownloader:
-    def __init__(self, bucket, blocknum, parent):
-        self.bucket = bucket
+    def __init__(self, vbucket, blocknum, parent):
+        self.vbucket = vbucket
         self.blocknum = blocknum
         self.parent = parent
         
     def start(self, segnum):
-        d = self.bucket.callRemote('get_block', segnum)
+        d = self.vbucket.get_block(segnum)
         d.addCallbacks(self._hold_block, self._got_block_error)
         return d
 
@@ -64,7 +108,7 @@ class BlockDownloader:
 
     def _got_block_error(self, f):
         log.msg("BlockDownloader[%d] got error: %s" % (self.blocknum, f))
-        self.parent.bucket_failed(self.blocknum, self.bucket)
+        self.parent.bucket_failed(self.blocknum, self.vbucket)
 
 class SegmentDownloader:
     def __init__(self, parent, segmentnumber, needed_shares):
@@ -94,86 +138,34 @@ class SegmentDownloader:
         return d
 
     def _try(self):
-        while len(self.parent.active_buckets) < self.needed_blocks:
-            # need some more
-            otherblocknums = list(set(self.parent._share_buckets.keys()) - set(self.parent.active_buckets.keys()))
-            if not otherblocknums:
-                raise NotEnoughPeersError
-            blocknum = random.choice(otherblocknums)
-            bucket = random.choice(list(self.parent._share_buckets[blocknum]))
-            self.parent.active_buckets[blocknum] = bucket
-
+        # fill our set of active buckets, maybe raising NotEnoughPeersError
+        active_buckets = self.parent._activate_enough_buckets()
         # Now we have enough buckets, in self.parent.active_buckets.
 
-        # before we get any blocks of a given share, we need to be able to
-        # validate that block and that share. Check to see if we have enough
-        # hashes. If we don't, grab them before continuing.
-        d = self._grab_needed_hashes()
-        d.addCallback(self._download_some_blocks)
-        return d
-
-    def _grab_needed_hashes(self):
-        # each bucket is holding the hashes necessary to validate their
-        # share. So it suffices to ask everybody for all the hashes they know
-        # about. Eventually we'll have all that we need, so we can stop
-        # asking.
-
-        # for each active share, see what hashes we need
-        ht = self.parent.get_share_hashtree()
-        needed_hashes = set()
-        for shnum in self.parent.active_buckets:
-            needed_hashes.update(ht.needed_hashes(shnum))
-        if not needed_hashes:
-            return defer.succeed(None)
-
-        # for now, just ask everybody for everything
-        # TODO: send fewer queries
-        dl = []
-        for shnum, bucket in self.parent.active_buckets.iteritems():
-            d = bucket.callRemote("get_share_hashes")
-            d.addCallback(self._got_share_hashes, shnum, bucket)
-            dl.append(d)
-        d.addCallback(self._validate_root)
-        return defer.DeferredList(dl)
-
-    def _got_share_hashes(self, share_hashes, shnum, bucket):
-        ht = self.parent.get_share_hashtree()
-        for hashnum, sharehash in share_hashes:
-            # TODO: we're accumulating these hashes blindly, since we only
-            # validate the leaves. This makes it possible for someone to
-            # frame another server by giving us bad internal hashes. We pass
-            # 'shnum' and 'bucket' in so that if we detected problems with
-            # intermediate nodes, we could associate the error with the
-            # bucket and stop using them.
-            ht.set_hash(hashnum, sharehash)
-
-    def _validate_root(self, res):
-        # TODO: I dunno, check that the hash tree looks good so far and that
-        # it adds up to the root. The idea is to reject any bad buckets
-        # early.
-        pass
-
-    def _download_some_blocks(self, res):
         # in test cases, bd.start might mutate active_buckets right away, so
         # we need to put off calling start() until we've iterated all the way
-        # through it
+        # through it.
         downloaders = []
-        for blocknum, bucket in self.parent.active_buckets.iteritems():
-            bd = BlockDownloader(bucket, blocknum, self)
+        for blocknum, vbucket in active_buckets.iteritems():
+            bd = BlockDownloader(vbucket, blocknum, self)
             downloaders.append(bd)
         l = [bd.start(self.segmentnumber) for bd in downloaders]
-        return defer.DeferredList(l)
+        return defer.DeferredList(l, fireOnOneErrback=True)
 
     def hold_block(self, blocknum, data):
         self.blocks[blocknum] = data
 
-    def bucket_failed(self, shnum, bucket):
+    def bucket_failed(self, shnum, vbucket):
         del self.parent.active_buckets[shnum]
         s = self.parent._share_buckets[shnum]
-        s.remove(bucket)
+        # s is a set of ValidatedBucket instances
+        s.remove(vbucket)
+        # ... which might now be empty
         if not s:
+            # there are no more buckets which can provide this share, so
+            # remove the key. This may prompt us to use a different share.
             del self.parent._share_buckets[shnum]
-        
+
 class FileDownloader:
     debug = False
 
@@ -201,30 +193,21 @@ class FileDownloader:
         key = "\x00" * 16
         self._output = Output(downloadable, key)
 
-        # future:
-        # each time we start using a new shnum, we must acquire a share hash
-        # from one of the buckets that provides that shnum, then validate it
-        # against the rest of the share hash tree that they provide. Then,
-        # each time we get a block in that share, we must validate the block
-        # against the rest of the subshare hash tree that that bucket will
-        # provide.
-
         self._share_hashtree = chunk.IncompleteHashTree(total_shares)
-        #self._block_hashtrees = {} # k: shnum, v: hashtree
+        self._share_hashtree.set_hashes({0: roothash})
 
-    def get_share_hashtree(self):
-        return self._share_hashtree
+        self.active_buckets = {} # k: shnum, v: bucket
+        self._share_buckets = {} # k: shnum, v: set of buckets
 
     def start(self):
         log.msg("starting download [%s]" % (idlib.b2a(self._verifierid),))
         if self.debug:
             print "starting download"
-        # first step: who should we download from?
-        self.active_buckets = {} # k: shnum, v: bucket
-        self._share_buckets = {} # k: shnum, v: set of buckets
 
+        # first step: who should we download from?
         d = defer.maybeDeferred(self._get_all_shareholders)
         d.addCallback(self._got_all_shareholders)
+        # once we know that, we can download blocks from them
         d.addCallback(self._download_all_segments)
         d.addCallback(self._done)
         return d
@@ -243,19 +226,55 @@ class FileDownloader:
     def _got_response(self, buckets, connection):
         _assert(isinstance(buckets, dict), buckets) # soon foolscap will check this for us with its DictOf schema constraint
         for sharenum, bucket in buckets.iteritems():
-            self._share_buckets.setdefault(sharenum, set()).add(bucket)
-        
+            self.add_share_bucket(sharenum, bucket)
+
+    def add_share_bucket(self, sharenum, bucket):
+        vbucket = ValidatedBucket(sharenum, bucket,
+                                  self._share_hashtree,
+                                  self._total_segments)
+        self._share_buckets.setdefault(sharenum, set()).add(vbucket)
+
     def _got_error(self, f):
         self._client.log("Somebody failed. -- %s" % (f,))
 
     def _got_all_shareholders(self, res):
         if len(self._share_buckets) < self._num_needed_shares:
             raise NotEnoughPeersError
+        for s in self._share_buckets.values():
+            for vb in s:
+                assert isinstance(vb, ValidatedBucket), \
+                       "vb is %s but should be a ValidatedBucket" % (vb,)
 
-        self.active_buckets = {}
-        self._output.open()
+
+    def _activate_enough_buckets(self):
+        """either return a mapping from shnum to a ValidatedBucket that can
+        provide data for that share, or raise NotEnoughPeersError"""
+
+        while len(self.active_buckets) < self._num_needed_shares:
+            # need some more
+            handled_shnums = set(self.active_buckets.keys())
+            available_shnums = set(self._share_buckets.keys())
+            potential_shnums = list(available_shnums - handled_shnums)
+            if not potential_shnums:
+                raise NotEnoughPeersError
+            # choose a random share
+            shnum = random.choice(potential_shnums)
+            # and a random bucket that will provide it
+            validated_bucket = random.choice(list(self._share_buckets[shnum]))
+            self.active_buckets[shnum] = validated_bucket
+        return self.active_buckets
+
 
     def _download_all_segments(self, res):
+        # the promise: upon entry to this function, self._share_buckets
+        # contains enough buckets to complete the download, and some extra
+        # ones to tolerate some buckets dropping out or having errors.
+        # self._share_buckets is a dictionary that maps from shnum to a set
+        # of ValidatedBuckets, which themselves are wrappers around
+        # RIBucketReader references.
+        self.active_buckets = {} # k: shnum, v: ValidatedBucket instance
+        self._output.open()
+
         d = defer.succeed(None)
         for segnum in range(self._total_segments-1):
             d.addCallback(self._download_segment, segnum)

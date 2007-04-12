@@ -48,6 +48,7 @@ or implied.  It probably won't make your computer catch on fire,
 or eat  your children, but it might.  Use at your own risk.
 """
 
+from allmydata.util import idlib
 from allmydata.util.hashutil import tagged_hash, tagged_pair_hash
 
 __version__ = '1.0.0-allmydata'
@@ -133,6 +134,25 @@ class CompleteBinaryTreeMixin:
       needed.append(self.sibling(here))
       here = self.parent(here)
     return needed
+
+  def depth_first(self, i=0):
+    yield i, 0
+    try:
+      for child,childdepth in self.depth_first(self.lchild(i)):
+        yield child, childdepth+1
+    except IndexError:
+      pass
+    try:
+      for child,childdepth in self.depth_first(self.rchild(i)):
+        yield child, childdepth+1
+    except IndexError:
+      pass
+
+  def dump(self):
+    lines = []
+    for i,depth in self.depth_first():
+      lines.append("%s%3d: %s" % ("  "*depth, i, idlib.b2a_or_none(self[i])))
+    return "\n".join(lines) + "\n"
 
 def empty_leaf_hash(i):
   return tagged_hash('Merkle tree empty leaf', "%d" % i)
@@ -225,49 +245,136 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
     rows.reverse()
     self[:] = sum(rows, [])
 
-  def needed_hashes(self, leafnum):
-    hashnum = self.first_leaf_num + leafnum
-    maybe_needed = self.needed_for(hashnum)
-    maybe_needed += [0] # need the root too
+  def needed_hashes(self, hashes=[], leaves=[]):
+    hashnums = set(list(hashes))
+    for leafnum in leaves:
+      hashnums.add(self.first_leaf_num + leafnum)
+    maybe_needed = set()
+    for hashnum in hashnums:
+      maybe_needed.update(self.needed_for(hashnum))
+    maybe_needed.add(0) # need the root too
     return set([i for i in maybe_needed if self[i] is None])
 
-  def set_hash(self, i, newhash):
-    # note that we don't attempt to validate these
-    self[i] = newhash
 
-  def set_leaf(self, leafnum, leafhash):
-    hashnum = self.first_leaf_num + leafnum
-    needed = self.needed_hashes(leafnum)
-    if needed:
-      msg = "we need hashes " + ",".join([str(i) for i in needed])
-      raise NotEnoughHashesError(msg)
-    assert self[0] is not None # we can't validate without a root
+  def set_hashes(self, hashes={}, leaves={}, must_validate=False):
+    """Add a bunch of hashes to the tree.
+
+    I will validate these to the best of my ability. If I already have a copy
+    of any of the new hashes, the new values must equal the existing ones, or
+    I will raise BadHashError. If adding a hash allows me to compute a parent
+    hash, those parent hashes must match or I will raise BadHashError. If I
+    raise BadHashError, I will forget about all the hashes that you tried to
+    add, leaving my state exactly the same as before I was called. If I
+    return successfully, I will remember all those hashes.
+
+    If every hash that was added was validated, I will return True. If some
+    could not be validated because I did not have enough parent hashes, I
+    will return False. As a result, if I am called with both a leaf hash and
+    the root hash was already set, I will return True if and only if the leaf
+    hash could be validated against the root.
+
+    If must_validate is True, I will raise NotEnoughHashesError instead of
+    returning False. If I raise NotEnoughHashesError, I will forget about all
+    the hashes that you tried to add. TODO: really?
+
+    'leaves' is a dictionary uses 'leaf index' values, which range from 0
+    (the left-most leaf) to num_leaves-1 (the right-most leaf), and form the
+    base of the tree. 'hashes' uses 'hash_index' values, which range from 0
+    (the root of the tree) to 2*num_leaves-2 (the right-most leaf). leaf[i]
+    is the same as hash[num_leaves-1+i].
+
+    The best way to use me is to obtain the root hash from some 'good'
+    channel, then call set_hash(0, root). Then use the 'bad' channel to
+    obtain data block 0 and the corresponding hash chain (a dict with the
+    same hashes that needed_hashes(0) tells you, e.g. {0:h0, 2:h2, 4:h4,
+    8:h8} when len(L)=8). Hash the data block to create leaf0. Then call::
+
+     good = iht.set_hashes(hashes=hashchain, leaves={0: leaf0})
+
+    If 'good' is True, the data block was valid. If 'good' is False, the
+    hashchain did not have the right blocks and we don't know whether the
+    data block was good or bad. If set_hashes() raises an exception, either
+    the data was corrupted or one of the received hashes was corrupted.
+    """
+
+    assert isinstance(hashes, dict)
+    assert isinstance(leaves, dict)
+    new_hashes = hashes.copy()
+    for leafnum,leafhash in leaves.iteritems():
+      hashnum = self.first_leaf_num + leafnum
+      if hashnum in new_hashes:
+        assert new_hashes[hashnum] == leafhash
+      new_hashes[hashnum] = leafhash
+
     added = set() # we'll remove these if the check fails
-    self[hashnum] = leafhash
-    added.add(hashnum)
 
-    # now propagate hash checks upwards until we reach the root
-    here = hashnum
-    while here != 0:
-      us = [here, self.sibling(here)]
-      us.sort()
-      leftnum, rightnum = us
-      lefthash = self[leftnum]
-      righthash = self[rightnum]
-      parent = self.parent(here)
-      parenthash = self[parent]
+    try:
+      # first we provisionally add all hashes to the tree, comparing any
+      # duplicates
+      for i in new_hashes:
+        if self[i]:
+          if self[i] != new_hashes[i]:
+            raise BadHashError("new hash does not match existing hash at [%d]"
+                               % i)
+        else:
+          self[i] = new_hashes[i]
+          added.add(i)
 
-      ourhash = pair_hash(lefthash, righthash)
-      if parenthash is not None:
-        if ourhash != parenthash:
-          for i in added:
-            self[i] = None
-          raise BadHashError("h([%d]+[%d]) != h[%d]" % (leftnum, rightnum,
-                                                        parent))
-      else:
-        self[parent] = ourhash
-        added.add(parent)
-      here = self.parent(here)
+      # then we start from the bottom and compute new parent hashes upwards,
+      # comparing any that already exist. When this phase ends, all nodes
+      # that have a sibling will also have a parent.
 
-    return None
+      hashes_to_check = list(new_hashes.keys())
+      # leaf-most first means reverse sorted order
+      while hashes_to_check:
+        hashes_to_check.sort()
+        i = hashes_to_check.pop(-1)
+        if i == 0:
+          # The root has no sibling. How lonely.
+          continue
+        if self[self.sibling(i)] is None:
+          # without a sibling, we can't compute a parent
+          continue
+        parentnum = self.parent(i)
+        # make sure we know right from left
+        leftnum, rightnum = sorted([i, self.sibling(i)])
+        new_parent_hash = pair_hash(self[leftnum], self[rightnum])
+        if self[parentnum]:
+          if self[parentnum] != new_parent_hash:
+            raise BadHashError("h([%d]+[%d]) != h[%d]" % (leftnum, rightnum,
+                                                          parentnum))
+        else:
+          self[parentnum] = new_parent_hash
+          added.add(parentnum)
+          hashes_to_check.insert(0, parentnum)
+
+      # then we walk downwards from the top (root), and anything that is
+      # reachable is validated. If any of the hashes that we've added are
+      # unreachable, then they are unvalidated.
+
+      reachable = set()
+      if self[0]:
+        reachable.add(0)
+      # TODO: this could be done more efficiently, by starting from each
+      # element of new_hashes and walking upwards instead, remembering a set
+      # of validated nodes so that the searches for later new_hashes goes
+      # faster. This approach is O(n), whereas O(ln(n)) should be feasible.
+      for i in range(1, len(self)):
+        if self[i] and self.parent(i) in reachable:
+          reachable.add(i)
+
+      # were we unable to validate any of the new hashes?
+      unvalidated = set(new_hashes.keys()) - reachable
+      if unvalidated:
+        if must_validate:
+          those = ",".join([str(i) for i in sorted(unvalidated)])
+          raise NotEnoughHashesError("unable to validate hashes %s" % those)
+
+    except (BadHashError, NotEnoughHashesError):
+      for i in added:
+        self[i] = None
+      raise
+
+    # if there were hashes that could not be validated, we return False
+    return not unvalidated
 

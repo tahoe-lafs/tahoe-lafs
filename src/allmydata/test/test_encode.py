@@ -156,9 +156,9 @@ class Roundtrip(unittest.TestCase):
             client = None
             target = download.Data()
             fd = download.FileDownloader(client, URI, target)
-            fd._share_buckets = {}
             for shnum in range(NUM_SHARES):
-                fd._share_buckets[shnum] = set([all_shareholders[shnum]])
+                bucket = all_shareholders[shnum]
+                fd.add_share_bucket(shnum, bucket)
             fd._got_all_shareholders(None)
             d2 = fd._download_all_segments(None)
             d2.addCallback(fd._done)
