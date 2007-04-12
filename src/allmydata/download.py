@@ -66,20 +66,26 @@ class ValidatedBucket:
         # validate from our share hash up to the hashroot
         if self.share_hash_tree.needed_hashes(leaves=[self.sharenum]):
             d3 = self.bucket.callRemote('get_share_hashes')
+            need_to_validate_sharehash = True
         else:
             d3 = defer.succeed(None)
+            need_to_validate_sharehash = False
         d = defer.gatherResults([d1, d2, d3])
-        d.addCallback(self._got_data, blocknum)
+        d.addCallback(self._got_data, blocknum, need_to_validate_sharehash)
         return d
 
-    def _got_data(self, res, blocknum):
+    def _got_data(self, res, blocknum, need_to_validate_sharehash):
         blockdata, blockhashes, sharehashes = res
         blockhash = hashutil.tagged_hash("encoded subshare", blockdata)
-        if blockhashes:
-            bh = dict(enumerate(blockhashes))
-            self.block_hash_tree.set_hashes(bh, {blocknum: blockhash},
-                                            must_validate=True)
-        if sharehashes:
+        # we always validate the blockhash
+        if blockhashes is None:
+            blockhashes = []
+        bh = dict(enumerate(blockhashes))
+        self.block_hash_tree.set_hashes(bh, {blocknum: blockhash},
+                                        must_validate=True)
+        if need_to_validate_sharehash:
+            # we only need to validate the sharehash once, the first time we
+            # fetch a block
             sh = dict(sharehashes)
             sharehash = self.block_hash_tree[0]
             self.share_hash_tree.set_hashes(sh, {self.sharenum: sharehash},
