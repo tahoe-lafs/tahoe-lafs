@@ -3,7 +3,7 @@
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import log
-from allmydata.chunk import HashTree, roundup_pow2
+from allmydata.hashtree import HashTree, roundup_pow2
 from allmydata.Crypto.Cipher import AES
 from allmydata.util import mathutil, hashutil
 from allmydata.util.assertutil import _assert

@@ -3,13 +3,13 @@
 from twisted.trial import unittest
 
 from allmydata.util.hashutil import tagged_hash
-from allmydata import chunk
+from allmydata import hashtree
 
 
 def make_tree(numleaves):
     leaves = ["%d" % i for i in range(numleaves)]
     leaf_hashes = [tagged_hash("tag", leaf) for leaf in leaves]
-    ht = chunk.HashTree(leaf_hashes)
+    ht = hashtree.HashTree(leaf_hashes)
     return ht
 
 class Complete(unittest.TestCase):
@@ -43,7 +43,7 @@ class Incomplete(unittest.TestCase):
         # first create a complete hash tree
         ht = make_tree(6)
         # then create a corresponding incomplete tree
-        iht = chunk.IncompleteHashTree(6)
+        iht = hashtree.IncompleteHashTree(6)
 
         # suppose we wanted to validate leaf[0]
         #  leaf[0] is the same as node[7]
@@ -61,7 +61,7 @@ class Incomplete(unittest.TestCase):
             # this should fail because there aren't enough hashes known
             iht.set_hashes(leaves={0: tagged_hash("tag", "0")},
                            must_validate=True)
-        except chunk.NotEnoughHashesError:
+        except hashtree.NotEnoughHashesError:
             pass
         else:
             self.fail("didn't catch not enough hashes")
@@ -76,7 +76,7 @@ class Incomplete(unittest.TestCase):
         try:
             # this should fail because the hash is just plain wrong
             iht.set_hashes(leaves={0: tagged_hash("bad tag", "0")})
-        except chunk.BadHashError:
+        except hashtree.BadHashError:
             pass
         else:
             self.fail("didn't catch bad hash")
@@ -84,20 +84,20 @@ class Incomplete(unittest.TestCase):
         try:
             # this should succeed
             iht.set_hashes(leaves={0: tagged_hash("tag", "0")})
-        except chunk.BadHashError, e:
+        except hashtree.BadHashError, e:
             self.fail("bad hash: %s" % e)
 
         try:
             # this should succeed too
             iht.set_hashes(leaves={1: tagged_hash("tag", "1")})
-        except chunk.BadHashError:
+        except hashtree.BadHashError:
             self.fail("bad hash")
 
         # giving it a bad internal hash should also cause problems
         iht.set_hashes({13: tagged_hash("bad tag", "x")})
         try:
             iht.set_hashes({14: tagged_hash("tag", "14")})
-        except chunk.BadHashError:
+        except hashtree.BadHashError:
             pass
         else:
             self.fail("didn't catch bad hash")
@@ -110,6 +110,6 @@ class Incomplete(unittest.TestCase):
         try:
             # this should succeed
             iht.set_hashes(leaves={4: tagged_hash("tag", "4")})
-        except chunk.BadHashError, e:
+        except hashtree.BadHashError, e:
             self.fail("bad hash: %s" % e)
 

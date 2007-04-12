@@ -7,7 +7,7 @@ from twisted.application import service
 
 from allmydata.util import idlib, mathutil, hashutil
 from allmydata.util.assertutil import _assert
-from allmydata import codec, chunk
+from allmydata import codec, hashtree
 from allmydata.Crypto.Cipher import AES
 from allmydata.uri import unpack_uri
 from allmydata.interfaces import IDownloadTarget, IDownloader
@@ -52,7 +52,7 @@ class ValidatedBucket:
         self.sharenum = sharenum
         self.bucket = bucket
         self.share_hash_tree = share_hash_tree
-        self.block_hash_tree = chunk.IncompleteHashTree(num_blocks)
+        self.block_hash_tree = hashtree.IncompleteHashTree(num_blocks)
 
     def get_block(self, blocknum):
         d1 = self.bucket.callRemote('get_block', blocknum)
@@ -193,7 +193,7 @@ class FileDownloader:
         key = "\x00" * 16
         self._output = Output(downloadable, key)
 
-        self._share_hashtree = chunk.IncompleteHashTree(total_shares)
+        self._share_hashtree = hashtree.IncompleteHashTree(total_shares)
         self._share_hashtree.set_hashes({0: roothash})
 
         self.active_buckets = {} # k: shnum, v: bucket
