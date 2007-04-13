@@ -23,6 +23,8 @@ class Complete(unittest.TestCase):
         self.failUnlessEqual(ht.get_leaf(0), tagged_hash("tag", "0"))
         self.failUnlessRaises(IndexError, ht.get_leaf, 8)
         self.failUnlessEqual(ht.get_leaf_index(0), 7)
+        self.failUnlessRaises(IndexError, ht.parent, 0)
+        self.failUnlessRaises(IndexError, ht.needed_for, -1)
 
     def test_needed_hashes(self):
         ht = make_tree(8)
@@ -82,8 +84,8 @@ class Incomplete(unittest.TestCase):
         iht = hashtree.IncompleteHashTree(6)
 
         current_hashes = list(iht)
+        # this should fail because there aren't enough hashes known
         try:
-            # this should fail because there aren't enough hashes known
             iht.set_hashes(leaves={0: tagged_hash("tag", "0")})
         except hashtree.NotEnoughHashesError:
             pass
@@ -96,9 +98,18 @@ class Incomplete(unittest.TestCase):
         self.failUnlessEqual(iht.needed_hashes(0), set([8, 4, 2]))
 
         chain = {0: ht[0], 2: ht[2], 4: ht[4], 8: ht[8]}
+        # this should fail because the leaf hash is just plain wrong
         try:
-            # this should fail because the leaf hash is just plain wrong
             iht.set_hashes(chain, leaves={0: tagged_hash("bad tag", "0")})
+        except hashtree.BadHashError:
+            pass
+        else:
+            self.fail("didn't catch bad hash")
+
+        # this should fail because we give it conflicting hashes: one as an
+        # internal node, another as a leaf
+        try:
+            iht.set_hashes(chain, leaves={1: tagged_hash("bad tag", "1")})
         except hashtree.BadHashError:
             pass
         else:
@@ -129,6 +140,15 @@ class Incomplete(unittest.TestCase):
             iht.set_hashes(leaves={1: tagged_hash("tag", "1")})
         except hashtree.BadHashError:
             self.fail("bad hash")
+
+        # this should fail because we give it hashes that conflict with some
+        # that we added successfully before
+        try:
+            iht.set_hashes(leaves={1: tagged_hash("bad tag", "1")})
+        except hashtree.BadHashError:
+            pass
+        else:
+            self.fail("didn't catch bad hash")
 
         # now that leaves 0 and 1 are known, some of the internal nodes are
         # known
