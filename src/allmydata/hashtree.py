@@ -156,6 +156,12 @@ class CompleteBinaryTreeMixin:
                                         idlib.b2a_or_none(self[i])))
         return "\n".join(lines) + "\n"
 
+    def get_leaf_index(self, leafnum):
+        return self.first_leaf_num + leafnum
+
+    def get_leaf(self, leafnum):
+        return self[self.first_leaf_num + leafnum]
+
 def empty_leaf_hash(i):
     return tagged_hash('Merkle tree empty leaf', "%d" % i)
 def pair_hash(a, b):
@@ -193,6 +199,7 @@ class HashTree(CompleteBinaryTreeMixin, list):
         # Augment the list.
         start = len(L)
         end   = roundup_pow2(len(L))
+        self.first_leaf_num = end - 1
         L     = L + [None] * (end - start)
         for i in range(start, end):
             L[i] = empty_leaf_hash(i)
@@ -205,6 +212,36 @@ class HashTree(CompleteBinaryTreeMixin, list):
         # Flatten the list of rows into a single list.
         rows.reverse()
         self[:] = sum(rows, [])
+
+    def needed_hashes(self, leafnum, include_leaf=False):
+        """Which hashes will someone need to validate a given data block?
+
+        I am used to answer a question: supposing you have the data block
+        that is used to form leaf hash N, and you want to validate that it,
+        which hashes would you need?
+
+        I accept a leaf number and return a set of 'hash index' values, which
+        are integers from 0 to len(self). In the 'hash index' number space,
+        hash[0] is the root hash, while hash[len(self)-1] is the last leaf
+        hash.
+
+        This method can be used to find out which hashes you should request
+        from some untrusted source (usually the same source that provides the
+        data block), so you can minimize storage or transmission overhead. It
+        can also be used to determine which hashes you should send to a
+        remote data store so that it will be able to provide validatable data
+        in the future.
+
+        I will not include '0' (the root hash) in the result, since the root
+        is generally stored somewhere that is more trusted than the source of
+        the remaining hashes. I will include the leaf hash itself only if you
+        ask me to, by passing include_leaf=True.
+        """
+
+        needed = set(self.needed_for(self.first_leaf_num + leafnum))
+        if include_leaf:
+            needed.add(self.first_leaf_num + leafnum)
+        return needed
 
 
 class NotEnoughHashesError(Exception):
@@ -250,18 +287,24 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
         rows.reverse()
         self[:] = sum(rows, [])
 
-    def needed_hashes(self, hashes=[], leaves=[]):
-        hashnums = set(list(hashes))
-        for leafnum in leaves:
-            hashnums.add(self.first_leaf_num + leafnum)
-        maybe_needed = set()
-        for hashnum in hashnums:
-            maybe_needed.update(self.needed_for(hashnum))
-        maybe_needed.add(0) # need the root too
+
+    def needed_hashes(self, leafnum, include_leaf=False):
+        """Which new hashes do I need to validate a given data block?
+
+        I am much like HashTree.needed_hashes(), except that I don't include
+        hashes that I already know about. When needed_hashes() is called on
+        an empty IncompleteHashTree, it will return the same set as a
+        HashTree of the same size. But later, once hashes have been added
+        with set_hashes(), I will ask for fewer hashes, since some of the
+        necessary ones have already been set.
+        """
+
+        maybe_needed = set(self.needed_for(self.first_leaf_num + leafnum))
+        if include_leaf:
+            maybe_needed.add(self.first_leaf_num + leafnum)
         return set([i for i in maybe_needed if self[i] is None])
 
-
-    def set_hashes(self, hashes={}, leaves={}, must_validate=False):
+    def set_hashes(self, hashes={}, leaves={}):
         """Add a bunch of hashes to the tree.
 
         I will validate these to the best of my ability. If I already have a
@@ -273,15 +316,12 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
         before I was called. If I return successfully, I will remember all
         those hashes.
 
-        If every hash that was added was validated, I will return True. If
-        some could not be validated because I did not have enough parent
-        hashes, I will return False. As a result, if I am called with both a
-        leaf hash and the root hash was already set, I will return True if
-        and only if the leaf hash could be validated against the root.
-
-        If must_validate is True, I will raise NotEnoughHashesError instead
-        of returning False. If I raise NotEnoughHashesError, I will forget
-        about all the hashes that you tried to add. TODO: really?
+        I insist upon being able to validate all of the hashes that were
+        given to me. If I cannot do this because I'm missing some hashes, I
+        will raise NotEnoughHashesError (and forget about all the hashes that
+        you tried to add). Note that this means that the root hash must
+        either be included in 'hashes', or it must have been provided at some
+        point in the past.
 
         'leaves' is a dictionary uses 'leaf index' values, which range from 0
         (the left-most leaf) to num_leaves-1 (the right-most leaf), and form
@@ -290,28 +330,42 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
         leaf). leaf[i] is the same as hash[num_leaves-1+i].
 
         The best way to use me is to obtain the root hash from some 'good'
-        channel, then call set_hash(0, root). Then use the 'bad' channel to
-        obtain data block 0 and the corresponding hash chain (a dict with the
-        same hashes that needed_hashes(0) tells you, e.g. {0:h0, 2:h2, 4:h4,
-        8:h8} when len(L)=8). Hash the data block to create leaf0. Then
-        call::
+        channel, and use the 'bad' channel to obtain data block 0 and the
+        corresponding hash chain (a dict with the same hashes that
+        needed_hashes(0) tells you, e.g. {0:h0, 2:h2, 4:h4, 8:h8} when
+        len(L)=8). Hash the data block to create leaf0, then feed everything
+        into set_hashes() and see if it raises an exception or not::
 
-          good = iht.set_hashes(hashes=hashchain, leaves={0: leaf0})
+          iht = IncompleteHashTree(numleaves)
+          roothash = trusted_channel.get_roothash()
+          otherhashes = untrusted_channel.get_hashes()
+          # otherhashes.keys() should == iht.needed_hashes(leaves=[0])
+          datablock0 = untrusted_channel.get_data(0)
+          leaf0 = HASH(datablock0)
+          # HASH() is probably hashutil.tagged_hash(tag, datablock0)
+          hashes = otherhashes.copy()
+          hashes[0] = roothash # from 'good' channel
+          iht.set_hashes(hashes, leaves={0: leaf0})
 
-        If 'good' is True, the data block was valid. If 'good' is False, the
-        hashchain did not have the right blocks and we don't know whether the
-        data block was good or bad. If set_hashes() raises an exception,
-        either the data was corrupted or one of the received hashes was
-        corrupted.
+        If the set_hashes() call doesn't raise an exception, the data block
+        was valid. If it raises BadHashError, then either the data block was
+        corrupted or one of the received hashes was corrupted.
         """
 
         assert isinstance(hashes, dict)
+        for h in hashes.values():
+            assert isinstance(h, str)
         assert isinstance(leaves, dict)
+        for h in leaves.values():
+            assert isinstance(h, str)
         new_hashes = hashes.copy()
         for leafnum,leafhash in leaves.iteritems():
             hashnum = self.first_leaf_num + leafnum
             if hashnum in new_hashes:
-                assert new_hashes[hashnum] == leafhash
+                if new_hashes[hashnum] != leafhash:
+                    raise BadHashError("got conflicting hashes in my "
+                                       "arguments: leaves[%d] != hashes[%d]"
+                                       % (leafnum, hashnum))
             new_hashes[hashnum] = leafhash
 
         added = set() # we'll remove these if the check fails
@@ -374,15 +428,11 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
             # were we unable to validate any of the new hashes?
             unvalidated = set(new_hashes.keys()) - reachable
             if unvalidated:
-                if must_validate:
-                    those = ",".join([str(i) for i in sorted(unvalidated)])
-                    raise NotEnoughHashesError("unable to validate hashes %s" % those)
+                those = ",".join([str(i) for i in sorted(unvalidated)])
+                raise NotEnoughHashesError("unable to validate hashes %s"
+                                           % those)
 
         except (BadHashError, NotEnoughHashesError):
             for i in added:
                 self[i] = None
             raise
-
-        # if there were hashes that could not be validated, we return False
-        return not unvalidated
-

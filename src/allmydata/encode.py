@@ -252,6 +252,10 @@ class Encoder(object):
         return sh.callRemote("put_block_hashes", all_hashes)
 
     def send_all_share_hash_trees(self):
+        # each bucket gets a set of share hash tree nodes that are needed to
+        # validate their share. This includes the share hash itself, but does
+        # not include the top-level hash root (which is stored securely in
+        # the URI instead).
         log.msg("%s sending all share hash trees" % self)
         dl = []
         for h in self.share_root_hashes:
@@ -264,9 +268,7 @@ class Encoder(object):
         for i in range(self.num_shares):
             # the HashTree is given a list of leaves: 0,1,2,3..n .
             # These become nodes A+0,A+1,A+2.. of the tree, where A=n-1
-            tree_width = roundup_pow2(self.num_shares)
-            base_index = i + tree_width - 1
-            needed_hash_indices = t.needed_for(base_index)
+            needed_hash_indices = t.needed_hashes(i, include_leaf=True)
             hashes = [(hi, t[hi]) for hi in needed_hash_indices]
             dl.append(self.send_one_share_hash_tree(i, hashes))
         return defer.DeferredList(dl)

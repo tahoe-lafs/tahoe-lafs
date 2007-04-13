@@ -48,48 +48,56 @@ class Output:
         return self.downloadable.finish()
 
 class ValidatedBucket:
-    def __init__(self, sharenum, bucket, share_hash_tree, num_blocks):
+    def __init__(self, sharenum, bucket,
+                 share_hash_tree, roothash,
+                 num_blocks):
         self.sharenum = sharenum
         self.bucket = bucket
+        self._share_hash = None # None means not validated yet
         self.share_hash_tree = share_hash_tree
+        self._roothash = roothash
         self.block_hash_tree = hashtree.IncompleteHashTree(num_blocks)
 
     def get_block(self, blocknum):
-        d1 = self.bucket.callRemote('get_block', blocknum)
-        # we might also need to grab some elements of our block hash tree, to
+        # the first time we use this bucket, we need to fetch enough elements
+        # of the share hash tree to validate it from our share hash up to the
+        # hashroot.
+        if not self._share_hash:
+            d1 = self.bucket.callRemote('get_share_hashes')
+        else:
+            d1 = defer.succeed(None)
+
+        # we might need to grab some elements of our block hash tree, to
         # validate the requested block up to the share hash
-        if self.block_hash_tree.needed_hashes(leaves=[blocknum]):
+        needed = self.block_hash_tree.needed_hashes(blocknum)
+        if needed:
+            # TODO: get fewer hashes, callRemote('get_block_hashes', needed)
             d2 = self.bucket.callRemote('get_block_hashes')
         else:
-            d2 = defer.succeed(None)
-        # we might need to grab some elements of the share hash tree to
-        # validate from our share hash up to the hashroot
-        if self.share_hash_tree.needed_hashes(leaves=[self.sharenum]):
-            d3 = self.bucket.callRemote('get_share_hashes')
-            need_to_validate_sharehash = True
-        else:
-            d3 = defer.succeed(None)
-            need_to_validate_sharehash = False
+            d2 = defer.succeed([])
+
+        d3 = self.bucket.callRemote('get_block', blocknum)
+
         d = defer.gatherResults([d1, d2, d3])
-        d.addCallback(self._got_data, blocknum, need_to_validate_sharehash)
+        d.addCallback(self._got_data, blocknum)
         return d
 
-    def _got_data(self, res, blocknum, need_to_validate_sharehash):
-        blockdata, blockhashes, sharehashes = res
+    def _got_data(self, res, blocknum):
+        sharehashes, blockhashes, blockdata = res
+
+        if not self._share_hash:
+            sh = dict(sharehashes)
+            sh[0] = self._roothash # always use our own root, from the URI
+            if self.share_hash_tree.get_leaf_index(self.sharenum) not in sh:
+                raise hashutil.NotEnoughHashesError
+            self.share_hash_tree.set_hashes(sh)
+            self._share_hash = self.share_hash_tree.get_leaf(self.sharenum)
+
         blockhash = hashutil.tagged_hash("encoded subshare", blockdata)
         # we always validate the blockhash
-        if blockhashes is None:
-            blockhashes = []
         bh = dict(enumerate(blockhashes))
-        self.block_hash_tree.set_hashes(bh, {blocknum: blockhash},
-                                        must_validate=True)
-        if need_to_validate_sharehash:
-            # we only need to validate the sharehash once, the first time we
-            # fetch a block
-            sh = dict(sharehashes)
-            sharehash = self.block_hash_tree[0]
-            self.share_hash_tree.set_hashes(sh, {self.sharenum: sharehash},
-                                            must_validate=True)
+        bh[0] = self._share_hash # replace blockhash root with validated value
+        self.block_hash_tree.set_hashes(bh, {blocknum: blockhash})
         # If we made it here, the block is good. If the hash trees didn't
         # like what they saw, they would have raised a BadHashError, causing
         # our caller to see a Failure and thus ignore this block (as well as
@@ -237,6 +245,7 @@ class FileDownloader:
     def add_share_bucket(self, sharenum, bucket):
         vbucket = ValidatedBucket(sharenum, bucket,
                                   self._share_hashtree,
+                                  self._roothash,
                                   self._total_segments)
         self._share_buckets.setdefault(sharenum, set()).add(vbucket)
 
