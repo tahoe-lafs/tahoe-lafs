@@ -188,10 +188,13 @@ def encode_to_files(inf, fsize, dirname, prefix, k, m, suffix=".fec", verbose=Fa
             fns.append(fn)
         sumlen = [0]
         def cb(blocks, length):
-            if verbose:
-                print "Writing %d bytes into share files..." % (length,)
             assert len(blocks) == len(fs)
+            oldsumlen = sumlen[0]
             sumlen[0] += length
+            if verbose:
+                if int((float(oldsumlen) / fsize) * 10) != int((float(sumlen[0]) / fsize) * 10):
+                    print str(int((float(sumlen[0]) / fsize) * 10) * 10) + "% ...",
+            
             if sumlen[0] > fsize:
                 raise IOError("Wrong file size -- possibly the size of the file changed during encoding.  Original size: %d, observed size at least: %s" % (fsize, sumlen[0],))
             for i in range(len(blocks)):
@@ -214,8 +217,15 @@ def encode_to_files(inf, fsize, dirname, prefix, k, m, suffix=".fec", verbose=Fa
             fileutil.remove_if_possible(fn)
         return 1
     if verbose:
+        print 
         print "Done!"
     return 0
+
+# Note: if you really prefer base-2 and you change this code, then please
+# denote 2^20 as "MiB" instead of "MB" in order to avoid ambiguity.
+# Thanks.
+# http://en.wikipedia.org/wiki/Megabyte
+MILLION_BYTES=10**6
 
 def decode_from_files(outf, infiles, verbose=False):
     """
@@ -228,6 +238,7 @@ def decode_from_files(outf, infiles, verbose=False):
     k = None
     padlen = None
 
+    byteswritten = 0
     for f in infiles:
         (nm, nk, npadlen, shnum,) = _parse_header(f)
         if not (m is None or m == nm):
@@ -257,11 +268,18 @@ def decode_from_files(outf, infiles, verbose=False):
             # Then this was a full read, so we're still in the sharefiles.
             resultdata = dec.decode(chunks, shnums, padlen=0)
             outf.write(resultdata)
+            byteswritten += len(resultdata)
+            if verbose:
+                if ((byteswritten - len(resultdata)) / (10*MILLION_BYTES)) != (byteswritten / (10*MILLION_BYTES)):
+                    print str(byteswritten / MILLION_BYTES) + " MB ...",
         else:
             # Then this was a short read, so we've reached the end of the sharefiles.
             resultdata = dec.decode(chunks, shnums, padlen)
             outf.write(resultdata)
             return # Done.
+    if verbose:
+        print
+        print "Done!"
 
 def encode_file(inf, cb, k, m, chunksize=4096):
     """

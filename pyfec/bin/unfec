@@ -3,7 +3,7 @@
 # import bindann
 # import bindann.monkeypatch.all
 
-import sys
+import os, sys
 
 from fec.util import argparse
 
@@ -19,9 +19,10 @@ if '-V' in sys.argv or '--version' in sys.argv:
   
 parser = argparse.ArgumentParser(description="Decode data from share files.")
 
-parser.add_argument('outputfile', help='file to write the resulting data to, or "-" for stdout', type=argparse.FileType('wb'), metavar='OUTF')
-parser.add_argument('sharefiles', nargs='+', help='shares file to read the encoded data from', type=argparse.FileType('rb'), metavar='SHAREFILE')
+parser.add_argument('-o', '--outputfile', required=True, help='file to write the resulting data to, or "-" for stdout', type=str, metavar='OUTF')
+parser.add_argument('sharefiles', nargs='*', help='shares file to read the encoded data from', type=argparse.FileType('rb'), metavar='SHAREFILE')
 parser.add_argument('-v', '--verbose', help='print out messages about progress', action='store_true')
+parser.add_argument('-f', '--force', help='overwrite any file which already in place of the output file', action='store_true')
 parser.add_argument('-V', '--version', help='print out version number and exit', action='store_true')
 args = parser.parse_args()
 
@@ -29,6 +30,16 @@ if len(args.sharefiles) < 2:
     print "At least two sharefiles are required."
     sys.exit(1)
 
-ret = filefec.decode_from_files(args.outputfile, args.sharefiles, args.verbose)
+if args.force:
+    outf = open(args.outputfile, 'wb')
+else:
+    try:
+        outfd = os.open(args.outputfile, os.O_WRONLY|os.O_CREAT|os.O_EXCL)
+    except OSError:
+        print "There is already a file named %r -- aborting.  Use --force to overwrite." % (args.outputfile,)
+        sys.exit(2)
+    outf = os.fdopen(outfd, "wb")
+
+ret = filefec.decode_from_files(outf, args.sharefiles, args.verbose)
 
 sys.exit(ret)
