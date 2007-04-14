@@ -147,8 +147,8 @@ objects (e.g. Python strings) to hold the data that you pass to pyfec.
 The filefec.py module which has a utility function for efficiently reading a
 file and encoding it piece by piece.
 
-The bin/ directory contains two commandline tools "fec" and "unfec".  See
-their usage strings for details.
+The bin/ directory contains two Unix-style, command-line tools "fec" and 
+"unfec".  See their usage strings for details.
 
 
  * Dependencies
@@ -179,17 +179,17 @@ Thanks to the author of the original fec lib, Luigi Rizzo, and the folks that
 contributed to it: Phil Karn, Robert Morelos-Zaragoza, Hari Thirumoorthy, and
 Dan Rubenstein.  Thanks to the Mnet hackers who wrote an earlier Python
 wrapper, especially Myers Carpenter and Hauke Johannknecht.  Thanks to Brian
-Warner for help with the API, documentation, debugging, and unit tests.
-Thanks to the creators of GCC (starting with Richard M.  Stallman) and
-Valgrind (starting with Julian Seward) for a pair of excellent tools.  Thanks
-to my coworkers at Allmydata -- http://allmydata.com -- Fabrice Grinda, Peter
-Secor, Rob Kinninmont, Brian Warner, Zandr Milewski, Justin Boreta, Mark
-Meras for sponsoring this work and releasing it under a Free Software
-licence.
+Warner and Amber O'Whielacronx for help with the API, documentation, 
+debugging, compression, and unit tests.  Thanks to the creators of GCC 
+(starting with Richard M. Stallman) and Valgrind (starting with Julian Seward) 
+for a pair of excellent tools.  Thanks to my coworkers at Allmydata -- 
+http://allmydata.com -- Fabrice Grinda, Peter Secor, Rob Kinninmont, Brian 
+Warner, Zandr Milewski, Justin Boreta, Mark Meras for sponsoring this work and 
+releasing it under a Free Software licence.
 
 
 Enjoy!
 
 Zooko Wilcox-O'Hearn
-2007-04-11
+2007-04-14
 Boulder, Colorado
