@@ -1,6 +1,7 @@
 
 from zope.interface import Interface
-from foolscap.schema import StringConstraint, ListOf, TupleOf, SetOf, DictOf
+from foolscap.schema import StringConstraint, ListOf, TupleOf, SetOf, DictOf, \
+     ChoiceOf
 from foolscap import RemoteInterface, Referenceable
 
 HASH_SIZE=32
@@ -81,12 +82,12 @@ RIMutableDirectoryNode_ = Any() # TODO: how can we avoid this?
 class RIMutableDirectoryNode(RemoteInterface):
     def list():
         return ListOf( TupleOf(str, # name, relative to directory
-                               (RIMutableDirectoryNode_, Verifierid)),
+                               ChoiceOf(RIMutableDirectoryNode_, Verifierid)),
                        maxLength=100,
                        )
 
     def get(name=str):
-        return (RIMutableDirectoryNode_, Verifierid)
+        return ChoiceOf(RIMutableDirectoryNode_, Verifierid)
 
     def add_directory(name=str):
         return RIMutableDirectoryNode_
