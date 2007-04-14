@@ -5,7 +5,6 @@
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted under the terms of the 3-clause BSD
 # license. No warranty expressed or implied.
-# For details, see the accompanying file LICENSE.txt.
 
 """Command-line parsing library
 
@@ -839,11 +838,16 @@ class FileType(object):
         same values as the builtin open() function.
     bufsize -- The file's desired buffer size. Accepts the same values as
         the builtin open() function.
+    exclusiveopen -- A bool indicating whether the attempt to create the file
+        should fail if there is already a file present by that name.  This is
+        ignored if 'w' is not in mode.
     """    
-    def __init__(self, mode='r', bufsize=None):
+    def __init__(self, mode='r', bufsize=None, exclusivecreate=False):
         self._mode = mode
+        self._bufsize = bufsize
         if self._bufsize is None:
             self._bufsize = -1
+        self._exclusivecreate = exclusivecreate
     
     def __call__(self, string):
         # the special argument "-" means sys.std{in,out}
@@ -857,7 +861,11 @@ class FileType(object):
                 raise ValueError(msg)
 
         # all other arguments are used as file names
-        return open(string, self._mode, self._bufsize)
+        if self._exclusivecreate and ('w' in self._mode):
+            fd = _os.open(string, _os.O_CREAT|_os.O_EXCL)
+            return _os.fdopen(fd, self._mode, self._bufsize)
+        else:
+            return open(string, self._mode, self._bufsize)
 
 
 # ===========================
