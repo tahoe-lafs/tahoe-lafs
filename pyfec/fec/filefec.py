@@ -24,77 +24,237 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import easyfec, fec
+from util import fileutil
+from util.mathutil import log_ceil
 
-import array, random
+import array, os, re, struct, traceback
 
-def encode_to_files_easyfec(inf, prefix, k, m):
-    """
-    Encode inf, writing the shares to a file named $prefix+$sharenum.
-    """
-    l = [ open(prefix+str(sharenum), "wb") for sharenum in range(m) ]
-    def cb(blocks, length):
-        assert len(blocks) == len(l)
-        for i in range(len(blocks)):
-            l[i].write(blocks[i])
+CHUNKSIZE = 4096
 
-    encode_file_stringy_easyfec(inf, cb, k, m, chunksize=4096)
- 
-def encode_to_files_stringy(inf, prefix, k, m):
+def _build_header(m, k, pad, sh):
     """
-    Encode inf, writing the shares to a file named named $prefix+$sharenum.
-    """
-    l = [ open(prefix+str(sharenum), "wb") for sharenum in range(m) ]
-    def cb(blocks, length):
-        assert len(blocks) == len(l)
-        for i in range(len(blocks)):
-            l[i].write(blocks[i])
+    @param m: the total number of shares; 3 <= m <= 256
+    @param k: the number of shares required to reconstruct; 2 <= k < m
+    @param pad: the number of bytes of padding added to the file before encoding; 0 <= pad < k
+    @param sh: the shnum of this share; 0 <= k < m
 
-    encode_file_stringy(inf, cb, k, m, chunksize=4096)
- 
-def encode_to_files(inf, prefix, k, m):
+    @return: a string (which is hopefully short) encoding m, k, sh, and pad
     """
-    Encode inf, writing the shares to named $prefix+$sharenum.
-    """
-    l = [ open(prefix+str(sharenum), "wb") for sharenum in range(m) ]
-    def cb(blocks, length):
-        assert len(blocks) == len(l)
-        for i in range(len(blocks)):
-            l[i].write(blocks[i])
+    assert m >= 3
+    assert m <= 2**8
+    assert k >= 2
+    assert k < m
+    assert pad >= 0
+    assert pad < k
 
-    encode_file(inf, cb, k, m, chunksize=4096)
- 
-def decode_from_files(outf, filesize, prefix, k, m):
+    assert sh >= 0
+    assert sh < m
+
+    bitsused = 0
+    val = 0
+
+    val |= (m - 3)
+    bitsused += 8 # the first 8 bits always encode m
+
+    kbits = log_ceil(m-2, 2) # num bits needed to store all possible values of k
+    val <<= kbits
+    bitsused += kbits
+
+    val |= (k - 2)
+
+    padbits = log_ceil(k, 2) # num bits needed to store all possible values of pad
+    val <<= padbits
+    bitsused += padbits
+
+    val |= pad
+
+    shnumbits = log_ceil(m, 2) # num bits needed to store all possible values of shnum
+    val <<= shnumbits
+    bitsused += shnumbits
+
+    val |= sh
+
+    assert bitsused >= 11
+    assert bitsused <= 32
+
+    if bitsused <= 16:
+        val <<= (16-bitsused)
+        cs = struct.pack('>H', val)
+        assert cs[:-2] == '\x00' * (len(cs)-2)
+        return cs[-2:]
+    if bitsused <= 24:
+        val <<= (24-bitsused)
+        cs = struct.pack('>I', val)
+        assert cs[:-3] == '\x00' * (len(cs)-3)
+        return cs[-3:]
+    else:
+        val <<= (32-bitsused)
+        cs = struct.pack('>I', val)
+        assert cs[:-4] == '\x00' * (len(cs)-4)
+        return cs[-4:]
+
+def MASK(bits):
+    return (1<<bits)-1
+
+def _parse_header(inf):
     """
-    Decode from the first k files in the current directory whose names begin 
-    with prefix, writing the results to outf.
+    @param inf: an object which I can call read(1) on to get another byte
+
+    @return: tuple of (m, k, pad, sh,); side-effect: the first one to four
+        bytes of inf will be read
     """
-    import os
+    # The first 8 bits always encode m.
+    byte = ord(inf.read(1))
+    m = byte + 3
+
+    # The next few bits encode k.
+    kbits = log_ceil(m-2, 2) # num bits needed to store all possible values of k
+    b2_bits_left = 8-kbits
+    kbitmask = MASK(kbits) << b2_bits_left
+    byte = ord(inf.read(1))
+    k = ((byte & kbitmask) >> b2_bits_left) + 2
+
+    shbits = log_ceil(m, 2) # num bits needed to store all possible values of shnum
+    padbits = log_ceil(k, 2) # num bits needed to store all possible values of pad
+
+    val = byte & (~kbitmask)
+
+    needed_padbits = padbits - b2_bits_left
+    if needed_padbits > 0:
+        byte = struct.unpack(">B", inf.read(1))[0]
+        val <<= 8
+        val |= byte 
+        needed_padbits -= 8
+    assert needed_padbits <= 0
+    extrabits = -needed_padbits
+    pad = val >> extrabits
+    val &= MASK(extrabits)
+
+    needed_shbits = shbits - extrabits
+    if needed_shbits > 0:
+        byte = struct.unpack(">B", inf.read(1))[0]
+        val <<= 8
+        val |= byte 
+        needed_shbits -= 8
+    assert needed_shbits <= 0
+
+    gotshbits = -needed_shbits
+
+    sh = val >> gotshbits
+
+    return (m, k, pad, sh,)
+
+FORMAT_FORMAT = "%%s.%%0%dd_%%0%dd%%s"
+RE_FORMAT = "%s.[0-9]+_[0-9]+%s"
+def encode_to_files(inf, fsize, dirname, prefix, k, m, suffix=".fec", verbose=False):
+    """
+    Encode inf, writing the shares to specially named, newly created files.
+
+    @param fsize: calling read() on inf must yield fsize bytes of data and 
+        then raise an EOFError
+    @param dirname: the name of the directory into which the sharefiles will
+        be written
+    """
+    mlen = len(str(m))
+    format = FORMAT_FORMAT % (mlen, mlen,)
+
+    padbytes = fec.util.mathutil.pad_size(fsize, k)
+
+    fns = []
+    fs = []
+    try:
+        for shnum in range(m):
+            hdr = _build_header(m, k, padbytes, shnum)
+
+            fn = os.path.join(dirname, format % (prefix, shnum, m, suffix,))
+            if verbose:
+                print "Creating share file %r..." % (fn,)
+            fd = os.open(fn, os.O_WRONLY|os.O_CREAT|os.O_EXCL)
+            f = os.fdopen(fd, "wb")
+            f.write(hdr)
+            fs.append(f)
+            fns.append(fn)
+        sumlen = [0]
+        def cb(blocks, length):
+            if verbose:
+                print "Writing %d bytes into share files..." % (length,)
+            assert len(blocks) == len(fs)
+            sumlen[0] += length
+            if sumlen[0] > fsize:
+                raise IOError("Wrong file size -- possibly the size of the file changed during encoding.  Original size: %d, observed size at least: %s" % (fsize, sumlen[0],))
+            for i in range(len(blocks)):
+                data = blocks[i]
+                fs[i].write(data)
+                length -= len(data)
+
+        encode_file_stringy_easyfec(inf, cb, k, m, chunksize=4096)
+    except EnvironmentError, le:
+        print "Cannot complete because of exception: "
+        print le
+        print "Cleaning up..."
+        # clean up
+        while fs:
+            f = fs.pop()
+            f.close() ; del f
+            fn = fns.pop()
+            if verbose:
+                print "Cleaning up: trying to remove %r..." % (fn,)
+            fileutil.remove_if_possible(fn)
+        return 1
+    if verbose:
+        print "Done!"
+    return 0
+
+def decode_from_files(outf, dirname, prefix, suffix=".fec", verbose=False):
+    """
+    Decode from the first k files in the directory whose names match the
+    pattern, writing the results to outf.
+    """
+    RE=re.compile(RE_FORMAT % (prefix, suffix,))
+
     infs = []
-    sharenums = []
-    listd = os.listdir(".")
-    random.shuffle(listd)
-    for f in listd:
-        if f.startswith(prefix):
-            infs.append(open(f, "rb"))
-            sharenums.append(int(f[len(prefix):]))
+    shnums = []
+    m = None
+    k = None
+    padlen = None
+
+    for fn in os.listdir(dirname):
+        if RE.match(fn):
+            f = open(os.path.join(dirname, fn), "rb")
+
+            (nm, nk, npadlen, shnum,) = _parse_header(f)
+            if not (m is None or m == nm):
+                raise fec.Error("Share files were corrupted -- share file %s said that m was %s but another share file previously said that m was %s" % (f, nm, m,))
+            m = nm
+            if not (k is None or k == nk):
+                raise fec.Error("Share files were corrupted -- share file %s said that k was %s but another share file previously said that k was %s" % (f, nk, k,))
+            k = nk
+            if not (padlen is None or padlen == npadlen):
+                raise fec.Error("Share files were corrupted -- share file %s said that pad length was %s but another share file previously said that pad length was %s" % (f, npadlen, padlen,))
+            padlen = npadlen
+
+            infs.append(f)
+            shnums.append(shnum)
+
             if len(infs) == k:
                 break
 
-    CHUNKSIZE = 4096
-    dec = fec.Decoder(k, m)
+    dec = easyfec.Decoder(k, m)
+
     while True:
-        x = [ inf.read(CHUNKSIZE) for inf in infs ]
-        decblocks = dec.decode(x, sharenums)
-        for decblock in decblocks:
-            if len(decblock) == 0:
-                raise "error -- probably share was too short -- was it stored in a file which got truncated? chunksizes: %s" % ([len(chunk) for chunk in x],)
-            if filesize >= len(decblock):
-                outf.write(decblock)
-                filesize -= len(decblock)
-                # print "filesize is now %s after subtracting %s" % (filesize, len(decblock),)
-            else: 
-                outf.write(decblock[:filesize])
-                return
+        chunks = [ inf.read(CHUNKSIZE) for inf in infs ]
+        if [ch for ch in chunks if len(ch) != len(chunks[-1])]:
+            raise fec.Error("Share files were corrupted -- all share files are required to be the same length, but they weren't.")
+
+        if len(chunks[-1]) == CHUNKSIZE:
+            # Then this was a full read, so we're still in the sharefiles.
+            resultdata = dec.decode(chunks, shnums, padlen=0)
+            outf.write(resultdata)
+        else:
+            # Then this was a short read, so we've reached the end of the sharefiles.
+            resultdata = dec.decode(chunks, shnums, padlen)
+            outf.write(resultdata)
+            return # Done.
 
 def encode_file(inf, cb, k, m, chunksize=4096):
     """
@@ -128,30 +288,31 @@ def encode_file(inf, cb, k, m, chunksize=4096):
     enc = fec.Encoder(k, m)
     l = tuple([ array.array('c') for i in range(k) ])
     indatasize = k*chunksize # will be reset to shorter upon EOF
+    eof = False
     ZEROES=array.array('c', ['\x00'])*chunksize
-    while indatasize == k*chunksize:
+    while not eof:
         # This loop body executes once per segment.
         i = 0
         while (i<len(l)):
             # This loop body executes once per chunk.
             a = l[i]
-            i += 1
             del a[:]
             try:
                 a.fromfile(inf, chunksize)
+                i += 1
             except EOFError:
+                eof = True
                 indatasize = i*chunksize + len(a)
                 
                 # padding
                 a.fromstring("\x00" * (chunksize-len(a)))
+                i += 1
                 while (i<len(l)):
                     a = l[i]
                     a[:] = ZEROES
                     i += 1
 
-        # print "about to encode()... len(l[0]): %s, l[0]: %s" % (len(l[0]), type(l[0]),),
         res = enc.encode(l)
-        # print "...finished to encode()"
         cb(res, indatasize)
 
 def encode_file_stringy(inf, cb, k, m, chunksize=4096):
@@ -195,49 +356,8 @@ def encode_file_stringy(inf, cb, k, m, chunksize=4096):
                     l.append(ZEROES)
                     i += 1
 
-        # print "about to encode()... len(l[0]): %s, l[0]: %s" % (len(l[0]), type(l[0]),),
         res = enc.encode(l)
-        # print "...finished to encode()"
         cb(res, indatasize)
-
-def encode_file_not_really(inf, cb, k, m, chunksize=4096):
-    """
-    Read in the contents of inf, and call cb with the results.
-
-    @param inf the file object from which to read the data
-    @param cb the callback to be invoked with the results
-    @param k the number of shares required to reconstruct the file
-    @param m the total number of shares created
-    @param chunksize how much data to read from inf for each of the k input 
-        blocks
-    """
-    enc = fec.Encoder(k, m)
-    l = tuple([ array.array('c') for i in range(k) ])
-    indatasize = k*chunksize # will be reset to shorter upon EOF
-    ZEROES=array.array('c', ['\x00'])*chunksize
-    while indatasize == k*chunksize:
-        # This loop body executes once per segment.
-        i = 0
-        while (i<len(l)):
-            # This loop body executes once per chunk.
-            a = l[i]
-            i += 1
-            del a[:]
-            try:
-                a.fromfile(inf, chunksize)
-            except EOFError:
-                indatasize = i*chunksize + len(a)
-                
-                # padding
-                a.fromstring("\x00" * (chunksize-len(a)))
-                while (i<len(l)):
-                    a[:] = ZEROES
-                    i += 1
-
-        # print "about to encode()... len(l[0]): %s, l[0]: %s" % (len(l[0]), type(l[0]),),
-        # res = enc.encode(l)
-        # print "...finished to encode()"
-        cb(l, indatasize)
 
 def encode_file_stringy_easyfec(inf, cb, k, m, chunksize=4096):
     """
@@ -262,10 +382,10 @@ def encode_file_stringy_easyfec(inf, cb, k, m, chunksize=4096):
     """
     enc = easyfec.Encoder(k, m)
 
-    indatasize = k*chunksize # will be reset to shorter upon EOF
-    indata = inf.read(indatasize)
+    readsize = k*chunksize
+    indata = inf.read(readsize)
     while indata:
         res = enc.encode(indata)
-        cb(res, indatasize)
-        indata = inf.read(indatasize)
+        cb(res, len(indata))
+        indata = inf.read(readsize)
 

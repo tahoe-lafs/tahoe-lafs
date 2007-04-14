@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+# import bindann
+# import bindann.monkeypatch.all
+
 # pyfec -- fast forward error correction library with Python interface
 #
 # Copyright (C) 2007 Allmydata, Inc.
@@ -25,10 +28,21 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import random
-import sys
+import cStringIO, os, random, re, sys
 
 import fec
+
+try:
+    from twisted.trial import unittest
+except ImportError:
+    # trial is unavailable, oh well
+    import unittest
+
+global VERBOSE
+VERBOSE=False
+if '-v' in sys.argv:
+    sys.argv.pop(sys.argv.index('-v'))
+    VERBOSE=True
 
 from base64 import b32encode
 def ab(x): # debuggery
@@ -42,124 +56,165 @@ def ab(x): # debuggery
         return "%s:%s" % (len(x), "--empty--",)
 
 def _h(k, m, ss):
-    # sys.stdout.write("k: %s, m: %s,  len(ss): %r, len(ss[0]): %r" % (k, m, len(ss), len(ss[0]),)) ; sys.stdout.flush()
     encer = fec.Encoder(k, m)
-    # sys.stdout.write("constructed.\n") ; sys.stdout.flush()
     nums_and_blocks = list(enumerate(encer.encode(ss)))
-    # sys.stdout.write("encoded.\n") ; sys.stdout.flush()
     assert isinstance(nums_and_blocks, list), nums_and_blocks
     assert len(nums_and_blocks) == m, (len(nums_and_blocks), m,)
     nums_and_blocks = random.sample(nums_and_blocks, k)
     blocks = [ x[1] for x in nums_and_blocks ]
     nums = [ x[0] for x in nums_and_blocks ]
-    # sys.stdout.write("about to construct Decoder.\n") ; sys.stdout.flush()
     decer = fec.Decoder(k, m)
-    # sys.stdout.write("about to decode from %s.\n"%nums) ; sys.stdout.flush()
     decoded = decer.decode(blocks, nums)
-    # sys.stdout.write("decoded.\n") ; sys.stdout.flush()
     assert len(decoded) == len(ss), (len(decoded), len(ss),)
     assert tuple([str(s) for s in decoded]) == tuple([str(s) for s in ss]), (tuple([ab(str(s)) for s in decoded]), tuple([ab(str(s)) for s in ss]),)
 
 def randstr(n):
     return ''.join(map(chr, map(random.randrange, [0]*n, [256]*n)))
 
-def div_ceil(n, d):
-    """
-    The smallest integer k such that k*d >= n.
-    """
-    return (n/d) + (n%d != 0)
-
-def next_multiple(n, k):
-    """
-    The smallest multiple of k which is >= n.
-    """
-    return div_ceil(n, k) * k
-
-def pad_size(n, k):
-    """
-    The smallest number that has to be added to n so that n is a multiple of k.
-    """
-    if n%k:
-        return k - n%k
-    else:
-        return 0
-
-def _test_random():
+def _help_test_random():
     m = random.randrange(1, 257)
     k = random.randrange(1, m+1)
-    l = random.randrange(0, 2**15)
+    l = random.randrange(0, 2**10)
     ss = [ randstr(l/k) for x in range(k) ]
     _h(k, m, ss)
 
-def _test_random_with_l(l):
+def _help_test_random_with_l(l):
     m = 83
     k = 19
     ss = [ randstr(l/k) for x in range(k) ]
     _h(k, m, ss)
 
-def test_random(noisy=True):
-    for i in range(2**5):
-        # sys.stdout.write(",")
-        _test_random()
-        # sys.stdout.write(".")
-    if noisy:
-        print "%d randomized tests pass." % (i+1)
+class Fec(unittest.TestCase):
+    def test_random(self):
+        for i in range(3):
+            _help_test_random()
+        if VERBOSE:
+            print "%d randomized tests pass." % (i+1)
 
-def test_bad_args_enc():
-    encer = fec.Encoder(2, 4)
-    try:
-        encer.encode(["a", "b", ], ["c", "I am not an integer blocknum",])
-    except fec.Error, e:
-        assert "Precondition violation: second argument is required to contain int" in str(e), e
-    else:
-        raise "Should have gotten fec.Error for wrong type of second argument."
+    def test_bad_args_enc(self):
+        encer = fec.Encoder(2, 4)
+        try:
+            encer.encode(["a", "b", ], ["c", "I am not an integer blocknum",])
+        except fec.Error, e:
+            assert "Precondition violation: second argument is required to contain int" in str(e), e
+        else:
+            raise "Should have gotten fec.Error for wrong type of second argument."
 
-    try:
-        encer.encode(["a", "b", ], 98) # not a sequence at all
-    except TypeError, e:
-        assert "Second argument (optional) was not a sequence" in str(e), e
-    else:
-        raise "Should have gotten TypeError for wrong type of second argument."
+        try:
+            encer.encode(["a", "b", ], 98) # not a sequence at all
+        except TypeError, e:
+            assert "Second argument (optional) was not a sequence" in str(e), e
+        else:
+            raise "Should have gotten TypeError for wrong type of second argument."
 
-def test_bad_args_dec():
-    decer = fec.Decoder(2, 4)
+    def test_bad_args_dec(self):
+        decer = fec.Decoder(2, 4)
 
-    try:
-        decer.decode(98, [0, 1]) # first argument is not a sequence
-    except TypeError, e:
-        assert "First argument was not a sequence" in str(e), e
-    else:
-        raise "Should have gotten TypeError for wrong type of second argument."
+        try:
+            decer.decode(98, [0, 1]) # first argument is not a sequence
+        except TypeError, e:
+            assert "First argument was not a sequence" in str(e), e
+        else:
+            raise "Should have gotten TypeError for wrong type of second argument."
 
-    try:
-        decer.decode(["a", "b", ], ["c", "d",])
-    except fec.Error, e:
-        assert "Precondition violation: second argument is required to contain int" in str(e), e
-    else:
-        raise "Should have gotten fec.Error for wrong type of second argument."
+        try:
+            decer.decode(["a", "b", ], ["c", "d",])
+        except fec.Error, e:
+            assert "Precondition violation: second argument is required to contain int" in str(e), e
+        else:
+            raise "Should have gotten fec.Error for wrong type of second argument."
 
-    try:
-        decer.decode(["a", "b", ], 98) # not a sequence at all
-    except TypeError, e:
-        assert "Second argument was not a sequence" in str(e), e
-    else:
-        raise "Should have gotten TypeError for wrong type of second argument."
+        try:
+            decer.decode(["a", "b", ], 98) # not a sequence at all
+        except TypeError, e:
+            assert "Second argument was not a sequence" in str(e), e
+        else:
+            raise "Should have gotten TypeError for wrong type of second argument."
 
-try:
-    from twisted.trial import unittest
-    class TestPyFec(unittest.TestCase):
-        def test_random(self):
-            test_random(False)
-        def test_bad_args_enc(self):
-            test_bad_args_enc()
-        def test_bad_args_dec(self):
-            test_bad_args_dec()
-except ImportError:
-    # trial is unavailable, oh well
-    pass
+class FileFec(unittest.TestCase):
+    def test_filefec_header(self):
+        for m in [3, 5, 7, 9, 11, 17, 19, 33, 35, 65, 66, 67, 129, 130, 131, 254, 255, 256,]:
+            for k in [2, 3, 5, 9, 17, 33, 65, 129, 255,]:
+                if k >= m:
+                    continue
+                for pad in [0, 1, k-1,]:
+                    if pad >= k:
+                        continue
+                    for sh in [0, 1, m-1,]:
+                        if sh >= m:
+                            continue
+                        h = fec.filefec._build_header(m, k, pad, sh)
+                        hio = cStringIO.StringIO(h)
+                        (rm, rk, rpad, rsh,) = fec.filefec._parse_header(hio)
+                        assert (rm, rk, rpad, rsh,) == (m, k, pad, sh,), h
+
+    def _help_test_filefec(self, teststr, k, m, numshs=None):
+        if numshs == None:
+            numshs = m
+
+        TESTFNAME = "testfile.txt"
+        PREFIX = "test"
+        SUFFIX = ".fec"
+
+        tempdir = fec.util.fileutil.NamedTemporaryDirectory(cleanup=False)
+        try:
+            tempfn = os.path.join(tempdir.name, TESTFNAME)
+            tempf = open(tempfn, 'wb')
+            tempf.write(teststr)
+            tempf.close()
+            fsize = os.path.getsize(tempfn)
+            assert fsize == len(teststr)
+
+            # encode the file
+            fec.filefec.encode_to_files(open(tempfn, 'rb'), fsize, tempdir.name, PREFIX, k, m, SUFFIX, verbose=VERBOSE)
+
+            # delete some share files
+            fns = os.listdir(tempdir.name)
+            RE=re.compile(fec.filefec.RE_FORMAT % (PREFIX, SUFFIX,))
+            sharefs = [ fn for fn in fns if RE.match(fn) ]
+            random.shuffle(sharefs)
+            while len(sharefs) > numshs:
+                shfn = sharefs.pop()
+                fec.util.fileutil.remove(os.path.join(tempdir.name, shfn))
+
+            # decode from the share files
+            outf = open(os.path.join(tempdir.name, 'recovered-testfile.txt'), 'wb')
+            fec.filefec.decode_from_files(outf, tempdir.name, PREFIX, SUFFIX, verbose=VERBOSE)
+            outf.close()
+
+            tempfn = open(os.path.join(tempdir.name, 'recovered-testfile.txt'), 'rb')
+            recovereddata = tempfn.read()
+            assert recovereddata == teststr
+        finally:
+            tempdir.shutdown()
+
+    def test_filefec_all_shares(self):
+        return self._help_test_filefec("Yellow Whirled!", 3, 8)
+
+    def test_filefec_all_shares_with_padding(self, noisy=VERBOSE):
+        return self._help_test_filefec("Yellow Whirled!A", 3, 8)
+
+    def test_filefec_min_shares_with_padding(self, noisy=VERBOSE):
+        return self._help_test_filefec("Yellow Whirled!A", 3, 8, numshs=3)
 
 if __name__ == "__main__":
-    test_bad_args_dec()
-    test_bad_args_enc()
-    test_random()
+    if hasattr(unittest, 'main'):
+        unittest.main()
+    else:
+        sys.path.append(os.getcwd())
+        mods = []
+        fullname = os.path.realpath(os.path.abspath(__file__))
+        for pathel in sys.path:
+            fullnameofpathel = os.path.realpath(os.path.abspath(pathel))
+            if fullname.startswith(fullnameofpathel):
+                relname = fullname[len(fullnameofpathel):]
+                mod = (os.path.splitext(relname)[0]).replace(os.sep, '.').strip('.')
+                mods.append(mod)
 
+        mods.sort(cmp=lambda x, y: cmp(len(x), len(y)))
+        mods.reverse()
+        for mod in mods:
+            cmdstr = "trial %s %s" % (' '.join(sys.argv[1:]), mod)
+            print cmdstr
+            if os.system(cmdstr) == 0:
+                break

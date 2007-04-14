@@ -17,9 +17,9 @@ whose loss it can tolerate.
 This package is largely based on the old "fec" library by Luigi Rizzo et al.,
 which is a mature and optimized implementation of erasure coding.  The pyfec
 package makes several changes from the original "fec" package, including
-addition of the Python API, refactoring of the C API to be faster (for the way
-that I use it, at least), and a few clean-ups and micro-optimizations of the
-core code itself.
+addition of the Python API, refactoring of the C API to support zero-copy
+operation, and a few clean-ups and micro-optimizations of the core code
+itself.
 
 
  * Community
@@ -52,13 +52,21 @@ and k is required to be at least 1 and at most m.
 degenerates to the equivalent of the Unix "split" utility which simply splits
 the input into successive segments.  Similarly, when k == 1 it degenerates to
 the equivalent of the unix "cp" utility -- each block is a complete copy of the
-input data.)
+input data.  The "fec" command-line tool does not implement these degenerate 
+cases.)
 
 Note that each "primary block" is a segment of the original data, so its size
 is 1/k'th of the size of original data, and each "secondary block" is of the
 same size, so the total space used by all the blocks is m/k times the size of
 the original data (plus some padding to fill out the last primary block to be
-the same size as all the others).
+the same size as all the others).  In addition to the data contained in the 
+blocks themselves there are also a few pieces of metadata which are necessary 
+for later reconstruction.  Those pieces are: 1.  the value of K, 2.  the value 
+of M,  3.  the sharenum of each block,  4.  the number of bytes of padding 
+that were used.  The "fec" command-line tool compresses these pieces of data 
+and prepends them to the beginning of each share, so each the sharefile 
+produced by the "fec" command-line tool is between one and four bytes larger 
+than the share data alone.
 
 The decoding step requires as input k of the blocks which were produced by the
 encoding step.  The decoding step produces as output the data that was earlier
@@ -136,8 +144,11 @@ objects (e.g. Python strings) to hold the data that you pass to pyfec.
 
  * Utilities
 
-See also the filefec.py module which has a utility function for efficiently
-reading a file and encoding it piece by piece.
+The filefec.py module which has a utility function for efficiently reading a
+file and encoding it piece by piece.
+
+The bin/ directory contains two commandline tools "fec" and "unfec".  See
+their usage strings for details.
 
 
  * Dependencies
@@ -180,5 +191,5 @@ licence.
 Enjoy!
 
 Zooko Wilcox-O'Hearn
-2007-08-01
+2007-04-11
 Boulder, Colorado
