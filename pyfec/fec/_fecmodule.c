@@ -71,8 +71,8 @@ typedef struct {
     PyObject_HEAD
 
     /* expose these */
-    unsigned short kk;
-    unsigned short mm;
+    short kk;
+    short mm;
 
     /* internal */
     fec_t* fec_matrix;
@@ -119,8 +119,8 @@ Encoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
         py_raise_fec_error("Precondition violation: first argument is required to be less than or equal to the second argument, but they were %d and %d respectively", ink, inm);
 	return -1;
     }
-    self->kk = (unsigned short)ink;
-    self->mm = (unsigned short)inm;
+    self->kk = (short)ink;
+    self->mm = (short)inm;
     self->fec_matrix = fec_new(self->kk, self->mm);
 
     return 0;
@@ -269,8 +269,8 @@ static PyMethodDef Encoder_methods[] = {
 };
 
 static PyMemberDef Encoder_members[] = {
-    {"k", T_INT, offsetof(Encoder, kk), READONLY, "k"},
-    {"m", T_INT, offsetof(Encoder, mm), READONLY, "m"},
+    {"k", T_SHORT, offsetof(Encoder, kk), READONLY, "k"},
+    {"m", T_SHORT, offsetof(Encoder, mm), READONLY, "m"},
     {NULL} /* Sentinel */
 };
 
@@ -326,8 +326,8 @@ typedef struct {
     PyObject_HEAD
 
     /* expose these */
-    unsigned short kk;
-    unsigned short mm;
+    short kk;
+    short mm;
 
     /* internal */
     fec_t* fec_matrix;
@@ -375,8 +375,8 @@ Decoder_init(Encoder *self, PyObject *args, PyObject *kwdict) {
         py_raise_fec_error("Precondition violation: first argument is required to be less than or equal to the second argument, but they were %d and %d respectively", ink, inm);
 	return -1;
     }
-    self->kk = (unsigned short)ink;
-    self->mm = (unsigned short)inm;
+    self->kk = (short)ink;
+    self->mm = (short)inm;
     self->fec_matrix = fec_new(self->kk, self->mm);
 
     return 0;
@@ -533,8 +533,8 @@ static PyMethodDef Decoder_methods[] = {
 };
 
 static PyMemberDef Decoder_members[] = {
-    {"k", T_INT, offsetof(Encoder, kk), READONLY, "k"},
-    {"m", T_INT, offsetof(Encoder, mm), READONLY, "m"},
+    {"k", T_SHORT, offsetof(Encoder, kk), READONLY, "k"},
+    {"m", T_SHORT, offsetof(Encoder, mm), READONLY, "m"},
     {NULL} /* Sentinel */
 };
 
