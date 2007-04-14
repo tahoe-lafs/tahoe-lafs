@@ -1,0 +1,25 @@
+#!/usr/bin/env python
+
+# import bindann
+# import bindann.monkeypatch.all
+
+import sys
+
+from fec.util import argparse
+
+from fec import filefec
+
+parser = argparse.ArgumentParser(description="Decode data from share files.")
+
+parser.add_argument('outputfile', help='file to write the resulting data to, or "-" for stdout', type=argparse.FileType('wb'), metavar='OUTF')
+parser.add_argument('sharefiles', nargs='+', help='shares file to read the encoded data from', type=argparse.FileType('rb'), metavar='SHAREFILE')
+parser.add_argument('-v', '--verbose', help='print out messages about progress', action='store_true')
+args = parser.parse_args()
+
+if len(args.sharefiles) < 2:
+    print "At least two sharefiles are required."
+    sys.exit(1)
+
+ret = filefec.decode_from_files(args.outputfile, args.sharefiles, args.verbose)
+
+sys.exit(ret)

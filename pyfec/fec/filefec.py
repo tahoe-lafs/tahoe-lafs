@@ -104,14 +104,20 @@ def _parse_header(inf):
         bytes of inf will be read
     """
     # The first 8 bits always encode m.
-    byte = ord(inf.read(1))
+    ch = inf.read(1)
+    if not ch:
+        raise fec.Error("Share files were corrupted -- share file %r didn't have a complete metadata header at the front.  Perhaps the file was truncated." % (inf.name,))
+    byte = ord(ch)
     m = byte + 3
 
     # The next few bits encode k.
     kbits = log_ceil(m-2, 2) # num bits needed to store all possible values of k
     b2_bits_left = 8-kbits
     kbitmask = MASK(kbits) << b2_bits_left
-    byte = ord(inf.read(1))
+    ch = inf.read(1)
+    if not ch:
+        raise fec.Error("Share files were corrupted -- share file %r didn't have a complete metadata header at the front.  Perhaps the file was truncated." % (inf.name,))
+    byte = ord(ch)
     k = ((byte & kbitmask) >> b2_bits_left) + 2
 
     shbits = log_ceil(m, 2) # num bits needed to store all possible values of shnum
@@ -121,7 +127,10 @@ def _parse_header(inf):
 
     needed_padbits = padbits - b2_bits_left
     if needed_padbits > 0:
-        byte = struct.unpack(">B", inf.read(1))[0]
+        ch = inf.read(1)
+        if not ch:
+            raise fec.Error("Share files were corrupted -- share file %r didn't have a complete metadata header at the front.  Perhaps the file was truncated." % (inf.name,))
+        byte = struct.unpack(">B", ch)[0]
         val <<= 8
         val |= byte 
         needed_padbits -= 8
@@ -132,7 +141,10 @@ def _parse_header(inf):
 
     needed_shbits = shbits - extrabits
     if needed_shbits > 0:
-        byte = struct.unpack(">B", inf.read(1))[0]
+        ch = inf.read(1)
+        if not ch:
+            raise fec.Error("Share files were corrupted -- share file %r didn't have a complete metadata header at the front.  Perhaps the file was truncated." % (inf.name,))
+        byte = struct.unpack(">B", ch)[0]
         val <<= 8
         val |= byte 
         needed_shbits -= 8
@@ -205,39 +217,34 @@ def encode_to_files(inf, fsize, dirname, prefix, k, m, suffix=".fec", verbose=Fa
         print "Done!"
     return 0
 
-def decode_from_files(outf, dirname, prefix, suffix=".fec", verbose=False):
+def decode_from_files(outf, infiles, verbose=False):
     """
-    Decode from the first k files in the directory whose names match the
-    pattern, writing the results to outf.
+    Decode from the first k files in infiles, writing the results to outf.
     """
-    RE=re.compile(RE_FORMAT % (prefix, suffix,))
-
+    assert len(infiles) >= 2
     infs = []
     shnums = []
     m = None
     k = None
     padlen = None
 
-    for fn in os.listdir(dirname):
-        if RE.match(fn):
-            f = open(os.path.join(dirname, fn), "rb")
+    for f in infiles:
+        (nm, nk, npadlen, shnum,) = _parse_header(f)
+        if not (m is None or m == nm):
+            raise fec.Error("Share files were corrupted -- share file %r said that m was %s but another share file previously said that m was %s" % (f.name, nm, m,))
+        m = nm
+        if not (k is None or k == nk):
+            raise fec.Error("Share files were corrupted -- share file %r said that k was %s but another share file previously said that k was %s" % (f.name, nk, k,))
+        k = nk
+        if not (padlen is None or padlen == npadlen):
+            raise fec.Error("Share files were corrupted -- share file %r said that pad length was %s but another share file previously said that pad length was %s" % (f.name, npadlen, padlen,))
+        padlen = npadlen
 
-            (nm, nk, npadlen, shnum,) = _parse_header(f)
-            if not (m is None or m == nm):
-                raise fec.Error("Share files were corrupted -- share file %s said that m was %s but another share file previously said that m was %s" % (f, nm, m,))
-            m = nm
-            if not (k is None or k == nk):
-                raise fec.Error("Share files were corrupted -- share file %s said that k was %s but another share file previously said that k was %s" % (f, nk, k,))
-            k = nk
-            if not (padlen is None or padlen == npadlen):
-                raise fec.Error("Share files were corrupted -- share file %s said that pad length was %s but another share file previously said that pad length was %s" % (f, npadlen, padlen,))
-            padlen = npadlen
+        infs.append(f)
+        shnums.append(shnum)
 
-            infs.append(f)
-            shnums.append(shnum)
-
-            if len(infs) == k:
-                break
+        if len(infs) == k:
+            break
 
     dec = easyfec.Decoder(k, m)
 

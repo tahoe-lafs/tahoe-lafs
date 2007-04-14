@@ -168,18 +168,16 @@ class FileFec(unittest.TestCase):
             # encode the file
             fec.filefec.encode_to_files(open(tempfn, 'rb'), fsize, tempdir.name, PREFIX, k, m, SUFFIX, verbose=VERBOSE)
 
-            # delete some share files
-            fns = os.listdir(tempdir.name)
+            # select some share files
             RE=re.compile(fec.filefec.RE_FORMAT % (PREFIX, SUFFIX,))
-            sharefs = [ fn for fn in fns if RE.match(fn) ]
+            fns = os.listdir(tempdir.name)
+            sharefs = [ open(os.path.join(tempdir.name, fn), "rb") for fn in fns if RE.match(fn) ]
             random.shuffle(sharefs)
-            while len(sharefs) > numshs:
-                shfn = sharefs.pop()
-                fec.util.fileutil.remove(os.path.join(tempdir.name, shfn))
+            del sharefs[numshs:]
 
             # decode from the share files
             outf = open(os.path.join(tempdir.name, 'recovered-testfile.txt'), 'wb')
-            fec.filefec.decode_from_files(outf, tempdir.name, PREFIX, SUFFIX, verbose=VERBOSE)
+            fec.filefec.decode_from_files(outf, sharefs, verbose=VERBOSE)
             outf.close()
 
             tempfn = open(os.path.join(tempdir.name, 'recovered-testfile.txt'), 'rb')

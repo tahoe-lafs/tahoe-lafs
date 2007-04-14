@@ -1,0 +1,37 @@
+#!/usr/bin/env python
+
+# import bindann
+# import bindann.monkeypatch.all
+
+import sys
+
+from fec.util import argparse
+
+from fec import filefec
+
+parser = argparse.ArgumentParser(description="Encode a file into a set of share files, a subset of which can later be used to recover the original file.")
+
+parser.add_argument('inputfile', help='file to encode or "-" for stdin', type=argparse.FileType('rb'), metavar='INF')
+parser.add_argument('-d', '--output-dir', help='directory in which share file names will be created', default='.', metavar='D')
+parser.add_argument('-p', '--prefix', help='prefix for share file names; If omitted, the name of the input file will be used.', metavar='P')
+parser.add_argument('-s', '--suffix', help='suffix for share file names', default='.fec', metavar='S')
+parser.add_argument('-m', '--totalshares', help='the total number of share files created', default=16, metavar='M')
+parser.add_argument('-k', '--requiredshares', help='the number of share files required to reconstruct', default=4, metavar='K')
+parser.add_argument('-v', '--verbose', help='print out messages about progress', action='store_true')
+args = parser.parse_args()
+
+if args.prefix is None:
+    args.prefix = args.inputfile.name
+    if args.prefix == "<stdin>":
+        args.prefix = ""
+
+if args.totalshares < 3 or args.totalshares > 256 or args.requiredshares < 2 or args.requiredshares >= args.totalshares:
+    print "Invalid parameters, requiredshares: %s, totalshares:%s\nPlease see the accompanying documentation." % (args.requiredshares, args.totalshares,)
+    sys.exit(1)
+
+args.inputfile.seek(0, 2)
+fsize = args.inputfile.tell()
+args.inputfile.seek(0, 0)
+ret = filefec.encode_to_files(args.inputfile, fsize, args.output_dir, args.prefix, args.requiredshares, args.totalshares, args.suffix, args.verbose)
+
+sys.exit(ret)
