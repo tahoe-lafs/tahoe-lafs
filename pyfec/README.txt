@@ -18,8 +18,8 @@ This package is largely based on the old "fec" library by Luigi Rizzo et al.,
 which is a mature and optimized implementation of erasure coding.  The pyfec
 package makes several changes from the original "fec" package, including
 addition of the Python API, refactoring of the C API to support zero-copy
-operation, and a few clean-ups and micro-optimizations of the core code
-itself.
+operation, a few clean-ups and micro-optimizations of the core code itself, 
+and the addition of a command-line tool named "fec".
 
 
  * Community
@@ -73,6 +73,19 @@ encoding step.  The decoding step produces as output the data that was earlier
 input to the encoding step.
 
 
+ * Command-Line Tool
+
+The bin/ directory contains two Unix-style, command-line tools "fec" and 
+"unfec".  Execute "fec --help" or "unfec --help" for usage instructions.
+
+Note: a Unix-style tool like "fec" does only one thing -- in this case erasure 
+coding -- and leaves other tasks to other tools.  Other Unix-style tools that 
+go well with "fec" include "GNU tar" for packaging up multiple files and 
+directories into one bundle, "rzip" for compression, and "GNU Privacy Guard" 
+for encryption.  It is best to do things in that order: first package, then 
+compress, then encrypt, then erasure code.
+
+
  * API
 
 Each block is associated with "blocknum".  The blocknum of each primary block is
@@ -80,7 +93,7 @@ its index (starting from zero), so the 0'th block is the first primary block,
 which is the first few bytes of the file, the 1'st block is the next primary
 block, which is the next few bytes of the file, and so on.  The last primary
 block has blocknum k-1.  The blocknum of each secondary block is an arbitrary
-integer between k and 256 inclusive.  (When using the Python API, if you don't
+integer between k and 255 inclusive.  (When using the Python API, if you don't
 specify which blocknums you want for your secondary blocks when invoking
 encode(), then it will by default provide the blocks with ids from k to m-1
 inclusive.)
@@ -146,9 +159,6 @@ objects (e.g. Python strings) to hold the data that you pass to pyfec.
 
 The filefec.py module which has a utility function for efficiently reading a
 file and encoding it piece by piece.
-
-The bin/ directory contains two Unix-style, command-line tools "fec" and 
-"unfec".  See their usage strings for details.
 
 
  * Dependencies

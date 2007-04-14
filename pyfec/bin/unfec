@@ -7,13 +7,22 @@ import sys
 
 from fec.util import argparse
 
+import fec
 from fec import filefec
+from fec.util.version import Version
+__version__ = Version("1.0.0a1-0-STABLE")
 
+if '-V' in sys.argv or '--version' in sys.argv:
+    print "pyfec library version: ", fec.__version__
+    print "fec command-line tool version: ", __version__
+    sys.exit(0)
+  
 parser = argparse.ArgumentParser(description="Decode data from share files.")
 
 parser.add_argument('outputfile', help='file to write the resulting data to, or "-" for stdout', type=argparse.FileType('wb'), metavar='OUTF')
 parser.add_argument('sharefiles', nargs='+', help='shares file to read the encoded data from', type=argparse.FileType('rb'), metavar='SHAREFILE')
 parser.add_argument('-v', '--verbose', help='print out messages about progress', action='store_true')
+parser.add_argument('-V', '--version', help='print out version number and exit', action='store_true')
 args = parser.parse_args()
 
 if len(args.sharefiles) < 2:

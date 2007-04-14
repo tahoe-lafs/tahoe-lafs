@@ -5,10 +5,17 @@
 
 import sys
 
+import fec
 from fec.util import argparse
-
 from fec import filefec
+from fec.util.version import Version
+__version__ = Version("1.0.0a1-0-STABLE")
 
+if '-V' in sys.argv or '--version' in sys.argv:
+    print "pyfec library version: ", fec.__version__
+    print "fec command-line tool version: ", __version__
+    sys.exit(0)
+  
 parser = argparse.ArgumentParser(description="Encode a file into a set of share files, a subset of which can later be used to recover the original file.")
 
 parser.add_argument('inputfile', help='file to encode or "-" for stdin', type=argparse.FileType('rb'), metavar='INF')
@@ -18,6 +25,7 @@ parser.add_argument('-s', '--suffix', help='suffix for share file names', defaul
 parser.add_argument('-m', '--totalshares', help='the total number of share files created', default=16, metavar='M')
 parser.add_argument('-k', '--requiredshares', help='the number of share files required to reconstruct', default=4, metavar='K')
 parser.add_argument('-v', '--verbose', help='print out messages about progress', action='store_true')
+parser.add_argument('-V', '--version', help='print out version number and exit', action='store_true')
 args = parser.parse_args()
 
 if args.prefix is None:
