@@ -7,7 +7,6 @@ def div_ceil(n, d):
     """
     return (n/d) + (n%d != 0)
 
-
 class Encoder(object):
     def __init__(self, k, m):
         self.fec = fec.Encoder(k, m)
@@ -22,8 +21,17 @@ class Encoder(object):
         # padding
         if len(l[-1]) != len(l[0]):
             l[-1] = l[-1] + ('\x00'*(len(l[0])-len(l[-1])))
-        return self.fec.encode(l)
+        res = self.fec.encode(l)
+        return res
         
-    def decode(self, blocks):
-        return self.fec.decode(blocks)
-        
+class Decoder(object):
+    def __init__(self, k, m):
+        self.fec = fec.Decoder(k, m)
+
+    def decode(self, blocks, sharenums, padlen=0):
+        blocks = self.fec.decode(blocks, sharenums)
+        data = ''.join(blocks)
+        if padlen:
+            data = data[:-padlen]
+        return data
+
