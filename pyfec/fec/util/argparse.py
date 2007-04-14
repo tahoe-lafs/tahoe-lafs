@@ -842,7 +842,8 @@ class FileType(object):
     """    
     def __init__(self, mode='r', bufsize=None):
         self._mode = mode
-        self._bufsize = bufsize
+        if self._bufsize is None:
+            self._bufsize = -1
     
     def __call__(self, string):
         # the special argument "-" means sys.std{in,out}
@@ -856,10 +857,7 @@ class FileType(object):
                 raise ValueError(msg)
 
         # all other arguments are used as file names
-        if self._bufsize:
-            return open(string, self._mode, self._bufsize)
-        else:
-            return open(string, self._mode)
+        return open(string, self._mode, self._bufsize)
 
 
 # ===========================
