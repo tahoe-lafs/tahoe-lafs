@@ -86,6 +86,28 @@ Privacy Guard" for encryption.  It is important to do things in order: first
 package, then compress, then encrypt, then erasure code.
 
 
+ * Performance Measurements
+
+On my Athlon 64 2.4 GHz workstation (running Linux), the "fec" command-line
+tool encoded a 160 MB file with m=100, k=94 (about 6% redundancy) in 3.9
+seconds, where the "par2" tool encoded the file with about 6% redundancy in
+27 seconds.  "fec" encoded the same file with m=12, k=6 (100% redundancy) in
+4.1 seconds, where par2 encoded it with about 100% redundancy in 7 minutes
+and 56 seconds.
+
+The underlying C library in benchmark mode encoded from a file at about 
+4.9 million bytes per second and decoded at about 5.8 million bytes per second.
+
+On Peter's fancy Intel Mac laptop (2.16 GHz Core Duo), it encoded from a file
+at about 6.2 million bytes per second.
+
+On my even fancier Intel Mac laptop (2.33 GHz Core Duo), it encoded from a file
+at about 6.8 million bytes per second.
+
+On my old PowerPC G4 867 MHz Mac laptop, it encoded from a file at about 1.3
+million bytes per second.
+
+
  * API
 
 Each block is associated with "blocknum".  The blocknum of each primary block is
@@ -167,28 +189,6 @@ command-line tools from the bin/ directory.
 A C compiler is required.  To use the Python API or the command-line tools a
 Python interpreter is also required.  We have tested it with Python v2.4 and
 v2.5.
-
-
- * Performance Measurements
-
-On my Athlon 64 2.4 GHz workstation (running Linux), the "fec" command-line
-tool encoded a 160 MB file with m=100, k=94 (about 6% redundancy) in 3.9
-seconds, where the "par2" tool encoded the file with about 6% redundancy in
-27 seconds.  "fec" encoded the same file with m=12, k=6 (100% redundancy) in
-4.1 seconds, where par2 encoded it with about 100% redundancy in 7 minutes
-and 56 seconds.
-
-The underlying C library in benchmark mode encoded from a file at about 
-4.9 million bytes per second and decoded at about 5.8 million bytes per second.
-
-On Peter's fancy Intel Mac laptop (2.16 GHz Core Duo), it encoded from a file
-at about 6.2 million bytes per second.
-
-On my even fancier Intel Mac laptop (2.33 GHz Core Duo), it encoded from a file
-at about 6.8 million bytes per second.
-
-On my old PowerPC G4 867 MHz Mac laptop, it encoded from a file at about 1.3
-million bytes per second.
 
 
  * Acknowledgements
