@@ -31,6 +31,21 @@ import array, os, re, struct, traceback
 
 CHUNKSIZE = 4096
 
+class InsufficientShareFilesError(fec.Error):
+    def __init__(self, k, kb, *args, **kwargs):
+        fec.Error.__init__(self, *args, **kwargs)
+        self.k = k
+        self.kb = kb
+
+    def __repr__(self):
+        return "Insufficient share files -- %d share files are required to recover this file, but only %d were given" % (self.k, self.kb,)
+
+    def __str__(self):
+        return self.__repr__()
+
+class CorruptedShareFilesError(fec.Error):
+    pass
+
 def _build_header(m, k, pad, sh):
     """
     @param m: the total number of shares; 3 <= m <= 256
@@ -106,7 +121,7 @@ def _parse_header(inf):
     # The first 8 bits always encode m.
     ch = inf.read(1)
     if not ch:
-        raise fec.Error("Share files were corrupted -- share file %r didn't have a complete metadata header at the front.  Perhaps the file was truncated." % (inf.name,))
+        raise CorruptedShareFilesError("Share files were corrupted -- share file %r didn't have a complete metadata header at the front.  Perhaps the file was truncated." % (inf.name,))
     byte = ord(ch)
     m = byte + 3
 
@@ -116,7 +131,7 @@ def _parse_header(inf):
     kbitmask = MASK(kbits) << b2_bits_left
     ch = inf.read(1)
     if not ch:
-        raise fec.Error("Share files were corrupted -- share file %r didn't have a complete metadata header at the front.  Perhaps the file was truncated." % (inf.name,))
+        raise CorruptedShareFilesError("Share files were corrupted -- share file %r didn't have a complete metadata header at the front.  Perhaps the file was truncated." % (inf.name,))
     byte = ord(ch)
     k = ((byte & kbitmask) >> b2_bits_left) + 2
 
@@ -129,7 +144,7 @@ def _parse_header(inf):
     if needed_padbits > 0:
         ch = inf.read(1)
         if not ch:
-            raise fec.Error("Share files were corrupted -- share file %r didn't have a complete metadata header at the front.  Perhaps the file was truncated." % (inf.name,))
+            raise CorruptedShareFilesError("Share files were corrupted -- share file %r didn't have a complete metadata header at the front.  Perhaps the file was truncated." % (inf.name,))
         byte = struct.unpack(">B", ch)[0]
         val <<= 8
         val |= byte 
@@ -143,7 +158,7 @@ def _parse_header(inf):
     if needed_shbits > 0:
         ch = inf.read(1)
         if not ch:
-            raise fec.Error("Share files were corrupted -- share file %r didn't have a complete metadata header at the front.  Perhaps the file was truncated." % (inf.name,))
+            raise CorruptedShareFilesError("Share files were corrupted -- share file %r didn't have a complete metadata header at the front.  Perhaps the file was truncated." % (inf.name,))
         byte = struct.unpack(">B", ch)[0]
         val <<= 8
         val |= byte 
@@ -158,7 +173,7 @@ def _parse_header(inf):
 
 FORMAT_FORMAT = "%%s.%%0%dd_%%0%dd%%s"
 RE_FORMAT = "%s.[0-9]+_[0-9]+%s"
-def encode_to_files(inf, fsize, dirname, prefix, k, m, suffix=".fec", verbose=False):
+def encode_to_files(inf, fsize, dirname, prefix, k, m, suffix=".fec", overwrite=False, verbose=False):
     """
     Encode inf, writing the shares to specially named, newly created files.
 
@@ -181,8 +196,11 @@ def encode_to_files(inf, fsize, dirname, prefix, k, m, suffix=".fec", verbose=Fa
             fn = os.path.join(dirname, format % (prefix, shnum, m, suffix,))
             if verbose:
                 print "Creating share file %r..." % (fn,)
-            fd = os.open(fn, os.O_WRONLY|os.O_CREAT|os.O_EXCL)
-            f = os.fdopen(fd, "wb")
+            if overwrite:
+                f = open(fn, "wb")
+            else:
+                fd = os.open(fn, os.O_WRONLY|os.O_CREAT|os.O_EXCL)
+                f = os.fdopen(fd, "wb")
             f.write(hdr)
             fs.append(f)
             fns.append(fn)
@@ -242,13 +260,15 @@ def decode_from_files(outf, infiles, verbose=False):
     for f in infiles:
         (nm, nk, npadlen, shnum,) = _parse_header(f)
         if not (m is None or m == nm):
-            raise fec.Error("Share files were corrupted -- share file %r said that m was %s but another share file previously said that m was %s" % (f.name, nm, m,))
+            raise CorruptedShareFilesError("Share files were corrupted -- share file %r said that m was %s but another share file previously said that m was %s" % (f.name, nm, m,))
         m = nm
         if not (k is None or k == nk):
-            raise fec.Error("Share files were corrupted -- share file %r said that k was %s but another share file previously said that k was %s" % (f.name, nk, k,))
+            raise CorruptedShareFilesError("Share files were corrupted -- share file %r said that k was %s but another share file previously said that k was %s" % (f.name, nk, k,))
+        if k > len(infiles):
+            raise InsufficientShareFilesError(k, len(infiles))
         k = nk
         if not (padlen is None or padlen == npadlen):
-            raise fec.Error("Share files were corrupted -- share file %r said that pad length was %s but another share file previously said that pad length was %s" % (f.name, npadlen, padlen,))
+            raise CorruptedShareFilesError("Share files were corrupted -- share file %r said that pad length was %s but another share file previously said that pad length was %s" % (f.name, npadlen, padlen,))
         padlen = npadlen
 
         infs.append(f)
@@ -262,7 +282,7 @@ def decode_from_files(outf, infiles, verbose=False):
     while True:
         chunks = [ inf.read(CHUNKSIZE) for inf in infs ]
         if [ch for ch in chunks if len(ch) != len(chunks[-1])]:
-            raise fec.Error("Share files were corrupted -- all share files are required to be the same length, but they weren't.")
+            raise CorruptedShareFilesError("Share files were corrupted -- all share files are required to be the same length, but they weren't.")
 
         if len(chunks[-1]) == CHUNKSIZE:
             # Then this was a full read, so we're still in the sharefiles.

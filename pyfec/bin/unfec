@@ -40,6 +40,10 @@ else:
         sys.exit(2)
     outf = os.fdopen(outfd, "wb")
 
-ret = filefec.decode_from_files(outf, args.sharefiles, args.verbose)
+try:
+    ret = filefec.decode_from_files(outf, args.sharefiles, args.verbose)
+except filefec.InsufficientShareFilesError, e:
+    print str(e)
+    sys.exit(3)
 
 sys.exit(ret)
