@@ -92,7 +92,7 @@ test-figleaf: build
 	$(PP) $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
 
 figleaf-output:
-	$(PP) $(PYTHON) misc/figleaf2html -d coverage-html -r $(INSTDIR)
+	$(PP) $(PYTHON) misc/figleaf2html -d coverage-html -r $(INSTDIR) -x misc/figleaf.excludes
 	@echo "now point your browser at coverage-html/index.html"
 # after doing test-figleaf and figleaf-output, point your browser at
 # coverage-html/index.html
