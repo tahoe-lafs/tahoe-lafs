@@ -7,7 +7,8 @@ class ListAddresses(unittest.TestCase):
         d = iputil.get_local_addresses_async()
         def _check(addresses):
             self.failUnless(len(addresses) >= 1) # always have localhost
-            self.failUnless("127.0.0.1" in addresses)
+            self.failUnless("127.0.0.1" in addresses,
+                            "didn't see 127.0.0.1 in %s" % (addresses,))
         d.addCallbacks(_check)
         return d
 
