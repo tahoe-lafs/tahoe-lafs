@@ -126,7 +126,9 @@ class SystemTest(unittest.TestCase):
         d.addCallback(_do_upload)
         def _upload_done(uri):
             log.msg("upload finished: uri is %s" % (uri,))
+            self.uri = uri
             dl = self.clients[1].getServiceNamed("downloader")
+            self.downloader = dl
             d1 = dl.download_to_data(uri)
             return d1
         d.addCallback(_upload_done)
@@ -134,6 +136,28 @@ class SystemTest(unittest.TestCase):
             log.msg("download finished")
             self.failUnlessEqual(data, DATA)
         d.addCallback(_download_done)
+
+        target_filename = os.path.join(self.basedir, "download.target")
+        def _download_to_filename(res):
+            return self.downloader.download_to_filename(self.uri,
+                                                        target_filename)
+        d.addCallback(_download_to_filename)
+        def _download_to_filename_done(res):
+            newdata = open(target_filename, "rb").read()
+            self.failUnlessEqual(newdata, DATA)
+        d.addCallback(_download_to_filename_done)
+
+        target_filename2 = os.path.join(self.basedir, "download.target2")
+        def _download_to_filehandle(res):
+            fh = open(target_filename2, "wb")
+            return self.downloader.download_to_filehandle(self.uri, fh)
+        d.addCallback(_download_to_filehandle)
+        def _download_to_filehandle_done(fh):
+            fh.close()
+            newdata = open(target_filename2, "rb").read()
+            self.failUnlessEqual(newdata, DATA)
+        d.addCallback(_download_to_filehandle_done)
+
         return d
     test_upload_and_download.timeout = 300
 

@@ -372,6 +372,11 @@ class Data:
         return self.data
 
 class FileHandle:
+    """Use me to download data to a pre-defined filehandle-like object. I
+    will use the target's write() method. I will *not* close the filehandle:
+    I leave that up to the originator of the filehandle. The download process
+    will return the filehandle when it completes.
+    """
     implements(IDownloadTarget)
     def __init__(self, filehandle):
         self._filehandle = filehandle
@@ -387,7 +392,7 @@ class FileHandle:
     def register_canceller(self, cb):
         pass
     def finish(self):
-        pass
+        return self._filehandle
 
 class Downloader(service.MultiService):
     """I am a service that allows file downloading.
