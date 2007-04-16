@@ -85,19 +85,30 @@ class ValidatedBucket:
     def _got_data(self, res, blocknum):
         sharehashes, blockhashes, blockdata = res
 
-        if not self._share_hash:
-            sh = dict(sharehashes)
-            sh[0] = self._roothash # always use our own root, from the URI
-            if self.share_hash_tree.get_leaf_index(self.sharenum) not in sh:
-                raise hashutil.NotEnoughHashesError
-            self.share_hash_tree.set_hashes(sh)
-            self._share_hash = self.share_hash_tree.get_leaf(self.sharenum)
+        try:
+            if not self._share_hash:
+                sh = dict(sharehashes)
+                sh[0] = self._roothash # always use our own root, from the URI
+                sht = self.share_hash_tree
+                if sht.get_leaf_index(self.sharenum) not in sh:
+                    raise hashutil.NotEnoughHashesError
+                sht.set_hashes(sh)
+                self._share_hash = sht.get_leaf(self.sharenum)
 
-        blockhash = hashutil.tagged_hash("encoded subshare", blockdata)
-        # we always validate the blockhash
-        bh = dict(enumerate(blockhashes))
-        bh[0] = self._share_hash # replace blockhash root with validated value
-        self.block_hash_tree.set_hashes(bh, {blocknum: blockhash})
+            blockhash = hashutil.tagged_hash("encoded subshare", blockdata)
+            # we always validate the blockhash
+            bh = dict(enumerate(blockhashes))
+            # replace blockhash root with validated value
+            bh[0] = self._share_hash
+            self.block_hash_tree.set_hashes(bh, {blocknum: blockhash})
+
+        except (hashutil.BadHashError, hashutil.NotEnoughHashesError):
+            # log.WEIRD: indicates undetected disk/network error, or more
+            # likely a programming error
+            log.msg("hash failure in shnum=%d on %s" % (self.sharenum,
+                                                        self.bucket))
+            raise
+
         # If we made it here, the block is good. If the hash trees didn't
         # like what they saw, they would have raised a BadHashError, causing
         # our caller to see a Failure and thus ignore this block (as well as
