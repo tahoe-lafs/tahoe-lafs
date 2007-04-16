@@ -2,6 +2,7 @@
 
 from twisted.trial import unittest
 from twisted.internet import defer
+from twisted.python.failure import Failure
 from foolscap import eventual
 from allmydata import encode, download
 from allmydata.uri import pack_uri
@@ -40,7 +41,9 @@ class FakeStorageServer:
             return (set(), dict([(shnum, FakeBucketWriter(),) for shnum in sharenums]),)
 
 class FakeBucketWriter:
-    def __init__(self):
+    # these are used for both reading and writing
+    def __init__(self, mode="good"):
+        self.mode = mode
         self.blocks = {}
         self.block_hashes = None
         self.share_hashes = None
@@ -71,14 +74,26 @@ class FakeBucketWriter:
         assert not self.closed
         self.closed = True
 
+    def flip_bit(self, good):
+        return good[:-1] + chr(ord(good[-1]) ^ 0x01)
 
     def get_block(self, blocknum):
         assert isinstance(blocknum, int)
+        if self.mode == "bad block":
+            return self.flip_bit(self.blocks[blocknum])
         return self.blocks[blocknum]
 
     def get_block_hashes(self):
+        if self.mode == "bad blockhash":
+            hashes = self.block_hashes[:]
+            hashes[1] = self.flip_bit(hashes[1])
+            return hashes
         return self.block_hashes
     def get_share_hashes(self):
+        if self.mode == "bad sharehash":
+            hashes = self.share_hashes[:]
+            hashes[1] = (hashes[1][0], self.flip_bit(hashes[1][1]))
+            return hashes
         return self.share_hashes
 
 
@@ -122,7 +137,7 @@ class Encode(unittest.TestCase):
         return d
 
 class Roundtrip(unittest.TestCase):
-    def send_and_recover(self, NUM_SHARES, NUM_PEERS, NUM_SEGMENTS=4):
+    def send_and_recover(self, NUM_SHARES, NUM_SEGMENTS=4, bucket_modes={}):
         e = encode.Encoder()
         data = "happy happy joy joy" * 4
         e.setup(StringIO(data))
@@ -135,10 +150,9 @@ class Roundtrip(unittest.TestCase):
         shareholders = {}
         all_shareholders = []
         all_peers = []
-        for i in range(NUM_PEERS):
-            all_peers.append(FakeBucketWriter())
         for shnum in range(NUM_SHARES):
-            peer = all_peers[shnum % NUM_PEERS]
+            mode = bucket_modes.get(shnum, "good")
+            peer = FakeBucketWriter(mode)
             shareholders[shnum] = peer
             all_shareholders.append(peer)
         e.set_shareholders(shareholders)
@@ -171,5 +185,74 @@ class Roundtrip(unittest.TestCase):
         return d
 
     def test_one_share_per_peer(self):
-        return self.send_and_recover(100, 100)
+        return self.send_and_recover(100)
+
+    def test_bad_blocks(self):
+        # the first 74 servers have bad blocks, which will be caught by the
+        # blockhashes
+        modemap = dict([(i, "bad block")
+                        for i in range(74)]
+                       + [(i, "good")
+                          for i in range(74, 100)])
+        return self.send_and_recover(100, bucket_modes=modemap)
+
+    def test_bad_blocks_failure(self):
+        # the first 76 servers have bad blocks, which will be caught by the
+        # blockhashes, and the download will fail
+        modemap = dict([(i, "bad block")
+                        for i in range(76)]
+                       + [(i, "good")
+                          for i in range(76, 100)])
+        d = self.send_and_recover(100, bucket_modes=modemap)
+        def _done(res):
+            self.failUnless(isinstance(res, Failure))
+            self.failUnless(res.check(download.NotEnoughPeersError))
+        d.addBoth(_done)
+        return d
+
+    def test_bad_blockhashes(self):
+        # the first 74 servers have bad block hashes, so the blockhash tree
+        # will not validate
+        modemap = dict([(i, "bad blockhash")
+                        for i in range(74)]
+                       + [(i, "good")
+                          for i in range(74, 100)])
+        return self.send_and_recover(100, bucket_modes=modemap)
+
+    def test_bad_blockhashes_failure(self):
+        # the first 76 servers have bad block hashes, so the blockhash tree
+        # will not validate, and the download will fail
+        modemap = dict([(i, "bad blockhash")
+                        for i in range(76)]
+                       + [(i, "good")
+                          for i in range(76, 100)])
+        d = self.send_and_recover(100, bucket_modes=modemap)
+        def _done(res):
+            self.failUnless(isinstance(res, Failure))
+            self.failUnless(res.check(download.NotEnoughPeersError))
+        d.addBoth(_done)
+        return d
+
+    def test_bad_sharehashes(self):
+        # the first 74 servers have bad block hashes, so the sharehash tree
+        # will not validate
+        modemap = dict([(i, "bad sharehash")
+                        for i in range(74)]
+                       + [(i, "good")
+                          for i in range(74, 100)])
+        return self.send_and_recover(100, bucket_modes=modemap)
+
+    def test_bad_sharehashes_failure(self):
+        # the first 76 servers have bad block hashes, so the sharehash tree
+        # will not validate, and the download will fail
+        modemap = dict([(i, "bad sharehash")
+                        for i in range(76)]
+                       + [(i, "good")
+                          for i in range(76, 100)])
+        d = self.send_and_recover(100, bucket_modes=modemap)
+        def _done(res):
+            self.failUnless(isinstance(res, Failure))
+            self.failUnless(res.check(download.NotEnoughPeersError))
+        d.addBoth(_done)
+        return d
 

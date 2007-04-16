@@ -102,7 +102,7 @@ class ValidatedBucket:
             bh[0] = self._share_hash
             self.block_hash_tree.set_hashes(bh, {blocknum: blockhash})
 
-        except (hashutil.BadHashError, hashutil.NotEnoughHashesError):
+        except (hashtree.BadHashError, hashtree.NotEnoughHashesError):
             # log.WEIRD: indicates undetected disk/network error, or more
             # likely a programming error
             log.msg("hash failure in shnum=%d on %s" % (self.sharenum,
