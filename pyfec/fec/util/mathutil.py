@@ -58,18 +58,6 @@ def log_ceil(n, b):
         k += 1
     return k
 
-def linear_fit_slope(ps):
-    """
-    @param ps a sequence of tuples of (x, y)
-    """
-    avex = ave([x for (x, y) in ps])
-    avey = ave([y for (x, y) in ps])
-    sxy = sum([ (x - avex) * (y - avey) for (x, y) in ps ])
-    sxx = sum([ (x - avex) ** 2 for (x, y) in ps ])
-    if sxx == 0:
-        return None
-    return sxy / sxx
-
 def permute(l):
     """
     Return all possible permutations of l.
