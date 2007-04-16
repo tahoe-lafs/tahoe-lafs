@@ -1,111 +1,41 @@
+# portions extracted from ipaddresslib by Autonomous Zone Industries, LGPL (author: Greg Smith)
+# portions adapted from nattraverso.ipdiscover
+# portions authored by Brian Warner, working for Allmydata
+# most recent version authored by Zooko O'Whielacronx, working for Allmydata
 
-# adapted from nattraverso.ipdiscover
+# from the Python Standard Library
+import re, socket, sys
 
-import subprocess
-import re
-import socket
-from cStringIO import StringIO
+# from Twisted
+from twisted.internet import defer
+from twisted.python import log
 from twisted.internet import reactor
 from twisted.internet.protocol import DatagramProtocol
 from twisted.internet.utils import getProcessOutput
+from twisted.python.procutils import which
 
-from fcntl import ioctl
-import struct
-SIOCGIFADDR    = 0x8915 # linux-specific
-
-# inspired by scapy
-def get_if_list():
-    f = open("/proc/net/dev","r")
-    f.readline(); f.readline()
-    names = []
-    for l in f.readlines():
-        names.append(l[:l.index(":")].strip())
-    return names
-
-def get_if_addr(ifname):
-    try:
-        s=socket.socket()
-        ifreq = ioctl(s, SIOCGIFADDR, struct.pack("16s16x", ifname))
-        s.close()
-        naddr = ifreq[20:24]
-        return socket.inet_ntoa(naddr)
-    except IOError:
-        return None
-
-def get_local_addresses():
-    """Return a list of IPv4 addresses (as dotted-quad strings) that are
-    currently configured on this host.
-
-    This will only work under linux, because it uses both a linux-specific
-    /proc/net/dev devices (to get the interface names) and a SIOCGIFADDR
-    ioctl (to get their addresses). If the listing-the-interfaces were done
-    with an ioctl too (and if if you're lucky enough to be using the same
-    value for the ioctls), then it might work on other forms of unix too.
-    Windows is right out."""
-
-    ifnames = []
-    for ifname in get_if_list():
-        addr = get_if_addr(ifname)
-        if addr:
-            ifnames.append(addr)
-    return ifnames
-
-def get_local_addresses_sync():
-    """Return a list of IPv4 addresses (as dotted-quad strings) that are
-    currently configured on this host.
-
-    Unfortunately this is not compatible with Twisted: it catches SIGCHLD and
-    this usually results in errors about 'Interrupted system call'.
-
-    This will probably work on both linux and OS-X, but probably not windows.
+def get_local_addresses_async(target='A.ROOT-SERVERS.NET'):
     """
-    # eventually I want to use somebody else's cross-platform library for
-    # this. For right now, I'm running ifconfig and grepping for the 'inet '
-    # lines.
+    Return a Deferred that fires with a list of IPv4 addresses (as dotted-quad
+    strings) that are currently configured on this host.
 
-    cmd = "/sbin/ifconfig"
-    #p = os.popen(cmd)
-    c = subprocess.Popen(["ifconfig"], stdout=subprocess.PIPE)
-    output = c.communicate()[0]
-    p = StringIO(output)
+    @param target: we want to learn an IP address they could try using to
+        connect to us; The default value is fine, but it might help if you
+        pass the address of a host that you are actually trying to be
+        reachable to.
+    """
     addresses = []
-    for line in p.readlines():
-        # linux shows: "   inet addr:1.2.3.4  Bcast:1.2.3.255..."
-        # OS-X shows: "   inet 1.2.3.4 ..."
-        m = re.match("^\s+inet\s+[a-z:]*([\d\.]+)\s", line)
-        if m:
-            addresses.append(m.group(1))
-    return addresses
+    addresses.append(get_local_ip_for(target))
 
-def get_local_addresses_async():
-    """Return a Deferred that fires with a list of IPv4 addresses (as
-    dotted-quad strings) that are currently configured on this host.
-
-    This will probably work on both linux and OS-X, but probably not windows.
-    """
-    # eventually I want to use somebody else's cross-platform library for
-    # this. For right now, I'm running ifconfig and grepping for the 'inet '
-    # lines.
-
-    # I'd love to do this synchronously.
-    cmd = "/sbin/ifconfig"
-    d = getProcessOutput(cmd)
-    def _parse(output):
-        addresses = []
-        for line in StringIO(output).readlines():
-            # linux shows: "   inet addr:1.2.3.4  Bcast:1.2.3.255..."
-            # OS-X shows: "   inet 1.2.3.4 ..."
-            m = re.match("^\s+inet\s+[a-z:]*([\d\.]+)\s", line)
-            if m:
-                addresses.append(m.group(1))
+    d = _find_addresses_via_config()
+    def _collect(res):
+        addresses.extend(res)
         return addresses
-    def _fallback(f):
-        return ["127.0.0.1", get_local_ip_for()]
-    d.addCallbacks(_parse, _fallback)
+    d.addCallback(_collect)
+
     return d
 
-
-def get_local_ip_for(target='A.ROOT-SERVERS.NET'):
+def get_local_ip_for(target):
     """Find out what our IP address is for use by a given target.
 
     Returns a string that holds the IP address which could be used by
@@ -122,3 +52,89 @@ def get_local_ip_for(target='A.ROOT-SERVERS.NET'):
     port.stopListening() # note, this returns a Deferred
     return localip
 
+# k: result of sys.platform, v: which kind of IP configuration reader we use
+_platform_map = {
+    "linux-i386": "linux", # redhat
+    "linux-ppc": "linux",  # redhat
+    "linux2": "linux",     # debian
+    "win32": "win32",
+    "irix6-n32": "irix",
+    "irix6-n64": "irix",
+    "irix6": "irix",
+    "openbsd2": "bsd",
+    "darwin": "bsd",       # Mac OS X
+    "freebsd4": "bsd",
+    "freebsd5": "bsd",
+    "netbsd1": "bsd",
+    "sunos5": "sunos",
+    "cygwin": "cygwin",
+    }
+
+class UnsupportedPlatformError(Exception):
+    pass
+
+# Wow, I'm really amazed at home much mileage we've gotten out of calling
+# the external route.exe program on windows...  It appears to work on all
+# versions so far.  Still, the real system calls would much be preferred...
+# ... thus wrote Greg Smith in time immemorial...
+_win32_path = 'route.exe'
+_win32_args = ('print',)
+_win32_re = re.compile('^\s*0\.0\.0\.0\s.+\s(?P<address>\d+\.\d+\.\d+\.\d+)\s+(?P<metric>\d+)\s*$', flags=re.M|re.I|re.S)
+
+# These work in Redhat 6.x and Debian 2.2 potato
+_linux_path = '/sbin/ifconfig'
+_linux_re = re.compile('^(?P<name>\w+)\s.+\sinet addr:(?P<address>\d+\.\d+\.\d+\.\d+)\s.+$', flags=re.M|re.I|re.S)
+
+# NetBSD 1.4 (submitted by Rhialto), Darwin, Mac OS X
+_netbsd_path = '/sbin/ifconfig -a'
+_netbsd_re = re.compile('^\s+inet (?P<address>\d+\.\d+\.\d+\.\d+)\s.+$', flags=re.M|re.I|re.S)
+
+# Irix 6.5
+_irix_path = '/usr/etc/ifconfig -a'
+
+# Solaris 2.x
+_sunos_path = '/usr/sbin/ifconfig -a'
+
+def _find_addresses_via_config():
+    # originally by Greg Smith, hacked by Zooko to conform to Brian's API
+    
+    platform = _platform_map.get(sys.platform)
+    if not platform:
+        raise UnsupportedPlatformError(sys.platform)
+
+    if platform in ('win32', 'cygwin',):
+        l = []
+        for executable in which(_win32_path):
+            l.append(_query(executable, _win32_re, _win32_args))
+        dl = defer.DeferredList(l)
+        def _gather_results(res):
+            addresses = []
+            for r in res:
+                if r[0]:
+                    addresses.extend(r[1])
+            return addresses
+        dl.addCallback(_gather_results)
+        return dl
+    elif platform == 'linux':
+        return _query(_linux_path, _linux_re)
+    elif platform == 'bsd':
+        return _query(_netbsd_path, _netbsd_re)
+    elif platform == 'irix' :
+        return _query(_irix_path, _netbsd_re)
+    elif platform == 'sunos':
+        return _query(_sunos_path, _netbsd_re)
+
+def _query(path, regex, args=()):
+    d = getProcessOutput(path, args)
+    def _parse(output):
+        addresses = []
+        outputsplit = output.split('\n')
+        for output in outputsplit:
+            m = regex.match(output)
+            if m:
+                d = m.groupdict()
+                addresses.append(d['address'])
+    
+        return addresses
+    d.addCallback(_parse)
+    return d
