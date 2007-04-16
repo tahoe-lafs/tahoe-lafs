@@ -75,7 +75,7 @@ def permute(l):
     Return all possible permutations of l.
 
     @type l: sequence
-    @rtype a set of sequences
+    @rtype: a list of sequences
     """
     if len(l) == 1:
         return [l,]
