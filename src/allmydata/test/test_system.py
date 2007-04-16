@@ -159,7 +159,7 @@ class SystemTest(unittest.TestCase):
         d.addCallback(_download_to_filehandle_done)
 
         return d
-    test_upload_and_download.timeout = 300
+    test_upload_and_download.timeout = 600
 
     def test_vdrive(self):
         self.basedir = "test_system/SystemTest/test_vdrive"
