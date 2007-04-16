@@ -24,12 +24,12 @@ def get_local_addresses_async(target='A.ROOT-SERVERS.NET'):
         pass the address of a host that you are actually trying to be
         reachable to.
     """
-    addresses = []
-    addresses.append(get_local_ip_for(target))
+    addresses = set()
+    addresses.add(get_local_ip_for(target))
 
     d = _find_addresses_via_config()
     def _collect(res):
-        addresses.extend(res)
+        addresses.update(res)
         return addresses
     d.addCallback(_collect)
 
@@ -79,11 +79,11 @@ class UnsupportedPlatformError(Exception):
 # ... thus wrote Greg Smith in time immemorial...
 _win32_path = 'route.exe'
 _win32_args = ('print',)
-_win32_re = re.compile('^\s*0\.0\.0\.0\s.+\s(?P<address>\d+\.\d+\.\d+\.\d+)\s+(?P<metric>\d+)\s*$', flags=re.M|re.I|re.S)
+_win32_re = re.compile('^\s*\d+\.\d+\.\d+\.\d+\s.+\s(?P<address>\d+\.\d+\.\d+\.\d+)\s+(?P<metric>\d+)\s*$', flags=re.M|re.I|re.S)
 
 # These work in Redhat 6.x and Debian 2.2 potato
 _linux_path = '/sbin/ifconfig'
-_linux_re = re.compile('^(?P<name>\w+)\s.+\sinet addr:(?P<address>\d+\.\d+\.\d+\.\d+)\s.+$', flags=re.M|re.I|re.S)
+_linux_re = re.compile('^\s*inet addr:(?P<address>\d+\.\d+\.\d+\.\d+)\s.+$', flags=re.M|re.I|re.S)
 
 # NetBSD 1.4 (submitted by Rhialto), Darwin, Mac OS X
 _netbsd_path = '/sbin/ifconfig -a'
@@ -108,10 +108,10 @@ def _find_addresses_via_config():
             l.append(_query(executable, _win32_re, _win32_args))
         dl = defer.DeferredList(l)
         def _gather_results(res):
-            addresses = []
+            addresses = set()
             for r in res:
                 if r[0]:
-                    addresses.extend(r[1])
+                    addresses.update(r[1])
             return addresses
         dl.addCallback(_gather_results)
         return dl
@@ -127,13 +127,13 @@ def _find_addresses_via_config():
 def _query(path, regex, args=()):
     d = getProcessOutput(path, args)
     def _parse(output):
-        addresses = []
+        addresses = set()
         outputsplit = output.split('\n')
-        for output in outputsplit:
-            m = regex.match(output)
+        for outline in outputsplit:
+            m = regex.match(outline)
             if m:
                 d = m.groupdict()
-                addresses.append(d['address'])
+                addresses.add(d['address'])
     
         return addresses
     d.addCallback(_parse)
