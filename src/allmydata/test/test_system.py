@@ -116,12 +116,19 @@ class SystemTest(unittest.TestCase):
 
     def test_upload_and_download(self):
         self.basedir = "test_system/SystemTest/test_upload_and_download"
-        DATA = "Some data to upload\n"
+        # we use 4000 bytes of data, which will result in about 400k written
+        # to disk among all our simulated nodes
+        DATA = "Some data to upload\n" * 200
         d = self.set_up_nodes()
         def _do_upload(res):
             log.msg("UPLOADING")
             u = self.clients[0].getServiceNamed("uploader")
-            d1 = u.upload_data(DATA)
+            # we crank the max segsize down to 1024b for the duration of this
+            # test, so we can exercise multiple segments. It is important
+            # that this is not a multiple of the segment size, so that the
+            # tail segment is not the same length as the others.
+            options = {"max_segment_size": 1024}
+            d1 = u.upload_data(DATA, options)
             return d1
         d.addCallback(_do_upload)
         def _upload_done(uri):

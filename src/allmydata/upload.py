@@ -309,9 +309,9 @@ class Uploader(service.MultiService):
         return d
 
     # utility functions
-    def upload_data(self, data):
-        return self.upload(Data(data))
-    def upload_filename(self, filename):
-        return self.upload(FileName(filename))
-    def upload_filehandle(self, filehandle):
-        return self.upload(FileHandle(filehandle))
+    def upload_data(self, data, options={}):
+        return self.upload(Data(data), options)
+    def upload_filename(self, filename, options={}):
+        return self.upload(FileName(filename), options)
+    def upload_filehandle(self, filehandle, options={}):
+        return self.upload(FileHandle(filehandle), options)
