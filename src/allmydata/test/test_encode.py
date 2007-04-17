@@ -209,17 +209,17 @@ class Encode(unittest.TestCase):
         return self.do_encode(25, 101, 100, 5, 15, 8)
 
 class Roundtrip(unittest.TestCase):
-    def send_and_recover(self, NUM_SHARES,
+    def send_and_recover(self, NUM_SHARES=100,
                          AVAILABLE_SHARES=None,
-                         DATA_LENGTH=76,
+                         datalen=76,
+                         max_segment_size=25,
                          bucket_modes={}):
         if AVAILABLE_SHARES is None:
             AVAILABLE_SHARES = NUM_SHARES
-        options = {"max_segment_size": 25} # force use of multiple segments
+        data = make_data(datalen)
+        # force use of multiple segments
+        options = {"max_segment_size": max_segment_size}
         e = encode.Encoder(options)
-        data = "happy happy joy joy" * 10
-        assert DATA_LENGTH <= len(data)
-        data = data[:DATA_LENGTH]
         e.setup(StringIO(data))
 
         assert e.num_shares == NUM_SHARES # else we'll be completely confused
@@ -273,8 +273,26 @@ class Roundtrip(unittest.TestCase):
     def test_one_share_per_peer(self):
         return self.send_and_recover(100)
 
-    def test_multiple_of_segsize(self):
-        return self.send_and_recover(100, DATA_LENGTH=75)
+    def test_74(self):
+        return self.send_and_recover(datalen=74)
+    def test_75(self):
+        return self.send_and_recover(datalen=75)
+    def test_51(self):
+        return self.send_and_recover(datalen=51)
+
+    def test_99(self):
+        return self.send_and_recover(datalen=99)
+    def test_100(self):
+        return self.send_and_recover(datalen=100)
+    def test_76(self):
+        return self.send_and_recover(datalen=76)
+
+    def test_124(self):
+        return self.send_and_recover(datalen=124)
+    def test_125(self):
+        return self.send_and_recover(datalen=125)
+    def test_101(self):
+        return self.send_and_recover(datalen=101)
 
     def test_bad_blocks(self):
         # the first 74 servers have bad blocks, which will be caught by the
