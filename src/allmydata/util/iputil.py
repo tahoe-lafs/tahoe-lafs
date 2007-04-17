@@ -8,7 +8,6 @@ import re, socket, sys
 
 # from Twisted
 from twisted.internet import defer
-from twisted.python import log
 from twisted.internet import reactor
 from twisted.internet.protocol import DatagramProtocol
 from twisted.internet.utils import getProcessOutput
