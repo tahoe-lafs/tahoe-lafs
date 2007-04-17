@@ -94,6 +94,11 @@ class FakeBucketWriter:
             hashes = self.share_hashes[:]
             hashes[1] = (hashes[1][0], self.flip_bit(hashes[1][1]))
             return hashes
+        if self.mode == "missing sharehash":
+            # one sneaky attack would be to pretend we don't know our own
+            # sharehash, which could manage to frame someone else.
+            # download.py is supposed to guard against this case.
+            return []
         return self.share_hashes
 
 
@@ -246,6 +251,29 @@ class Roundtrip(unittest.TestCase):
         # the first 76 servers have bad block hashes, so the sharehash tree
         # will not validate, and the download will fail
         modemap = dict([(i, "bad sharehash")
+                        for i in range(76)]
+                       + [(i, "good")
+                          for i in range(76, 100)])
+        d = self.send_and_recover(100, bucket_modes=modemap)
+        def _done(res):
+            self.failUnless(isinstance(res, Failure))
+            self.failUnless(res.check(download.NotEnoughPeersError))
+        d.addBoth(_done)
+        return d
+
+    def test_missing_sharehashes(self):
+        # the first 74 servers are missing their sharehashes, so the
+        # sharehash tree will not validate
+        modemap = dict([(i, "missing sharehash")
+                        for i in range(74)]
+                       + [(i, "good")
+                          for i in range(74, 100)])
+        return self.send_and_recover(100, bucket_modes=modemap)
+
+    def test_missing_sharehashes_failure(self):
+        # the first 76 servers are missing their sharehashes, so the
+        # sharehash tree will not validate, and the download will fail
+        modemap = dict([(i, "missing sharehash")
                         for i in range(76)]
                        + [(i, "good")
                           for i in range(76, 100)])
