@@ -38,7 +38,10 @@ class BucketWriter(Referenceable):
 
     def remote_put_block(self, segmentnum, data):
         precondition(not self.closed)
-        assert len(data) == self.blocksize
+        # all blocks but the last will be of size self.blocksize, however the
+        # last one may be short, and we don't know the total number of
+        # segments so we can't tell which is which.
+        assert len(data) <= self.blocksize
         f = open(os.path.join(self.incominghome, 'data'), 'wb')
         f.seek(self.blocksize*segmentnum)
         f.write(data)
