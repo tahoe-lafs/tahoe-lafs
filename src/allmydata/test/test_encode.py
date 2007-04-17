@@ -142,20 +142,22 @@ class Encode(unittest.TestCase):
         return d
 
 class Roundtrip(unittest.TestCase):
-    def send_and_recover(self, NUM_SHARES, NUM_SEGMENTS=4,
+    def send_and_recover(self, NUM_SHARES,
                          AVAILABLE_SHARES=None,
+                         DATA_LENGTH=76,
                          bucket_modes={}):
         if AVAILABLE_SHARES is None:
             AVAILABLE_SHARES = NUM_SHARES
         options = {"max_segment_size": 25} # force use of multiple segments
         e = encode.Encoder(options)
-        data = "happy happy joy joy" * 4
+        data = "happy happy joy joy" * 10
+        assert DATA_LENGTH <= len(data)
+        data = data[:DATA_LENGTH]
         e.setup(StringIO(data))
 
         assert e.num_shares == NUM_SHARES # else we'll be completely confused
         e.setup_codec() # need to rebuild the codec for that change
 
-        assert (NUM_SEGMENTS-1)*e.segment_size < len(data) <= NUM_SEGMENTS*e.segment_size
         shareholders = {}
         all_shareholders = []
         all_peers = []
@@ -203,6 +205,9 @@ class Roundtrip(unittest.TestCase):
 
     def test_one_share_per_peer(self):
         return self.send_and_recover(100)
+
+    def test_multiple_of_segsize(self):
+        return self.send_and_recover(100, DATA_LENGTH=75)
 
     def test_bad_blocks(self):
         # the first 74 servers have bad blocks, which will be caught by the
