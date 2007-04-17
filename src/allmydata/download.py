@@ -192,7 +192,6 @@ class SegmentDownloader:
             del self.parent._share_buckets[shnum]
 
 class FileDownloader:
-    debug = False
 
     def __init__(self, client, uri, downloadable):
         self._client = client
@@ -226,8 +225,6 @@ class FileDownloader:
 
     def start(self):
         log.msg("starting download [%s]" % (idlib.b2a(self._verifierid),))
-        if self.debug:
-            print "starting download"
 
         # first step: who should we download from?
         d = defer.maybeDeferred(self._get_all_shareholders)
@@ -410,7 +407,6 @@ class Downloader(service.MultiService):
     """
     implements(IDownloader)
     name = "downloader"
-    debug = False
 
     def download(self, uri, t):
         assert self.parent
@@ -419,8 +415,6 @@ class Downloader(service.MultiService):
         assert t.write
         assert t.close
         dl = FileDownloader(self.parent, uri, t)
-        if self.debug:
-            dl.debug = True
         d = dl.start()
         return d
 
