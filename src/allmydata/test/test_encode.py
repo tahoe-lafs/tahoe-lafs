@@ -142,7 +142,11 @@ class Encode(unittest.TestCase):
         return d
 
 class Roundtrip(unittest.TestCase):
-    def send_and_recover(self, NUM_SHARES, NUM_SEGMENTS=4, bucket_modes={}):
+    def send_and_recover(self, NUM_SHARES, NUM_SEGMENTS=4,
+                         AVAILABLE_SHARES=None,
+                         bucket_modes={}):
+        if AVAILABLE_SHARES is None:
+            AVAILABLE_SHARES = NUM_SHARES
         e = encode.Encoder()
         data = "happy happy joy joy" * 4
         e.setup(StringIO(data))
@@ -175,7 +179,7 @@ class Roundtrip(unittest.TestCase):
             client = None
             target = download.Data()
             fd = download.FileDownloader(client, URI, target)
-            for shnum in range(NUM_SHARES):
+            for shnum in range(AVAILABLE_SHARES):
                 bucket = all_shareholders[shnum]
                 fd.add_share_bucket(shnum, bucket)
             fd._got_all_shareholders(None)
@@ -187,6 +191,14 @@ class Roundtrip(unittest.TestCase):
             self.failUnless(newdata == data)
         d.addCallback(_downloaded)
 
+        return d
+
+    def test_not_enough_shares(self):
+        d = self.send_and_recover(100, AVAILABLE_SHARES=10)
+        def _done(res):
+            self.failUnless(isinstance(res, Failure))
+            self.failUnless(res.check(download.NotEnoughPeersError))
+        d.addBoth(_done)
         return d
 
     def test_one_share_per_peer(self):
