@@ -323,7 +323,10 @@ class FileDownloader:
         def _done(res):
             # trim off any padding added by the upload side
             data = ''.join(res)
-            tail_size = self._size % self._segment_size
+            # we never send empty segments. If the data was an exact multiple
+            # of the segment size, the last segment will be full.
+            pad_size = mathutil.pad_size(self._size, self._segment_size)
+            tail_size = self._segment_size - pad_size
             self._output.write(data[:tail_size])
         d.addCallback(_done)
         return d
