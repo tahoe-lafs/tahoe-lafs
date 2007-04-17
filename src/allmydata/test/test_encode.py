@@ -147,12 +147,12 @@ class Roundtrip(unittest.TestCase):
                          bucket_modes={}):
         if AVAILABLE_SHARES is None:
             AVAILABLE_SHARES = NUM_SHARES
-        e = encode.Encoder()
+        options = {"max_segment_size": 25} # force use of multiple segments
+        e = encode.Encoder(options)
         data = "happy happy joy joy" * 4
         e.setup(StringIO(data))
 
         assert e.num_shares == NUM_SHARES # else we'll be completely confused
-        e.segment_size = 25 # force use of multiple segments
         e.setup_codec() # need to rebuild the codec for that change
 
         assert (NUM_SEGMENTS-1)*e.segment_size < len(data) <= NUM_SEGMENTS*e.segment_size

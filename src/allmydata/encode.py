@@ -79,6 +79,12 @@ class Encoder(object):
     implements(IEncoder)
     NEEDED_SHARES = 25
     TOTAL_SHARES = 100
+    MAX_SEGMENT_SIZE = 2*MiB
+
+    def __init__(self, options={}):
+        object.__init__(self)
+        self.MAX_SEGMENT_SIZE = options.get("max_segment_size",
+                                            self.MAX_SEGMENT_SIZE)
 
     def setup(self, infile):
         self.infile = infile
@@ -89,7 +95,7 @@ class Encoder(object):
         self.num_shares = self.TOTAL_SHARES
         self.required_shares = self.NEEDED_SHARES
 
-        self.segment_size = min(2*MiB, self.file_size)
+        self.segment_size = min(self.MAX_SEGMENT_SIZE, self.file_size)
         # this must be a multiple of self.required_shares
         self.segment_size = mathutil.next_multiple(self.segment_size,
                                                    self.required_shares)

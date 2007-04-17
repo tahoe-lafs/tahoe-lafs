@@ -56,10 +56,10 @@ class PeerTracker:
         return (alreadygot, set(buckets.keys()))
 
 class FileUploader:
-    debug = False
 
-    def __init__(self, client):
+    def __init__(self, client, options={}):
         self._client = client
+        self._options = options
 
     def set_params(self, needed_shares, shares_of_happiness, total_shares):
         self.needed_shares = needed_shares
@@ -87,12 +87,10 @@ class FileUploader:
         string)."""
 
         log.msg("starting upload [%s]" % (idlib.b2a(self._verifierid),))
-        if self.debug:
-            print "starting upload"
         assert self.needed_shares
 
         # create the encoder, so we can know how large the shares will be
-        self._encoder = encode.Encoder()
+        self._encoder = encode.Encoder(self._options)
         self._encoder.setup(self._filehandle)
         share_size = self._encoder.get_share_size()
         block_size = self._encoder.get_block_size()
@@ -279,7 +277,6 @@ class Uploader(service.MultiService):
     implements(IUploader)
     name = "uploader"
     uploader_class = FileUploader
-    debug = False
 
     needed_shares = 25 # Number of shares required to reconstruct a file.
     desired_shares = 75 # We will abort an upload unless we can allocate space for at least this many.
@@ -294,18 +291,14 @@ class Uploader(service.MultiService):
         # note: this is only of the plaintext data, no encryption yet
         return hasher.digest()
 
-    def upload(self, f):
+    def upload(self, f, options={}):
         # this returns the URI
         assert self.parent
         assert self.running
         f = IUploadable(f)
         fh = f.get_filehandle()
-        u = self.uploader_class(self.parent)
-        if self.debug:
-            u.debug = True
+        u = self.uploader_class(self.parent, options)
         u.set_filehandle(fh)
-        # push two shares, require that we get two back. TODO: this is
-        # temporary, of course.
         u.set_params(self.needed_shares, self.desired_shares, self.total_shares)
         u.set_verifierid(self._compute_verifierid(fh))
         d = u.start()
