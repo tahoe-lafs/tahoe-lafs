@@ -102,16 +102,22 @@ class FakeBucketWriter:
         return self.share_hashes
 
 
+def make_data(length):
+    data = "happy happy joy joy" * 100
+    assert length <= len(data)
+    return data[:length]
+
 class Encode(unittest.TestCase):
-    def test_send(self):
-        e = encode.Encoder()
-        data = "happy happy joy joy" * 4
+
+    def do_encode(self, max_segment_size, datalen, NUM_SHARES, NUM_SEGMENTS,
+                  expected_block_hashes, expected_share_hashes):
+        data = make_data(datalen)
+        # force use of multiple segments
+        options = {"max_segment_size": max_segment_size}
+        e = encode.Encoder(options)
         e.setup(StringIO(data))
-        NUM_SHARES = 100
         assert e.num_shares == NUM_SHARES # else we'll be completely confused
-        e.segment_size = 25 # force use of multiple segments
         e.setup_codec() # need to rebuild the codec for that change
-        NUM_SEGMENTS = 4
         assert (NUM_SEGMENTS-1)*e.segment_size < len(data) <= NUM_SEGMENTS*e.segment_size
         shareholders = {}
         all_shareholders = []
@@ -127,19 +133,80 @@ class Encode(unittest.TestCase):
             for i,peer in enumerate(all_shareholders):
                 self.failUnless(peer.closed)
                 self.failUnlessEqual(len(peer.blocks), NUM_SEGMENTS)
-                #self.failUnlessEqual(len(peer.block_hashes), NUM_SEGMENTS)
-                # that isn't true: each peer gets a full tree, so it's more
-                # like 2n-1 but with rounding to a power of two
+                # each peer gets a full tree of block hashes. For 3 or 4
+                # segments, that's 7 hashes. For 5 segments it's 15 hashes.
+                self.failUnlessEqual(len(peer.block_hashes),
+                                     expected_block_hashes)
                 for h in peer.block_hashes:
                     self.failUnlessEqual(len(h), 32)
-                #self.failUnlessEqual(len(peer.share_hashes), NUM_SHARES)
-                # that isn't true: each peer only gets the chain they need
+                # each peer also gets their necessary chain of share hashes.
+                # For 100 shares (rounded up to 128 leaves), that's 8 hashes
+                self.failUnlessEqual(len(peer.share_hashes),
+                                     expected_share_hashes)
                 for (hashnum, h) in peer.share_hashes:
                     self.failUnless(isinstance(hashnum, int))
                     self.failUnlessEqual(len(h), 32)
         d.addCallback(_check)
 
         return d
+
+    # a series of 3*3 tests to check out edge conditions. One axis is how the
+    # plaintext is divided into segments: kn+(-1,0,1). Another way to express
+    # that is that n%k == -1 or 0 or 1. For example, for 25-byte segments, we
+    # might test 74 bytes, 75 bytes, and 76 bytes.
+
+    # on the other axis is how many leaves in the block hash tree we wind up
+    # with, relative to a power of 2, so 2^a+(-1,0,1). Each segment turns
+    # into a single leaf. So we'd like to check out, e.g., 3 segments, 4
+    # segments, and 5 segments.
+
+    # that results in the following series of data lengths:
+    #  3 segs: 74, 75, 51
+    #  4 segs: 99, 100, 76
+    #  5 segs: 124, 125, 101
+
+    # all tests encode to 100 shares, which means the share hash tree will
+    # have 128 leaves, which means that buckets will be given an 8-long share
+    # hash chain
+    
+    # all 3-segment files will have a 4-leaf blockhashtree, and thus expect
+    # to get 7 blockhashes. 4-segment files will also get 4-leaf block hash
+    # trees and 7 blockhashes. 5-segment files will get 8-leaf block hash
+    # trees, which get 15 blockhashes.
+
+    def test_send_74(self):
+        # 3 segments (25, 25, 24)
+        return self.do_encode(25, 74, 100, 3, 7, 8)
+    def test_send_75(self):
+        # 3 segments (25, 25, 25)
+        return self.do_encode(25, 75, 100, 3, 7, 8)
+    def test_send_51(self):
+        # 3 segments (25, 25, 1)
+        return self.do_encode(25, 51, 100, 3, 7, 8)
+
+    def test_send_76(self):
+        # encode a 76 byte file (in 4 segments: 25,25,25,1) to 100 shares
+        return self.do_encode(25, 76, 100, 4, 7, 8)
+    def test_send_99(self):
+        # 4 segments: 25,25,25,24
+        return self.do_encode(25, 99, 100, 4, 7, 8)
+    def test_send_100(self):
+        # 4 segments: 25,25,25,25
+        return self.do_encode(25, 100, 100, 4, 7, 8)
+
+    def test_send_101(self):
+        # encode a 101 byte file (in 5 segments: 25,25,25,25,1) to 100 shares
+        return self.do_encode(25, self.make_data(101), 100, 5, 15, 8)
+
+    def test_send_124(self):
+        # 5 segments: 25, 25, 25, 25, 24
+        return self.do_encode(25, 124, 100, 5, 15, 8)
+    def test_send_125(self):
+        # 5 segments: 25, 25, 25, 25, 25
+        return self.do_encode(25, 125, 100, 5, 15, 8)
+    def test_send_101(self):
+        # 5 segments: 25, 25, 25, 25, 1
+        return self.do_encode(25, 101, 100, 5, 15, 8)
 
 class Roundtrip(unittest.TestCase):
     def send_and_recover(self, NUM_SHARES,
