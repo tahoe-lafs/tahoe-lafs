@@ -129,8 +129,8 @@ class StorageServer(service.MultiService, Referenceable):
         verifierdir = os.path.join(self.storedir, idlib.b2a(verifierid))
         try:
             for f in os.listdir(verifierdir):
-                _assert(NUM_RE.match(f), f)
-                bucketreaders[int(f)] = BucketReader(os.path.join(verifierdir, f))
+                if NUM_RE.match(f):
+                    bucketreaders[int(f)] = BucketReader(os.path.join(verifierdir, f))
         except OSError:
             # Commonly caused by there being no buckets at all.
             pass
