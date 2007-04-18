@@ -151,7 +151,11 @@ class Encoder(object):
         d = defer.succeed(None)
 
         for i in range(self.num_segments-1):
-            d.addCallback(lambda res: self.do_segment(i))
+            # note to self: this form doesn't work, because lambda only
+            # captures the slot, not the value
+            #d.addCallback(lambda res: self.do_segment(i))
+            # use this form instead:
+            d.addCallback(lambda res, i=i: self.do_segment(i))
         d.addCallback(lambda res: self.do_tail_segment(self.num_segments-1))
 
         d.addCallback(lambda res: self.send_all_subshare_hash_trees())
