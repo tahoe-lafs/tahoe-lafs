@@ -54,14 +54,14 @@ test-zfec:
 	$(PP) $(PYTHON) src/zfec/fec/test/test_zfec.py
 
 clean-zfec:
-	-cd src/zfec && python ./setup.py clean ; /bin/rm -rf build
+	-cd src/zfec && python ./setup.py clean --all
 
 
 build-Crypto:
 	cd src/Crypto && $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --install-lib="$(INSTDIR)" --install-scripts="$(INSTDIR)/scripts"
 
 clean-Crypto:
-	cd src/Crypto && python ./setup.py clean
+	cd src/Crypto && python ./setup.py clean --all
 
 
 .PHONY: run-queen run-client test
