@@ -113,6 +113,12 @@ class SystemTest(unittest.TestCase):
         d.addBoth(_shutdown_extra_node)
         return d
     test_connections.timeout = 300
+    # test_connections is subsumed by test_upload_and_download, and takes
+    # quite a while to run on a slow machine (because of all the TLS
+    # connections that must be established). If we ever rework the introducer
+    # code to such an extent that we're not sure if it works anymore, we can
+    # reinstate this test until it does.
+    del test_connections
 
     def test_upload_and_download(self):
         self.basedir = "test_system/SystemTest/test_upload_and_download"
