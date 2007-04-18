@@ -50,9 +50,6 @@ build: build-zfec build-Crypto
 build-zfec:
 	cd src/zfec && $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --install-lib="$(INSTDIR)" --install-scripts="$(INSTDIR)/scripts"
 
-test-zfec:
-	$(PP) $(PYTHON) src/zfec/fec/test/test_zfec.py
-
 clean-zfec:
 	-cd src/zfec && python ./setup.py clean --all
 
