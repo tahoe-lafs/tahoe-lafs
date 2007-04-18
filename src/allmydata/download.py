@@ -91,7 +91,7 @@ class ValidatedBucket:
                 sh[0] = self._roothash # always use our own root, from the URI
                 sht = self.share_hash_tree
                 if sht.get_leaf_index(self.sharenum) not in sh:
-                    raise hashutil.NotEnoughHashesError
+                    raise hashtree.NotEnoughHashesError
                 sht.set_hashes(sh)
                 self._share_hash = sht.get_leaf(self.sharenum)
 
