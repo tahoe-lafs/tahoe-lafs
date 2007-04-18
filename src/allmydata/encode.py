@@ -58,17 +58,6 @@ hash tree is put into the URI.
 
 """
 
-def pad(s, l, c='\x00'):
-    """
-    Return string s with enough chars c appended to it to make its length be
-    an even multiple of l bytes.
-
-    @param s the original string
-    @param l the length of the resulting padded string in bytes
-    @param c the pad char
-    """
-    return s + c * mathutil.pad_size(len(s), l)
-
 KiB=1024
 MiB=1024*KiB
 GiB=1024*MiB
