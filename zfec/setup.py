@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-# pyfec -- fast forward error correction library with Python interface
+# zfec -- fast forward error correction library with Python interface
 # 
 # Copyright (C) 2007 Allmydata, Inc.
 # Author: Zooko Wilcox-O'Hearn
 # mailto:zooko@zooko.com
 # 
-# This file is part of pyfec.
+# This file is part of zfec.
 # 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -54,13 +54,13 @@ trove_classifiers=[
     "Topic :: System :: Archiving :: Backup", 
     ]
 
-setup(name='pyfec',
+setup(name='zfec',
       version='1.0.0a1',
       summary='Provides a fast C implementation of Reed-Solomon erasure coding with a Python interface.',
       description='Erasure coding is the generation of redundant blocks of information such that if some blocks are lost ("erased") then the original data can be recovered from the remaining blocks.  This package contains an optimized implementation along with a Python interface.',
       author='Zooko O\'Whielacronx',
       author_email='zooko@zooko.com',
-      url='http://www.allmydata.com/source/pyfec',
+      url='http://www.allmydata.com/source/zfec',
       license='GNU GPL',
       platform='Any',
       packages=['fec', 'fec.util', 'fec.test'],

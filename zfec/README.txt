@@ -9,13 +9,13 @@ for up to 12 months.
 
 The most widely known example of an erasure code is the RAID-5 algorithm which
 makes it so that in the event of the loss of any one hard drive, the stored
-data can be completely recovered.  The algorithm in the pyfec package has a
+data can be completely recovered.  The algorithm in the zfec package has a
 similar effect, but instead of recovering from the loss of only a single
 element, it can be parameterized to choose in advance the number of elements
 whose loss it can tolerate.
 
 This package is largely based on the old "fec" library by Luigi Rizzo et al.,
-which is a mature and optimized implementation of erasure coding.  The pyfec
+which is a mature and optimized implementation of erasure coding.  The zfec
 package makes several changes from the original "fec" package, including
 addition of the Python API, refactoring of the C API to support zero-copy
 operation, a few clean-ups and micro-optimizations of the core code itself, 
@@ -26,13 +26,13 @@ and the addition of a command-line tool named "fec".
 
 The source is currently available via darcs on the web with the command:
 
-darcs get http://www.allmydata.com/source/pyfec
+darcs get http://www.allmydata.com/source/zfec
 
 More information on darcs is available at http://darcs.net
 
-Please join the pyfec mailing list and submit patches:
+Please join the zfec mailing list and submit patches:
 
-<https://postman.allmydata.com/cgi-bin/mailman/listinfo/pyfec> 
+<https://postman.allmydata.com/cgi-bin/mailman/listinfo/zfec> 
 
 
  * Overview
@@ -172,11 +172,11 @@ the fact that the Python API returns references to inputs when possible.
 
 Returning references to its inputs is efficient since it avoids making an
 unnecessary copy of the data, but if the object which was passed as input is
-mutable and if that object is mutated after the call to pyfec returns, then the
-result from pyfec -- which is just a reference to that same object -- will also
+mutable and if that object is mutated after the call to zfec returns, then the
+result from zfec -- which is just a reference to that same object -- will also
 be mutated.  This subtlety is the price you pay for avoiding data copying.  If
 you don't want to have to worry about this then you can simply use immutable
-objects (e.g. Python strings) to hold the data that you pass to pyfec.
+objects (e.g. Python strings) to hold the data that you pass to zfec.
 
 
  * Utilities

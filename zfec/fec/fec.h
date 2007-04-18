@@ -1,11 +1,11 @@
 /**
- * pyfec -- fast forward error correction library with Python interface
+ * zfec -- fast forward error correction library with Python interface
  *
  * Copyright (C) 2007 Allmydata, Inc.
  * Author: Zooko Wilcox-O'Hearn
  * mailto:zooko@zooko.com
  * 
- * This file is part of pyfec.
+ * This file is part of zfec.
  * 
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free

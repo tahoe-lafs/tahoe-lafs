@@ -12,7 +12,7 @@ from fec.util.version import Version
 __version__ = Version("1.0.0a1-0-STABLE")
 
 if '-V' in sys.argv or '--version' in sys.argv:
-    print "pyfec library version: ", fec.__version__
+    print "zfec library version: ", fec.__version__
     print "fec command-line tool version: ", __version__
     sys.exit(0)
   
