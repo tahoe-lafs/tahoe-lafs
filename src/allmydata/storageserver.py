@@ -42,7 +42,7 @@ class BucketWriter(Referenceable):
         # last one may be short, and we don't know the total number of
         # segments so we can't tell which is which.
         assert len(data) <= self.blocksize
-        f = open(os.path.join(self.incominghome, 'data'), 'wb')
+        f = fileutil.open_or_create(os.path.join(self.incominghome, 'data'))
         f.seek(self.blocksize*segmentnum)
         f.write(data)
 
