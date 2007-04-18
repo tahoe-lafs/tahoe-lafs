@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-# zfec -- fast forward error correction library with Python interface
+# zfec -- a fast C implementation of Reed-Solomon erasure coding with
+# command-line, C, and Python interfaces
 # 
 # Copyright (C) 2007 Allmydata, Inc.
 # Author: Zooko Wilcox-O'Hearn
@@ -55,9 +56,9 @@ trove_classifiers=[
     ]
 
 setup(name='zfec',
-      version='1.0.0a1',
-      summary='Provides a fast C implementation of Reed-Solomon erasure coding with a Python interface.',
-      description='Erasure coding is the generation of redundant blocks of information such that if some blocks are lost ("erased") then the original data can be recovered from the remaining blocks.  This package contains an optimized implementation along with a Python interface.',
+      version='1.0.0a2',
+      summary='a fast C implementation of Reed-Solomon erasure coding with command-line, C, and Python interfaces',
+      description='Erasure coding -- also called "forward error correction" -- is the generation of redundant blocks of information such that if some blocks are lost ("erased") then the original data can be recovered from the remaining blocks.  This package contains an optimized implementation along with command-line, C, and Python interfaces.',
       author='Zooko O\'Whielacronx',
       author_email='zooko@zooko.com',
       url='http://www.allmydata.com/source/zfec',
@@ -65,5 +66,6 @@ setup(name='zfec',
       platform='Any',
       packages=['zfec', 'zfec.util', 'zfec.test'],
       classifiers=trove_classifiers,
+      scripts=['bin/zfec', 'bin/zunfec',],
       ext_modules=[Extension('_fec', ['zfec/fec.c', 'zfec/_fecmodule.c',], extra_link_args=extra_link_args, extra_compile_args=extra_compile_args, undef_macros=undef_macros),],
       )
