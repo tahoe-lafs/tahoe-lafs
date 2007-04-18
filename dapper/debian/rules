@@ -33,7 +33,7 @@ install: build
 	dh_clean -k
 	dh_installdirs
 
-	cd src/pyfec && python2.4 setup.py install --prefix=$(PREFIX)
+	cd src/zfec && python2.4 setup.py install --prefix=$(PREFIX)
 	cd src/Crypto && python2.4 setup.py install --prefix=$(PREFIX)
 	python2.4 setup.py install --prefix=$(PREFIX)
 

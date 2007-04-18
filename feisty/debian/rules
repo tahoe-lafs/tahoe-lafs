@@ -11,7 +11,7 @@ STAGING_DIR=$(CURDIR)/debian/allmydata-tahoe
 
 install/allmydata-tahoe::
 	mkdir -pm755 $(STAGING_DIR)
-	cd src/pyfec && python setup.py install --root=$(STAGING_DIR)
+	cd src/zfec && python setup.py install --root=$(STAGING_DIR)
 	cd src/Crypto && python setup.py install --root=$(STAGING_DIR)
 	python setup.py install --root=$(STAGING_DIR)
 

@@ -11,7 +11,7 @@ The main application code is in the 'allmydata' package, under src/allmydata/
 src/Crypto/ which gets installed to the 'allmydata.Crypto' package (since the
 API is different than the normal Crypto package). It also includes Zooko's
 PyFEC library, a fast python wrapper around the Rizzo 'fec' C library,
-installed to the 'pyfec' package and located in src/pyfec/ .
+installed to the 'zfec' package and located in src/zfec/ .
 
 DEPENDENCIES:
 
@@ -57,11 +57,11 @@ INSTALLING:
  can then install.
 
  If not, you'll need to run three separate install steps, one for each of the
- three subpackages (allmydata, allmydata.Crypto, and pyfec). You may wish to
+ three subpackages (allmydata, allmydata.Crypto, and zfec). You may wish to
  use a different version of 'python' for these steps, or provide a --prefix
  or --root argument for the install.
 
-  cd src/pyfec && python setup.py install && cd ../..
+  cd src/zfec && python setup.py install && cd ../..
 
   cd src/Crypto && python setup.py install && cd ../..
 

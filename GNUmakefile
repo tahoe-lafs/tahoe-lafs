@@ -44,17 +44,17 @@ show-instdir:
 PP=PYTHONPATH=$(PYTHONPATH)
 
 .PHONY: build
-build: build-pyfec build-Crypto
+build: build-zfec build-Crypto
 	$(PYTHON) setup.py $(EXTRA_SETUP_ARGS) install --install-lib="$(INSTDIR)" --install-scripts="$(INSTDIR)/scripts"
 
-build-pyfec:
-	cd src/pyfec && $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --install-lib="$(INSTDIR)" --install-scripts="$(INSTDIR)/scripts"
+build-zfec:
+	cd src/zfec && $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --install-lib="$(INSTDIR)" --install-scripts="$(INSTDIR)/scripts"
 
-test-pyfec:
-	$(PP) $(PYTHON) src/pyfec/fec/test/test_pyfec.py
+test-zfec:
+	$(PP) $(PYTHON) src/zfec/fec/test/test_zfec.py
 
-clean-pyfec:
-	-cd src/pyfec && python ./setup.py clean ; /bin/rm -rf build
+clean-zfec:
+	-cd src/zfec && python ./setup.py clean ; /bin/rm -rf build
 
 
 build-Crypto:
@@ -124,7 +124,7 @@ count-lines:
 check-memory:
 	$(PP) $(PYTHON) src/allmydata/test/check_memory.py
 
-clean: clean-pyfec clean-Crypto
+clean: clean-zfec clean-Crypto
 	rm -rf build
 	rm -f debian
 	rm -rf instdir
