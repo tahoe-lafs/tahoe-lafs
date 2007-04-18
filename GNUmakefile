@@ -54,7 +54,7 @@ test-pyfec:
 	$(PP) $(PYTHON) src/pyfec/fec/test/test_pyfec.py
 
 clean-pyfec:
-	cd src/pyfec && python ./setup.py clean
+	-cd src/pyfec && python ./setup.py clean
 
 
 build-Crypto:
