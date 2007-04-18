@@ -8,7 +8,7 @@ from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
      RIBucketReader
 from allmydata import interfaces
 from allmydata.util import bencode, fileutil, idlib
-from allmydata.util.assertutil import _assert, precondition
+from allmydata.util.assertutil import precondition
 
 # store/
 # store/incoming # temp dirs named $VERIFIERID/$SHARENUM which will be moved to store/$VERIFIERID/$SHARENUM on success
