@@ -3,9 +3,9 @@
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import log
-from allmydata.hashtree import HashTree
+from allmydata.hashtree import HashTree, block_hash
 from allmydata.Crypto.Cipher import AES
-from allmydata.util import mathutil, hashutil
+from allmydata.util import mathutil
 from allmydata.util.assertutil import _assert
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder
@@ -225,7 +225,7 @@ class Encoder(object):
             shareid = shareids[i]
             d = self.send_subshare(shareid, segnum, subshare)
             dl.append(d)
-            subshare_hash = hashutil.tagged_hash("encoded subshare", subshare)
+            subshare_hash = block_hash(subshare)
             self.subshare_hashes[shareid].append(subshare_hash)
         dl = defer.DeferredList(dl)
         def _logit(res):

@@ -95,7 +95,9 @@ class ValidatedBucket:
                 sht.set_hashes(sh)
                 self._share_hash = sht.get_leaf(self.sharenum)
 
-            blockhash = hashutil.tagged_hash("encoded subshare", blockdata)
+            #log.msg("checking block_hash(shareid=%d, blocknum=%d) len=%d" %
+            #        (self.sharenum, blocknum, len(blockdata)))
+            blockhash = hashtree.block_hash(blockdata)
             # we always validate the blockhash
             bh = dict(enumerate(blockhashes))
             # replace blockhash root with validated value

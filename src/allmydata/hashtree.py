@@ -436,3 +436,6 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
             for i in added:
                 self[i] = None
             raise
+
+def block_hash(data):
+    return tagged_hash("encoded subshare", data)
