@@ -30,6 +30,7 @@ class BucketWriter(Referenceable):
         self.finalhome = finalhome
         self.blocksize = blocksize
         self.closed = False
+        self._next_segnum = 0
         fileutil.make_dirs(incominghome)
         self._write_file('blocksize', str(blocksize))
 
@@ -42,6 +43,8 @@ class BucketWriter(Referenceable):
         # last one may be short, and we don't know the total number of
         # segments so we can't tell which is which.
         assert len(data) <= self.blocksize
+        assert segmentnum == self._next_segnum # must write in sequence
+        self._next_segnum = segmentnum + 1
         f = fileutil.open_or_create(os.path.join(self.incominghome, 'data'))
         f.seek(self.blocksize*segmentnum)
         f.write(data)

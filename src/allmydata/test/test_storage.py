@@ -7,23 +7,23 @@ from allmydata.util import fileutil
 
 class Storage(unittest.TestCase):
     def make_workdir(self, name):
-        tmpdir = os.path.join("test_storage", "Storage", "tmp", name)
         basedir = os.path.join("test_storage", "Storage", name)
-        fileutil.make_dirs(tmpdir)
+        incoming = os.path.join(basedir, "tmp", "bucket")
+        final = os.path.join(basedir, "bucket")
         fileutil.make_dirs(basedir)
-        return tmpdir, basedir
+        return incoming, final
 
     def test_create(self):
-        tmpdir, basedir = self.make_workdir("test_create")
-        bw = storageserver.BucketWriter(tmpdir, basedir, 25)
+        incoming, final = self.make_workdir("test_create")
+        bw = storageserver.BucketWriter(incoming, final, 25)
         bw.remote_put_block(0, "a"*25)
         bw.remote_put_block(1, "b"*25)
         bw.remote_put_block(2, "c"*7) # last block may be short
         bw.remote_close()
 
     def test_readwrite(self):
-        tmpdir, basedir = self.make_workdir("test_readwrite")
-        bw = storageserver.BucketWriter(tmpdir, basedir, 25)
+        incoming, final = self.make_workdir("test_readwrite")
+        bw = storageserver.BucketWriter(incoming, final, 25)
         bw.remote_put_block(0, "a"*25)
         bw.remote_put_block(1, "b"*25)
         bw.remote_put_block(2, "c"*7) # last block may be short
@@ -32,7 +32,7 @@ class Storage(unittest.TestCase):
         bw.remote_close()
 
         # now read from it
-        br = storageserver.BucketReader(basedir)
+        br = storageserver.BucketReader(final)
         self.failUnlessEqual(br.remote_get_block(0), "a"*25)
         self.failUnlessEqual(br.remote_get_block(1), "b"*25)
         self.failUnlessEqual(br.remote_get_block(2), "c"*7)
