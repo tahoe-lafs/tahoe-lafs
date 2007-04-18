@@ -105,8 +105,22 @@ class ValidatedBucket:
         except (hashtree.BadHashError, hashtree.NotEnoughHashesError):
             # log.WEIRD: indicates undetected disk/network error, or more
             # likely a programming error
-            log.msg("hash failure in shnum=%d on %s" % (self.sharenum,
-                                                        self.bucket))
+            log.msg("hash failure in block=%d, shnum=%d on %s" %
+                    (blocknum, self.sharenum, self.bucket))
+            #log.msg(" block length: %d" % len(blockdata))
+            #log.msg(" block hash: %s" % idlib.b2a_or_none(blockhash)) # not safe
+            #log.msg(" block data: %r" % (blockdata,))
+            #log.msg(" root hash: %s" % idlib.b2a(self._roothash))
+            #log.msg(" share hash tree:\n" + self.share_hash_tree.dump())
+            #log.msg(" block hash tree:\n" + self.block_hash_tree.dump())
+            #lines = []
+            #for i,h in sorted(sharehashes):
+            #    lines.append("%3d: %s" % (i, idlib.b2a_or_none(h)))
+            #log.msg(" sharehashes:\n" + "\n".join(lines) + "\n")
+            #lines = []
+            #for i,h in enumerate(blockhashes):
+            #    lines.append("%3d: %s" % (i, idlib.b2a_or_none(h)))
+            #log.msg(" blockhashes:\n" + "\n".join(lines) + "\n")
             raise
 
         # If we made it here, the block is good. If the hash trees didn't

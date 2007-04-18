@@ -51,7 +51,7 @@ class PeerTracker:
         return d
         
     def _got_reply(self, (alreadygot, buckets)):
-        log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
+        #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
         self.buckets.update(buckets)
         return (alreadygot, set(buckets.keys()))
 
@@ -200,7 +200,7 @@ class FileUploader:
         # sets into sets.Set on us, even when we're using 2.4
         alreadygot = set(alreadygot)
         allocated = set(allocated)
-        log.msg("%s._got_response(%s, %s, %s): self.unallocated_sharenums: %s, unhandled: %s" % (self, (alreadygot, allocated), peer, shares_we_requested, self.unallocated_sharenums, shares_we_requested - alreadygot - allocated))
+        #log.msg("%s._got_response(%s, %s, %s): self.unallocated_sharenums: %s, unhandled: %s" % (self, (alreadygot, allocated), peer, shares_we_requested, self.unallocated_sharenums, shares_we_requested - alreadygot - allocated))
         self.unallocated_sharenums -= alreadygot
         self.unallocated_sharenums -= allocated
 
@@ -208,7 +208,7 @@ class FileUploader:
             self.used_peers.add(peer)
 
         if shares_we_requested - alreadygot - allocated:
-            log.msg("%s._got_response(%s, %s, %s): self.unallocated_sharenums: %s, unhandled: %s HE'S FULL" % (self, (alreadygot, allocated), peer, shares_we_requested, self.unallocated_sharenums, shares_we_requested - alreadygot - allocated))
+            #log.msg("%s._got_response(%s, %s, %s): self.unallocated_sharenums: %s, unhandled: %s HE'S FULL" % (self, (alreadygot, allocated), peer, shares_we_requested, self.unallocated_sharenums, shares_we_requested - alreadygot - allocated))
             # Then he didn't accept some of the shares, so he's full.
             self.usable_peers.remove(peer)
 
