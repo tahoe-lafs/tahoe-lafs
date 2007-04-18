@@ -86,14 +86,17 @@ _linux_path = '/sbin/ifconfig'
 _linux_re = re.compile('^\s*inet addr:(?P<address>\d+\.\d+\.\d+\.\d+)\s.+$', flags=re.M|re.I|re.S)
 
 # NetBSD 1.4 (submitted by Rhialto), Darwin, Mac OS X
-_netbsd_path = '/sbin/ifconfig -a'
+_netbsd_path = '/sbin/ifconfig'
+_netbsd_args = ('-a',)
 _netbsd_re = re.compile('^\s+inet (?P<address>\d+\.\d+\.\d+\.\d+)\s.+$', flags=re.M|re.I|re.S)
 
 # Irix 6.5
-_irix_path = '/usr/etc/ifconfig -a'
+_irix_path = '/usr/etc/ifconfig'
+_irix_args = ('-a',)
 
 # Solaris 2.x
-_sunos_path = '/usr/sbin/ifconfig -a'
+_sunos_path = '/usr/sbin/ifconfig'
+_sunos_args = ('-a',)
 
 def _find_addresses_via_config():
     # originally by Greg Smith, hacked by Zooko to conform to Brian's API
@@ -118,11 +121,11 @@ def _find_addresses_via_config():
     elif platform == 'linux':
         return _query(_linux_path, _linux_re)
     elif platform == 'bsd':
-        return _query(_netbsd_path, _netbsd_re)
+        return _query(_netbsd_path, _netbsd_re, _netbsd_args)
     elif platform == 'irix' :
-        return _query(_irix_path, _netbsd_re)
+        return _query(_irix_path, _netbsd_re, _irix_args)
     elif platform == 'sunos':
-        return _query(_sunos_path, _netbsd_re)
+        return _query(_sunos_path, _netbsd_re, _sunos_args)
 
 def _query(path, regex, args=()):
     d = getProcessOutput(path, args)
