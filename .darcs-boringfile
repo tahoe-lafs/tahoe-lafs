@@ -52,7 +52,7 @@
 ^twisted/plugins/dropin\.cache$
 ^\.figleaf\.el$
 ^instdir($|/)
-^src/pyfec/build($|/)
+^src/zfec/build($|/)
 ^src/Crypto/build($|/)
 ^_test_memory($|/)
 
