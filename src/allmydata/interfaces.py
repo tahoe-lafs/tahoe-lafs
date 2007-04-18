@@ -198,7 +198,6 @@ class ICodecEncoder(Interface):
         producing shares for the peers which are no longer available.
 
         """
-        pass
 
     def encode(inshares, desired_share_ids=None):
         """Encode some data. This may be called multiple times. Each call is 
@@ -443,7 +442,7 @@ class IUploader(Interface):
         returns a Deferred which fires with the URI of the file."""
 
     def upload_ssk(write_capability, new_version, uploadable):
-        pass # TODO
+        """TODO: how should this work?"""
     def upload_data(data):
         """Like upload(), but accepts a string."""
 
