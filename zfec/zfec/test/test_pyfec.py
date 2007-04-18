@@ -30,7 +30,7 @@
 
 import cStringIO, os, random, re, sys
 
-import fec
+import zfec
 
 try:
     from twisted.trial import unittest
@@ -56,14 +56,14 @@ def ab(x): # debuggery
         return "%s:%s" % (len(x), "--empty--",)
 
 def _h(k, m, ss):
-    encer = fec.Encoder(k, m)
+    encer = zfec.Encoder(k, m)
     nums_and_blocks = list(enumerate(encer.encode(ss)))
     assert isinstance(nums_and_blocks, list), nums_and_blocks
     assert len(nums_and_blocks) == m, (len(nums_and_blocks), m,)
     nums_and_blocks = random.sample(nums_and_blocks, k)
     blocks = [ x[1] for x in nums_and_blocks ]
     nums = [ x[0] for x in nums_and_blocks ]
-    decer = fec.Decoder(k, m)
+    decer = zfec.Decoder(k, m)
     decoded = decer.decode(blocks, nums)
     assert len(decoded) == len(ss), (len(decoded), len(ss),)
     assert tuple([str(s) for s in decoded]) == tuple([str(s) for s in ss]), (tuple([ab(str(s)) for s in decoded]), tuple([ab(str(s)) for s in ss]),)
@@ -84,7 +84,7 @@ def _help_test_random_with_l(l):
     ss = [ randstr(l/k) for x in range(k) ]
     _h(k, m, ss)
 
-class Fec(unittest.TestCase):
+class ZFec(unittest.TestCase):
     def test_random(self):
         for i in range(3):
             _help_test_random()
@@ -92,13 +92,13 @@ class Fec(unittest.TestCase):
             print "%d randomized tests pass." % (i+1)
 
     def test_bad_args_enc(self):
-        encer = fec.Encoder(2, 4)
+        encer = zfec.Encoder(2, 4)
         try:
             encer.encode(["a", "b", ], ["c", "I am not an integer blocknum",])
-        except fec.Error, e:
+        except zfec.Error, e:
             assert "Precondition violation: second argument is required to contain int" in str(e), e
         else:
-            raise "Should have gotten fec.Error for wrong type of second argument."
+            raise "Should have gotten zfec.Error for wrong type of second argument."
 
         try:
             encer.encode(["a", "b", ], 98) # not a sequence at all
@@ -108,7 +108,7 @@ class Fec(unittest.TestCase):
             raise "Should have gotten TypeError for wrong type of second argument."
 
     def test_bad_args_dec(self):
-        decer = fec.Decoder(2, 4)
+        decer = zfec.Decoder(2, 4)
 
         try:
             decer.decode(98, [0, 1]) # first argument is not a sequence
@@ -119,10 +119,10 @@ class Fec(unittest.TestCase):
 
         try:
             decer.decode(["a", "b", ], ["c", "d",])
-        except fec.Error, e:
+        except zfec.Error, e:
             assert "Precondition violation: second argument is required to contain int" in str(e), e
         else:
-            raise "Should have gotten fec.Error for wrong type of second argument."
+            raise "Should have gotten zfec.Error for wrong type of second argument."
 
         try:
             decer.decode(["a", "b", ], 98) # not a sequence at all
@@ -143,9 +143,9 @@ class FileFec(unittest.TestCase):
                     for sh in [0, 1, m-1,]:
                         if sh >= m:
                             continue
-                        h = fec.filefec._build_header(m, k, pad, sh)
+                        h = zfec.filefec._build_header(m, k, pad, sh)
                         hio = cStringIO.StringIO(h)
-                        (rm, rk, rpad, rsh,) = fec.filefec._parse_header(hio)
+                        (rm, rk, rpad, rsh,) = zfec.filefec._parse_header(hio)
                         assert (rm, rk, rpad, rsh,) == (m, k, pad, sh,), h
 
     def _help_test_filefec(self, teststr, k, m, numshs=None):
@@ -156,7 +156,7 @@ class FileFec(unittest.TestCase):
         PREFIX = "test"
         SUFFIX = ".fec"
 
-        tempdir = fec.util.fileutil.NamedTemporaryDirectory(cleanup=False)
+        tempdir = zfec.util.fileutil.NamedTemporaryDirectory(cleanup=False)
         try:
             tempfn = os.path.join(tempdir.name, TESTFNAME)
             tempf = open(tempfn, 'wb')
@@ -166,10 +166,10 @@ class FileFec(unittest.TestCase):
             assert fsize == len(teststr)
 
             # encode the file
-            fec.filefec.encode_to_files(open(tempfn, 'rb'), fsize, tempdir.name, PREFIX, k, m, SUFFIX, verbose=VERBOSE)
+            zfec.filefec.encode_to_files(open(tempfn, 'rb'), fsize, tempdir.name, PREFIX, k, m, SUFFIX, verbose=VERBOSE)
 
             # select some share files
-            RE=re.compile(fec.filefec.RE_FORMAT % (PREFIX, SUFFIX,))
+            RE=re.compile(zfec.filefec.RE_FORMAT % (PREFIX, SUFFIX,))
             fns = os.listdir(tempdir.name)
             sharefs = [ open(os.path.join(tempdir.name, fn), "rb") for fn in fns if RE.match(fn) ]
             random.shuffle(sharefs)
@@ -177,7 +177,7 @@ class FileFec(unittest.TestCase):
 
             # decode from the share files
             outf = open(os.path.join(tempdir.name, 'recovered-testfile.txt'), 'wb')
-            fec.filefec.decode_from_files(outf, sharefs, verbose=VERBOSE)
+            zfec.filefec.decode_from_files(outf, sharefs, verbose=VERBOSE)
             outf.close()
 
             tempfn = open(os.path.join(tempdir.name, 'recovered-testfile.txt'), 'rb')

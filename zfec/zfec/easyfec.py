@@ -1,4 +1,4 @@
-import fec
+import zfec
 
 # div_ceil() was copied from the pyutil library.
 def div_ceil(n, d):
@@ -9,7 +9,7 @@ def div_ceil(n, d):
 
 class Encoder(object):
     def __init__(self, k, m):
-        self.fec = fec.Encoder(k, m)
+        self.fec = zfec.Encoder(k, m)
 
     def encode(self, data):
         """
@@ -26,7 +26,7 @@ class Encoder(object):
         
 class Decoder(object):
     def __init__(self, k, m):
-        self.fec = fec.Decoder(k, m)
+        self.fec = zfec.Decoder(k, m)
 
     def decode(self, blocks, sharenums, padlen=0):
         blocks = self.fec.decode(blocks, sharenums)

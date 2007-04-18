@@ -5,14 +5,14 @@
 
 import sys
 
-import fec
-from fec.util import argparse
-from fec import filefec
-from fec.util.version import Version
+import zfec
+from zfec.util import argparse
+from zfec import filefec
+from zfec.util.version import Version
 __version__ = Version("1.0.0a1-0-STABLE")
 
 if '-V' in sys.argv or '--version' in sys.argv:
-    print "zfec library version: ", fec.__version__
+    print "zfec library version: ", zfec.__version__
     print "fec command-line tool version: ", __version__
     sys.exit(0)
   

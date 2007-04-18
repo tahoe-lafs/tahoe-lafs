@@ -23,7 +23,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import easyfec, fec
+import easyfec, zfec
 from util import fileutil
 from util.mathutil import log_ceil
 
@@ -31,9 +31,9 @@ import array, os, re, struct, traceback
 
 CHUNKSIZE = 4096
 
-class InsufficientShareFilesError(fec.Error):
+class InsufficientShareFilesError(zfec.Error):
     def __init__(self, k, kb, *args, **kwargs):
-        fec.Error.__init__(self, *args, **kwargs)
+        zfec.Error.__init__(self, *args, **kwargs)
         self.k = k
         self.kb = kb
 
@@ -43,7 +43,7 @@ class InsufficientShareFilesError(fec.Error):
     def __str__(self):
         return self.__repr__()
 
-class CorruptedShareFilesError(fec.Error):
+class CorruptedShareFilesError(zfec.Error):
     pass
 
 def _build_header(m, k, pad, sh):
@@ -185,7 +185,7 @@ def encode_to_files(inf, fsize, dirname, prefix, k, m, suffix=".fec", overwrite=
     mlen = len(str(m))
     format = FORMAT_FORMAT % (mlen, mlen,)
 
-    padbytes = fec.util.mathutil.pad_size(fsize, k)
+    padbytes = zfec.util.mathutil.pad_size(fsize, k)
 
     fns = []
     fs = []
@@ -330,7 +330,7 @@ def encode_file(inf, cb, k, m, chunksize=4096):
     @param chunksize how much data to read from inf for each of the k input 
         blocks
     """
-    enc = fec.Encoder(k, m)
+    enc = zfec.Encoder(k, m)
     l = tuple([ array.array('c') for i in range(k) ])
     indatasize = k*chunksize # will be reset to shorter upon EOF
     eof = False
@@ -381,7 +381,7 @@ def encode_file_stringy(inf, cb, k, m, chunksize=4096):
     @param chunksize how much data to read from inf for each of the k input 
         blocks
     """
-    enc = fec.Encoder(k, m)
+    enc = zfec.Encoder(k, m)
     indatasize = k*chunksize # will be reset to shorter upon EOF
     while indatasize == k*chunksize:
         # This loop body executes once per segment.
