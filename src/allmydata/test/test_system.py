@@ -126,7 +126,9 @@ class SystemTest(unittest.TestCase):
             # we crank the max segsize down to 1024b for the duration of this
             # test, so we can exercise multiple segments. It is important
             # that this is not a multiple of the segment size, so that the
-            # tail segment is not the same length as the others.
+            # tail segment is not the same length as the others. This actualy
+            # gets rounded up to 1025 to be a multiple of the number of
+            # required shares (since we use 25 out of 100 FEC).
             options = {"max_segment_size": 1024}
             d1 = u.upload_data(DATA, options)
             return d1
