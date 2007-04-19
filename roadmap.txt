@@ -9,8 +9,9 @@ Connection Management:
 File Encoding:
 *v1: single-segment, no merkle trees
 *v2: multiple-segment (LFE)
- v3: merkle tree to verify each share
- v4: merkle tree to verify each segment
+*v3: merkle tree to verify each share
+*v4: merkle tree to verify each segment
+ v5: only retrieve the minimal number of hashes instead of all of them
 
 Share Encoding:
 *v1: fake it (replication)
@@ -52,7 +53,7 @@ Checker/Repairer:
  v3: nodes also check their own files
 
 Storage:
-*v1: no deletion, one directory per verifierid, one owner per share,
+*v1: no deletion, one directory per verifierid, no owners of shares,
      leases never expire
 *v2: multiple shares per verifierid [zooko]
  v3: deletion
@@ -67,11 +68,11 @@ UI:
  v4: FUSE
 
 Operations/Deployment/Doc/Free Software/Community:
- * Windows port and testing (iputil)
- * Trac instance
- * extirpate all references to "queen" and "metatracker"
- * set up public trac, buildbot reports, mailing list, download page
- * write announcement
+ - Windows port and testing (iputil)
+ - Trac instance
+ - extirpate all references to "queen" and "metatracker"
+ - set up public trac, buildbot reports, mailing list, download page
+ - write announcement
 
 back pocket ideas:
  when nodes are unable to reach storage servers, make a note of it, inform
