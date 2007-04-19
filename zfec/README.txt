@@ -19,7 +19,7 @@ which is a mature and optimized implementation of erasure coding.  The zfec
 package makes several changes from the original "fec" package, including
 addition of the Python API, refactoring of the C API to support zero-copy
 operation, a few clean-ups and micro-optimizations of the core code itself, 
-and the addition of a command-line tool named "fec".
+and the addition of a command-line tool named "zfec".
 
 
  * Community
@@ -52,7 +52,7 @@ and k is required to be at least 1 and at most m.
 degenerates to the equivalent of the Unix "split" utility which simply splits
 the input into successive segments.  Similarly, when k == 1 it degenerates to
 the equivalent of the unix "cp" utility -- each block is a complete copy of the
-input data.  The "fec" command-line tool does not implement these degenerate 
+input data.  The "zfec" command-line tool does not implement these degenerate 
 cases.)
 
 Note that each "primary block" is a segment of the original data, so its size
@@ -63,9 +63,9 @@ the same size as all the others).  In addition to the data contained in the
 blocks themselves there are also a few pieces of metadata which are necessary 
 for later reconstruction.  Those pieces are: 1.  the value of K, 2.  the value 
 of M,  3.  the sharenum of each block,  4.  the number of bytes of padding 
-that were used.  The "fec" command-line tool compresses these pieces of data 
+that were used.  The "zfec" command-line tool compresses these pieces of data 
 and prepends them to the beginning of each share, so each the sharefile 
-produced by the "fec" command-line tool is between one and four bytes larger 
+produced by the "zfec" command-line tool is between one and four bytes larger 
 than the share data alone.
 
 The decoding step requires as input k of the blocks which were produced by the
@@ -75,12 +75,12 @@ input to the encoding step.
 
  * Command-Line Tool
 
-The bin/ directory contains two Unix-style, command-line tools "fec" and 
-"unfec".  Execute "fec --help" or "unfec --help" for usage instructions.
+The bin/ directory contains two Unix-style, command-line tools "zfec" and 
+"zunfec".  Execute "zfec --help" or "zunfec --help" for usage instructions.
 
-Note: a Unix-style tool like "fec" does only one thing -- in this case
+Note: a Unix-style tool like "zfec" does only one thing -- in this case
 erasure coding -- and leaves other tasks to other tools.  Other Unix-style
-tools that go well with fec include "GNU tar" for archiving multiple files and
+tools that go well with zfec include "GNU tar" for archiving multiple files and
 directories into one file, "rzip" for compression, "GNU Privacy Guard" for
 encryption, and "sha256sum" for integrity.  It is important to do things in
 order: first archive, then compress, then either encrypt or sha256sum, then
@@ -90,10 +90,10 @@ also ensure integrity, so the use of sha256sum is unnecessary in that case.
 
  * Performance Measurements
 
-On my Athlon 64 2.4 GHz workstation (running Linux), the "fec" command-line
+On my Athlon 64 2.4 GHz workstation (running Linux), the "zfec" command-line
 tool encoded a 160 MB file with m=100, k=94 (about 6% redundancy) in 3.9
 seconds, where the "par2" tool encoded the file with about 6% redundancy in
-27 seconds.  "fec" encoded the same file with m=12, k=6 (100% redundancy) in
+27 seconds.  zfec encoded the same file with m=12, k=6 (100% redundancy) in
 4.1 seconds, where par2 encoded it with about 100% redundancy in 7 minutes
 and 56 seconds.
 
@@ -182,8 +182,8 @@ objects (e.g. Python strings) to hold the data that you pass to zfec.
  * Utilities
 
 The filefec.py module has a utility function for efficiently reading a file
-and encoding it piece by piece.  This module is used by the "fec" and "unfec"
-command-line tools from the bin/ directory.
+and encoding it piece by piece.  This module is used by the "zfec" and 
+"zunfec" command-line tools from the bin/ directory.
 
 
  * Dependencies

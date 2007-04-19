@@ -277,7 +277,7 @@ static PyMemberDef Encoder_members[] = {
 static PyTypeObject Encoder_type = {
     PyObject_HEAD_INIT(NULL)
     0,                         /*ob_size*/
-    "fec.Encoder", /*tp_name*/
+    "_fec.Encoder", /*tp_name*/
     sizeof(Encoder),             /*tp_basicsize*/
     0,                         /*tp_itemsize*/
     (destructor)Encoder_dealloc, /*tp_dealloc*/
@@ -541,7 +541,7 @@ static PyMemberDef Decoder_members[] = {
 static PyTypeObject Decoder_type = {
     PyObject_HEAD_INIT(NULL)
     0,                         /*ob_size*/
-    "fec.Decoder", /*tp_name*/
+    "_fec.Decoder", /*tp_name*/
     sizeof(Decoder),             /*tp_basicsize*/
     0,                         /*tp_itemsize*/
     (destructor)Decoder_dealloc, /*tp_dealloc*/
