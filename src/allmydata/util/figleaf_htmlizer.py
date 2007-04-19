@@ -148,6 +148,8 @@ def report_as_html(coverage, directory, exclude_patterns=[], root=None):
         stats_fp.write("total files: %d\n" % len(pcnts))
         stats_fp.write("total source lines: %d\n" % summary_lines)
         stats_fp.write("total covered lines: %d\n" % summary_cover)
+        stats_fp.write("total uncovered lines: %d\n" %
+                       (summary_lines - summary_cover))
         stats_fp.write("total coverage percentage: %.1f\n" % summary_pcnt)
         stats_fp.close()
 
@@ -159,44 +161,45 @@ def report_as_html(coverage, directory, exclude_patterns=[], root=None):
                        '90%%, %d files &gt; 75%%, %d files &gt; 50%%<p>'
                        % (len(pcnts), len(pcnt_90),
                           len(pcnt_75), len(pcnt_50)))
+
+        def emit_table(items, show_totals):
+                index_fp.write('<table border=1><tr><th>Filename</th>'
+                               '<th># lines</th><th># covered</th>'
+                               '<th># uncovered</th>'
+                               '<th>% covered</th></tr>\n')
+                if show_totals:
+                        index_fp.write('<tr><td><b>totals:</b></td>'
+                                       '<td><b>%d</b></td>'
+                                       '<td><b>%d</b></td>'
+                                       '<td><b>%d</b></td>'
+                                       '<td><b>%.1f%%</b></td>'
+                                       '</tr>'
+                                       '<tr></tr>\n'
+                                       % (summary_lines, summary_cover,
+                                          (summary_lines - summary_cover),
+                                          summary_pcnt,))
+
+                for filename, stuff in items:
+                        (n_lines, n_covered, percent_covered, display_filename) = stuff
+                        html_outfile = make_html_filename(display_filename)
+
+                        index_fp.write('<tr><td><a href="./%s">%s</a></td>'
+                                       '<td>%d</td><td>%d</td><td>%d</td><td>%.1f</td>'
+                                       '</tr>\n'
+                                       % (html_outfile, display_filename, n_lines,
+                                          n_covered, (n_lines - n_covered),
+                                          percent_covered,))
+
+                index_fp.write('</table>\n')
+
         # sorted by percentage covered
         index_fp.write('<h3>Sorted by Coverage Percentage</h3>\n')
-	index_fp.write('<table border=1><tr><th>Filename</th>'
-                       '<th># lines</th><th># covered</th>'
-                       '<th>% covered</th></tr>\n')
-	index_fp.write('<tr><td><b>totals:</b></td><td><b>%d</b></td>'
-                       '<td><b>%d</b></td><td><b>%.1f%%</b></td></tr>'
-                       '<tr></tr>\n'
-                       % (summary_lines, summary_cover, summary_pcnt,))
-
-	for filename, stuff in info_dict_items:
-                (n_lines, n_covered, percent_covered, display_filename) = stuff
-		html_outfile = make_html_filename(display_filename)
-
-		index_fp.write('<tr><td><a href="./%s">%s</a></td>'
-                               '<td>%d</td><td>%d</td><td>%.1f</td></tr>\n'
-                               % (html_outfile, display_filename, n_lines,
-                                  n_covered, percent_covered,))
-
-	index_fp.write('</table>\n')
+        emit_table(info_dict_items, True)
 
         # sorted by module name
         index_fp.write('<h3>Sorted by Module Name (alphabetical)</h3>\n')
         info_dict_items.sort()
-	index_fp.write('<table border=1><tr><th>Filename</th>'
-                       '<th># lines</th><th># covered</th>'
-                       '<th>% covered</th></tr>\n')
-
-	for filename, stuff in info_dict_items:
-                (n_lines, n_covered, percent_covered, display_filename) = stuff
-		html_outfile = make_html_filename(display_filename)
-
-		index_fp.write('<tr><td><a href="./%s">%s</a></td>'
-                               '<td>%d</td><td>%d</td><td>%.1f</td></tr>\n'
-                               % (html_outfile, display_filename, n_lines,
-                                  n_covered, percent_covered,))
-
-	index_fp.write('</table>\n')
+        emit_table(info_dict_items, False)
 
 	index_fp.close()
 
