@@ -75,7 +75,7 @@ run-client3:
 	cd client-basedir3 && PYTHONPATH=.. twistd -noy ../client.tac
 
 ifeq ($(TEST),)
-TEST=allmydata fec
+TEST=allmydata zfec
 endif
 REPORTER=
 
