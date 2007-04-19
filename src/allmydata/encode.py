@@ -210,7 +210,12 @@ class Encoder(object):
         return d
 
     def _encoded_segment(self, (shares, shareids), segnum):
-        _assert(set(shareids) == set(self.landlords.keys()),
+        # To generate the URI, we must generate the roothash, so we must
+        # generate all shares, even if we aren't actually giving them to
+        # anybody. This means that the set of share we create will be equal
+        # to or larger than the set of landlords. If we have any landlord who
+        # *doesn't* have a share, that's an error.
+        _assert(set(self.landlords.keys()).issubset(set(shareids)),
                 shareids=shareids, landlords=self.landlords)
         dl = []
         for i in range(len(shares)):
@@ -228,6 +233,8 @@ class Encoder(object):
         return dl
 
     def send_subshare(self, shareid, segment_num, subshare):
+        if shareid not in self.landlords:
+            return defer.succeed(None)
         sh = self.landlords[shareid]
         return sh.callRemote("put_block", segment_num, subshare)
 
@@ -247,6 +254,8 @@ class Encoder(object):
         # all_hashes[1] is the left child, == hash(ah[3]+ah[4])
         # all_hashes[n] == hash(all_hashes[2*n+1] + all_hashes[2*n+2])
         self.share_root_hashes[shareid] = t[0]
+        if shareid not in self.landlords:
+            return defer.succeed(None)
         sh = self.landlords[shareid]
         return sh.callRemote("put_block_hashes", all_hashes)
 
@@ -273,13 +282,15 @@ class Encoder(object):
         return defer.DeferredList(dl)
 
     def send_one_share_hash_tree(self, shareid, needed_hashes):
+        if shareid not in self.landlords:
+            return defer.succeed(None)
         sh = self.landlords[shareid]
         return sh.callRemote("put_share_hashes", needed_hashes)
 
     def close_all_shareholders(self):
         log.msg("%s: closing shareholders" % self)
         dl = []
-        for shareid in range(self.num_shares):
+        for shareid in self.landlords:
             dl.append(self.landlords[shareid].callRemote("close"))
         return defer.DeferredList(dl)
 

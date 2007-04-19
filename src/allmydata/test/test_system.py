@@ -3,10 +3,11 @@ import os
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.application import service
-from allmydata import client, queen
+from allmydata import client, queen, uri, download
 from allmydata.util import idlib, fileutil
 from foolscap.eventual import flushEventualQueue
 from twisted.python import log
+from twisted.python.failure import Failure
 from twisted.web.client import getPage
 
 def flush_but_dont_ignore(res):
@@ -129,6 +130,7 @@ class SystemTest(unittest.TestCase):
         def _do_upload(res):
             log.msg("UPLOADING")
             u = self.clients[0].getServiceNamed("uploader")
+            self.uploader = u
             # we crank the max segsize down to 1024b for the duration of this
             # test, so we can exercise multiple segments. It is important
             # that this is not a multiple of the segment size, so that the
@@ -144,13 +146,26 @@ class SystemTest(unittest.TestCase):
             self.uri = uri
             dl = self.clients[1].getServiceNamed("downloader")
             self.downloader = dl
-            d1 = dl.download_to_data(uri)
-            return d1
         d.addCallback(_upload_done)
-        def _download_done(data):
+
+        def _upload_again(res):
+            # upload again. This ought to be short-circuited, however with
+            # the way we currently generate URIs (i.e. because they include
+            # the roothash), we have to do all of the encoding work, and only
+            # get to save on the upload part.
+            log.msg("UPLOADING AGAIN")
+            options = {"max_segment_size": 1024}
+            d1 = self.uploader.upload_data(DATA, options)
+        d.addCallback(_upload_again)
+
+        def _download_to_data(res):
+            log.msg("DOWNLOADING")
+            return self.downloader.download_to_data(self.uri)
+        d.addCallback(_download_to_data)
+        def _download_to_data_done(data):
             log.msg("download finished")
             self.failUnlessEqual(data, DATA)
-        d.addCallback(_download_done)
+        d.addCallback(_download_to_data_done)
 
         target_filename = os.path.join(self.basedir, "download.target")
         def _download_to_filename(res):
@@ -173,8 +188,30 @@ class SystemTest(unittest.TestCase):
             self.failUnlessEqual(newdata, DATA)
         d.addCallback(_download_to_filehandle_done)
 
+        def _download_nonexistent_uri(res):
+            baduri = self.mangle_uri(self.uri)
+            d1 = self.downloader.download_to_data(baduri)
+            def _baduri_should_fail(res):
+                self.failUnless(isinstance(res, Failure))
+                self.failUnless(res.check(download.NotEnoughPeersError))
+                # TODO: files that have zero peers should get a special kind
+                # of NotEnoughPeersError, which can be used to suggest that
+                # the URI might be wrong or that they've nver uploaded the
+                # file in the first place.
+            d1.addBoth(_baduri_should_fail)
+            return d1
+        d.addCallback(_download_nonexistent_uri)
         return d
     test_upload_and_download.timeout = 600
+
+    def flip_bit(self, good):
+        return good[:-1] + chr(ord(good[-1]) ^ 0x01)
+
+    def mangle_uri(self, gooduri):
+        pieces = list(uri.unpack_uri(gooduri))
+        # [4] is the verifierid
+        pieces[4] = self.flip_bit(pieces[4])
+        return uri.pack_uri(*pieces)
 
     def test_vdrive(self):
         self.basedir = "test_system/SystemTest/test_vdrive"
