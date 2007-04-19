@@ -5,7 +5,7 @@ from twisted.internet import defer
 from allmydata.util import mathutil
 from allmydata.util.assertutil import precondition
 from allmydata.interfaces import ICodecEncoder, ICodecDecoder
-import fec
+import zfec
 
 
 class ReplicatingEncoder(object):
@@ -71,7 +71,7 @@ class CRSEncoder(object):
         self.max_shares = max_shares
         self.share_size = mathutil.div_ceil(data_size, required_shares)
         self.last_share_padding = mathutil.pad_size(self.share_size, required_shares)
-        self.encoder = fec.Encoder(required_shares, max_shares)
+        self.encoder = zfec.Encoder(required_shares, max_shares)
 
     def get_encoder_type(self):
         return self.ENCODER_TYPE
@@ -107,7 +107,7 @@ class CRSDecoder(object):
         self.chunk_size = self.required_shares
         self.num_chunks = mathutil.div_ceil(self.data_size, self.chunk_size)
         self.share_size = self.num_chunks
-        self.decoder = fec.Decoder(self.required_shares, self.max_shares)
+        self.decoder = zfec.Decoder(self.required_shares, self.max_shares)
 
     def get_needed_shares(self):
         return self.required_shares
