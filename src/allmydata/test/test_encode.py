@@ -209,16 +209,18 @@ class Encode(unittest.TestCase):
         return self.do_encode(25, 101, 100, 5, 15, 8)
 
 class Roundtrip(unittest.TestCase):
-    def send_and_recover(self, NUM_SHARES=100,
+    def send_and_recover(self, k_and_n=(25,100),
                          AVAILABLE_SHARES=None,
                          datalen=76,
                          max_segment_size=25,
                          bucket_modes={}):
+        NUM_SHARES = k_and_n[1]
         if AVAILABLE_SHARES is None:
             AVAILABLE_SHARES = NUM_SHARES
         data = make_data(datalen)
         # force use of multiple segments
-        options = {"max_segment_size": max_segment_size}
+        options = {"max_segment_size": max_segment_size,
+                   "needed_and_total_shares": k_and_n}
         e = encode.Encoder(options)
         e.setup(StringIO(data))
 
@@ -263,7 +265,7 @@ class Roundtrip(unittest.TestCase):
         return d
 
     def test_not_enough_shares(self):
-        d = self.send_and_recover(100, AVAILABLE_SHARES=10)
+        d = self.send_and_recover((4,10), AVAILABLE_SHARES=2)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
             self.failUnless(res.check(download.NotEnoughPeersError))
@@ -271,7 +273,7 @@ class Roundtrip(unittest.TestCase):
         return d
 
     def test_one_share_per_peer(self):
-        return self.send_and_recover(100)
+        return self.send_and_recover()
 
     def test_74(self):
         return self.send_and_recover(datalen=74)
@@ -294,23 +296,25 @@ class Roundtrip(unittest.TestCase):
     def test_101(self):
         return self.send_and_recover(datalen=101)
 
+    # the following tests all use 4-out-of-10 encoding
+
     def test_bad_blocks(self):
-        # the first 74 servers have bad blocks, which will be caught by the
+        # the first 6 servers have bad blocks, which will be caught by the
         # blockhashes
         modemap = dict([(i, "bad block")
-                        for i in range(74)]
+                        for i in range(6)]
                        + [(i, "good")
-                          for i in range(74, 100)])
-        return self.send_and_recover(100, bucket_modes=modemap)
+                          for i in range(6, 10)])
+        return self.send_and_recover((4,10), bucket_modes=modemap)
 
     def test_bad_blocks_failure(self):
-        # the first 76 servers have bad blocks, which will be caught by the
+        # the first 7 servers have bad blocks, which will be caught by the
         # blockhashes, and the download will fail
         modemap = dict([(i, "bad block")
-                        for i in range(76)]
+                        for i in range(7)]
                        + [(i, "good")
-                          for i in range(76, 100)])
-        d = self.send_and_recover(100, bucket_modes=modemap)
+                          for i in range(7, 10)])
+        d = self.send_and_recover((4,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
             self.failUnless(res.check(download.NotEnoughPeersError))
@@ -318,22 +322,22 @@ class Roundtrip(unittest.TestCase):
         return d
 
     def test_bad_blockhashes(self):
-        # the first 74 servers have bad block hashes, so the blockhash tree
+        # the first 6 servers have bad block hashes, so the blockhash tree
         # will not validate
         modemap = dict([(i, "bad blockhash")
-                        for i in range(74)]
+                        for i in range(6)]
                        + [(i, "good")
-                          for i in range(74, 100)])
-        return self.send_and_recover(100, bucket_modes=modemap)
+                          for i in range(6, 10)])
+        return self.send_and_recover((4,10), bucket_modes=modemap)
 
     def test_bad_blockhashes_failure(self):
-        # the first 76 servers have bad block hashes, so the blockhash tree
+        # the first 7 servers have bad block hashes, so the blockhash tree
         # will not validate, and the download will fail
         modemap = dict([(i, "bad blockhash")
-                        for i in range(76)]
+                        for i in range(7)]
                        + [(i, "good")
-                          for i in range(76, 100)])
-        d = self.send_and_recover(100, bucket_modes=modemap)
+                          for i in range(7, 10)])
+        d = self.send_and_recover((4,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
             self.failUnless(res.check(download.NotEnoughPeersError))
@@ -341,22 +345,22 @@ class Roundtrip(unittest.TestCase):
         return d
 
     def test_bad_sharehashes(self):
-        # the first 74 servers have bad block hashes, so the sharehash tree
+        # the first 6 servers have bad block hashes, so the sharehash tree
         # will not validate
         modemap = dict([(i, "bad sharehash")
-                        for i in range(74)]
+                        for i in range(6)]
                        + [(i, "good")
-                          for i in range(74, 100)])
-        return self.send_and_recover(100, bucket_modes=modemap)
+                          for i in range(6, 10)])
+        return self.send_and_recover((4,10), bucket_modes=modemap)
 
     def test_bad_sharehashes_failure(self):
-        # the first 76 servers have bad block hashes, so the sharehash tree
+        # the first 7 servers have bad block hashes, so the sharehash tree
         # will not validate, and the download will fail
         modemap = dict([(i, "bad sharehash")
-                        for i in range(76)]
+                        for i in range(7)]
                        + [(i, "good")
-                          for i in range(76, 100)])
-        d = self.send_and_recover(100, bucket_modes=modemap)
+                          for i in range(7, 10)])
+        d = self.send_and_recover((4,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
             self.failUnless(res.check(download.NotEnoughPeersError))
@@ -364,22 +368,22 @@ class Roundtrip(unittest.TestCase):
         return d
 
     def test_missing_sharehashes(self):
-        # the first 74 servers are missing their sharehashes, so the
+        # the first 6 servers are missing their sharehashes, so the
         # sharehash tree will not validate
         modemap = dict([(i, "missing sharehash")
-                        for i in range(74)]
+                        for i in range(6)]
                        + [(i, "good")
-                          for i in range(74, 100)])
-        return self.send_and_recover(100, bucket_modes=modemap)
+                          for i in range(6, 10)])
+        return self.send_and_recover((4,10), bucket_modes=modemap)
 
     def test_missing_sharehashes_failure(self):
-        # the first 76 servers are missing their sharehashes, so the
+        # the first 7 servers are missing their sharehashes, so the
         # sharehash tree will not validate, and the download will fail
         modemap = dict([(i, "missing sharehash")
-                        for i in range(76)]
+                        for i in range(7)]
                        + [(i, "good")
-                          for i in range(76, 100)])
-        d = self.send_and_recover(100, bucket_modes=modemap)
+                          for i in range(7, 10)])
+        d = self.send_and_recover((4,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
             self.failUnless(res.check(download.NotEnoughPeersError))

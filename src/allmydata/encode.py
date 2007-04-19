@@ -74,6 +74,10 @@ class Encoder(object):
         object.__init__(self)
         self.MAX_SEGMENT_SIZE = options.get("max_segment_size",
                                             self.MAX_SEGMENT_SIZE)
+        k,n = options.get("needed_and_total_shares",
+                          (self.NEEDED_SHARES, self.TOTAL_SHARES))
+        self.NEEDED_SHARES = k
+        self.TOTAL_SHARES = n
 
     def setup(self, infile):
         self.infile = infile
