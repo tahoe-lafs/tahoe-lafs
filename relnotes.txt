@@ -69,8 +69,8 @@ of the mesh and the requirement of a single distinct introducer and vdrive
 server limits the possible size of the mesh.  We have plans to loosen these
 limitations (see roadmap.txt [5]).  Currently it should be noted that the
 mesh already depends as little as possible on the accessibility and
-correctness of the introduction server and the vdrive server, and the choice
-of which servers to use is easily configured.
+correctness of the introduction server and the vdrive server.  Also note that
+the choice of which servers to use is easily configured.
 
 
 Software Architecture
