@@ -1,0 +1,105 @@
+Allmydata, Inc. [1], provider of the "Allmydata" consumer backup product, is
+pleased announce the first public release of "Tahoe", an open source
+decentralized storage mesh.
+
+The source code that we are releasing is the current working prototype for
+Allmydata's next-generation product.  This prototype it is not recommended
+for storage of confidential data nor for data which is not otherwise backed
+up, but it is already implements a functional decentralized storage mesh and
+is useful for experimentation, prototyping, and extension.
+
+
+Installation
+
+This release of Tahoe is guaranteed to work only on Linux.  It may actually
+work on other platforms -- earlier development revisions have been used on
+Windows, Cygwin, Mac/Intel, and Mac/PPC -- but not all of the unit tests
+currently pass on all platforms (see "Hacking and Community", below), so
+we're officially proclaiming that it works on Linux.
+
+To install, download the "Tahoe" tarball from the web server [2], untar it,
+cd into the resulting directory, and follow the directions in the README [3].
+
+
+Usage
+
+XYZ Brian: please insert intro to UI
+
+
+Hacking and Community
+
+Please join our mailing list [4] and to discuss the ideas behind Tahoe and
+extensions of and uses of Tahoe.  Patches that extend and improve Tahoe are
+gratefully accepted -- roadmap.txt [5] shows the next improvements that we
+plan to make.  You can browse the revision control history, source code, and
+issue tracking at our Trac instance [6].  Please note the buildbot results
+page [7], which show how Tahoe builds and passes unit tests on each checkin,
+and the code coverage results [8] and percentage-covered graph [9], which
+show how much of the Tahoe source code is currently exercised the test suite.
+
+
+Licence
+
+Tahoe is offered under the GNU General Public License (v2).  It also comes
+with the added permission that, in the case that you are obligated to release
+a derived work under this licence (as per section 2.b of the GPLv2), you may
+delay the fulfillment of this obligation for up to 12 months.
+
+
+Network Architecture
+
+Each peer maintains a connection to each other peer.  A single distinct
+server called an "introducer" is used to discover other peers with which to
+connect.
+
+To store a file, the file is encrypted and erasure coded, and each resulting
+share is uploaded to a different peer.  The secure hash of the encrypted file
+and the encryption key are packed into a URI, knowledge of which is necessary
+and sufficient to recover the file.
+
+To fetch a file, starting with the URI, a subset of shares is downloaded from
+peers, the file is reconstructed from the shares, and then decrypted.
+
+A single distinct server called a "vdrive server" maintains a mapping from
+pathnames/filenames to URIs.
+
+We are well aware of the limitations of decentralization and scalability
+inherent in this prototype.  In particular, the completely-connected property
+of the mesh and the requirement of a single distinct introducer and vdrive
+server limits the possible size of the mesh.  We have plans to loosen these
+limitations (see roadmap.txt [5]).  Currently it should be noted that the
+mesh already depends as little as possible on the accessibility and
+correctness of the introduction server and the vdrive server, and the choice
+of which servers to use is easily configured.
+
+
+Software Architecture
+
+Tahoe is a "from the ground-up" rewrite, inspired by Allmydata's existing
+consumer backup service, written in Python.
+
+It uses the Foolscap library [10] which provides a remote object protocol
+inspired by the capability-secure "E" programming language [11].  Foolscap
+allows us to express the intended behavior of our distributed mesh directly
+in object-oriented terms while relying on a well-engineered, secure transport
+layer.
+
+The underlying networking is provided by the Twisted library [12].
+Computationally intensive operations are performed in native compiled code,
+such as the "zfec" library for fast erasure coding (also available
+separately: [13]).
+
+
+[1]  http://allmydata.com
+[2]  http://allmydata.com/source/tahoe-0.1.0-0-UNSTABLE.tar.bz2
+[3]  http://allmydata.com/source/tahoe/README
+[4]  https://postman.allmydata.com/cgi-bin/mailman/listinfo/tahoe XYZ Zandr or someone: right URL?
+[5]  http://allmydata.com/source/tahoe/roadmap.txt
+[6]  http://allmydata.org/trac XYZ Brian: right URL?
+[7]  http://allmydata.org/buildbot XYZ Brian: right URL?
+[8]  http://allmydata.org/code coverage thingie XYZ Brian: right URL?
+[9]  http://allmydata.org/munin XYZ Brian: right URL?
+[10] http://twistedmatrix.com/trac/wiki/FoolsCap
+[11] http://erights.org/
+[12] http://twistedmatrix.com/
+[13] http://allmydata.com/source/zfec
