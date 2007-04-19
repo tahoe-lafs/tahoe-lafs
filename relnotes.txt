@@ -3,10 +3,10 @@ pleased announce the first public release of "Tahoe", an open source
 decentralized storage mesh.
 
 The source code that we are releasing is the current working prototype for
-Allmydata's next-generation product.  This prototype it is not recommended
-for storage of confidential data nor for data which is not otherwise backed
-up, but it is already implements a functional decentralized storage mesh and
-is useful for experimentation, prototyping, and extension.
+Allmydata's next-generation product.  This prototype is not recommended for
+storage of confidential data nor for data which is not otherwise backed up,
+but it is already implements a functional decentralized storage mesh and is
+useful for experimentation, prototyping, and extension.
 
 
 Installation
