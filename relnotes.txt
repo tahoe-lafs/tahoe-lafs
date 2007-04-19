@@ -17,8 +17,8 @@ Windows, Cygwin, Mac/Intel, and Mac/PPC -- but not all of the unit tests
 currently pass on all platforms (see "Hacking and Community", below), so
 we're officially proclaiming that it works on Linux.
 
-To install, download the "Tahoe" tarball from the web server [2], untar it,
-cd into the resulting directory, and follow the directions in the README [3].
+To install, download the tarball [2], untar it, cd into the resulting
+directory, and follow the directions in the README [3].
 
 
 Usage
