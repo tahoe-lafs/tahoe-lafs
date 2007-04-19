@@ -68,11 +68,10 @@ UI:
  v4: FUSE
 
 Operations/Deployment/Doc/Free Software/Community:
- - Windows port and testing (iputil)
+ - Windows port and testing
  - Trac instance
  - extirpate all references to "queen" and "metatracker"
  - set up public trac, buildbot reports, mailing list, download page
- - write announcement
 
 back pocket ideas:
  when nodes are unable to reach storage servers, make a note of it, inform
