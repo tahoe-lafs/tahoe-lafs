@@ -28,11 +28,11 @@ XYZ Brian: please insert intro to UI
 
 Hacking and Community
 
-Please join our mailing list [4] and to discuss the ideas behind Tahoe and
+Please join the mailing list [4] and to discuss the ideas behind Tahoe and
 extensions of and uses of Tahoe.  Patches that extend and improve Tahoe are
 gratefully accepted -- roadmap.txt [5] shows the next improvements that we
 plan to make.  You can browse the revision control history, source code, and
-issue tracking at our Trac instance [6].  Please note the buildbot results
+issue tracking at the Trac instance [6].  Please note the buildbot results
 page [7], which show how Tahoe builds and passes unit tests on each checkin,
 and the code coverage results [8] and percentage-covered graph [9], which
 show how much of the Tahoe source code is currently exercised the test suite.
@@ -80,7 +80,7 @@ consumer backup service, written in Python.
 
 It uses the Foolscap library [10] which provides a remote object protocol
 inspired by the capability-secure "E" programming language [11].  Foolscap
-allows us to express the intended behavior of our distributed mesh directly
+allows us to express the intended behavior of the distributed mesh directly
 in object-oriented terms while relying on a well-engineered, secure transport
 layer.
 
