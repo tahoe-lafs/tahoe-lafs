@@ -1,7 +1,7 @@
 
 from twisted.trial import unittest
 
-from fec.util import mathutil
+from zfec.util import mathutil
 
 class Math(unittest.TestCase):
     def test_div_ceil(self):
