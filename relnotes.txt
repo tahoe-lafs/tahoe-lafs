@@ -12,12 +12,8 @@ useful for experimentation, prototyping, and extension.
 
 INSTALLATION
 
-This release of Tahoe is only supposed to work on Linux. It might actually
-work on other platforms -- earlier development revisions have been used on
-Windows, Cygwin, Mac/Intel, and Mac/PPC -- but not all of the unit tests
-currently pass on all platforms (see "Hacking and Community", below), so
-we're officially proclaiming that this release works on Linux and that we'll
-get the other platforms working in the future.
+This release of Tahoe passes all unit tests on Linux/x86, Linux/amd64,
+Mac/Intel, Mac/PPC, Windows, and Cygwin.
 
 To install, download the tarball [2], untar it, cd into the resulting
 directory, and follow the directions in the README [3].
