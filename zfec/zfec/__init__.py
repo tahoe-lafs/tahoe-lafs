@@ -1,9 +1,9 @@
 """
 zfec -- fast forward error correction library with Python interface
 
-maintainer web site: U{http://zooko.com/}
+maintainer web site: U{http://allmydata.com/source/zfec}
 
-zfec web site: U{http://www.allmydata.com/source/zfec}
+zfec web site: U{http://allmydata.com/source/zfec}
 """
 
 from util.version import Version
@@ -14,7 +14,7 @@ __version__ = Version("1.0.0a2-1-STABLE")
 
 # Please put a URL or other note here which shows where to get the branch of
 # development from which this version grew.
-__sources__ = ["http://www.allmydata.com/source/zfec",]
+__sources__ = ["http://allmydata.com/source/zfec",]
 
 from _fec import Encoder, Decoder, Error
 import filefec

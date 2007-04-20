@@ -9,10 +9,13 @@
 # 
 # This file is part of zfec.
 # 
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.  This package also comes with the added permission that,
+# in the case that you are obligated to release a derived work under this
+# licence (as per section 2.b of the GPL), you may delay the fulfillment of
+# this obligation for up to 12 months.
 # 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -61,7 +64,7 @@ setup(name='zfec',
       description='Erasure coding -- also called "forward error correction" -- is the generation of redundant blocks of information such that if some blocks are lost ("erased") then the original data can be recovered from the remaining blocks.  This package contains an optimized implementation along with command-line, C, and Python interfaces.',
       author='Zooko O\'Whielacronx',
       author_email='zooko@zooko.com',
-      url='http://www.allmydata.com/source/zfec',
+      url='http://allmydata.com/source/zfec',
       license='GNU GPL',
       platform='Any',
       packages=['zfec', 'zfec.util', 'zfec.test'],
