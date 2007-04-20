@@ -7,11 +7,11 @@ The high-level view of this system consists of three layers: the mesh, the
 virtual drive, and the application that sits on top.
 
 The lowest layer is the "mesh" or "cloud", basically a DHT (Distributed Hash
-Table) which maps URIs to data. The URIs are relatively-short ascii strings
-(currently about 140 bytes), and they are used as references to an immutable
+Table) which maps URIs to data. The URIs are relatively short ascii strings
+(currently about 140 bytes), and each is used as references to an immutable
 arbitrary-length sequence of data bytes. This data is distributed around the
 cloud in a large number of nodes, such that a statistically unlikely number
-of nodes would have to be unavailable for the data to be unavailable.
+of nodes would have to be unavailable for the data to become unavailable.
 
 The middle layer is the virtual drive: a tree-shaped data structure in which
 the intermediate nodes are directories and the leaf nodes are files. Each
@@ -65,7 +65,11 @@ In this release, peers learn about each other through the "introducer". Each
 peer connects to this central introducer at startup, and receives a list of
 all other peers from it. Each peer then connects to all other peers, creating
 a full-mesh topology. Future versions will reduce the number of connections
-considerably, to enable the mesh to scale larger than a full-mesh allows.
+considerably, to enable the mesh to scale to larger sizes: the design target
+is one million nodes. In addition, future versions will offer relay and
+NAT-traversal services to allow nodes without full internet connectivity to
+participate. In the current release, only one node may be behind a NAT box
+and still permit the cloud to achieve full-mesh connectivity.
 
 
 FILE ENCODING
@@ -75,7 +79,8 @@ that is derived from the hash of the file itself. The encrypted file is then
 broken up into segments so it can be processed in small pieces (to minimize
 the memory footprint of both encode and decode operations, and to increase
 the so-called "alacrity": how quickly can the download operation provide
-validated data to the user). Each segment is erasure coded, which creates
+validated data to the user, basically the lag between hitting "play" and the
+movie actually starting). Each segment is erasure coded, which creates
 encoded blocks that are larger than the input segment, such that only a
 subset of the output blocks are required to reconstruct the segment. These
 blocks are then combined into "shares", such that a subset of the shares can
@@ -88,9 +93,10 @@ tagged hash of the *encrypted* file is called the "verifierid", and is used
 for both peer selection (described below) and to index shares within the
 StorageServers on the selected peers.
 
-The URI contains the verifierid, the encryption key, any encoding parameters
-necessary to perform the eventual decoding process, and some additional
-hashes that allow the download process to validate the data it receives.
+The URI contains the fileid, the verifierid, the encryption key, any encoding
+parameters necessary to perform the eventual decoding process, and some
+additional hashes that allow the download process to validate the data it
+receives.
 
 On the download side, the node that wishes to turn a URI into a sequence of
 bytes will obtain the necessary shares from remote nodes, break them into
@@ -107,6 +113,12 @@ A Merkle Hash Tree is used to validate the encoded blocks before they are fed
 into the decode process, and a second tree is used to validate the shares
 before they are retrieved. The hash tree root is put into the URI.
 
+Note that the number of shares created is fixed at the time the file is
+uploaded: it is not possible to create additional shares later. The use of a
+top-level hash tree also requires that nodes create all shares at once, even
+if they don't intend to upload some of them, otherwise the hashroot cannot be
+calculated correctly.
+
 
 URIs
 
@@ -114,13 +126,13 @@ Each URI represents a specific set of bytes. Think of it like a hash
 function: you feed in a bunch of bytes, and you get out a URI. The URI is
 deterministically derived from the input data: changing even one bit of the
 input data will result in a drastically different URI. The URI provides both
-"identification" and "location": you can use it to locate a set of bytes that
-are probably the same as the original file, and you can also use it to
-validate that these potential bytes are indeed the ones that you were looking
-for.
+"identification" and "location": you can use it to locate/retrieve a set of
+bytes that are probably the same as the original file, and then you can use
+it to validate that these potential bytes are indeed the ones that you were
+looking for.
 
 URIs refer to an immutable set of bytes. If you modify a file and upload the
-new one to the mesh, you will get a different URI. URIs do not represent
+new version to the mesh, you will get a different URI. URIs do not represent
 filenames at all, just the data that a filename might point to at some given
 point in time. This is why the "mesh" layer is insufficient to provide a
 virtual drive: an actual filesystem requires human-meaningful names and
@@ -152,13 +164,16 @@ When a file is uploaded, the encoded shares are sent to other peers. But to
 which ones? The "peer selection" algorithm is used to make this choice.
 
 In the current version, the verifierid is used to consistently-permute the
-set of all peers (by sorting the peers by HASH(verifierid+peerid)). This
-places the peers around a 2^256-sized ring, like the rim of a big clock. The
-100-or-so shares are then placed around the same ring (at 0, 1/100*2^256,
-2/100*2^256, ... 99/100*2^256). Imagine that we start at 0 with an empty
-basket in hand and proceed clockwise. When we come to a share, we pick it up
-and put it in the basket. When we come to a peer, we ask that peer if they
-will give us a lease for every share in our basket.
+set of all peers (by sorting the peers by HASH(verifierid+peerid)). Each file
+gets a different permutation, which (on average) will evenly distribute
+shares among the cloud and avoid hotspots.
+
+This permutation places the peers around a 2^256-sized ring, like the rim of
+a big clock. The 100-or-so shares are then placed around the same ring (at 0,
+1/100*2^256, 2/100*2^256, ... 99/100*2^256). Imagine that we start at 0 with
+an empty basket in hand and proceed clockwise. When we come to a share, we
+pick it up and put it in the basket. When we come to a peer, we ask that peer
+if they will give us a lease for every share in our basket.
 
 The peer will grant us leases for some of those shares and reject others (if
 they are full or almost full). If they reject all our requests, we remove
@@ -191,35 +206,62 @@ downloading and processing those shares. A later release will use the full
 algorithm to reduce the number of queries that must be sent out. This
 algorithm uses the same consistent-hashing permutation as on upload, but
 instead of one walker with one basket, we have 100 walkers (one per share).
-They each proceed clockwise until they find a peer: this peer is the most
-likely to be the same one to which the share was originally uploaded, and is
-put on the "A" list. The next peer that each walker encounters is put on the
-"B" list, etc. All the "A" list peers are asked for any shares they might
-have. If enough of them can provide a share, the download phase begins and
-those shares are retrieved and decoded. If not, the "B" list peers are
-contacted, etc. This routine will eventually find all the peers that have
-shares, and will find them quickly if there is significant overlap between
-the set of peers that were present when the file was uploaded and the set of
-peers that are present as it is downloaded (i.e. if the "peerlist stability"
-is high). Some limits may be imposed in large meshes to avoid querying a
-million peers; this provides a tradeoff between the work spent to discover
-that a file is unrecoverable and the probability that a retrieval will fail
-when it couldhave succeeded if we had just tried a little bit harder. The
-appropriate value of this tradeoff will depend upon the size of the mesh.
+They each proceed clockwise in parallel until they find a peer, and put that
+one on the "A" list: out of all peers, this one is the most likely to be the
+same one to which the share was originally uploaded. The next peer that each
+walker encounters is put on the "B" list, etc.
+
+All the "A" list peers are asked for any shares they might have. If enough of
+them can provide a share, the download phase begins and those shares are
+retrieved and decoded. If not, the "B" list peers are contacted, etc. This
+routine will eventually find all the peers that have shares, and will find
+them quickly if there is significant overlap between the set of peers that
+were present when the file was uploaded and the set of peers that are present
+as it is downloaded (i.e. if the "peerlist stability" is high). Some limits
+may be imposed in large meshes to avoid querying a million peers; this
+provides a tradeoff between the work spent to discover that a file is
+unrecoverable and the probability that a retrieval will fail when it could
+have succeeded if we had just tried a little bit harder. The appropriate
+value of this tradeoff will depend upon the size of the mesh, and will change
+over time.
 
 Other peer selection algorithms are being evaluated. One of them (known as
 "tahoe 2") uses the same consistent hash, starts at 0 and requests one lease
 per peer until it gets 100 of them. This is likely to get better overlap
 (since a single insertion or deletion will still leave 99 overlapping peers),
-but is non-ideal in other ways (TODO: what were they?).
+but is non-ideal in other ways (TODO: what were they?). It would also make it
+easier to select peers on the basis of their reliability, uptime, or
+reputation: we could pick 75 good peers plus 50 marginal peers, if it seemed
+likely that this would provide as good service as 100 good peers.
 
 Another algorithm (known as "denver airport"[2]) uses the permuted hash to
 decide on an approximate target for each share, then sends lease requests via
-Chord routing (to avoid maintaining a large number of long-term connections).
-The request includes the contact information of the uploading node, and asks
-that the node which eventually accepts the lease should contact the uploader
-directly. The shares are then transferred over direct connections rather than
-through multiple Chord hops. Download uses the same approach.
+Chord routing. The request includes the contact information of the uploading
+node, and asks that the node which eventually accepts the lease should
+contact the uploader directly. The shares are then transferred over direct
+connections rather than through multiple Chord hops. Download uses the same
+approach. This allows nodes to avoid maintaining a large number of long-term
+connections, at the expense of complexity, latency, and reliability.
+
+
+SWARMING DOWNLOAD, TRICKLING UPLOAD
+
+Because the shares being downloaded are distributed across a large number of
+peers, the download process will pull from many of them at the same time. The
+current encoding parameters require 25 shares to be retrieved for each
+segment, which means that up to 25 peers will be used simultaneously. This
+allows the download process to use the sum of the available peers' upload
+bandwidths, resulting in downloads that take full advantage of the common 8x
+disparity between download and upload bandwith on modern ADSL lines.
+
+On the other hand, uploads are hampered by the need to upload encoded shares
+that are larger than the original data (4x larger with the current default
+encoding parameters), through the slow end of the asymmetric connection. This
+means that on a typical 8x ADSL line, uploading a file will take about 32
+times longer than downloading it again later.
+
+Smaller expansion ratios can reduce this upload penalty, at the expense of
+reliability. See RELIABILITY, below.
 
 
 FILETREE: THE VIRTUAL DRIVE LAYER
@@ -246,20 +288,22 @@ in a way that allows the sharing of a specific file or the creation of a
 "virtual CD" as easily as dragging a folder onto a user icon.
 
 The URIs described above are "Content Hash Key" (CHK) identifiers[3], in
-which the identifier refers to a specific sequence of bytes. In this project,
-CHK identifiers are used for both files and immutable directories (the tree
-of directory and file nodes are serialized into a sequence of bytes, which is
-then uploaded and turned into a URI). There is a separate kind of upload, not
-yet implemented, called SSK (short for Signed Subspace Key), in which the URI
-refers to a mutable slot. Some users have a write-capability to this slot,
-allowing them to change the data that it refers to. Others only have a
-read-capability, merely letting them read the current contents. These SSK
-slots can be used to provide mutability in the filetree, so that users can
-actually change the contents of their virtual drive. Redirection nodes can
-also provide mutability, such as a central service which allows a user to set
-the current URI of their top-level filetree. SSK slots provide a
-decentralized way to accomplish this mutability, whereas centralized
-redirection nodes are more vulnerable to single-point-of-failure issues.
+which the identifier refers to a specific, unchangeable sequence of bytes. In
+this project, CHK identifiers are used for both files and immutable versions
+of directories: the tree of directory and file nodes is serialized into a
+sequence of bytes, which is then uploaded and turned into a URI. Each time
+the directory is changed, a new URI is generated for it and propagated to the
+filetree above it. There is a separate kind of upload, not yet implemented,
+called SSK (short for Signed Subspace Key), in which the URI refers to a
+mutable slot. Some users have a write-capability to this slot, allowing them
+to change the data that it refers to. Others only have a read-capability,
+merely letting them read the current contents. These SSK slots can be used to
+provide mutability in the filetree, so that users can actually change the
+contents of their virtual drive. Redirection nodes can also provide
+mutability, such as a central service which allows a user to set the current
+URI of their top-level filetree. SSK slots provide a decentralized way to
+accomplish this mutability, whereas centralized redirection nodes are more
+vulnerable to single-point-of-failure issues.
 
 
 FILE REPAIRER
@@ -300,23 +344,79 @@ data and are wrong, the file will not be repaired, and may decay beyond
 recoverability). There are several interesting approaches to mitigate this
 threat, ranging from challenges to provide a keyed hash of the allegedly-held
 data (using "buddy nodes", in which two peers hold the same block, and check
-up on each other), to the original MojoNation economic model.
+up on each other), to reputation systems, or even the original Mojo Nation
+economic model.
 
 
 SECURITY
 
-Data validity (the promise that the downloaded data will match the originally
-uploaded data) is provided by the hash embedded the URI. Data security (the
-promise that the data is only readable by people with the URI) is provided by
-the encryption key embedded in the URI. Data availability (the hope that data
-which has been uploaded in the past will be downloadable in the future) is
-provided by the mesh, which distributes failures in a way that reduces the
-correspondence between individual node failure and file recovery failure.
+The design goal for this project is that an attacker may be able to deny
+service (i.e. prevent you from recovering a file that was uploaded earlier)
+but can accomplish none of the following three attacks:
+
+ 1) violate privacy: the attacker gets to view data to which you have not
+    granted them access
+ 2) violate consistency: the attacker convinces you that the wrong data is
+    actually the data you were intending to retrieve
+ 3) violate mutability: the attacker gets to modify a filetree (either the
+    pathnames or the file contents) to which you have not given them
+    mutability rights
+
+Data validity and consistency (the promise that the downloaded data will
+match the originally uploaded data) is provided by the hashes embedded the
+URI. Data security (the promise that the data is only readable by people with
+the URI) is provided by the encryption key embedded in the URI. Data
+availability (the hope that data which has been uploaded in the past will be
+downloadable in the future) is provided by the mesh, which distributes
+failures in a way that reduces the correlation between individual node
+failure and overall file recovery failure.
+
+Many of these security properties depend upon the usual cryptographic
+assumptions: the resistance of AES and RSA to attack, the resistance of
+SHA256 to pre-image attacks, and upon the proximity of 2^-128 and 2^-256 to
+zero. A break in AES would allow a privacy violation, a pre-image break in
+SHA256 would allow a consistency violation, and a break in RSA would allow a
+mutability violation. The discovery of a collision in SHA256 is unlikely to
+allow much, but could conceivably allow a consistency violation in data that
+was uploaded by the attacker. If SHA256 is threatened, further analysis will
+be warranted.
+
+There is no attempt made to provide anonymity, neither of the origin of a
+piece of data nor the identity of the subsequent downloaders. In general,
+anyone who already knows the contents of a file will be in a strong position
+to determine who else is uploading or downloading it. Also, it is quite easy
+for a coalition of more than 1% of the nodes to correlate the set of peers
+who are all uploading or downloading the same file, even if the attacker does
+not know the contents of the file in question.
+
+Also note that the file size and verifierid are not protected. Many people
+can determine the size of the file you are accessing, and if they already
+know the contents of a given file, they will be able to determine that you
+are uploading or downloading the same one.
+
+A likely enhancement is the ability to use distinct encryption keys for each
+file, avoiding the file-correlation attacks at the expense of increased
+storage consumption.
 
 The capability-based security model is used throughout this project. Filetree
 operations are expressed in terms of distinct read and write capabilities.
 The URI of a file is the read-capability: knowing the URI is equivalent to
-the ability to read the corresponding data.
+the ability to read the corresponding data. The capability to validate and
+repair a file is a subset of the read-capability. The capability to read an
+SSK slot is a subset of the capability to modify it. These capabilities may
+be expressly delegated (irrevocably) by simply transferring the relevant
+secrets. Special forms of SSK slots can be used to make revocable delegations
+of particular directories. Certain redirections in the filetree code are
+expressed as Foolscap "furls", which are also capabilities and provide access
+to an instance of code running on a central server: these can be delegated
+just as easily as any other capability, and can be made revocable by
+delegating access to a forwarder instead of the actual target.
+
+The application layer can provide whatever security/access model is desired,
+but we expect the first few to also follow capability discipline: rather than
+user accounts with passwords, each user will get a furl to their private
+filetree, and the presentation layer will give them the ability to break off
+pieces of this filetree for delegation or sharing with others on demand.
 
 
 RELIABILITY
@@ -379,8 +479,14 @@ than actual upload/download traffic.
 ------------------------------
 
 [1]: http://en.wikipedia.org/wiki/Zooko%27s_triangle
+
 [2]: all of these names are derived from the location where they were
-     concocted, in this case in a car ride from Boulder to DEN
+     concocted, in this case in a car ride from Boulder to DEN. To be
+     precise, "tahoe 1" was an unworkable scheme in which everyone holding
+     shares for a given file formed a sort of cabal which kept track of all
+     the others, "tahoe 2" is the first-100-peers in the permuted hash, and
+     this document descibes "tahoe 3", or perhaps "potrero hill 1".
+
 [3]: the terms CHK and SSK come from Freenet,
      http://wiki.freenetproject.org/FreenetCHKPages ,
      although we use "SSK" in a slightly different way
