@@ -1,0 +1,387 @@
+
+   Allmydata "Tahoe" Architecture
+
+OVERVIEW
+
+The high-level view of this system consists of three layers: the mesh, the
+virtual drive, and the application that sits on top.
+
+The lowest layer is the "mesh" or "cloud", basically a DHT (Distributed Hash
+Table) which maps URIs to data. The URIs are relatively-short ascii strings
+(currently about 140 bytes), and they are used as references to an immutable
+arbitrary-length sequence of data bytes. This data is distributed around the
+cloud in a large number of nodes, such that a statistically unlikely number
+of nodes would have to be unavailable for the data to be unavailable.
+
+The middle layer is the virtual drive: a tree-shaped data structure in which
+the intermediate nodes are directories and the leaf nodes are files. Each
+file contains both the URI of the file's data and all the necessary metadata
+(MIME type, filename, ctime/mtime, etc) required to present the file to a
+user in a meaningful way (displaying it in a web browser, or on a desktop).
+
+The top layer is where the applications that use this virtual drive operate.
+Allmydata uses this for a backup service, in which the application copies the
+files to be backed up from the local disk into the virtual drive on a
+periodic basis. By providing read-only access to the same virtual drive
+later, a user can recover older versions of their files. Other sorts of
+applications can run on top of the virtual drive, of course, anything that
+has a use for a secure, robust, distributed filestore.
+
+Note: some of the description below indicates design targets rather than
+actual code present in the current release. Please take a look at roadmap.txt
+to get an idea of how much of this has been implemented so far.
+
+
+THE BIG CLOUD OF PEERS
+
+Underlying the mesh/cloud is a large collection of peer nodes. These are
+processes running on a wide variety of computers, all of which know about
+each other in some way or another. They establish TCP connections to one
+another using Foolscap, an encrypted+authenticated remote message passing
+library (using TLS connections and self-authenticating identifiers called
+"FURLs").
+
+Each peer offers certain services to the others. The primary service is the
+StorageServer, which offers to hold data for a limited period of time (a
+"lease"). Each StorageServer has a quota, and it will reject lease requests
+that would cause it to consume more space than it wants to provide. When a
+lease expires, the data is deleted. Peers might renew their leases.
+
+This storage is used to hold "shares", which are themselves used to store
+files in the mesh. There are many shares for each file, typically around 100
+(the exact number depends upon the tradeoffs made between reliability,
+overhead, and storage space consumed). The files are indexed by a piece of
+the URI called the "verifierid", which is derived from the contents of the
+file. Leases are indexed by verifierid, and a single StorageServer may hold
+multiple shares for the corresponding file. Multiple peers can hold leases on
+the same file, in which case the shares will be kept alive until the last
+lease expires. The typical lease is expected to be for one month: enough time
+for interested parties to renew it, but not so long that abandoned data
+consumes unreasonable space. Peers are expected to "delete" (drop leases) on
+data that they know they no longer want: lease expiration is meant as a
+safety measure.
+
+In this release, peers learn about each other through the "introducer". Each
+peer connects to this central introducer at startup, and receives a list of
+all other peers from it. Each peer then connects to all other peers, creating
+a full-mesh topology. Future versions will reduce the number of connections
+considerably, to enable the mesh to scale larger than a full-mesh allows.
+
+
+FILE ENCODING
+
+When a file is to be added to the mesh, it is first encrypted using a key
+that is derived from the hash of the file itself. The encrypted file is then
+broken up into segments so it can be processed in small pieces (to minimize
+the memory footprint of both encode and decode operations, and to increase
+the so-called "alacrity": how quickly can the download operation provide
+validated data to the user). Each segment is erasure coded, which creates
+encoded blocks that are larger than the input segment, such that only a
+subset of the output blocks are required to reconstruct the segment. These
+blocks are then combined into "shares", such that a subset of the shares can
+be used to reconstruct the whole file. The shares are then deposited in
+StorageServers in other peers.
+
+A tagged hash of the original file is called the "fileid", while a
+differently-tagged hash of the original file provides the encryption key. A
+tagged hash of the *encrypted* file is called the "verifierid", and is used
+for both peer selection (described below) and to index shares within the
+StorageServers on the selected peers.
+
+The URI contains the verifierid, the encryption key, any encoding parameters
+necessary to perform the eventual decoding process, and some additional
+hashes that allow the download process to validate the data it receives.
+
+On the download side, the node that wishes to turn a URI into a sequence of
+bytes will obtain the necessary shares from remote nodes, break them into
+blocks, use erasure-decoding to turn them into segments of crypttext, use the
+decryption key to convert that into plaintext, then emit the plaintext bytes
+to the output target (which could be a file on disk, or it could be streamed
+directly to a web browser or media player).
+
+All hashes use SHA256, and a different tag is used for each purpose.
+Netstrings are used where necessary to insure these tags cannot be confused
+with the data to be hashed. All encryption uses AES in CTR mode. The erasure
+coding is performed with zfec (a python wrapper around Rizzo's FEC library).
+A Merkle Hash Tree is used to validate the encoded blocks before they are fed
+into the decode process, and a second tree is used to validate the shares
+before they are retrieved. The hash tree root is put into the URI.
+
+
+URIs
+
+Each URI represents a specific set of bytes. Think of it like a hash
+function: you feed in a bunch of bytes, and you get out a URI. The URI is
+deterministically derived from the input data: changing even one bit of the
+input data will result in a drastically different URI. The URI provides both
+"identification" and "location": you can use it to locate a set of bytes that
+are probably the same as the original file, and you can also use it to
+validate that these potential bytes are indeed the ones that you were looking
+for.
+
+URIs refer to an immutable set of bytes. If you modify a file and upload the
+new one to the mesh, you will get a different URI. URIs do not represent
+filenames at all, just the data that a filename might point to at some given
+point in time. This is why the "mesh" layer is insufficient to provide a
+virtual drive: an actual filesystem requires human-meaningful names and
+mutability, while URIs provide neither. URIs sit on the "global+secure" edge
+of Zooko's Triangle[1]. They are self-authenticating, meaning that nobody can
+trick you into using the wrong data.
+
+The URI should be considered as a "read capability" for the corresponding
+data: anyone who knows the full URI has the ability to read the given data.
+There is a subset of the URI (which leaves out the encryption key and fileid)
+which is called the "verification capability": it allows the holder to
+retrieve and validate the crypttext, but not the plaintext. Once the
+crypttext is available, the erasure-coded shares can be regenerated. This
+will allow a file-repair process to maintain and improve the robustness of
+files without being able to read their contents.
+
+The lease mechanism will also involve a "delete" capability, by which a peer
+which uploaded a file can indicate that they don't want it anymore. It is not
+truly a delete capability because other peers might be holding leases on the
+same data, and it should not be deleted until the lease count (i.e. reference
+count) goes to zero, so perhaps "cancel-the-lease capability" is more
+accurate. The plan is to store this capability next to the URI in the virtual
+drive structure.
+
+
+PEER SELECTION
+
+When a file is uploaded, the encoded shares are sent to other peers. But to
+which ones? The "peer selection" algorithm is used to make this choice.
+
+In the current version, the verifierid is used to consistently-permute the
+set of all peers (by sorting the peers by HASH(verifierid+peerid)). This
+places the peers around a 2^256-sized ring, like the rim of a big clock. The
+100-or-so shares are then placed around the same ring (at 0, 1/100*2^256,
+2/100*2^256, ... 99/100*2^256). Imagine that we start at 0 with an empty
+basket in hand and proceed clockwise. When we come to a share, we pick it up
+and put it in the basket. When we come to a peer, we ask that peer if they
+will give us a lease for every share in our basket.
+
+The peer will grant us leases for some of those shares and reject others (if
+they are full or almost full). If they reject all our requests, we remove
+them from the ring, because they are full and thus unhelpful. Each share they
+accept is removed from the basket. The remainder stay in the basket as we
+continue walking clockwise.
+
+We keep walking, accumulating shares and distributing them to peers, until
+either we find a home for all shares, or there are no peers left in the ring
+(because they are all full). If we run out of peers before we run out of
+shares, the upload may be considered a failure, depending upon how many
+shares we were able to place. The current parameters try to place 100 shares,
+of which 25 must be retrievable to recover the file, and the peer selection
+algorithm is happy if it was able to place at least 75 shares. These numbers
+are adjustable: 25-out-of-100 means an expansion factor of 4x (every file in
+the mesh consumes four times as much space when totalled across all
+StorageServers), but is highly reliable (the actual reliability is a binomial
+distribution function of the expected availability of the individual peers,
+but in general it goes up very quickly with the expansion factor).
+
+If the file has been uploaded before (or if two uploads are happening at the
+same time), a peer might already have shares for the same file we are
+proposing to send to them. In this case, those shares are removed from the
+list and assumed to be available (or will be soon). This reduces the number
+of uploads that must be performed.
+
+When downloading a file, the current release just asks all known peers for
+any shares they might have, chooses the minimal necessary subset, then starts
+downloading and processing those shares. A later release will use the full
+algorithm to reduce the number of queries that must be sent out. This
+algorithm uses the same consistent-hashing permutation as on upload, but
+instead of one walker with one basket, we have 100 walkers (one per share).
+They each proceed clockwise until they find a peer: this peer is the most
+likely to be the same one to which the share was originally uploaded, and is
+put on the "A" list. The next peer that each walker encounters is put on the
+"B" list, etc. All the "A" list peers are asked for any shares they might
+have. If enough of them can provide a share, the download phase begins and
+those shares are retrieved and decoded. If not, the "B" list peers are
+contacted, etc. This routine will eventually find all the peers that have
+shares, and will find them quickly if there is significant overlap between
+the set of peers that were present when the file was uploaded and the set of
+peers that are present as it is downloaded (i.e. if the "peerlist stability"
+is high). Some limits may be imposed in large meshes to avoid querying a
+million peers; this provides a tradeoff between the work spent to discover
+that a file is unrecoverable and the probability that a retrieval will fail
+when it couldhave succeeded if we had just tried a little bit harder. The
+appropriate value of this tradeoff will depend upon the size of the mesh.
+
+Other peer selection algorithms are being evaluated. One of them (known as
+"tahoe 2") uses the same consistent hash, starts at 0 and requests one lease
+per peer until it gets 100 of them. This is likely to get better overlap
+(since a single insertion or deletion will still leave 99 overlapping peers),
+but is non-ideal in other ways (TODO: what were they?).
+
+Another algorithm (known as "denver airport"[2]) uses the permuted hash to
+decide on an approximate target for each share, then sends lease requests via
+Chord routing (to avoid maintaining a large number of long-term connections).
+The request includes the contact information of the uploading node, and asks
+that the node which eventually accepts the lease should contact the uploader
+directly. The shares are then transferred over direct connections rather than
+through multiple Chord hops. Download uses the same approach.
+
+
+FILETREE: THE VIRTUAL DRIVE LAYER
+
+The "virtual drive" layer is responsible for mapping human-meaningful
+pathnames (directories and filenames) to pieces of data. The actual bytes
+inside these files are referenced by URI, but the "filetree" is where the
+directory names, file names, and metadata are kept.
+
+The current release has a very simplistic filetree model. There is a single
+globally-shared directory structure, which maps filename to URI. This
+structure is maintained in a central node (which happens to be the same node
+that houses the Introducer), by writing URIs to files in a local filesystem.
+
+A future release (probably the next one) will offer each application the
+ability to have a separate file tree. Each tree can reference others. Some
+trees are redirections, while others actually contain subdirectories full of
+filenames. The redirections may be mutable by some users but not by others,
+allowing both read-only and read-write views of the same data. This will
+enable individual users to have their own personal space, with links to
+spaces that are shared with specific other users, and other spaces that are
+globally visible. Eventually the application layer will present these pieces
+in a way that allows the sharing of a specific file or the creation of a
+"virtual CD" as easily as dragging a folder onto a user icon.
+
+The URIs described above are "Content Hash Key" (CHK) identifiers[3], in
+which the identifier refers to a specific sequence of bytes. In this project,
+CHK identifiers are used for both files and immutable directories (the tree
+of directory and file nodes are serialized into a sequence of bytes, which is
+then uploaded and turned into a URI). There is a separate kind of upload, not
+yet implemented, called SSK (short for Signed Subspace Key), in which the URI
+refers to a mutable slot. Some users have a write-capability to this slot,
+allowing them to change the data that it refers to. Others only have a
+read-capability, merely letting them read the current contents. These SSK
+slots can be used to provide mutability in the filetree, so that users can
+actually change the contents of their virtual drive. Redirection nodes can
+also provide mutability, such as a central service which allows a user to set
+the current URI of their top-level filetree. SSK slots provide a
+decentralized way to accomplish this mutability, whereas centralized
+redirection nodes are more vulnerable to single-point-of-failure issues.
+
+
+FILE REPAIRER
+
+Each node is expected to explicitly drop leases on files that it knows it no
+longer wants (the "delete" operation). Nodes are also expected to renew
+leases on files that still exist in their filetrees. When nodes are offline
+for an extended period of time, their files may decay (both because of leases
+expiring and because of StorageServers going offline). A File Verifier is
+used to check on the health of any given file, and a File Repairer is used to
+to keep desired files alive. The two are conceptually distinct (the repairer
+is run if the verifier decides it is necessary), but in practice they will be
+closely related, and may run in the same process.
+
+The repairer process does not get the full URI of the file to be maintained:
+it merely gets the "repairer capability" subset, which does not include the
+decryption key. The File Verifier uses that data to find out which peers
+ought to hold shares for this file, and to see if those peers are still
+around and willing to provide the data. If the file is not healthy enough,
+the File Repairer is invoked to download the crypttext, regenerate any
+missing shares, and upload them to new peers. The goal of the File Repairer
+is to finish up with a full set of 100 shares.
+
+There are a number of engineering issues to be resolved here. The bandwidth,
+disk IO, and CPU time consumed by the verification/repair process must be
+balanced against the robustness that it provides to the mesh. The nodes
+involved in repair will have very different access patterns than normal
+nodes, such that these processes may need to be run on hosts with more memory
+or network connectivity than usual. The frequency of repair runs directly
+affects the resources consumed. In some cases, verification of multiple files
+can be performed at the same time, and repair of files can be delegated off
+to other nodes.
+
+The security model we are currently using assumes that peers who claim to
+hold a share will actually provide it when asked. (We validate the data they
+provide before using it in any way, but if enough peers claim to hold the
+data and are wrong, the file will not be repaired, and may decay beyond
+recoverability). There are several interesting approaches to mitigate this
+threat, ranging from challenges to provide a keyed hash of the allegedly-held
+data (using "buddy nodes", in which two peers hold the same block, and check
+up on each other), to the original MojoNation economic model.
+
+
+SECURITY
+
+Data validity (the promise that the downloaded data will match the originally
+uploaded data) is provided by the hash embedded the URI. Data security (the
+promise that the data is only readable by people with the URI) is provided by
+the encryption key embedded in the URI. Data availability (the hope that data
+which has been uploaded in the past will be downloadable in the future) is
+provided by the mesh, which distributes failures in a way that reduces the
+correspondence between individual node failure and file recovery failure.
+
+The capability-based security model is used throughout this project. Filetree
+operations are expressed in terms of distinct read and write capabilities.
+The URI of a file is the read-capability: knowing the URI is equivalent to
+the ability to read the corresponding data.
+
+
+RELIABILITY
+
+File encoding and peer selection parameters can be adjusted to achieve
+different goals. Each choice results in a number of properties; there are
+many tradeoffs.
+
+First, some terms: the erasure-coding algorithm is described as K-out-of-N
+(for this release, the default values are K=25 and N=100). Each mesh will
+have some number of peers; this number will rise and fall over time as peers
+join, drop out, come back, and leave forever. Files are of various sizes,
+some are popular, others are rare. Peers have various capacities, variable
+upload/download bandwidths, and network latency. Most of the mathematical
+models that look at peer failure assume some average (and independent)
+probability 'P' of a given peer being available: this can be high (servers
+tend to be online and available >90% of the time) or low (laptops tend to be
+turned on for an hour then disappear for several days). Files are encoded in
+segments of a given maximum size, which affects memory usage.
+
+The ratio of N/K is the "expansion factor". Higher expansion factors improve
+reliability very quickly (the binomial distribution curve is very sharp), but
+consumes much more mesh capacity. The absolute value of K affects the
+granularity of the binomial curve (1-out-of-2 is much worse than
+50-out-of-100), but high values asymptotically approach a constant that
+depends upon 'P' (i.e. 500-of-1000 is not much better than 50-of-100).
+
+Likewise, the total number of peers in the network affects the same
+granularity: having only one peer means a single point of failure, no matter
+how many copies of the file you make. Independent peers (with uncorrelated
+failures) are necessary to hit the mathematical ideals: if you have 100 nodes
+but they are all in the same office building, then a single power failure
+will take out all of them at once. The "Sybil Attack" is where a single
+attacker convinces you that they are actually multiple servers, so that you
+think you are using a large number of independent peers, but in fact you have
+a single point of failure (where the attacker turns off all their machines at
+once). Large meshes, with lots of truly-independent peers, will enable the
+use of lower expansion factors to achieve the same reliability, but increase
+overhead because each peer needs to know something about every other, and the
+rate at which peers come and go will be higher (requiring network maintenance
+traffic). Also, the File Repairer work will increase with larger meshes,
+although then the job can be distributed out to more peers.
+
+Higher values of N increase overhead: more shares means more Merkle hashes
+that must be included with the data, and more peers to contact to retrieve
+the shares. Smaller segment sizes reduce memory usage (since each segment
+must be held in memory while erasure coding runs) and increases "alacrity"
+(since downloading can validate a smaller piece of data faster, delivering it
+to the target sooner), but also increase overhead (because more blocks means
+more Merkle hashes to validate them).
+
+In general, small private meshes should work well, but the participants will
+have to decide between storage overhead and reliability. Large stable meshes
+will be able to reduce the expansion factor down to a bare minimum while
+still retaining high reliability, but large unstable meshes (where nodes are
+coming and going very quickly) may require more repair/verification bandwidth
+than actual upload/download traffic.
+
+
+------------------------------
+
+[1]: http://en.wikipedia.org/wiki/Zooko%27s_triangle
+[2]: all of these names are derived from the location where they were
+     concocted, in this case in a car ride from Boulder to DEN
+[3]: the terms CHK and SSK come from Freenet,
+     http://wiki.freenetproject.org/FreenetCHKPages ,
+     although we use "SSK" in a slightly different way
+
