@@ -59,7 +59,7 @@ trove_classifiers=[
     ]
 
 setup(name='zfec',
-      version='1.0.0a2',
+      version='1.0.0a3',
       summary='a fast C implementation of Reed-Solomon erasure coding with command-line, C, and Python interfaces',
       description='Erasure coding -- also called "forward error correction" -- is the generation of redundant blocks of information such that if some blocks are lost ("erased") then the original data can be recovered from the remaining blocks.  This package contains an optimized implementation along with command-line, C, and Python interfaces.',
       author='Zooko O\'Whielacronx',
