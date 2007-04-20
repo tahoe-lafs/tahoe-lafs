@@ -1,3 +1,4 @@
+
 Allmydata, Inc. [1], provider of the "Allmydata" consumer backup product, is
 pleased announce the first public release of "Tahoe", an open source
 decentralized storage mesh.
@@ -9,26 +10,44 @@ but it is already implements a functional decentralized storage mesh and is
 useful for experimentation, prototyping, and extension.
 
 
-Installation
+INSTALLATION
 
-This release of Tahoe is guaranteed to work only on Linux.  It may actually
+This release of Tahoe is only supposed to work on Linux. It might actually
 work on other platforms -- earlier development revisions have been used on
 Windows, Cygwin, Mac/Intel, and Mac/PPC -- but not all of the unit tests
 currently pass on all platforms (see "Hacking and Community", below), so
-we're officially proclaiming that it works on Linux.
+we're officially proclaiming that this release works on Linux and that we'll
+get the other platforms working in the future.
 
 To install, download the tarball [2], untar it, cd into the resulting
 directory, and follow the directions in the README [3].
 
 
-Usage
+USAGE
 
-XYZ Brian: please insert intro to UI
+Once installed, you will need to create a "client node" as described in the
+README. You will instruct this client node to connect to a specific
+"introducer node" by means of some config files in the client node's working
+directory. To join a public mesh, copy in the .furl files for that mesh. To
+create a private mesh, you will need to run your own introducer, and copy the
+.furl files from there.
+
+Each client node runs a local webserver (enabled by writing the desired port
+number into a file called 'webport'). The front page of this webserver shows
+the node's status, including which introducer is being used and which other
+nodes are connected. Links from the status page lead to others that give
+access to a shared virtual filesystem, in which each directory is represented
+by a separate page. Each directory page shows a list of the files available
+there, with download links, and forms to upload new files.
+
+Other ways to access the filesystem are planned, as well as other structures
+than the single globally-shared namespace implemented by this release: please
+see the roadmap.txt for some rough details.
 
 
-Hacking and Community
+HACKING AND COMMUNITY
 
-Please join the mailing list [4] and to discuss the ideas behind Tahoe and
+Please join the mailing list [4] to discuss the ideas behind Tahoe and
 extensions of and uses of Tahoe.  Patches that extend and improve Tahoe are
 gratefully accepted -- roadmap.txt [5] shows the next improvements that we
 plan to make.  You can browse the revision control history, source code, and
@@ -38,7 +57,7 @@ and the code coverage results [8] and percentage-covered graph [9], which
 show how much of the Tahoe source code is currently exercised the test suite.
 
 
-Licence
+LICENCE
 
 Tahoe is offered under the GNU General Public License (v2).  It also comes
 with the added permission that, in the case that you are obligated to release
@@ -46,7 +65,7 @@ a derived work under this licence (as per section 2.b of the GPLv2), you may
 delay the fulfillment of this obligation for up to 12 months.
 
 
-Network Architecture
+NETWORK ARCHITECTURE
 
 Each peer maintains a connection to each other peer.  A single distinct
 server called an "introducer" is used to discover other peers with which to
@@ -60,8 +79,8 @@ and sufficient to recover the file.
 To fetch a file, starting with the URI, a subset of shares is downloaded from
 peers, the file is reconstructed from the shares, and then decrypted.
 
-A single distinct server called a "vdrive server" maintains a mapping from
-pathnames/filenames to URIs.
+A single distinct server called a "vdrive server" maintains a global share
+mapping from pathnames/filenames to URIs.
 
 We are well aware of the limitations of decentralization and scalability
 inherent in this prototype.  In particular, the completely-connected property
@@ -73,7 +92,7 @@ correctness of the introduction server and the vdrive server.  Also note that
 the choice of which servers to use is easily configured.
 
 
-Software Architecture
+SOFTWARE ARCHITECTURE
 
 Tahoe is a "from the ground-up" rewrite, inspired by Allmydata's existing
 consumer backup service, written in Python.
