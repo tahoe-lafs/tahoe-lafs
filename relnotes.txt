@@ -114,10 +114,10 @@ separately: [13]).
 [3]  http://allmydata.com/source/tahoe/README
 [4]  https://postman.allmydata.com/cgi-bin/mailman/listinfo/tahoe XYZ Zandr or someone: right URL?
 [5]  http://allmydata.com/source/tahoe/roadmap.txt
-[6]  http://allmydata.org/trac XYZ Brian: right URL?
-[7]  http://allmydata.org/buildbot XYZ Brian: right URL?
-[8]  http://allmydata.org/code coverage thingie XYZ Brian: right URL?
-[9]  http://allmydata.org/munin XYZ Brian: right URL?
+[6]  http://allmydata.org/trac
+[7]  http://allmydata.org/buildbot
+[8]  http://allmydata.org/test-coverage
+[9]  http://allmydata.org/test-coverage-graph
 [10] http://twistedmatrix.com/trac/wiki/FoolsCap
 [11] http://erights.org/
 [12] http://twistedmatrix.com/
