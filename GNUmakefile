@@ -20,7 +20,7 @@ else
  ifeq ($(PLAT),win32)
   # The platform is Windows with cygwin build tools and the native Python interpreter.
   EXTRA_SETUP_ARGS=build -c mingw32
-  REACTOR=iocp
+  REACTOR=select
   INSTDIR := $(shell cygpath -w $(INSTDIR))
   TRIALPATH := $(shell cygpath -w $(TRIALPATH))
   ifneq ($(PYTHONPATH),)
