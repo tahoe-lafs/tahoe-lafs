@@ -34,9 +34,9 @@ class CreateClientOptions(usage.Options):
             raise usage.UsageError("<basedir> parameter is required")
         self['basedir'] = os.path.abspath(self['basedir'])
 
-class CreateQueenOptions(usage.Options):
+class CreateIntroducerOptions(usage.Options):
     optParameters = [
-        ["basedir", "C", None, "which directory to create the queen in"],
+        ["basedir", "C", None, "which directory to create the introducer in"],
         ]
 
     def parseArgs(self, *args):
@@ -62,7 +62,7 @@ application = service.Application("allmydata_client")
 c.setServiceParent(application)
 """
 
-queen_tac = """
+introducer_tac = """
 # -*- python -*-
 
 from allmydata import queen
@@ -70,7 +70,7 @@ from twisted.application import service
 
 c = queen.Queen()
 
-application = service.Application("allmydata_queen")
+application = service.Application("allmydata_introducer")
 c.setServiceParent(application)
 """
 
@@ -79,7 +79,7 @@ class Options(usage.Options):
 
     subCommands = [
         ["create-client", None, CreateClientOptions, "Create a client node."],
-        ["create-queen", None, CreateQueenOptions, "Create a queen node."],
+        ["create-introducer", None, CreateIntroducerOptions, "Create a introducer node."],
         ["start", None, StartOptions, "Start a node (of any type)."],
         ["stop", None, StopOptions, "Stop a node."],
         ["restart", None, RestartOptions, "Restart a node."],
@@ -105,8 +105,8 @@ def run():
 
     if command == "create-client":
         rc = create_client(so)
-    elif command == "create-queen":
-        rc = create_queen(so)
+    elif command == "create-introducer":
+        rc = create_introducer(so)
     elif command == "start":
         rc = start(so)
     elif command == "stop":
@@ -133,7 +133,7 @@ def create_client(config):
     print "client created in %s" % basedir
     print " please copy introducer.furl and vdrive.furl into the directory"
 
-def create_queen(config):
+def create_introducer(config):
     basedir = config['basedir']
     if os.path.exists(basedir):
         if os.listdir(basedir):
@@ -144,29 +144,29 @@ def create_queen(config):
         # we're willing to use an empty directory
     else:
         os.mkdir(basedir)
-    f = open(os.path.join(basedir, "queen.tac"), "w")
-    f.write(queen_tac)
+    f = open(os.path.join(basedir, "introducer.tac"), "w")
+    f.write(introducer_tac)
     f.close()
-    print "queen created in %s" % basedir
+    print "introducer created in %s" % basedir
 
 def start(config):
     basedir = config['basedir']
     if os.path.exists(os.path.join(basedir, "client.tac")):
         tac = "client.tac"
         type = "client"
-    elif os.path.exists(os.path.join(basedir, "queen.tac")):
-        tac = "queen.tac"
-        type = "queen"
+    elif os.path.exists(os.path.join(basedir, "introducer.tac")):
+        tac = "introducer.tac"
+        type = "introducer"
     else:
         print "%s does not look like a node directory" % basedir
         sys.exit(1)
     os.chdir(basedir)
     rc = os.system("twistd -y %s" % tac)
     if rc == 0:
-        print "node probably started"
+        print "%s node probably started" % type
         return 0
     else:
-        print "node probably not started"
+        print "%s node probably not started" % type
         return 1
 
 def stop(config):
