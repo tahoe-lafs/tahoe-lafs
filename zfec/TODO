@@ -1,5 +1,5 @@
+ * catch EnvironmentError when writing sharefiles and clean up
  * try Duff's device in _addmul1()?
- * make sure it compiles with cygwin gcc -mno-cygwin
  * memory usage analysis
  * announce on pypi, sf.net, freshmeat, lwn, p2p-hackers
  * try compiling with Microsoft compiler
