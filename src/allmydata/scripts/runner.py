@@ -89,16 +89,16 @@ class Options(usage.Options):
         if not hasattr(self, 'subOptions'):
             raise usage.UsageError("must specify a command")
 
-def run():
+def runner(argv):
     config = Options()
     try:
-        config.parseOptions()
+        config.parseOptions(argv)
     except usage.error, e:
         print "%s:  %s" % (sys.argv[0], e)
         print
         c = getattr(config, 'subOptions', config)
         print str(c)
-        sys.exit(1)
+        return 1
 
     command = config.subCommand
     so = config.subOptions
@@ -114,6 +114,10 @@ def run():
     elif command == "restart":
         rc = restart(so)
     rc = rc or 0
+    return rc
+
+def run():
+    rc = runner(sys.argv[1:])
     sys.exit(rc)
 
 def create_client(config):
