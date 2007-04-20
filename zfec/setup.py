@@ -68,6 +68,6 @@ setup(name='zfec',
       platform='Any',
       packages=['zfec', 'zfec.util', 'zfec.test'],
       classifiers=trove_classifiers,
-      scripts=['bin/zfec', 'bin/zunfec',],
+      scripts=['cmdline/zfec', 'cmdline/zunfec',],
       ext_modules=[Extension('_fec', ['zfec/fec.c', 'zfec/_fecmodule.c',], extra_link_args=extra_link_args, extra_compile_args=extra_compile_args, undef_macros=undef_macros),],
       )
