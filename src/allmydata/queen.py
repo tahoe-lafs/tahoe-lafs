@@ -6,9 +6,9 @@ from allmydata.introducer import Introducer
 
 
 class Queen(node.Node):
-    CERTFILE = "queen.pem"
-    PORTNUMFILE = "queen.port"
-    NODETYPE = "queen"
+    CERTFILE = "introducer.pem"
+    PORTNUMFILE = "introducer.port"
+    NODETYPE = "introducer"
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
