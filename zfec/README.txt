@@ -28,7 +28,7 @@ and the addition of a command-line tool named "zfec".
 
 The source is currently available via darcs on the web with the command:
 
-darcs get http://www.allmydata.com/source/zfec
+darcs get http://allmydata.org/source/zfec
 
 More information on darcs is available at http://darcs.net
 
