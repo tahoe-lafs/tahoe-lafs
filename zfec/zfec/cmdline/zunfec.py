@@ -1,0 +1,80 @@
+#!/usr/bin/env python
+
+# zfec -- a fast C implementation of Reed-Solomon erasure coding with
+# command-line, C, and Python interfaces
+
+# The zfec and zunfec command-line tools require Python 2.5 for relative imports.
+
+import os, sys
+
+from ..util import argparse
+from .. import filefec
+
+from ..zfec import __version__ as libversion
+from ..util.version import Version
+__version__ = Version("1.0.0a1-0-STABLE")
+
+def main():
+    if '-V' in sys.argv or '--version' in sys.argv:
+        print "zfec library version: ", libversion
+        print "zunfec command-line tool version: ", __version__
+        return 0
+
+    parser = argparse.ArgumentParser(description="Decode data from share files.")
+
+    parser.add_argument('-o', '--outputfile', required=True, help='file to write the resulting data to, or "-" for stdout', type=str, metavar='OUTF')
+    parser.add_argument('sharefiles', nargs='*', help='shares file to read the encoded data from', type=argparse.FileType('rb'), metavar='SHAREFILE')
+    parser.add_argument('-v', '--verbose', help='print out messages about progress', action='store_true')
+    parser.add_argument('-f', '--force', help='overwrite any file which already in place of the output file', action='store_true')
+    parser.add_argument('-V', '--version', help='print out version number and exit', action='store_true')
+    args = parser.parse_args()
+
+    if len(args.sharefiles) < 2:
+        print "At least two sharefiles are required."
+        return 1
+
+    if args.force:
+        outf = open(args.outputfile, 'wb')
+    else:
+        try:
+            flags = os.O_WRONLY|os.O_CREAT|os.O_EXCL | (hasattr(os, 'O_BINARY') and os.O_BINARY)
+            outfd = os.open(args.outputfile, flags)
+        except OSError:
+            print "There is already a file named %r -- aborting.  Use --force to overwrite." % (args.outputfile,)
+            return 2
+        outf = os.fdopen(outfd, "wb")
+
+    try:
+        ret = filefec.decode_from_files(outf, args.sharefiles, args.verbose)
+    except filefec.InsufficientShareFilesError, e:
+        print str(e)
+        return 3
+
+    return 0
+
+# zfec -- a fast C implementation of Reed-Solomon erasure coding with
+# command-line, C, and Python interfaces
+# 
+# Copyright (C) 2007 Allmydata, Inc.
+# Author: Zooko Wilcox-O'Hearn
+# mailto:zooko@zooko.com
+# 
+# This file is part of zfec.
+# 
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.  This package also comes with the added permission that,
+# in the case that you are obligated to release a derived work under this
+# licence (as per section 2.b of the GPL), you may delay the fulfillment of
+# this obligation for up to 12 months.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+

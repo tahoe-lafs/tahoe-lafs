@@ -164,6 +164,21 @@ class FileFec(unittest.TestCase):
     def test_filefec_all_shares(self):
         return self._help_test_filefec("Yellow Whirled!", 3, 8)
 
+    def test_filefec_all_shares_2(self):
+        return self._help_test_filefec("Yellow Whirled", 3, 8)
+
+    def test_filefec_all_shares_3(self):
+        return self._help_test_filefec("Yellow Whirle", 3, 8)
+
+    def test_filefec_all_shares_3_b(self):
+        return self._help_test_filefec("Yellow Whirle", 4, 16)
+
+    def test_filefec_all_shares_2_b(self):
+        return self._help_test_filefec("Yellow Whirled", 4, 16)
+
+    def test_filefec_all_shares_1_b(self):
+        return self._help_test_filefec("Yellow Whirled!", 4, 16)
+
     def test_filefec_all_shares_with_padding(self, noisy=VERBOSE):
         return self._help_test_filefec("Yellow Whirled!A", 3, 8)
 

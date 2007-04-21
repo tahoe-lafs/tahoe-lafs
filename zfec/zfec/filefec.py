@@ -174,7 +174,7 @@ def encode_to_files(inf, fsize, dirname, prefix, k, m, suffix=".fec", overwrite=
             if overwrite:
                 f = open(fn, "wb")
             else:
-                fd = os.open(fn, os.O_WRONLY|os.O_CREAT|os.O_EXCL)
+                fd = os.open(fn, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_BINARY)
                 f = os.fdopen(fd, "wb")
             f.write(hdr)
             fs.append(f)
