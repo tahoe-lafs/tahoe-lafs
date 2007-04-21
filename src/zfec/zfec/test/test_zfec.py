@@ -131,7 +131,7 @@ class FileFec(unittest.TestCase):
         PREFIX = "test"
         SUFFIX = ".fec"
 
-        tempdir = zfec.util.fileutil.NamedTemporaryDirectory(cleanup=False)
+        tempdir = zfec.util.fileutil.NamedTemporaryDirectory()
         try:
             tempfn = os.path.join(tempdir.name, TESTFNAME)
             tempf = open(tempfn, 'wb')
