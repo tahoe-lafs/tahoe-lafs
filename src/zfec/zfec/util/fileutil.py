@@ -66,16 +66,63 @@ def remove(f, tries=4, basedelay=0.1):
             basedelay *= 2
     return os.remove(f) # The last try.
 
-class NamedTemporaryDirectory:
+class _Dir(object):
     """
-    This calls tempfile.mkdtemp(), stores the name of the dir in
-    self.name, and rmrf's the dir when it gets garbage collected or
-    "shutdown()".
+    Hold a set of files and subdirs and clean them all up when asked to.
     """
-    def __init__(self, cleanup=True, *args, **kwargs):
-        """ If cleanup, then the directory will be rmrf'ed when the object is shutdown. """
+    def __init__(self, name, cleanup=True):
+        self.name = name
         self.cleanup = cleanup
-        self.name = tempfile.mkdtemp(*args, **kwargs)
+        self.files = set()
+        self.subdirs = set()
+
+    def file(self, fname, mode=None):
+        """
+        Create a file in the tempdir and remember it so as to close() it
+        before attempting to cleanup the temp dir.
+
+        @rtype: file
+        """
+        ffn = os.path.join(self.name, fname)
+        if mode is not None:
+            fo = open(ffn, mode)
+        else:
+            fo = open(ffn)
+        self.register_file(fo)
+        return fo
+       
+    def subdir(self, dirname):
+        """
+        Create a subdirectory in the tempdir and remember it so as to call
+        shutdown() on it before attempting to clean up.
+
+        @rtype: NamedTemporaryDirectory instance
+        """
+        ffn = os.path.join(self.name, dirname)
+        sd = _Dir(ffn, self.cleanup)
+        self.register_subdir(sd)
+       
+    def register_file(self, fileobj):
+        """
+        Remember the file object and call close() on it before attempting to
+        clean up.
+        """
+        self.files.add(fileobj)
+       
+    def register_subdir(self, dirobj):
+        """
+        Remember the _Dir object and call shutdown() on it before attempting
+        to clean up.
+        """
+        self.subdirs.add(dirobj)
+       
+    def shutdown(self):
+        if self.cleanup and hasattr(self, 'name'):
+            for subdir in self.subdirs:
+                subdir.shutdown()
+            for fileobj in self.files:
+                fileobj.close() # "close()" is idempotent so we don't need to catch exceptions here
+            rm_dir(self.name)
 
     def __repr__(self):
         return "<%s instance at %x %s>" % (self.__class__.__name__, id(self), self.name)
@@ -90,9 +137,21 @@ class NamedTemporaryDirectory:
             import traceback
             traceback.print_exc()
 
-    def shutdown(self):
-        if self.cleanup and hasattr(self, 'name'):
-            rm_dir(self.name)
+class NamedTemporaryDirectory(_Dir):
+    """
+    Call tempfile.mkdtemp(), store the name of the dir in self.name, and
+    rm_dir() when it gets garbage collected or "shutdown()".
+
+    Also optionally keep track of file objects for files within the tempdir
+    and call close() on them before rm_dir().  This is a convenient way to
+    open temp files within the directory, and it is very helpful on Windows
+    because you can't delete a directory which contains a file which is
+    currently open.
+    """
+    def __init__(self, cleanup=True, *args, **kwargs):
+        """ If cleanup, then the directory will be rmrf'ed when the object is shutdown. """
+        name = tempfile.mkdtemp(*args, **kwargs)
+        _Dir.__init__(self, name, cleanup)
 
 def make_dirs(dirname, mode=0777, strictmode=False):
     """
