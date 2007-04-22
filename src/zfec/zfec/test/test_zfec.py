@@ -7,11 +7,7 @@ import cStringIO, os, random, re, sys
 
 import zfec
 
-try:
-    from twisted.trial import unittest
-except ImportError:
-    # trial is unavailable, oh well
-    import unittest
+import unittest
 
 global VERBOSE
 VERBOSE=False
@@ -131,32 +127,32 @@ class FileFec(unittest.TestCase):
         PREFIX = "test"
         SUFFIX = ".fec"
 
-        tempdir = zfec.util.fileutil.NamedTemporaryDirectory()
+        fsize = len(teststr)
+
+        tempdir = zfec.util.fileutil.NamedTemporaryDirectory(cleanup=True)
         try:
-            tempfn = os.path.join(tempdir.name, TESTFNAME)
-            tempf = open(tempfn, 'wb')
+            tempf = tempdir.file(TESTFNAME, 'w+b')
             tempf.write(teststr)
-            tempf.close()
-            fsize = os.path.getsize(tempfn)
-            assert fsize == len(teststr)
+            tempf.seek(0)
 
             # encode the file
-            zfec.filefec.encode_to_files(open(tempfn, 'rb'), fsize, tempdir.name, PREFIX, k, m, SUFFIX, verbose=VERBOSE)
+            zfec.filefec.encode_to_files(tempf, fsize, tempdir.name, PREFIX, k, m, SUFFIX, verbose=VERBOSE)
 
             # select some share files
             RE=re.compile(zfec.filefec.RE_FORMAT % (PREFIX, SUFFIX,))
             fns = os.listdir(tempdir.name)
+            assert len(fns) >= m, (fns, tempdir, tempdir.name,)
             sharefs = [ open(os.path.join(tempdir.name, fn), "rb") for fn in fns if RE.match(fn) ]
+            for sharef in sharefs:
+                tempdir.register_file(sharef)
             random.shuffle(sharefs)
             del sharefs[numshs:]
 
             # decode from the share files
-            outf = open(os.path.join(tempdir.name, 'recovered-testfile.txt'), 'wb')
+            outf = tempdir.file('recovered-testfile.txt', 'w+b')
             zfec.filefec.decode_from_files(outf, sharefs, verbose=VERBOSE)
-            outf.close()
-
-            tempfn = open(os.path.join(tempdir.name, 'recovered-testfile.txt'), 'rb')
-            recovereddata = tempfn.read()
+            outf.seek(0)
+            recovereddata = outf.read()
             assert recovereddata == teststr
         finally:
             tempdir.shutdown()
@@ -185,27 +181,21 @@ class FileFec(unittest.TestCase):
     def test_filefec_min_shares_with_padding(self, noisy=VERBOSE):
         return self._help_test_filefec("Yellow Whirled!A", 3, 8, numshs=3)
 
-if __name__ == "__main__":
-    if hasattr(unittest, 'main'):
-        unittest.main()
-    else:
-        sys.path.append(os.getcwd())
-        mods = []
-        fullname = os.path.realpath(os.path.abspath(__file__))
-        for pathel in sys.path:
-            fullnameofpathel = os.path.realpath(os.path.abspath(pathel))
-            if fullname.startswith(fullnameofpathel):
-                relname = fullname[len(fullnameofpathel):]
-                mod = (os.path.splitext(relname)[0]).replace(os.sep, '.').strip('.')
-                mods.append(mod)
+    def test_filefec_min_shares_with_crlf(self, noisy=VERBOSE):
+        return self._help_test_filefec("Yellow Whirled!A\r\n", 3, 8, numshs=3)
 
-        mods.sort(cmp=lambda x, y: cmp(len(x), len(y)))
-        mods.reverse()
-        for mod in mods:
-            cmdstr = "trial %s %s" % (' '.join(sys.argv[1:]), mod)
-            print cmdstr
-            if os.system(cmdstr) == 0:
-                break
+    def test_filefec_min_shares_with_lf(self, noisy=VERBOSE):
+        return self._help_test_filefec("Yellow Whirled!A\n", 3, 8, numshs=3)
+
+    def test_filefec_min_shares_with_lflf(self, noisy=VERBOSE):
+        return self._help_test_filefec("Yellow Whirled!A\n\n", 3, 8, numshs=3)
+
+    def test_filefec_min_shares_with_crcrlflf(self, noisy=VERBOSE):
+        return self._help_test_filefec("Yellow Whirled!A\r\r\n\n", 3, 8, numshs=3)
+
+
+if __name__ == '__main__':
+    unittest.main()
 
 # zfec -- fast forward error correction library with Python interface
 #
