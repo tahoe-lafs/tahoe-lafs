@@ -13,9 +13,11 @@
    height="1052.3622047"
    id="svg2"
    sodipodi:version="0.32"
-   inkscape:version="0.44.1"
-   sodipodi:docbase="/home/warner/work/tahoe-misc"
-   sodipodi:docname="file-encoding1.svg">
+   inkscape:version="0.45"
+   sodipodi:docbase="/home/warner/trees/tahoe/docs"
+   sodipodi:docname="file-encoding1.svg"
+   inkscape:output_extension="org.inkscape.output.svg.inkscape"
+   sodipodi:modified="true">
   <defs
      id="defs4">
     <marker
@@ -42,15 +44,15 @@
      objecttolerance="10"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.51883278"
+     inkscape:zoom="0.51978303"
      inkscape:cx="372.04724"
      inkscape:cy="526.18109"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      inkscape:window-width="900"
      inkscape:window-height="756"
-     inkscape:window-x="768"
-     inkscape:window-y="178" />
+     inkscape:window-x="767"
+     inkscape:window-y="161" />
   <metadata
      id="metadata7">
     <rdf:RDF>
@@ -133,29 +135,28 @@
        id="path2804"
        sodipodi:nodetypes="cc" />
     <g
-       id="g2989"
-       transform="matrix(0.923205,0,0,0.923205,41.82841,25.82025)">
+       id="g3207">
       <path
-         transform="translate(-27.43576,-32.74591)"
+         transform="matrix(0.923205,0,0,0.923205,16.499579,-4.4109378)"
          d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
          sodipodi:ry="34.073441"
          sodipodi:rx="34.958466"
          sodipodi:cy="196.10106"
          sodipodi:cx="607.56927"
          id="path1904"
-         style="fill:#ffe6d5;fill-opacity:1;stroke:black;stroke-opacity:1"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:#000000;stroke-opacity:1"
          sodipodi:type="arc" />
       <text
          sodipodi:linespacing="100%"
          id="text2793"
-         y="169.1078"
-         x="558.45044"
-         style="font-size:16px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         y="181.94142"
+         x="548.34637"
+         style="font-size:14.77128029px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
          xml:space="preserve"><tspan
-           y="169.1078"
-           x="558.45044"
-           id="tspan2795"
-           sodipodi:role="line">SHA-1</tspan></text>
+           y="181.94142"
+           x="548.34637"
+           id="tspan2234"
+           sodipodi:role="line">SHA-256</tspan></text>
     </g>
     <g
        id="g3000"
@@ -224,31 +225,6 @@
        id="path3021"
        d="M 522.23618,308.85904 L 651.44974,308.85904"
        style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1" />
-    <g
-       transform="matrix(0.923205,0,0,0.923205,41.82841,158.4913)"
-       id="g3023">
-      <path
-         sodipodi:type="arc"
-         style="fill:#ffe6d5;fill-opacity:1;stroke:black;stroke-opacity:1"
-         id="path3025"
-         sodipodi:cx="607.56927"
-         sodipodi:cy="196.10106"
-         sodipodi:rx="34.958466"
-         sodipodi:ry="34.073441"
-         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
-         transform="translate(-27.43576,-32.74591)" />
-      <text
-         xml:space="preserve"
-         style="font-size:16px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
-         x="558.45044"
-         y="169.1078"
-         id="text3027"
-         sodipodi:linespacing="100%"><tspan
-           sodipodi:role="line"
-           id="tspan3029"
-           x="558.45044"
-           y="169.1078">SHA-1</tspan></text>
-    </g>
     <g
        id="g3230">
       <rect
@@ -422,31 +398,6 @@
        id="path3220"
        sodipodi:nodetypes="cc" />
     <g
-       id="g3222"
-       transform="matrix(0.923205,0,0,0.923205,22.54247,568.3362)">
-      <path
-         transform="translate(-27.43576,-32.74591)"
-         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
-         sodipodi:ry="34.073441"
-         sodipodi:rx="34.958466"
-         sodipodi:cy="196.10106"
-         sodipodi:cx="607.56927"
-         id="path3224"
-         style="fill:#ffe6d5;fill-opacity:1;stroke:black;stroke-opacity:1"
-         sodipodi:type="arc" />
-      <text
-         sodipodi:linespacing="100%"
-         id="text3226"
-         y="169.1078"
-         x="558.45044"
-         style="font-size:16px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
-         xml:space="preserve"><tspan
-           y="169.1078"
-           x="558.45044"
-           id="tspan3228"
-           sodipodi:role="line">SHA-1</tspan></text>
-    </g>
-    <g
        id="g3255"
        transform="translate(0,44.33028)">
       <rect
@@ -470,12 +421,62 @@
            y="697.95764"
            x="642.83234"
            id="tspan3253"
-           sodipodi:role="line"></tspan></text>
+           sodipodi:role="line" /></text>
     </g>
     <path
        style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
        d="M 338.98999,601.06036 L 338.98999,678.72836"
        id="path3261"
        sodipodi:nodetypes="cc" />
+    <g
+       id="g3212"
+       transform="translate(0,132.2285)">
+      <path
+         sodipodi:type="arc"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:#000000;stroke-opacity:1"
+         id="path3214"
+         sodipodi:cx="607.56927"
+         sodipodi:cy="196.10106"
+         sodipodi:rx="34.958466"
+         sodipodi:ry="34.073441"
+         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         transform="matrix(0.923205,0,0,0.923205,16.499579,-4.4109378)" />
+      <text
+         xml:space="preserve"
+         style="font-size:14.77128029px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         x="548.34637"
+         y="181.94142"
+         id="text3216"
+         sodipodi:linespacing="100%"><tspan
+           sodipodi:role="line"
+           id="tspan3218"
+           x="548.34637"
+           y="181.94142">SHA-256</tspan></text>
+    </g>
+    <g
+       transform="translate(-15.897507,542.07333)"
+       id="g3220">
+      <path
+         transform="matrix(0.923205,0,0,0.923205,16.499579,-4.4109378)"
+         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         sodipodi:ry="34.073441"
+         sodipodi:rx="34.958466"
+         sodipodi:cy="196.10106"
+         sodipodi:cx="607.56927"
+         id="path3222"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:#000000;stroke-opacity:1"
+         sodipodi:type="arc" />
+      <text
+         sodipodi:linespacing="100%"
+         id="text3224"
+         y="181.94142"
+         x="548.34637"
+         style="font-size:14.77128029px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         xml:space="preserve"><tspan
+           y="181.94142"
+           x="548.34637"
+           id="tspan3226"
+           sodipodi:role="line">SHA-256</tspan></text>
+    </g>
   </g>
 </svg>
