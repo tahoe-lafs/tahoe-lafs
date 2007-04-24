@@ -3,8 +3,9 @@ from twisted.trial import unittest
 from foolscap.eventual import flushEventualQueue
 
 from allmydata import queen
+from allmydata.util import testutil
 
-class Basic(unittest.TestCase):
+class Basic(testutil.SignalMixin, unittest.TestCase):
     def test_loadable(self):
         q = queen.Queen()
         d = q.startService()

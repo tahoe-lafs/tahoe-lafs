@@ -4,7 +4,7 @@ from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.application import service
 from allmydata import client, queen, uri, download
-from allmydata.util import idlib, fileutil
+from allmydata.util import idlib, fileutil, testutil
 from foolscap.eventual import flushEventualQueue
 from twisted.python import log
 from twisted.python.failure import Failure
@@ -17,7 +17,7 @@ def flush_but_dont_ignore(res):
     d.addCallback(_done)
     return d
 
-class SystemTest(unittest.TestCase):
+class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
     def setUp(self):
         self.sparent = service.MultiService()

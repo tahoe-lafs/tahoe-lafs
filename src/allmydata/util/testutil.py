@@ -3,7 +3,7 @@ import os, signal, sys, time
 from twisted.internet import reactor
 from twisted.trial import unittest
 
-class SignalMixin(unittest.TestCase):
+class SignalMixin:
     # This class is necessary for any code which wants to use Processes
     # outside the usual reactor.run() environment. It is copied from
     # Twisted's twisted.test.test_process

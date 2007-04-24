@@ -1,12 +1,12 @@
 
-from allmydata.util import iputil
+from allmydata.util import iputil, testutil
 
 from twisted.trial import unittest
 import re
 
 DOTTED_QUAD_RE=re.compile("^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$")
 
-class ListAddresses(unittest.TestCase):
+class ListAddresses(testutil.SignalMixin, unittest.TestCase):
     def test_get_local_ip_for(self):
         addr = iputil.get_local_ip_for('127.0.0.1')
         self.failUnless(DOTTED_QUAD_RE.match(addr))
