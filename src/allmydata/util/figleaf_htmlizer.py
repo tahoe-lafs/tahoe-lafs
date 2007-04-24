@@ -127,9 +127,14 @@ def report_as_html(coverage, directory, exclude_patterns=[], root=None):
 	def sort_by_pcnt(a, b):
 		a = a[1][2]
 		b = b[1][2]
-
 		return -cmp(a,b)
-	info_dict_items.sort(sort_by_pcnt)
+
+        def sort_by_uncovered(a, b):
+		a_uncovered = a[1][0] - a[1][1]
+		b_uncovered = b[1][0] - b[1][1]
+		return -cmp(a_uncovered, b_uncovered)
+
+	info_dict_items.sort(sort_by_uncovered)
 
 	summary_lines = sum([ v[0] for (k, v) in info_dict_items])
 	summary_cover = sum([ v[1] for (k, v) in info_dict_items])
@@ -192,8 +197,8 @@ def report_as_html(coverage, directory, exclude_patterns=[], root=None):
 
                 index_fp.write('</table>\n')
 
-        # sorted by percentage covered
-        index_fp.write('<h3>Sorted by Coverage Percentage</h3>\n')
+        # sorted by number of lines that aren't covered
+        index_fp.write('<h3>Sorted by Lines Uncovered</h3>\n')
         emit_table(info_dict_items, True)
 
         # sorted by module name
