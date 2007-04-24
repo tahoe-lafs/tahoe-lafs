@@ -14,7 +14,7 @@ class CreateNode(unittest.TestCase):
     def test_client(self):
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
-        argv = ["create-client", "--basedir", c1]
+        argv = ["create-client", "--basedir", c1, "--quiet"]
         runner.runner(argv)
         self.failUnless(os.path.exists(c1))
         self.failUnless(os.path.exists(os.path.join(c1, "client.tac")))
@@ -22,7 +22,7 @@ class CreateNode(unittest.TestCase):
     def test_introducer(self):
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")
-        argv = ["create-introducer", "--basedir", c1]
+        argv = ["create-introducer", "--basedir", c1, "--quiet"]
         runner.runner(argv)
         self.failUnless(os.path.exists(c1))
         self.failUnless(os.path.exists(os.path.join(c1, "introducer.tac")))

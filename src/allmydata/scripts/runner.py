@@ -22,6 +22,9 @@ class CreateClientOptions(usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to create the client in"],
         ]
+    optFlags = [
+        ["quiet", "q", "operate silently"],
+        ]
 
     def parseArgs(self, *args):
         if len(args) > 0:
@@ -37,6 +40,9 @@ class CreateClientOptions(usage.Options):
 class CreateIntroducerOptions(usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to create the introducer in"],
+        ]
+    optFlags = [
+        ["quiet", "q", "operate silently"],
         ]
 
     def parseArgs(self, *args):
@@ -134,8 +140,9 @@ def create_client(config):
     f = open(os.path.join(basedir, "client.tac"), "w")
     f.write(client_tac)
     f.close()
-    print "client created in %s" % basedir
-    print " please copy introducer.furl and vdrive.furl into the directory"
+    if not config['quiet']:
+        print "client created in %s" % basedir
+        print " please copy introducer.furl and vdrive.furl into the directory"
 
 def create_introducer(config):
     basedir = config['basedir']
@@ -151,7 +158,8 @@ def create_introducer(config):
     f = open(os.path.join(basedir, "introducer.tac"), "w")
     f.write(introducer_tac)
     f.close()
-    print "introducer created in %s" % basedir
+    if not config['quiet']:
+        print "introducer created in %s" % basedir
 
 def start(config):
     basedir = config['basedir']
