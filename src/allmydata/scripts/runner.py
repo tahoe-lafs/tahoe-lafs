@@ -95,11 +95,13 @@ class Options(usage.Options):
         if not hasattr(self, 'subOptions'):
             raise usage.UsageError("must specify a command")
 
-def runner(argv):
+def runner(argv, run_by_human=True):
     config = Options()
     try:
         config.parseOptions(argv)
     except usage.error, e:
+        if not run_by_human:
+            raise
         print "%s:  %s" % (sys.argv[0], e)
         print
         c = getattr(config, 'subOptions', config)

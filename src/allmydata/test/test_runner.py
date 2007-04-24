@@ -1,6 +1,7 @@
 
 from twisted.trial import unittest
 
+from twisted.python import usage
 import os.path
 from allmydata.scripts import runner
 from allmydata.util import fileutil
@@ -19,6 +20,22 @@ class CreateNode(unittest.TestCase):
         self.failUnless(os.path.exists(c1))
         self.failUnless(os.path.exists(os.path.join(c1, "client.tac")))
 
+        c2 = os.path.join(basedir, "c2")
+        argv = ["create-client", "--quiet", c2]
+        runner.runner(argv)
+        self.failUnless(os.path.exists(c2))
+        self.failUnless(os.path.exists(os.path.join(c2, "client.tac")))
+
+        self.failUnlessRaises(usage.UsageError,
+                              runner.runner,
+                              ["create-client", "basedir", "extraarg"],
+                              run_by_human=False)
+
+        self.failUnlessRaises(usage.UsageError,
+                              runner.runner,
+                              ["create-client"],
+                              run_by_human=False)
+
     def test_introducer(self):
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")
@@ -26,4 +43,26 @@ class CreateNode(unittest.TestCase):
         runner.runner(argv)
         self.failUnless(os.path.exists(c1))
         self.failUnless(os.path.exists(os.path.join(c1, "introducer.tac")))
+
+        c2 = os.path.join(basedir, "c2")
+        argv = ["create-introducer", "--quiet", c2]
+        runner.runner(argv)
+        self.failUnless(os.path.exists(c2))
+        self.failUnless(os.path.exists(os.path.join(c2, "introducer.tac")))
+
+        self.failUnlessRaises(usage.UsageError,
+                              runner.runner,
+                              ["create-introducer", "basedir", "extraarg"],
+                              run_by_human=False)
+
+        self.failUnlessRaises(usage.UsageError,
+                              runner.runner,
+                              ["create-introducer"],
+                              run_by_human=False)
+
+    def test_subcommands(self):
+        self.failUnlessRaises(usage.UsageError,
+                              runner.runner,
+                              [],
+                              run_by_human=False)
 
