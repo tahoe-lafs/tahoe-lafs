@@ -9,6 +9,7 @@ from foolscap.eventual import flushEventualQueue
 from twisted.python import log
 from twisted.python.failure import Failure
 from twisted.web.client import getPage
+from twisted.web.error import PageRedirect
 
 def flush_but_dont_ignore(res):
     d = flushEventualQueue()
@@ -225,7 +226,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                            v0.put_file_by_data(subdir1, "mydata567", DATA))
             return d1
         d.addCallback(_do_publish)
-        def _publish_done(res):
+        def _publish_done(uri):
+            self.uri = uri
             log.msg("publish finished")
             v1 = self.clients[1].getServiceNamed("vdrive")
             d1 = v1.get_file_to_data("/subdir1/mydata567")
@@ -253,6 +255,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                             "I didn't see the right 'My nodeid' message "
                             "in: %s" % page)
         d.addCallback(_got_welcome)
+        d.addCallback(lambda res: getPage(base + "vdrive"))
         d.addCallback(lambda res: getPage(base + "vdrive/subdir1"))
         def _got_subdir1(page):
             # there ought to be an href for our file
@@ -262,5 +265,75 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _got_data(page):
             self.failUnlessEqual(page, self.data)
         d.addCallback(_got_data)
+
+        # download from a URI embedded in a URL
+        def _get_from_uri(res):
+            return getPage(base + "download_uri/%s?filename=%s"
+                           % (self.uri, "mydata567"))
+        d.addCallback(_get_from_uri)
+        def _got_from_uri(page):
+            self.failUnlessEqual(page, self.data)
+        d.addCallback(_got_from_uri)
+
+        # download from a URI embedded in a URL, second form
+        def _get_from_uri2(res):
+            return getPage(base + "download_uri?uri=%s" % (self.uri,))
+        d.addCallback(_get_from_uri2)
+        def _got_from_uri2(page):
+            self.failUnlessEqual(page, self.data)
+        d.addCallback(_got_from_uri2)
+
+        # download from a URI pasted into a form. Use POST, build a
+        # multipart/form-data, submit it. This actualy redirects us to a
+        # /download_uri?uri=%s URL, and twisted.web.client doesn't seem to
+        # handle POST redirects very well (it does a second POST instead of
+        # the GET that a browser seems to do), so we just verify that we get
+        # the right redirect response.
+        def _get_from_form(res):
+            url = base + "welcome/freeform_post!!download"
+            sep = "-"*40 + "boogabooga"
+            form = [sep,
+                    "Content-Disposition: form-data; name=\"_charset_\"",
+                    "",
+                    "UTF-8",
+                    sep,
+                    "Content-Disposition: form-data; name=\"uri\"",
+                    "",
+                    self.uri,
+                    sep,
+                    "Content-Disposition: form-data; name=\"filename\"",
+                    "",
+                    "foo.txt",
+                    sep,
+                    "Content-Disposition: form-data; name=\"download\"",
+                    "",
+                    "Download",
+                    sep + "--",
+                    ]
+            body = "\r\n".join(form)
+            headers = {"content-type":
+                       "multipart/form-data; boundary=%s" % sep,
+                       }
+            return getPage(url, None, "POST", body, headers=headers,
+                           followRedirect=False)
+        d.addCallback(_get_from_form)
+        def _got_from_form_worked_unexpectedly(page):
+            self.fail("we weren't supposed to get an actual page: %s" %
+                      (page,))
+        def _got_from_form_redirect(f):
+            f.trap(PageRedirect)
+            # the PageRedirect does not seem to capture the uri= query arg
+            # properly, so we can't check for it.
+            self.failUnless(f.value.location.startswith(base+"download_uri?"))
+        d.addCallbacks(_got_from_form_worked_unexpectedly,
+                       _got_from_form_redirect)
+
+        # TODO: create a directory by using a form
+
+        # TODO: upload by using a form on the directory page
+        #    url = base + "vdrive/subdir1/freeform_post!!upload"
+
+        # TODO: delete a file by using a button on the directory page
+
         return d
 
