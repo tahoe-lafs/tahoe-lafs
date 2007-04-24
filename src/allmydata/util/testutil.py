@@ -1,7 +1,6 @@
 import os, signal, sys, time
 
 from twisted.internet import reactor
-from twisted.trial import unittest
 
 class SignalMixin:
     # This class is necessary for any code which wants to use Processes
