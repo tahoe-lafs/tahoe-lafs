@@ -1,0 +1,484 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://web.resource.org/cc/"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="744.09448819"
+   height="1052.3622047"
+   id="svg2"
+   sodipodi:version="0.32"
+   inkscape:version="0.44.1"
+   sodipodi:docbase="/home/warner/work/tahoe-misc"
+   sodipodi:docname="file-encoding3.svg">
+  <defs
+     id="defs4">
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Lend"
+       style="overflow:visible;">
+      <path
+         id="path2976"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;marker-start:none;"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     gridtolerance="10000"
+     guidetolerance="10"
+     objecttolerance="10"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.523584"
+     inkscape:cx="372.04724"
+     inkscape:cy="526.18109"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     inkscape:window-width="900"
+     inkscape:window-height="756"
+     inkscape:window-x="778"
+     inkscape:window-y="96" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g3308"
+       transform="translate(-492.4404,-287.9192)">
+      <path
+         sodipodi:type="arc"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:black;stroke-opacity:1"
+         id="path3297"
+         sodipodi:cx="607.56927"
+         sodipodi:cy="196.10106"
+         sodipodi:rx="34.958466"
+         sodipodi:ry="34.073441"
+         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         transform="matrix(0.511994,0,0,0.511994,289.5084,379.3664)" />
+      <text
+         xml:space="preserve"
+         style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         x="591.47559"
+         y="483.09396"
+         id="text3299"
+         sodipodi:linespacing="100%"><tspan
+           y="483.09396"
+           x="591.47559"
+           id="tspan3306"
+           sodipodi:role="line">SHA</tspan></text>
+    </g>
+    <g
+       transform="translate(-361.8975,-287.9192)"
+       id="g3313">
+      <path
+         transform="matrix(0.511994,0,0,0.511994,289.5084,379.3664)"
+         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         sodipodi:ry="34.073441"
+         sodipodi:rx="34.958466"
+         sodipodi:cy="196.10106"
+         sodipodi:cx="607.56927"
+         id="path3315"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:black;stroke-opacity:1"
+         sodipodi:type="arc" />
+      <text
+         sodipodi:linespacing="100%"
+         id="text3317"
+         y="483.09396"
+         x="591.47559"
+         style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         xml:space="preserve"><tspan
+           sodipodi:role="line"
+           id="tspan3319"
+           x="591.47559"
+           y="483.09396">SHA</tspan></text>
+    </g>
+    <g
+       id="g3321"
+       transform="translate(-427.1689,-180.8987)">
+      <path
+         sodipodi:type="arc"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:black;stroke-opacity:1"
+         id="path3323"
+         sodipodi:cx="607.56927"
+         sodipodi:cy="196.10106"
+         sodipodi:rx="34.958466"
+         sodipodi:ry="34.073441"
+         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         transform="matrix(0.511994,0,0,0.511994,289.5084,379.3664)" />
+      <text
+         xml:space="preserve"
+         style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         x="591.47559"
+         y="483.09396"
+         id="text3325"
+         sodipodi:linespacing="100%"><tspan
+           y="483.09396"
+           x="591.47559"
+           id="tspan3327"
+           sodipodi:role="line">SHA</tspan></text>
+    </g>
+    <g
+       transform="translate(-298.6406,-78.23132)"
+       id="g3329">
+      <path
+         transform="matrix(0.511994,0,0,0.511994,289.5084,379.3664)"
+         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         sodipodi:ry="34.073441"
+         sodipodi:rx="34.958466"
+         sodipodi:cy="196.10106"
+         sodipodi:cx="607.56927"
+         id="path3331"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:black;stroke-opacity:1"
+         sodipodi:type="arc" />
+      <text
+         sodipodi:linespacing="100%"
+         id="text3333"
+         y="483.09396"
+         x="591.47559"
+         style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         xml:space="preserve"><tspan
+           sodipodi:role="line"
+           id="tspan3335"
+           x="591.47559"
+           y="483.09396">SHA</tspan></text>
+    </g>
+    <g
+       transform="translate(-234.578,-287.9192)"
+       id="g3345">
+      <path
+         transform="matrix(0.511994,0,0,0.511994,289.5084,379.3664)"
+         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         sodipodi:ry="34.073441"
+         sodipodi:rx="34.958466"
+         sodipodi:cy="196.10106"
+         sodipodi:cx="607.56927"
+         id="path3347"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:black;stroke-opacity:1"
+         sodipodi:type="arc" />
+      <text
+         sodipodi:linespacing="100%"
+         id="text3349"
+         y="483.09396"
+         x="591.47559"
+         style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         xml:space="preserve"><tspan
+           sodipodi:role="line"
+           id="tspan3351"
+           x="591.47559"
+           y="483.09396">SHA</tspan></text>
+    </g>
+    <g
+       id="g3353"
+       transform="translate(-170.1124,-180.8987)">
+      <path
+         sodipodi:type="arc"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:black;stroke-opacity:1"
+         id="path3355"
+         sodipodi:cx="607.56927"
+         sodipodi:cy="196.10106"
+         sodipodi:rx="34.958466"
+         sodipodi:ry="34.073441"
+         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         transform="matrix(0.511994,0,0,0.511994,289.5084,379.3664)" />
+      <text
+         xml:space="preserve"
+         style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         x="591.47559"
+         y="483.09396"
+         id="text3357"
+         sodipodi:linespacing="100%"><tspan
+           y="483.09396"
+           x="591.47559"
+           id="tspan3359"
+           sodipodi:role="line">SHA</tspan></text>
+    </g>
+    <g
+       transform="translate(-105.6468,-287.9192)"
+       id="g3361">
+      <path
+         transform="matrix(0.511994,0,0,0.511994,289.5084,379.3664)"
+         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         sodipodi:ry="34.073441"
+         sodipodi:rx="34.958466"
+         sodipodi:cy="196.10106"
+         sodipodi:cx="607.56927"
+         id="path3363"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:black;stroke-opacity:1"
+         sodipodi:type="arc" />
+      <text
+         sodipodi:linespacing="100%"
+         id="text3365"
+         y="483.09396"
+         x="591.47559"
+         style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         xml:space="preserve"><tspan
+           sodipodi:role="line"
+           id="tspan3367"
+           x="591.47559"
+           y="483.09396">SHA</tspan></text>
+    </g>
+    <rect
+       ry="0"
+       y="47.720215"
+       x="76.855522"
+       height="54.581161"
+       width="62.568695"
+       id="rect2984"
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1" />
+    <text
+       sodipodi:linespacing="100%"
+       id="text2988"
+       y="71.720772"
+       x="84.785179"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         y="71.720772"
+         x="84.785179"
+         id="tspan2990"
+         sodipodi:role="line">share</tspan></text>
+    <text
+       sodipodi:linespacing="100%"
+       id="text2992"
+       y="93.020752"
+       x="97.243141"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         sodipodi:role="line"
+         id="tspan3042"
+         x="97.243141"
+         y="93.020752">A4</tspan></text>
+    <rect
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1"
+       id="rect3128"
+       width="62.568695"
+       height="54.581161"
+       x="207.39835"
+       y="47.720215"
+       ry="0" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="215.328"
+       y="71.720772"
+       id="text3130"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3132"
+         x="215.328"
+         y="71.720772">share</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="227.78596"
+       y="93.020752"
+       id="text3134"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3272"
+         x="227.78596"
+         y="93.020752">B4</tspan></text>
+    <rect
+       ry="0"
+       y="47.720215"
+       x="334.7179"
+       height="54.581161"
+       width="62.568695"
+       id="rect3186"
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1" />
+    <text
+       sodipodi:linespacing="100%"
+       id="text3188"
+       y="71.720772"
+       x="342.64755"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         y="71.720772"
+         x="342.64755"
+         id="tspan3190"
+         sodipodi:role="line">share</tspan></text>
+    <text
+       sodipodi:linespacing="100%"
+       id="text3192"
+       y="93.020752"
+       x="355.10553"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         sodipodi:role="line"
+         id="tspan3282"
+         x="355.10553"
+         y="93.020752">C4</tspan></text>
+    <rect
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1"
+       id="rect3245"
+       width="62.568695"
+       height="54.581161"
+       x="463.64905"
+       y="47.720215"
+       ry="0" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="471.5787"
+       y="71.720772"
+       id="text3247"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3249"
+         x="471.5787"
+         y="71.720772">share</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="484.03665"
+       y="93.020752"
+       id="text3251"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3293"
+         x="484.03665"
+         y="93.020752">D4</tspan></text>
+    <rect
+       style="fill:none;fill-opacity:1;stroke:black;stroke-opacity:1"
+       id="rect3831"
+       width="516.80328"
+       height="491.99808"
+       x="37.114162"
+       y="37.958374" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="44.343109"
+       y="521.89929"
+       id="text3833"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3835"
+         x="44.343109"
+         y="521.89929">share4</tspan></text>
+    <rect
+       style="fill:#ffd5f6;fill-opacity:1;stroke:black;stroke-opacity:1"
+       id="rect3837"
+       width="95.533775"
+       height="81.721664"
+       x="602.25977"
+       y="73.639648" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="620.63104"
+       y="94.16571"
+       id="text3839"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3841"
+         x="620.63104"
+         y="94.16571">peer 4</tspan></text>
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1"
+       d="M 552.76635,107.01893 C 602.25975,110.47196 602.25975,110.47196 602.25975,110.47196"
+       id="path3843" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 106.27121,102.50451 L 108.15211,173.97895"
+       id="path2431" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 238.8751,102.50451 L 237.93464,173.03849"
+       id="path2433" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 366.77673,103.44496 L 366.77673,172.09804"
+       id="path2435" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 495.61881,103.44496 L 495.61881,173.03849"
+       id="path2437" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 489.97609,208.77571 L 438.25116,282.13106"
+       id="path2439" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 370.53854,207.83526 L 420.38255,282.13106"
+       id="path2441" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 236.05374,209.71617 L 183.38836,284.01197"
+       id="path2443" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 110.97347,207.83526 L 164.5793,282.13106"
+       id="path2445" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 178.6861,315.98737 L 289.65957,388.40226"
+       id="path2447" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 426.02527,315.98737 L 316.93271,389.34272"
+       id="path2449" />
+    <rect
+       style="fill:none;fill-opacity:1;stroke:blue;stroke-opacity:1"
+       id="rect3336"
+       width="474.92883"
+       height="334.80142"
+       x="61.129456"
+       y="140.12263" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:blue;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="241.69646"
+       y="263.32199"
+       id="text3338"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3340"
+         x="241.69646"
+         y="263.32199">Merkle Tree</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:blue;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="68.653069"
+       y="466.45987"
+       id="text3342"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3344"
+         x="68.653069"
+         y="466.45987">subshare hash tree</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="321.63498"
+       y="405.33044"
+       id="text3346"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3352"
+         x="321.63498"
+         y="405.33044">&quot;subshare root hash&quot;</tspan></text>
+  </g>
+</svg>

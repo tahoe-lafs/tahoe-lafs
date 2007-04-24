@@ -1,0 +1,920 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://web.resource.org/cc/"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="744.09448819"
+   height="1052.3622047"
+   id="svg2"
+   sodipodi:version="0.32"
+   inkscape:version="0.44.1"
+   sodipodi:docbase="/home/warner/work/tahoe-misc"
+   sodipodi:docname="file-encoding2.svg">
+  <defs
+     id="defs4">
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Lend"
+       style="overflow:visible;">
+      <path
+         id="path2976"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;marker-start:none;"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     gridtolerance="10000"
+     guidetolerance="10"
+     objecttolerance="10"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.51978303"
+     inkscape:cx="372.04724"
+     inkscape:cy="526.18109"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     inkscape:window-width="900"
+     inkscape:window-height="756"
+     inkscape:window-x="792"
+     inkscape:window-y="170" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g3201"
+       transform="translate(-5.78221,-477.996)">
+      <rect
+         style="fill:#d5e5ff;stroke:black;stroke-width:0.96806562;stroke-opacity:1"
+         id="rect3154"
+         width="286.73019"
+         height="78.85553"
+         x="196.96533"
+         y="521.95709" />
+      <text
+         transform="scale(0.968066,1.032988)"
+         xml:space="preserve"
+         style="font-size:27.10585976px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         x="249.83606"
+         y="531.24384"
+         id="text3156"
+         sodipodi:linespacing="100%"><tspan
+           y="531.24384"
+           x="249.83606"
+           id="tspan3163"
+           sodipodi:role="line">FILE (crypttext)</tspan></text>
+    </g>
+    <g
+       id="g2022">
+      <rect
+         y="214.548"
+         x="40.845631"
+         height="80.782936"
+         width="80.498047"
+         id="rect3273"
+         style="fill:#d5e5ff;stroke:black;stroke-width:0.96806562;stroke-opacity:1" />
+      <text
+         sodipodi:linespacing="100%"
+         id="text3275"
+         y="255.87878"
+         x="56.581703"
+         style="font-size:27.99999214;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         xml:space="preserve"
+         transform="scale(0.968066,1.032988)"><tspan
+           y="255.87878"
+           x="56.581703"
+           id="tspan1993"
+           sodipodi:role="line">segA</tspan></text>
+    </g>
+    <g
+       id="g2017">
+      <rect
+         style="fill:#d5e5ff;stroke:black;stroke-width:0.96806562;stroke-opacity:1"
+         id="rect3284"
+         width="80.498047"
+         height="80.782936"
+         x="161.45784"
+         y="214.548" />
+      <text
+         transform="scale(0.968066,1.032988)"
+         xml:space="preserve"
+         style="font-size:28;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         x="184.53419"
+         y="251.69087"
+         id="text3286"
+         sodipodi:linespacing="100%"><tspan
+           y="251.69087"
+           x="184.53419"
+           id="tspan1995"
+           sodipodi:role="line">segB</tspan></text>
+    </g>
+    <g
+       id="g2012">
+      <rect
+         y="214.548"
+         x="282.07007"
+         height="80.782936"
+         width="80.498047"
+         id="rect3290"
+         style="fill:#d5e5ff;stroke:black;stroke-width:0.96806562;stroke-opacity:1" />
+      <text
+         sodipodi:linespacing="100%"
+         id="text3292"
+         y="253.62892"
+         x="304.44913"
+         style="font-size:27.99999214;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         xml:space="preserve"
+         transform="scale(0.968066,1.032988)"><tspan
+           y="253.62892"
+           x="304.44913"
+           id="tspan1997"
+           sodipodi:role="line">segC</tspan></text>
+    </g>
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 223.51231,125.60384 L 88.587195,212.82815"
+       id="path4243"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 297.10782,124.24096 L 205.79487,215.55391"
+       id="path4245"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 373.4291,122.87808 L 325.7283,212.82816"
+       id="path4247"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 458.9333,124.24096 L 443.56317,216.05143"
+       id="path4249"
+       sodipodi:nodetypes="cc" />
+    <rect
+       y="214.548"
+       x="422.02194"
+       height="80.782951"
+       width="61.22403"
+       id="rect3296"
+       style="fill:#d5e5ff;stroke:black;stroke-width:0.96806562;stroke-opacity:1" />
+    <text
+       sodipodi:linespacing="100%"
+       id="text3298"
+       y="253.42572"
+       x="440.45892"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"
+       transform="scale(0.968066,1.032988)"><tspan
+         sodipodi:role="line"
+         id="tspan1999"
+         x="440.45892"
+         y="253.42572">segD</tspan></text>
+    <rect
+       style="fill:white;fill-opacity:1;stroke:black;stroke-width:0.96806562;stroke-opacity:1"
+       id="rect3308"
+       width="32.312965"
+       height="80.782936"
+       x="484.21405"
+       y="214.548" />
+    <g
+       id="g2040"
+       transform="translate(-16.41804,-13.31249)">
+      <path
+         sodipodi:type="arc"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:black;stroke-opacity:1"
+         id="path2029"
+         sodipodi:cx="607.56927"
+         sodipodi:cy="196.10106"
+         sodipodi:rx="34.958466"
+         sodipodi:ry="34.073441"
+         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         transform="matrix(0.923205,0,0,0.923205,-463.3983,190.6491)" />
+      <text
+         xml:space="preserve"
+         style="font-size:14.77128029px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         x="84.763"
+         y="377.10425"
+         id="text2031"
+         sodipodi:linespacing="100%"><tspan
+           y="377.10425"
+           x="84.763"
+           id="tspan2038"
+           sodipodi:role="line">FEC</tspan></text>
+    </g>
+    <rect
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1"
+       id="rect2045"
+       width="62.568695"
+       height="54.581161"
+       x="106.49989"
+       y="400.05042"
+       ry="0" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="114.42955"
+       y="424.05099"
+       id="text2932"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan2934"
+         x="114.42955"
+         y="424.05099">share</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="126.88751"
+       y="445.35098"
+       id="text2936"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan2938"
+         x="126.88751"
+         y="445.35098">A1</tspan></text>
+    <rect
+       ry="0"
+       y="471.49408"
+       x="106.49989"
+       height="54.581161"
+       width="62.568695"
+       id="rect2956"
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1" />
+    <text
+       sodipodi:linespacing="100%"
+       id="text2960"
+       y="495.49466"
+       x="114.42955"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         y="495.49466"
+         x="114.42955"
+         id="tspan2962"
+         sodipodi:role="line">share</tspan></text>
+    <text
+       sodipodi:linespacing="100%"
+       id="text2964"
+       y="516.79468"
+       x="126.88751"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         sodipodi:role="line"
+         id="tspan3018"
+         x="126.88751"
+         y="516.79468">A2</tspan></text>
+    <rect
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1"
+       id="rect2970"
+       width="62.568695"
+       height="54.581161"
+       x="106.49989"
+       y="542.93781"
+       ry="0" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="114.42955"
+       y="566.93835"
+       id="text2974"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan2976"
+         x="114.42955"
+         y="566.93835">share</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="126.88751"
+       y="588.23834"
+       id="text2978"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3040"
+         x="126.88751"
+         y="588.23834">A3</tspan></text>
+    <rect
+       ry="0"
+       y="614.38141"
+       x="106.49989"
+       height="54.581161"
+       width="62.568695"
+       id="rect2984"
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1" />
+    <text
+       sodipodi:linespacing="100%"
+       id="text2988"
+       y="638.38196"
+       x="114.42955"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         y="638.38196"
+         x="114.42955"
+         id="tspan2990"
+         sodipodi:role="line">share</tspan></text>
+    <text
+       sodipodi:linespacing="100%"
+       id="text2992"
+       y="659.68195"
+       x="126.88751"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         sodipodi:role="line"
+         id="tspan3042"
+         x="126.88751"
+         y="659.68195">A4</tspan></text>
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 79.874914,296.213 L 79.874914,326.83172"
+       id="path2996" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 90.524902,388.06915 C 85.442028,403.37176 95.420905,411.5033 105.16864,424.01286"
+       id="path3000"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 82.537411,389.4004 C 77.419162,441.79407 81.801856,464.47336 103.83739,495.90028"
+       id="path3002"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 71.887422,389.4004 C 62.3162,464.27336 66.595451,538.86154 105.16864,573.1127"
+       id="path3004"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 59.906185,384.0754 C 30.833264,497.98462 73.280777,611.91471 105.16864,643.66887"
+       id="path3006"
+       sodipodi:nodetypes="cc" />
+    <g
+       transform="translate(114.1248,-13.31249)"
+       id="g3090">
+      <path
+         transform="matrix(0.923205,0,0,0.923205,-463.3983,190.6491)"
+         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         sodipodi:ry="34.073441"
+         sodipodi:rx="34.958466"
+         sodipodi:cy="196.10106"
+         sodipodi:cx="607.56927"
+         id="path3092"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:black;stroke-opacity:1"
+         sodipodi:type="arc" />
+      <text
+         sodipodi:linespacing="100%"
+         id="text3094"
+         y="377.10425"
+         x="84.763"
+         style="font-size:14.77128029px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         xml:space="preserve"><tspan
+           sodipodi:role="line"
+           id="tspan3096"
+           x="84.763"
+           y="377.10425">FEC</tspan></text>
+    </g>
+    <rect
+       ry="0"
+       y="400.05042"
+       x="237.04271"
+       height="54.581161"
+       width="62.568695"
+       id="rect3098"
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1" />
+    <text
+       sodipodi:linespacing="100%"
+       id="text3100"
+       y="424.05099"
+       x="244.97237"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         y="424.05099"
+         x="244.97237"
+         id="tspan3102"
+         sodipodi:role="line">share</tspan></text>
+    <text
+       sodipodi:linespacing="100%"
+       id="text3104"
+       y="445.35098"
+       x="257.43033"
+       style="font-size:20;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         sodipodi:role="line"
+         id="tspan3266"
+         x="257.43033"
+         y="445.35098">B1</tspan></text>
+    <rect
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1"
+       id="rect3108"
+       width="62.568695"
+       height="54.581161"
+       x="237.04271"
+       y="471.49408"
+       ry="0" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="244.97237"
+       y="495.49466"
+       id="text3110"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3112"
+         x="244.97237"
+         y="495.49466">share</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:20;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="257.43033"
+       y="516.79468"
+       id="text3114"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3268"
+         x="257.43033"
+         y="516.79468">B2</tspan></text>
+    <rect
+       ry="0"
+       y="542.93781"
+       x="237.04271"
+       height="54.581161"
+       width="62.568695"
+       id="rect3118"
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1" />
+    <text
+       sodipodi:linespacing="100%"
+       id="text3120"
+       y="566.93835"
+       x="244.97237"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         y="566.93835"
+         x="244.97237"
+         id="tspan3122"
+         sodipodi:role="line">share</tspan></text>
+    <text
+       sodipodi:linespacing="100%"
+       id="text3124"
+       y="588.23834"
+       x="257.43033"
+       style="font-size:20;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         sodipodi:role="line"
+         id="tspan3270"
+         x="257.43033"
+         y="588.23834">B3</tspan></text>
+    <rect
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1"
+       id="rect3128"
+       width="62.568695"
+       height="54.581161"
+       x="237.04271"
+       y="614.38141"
+       ry="0" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="244.97237"
+       y="638.38196"
+       id="text3130"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3132"
+         x="244.97237"
+         y="638.38196">share</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:20;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="257.43033"
+       y="659.68195"
+       id="text3134"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3272"
+         x="257.43033"
+         y="659.68195">B4</tspan></text>
+    <path
+       id="path3138"
+       d="M 210.41773,296.213 L 210.41773,326.83172"
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1" />
+    <path
+       sodipodi:nodetypes="cc"
+       id="path3140"
+       d="M 221.06772,388.06915 C 215.98484,403.37176 225.96372,411.5033 235.71146,424.01286"
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1" />
+    <path
+       sodipodi:nodetypes="cc"
+       id="path3142"
+       d="M 213.08023,389.4004 C 207.96198,441.79407 212.34467,464.47336 234.38021,495.90028"
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1" />
+    <path
+       sodipodi:nodetypes="cc"
+       id="path3144"
+       d="M 202.43024,389.4004 C 192.85902,464.27336 197.13827,538.86154 235.71146,573.1127"
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1" />
+    <path
+       sodipodi:nodetypes="cc"
+       id="path3146"
+       d="M 190.449,384.0754 C 161.37608,497.98462 203.82359,611.91471 235.71146,643.66887"
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1" />
+    <g
+       id="g3148"
+       transform="translate(241.4443,-13.31249)">
+      <path
+         sodipodi:type="arc"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:black;stroke-opacity:1"
+         id="path3150"
+         sodipodi:cx="607.56927"
+         sodipodi:cy="196.10106"
+         sodipodi:rx="34.958466"
+         sodipodi:ry="34.073441"
+         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         transform="matrix(0.923205,0,0,0.923205,-463.3983,190.6491)" />
+      <text
+         xml:space="preserve"
+         style="font-size:14.77128029px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         x="84.763"
+         y="377.10425"
+         id="text3152"
+         sodipodi:linespacing="100%"><tspan
+           y="377.10425"
+           x="84.763"
+           id="tspan3154"
+           sodipodi:role="line">FEC</tspan></text>
+    </g>
+    <rect
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1"
+       id="rect3156"
+       width="62.568695"
+       height="54.581161"
+       x="364.36224"
+       y="400.05042"
+       ry="0" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="372.2919"
+       y="424.05099"
+       id="text3158"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3160"
+         x="372.2919"
+         y="424.05099">share</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:20;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="384.74988"
+       y="445.35098"
+       id="text3162"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3274"
+         x="384.74988"
+         y="445.35098">C1</tspan></text>
+    <rect
+       ry="0"
+       y="471.49408"
+       x="364.36224"
+       height="54.581161"
+       width="62.568695"
+       id="rect3166"
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1" />
+    <text
+       sodipodi:linespacing="100%"
+       id="text3168"
+       y="495.49466"
+       x="372.2919"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         y="495.49466"
+         x="372.2919"
+         id="tspan3170"
+         sodipodi:role="line">share</tspan></text>
+    <text
+       sodipodi:linespacing="100%"
+       id="text3172"
+       y="516.79468"
+       x="384.74988"
+       style="font-size:20;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         sodipodi:role="line"
+         id="tspan3278"
+         x="384.74988"
+         y="516.79468">C2</tspan></text>
+    <rect
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1"
+       id="rect3176"
+       width="62.568695"
+       height="54.581161"
+       x="364.36224"
+       y="542.93781"
+       ry="0" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="372.2919"
+       y="566.93835"
+       id="text3178"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3180"
+         x="372.2919"
+         y="566.93835">share</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:20;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="384.74988"
+       y="588.23834"
+       id="text3182"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3280"
+         x="384.74988"
+         y="588.23834">C3</tspan></text>
+    <rect
+       ry="0"
+       y="614.38141"
+       x="364.36224"
+       height="54.581161"
+       width="62.568695"
+       id="rect3186"
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1" />
+    <text
+       sodipodi:linespacing="100%"
+       id="text3188"
+       y="638.38196"
+       x="372.2919"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         y="638.38196"
+         x="372.2919"
+         id="tspan3190"
+         sodipodi:role="line">share</tspan></text>
+    <text
+       sodipodi:linespacing="100%"
+       id="text3192"
+       y="659.68195"
+       x="384.74988"
+       style="font-size:20;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         sodipodi:role="line"
+         id="tspan3282"
+         x="384.74988"
+         y="659.68195">C4</tspan></text>
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1"
+       d="M 337.73727,296.213 L 337.73727,326.83172"
+       id="path3196" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1"
+       d="M 348.38726,388.06915 C 343.30438,403.37176 353.28326,411.5033 363.031,424.01286"
+       id="path3198"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1"
+       d="M 340.39977,389.4004 C 335.28152,441.79407 339.66421,464.47336 361.69975,495.90028"
+       id="path3200"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1"
+       d="M 329.74978,389.4004 C 320.17856,464.27336 324.45781,538.86154 363.031,573.1127"
+       id="path3202"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1"
+       d="M 317.76854,384.0754 C 288.69562,497.98462 331.14313,611.91471 363.031,643.66887"
+       id="path3204"
+       sodipodi:nodetypes="cc" />
+    <g
+       transform="translate(370.3755,-13.31249)"
+       id="g3207">
+      <path
+         transform="matrix(0.923205,0,0,0.923205,-463.3983,190.6491)"
+         d="M 642.52774 196.10106 A 34.958466 34.073441 0 1 1  572.61081,196.10106 A 34.958466 34.073441 0 1 1  642.52774 196.10106 z"
+         sodipodi:ry="34.073441"
+         sodipodi:rx="34.958466"
+         sodipodi:cy="196.10106"
+         sodipodi:cx="607.56927"
+         id="path3209"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:black;stroke-opacity:1"
+         sodipodi:type="arc" />
+      <text
+         sodipodi:linespacing="100%"
+         id="text3211"
+         y="377.10425"
+         x="84.763"
+         style="font-size:14.77128029px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         xml:space="preserve"><tspan
+           sodipodi:role="line"
+           id="tspan3213"
+           x="84.763"
+           y="377.10425">FEC</tspan></text>
+    </g>
+    <rect
+       ry="0"
+       y="400.05042"
+       x="493.29343"
+       height="54.581161"
+       width="62.568695"
+       id="rect3215"
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1" />
+    <text
+       sodipodi:linespacing="100%"
+       id="text3217"
+       y="424.05099"
+       x="501.22308"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         y="424.05099"
+         x="501.22308"
+         id="tspan3219"
+         sodipodi:role="line">share</tspan></text>
+    <text
+       sodipodi:linespacing="100%"
+       id="text3221"
+       y="445.35098"
+       x="513.68103"
+       style="font-size:20;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         sodipodi:role="line"
+         id="tspan3284"
+         x="513.68103"
+         y="445.35098">D1</tspan></text>
+    <rect
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1"
+       id="rect3225"
+       width="62.568695"
+       height="54.581161"
+       x="493.29343"
+       y="471.49408"
+       ry="0" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="501.22308"
+       y="495.49466"
+       id="text3227"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3229"
+         x="501.22308"
+         y="495.49466">share</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:20;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="513.68103"
+       y="516.79468"
+       id="text3231"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3286"
+         x="513.68103"
+         y="516.79468">D2</tspan></text>
+    <rect
+       ry="0"
+       y="542.93781"
+       x="493.29343"
+       height="54.581161"
+       width="62.568695"
+       id="rect3235"
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1" />
+    <text
+       sodipodi:linespacing="100%"
+       id="text3237"
+       y="566.93835"
+       x="501.22308"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         y="566.93835"
+         x="501.22308"
+         id="tspan3239"
+         sodipodi:role="line">share</tspan></text>
+    <text
+       sodipodi:linespacing="100%"
+       id="text3241"
+       y="588.23834"
+       x="513.68103"
+       style="font-size:20;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         sodipodi:role="line"
+         id="tspan3288"
+         x="513.68103"
+         y="588.23834">D3</tspan></text>
+    <rect
+       style="fill:#e3d7f4;fill-opacity:1;stroke:black;stroke-opacity:1"
+       id="rect3245"
+       width="62.568695"
+       height="54.581161"
+       x="493.29343"
+       y="614.38141"
+       ry="0" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="501.22308"
+       y="638.38196"
+       id="text3247"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3249"
+         x="501.22308"
+         y="638.38196">share</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:20;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="513.68103"
+       y="659.68195"
+       id="text3251"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3293"
+         x="513.68103"
+         y="659.68195">D4</tspan></text>
+    <path
+       id="path3256"
+       d="M 466.66845,296.213 L 466.66845,326.83172"
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1" />
+    <path
+       sodipodi:nodetypes="cc"
+       id="path3258"
+       d="M 477.31844,388.06915 C 472.23556,403.37176 482.21444,411.5033 491.96218,424.01286"
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1" />
+    <path
+       sodipodi:nodetypes="cc"
+       id="path3260"
+       d="M 469.33095,389.4004 C 464.2127,441.79407 468.59539,464.47336 490.63093,495.90028"
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1" />
+    <path
+       sodipodi:nodetypes="cc"
+       id="path3262"
+       d="M 458.68096,389.4004 C 449.10974,464.27336 453.38899,538.86154 491.96218,573.1127"
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1" />
+    <path
+       sodipodi:nodetypes="cc"
+       id="path3264"
+       d="M 446.69972,384.0754 C 417.6268,497.98462 460.07431,611.91471 491.96218,643.66887"
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1" />
+    <rect
+       style="fill:none;fill-opacity:1;stroke:black;stroke-opacity:1"
+       id="rect3831"
+       width="516.80328"
+       height="103.59095"
+       x="66.758537"
+       y="604.61957" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="80.570648"
+       y="700.15332"
+       id="text3833"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3835"
+         x="80.570648"
+         y="700.15332">share4</tspan></text>
+    <rect
+       style="fill:#ffd5f6;fill-opacity:1;stroke:black;stroke-opacity:1"
+       id="rect3837"
+       width="95.533775"
+       height="81.721664"
+       x="631.90411"
+       y="640.30084" />
+    <text
+       xml:space="preserve"
+       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       x="650.27539"
+       y="660.8269"
+       id="text3839"
+       sodipodi:linespacing="100%"><tspan
+         sodipodi:role="line"
+         id="tspan3841"
+         x="650.27539"
+         y="660.8269">peer 4</tspan></text>
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 582.41071,673.68012 C 631.90411,677.13315 631.90411,677.13315 631.90411,677.13315"
+       id="path3843" />
+  </g>
+</svg>
