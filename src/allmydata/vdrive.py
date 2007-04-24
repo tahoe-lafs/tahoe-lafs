@@ -85,7 +85,9 @@ class VDrive(service.MultiService):
         def _got_dir(dirnode):
             d1 = ul.upload(uploadable)
             def _add(uri):
-                return dirnode.callRemote("add_file", name, uri)
+                d2 = dirnode.callRemote("add_file", name, uri)
+                d2.addCallback(lambda res: uri)
+                return d2
             d1.addCallback(_add)
             return d1
         d.addCallback(_got_dir)
