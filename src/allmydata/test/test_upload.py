@@ -67,3 +67,8 @@ class FullServer(unittest.TestCase):
         d.addBoth(self._should_fail)
         return d
 
+
+# TODO:
+#  upload with exactly 75 peers (shares_of_happiness)
+#  have a download fail
+#  cancel a download (need to implement more cancel stuff)
