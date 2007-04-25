@@ -1,5 +1,7 @@
+ * INSTALL doc
+
  * catch EnvironmentError when writing sharefiles and clean up
  * try Duff's device in _addmul1()?
  * memory usage analysis
- * announce on pypi, sf.net, freshmeat, lwn, p2p-hackers
+ * announce on lwn, p2p-hackers
  * try compiling with Microsoft compiler
