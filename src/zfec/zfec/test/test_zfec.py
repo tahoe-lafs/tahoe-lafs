@@ -1,19 +1,13 @@
 #!/usr/bin/env python
 
-# import bindann
-# import bindann.monkeypatch.all
-
-import cStringIO, os, random, re, sys
-
-import zfec
+import cStringIO, os, random, re
 
 import unittest
 
 global VERBOSE
 VERBOSE=False
-if '-v' in sys.argv:
-    sys.argv.pop(sys.argv.index('-v'))
-    VERBOSE=True
+
+import zfec
 
 from base64 import b32encode
 def ab(x): # debuggery
@@ -129,7 +123,7 @@ class FileFec(unittest.TestCase):
 
         fsize = len(teststr)
 
-        tempdir = zfec.util.fileutil.NamedTemporaryDirectory(cleanup=True)
+        tempdir = zfec.util.fileutil.NamedTemporaryDirectory(cleanup=False)
         try:
             tempf = tempdir.file(TESTFNAME, 'w+b')
             tempf.write(teststr)
@@ -182,7 +176,7 @@ class FileFec(unittest.TestCase):
         return self._help_test_filefec("Yellow Whirled!A", 3, 8, numshs=3)
 
     def test_filefec_min_shares_with_crlf(self, noisy=VERBOSE):
-        return self._help_test_filefec("Yellow Whirled!A\r\n", 3, 8, numshs=3)
+        return self._help_test_filefec("llow Whirled!A\r\n", 3, 8, numshs=3)
 
     def test_filefec_min_shares_with_lf(self, noisy=VERBOSE):
         return self._help_test_filefec("Yellow Whirled!A\n", 3, 8, numshs=3)
@@ -193,9 +187,42 @@ class FileFec(unittest.TestCase):
     def test_filefec_min_shares_with_crcrlflf(self, noisy=VERBOSE):
         return self._help_test_filefec("Yellow Whirled!A\r\r\n\n", 3, 8, numshs=3)
 
+ 
+class Cmdline(unittest.TestCase):
+    def test_basic(self, noisy=VERBOSE):
+        tempdir = zfec.util.fileutil.NamedTemporaryDirectory(cleanup=False)
+        fo = tempdir.file("test.data", "w+b")
+        fo.write("WHEHWHJEKWAHDLJAWDHWALKDHA")
 
-if __name__ == '__main__':
-    unittest.main()
+        import sys
+        realargv = sys.argv
+        try:
+            DEFAULT_M=16
+            DEFAULT_K=4
+            sys.argv = ["zfec", os.path.join(tempdir.name, "test.data"),]
+        
+            retcode = zfec.cmdline_zfec.main()
+            assert retcode == 0, retcode
+
+            RE=re.compile(zfec.filefec.RE_FORMAT % ('test.data', ".fec",))
+            fns = os.listdir(tempdir.name)
+            assert len(fns) >= DEFAULT_M, (fns, tempdir, tempdir.name,)
+            sharefns = [ os.path.join(tempdir.name, fn) for fn in fns if RE.match(fn) ]
+            random.shuffle(sharefns)
+            del sharefns[DEFAULT_K:]
+
+            sys.argv = ["zunfec",]
+            sys.argv.extend(sharefns)
+            sys.argv.extend(['-o', os.path.join(tempdir.name, 'test.data-recovered'),])
+            
+            print os.system("ls -ald %s" % (os.path.join(tempdir.name, 'test.data-recovered')))
+            retcode = zfec.cmdline_zunfec.main()
+            assert retcode == 0, retcode
+            import filecmp
+            assert filecmp.cmp(os.path.join(tempdir.name, 'test.data'), os.path.join(tempdir.name, 'test.data-recovered'))
+        finally:
+            sys.argv = realargv
+
 
 # zfec -- fast forward error correction library with Python interface
 #
