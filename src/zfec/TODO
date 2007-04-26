@@ -4,4 +4,10 @@
  * try Duff's device in _addmul1()?
  * memory usage analysis
  * announce on lwn, p2p-hackers
- * try compiling with Microsoft compiler
+ * compile with Microsoft compiler, etc.
+ * test cmdline (tricky)
+ * test handling of filesystem exceptional conditions (even trickier)
+ * install the setuptools bootstrap magic
+ * include setuptools with package so that the bootstrap magic doesn't connect out
+ * use setuptools's dependency magic
+ * include all dependencies with package so that the dependency magic doesn't connect out
