@@ -117,12 +117,13 @@ class _Dir(object):
         self.subdirs.add(dirobj)
        
     def shutdown(self):
-        if self.cleanup and hasattr(self, 'name'):
-            for subdir in self.subdirs:
+        if self.cleanup:
+            for subdir in hasattr(self, 'subdirs') and self.subdirs or []:
                 subdir.shutdown()
-            for fileobj in self.files:
+            for fileobj in hasattr(self, 'files') and self.files or []:
                 fileobj.close() # "close()" is idempotent so we don't need to catch exceptions here
-            rm_dir(self.name)
+            if hasattr(self, 'name'):
+                rm_dir(self.name)
 
     def __repr__(self):
         return "<%s instance at %x %s>" % (self.__class__.__name__, id(self), self.name)
