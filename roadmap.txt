@@ -68,6 +68,8 @@ UI:
  v4: FUSE
 
 Operations/Deployment/Doc/Free Software/Community:
+ - tweak licence as per zfec's recent tweak
+ - move this file into the wiki
  - Windows port and testing
  - Trac instance
  - extirpate all references to "queen" and "metatracker"
