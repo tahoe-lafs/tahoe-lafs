@@ -1,8 +1,8 @@
 
 Welcome to the AllMyData "tahoe" project. This project implements a
-scalable distributed fault-tolerant filestore.
+distributed fault-tolerant storage mesh.
 
-The basic idea is that the data in this filesystem is spread over all
+The basic idea is that the data in this storage mesh is spread over all
 participating nodes, using an algorithm that can recover the data even if a
 majority of the nodes are no longer available.
 
@@ -15,32 +15,41 @@ installed to the 'zfec' package and located in src/zfec/ .
 
 DEPENDENCIES:
 
- * Python 2.4 or newer (tested against both 2.4 and 2.5)
+ * Python 2.4 or newer (tested against both 2.4 and 2.5) (language)
   http://python.org/
- * Twisted (tested against both 2.4 and 2.5)
+
+ * Twisted (tested against both 2.4 and 2.5) (network and operating system)
   http://twistedmatrix.com/
-  The default subpackages should all be included by default, but in
-    case they aren't they are the following:
+
+  You need the following subpackages (which are are included in the default
+  Twisted distribution):
+
    * core (the standard Twisted package)
    * web, trial, conch
-  Note that Twisted requires zope.interface, and that the standard
-  batteries-included Twisted distribution includes a copy.
- * Foolscap (0.1.2 or newer)
-  - note: since the Foolscap wire protocol is not yet compatible from one
-    release to the next, make sure all of your nodes are using the same
-    version of Foolscap
+
+  Twisted requires zope.interface, a copy of which is included in the Twisted
+  distribution.
+
+ * Foolscap (0.1.2 or newer) (remote objects)
   http://twistedmatrix.com/trac/wiki/FoolsCap
- * Nevow (probably 0.9.0 or later)
+
+  Note: since the Foolscap wire protocol is not yet compatible from one
+  release to the next, make sure all of your nodes are using the same version
+  of Foolscap
+
+ * Nevow (probably 0.9.0 or later) (web presentation language)
   http://divmod.org/trac/wiki/DivmodNevow
- * PyOpenSSL (0.6 or later)
+
+ * PyOpenSSL (0.6 or later) (secure transport layer)
   http://pyopenssl.sourceforge.net
 
- * a C compiler
- * GNU make
+ * a C compiler (language)
+
+ * GNU make (build tool)
 
 BUILDING:
 
- Just type 'make'. This works on Windows too, provided that you have the 
+ Just type 'make'. This works on Windows too, provided that you have the
  dependencies mentioned above (either a normal cygwin build or a mingw-style
  native build is supported by the makefile -- the cygwin build is the
  default).
