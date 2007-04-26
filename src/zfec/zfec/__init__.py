@@ -17,5 +17,5 @@ __version__ = Version("1.0.0a5-1-STABLE")
 __sources__ = ["http://allmydata.com/source/zfec",]
 
 from _fec import Encoder, Decoder, Error
-import filefec
+import filefec, cmdline_zfec, cmdline_zunfec
 

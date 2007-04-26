@@ -7,11 +7,11 @@
 
 import os, sys
 
-from ..util import argparse
-from .. import filefec
+from util import argparse
+import filefec
 
-from ..zfec import __version__ as libversion
-from ..util.version import Version
+from zfec import __version__ as libversion
+from util.version import Version
 __version__ = Version("1.0.0a1-0-STABLE")
 
 def main():

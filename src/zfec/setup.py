@@ -26,7 +26,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from distutils.core import Extension, setup
+from setuptools import Extension, find_packages, setup
 
 DEBUGMODE=False
 # DEBUGMODE=True
@@ -66,9 +66,9 @@ setup(name='zfec',
       url='http://allmydata.org/source/zfec',
       license='GNU GPL',
       platform='Any',
-      packages=['zfec', 'zfec.cmdline', 'zfec.util', 'zfec.test'],
+      packages=find_packages(),
       classifiers=trove_classifiers,
-      entry_points = { 'console_scripts': [ 'zfec = zfec.cmdline.zfec:main', 'zunfec = zfec.cmdline.zunfec:main' ] },
+      entry_points = { 'console_scripts': [ 'zfec = zfec.cmdline_zfec:main', 'zunfec = zfec.cmdline_zunfec:main' ] },
       ext_modules=[Extension('_fec', ['zfec/fec.c', 'zfec/_fecmodule.c',], extra_link_args=extra_link_args, extra_compile_args=extra_compile_args, undef_macros=undef_macros),],
       test_suite="zfec.test.test_zfec",
       )
