@@ -23,7 +23,7 @@ def main():
     parser = argparse.ArgumentParser(description="Decode data from share files.")
 
     parser.add_argument('-o', '--outputfile', required=True, help='file to write the resulting data to, or "-" for stdout', type=str, metavar='OUTF')
-    parser.add_argument('sharefiles', nargs='*', help='shares file to read the encoded data from', type=argparse.FileType('rb'), metavar='SHAREFILE')
+    parser.add_argument('sharefiles', nargs='*', help='shares file to read the encoded data from', type=unicode, metavar='SHAREFILE')
     parser.add_argument('-v', '--verbose', help='print out messages about progress', action='store_true')
     parser.add_argument('-f', '--force', help='overwrite any file which already in place of the output file', action='store_true')
     parser.add_argument('-V', '--version', help='print out version number and exit', action='store_true')
@@ -44,8 +44,15 @@ def main():
             return 2
         outf = os.fdopen(outfd, "wb")
 
+    sharefs = []
+    # This sort() actually matters for performance (shares with numbers < k
+    # are much faster to use than the others), as well as being important for
+    # reproducibility.
+    args.sharefiles.sort()
+    for fn in args.sharefiles:
+        sharefs.append(open(fn, 'rb'))
     try:
-        ret = filefec.decode_from_files(outf, args.sharefiles, args.verbose)
+        ret = filefec.decode_from_files(outf, sharefs, args.verbose)
     except filefec.InsufficientShareFilesError, e:
         print str(e)
         return 3
