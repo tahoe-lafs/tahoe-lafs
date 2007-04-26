@@ -215,7 +215,6 @@ class Cmdline(unittest.TestCase):
             sys.argv.extend(sharefns)
             sys.argv.extend(['-o', os.path.join(tempdir.name, 'test.data-recovered'),])
             
-            print os.system("ls -ald %s" % (os.path.join(tempdir.name, 'test.data-recovered')))
             retcode = zfec.cmdline_zunfec.main()
             assert retcode == 0, retcode
             import filecmp
