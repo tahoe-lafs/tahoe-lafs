@@ -47,6 +47,13 @@ DEPENDENCIES:
 
  * GNU make (build tool)
 
+ * to build the debian packages you will need all the usual debian-packaging
+   tools, which means the 'build-essential' metapackage and all of the
+   packages listed as "Build-Depends" in DIST/debian/control for your
+   distribution. You will also want the 'fakeroot' package to allow the
+   top-level 'make deb-DIST' targets work.
+
+
  * setuptools (build and distribution tool)
   http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
 
