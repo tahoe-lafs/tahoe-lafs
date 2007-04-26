@@ -25,6 +25,19 @@ class RIIntroducer(RemoteInterface):
         return None
 
 class RIClient(RemoteInterface):
+    def get_versions():
+        """Return a tuple of (my_version, oldest_supported) strings.
+
+        Each string can be parsed by an allmydata.util.version.Version
+        instance, and then compared. The first goal is to make sure that
+        nodes are not confused by speaking to an incompatible peer. The
+        second goal is to enable the development of backwards-compatibility
+        code.
+
+        This method is likely to change in incompatible ways until we get the
+        whole compatibility scheme nailed down.
+        """
+        return TupleOf(str, str)
     def get_service(name=str):
         return Referenceable
     def get_nodeid():

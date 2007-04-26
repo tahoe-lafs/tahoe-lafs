@@ -7,6 +7,7 @@ from allmydata import node
 
 from twisted.internet import defer
 
+import allmydata
 from allmydata.Crypto.Util.number import bytes_to_long
 from allmydata.storageserver import StorageServer
 from allmydata.upload import Uploader
@@ -25,6 +26,9 @@ class Client(node.Node, Referenceable):
     WEBPORTFILE = "webport"
     INTRODUCER_FURL_FILE = "introducer.furl"
     GLOBAL_VDRIVE_FURL_FILE = "vdrive.furl"
+
+    # we're pretty narrow-minded right now
+    OLDEST_SUPPORTED_VERSION = allmydata.__version__
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
@@ -86,6 +90,9 @@ class Client(node.Node, Referenceable):
         def _disconnected():
             self.connected_to_vdrive = False
         vdrive_root.notifyOnDisconnect(_disconnected)
+
+    def remote_get_versions(self):
+        return str(allmydata.__version__), str(self.OLDEST_SUPPORTED_VERSION)
 
     def remote_get_service(self, name):
         # TODO: 'vdrive' should not be public in the medium term
