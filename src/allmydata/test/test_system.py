@@ -194,7 +194,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             d1 = self.downloader.download_to_data(baduri)
             def _baduri_should_fail(res):
                 self.failUnless(isinstance(res, Failure))
-                self.failUnless(res.check(download.NotEnoughPeersError))
+                self.failUnless(res.check(download.NotEnoughPeersError),
+                                "expected NotEnoughPeersError, got %s" % res)
                 # TODO: files that have zero peers should get a special kind
                 # of NotEnoughPeersError, which can be used to suggest that
                 # the URI might be wrong or that they've nver uploaded the
@@ -209,10 +210,18 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return good[:-1] + chr(ord(good[-1]) ^ 0x01)
 
     def mangle_uri(self, gooduri):
+        # change the verifierid, which means we'll be asking about the wrong
+        # file, so nobody will have any shares
         pieces = list(uri.unpack_uri(gooduri))
-        # [4] is the verifierid
-        pieces[4] = self.flip_bit(pieces[4])
+        # [3] is the verifierid
+        assert len(pieces[3]) == 20
+        pieces[3] = self.flip_bit(pieces[3])
         return uri.pack_uri(*pieces)
+
+    # TODO: add a test which mangles the fileid instead, and should fail in
+    # the post-download phase when the file's integrity check fails. Do the
+    # same thing for the key, which should cause the download to fail the
+    # post-download verifierid check.
 
     def test_vdrive(self):
         self.basedir = "test_system/SystemTest/test_vdrive"

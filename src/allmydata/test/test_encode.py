@@ -115,7 +115,8 @@ class Encode(unittest.TestCase):
         # force use of multiple segments
         options = {"max_segment_size": max_segment_size}
         e = encode.Encoder(options)
-        e.setup(StringIO(data))
+        nonkey = "\x00" * 16
+        e.setup(StringIO(data), nonkey)
         assert e.num_shares == NUM_SHARES # else we'll be completely confused
         e.setup_codec() # need to rebuild the codec for that change
         assert (NUM_SEGMENTS-1)*e.segment_size < len(data) <= NUM_SEGMENTS*e.segment_size
@@ -222,7 +223,8 @@ class Roundtrip(unittest.TestCase):
         options = {"max_segment_size": max_segment_size,
                    "needed_and_total_shares": k_and_n}
         e = encode.Encoder(options)
-        e.setup(StringIO(data))
+        nonkey = "\x00" * 16
+        e.setup(StringIO(data), nonkey)
 
         assert e.num_shares == NUM_SHARES # else we'll be completely confused
         e.setup_codec() # need to rebuild the codec for that change
@@ -238,18 +240,22 @@ class Roundtrip(unittest.TestCase):
         e.set_shareholders(shareholders)
         d = e.start()
         def _uploaded(roothash):
-            URI = pack_uri(e._codec.get_encoder_type(),
-                           e._codec.get_serialized_params(),
-                           e._tail_codec.get_serialized_params(),
-                           "V" * 20,
-                           roothash,
-                           e.required_shares,
-                           e.num_shares,
-                           e.file_size,
-                           e.segment_size)
+            URI = pack_uri(codec_name=e._codec.get_encoder_type(),
+                           codec_params=e._codec.get_serialized_params(),
+                           tail_codec_params=e._tail_codec.get_serialized_params(),
+                           verifierid="V" * 20,
+                           fileid="F" * 20,
+                           key=nonkey,
+                           roothash=roothash,
+                           needed_shares=e.required_shares,
+                           total_shares=e.num_shares,
+                           size=e.file_size,
+                           segment_size=e.segment_size)
             client = None
             target = download.Data()
             fd = download.FileDownloader(client, URI, target)
+            fd.check_verifierid = False
+            fd.check_fileid = False
             for shnum in range(AVAILABLE_SHARES):
                 bucket = all_shareholders[shnum]
                 fd.add_share_bucket(shnum, bucket)

@@ -5,7 +5,9 @@ from allmydata.util import idlib
 # enough information to retrieve and validate the contents. It shall be
 # expressed in a limited character set (namely [TODO]).
 
-def pack_uri(codec_name, codec_params, tail_codec_params, verifierid, roothash, needed_shares, total_shares, size, segment_size):
+def pack_uri(codec_name, codec_params, tail_codec_params,
+             verifierid, fileid, key,
+             roothash, needed_shares, total_shares, size, segment_size):
     assert isinstance(codec_name, str)
     assert len(codec_name) < 10
     assert ":" not in codec_name
@@ -15,18 +17,24 @@ def pack_uri(codec_name, codec_params, tail_codec_params, verifierid, roothash, 
     assert ":" not in tail_codec_params
     assert isinstance(verifierid, str)
     assert len(verifierid) == 20 # sha1 hash
-    return "URI:%s:%s:%s:%s:%s:%s:%s:%s:%s" % (codec_name, codec_params, tail_codec_params, idlib.b2a(verifierid), idlib.b2a(roothash), needed_shares, total_shares, size, segment_size)
+    assert isinstance(fileid, str)
+    assert len(fileid) == 20 # sha1 hash
+    assert isinstance(key, str)
+    assert len(key) == 16 # AES-128
+    return "URI:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s" % (codec_name, codec_params, tail_codec_params, idlib.b2a(verifierid), idlib.b2a(fileid), idlib.b2a(key), idlib.b2a(roothash), needed_shares, total_shares, size, segment_size)
 
 
 def unpack_uri(uri):
     assert uri.startswith("URI:")
-    header, codec_name, codec_params, tail_codec_params, verifierid_s, roothash_s, needed_shares_s, total_shares_s, size_s, segment_size_s = uri.split(":")
+    header, codec_name, codec_params, tail_codec_params, verifierid_s, fileid_s, key_s, roothash_s, needed_shares_s, total_shares_s, size_s, segment_size_s = uri.split(":")
     verifierid = idlib.a2b(verifierid_s)
+    fileid = idlib.a2b(fileid_s)
+    key = idlib.a2b(key_s)
     roothash = idlib.a2b(roothash_s)
     needed_shares = int(needed_shares_s)
     total_shares = int(total_shares_s)
     size = int(size_s)
     segment_size = int(segment_size_s)
-    return codec_name, codec_params, tail_codec_params, verifierid, roothash, needed_shares, total_shares, size, segment_size
+    return codec_name, codec_params, tail_codec_params, verifierid, fileid, key, roothash, needed_shares, total_shares, size, segment_size
 
 

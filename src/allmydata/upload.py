@@ -8,6 +8,7 @@ from allmydata.util import idlib
 from allmydata import encode
 from allmydata.uri import pack_uri
 from allmydata.interfaces import IUploadable, IUploader
+from allmydata.Crypto.Cipher import AES
 
 from cStringIO import StringIO
 import collections, random, sha
@@ -72,10 +73,18 @@ class FileUploader:
         self._size = filehandle.tell()
         filehandle.seek(0)
 
-    def set_verifierid(self, vid):
-        assert isinstance(vid, str)
-        assert len(vid) == 20
-        self._verifierid = vid
+    def set_id_strings(self, verifierid, fileid):
+        assert isinstance(verifierid, str)
+        assert len(verifierid) == 20
+        self._verifierid = verifierid
+        assert isinstance(fileid, str)
+        assert len(fileid) == 20
+        self._fileid = fileid
+
+    def set_encryption_key(self, key):
+        assert isinstance(key, str)
+        assert len(key) == 16  # AES-128
+        self._encryption_key = key
 
     def start(self):
         """Start uploading the file.
@@ -91,7 +100,7 @@ class FileUploader:
 
         # create the encoder, so we can know how large the shares will be
         self._encoder = encode.Encoder(self._options)
-        self._encoder.setup(self._filehandle)
+        self._encoder.setup(self._filehandle, self._encryption_key)
         share_size = self._encoder.get_share_size()
         block_size = self._encoder.get_block_size()
 
@@ -234,10 +243,17 @@ class FileUploader:
         codec_type = self._encoder._codec.get_encoder_type()
         codec_params = self._encoder._codec.get_serialized_params()
         tail_codec_params = self._encoder._tail_codec.get_serialized_params()
-        return pack_uri(codec_type, codec_params, tail_codec_params,
-                        self._verifierid,
-                        roothash, self.needed_shares, self.total_shares,
-                        self._size, self._encoder.segment_size)
+        return pack_uri(codec_name=codec_type,
+                        codec_params=codec_params,
+                        tail_codec_params=tail_codec_params,
+                        verifierid=self._verifierid,
+                        fileid=self._fileid,
+                        key=self._encryption_key,
+                        roothash=roothash,
+                        needed_shares=self.needed_shares,
+                        total_shares=self.total_shares,
+                        size=self._size,
+                        segment_size=self._encoder.segment_size)
 
 
 def netstring(s):
@@ -282,14 +298,39 @@ class Uploader(service.MultiService):
     desired_shares = 75 # We will abort an upload unless we can allocate space for at least this many.
     total_shares = 100 # Total number of shares created by encoding.  If everybody has room then this is is how many we will upload.
 
-    def _compute_verifierid(self, f):
-        hasher = sha.new(netstring("allmydata_v1_verifierid"))
+    def compute_id_strings(self, f):
+        # return a list of (fileid, encryptionkey, verifierid)
+        fileid_hasher = sha.new(netstring("allmydata_fileid_v1"))
+        enckey_hasher = sha.new(netstring("allmydata_encryption_key_v1"))
         f.seek(0)
-        data = f.read()
-        hasher.update(data)#f.read())
+        BLOCKSIZE = 64*1024
+        while True:
+            data = f.read(BLOCKSIZE)
+            if not data:
+                break
+            fileid_hasher.update(data)
+            enckey_hasher.update(data)
+        fileid = fileid_hasher.digest()
+        enckey = enckey_hasher.digest()
+
+        # now make a second pass to determine the verifierid. It would be
+        # nice to make this involve fewer passes.
+        verifierid_hasher = sha.new(netstring("allmydata_verifierid_v1"))
+        key = enckey[:16]
+        cryptor = AES.new(key=key, mode=AES.MODE_CTR,
+                          counterstart="\x00"*16)
         f.seek(0)
-        # note: this is only of the plaintext data, no encryption yet
-        return hasher.digest()
+        while True:
+            data = f.read(BLOCKSIZE)
+            if not data:
+                break
+            verifierid_hasher.update(cryptor.encrypt(data))
+        verifierid = verifierid_hasher.digest()
+
+        # and leave the file pointer at the beginning
+        f.seek(0)
+
+        return fileid, key, verifierid
 
     def upload(self, f, options={}):
         # this returns the URI
@@ -300,7 +341,9 @@ class Uploader(service.MultiService):
         u = self.uploader_class(self.parent, options)
         u.set_filehandle(fh)
         u.set_params(self.needed_shares, self.desired_shares, self.total_shares)
-        u.set_verifierid(self._compute_verifierid(fh))
+        fileid, key, verifierid = self.compute_id_strings(fh)
+        u.set_encryption_key(key)
+        u.set_id_strings(verifierid, fileid)
         d = u.start()
         def _done(res):
             f.close_filehandle(fh)

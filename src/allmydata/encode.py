@@ -79,8 +79,11 @@ class Encoder(object):
         self.NEEDED_SHARES = k
         self.TOTAL_SHARES = n
 
-    def setup(self, infile):
+    def setup(self, infile, encryption_key):
         self.infile = infile
+        assert isinstance(encryption_key, str)
+        assert len(encryption_key) == 16 # AES-128
+        self.key = encryption_key
         infile.seek(0, 2)
         self.file_size = infile.tell()
         infile.seek(0, 0)
@@ -158,7 +161,6 @@ class Encoder(object):
         return d
 
     def setup_encryption(self):
-        self.key = "\x00"*16
         self.cryptor = AES.new(key=self.key, mode=AES.MODE_CTR,
                                counterstart="\x00"*16)
         self.segment_num = 0

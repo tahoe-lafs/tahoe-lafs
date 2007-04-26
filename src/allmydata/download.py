@@ -25,8 +25,8 @@ class Output:
         self.downloadable = downloadable
         self._decryptor = AES.new(key=key, mode=AES.MODE_CTR,
                                   counterstart="\x00"*16)
-        self._verifierid_hasher = sha.new(netstring("allmydata_v1_verifierid"))
-        self._fileid_hasher = sha.new(netstring("allmydata_v1_fileid"))
+        self._verifierid_hasher = sha.new(netstring("allmydata_verifierid_v1"))
+        self._fileid_hasher = sha.new(netstring("allmydata_fileid_v1"))
         self.length = 0
 
     def open(self):
@@ -208,14 +208,17 @@ class SegmentDownloader:
             del self.parent._share_buckets[shnum]
 
 class FileDownloader:
+    check_verifierid = True
+    check_fileid = True
 
     def __init__(self, client, uri, downloadable):
         self._client = client
         self._downloadable = downloadable
-        (codec_name, codec_params, tail_codec_params, verifierid, roothash, needed_shares, total_shares, size, segment_size) = unpack_uri(uri)
+        (codec_name, codec_params, tail_codec_params, verifierid, fileid, key, roothash, needed_shares, total_shares, size, segment_size) = unpack_uri(uri)
         assert isinstance(verifierid, str)
         assert len(verifierid) == 20
         self._verifierid = verifierid
+        self._fileid = fileid
         self._roothash = roothash
 
         self._codec = codec.get_decoder_by_name(codec_name)
@@ -230,7 +233,6 @@ class FileDownloader:
         self._size = size
         self._num_needed_shares = self._codec.get_needed_shares()
 
-        key = "\x00" * 16
         self._output = Output(downloadable, key)
 
         self._share_hashtree = hashtree.IncompleteHashTree(total_shares)
@@ -349,10 +351,18 @@ class FileDownloader:
 
     def _done(self, res):
         self._output.close()
-        #print "VERIFIERID: %s" % idlib.b2a(self._output.verifierid)
-        #print "FILEID: %s" % idlib.b2a(self._output.fileid)
-        #assert self._verifierid == self._output.verifierid
-        #assert self._fileid = self._output.fileid
+        log.msg("computed VERIFIERID: %s" % idlib.b2a(self._output.verifierid))
+        log.msg("computed FILEID: %s" % idlib.b2a(self._output.fileid))
+        if self.check_verifierid:
+            _assert(self._verifierid == self._output.verifierid,
+                    "bad verifierid: computed=%s, expected=%s" %
+                    (idlib.b2a(self._output.verifierid),
+                     idlib.b2a(self._verifierid)))
+        if self.check_fileid:
+            _assert(self._fileid == self._output.fileid,
+                    "bad fileid: computed=%s, expected=%s" %
+                    (idlib.b2a(self._output.fileid),
+                     idlib.b2a(self._fileid)))
         _assert(self._output.length == self._size,
                 got=self._output.length, expected=self._size)
         return self._output.finish()
