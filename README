@@ -47,6 +47,9 @@ DEPENDENCIES:
 
  * GNU make (build tool)
 
+ * setuptools (build and distribution tool)
+  http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
+
 BUILDING:
 
  Just type 'make'. This works on Windows too, provided that you have the
