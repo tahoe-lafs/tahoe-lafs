@@ -187,4 +187,3 @@ deb-edgy-head: setup-edgy increment-deb-version
 	fakeroot debian/rules binary
 deb-feisty-head: setup-feisty increment-deb-version
 	fakeroot debian/rules binary
-
