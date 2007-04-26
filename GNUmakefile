@@ -48,7 +48,7 @@ build: build-zfec build-Crypto
 	$(PYTHON) setup.py $(EXTRA_SETUP_ARGS) install --install-lib="$(INSTDIR)" --install-scripts="$(INSTDIR)/scripts"
 
 build-zfec:
-	cd src/zfec && $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --install-lib="$(INSTDIR)" --install-scripts="$(INSTDIR)/scripts"
+	cd src/zfec && $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --single-version-externally-managed --root="$(INSTDIR)" --install-lib="." --install-scripts="$(INSTDIR)/scripts"
 
 clean-zfec:
 	-cd src/zfec && python ./setup.py clean --all
