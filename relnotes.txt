@@ -105,7 +105,7 @@ separately: [13]).
 
 
 [1]  http://allmydata.com
-[2]  http://allmydata.com/source/tahoe-0.1.0-0-UNSTABLE.tar.bz2
+[2]  http://allmydata.com/source/tahoe-0.1.1-0-UNSTABLE.tar.bz2
 [3]  http://allmydata.com/source/tahoe/README
 [4]  https://postman.allmydata.com/cgi-bin/mailman/listinfo/tahoe XYZ Zandr or someone: right URL?
 [5]  http://allmydata.com/source/tahoe/roadmap.txt
