@@ -80,14 +80,14 @@ class TestMixin(SignalMixin):
         if required_to_quiesce and active:
             self.fail("Reactor was still active when it was required to be quiescent.")
 
-if sys.platform == 'win32':
+try:
     import win32file
     import win32con
     def make_readonly(path):
         win32file.SetFileAttributes(path, win32con.FILE_ATTRIBUTE_READONLY)
     def make_accessible(path):
         win32file.SetFileAttributes(path, win32con.FILE_ATTRIBUTE_NORMAL)
-else:
+except ImportError:
     import stat
     def make_readonly(path):
         os.chmod(path, stat.S_IREAD)
@@ -95,4 +95,3 @@ else:
     def make_accessible(path):
         os.chmod(os.path.dirname(path), stat.S_IWRITE | stat.S_IEXEC | stat.S_IREAD)
         os.chmod(path, stat.S_IWRITE | stat.S_IEXEC | stat.S_IREAD)
-
