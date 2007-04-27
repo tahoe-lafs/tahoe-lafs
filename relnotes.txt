@@ -1,4 +1,3 @@
-
 Allmydata, Inc. [1], provider of the "Allmydata" consumer backup product, is
 pleased announce the first public release of "Tahoe", a secure, distributed
 storage mesh with a free-software licence.
@@ -12,8 +11,8 @@ useful for experimentation, prototyping, and extension.
 
 INSTALLATION
 
-This release of Tahoe passes all unit tests on Linux/x86, Linux/amd64,
-Mac/Intel, Mac/PPC, Windows, and Cygwin.
+This release of Tahoe works and passes all unit tests on Linux/x86,
+Linux/amd64, Mac/Intel, Mac/PPC, Windows-native, and Cygwin.
 
 To install, download the tarball [2], untar it, cd into the resulting
 directory, and follow the directions in the README [3].
@@ -25,7 +24,7 @@ Once installed, create a "client node" as described in the README.  Instruct
 this client node to connect to a specific "introducer node" by means of
 config files in the client node's working directory.  To join a public mesh,
 copy in the .furl files for that mesh.  To create a private mesh, run your
-own introducer, and copy the .furl files from there.
+own introducer, and copy its .furl files.
 
 Each client node runs a local webserver (enabled by writing the desired port
 number into a file called 'webport').  The front page of this webserver shows
