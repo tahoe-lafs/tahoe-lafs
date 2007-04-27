@@ -1,8 +1,47 @@
 #! /usr/bin/env python
 
-import os, sys, signal, time
+import os, subprocess, sys, signal, time
 from twisted.python import usage
 
+from twisted.python.procutils import which
+
+def testtwistd(loc):
+    try:
+        return subprocess.call(["python", loc,], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except:
+        return -1
+    
+twistd = None
+if not twistd:
+    for maybetwistd in which("twistd"):
+        ret = testtwistd(maybetwistd)
+        if ret == 0:
+            twistd = maybetwistd
+            break
+
+if not twistd:
+    for maybetwistd in which("twistd.py"):
+        ret = testtwistd(maybetwistd)
+        if ret == 0:
+            twistd = maybetwistd
+            break
+
+if not twistd:
+    maybetwistd = os.path.join(sys.prefix, 'Scripts', 'twistd')
+    ret = testtwistd(maybetwistd)
+    if ret == 0:
+        twistd = maybetwistd
+
+if not twistd:
+    maybetwistd = os.path.join(sys.prefix, 'Scripts', 'twistd.py')
+    ret = testtwistd(maybetwistd)
+    if ret == 0:
+        twistd = maybetwistd
+
+if not twistd:
+    print "Can't find twistd (it comes with Twisted).  Aborting."
+    sys.exit(1)
+    
 class StartOptions(usage.Options):
     optParameters = [
         ["basedir", "C", ".", "which directory to start the node in"],
@@ -175,7 +214,7 @@ def start(config):
         print "%s does not look like a node directory" % basedir
         sys.exit(1)
     os.chdir(basedir)
-    rc = os.system("twistd -y %s" % tac)
+    rc = subprocess.call(["python", twistd, "-y", tac,])
     if rc == 0:
         print "%s node probably started" % type
         return 0
