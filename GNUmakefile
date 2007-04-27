@@ -41,7 +41,7 @@ else
 PYTHONPATH := "$(INSTDIR)"
 endif
 
-TRIAL=$(PYTHON) -u "$(TRIALPATH)" --reactor=$(REACTOR)
+TRIAL=$(PYTHON) -u "$(TRIALPATH)" --rterrors --reactor=$(REACTOR)
 
 show-instdir:
 	@echo $(INSTDIR)
