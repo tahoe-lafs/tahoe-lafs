@@ -67,7 +67,7 @@ DEPENDENCIES:
  * Python PyOpenSSL (0.6 or later) (secure transport layer)
   http://pyopenssl.sourceforge.net
 
-  For Windows-native, download this:
+  To install PyOpenSSL on Windows-native, download this:
   http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.5.exe
 
  * to build the debian packages you will need all the usual debian-packaging
@@ -76,15 +76,15 @@ DEPENDENCIES:
    distribution. You will also want the 'fakeroot' package to allow the
    top-level 'make deb-DIST' targets work.
 
- * on Windows, the pywin32 package
-  http://sourceforge.net/projects/pywin32/
-
  * Foolscap (0.1.2 or newer) (remote object library)
   http://twistedmatrix.com/trac/wiki/FoolsCap
 
   Note: since the Foolscap wire protocol is not yet compatible from one
   release to the next, make sure all of your nodes are using the same version
   of Foolscap
+
+ * on Windows, the pywin32 package
+  http://sourceforge.net/projects/pywin32/
 
 
 BUILDING:
