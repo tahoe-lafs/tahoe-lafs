@@ -107,15 +107,15 @@ separately: [13]).
 
 
 [1]  http://allmydata.com
-[2]  http://allmydata.org/source/tahoe/tahoe-0.1.1-0-UNSTABLE.tar.bz2
+[2]  http://allmydata.org/source/tahoe/tahoe-0.1.1-1-UNSTABLE.tar.bz2
 [3]  http://allmydata.org/trac/tahoe/browser/README
 [4]  http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
 [5]  http://allmydata.org/trac/tahoe/browser/roadmap.txt
-[6]  http://allmydata.org/trac
+[6]  http://allmydata.org/trac/tahoe
 [7]  http://allmydata.org/buildbot
 [8]  http://allmydata.org/tahoe-figleaf/figleaf/
 [9]  http://allmydata.org/tahoe-figleaf-graph/hanford.allmydata.com-tahoe_figleaf.html
 [10] http://twistedmatrix.com/trac/wiki/FoolsCap
 [11] http://erights.org/
 [12] http://twistedmatrix.com/
-[13] http://allmydata.com/source/zfec
+[13] http://allmydata.org/trac/tahoe/browser/src/zfec
