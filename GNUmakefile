@@ -6,7 +6,13 @@ INSTDIR=$(BASE)/instdir
 PATHSEP=$(shell python -c 'import os ; print os.pathsep')
 TRIALPATH=$(shell which trial.py 2>/dev/null)
 ifeq ($(TRIALPATH),)
-TRIALPATH=$(shell which trial)
+TRIALPATH=$(shell which trial 2>/dev/null)
+endif
+ifeq ($(TRIALPATH),)
+TRIALPATH=$(shell $(PYTHON) -c "import os, sys; print repr(os.path.join(sys.prefix, \"Scripts\", \"trial.py\"))")
+endif
+ifeq ($(TRIALPATH),)
+TRIALPATH=$(shell $(PYTHON) -c "import os, sys; print repr(os.path.join(sys.prefix, \"Scripts\", \"trial\"))")
 endif
 
 EXTRA_SETUP_ARGS=
@@ -36,7 +42,6 @@ PYTHONPATH := "$(INSTDIR)"
 endif
 
 TRIAL=$(PYTHON) -u "$(TRIALPATH)" --reactor=$(REACTOR)
-# $(error $(TRIAL))
 
 show-instdir:
 	@echo $(INSTDIR)
