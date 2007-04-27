@@ -234,8 +234,9 @@ class Cmdline(unittest.TestCase):
 # under the terms of the GNU General Public License as published by the Free
 # Software Foundation; either version 2 of the License, or (at your option)
 # any later version, with the added permission that, if you become obligated
-# to release a derived work under this licence (as per section 2.b of the
-# GPL), you may delay the fulfillment of this obligation for up to 12 months.
+# to release a derived work under this licence (as per section 2.b), you may
+# delay the fulfillment of this obligation for up to 12 months.  See the file
+# COPYING for details.
 #
 # If you would like to inquire about a commercial relationship with Allmydata,
 # Inc., please contact partnerships@allmydata.com and visit

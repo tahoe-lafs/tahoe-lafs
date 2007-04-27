@@ -3,11 +3,12 @@
 This package implements an "erasure code", or "forward error correction
 code".
 
-It is offered under the GNU General Public License v2 or (at your option) any
-later version.  This package also comes with the added permission that, in
-the case that you are obligated to release a derived work under this licence
-(as per section 2.b of the GPL), you may delay the fulfillment of this
-obligation for up to 12 months.
+It is offered under the GNU General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your option) any
+later version, with the added permission that, if you become obligated to
+release a derived work under this licence (as per section 2.b), you may delay
+the fulfillment of this obligation for up to 12 months.  See the file COPYING
+for details.
 
 The most widely known example of an erasure code is the RAID-5 algorithm
 which makes it so that in the event of the loss of any one hard drive, the
