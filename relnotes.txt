@@ -1,7 +1,7 @@
 
 Allmydata, Inc. [1], provider of the "Allmydata" consumer backup product, is
-pleased announce the first public release of "Tahoe", a distributed storage
-mesh with a free-software licence.
+pleased announce the first public release of "Tahoe", a secure, distributed
+storage mesh with a free-software licence.
 
 The source code that we are releasing is the current working prototype for
 Allmydata's next-generation product.  This prototype is not recommended for
@@ -105,8 +105,8 @@ separately: [13]).
 
 
 [1]  http://allmydata.com
-[2]  http://allmydata.com/source/tahoe-0.1.1-0-UNSTABLE.tar.bz2
-[3]  http://allmydata.com/source/tahoe/README
+[2]  http://allmydata.org/source/tahoe/tahoe-0.1.1-0-UNSTABLE.tar.bz2
+[3]  http://allmydata.org/source/tahoe/README
 [4]  https://postman.allmydata.com/cgi-bin/mailman/listinfo/tahoe XYZ Zandr or someone: right URL?
 [5]  http://allmydata.com/source/tahoe/roadmap.txt
 [6]  http://allmydata.org/trac
