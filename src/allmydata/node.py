@@ -6,6 +6,11 @@ from twisted.internet import defer
 from foolscap import Tub
 from allmydata.util import idlib, observer, iputil
 
+# Just to get their versions:
+import allmydata
+import zfec
+import foolscap
+
 class Node(service.MultiService):
     # this implements common functionality of both Client nodes and the Queen
     # node.
@@ -57,6 +62,8 @@ class Node(service.MultiService):
                 m = manhole.AuthorizedKeysManhole(portnum, keyfile)
                 m.setServiceParent(self)
                 self.log("AuthorizedKeysManhole listening on %d" % portnum)
+
+        self.log("Node constructed.  tahoe version: %s, foolscap version: %s, zfec version: %s" % (allmydata.__version__, foolscap.__version__, zfec.__version__,))
 
     def startService(self):
         """Start the node. Returns a Deferred that fires (with self) when it
