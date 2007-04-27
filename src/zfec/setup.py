@@ -55,7 +55,7 @@ trove_classifiers=[
     ]
 
 setup(name='zfec',
-      version='1.0.0a5',
+      version='1.0.0b1',
       summary='a fast erasure code with command-line, C, and Python interfaces',
       description='Fast, portable, programmable erasure coding a.k.a. "forward error correction": the generation of redundant blocks of information such that if some blocks are lost then the original data can be recovered from the remaining blocks.',
       author='Zooko O\'Whielacronx',
