@@ -25,6 +25,16 @@ operation, a few clean-ups and micro-optimizations of the core code itself,
 and the addition of a command-line tool named "zfec".
 
 
+ * Installation
+
+This package is managed with the "setuptools" package management tool.  To
+build and install the package directly into your system, just run "python
+./setup.py install".  If you prefer to keep the package limited to a specific
+directory so that you can explicitly manage it (perhaps by using the "GNU
+stow") tool, then give it these arguments: "python ./setup.py install
+--prefix= --root=$specificdirectory".
+
+
  * Community
 
 The source is currently available via darcs on the web with the command:
@@ -214,5 +224,5 @@ releasing it under a Free Software licence.
 Enjoy!
 
 Zooko Wilcox-O'Hearn
-2007-04-14
+2007-04-27
 Boulder, Colorado
