@@ -113,7 +113,7 @@ endif
 	$(PP) $(PYTHON) misc/figleaf2el.py .figleaf $(INSTDIR)
 
 pyflakes:
-	$(PYTHON) -OOu /usr/local/bin/pyflakes src/allmydata
+	$(PYTHON) -OOu `which pyflakes` src/allmydata
 
 count-lines:
 	@echo -n "files: "
