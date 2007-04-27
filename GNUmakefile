@@ -66,18 +66,33 @@ clean-Crypto:
 	cd src/Crypto && python ./setup.py clean --all
 
 
-.PHONY: run-queen run-client test
+# RUNNING
+#
+# these targets let you create a client node in the current directory and
+# start/stop it.
 
-run-queen:
-	cd queen-basedir && PYTHONPATH=.. twistd -noy ../queen.tac
+.PHONY: create-client start-client stop-client run-client
+.PHONY: create-introducer start-introducer stop-introducer
 
-run-client: build
-	cd client-basedir && $(PP) twistd -noy ../client.tac
+create-client: build
+	$(PP) $(PYTHON) bin/allmydata-tahoe create-client -C CLIENTDIR
+start-client: build
+	$(PP) $(PYTHON) bin/allmydata-tahoe start -C CLIENTDIR
+stop-client: build
+	$(PP) $(PYTHON) bin/allmydata-tahoe stop -C CLIENTDIR
 
-run-client2:
-	cd client-basedir2 && PYTHONPATH=.. twistd -noy ../client.tac
-run-client3:
-	cd client-basedir3 && PYTHONPATH=.. twistd -noy ../client.tac
+create-introducer: build
+	$(PP) $(PYTHON) bin/allmydata-tahoe create-introducer -C INTRODUCERDIR
+start-introducer: build
+	$(PP) $(PYTHON) bin/allmydata-tahoe start -C INTRODUCERDIR
+stop-introducer: build
+	$(PP) $(PYTHON) bin/allmydata-tahoe stop -C INTRODUCERDIR
+
+
+
+# TESTING
+
+.PHONY: test
 
 ifeq ($(TEST),)
 TEST=allmydata zfec

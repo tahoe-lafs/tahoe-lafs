@@ -143,3 +143,12 @@ RUNNING:
  client node to run a webserver on the desired port, through which you can
  view, upload, download, and delete files.
 
+ A client node directory can also be created without installing the code
+ first. Just use 'make create-client', and a new directory named 'CLIENTDIR'
+ will be created inside the top of the source tree. Copy the relevant .furl
+ files in, set the webport, then start the node by using 'make start-client'.
+ To stop it again, use 'make stop-client'. Similar makefile targets exist for
+ making and running an introducer node.
+
+ There is a public mesh available for testing. Look at the wiki page
+ (http://allmydata.org) for the necessary .furl data.
