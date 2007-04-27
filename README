@@ -1,6 +1,6 @@
 
 Welcome to the AllMyData "tahoe" project. This project implements a
-distributed fault-tolerant storage mesh.
+secure, distributed, fault-tolerant storage mesh.
 
 The basic idea is that the data in this storage mesh is spread over all
 participating nodes, using an algorithm that can recover the data even if a
@@ -12,6 +12,14 @@ src/Crypto/ which gets installed to the 'allmydata.Crypto' package (since the
 API is different than the normal Crypto package). It also includes Zooko's
 PyFEC library, a fast python wrapper around the Rizzo 'fec' C library,
 installed to the 'zfec' package and located in src/zfec/ .
+
+
+LICENCE:
+
+ Tahoe is offered under the GNU General Public License (v2 or later), with
+ the added permission that, if you become obligated to release a derived work
+ under this licence (as per section 2.b), you may delay the fulfillment of
+ this obligation for up to 12 months.  See the COPYING file for details.
 
 
 DEPENDENCIES:
