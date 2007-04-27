@@ -15,10 +15,24 @@ installed to the 'zfec' package and located in src/zfec/ .
 
 DEPENDENCIES:
 
- * Python 2.4 or newer (tested against both 2.4 and 2.5) (language)
+Note: Except for Foolscap, all of the following dependencies can probably be
+installed through your standard package management tool if you are running on
+a modern Unix operating system.  If you are running any modern Linux or *BSD
+distribution then you can almost certainly get them through your standard
+package manager.  If you are running Mac OS X then the "fink" package
+management tool does not have most of these packages, but the "darwinports"
+package management tool appears to have them.  If you are running on Windows
+then I'm afraid you'll have to install them by hand (although the "cygwin"
+package management tool does have some of them).  If you are running on
+Solaris, I would like to hear from you -- I have no idea how it is done on
+Solaris nowadays.
+
+ * Python 2.4 or newer (tested against 2.4, 2.5, and 2.5.1), but v2.5 or 
+   higher is required on Windows-native) (language)
   http://python.org/
 
- * Twisted (tested against both 2.4 and 2.5) (network and operating system)
+ * Twisted (tested against both 2.4 and 2.5) (network and operating system
+   integration library)
   http://twistedmatrix.com/
 
   You need the following subpackages (which are are included in the default
@@ -30,7 +44,7 @@ DEPENDENCIES:
   Twisted requires zope.interface, a copy of which is included in the Twisted
   distribution.
 
- * Foolscap (0.1.2 or newer) (remote objects)
+ * Foolscap (0.1.2 or newer) (remote object library)
   http://twistedmatrix.com/trac/wiki/FoolsCap
 
   Note: since the Foolscap wire protocol is not yet compatible from one
@@ -43,6 +57,9 @@ DEPENDENCIES:
  * PyOpenSSL (0.6 or later) (secure transport layer)
   http://pyopenssl.sourceforge.net
 
+ * setuptools (build and distribution tool)
+  http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
+
  * a C compiler (language)
 
  * GNU make (build tool)
@@ -52,10 +69,6 @@ DEPENDENCIES:
    packages listed as "Build-Depends" in DIST/debian/control for your
    distribution. You will also want the 'fakeroot' package to allow the
    top-level 'make deb-DIST' targets work.
-
-
- * setuptools (build and distribution tool)
-  http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
 
 BUILDING:
 
