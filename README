@@ -45,8 +45,8 @@ DEPENDENCIES:
    higher is required on Windows-native) (language)
   http://python.org/
 
- * Twisted (tested against both 2.4 and 2.5) (network and operating system
-   integration library)
+ * Python Twisted (tested against both 2.4 and 2.5) (network and operating
+   system integration library)
   http://twistedmatrix.com/
 
   You need the following subpackages (which are included in the
@@ -58,13 +58,13 @@ DEPENDENCIES:
   Twisted requires zope.interface, a copy of which is included in the Twisted
   distribution.
 
- * Nevow (probably 0.9.0 or later) (web presentation language)
+ * Python Nevow (probably 0.9.0 or later) (web presentation language)
   http://divmod.org/trac/wiki/DivmodNevow
 
- * setuptools (build and distribution tool)
+ * Python setuptools (build and distribution tool)
   http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
 
- * PyOpenSSL (0.6 or later) (secure transport layer)
+ * Python PyOpenSSL (0.6 or later) (secure transport layer)
   http://pyopenssl.sourceforge.net
 
   For Windows-native, download this:
