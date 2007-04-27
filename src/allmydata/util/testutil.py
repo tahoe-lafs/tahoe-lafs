@@ -1,4 +1,4 @@
-import os, signal, sys, time
+import os, signal, time
 
 from twisted.internet import reactor
 
