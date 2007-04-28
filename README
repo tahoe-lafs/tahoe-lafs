@@ -1,4 +1,3 @@
-
 Welcome to the AllMyData "tahoe" project. This project implements a
 secure, distributed, fault-tolerant storage mesh.
 
@@ -6,12 +5,8 @@ The basic idea is that the data in this storage mesh is spread over all
 participating nodes, using an algorithm that can recover the data even if a
 majority of the nodes are no longer available.
 
-The main application code is in the 'allmydata' package, under src/allmydata/
-. There is also a patched version of PyCrypto (adding a faster CTR-mode) in
-src/Crypto/ which gets installed to the 'allmydata.Crypto' package (since the
-API is different than the normal Crypto package). It also includes Zooko's
-PyFEC library, a fast python wrapper around the Rizzo 'fec' C library,
-installed to the 'zfec' package and located in src/zfec/ .
+The interface to the storage mesh allows you to store and fetch files, either
+by self-authenticating cryptographic identifier or by filename and path.
 
 
 LICENCE:
@@ -183,3 +178,4 @@ RUNNING:
 
  There is a public mesh available for testing. Look at the wiki page
  (http://allmydata.org) for the necessary .furl data.
+
