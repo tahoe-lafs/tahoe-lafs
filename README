@@ -127,8 +127,7 @@ INSTALLING:
 
  To run from a source tree (without installing first), type 'make', which
  will put all the necessary libraries into a local directory named
- instdir/lib/pythonN.N/site-packages/ , which you can then add to your
- PYTHONPATH .
+ "./instdir/", which you can then add to your PYTHONPATH .
 
 
 RUNNING:
