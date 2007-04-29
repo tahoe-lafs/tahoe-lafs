@@ -1,0 +1,17 @@
+Source: foolscap
+Section: python
+Priority: optional
+Maintainer: Brian Warner <warner@lothar.com>
+Build-Depends: debhelper (>= 5.0.38), cdbs (>= 0.4.43), python-central (>= 0.5), python-all-dev, python-twisted-core
+XS-Python-Version: all
+Standards-Version: 3.7.2
+
+Package: python-foolscap
+Architecture: all
+Depends: ${python:Depends}, python-twisted-core
+Recommends: python-twisted-names, python-pyopenssl
+XB-Python-Version: ${python:Versions}
+Description: An object-capability -based RPC system for Twisted Python
+ Foolscap (aka "newpb") contains a new RPC system for Twisted Python, combining
+ capability-based security, secure references, flexible serialization, and
+ technology to mitigate resource-consumption attacks.

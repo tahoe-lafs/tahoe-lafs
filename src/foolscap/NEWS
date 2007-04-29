@@ -1,0 +1,576 @@
+User visible changes in Foolscap (aka newpb/pb2).           -*- outline -*-
+
+* Release 0.1.2 (04 Apr 2007)
+
+** Bugfixes
+
+Yesterday's release had a bug in the new SetConstraint which rendered it
+completely unusable. This has been fixed, along with some new tests.
+
+** More debian packaging
+
+Some control scripts were added to make it easier to create debian packages
+for the Ubuntu 'edgy' and 'feisty' distributions.
+
+
+* Release 0.1.1 (03 Apr 2007)
+
+** Incompatibility Warning
+
+Because of the technique used to implement callRemoteOnly() (specifically the
+commandeering of reqID=0), this release is not compatible with the previous
+release. The protocol negotiation version numbers have been bumped to avoid
+confusion, meaning that 0.1.0 Tubs will refuse to connect to 0.1.1 Tubs, and
+vice versa. Be aware that the errors reported when this occurs may not be
+ideal, in particular I think the "reconnector" (tub.connectTo) might not log
+this sort of connection failure in a very useful way.
+
+** changes to Constraints
+
+Method specifications inside RemoteInterfaces can now accept or return
+'Referenceable' to indicate that they will accept a Referenceable of any
+sort. Likewise, they can use something like 'RIFoo' to indicate that they
+want a Referenceable or RemoteReference that implements RIFoo. Note that this
+restriction does not quite nail down the directionality: in particular there
+is not yet a way to specify that the method will only accept a Referenceable
+and not a RemoteReference. I'm waiting to see if such a thing is actually
+useful before implementing it. As an example:
+
+class RIUser(RemoteInterface):
+    def get_age():
+        return int
+
+class RIUserListing(RemoteInterface):
+    def get_user(name=str):
+        """Get the User object for a given name."""
+        return RIUser
+
+In addition, several constraints have been enhanced. StringConstraint and
+ListConstraint now accept a minLength= argument, and StringConstraint also
+takes a regular expression to apply to the string it inspects (the regexp can
+either be passed as a string or as the output of re.compile()). There is a
+new SetConstraint object, with 'SetOf' as a short alias. Some examples:
+
+HexIdConstraint = StringConstraint(minLength=20, maxLength=20,
+                                   regexp=r'[\dA-Fa-f]+')
+class RITable(RemoteInterface):
+    def get_users_by_id(id=HexIdConstraint):
+        """Get a set of User objects; all will have the same ID number."""
+        return SetOf(RIUser, maxLength=200)
+
+These constraints should be imported from foolscap.schema . Once the
+constraint interface is stabilized and documented, these classes will
+probably be moved into foolscap/__init__.py so that you can just do 'from
+foolscap import SetOf', etc.
+
+*** UnconstrainedMethod
+
+To disable schema checking for a specific method, use UnconstrainedMethod in
+the RemoteInterface definition:
+
+from foolscap.remoteinterface import UnconstrainedMethod
+
+class RIUse(RemoteInterface):
+    def set_phone_number(area_code=int, number=int):
+        return bool
+    set_arbitrary_data = UnconstrainedMethod
+
+The schema-checking code will allow any sorts of arguments through to this
+remote method, and allow any return value. This is like schema.Any(), but for
+entire methods instead of just specific values. Obviously, using this defeats
+te whole purpose of schema checking, but in some circumstances it might be
+preferable to allow one or two unconstrained methods rather than resorting to
+leaving the entire class left unconstrained (by not declaring a
+RemoteInterface at all).
+
+*** internal schema implementation changes
+
+Constraints underwent a massive internal refactoring in this release, to
+avoid a number of messy circular imports. The new way to convert a
+"shorthand" description (like 'str') into an actual constraint object (like
+StringConstraint) is to adapt it to IConstraint.
+
+In addition, all constraints were moved closer to their associated
+slicer/unslicer definitions. For example, SetConstraint is defined in
+foolscap.slicers.set, right next to SetSlicer and SetUnslicer. The
+constraints for basic tokens (like lists and ints) live in
+foolscap.constraint .
+
+** callRemoteOnly
+
+A new "fire and forget" API was added to tell Foolscap that you want to send
+a message to the remote end, but do not care when or even whether it arrives.
+These messages are guaranteed to not fire an errback if the connection is
+already lost (DeadReferenceError) or if the connection is lost before the
+message is delivered or the response comes back (ConnectionLost). At present,
+this no-error philosophy is so strong that even schema Violation exceptions
+are suppressed, and the callRemoteOnly() method always returns None instead
+of a Deferred. This last part might change in the future.
+
+This is most useful for messages that are tightly coupled to the connection
+itself, such that if the connection is lost, then it won't matter whether the
+message was received or not. If the only state that the message modifies is
+both scoped to the connection (i.e. not used anywhere else in the receiving
+application) and only affects *inbound* data, then callRemoteOnly might be
+useful. It may involve less error-checking code on the senders side, and it
+may involve fewer round trips (since no response will be generated when the
+message is delivered).
+
+As a contrived example, a message which informs the far end that all
+subsequent messages on this connection will sent entirely in uppercase (such
+that the recipient should apply some sort of filter to them) would be
+suitable for callRemoteOnly. The sender does not need to know exactly when
+the message has been received, since Foolscap guarantees that all
+subsequently sent messages will be delivered *after* the 'SetUpperCase'
+message. And, the sender does not need to know whether the connection was
+lost before or after the receipt of the message, since the establishment of a
+new connection will reset this 'uppercase' flag back to some known
+initial-contact state.
+
+  rref.callRemoteOnly("set_uppercase", True)  # returns None!
+
+This method is intended to parallel the 'deliverOnly' method used in E's
+CapTP protocol. It is also used (or will be used) in some internal Foolscap
+messages to reduce unnecessary network traffic.
+
+** new Slicers: builtin set/frozenset
+
+Code has been added to allow Foolscap to handle the built-in 'set' and
+'frozenset' types that were introduced in python-2.4 . The wire protocol does
+not distinguish between 'set' and 'sets.Set', nor between 'frozenset' and
+'sets.ImmutableSet'.
+
+For the sake of compatibility, everything that comes out of the deserializer
+uses the pre-2.4 'sets' module. Unfortunately that means that a 'set' sent
+into a Foolscap connection will come back out as a 'sets.Set'. 'set' and
+'sets.Set' are not entirely interoperable, and concise things like 'added =
+new_things - old_things' will not work if the objects are of different types
+(but note that things like 'added = new_things.difference(old_things)' *do*
+work).
+
+The current workaround is for remote methods to coerce everything to a
+locally-preferred form before use. Better solutions to this are still being
+sought. The most promising approach is for Foolscap to unconditionally
+deserialize to the builtin types on python >= 2.4, but then an application
+which works fine on 2.3 (by using sets.Set) will fail when moved to 2.4 .
+
+** Tub.stopService now indicates full connection shutdown, helping Trial tests
+
+Like all twisted.application.service.MultiService instances, the
+Tub.stopService() method returns a Deferred that indicates when shutdown has
+finished. Previously, this Deferred could fire a bit early, when network
+connections were still trying to deliver the last bits of data. This caused
+problems with the Trial unit test framework, which insist upon having a clean
+reactor between tests.
+
+Trial test writers who use Foolscap should include the following sequence in
+their twisted.trial.unittest.TestCase.tearDown() methods:
+
+def tearDown(self):
+    from foolscap.eventual import flushEventualQueue
+    d = tub.stopService()
+    d.addCallback(flushEventualQueue)
+    return d
+
+This will insure that all network activity is complete, and that all message
+deliveries thus triggered have been retired. This activity includes any
+outbound connections that were initiated (but not completed, or finished
+negotiating), as well as any listening sockets.
+
+The only remaining problem I've seen so far is with reactor.resolve(), which
+is used to translate DNS names into addresses, and has a window during which
+you can shut down the Tub and it will leave a cleanup timer lying around. The
+only solution I've found is to avoid using DNS names in URLs. Of course for
+real applications this does not matter: it only makes a difference in Trial
+unit tests which are making heavy use of short-lived Tubs and connections.
+
+
+* Release 0.1.0 (15 Mar 2007)
+
+** usability improvements
+
+*** Tubs now have a certFile= argument
+
+A certFile= argument has been added to the Tub constructor to allow the Tub
+to manage its own certificates. This argument provides a filename where the
+Tub should read or write its certificate. If the file exists, the Tub will
+read the certificate data from there. If not, the Tub will generate a new
+certificate and write it to the file.
+
+The idea is that you can point certFile= at a persistent location on disk,
+perhaps in the application's configuration or preferences subdirectory, and
+then not need to distinguish between the first time the Tub has been created
+and later invocations. This allows the Tub's identity (derived from the
+certificate) to remain stable from one invocation to the next. The related
+problem of how to make (unguessable) object names persistent from one program
+run to the next is still outstanding, but I expect to implement something
+similar in the future (some sort of file to which object names are written
+and read later).
+
+certFile= is meant to be used somewhat like this:
+
+ where = os.path.expanduser("~/.myapp.cert")
+ t = Tub(certFile=where)
+ t.registerReference(obj) # ...
+
+*** All eventual-sends are retired on each reactor tick, not just one.
+
+Applications which make extensive use of the eventual-send operations (in
+foolscap.eventual) will probably run more smoothly now. In previous releases,
+the _SimpleCallQueue class would only execute a single eventual-send call per
+tick, then take care of all pending IO (and any pending timers) before
+servicing the next eventual-send. This could probably lead to starvation, as
+those eventual-sends might generate more work (and cause more network IO),
+which could cause the event queue to grow without bound. The new approach
+finishes as much eventual-send work as possible before accepting any IO. Any
+new eventual-sends which are queued during the current tick will be put off
+until the next tick, but everything which was queued before the current tick
+will be retired in the current tick.
+
+** bug fixes
+
+*** Tub certificates can now be used the moment they are created
+
+In previous releases, Tubs were only willing to accept SSL certificates that
+created before the moment of checking. If two systems A and B had
+unsynchronized clocks, and a Foolscap-using application on A was run for the
+first time to connect to B (thus creating a new SSL certificate), system B
+might reject the certificate because it looks like it comes from the future.
+
+This problem is endemic in systems which attempt to use the passage of time
+as a form of revocation. For now at least, to resolve the practical problem
+of certificates generated on demand and used by systems with unsynchronized
+clocks, Foolscap does not use certificate lifetimes, and will ignore
+timestamps on the certificates it examines.
+
+
+* Release 0.0.7 (16 Jan 2007)
+
+** bug fixes
+
+*** Tubs can now connect to themselves
+
+In previous releases, Tubs were unable to connect to themselves: the
+following code would fail (the negotiation would never complete, so the
+connection attempt would eventually time out after about 30 seconds):
+
+ url = mytub.registerReference(target)
+ d = mytub.getReference(url)
+
+In release 0.0.7, this has been fixed by catching this case and making it use
+a special loopback transport (which serializes all messages but does not send
+them over a wire). There may be still be problems with this code, in
+particular connection shutdown is not completely tested and producer/consumer
+code is completely untested.
+
+*** Tubs can now getReference() the same URL multiple times
+
+A bug was present in the RemoteReference-unslicing code which caused the
+following code to fail:
+
+ d = mytub.getReference(url)
+ d.addCallback(lambda ref: mytub.getReference(url))
+
+In particular, the second call to getReference() would return None rather
+than the RemoteReference it was supposed to.
+
+This bug has been fixed. If the previous RemoteReference is still alive, it
+will be returned by the subsequent getReference() call. If it has been
+garbage-collected, a new one will be created.
+
+*** minor fixes
+
+Negotiation errors (such as having incompatible versions of Foolscap on
+either end of the wire) may be reported more usefully.
+
+In certain circumstances, disconnecting the Tub service from a parent service
+might have caused an exception before. It might behave better now.
+
+
+* Release 0.0.6 (18 Dec 2006)
+
+** INCOMPATIBLE PROTOCOL CHANGES
+
+Version 0.0.6 will not interoperate with versions 0.0.5 or earlier, because
+of changes to the negotiation process and the method-calling portion of the
+main wire protocol. (you were warned :-). There are still more incompatible
+changes to come in future versions as the feature set and protocol
+stabilizes. Make sure you can upgrade both ends of the wire until a protocol
+freeze has been declared.
+
+*** Negotiation versions now specify a range, instead of a single number
+
+The two ends of a connection will agree to use the highest mutually-supported
+version. This approach should make it much easier to maintain backwards
+compatibility in the future.
+
+*** Negotiation now includes an initial VOCAB table
+
+One of the outputs of connection negotiation is the initial table of VOCAB
+tokens to use for abbreviating commonly-used strings into short tokens
+(usually just 2 bytes). Both ends have the ability to modify this table at any
+time, but by setting the initial table during negotiation we same some
+protocol traffic. VOCAB-izing common strings (like 'list' and 'dict') have
+the potential to compress wire traffic by maybe 50%.
+
+*** remote methods now accept both positional and keyword arguments
+
+Previously you had to use a RemoteInterface specification to be able to pass
+positional arguments into callRemote(). (the RemoteInterface schema was used
+to convert the positional arguments into keyword arguments before sending
+them over the wire). In 0.0.6 you can pass both posargs and kwargs over the
+wire, and the remote end will pass them directly to the target method. When
+schemas are in effect, the arguments you send will be mapped to the method's
+named parameters in the same left-to-right way that python does it. This
+should make it easier to port oldpb code to use Foolscap, since you don't
+have to rewrite everything to use kwargs exclusively.
+
+** Schemas now allow =None and =RIFoo
+
+You can use 'None' in a method schema to indicate that the argument or return
+value must be None. This is useful for methods that always return None. You
+can also require that the argument be a RemoteReference that provides a
+particular RemoteInterface. For example:
+
+class RIUser(RemoteInterface):
+    def get_age():
+        return int
+    def delete():
+        return None
+
+class RIUserDatabase(RemoteInterface):
+    def get_user(username=str):
+        return RIUser
+
+Note that these remote interface specifications are parsed at import time, so
+any names they refer to must be defined before they get used (hence placing
+RIUserDatabase before RIUser would fail). Hopefully we'll figure out a way to
+fix this in the future.
+
+** Violations are now annotated better, might keep more stack-trace information
+
+** Copyable improvements
+
+The Copyable documentation has been split out to docs/copyable.xhtml and
+somewhat expanded.
+
+The new preferred Copyable usage is to have a class-level attribute named
+"typeToCopy" which holds the unique string. This must match the class-level
+"copytype" attribute of the corresponding RemoteCopy class. Copyable
+subclasses (or ICopyable adapters) may still implement getTypeToCopy(), but
+the default just returns self.typeToCopy . Most significantly, we no longer
+automatically use the fully-qualified classname: instead we *require* that
+the class definition include "typeToCopy". Feel free to use any stable and
+globally-unique string here, like a URI in a namespace that you control, or
+the fully-qualified package/module/classname of the Copyable subclass.
+
+The RemoteCopy subclass must set the 'copytype' attribute, as it is used for
+auto-registration. These can set copytype=None to inhibit auto-registration.
+
+
+* Release 0.0.5 (04 Nov 2006)
+
+** add Tub.setOption, add logRemoteFailures and logLocalFailures
+
+These options control whether we log exceptions (to the standard twisted log)
+that occur on other systems in response to messages that we've sent, and that
+occur on our system in response to messages that we've received
+(respectively). These may be useful while developing a distributed
+application. All such log messages have each line of the stack trace prefixed
+by REMOTE: or LOCAL: to make it clear where the exception is happening.
+
+** add sarge packaging, improve dependencies for sid and dapper .debs
+
+** fix typo that prevented Reconnector from actually reconnecting
+
+
+* Release 0.0.4 (26 Oct 2006)
+
+** API Changes
+
+*** notifyOnDisconnect() takes args/kwargs
+
+RemoteReference.notifyOnDisconnect(), which registers a callback to be fired
+when the connection to this RemoteReference is lost, now accepts args and
+kwargs to be passed to the callback function. Without this, application code
+needed to use inner functions or bound methods to close over any additional
+state you wanted to get into the disconnect handler.
+
+notifyOnDisconnect() returns a "marker", an opaque values that should be
+passed into the corresponding dontNotifyOnDisconnect() function to deregister
+the callback. (previously dontNotifyOnDisconnect just took the same argument
+as notifyOnDisconnect).
+
+For example:
+
+class Foo:
+    def _disconnect(self, who, reason):
+        print "%s left us, because of %s" % (who, reason)
+    def connect(self, url, why):
+        d = self.tub.getReference(url)
+        def _connected(rref):
+            self.rref = rref
+            m = rref.notifyOnDisconnect(self._disconnect, who, reason=why)
+            self.marker = m
+        d.addCallback(_connected)
+    def stop_caring(self):
+        self.rref.dontNotifyOnDisconnect(self.marker)
+
+*** Reconnector / Tub.connectTo()
+
+There is a new connection API for applications that want to connect to a
+target and to reconnect to it if/when that connection is lost. This is like
+ReconnectingClientFactory, but at a higher layer. You give it a URL to
+connect to, and a callback (plus args/kwargs) that should be called each time
+a connection is established. Your callback should use notifyOnDisconnect() to
+find out when it is disconnected. Reconnection attempts use exponential
+backoff to limit the retry rate, and you can shut off reconnection attempts
+when you no longer want to maintain a connection.
+
+Use it something like this:
+
+class Foo:
+    def __init__(self, tub, url):
+        self.tub = tub
+        self.reconnector = tub.connectTo(url, self._connected, "arg")
+    def _connected(self, rref, arg):
+        print "connected"
+        assert arg == "arg"
+        self.rref = rref
+        self.rref.callRemote("hello")
+        self.rref.notifyOnDisconnect(self._disconnected, "blag")
+    def _disconnected(self, blag):
+        print "disconnected"
+        assert blag == "blag"
+        self.rref = None
+    def shutdown(self):
+        self.reconnector.stopConnecting()
+
+Code which uses this pattern will see "connected" events strictly interleaved
+with "disconnected" events (i.e. it will never see two "connected" events in
+a row, nor two "disconnected" events).
+
+The basic idea is that each time your _connected() method is called, it
+should re-initialize all your state by making method calls to the remote
+side. When the connection is lost, all that state goes away (since you have
+no way to know what is happening until you reconnect).
+
+** Behavioral Changes
+
+*** All Referenceable object are now implicitly "giftable"
+
+In 0.0.3, for a Referenceable to be "giftable" (i.e. useable as the payload
+of an introduction), two conditions had to be satisfied. #1: the object must
+be published through a Tub with Tub.registerReference(obj). #2: that Tub must
+have a location set (with Tub.setLocation). Once those conditions were met,
+if the object was sent over a wire from this Tub to another one, the
+recipient of the corresponding RemoteReference could pass it on to a third
+party. Another side effect of calling registerReference() is that the Tub
+retains a strongref to the object, keeping it alive (with respect to gc)
+until either the Tub is shut down or the object is explicitly de-registered
+with unregisterReference().
+
+Starting in 0.0.4, the first condition has been removed. All objects which
+pass through a setLocation'ed Tub will be usable as gifts. This makes it much
+more convenient to use third-party references.
+
+Note that the Tub will *not* retain a strongref to these objects (merely a
+weakref), so such objects might disappear before the recipient has had a
+chance to claim it. The lifecycle of gifts is a subject of much research. The
+hope is that, for reasonably punctual recipients, the gift will be kept alive
+until they claim it. The whole gift/introduction mechanism is likely to
+change in the near future, so this lifetime issue will be revisited in a
+later release.
+
+** Build Changes
+
+The source tree now has some support for making debian-style packages (for
+both sid and dapper). 'make debian-sid' and 'make debian-dapper' ought to
+create a .deb package.
+
+
+* Release 0.0.3 (05 Oct 2006)
+
+** API Changes
+
+The primary entry point for Foolscap is now the "Tub":
+
+    import foolscap
+    t = foolscap.Tub()
+    d = t.getReference(pburl)
+    d.addCallback(self.gotReference)
+    ...
+
+The old "PBService" name is gone, use "Tub" instead. There are now separate
+classes for "Tub" and "UnauthenticatedTub", rather than using an "encrypted="
+argument. Tubs always use encryption if available: the difference between the
+two classes is whether this Tub should use a public key for its identity or
+not. Note that you always need encryption to connect to an authenticated Tub.
+So install pyopenssl, really.
+
+** eventual send operators
+
+Foolscap now provides 'eventually' and 'fireEventually', to implement the
+"eventual send" operator advocated by Mark Miller's "Concurrency Among
+Strangers" paper (http://www.erights.org/talks/promises/index.html).
+eventually(cb, *args, **kwargs) runs the given call in a later reactor turn.
+fireEventually(value=None) returns a Deferred that will be fired (with
+'value') in a later turn. These behave a lot like reactor.callLater(0,..),
+except that Twisted doesn't actually promise that a pair of callLater(0)s
+will be fired in the right order (they usually do under unix, but they
+frequently don't under windows). Foolscap's eventually() *does* make this
+guarantee. In addition, there is a flushEventualQueue() that is useful for
+unit tests, it returns a Deferred that will only fire when the entire queue
+is empty. As long as your code only uses eventually() (and not callLater(0)),
+putting the following in your trial test cases should keep everything nice
+and clean:
+
+ def tearDown(self):
+     return foolscap.flushEventualQueue()
+
+** Promises
+
+An initial implementation of Promises is in foolscap.promise for
+experimentation. Only "Near" Promises are implemented to far (promises which
+resolve to a local object). Eventually Foolscap will offer "Far" Promises as
+well, and you will be able to invoke remote method calls through Promises as
+well as RemoteReferences. See foolscap/test/test_promise.py for some hints.
+
+** Bug Fixes
+
+Messages containing "Gifts" (third-party references) are now delivered in the
+correct order. In previous versions, the presence of these references could
+delay delivery of the containing message, causing methods to be executed out
+of order.
+
+The VOCAB-manipulating code used to have nasty race conditions, which should
+be all fixed now. This would be more important if we actually used the
+VOCAB-manipulating code yet, but we don't.
+
+Lots of internal reorganization (put all slicers in a subpackage), not really
+user-visible.
+
+Updated to work with recent Twisted HEAD, specifically changes to sslverify.
+This release of Foolscap ought to work with the upcoming Twisted-2.5 .
+
+** Incompatible protocol changes
+
+There are now separate add-vocab and set-vocab sequences, which add a single
+new VOCAB token and replace the entire table, respectively. These replace the
+previous 'vocab' sequence which behaved like set-vocab does now. This would
+be an incompatible protocol change, except that previous versions never sent
+the vocab sequence anyways. This version doesn't send either vocab-changing
+sequence either, but when we finally do start using it, it'll be ready.
+
+* Release 0.0.2 (14 Sep 2006)
+
+Renamed to "Foolscap", extracted from underneat the Twisted packaged,
+consolidated API to allow a simple 'import foolscap'. No new features or bug
+fixes relative to pb2-0.0.1 .
+
+
+* Release 0.0.1 (29 Apr 2006)
+
+First release! All basic features are in place. The wire protocol will almost
+certainly change at some point, so compatibility with future versions is not
+guaranteed.
