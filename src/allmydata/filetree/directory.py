@@ -135,7 +135,7 @@ class _DirectorySubTree(object):
         # self.populate_from_node must be defined by the subclass (CHK or
         # SSK), since it controls how the spec is interpreted. It will
         # probably use the contents of the node to figure out what to
-        # download from the mesh, then pass this downloaded serialized data
+        # download from the grid, then pass this downloaded serialized data
         # to populate_from_data()
         raise NotImplementedError
 

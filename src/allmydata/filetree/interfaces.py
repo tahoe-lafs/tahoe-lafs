@@ -106,7 +106,7 @@ class ISubTree(Interface):
 
         Each subtree's populate_from_node() method is expected to use the
         downloader to obtain a file with the subtree's serialized contents
-        (probably by pulling data from some source, like the mesh, the vdrive 
+        (probably by pulling data from some source, like the grid, the vdrive 
         server, an HTTP server, or somewhere on the local filesystem), then
         unserialize them and populate the subtree's state.
 
@@ -175,7 +175,7 @@ class ISubTree(Interface):
     def serialize_subtree_to_file(f):
         """Create a string which describes my structure and write it to the
         given filehandle (using only .write()). This string should be
-        suitable for uploading to the mesh or storing in a local file."""
+        suitable for uploading to the grid or storing in a local file."""
 
     def update_now(uploader):
         """Perform whatever work is necessary to record this subtree to
@@ -185,7 +185,7 @@ class ISubTree(Interface):
         the subtree has been persisted.
 
         For directory subtrees, this will cause the subtree to serialize
-        itself to a file, then upload this file to the mesh, then create an
+        itself to a file, then upload this file to the grid, then create an
         INode-providing instance which describes where the file wound up. For
         redirections, this will cause the subtree to modify the redirection's
         persistent storage, then return the (unmodified) INode that describes

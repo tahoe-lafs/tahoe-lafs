@@ -1,11 +1,11 @@
 Welcome to the AllMyData "tahoe" project. This project implements a
-secure, distributed, fault-tolerant storage mesh.
+secure, distributed, fault-tolerant storage grid.
 
-The basic idea is that the data in this storage mesh is spread over all
+The basic idea is that the data in this storage grid is spread over all
 participating nodes, using an algorithm that can recover the data even if a
 majority of the nodes are no longer available.
 
-The interface to the storage mesh allows you to store and fetch files, either
+The interface to the storage grid allows you to store and fetch files, either
 by self-authenticating cryptographic identifier or by filename and path.
 
 
@@ -157,12 +157,12 @@ RUNNING:
  directory, inside of which you can add files to configure and control the
  node. Nodes also read and write files within that directory.
 
- A mesh consists of a single central 'introducer and vdrive' node and a large
- number of 'client' nodes. If you are joining an existing mesh, the
+ A grid consists of a single central 'introducer and vdrive' node and a large
+ number of 'client' nodes. If you are joining an existing grid, the
  introducer-and-vdrive node will already be running, and you'll just need to
- create a client node. If you're creating a brand new mesh, you'll need to
+ create a client node. If you're creating a brand new grid, you'll need to
  create both an introducer-and-vdrive and a client (and then invite other
- people to create their own client nodes and join your mesh).
+ people to create their own client nodes and join your grid).
 
  The introducer (-and-vdrive) node is constructed by running 'allmydata-tahoe
  create-introducer --basedir $HERE'. Once constructed, you can start the
@@ -177,7 +177,7 @@ RUNNING:
  from the introducer into this new directory, then run 'allmydata-tahoe start
  --basedir $HERE'. After that, the client node should be off and running. The
  first thing it will do is connect to the introducer and introduce itself to
- all other nodes on the mesh. You can follow its progress by looking at the
+ all other nodes on the grid. You can follow its progress by looking at the
  $HERE/twistd.log file.
 
  To actually use the client, enable the web interface by writing a port
@@ -193,6 +193,6 @@ RUNNING:
  To stop it again, use 'make stop-client'. Similar makefile targets exist for
  making and running an introducer node.
 
- There is a public mesh available for testing. Look at the wiki page
+ There is a public grid available for testing. Look at the wiki page
  (http://allmydata.org) for the necessary .furl data.
 

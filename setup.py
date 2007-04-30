@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-# Allmydata Tahoe -- secure, distributed storage mesh
+# Allmydata Tahoe -- secure, distributed storage grid
 # 
 # Copyright (C) 2007 Allmydata, Inc.
 # 
@@ -57,11 +57,11 @@ trove_classifiers=[
 
 setup(name='allmydata-tahoe',
       version='0.1.4b2',
-      description='secure, distributed storage mesh',
+      description='secure, distributed storage grid',
       long_description="""Welcome to the AllMyData "tahoe" project. This project implements a
-secure, distributed, fault-tolerant storage mesh.
+secure, distributed, fault-tolerant storage grid.
 
-The basic idea is that the data in this storage mesh is spread over all
+The basic idea is that the data in this storage grid is spread over all
 participating nodes, using an algorithm that can recover the data even if a
 majority of the nodes are no longer available.""",
       author='Allmydata, Inc.',

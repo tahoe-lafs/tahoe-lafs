@@ -14,7 +14,7 @@ from allmydata.interfaces import IEncoder
 
 The goal of the encoder is to turn the original file into a series of
 'shares'. Each share is going to a 'shareholder' (nominally each shareholder
-is a different host, but for small meshes there may be overlap). The number
+is a different host, but for small grids there may be overlap). The number
 of shares is chosen to hit our reliability goals (more shares on more
 machines means more reliability), and is limited by overhead (proportional to
 numshares or log(numshares)) and the encoding technology in use (Reed-Solomon

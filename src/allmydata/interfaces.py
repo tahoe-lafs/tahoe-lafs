@@ -512,7 +512,7 @@ class IWorkQueue(Interface):
         generated uri."""
 
     def add_upload_chk(source_filename, stash_uri_in_boxname):
-        """This step uploads a file to the mesh and obtains a content-based
+        """This step uploads a file to the grid and obtains a content-based
         URI which can be used to later retrieve the same contents ('CHK'
         mode). This URI includes unlink rights. It does not mark the file for
         retention.
@@ -526,7 +526,7 @@ class IWorkQueue(Interface):
         """
 
     def add_upload_ssk(write_capability, previous_version, source_filename):
-        """This step uploads a file to the mesh in a way that replaces the
+        """This step uploads a file to the grid in a way that replaces the
         previous version and does not require a change to the ID referenced
         by the parent.
         """
@@ -618,15 +618,15 @@ class NotCapableError(Exception):
 
 class RIControlClient(RemoteInterface):
     def upload_from_file_to_uri(filename=str):
-        """Upload a file to the mesh. This accepts a filename (which must be
+        """Upload a file to the grid. This accepts a filename (which must be
         absolute) that points to a file on the node's local disk. The node
-        will read the contents of this file, upload it to the mesh, then
+        will read the contents of this file, upload it to the grid, then
         return the URI at which it was uploaded.
         """
         return URI
 
     def download_from_uri_to_file(uri=URI, filename=str):
-        """Download a file from the mesh, placing it on the node's local disk
+        """Download a file from the grid, placing it on the node's local disk
         at the given filename (which must be absolute[?]). Returns the
         absolute filename where the file was written."""
         return str

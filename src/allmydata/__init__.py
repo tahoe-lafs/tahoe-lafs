@@ -1,5 +1,5 @@
 """
-Decentralized storage mesh.
+Decentralized storage grid.
 
 maintainer web site: U{http://allmydata.com/}
 

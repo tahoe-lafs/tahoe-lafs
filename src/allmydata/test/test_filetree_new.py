@@ -11,7 +11,7 @@ from allmydata.interfaces import IDownloader, IUploader
 from allmydata import workqueue
 from cStringIO import StringIO
 
-class FakeMesh(object):
+class FakeGrid(object):
     implements(IDownloader, IUploader)
 
 """
@@ -333,7 +333,7 @@ class Utils(unittest.TestCase):
         pairs = list(directory.in_pairs(l))
         self.failUnlessEqual(pairs, [(0,1), (2,3), (4,5), (6,7)])
 
-class FakeMesh(object):
+class FakeGrid(object):
     implements(IDownloader, IUploader)
     debug = False
 
@@ -343,7 +343,7 @@ class FakeMesh(object):
     def upload(self, uploadable):
         uri = "stub-uri-%d" % len(self.files)
         if self.debug:
-            print "FakeMesh.upload -> %s" % uri
+            print "FakeGrid.upload -> %s" % uri
         assert upload.IUploadable.providedBy(uploadable)
         f = uploadable.get_filehandle()
         data = f.read()
@@ -353,17 +353,17 @@ class FakeMesh(object):
 
     def upload_filename(self, filename):
         if self.debug:
-            print "FakeMesh.upload_filename(%s)" % filename
+            print "FakeGrid.upload_filename(%s)" % filename
         return self.upload(upload.FileName(filename))
 
     def upload_data(self, data):
         if self.debug:
-            print "FakeMesh.upload_data(%s)" % data
+            print "FakeGrid.upload_data(%s)" % data
         return self.upload(upload.Data(data))
 
     def download(self, uri, target):
         if self.debug:
-            print "FakeMesh.download(%s)" % uri
+            print "FakeGrid.download(%s)" % uri
         target.open()
         target.write(self.files[uri])
         target.close()
@@ -372,16 +372,16 @@ class FakeMesh(object):
 
 class VDrive(unittest.TestCase):
 
-    def makeVirtualDrive(self, basedir, root_node=None, mesh=None):
+    def makeVirtualDrive(self, basedir, root_node=None, grid=None):
         wq = workqueue.WorkQueue(os.path.join("test_filetree",
                                               "VDrive",
                                               basedir, "1.workqueue"))
-        if mesh:
-            assert IUploader.providedBy(mesh)
-            assert IDownloader.providedBy(mesh)
-            dl = ul = mesh
+        if grid:
+            assert IUploader.providedBy(grid)
+            assert IDownloader.providedBy(grid)
+            dl = ul = grid
         else:
-            dl = ul = FakeMesh()
+            dl = ul = FakeGrid()
         if not root_node:
             root_node = directory.LocalFileSubTreeNode()
             root_node.new("rootdirtree.save")
@@ -403,17 +403,17 @@ class VDrive(unittest.TestCase):
     def makeCHKTree(self, basename):
         # create a LocalFileRedirection pointing at a CHKDirectorySubTree.
         # Returns a VirtualDrive instance.
-        mesh = FakeMesh()
+        grid = FakeGrid()
         topdir = directory.CHKDirectorySubTree().new()
-        d = topdir.update_now(mesh)
+        d = topdir.update_now(grid)
         def _updated(topnode):
             root = redirect.LocalFileRedirection()
             root.new("%s-root" % basename, topnode)
-            return root.update_now(mesh)
+            return root.update_now(grid)
         d.addCallback(_updated)
         d.addCallback(lambda rootnode:
                       self.makeVirtualDrive("%s-vdrive" % basename,
-                                            rootnode, mesh))
+                                            rootnode, grid))
         return d
 
     def failUnlessListsAreEqual(self, list1, list2):
@@ -425,7 +425,7 @@ class VDrive(unittest.TestCase):
         self.failUnlessEqual(c1a, c2a)
 
     def testDirectory(self):
-        stm = vdrive.SubTreeMaker(FakeMesh())
+        stm = vdrive.SubTreeMaker(FakeGrid())
 
         # create an empty directory (stored locally)
         subtree = directory.LocalFileSubTree()
