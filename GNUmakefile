@@ -50,19 +50,19 @@ PP=PYTHONPATH=$(PYTHONPATH)
 
 .PHONY: build
 build: build-zfec build-Crypto build-foolscap
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="." --install-scripts="scripts"
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="" --root="$(INSTDIR)" --install-lib="" --install-scripts="scripts"
 
 build-zfec:
 	cd src/zfec &&  \
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="." --install-scripts="scripts"
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="" --root="$(INSTDIR)" --install-lib="" --install-scripts="scripts"
 
 build-foolscap:
 	cd src/foolscap && \
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="." --install-scripts="scripts"
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="" --root="$(INSTDIR)" --install-lib="" --install-scripts="scripts"
 
 build-Crypto:
 	cd src/Crypto && \
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="." --install-scripts="scripts"
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="" --root="$(INSTDIR)" --install-lib="" --install-scripts="scripts"
 
 clean-zfec:
 	-cd src/zfec && \
