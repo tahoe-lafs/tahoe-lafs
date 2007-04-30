@@ -49,21 +49,32 @@ show-instdir:
 PP=PYTHONPATH=$(PYTHONPATH)
 
 .PHONY: build
-build: build-zfec build-Crypto
-	$(PYTHON) setup.py $(EXTRA_SETUP_ARGS) install --install-lib="$(INSTDIR)" --install-scripts="$(INSTDIR)/scripts"
+build: build-zfec build-Crypto build-foolscap
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="." --install-scripts="scripts"
 
 build-zfec:
-	cd src/zfec && $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --single-version-externally-managed --root="$(INSTDIR)" --install-lib="." --install-scripts="$(INSTDIR)/scripts"
+	cd src/zfec &&  \
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="." --install-scripts="scripts"
 
-clean-zfec:
-	-cd src/zfec && python ./setup.py clean --all
-
+build-foolscap:
+	cd src/foolscap && \
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="." --install-scripts="scripts"
 
 build-Crypto:
-	cd src/Crypto && $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --install-lib="$(INSTDIR)" --install-scripts="$(INSTDIR)/scripts"
+	cd src/Crypto && \
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="." --install-scripts="scripts"
+
+clean-zfec:
+	-cd src/zfec && \
+	$(PP) $(PYTHON) ./setup.py clean --all
+
+clean-foolscap:
+	-cd src/foolscap && \
+	$(PP) $(PYTHON) ./setup.py clean --all
 
 clean-Crypto:
-	cd src/Crypto && python ./setup.py clean --all
+	cd src/Crypto && \
+	$(PP) $(PYTHON) ./setup.py clean --all
 
 
 # RUNNING
@@ -95,7 +106,7 @@ stop-introducer: build
 .PHONY: test
 
 ifeq ($(TEST),)
-TEST=allmydata zfec
+TEST=allmydata zfec foolscap
 endif
 REPORTER=
 
@@ -128,7 +139,7 @@ endif
 	$(PP) $(PYTHON) misc/figleaf2el.py .figleaf $(INSTDIR)
 
 pyflakes:
-	$(PYTHON) -OOu `which pyflakes` src/allmydata
+	$(PP) $(PYTHON) -OOu `which pyflakes` src/allmydata
 
 count-lines:
 	@echo -n "files: "
@@ -141,7 +152,7 @@ count-lines:
 check-memory:
 	$(PP) $(PYTHON) src/allmydata/test/check_memory.py
 
-clean: clean-zfec clean-Crypto
+clean: clean-zfec clean-Crypto clean-foolscap
 	rm -rf build
 	rm -f debian
 	rm -rf instdir
