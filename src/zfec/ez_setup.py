@@ -98,8 +98,7 @@ def use_setuptools(
         sys.exit(2)
 
 def download_setuptools(
-    version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir,
-    delay = 15
+    version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir
 ):
     """Download setuptools from a specified location and return its filename
 
@@ -116,14 +115,13 @@ def download_setuptools(
     if not os.path.exists(saveto):  # Avoid repeated downloads
         try:
             from distutils import log
-            if delay:
+            if True:
                 log.warn("""
 ---------------------------------------------------------------------------
 This script requires setuptools version %s to run (even to display
 help).  I will attempt to download it for you (from
 %s), but
 you may need to enable firewall access for this script first.
-I will start the download in %d seconds.
 
 (Note: if this machine does not have network access, please obtain the file
 
@@ -131,8 +129,8 @@ I will start the download in %d seconds.
 
 and place it in this directory before rerunning this script.)
 ---------------------------------------------------------------------------""",
-                    version, download_base, delay, url
-                ); from time import sleep; sleep(delay)
+                    version, download_base, url
+                );
             log.warn("Downloading %s", url)
             src = urllib2.urlopen(url)
             # Read/write all in one block, so we don't create a corrupt file
