@@ -110,7 +110,7 @@ separately: [13]).
 
 
 [1]  http://allmydata.com
-[2]  http://allmydata.org/source/tahoe/tahoe-0.1.1-1-UNSTABLE.tar.bz2
+[2]  http://allmydata.org/source/tahoe/tahoe-0.1.2-0-UNSTABLE.tar.gz
 [3]  http://allmydata.org/trac/tahoe/browser/README
 [4]  http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
 [5]  http://allmydata.org/trac/tahoe/browser/roadmap.txt
