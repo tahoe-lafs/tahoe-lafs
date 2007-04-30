@@ -71,9 +71,9 @@ class RIBucketReader(RemoteInterface):
         """
         return ShareData
     def get_block_hashes():
-        return ListOf(Hash)
+        return ListOf(Hash, maxLength=2**20)
     def get_share_hashes():
-        return ListOf(TupleOf(int, Hash))
+        return ListOf(TupleOf(int, Hash), maxLength=2**20)
 
 class RIStorageServer(RemoteInterface):
     def allocate_buckets(verifierid=Verifierid,
