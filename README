@@ -45,8 +45,8 @@ DEPENDENCIES:
 
  * GNU make (build tool)
 
- * Python 2.4 or newer (tested against 2.4, 2.5, and 2.5.1), but v2.5 or 
-   higher is required on Windows-native) (language)
+ * Python 2.4 or newer (tested against 2.4, and 2.5.1, but v2.5 or higher is
+   required on Windows-native), including development headers (language)
 
    http://python.org/
 
