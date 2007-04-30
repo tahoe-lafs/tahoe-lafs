@@ -32,6 +32,12 @@ directory so that you can explicitly manage it (perhaps by using the "GNU
 stow") tool, then give it these arguments: "python ./setup.py install
 --prefix=. --root=$specificdirectory".
 
+Note: the installation script conflicts with setuptools with version number
+earlier than 0.6c3.  (Such a version of setuptools is available in Ubuntu
+6.06 LTS Dapper.)  If you have such a conflicting version of setuptools, you
+can either upgrade to a newer version of setuptools, or simply uninstall that
+old, conflicting version.
+
 
  * Community
 
