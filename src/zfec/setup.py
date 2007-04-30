@@ -24,6 +24,9 @@
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 # more details.
 
+from ez_setup import use_setuptools
+use_setuptools()
+
 from setuptools import Extension, find_packages, setup
 
 DEBUGMODE=False
