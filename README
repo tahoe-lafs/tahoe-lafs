@@ -19,18 +19,17 @@ LICENCE:
 
 DEPENDENCIES:
 
- Note: Except for Foolscap, all of the following dependencies can
- probably be installed through your standard package management tool
- if you are running on a modern Unix operating system.  If you are
- running any modern Linux or *BSD distribution then you can almost
- certainly get them through your standard package manager.  If you are
- running Mac OS X then the "fink" package management tool does not
- have most of these packages, but the "darwinports" package management
- tool appears to have them.  If you are running on Windows then I'm
- afraid you'll have to install them by hand (although the "cygwin"
- package management tool does have some of them).  If you are running
- on Solaris, I would like to hear from you -- I have no idea how it is
- done on Solaris nowadays.
+ Note: All of the following dependencies can probably be installed through
+ your standard package management tool if you are running on a modern Unix
+ operating system.  If you are running any modern Linux or *BSD distribution
+ then you can almost certainly get them through your standard package
+ manager.  If you are running Mac OS X then the "fink" package management
+ tool does not have most of these packages, but the "darwinports" package
+ management tool appears to have them.  If you are running on Windows then
+ I'm afraid you'll have to install them by hand (although the "cygwin"
+ package management tool does have some of them).  If you are running on
+ Solaris, I would like to hear from you -- I have no idea how it is done on
+ Solaris nowadays.
 
  * a C compiler (language)
 
@@ -38,32 +37,37 @@ DEPENDENCIES:
 
  * Python 2.4 or newer (tested against 2.4, 2.5, and 2.5.1), but v2.5 or 
    higher is required on Windows-native) (language)
-  http://python.org/
+
+   http://python.org/
 
  * Python Twisted (tested against both 2.4 and 2.5) (network and operating
    system integration library)
-  http://twistedmatrix.com/
 
-  You need the following subpackages (which are included in the
-  default Twisted distribution):
+   http://twistedmatrix.com/
+
+   You need the following subpackages, which are included in the default
+   Twisted distribution:
 
    * core (the standard Twisted package)
    * web, trial, conch
 
-  Twisted requires zope.interface, a copy of which is included in the Twisted
-  distribution.
+   Twisted requires zope.interface, a copy of which is included in the
+   Twisted distribution.
 
  * Python Nevow (probably 0.9.0 or later) (web presentation language)
-  http://divmod.org/trac/wiki/DivmodNevow
+
+   http://divmod.org/trac/wiki/DivmodNevow
 
  * Python setuptools (build and distribution tool)
-  http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
+
+   http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
 
  * Python PyOpenSSL (0.6 or later) (secure transport layer)
-  http://pyopenssl.sourceforge.net
 
-  To install PyOpenSSL on Windows-native, download this:
-  http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.5.exe
+   http://pyopenssl.sourceforge.net
+
+   To install PyOpenSSL on Windows-native, download this:
+   http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.5.exe
 
  * to build the debian packages you will need all the usual debian-packaging
    tools, which means the 'build-essential' metapackage and all of the
@@ -71,15 +75,9 @@ DEPENDENCIES:
    distribution. You will also want the 'fakeroot' package to allow the
    top-level 'make deb-DIST' targets work.
 
- * Foolscap (0.1.2 or newer) (remote object library)
-  http://twistedmatrix.com/trac/wiki/FoolsCap
-
-  Note: since the Foolscap wire protocol is not yet compatible from one
-  release to the next, make sure all of your nodes are using the same version
-  of Foolscap
-
  * on Windows, the pywin32 package
-  http://sourceforge.net/projects/pywin32/
+
+   http://sourceforge.net/projects/pywin32/
 
 
 BUILDING:
@@ -101,14 +99,16 @@ INSTALLING:
  deb-sid' to construct a debian package named 'allmydata-tahoe', which you
  can then install.
 
- If not, you'll need to run three separate install steps, one for each of the
- three subpackages (allmydata, allmydata.Crypto, and zfec). You may wish to
- use a different version of 'python' for these steps, or provide a --prefix
- or --root argument for the install.
+ If not, you'll need to run four separate install steps, one for each of the
+ four subpackages (allmydata, allmydata.Crypto, foolscap, and zfec). You may
+ wish to use a different version of 'python' for these steps, or provide a
+ --prefix or --root argument for the install.
 
   cd src/zfec && python setup.py install && cd ../..
 
   cd src/Crypto && python setup.py install && cd ../..
+
+  cd src/foolscap && python setup.py install && cd ../..
 
   # the allmydata subpackage's setup.py script is in the root directory
   python setup.py install
@@ -120,9 +120,10 @@ INSTALLING:
   Python 2.4.4 (#2, Jan 13 2007, 17:50:26)
   [GCC 4.1.2 20061115 (prerelease) (Debian 4.1.1-21)] on linux2
   Type "help", "copyright", "credits" or "license" for more information.
+  >>> import zfec
   >>> import allmydata.Crypto
+  >>> import foolscap
   >>> import allmydata.interfaces
-  >>> import fec
   >>>
 
  To run from a source tree (without installing first), type 'make', which
