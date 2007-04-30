@@ -91,12 +91,13 @@ The bin/ directory contains two Unix-style, command-line tools "zfec" and
 
 Note: a Unix-style tool like "zfec" does only one thing -- in this case
 erasure coding -- and leaves other tasks to other tools.  Other Unix-style
-tools that go well with zfec include "GNU tar" for archiving multiple files and
-directories into one file, "rzip" for compression, "GNU Privacy Guard" for
-encryption, and "sha256sum" for integrity.  It is important to do things in
-order: first archive, then compress, then either encrypt or sha256sum, then
-erasure code.  Note that if GNU Privacy Guard is used for privacy, then it will
-also ensure integrity, so the use of sha256sum is unnecessary in that case.
+tools that go well with zfec include "GNU tar" for archiving multiple files
+and directories into one file, "rzip" or "lrzip" for compression, and "GNU
+Privacy Guard" for encryption or "sha256sum" for integrity.  It is important
+to do things in order: first archive, then compress, then either encrypt or
+sha256sum, then erasure code.  Note that if GNU Privacy Guard is used for
+privacy, then it will also ensure integrity, so the use of sha256sum is
+unnecessary in that case.
 
 
  * Performance Measurements
