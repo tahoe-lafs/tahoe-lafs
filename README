@@ -89,6 +89,10 @@ DEPENDENCIES:
 
    http://sourceforge.net/projects/pywin32/
 
+ On debian systems, these dependencies can be handled by installing the
+ following packages: build-essential, python-dev, python-twisted,
+ python-nevow, python-setuptools, python-pyopenssl, fakeroot.
+
 
 BUILDING:
 
