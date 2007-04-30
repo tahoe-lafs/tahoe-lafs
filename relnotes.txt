@@ -3,10 +3,14 @@ pleased announce the first public release of "Tahoe", a secure, distributed
 storage mesh with a free-software licence.
 
 The source code that we are releasing is the current working prototype for
-Allmydata's next-generation product.  This prototype is not recommended for
-storage of confidential data nor for data which is not otherwise backed up,
-but it is already implements a functional distributed storage mesh and is
-useful for experimentation, prototyping, and extension.
+Allmydata's next-generation product.  This release is targeted at hackers who
+are willing to build from source and use a minimal, text-oriented web user
+interface.
+
+This prototype is not recommended for storage of confidential data nor for
+data which is not otherwise backed up, but it is already implements a
+functional distributed storage mesh and is useful for experimentation,
+prototyping, and extension.
 
 
 INSTALLATION
