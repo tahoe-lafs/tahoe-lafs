@@ -8,9 +8,9 @@ are willing to build from source and use a minimal, text-oriented web user
 interface.
 
 This prototype is not recommended for storage of confidential data nor for
-data which is not otherwise backed up, but it is already implements a
-functional distributed storage mesh and is useful for experimentation,
-prototyping, and extension.
+data which is not otherwise backed up, but it already implements a functional
+distributed storage mesh and is useful for experimentation, prototyping, and
+extension.
 
 
 INSTALLATION
