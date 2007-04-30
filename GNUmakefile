@@ -106,7 +106,7 @@ stop-introducer: build
 .PHONY: test
 
 ifeq ($(TEST),)
-TEST=allmydata zfec # foolscap
+TEST=allmydata zfec foolscap
 endif
 REPORTER=
 
