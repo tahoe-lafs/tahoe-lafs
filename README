@@ -9,6 +9,16 @@ The interface to the storage mesh allows you to store and fetch files, either
 by self-authenticating cryptographic identifier or by filename and path.
 
 
+GETTING THE SOURCE CODE:
+
+ The code is available via darcs by running the following command:
+
+ darcs get http://allmydata.org/source/tahoe/trunk
+
+ See http://allmydata.org for all kinds of information, news, and community
+ contributions.
+
+
 LICENCE:
 
  Tahoe is offered under the GNU General Public License (v2 or later), with
@@ -95,40 +105,47 @@ BUILDING:
 
 INSTALLING:
 
- If you're running on a debian system, use 'make deb-dapper' or 'make
- deb-sid' to construct a debian package named 'allmydata-tahoe', which you
- can then install.
+ The Debian Way:
 
- If not, you'll need to run four separate install steps, one for each of the
- four subpackages (allmydata, allmydata.Crypto, foolscap, and zfec). You may
- wish to use a different version of 'python' for these steps, or provide a
- --prefix or --root argument for the install.
+  If you're running on a debian system, use 'make deb-dapper', 'make
+  deb-sid', 'make deb-edgy', or 'make deb-feisty' to construct a debian
+  package named 'allmydata-tahoe', which you can then install.
 
-  cd src/zfec && python setup.py install && cd ../..
+ The Python Way:
 
-  cd src/Crypto && python setup.py install && cd ../..
+  You'll need to run four separate install steps, one for each of the four
+  subpackages (allmydata, allmydata.Crypto, foolscap, and zfec).  If you use
+  GNU stow, add the options "--prefix=." and
+  "--root=/usr/local/stow/${PACKAGE}" to the "setup.py install" command.
 
-  cd src/foolscap && python setup.py install && cd ../..
+   for PACKAGE in zfec Crypto foolscap ; do
+     cd src/${PACKAGE} && python setup.py install && cd ../..
+   done
 
-  # the allmydata subpackage's setup.py script is in the root directory
-  python setup.py install
+   # the tahoe subpackage's setup.py script is in the root directory
+   PACKAGE=tahoe
+   python setup.py install
 
- To test that all the modules got installed properly, start a python
- interpreter and import modules as follows:
+ The Running-In-Place Way:
 
-  % python
-  Python 2.4.4 (#2, Jan 13 2007, 17:50:26)
-  [GCC 4.1.2 20061115 (prerelease) (Debian 4.1.1-21)] on linux2
-  Type "help", "copyright", "credits" or "license" for more information.
-  >>> import zfec
-  >>> import allmydata.Crypto
-  >>> import foolscap
-  >>> import allmydata.interfaces
-  >>>
+  To run from a source tree (without installing first), type 'make', which
+  will put all the necessary libraries into a local directory named
+  "./instdir/", which you can then add to your PYTHONPATH .
 
- To run from a source tree (without installing first), type 'make', which
- will put all the necessary libraries into a local directory named
- "./instdir/", which you can then add to your PYTHONPATH .
+
+ To Test That It Is Properly Installed:
+
+  To test that all the modules got installed properly, start a python
+  interpreter and import modules as follows:
+
+   % python
+   Python 2.4.4 (#2, Jan 13 2007, 17:50:26)
+   [GCC 4.1.2 20061115 (prerelease) (Debian 4.1.1-21)] on linux2
+   Type "help", "copyright", "credits" or "license" for more information.
+   >>> import zfec
+   >>> import allmydata.Crypto
+   >>> import foolscap
+   >>> import allmydata.interfaces
 
 
 RUNNING:
