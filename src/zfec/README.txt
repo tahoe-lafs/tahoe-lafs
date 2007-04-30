@@ -3,12 +3,10 @@
 This package implements an "erasure code", or "forward error correction
 code".
 
-It is offered under the GNU General Public License as published by the Free
-Software Foundation; either version 2 of the License, or (at your option) any
-later version, with the added permission that, if you become obligated to
-release a derived work under this licence (as per section 2.b), you may delay
-the fulfillment of this obligation for up to 12 months.  See the file COPYING
-for details.
+It is offered under the GNU General Public License (v2 or later), with the
+added permission that, if you become obligated to release a derived work
+under this licence (as per section 2.b), you may delay the fulfillment of
+this obligation for up to 12 months.  See the COPYING file for details.
 
 The most widely known example of an erasure code is the RAID-5 algorithm
 which makes it so that in the event of the loss of any one hard drive, the
@@ -32,7 +30,7 @@ build and install the package directly into your system, just run "python
 ./setup.py install".  If you prefer to keep the package limited to a specific
 directory so that you can explicitly manage it (perhaps by using the "GNU
 stow") tool, then give it these arguments: "python ./setup.py install
---prefix= --root=$specificdirectory".
+--prefix=. --root=$specificdirectory".
 
 
  * Community
