@@ -110,10 +110,10 @@ c.setServiceParent(application)
 introducer_tac = """
 # -*- python -*-
 
-from allmydata import queen
+from allmydata import introducer_and_vdrive
 from twisted.application import service
 
-c = queen.Queen()
+c = introducer_and_vdrive.IntroducerAndVdrive()
 
 application = service.Application("allmydata_introducer")
 c.setServiceParent(application)

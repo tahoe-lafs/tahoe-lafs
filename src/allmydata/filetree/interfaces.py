@@ -106,8 +106,8 @@ class ISubTree(Interface):
 
         Each subtree's populate_from_node() method is expected to use the
         downloader to obtain a file with the subtree's serialized contents
-        (probably by pulling data from some source, like the mesh, the queen,
-        an HTTP server, or somewhere on the local filesystem), then
+        (probably by pulling data from some source, like the mesh, the vdrive 
+        server, an HTTP server, or somewhere on the local filesystem), then
         unserialize them and populate the subtree's state.
 
         Return a Deferred that will fire (with self) when this subtree is
@@ -250,8 +250,8 @@ class ISubTreeMaker(Interface):
         I accept an INode-providing specification of a subtree, and return a
         Deferred that fires with an ISubTree-providing instance. I will
         perform network IO and download the serialized data that the INode
-        references, if necessary, or ask the queen (or other provider) for a
-        pointer, or read it from local disk.
+        references, if necessary, or ask the vdrive server (or other provider) 
+        for a pointer, or read it from local disk.
         """
 
 

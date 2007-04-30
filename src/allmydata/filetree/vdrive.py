@@ -18,19 +18,18 @@ all_openable_subtree_types = [
     directory.CHKDirectorySubTree,
     directory.SSKDirectorySubTree,
     redirect.LocalFileRedirection,
-    redirect.QueenRedirection,
-    redirect.QueenOrLocalFileRedirection,
+    redirect.VdriveRedirection,
+    redirect.VdriveOrLocalFileRedirection,
     redirect.HTTPRedirection,
     ]
 
 class SubTreeMaker(object):
     implements(ISubTreeMaker)
 
-    def __init__(self, queen, downloader):
+    def __init__(self, downloader):
         # this is created with everything it might need to download and
-        # create subtrees. That means a Downloader and a reference to the
-        # queen.
-        self._queen = queen
+        # create subtrees. That means a Downloader and in the future (?) a 
+	# reference to the vdrive.
         assert IDownloader(downloader)
         self._downloader = downloader
         self._node_maker = NodeMaker()
@@ -85,10 +84,8 @@ class VirtualDrive(object):
         workqueue.set_uploader(uploader)
         self._downloader = downloader
         self._uploader = uploader
-        # TODO: queen?
-        self.queen = None
         self.root_node = root_node
-        self.subtree_maker = SubTreeMaker(self.queen, downloader)
+        self.subtree_maker = SubTreeMaker(downloader)
 
     # these methods are used to walk through our subtrees
 
@@ -276,7 +273,7 @@ class VirtualDrive(object):
         # really say whether they're mutable or not. But we're pretty sure
         # that the new subtree is supposed to be mutable, because we asserted
         # that earlier (although I suppose perhaps someone could change a
-        # QueenRedirection or an SSK file while we're offline in the middle
+        # VdriveRedirection or an SSK file while we're offline in the middle
         # of our workqueue..). Tell the new subtree that their parent is
         # mutable so we can be sure it will believe that it itself is
         # mutable.

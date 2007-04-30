@@ -5,7 +5,7 @@ from allmydata.filetable import GlobalVirtualDrive
 from allmydata.introducer import Introducer
 
 
-class Queen(node.Node):
+class IntroducerAndVdrive(node.Node):
     CERTFILE = "introducer.pem"
     PORTNUMFILE = "introducer.port"
     NODETYPE = "introducer"

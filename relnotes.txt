@@ -40,7 +40,7 @@ there, with download links, and forms to upload new files.
 
 Other ways to access the filesystem are planned, as well as other structures
 than the single globally-shared namespace implemented by this release: please
-see the roadmap.txt for some rough details.
+see the roadmap.txt [5] for some rough details.
 
 
 HACKING AND COMMUNITY

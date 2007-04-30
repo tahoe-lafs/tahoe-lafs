@@ -16,9 +16,9 @@ def randomid():
     return os.urandom(20)
 
 class Node:
-    def __init__(self, nid, queen, simulator):
+    def __init__(self, nid, introducer_and_vdrive, simulator):
         self.nid = nid
-        self.queen = queen
+        self.introducer_and_vdrive = introducer_and_vdrive
         self.simulator = simulator
         self.shares = {}
         self.capacity = random.randrange(1000)
@@ -27,7 +27,7 @@ class Node:
 
     def permute_peers(self, fileid):
         permuted = [(sha(fileid+n.nid),n)
-                    for n in self.queen.get_all_nodes()]
+                    for n in self.introducer_and_vdrive.get_all_nodes()]
         permuted.sort()
         return permuted
 
@@ -50,7 +50,7 @@ class Node:
                 node.delete_share(fileid)
             return False
         self.files.append((fileid, numshares))
-        self.queen.please_preserve(fileid, size, tried, last_givento)
+        self.introducer_and_vdrive.please_preserve(fileid, size, tried, last_givento)
         return (True, tried)
 
     def accept_share(self, fileid, sharesize):
@@ -111,10 +111,10 @@ class Node:
         which = random.choice(self.files)
         self.files.remove(which)
         fileid,numshares = which
-        self.queen.delete(fileid)
+        self.introducer_and_vdrive.delete(fileid)
         return True
 
-class Queen:
+class IntroducerAndVdrive:
     def __init__(self, simulator):
         self.living_files = {}
         self.utilization = 0 # total size of all active files
@@ -169,7 +169,7 @@ class Simulator:
         self.rrd = RRD("/tmp/utilization.rrd", ds=[ds], rra=[rra], start=self.time)
         self.rrd.create()
 
-        self.queen = q = Queen(self)
+        self.introducer_and_vdrive = q = IntroducerAndVdrive(self)
         self.all_nodes = [Node(randomid(), q, self)
                           for i in range(self.NUM_NODES)]
         q.all_nodes = self.all_nodes
@@ -267,7 +267,7 @@ class Simulator:
             avg_tried = "NONE"
         else:
             avg_tried = sum(self.published_files) / len(self.published_files)
-        print time, etype, self.added_data, self.failed_files, self.lost_data_bytes, avg_tried, len(self.queen.living_files), self.queen.utilization
+        print time, etype, self.added_data, self.failed_files, self.lost_data_bytes, avg_tried, len(self.introducer_and_vdrive.living_files), self.introducer_and_vdrive.utilization
 
 global s
 s = None

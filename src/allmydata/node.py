@@ -12,8 +12,8 @@ import zfec
 import foolscap
 
 class Node(service.MultiService):
-    # this implements common functionality of both Client nodes and the Queen
-    # node.
+    # this implements common functionality of both Client nodes, Introducer 
+    # nodes, and Vdrive nodes
     NODETYPE = "unknown NODETYPE"
     PORTNUMFILE = None
     CERTFILE = None

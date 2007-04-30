@@ -158,7 +158,7 @@ clean: clean-zfec clean-Crypto clean-foolscap
 	rm -rf instdir
 
 create_dirs:
-	mkdir -p queen-basedir
+	mkdir -p introducer_and_vdrive-basedir
 	mkdir -p client-basedir
 	mkdir -p client-basedir2
 	mkdir -p client-basedir/storage

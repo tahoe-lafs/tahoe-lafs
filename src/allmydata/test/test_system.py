@@ -3,7 +3,7 @@ import os
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.application import service
-from allmydata import client, queen, uri, download
+from allmydata import client, introducer_and_vdrive, uri, download
 from allmydata.util import idlib, fileutil, testutil
 from foolscap.eventual import flushEventualQueue
 from twisted.python import log
@@ -38,17 +38,17 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
     def set_up_nodes(self, NUMCLIENTS=5):
         self.numclients = NUMCLIENTS
-        queendir = self.getdir("queen")
-        if not os.path.isdir(queendir):
-            fileutil.make_dirs(queendir)
-        self.queen = self.add_service(queen.Queen(basedir=queendir))
-        d = self.queen.when_tub_ready()
+        introducer_and_vdrive_dir = self.getdir("introducer_and_vdrive")
+        if not os.path.isdir(introducer_and_vdrive_dir):
+            fileutil.make_dirs(introducer_and_vdrive_dir)
+        self.introducer_and_vdrive = self.add_service(introducer_and_vdrive.IntroducerAndVdrive(basedir=introducer_and_vdrive_dir))
+        d = self.introducer_and_vdrive.when_tub_ready()
         d.addCallback(self._set_up_nodes_2)
         return d
 
     def _set_up_nodes_2(self, res):
-        q = self.queen
-        self.queen_furl = q.urls["introducer"]
+        q = self.introducer_and_vdrive
+        self.introducer_furl = q.urls["introducer"]
         self.vdrive_furl = q.urls["vdrive"]
         self.clients = []
         for i in range(self.numclients):
@@ -57,7 +57,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 fileutil.make_dirs(basedir)
             if i == 0:
                 open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
-            open(os.path.join(basedir, "introducer.furl"), "w").write(self.queen_furl)
+            open(os.path.join(basedir, "introducer.furl"), "w").write(self.introducer_furl)
             open(os.path.join(basedir, "vdrive.furl"), "w").write(self.vdrive_furl)
             c = self.add_service(client.Client(basedir=basedir))
             self.clients.append(c)
@@ -77,7 +77,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         basedir = self.getdir("client%d" % client_num)
         if not os.path.isdir(basedir):
             fileutil.make_dirs(basedir)
-        open(os.path.join(basedir, "introducer.furl"), "w").write(self.queen_furl)
+        open(os.path.join(basedir, "introducer.furl"), "w").write(self.introducer_furl)
         open(os.path.join(basedir, "vdrive.furl"), "w").write(self.vdrive_furl)
 
         c = client.Client(basedir=basedir)

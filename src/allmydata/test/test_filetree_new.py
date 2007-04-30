@@ -425,7 +425,7 @@ class VDrive(unittest.TestCase):
         self.failUnlessEqual(c1a, c2a)
 
     def testDirectory(self):
-        stm = vdrive.SubTreeMaker(None, FakeMesh())
+        stm = vdrive.SubTreeMaker(FakeMesh())
 
         # create an empty directory (stored locally)
         subtree = directory.LocalFileSubTree()

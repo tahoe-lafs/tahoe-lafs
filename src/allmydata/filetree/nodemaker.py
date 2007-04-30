@@ -13,9 +13,9 @@ all_node_types = [
     file.CHKFileNode,
     file.SSKFileNode,
     redirect.LocalFileRedirectionNode,
-    redirect.QueenRedirectionNode,
+    redirect.VdriveRedirectionNode,
     redirect.HTTPRedirectionNode,
-    redirect.QueenOrLocalFileRedirectionNode,
+    redirect.VdriveOrLocalFileRedirectionNode,
 ]
 
 class NodeMaker(object):

@@ -102,24 +102,24 @@ class LocalFileRedirection(_BaseRedirection):
         self._update()
         return None
 
-class QueenRedirectionNode(LocalFileRedirectionNode):
-    prefix = "QueenRedirection"
+class VdriveRedirectionNode(LocalFileRedirectionNode):
+    prefix = "VdriveRedirection"
 
-class QueenRedirection(_BaseRedirection):
-    node_class = QueenRedirectionNode
+class VdriveRedirection(_BaseRedirection):
+    node_class = VdriveRedirectionNode
 
     def new(self, handle):
         self.handle = handle
         return self
 
     def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
-        # this specifies a handle for which the Queen maintains a serialized
+        # this specifies a handle for which the Vdrive maintains a serialized
         # subtree specification.
-        assert isinstance(node, QueenRedirectionNode)
+        assert isinstance(node, VdriveRedirectionNode)
         self.handle = node.handle
 
-        # TODO: queen?
-        d = self._queen.callRemote("lookup_handle", self.handle)
+        # TODO: vdrive?
+        d = self._vdrive.callRemote("lookup_handle", self.handle)
         d.addCallback(self._populate_from_data, node_maker)
         return d
 
@@ -127,30 +127,30 @@ class QueenRedirection(_BaseRedirection):
         return True # TODO: maybe, maybe not
 
     def create_node_now(self):
-        return QueenRedirectionNode().new(self.handle)
+        return VdriveRedirectionNode().new(self.handle)
 
     def update_now(self, uploader):
         f = StringIO()
         self.serialize_subtree_to_file(f)
-        d = self._queen.callRemote("set_handle", self.handle, f.getvalue())
+        d = self._vdrive.callRemote("set_handle", self.handle, f.getvalue())
         def _done(res):
             return self.create_node_now()
         d.addCallback(_done)
         return d
 
     def update(self, workqueue):
-        f, filename = workqueue.create_tempfile(".toqueen")
+        f, filename = workqueue.create_tempfile(".tovdrive")
         self.serialize_subtree_to_file(f)
         f.close()
-        workqueue.add_queen_update_handle(self.handle, filename)
+        workqueue.add_vdrive_update_handle(self.handle, filename)
         workqueue.add_delete_tempfile(filename)
         return None
 
-class QueenOrLocalFileRedirectionNode(LocalFileRedirectionNode):
-    prefix = "QueenOrLocalFileRedirection"
+class VdriveOrLocalFileRedirectionNode(LocalFileRedirectionNode):
+    prefix = "VdriveOrLocalFileRedirection"
 
-class QueenOrLocalFileRedirection(_BaseRedirection):
-    node_class = QueenOrLocalFileRedirectionNode
+class VdriveOrLocalFileRedirection(_BaseRedirection):
+    node_class = VdriveOrLocalFileRedirectionNode
 
     def new(self, handle, child_node):
         self.handle = handle
@@ -161,9 +161,9 @@ class QueenOrLocalFileRedirection(_BaseRedirection):
 
     def populate_from_node(self, node, parent_is_mutable, node_maker, downloader):
         # there is a local file which contains a bencoded serialized
-        # subtree specification. The queen also has a copy. Whomever has
+        # subtree specification. The vdrive also has a copy. Whomever has
         # the higher version number wins.
-        assert isinstance(node, QueenOrLocalFileRedirectionNode)
+        assert isinstance(node, VdriveOrLocalFileRedirectionNode)
         self.filename = self.handle = node.handle
 
         f = open(self.filename, "rb")
@@ -171,19 +171,19 @@ class QueenOrLocalFileRedirection(_BaseRedirection):
         local_version_and_data = f.read()
         f.close()
 
-        # TODO: queen?
-        # TODO: pubsub so we can cache the queen's results
-        d = self._queen.callRemote("lookup_handle", self.handle)
+        # TODO: vdrive?
+        # TODO: pubsub so we can cache the vdrive's results
+        d = self._vdrive.callRemote("lookup_handle", self.handle)
         d.addCallback(self._choose_winner, local_version_and_data)
         d.addCallback(self._populate_from_data, node_maker)
         return d
 
-    def _choose_winner(self, queen_version_and_data, local_version_and_data):
-        queen_version, queen_data = bencode.bdecode(queen_version_and_data)
+    def _choose_winner(self, vdrive_version_and_data, local_version_and_data):
+        vdrive_version, vdrive_data = bencode.bdecode(vdrive_version_and_data)
         local_version, local_data = bencode.bdecode(local_version_and_data)
-        if queen_version > local_version:
-            data = queen_data
-            self.version = queen_version
+        if vdrive_version > local_version:
+            data = vdrive_data
+            self.version = vdrive_version
         else:
             data = local_data
             self.version = local_version
@@ -194,7 +194,7 @@ class QueenOrLocalFileRedirection(_BaseRedirection):
         return True
 
     def create_node_now(self):
-        return QueenOrLocalFileRedirectionNode().new(self.handle)
+        return VdriveOrLocalFileRedirectionNode().new(self.handle)
 
     def _update(self):
         self.version += 1
@@ -209,7 +209,7 @@ class QueenOrLocalFileRedirection(_BaseRedirection):
         f.write(version_and_data)
         f.close()
 
-        d = self._queen.callRemote("set_handle", self.handle, version_and_data)
+        d = self._vdrive.callRemote("set_handle", self.handle, version_and_data)
         def _done(res):
             return self.create_node_now()
         d.addCallback(_done)
@@ -222,10 +222,10 @@ class QueenOrLocalFileRedirection(_BaseRedirection):
         f.write(version_and_data)
         f.close()
 
-        f, filename = workqueue.create_tempfile(".toqueen")
+        f, filename = workqueue.create_tempfile(".tovdrive")
         self.serialize_subtree_to_file(f)
         f.close()
-        workqueue.add_queen_update_handle(self.handle, filename)
+        workqueue.add_vdrive_update_handle(self.handle, filename)
         workqueue.add_delete_tempfile(filename)
         return None
 

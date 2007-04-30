@@ -2,8 +2,8 @@
 ['*' means complete]
 
 Connection Management:
-*v1: foolscap, no relay, live=connected-to-queen, broadcast updates, full mesh
- v2: live != connected-to-queen, connect on demand
+*v1: foolscap, no relay, live=connected-to-introducer, broadcast updates, fully connected topology
+ v2: live != connected-to-introducer, connect on demand
  v3: relay?
 
 File Encoding:
@@ -39,10 +39,10 @@ Download Peer Selection:
  v3: denver airport?
 
 Filetable Maintenance:
-*v1: queen-based tree of MutableDirectoryNodes, persisted to queen's disk
+*v1: vdrive-based tree of MutableDirectoryNodes, persisted to vdrive's disk
      no accounts
  v2: move tree to client side, serialize to a file, upload,
-     queen.set_filetable_uri (still no accounts, just one global tree)
+     vdrive.set_filetable_uri (still no accounts, just one global tree)
  v3: break world up into accounts, separate mutable spaces. Maybe
      implement SSKs
  v4: filetree
@@ -68,18 +68,13 @@ UI:
  v4: FUSE
 
 Operations/Deployment/Doc/Free Software/Community:
- - tweak licence as per zfec's recent tweak
- - move this file into the wiki
- - Windows port and testing
- - Trac instance
- - extirpate all references to "queen" and "metatracker"
- - set up public trac, buildbot reports, mailing list, download page
+ - move this file into the wiki ?
 
 back pocket ideas:
  when nodes are unable to reach storage servers, make a note of it, inform
- queen eventually. queen then puts server under observation or otherwise
- looks for differences between their self-reported availability and the
- experiences of others
+ verifier/checker eventually. verifier/checker then puts server under
+ observation or otherwise looks for differences between their self-reported
+ availability and the experiences of others
 
  store filetable URI in the first 10 peers that appear after your own nodeid
  each entry has a sequence number, maybe a timestamp

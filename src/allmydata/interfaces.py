@@ -531,10 +531,10 @@ class IWorkQueue(Interface):
         by the parent.
         """
 
-    def add_queen_update_handle(handle, source_filename):
-        """Arrange for a central queen to be notified that the given handle
+    def add_vdrive_update_handle(handle, source_filename):
+        """Arrange for a vdrive server to be notified that the given handle
         has been updated with the contents of the given tempfile. This will
-        send a set_handle() message to the queen."""
+        send a set_handle() message to the vdrive."""
 
     def add_retain_ssk(read_capability):
         """Arrange for the given SSK to be kept alive."""
@@ -582,7 +582,7 @@ class IWorkQueue(Interface):
         subtree with the contents.
 
         If 'subtree_node' refers to a redirection subtree like
-        LocalFileRedirection or QueenRedirection, then 'localpath' is
+        LocalFileRedirection or VdriveRedirection, then 'localpath' is
         ignored, because redirection subtrees don't consume path components
         and have no internal directory structure (they just have the one
         redirection target). Redirection subtrees generally retain a constant

@@ -141,7 +141,7 @@ class _BaseManhole(service.MultiService):
         def makeNamespace():
             # close over 'self' so we can get access to .parent later
             from allmydata import debugshell
-            debugshell.app = self.parent # make client/queen accesible via 'app'
+            debugshell.app = self.parent # make node accessible via 'app'
             namespace = {}
             for sym in dir(debugshell):
                 if sym.startswith('__') and sym.endswith('__'):

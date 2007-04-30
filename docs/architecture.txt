@@ -6,11 +6,11 @@ OVERVIEW
 The high-level view of this system consists of three layers: the mesh, the
 virtual drive, and the application that sits on top.
 
-The lowest layer is the "mesh" or "cloud", basically a DHT (Distributed Hash
-Table) which maps URIs to data. The URIs are relatively short ascii strings
+The lowest layer is the "mesh", basically a DHT (Distributed Hash Table)
+which maps URIs to data. The URIs are relatively short ascii strings
 (currently about 140 bytes), and each is used as references to an immutable
 arbitrary-length sequence of data bytes. This data is distributed around the
-cloud in a large number of nodes, such that a statistically unlikely number
+mesh in a large number of nodes, such that a statistically unlikely number
 of nodes would have to be unavailable for the data to become unavailable.
 
 The middle layer is the virtual drive: a tree-shaped data structure in which
@@ -32,14 +32,13 @@ actual code present in the current release. Please take a look at roadmap.txt
 to get an idea of how much of this has been implemented so far.
 
 
-THE BIG CLOUD OF PEERS
+THE BIG MESH OF PEERS
 
-Underlying the mesh/cloud is a large collection of peer nodes. These are
-processes running on a wide variety of computers, all of which know about
-each other in some way or another. They establish TCP connections to one
-another using Foolscap, an encrypted+authenticated remote message passing
-library (using TLS connections and self-authenticating identifiers called
-"FURLs").
+Underlying the mesh is a large collection of peer nodes. These are processes
+running on a wide variety of computers, all of which know about each other in
+some way or another. They establish TCP connections to one another using
+Foolscap, an encrypted+authenticated remote message passing library (using
+TLS connections and self-authenticating identifiers called "FURLs").
 
 Each peer offers certain services to the others. The primary service is the
 StorageServer, which offers to hold data for a limited period of time (a
@@ -64,12 +63,12 @@ safety measure.
 In this release, peers learn about each other through the "introducer". Each
 peer connects to this central introducer at startup, and receives a list of
 all other peers from it. Each peer then connects to all other peers, creating
-a full-mesh topology. Future versions will reduce the number of connections
-considerably, to enable the mesh to scale to larger sizes: the design target
-is one million nodes. In addition, future versions will offer relay and
-NAT-traversal services to allow nodes without full internet connectivity to
-participate. In the current release, only one node may be behind a NAT box
-and still permit the cloud to achieve full-mesh connectivity.
+a fully-connected topology. Future versions will reduce the number of
+connections considerably, to enable the mesh to scale to larger sizes: the
+design target is one million nodes. In addition, future versions will offer
+relay and NAT-traversal services to allow nodes without full internet
+connectivity to participate. In the current release, only one node may be
+behind a NAT box and still permit the mesh to achieve full connectivity.
 
 
 FILE ENCODING
@@ -166,7 +165,7 @@ which ones? The "peer selection" algorithm is used to make this choice.
 In the current version, the verifierid is used to consistently-permute the
 set of all peers (by sorting the peers by HASH(verifierid+peerid)). Each file
 gets a different permutation, which (on average) will evenly distribute
-shares among the cloud and avoid hotspots.
+shares among the mesh and avoid hotspots.
 
 This permutation places the peers around a 2^256-sized ring, like the rim of
 a big clock. The 100-or-so shares are then placed around the same ring (at 0,

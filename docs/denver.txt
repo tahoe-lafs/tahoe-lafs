@@ -144,7 +144,7 @@ Properties of this approach:
 
  each node must maintain open (keep-alived) connections to something like
  2*log2(N) peers. In tahoe2, this number is 0 (well, probably 1 for the
- queen).
+ introducer).
 
  during upload, each node must actively use 100 connections to a random set
  of peers to push data (just like tahoe2).
