@@ -50,10 +50,10 @@ class RIBucketWriter(RemoteInterface):
         """
         return None
     
-    def put_block_hashes(blockhashes=ListOf(Hash)):
+    def put_block_hashes(blockhashes=ListOf(Hash, maxLength=2**20)):
         return None
         
-    def put_share_hashes(sharehashes=ListOf(TupleOf(int, Hash))):
+    def put_share_hashes(sharehashes=ListOf(TupleOf(int, Hash), maxLength=2**20)):
         return None
 
     def close():
