@@ -143,7 +143,7 @@ class TestIntroducer(unittest.TestCase):
             # now disconnect somebody's connection to themselves
         d.addCallback(_check_again2)
         return d
-    test_system.timeout = 1200
+    test_system.timeout = 2400
 
     def stall(self, res, timeout):
         d = defer.Deferred()
