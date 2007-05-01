@@ -110,7 +110,7 @@ BUILDING:
  If the desired version of 'python' is not already on your PATH, then type
  'make PYTHON=/path/to/your/preferred/python'.
 
- 'make test' runs the unit test suite.
+ 'make test-all' runs the unit test suites.
 
 
 INSTALLING:

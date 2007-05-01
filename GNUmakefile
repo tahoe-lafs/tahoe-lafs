@@ -109,22 +109,27 @@ stop-introducer: build
 
 # TESTING
 
-.PHONY: test
+.PHONY: test-all test test-foolscap test-figleaf figleaf-output
 
-ifeq ($(TEST),)
+# you can use 'make test TEST=allmydata.test.test_introducer' to run just a
+# specific test. TEST=allmydata.test.test_client.Basic.test_permute works
+# too.
 TEST=allmydata zfec
-endif
 REPORTER=
+
+test-all: test-foolscap test
 
 # use 'make test REPORTER=--reporter=bwverbose' from buildbot, to supress the
 # ansi color sequences
-test: build test-foolscap test-TEST
+test: build
+	$(PP) $(TRIAL) $(REPORTER) $(TEST)
 
+# foolscap tests need to be run in their own source dir, so that the paths to
+# the .pyc files are correct (since some of the foolscap tests depend upon
+# stack traces having actual source code in them, and they don't when the
+# tests are run from the 'instdir' that the tahoe makefile uses).
 test-foolscap:
 	cd src/foolscap && PYTHONPATH=$(ORIGPYTHONPATH) $(TRIAL) $(REPORTER) foolscap
-
-test-TEST:
-	$(PP) $(TRIAL) $(REPORTER) $(TEST)
 
 test-figleaf: build
 	rm -f .figleaf
@@ -133,10 +138,13 @@ test-figleaf: build
 figleaf-output:
 	$(PP) $(PYTHON) misc/figleaf2html -d coverage-html -r $(INSTDIR)/lib -x misc/figleaf.excludes
 	@echo "now point your browser at coverage-html/index.html"
+
 # after doing test-figleaf and figleaf-output, point your browser at
 # coverage-html/index.html
 
-# this command is meant to be run with an
+.PHONY: upload-figleaf .figleaf.el pyflakes count-lines check-memory clean
+
+# 'upload-figleaf' is meant to be run with an UPLOAD_TARGET=host:/dir setting
 ifdef UPLOAD_TARGET
 upload-figleaf:
 	rsync -a coverage-html/ $(UPLOAD_TARGET)
@@ -168,12 +176,7 @@ clean: clean-zfec clean-Crypto clean-foolscap
 	rm -f debian
 	rm -rf instdir
 
-create_dirs:
-	mkdir -p introducer_and_vdrive-basedir
-	mkdir -p client-basedir
-	mkdir -p client-basedir2
-	mkdir -p client-basedir/storage
-	mkdir -p client-basedir2/storage
+# DEBIAN PACKAGING
 
 VER=$(shell python -c "import os,re;print re.search(\"verstr=['\\\"](.*?)['\\\"]\", open(os.path.join('src', 'allmydata', '__init__.py')).readline()).group(1)")
 DEBSTRING=$(VER)-T`date +%s`
