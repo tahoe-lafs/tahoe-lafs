@@ -97,11 +97,11 @@ SOFTWARE ARCHITECTURE
 Tahoe is a "from the ground-up" rewrite, inspired by Allmydata's existing
 consumer backup service.  It is primarily written in Python.
 
-Tahoe is based on the Foolscap library [10] which provides a "translucent
-remote object protocol" inspired by the capability-secure "E" programming
-language [11].  Foolscap allows us to express the intended behavior of the
-distributed grid directly in object-oriented terms while relying on a
-well-engineered, secure transport layer.
+Tahoe is based on the Foolscap library [10] which provides a remote object
+protocol inspired by the capability-secure "E" programming language [11].
+Foolscap allows us to express the intended behavior of the distributed grid
+directly in object-oriented terms while relying on a well-engineered, secure
+transport layer.
 
 The underlying networking is provided by the Twisted library [12].
 Computationally intensive operations are performed in native compiled code,
