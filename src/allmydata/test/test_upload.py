@@ -38,12 +38,14 @@ class GoodServer(unittest.TestCase):
         d = self.u.upload_data(data)
         d.addCallback(self._check)
         return d
+    testData.timeout = 300
 
     def testFileHandle(self):
         data = "This is some data to upload"
         d = self.u.upload_filehandle(StringIO(data))
         d.addCallback(self._check)
         return d
+    testFileHandle.timeout = 300
 
     def testFilename(self):
         fn = "Uploader-testFilename.data"
@@ -54,6 +56,7 @@ class GoodServer(unittest.TestCase):
         d = self.u.upload_filename(fn)
         d.addCallback(self._check)
         return d
+    testFilename.test = 300
 
 class FullServer(unittest.TestCase):
     def setUp(self):
