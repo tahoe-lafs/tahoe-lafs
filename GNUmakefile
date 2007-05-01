@@ -211,27 +211,31 @@ setup-feisty:
 
 
 deb-dapper: setup-dapper
-	fakeroot debian/rules binary &&
-	make -C src/foolscap debian-dapper &&
-	mv src/python-foolscap*.deb .. &&
+	fakeroot debian/rules binary && \
+	make -C src/foolscap debian-dapper && \
+	mv src/python-foolscap*.deb .. && \
+	echo && \
 	echo "The newly built .deb packages are in the parent directory from here."
 
 deb-sid: setup-sid
-	fakeroot debian/rules binary &&
-	make -C src/foolscap debian-sid &&
-	mv src/python-foolscap*.deb .. &&
+	fakeroot debian/rules binary && \
+	make -C src/foolscap debian-sid && \
+	mv src/python-foolscap*.deb .. && \
+	echo && \
 	echo "The newly built .deb packages are in the parent directory from here."
 
 deb-edgy: setup-edgy
-	fakeroot debian/rules binary &&
-	make -C src/foolscap debian-edgy &&
-	mv src/python-foolscap*.deb .. &&
+	fakeroot debian/rules binary && \
+	make -C src/foolscap debian-edgy && \
+	mv src/python-foolscap*.deb .. && \
+	echo && \
 	echo "The newly built .deb packages are in the parent directory from here."
 
 deb-feisty: setup-feisty
-	fakeroot debian/rules binary &&
-	make -C src/foolscap debian-feisty &&
-	mv src/python-foolscap*.deb .. &&
+	fakeroot debian/rules binary && \
+	make -C src/foolscap debian-feisty && \
+	mv src/python-foolscap*.deb .. && \
+	echo && \
 	echo "The newly built .deb packages are in the parent directory from here."
 
 increment-deb-version:
