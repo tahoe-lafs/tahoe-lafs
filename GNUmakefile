@@ -35,6 +35,10 @@ else
  endif
 endif
 
+# Append instdir/lib instead of prepending it so that people can override
+# things from lib with alternate packages of their choosing by setting their
+# PYTHONPATH.
+
 ifneq ($(PYTHONPATH),)
 PYTHONPATH := "$(PYTHONPATH)$(PATHSEP)$(INSTDIR)/lib"
 else
