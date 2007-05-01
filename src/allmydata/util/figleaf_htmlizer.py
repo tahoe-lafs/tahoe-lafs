@@ -108,7 +108,7 @@ def report_as_html(coverage, directory, exclude_patterns=[], root=None):
 		try:
 			pcnt = n_covered * 100. / n_lines
 		except ZeroDivisionError:
-			pcnt = 100
+			pcnt = 0
 		info_dict[k] = (n_lines, n_covered, pcnt, display_filename)
 
 		html_outfile = make_html_filename(display_filename)
@@ -139,7 +139,7 @@ def report_as_html(coverage, directory, exclude_patterns=[], root=None):
 	summary_lines = sum([ v[0] for (k, v) in info_dict_items])
 	summary_cover = sum([ v[1] for (k, v) in info_dict_items])
 
-	summary_pcnt = 100
+	summary_pcnt = 0
 	if summary_lines:
 		summary_pcnt = float(summary_cover) * 100. / float(summary_lines)
 
