@@ -1,6 +1,6 @@
 Allmydata, Inc. [1], provider of the "Allmydata" consumer backup product, is
-pleased announce the first public release of "Tahoe", a secure, distributed
-storage grid with a free-software licence.
+pleased to announce the first public release of "Tahoe", a secure,
+distributed storage grid with a free-software licence.
 
 The source code that we are releasing is the current working prototype for
 Allmydata's next-generation product.  This release is targeted at hackers who
@@ -13,22 +13,30 @@ distributed storage grid and is useful for experimentation, prototyping, and
 extension.
 
 
+LICENCE
+
+Tahoe is offered under the GNU General Public License (v2 or later), with the
+added permission that, if you become obligated to release a derived work
+under this licence (as per section 2.b), you may delay the fulfillment of
+this obligation for up to 12 months.
+
+
 INSTALLATION
 
 This release of Tahoe works and passes all unit tests on Linux/x86,
 Linux/amd64, Mac/Intel, Mac/PPC, Windows-native, and Cygwin.
 
-To install, download the tarball [2], untar it, cd into the resulting
+To install, download the tarball [2], untar it, go into the resulting
 directory, and follow the directions in the README [3].
 
 
 USAGE
 
-Once installed, create a "client node" as described in the README.  Instruct
-this client node to connect to a specific "introducer node" by means of
-config files in the client node's working directory.  To join a public grid,
-copy in the .furl files for that grid.  To create a private grid, run your
-own introducer, and copy its .furl files.
+Once installed, create a "client node".  Instruct this client node to connect
+to a specific "introducer node" by means of config files in the client node's
+working directory.  To join a public grid, copy in the .furl files for that
+grid.  To create a private grid, run your own introducer, and copy its .furl
+files. See the README for step-by-step instructions.
 
 Each client node runs a local webserver (enabled by writing the desired port
 number into a file called 'webport').  The front page of this webserver shows
@@ -47,20 +55,12 @@ HACKING AND COMMUNITY
 
 Please join the mailing list [4] to discuss the ideas behind Tahoe and
 extensions of and uses of Tahoe.  Patches that extend and improve Tahoe are
-gratefully accepted -- roadmap.txt [5] shows the next improvements that we
-plan to make.  You can browse the revision control history, source code, and
-issue tracking at the Trac instance [6].  Please note the buildbot results
-page [7], which show how Tahoe builds and passes unit tests on each checkin,
-and the code coverage results [8] and percentage-covered graph [9], which
-show how much of the Tahoe source code is currently exercised the test suite.
-
-
-LICENCE
-
-Tahoe is offered under the GNU General Public License (v2 or later), with the
-added permission that, if you become obligated to release a derived work
-under this licence (as per section 2.b), you may delay the fulfillment of
-this obligation for up to 12 months.
+gratefully accepted -- roadmap.txt shows the next improvements that we plan
+to make.  You can browse the revision control history, source code, and issue
+tracking at the Trac instance [6].  Please see the buildbot [7], which shows
+how Tahoe builds and passes unit tests on each checkin, and the code coverage
+results [8] and percentage-covered graph [9], which show how much of the
+Tahoe source code is currently exercised by the test suite.
 
 
 NETWORK ARCHITECTURE
@@ -84,12 +84,12 @@ We are well aware of the limitations of decentralization and scalability
 inherent in this prototype.  In particular, the completely-connected property
 of the grid and the requirement of a single distinct introducer and vdrive
 server limits the possible size of the grid.  We have plans to loosen these
-limitations (see roadmap.txt [5]).  Currently it should be noted that the
-grid already depends as little as possible on the accessibility and
-correctness of the introduction server and the vdrive server.  Also note that
-the choice of which servers to use is easily configured -- you should be able
-to set up a private grid for you and your friends almost as easily as to
-connect to our public test grid.
+limitations (see roadmap.txt).  Currently it should be noted that the grid
+already depends as little as possible on the accessibility and correctness of
+the introduction server and the vdrive server.  Also note that the choice of
+which servers to use is easily configured -- you should be able to set up a
+private grid for you and your friends almost as easily as to connect to our
+public test grid.
 
 
 SOFTWARE ARCHITECTURE
