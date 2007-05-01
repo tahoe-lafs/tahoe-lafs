@@ -130,7 +130,8 @@ INSTALLING:
 
   To run from a source tree (without installing first), type 'make', which
   will put all the necessary libraries into a local directory named
-  "./instdir/", which you can then add to your PYTHONPATH .
+  "./instdir/lib", which you can then add to your PYTHONPATH .  (It will put
+  executables into "./instdir/bin".)
 
 
  To Test That It Is Properly Installed:
@@ -152,10 +153,10 @@ RUNNING:
 
  If you installed one of the debian packages constructed by "make deb-*" then
  it creates an 'allmydata-tahoe' executable, usually in /usr/bin . If you
- didn't install a package you can find allmydata-tahoe in bin/ . This tool is
- used to create, start, and stop nodes. Each node lives in a separate base
- directory, inside of which you can add files to configure and control the
- node. Nodes also read and write files within that directory.
+ didn't install a package you can find allmydata-tahoe in ./instdir/bin/
+ . This tool is used to create, start, and stop nodes. Each node lives in a
+ separate base directory, inside of which you can add files to configure and
+ control the node. Nodes also read and write files within that directory.
 
  A grid consists of a single central 'introducer and vdrive' node and a large
  number of 'client' nodes. If you are joining an existing grid, the

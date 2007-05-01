@@ -36,33 +36,33 @@ else
 endif
 
 ifneq ($(PYTHONPATH),)
-PYTHONPATH := "$(PYTHONPATH)$(PATHSEP)$(INSTDIR)"
+PYTHONPATH := "$(PYTHONPATH)$(PATHSEP)$(INSTDIR)/lib"
 else
-PYTHONPATH := "$(INSTDIR)"
+PYTHONPATH := "$(INSTDIR)/lib"
 endif
 
 TRIAL=$(PYTHON) -u "$(TRIALPATH)" --rterrors --reactor=$(REACTOR)
 
 show-instdir:
-	@echo $(INSTDIR)
+	@echo $(INSTDIR)/lib
 
 PP=PYTHONPATH=$(PYTHONPATH)
 
 .PHONY: build
 build: build-zfec build-Crypto build-foolscap
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="" --root="$(INSTDIR)" --install-lib="" --install-scripts="scripts"
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="lib" --install-scripts="bin"
 
 build-zfec:
 	cd src/zfec &&  \
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="" --root="$(INSTDIR)" --install-lib="" --install-scripts="scripts"
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="lib" --install-scripts="bin"
 
 build-foolscap:
 	cd src/foolscap && \
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="" --root="$(INSTDIR)" --install-lib="" --install-scripts="scripts"
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="lib" --install-scripts="bin"
 
 build-Crypto:
 	cd src/Crypto && \
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="" --root="$(INSTDIR)" --install-lib="" --install-scripts="scripts"
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="lib" --install-scripts="bin"
 
 clean-zfec:
 	-cd src/zfec && \
@@ -120,7 +120,7 @@ test-figleaf: build
 	$(PP) $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
 
 figleaf-output:
-	$(PP) $(PYTHON) misc/figleaf2html -d coverage-html -r $(INSTDIR) -x misc/figleaf.excludes
+	$(PP) $(PYTHON) misc/figleaf2html -d coverage-html -r $(INSTDIR)/lib -x misc/figleaf.excludes
 	@echo "now point your browser at coverage-html/index.html"
 # after doing test-figleaf and figleaf-output, point your browser at
 # coverage-html/index.html
@@ -136,7 +136,7 @@ upload-figleaf:
 endif
 
 .figleaf.el: .figleaf
-	$(PP) $(PYTHON) misc/figleaf2el.py .figleaf $(INSTDIR)
+	$(PP) $(PYTHON) misc/figleaf2el.py .figleaf $(INSTDIR)/lib
 
 pyflakes:
 	$(PP) $(PYTHON) -OOu `which pyflakes` src/allmydata
