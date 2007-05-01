@@ -55,8 +55,14 @@ trove_classifiers=[
     "Topic :: System :: Archiving", 
     ]
 
+import re
+VSRE=re.compile("verstr=['\"]([^'\"]*)['\"]")
+verstrline=open("src/allmydata/__init__.py").readline()
+mo = VSRE.search(verstrline)
+verstr = mo.group(1)
+
 setup(name='allmydata-tahoe',
-      version='0.2.0b1',
+      version=verstr,
       description='secure, distributed storage grid',
       long_description="""Welcome to the AllMyData "tahoe" project. This project implements a
 secure, distributed, fault-tolerant storage grid.

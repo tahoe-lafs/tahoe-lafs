@@ -175,13 +175,13 @@ create_dirs:
 	mkdir -p client-basedir/storage
 	mkdir -p client-basedir2/storage
 
-DEBVER=`head -1 debian/changelog | sed -e 's/^[^(]*(\([^)]*\)).*$$/\1/' | sed -e 's/^\([0-9]\+\.[0-9]\+\.[0-9]\+\).*$$/\1/'`
-DEBSTRING=$(DEBVER)-T`date +%s`
+VER=$(shell python -c "import os,re;print re.search(\"verstr=['\\\"](.*?)['\\\"]\", open(os.path.join('src', 'allmydata', '__init__.py')).readline()).group(1)")
+DEBSTRING=$(VER)-T`date +%s`
 DEBCOMMENTS="'make deb' build"
 
 show:
-	echo $(DEBVER)
-	echo $(DEBSTRING)
+	@echo $(VER)
+	@echo $(DEBSTRING)
 
 .PHONY: setup-dapper setup-sid setup-edgy setup-feisty
 .PHONY: deb-dapper deb-sid deb-edgy deb-feisty
