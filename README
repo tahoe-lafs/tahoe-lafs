@@ -32,14 +32,14 @@ DEPENDENCIES:
  Note: All of the following dependencies can probably be installed through
  your standard package management tool if you are running on a modern Unix
  operating system.  If you are running any modern Linux or *BSD distribution
- then you can almost certainly get them through your standard package
- manager.  If you are running Mac OS X then the "fink" package management
- tool does not have most of these packages, but the "darwinports" package
- management tool appears to have them.  If you are running on Windows then
- I'm afraid you'll have to install them by hand (although the "cygwin"
- package management tool does have some of them).  If you are running on
- Solaris, I would like to hear from you -- I have no idea how it is done on
- Solaris nowadays.
+ then you can get them through your standard package manager.  If you are
+ running Mac OS X then be warned that the "fink" package management tool does
+ not have most of these packages, but the "darwinports" package management
+ tool appears to have them.  If you are running on Windows then I'm afraid
+ you'll have to install them by hand (although the "cygwin" package
+ management tool does have some of them).  If you are running on Solaris, 
+ I would like to hear from you -- I have no idea how it is done on Solaris 
+ nowadays.
 
  * a C compiler (language)
 
@@ -75,8 +75,8 @@ DEPENDENCIES:
    Note: the build process will automatically download and install setuptools
    if it is not present.  However, if an old, incompatible version of
    setuptools (< v0.6c3) is present then the build will fail.  Therefore, if
-   the build fails due to setuptools not being compatible, then either
-   upgrade or uninstall your version of setuptools and then try again.
+   the build fails due to setuptools not being compatible, you can either
+   upgrade or uninstall your version of setuptools and try again.
 
  * Python PyOpenSSL (0.6 or later) (secure transport layer)
 
