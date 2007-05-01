@@ -116,9 +116,13 @@ REPORTER=
 
 # use 'make test REPORTER=--reporter=bwverbose' from buildbot, to supress the
 # ansi color sequences
-test: build
-	$(PP) $(TRIAL) $(REPORTER) $(TEST) ;
+test: build test-foolscap test-TEST
+
+test-foolscap:
 	cd src/foolscap && $(TRIAL) $(REPORTER) foolscap
+
+test-TEST:
+	$(PP) $(TRIAL) $(REPORTER) $(TEST)
 
 test-figleaf: build
 	rm -f .figleaf
