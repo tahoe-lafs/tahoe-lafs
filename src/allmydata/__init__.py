@@ -1,4 +1,4 @@
-verstr="0.2.0b1-0-UNSTABLE"
+verstr="0.2.0b2-0-UNSTABLE"
 # The line is placed above so that it can be easily read by build scripts.
 
 """
