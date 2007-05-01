@@ -118,7 +118,7 @@ REPORTER=
 # ansi color sequences
 test: build
 	$(PP) $(TRIAL) $(REPORTER) $(TEST) ;
-	cd src/foolscap && $(PP) $(TRIAL) $(REPORTER) foolscap
+	cd src/foolscap && $(TRIAL) $(REPORTER) foolscap
 
 test-figleaf: build
 	rm -f .figleaf
