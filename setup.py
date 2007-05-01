@@ -56,7 +56,7 @@ trove_classifiers=[
     ]
 
 setup(name='allmydata-tahoe',
-      version='0.1.4b2',
+      version='0.2.0b1',
       description='secure, distributed storage grid',
       long_description="""Welcome to the AllMyData "tahoe" project. This project implements a
 secure, distributed, fault-tolerant storage grid.
