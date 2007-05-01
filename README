@@ -72,6 +72,12 @@ DEPENDENCIES:
 
    http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
 
+   Note: the build process will automatically download and install setuptools
+   if it is not present.  However, if an old, incompatible version of
+   setuptools (< v0.6c3) is present then the build will fail.  Therefore, if
+   the build fails due to setuptools not being compatible, then either
+   upgrade or uninstall your version of setuptools and then try again.
+
  * Python PyOpenSSL (0.6 or later) (secure transport layer)
 
    http://pyopenssl.sourceforge.net
@@ -112,8 +118,9 @@ INSTALLING:
  The Debian Way:
 
   If you're running on a debian system, use 'make deb-dapper', 'make
-  deb-sid', 'make deb-edgy', or 'make deb-feisty' to construct a debian
-  package named 'allmydata-tahoe', which you can then install.
+  deb-sid', 'make deb-edgy', or 'make deb-feisty' to construct two debian
+  packages named 'allmydata-tahoe' and 'python-foolscap' which you can then
+  install.
 
  The Python Way:
 
