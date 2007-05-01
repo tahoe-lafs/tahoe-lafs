@@ -35,6 +35,8 @@ else
  endif
 endif
 
+ORIGPYTHONPATH=$(PYTHONPATH)
+
 # Append instdir/lib instead of prepending it so that people can override
 # things from lib with alternate packages of their choosing by setting their
 # PYTHONPATH.
@@ -119,7 +121,7 @@ REPORTER=
 test: build test-foolscap test-TEST
 
 test-foolscap:
-	cd src/foolscap && $(TRIAL) $(REPORTER) foolscap
+	cd src/foolscap && PYTHONPATH=$(ORIGPYTHONPATH) $(TRIAL) $(REPORTER) foolscap
 
 test-TEST:
 	$(PP) $(TRIAL) $(REPORTER) $(TEST)
