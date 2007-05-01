@@ -110,14 +110,15 @@ stop-introducer: build
 .PHONY: test
 
 ifeq ($(TEST),)
-TEST=allmydata zfec foolscap
+TEST=allmydata zfec
 endif
 REPORTER=
 
 # use 'make test REPORTER=--reporter=bwverbose' from buildbot, to supress the
 # ansi color sequences
 test: build
-	$(PP) $(TRIAL) $(REPORTER) $(TEST)
+	$(PP) $(TRIAL) $(REPORTER) $(TEST) ;
+	cd src/foolscap && $(PP) $(TRIAL) $(REPORTER) foolscap
 
 test-figleaf: build
 	rm -f .figleaf
