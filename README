@@ -126,9 +126,10 @@ INSTALLING:
 
  The Debian Way:
 
-  This requires debian packages build-essential, fakeroot, debhelper, and of
-  the packages listed as "Build-Depends" in DIST/debian/control for your
-  distribution.
+  This requires the debian packages build-essential and fakeroot, and the
+  packages listed as "Build-Depends" in the DIST/debian/control in the
+  top-level tahoe directory, replacing the word DIST with etch, dapper, edgy,
+  or feisty as appropriate:
 
   If you're running on a debian system, run 'make deb-dapper', 'make
   deb-sid', 'make deb-edgy', or 'make deb-feisty', from within the tahoe
