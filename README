@@ -160,19 +160,19 @@ INSTALLING:
   executables into "./instdir/bin".)
 
 
- To Test That It Is Properly Installed:
+TESTING THAT IT IS PROPERLY INSTALLED
 
-  To test that all the modules got installed properly, start a python
-  interpreter and import modules as follows:
+ To test that all the modules got installed properly, start a python
+ interpreter and import modules as follows:
 
-   % python
-   Python 2.4.4 (#2, Jan 13 2007, 17:50:26)
-   [GCC 4.1.2 20061115 (prerelease) (Debian 4.1.1-21)] on linux2
-   Type "help", "copyright", "credits" or "license" for more information.
-   >>> import zfec
-   >>> import allmydata.Crypto
-   >>> import foolscap
-   >>> import allmydata.interfaces
+  % python
+  Python 2.4.4 (#2, Jan 13 2007, 17:50:26)
+  [GCC 4.1.2 20061115 (prerelease) (Debian 4.1.1-21)] on linux2
+  Type "help", "copyright", "credits" or "license" for more information.
+  >>> import zfec
+  >>> import allmydata.Crypto
+  >>> import foolscap
+  >>> import allmydata.interfaces
 
 
 RUNNING:
