@@ -9,6 +9,22 @@ The interface to the storage grid allows you to store and fetch files, either
 by self-authenticating cryptographic identifier or by filename and path.
 
 
+GETTING PRECOMPILED PACKAGES FOR DEBIAN-LIKE SYSTEMS:
+
+ To install debian packages for etch, dapper, edgy, or feisty, add the
+ following lines to your /etc/apt/sources.list, replacing the word DIST with
+ etch, dapper, edgy, or feisty as appropriate:
+
+  deb http://allmydata.org/debian/  DIST  main tahoe
+  deb-src http://allmydata.org/debian/  DIST  main tahoe
+
+ Then update and install the allmydata-tahoe package.  These packages are
+ generated each time the code is changed, and represent the most up-to-date
+ (read "unstable") version available.  The usual warnings about no guarantees
+ apply: it might cause your computer to catch fire, might steal your dog,
+ etc.
+
+
 GETTING THE SOURCE CODE:
 
  The code is available via darcs by running the following command:
