@@ -115,10 +115,10 @@ BUILDING FROM SOURCE:
 
 BUILDING:
 
- Just type 'make'.  This works on Windows too, provided that you have the
- dependencies mentioned above (either a normal cygwin build or a mingw-style
- native build is supported by the makefile -- the cygwin build is the
- default).
+ Just type 'make' in the toplevel tahoe directory.  This works on Windows
+ too, provided that you have the dependencies mentioned above (either a
+ normal cygwin build or a mingw-style native build is supported by the
+ makefile -- the cygwin build is the default).
 
  If the desired version of 'python' is not already on your PATH, then type
  'make PYTHON=/path/to/your/preferred/python'.
