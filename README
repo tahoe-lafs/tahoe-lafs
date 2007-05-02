@@ -133,10 +133,10 @@ INSTALLING:
 
  The Debian Way:
 
-  If you're running on a debian system, use 'make deb-dapper', 'make
-  deb-sid', 'make deb-edgy', or 'make deb-feisty' to construct two debian
-  packages named 'allmydata-tahoe' and 'python-foolscap' which you can then
-  install.
+  If you're running on a debian system, run 'make deb-dapper', 'make
+  deb-sid', 'make deb-edgy', or 'make deb-feisty', from within the tahoe
+  top-level directory, to construct two debian packages named
+  'allmydata-tahoe' and 'python-foolscap' which you can then install
 
  The Python Way:
 
