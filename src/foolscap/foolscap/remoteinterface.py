@@ -18,7 +18,7 @@ class RemoteInterfaceClass(interface.InterfaceClass):
      __remote_name__: can be set to a string to specify the globally-unique
                       name for this interface. This should be a URL in a
                       namespace you administer. If not set, defaults to the
-                      fully qualified classname.
+                      short classname.
 
     RIFoo.names() returns the list of remote method names.
 

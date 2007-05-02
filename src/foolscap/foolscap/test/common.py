@@ -10,7 +10,8 @@ from foolscap.eventual import eventually, fireEventually, flushEventualQueue
 from foolscap.remoteinterface import getRemoteInterface, RemoteMethodSchema, \
      UnconstrainedMethod
 from foolscap.schema import Any, SetOf, DictOf, ListOf, TupleOf, \
-     NumberConstraint, StringConstraint, IntegerConstraint
+     NumberConstraint, ByteStringConstraint, IntegerConstraint, \
+     UnicodeConstraint
 
 from twisted.python import failure
 from twisted.internet.main import CONNECTION_DONE
@@ -60,12 +61,14 @@ Digits = re.compile("\d*")
 MegaSchema1 = DictOf(str,
                      ListOf(TupleOf(SetOf(int, maxLength=10, mutable=True),
                                     str, bool, int, long, float, None,
+                                    UnicodeConstraint(),
+                                    ByteStringConstraint(),
                                     Any(), NumberConstraint(),
                                     IntegerConstraint(),
-                                    StringConstraint(maxLength=100,
-                                                     minLength=90,
-                                                     regexp="\w+"),
-                                    StringConstraint(regexp=Digits),
+                                    ByteStringConstraint(maxLength=100,
+                                                         minLength=90,
+                                                         regexp="\w+"),
+                                    ByteStringConstraint(regexp=Digits),
                                     ),
                             maxLength=20),
                      maxKeys=5)
@@ -215,6 +218,7 @@ class RIMyTarget(RemoteInterface):
     def getName(): return str
     disputed = RemoteMethodSchema(_response=int, a=int)
     def fail(): return str  # actually raises an exception
+    def failstring(): return str # raises a string exception
 
 class RIMyTarget2(RemoteInterface):
     __remote_name__ = "RIMyTargetInterface2"
@@ -262,6 +266,8 @@ class Target(Referenceable):
         return 24
     def remote_fail(self):
         raise ValueError("you asked me to fail")
+    def remote_failstring(self):
+        raise "string exceptions are annoying"
 
 class TargetWithoutInterfaces(Target):
     # undeclare the RIMyTarget interface

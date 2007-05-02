@@ -527,8 +527,7 @@ class Banana(protocol.Protocol):
 
     def sendError(self, msg):
         if len(msg) > SIZE_LIMIT:
-            raise BananaError, \
-                  "error string is too long to send (%d)" % len(msg)
+            msg = msg[:SIZE_LIMIT-10] + "..."
         int2b128(len(msg), self.transport.write)
         self.transport.write(ERROR)
         self.transport.write(msg)
@@ -711,28 +710,27 @@ class Banana(protocol.Protocol):
                     (repr(buffer),))
             self.buffer = buffer
             pos = 0
+
             for ch in buffer:
                 if ch >= HIGH_BIT_SET:
                     break
                 pos = pos + 1
-                # TODO: the 'pos > 64' test should probably move here. If
-                # not, a huge chunk will consume more CPU than it needs to.
-                # On the other hand, the test would consume extra CPU all
-                # the time.
-            else:
                 if pos > 64:
-                    # drop the connection
+                    # drop the connection. We log more of the buffer, but not
+                    # all of it, to make it harder for someone to spam our
+                    # logs.
                     raise BananaError("token prefix is limited to 64 bytes: "
-                                      "but got %r" % (buffer[:pos],))
-                return # still waiting for header to finish
+                                      "but got %r" % (buffer[:200],))
+            else:
+                # we've run out of buffer without seeing the high bit, which
+                # means we're still waiting for header to finish
+                return
+            assert pos <= 64
 
             # At this point, the header and type byte have been received.
             # The body may or may not be complete.
 
             typebyte = buffer[pos]
-            if pos > 64:
-                # redundant?
-                raise BananaError("token prefix is limited to 64 bytes")
             if pos:
                 header = b1282int(buffer[:pos])
             else:

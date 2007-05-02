@@ -1,4 +1,135 @@
+2007-05-02  Brian Warner  <warner@lothar.com>
+
+	* foolscap/reconnector.py (Reconnector._failed): simplify
+	log/no-log logic
+
+	* foolscap/slicers/unicode.py (UnicodeConstraint): add a new
+	constraint that only accepts unicode objects. It isn't complete:
+	I've forgotten how the innards of Constraints work, and as a
+	result this one is too permissive: it will probably accept too
+	many tokens over the wire before raising a Violation (although the
+	post-receive just-before-the-method-is-called check should still
+	be enforced, so application code shouldn't notice the issue).
+	* foolscap/test/test_schema.py (ConformTest.testUnicode): test it
+	(CreateTest.testMakeConstraint): check the typemap too
+	* foolscap/test/test_call.py (TestCall.testMegaSchema): test in a call
+	* foolscap/test/common.py: same
+
+	* foolscap/constraint.py (ByteStringConstraint): rename
+	StringConstraint to ByteStringConstraint, to more accurately
+	describe its function. This constraint will *not* accept unicode
+	objects.
+	* foolscap/call.py, foolscap/copyable.py, foolscap/referenceable.py:
+	* foolscap/slicers/vocab.py: same
+
+	* foolscap/schema.py (AnyStringConstraint): add a new constraint
+	to accept either bytestrings or unicode objects. I don't think it
+	actually works yet, particularly when used inside containers.
+	(constraintMap): map 'str' to ByteStringConstraint for now. Maybe
+	someday it should be mapped to AnyStringConstraint, but not today.
+	Map 'unicode' to UnicodeConstraint.
+
+
+	* foolscap/pb.py (Tub.getReference): assert that the Tub is
+	already running, either because someone called Tub.startService(),
+	or because we've been attached (with tub.setServiceParent) to a
+	running service. This requirement appeared with the
+	connector-tracking code, and I hope to relax it at some
+	point (such that any pre-startService getReferences will be queued
+	and serviced when the Tub is finally started), but for this
+	release it is a requirement to start the service before trying to
+	use it.
+	(Tub.connectTo): same
+	* doc/using-pb.xhtml: document it
+	* doc/listings/pb1client.py: update example to match
+	* doc/listings/pb2client.py: update example to match
+	* doc/listings/pb3client.py: update example to match
+
+	* foolscap/pb.py (Tub.connectorFinished): if, for some reason,
+	we're removing the same connector twice, log and ignore rather
+	than explode. I can't find a code path that would allow this, but
+	I *have* seen it occur in practice, and the results aren't pretty.
+	Since the whole connection-tracking thing is really for the
+	benefit of unit tests anyways (who want to know when
+	Tub.stopService is done), I think it's more important to keep
+	application code running.
+
+	* foolscap/negotiate.py (TubConnector.shutdown): clear out
+	self.remainingLocations too, in case it helps to shut things down
+	faster. Add some comments.
+
+	* foolscap/negotiate.py (Negotiation): improve error-message
+	delivery, by keeping track of what state the receiver is in (i.e.
+	whether we should send them an HTTP error block, an rfc822-style
+	error-block, or a banana ERROR token).
+	(Negotiation.switchToBanana): empty self.buffer, to make sure that
+	any extra data is passed entirely to the new Banana protocol and
+	none of it gets passed back to ourselves
+	(Negotiation.dataReceived): same, only recurse if there's something
+	still in self.buffer. In other situtations we recurse here because
+	we might have somehow received data for two separate phases in a
+	single packet.
+
+	* foolscap/banana.py (Banana.sendError): rather than explode when
+	trying to send an overly-long error message, just truncate it.
+
+2007-04-30  Brian Warner  <warner@lothar.com>
+
+	* foolscap/broker.py (Broker.notifyOnDisconnect): if the
+	RemoteReference is already dead, notify the callback right away.
+	Previously we would never notify them, which was a problem.
+	(Broker.dontNotifyOnDisconnect): be tolerant of attempts to
+	unregister callbacks that have already fired. I think this makes it
+	easier to write correct code, but on the other hand it loses the
+	assertion feedback if somebody tries to unregister something that
+	was never registered in the first place.
+	* foolscap/test/test_call.py (TestCall.testNotifyOnDisconnect):
+	test this new tolerance
+	(TestCall.testNotifyOnDisconnect_unregister): same
+	(TestCall.testNotifyOnDisconnect_already): test that a handler
+	fires when the reference was already broken
+
+	* foolscap/call.py (InboundDelivery.logFailure): don't use
+	f.getTraceback() on string exceptions: twisted explodes
+	(FailureSlicer.getStateToCopy): same
+	* foolscap/test/test_call.py (TestCall.testFailStringException):
+	skip the test on python2.5, since string exceptions are deprecated
+	anyways and I don't want the warning message to clutter the test
+	logs
+
+	* doc/using-pb.xhtml (RemoteInterfaces): document the fact that
+	the default name is *not* fully-qualified, necessitating the use
+	of __remote_name__ to distinguish between foo.RIBar and baz.RIBar
+	* foolscap/remoteinterface.py: same
+
+	* foolscap/call.py (FailureSlicer.getStateToCopy): handle string
+	exceptions without exploding, annoying as they are.
+	* foolscap/test/test_call.py (TestCall.testFail4): test them
+
 2007-04-27  Brian Warner  <warner@lothar.com>
+
+	* foolscap/broker.py (Broker.freeYourReference._ignore_loss):
+	change the way we ignore DeadReferenceError and friends, since
+	f.trap is not suitable for direct use as an errback
+
+	* foolscap/referenceable.py (SturdyRef.__init__): log the repr of
+	the unparseable FURL, rather than just the str, in case there are
+	weird control characters in it
+
+	* foolscap/banana.py (Banana.handleData): rewrite the typebyte
+	scanning loop, to remove the redundant pos<64 check. Also, if we
+	get an overlong prefix, log it so we can figure out what's going
+	wrong.
+	* foolscap/test/test_banana.py: update to match
+
+	* foolscap/negotiate.py (Negotiation.dataReceived): if a
+	non-NegotiationError exception occurs, log it, since it indicates
+	a foolscap coding failure rather than some disagreement with the
+	remote end. Log it with 'log.msg' for now, since some of the unit
+	tests seem to trigger startTLS errors that flunk tests which
+	should normally pass. I suspect some problems with error handling
+	in twisted's TLS implementation, but I'll have to investigate it
+	later. Eventually this will turn into a log.err.
 
 	* foolscap/pb.py (Tub.keepaliveTimeout): set the default keepalive
 	timer to 4 minutes. This means that at most 8 minutes will go by

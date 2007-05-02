@@ -16,7 +16,7 @@ from twisted.python import failure
 from foolscap import ipb, slicer, tokens, call
 BananaError = tokens.BananaError
 Violation = tokens.Violation
-from foolscap.constraint import IConstraint, StringConstraint
+from foolscap.constraint import IConstraint, ByteStringConstraint
 from foolscap.remoteinterface import getRemoteInterface, \
      getRemoteInterfaceByName, RemoteInterfaceConstraint
 from foolscap.schema import constraintMap
@@ -187,8 +187,8 @@ class ReferenceUnslicer(slicer.BaseUnslicer):
     clid = None
     interfaceName = None
     url = None
-    inameConstraint = StringConstraint(200) # TODO: only known RI names?
-    urlConstraint = StringConstraint(200)
+    inameConstraint = ByteStringConstraint(200) # TODO: only known RI names?
+    urlConstraint = ByteStringConstraint(200)
 
     def checkToken(self, typebyte, size):
         if self.state == 0:
@@ -599,7 +599,7 @@ class TheirReferenceUnslicer(slicer.LeafUnslicer):
     state = 0
     giftID = None
     url = None
-    urlConstraint = StringConstraint(200)
+    urlConstraint = ByteStringConstraint(200)
 
     def checkToken(self, typebyte, size):
         if self.state == 0:
@@ -693,7 +693,7 @@ class SturdyRef(Copyable, RemoteCopy):
                 self.tubID = None
                 self.location = url[:slash]
             else:
-                raise ValueError("unknown PB-URL prefix in '%s'" % url)
+                raise ValueError("unknown FURL prefix in %r" % (url,))
 
     def getTubRef(self):
         if self.encrypted:

@@ -1052,8 +1052,7 @@ class DecodeFailureTest(TestBananaMixin, unittest.TestCase):
         # would be a string but the header is too long
         s = "\x01" * 66 + "\x82" + "stupidly long string"
         f = self.shouldDropConnection(s)
-        self.failUnlessEqual(f.value.args[0],
-                             "token prefix is limited to 64 bytes")
+        self.failUnless(f.value.args[0].startswith("token prefix is limited to 64 bytes"))
 
     def testLongHeader2(self):
         # bad string while discarding
@@ -1061,8 +1060,7 @@ class DecodeFailureTest(TestBananaMixin, unittest.TestCase):
         s = bOPEN("errorful",0) + bINT(1) + s + bINT(2) + bCLOSE(0)
         self.banana.mode = "start"
         f = self.shouldDropConnection(s)
-        self.failUnlessEqual(f.value.args[0],
-                             "token prefix is limited to 64 bytes")
+        self.failUnless(f.value.args[0].startswith("token prefix is limited to 64 bytes"))
 
     def testCheckToken1(self):
         # violation raised in top.openerCheckToken
@@ -1275,8 +1273,7 @@ class InboundByteStream(TestBananaMixin, unittest.TestCase):
         self.failUnless(f.value.args[0].startswith("token prefix is limited to 64 bytes"))
         f = self.shouldDropConnection("\x00" * 65 + "\x82")
         self.failUnlessEqual(f.value.where, "<RootUnslicer>")
-        self.failUnlessEqual(f.value.args[0],
-                             "token prefix is limited to 64 bytes")
+        self.failUnless(f.value.args[0].startswith("token prefix is limited to 64 bytes"))
 
         self.check("a", "\x01\x82a")
         self.check("b"*130, "\x02\x01\x82" + "b"*130 + "extra")

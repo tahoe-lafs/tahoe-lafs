@@ -1,7 +1,7 @@
 # -*- test-case-name: foolscap.test.test_banana -*-
 
 from twisted.internet.defer import Deferred
-from foolscap.constraint import Any, StringConstraint
+from foolscap.constraint import Any, ByteStringConstraint
 from foolscap.tokens import Violation, BananaError, INT, STRING
 from foolscap.slicer import BaseSlicer, BaseUnslicer, LeafUnslicer
 from foolscap.slicer import BananaUnslicerRegistry
@@ -57,12 +57,12 @@ class ReplaceVocabUnslicer(LeafUnslicer):
     opentype = ('set-vocab',)
     unslicerRegistry = BananaUnslicerRegistry
     maxKeys = None
-    valueConstraint = StringConstraint(100)
+    valueConstraint = ByteStringConstraint(100)
 
     def setConstraint(self, constraint):
         if isinstance(constraint, Any):
             return
-        assert isinstance(constraint, StringConstraint)
+        assert isinstance(constraint, ByteStringConstraint)
         self.valueConstraint = constraint
 
     def start(self, count):
@@ -144,12 +144,12 @@ class AddVocabUnslicer(BaseUnslicer):
     unslicerRegistry = BananaUnslicerRegistry
     index = None
     value = None
-    valueConstraint = StringConstraint(100)
+    valueConstraint = ByteStringConstraint(100)
 
     def setConstraint(self, constraint):
         if isinstance(constraint, Any):
             return
-        assert isinstance(constraint, StringConstraint)
+        assert isinstance(constraint, ByteStringConstraint)
         self.valueConstraint = constraint
 
     def checkToken(self, typebyte, size):

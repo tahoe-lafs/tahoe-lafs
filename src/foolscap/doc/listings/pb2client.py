@@ -27,10 +27,10 @@ if len(sys.argv) < 2:
     sys.exit(1)
 url = sys.argv[1]
 tub = Tub()
+tub.startService()
 d = tub.getReference(url)
 d.addCallbacks(gotReference, gotError1)
 
-tub.startService()
 reactor.run()
 
 

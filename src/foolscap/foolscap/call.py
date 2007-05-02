@@ -1,13 +1,11 @@
 
-from cStringIO import StringIO
-
 from twisted.python import failure, log, reflect
 from twisted.internet import defer
 
 from foolscap import copyable, slicer, tokens
 from foolscap.eventual import eventually
 from foolscap.copyable import AttributeDictConstraint
-from foolscap.constraint import StringConstraint
+from foolscap.constraint import ByteStringConstraint
 from foolscap.slicers.list import ListConstraint
 from tokens import BananaError, Violation
 
@@ -18,10 +16,10 @@ class FailureConstraint(AttributeDictConstraint):
     klass = failure.Failure
 
     def __init__(self):
-        attrs = [('type', StringConstraint(200)),
-                 ('value', StringConstraint(1000)),
-                 ('traceback', StringConstraint(2000)),
-                 ('parents', ListConstraint(StringConstraint(200))),
+        attrs = [('type', ByteStringConstraint(200)),
+                 ('value', ByteStringConstraint(1000)),
+                 ('traceback', ByteStringConstraint(2000)),
+                 ('parents', ListConstraint(ByteStringConstraint(200))),
                  ]
         AttributeDictConstraint.__init__(self, *attrs)
 
@@ -188,7 +186,10 @@ class InboundDelivery:
                 (self.reqID, self.obj, self.methodname))
         log.msg(" args=%s" % (self.allargs.args,))
         log.msg(" kwargs=%s" % (self.allargs.kwargs,))
-        stack = f.getTraceback()
+        if isinstance(f.type, str):
+            stack = "getTraceback() not available for string exceptions\n"
+        else:
+            stack = f.getTraceback()
         # TODO: trim stack to everything below Broker._doCall
         stack = "LOCAL: " + stack.replace("\n", "\nLOCAL: ")
         log.msg(" the failure was:")
@@ -709,18 +710,28 @@ class FailureSlicer(slicer.BaseSlicer):
         #state['stack'] = []
 
         state = {}
+        # string exceptions show up as obj.value == None and
+        # isinstance(obj.type, str). Normal exceptions show up as obj.value
+        # == text and obj.type == exception class. We need to make sure we
+        # can handle both.
         if isinstance(obj.value, failure.Failure):
             # TODO: how can this happen? I got rid of failure2Copyable, so
             # if this case is possible, something needs to replace it
             raise RuntimeError("not implemented yet")
             #state['value'] = failure2Copyable(obj.value, banana.unsafeTracebacks)
+        elif isinstance(obj.type, str):
+            state['value'] = str(obj.value)
+            state['type'] = obj.type # a string
         else:
             state['value'] = str(obj.value) # Exception instance
-        state['type'] = reflect.qual(obj.type) # Exception class
+            state['type'] = reflect.qual(obj.type) # Exception class
+
         if broker.unsafeTracebacks:
-            io = StringIO()
-            obj.printTraceback(io)
-            state['traceback'] = io.getvalue()
+            if isinstance(obj.type, str):
+                stack = "getTraceback() not available for string exceptions\n"
+            else:
+                stack = obj.getTraceback()
+            state['traceback'] = stack
             # TODO: provide something with globals and locals and HTML and
             # all that cool stuff
         else:

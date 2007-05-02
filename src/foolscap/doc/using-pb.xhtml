@@ -128,6 +128,14 @@ established since last startup. If you have no parent to attach it to, you
 can use <code>startService</code> and <code>stopService</code> on the Tub
 directly.</p>
 
+<p>Note that you must start the Tub before calling <code>getReference</code>
+or <code>connectTo</code>, since both of these trigger network activity, and
+Tubs are supposed to be silent until they are started. In a future release
+this requirement may be relaxed, but the principle of "no network activity
+until the Tub is started" will be maintained, probably by queueing the
+<code>getReference</code> calls and handling them after the Tub been
+started.</p>
+
 <h3>Making your Tub remotely accessible</h3>
 
 <p>To make any of your <code>Referenceable</code>s available, you must make
@@ -256,6 +264,7 @@ base="foolscap.pb.Tub">getReference</code>:</p>
 from foolscap import Tub
 
 tub = Tub()
+tub.startService()
 d = tub.getReference("pb://ABCD@myhost.example.com:12345/math-service")
 def gotReference(remote):
     print "Got the RemoteReference:", remote
@@ -725,10 +734,10 @@ metaclass magic processes all of these attributes only once, immediately
 after the <code>RemoteInterface</code> body has been evaluated.</p>
 
 <p>The <code>RemoteInterface</code> <q>class</q> has a name. Normally this is
-the fully-qualified classname<span
+the (short) classname<span
 class="footnote"><code>RIFoo.__class__.__name__</code>, if
 <code>RemoteInterface</code>s were actually classes, which they're
-not</span>, like <code>package.module.RIFoo</code>. You can override this
+not</span>. You can override this
 name by setting a special <code>__remote_name__</code> attribute on the
 <code>RemoteInterface</code> (again, in the body). This name is important
 because it is externally visible: all <code>RemoteReference</code>s that
@@ -736,12 +745,28 @@ point at your <code>Referenceable</code>s will remember the name of the
 <code>RemoteInterface</code>s it implements. This is what enables the
 type-checking to be performed on both ends of the wire.</p>
 
+<p>In the future, this ought to default to the <b>fully-qualified</b>
+classname (like <code>package.module.RIFoo</code>), so that two
+RemoteInterfaces with the same name in different modules can co-exist. In the
+current release, these two RemoteInterfaces will collide (and provoke an
+import-time error message complaining about the duplicate name). As a result,
+if you have such classes (e.g. </code>foo.RIBar</code> and
+<code>baz.RIBar</code>), you <b>must</b> use <code>__remote_name__</code> to
+distinguish them (by naming one of them something other than
+<code>RIBar</code> to avoid this error.
+
+Hopefully this will be improved in a future version, but it looks like a
+difficult change to implement, so the standing recommendation is to use
+<code>__remote_name__</code> on all your RemoteInterfaces, and set it to a
+suitably unique string (like a URI).</p>
+
 <p>Here's an example:</p>
 
 <pre class="python">
 from foolscap import RemoteInterface, schema
 
 class RIMath(RemoteInterface):
+    __remote_name__ = "RIMath.using-pb.docs.foolscap.twistedmatrix.com"
     def add(a=int, b=int):
         return int
     # declare it with an attribute instead of a function definition

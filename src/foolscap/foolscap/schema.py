@@ -58,9 +58,10 @@ modifiers:
 from foolscap.tokens import Violation, UnknownSchemaType
 
 # make constraints available in a single location
-from foolscap.constraint import Constraint, Any, StringConstraint, \
+from foolscap.constraint import Constraint, Any, ByteStringConstraint, \
      IntegerConstraint, NumberConstraint, \
      UnboundedSchema, IConstraint, Optional, Shared
+from foolscap.slicers.unicode import UnicodeConstraint
 from foolscap.slicers.bool import BooleanConstraint
 from foolscap.slicers.dict import DictConstraint
 from foolscap.slicers.list import ListConstraint
@@ -69,10 +70,10 @@ from foolscap.slicers.tuple import TupleConstraint
 from foolscap.slicers.none import Nothing
 #  we don't import RemoteMethodSchema from remoteinterface.py, because
 #  remoteinterface.py needs to import us (for addToConstraintTypeMap)
-ignored = [Constraint, Any, StringConstraint, IntegerConstraint,
-           NumberConstraint, BooleanConstraint, DictConstraint,
-           ListConstraint, SetConstraint, TupleConstraint, Nothing,
-           Optional, Shared,
+ignored = [Constraint, Any, ByteStringConstraint, UnicodeConstraint,
+           IntegerConstraint, NumberConstraint, BooleanConstraint,
+           DictConstraint, ListConstraint, SetConstraint, TupleConstraint,
+           Nothing, Optional, Shared,
            ] # hush pyflakes
 
 # convenience shortcuts
@@ -82,6 +83,14 @@ ListOf = ListConstraint
 DictOf = DictConstraint
 SetOf = SetConstraint
 
+
+# note: using PolyConstraint (aka ChoiceOf) for inbound tasting is probably
+# not fully vetted. One of the issues would be with something like
+# ListOf(ChoiceOf(TupleOf(stuff), SetOf(stuff))). The ListUnslicer, when
+# handling an inbound Tuple, will do
+# TupleUnslicer.setConstraint(polyconstraint), since that's all it really
+# knows about, and the TupleUnslicer will then try to look inside the
+# polyconstraint for attributes that talk about tuples, and might fail.
 
 class PolyConstraint(Constraint):
     name = "PolyConstraint"
@@ -123,9 +132,17 @@ class PolyConstraint(Constraint):
 
 ChoiceOf = PolyConstraint
 
+def AnyStringConstraint(*args, **kwargs):
+    return ChoiceOf(ByteStringConstraint(*args, **kwargs),
+                    UnicodeConstraint(*args, **kwargs))
+
+# keep the old meaning, for now. Eventually StringConstraint should become an
+# AnyStringConstraint
+StringConstraint = ByteStringConstraint
 
 constraintMap = {
-    str: StringConstraint(),
+    str: ByteStringConstraint(),
+    unicode: UnicodeConstraint(),
     bool: BooleanConstraint(),
     int: IntegerConstraint(),
     long: IntegerConstraint(maxBytes=1024),

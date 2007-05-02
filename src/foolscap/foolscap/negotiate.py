@@ -6,8 +6,9 @@ from twisted.internet import protocol, reactor
 
 from foolscap import broker, referenceable, vocab
 from foolscap.eventual import eventually
-from foolscap.tokens import BananaError, \
-     NegotiationError, RemoteNegotiationError
+from foolscap.tokens import SIZE_LIMIT, ERROR, \
+     BananaError, NegotiationError, RemoteNegotiationError
+from foolscap.banana import int2b128
 
 crypto_available = False
 try:
@@ -36,7 +37,7 @@ def check_inrange(my_min, my_max, decision, name):
         raise NegotiationError("I can't handle %s %d" % (name, decision))
 
 # negotiation phases
-PLAINTEXT, ENCRYPTED, DECIDING, ABANDONED = range(4)
+PLAINTEXT, ENCRYPTED, DECIDING, BANANA, ABANDONED = range(5)
 
 
 # version number history:
@@ -141,7 +142,8 @@ class Negotiation(protocol.Protocol):
     tub = None
     theirTubID = None
 
-    phase = PLAINTEXT
+    receive_phase = PLAINTEXT # we are expecting this
+    send_phase = PLAINTEXT # the other end is expecting this
     encrypted = False
 
     doNegotiation = True
@@ -291,7 +293,7 @@ class Negotiation(protocol.Protocol):
             self.switchToBanana({})
 
     def connectionMadeClient(self):
-        assert self.phase == PLAINTEXT
+        assert self.receive_phase == PLAINTEXT
         # the client needs to send the HTTP-compatible tubid GET,
         # along with the TLS upgrade request
         self.sendPlaintextClient()
@@ -323,6 +325,8 @@ class Negotiation(protocol.Protocol):
         req.append("Connection: Upgrade")
         self.transport.write("\r\n".join(req))
         self.transport.write("\r\n\r\n")
+        # the next thing the other end expects to see is the encrypted phase
+        self.send_phase = ENCRYPTED
 
     def connectionMadeServer(self):
         # the server just waits for the GET message to arrive, but set up the
@@ -353,8 +357,8 @@ class Negotiation(protocol.Protocol):
     def dataReceived(self, chunk):
         if self.debugNegotiation:
             log.msg("dataReceived(isClient=%s,phase=%s,options=%s): '%s'"
-                    % (self.isClient, self.phase, self.options, chunk))
-        if self.phase == ABANDONED:
+                    % (self.isClient, self.receive_phase, self.options, chunk))
+        if self.receive_phase == ABANDONED:
             return
 
         self.buffer += chunk
@@ -371,24 +375,27 @@ class Negotiation(protocol.Protocol):
             if eoh == -1:
                 return
             header, self.buffer = self.buffer[:eoh], self.buffer[eoh+4:]
-            if self.phase == PLAINTEXT:
+            if self.receive_phase == PLAINTEXT:
                 if self.isClient:
                     self.handlePLAINTEXTClient(header)
                 else:
                     self.handlePLAINTEXTServer(header)
-            elif self.phase == ENCRYPTED:
+            elif self.receive_phase == ENCRYPTED:
                 self.handleENCRYPTED(header)
-            elif self.phase == DECIDING:
+            elif self.receive_phase == DECIDING:
                 self.handleDECIDING(header)
             else:
                 assert 0, "should not get here"
-            # there might be some leftover data for the next phase
-            self.dataReceived("")
+            # there might be some leftover data for the next phase.
+            # self.buffer will be emptied when we switchToBanana, so in that
+            # case we won't call the wrong dataReceived.
+            if self.buffer:
+                self.dataReceived("")
 
         except Exception, e:
             why = Failure()
             if self.debugNegotiation:
-                log.msg("negotation had exception: %s" % why)
+                log.msg("negotiation had exception: %s" % why)
             if isinstance(e, RemoteNegotiationError):
                 pass # they've already hung up
             else:
@@ -397,24 +404,33 @@ class Negotiation(protocol.Protocol):
                 if isinstance(e, NegotiationError):
                     errmsg = str(e)
                 else:
+                    log.msg("negotiation had internal error:")
+                    log.msg(why)
                     errmsg = "internal server error, see logs"
                 errmsg = errmsg.replace("\n", " ").replace("\r", " ")
-                if self.phase == PLAINTEXT:
+                if self.send_phase == PLAINTEXT:
                     resp = ("HTTP/1.1 500 Internal Server Error: %s\r\n\r\n"
                             % errmsg)
                     self.transport.write(resp)
-                elif self.phase in (ENCRYPTED, DECIDING):
+                elif self.send_phase in (ENCRYPTED, DECIDING):
                     block = {'banana-decision-version': 1,
                              'error': errmsg,
                              }
                     self.sendBlock(block)
+                elif self.send_phase == BANANA:
+                    self.sendBananaError(errmsg)
+
             self.failureReason = why
             self.transport.loseConnection()
             return
 
-        # TODO: the error-handling needs some work, try to tell the other end
-        # what happened. In certain states we may need to send a header
-        # block, in others we may have to send a banana ERROR token.
+    def sendBananaError(self, msg):
+        if len(msg) > SIZE_LIMIT:
+            msg = msg[:SIZE_LIMIT-10] + "..."
+        int2b128(len(msg), self.transport.write)
+        self.transport.write(ERROR)
+        self.transport.write(msg)
+        # now you should drop the connection
 
     def connectionLost(self, reason):
         # force connectionMade to happen, so connectionLost can occur
@@ -430,7 +446,7 @@ class Negotiation(protocol.Protocol):
         if self.isClient:
             l = self.tub.options.get("debug_gatherPhases")
             if l is not None:
-                l.append(self.phase)
+                l.append(self.receive_phase)
         if not self.failureReason:
             self.failureReason = reason
         self.negotiationFailed()
@@ -513,6 +529,8 @@ class Negotiation(protocol.Protocol):
                                 ])
         self.transport.write(resp)
         self.transport.write("\r\n\r\n")
+        # the next thing they expect is the encrypted block
+        self.send_phase = ENCRYPTED
         self.startENCRYPTED(encrypted)
 
     def sendRedirect(self, redirect):
@@ -553,7 +571,7 @@ class Negotiation(protocol.Protocol):
             self.startTLS(self.tub.myCertificate)
         self.encrypted = encrypted
         # TODO: can startTLS trigger dataReceived?
-        self.phase = ENCRYPTED
+        self.receive_phase = ENCRYPTED
         self.sendHello()
 
     def sendHello(self):
@@ -721,7 +739,9 @@ class Negotiation(protocol.Protocol):
         decision, params = None, None
 
         if iAmTheMaster:
-            # we get to decide everything
+            # we get to decide everything. The other side is now waiting for
+            # a decision block.
+            self.send_phase = DECIDING
             decision = {}
             # combine their 'offer' and our own self.negotiationOffer to come
             # up with a 'decision' to be sent back to the other end, and the
@@ -756,8 +776,9 @@ class Negotiation(protocol.Protocol):
                        }
 
         else:
-            # otherwise, the other side gets to decide
-            pass
+            # otherwise, the other side gets to decide. The next thing they
+            # expect to hear from us is banana.
+            self.send_phase = BANANA
 
 
         if iAmTheMaster:
@@ -769,7 +790,7 @@ class Negotiation(protocol.Protocol):
             self.sendDecision(decision, params)
         else:
             # I am not the master, I receive the decision
-            self.phase = DECIDING
+            self.receive_phase = DECIDING
 
     def evaluateNegotiationVersion2(self, offer):
         # version 2 changes the meaning of reqID=0 in a 'call' sequence, to
@@ -792,6 +813,7 @@ class Negotiation(protocol.Protocol):
                                        self.sendDecision, decision, params):
             return
         self.sendBlock(decision)
+        self.send_phase = BANANA
         self.switchToBanana(params)
 
     def handleDECIDING(self, header):
@@ -916,7 +938,8 @@ class Negotiation(protocol.Protocol):
         b.setTub(self.tub)
         self.transport.protocol = b
         b.makeConnection(self.transport)
-        b.dataReceived(self.buffer)
+        buf, self.buffer = self.buffer, "" # empty our buffer, just in case
+        b.dataReceived(buf) # and hand it to the new protocol
 
         # if we were created as a client, we'll have a TubConnector. Let them
         # know that this connection has succeeded, so they can stop any other
@@ -940,16 +963,16 @@ class Negotiation(protocol.Protocol):
             # track down
             log.msg("Negotiation.negotiationFailed: %s" % reason)
         self.stopNegotiationTimer()
-        if self.phase != ABANDONED and self.isClient:
+        if self.receive_phase != ABANDONED and self.isClient:
             eventually(self.connector.negotiationFailed, self.factory, reason)
-        self.phase = ABANDONED
+        self.receive_phase = ABANDONED
         cb = self.options.get("debug_negotiationFailed_cb")
         if cb:
             # note that this gets called with a NegotiationError, not a
             # Failure
             eventually(cb, reason)
 
-# TODO: make sure code that examines self.phase handles ABANDONED
+# TODO: make sure code that examines self.receive_phase handles ABANDONED
 
 class TubConnectorClientFactory(protocol.ClientFactory, object):
     # this is for internal use only. Application code should use
@@ -1022,7 +1045,7 @@ class TubConnector:
         self.tub = parent
         self.target = tubref
         self.remainingLocations = self.target.getLocations()
-        # attemptedLocations keeps track of where we've already try to
+        # attemptedLocations keeps track of where we've already tried to
         # connect, so we don't try them twice.
         self.attemptedLocations = []
 
@@ -1052,9 +1075,14 @@ class TubConnector:
 
     def shutdown(self):
         self.active = False
+        self.remainingLocations = []
         self.stopConnectionTimer()
         for c in self.pendingConnections.values():
             c.disconnect()
+        # as each disconnect() finishes, it will either trigger our
+        # clientConnectionFailed or our negotiationFailed methods, both of
+        # which will trigger checkForIdle, and the last such message will
+        # invoke self.tub.connectorFinished()
 
     def connectToAll(self):
         while self.remainingLocations:

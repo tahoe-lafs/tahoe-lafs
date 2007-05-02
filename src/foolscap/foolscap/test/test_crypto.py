@@ -78,7 +78,7 @@ class TestPersist(UsefulMixin, unittest.TestCase):
         d = defer.maybeDeferred(s1.stopService)
         d.addCallback(self._testPersist_1, s1, s2, t1, public_url, port)
         return d
-    testPersist.timeout = 10
+    testPersist.timeout = 5
     def _testPersist_1(self, res, s1, s2, t1, public_url, port):
         self.services.remove(s1)
         s3 = Tub(certData=s1.getCertData())
@@ -161,7 +161,7 @@ class TestListeners(UsefulMixin, unittest.TestCase):
         d.addCallback(lambda ref: ref.callRemote('add', a=2, b=2))
         d.addCallback(self._testShared_1)
         return d
-    testShared.timeout = 10
+    testShared.timeout = 5
     def _testShared_1(self, res):
         t1,t2 = self.targets
         self.failUnlessEqual(t1.calls, [(1,1)])

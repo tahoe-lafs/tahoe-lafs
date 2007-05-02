@@ -10,7 +10,7 @@ from twisted.internet import defer
 import slicer, tokens
 from tokens import BananaError, Violation
 from foolscap.constraint import OpenerConstraint, IConstraint, \
-     StringConstraint, UnboundedSchema, Optional
+     ByteStringConstraint, UnboundedSchema, Optional
 
 Interface = interface.Interface
 
@@ -380,7 +380,7 @@ class AttributeDictConstraint(OpenerConstraint):
         seen.append(self)
         total = self.OPENBYTES("attributedict")
         for name, constraint in self.keys.iteritems():
-            total += StringConstraint(len(name)).maxSize(seen)
+            total += ByteStringConstraint(len(name)).maxSize(seen)
             total += constraint.maxSize(seen[:])
         return total
 

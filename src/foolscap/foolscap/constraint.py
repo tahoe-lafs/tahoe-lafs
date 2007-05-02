@@ -105,7 +105,8 @@ class Constraint:
         limit = self.taster.get(typebyte, "not in list")
         if limit == "not in list":
             if self.strictTaster:
-                raise BananaError("invalid token type")
+                raise BananaError("invalid token type: %s" %
+                                  tokenNames[typebyte])
             else:
                 raise Violation("%s token rejected by %s" % \
                                 (tokenNames[typebyte], self.name))
@@ -221,9 +222,9 @@ class Any(Constraint):
 
 # constraints which describe individual banana tokens
 
-class StringConstraint(Constraint):
+class ByteStringConstraint(Constraint):
     opentypes = [] # redundant, as taster doesn't accept OPEN
-    name = "StringConstraint"
+    name = "ByteStringConstraint"
 
     def __init__(self, maxLength=1000, minLength=0, regexp=None):
         self.maxLength = maxLength
@@ -236,9 +237,10 @@ class StringConstraint(Constraint):
             self.regexp = re.compile(regexp)
         self.taster = {STRING: self.maxLength,
                        VOCAB: None}
+
     def checkObject(self, obj, inbound):
-        if not isinstance(obj, (str, unicode)):
-            raise Violation("not a String")
+        if not isinstance(obj, str):
+            raise Violation("not a bytestring")
         if self.maxLength != None and len(obj) > self.maxLength:
             raise Violation("string too long (%d > %d)" %
                             (len(obj), self.maxLength))

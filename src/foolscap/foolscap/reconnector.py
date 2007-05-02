@@ -79,18 +79,23 @@ class Reconnector:
         cb(rref, *args, **kwargs)
 
     def _failed(self, f):
-        # I'd like to trap NegotiationError and basic TCP connection
-        # failures here, but not hide coding errors.
-        if self.verbose:
-            log.msg("Reconnector._failed: %s" % f)
+        # I'd like to quietly handle "normal" problems (basically TCP
+        # failures and NegotiationErrors that result from the target either
+        # not speaking Foolscap or not hosting the Tub that we want), but not
+        # hide coding errors or version mismatches.
+        log_it = self.verbose
+
         # log certain unusual errors, even without self.verbose, to help
         # people figure out why their reconnectors aren't connecting, since
         # the usual getReference errback chain isn't active. This doesn't
         # include ConnectError (which is a parent class of
-        # ConnectionRefusedError)
+        # ConnectionRefusedError), so it won't fire if we just had a bad
+        # host/port, since the way we use connection hints will provoke that
+        # all the time.
         if f.check(RemoteNegotiationError, NegotiationError):
-            if not self.verbose:
-                log.msg("Reconnector._failed: %s" % f)
+            log_it = True
+        if log_it:
+            log.msg("Reconnector._failed (furl=%s): %s" % (self._url, f))
         if not self._active:
             return
         self._delay = min(self._delay * self.factor, self.maxDelay)

@@ -22,10 +22,10 @@ def gotAnswer(answer):
     reactor.stop()
 
 tub = Tub()
+tub.startService()
 d = tub.getReference("pbu://localhost:12345/math-service")
 d.addCallbacks(gotReference, gotError1)
 
-tub.startService()
 reactor.run()
 
 

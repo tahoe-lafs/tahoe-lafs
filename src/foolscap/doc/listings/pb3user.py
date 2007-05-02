@@ -27,8 +27,8 @@ def gotRemote(remote):
 
 url = sys.argv[1]
 tub = Tub()
+tub.startService()
 d = tub.getReference(url)
 d.addCallback(gotRemote)
 
-tub.startService()
 reactor.run()
