@@ -204,7 +204,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             return d1
         d.addCallback(_download_nonexistent_uri)
         return d
-    test_upload_and_download.timeout = 2400
+    test_upload_and_download.timeout = 4800
 
     def flip_bit(self, good):
         return good[:-1] + chr(ord(good[-1]) ^ 0x01)
