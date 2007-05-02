@@ -598,6 +598,7 @@ class Tub(service.MultiService):
             b = self._createLoopbackBroker(tubref)
             # _createLoopbackBroker will call brokerAttached, which will add
             # it to self.brokers
+            # TODO: stash this in self.brokers, so we don't create multiples
             return defer.succeed(b)
 
         d = defer.Deferred()

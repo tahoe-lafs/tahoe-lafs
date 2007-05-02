@@ -1,5 +1,202 @@
 User visible changes in Foolscap (aka newpb/pb2).           -*- outline -*-
 
+* Release 0.1.3 (02 May 2007)
+
+** Incompatibility Warning
+
+The 'keepalive' feature described below adds a new pair of banana tokens,
+PING and PONG, which introduces a compatibility break between 0.1.2 and 0.1.3
+. Older versions would throw an error upon receipt of a PING token, so the
+version-negotiation mechanism is used to prevent banana-v2 (0.1.2) peers from
+connecting to banana-v3 (0.1.3+) peers. Our negotiation mechanism would make
+it possible to detect the older (v2) peer and refrain from using PINGs, but
+that has not been done for this release.
+
+** Tubs must be running before use
+
+Tubs are twisted.application.service.Service instances, and as such have a
+clear distinction between "running" and "not running" states. Tubs are
+started by calling startService(), or by attaching them to a running service,
+or by starting the service that they are already attached to. The design rule
+in operation here is that Tubs are not allowed to perform network IO until
+they are running.
+
+This rule was not enforced completely in 0.1.2, and calls to
+getReference()/connectTo() that occurred before the Tub was started would
+proceed normally (initiating a TCP connection, etc). Starting with 0.1.3,
+this rule *is* enforced. For now, that means that you must start the Tub
+before calling either of these methods, or you'll get an exception. In a
+future release, that may be changed to allow these early calls, and queue or
+otherwise defer the network IO until the Tub is eventually started. (the
+biggest issue is how to warn users who forget to start the Tub, since in the
+face of such a bug the getReference will simply never complete).
+
+** Keepalives
+
+Tubs now keep track of how long a connection has been idle, and will send a
+few bytes (a PING of the other end) if no other traffic has been seen for
+roughly 4 to 8 minutes. This serves two purposes. The first is to convince an
+intervening NAT box that the connection is still in use, to prevent it from
+discarding the connection's table entry, since that would block any further
+traffic. The second is to accelerate the detection of such blocked
+connections, specifically to reduce the size of a window of buggy behavior in
+Foolscap's duplicate-connection detection/suppression code.
+
+This problem arises when client A (behind a low-end NAT box) connects to
+server B, perhaps using connectTo(). The first connection works fine, and is
+used for a while. Then, for whatever reason, A and B are silent for a long
+time (perhaps as short as 20 minutes, depending upon the NAT box). During
+this silence, A's NAT box thinks the connection is no longer in use and drops
+the address-translation table entry. Now suppose that A suddenly decides to
+talk to B. If the NAT box creates a new entry (with a new outbound port
+number), the packets that arrive on B will be rejected, since they do not
+match any existing TCP connections. A sees these rejected packets, breaks the
+TCP connection, and the Reconnector initiates a new connection. Meanwhile, B
+has no idea that anything has gone wrong. When the second connection reaches
+B, it thinks this is a duplicate connection from A, and that it already has a
+perfectly functional (albeit quiet) connection for that TubID, so it rejects
+the connection during the negotiation phase. A sees this rejection and
+schedules a new attempt, which ends in the same result. This has the
+potential to prevent hosts behind NAT boxes from ever reconnecting to the
+other end, at least until the the program at the far end is restarted, or it
+happens to try to send some traffic of its own.
+
+The same problem can occur if a laptop is abruptly shut down, or unplugged
+from the network, then moved to a different network. Similar problems have
+been seen with virtual machine instances that were suspended and moved to a
+different network.
+
+The longer-term fix for this is a deep change to the way duplicate
+connections (and cross-connect race conditions) are handled. The keepalives,
+however, mean that both sides are continually checking to see that the
+connection is still usable, enabling TCP to break the connection once the
+keepalives go unacknowledged for a certain amount of time. The default
+keepalive timer is 4 minutes, and due to the way it is implemented this means
+that no more than 8 minutes will pass without some traffic being sent. TCP
+tends to time out connections after perhaps 15 minutes of unacknowledged
+traffic, which means that the window of unconnectability is probably reduced
+from infinity down to about 25 minutes.
+
+The keepalive-sending timer defaults to 4 minutes, and can be changed by
+calling tub.setOption("keepaliveTimeout", seconds).
+
+In addition, an explicit disconnect timer can be enabled, which tells
+Foolscap to drop the connection unless traffic has been seen within some
+minimum span of time. This timer can be set by calling
+tub.setOption("disconnectTimeout", seconds). Obviously it should be set to a
+higher value than the keepaliveTimeout. This will close connections faster
+than TCP will. Both TCP disconnects and the ones triggered by this
+disconnectTimeout run the risk of false negatives, of course, in the face of
+unreliable networks.
+
+** New constraints
+
+When a tuple appears in a method constraint specification, it now maps to an
+actual TupleOf constraint. Previously they mapped to a ChoiceOf constraint.
+In practice, TupleOf appears to be much more useful, and thus better
+deserving of the shortcut.
+
+For example, a method defined as follows:
+
+  def get_employee(idnumber=int):
+      return (str, int, int)  # (name, room_number, age)
+
+can only return a three-element tuple, in which the first element is a string
+(specifically it conforms to a default StringConstraint), and the second two
+elements are ints (which conform to a default IntegerConstraint, which means
+it fits in a 32-bit signed twos-complement value).
+
+To specify a constraint that can accept alternatives, use ChoiceOf:
+
+  def get_record(key=str):
+      """Return the record (a string) if it is present, or None if
+          it is not present."""
+      return ChoiceOf(str, None)
+
+UnicodeConstraint has been added, with minLength=, maxLength=, and regexp=
+arguments.
+
+The previous StringConstraint has been renamed to ByteStringConstraint (for
+accuracy), and it is defined to *only* accept string objects (not unicode
+objects). 'StringConstraint' itself remains equivalent to
+ByteStringConstraint for now, but in the future it may be redefined to be a
+constraint that accepts both bytestrings and unicode objects. To accomplish
+the bytestring-or-unicode constraint now, you might try
+schema.AnyStringConstraint, but it has not been fully tested, and might not
+work at all.
+
+** Bugfixes
+
+Errors during negotiation were sometimes delivered in the wrong format,
+resulting in a "token prefix is limited to 64 bytes" error message. Several
+error messages (including that one) have been improved to give developers a
+better chance of determining where the actual problem lies.
+
+RemoteReference.notifyOnDisconnect was buggy when called on a reference that
+was already broken: it failed to fire the callback. Now it fires the callback
+soon (using an eventual-send). This should remove a race condition from
+connectTo+notifyOnDisconnect sequences and allow them to operate reliably.
+notifyOnDisconnect() is now tolerant of attempts to remove something twice,
+which should make it easier to use safely.
+
+Remote methods which raise string exceptions should no longer cause Foolscap
+to explode. These sorts of exceptions are deprecated, of course, and you
+shouldn't use them, but at least they won't break Foolscap.
+
+The Reconnector class (accessed by tub.connectTo) was not correctly
+reconnecting in certain cases (which appeared to be particularly common on
+windows). This should be fixed now.
+
+CopyableSlicer did not work inside containers when streaming was enabled.
+Thanks to iacovou-AT-gmail.com for spotting this one.
+
+** Bugs not fixed
+
+Some bugs were identified and characterized but *not* fixed in this release
+
+*** RemoteInterfaces aren't defaulting to fully-qualified classnames
+
+When defining a RemoteInterface, you can specify its name with
+__remote_name__, or you can allow it to use the default name. Unfortunately,
+the default name is only the *local* name of the class, not the
+fully-qualified name, which means that if you have an RIFoo in two different
+.py files, they will wind up with the same name (which will cause an error on
+import, since all RemoteInterfaces known to a Foolscap-using program must
+have unique names).
+
+It turns out that it is rather difficult to determine the fully-qualified
+name of the RemoteInterface class early enough to be helpful. The workaround
+is to always add a __remote_name__ to your RemoteInterface classes. The
+recommendation is to use a globally-unique string, like a URI that includes
+your organization's DNS name.
+
+*** Constraints aren't constraining inbound tokens well enough
+
+Constraints (and the RemoteInterfaces they live inside) serve three purposes.
+The primary one is as documentation, describing how remotely-accessible
+objects behave. The second purpose is to enforce that documentation, by
+inspecting arguments (and return values) before invoking the method, as a
+form of precondition checking. The third is to mitigate denial-of-service
+attacks, in which an attacker sends so much data (or carefully crafted data)
+that the receiving program runs out of memory or stack space.
+
+It looks like several constraints are not correctly paying attention to the
+tokens as they arrive over the wire, such that the third purpose is not being
+achieved. Hopefully this will be fixed in a later release. Application code
+can be unaware of this change, since the constraints are still being applied
+to inbound arguments before they are passed to the method. Continue to use
+RemoteInterfaces as usual, just be aware that you are not yet protected
+against certain DoS attacks.
+
+** Use os.urandom instead of falling back to pycrypto
+
+Once upon a time, when Foolscap was compatible with python2.3 (which lacks
+os.urandom), we would try to use PyCrypto's random-number-generation routines
+when creating unguessable object identifiers (aka "SwissNumbers"). Now that
+we require python2.4 or later, this fallback has been removed, eliminating
+the last reference to pycrypto within the Foolscap source tree.
+
+
 * Release 0.1.2 (04 Apr 2007)
 
 ** Bugfixes

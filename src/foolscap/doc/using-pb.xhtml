@@ -750,7 +750,7 @@ classname (like <code>package.module.RIFoo</code>), so that two
 RemoteInterfaces with the same name in different modules can co-exist. In the
 current release, these two RemoteInterfaces will collide (and provoke an
 import-time error message complaining about the duplicate name). As a result,
-if you have such classes (e.g. </code>foo.RIBar</code> and
+if you have such classes (e.g. <code>foo.RIBar</code> and
 <code>baz.RIBar</code>), you <b>must</b> use <code>__remote_name__</code> to
 distinguish them (by naming one of them something other than
 <code>RIBar</code> to avoid this error.

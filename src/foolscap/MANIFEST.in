@@ -1,5 +1,5 @@
 include ChangeLog MANIFEST.in NEWS
-include doc/*.txt doc/*.xhtml
+include doc/*.txt doc/*.xhtml doc/*.css doc/template.tpl
 include doc/listings/*.py
 include doc/specifications/*.xhtml
 include Makefile
@@ -8,3 +8,5 @@ include misc/edgy/debian/*
 include misc/feisty/debian/*
 include misc/sid/debian/*
 include misc/sarge/debian/*
+include misc/testutils/*
+include misc/testutils/twisted/plugins/*
