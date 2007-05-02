@@ -101,13 +101,6 @@ BUILDING FROM SOURCE:
       To install PyOpenSSL on Windows-native, download this:
       http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.5.exe
 
-    + build-essential and fakeroot: only required to build .deb packages
-
-      Also all of the packages listed as "Build-Depends" in
-      DIST/debian/control for your distribution.
-
-      You can do "apt-get install build-essential fakeroot"
-
     + the pywin32 package: only required on Windows
 
       http://sourceforge.net/projects/pywin32/
@@ -132,6 +125,10 @@ BUILDING:
 INSTALLING:
 
  The Debian Way:
+
+  This requires debian packages build-essential, fakeroot, debhelper, and of
+  the packages listed as "Build-Depends" in DIST/debian/control for your
+  distribution.
 
   If you're running on a debian system, run 'make deb-dapper', 'make
   deb-sid', 'make deb-edgy', or 'make deb-feisty', from within the tahoe
