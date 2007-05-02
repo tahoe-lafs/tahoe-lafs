@@ -8,6 +8,11 @@ majority of the nodes are no longer available.
 The interface to the storage grid allows you to store and fetch files, either
 by self-authenticating cryptographic identifier or by filename and path.
 
+See the web site for all kinds of information, news, and community
+contributions, including prebuilt packages for Debian-like systems:
+
+http://allmydata.org
+
 
 LICENCE:
 
@@ -17,93 +22,74 @@ LICENCE:
  this obligation for up to 12 months.  See the COPYING file for details.
 
 
-GETTING PRECOMPILED PACKAGES FOR DEBIAN-LIKE SYSTEMS:
+GETTING THE SOURCE CODE:
 
- At this time, precompiled packages are available only for Debian-like
- systems.
+The code is available via darcs by running the following command:
 
- To install debian packages for etch, dapper, edgy, or feisty, add the
- following lines to your /etc/apt/sources.list, replacing the word DIST with
- etch, dapper, edgy, or feisty as appropriate:
+darcs get http://allmydata.org/source/tahoe/trunk tahoe
 
-  deb http://allmydata.org/debian/  DIST  main tahoe
-  deb-src http://allmydata.org/debian/  DIST  main tahoe
+Tarballs of sources are available at:
 
- Then update and install the allmydata-tahoe package.  These packages are
- generated each time the code is changed, and represent the most up-to-date
- (read "unstable") version available.  The usual warnings about no guarantees
- apply: it might cause your computer to catch fire, might steal your dog,
- etc.
+http://allmydata.org/source/tahoe/
 
 
-BUILDING FROM SOURCE:
+DEPENDENCIES:
 
- * getting the source code:
+Note: All of the following dependencies can probably be installed through
+your standard package management tool if you are running on a modern Unix
+operating system.
 
-   The code is available via darcs by running the following command:
+For example, on an debian-like system, you can do "sudo apt-get install
+gcc make python-dev python-twisted python-nevow python-pyopenssl".
 
-   darcs get http://allmydata.org/source/tahoe/trunk tahoe
+ + a C compiler (language)
 
-   See http://allmydata.org for all kinds of information, news, and community
-   contributions.
+ + GNU make (build tool)
 
- * dependencies:
+ + Python 2.4 or newer (tested against 2.4, and 2.5.1, but v2.5 or higher
+   is required on Windows-native), including development headers (language)
 
-   Note: All of the following dependencies can probably be installed through
-   your standard package management tool if you are running on a modern Unix
-   operating system.
+   http://python.org/
 
-   For example, on an debian-like system, you can do "sudo apt-get install
-   gcc make python-dev python-twisted python-nevow python-pyopenssl".
+ + Python Twisted (tested against both 2.4 and 2.5) (network and operating
+   system integration library)
 
-    + a C compiler (language)
+   http://twistedmatrix.com/
 
-    + GNU make (build tool)
+   You need the following subpackages, which are included in the default
+   Twisted distribution:
 
-    + Python 2.4 or newer (tested against 2.4, and 2.5.1, but v2.5 or higher
-      is required on Windows-native), including development headers (language)
+   * core (the standard Twisted package)
+   * web, trial, conch
 
-      http://python.org/
+   Twisted requires zope.interface, a copy of which is included in the
+   Twisted distribution.
 
-    + Python Twisted (tested against both 2.4 and 2.5) (network and operating
-      system integration library)
+ + Python Nevow (probably 0.9.0 or later) (web presentation language)
 
-      http://twistedmatrix.com/
+   http://divmod.org/trac/wiki/DivmodNevow
 
-      You need the following subpackages, which are included in the default
-      Twisted distribution:
+ + Python setuptools (build and distribution tool)
 
-      * core (the standard Twisted package)
-      * web, trial, conch
+   Note: The build process will automatically download and install
+   setuptools if it is not present.  However, if an old, incompatible
+   version of setuptools (< v0.6c3) is present, then the build will fail.
+   Therefore, if the build fails due to setuptools not being compatible,
+   you can either upgrade or uninstall your version of setuptools and try
+   again.
 
-      Twisted requires zope.interface, a copy of which is included in the
-      Twisted distribution.
+   http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
 
-    + Python Nevow (probably 0.9.0 or later) (web presentation language)
+ + Python PyOpenSSL (0.6 or later) (secure transport layer)
 
-      http://divmod.org/trac/wiki/DivmodNevow
+   http://pyopenssl.sourceforge.net
 
-    + Python setuptools (build and distribution tool)
+   To install PyOpenSSL on Windows-native, download this:
+   http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.5.exe
 
-      Note: The build process will automatically download and install
-      setuptools if it is not present.  However, if an old, incompatible
-      version of setuptools (< v0.6c3) is present, then the build will fail.
-      Therefore, if the build fails due to setuptools not being compatible,
-      you can either upgrade or uninstall your version of setuptools and try
-      again.
+ + the pywin32 package: only required on Windows
 
-      http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
-
-    + Python PyOpenSSL (0.6 or later) (secure transport layer)
-
-      http://pyopenssl.sourceforge.net
-
-      To install PyOpenSSL on Windows-native, download this:
-      http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.5.exe
-
-    + the pywin32 package: only required on Windows
-
-      http://sourceforge.net/projects/pywin32/
+   http://sourceforge.net/projects/pywin32/
 
 
 BUILDING:
@@ -124,7 +110,12 @@ BUILDING:
 
 INSTALLING:
 
+There are three ways to do it.  Choose one:
+
  The Debian Way:
+
+  The Debian Way is to build .deb files which you can then install with
+  "dpkg".
 
   This requires the debian packages build-essential, fakeroot, devscripts,
   and the packages listed as "Build-Depends" in the DIST/debian/control in
@@ -139,20 +130,24 @@ INSTALLING:
 
  The Python Way:
 
-  You'll need to run four separate install steps, one for each of the four
-  subpackages (allmydata, allmydata.Crypto, foolscap, and zfec).  If you use
-  GNU stow, add the options "--prefix=." and
+  The Python Way is to execute "setup.py install" for each Python package.
+
+  You'll need to run "setup.py install" four separate times, one for each of
+  the four subpackages (allmydata, allmydata.Crypto, foolscap, and zfec).  If
+  you use GNU stow, add the options "--prefix=." and
   "--root=/usr/local/stow/${PACKAGE}" to the "setup.py install" command.
 
-   for PACKAGE in zfec Crypto foolscap ; do
-     cd src/${PACKAGE} && python setup.py install && cd ../..
-   done
+    for PACKAGE in zfec Crypto foolscap ; do
+      cd src/${PACKAGE} && python setup.py install && cd ../..
+    done
 
-   # the tahoe subpackage's setup.py script is in the root directory
-   PACKAGE=tahoe
-   python setup.py install
+    # the tahoe subpackage's setup.py script is in the root directory
+    PACKAGE=tahoe
+    python setup.py install
 
  The Running-In-Place Way:
+
+  The Running-In-Place Way is to add a directory to your PYTHONPATH.
 
   To run from a source tree (without installing first), type 'make', which
   will put all the necessary libraries into a local directory named
@@ -163,16 +158,17 @@ INSTALLING:
 TESTING THAT IT IS PROPERLY INSTALLED
 
  To test that all the modules got installed properly, start a python
- interpreter and import modules as follows:
+ interpreter and import modules as follows.  If each one imports successfully
+ instead of raising ImportError then it is correctly installed.
 
-  % python
-  Python 2.4.4 (#2, Jan 13 2007, 17:50:26)
-  [GCC 4.1.2 20061115 (prerelease) (Debian 4.1.1-21)] on linux2
-  Type "help", "copyright", "credits" or "license" for more information.
-  >>> import zfec
-  >>> import allmydata.Crypto
-  >>> import foolscap
-  >>> import allmydata.interfaces
+   % python
+   Python 2.4.4 (#2, Jan 13 2007, 17:50:26)
+   [GCC 4.1.2 20061115 (prerelease) (Debian 4.1.1-21)] on linux2
+   Type "help", "copyright", "credits" or "license" for more information.
+   >>> import zfec
+   >>> import allmydata.Crypto
+   >>> import foolscap
+   >>> import allmydata.interfaces
 
 
 RUNNING:
