@@ -124,7 +124,9 @@ BUILDING:
  If the desired version of 'python' is not already on your PATH, then type
  'make PYTHON=/path/to/your/preferred/python'.
 
- 'make test-all' runs the unit test suites.
+ 'make test-all' runs the unit test suites.  (This can take a long time on
+ slow computers.  There are a lot of tests and some of them do a lot of
+ public-key cryptography.)
 
 
 INSTALLING:
