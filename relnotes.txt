@@ -76,8 +76,8 @@ and sufficient to recover the file.
 To fetch a file, starting with the URI, a subset of shares is downloaded from
 peers, the file is reconstructed from the shares, and then decrypted.
 
-A single distinct server called a "vdrive server" maintains a global share
-mapping from pathnames/filenames to URIs.
+A single distinct server called a "vdrive server" maintains a global mapping
+from pathnames/filenames to URIs.
 
 We are well aware of the limitations of decentralization and scalability
 inherent in this prototype.  In particular, the completely-connected property
