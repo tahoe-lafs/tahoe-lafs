@@ -36,7 +36,7 @@ Once installed, create a "client node".  Instruct this client node to connect
 to a specific "introducer node" by means of config files in the client node's
 working directory.  To join a public grid, copy in the .furl files for that
 grid.  To create a private grid, run your own introducer, and copy its .furl
-files. See the README for step-by-step instructions.
+files.  See the README for step-by-step instructions.
 
 Each client node runs a local webserver (enabled by writing the desired port
 number into a file called 'webport').  The front page of this webserver shows
