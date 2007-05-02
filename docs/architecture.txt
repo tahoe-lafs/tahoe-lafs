@@ -71,7 +71,8 @@ connectivity to participate. In the current release, nodes behind NAT boxes
 will connect to all nodes that they can open connections to, but they cannot
 open connections to other nodes behind NAT boxes.  Therefore, the more nodes
 there are behind NAT boxes the less the topology resembles the intended
-fully-connected mesh topology.
+fully-connected mesh topology.  (See also
+http://allmydata.org/trac/tahoe/ticket/22 ).
 
 
 FILE ENCODING
