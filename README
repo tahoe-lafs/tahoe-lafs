@@ -9,7 +9,18 @@ The interface to the storage grid allows you to store and fetch files, either
 by self-authenticating cryptographic identifier or by filename and path.
 
 
+LICENCE:
+
+ Tahoe is offered under the GNU General Public License (v2 or later), with
+ the added permission that, if you become obligated to release a derived work
+ under this licence (as per section 2.b), you may delay the fulfillment of
+ this obligation for up to 12 months.  See the COPYING file for details.
+
+
 GETTING PRECOMPILED PACKAGES FOR DEBIAN-LIKE SYSTEMS:
+
+ At this time, precompiled packages are available only for Debian-like
+ systems.
 
  To install debian packages for etch, dapper, edgy, or feisty, add the
  following lines to your /etc/apt/sources.list, replacing the word DIST with
@@ -25,95 +36,81 @@ GETTING PRECOMPILED PACKAGES FOR DEBIAN-LIKE SYSTEMS:
  etc.
 
 
-GETTING THE SOURCE CODE:
+BUILDING FROM SOURCE:
 
- The code is available via darcs by running the following command:
+ * getting the source code:
 
- darcs get http://allmydata.org/source/tahoe/trunk
+   The code is available via darcs by running the following command:
 
- See http://allmydata.org for all kinds of information, news, and community
- contributions.
+   darcs get http://allmydata.org/source/tahoe/trunk
 
+   See http://allmydata.org for all kinds of information, news, and community
+   contributions.
 
-LICENCE:
+ * dependencies:
 
- Tahoe is offered under the GNU General Public License (v2 or later), with
- the added permission that, if you become obligated to release a derived work
- under this licence (as per section 2.b), you may delay the fulfillment of
- this obligation for up to 12 months.  See the COPYING file for details.
+   Note: All of the following dependencies can probably be installed through
+   your standard package management tool if you are running on a modern Unix
+   operating system.
 
+   For example, on an debian-like system, you can do "sudo apt-get install
+   gcc make python-dev python-twisted python-nevow python-pyopenssl".
 
-DEPENDENCIES:
+    + a C compiler (language)
 
- Note: All of the following dependencies can probably be installed through
- your standard package management tool if you are running on a modern Unix
- operating system.  If you are running any modern Linux or *BSD distribution,
- then you can get them through your standard package manager.  If you are
- running Mac OS X, then be warned that the "fink" package management tool
- does not have most of these packages, but the "darwinports" package
- management tool appears to have them.  If you are running on Windows, then
- I'm afraid you'll have to install them by hand (although the "cygwin"
- package management tool does have some of them).  If you are running on
- Solaris, I would like to hear from you -- I have no idea how it is done on
- Solaris nowadays.
+    + GNU make (build tool)
 
- * a C compiler (language)
+    + Python 2.4 or newer (tested against 2.4, and 2.5.1, but v2.5 or higher
+      is required on Windows-native), including development headers (language)
 
- * GNU make (build tool)
+      http://python.org/
 
- * Python 2.4 or newer (tested against 2.4, and 2.5.1, but v2.5 or higher is
-   required on Windows-native), including development headers (language)
+    + Python Twisted (tested against both 2.4 and 2.5) (network and operating
+      system integration library)
 
-   http://python.org/
+      http://twistedmatrix.com/
 
- * Python Twisted (tested against both 2.4 and 2.5) (network and operating
-   system integration library)
+      You need the following subpackages, which are included in the default
+      Twisted distribution:
 
-   http://twistedmatrix.com/
+      * core (the standard Twisted package)
+      * web, trial, conch
 
-   You need the following subpackages, which are included in the default
-   Twisted distribution:
+      Twisted requires zope.interface, a copy of which is included in the
+      Twisted distribution.
 
-   * core (the standard Twisted package)
-   * web, trial, conch
+    + Python Nevow (probably 0.9.0 or later) (web presentation language)
 
-   Twisted requires zope.interface, a copy of which is included in the
-   Twisted distribution.
+      http://divmod.org/trac/wiki/DivmodNevow
 
- * Python Nevow (probably 0.9.0 or later) (web presentation language)
+    + Python setuptools (build and distribution tool)
 
-   http://divmod.org/trac/wiki/DivmodNevow
+      Note: The build process will automatically download and install
+      setuptools if it is not present.  However, if an old, incompatible
+      version of setuptools (< v0.6c3) is present, then the build will fail.
+      Therefore, if the build fails due to setuptools not being compatible,
+      you can either upgrade or uninstall your version of setuptools and try
+      again.
 
- * Python setuptools (build and distribution tool)
+      http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
 
-   http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
+    + Python PyOpenSSL (0.6 or later) (secure transport layer)
 
-   Note: The build process will automatically download and install setuptools
-   if it is not present.  However, if an old, incompatible version of
-   setuptools (< v0.6c3) is present, then the build will fail.  Therefore, if
-   the build fails due to setuptools not being compatible, you can either
-   upgrade or uninstall your version of setuptools and try again.
+      http://pyopenssl.sourceforge.net
 
- * Python PyOpenSSL (0.6 or later) (secure transport layer)
+      To install PyOpenSSL on Windows-native, download this:
+      http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.5.exe
 
-   http://pyopenssl.sourceforge.net
+    + build-essential and fakeroot: only required to build .deb packages
 
-   To install PyOpenSSL on Windows-native, download this:
-   http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.5.exe
+      Also all of the packages listed as "Build-Depends" in
+      DIST/debian/control for your distribution.
 
- * to build the debian packages you will need all the usual debian-packaging
-   tools, which means the 'build-essential' metapackage and all of the
-   packages listed as "Build-Depends" in DIST/debian/control for your
-   distribution.  You will also want the 'fakeroot' package to allow the
-   top-level 'make deb-DIST' targets work.
+      You can do "apt-get install build-essential fakeroot"
 
- * on Windows, the pywin32 package
+    + the pywin32 package: only required on Windows
 
-   http://sourceforge.net/projects/pywin32/
-
- On debian systems, these dependencies can be handled by installing the
- following packages: build-essential, python-dev, python-twisted,
- python-nevow, python-setuptools, python-pyopenssl, fakeroot.
+      http://sourceforge.net/projects/pywin32/
 
 
 BUILDING:
