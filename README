@@ -42,7 +42,7 @@ BUILDING FROM SOURCE:
 
    The code is available via darcs by running the following command:
 
-   darcs get http://allmydata.org/source/tahoe/trunk
+   darcs get http://allmydata.org/source/tahoe/trunk tahoe
 
    See http://allmydata.org for all kinds of information, news, and community
    contributions.
@@ -115,7 +115,7 @@ BUILDING FROM SOURCE:
 
 BUILDING:
 
- Just type 'make' in the toplevel tahoe directory.  This works on Windows
+ Just type 'make' in the top-level tahoe directory.  This works on Windows
  too, provided that you have the dependencies mentioned above (either a
  normal cygwin build or a mingw-style native build is supported by the
  makefile -- the cygwin build is the default).
