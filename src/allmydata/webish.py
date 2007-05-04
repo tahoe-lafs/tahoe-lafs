@@ -4,6 +4,7 @@ from twisted.web import static, resource, server, html
 from twisted.python import util, log
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from allmydata.util import idlib
+from allmydata.uri import unpack_uri
 from allmydata.interfaces import IDownloadTarget#, IDownloader
 from allmydata import upload
 from zope.interface import implements, Interface
@@ -126,6 +127,10 @@ class Directory(rend.Page):
             dl_uri_url = dl_uri_url.add("filename", name)
             ctx.fillSlots("uri", T.a(href=dl_uri_url)[html.escape(uri)])
 
+            #extract and display file size
+            unpacked = unpack_uri(uri)
+            ctx.fillSlots("size", unpacked[9])
+
             # this creates a button which will cause our child__delete method
             # to be invoked, which deletes the file and then redirects the
             # browser back to this directory
@@ -142,6 +147,7 @@ class Directory(rend.Page):
             ctx.fillSlots("filename",
                           T.a(href=subdir_url)[html.escape(name)])
             ctx.fillSlots("type", "DIR")
+            ctx.fillSlots("size", "-")
             ctx.fillSlots("uri", "-")
             ctx.fillSlots("delete", "-")
         return ctx.tag
