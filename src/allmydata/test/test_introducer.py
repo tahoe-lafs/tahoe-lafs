@@ -2,7 +2,6 @@
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python import log
-defer.setDebugging(True)
 
 from foolscap import Tub, Referenceable
 from foolscap.eventual import flushEventualQueue
