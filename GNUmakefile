@@ -122,7 +122,16 @@ test-all: test-foolscap test
 
 # use 'make test REPORTER=--reporter=bwverbose' from buildbot, to supress the
 # ansi color sequences
+
+# our current build process embeds bogus filenames inside the .pyc files
+# (they start with /lib). Blow them away and allow the test process to
+# regenerate them, so that tracebacks and figleaf data can refer to the
+# correct filenames (and thus find their source code).
+#
+# TODO: remove this hack, since it requires redoing the byte-compliation on
+# every single test run
 test: build
+	find $(INSTDIR) -name '*.pyc' |xargs rm
 	$(PP) $(TRIAL) $(REPORTER) $(TEST)
 
 # foolscap tests need to be run in their own source dir, so that the paths to
@@ -133,6 +142,7 @@ test-foolscap:
 	cd src/foolscap && PYTHONPATH=$(ORIGPYTHONPATH) $(TRIAL) $(REPORTER) foolscap
 
 test-figleaf: build
+	find $(INSTDIR) -name '*.pyc' |xargs rm
 	rm -f .figleaf
 	$(PP) $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
 
