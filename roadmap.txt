@@ -57,6 +57,7 @@ Storage:
 *v1: no deletion, one directory per verifierid, no owners of shares,
      leases never expire
 *v2: multiple shares per verifierid [zooko]
+ v2.5: disk space limits on storage servers -- http://allmydata.org/trac/tahoe/ticket/34
  v3: deletion
  v4: leases expire, delete expired data on demand, multiple owners per share
 
