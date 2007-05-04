@@ -23,6 +23,7 @@
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 # more details.
 
+import re, os.path
 from distutils.core import Extension, setup
 
 trove_classifiers=[
@@ -56,11 +57,18 @@ trove_classifiers=[
     "Topic :: System :: Archiving", 
     ]
 
-import re
-VSRE=re.compile("verstr=['\"]([^'\"]*)['\"]")
-verstrline=open("src/allmydata/__init__.py").readline()
-mo = VSRE.search(verstrline)
-verstr = mo.group(1)
+
+VERSIONFILE = "src/allmydata/version.py"
+verstr = "unknown"
+if os.path.exists(VERSIONFILE):
+    VSRE = re.compile("^verstr = ['\"]([^'\"]*)['\"]", re.M)
+    verstrline = open(VERSIONFILE, "rt").read()
+    mo = VSRE.search(verstrline)
+    if mo:
+        verstr = mo.group(1)
+    else:
+        print "unable to find version in version.py"
+        raise RuntimeError("if version.py exists, it must be well-formed")
 
 setup(name='allmydata-tahoe',
       version=verstr,

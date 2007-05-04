@@ -56,6 +56,7 @@ PP=PYTHONPATH=$(PYTHONPATH)
 
 .PHONY: build
 build: build-zfec build-Crypto build-foolscap
+	$(PYTHON) misc/make-version.py
 	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="lib" --install-scripts="bin"
 
 build-zfec:
@@ -178,13 +179,11 @@ clean: clean-zfec clean-Crypto clean-foolscap
 
 # DEBIAN PACKAGING
 
-VER=$(shell python -c "import os,re;print re.search(\"verstr=['\\\"](.*?)['\\\"]\", open(os.path.join('src', 'allmydata', '__init__.py')).readline()).group(1)")
-DEBSTRING=$(VER)-T`date +%s`
+VER=$(shell $(PYTHON) misc/get-version.py)
 DEBCOMMENTS="'make deb' build"
 
-show:
+show-version:
 	@echo $(VER)
-	@echo $(DEBSTRING)
 
 .PHONY: setup-dapper setup-sid setup-edgy setup-feisty
 .PHONY: deb-dapper deb-sid deb-edgy deb-feisty
@@ -242,7 +241,7 @@ deb-feisty: setup-feisty
 	echo "The newly built .deb packages are in the parent directory from here."
 
 increment-deb-version:
-	debchange --newversion $(DEBSTRING) $(DEBCOMMENTS)
+	debchange --newversion $(VER) $(DEBCOMMENTS)
 deb-dapper-head: setup-dapper increment-deb-version
 	fakeroot debian/rules binary
 deb-sid-head: setup-sid increment-deb-version

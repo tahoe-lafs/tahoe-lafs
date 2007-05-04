@@ -1,5 +1,3 @@
-verstr="0.2.0-0-UNSTABLE"
-# The line is placed above so that it can be easily read by build scripts.
 
 """
 Decentralized storage grid.
@@ -9,13 +7,14 @@ maintainer web site: U{http://allmydata.com/}
 community web site: U{http://allmydata.org/}
 """
 
-from util.version import Version
+__version__ = "unknown"
+try:
+    from allmydata.version import __version__
+except ImportError:
+    # we're running in a tree that hasn't run misc/make-version.py, so we
+    # don't know what our version is. This should not happen very often.
+    pass
 
-# For an explanation of what the parts of the version string mean,
-# please see pyutil.version.
-__version__ = Version(verstr)
-
-# Please put a URL or other note here which shows where to get the branch of
-# development from which this version grew.
-__sources__ = ["http://allmydata.org/source/tahoe",]
+hush_pyflakes = __version__
+del hush_pyflakes
 

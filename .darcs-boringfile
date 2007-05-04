@@ -56,3 +56,6 @@
 ^src/Crypto/build($|/)
 ^_test_memory($|/)
 
+# version.py is generated at build time, and never checked in
+^src/allmydata/version\.py$
+
