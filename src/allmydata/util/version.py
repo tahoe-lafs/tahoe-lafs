@@ -44,10 +44,10 @@ from distutils import version
 
 # Developers see "full version strings", like this:
 
-# "1.0.0a1-55-UNSTABLE"
-#  ^ ^ ^^^  ^     ^
-#  | | |||  |     |
-#  | | |||  |     '- tags
+# "1.0.0a1-55"
+#  ^ ^ ^^^  ^
+#  | | |||  |
+#  | | |||  |
 #  | | |||  '- nano version number
 #  | | ||'- release number
 #  | | |'- alpha or beta (or none)
@@ -58,9 +58,6 @@ from distutils import version
 # The next number is the "nano version number".  It is meaningful only to
 # developers.  It gets bumped whenever a developer changes anything that another
 # developer might care about.
-
-# The last part is the "tags" separated by "_".  Standard tags are
-# "STABLE" and "UNSTABLE".
 
 class Tag(str):
     def __cmp__(t1, t2):
@@ -79,7 +76,7 @@ class Version:
 
     def parse(self, vstring):
         i = vstring.find('-')
-        if i:
+        if i != -1:
             svstring = vstring[:i]
             estring = vstring[i+1:]
         else:
@@ -88,17 +85,17 @@ class Version:
 
         self.strictversion = version.StrictVersion(svstring)
 
+        self.nanovernum = None
+        self.tags = []
         if estring:
-            try:
-                (self.nanovernum, tags,) = estring.split('-')
-            except:
-                print estring
-                raise
-            self.tags = map(Tag, tags.split('_'))
-            self.tags.sort()
+            self.nanovernum = estring
 
-        self.fullstr = '-'.join([str(self.strictversion), str(self.nanovernum), '_'.join(self.tags)])
-          
+        self.fullstr = str(self.strictversion)
+        if self.nanovernum is not None:
+            self.fullstr += "-" + str(self.nanovernum)
+        if self.tags:
+            self.fullstr += '_'.join(self.tags)
+
     def tags(self):
         return self.tags
 
