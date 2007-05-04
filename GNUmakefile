@@ -54,9 +54,11 @@ show-instdir:
 
 PP=PYTHONPATH=$(PYTHONPATH)
 
-.PHONY: build
-build: build-zfec build-Crypto build-foolscap
+.PHONY: make-version build
+make-version:
 	$(PYTHON) misc/make-version.py
+
+build: make-version build-zfec build-Crypto build-foolscap
 	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="lib" --install-scripts="bin"
 
 build-zfec:
@@ -195,10 +197,11 @@ DEBCOMMENTS="'make deb' build"
 show-version:
 	@echo $(VER)
 
-.PHONY: setup-dapper setup-sid setup-edgy setup-feisty
-.PHONY: deb-dapper deb-sid deb-edgy deb-feisty
+.PHONY: setup-dapper setup-sid setup-edgy setup-feisty setup-etch
+.PHONY: deb-dapper deb-sid deb-edgy deb-feisty deb-etch
 .PHONY: increment-deb-version
 .PHONY: deb-dapper-head deb-sid-head deb-edgy-head deb-feisty-head
+.PHONY:  deb-etch-head
 
 setup-dapper:
 	rm -f debian
@@ -217,6 +220,12 @@ setup-edgy:
 	chmod a+x debian/rules
 
 setup-feisty:
+	rm -f debian
+	ln -s feisty/debian debian
+	chmod a+x debian/rules
+
+# etch uses the fesity control files for now
+setup-etch:
 	rm -f debian
 	ln -s feisty/debian debian
 	chmod a+x debian/rules
@@ -250,7 +259,14 @@ deb-feisty: setup-feisty
 	echo && \
 	echo "The newly built .deb packages are in the parent directory from here."
 
-increment-deb-version:
+deb-etch: setup-etch
+	fakeroot debian/rules binary && \
+	make -C src/foolscap debian-sid && \
+	mv src/python-foolscap*.deb .. && \
+	echo && \
+	echo "The newly built .deb packages are in the parent directory from here."
+
+increment-deb-version: make-version
 	debchange --newversion $(VER) $(DEBCOMMENTS)
 deb-dapper-head: setup-dapper increment-deb-version
 	fakeroot debian/rules binary
@@ -259,5 +275,7 @@ deb-sid-head: setup-sid increment-deb-version
 deb-edgy-head: setup-edgy increment-deb-version
 	fakeroot debian/rules binary
 deb-feisty-head: setup-feisty increment-deb-version
+	fakeroot debian/rules binary
+deb-etch-head: setup-etch increment-deb-version
 	fakeroot debian/rules binary
 
