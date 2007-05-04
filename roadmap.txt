@@ -67,7 +67,7 @@ UI:
  v2.5: del (directories)
  v3: PB+CLI tool.
  v3.5: XUIL?
- v4: FUSE
+ v4: FUSE -- http://allmydata.org/trac/tahoe/ticket/36
 
 Operations/Deployment/Doc/Free Software/Community:
  - move this file into the wiki ?
