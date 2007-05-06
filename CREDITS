@@ -1,0 +1,14 @@
+    Thi is at least a partial credits-file of people that have contributed to
+the Allmydata Tahoe project.  It is formatted to allow easy grepping and
+beautification by scripts.  The fields are: name (N), email (E), web-address
+(W), PGP key ID and fingerprint (P), description (D), and snail-mail 
+address (S).
+
+Thanks.
+----------
+
+N: Faried Nawaz
+E: self@node.pk
+W: http://www.hungry.com/~fn/
+P: 0x09ECEC06, 19 41 1B 3E 25 98 F5 0A 0D 50 F9 37 1B 98 1A FF 09 EC EC 06
+D: added private publish, added display of file size
