@@ -7,6 +7,15 @@ from foolscap import Referenceable
 from allmydata.interfaces import RIIntroducer, RIIntroducerClient
 from allmydata.util import idlib, observer
 
+def ignoreDeadRef(target, *args, **kwargs):
+    from twisted.internet import error
+    from foolscap import DeadReferenceError
+    d = target.callRemote(*args, **kwargs)
+    def _ignore(f):
+        f.trap(error.ConnectionDone, error.ConnectError,
+               error.ConnectionLost, DeadReferenceError)
+    d.addErrback(_ignore)
+
 class Introducer(service.MultiService, Referenceable):
     implements(RIIntroducer)
 
@@ -21,6 +30,11 @@ class Introducer(service.MultiService, Referenceable):
             log.msg(" introducer: removing %s %s" % (node, pburl))
             self.nodes.remove(node)
             self.pburls.remove(pburl)
+            for othernode in self.nodes:
+                #othernode.callRemote("lost_peers", set([pburl]))
+                #othernode.callRemoteOnly("lost_peers", set([pburl]))
+                ignoreDeadRef(othernode, "lost_peers", set([pburl]))
+
         node.notifyOnDisconnect(_remove)
         self.pburls.add(pburl)
         node.callRemote("new_peers", self.pburls)
@@ -40,7 +54,7 @@ class IntroducerClient(service.Service, Referenceable):
         self.connections = {} # k: nodeid, v: ref
         self.reconnectors = {} # k: PBURL, v: reconnector
 
-        self.connection_observers = observer.ObserverList()
+        self.change_observers = observer.ObserverList()
 
     def startService(self):
         self.introducer_reconnector = self.tub.connectTo(self.introducer_pburl,
@@ -53,11 +67,16 @@ class IntroducerClient(service.Service, Referenceable):
         for pburl in pburls:
             self._new_peer(pburl)
 
+    def remote_lost_peers(self, pburls):
+        for pburl in pburls:
+            self._lost_peer(pburl)
+
     def stopService(self):
         service.Service.stopService(self)
         self.introducer_reconnector.stopConnecting()
         for reconnector in self.reconnectors.itervalues():
             reconnector.stopConnecting()
+        self.reconnectors = {}
 
     def _new_peer(self, pburl):
         if pburl in self.reconnectors:
@@ -76,7 +95,7 @@ class IntroducerClient(service.Service, Referenceable):
         nodeid = idlib.a2b(m.group(1))
         def _got_peer(rref):
             self.log(" connected to(%s)" % idlib.b2a(nodeid))
-            self.connection_observers.notify(nodeid, rref)
+            self.change_observers.notify("add", nodeid, rref)
             self.connections[nodeid] = rref
             def _lost():
                 # TODO: notifyOnDisconnect uses eventually(), but connects do
@@ -92,8 +111,19 @@ class IntroducerClient(service.Service, Referenceable):
                              node=self,
                              pburl=self.my_pburl)
 
-    def notify_on_new_connection(self, cb):
-        """Register a callback that will be fired (with nodeid, rref) when
-        a new connection is established."""
-        self.connection_observers.subscribe(cb)
+    def notify_on_change(self, cb):
+        """Register a callback that will be fired (with ('add',nodeid,rref)
+        or ('remove',pburl) ) when a new connection is established or a peer
+        is lost. This is used by the unit tests."""
+        self.change_observers.subscribe(cb)
 
+    def _lost_peer(self, pburl):
+        if pburl in self.reconnectors:
+            self.reconnectors[pburl].stopConnecting()
+            del self.reconnectors[pburl]
+            self.change_observers.notify("remove", pburl)
+        # TODO: we don't currently bother to terminate any connections we
+        # might have to this peer. The assumption is that, since the
+        # introducer lost their connection to this peer, we'll probably lose
+        # our connection too. Also, foolscap doesn't currently provide a
+        # clean way to terminate a given connection.
