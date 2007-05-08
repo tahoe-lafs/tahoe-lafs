@@ -48,7 +48,7 @@ class TestIntroducer(unittest.TestCase):
         ic = IntroducerClient(None, "introducer", "mypburl")
         def _ignore(nodeid, rref):
             pass
-        ic.notify_on_change(_ignore)
+        ic.notify_on_new_connection(_ignore)
 
     def test_listen(self):
         i = Introducer()
@@ -71,23 +71,11 @@ class TestIntroducer(unittest.TestCase):
 
         self.waiting_for_connections = NUMCLIENTS*NUMCLIENTS
         d = self._done_counting = defer.Deferred()
-        self._done_counting_down = defer.Deferred()
-        self.waiting_for_disconnections = None
-
-        def _count(changetype, *args):
-            if changetype == "add":
-                nodeid, rref = args
-                log.msg("NEW CONNECTION! %s %s" % (idlib.b2a(nodeid), rref))
-                self.waiting_for_connections -= 1
-                if self.waiting_for_connections == 0:
-                    self._done_counting.callback("done!")
-            else:
-                pburl = args[0]
-                log.msg("LOST PEER! %s" % (pburl,))
-                if self.waiting_for_disconnections is not None:
-                    self.waiting_for_disconnections -= 1
-                    if self.waiting_for_disconnections == 0:
-                        self._done_counting_down.callback("done")
+        def _count(nodeid, rref):
+            log.msg("NEW CONNECTION! %s %s" % (idlib.b2a(nodeid), rref))
+            self.waiting_for_connections -= 1
+            if self.waiting_for_connections == 0:
+                self._done_counting.callback("done!")
 
         clients = []
         tubs = {}
@@ -103,7 +91,7 @@ class TestIntroducer(unittest.TestCase):
             n = MyNode()
             node_pburl = tub.registerReference(n)
             c = IntroducerClient(tub, iurl, node_pburl)
-            c.notify_on_change(_count)
+            c.notify_on_new_connection(_count)
             c.setServiceParent(self.parent)
             clients.append(c)
             tubs[c] = tub
@@ -114,8 +102,7 @@ class TestIntroducer(unittest.TestCase):
             log.msg("doing _check")
             for c in clients:
                 self.failUnlessEqual(len(c.connections), NUMCLIENTS)
-            # now disconnect somebody's connection to someone else, and check
-            # to see that the connection is reestablished
+            # now disconnect somebody's connection to someone else
             self.waiting_for_connections = 2
             d2 = self._done_counting = defer.Deferred()
             origin_c = clients[0]
@@ -129,14 +116,12 @@ class TestIntroducer(unittest.TestCase):
             log.msg(" did disconnect")
             return d2
         d.addCallback(_check)
-
         def _check_again(res):
             log.msg("doing _check_again")
             for c in clients:
                 self.failUnlessEqual(len(c.connections), NUMCLIENTS)
-            # now disconnect somebody's connection to themselves, and make
-            # sure it reconnects. This will only result in one new
-            # connection, since it is a loopback.
+            # now disconnect somebody's connection to themselves. This will
+            # only result in one new connection, since it is a loopback.
             self.waiting_for_connections = 1
             d2 = self._done_counting = defer.Deferred()
             origin_c = clients[0]
@@ -150,40 +135,12 @@ class TestIntroducer(unittest.TestCase):
             log.msg(" did disconnect")
             return d2
         d.addCallback(_check_again)
-
         def _check_again2(res):
             log.msg("doing _check_again2")
             for c in clients:
                 self.failUnlessEqual(len(c.connections), NUMCLIENTS)
+            # now disconnect somebody's connection to themselves
         d.addCallback(_check_again2)
-
-        def _shutdown_one_client(res):
-            log.msg("_shutdown_one_client, waiting for %d shutdowns" %
-                    (NUMCLIENTS-1,))
-            # shutdown a single client, make sure everyone else notices
-            self.waiting_for_disconnections = NUMCLIENTS-1
-            victim_client = clients[0]
-            victim_tub = tubs[victim_client]
-            # disownServiceParent will stop the service too
-            d1 = defer.maybeDeferred(victim_client.disownServiceParent)
-            def _stoptub(res):
-                log.msg("_stoptub")
-                return victim_tub.disownServiceParent()
-            d1.addCallback(_stoptub)
-            def _wait_for_counting_down(res):
-                log.msg("_wait_for_counting_down")
-                return self._done_counting_down
-            d1.addCallback(_wait_for_counting_down)
-            return d1
-        d.addCallback(_shutdown_one_client)
-
-        def _check_shutdown(res):
-            log.msg("_check_shutdown")
-            c = clients[1]
-            self.failUnlessEqual(len(c.connections), NUMCLIENTS-1)
-            self.failUnlessEqual(len(c.reconnectors), NUMCLIENTS-1)
-        d.addCallback(_check_shutdown)
-
         return d
     test_system.timeout = 2400
 

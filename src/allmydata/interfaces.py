@@ -19,8 +19,6 @@ ShareData = StringConstraint(100000)
 class RIIntroducerClient(RemoteInterface):
     def new_peers(pburls=SetOf(PBURL)):
         return None
-    def lost_peers(pburls=SetOf(PBURL)):
-        return None
 
 class RIIntroducer(RemoteInterface):
     def hello(node=RIIntroducerClient, pburl=PBURL):
