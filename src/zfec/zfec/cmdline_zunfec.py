@@ -3,8 +3,6 @@
 # zfec -- a fast C implementation of Reed-Solomon erasure coding with
 # command-line, C, and Python interfaces
 
-# The zfec and zunfec command-line tools require Python 2.5 for relative imports.
-
 import os, sys
 
 from util import argparse
