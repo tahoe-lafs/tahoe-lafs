@@ -241,8 +241,3 @@ class Cmdline(unittest.TestCase):
 # If you would like to inquire about a commercial relationship with Allmydata,
 # Inc., please contact partnerships@allmydata.com and visit
 # http://allmydata.com/.
-# 
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-# more details.
