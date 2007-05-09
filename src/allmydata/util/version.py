@@ -71,6 +71,12 @@ class Tag(str):
 
 class Version:
     def __init__(self, vstring=None):
+        self.major = None
+        self.minor = None
+        self.micro = None
+        self.prereleasetag = None
+        self.nano = None
+        self.tags = None
         if vstring:
             self.parse(vstring)
 
@@ -88,11 +94,14 @@ class Version:
         self.nanovernum = None
         self.tags = []
         if estring:
-            self.nanovernum = estring
+            if '-' in estring:
+                (self.nano, tags,) = estring.split('-')
+            else:
+                self.nano = estring
 
         self.fullstr = str(self.strictversion)
-        if self.nanovernum is not None:
-            self.fullstr += "-" + str(self.nanovernum)
+        if self.nano is not None:
+            self.fullstr += "-" + str(self.nano)
         if self.tags:
             self.fullstr += '_'.join(self.tags)
 
@@ -119,7 +128,7 @@ class Version:
         if res != 0:
             return res
 
-        res = cmp(self.nanovernum, other.nanovernum)
+        res = cmp(self.nano, other.nano)
         if res != 0:
             return res
 
