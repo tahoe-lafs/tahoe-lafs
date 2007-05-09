@@ -123,7 +123,7 @@ class FileFec(unittest.TestCase):
 
         fsize = len(teststr)
 
-        tempdir = zfec.util.fileutil.NamedTemporaryDirectory(cleanup=False)
+        tempdir = zfec.util.fileutil.NamedTemporaryDirectory(cleanup=True)
         try:
             tempf = tempdir.file(TESTFNAME, 'w+b')
             tempf.write(teststr)
@@ -190,7 +190,7 @@ class FileFec(unittest.TestCase):
  
 class Cmdline(unittest.TestCase):
     def test_basic(self, noisy=VERBOSE):
-        tempdir = zfec.util.fileutil.NamedTemporaryDirectory(cleanup=False)
+        tempdir = zfec.util.fileutil.NamedTemporaryDirectory(cleanup=True)
         fo = tempdir.file("test.data", "w+b")
         fo.write("WHEHWHJEKWAHDLJAWDHWALKDHA")
 
