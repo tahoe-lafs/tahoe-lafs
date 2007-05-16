@@ -79,12 +79,6 @@ def update():
         print "so I'm leaving version.py alone"
         return 0
 
-    # windows' weird ssh process prepends some 'plink: unknown option "-O"'
-    # junk to the beginning of the otput. To overcome this, manually scan for
-    # the opening <changelog> tag before giving anything to the xml parser.
-
-    output = output[output.find("<changelog>"):]
-
     try:
         doc = xml.dom.minidom.parseString(output)
     except xml.parsers.expat.ExpatError:
