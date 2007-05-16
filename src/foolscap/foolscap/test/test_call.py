@@ -9,7 +9,6 @@ if False:
     log.startLogging(sys.stderr)
 
 from twisted.python import failure, log
-from twisted.internet import reactor, defer
 from twisted.trial import unittest
 from twisted.internet.main import CONNECTION_LOST
 
@@ -36,7 +35,6 @@ class TestCall(TargetMixin, unittest.TestCase):
         d.addCallback(lambda res: self.failUnlessEqual(target.calls, [(1,2)]))
         d.addCallback(self._testCall1_1, rr)
         return d
-    testCall1.timeout = 3
     def _testCall1_1(self, res, rr):
         # the caller still holds the RemoteReference
         self.failUnless(self.callingBroker.yourReferenceByCLID.has_key(1))
@@ -46,10 +44,14 @@ class TestCall(TargetMixin, unittest.TestCase):
         # the targetBroker so *they* can forget about it.
         del rr # this fires a DecRef
         gc.collect() # make sure
+
         # we need to give it a moment to deliver the DecRef message and act
-        # on it
-        d = defer.Deferred()
-        reactor.callLater(0.1, d.callback, None)
+        # on it. Poll until the caller has received it.
+        def _check():
+            if self.callingBroker.yourReferenceByCLID.has_key(1):
+                return False
+            return True
+        d = self.poll(_check)
         d.addCallback(self._testCall1_2)
         return d
     def _testCall1_2(self, res):

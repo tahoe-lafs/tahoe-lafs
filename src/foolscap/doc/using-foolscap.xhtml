@@ -101,7 +101,8 @@ d.addCallbacks(gotAnswer, gotError)
 
 <p>Ok, now how do you acquire that <code>RemoteReference</code>? How do you
 make the <code>Referenceable</code> available to the outside world? For this,
-we'll need to discuss the <q>Tub</q>, and the concept of a <q>PB URL</q>.</p>
+we'll need to discuss the <q>Tub</q>, and the concept of a <q>FURL
+URL</q>.</p>
 
 <h2>Tubs: The Foolscap Service</h2>
 
@@ -128,13 +129,13 @@ established since last startup. If you have no parent to attach it to, you
 can use <code>startService</code> and <code>stopService</code> on the Tub
 directly.</p>
 
-<p>Note that you must start the Tub before calling <code>getReference</code>
-or <code>connectTo</code>, since both of these trigger network activity, and
-Tubs are supposed to be silent until they are started. In a future release
-this requirement may be relaxed, but the principle of "no network activity
-until the Tub is started" will be maintained, probably by queueing the
-<code>getReference</code> calls and handling them after the Tub been
-started.</p>
+<p>Note that no network activity will occur until the Tub's
+<code>startService</code> method has been called. This means that any
+<code>getReference</code> or <code>connectTo</code> requests that occur
+before the Tub is started will be deferred until startup. If the program
+forgets to start the Tub, these requests will never be serviced. A message to
+this effect is added to the twistd.log file to help developers discover this
+kind of problem.</p>
 
 <h3>Making your Tub remotely accessible</h3>
 
@@ -147,7 +148,7 @@ port is accessibly to the outside world.</p>
 creating an SSL private key certificate and hashing it into a suitably-long
 random-looking string. This is the primary identifier of the Tub: everything
 else is just a <em>location hint</em> that suggests how the Tub might be
-reached. The fact that the TubID is tied to the private key allows PB URLs to
+reached. The fact that the TubID is tied to the private key allows FURLs to
 be <q>secure</q> references (meaning that no third party can cause you to
 connect to the wrong reference). You can also create a Tub with a
 pre-existing certificate, which is how Tubs can retain a persistent identity
@@ -156,10 +157,10 @@ over multiple executions.</p>
 <p>You can also create an <code>UnauthenticatedTub</code>, which has an empty
 TubID. Hosting and connecting to unauthenticated Tubs do not require the
 pyOpenSSL library, but do not provide privacy, authentication, connection
-redirection, or shared listening ports. The PB-URLs that point to
+redirection, or shared listening ports. The FURLs that point to
 unauthenticated Tubs have a distinct form (starting with <code>pbu:</code>
 instead of <code>pb:</code>) to make sure they are not mistaken for
-authenticated Tubs. PB uses authenticated Tubs by default.</p>
+authenticated Tubs. Foolscap uses authenticated Tubs by default.</p>
 
 <p>Having the Tub listen on a TCP port is as simple as calling <code
 class="API" base="foolscap.pb.Tub">listenOn</code> with a <code class="API"
@@ -196,7 +197,7 @@ registering it:</p>
 url = tub.registerReference(myserver, "math-service")
 </pre>
 
-<p>This returns the <q>PB URL</q> for your <code>Referenceable</code>. Remote
+<p>This returns the <q>FURL</q> for your <code>Referenceable</code>. Remote
 systems will use this URL to access your newly-published object. The
 registration just maps a per-Tub name to the <code>Referenceable</code>:
 technically the same <code>Referenceable</code> could be published multiple
@@ -279,6 +280,25 @@ d.addCallbacks(gotReference, gotError)
 connection, if one is available, and it will return an existing
 <code>RemoteReference</code>, it one has already been acquired.</p>
 
+<p>Since <code>getReference</code> requests are queued until the Tub starts,
+the following will work too. But don't forget to call
+<code>tub.startService()</code> eventually, otherwise your program will hang
+forever.</p>
+
+<pre class="python">
+from foolscap import Tub
+
+tub = Tub()
+d = tub.getReference("pb://ABCD@myhost.example.com:12345/math-service")
+def gotReference(remote):
+    print "Got the RemoteReference:", remote
+def gotError(err):
+    print "error:", err
+d.addCallbacks(gotReference, gotError)
+tub.startService()
+</pre>
+
+
 <h3>Complete example</h3>
 
 <p>Here are two programs, one implementing the server side of our
@@ -333,7 +353,7 @@ the answer is 3
 </pre>
 
 
-<h3>PB URLs</h3>
+<h3>FURLs</h3>
 
 <p>In Foolscap, each world-accessible Referenceable has one or more URLs
 which are <q>secure</q>, where we use the capability-security definition of
@@ -350,9 +370,9 @@ the term, meaning those URLs have the following properties:</p>
   will be connected to will be the right one.</li>
 </ul>
 
-<p>To accomplish the first goal, PB URLs must be unguessable. You can
-register the reference with a human-readable name if your intention is to
-make it available to the world, but in general you will let
+<p>To accomplish the first goal, FURLs must be unguessable. You can register
+the reference with a human-readable name if your intention is to make it
+available to the world, but in general you will let
 <code>tub.registerReference</code> generate a random name for you, preserving
 the unguessability property.</p>
 
@@ -367,9 +387,9 @@ you to mistakenly connect to the wrong target.</p>
 <p>Obviously this second property only holds if you use SSL. If you choose to
 use unauthenticated Tubs, all security properties are lost.</p>
 
-<p>The format of a PB URL, like
+<p>The format of a FURL, like
 <code>pb://abcd123@example.com:5901,backup.example.com:8800/math-server</code>,
-is as follows<span class="footnote">note that the PB URL uses the same format
+is as follows<span class="footnote">note that the FURL uses the same format
 as an <a href="http://www.waterken.com/dev/YURL/httpsy/">HTTPSY</a>
 URL</span>:</p>
 
@@ -402,7 +422,7 @@ URL</span>:</p>
 the format <code>pb://ABCD@unix/path/to/socket/NAME</code>, but this needs
 some work)</p>
 
-<p>PB URLs for unauthenticated Tubs, like
+<p>FURLs for unauthenticated Tubs, like
 <code>pbu://example.com:8700/math-server</code>, are formatted as
 follows:</p>
 
@@ -470,13 +490,13 @@ therefore use <code>twistd</code> to launch the program. The User side is
 written with the same <code>reactor.run()</code> style as the earlier
 example.</p>
 
-<p>The server registers the Calculator instance and prints the PBURL at which
-it is listening. You need to pass this PBURL to the client program so it
-knows how to contact the servre. If you have a modern version of Twisted (2.5
-or later) and the right encryption libraries installed, you'll get an
-authenticated Tub (for which the PBURL will start with "pb:" and will be
+<p>The server registers the Calculator instance and prints the FURL at which
+it is listening. You need to pass this FURL to the client program so it knows
+how to contact the servre. If you have a modern version of Twisted (2.5 or
+later) and the right encryption libraries installed, you'll get an
+authenticated Tub (for which the FURL will start with "pb:" and will be
 fairly long). If you don't, you'll get an unauthenticated Tub (with a
-relatively short PBURL that starts with "pbu:").</p>
+relatively short FURL that starts with "pbu:").</p>
 
 <a href="listings/pb3calculator.py" class="py-listing"
 skipLines="2">pb3calculator.py</a>
@@ -766,7 +786,7 @@ suitably unique string (like a URI).</p>
 from foolscap import RemoteInterface, schema
 
 class RIMath(RemoteInterface):
-    __remote_name__ = "RIMath.using-pb.docs.foolscap.twistedmatrix.com"
+    __remote_name__ = "RIMath.using-foolscap.docs.foolscap.twistedmatrix.com"
     def add(a=int, b=int):
         return int
     # declare it with an attribute instead of a function definition
@@ -883,7 +903,7 @@ method is invoked), he will discover that he's holding a fully-functional
 class="footnote">and if everyone involved is using authenticated Tubs, then
 Foolscap offers a guarantee, in the cryptographic sense, that Bob will wind
 up with a reference to the same object that Alice intended. The authenticated
-PBURLs prevent DNS-spoofing and man-in-the-middle attacks.</span>. He can
+FURLs prevent DNS-spoofing and man-in-the-middle attacks.</span>. He can
 start using this RemoteReference right away:</p>
 
 <pre class="python">

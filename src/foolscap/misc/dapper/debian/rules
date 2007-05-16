@@ -41,7 +41,7 @@ binary-indep: build install
 	dh_testdir
 	dh_testroot
 	dh_installdocs -i -A NEWS README
-	dh_installdocs ChangeLog doc/newpb-jobs.txt doc/newpb-todo.txt doc/use-cases.txt doc/using-pb.xhtml doc/copyable.xhtml doc/listings doc/specifications
+	dh_installdocs ChangeLog doc/newpb-jobs.txt doc/newpb-todo.txt doc/use-cases.txt doc/using-foolscap.xhtml doc/copyable.xhtml doc/listings doc/specifications
 	dh_installchangelogs -i
 	dh_compress -i -X.py
 	dh_fixperms

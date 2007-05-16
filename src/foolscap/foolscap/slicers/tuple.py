@@ -1,6 +1,6 @@
 # -*- test-case-name: foolscap.test.test_banana -*-
 
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, DeferredList
 from foolscap.tokens import Violation
 from foolscap.slicer import BaseUnslicer
 from foolscap.slicers.list import ListSlicer
@@ -34,6 +34,7 @@ class TupleUnslicer(BaseUnslicer):
         self.finished = False
         self.deferred = Deferred()
         self.protocol.setObject(count, self.deferred)
+        self._ready_deferreds = []
 
     def checkToken(self, typebyte, size):
         if self.constraints == None:
@@ -64,7 +65,8 @@ class TupleUnslicer(BaseUnslicer):
         return obj
 
     def receiveChild(self, obj, ready_deferred=None):
-        assert ready_deferred is None
+        if ready_deferred:
+            self._ready_deferreds.append(ready_deferred)
         if isinstance(obj, Deferred):
             obj.addCallback(self.update, len(self.list))
             obj.addErrback(self.explode)
@@ -81,20 +83,39 @@ class TupleUnslicer(BaseUnslicer):
             # not finished yet, we'll fire our Deferred when we are
             if self.debug:
                 print " not finished yet"
-            return self.deferred, None
+            return
+
         # list is now complete. We can finish.
+        return self.complete()
+
+    def complete(self):
+        ready_deferred = None
+        if self._ready_deferreds:
+            ready_deferred = DeferredList(self._ready_deferreds)
+
         t = tuple(self.list)
         if self.debug:
             print " finished! tuple:%s{%s}" % (t, id(t))
         self.protocol.setObject(self.count, t)
         self.deferred.callback(t)
-        return t, None
+        return t, ready_deferred
 
     def receiveClose(self):
         if self.debug:
             print "%s[%d].receiveClose" % (self, self.count)
         self.finished = 1
-        return self.checkComplete()
+
+        if self.num_unreferenceable_children:
+            # not finished yet, we'll fire our Deferred when we are
+            if self.debug:
+                print " not finished yet"
+            ready_deferred = None
+            if self._ready_deferreds:
+                ready_deferred = DeferredList(self._ready_deferreds)
+            return self.deferred, ready_deferred
+
+        # the list is already complete
+        return self.complete()
 
     def describe(self):
         return "[%d]" % len(self.list)

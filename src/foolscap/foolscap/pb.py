@@ -6,7 +6,7 @@ from twisted.internet import defer, protocol
 from twisted.application import service, strports
 from twisted.python import log
 
-from foolscap import ipb, base32, negotiate, broker, observer
+from foolscap import ipb, base32, negotiate, broker, observer, eventual
 from foolscap.referenceable import SturdyRef
 from foolscap.tokens import PBError, BananaError
 from foolscap.reconnector import Reconnector
@@ -242,6 +242,8 @@ class Tub(service.MultiService):
         self._activeConnectors = []
         self._allConnectorsAreFinished = observer.OneShotObserverList()
 
+        self._pending_getReferences = [] # list of (d, furl) pairs
+
     def setOption(self, name, value):
         if name == "logLocalFailures":
             # log (with log.err) any exceptions that occur during the
@@ -376,6 +378,15 @@ class Tub(service.MultiService):
         if not self.running and not self._activeConnectors:
             self._allConnectorsAreFinished.fire(self)
 
+    def startService(self):
+        service.MultiService.startService(self)
+        for d,sturdy in self._pending_getReferences:
+            d1 = eventual.fireEventually(sturdy)
+            d1.addCallback(self.getReference)
+            d1.addBoth(lambda res, d=d: d.callback(res))
+        del self._pending_getReferences
+        for rc in self.reconnectors:
+            eventual.eventually(rc.startConnecting, self)
 
     def _tubsAreNotRestartable(self):
         raise RuntimeError("Sorry, but Tubs cannot be restarted.")
@@ -386,6 +397,7 @@ class Tub(service.MultiService):
         # note that once you stopService a Tub, I cannot be restarted. (at
         # least this code is not designed to make that possible.. it might be
         # doable in the future).
+        assert self.running
         self.startService = self._tubsAreNotRestartable
         self.getReference = self._tubHasBeenShutDown
         self.connectTo = self._tubHasBeenShutDown
@@ -523,8 +535,6 @@ class Tub(service.MultiService):
         @return: a Deferred that fires with the RemoteReference
         """
 
-        assert self.running
-
         if isinstance(sturdyOrURL, SturdyRef):
             sturdy = sturdyOrURL
         else:
@@ -538,12 +548,21 @@ class Tub(service.MultiService):
                             "we cannot handle encrypted PB-URLs like %s"
                             % sturdy.getURL())
             return defer.fail(e)
+
+        if not self.running:
+            # queue their request for service once the Tub actually starts
+            log.msg("Tub.getReference(%s) queued until Tub.startService called"
+                    % sturdy)
+            d = defer.Deferred()
+            self._pending_getReferences.append((d, sturdy))
+            return d
+
         name = sturdy.name
         d = self.getBrokerForTubRef(sturdy.getTubRef())
         d.addCallback(lambda b: b.getYourReferenceByName(name))
         return d
 
-    def connectTo(self, sturdyOrURL, cb, *args, **kwargs):
+    def connectTo(self, _sturdyOrURL, _cb, *args, **kwargs):
         """Establish (and maintain) a connection to a given PBURL.
 
         I establish a connection to the PBURL and run a callback to inform
@@ -582,8 +601,12 @@ class Tub(service.MultiService):
          rc.stopConnecting() # later
         """
 
-        assert self.running
-        rc = Reconnector(self, sturdyOrURL, cb, *args, **kwargs)
+        rc = Reconnector(_sturdyOrURL, _cb, args, kwargs)
+        if self.running:
+            rc.startConnecting(self)
+        else:
+            log.msg("Tub.connectTo(%s) queued until Tub.startService called"
+                    % _sturdyOrURL)
         self.reconnectors.append(rc)
         return rc
 

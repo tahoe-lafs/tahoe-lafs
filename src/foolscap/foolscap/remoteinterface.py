@@ -105,7 +105,8 @@ def getRemoteInterface(obj):
         if isinstance(i, RemoteInterfaceClass):
             if i not in ilist:
                 ilist.append(i)
-    assert len(ilist) <= 1, "don't use multiple RemoteInterfaces! %s" % (obj,)
+    assert len(ilist) <= 1, ("don't use multiple RemoteInterfaces! %s uses %s"
+                             % (obj, ilist))
     if ilist:
         return ilist[0]
     return None
@@ -199,7 +200,8 @@ class RemoteMethodSchema:
             raise InvalidRemoteInterface(why)
         if not names:
             typeList = []
-        if len(names) != len(typeList):
+        # 'def foo(oops)' results in typeList==None
+        if typeList is None or len(names) != len(typeList):
             # TODO: relax this, use schema=Any for the args that don't have
             # default values. This would make:
             #  def foo(a, b=int): return None
@@ -361,9 +363,18 @@ class RemoteInterfaceConstraint(OpenerConstraint):
     associated with a remote Referenceable that implements the given
     RemoteInterface. If 'interface' is None, just assert that it is a
     RemoteReference at all.
+
+    On the inbound side, this will only accept a suitably-implementing
+    RemoteReference, or a gift that resolves to such a RemoteReference. On
+    the outbound side, this will accept either a Referenceable or a
+    RemoteReference (which might be a your-reference or a their-reference).
+
+    Sending your-references will result in the recipient getting a local
+    Referenceable, which will not pass the constraint. TODO: think about if
+    we want this behavior or not.
     """
-    opentypes = [("my-reference",)]
-    # TODO: accept their-references too
+
+    opentypes = [("my-reference",), ("their-reference",)]
     name = "RemoteInterfaceConstraint"
 
     def __init__(self, interface):
@@ -387,7 +398,17 @@ class RemoteInterfaceConstraint(OpenerConstraint):
                                 % (obj, self.interface))
         else:
             # this ought to be a Referenceable which implements the desired
-            # interface
+            # interface. Or, it might be a RemoteReference which points to
+            # one.
+            if ipb.IRemoteReference.providedBy(obj):
+                # it's a RemoteReference
+                if not self.interface:
+                    return
+                iface = obj.tracker.interface
+                if not iface or iface != self.interface:
+                    raise Violation("'%s' does not provide RemoteInterface %s"
+                                    % (obj, self.interface))
+                return
             if not ipb.IReferenceable.providedBy(obj):
                 # TODO: maybe distinguish between OnlyReferenceable and
                 # Referenceable? which is more useful here?

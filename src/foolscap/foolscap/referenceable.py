@@ -630,8 +630,18 @@ class TheirReferenceUnslicer(slicer.LeafUnslicer):
         d.addBoth(self.ackGift)
         # we return a Deferred that will fire with the RemoteReference when
         # it becomes available. The RemoteReference is not even referenceable
-        # until then.
-        return d,None
+        # until then. In addition, we provide a ready_deferred, since any
+        # mutable container which holds the gift will be referenceable early
+        # but the message delivery must still wait for the getReference to
+        # complete. See to it that we fire the object deferred before we fire
+        # the ready_deferred.
+        obj_deferred, ready_deferred = defer.Deferred(), defer.Deferred()
+        def _ready(rref):
+            obj_deferred.callback(rref)
+            ready_deferred.callback(rref)
+        d.addCallback(_ready)
+
+        return obj_deferred, ready_deferred
 
     def ackGift(self, rref):
         rb = self.broker.remote_broker
@@ -726,26 +736,6 @@ class SturdyRef(Copyable, RemoteCopy):
         return (cmp(type(self), type(them)) or
                 cmp(self.__class__, them.__class__) or
                 cmp(self._distinguishers(), them._distinguishers()))
-
-    def asLiveRef(self):
-        """Return an object that can be sent over the wire and unserialized
-        as a live RemoteReference on the far end. Use this when you have a
-        SturdyRef and want to give someone a reference to its target, but
-        when you haven't bothered to acquire your own live reference to it."""
-
-        return _AsLiveRef(self)
-
-class _AsLiveRef:
-    implements(ipb.ISlicer)
-
-    def __init__(self, sturdy):
-        self.target = sturdy
-
-    def slice(self, streamable, banana):
-        yield 'their-reference'
-        yield giftID
-        yield self.target.getURL()
-        yield [] # interfacenames
 
 
 class TubRef:

@@ -1597,18 +1597,13 @@ class ThereAndBackAgain(TestBananaMixin, unittest.TestCase):
     def test_tuple(self):
         return self.looptest((1,2))
     def test_set(self):
-        d = self.looptest(sets.Set([1,2]))
-        d.addCallback(lambda res: self.looptest(sets.ImmutableSet([1,2])))
-        # verify the python2.4 builtin 'set' type, which is mutable
-        try:
-            set
-            have_set = True
-        except NameError:
-            have_set = False
-        if have_set:
-            # we serialize builtin 'set' as a regular mutable sets.Set
-            d.addCallback(lambda res:
-                          self.looptest(set([1,2]), sets.Set([1,2])))
+        d = self.looptest(set([1,2]))
+        d.addCallback(lambda res: self.looptest(frozenset([1,2])))
+        # and verify that old sets turn into modern ones, which is
+        # unfortunate but at least consistent
+        d.addCallback(lambda res: self.looptest(sets.Set([1,2]), set([1,2])))
+        d.addCallback(lambda res: self.looptest(sets.ImmutableSet([1,2]),
+                                                frozenset([1,2])))
         return d
 
     def test_bool(self):
@@ -1709,14 +1704,70 @@ class ThereAndBackAgain(TestBananaMixin, unittest.TestCase):
         self.assertIdentical(z[0]['list'], z[1])
         self.assertIdentical(z[0]['list'][0], z)
 
-    def testMoreReferences(self):
+    def test_cycles_1(self):
+        # a list that contains a tuple that can't be referenced yet
         a = []
-        t = (a,)
-        t2 = (t,)
+        t1 = (a,)
+        t2 = (t1,)
         a.append(t2)
-        d = self.loop(t)
+        d = self.loop(t1)
         d.addCallback(lambda z: self.assertIdentical(z[0][0][0], z))
         return d
+
+    def test_cycles_2(self):
+        # a dict that contains a tuple that can't be referenced yet.
+        a = {}
+        t1 = (a,)
+        t2 = (t1,)
+        a['foo'] = t2
+        d = self.loop(t1)
+        d.addCallback(lambda z: self.assertIdentical(z[0]['foo'][0], z))
+        return d
+
+    def test_cycles_3(self):
+        # sets seem to be transitively immutable: any mutable contents would
+        # be unhashable, and sets can only contain hashable objects.
+        # Therefore sets cannot participate in cycles the way that tuples
+        # can.
+
+        # a set that contains a tuple that can't be referenced yet. You can't
+        # actually create this in python, because you can only create a set
+        # out of hashable objects, and sets aren't hashable, and a tuple that
+        # contains a set is not hashable.
+        a = set()
+        t1 = (a,)
+        t2 = (t1,)
+        a.add(t2)
+        d = self.loop(t1)
+        d.addCallback(lambda z: self.assertIdentical(list(z[0])[0][0], z))
+
+        # a list that contains a frozenset that can't be referenced yet
+        a = []
+        t1 = frozenset([a])
+        t2 = frozenset([t1])
+        a.append(t2)
+        d = self.loop(t1)
+        d.addCallback(lambda z:
+                      self.assertIdentical(list(list(z)[0][0])[0], z))
+
+        # a dict that contains a frozenset that can't be referenced yet.
+        a = {}
+        t1 = frozenset([a])
+        t2 = frozenset([t1])
+        a['foo'] = t2
+        d = self.loop(t1)
+        d.addCallback(lambda z:
+                      self.assertIdentical(list(list(z)[0]['foo'])[0], z))
+
+        # a set that contains a frozenset that can't be referenced yet.
+        a = set()
+        t1 = frozenset([a])
+        t2 = frozenset([t1])
+        a.add(t2)
+        d = self.loop(t1)
+        d.addCallback(lambda z: self.assertIdentical(list(list(list(z)[0])[0])[0], z))
+        return d
+    del test_cycles_3
 
 
         

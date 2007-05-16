@@ -1,3 +1,112 @@
+2007-05-14  Brian Warner  <warner@lothar.com>
+
+	* foolscap/__init__.py: release Foolscap-0.1.4
+	* misc/{sid|sarge|dapper|edgy|feisty}/debian/changelog: same, also
+	remove a bunch of old between-release version numbers
+
+2007-05-14  Brian Warner  <warner@lothar.com>
+
+	* NEWS: update for the upcoming release
+
+	* doc/using-foolscap.xhtml: rename from doc/using-pb.xhtml
+
+	* doc/using-pb.xhtml: replace all uses of 'PB URL' with 'FURL'
+
+	* foolscap/pb.py (Tub.getReference): if getReference() is called
+	before Tub.startService(), queue the request until startup.
+	(Tub.connectTo): same for connectTo().
+	(Tub.startService): launch pending getReference() and connectTo()
+	requests. There are all fired with eventual-sends.
+	* foolscap/reconnector.py (Reconnector): don't automatically start
+	the Reconnector in __init__, rather wait for the Tub to start it.
+	* foolscap/test/test_tub.py (QueuedStartup): test it
+	* doc/using-pb.xhtml: update docs to match
+
+	* foolscap/test/test_call.py (TestCall.testCall1): replace an
+	arbitrary delay with a polling loop, to make the test more
+	reliable under load
+
+	* foolscap/referenceable.py (SturdyRef.asLiveRef): remove a method
+	that was never used, didn't work, and is of dubious utility
+	anyways.
+	(_AsLiveRef): remove this too
+
+	* misc/testutils/figleaf.py (CodeTracer.start): remove leftover
+	debug logging
+
+	* foolscap/remoteinterface.py (RemoteInterfaceConstraint): accept
+	gifts too: allow sending of RemoteReferences on the outbound side,
+	and accept their-reference sequences on the inbound side.
+	* foolscap/test/test_gifts.py (Gifts.test_constraint): test it
+	* foolscap/test/test_schema.py (Interfaces.test_remotereference):
+	update test, since now we allow RemoteReferences to be sent on the
+	outbound side
+
+	* foolscap/remoteinterface.py (getRemoteInterface): improve the
+	error message reported when a Referenceable class implements
+	multiple RemoteInterfaces
+
+	* foolscap/remoteinterface.py (RemoteMethodSchema.initFromMethod):
+	properly handle methods like 'def foo(nodefault)' that are missing
+	*all* default values. Previously this resulted in an unhelpful
+	exception (since typeList==None), now it gives a sensible
+	InvalidRemoteInterface exception.
+	* foolscap/test/test_schema.py (Arguments.test_bad_arguments):
+	test it
+
+2007-05-11  Brian Warner  <warner@lothar.com>
+
+	* foolscap/slicers/set.py (FrozenSetSlicer): finally acknowledge
+	our dependence on python2.4 or newer, by using the built-in 'set'
+	and 'frozenset' types by default. We'll serialize the old sets.Set
+	and sets.ImmutableSet too, but they'll emerge as a set/frozenset.
+	This will cause problems for code that was written to be
+	compatible with python2.3 (by using sets.Set) and wasn't changed
+	when moved to 2.4, if it tries to mingle sets.Set with the data
+	coming out of Foolscap. Unfortunate, but doing it this way
+	preserves both sanity and good behavior for modern 2.4-or-later
+	apps.
+	(SetUnslicer): fix handling of children that were unreferenceable
+	during construction, fix handling of children that are not ready
+	for use (i.e. gifts).
+	(FrozenSetUnslicer): base this off of TupleUnslicer, since
+	previously the cycle-handling logic was completely broken. I'm not
+	entirely sure this is necessary, since I think the contents of
+	sets must be transitively immutable (or at least transitively
+	hashable), but it good to review and clean it up anyways.
+	* foolscap/slicers/allslicers.py: match name change
+
+	* foolscap/slicers/tuple.py (TupleUnslicer.receiveClose): fix
+	handling of unready children (i.e. gifts), previously gifts inside
+	containers were completely broken.
+	* foolscap/slicers/list.py (ListUnslicer.receiveClose): same
+	* foolscap/slicers/dict.py (DictUnslicer.receiveClose): same
+
+	* foolscap/call.py: add debug log messages (disabled)
+
+	* foolscap/referenceable.py (TheirReferenceUnslicer.receiveClose):
+	gifts must declare themselves 'unready' until the RemoteReference
+	resolves, since we might be inside a container of some sort.
+	Without this fix, methods would be invoked too early, before the
+	RemoteReference was really available.
+
+	* foolscap/test/test_banana.py (ThereAndBackAgain.test_set): match
+	new set/sets.Set behavior
+	(ThereAndBackAgain.test_cycles_1): test some of the cycles
+	(ThereAndBackAgain.test_cycles_3): add (disabled) test for
+	checking cycles that involve sets. I think these tests are
+	non-sensical, since sets can't really participate in the sorts of
+	cycles we worry about, but I left the (disabled) test code in
+	place in case it becomes useful again.
+
+	* foolscap/test/test_gifts.py (Gifts.testContainers): validate
+	that gifts can appear in all sorts of containers successfully.
+
+2007-05-11  Brian Warner  <warner@lothar.com.com>
+
+	* foolscap/__init__.py: bump revision to 0.1.3+ while between releases
+	* misc/{sid|sarge|dapper|edgy|feisty}/debian/changelog: same
+
 2007-05-02  Brian Warner  <warner@lothar.com>
 
 	* foolscap/__init__.py: release Foolscap-0.1.3

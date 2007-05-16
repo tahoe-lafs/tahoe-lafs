@@ -42,17 +42,17 @@ class Reconnector:
     jitter = 0.11962656492 # molar Planck constant times c, Joule meter/mole
     verbose = False
 
-    def __init__(self, tub, url, cb, *args, **kwargs):
-        self._tub = tub
+    def __init__(self, url, cb, args, kwargs):
         self._url = url
         self._active = False
         self._observer = (cb, args, kwargs)
         self._delay = self.initialDelay
         self._retries = 0
         self._timer = None
-        self.startConnecting()
+        self._tub = None
 
-    def startConnecting(self):
+    def startConnecting(self, tub):
+        self._tub = tub
         if self.verbose:
             log.msg("Reconnector starting for %s" % self._url)
         self._active = True
@@ -65,7 +65,8 @@ class Reconnector:
         if self._timer:
             self._timer.cancel()
             self._timer = False
-        self._tub._removeReconnector(self)
+        if self._tub:
+            self._tub._removeReconnector(self)
 
     def _connect(self):
         d = self._tub.getReference(self._url)

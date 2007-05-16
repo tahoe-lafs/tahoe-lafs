@@ -1,10 +1,11 @@
 
+from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet.error import ConnectionDone, ConnectionLost
-from foolscap import Tub, UnauthenticatedTub
+from foolscap import Tub, UnauthenticatedTub, RemoteInterface, Referenceable
 from foolscap.referenceable import RemoteReference
-from foolscap.test.common import HelperTarget
+from foolscap.test.common import HelperTarget, RIHelper
 from foolscap.eventual import flushEventualQueue
 
 crypto_available = False
@@ -23,6 +24,19 @@ if crypto_available:
 def ignoreConnectionDone(f):
     f.trap(ConnectionDone, ConnectionLost)
     return None
+
+class RIConstrainedHelper(RemoteInterface):
+    def set(obj=RIHelper): return None
+
+
+class ConstrainedHelper(Referenceable):
+    implements(RIConstrainedHelper)
+
+    def __init__(self, name="unnamed"):
+        self.name = name
+
+    def remote_set(self, obj):
+        self.obj = obj
 
 class Gifts(unittest.TestCase):
     # Here we test the three-party introduction process as depicted in the
@@ -52,9 +66,15 @@ class Gifts(unittest.TestCase):
         self.bob_url = self.tubB.registerReference(self.bob)
         self.carol = HelperTarget("carol")
         self.carol_url = self.tubC.registerReference(self.carol)
-        self.cindy = HelperTarget("cindy")
         # cindy is Carol's little sister. She doesn't have a phone, but
         # Carol might talk about her anyway.
+        self.cindy = HelperTarget("cindy")
+        # more sisters. Alice knows them, and she introduces Bob to them.
+        self.charlene = HelperTarget("charlene")
+        self.christine = HelperTarget("christine")
+        self.clarisse = HelperTarget("clarisse")
+        self.colette = HelperTarget("colette")
+        self.courtney = HelperTarget("courtney")
 
     def createInitialReferences(self):
         # we must start by giving Alice a reference to both Bob and Carol.
@@ -72,6 +92,46 @@ class Gifts(unittest.TestCase):
             self.acarol = acarol # Alice's reference to Carol
         d.addCallback(_aliceGotCarol)
         return d
+
+    def createMoreReferences(self):
+        # give Alice references to Carol's sisters
+        dl = []
+
+        url = self.tubC.registerReference(self.charlene)
+        d = self.tubA.getReference(url)
+        def _got_charlene(rref):
+            self.acharlene = rref
+        d.addCallback(_got_charlene)
+        dl.append(d)
+
+        url = self.tubC.registerReference(self.christine)
+        d = self.tubA.getReference(url)
+        def _got_christine(rref):
+            self.achristine = rref
+        d.addCallback(_got_christine)
+        dl.append(d)
+
+        url = self.tubC.registerReference(self.clarisse)
+        d = self.tubA.getReference(url)
+        def _got_clarisse(rref):
+            self.aclarisse = rref
+        d.addCallback(_got_clarisse)
+        dl.append(d)
+
+        url = self.tubC.registerReference(self.colette)
+        d = self.tubA.getReference(url)
+        def _got_colette(rref):
+            self.acolette = rref
+        d.addCallback(_got_colette)
+        dl.append(d)
+
+        url = self.tubC.registerReference(self.courtney)
+        d = self.tubA.getReference(url)
+        def _got_courtney(rref):
+            self.acourtney = rref
+        d.addCallback(_got_courtney)
+        dl.append(d)
+        return defer.DeferredList(dl)
 
     def testGift(self):
         #defer.setDebugging(True)
@@ -186,6 +246,76 @@ class Gifts(unittest.TestCase):
             self.failUnlessEqual(self.bob.calls[0], 1)
             self.failUnless(isinstance(self.bob.calls[1], RemoteReference))
             self.failUnlessEqual(self.bob.calls[2], 3)
+        d.addCallback(_checkBob)
+        return d
+
+    def testContainers(self):
+        self.createCharacters()
+        self.bob.calls = []
+        d = self.createInitialReferences()
+        d.addCallback(lambda res: self.createMoreReferences())
+        def _introduce(res):
+            # we send several messages to Bob, each of which has a container
+            # with a gift inside it. This exercises the ready_deferred
+            # handling inside containers.
+            dl = []
+            cr = self.abob.callRemote
+            dl.append(cr("append", set([self.acharlene])))
+            dl.append(cr("append", frozenset([self.achristine])))
+            dl.append(cr("append", [self.aclarisse]))
+            dl.append(cr("append", obj=(self.acolette,)))
+            dl.append(cr("append", {'a': self.acourtney}))
+            # TODO: pass a gift as an attribute of a Copyable
+            return defer.DeferredList(dl)
+        d.addCallback(_introduce)
+        def _checkBob(res):
+            # this runs after all three messages have been acked by Bob
+            self.failUnlessEqual(len(self.bob.calls), 5)
+
+            bcharlene = self.bob.calls.pop(0)
+            self.failUnless(isinstance(bcharlene, set))
+            self.failUnlessEqual(len(bcharlene), 1)
+            self.failUnless(isinstance(list(bcharlene)[0], RemoteReference))
+
+            bchristine = self.bob.calls.pop(0)
+            self.failUnless(isinstance(bchristine, frozenset))
+            self.failUnlessEqual(len(bchristine), 1)
+            self.failUnless(isinstance(list(bchristine)[0], RemoteReference))
+
+            bclarisse = self.bob.calls.pop(0)
+            self.failUnless(isinstance(bclarisse, list))
+            self.failUnlessEqual(len(bclarisse), 1)
+            self.failUnless(isinstance(bclarisse[0], RemoteReference))
+
+            bcolette = self.bob.calls.pop(0)
+            self.failUnless(isinstance(bcolette, tuple))
+            self.failUnlessEqual(len(bcolette), 1)
+            self.failUnless(isinstance(bcolette[0], RemoteReference))
+
+            bcourtney = self.bob.calls.pop(0)
+            self.failUnless(isinstance(bcourtney, dict))
+            self.failUnlessEqual(len(bcourtney), 1)
+            self.failUnless(isinstance(bcourtney['a'], RemoteReference))
+
+        d.addCallback(_checkBob)
+        return d
+
+    def create_constrained_characters(self):
+        self.alice = HelperTarget("alice")
+        self.bob = ConstrainedHelper("bob")
+        self.bob_url = self.tubB.registerReference(self.bob)
+        self.carol = HelperTarget("carol")
+        self.carol_url = self.tubC.registerReference(self.carol)
+
+    def test_constraint(self):
+        self.create_constrained_characters()
+        self.bob.calls = []
+        d = self.createInitialReferences()
+        def _introduce(res):
+            return self.abob.callRemote("set", self.acarol)
+        d.addCallback(_introduce)
+        def _checkBob(res):
+            self.failUnless(isinstance(self.bob.obj, RemoteReference))
         d.addCallback(_checkBob)
         return d
 

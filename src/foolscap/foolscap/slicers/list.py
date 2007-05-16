@@ -1,7 +1,7 @@
 # -*- test-case-name: foolscap.test.test_banana -*-
 
 from twisted.python import log
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, DeferredList
 from foolscap.tokens import Violation
 from foolscap.slicer import BaseSlicer, BaseUnslicer
 from foolscap.constraint import OpenerConstraint, Any, UnboundedSchema, IConstraint
@@ -35,8 +35,9 @@ class ListUnslicer(BaseUnslicer):
         self.list = []
         self.count = count
         if self.debug:
-            print "%s[%d].start with %s" % (self, self.count, self.list)
+            log.msg("%s[%d].start with %s" % (self, self.count, self.list))
         self.protocol.setObject(count, self.list)
+        self._ready_deferreds = []
 
     def checkToken(self, typebyte, size):
         if self.maxLength != None and len(self.list) >= self.maxLength:
@@ -65,15 +66,16 @@ class ListUnslicer(BaseUnslicer):
     def update(self, obj, index):
         # obj has already passed typechecking
         if self.debug:
-            print "%s[%d].update: [%d]=%s" % (self, self.count, index, obj)
+            log.msg("%s[%d].update: [%d]=%s" % (self, self.count, index, obj))
         assert isinstance(index, int)
         self.list[index] = obj
         return obj
 
     def receiveChild(self, obj, ready_deferred=None):
-        assert ready_deferred is None
+        if ready_deferred:
+            self._ready_deferreds.append(ready_deferred)
         if self.debug:
-            print "%s[%d].receiveChild(%s)" % (self, self.count, obj)
+            log.msg("%s[%d].receiveChild(%s)" % (self, self.count, obj))
         # obj could be a primitive type, a Deferred, or a complex type like
         # those returned from an InstanceUnslicer. However, the individual
         # object has already been through the schema validation process. The
@@ -86,10 +88,12 @@ class ListUnslicer(BaseUnslicer):
             raise Violation("the list is full")
         if isinstance(obj, Deferred):
             if self.debug:
-                print " adding my update[%d] to %s" % (len(self.list), obj)
+                log.msg(" adding my update[%d] to %s" % (len(self.list), obj))
             obj.addCallback(self.update, len(self.list))
             obj.addErrback(self.printErr)
-            self.list.append("placeholder")
+            placeholder = "list placeholder for arg[%d], rd=%s" % \
+                          (len(self.list), ready_deferred)
+            self.list.append(placeholder)
         else:
             self.list.append(obj)
 
@@ -99,7 +103,10 @@ class ListUnslicer(BaseUnslicer):
         log.err(why)
 
     def receiveClose(self):
-        return self.list, None
+        ready_deferred = None
+        if self._ready_deferreds:
+            ready_deferred = DeferredList(self._ready_deferreds)
+        return self.list, ready_deferred
 
     def describe(self):
         return "[%d]" % len(self.list)

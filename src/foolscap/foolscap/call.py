@@ -197,11 +197,14 @@ class InboundDelivery:
 
 class ArgumentUnslicer(slicer.ScopedUnslicer):
     methodSchema = None
+    debug = False
 
     def setConstraint(self, methodSchema):
         self.methodSchema = methodSchema
 
     def start(self, count):
+        if self.debug:
+            log.msg("%s.start: %s" % (self, count))
         self.numargs = None
         self.args = []
         self.kwargs = {}
@@ -242,6 +245,11 @@ class ArgumentUnslicer(slicer.ScopedUnslicer):
         return unslicer
 
     def receiveChild(self, token, ready_deferred=None):
+        if self.debug:
+            log.msg("%s.receiveChild: %s %s %s %s %s args=%s kwargs=%s" %
+                    (self, self.closed, self.num_unreferenceable_children,
+                     self.num_unready_children, token, ready_deferred,
+                     self.args, self.kwargs))
         if self.numargs is None:
             # this token is the number of positional arguments
             assert isinstance(token, int)
@@ -261,10 +269,14 @@ class ArgumentUnslicer(slicer.ScopedUnslicer):
             argpos = len(self.args)
             self.args.append(argvalue)
             if isinstance(argvalue, defer.Deferred):
+                # this may occur if the child is a gift which has not
+                # resolved yet.
                 self.num_unreferenceable_children += 1
                 argvalue.addCallback(self.updateChild, argpos)
                 argvalue.addErrback(self.explode)
             if ready_deferred:
+                if self.debug:
+                    log.msg("%s.receiveChild got an unready posarg" % self)
                 self.num_unready_children += 1
                 ready_deferred.addCallback(self.childReady)
             if len(self.args) < self.numargs:
@@ -298,11 +310,13 @@ class ArgumentUnslicer(slicer.ScopedUnslicer):
             argvalue.addCallback(self.updateChild, self.argname)
             argvalue.addErrback(self.explode)
         if ready_deferred:
+            if self.debug:
+                log.msg("%s.receiveChild got an unready kwarg" % self)
             self.num_unready_children += 1
             ready_deferred.addCallback(self.childReady)
         self.argname = None
         return
-        
+
     def updateChild(self, obj, which):
         # one of our arguments has just now become referenceable. Normal
         # types can't trigger this (since the arguments to a method form a
@@ -311,6 +325,9 @@ class ArgumentUnslicer(slicer.ScopedUnslicer):
         # RemoteReference, but for now all we get is a Deferred as a
         # placeholder.
 
+        if self.debug:
+            log.msg("%s.updateChild, [%s] became referenceable: %s" %
+                    (self, which, obj))
         if isinstance(which, int):
             self.args[which] = obj
         else:
@@ -321,12 +338,22 @@ class ArgumentUnslicer(slicer.ScopedUnslicer):
 
     def childReady(self, obj):
         self.num_unready_children -= 1
+        if self.debug:
+            log.msg("%s.childReady, now %d left" %
+                    (self, self.num_unready_children))
+            log.msg(" obj=%s, args=%s, kwargs=%s" %
+                    (obj, self.args, self.kwargs))
         self.checkComplete()
         return obj
 
     def checkComplete(self):
         # this is called each time one of our children gets updated or
         # becomes ready (like when a Gift is finally resolved)
+        if self.debug:
+            log.msg("%s.checkComplete: %s %s %s args=%s kwargs=%s" %
+                    (self, self.closed, self.num_unreferenceable_children,
+                     self.num_unready_children, self.args, self.kwargs))
+
         if not self.closed:
             return
         if self.num_unreferenceable_children:
@@ -334,17 +361,25 @@ class ArgumentUnslicer(slicer.ScopedUnslicer):
         if self.num_unready_children:
             return
         # yup, we're done. Notify anyone who is still waiting
+        if self.debug:
+            log.msg(" we are ready")
         for d in self.watchers:
             eventually(d.callback, self)
         del self.watchers
 
     def receiveClose(self):
+        if self.debug:
+            log.msg("%s.receiveClose: %s %s %s" %
+                    (self, self.closed, self.num_unreferenceable_children,
+                     self.num_unready_children))
         if (self.numargs is None or
             len(self.args) < self.numargs or
             self.argname is not None):
             raise BananaError("'arguments' sequence ended too early")
         self.closed = True
         self.watchers = []
+        # we don't return a ready_deferred. Instead, the InboundDelivery
+        # object queries our isReady() method directly.
         return self, None
 
     def isReady(self):
@@ -384,6 +419,8 @@ class ArgumentUnslicer(slicer.ScopedUnslicer):
 
 
 class CallUnslicer(slicer.ScopedUnslicer):
+
+    debug = False
 
     def start(self, count):
         # start=0:reqID, 1:objID, 2:methodname, 3: arguments
@@ -436,7 +473,9 @@ class CallUnslicer(slicer.ScopedUnslicer):
     def receiveChild(self, token, ready_deferred=None):
         assert not isinstance(token, defer.Deferred)
         assert ready_deferred is None
-        #print "CallUnslicer.receiveChild [s%d]" % self.stage, repr(token)
+        if self.debug:
+            log.msg("%s.receiveChild [s%d]: %s" %
+                    (self, self.stage, repr(token)))
 
         if self.stage == 0: # reqID
             # we don't yet know which reqID to send any failure to

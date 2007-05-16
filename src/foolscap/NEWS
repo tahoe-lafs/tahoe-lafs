@@ -1,5 +1,69 @@
 User visible changes in Foolscap (aka newpb/pb2).           -*- outline -*-
 
+* Release 0.1.4 (14 May 2007)
+
+** Compatibility
+
+This release is fully compatible with 0.1.3 .
+
+** getReference/connectTo can be called before Tub.startService()
+
+The Tub.startService changes that were suggested in the 0.1.3 release notes
+have been implemented. Calling getReference() or connectTo() before the Tub
+has been started is now allowed, however no action will take place until the
+Tub is running. Don't forget to start the Tub, or you'll be left wondering
+why your Deferred or callback is never fired. (A log message is emitted when
+these calls are made before the Tub is started, in the hopes of helping
+developers find this mistake faster).
+
+** constraint improvements
+
+The RIFoo -style constraint now accepts gifts (third-party references). This
+also means that using RIFoo on the outbound side will accept either a
+Referenceable that implements the given RemoteInterface or a RemoteReference
+that points to a Referenceable that implements the given RemoteInterface.
+There is a situation (sending a RemoteReference back to its owner) that will
+pass the outbound constraint but be rejected by the inbound constraint on the
+other end. It remains to be seen how this will be fixed.
+
+** foolscap now deserializes into python2.4-native 'set' and 'frozenset' types
+
+Since Foolscap is dependent upon python2.4 or newer anyways, it now
+unconditionally creates built-in 'set' and 'frozenset' instances when
+deserializing 'set'/'immutable-set' banana sequences. The pre-python2.4
+'sets' module has non-built-in set classes named sets.Set and
+sets.ImmutableSet, and these are serialized just like the built-in forms.
+
+Unfortunately this means that Set and ImmutableSet will not survive a
+round-trip: they'll be turned into set and frozenset, respectively. Worse
+yet, 'set' and 'sets.Set' are not entirely compatible. This may cause a
+problem for older applications that were written to be compatible with both
+python-2.3 and python-2.4 (by using sets.Set/sets.ImmutableSet), for which
+the compatibility code is still in place (i.e. they are not using
+set/frozenset). These applications may experience problems when set objects
+that traverse the wire via Foolscap are brought into close proximity with set
+objects that remained local. This is unfortunate, but it's the cleanest way
+to support modern applications that use the native types exclusively.
+
+** bug fixes
+
+Gifts inside containers (lists, tuples, dicts, sets) were broken: the target
+method was frequently invoked before the gift had properly resolved into a
+RemoteReference. Constraints involving gifts inside containers were broken
+too. The constraints may be too loose right now, but I don't think they
+should cause false negatives.
+
+The unused SturdyRef.asLiveRef method was removed, since it didn't work
+anyways.
+
+** terminology shift: FURL
+
+The preferred name for the sort of URL that you get back from
+registerReference (and hand to getReference or connectTo) has changed from
+"PB URL" to "FURL" (short for Foolscap URL). They still start with 'pb:',
+however. Documentation is slowly being changed to use this term.
+
+
 * Release 0.1.3 (02 May 2007)
 
 ** Incompatibility Warning

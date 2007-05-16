@@ -10,7 +10,7 @@ from foolscap.slicers.unicode import UnicodeSlicer, UnicodeUnslicer
 from foolscap.slicers.list import ListSlicer, ListUnslicer
 from foolscap.slicers.tuple import TupleSlicer, TupleUnslicer
 from foolscap.slicers.set import SetSlicer, SetUnslicer
-from foolscap.slicers.set import ImmutableSetSlicer, ImmutableSetUnslicer
+from foolscap.slicers.set import FrozenSetSlicer, FrozenSetUnslicer
 #from foolscap.slicers.set import BuiltinSetSlicer
 from foolscap.slicers.dict import DictSlicer, DictUnslicer, OrderedDictSlicer
 from foolscap.slicers.vocab import ReplaceVocabSlicer, ReplaceVocabUnslicer
@@ -26,7 +26,7 @@ unused = [
     ListSlicer, ListUnslicer,
     TupleSlicer, TupleUnslicer,
     SetSlicer, SetUnslicer,
-    ImmutableSetSlicer, ImmutableSetUnslicer,
+    FrozenSetSlicer, FrozenSetUnslicer,
     #from foolscap.slicers.set import BuiltinSetSlicer
     DictSlicer, DictUnslicer, OrderedDictSlicer,
     ReplaceVocabSlicer, ReplaceVocabUnslicer,

@@ -1,7 +1,7 @@
 # -*- test-case-name: foolscap.test.test_banana -*-
 
 from twisted.python import log
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, DeferredList
 from foolscap.tokens import Violation, BananaError
 from foolscap.slicer import BaseSlicer, BaseUnslicer
 from foolscap.constraint import OpenerConstraint, Any, UnboundedSchema, IConstraint
@@ -35,6 +35,7 @@ class DictUnslicer(BaseUnslicer):
         self.d = {}
         self.protocol.setObject(count, self.d)
         self.key = None
+        self._ready_deferreds = []
 
     def checkToken(self, typebyte, size):
         if self.maxKeys != None:
@@ -72,8 +73,8 @@ class DictUnslicer(BaseUnslicer):
         self.d[key] = value
 
     def receiveChild(self, obj, ready_deferred=None):
-        assert not isinstance(obj, Deferred)
-        assert ready_deferred is None
+        if ready_deferred:
+            self._ready_deferreds.append(ready_deferred)
         if self.gettingKey:
             self.receiveKey(obj)
         else:
@@ -102,7 +103,10 @@ class DictUnslicer(BaseUnslicer):
         self.d[self.key] = value # placeholder
 
     def receiveClose(self):
-        return self.d, None
+        ready_deferred = None
+        if self._ready_deferreds:
+            ready_deferred = DeferredList(self._ready_deferreds)
+        return self.d, ready_deferred
 
     def describe(self):
         if self.gettingKey:

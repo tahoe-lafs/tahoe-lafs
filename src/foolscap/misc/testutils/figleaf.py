@@ -168,7 +168,6 @@ class CodeTracer:
         Start recording.
         """
         if not self.started:
-            self.LOG = open("/tmp/flog.out", "w")
             self.started = True
 
             sys.settrace(self.g)

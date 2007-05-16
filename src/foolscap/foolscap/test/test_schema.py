@@ -2,7 +2,7 @@
 import sets, re
 from twisted.trial import unittest
 from foolscap import schema, copyable
-from foolscap.tokens import Violation
+from foolscap.tokens import Violation, InvalidRemoteInterface
 from foolscap.constraint import IConstraint
 from foolscap.remoteinterface import RemoteMethodSchema, \
      RemoteInterfaceConstraint, LocalInterfaceConstraint
@@ -474,6 +474,13 @@ class Arguments(unittest.TestCase):
         self.failUnlessRaises(schema.Violation,
                               r.checkResults, 12, False)
 
+    def test_bad_arguments(self):
+        def foo(nodefault): return str
+        self.failUnlessRaises(InvalidRemoteInterface,
+                              RemoteMethodSchema, method=foo)
+        def bar(nodefault, a=int): return str
+        self.failUnlessRaises(InvalidRemoteInterface,
+                              RemoteMethodSchema, method=bar)
 
 
 class Interfaces(unittest.TestCase):
@@ -520,9 +527,11 @@ class Interfaces(unittest.TestCase):
         interfaceName = common.RIHelper.__remote_name__
         tracker = RemoteReferenceTracker(parent, clid, url, interfaceName)
         rr = RemoteReference(tracker)
+
         c1 = RemoteInterfaceConstraint(common.RIHelper)
-        c2 = RemoteInterfaceConstraint(common.RIMyTarget)
         self.check_inbound(rr, c1)
-        self.violates_outbound(rr, c1)
+        self.check_outbound(rr, c1) # gift
+
+        c2 = RemoteInterfaceConstraint(common.RIMyTarget)
         self.violates_inbound(rr, c2)
         self.violates_outbound(rr, c2)
