@@ -65,7 +65,7 @@ gcc make python-dev python-twisted python-nevow python-pyopenssl".
    Twisted requires zope.interface, a copy of which is included in the
    Twisted distribution.
 
- + Python Nevow (probably 0.9.0 or later) (web presentation language)
+ + Python Nevow (0.9.0 or later) (web presentation language)
 
    http://divmod.org/trac/wiki/DivmodNevow
 
@@ -86,6 +86,10 @@ gcc make python-dev python-twisted python-nevow python-pyopenssl".
 
    To install PyOpenSSL on Windows-native, download this:
    http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.5.exe
+
+   To install PyOpenSSL on Windows-cygwin, install the OpenSSL development
+   libraries with the cygwin package management tool, then get the pyOpenSSL
+   source code, cd into it, and run "python ./setup.py install".
 
  + the pywin32 package: only required on Windows
 
