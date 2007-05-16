@@ -33,8 +33,9 @@ get 'darcs changes --from-tag=' to accept real regexps).
 
 """
 
-import os, sys, commands, re
+import os, sys, re
 import xml.dom.minidom
+from subprocess import Popen, PIPE
 
 def get_text(nodelist):
     rc = ""
@@ -68,8 +69,10 @@ def update():
             return 0
         print "no _darcs/ but no version.py either: how did you get this tree?"
         return 0
-    cmd = "darcs changes --from-tag=^allmydata-tahoe --xml-output"
-    (rc, output) = commands.getstatusoutput(cmd)
+    cmd = ["darcs", "changes", "--from-tag=^allmydata-tahoe", "--xml-output"]
+    p = Popen(cmd, stdout=PIPE)
+    output = p.communicate()[0]
+    rc = p.returncode
     if rc != 0:
         print "unable to run 'darcs changes':"
         print output
