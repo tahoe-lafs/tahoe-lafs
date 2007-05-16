@@ -96,6 +96,15 @@ gcc make python-dev python-twisted python-nevow python-pyopenssl".
    http://sourceforge.net/projects/pywin32/
 
 
+Tahoe uses a few additional libraries which are included in this source
+distribution for convenience. These will be automatically built when you type
+'make', but if you have separate installations of them you may wish to modify
+the makefile to use those in preference to the included versions. They
+include Foolscap (a secure remote-object-invocation library), zfec (erasure
+coding), and a modified version of PyCrypto (enhanced to provide a faster
+CTR-mode API).
+
+
 BUILDING:
 
  Just type 'make' in the top-level tahoe directory.  This works on Windows
