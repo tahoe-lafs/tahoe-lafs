@@ -155,6 +155,13 @@ class Directory(rend.Page):
     def render_forms(self, ctx, data):
         return webform.renderForms()
 
+    def render_results(self, ctx, data):
+        req = inevow.IRequest(ctx)
+        if "results" in req.args:
+            return req.args["results"]
+        else:
+            return ""
+
     def bind_upload(self, ctx):
         """upload1"""
         # Note: this comment is no longer accurate, as it reflects the older
@@ -173,20 +180,31 @@ class Directory(rend.Page):
                                  requiredFailMessage="Do iT!")
         contentsarg = annotate.Argument("contents", up)
 
+        privateUpload = annotate.Radio(label="Private?", choices=["Yes"])
+        privatearg = annotate.Argument("privateupload", privateUpload)
+
         ctxarg = annotate.Argument("ctx", annotate.Context())
-        meth = annotate.Method(arguments=[contentsarg, ctxarg],
+        meth = annotate.Method(arguments=[contentsarg, privatearg, ctxarg],
                                label="Upload File to this directory")
         return annotate.MethodBinding("upload", meth, action="Upload")
 
-    def upload(self, contents, ctx):
+    def uploadprivate(self, filename, uri):
+        message = "webish upload complete, filename %s %s" % (filename, uri)
+        log.msg(message)
+        return url.here.add("filename", filename).add("results", message)
+
+    def upload(self, contents, privateupload, ctx):
         # contents is a cgi.FieldStorage instance
         log.msg("starting webish upload")
 
         uploader = get_uploader_service(ctx)
         d = uploader.upload(upload.Data(contents.value))
         name = contents.filename
-        d.addCallback(lambda vid:
-                      self._dirnode.callRemote("add_file", name, vid))
+        if privateupload:
+            d.addCallback(lambda vid: self.uploadprivate(name, vid))
+        else:
+            d.addCallback(lambda vid:
+                          self._dirnode.callRemote("add_file", name, vid))
         def _done(res):
             log.msg("webish upload complete")
             return res
