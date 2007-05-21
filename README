@@ -148,7 +148,7 @@ There are three ways to do it.  Choose one:
   You'll need to run "setup.py install" four separate times, one for each of
   the four subpackages (allmydata, allmydata.Crypto, foolscap, and zfec).  If
   you use GNU stow, add the options "--prefix=." and
-  "--root=/usr/local/stow/${PACKAGE}" to the "setup.py install" command.
+  "--root=/usr/local/stow/${PACKAGE}" after the "setup.py install" command.
 
     for PACKAGE in zfec Crypto foolscap ; do
       cd src/${PACKAGE} && python setup.py install && cd ../..

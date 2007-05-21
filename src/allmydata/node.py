@@ -4,7 +4,8 @@ from twisted.python import log
 from twisted.application import service
 from twisted.internet import defer
 from foolscap import Tub
-from allmydata.util import idlib, observer, iputil
+from allmydata.util import idlib, iputil, observer
+
 
 # Just to get their versions:
 import allmydata
