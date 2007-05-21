@@ -63,15 +63,15 @@ build: make-version build-zfec build-Crypto build-foolscap
 
 build-zfec:
 	cd src/zfec &&  \
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="lib" --install-scripts="bin"
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --single-version-externally-managed --prefix="$(INSTDIR)" --record="$(INSTDIR)/zfec_install.log" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
 
 build-foolscap:
 	cd src/foolscap && \
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="lib" --install-scripts="bin"
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="$(INSTDIR)" --record="$(INSTDIR)/foolscap_install.log" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
 
 build-Crypto:
 	cd src/Crypto && \
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="lib" --install-scripts="bin"
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="$(INSTDIR)" --record="$(INSTDIR)/Crypto_install.log" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
 
 clean-zfec:
 	-cd src/zfec && \
@@ -125,15 +125,7 @@ test-all: test-foolscap test
 # use 'make test REPORTER=--reporter=bwverbose' from buildbot, to supress the
 # ansi color sequences
 
-# our current build process embeds bogus filenames inside the .pyc files
-# (they start with /lib). Blow them away and allow the test process to
-# regenerate them, so that tracebacks and figleaf data can refer to the
-# correct filenames (and thus find their source code).
-#
-# TODO: remove this hack, since it requires redoing the byte-compliation on
-# every single test run
 test: build
-	find $(INSTDIR) -name '*.pyc' |xargs rm
 	$(PP) $(TRIAL) $(REPORTER) $(TEST)
 
 # foolscap tests need to be run in their own source dir, so that the paths to
