@@ -47,11 +47,12 @@ class Node(service.MultiService):
         f.write(idlib.b2a(self.nodeid) + "\n")
         f.close()
         self.short_nodeid = self.tub.tubID[:4] # ready for printing
-        portnum = 0
         assert self.PORTNUMFILE, "Your node.Node subclass must provide PORTNUMFILE"
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
-        if os.path.exists(self._portnumfile):
-            portnum = int(open(self._portnumfile, "r").read())
+        try:
+            portnum = int(open(self._portnumfile, "rU").read())
+        except EnvironmentError, ValueError:
+            portnum = 0
         self.tub.listenOn("tcp:%d" % portnum)
         # we must wait until our service has started before we can find out
         # our IP address and thus do tub.setLocation, and we can't register
