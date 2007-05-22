@@ -16,22 +16,26 @@ from twisted.python.procutils import which
 def get_local_addresses_async(target='A.ROOT-SERVERS.NET'):
     """
     Return a Deferred that fires with a list of IPv4 addresses (as dotted-quad
-    strings) that are currently configured on this host.
+    strings) that are currently configured on this host, sorted in descending
+    order of how likely we think they are to work.
 
     @param target: we want to learn an IP address they could try using to
         connect to us; The default value is fine, but it might help if you
         pass the address of a host that you are actually trying to be
         reachable to.
     """
+    addresses = []
+    addresses.append(get_local_ip_for(target))
+
     if sys.platform == "cygwin":
-        return _cygwin_hack(target)
+        d = _cygwin_hack_find_addresses(target)
+    else:
+        d = _find_addresses_via_config()
 
-    addresses = set()
-    addresses.add(get_local_ip_for(target))
-
-    d = _find_addresses_via_config()
     def _collect(res):
-        addresses.update(res)
+        for addr in res:
+            if not addr in addresses:
+                addresses.append(addr)
         return addresses
     d.addCallback(_collect)
 
@@ -119,10 +123,12 @@ def _find_addresses_via_config():
         l.append(_query(executable, args, regex))
     dl = defer.DeferredList(l)
     def _gather_results(res):
-        addresses = set()
-        for r in res:
-            if r[0]:
-                addresses.update(r[1])
+        addresses = []
+        for (succ, addrs,) in res:
+            if succ:
+                for addr in addrs:
+                    if addr not in addresses:
+                        addresses.append(addr)
         return addresses
     dl.addCallback(_gather_results)
     return dl
@@ -130,26 +136,27 @@ def _find_addresses_via_config():
 def _query(path, args, regex):
     d = getProcessOutput(path, args)
     def _parse(output):
-        addresses = set()
+        addresses = []
         outputsplit = output.split('\n')
         for outline in outputsplit:
             m = regex.match(outline)
             if m:
-                d = m.groupdict()
-                addresses.add(d['address'])
+                addr = m.groupdict()['address']
+                if addr not in addresses:
+                    addresses.append(addr)
     
         return addresses
     d.addCallback(_parse)
     return d
 
-def _cygwin_hack(target):
-    res = set()
+def _cygwin_hack_find_addresses(target):
+    addresses = []
     for h in [target, "localhost", "127.0.0.1",]:
         try:
-            res.add(get_local_ip_for(h))
+            addr = get_local_ip_for(h)
+            if addr not in addresses:
+                addresses.append(addr)
         except socket.gaierror:
             pass
 
-    return defer.succeed(res)
-
-    
+    return defer.succeed(addresses)
