@@ -10,7 +10,7 @@ Hash = StringConstraint(maxLength=HASH_SIZE,
                         minLength=HASH_SIZE)# binary format 32-byte SHA256 hash
 Nodeid = StringConstraint(maxLength=20,
                           minLength=20) # binary format 20-byte SHA1 hash
-PBURL = StringConstraint(150)
+PBURL = StringConstraint(1000)
 Verifierid = StringConstraint(20)
 URI = StringConstraint(300) # kind of arbitrary
 MAX_BUCKETS = 200  # per peer
