@@ -1,5 +1,6 @@
 
-import os.path
+import os.path, re
+
 from twisted.python import log
 from twisted.application import service
 from twisted.internet import defer
@@ -12,13 +13,16 @@ import allmydata
 import zfec
 import foolscap
 
+# group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
+ADDR_RE=re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
+
 class Node(service.MultiService):
     # this implements common functionality of both Client nodes, Introducer 
     # nodes, and Vdrive nodes
     NODETYPE = "unknown NODETYPE"
     PORTNUMFILE = None
     CERTFILE = None
-    LOCAL_IP_FILE = "local_ip"
+    LOCAL_IP_FILE = "advertised_ip_addresses"
     NODEIDFILE = "my_nodeid"
 
     def __init__(self, basedir="."):
@@ -105,21 +109,26 @@ class Node(service.MultiService):
         # running, which means after startService.
         l = self.tub.getListeners()[0]
         portnum = l.getPortnum()
-        local_ip_filename = os.path.join(self.basedir, self.LOCAL_IP_FILE)
-        if os.path.exists(local_ip_filename):
-            f = open(local_ip_filename, "r")
-            local_ip = f.read()
-            f.close()
-            if local_ip not in local_addresses:
-                local_addresses.append(local_ip)
-        if not os.path.exists(self._portnumfile):
-            # record which port we're listening on, so we can grab the same
-            # one next time
-            f = open(self._portnumfile, "w")
-            f.write("%d\n" % portnum)
-            f.close()
-        location = ",".join(["%s:%d" % (ip, portnum)
-                             for ip in local_addresses])
+        # record which port we're listening on, so we can grab the same one next time
+        open(self._portnumfile, "w").write("%d\n" % portnum)
+
+        local_addresses = [ "%s:%d" % (addr, portnum,) for addr in local_addresses ]
+
+        addresses = []
+        try:
+            for addrline in open(os.path.join(self.basedir, self.LOCAL_IP_FILE), "rU"):
+                mo = ADDR_RE.search(addrline)
+                if mo:
+                    (addr, dummy, aportnum,) = mo.groups()
+                    if aportnum is None:
+                        aportnum = portnum
+                    addresses.append("%s:%d" % (addr, aportnum,))
+        except EnvironmentError:
+            pass
+
+        addresses.extend(local_addresses)
+
+        location = ",".join(addresses)
         self.log("Tub location set to %s" % location)
         self.tub.setLocation(location)
         return self.tub
