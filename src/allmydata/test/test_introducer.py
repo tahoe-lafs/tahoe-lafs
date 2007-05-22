@@ -45,7 +45,7 @@ class TestIntroducer(unittest.TestCase):
 
 
     def test_create(self):
-        ic = IntroducerClient(None, "introducer", "mypburl")
+        ic = IntroducerClient(None, "introducer", "myfurl")
         def _ignore(nodeid, rref):
             pass
         ic.notify_on_new_connection(_ignore)
@@ -89,8 +89,8 @@ class TestIntroducer(unittest.TestCase):
             tub.setLocation("localhost:%d" % portnum)
 
             n = MyNode()
-            node_pburl = tub.registerReference(n)
-            c = IntroducerClient(tub, iurl, node_pburl)
+            node_furl = tub.registerReference(n)
+            c = IntroducerClient(tub, iurl, node_furl)
             c.notify_on_new_connection(_count)
             c.setServiceParent(self.parent)
             clients.append(c)
@@ -167,8 +167,8 @@ class TestIntroducer(unittest.TestCase):
         clients = []
         for i in range(5):
             n = MyNode()
-            node_pburl = tub.registerReference(n)
-            c = IntroducerClient(tub, iurl, node_pburl)
+            node_furl = tub.registerReference(n)
+            c = IntroducerClient(tub, iurl, node_furl)
             c.setServiceParent(self.parent)
             clients.append(c)
 
@@ -208,8 +208,8 @@ class TestIntroducer(unittest.TestCase):
             tub.setLocation("localhost:%d" % portnum)
 
             n = MyNode()
-            node_pburl = tub.registerReference(n)
-            c = IntroducerClient(tub, iurl, node_pburl)
+            node_furl = tub.registerReference(n)
+            c = IntroducerClient(tub, iurl, node_furl)
             c.setServiceParent(self.parent)
             clients.append(c)
 

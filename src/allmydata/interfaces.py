@@ -10,18 +10,18 @@ Hash = StringConstraint(maxLength=HASH_SIZE,
                         minLength=HASH_SIZE)# binary format 32-byte SHA256 hash
 Nodeid = StringConstraint(maxLength=20,
                           minLength=20) # binary format 20-byte SHA1 hash
-PBURL = StringConstraint(1000)
+FURL = StringConstraint(1000)
 Verifierid = StringConstraint(20)
 URI = StringConstraint(300) # kind of arbitrary
 MAX_BUCKETS = 200  # per peer
 ShareData = StringConstraint(100000)
 
 class RIIntroducerClient(RemoteInterface):
-    def new_peers(pburls=SetOf(PBURL)):
+    def new_peers(furls=SetOf(FURL)):
         return None
 
 class RIIntroducer(RemoteInterface):
-    def hello(node=RIIntroducerClient, pburl=PBURL):
+    def hello(node=RIIntroducerClient, furl=FURL):
         return None
 
 class RIClient(RemoteInterface):

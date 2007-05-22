@@ -32,7 +32,7 @@ class Client(node.Node, Referenceable):
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
-        self.my_pburl = None
+        self.my_furl = None
         self.introducer_client = None
         self.connected_to_vdrive = False
         self.add_service(StorageServer(os.path.join(basedir, self.STOREDIR)))
@@ -60,9 +60,9 @@ class Client(node.Node, Referenceable):
 
     def tub_ready(self):
         self.log("tub_ready")
-        self.my_pburl = self.tub.registerReference(self)
+        self.my_furl = self.tub.registerReference(self)
 
-        ic = IntroducerClient(self.tub, self.introducer_furl, self.my_pburl)
+        ic = IntroducerClient(self.tub, self.introducer_furl, self.my_furl)
         self.introducer_client = ic
         ic.setServiceParent(self)
 
@@ -75,10 +75,10 @@ class Client(node.Node, Referenceable):
         c = ControlServer()
         c.setServiceParent(self)
         control_url = self.tub.registerReference(c)
-        f = open("control.pburl", "w")
+        f = open("control.furl", "w")
         f.write(control_url + "\n")
         f.close()
-        os.chmod("control.pburl", 0600)
+        os.chmod("control.furl", 0600)
 
     def _got_vdrive(self, vdrive_root):
         # vdrive_root implements RIMutableDirectoryNode

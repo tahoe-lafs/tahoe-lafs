@@ -41,7 +41,7 @@ The node then constructs a reservation message that contains enough
 information for the potential landlord to evaluate the lease, *and* to make a
 connection back to the starting node:
 
- message = [verifierid, sharesize, requestor_pburl, starting_points]
+ message = [verifierid, sharesize, requestor_furl, starting_points]
 
 The node looks through its list of finger connections and splits this message
 into up to log2(N) smaller messages, each of which contains only the starting
@@ -59,7 +59,7 @@ switches from the "hop" mode (following fingers) to the "search" mode
 
 While in "search" mode, each node interprets the message as a lease request.
 It checks its storage pool to see if it can accomodate the reservation. If
-so, it uses requestor_pburl to contact the originator and announces its
+so, it uses requestor_furl to contact the originator and announces its
 willingness to host the given sharenum. This message will include the
 reliability measurement derived from the host's counterclockwise neighbors.
 
@@ -160,7 +160,7 @@ I visualize the peer-lookup process as the originator creating a
 message-in-a-bottle for each share. Each message says "Dear Sir/Madam, I
 would like to store X bytes of data for file Y (share #Z) on a system close
 to (but not below) nodeid STARTING_POINT. If you find this amenable, please
-contact me at PBURL so we can make arrangements.". These messages are then
+contact me at FURL so we can make arrangements.". These messages are then
 bundled together according to their rough destination (STARTING_POINT) and
 sent somewhere in the right direction.
 

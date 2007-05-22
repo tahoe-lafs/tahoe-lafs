@@ -30,7 +30,7 @@ class Welcome(rend.Page):
 
     def data_my_nodeid(self, ctx, data):
         return idlib.b2a(IClient(ctx).nodeid)
-    def data_introducer_pburl(self, ctx, data):
+    def data_introducer_furl(self, ctx, data):
         return IClient(ctx).introducer_furl
     def data_connected_to_introducer(self, ctx, data):
         if IClient(ctx).connected_to_vdrive:
