@@ -59,7 +59,7 @@ make-version:
 	$(PYTHON) misc/make-version.py
 
 build: make-version build-zfec build-Crypto build-foolscap
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="." --root="$(INSTDIR)" --install-lib="lib" --install-scripts="bin"
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="$(INSTDIR)" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
 
 build-zfec:
 	cd src/zfec &&  \
