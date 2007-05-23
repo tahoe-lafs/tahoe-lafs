@@ -31,15 +31,7 @@ class Node(service.MultiService):
         self._tub_ready_observerlist = observer.OneShotObserverList()
         assert self.CERTFILE, "Your node.Node subclass must provide CERTFILE"
         certfile = os.path.join(self.basedir, self.CERTFILE)
-        try:
-            f = open(certfile, "rb")
-            self.tub = Tub(certData=f.read())
-            f.close()
-        except EnvironmentError:
-            self.tub = Tub()
-            f = open(certfile, "wb")
-            f.write(self.tub.getCertData())
-            f.close()
+        self.tub = Tub(certFile=certfile)
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)
         self.nodeid = idlib.a2b(self.tub.tubID)
