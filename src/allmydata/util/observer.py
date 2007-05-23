@@ -3,6 +3,12 @@
 from twisted.internet import defer
 from foolscap.eventual import eventually
 
+"""The idiom we use is for the observed object to offer a method named
+'when_something', which returns a deferred.  That deferred will be fired when
+something happens.  The way this is typically implemented is that the observed
+has an ObserverList whose when_fired method is called in the observed's
+'when_something'."""
+
 class OneShotObserverList:
     """A one-shot event distributor."""
     def __init__(self):
