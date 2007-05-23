@@ -1,11 +1,11 @@
-
 import os.path, re
 
 from twisted.python import log
 from twisted.application import service
-from twisted.internet import defer
-from foolscap import Tub
+from twisted.internet import defer, reactor
+from foolscap import Tub, eventual
 from allmydata.util import idlib, iputil, observer
+from allmydata.util.assertutil import _assert, precondition
 
 
 # Just to get their versions:
@@ -62,18 +62,8 @@ class Node(service.MultiService):
 
         self.log("Node constructed.  tahoe version: %s, foolscap version: %s, zfec version: %s" % (allmydata.__version__, foolscap.__version__, zfec.__version__,))
 
-    def startService(self):
-        """Start the node. Returns a Deferred that fires (with self) when it
-        is ready to go.
-
-        Many callers don't pay attention to the return value from
-        startService, since they aren't going to do anything special when it
-        finishes. If they are (for example unit tests which need to wait for
-        the node to fully start up before it gets shut down), they can wait
-        for the Deferred I return to fire. In particular, you should wait for
-        my startService() Deferred to fire before you call my stopService()
-        method.
-        """
+    def _startService(self):
+        precondition(reactor.running)
 
         # note: this class can only be started and stopped once.
         service.MultiService.startService(self)
@@ -86,8 +76,15 @@ class Node(service.MultiService):
             self._tub_ready_observerlist.fire(self)
             return self
         d.addCallback(_ready)
-        return d
 
+    def startService(self):
+        foolscap.eventual.eventually(self._startService)
+
+    def stopService(self):
+        d = self._tub_ready_observerlist.when_fired()
+        d.addCallback(lambda ignored_result: service.MultiService.stopService(self))
+        return d
+       
     def shutdown(self):
         """Shut down the node. Returns a Deferred that fires (with None) when
         it finally stops kicking."""
