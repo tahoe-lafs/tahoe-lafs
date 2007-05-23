@@ -8,6 +8,7 @@ from allmydata.util import idlib
 def pack_uri(codec_name, codec_params, tail_codec_params,
              verifierid, fileid, key,
              roothash, needed_shares, total_shares, size, segment_size):
+    # applications should pass keyword parameters into this
     assert isinstance(codec_name, str)
     assert len(codec_name) < 10
     assert ":" not in codec_name
@@ -26,15 +27,17 @@ def pack_uri(codec_name, codec_params, tail_codec_params,
 
 def unpack_uri(uri):
     assert uri.startswith("URI:")
-    header, codec_name, codec_params, tail_codec_params, verifierid_s, fileid_s, key_s, roothash_s, needed_shares_s, total_shares_s, size_s, segment_size_s = uri.split(":")
-    verifierid = idlib.a2b(verifierid_s)
-    fileid = idlib.a2b(fileid_s)
-    key = idlib.a2b(key_s)
-    roothash = idlib.a2b(roothash_s)
-    needed_shares = int(needed_shares_s)
-    total_shares = int(total_shares_s)
-    size = int(size_s)
-    segment_size = int(segment_size_s)
-    return codec_name, codec_params, tail_codec_params, verifierid, fileid, key, roothash, needed_shares, total_shares, size, segment_size
+    d = {}
+    header, d['codec_name'], d['codec_params'], d['tail_codec_params'], verifierid_s, fileid_s, key_s, roothash_s, needed_shares_s, total_shares_s, size_s, segment_size_s = uri.split(":")
+    assert header == "URI"
+    d['verifierid'] = idlib.a2b(verifierid_s)
+    d['fileid'] = idlib.a2b(fileid_s)
+    d['key'] = idlib.a2b(key_s)
+    d['roothash'] = idlib.a2b(roothash_s)
+    d['needed_shares'] = int(needed_shares_s)
+    d['total_shares'] = int(total_shares_s)
+    d['size'] = int(size_s)
+    d['segment_size'] = int(segment_size_s)
+    return d
 
 

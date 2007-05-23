@@ -212,11 +212,10 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     def mangle_uri(self, gooduri):
         # change the verifierid, which means we'll be asking about the wrong
         # file, so nobody will have any shares
-        pieces = list(uri.unpack_uri(gooduri))
-        # [3] is the verifierid
-        assert len(pieces[3]) == 20
-        pieces[3] = self.flip_bit(pieces[3])
-        return uri.pack_uri(*pieces)
+        d = uri.unpack_uri(gooduri)
+        assert len(d['verifierid']) == 20
+        d['verifierid'] = self.flip_bit(d['verifierid'])
+        return uri.pack_uri(**d)
 
     # TODO: add a test which mangles the fileid instead, and should fail in
     # the post-download phase when the file's integrity check fails. Do the

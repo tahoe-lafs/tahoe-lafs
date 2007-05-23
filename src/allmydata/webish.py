@@ -128,8 +128,7 @@ class Directory(rend.Page):
             ctx.fillSlots("uri", T.a(href=dl_uri_url)[html.escape(uri)])
 
             #extract and display file size
-            unpacked = unpack_uri(uri)
-            ctx.fillSlots("size", unpacked[9])
+            ctx.fillSlots("size", unpack_uri(uri)['size'])
 
             # this creates a button which will cause our child__delete method
             # to be invoked, which deletes the file and then redirects the

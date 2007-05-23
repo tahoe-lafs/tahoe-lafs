@@ -214,17 +214,21 @@ class FileDownloader:
     def __init__(self, client, uri, downloadable):
         self._client = client
         self._downloadable = downloadable
-        (codec_name, codec_params, tail_codec_params, verifierid, fileid, key, roothash, needed_shares, total_shares, size, segment_size) = unpack_uri(uri)
+
+        d = unpack_uri(uri)
+        verifierid = d['verifierid']
+        size = d['size']
+        segment_size = d['segment_size']
         assert isinstance(verifierid, str)
         assert len(verifierid) == 20
         self._verifierid = verifierid
-        self._fileid = fileid
-        self._roothash = roothash
+        self._fileid = d['fileid']
+        self._roothash = d['roothash']
 
-        self._codec = codec.get_decoder_by_name(codec_name)
-        self._codec.set_serialized_params(codec_params)
-        self._tail_codec = codec.get_decoder_by_name(codec_name)
-        self._tail_codec.set_serialized_params(tail_codec_params)
+        self._codec = codec.get_decoder_by_name(d['codec_name'])
+        self._codec.set_serialized_params(d['codec_params'])
+        self._tail_codec = codec.get_decoder_by_name(d['codec_name'])
+        self._tail_codec.set_serialized_params(d['tail_codec_params'])
 
 
         self._total_segments = mathutil.div_ceil(size, segment_size)
@@ -233,10 +237,10 @@ class FileDownloader:
         self._size = size
         self._num_needed_shares = self._codec.get_needed_shares()
 
-        self._output = Output(downloadable, key)
+        self._output = Output(downloadable, d['key'])
 
-        self._share_hashtree = hashtree.IncompleteHashTree(total_shares)
-        self._share_hashtree.set_hashes({0: roothash})
+        self._share_hashtree = hashtree.IncompleteHashTree(d['total_shares'])
+        self._share_hashtree.set_hashes({0: self._roothash})
 
         self.active_buckets = {} # k: shnum, v: bucket
         self._share_buckets = {} # k: shnum, v: set of buckets
