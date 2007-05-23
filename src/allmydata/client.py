@@ -19,7 +19,6 @@ from allmydata.introducer import IntroducerClient
 
 class Client(node.Node, Referenceable):
     implements(RIClient)
-    CERTFILE = "client.pem"
     PORTNUMFILE = "client.port"
     STOREDIR = 'storage'
     NODETYPE = "client"

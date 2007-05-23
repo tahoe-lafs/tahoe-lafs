@@ -21,7 +21,7 @@ class Node(service.MultiService):
     # nodes, and Vdrive nodes
     NODETYPE = "unknown NODETYPE"
     PORTNUMFILE = None
-    CERTFILE = None
+    CERTFILE = "node.pem"
     LOCAL_IP_FILE = "advertised_ip_addresses"
     NODEIDFILE = "my_nodeid"
 
@@ -29,7 +29,6 @@ class Node(service.MultiService):
         service.MultiService.__init__(self)
         self.basedir = os.path.abspath(basedir)
         self._tub_ready_observerlist = observer.OneShotObserverList()
-        assert self.CERTFILE, "Your node.Node subclass must provide CERTFILE"
         certfile = os.path.join(self.basedir, self.CERTFILE)
         self.tub = Tub(certFile=certfile)
         self.tub.setOption("logLocalFailures", True)

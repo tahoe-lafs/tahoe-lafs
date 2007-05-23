@@ -6,7 +6,6 @@ from allmydata.introducer import Introducer
 
 
 class IntroducerAndVdrive(node.Node):
-    CERTFILE = "introducer.pem"
     PORTNUMFILE = "introducer.port"
     NODETYPE = "introducer"
 
