@@ -111,7 +111,7 @@ class Node(service.MultiService):
                     (addr, dummy, aportnum,) = mo.groups()
                     if aportnum is None:
                         aportnum = portnum
-                    addresses.append("%s:%d" % (addr, aportnum,))
+                    addresses.append("%s:%d" % (addr, int(aportnum),))
         except EnvironmentError:
             pass
 
