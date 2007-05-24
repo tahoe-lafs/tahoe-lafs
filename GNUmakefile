@@ -177,9 +177,15 @@ check-memory:
 	$(PP) $(PYTHON) src/allmydata/test/check_memory.py
 
 test-darcs-boringfile:
-	make
+	$(MAKE)
 	$(PYTHON) misc/test-darcs-boringfile.py
 
+test-clean:
+	find . |sort >allfiles.tmp.old
+	$(MAKE)
+	$(MAKE) clean
+	find . |grep -v allfiles.tmp |sort >allfiles.tmp.new
+	diff allfiles.tmp.old allfiles.tmp.new
 
 clean: clean-zfec clean-Crypto clean-foolscap
 	rm -rf build
