@@ -1,13 +1,12 @@
 
 from twisted.trial import unittest
-from twisted.internet import defer, reactor
+from twisted.internet import defer
 from twisted.python import log
 
-from foolscap import Tub, Referenceable
 from foolscap.eventual import flushEventualQueue
 from twisted.application import service
 from allmydata.node import Node
-from allmydata.util import idlib, testutil
+from allmydata.util import testutil
 
 class LoggingMultiService(service.MultiService):
     def log(self, msg):
