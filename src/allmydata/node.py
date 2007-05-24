@@ -5,7 +5,7 @@ from twisted.application import service
 from twisted.internet import defer, reactor
 from foolscap import Tub, eventual
 from allmydata.util import idlib, iputil, observer
-from allmydata.util.assertutil import _assert, precondition
+from allmydata.util.assertutil import precondition
 
 
 # Just to get their versions:
@@ -62,10 +62,14 @@ class Node(service.MultiService):
 
         self.log("Node constructed.  tahoe version: %s, foolscap version: %s, zfec version: %s" % (allmydata.__version__, foolscap.__version__, zfec.__version__,))
 
+
+    def startService(self):
+        # note: this class can only be started and stopped once.
+        eventual.eventually(self._startService)
+
     def _startService(self):
         precondition(reactor.running)
 
-        # note: this class can only be started and stopped once.
         service.MultiService.startService(self)
         d = defer.succeed(None)
         d.addCallback(lambda res: iputil.get_local_addresses_async())
@@ -76,9 +80,6 @@ class Node(service.MultiService):
             self._tub_ready_observerlist.fire(self)
             return self
         d.addCallback(_ready)
-
-    def startService(self):
-        foolscap.eventual.eventually(self._startService)
 
     def stopService(self):
         d = self._tub_ready_observerlist.when_fired()
