@@ -176,6 +176,11 @@ count-lines:
 check-memory:
 	$(PP) $(PYTHON) src/allmydata/test/check_memory.py
 
+test-darcs-boringfile:
+	make
+	$(PYTHON) misc/test-darcs-boringfile.py
+
+
 clean: clean-zfec clean-Crypto clean-foolscap
 	rm -rf build
 	rm -f debian
