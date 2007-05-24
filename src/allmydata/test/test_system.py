@@ -267,6 +267,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(lambda res: getPage(base + "vdrive/subdir1"))
         def _got_subdir1(page):
             # there ought to be an href for our file
+            self.failUnless(("<td>%d</td>" % len(self.data)) in page)
             self.failUnless(">mydata567</a>" in page)
         d.addCallback(_got_subdir1)
         d.addCallback(lambda res: getPage(base + "vdrive/subdir1/mydata567"))
