@@ -61,3 +61,6 @@
 
 ^src/foolscap/build($|/)
 ^src/zfec/zfec.egg-info($|/)
+
+# this file is maintained by the buildbot
+^\.buildbot-sourcedata$
