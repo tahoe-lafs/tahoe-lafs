@@ -41,23 +41,29 @@ if not twistd:
 if not twistd:
     print "Can't find twistd (it comes with Twisted).  Aborting."
     sys.exit(1)
-    
-class StartOptions(usage.Options):
+
+class BasedirMixin:
+    def postOptions(self):
+        if self['basedir'] is None:
+            raise usage.UsageError("<basedir> parameter is required")
+        self['basedir'] = os.path.abspath(os.path.expanduser(self['basedir']))
+
+class StartOptions(BasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", ".", "which directory to start the node in"],
         ]
 
-class StopOptions(usage.Options):
+class StopOptions(BasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", ".", "which directory to stop the node in"],
         ]
 
-class RestartOptions(usage.Options):
+class RestartOptions(BasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", ".", "which directory to restart the node in"],
         ]
 
-class CreateClientOptions(usage.Options):
+class CreateClientOptions(BasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to create the client in"],
         ]
@@ -71,12 +77,7 @@ class CreateClientOptions(usage.Options):
         if len(args) > 1:
             raise usage.UsageError("I wasn't expecting so many arguments")
 
-    def postOptions(self):
-        if self['basedir'] is None:
-            raise usage.UsageError("<basedir> parameter is required")
-        self['basedir'] = os.path.abspath(os.path.expanduser(self['basedir']))
-
-class CreateIntroducerOptions(usage.Options):
+class CreateIntroducerOptions(BasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to create the introducer in"],
         ]
@@ -89,11 +90,6 @@ class CreateIntroducerOptions(usage.Options):
             self['basedir'] = args[0]
         if len(args) > 1:
             raise usage.UsageError("I wasn't expecting so many arguments")
-
-    def postOptions(self):
-        if self['basedir'] is None:
-            raise usage.UsageError("<basedir> parameter is required")
-        self['basedir'] = os.path.abspath(self['basedir'])
 
 client_tac = """
 # -*- python -*-
@@ -212,6 +208,8 @@ def start(config):
         type = "introducer"
     else:
         print "%s does not look like a node directory" % basedir
+        if not os.path.isdir(basedir):
+            print " in fact, it doesn't look like a directory at all!"
         sys.exit(1)
     os.chdir(basedir)
     rc = subprocess.call(["python", twistd, "-y", tac,])
