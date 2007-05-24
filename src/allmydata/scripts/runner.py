@@ -74,7 +74,7 @@ class CreateClientOptions(usage.Options):
     def postOptions(self):
         if self['basedir'] is None:
             raise usage.UsageError("<basedir> parameter is required")
-        self['basedir'] = os.path.abspath(self['basedir'])
+        self['basedir'] = os.path.abspath(os.path.expanduser(self['basedir']))
 
 class CreateIntroducerOptions(usage.Options):
     optParameters = [
