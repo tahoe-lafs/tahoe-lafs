@@ -3,7 +3,7 @@
 import os, shutil
 
 from twisted.internet import defer, reactor, protocol, error
-from twisted.application import service
+from twisted.application import service, internet
 from allmydata import client, introducer_and_vdrive
 from allmydata.scripts import runner
 from foolscap.eventual import eventually, flushEventualQueue
@@ -57,9 +57,10 @@ class SystemFramework:
         return s
 
     def make_introducer_and_vdrive(self):
-        introducer_and_vdrive_dir = os.path.join(self.basedir, "introducer_and_vdrive")
-        os.mkdir(introducer_and_vdrive_dir)
-        self.introducer_and_vdrive = self.add_service(introducer_and_vdrive.IntroducerAndVdrive(basedir=introducer_and_vdrive_dir))
+        iv_basedir = os.path.join(self.basedir, "introducer_and_vdrive")
+        os.mkdir(iv_basedir)
+        iv = introducer_and_vdrive.IntroducerAndVdrive(basedir=iv_basedir)
+        self.introducer_and_vdrive = self.add_service(iv)
         d = self.introducer_and_vdrive.when_tub_ready()
         return d
 
@@ -84,25 +85,33 @@ class SystemFramework:
 
     def touch_keepalive(self):
         f = open(self.keepalive_file, "w")
-        f.write("If the node notices this file at startup, it will poll and\n")
-        f.write("terminate as soon as the file goes away. This prevents\n")
-        f.write("leaving processes around if the test harness has an\n")
-        f.write("internal failure and neglects to kill off the node\n")
-        f.write("itself. The contents of this file are ignored.\n")
+        f.write("""\
+If the node notices this file at startup, it will poll every 5 seconds and
+terminate if the file is more than 10 seconds old, or if it has been deleted.
+If the test harness has an internal failure and neglects to kill off the node
+itself, this helps to avoid leaving processes lying around. The contents of
+this file are ignored.
+        """)
         f.close()
 
     def start_client(self):
         log.msg("MAKING CLIENT")
         clientdir = self.clientdir = os.path.join(self.basedir, "client")
-        config = {'basedir': clientdir}
+        config = {'basedir': clientdir, 'quiet': False}
         runner.create_client(config)
         log.msg("DONE MAKING CLIENT")
         f = open(os.path.join(clientdir, "introducer.furl"), "w")
         f.write(self.introducer_furl + "\n")
         f.close()
-        self.keepalive_file = os.path.join(clientdir, "suicide_prevention_hotline")
-        self.touch_keepalive()
+        f = open(os.path.join(clientdir, "vdrive.furl"), "w")
+        f.write(self.introducer_furl + "\n")
+        f.close()
+        self.keepalive_file = os.path.join(clientdir,
+                                           "suicide_prevention_hotline")
         # now start updating the mtime.
+        self.touch_keepalive()
+        ts = internet.TimerService(4.0, self.touch_keepalive)
+        ts.setServiceParent(self.sparent)
 
         pp = ClientWatcher()
         cmd = ["twistd", "-y", "client.tac"]

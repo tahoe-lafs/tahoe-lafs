@@ -173,7 +173,7 @@ count-lines:
 	@echo -n "TODO: "
 	@grep TODO `find src -name '*.py' |grep -v /build/` | wc --lines
 
-check-memory:
+check-memory: build
 	$(PP) $(PYTHON) src/allmydata/test/check_memory.py
 
 test-darcs-boringfile:

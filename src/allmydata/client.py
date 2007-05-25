@@ -1,11 +1,12 @@
 
-import os, sha
+import os, sha, stat, time
 from foolscap import Referenceable
 from zope.interface import implements
 from allmydata.interfaces import RIClient
 from allmydata import node
 
-from twisted.internet import defer
+from twisted.internet import defer, reactor
+from twisted.application.internet import TimerService
 
 import allmydata
 from allmydata.Crypto.Util.number import bytes_to_long
@@ -25,6 +26,7 @@ class Client(node.Node, Referenceable):
     WEBPORTFILE = "webport"
     INTRODUCER_FURL_FILE = "introducer.furl"
     GLOBAL_VDRIVE_FURL_FILE = "vdrive.furl"
+    SUICIDE_PREVENTION_HOTLINE_FILE = "suicide_prevention_hotline"
 
     # we're pretty narrow-minded right now
     OLDEST_SUPPORTED_VERSION = allmydata.__version__
@@ -56,6 +58,20 @@ class Client(node.Node, Referenceable):
         f = open(GLOBAL_VDRIVE_FURL_FILE, "r")
         self.global_vdrive_furl = f.read().strip()
         f.close()
+
+        hotline_file = os.path.join(self.basedir,
+                                    self.SUICIDE_PREVENTION_HOTLINE_FILE)
+        if os.path.exists(hotline_file):
+            hotline = TimerService(5.0, self._check_hotline, hotline_file)
+            hotline.setServiceParent(self)
+
+    def _check_hotline(self, hotline_file):
+        if os.path.exists(hotline_file):
+            mtime = os.stat(hotline_file)[stat.ST_MTIME]
+            if mtime > time.time() - 10.0:
+                return
+        self.log("hotline missing or too old, shutting down")
+        reactor.stop()
 
     def tub_ready(self):
         self.log("tub_ready")
