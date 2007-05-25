@@ -3,7 +3,7 @@
 
 Connection Management:
 *v1: foolscap, no relay, live=connected-to-introducer, broadcast updates, fully connected topology
- v2: configurable IP address -- http://allmydata.org/trac/tahoe/ticket/22
+*v2: configurable IP address -- http://allmydata.org/trac/tahoe/ticket/22
  v3: live != connected-to-introducer, connect on demand
  v4: relay?
 
