@@ -197,7 +197,7 @@ class Directory(rend.Page):
         log.msg("starting webish upload")
 
         uploader = get_uploader_service(ctx)
-        d = uploader.upload(upload.Data(contents.value))
+        d = uploader.upload(upload.FileHandle(contents.file))
         name = contents.filename
         if privateupload:
             d.addCallback(lambda vid: self.uploadprivate(name, vid))
