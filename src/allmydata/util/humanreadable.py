@@ -1,5 +1,5 @@
 #  Copyright (c) 2001 Autonomous Zone Industries
-#  Copyright (c) 2002-2005 Bryce "Zooko" Wilcox-O'Hearn
+#  Copyright (c) 2002-2007 Bryce "Zooko" Wilcox-O'Hearn
 #  This file is licensed under the
 #    GNU Lesser General Public License v2.1.
 #    See the file COPYING or visit http://www.gnu.org/ for details.
@@ -11,24 +11,13 @@ class BetterRepr(Repr):
     def __init__(self):
         Repr.__init__(self)
 
-        # Note: These levels can get adjusted dynamically!  My goal is to get
-        # more info when printing important debug stuff like exceptions and
-        # stack traces and less info when logging normal events.
-        # --Zooko 2000-10-14
-        if 0: # DEBUG MODE
-            self.maxlevel = 24
-            self.maxdict = 24
-            self.maxlist = 24
-            self.maxtuple = 24
-            self.maxstring = 800
-            self.maxother = 800
-        else:
-            self.maxlevel = 6
-            self.maxdict = 6
-            self.maxlist = 6
-            self.maxtuple = 6
-            self.maxstring = 300
-            self.maxother = 300
+        # Note: These levels can get adjusted dynamically!  My goal is to get more info when printing important debug stuff like exceptions and stack traces and less info when logging normal events.  --Zooko 2000-10-14
+        self.maxlevel = 6
+        self.maxdict = 6
+        self.maxlist = 6
+        self.maxtuple = 6
+        self.maxstring = 300
+        self.maxother = 300
 
     def repr_function(self, obj, level):
         if hasattr(obj, 'func_code'):
