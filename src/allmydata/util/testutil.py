@@ -1,6 +1,6 @@
 import os, signal, time
 
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 
 class SignalMixin:
     # This class is necessary for any code which wants to use Processes
@@ -19,6 +19,24 @@ class SignalMixin:
     def tearDownClass(self):
         if self.sigchldHandler:
             signal.signal(signal.SIGCHLD, self.sigchldHandler)
+
+class PollMixin:
+
+    def poll(self, check_f, pollinterval=0.01):
+        # Return a Deferred, then call check_f periodically until it returns
+        # True, at which point the Deferred will fire.. If check_f raises an
+        # exception, the Deferred will errback.
+        d = defer.maybeDeferred(self._poll, None, check_f, pollinterval)
+        return d
+
+    def _poll(self, res, check_f, pollinterval):
+        if check_f():
+            return True
+        d = defer.Deferred()
+        d.addCallback(self._poll, check_f, pollinterval)
+        reactor.callLater(pollinterval, d.callback, None)
+        return d
+
 
 class TestMixin(SignalMixin):
     def setUp(self, repeatable=False):

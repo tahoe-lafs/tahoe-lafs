@@ -3,10 +3,19 @@ from zope.interface import implements
 from twisted.application import service
 from foolscap import Referenceable
 from allmydata.interfaces import RIControlClient
+from allmydata.util import testutil
 
 
-class ControlServer(Referenceable, service.Service):
+class ControlServer(Referenceable, service.Service, testutil.PollMixin):
     implements(RIControlClient)
+
+    def remote_wait_for_client_connections(self, num_clients):
+        def _check():
+            current_clients = list(self.parent.get_all_peerids())
+            return len(current_clients) >= num_clients
+        d = self.poll(_check, 0.5)
+        d.addCallback(lambda res: None)
+        return d
 
     def remote_upload_from_file_to_uri(self, filename):
         uploader = self.parent.getServiceNamed("uploader")

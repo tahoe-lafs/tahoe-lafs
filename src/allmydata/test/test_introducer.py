@@ -7,7 +7,7 @@ from foolscap import Tub, Referenceable
 from foolscap.eventual import flushEventualQueue
 from twisted.application import service
 from allmydata.introducer import IntroducerClient, Introducer
-from allmydata.util import idlib
+from allmydata.util import idlib, testutil
 
 class MyNode(Referenceable):
     pass
@@ -16,7 +16,7 @@ class LoggingMultiService(service.MultiService):
     def log(self, msg):
         pass
 
-class TestIntroducer(unittest.TestCase):
+class TestIntroducer(unittest.TestCase, testutil.PollMixin):
     def setUp(self):
         self.parent = LoggingMultiService()
         self.parent.startService()
@@ -25,22 +25,6 @@ class TestIntroducer(unittest.TestCase):
         d = defer.succeed(None)
         d.addCallback(lambda res: self.parent.stopService())
         d.addCallback(flushEventualQueue)
-        return d
-
-
-    def poll(self, check_f, pollinterval=0.01):
-        # Return a Deferred, then call check_f periodically until it returns
-        # True, at which point the Deferred will fire.. If check_f raises an
-        # exception, the Deferred will errback.
-        d = defer.maybeDeferred(self._poll, None, check_f, pollinterval)
-        return d
-
-    def _poll(self, res, check_f, pollinterval):
-        if check_f():
-            return True
-        d = defer.Deferred()
-        d.addCallback(self._poll, check_f, pollinterval)
-        reactor.callLater(pollinterval, d.callback, None)
         return d
 
 

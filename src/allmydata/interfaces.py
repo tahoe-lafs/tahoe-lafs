@@ -617,6 +617,12 @@ class NotCapableError(Exception):
     """You have tried to write to a read-only node."""
 
 class RIControlClient(RemoteInterface):
+
+    def wait_for_client_connections(num_clients=int):
+        """Do not return until we have connections to at least NUM_CLIENTS
+        storage servers.
+        """
+
     def upload_from_file_to_uri(filename=str):
         """Upload a file to the grid. This accepts a filename (which must be
         absolute) that points to a file on the node's local disk. The node
