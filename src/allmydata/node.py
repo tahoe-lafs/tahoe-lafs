@@ -69,10 +69,12 @@ class Node(service.MultiService):
 
     def startService(self):
         # note: this class can only be started and stopped once.
+        self.log("Node.startService")
         eventual.eventually(self._startService)
 
     def _startService(self):
         precondition(reactor.running)
+        self.log("Node._startService")
 
         service.MultiService.startService(self)
         d = defer.succeed(None)
@@ -86,13 +88,18 @@ class Node(service.MultiService):
         d.addCallback(_ready)
 
     def stopService(self):
+        self.log("Node.stopService")
         d = self._tub_ready_observerlist.when_fired()
-        d.addCallback(lambda ignored_result: service.MultiService.stopService(self))
+        def _really_stopService(ignored):
+            self.log("Node._really_stopService")
+            return service.MultiService.stopService(self)
+        d.addCallback(_really_stopService)
         return d
-       
+
     def shutdown(self):
         """Shut down the node. Returns a Deferred that fires (with None) when
         it finally stops kicking."""
+        self.log("Node.shutdown")
         return self.stopService()
 
     def log(self, msg):
