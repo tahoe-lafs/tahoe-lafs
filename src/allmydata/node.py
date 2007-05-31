@@ -1,5 +1,6 @@
 import os.path, re
 
+import twisted
 from twisted.python import log
 from twisted.application import service
 from twisted.internet import defer, reactor
@@ -60,7 +61,10 @@ class Node(service.MultiService):
                 m.setServiceParent(self)
                 self.log("AuthorizedKeysManhole listening on %d" % portnum)
 
-        self.log("Node constructed.  tahoe version: %s, foolscap version: %s, zfec version: %s" % (allmydata.__version__, foolscap.__version__, zfec.__version__,))
+        self.log("Node constructed.  tahoe version: %s, foolscap: %s,"
+                 " twisted: %s, zfec: %s"
+                 % (allmydata.__version__, foolscap.__version__,
+                    twisted.__version__, zfec.__version__,))
 
 
     def startService(self):
