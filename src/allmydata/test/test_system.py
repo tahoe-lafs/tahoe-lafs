@@ -64,6 +64,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         log.msg("STARTING")
         d = self.wait_for_connections()
         def _connected(res):
+            log.msg("CONNECTED")
             # now find out where the web port was
             l = self.clients[0].getServiceNamed("webish").listener
             port = l._port.getHost().port
