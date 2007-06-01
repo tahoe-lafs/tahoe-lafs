@@ -48,6 +48,12 @@ class Output:
         return self.downloadable.finish()
 
 class ValidatedBucket:
+    """I am a front-end for a remote storage bucket, responsible for
+    retrieving and validating data from that bucket.
+
+    My get_block() method is used by BlockDownloaders.
+    """
+
     def __init__(self, sharenum, bucket,
                  share_hash_tree, roothash,
                  num_blocks):
@@ -134,6 +140,12 @@ class ValidatedBucket:
 
 
 class BlockDownloader:
+    """I am responsible for downloading a single block (from a single bucket)
+    for a single segment.
+
+    I am a child of the SegmentDownloader.
+    """
+
     def __init__(self, vbucket, blocknum, parent):
         self.vbucket = vbucket
         self.blocknum = blocknum
@@ -149,9 +161,15 @@ class BlockDownloader:
 
     def _got_block_error(self, f):
         log.msg("BlockDownloader[%d] got error: %s" % (self.blocknum, f))
-        self.parent.bucket_failed(self.blocknum, self.vbucket)
+        self.parent.bucket_failed(self.vbucket)
 
 class SegmentDownloader:
+    """I am responsible for downloading all the blocks for a single segment
+    of data.
+
+    I am a child of the FileDownloader.
+    """
+
     def __init__(self, parent, segmentnumber, needed_shares):
         self.parent = parent
         self.segmentnumber = segmentnumber
@@ -196,16 +214,8 @@ class SegmentDownloader:
     def hold_block(self, blocknum, data):
         self.blocks[blocknum] = data
 
-    def bucket_failed(self, shnum, vbucket):
-        del self.parent.active_buckets[shnum]
-        s = self.parent._share_buckets[shnum]
-        # s is a set of ValidatedBucket instances
-        s.remove(vbucket)
-        # ... which might now be empty
-        if not s:
-            # there are no more buckets which can provide this share, so
-            # remove the key. This may prompt us to use a different share.
-            del self.parent._share_buckets[shnum]
+    def bucket_failed(self, vbucket):
+        self.parent.bucket_failed(vbucket)
 
 class FileDownloader:
     check_verifierid = True
@@ -281,6 +291,18 @@ class FileDownloader:
 
     def _got_error(self, f):
         self._client.log("Somebody failed. -- %s" % (f,))
+
+    def bucket_failed(self, vbucket):
+        shnum = vbucket.sharenum
+        del self.active_buckets[shnum]
+        s = self._share_buckets[shnum]
+        # s is a set of ValidatedBucket instances
+        s.remove(vbucket)
+        # ... which might now be empty
+        if not s:
+            # there are no more buckets which can provide this share, so
+            # remove the key. This may prompt us to use a different share.
+            del self._share_buckets[shnum]
 
     def _got_all_shareholders(self, res):
         if len(self._share_buckets) < self._num_needed_shares:
