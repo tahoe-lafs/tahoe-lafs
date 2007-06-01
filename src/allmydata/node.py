@@ -43,7 +43,7 @@ class Node(service.MultiService):
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
         try:
             portnum = int(open(self._portnumfile, "rU").read())
-        except EnvironmentError, ValueError:
+        except (EnvironmentError, ValueError):
             portnum = 0
         self.tub.listenOn("tcp:%d" % portnum)
         # we must wait until our service has started before we can find out
