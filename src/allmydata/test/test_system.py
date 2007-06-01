@@ -3,7 +3,8 @@ import os
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.application import service
-from allmydata import client, introducer_and_vdrive, uri, download
+from allmydata import client, uri, download
+from allmydata.introducer_and_vdrive import IntroducerAndVdrive
 from allmydata.util import idlib, fileutil, testutil
 from foolscap.eventual import flushEventualQueue
 from twisted.python import log
@@ -38,10 +39,11 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
     def set_up_nodes(self, NUMCLIENTS=5):
         self.numclients = NUMCLIENTS
-        introducer_and_vdrive_dir = self.getdir("introducer_and_vdrive")
-        if not os.path.isdir(introducer_and_vdrive_dir):
-            fileutil.make_dirs(introducer_and_vdrive_dir)
-        self.introducer_and_vdrive = self.add_service(introducer_and_vdrive.IntroducerAndVdrive(basedir=introducer_and_vdrive_dir))
+        iv_dir = self.getdir("introducer_and_vdrive")
+        if not os.path.isdir(iv_dir):
+            fileutil.make_dirs(iv_dir)
+        iv = IntroducerAndVdrive(basedir=iv_dir)
+        self.introducer_and_vdrive = self.add_service(iv)
         d = self.introducer_and_vdrive.when_tub_ready()
         d.addCallback(self._set_up_nodes_2)
         return d
