@@ -3,9 +3,9 @@
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import log
-from allmydata.hashtree import HashTree, block_hash
+from allmydata.hashtree import HashTree, block_hash, thingA_hash
 from allmydata.Crypto.Cipher import AES
-from allmydata.util import mathutil
+from allmydata.util import mathutil, bencode
 from allmydata.util.assertutil import _assert
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder
@@ -78,6 +78,7 @@ class Encoder(object):
                           (self.NEEDED_SHARES, self.TOTAL_SHARES))
         self.NEEDED_SHARES = k
         self.TOTAL_SHARES = n
+        self.thingA_data = {}
 
     def setup(self, infile, encryption_key):
         self.infile = infile
@@ -103,6 +104,15 @@ class Encoder(object):
         self._codec.set_params(self.segment_size,
                                self.required_shares, self.num_shares)
 
+        data = self.thingA_data
+        data['codec_name'] = self._codec.get_encoder_type()
+        data['codec_params'] = self._codec.get_serialized_params()
+
+        data['size'] = self.file_size
+        data['segment_size'] = self.segment_size
+        data['needed_shares'] = self.required_shares
+        data['total_shares'] = self.num_shares
+
         # the "tail" is the last segment. This segment may or may not be
         # shorter than all other segments. We use the "tail codec" to handle
         # it. If the tail is short, we use a different codec instance. In
@@ -118,6 +128,10 @@ class Encoder(object):
         self._tail_codec = CRSEncoder()
         self._tail_codec.set_params(padded_tail_size,
                                     self.required_shares, self.num_shares)
+        data['tail_codec_params'] = self._tail_codec.get_serialized_params()
+
+    def set_thingA_data(self, thingA_data):
+        self.thingA_data.update(thingA_data)
 
     def get_share_size(self):
         share_size = mathutil.div_ceil(self.file_size, self.required_shares)
@@ -156,6 +170,7 @@ class Encoder(object):
 
         d.addCallback(lambda res: self.send_all_subshare_hash_trees())
         d.addCallback(lambda res: self.send_all_share_hash_trees())
+        d.addCallback(lambda res: self.send_thingA_to_all_shareholders())
         d.addCallback(lambda res: self.close_all_shareholders())
         d.addCallbacks(lambda res: self.done(), self.err)
         return d
@@ -277,7 +292,7 @@ class Encoder(object):
         # create the share hash tree
         t = HashTree(self.share_root_hashes)
         # the root of this hash tree goes into our URI
-        self.root_hash = t[0]
+        self.thingA_data['share_root_hash'] = t[0]
         # now send just the necessary pieces out to each shareholder
         for i in range(self.num_shares):
             # the HashTree is given a list of leaves: 0,1,2,3..n .
@@ -293,6 +308,18 @@ class Encoder(object):
         sh = self.landlords[shareid]
         return sh.callRemote("put_share_hashes", needed_hashes)
 
+    def send_thingA_to_all_shareholders(self):
+        log.msg("%s: sending thingA" % self)
+        thingA = bencode.bencode(self.thingA_data)
+        self.thingA_hash = thingA_hash(thingA)
+        dl = []
+        for sh in self.landlords.values():
+            dl.append(self.send_thingA(sh, thingA))
+        return defer.DeferredList(dl)
+
+    def send_thingA(self, sh, thingA):
+        return sh.callRemote("put_thingA", thingA)
+
     def close_all_shareholders(self):
         log.msg("%s: closing shareholders" % self)
         dl = []
@@ -302,7 +329,7 @@ class Encoder(object):
 
     def done(self):
         log.msg("%s: upload done" % self)
-        return self.root_hash
+        return self.thingA_hash
 
     def err(self, f):
         log.msg("%s: upload failed: %s" % (self, f))

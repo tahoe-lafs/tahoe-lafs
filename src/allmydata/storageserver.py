@@ -11,13 +11,13 @@ from allmydata.util import bencode, fileutil, idlib
 from allmydata.util.assertutil import precondition
 
 # store/
-# store/incoming # temp dirs named $VERIFIERID/$SHARENUM which will be moved to store/$VERIFIERID/$SHARENUM on success
-# store/$VERIFIERID
-# store/$VERIFIERID/$SHARENUM
-# store/$VERIFIERID/$SHARENUM/blocksize
-# store/$VERIFIERID/$SHARENUM/data
-# store/$VERIFIERID/$SHARENUM/blockhashes
-# store/$VERIFIERID/$SHARENUM/sharehashtree
+# store/incoming # temp dirs named $STORAGEINDEX/$SHARENUM which will be moved to store/$STORAGEINDEX/$SHARENUM on success
+# store/$STORAGEINDEX
+# store/$STORAGEINDEX/$SHARENUM
+# store/$STORAGEINDEX/$SHARENUM/blocksize
+# store/$STORAGEINDEX/$SHARENUM/data
+# store/$STORAGEINDEX/$SHARENUM/blockhashes
+# store/$STORAGEINDEX/$SHARENUM/sharehashtree
 
 # $SHARENUM matches this regex:
 NUM_RE=re.compile("[0-9]*")
@@ -58,6 +58,10 @@ class BucketWriter(Referenceable):
     def remote_put_share_hashes(self, sharehashes):
         precondition(not self.closed)
         self._write_file('sharehashes', bencode.bencode(sharehashes))
+
+    def remote_put_thingA(self, data):
+        precondition(not self.closed)
+        self._write_file('thingA', data)
 
     def remote_close(self):
         precondition(not self.closed)
@@ -100,6 +104,9 @@ class BucketReader(Referenceable):
         # schema
         return [tuple(i) for i in hashes]
 
+    def remote_get_thingA(self):
+        return self._read_file('thingA')
+
 class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer)
     name = 'storageserver'
@@ -116,13 +123,13 @@ class StorageServer(service.MultiService, Referenceable):
     def _clean_incomplete(self):
         fileutil.rm_dir(self.incomingdir)
 
-    def remote_allocate_buckets(self, verifierid, sharenums, sharesize,
+    def remote_allocate_buckets(self, storage_index, sharenums, sharesize,
                                 blocksize, canary):
         alreadygot = set()
         bucketwriters = {} # k: shnum, v: BucketWriter
         for shnum in sharenums:
-            incominghome = os.path.join(self.incomingdir, idlib.b2a(verifierid), "%d"%shnum)
-            finalhome = os.path.join(self.storedir, idlib.b2a(verifierid), "%d"%shnum)
+            incominghome = os.path.join(self.incomingdir, idlib.b2a(storage_index), "%d"%shnum)
+            finalhome = os.path.join(self.storedir, idlib.b2a(storage_index), "%d"%shnum)
             if os.path.exists(incominghome) or os.path.exists(finalhome):
                 alreadygot.add(shnum)
             else:
@@ -130,13 +137,13 @@ class StorageServer(service.MultiService, Referenceable):
             
         return alreadygot, bucketwriters
 
-    def remote_get_buckets(self, verifierid):
+    def remote_get_buckets(self, storage_index):
         bucketreaders = {} # k: sharenum, v: BucketReader
-        verifierdir = os.path.join(self.storedir, idlib.b2a(verifierid))
+        storagedir = os.path.join(self.storedir, idlib.b2a(storage_index))
         try:
-            for f in os.listdir(verifierdir):
+            for f in os.listdir(storagedir):
                 if NUM_RE.match(f):
-                    bucketreaders[int(f)] = BucketReader(os.path.join(verifierdir, f))
+                    bucketreaders[int(f)] = BucketReader(os.path.join(storagedir, f))
         except OSError:
             # Commonly caused by there being no buckets at all.
             pass

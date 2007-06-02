@@ -237,23 +237,21 @@ class FileUploader:
             buckets.update(peer.buckets)
         assert len(buckets) == sum([len(peer.buckets) for peer in used_peers])
         self._encoder.set_shareholders(buckets)
+
+        thingA_data = {}
+        thingA_data['verifierid'] = self._verifierid
+        thingA_data['fileid'] = self._fileid
+        self._encoder.set_thingA_data(thingA_data)
         return self._encoder.start()
 
-    def _compute_uri(self, roothash):
-        codec_type = self._encoder._codec.get_encoder_type()
-        codec_params = self._encoder._codec.get_serialized_params()
-        tail_codec_params = self._encoder._tail_codec.get_serialized_params()
-        return pack_uri(codec_name=codec_type,
-                        codec_params=codec_params,
-                        tail_codec_params=tail_codec_params,
-                        verifierid=self._verifierid,
-                        fileid=self._fileid,
+    def _compute_uri(self, thingA_hash):
+        return pack_uri(storage_index=self._verifierid,
                         key=self._encryption_key,
-                        roothash=roothash,
+                        thingA_hash=thingA_hash,
                         needed_shares=self.needed_shares,
                         total_shares=self.total_shares,
                         size=self._size,
-                        segment_size=self._encoder.segment_size)
+                        )
 
 
 def netstring(s):

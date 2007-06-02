@@ -213,17 +213,20 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return good[:-1] + chr(ord(good[-1]) ^ 0x01)
 
     def mangle_uri(self, gooduri):
-        # change the verifierid, which means we'll be asking about the wrong
-        # file, so nobody will have any shares
+        # change the storage index, which means we'll be asking about the
+        # wrong file, so nobody will have any shares
         d = uri.unpack_uri(gooduri)
-        assert len(d['verifierid']) == 20
-        d['verifierid'] = self.flip_bit(d['verifierid'])
+        assert len(d['storage_index']) == 20
+        d['storage_index'] = self.flip_bit(d['storage_index'])
         return uri.pack_uri(**d)
 
-    # TODO: add a test which mangles the fileid instead, and should fail in
-    # the post-download phase when the file's integrity check fails. Do the
-    # same thing for the key, which should cause the download to fail the
-    # post-download verifierid check.
+    # TODO: add a test which mangles the thingA_hash instead, and should fail
+    # due to not being able to get a valid thingA block. Also a test which
+    # sneakily mangles the thingA block to change some of the validation
+    # data, so it will fail in the post-download phase when the file's
+    # crypttext integrity check fails. Do the same thing for the key, which
+    # should cause the download to fail the post-download plaintext
+    # verifierid check.
 
     def test_vdrive(self):
         self.basedir = "test_system/SystemTest/test_vdrive"

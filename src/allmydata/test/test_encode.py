@@ -5,6 +5,7 @@ from twisted.internet import defer
 from twisted.python.failure import Failure
 from foolscap import eventual
 from allmydata import encode, download
+from allmydata.util import bencode
 from allmydata.uri import pack_uri
 from cStringIO import StringIO
 
@@ -70,6 +71,10 @@ class FakeBucketWriter:
         assert self.share_hashes is None
         self.share_hashes = sharehashes
 
+    def put_thingA(self, thingA):
+        assert not self.closed
+        self.thingA = thingA
+
     def close(self):
         assert not self.closed
         self.closed = True
@@ -78,7 +83,7 @@ class FakeBucketWriter:
         return good[:-1] + chr(ord(good[-1]) ^ 0x01)
 
     def get_block(self, blocknum):
-        assert isinstance(blocknum, int)
+        assert isinstance(blocknum, (int, long))
         if self.mode == "bad block":
             return self.flip_bit(self.blocks[blocknum])
         return self.blocks[blocknum]
@@ -238,28 +243,41 @@ class Roundtrip(unittest.TestCase):
             shareholders[shnum] = peer
             all_shareholders.append(peer)
         e.set_shareholders(shareholders)
+        e.set_thingA_data({'verifierid': "V" * 20,
+                           'fileid': "F" * 20,
+                           })
         d = e.start()
-        def _uploaded(roothash):
-            URI = pack_uri(codec_name=e._codec.get_encoder_type(),
-                           codec_params=e._codec.get_serialized_params(),
-                           tail_codec_params=e._tail_codec.get_serialized_params(),
-                           verifierid="V" * 20,
-                           fileid="F" * 20,
+        def _uploaded(thingA_hash):
+            URI = pack_uri(storage_index="S" * 20,
                            key=nonkey,
-                           roothash=roothash,
+                           thingA_hash=thingA_hash,
                            needed_shares=e.required_shares,
                            total_shares=e.num_shares,
-                           size=e.file_size,
-                           segment_size=e.segment_size)
+                           size=e.file_size)
             client = None
             target = download.Data()
             fd = download.FileDownloader(client, URI, target)
             fd.check_verifierid = False
             fd.check_fileid = False
+            # grab a copy of thingA from one of the shareholders
+            thingA = shareholders[0].thingA
+            thingA_data = bencode.bdecode(thingA)
+            NOTthingA = {'codec_name': e._codec.get_encoder_type(),
+                      'codec_params': e._codec.get_serialized_params(),
+                      'tail_codec_params': e._tail_codec.get_serialized_params(),
+                      'verifierid': "V" * 20,
+                      'fileid': "F" * 20,
+                         #'share_root_hash': roothash,
+                      'segment_size': e.segment_size,
+                      'needed_shares': e.required_shares,
+                      'total_shares': e.num_shares,
+                      }
+            fd._got_thingA(thingA_data)
             for shnum in range(AVAILABLE_SHARES):
                 bucket = all_shareholders[shnum]
                 fd.add_share_bucket(shnum, bucket)
             fd._got_all_shareholders(None)
+            fd._create_validated_buckets(None)
             d2 = fd._download_all_segments(None)
             d2.addCallback(fd._done)
             return d2

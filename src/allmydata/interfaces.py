@@ -12,9 +12,11 @@ Nodeid = StringConstraint(maxLength=20,
                           minLength=20) # binary format 20-byte SHA1 hash
 FURL = StringConstraint(1000)
 Verifierid = StringConstraint(20)
+StorageIndex = StringConstraint(32)
 URI = StringConstraint(300) # kind of arbitrary
 MAX_BUCKETS = 200  # per peer
-ShareData = StringConstraint(100000)
+ShareData = StringConstraint(100000) # 2MB segment / k=25
+ThingAData = StringConstraint(1000)
 
 class RIIntroducerClient(RemoteInterface):
     def new_peers(furls=SetOf(FURL)):
@@ -56,6 +58,16 @@ class RIBucketWriter(RemoteInterface):
     def put_share_hashes(sharehashes=ListOf(TupleOf(int, Hash), maxLength=2**20)):
         return None
 
+    def put_thingA(data=ThingAData):
+        """This as-yet-unnamed block of data contains integrity-checking
+        information (hashes of plaintext, crypttext, and shares), as well as
+        encoding parameters that are necessary to recover the data. This is a
+        bencoded dict mapping strings to other strings. The hash of this data
+        is kept in the URI and verified before any of the data is used. All
+        buckets for a given file contain identical copies of this data.
+        """
+        return None
+
     def close():
         """
         If the data that has been written is incomplete or inconsistent then
@@ -74,9 +86,12 @@ class RIBucketReader(RemoteInterface):
         return ListOf(Hash, maxLength=2**20)
     def get_share_hashes():
         return ListOf(TupleOf(int, Hash), maxLength=2**20)
+    def get_thingA():
+        return ThingAData
+
 
 class RIStorageServer(RemoteInterface):
-    def allocate_buckets(verifierid=Verifierid,
+    def allocate_buckets(storage_index=StorageIndex,
                          sharenums=SetOf(int, maxLength=MAX_BUCKETS),
                          sharesize=int, blocksize=int, canary=Referenceable):
         """
@@ -86,7 +101,7 @@ class RIStorageServer(RemoteInterface):
         """
         return TupleOf(SetOf(int, maxLength=MAX_BUCKETS),
                        DictOf(int, RIBucketWriter, maxKeys=MAX_BUCKETS))
-    def get_buckets(verifierid=Verifierid):
+    def get_buckets(storage_index=StorageIndex):
         return DictOf(int, RIBucketReader, maxKeys=MAX_BUCKETS)
 
 # hm, we need a solution for forward references in schemas
@@ -377,7 +392,7 @@ class IEncoder(Interface):
         input file, encrypting it, encoding the pieces, uploading the shares
         to the shareholders, then sending the hash trees.
 
-        I return a Deferred that fires with the root hash.
+        I return a Deferred that fires with the hash of the thingA data block.
         """
 
 class IDecoder(Interface):

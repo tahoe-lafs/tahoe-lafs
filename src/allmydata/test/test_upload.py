@@ -25,13 +25,10 @@ class GoodServer(unittest.TestCase):
         self.failUnless(isinstance(uri, str))
         self.failUnless(uri.startswith("URI:"))
         d = unpack_uri(uri)
-        self.failUnless(isinstance(d['verifierid'], str))
-        self.failUnlessEqual(len(d['verifierid']), 20)
-        self.failUnless(isinstance(d['fileid'], str))
-        self.failUnlessEqual(len(d['fileid']), 20)
+        self.failUnless(isinstance(d['storage_index'], str))
+        self.failUnlessEqual(len(d['storage_index']), 20)
         self.failUnless(isinstance(d['key'], str))
         self.failUnlessEqual(len(d['key']), 16)
-        self.failUnless(isinstance(d['codec_params'], str))
 
     def testData(self):
         data = "This is some data to upload"

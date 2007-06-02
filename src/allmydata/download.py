@@ -5,7 +5,7 @@ from twisted.python import log
 from twisted.internet import defer
 from twisted.application import service
 
-from allmydata.util import idlib, mathutil
+from allmydata.util import idlib, mathutil, bencode
 from allmydata.util.assertutil import _assert
 from allmydata import codec, hashtree
 from allmydata.Crypto.Cipher import AES
@@ -19,6 +19,8 @@ class HaveAllPeersError(Exception):
     # we use this to jump out of the loop
     pass
 
+class BadThingAHashValue(Exception):
+    pass
 
 class Output:
     def __init__(self, downloadable, key):
@@ -223,55 +225,44 @@ class FileDownloader:
 
     def __init__(self, client, uri, downloadable):
         self._client = client
-        self._downloadable = downloadable
 
         d = unpack_uri(uri)
-        verifierid = d['verifierid']
-        size = d['size']
-        segment_size = d['segment_size']
-        assert isinstance(verifierid, str)
-        assert len(verifierid) == 20
-        self._verifierid = verifierid
-        self._fileid = d['fileid']
-        self._roothash = d['roothash']
-
-        self._codec = codec.get_decoder_by_name(d['codec_name'])
-        self._codec.set_serialized_params(d['codec_params'])
-        self._tail_codec = codec.get_decoder_by_name(d['codec_name'])
-        self._tail_codec.set_serialized_params(d['tail_codec_params'])
-
-
-        self._total_segments = mathutil.div_ceil(size, segment_size)
-        self._current_segnum = 0
-        self._segment_size = segment_size
-        self._size = size
-        self._num_needed_shares = self._codec.get_needed_shares()
+        self._storage_index = d['storage_index']
+        self._thingA_hash = d['thingA_hash']
+        self._total_shares = d['total_shares']
+        self._size = d['size']
+        self._num_needed_shares = d['needed_shares']
 
         self._output = Output(downloadable, d['key'])
 
-        self._share_hashtree = hashtree.IncompleteHashTree(d['total_shares'])
-        self._share_hashtree.set_hashes({0: self._roothash})
-
         self.active_buckets = {} # k: shnum, v: bucket
-        self._share_buckets = {} # k: shnum, v: set of buckets
+        self._share_buckets = [] # list of (sharenum, bucket) tuples
+        self._share_vbuckets = {} # k: shnum, v: set of ValidatedBuckets
+        self._thingA_sources = []
+
+        self._thingA_data = None
 
     def start(self):
-        log.msg("starting download [%s]" % (idlib.b2a(self._verifierid),))
+        log.msg("starting download [%s]" % idlib.b2a(self._storage_index))
 
         # first step: who should we download from?
         d = defer.maybeDeferred(self._get_all_shareholders)
         d.addCallback(self._got_all_shareholders)
-        # once we know that, we can download blocks from them
+        # now get the thingA block from somebody and validate it
+        d.addCallback(self._obtain_thingA)
+        d.addCallback(self._got_thingA)
+        d.addCallback(self._create_validated_buckets)
+        # once we know that, we can download blocks from everybody
         d.addCallback(self._download_all_segments)
         d.addCallback(self._done)
         return d
 
     def _get_all_shareholders(self):
         dl = []
-        for (permutedpeerid, peerid, connection) in self._client.get_permuted_peers(self._verifierid):
+        for (permutedpeerid, peerid, connection) in self._client.get_permuted_peers(self._storage_index):
             d = connection.callRemote("get_service", "storageserver")
             d.addCallback(lambda ss: ss.callRemote("get_buckets",
-                                                   self._verifierid))
+                                                   self._storage_index))
             d.addCallbacks(self._got_response, self._got_error,
                            callbackArgs=(connection,))
             dl.append(d)
@@ -281,13 +272,11 @@ class FileDownloader:
         _assert(isinstance(buckets, dict), buckets) # soon foolscap will check this for us with its DictOf schema constraint
         for sharenum, bucket in buckets.iteritems():
             self.add_share_bucket(sharenum, bucket)
+            self._thingA_sources.append(bucket)
 
     def add_share_bucket(self, sharenum, bucket):
-        vbucket = ValidatedBucket(sharenum, bucket,
-                                  self._share_hashtree,
-                                  self._roothash,
-                                  self._total_segments)
-        self._share_buckets.setdefault(sharenum, set()).add(vbucket)
+        # this is split out for the benefit of test_encode.py
+        self._share_buckets.append( (sharenum, bucket) )
 
     def _got_error(self, f):
         self._client.log("Somebody failed. -- %s" % (f,))
@@ -295,23 +284,78 @@ class FileDownloader:
     def bucket_failed(self, vbucket):
         shnum = vbucket.sharenum
         del self.active_buckets[shnum]
-        s = self._share_buckets[shnum]
+        s = self._share_vbuckets[shnum]
         # s is a set of ValidatedBucket instances
         s.remove(vbucket)
         # ... which might now be empty
         if not s:
             # there are no more buckets which can provide this share, so
             # remove the key. This may prompt us to use a different share.
-            del self._share_buckets[shnum]
+            del self._share_vbuckets[shnum]
 
     def _got_all_shareholders(self, res):
         if len(self._share_buckets) < self._num_needed_shares:
             raise NotEnoughPeersError
-        for s in self._share_buckets.values():
-            for vb in s:
-                assert isinstance(vb, ValidatedBucket), \
-                       "vb is %s but should be a ValidatedBucket" % (vb,)
+        #for s in self._share_vbuckets.values():
+        #    for vb in s:
+        #        assert isinstance(vb, ValidatedBucket), \
+        #               "vb is %s but should be a ValidatedBucket" % (vb,)
 
+    def _obtain_thingA(self, ignored=None):
+        # all shareholders are supposed to have a copy of thingA, and all are
+        # supposed to be identical. We compute the hash of the data that
+        # comes back, and compare it against the version in our URI. If they
+        # don't match, ignore their data and try someone else.
+        if not self._thingA_sources:
+            raise NotEnoughPeersError("ran out of peers while fetching thingA")
+        bucket = self._thingA_sources.pop()
+        d = bucket.callRemote("get_thingA")
+        def _got(thingA):
+            h = hashtree.thingA_hash(thingA)
+            if h != self._thingA_hash:
+                msg = ("The copy of thingA we received from %s was bad" %
+                       bucket)
+                raise BadThingAHashValue(msg)
+            return bencode.bdecode(thingA)
+        d.addCallback(_got)
+        def _bad(f):
+            log.msg("thingA from vbucket %s failed: %s" % (bucket, f)) # WEIRD
+            # try again with a different one
+            return self._obtain_thingA()
+        d.addErrback(_bad)
+        return d
+
+    def _got_thingA(self, thingA_data):
+        d = self._thingA_data = thingA_data
+
+        self._codec = codec.get_decoder_by_name(d['codec_name'])
+        self._codec.set_serialized_params(d['codec_params'])
+        self._tail_codec = codec.get_decoder_by_name(d['codec_name'])
+        self._tail_codec.set_serialized_params(d['tail_codec_params'])
+
+        verifierid = d['verifierid']
+        assert isinstance(verifierid, str)
+        assert len(verifierid) == 20
+        self._verifierid = verifierid
+        self._fileid = d['fileid']
+        self._roothash = d['share_root_hash']
+
+        self._segment_size = segment_size = d['segment_size']
+        self._total_segments = mathutil.div_ceil(self._size, segment_size)
+        self._current_segnum = 0
+
+        self._share_hashtree = hashtree.IncompleteHashTree(d['total_shares'])
+        self._share_hashtree.set_hashes({0: self._roothash})
+
+    def _create_validated_buckets(self, ignored=None):
+        self._share_vbuckets = {}
+        for sharenum, bucket in self._share_buckets:
+            vbucket = ValidatedBucket(sharenum, bucket,
+                                      self._share_hashtree,
+                                      self._roothash,
+                                      self._total_segments)
+            s = self._share_vbuckets.setdefault(sharenum, set())
+            s.add(vbucket)
 
     def _activate_enough_buckets(self):
         """either return a mapping from shnum to a ValidatedBucket that can
@@ -320,23 +364,23 @@ class FileDownloader:
         while len(self.active_buckets) < self._num_needed_shares:
             # need some more
             handled_shnums = set(self.active_buckets.keys())
-            available_shnums = set(self._share_buckets.keys())
+            available_shnums = set(self._share_vbuckets.keys())
             potential_shnums = list(available_shnums - handled_shnums)
             if not potential_shnums:
                 raise NotEnoughPeersError
             # choose a random share
             shnum = random.choice(potential_shnums)
             # and a random bucket that will provide it
-            validated_bucket = random.choice(list(self._share_buckets[shnum]))
+            validated_bucket = random.choice(list(self._share_vbuckets[shnum]))
             self.active_buckets[shnum] = validated_bucket
         return self.active_buckets
 
 
     def _download_all_segments(self, res):
-        # the promise: upon entry to this function, self._share_buckets
+        # the promise: upon entry to this function, self._share_vbuckets
         # contains enough buckets to complete the download, and some extra
         # ones to tolerate some buckets dropping out or having errors.
-        # self._share_buckets is a dictionary that maps from shnum to a set
+        # self._share_vbuckets is a dictionary that maps from shnum to a set
         # of ValidatedBuckets, which themselves are wrappers around
         # RIBucketReader references.
         self.active_buckets = {} # k: shnum, v: ValidatedBucket instance
