@@ -96,7 +96,7 @@ class _Dir(object):
         Create a subdirectory in the tempdir and remember it so as to call
         shutdown() on it before attempting to clean up.
 
-        @rtype: NamedTemporaryDirectory instance
+        @rtype: _Dir instance
         """
         ffn = os.path.join(self.name, dirname)
         sd = _Dir(ffn, self.cleanup)
@@ -143,12 +143,12 @@ class NamedTemporaryDirectory(_Dir):
     Call tempfile.mkdtemp(), store the name of the dir in self.name, and
     rm_dir() when it gets garbage collected or "shutdown()".
 
-    Also optionally keep track of file objects for files within the tempdir
-    and call close() on them before rm_dir().  This is a convenient way to
-    open temp files within the directory, and it is very helpful on Windows
-    because you can't delete a directory which contains a file which is
-    currently open.
+    Also keep track of file objects for files within the tempdir and call
+    close() on them before rm_dir().  This is a convenient way to open temp
+    files within the directory, and it is very helpful on Windows because you
+    can't delete a directory which contains a file which is currently open.
     """
+
     def __init__(self, cleanup=True, *args, **kwargs):
         """ If cleanup, then the directory will be rmrf'ed when the object is shutdown. """
         name = tempfile.mkdtemp(*args, **kwargs)
