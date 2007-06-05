@@ -86,6 +86,13 @@ class Node(service.MultiService):
             self._tub_ready_observerlist.fire(self)
             return self
         d.addCallback(_ready)
+        def _die(failure):
+            self.log('_startService() failed')
+            log.err(failure)
+            #reactor.stop() # for unknown reasons, reactor.stop() isn't working.  [ ] TODO
+            self.log('calling os.abort()')
+            os.abort()
+        d.addErrback(_die)
 
     def stopService(self):
         self.log("Node.stopService")
