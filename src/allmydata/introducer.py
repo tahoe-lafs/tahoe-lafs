@@ -43,6 +43,7 @@ class IntroducerClient(service.Service, Referenceable):
         self.connection_observers = observer.ObserverList()
 
     def startService(self):
+        service.Service.startService(self)
         self.introducer_reconnector = self.tub.connectTo(self.introducer_furl,
                                                          self._got_introducer)
 
