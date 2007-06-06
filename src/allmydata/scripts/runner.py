@@ -43,33 +43,64 @@ if not twistd:
     sys.exit(1)
 
 class BasedirMixin:
+    optFlags = [
+        ["multiple", "m", "allow multiple basedirs to be specified at once"],
+        ]
+
     def postOptions(self):
-        if self['basedir'] is None:
+        if not self.basedirs:
             raise usage.UsageError("<basedir> parameter is required")
-        self['basedir'] = os.path.abspath(os.path.expanduser(self['basedir']))
+        if self['basedir']:
+            del self['basedir']
+        self['basedirs'] = [os.path.abspath(os.path.expanduser(b))
+                            for b in self.basedirs]
 
     def parseArgs(self, *args):
-        if len(args) > 0:
-            self['basedir'] = args[0]
-        if len(args) > 1:
-            raise usage.UsageError("I wasn't expecting so many arguments")
+        self.basedirs = []
+        if self['basedir']:
+            self.basedirs.append(self['basedir'])
+        if self['multiple']:
+            self.basedirs.extend(args)
+        else:
+            if len(args) == 0 and not self.basedirs:
+                self.basedirs.append(".")
+            if len(args) > 0:
+                self.basedirs.append(args[0])
+            if len(args) > 1:
+                raise usage.UsageError("I wasn't expecting so many arguments")
+
+class NoDefaultBasedirMixin(BasedirMixin):
+    def parseArgs(self, *args):
+        # create-client won't default to --basedir=.
+        self.basedirs = []
+        if self['basedir']:
+            self.basedirs.append(self['basedir'])
+        if self['multiple']:
+            self.basedirs.extend(args)
+        else:
+            if len(args) > 0:
+                self.basedirs.append(args[0])
+            if len(args) > 1:
+                raise usage.UsageError("I wasn't expecting so many arguments")
+        if not self.basedirs:
+            raise usage.UsageError("--basedir must be provided")
 
 class StartOptions(BasedirMixin, usage.Options):
     optParameters = [
-        ["basedir", "C", ".", "which directory to start the node in"],
+        ["basedir", "C", None, "which directory to start the node in"],
         ]
 
 class StopOptions(BasedirMixin, usage.Options):
     optParameters = [
-        ["basedir", "C", ".", "which directory to stop the node in"],
+        ["basedir", "C", None, "which directory to stop the node in"],
         ]
 
 class RestartOptions(BasedirMixin, usage.Options):
     optParameters = [
-        ["basedir", "C", ".", "which directory to restart the node in"],
+        ["basedir", "C", None, "which directory to restart the node in"],
         ]
 
-class CreateClientOptions(BasedirMixin, usage.Options):
+class CreateClientOptions(NoDefaultBasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to create the client in"],
         ]
@@ -77,13 +108,7 @@ class CreateClientOptions(BasedirMixin, usage.Options):
         ["quiet", "q", "operate silently"],
         ]
 
-    def parseArgs(self, *args):
-        if len(args) > 0:
-            self['basedir'] = args[0]
-        if len(args) > 1:
-            raise usage.UsageError("I wasn't expecting so many arguments")
-
-class CreateIntroducerOptions(BasedirMixin, usage.Options):
+class CreateIntroducerOptions(NoDefaultBasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to create the introducer in"],
         ]
@@ -146,25 +171,34 @@ def runner(argv, run_by_human=True):
     command = config.subCommand
     so = config.subOptions
 
+    rc = 0
     if command == "create-client":
-        rc = create_client(so)
+        for basedir in so.basedirs:
+            rc = create_client(basedir, so) or rc
     elif command == "create-introducer":
-        rc = create_introducer(so)
+        for basedir in so.basedirs:
+            rc = create_introducer(basedir, so) or rc
     elif command == "start":
-        rc = start(so)
+        for basedir in so.basedirs:
+            rc = start(basedir, so) or rc
     elif command == "stop":
-        rc = stop(so)
+        for basedir in so.basedirs:
+            rc = stop(basedir, so) or rc
     elif command == "restart":
-        rc = restart(so)
-    rc = rc or 0
+        for basedir in so.basedirs:
+            rc = stop(basedir, so) or rc
+        if rc:
+            print "not restarting"
+            return rc
+        for basedir in so.basedirs:
+            rc = start(basedir, so) or rc
     return rc
 
 def run():
     rc = runner(sys.argv[1:])
     sys.exit(rc)
 
-def create_client(config):
-    basedir = config['basedir']
+def create_client(basedir, config):
     if os.path.exists(basedir):
         if os.listdir(basedir):
             print "The base directory already exists: %s" % basedir
@@ -181,8 +215,7 @@ def create_client(config):
         print "client created in %s" % basedir
         print " please copy introducer.furl and vdrive.furl into the directory"
 
-def create_introducer(config):
-    basedir = config['basedir']
+def create_introducer(basedir, config):
     if os.path.exists(basedir):
         if os.listdir(basedir):
             print "The base directory already exists: %s" % basedir
@@ -198,8 +231,8 @@ def create_introducer(config):
     if not config['quiet']:
         print "introducer created in %s" % basedir
 
-def start(config):
-    basedir = config['basedir']
+def start(basedir, config):
+    print "STARTING", basedir
     if os.path.exists(os.path.join(basedir, "client.tac")):
         tac = "client.tac"
         type = "client"
@@ -211,8 +244,7 @@ def start(config):
         if not os.path.isdir(basedir):
             print " in fact, it doesn't look like a directory at all!"
         sys.exit(1)
-    os.chdir(basedir)
-    rc = subprocess.call(["python", twistd, "-y", tac,])
+    rc = subprocess.call(["python", twistd, "-y", tac,], cwd=basedir)
     if rc == 0:
         print "%s node probably started" % type
         return 0
@@ -220,8 +252,8 @@ def start(config):
         print "%s node probably not started" % type
         return 1
 
-def stop(config):
-    basedir = config['basedir']
+def stop(basedir, config):
+    print "STOPPING", basedir
     pidfile = os.path.join(basedir, "twistd.pid")
     if not os.path.exists(pidfile):
         print "%s does not look like a running node directory (no twistd.pid)" % basedir
@@ -243,10 +275,3 @@ def stop(config):
         time.sleep(1)
     print "never saw process go away"
     return 1
-
-def restart(config):
-    rc = stop(config)
-    if rc:
-        print "not restarting"
-        return rc
-    return start(config)
