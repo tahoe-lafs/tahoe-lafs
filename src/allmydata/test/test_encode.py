@@ -41,6 +41,9 @@ class FakeStorageServer:
         else:
             return (set(), dict([(shnum, FakeBucketWriter(),) for shnum in sharenums]),)
 
+class LostPeerError(Exception):
+    pass
+
 class FakeBucketWriter:
     # these are used for both reading and writing
     def __init__(self, mode="good"):
@@ -59,8 +62,10 @@ class FakeBucketWriter:
     def put_block(self, segmentnum, data):
         assert not self.closed
         assert segmentnum not in self.blocks
+        if self.mode == "lost" and segmentnum >= 1:
+            raise LostPeerError("I'm going away now")
         self.blocks[segmentnum] = data
-    
+
     def put_block_hashes(self, blockhashes):
         assert not self.closed
         assert self.block_hashes is None
@@ -215,18 +220,19 @@ class Encode(unittest.TestCase):
         return self.do_encode(25, 101, 100, 5, 15, 8)
 
 class Roundtrip(unittest.TestCase):
-    def send_and_recover(self, k_and_n=(25,100),
+    def send_and_recover(self, k_and_happy_and_n=(25,75,100),
                          AVAILABLE_SHARES=None,
                          datalen=76,
                          max_segment_size=25,
-                         bucket_modes={}):
-        NUM_SHARES = k_and_n[1]
+                         bucket_modes={},
+                         ):
+        NUM_SHARES = k_and_happy_and_n[2]
         if AVAILABLE_SHARES is None:
             AVAILABLE_SHARES = NUM_SHARES
         data = make_data(datalen)
         # force use of multiple segments
         options = {"max_segment_size": max_segment_size,
-                   "needed_and_total_shares": k_and_n}
+                   "needed_and_happy_and_total_shares": k_and_happy_and_n}
         e = encode.Encoder(options)
         nonkey = "\x00" * 16
         e.setup(StringIO(data), nonkey)
@@ -275,7 +281,8 @@ class Roundtrip(unittest.TestCase):
             fd._got_thingA(thingA_data)
             for shnum in range(AVAILABLE_SHARES):
                 bucket = all_shareholders[shnum]
-                fd.add_share_bucket(shnum, bucket)
+                if bucket.closed:
+                    fd.add_share_bucket(shnum, bucket)
             fd._got_all_shareholders(None)
             fd._create_validated_buckets(None)
             d2 = fd._download_all_segments(None)
@@ -289,7 +296,7 @@ class Roundtrip(unittest.TestCase):
         return d
 
     def test_not_enough_shares(self):
-        d = self.send_and_recover((4,10), AVAILABLE_SHARES=2)
+        d = self.send_and_recover((4,8,10), AVAILABLE_SHARES=2)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
             self.failUnless(res.check(download.NotEnoughPeersError))
@@ -329,7 +336,7 @@ class Roundtrip(unittest.TestCase):
                         for i in range(6)]
                        + [(i, "good")
                           for i in range(6, 10)])
-        return self.send_and_recover((4,10), bucket_modes=modemap)
+        return self.send_and_recover((4,8,10), bucket_modes=modemap)
 
     def test_bad_blocks_failure(self):
         # the first 7 servers have bad blocks, which will be caught by the
@@ -338,7 +345,7 @@ class Roundtrip(unittest.TestCase):
                         for i in range(7)]
                        + [(i, "good")
                           for i in range(7, 10)])
-        d = self.send_and_recover((4,10), bucket_modes=modemap)
+        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
             self.failUnless(res.check(download.NotEnoughPeersError))
@@ -352,7 +359,7 @@ class Roundtrip(unittest.TestCase):
                         for i in range(6)]
                        + [(i, "good")
                           for i in range(6, 10)])
-        return self.send_and_recover((4,10), bucket_modes=modemap)
+        return self.send_and_recover((4,8,10), bucket_modes=modemap)
 
     def test_bad_blockhashes_failure(self):
         # the first 7 servers have bad block hashes, so the blockhash tree
@@ -361,7 +368,7 @@ class Roundtrip(unittest.TestCase):
                         for i in range(7)]
                        + [(i, "good")
                           for i in range(7, 10)])
-        d = self.send_and_recover((4,10), bucket_modes=modemap)
+        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
             self.failUnless(res.check(download.NotEnoughPeersError))
@@ -375,7 +382,7 @@ class Roundtrip(unittest.TestCase):
                         for i in range(6)]
                        + [(i, "good")
                           for i in range(6, 10)])
-        return self.send_and_recover((4,10), bucket_modes=modemap)
+        return self.send_and_recover((4,8,10), bucket_modes=modemap)
 
     def test_bad_sharehashes_failure(self):
         # the first 7 servers have bad block hashes, so the sharehash tree
@@ -384,7 +391,7 @@ class Roundtrip(unittest.TestCase):
                         for i in range(7)]
                        + [(i, "good")
                           for i in range(7, 10)])
-        d = self.send_and_recover((4,10), bucket_modes=modemap)
+        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
             self.failUnless(res.check(download.NotEnoughPeersError))
@@ -398,7 +405,7 @@ class Roundtrip(unittest.TestCase):
                         for i in range(6)]
                        + [(i, "good")
                           for i in range(6, 10)])
-        return self.send_and_recover((4,10), bucket_modes=modemap)
+        return self.send_and_recover((4,8,10), bucket_modes=modemap)
 
     def test_missing_sharehashes_failure(self):
         # the first 7 servers are missing their sharehashes, so the
@@ -407,10 +414,41 @@ class Roundtrip(unittest.TestCase):
                         for i in range(7)]
                        + [(i, "good")
                           for i in range(7, 10)])
-        d = self.send_and_recover((4,10), bucket_modes=modemap)
+        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
             self.failUnless(res.check(download.NotEnoughPeersError))
+        d.addBoth(_done)
+        return d
+
+    def test_lost_one_shareholder(self):
+        # we have enough shareholders when we start, but one segment in we
+        # lose one of them. The upload should still succeed, as long as we
+        # still have 'shares_of_happiness' peers left.
+        modemap = dict([(i, "good") for i in range(9)] +
+                       [(i, "lost") for i in range(9, 10)])
+        return self.send_and_recover((4,8,10), bucket_modes=modemap)
+
+    def test_lost_many_shareholders(self):
+        # we have enough shareholders when we start, but one segment in we
+        # lose all but one of them. The upload should fail.
+        modemap = dict([(i, "good") for i in range(1)] +
+                       [(i, "lost") for i in range(1, 10)])
+        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
+        def _done(res):
+            self.failUnless(isinstance(res, Failure))
+            self.failUnless(res.check(encode.NotEnoughPeersError))
+        d.addBoth(_done)
+        return d
+
+    def test_lost_all_shareholders(self):
+        # we have enough shareholders when we start, but one segment in we
+        # lose all of them. The upload should fail.
+        modemap = dict([(i, "lost") for i in range(10)])
+        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
+        def _done(res):
+            self.failUnless(isinstance(res, Failure))
+            self.failUnless(res.check(encode.NotEnoughPeersError))
         d.addBoth(_done)
         return d
 

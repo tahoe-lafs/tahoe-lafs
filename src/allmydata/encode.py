@@ -58,6 +58,9 @@ hash tree is put into the URI.
 
 """
 
+class NotEnoughPeersError(Exception):
+    pass
+
 KiB=1024
 MiB=1024*KiB
 GiB=1024*MiB
@@ -67,6 +70,7 @@ PiB=1024*TiB
 class Encoder(object):
     implements(IEncoder)
     NEEDED_SHARES = 25
+    SHARES_OF_HAPPINESS = 75
     TOTAL_SHARES = 100
     MAX_SEGMENT_SIZE = 2*MiB
 
@@ -74,9 +78,12 @@ class Encoder(object):
         object.__init__(self)
         self.MAX_SEGMENT_SIZE = options.get("max_segment_size",
                                             self.MAX_SEGMENT_SIZE)
-        k,n = options.get("needed_and_total_shares",
-                          (self.NEEDED_SHARES, self.TOTAL_SHARES))
+        k,happy,n = options.get("needed_and_happy_and_total_shares",
+                                (self.NEEDED_SHARES,
+                                 self.SHARES_OF_HAPPINESS,
+                                 self.TOTAL_SHARES))
         self.NEEDED_SHARES = k
+        self.SHARES_OF_HAPPINESS = happy
         self.TOTAL_SHARES = n
         self.thingA_data = {}
 
@@ -91,6 +98,7 @@ class Encoder(object):
 
         self.num_shares = self.TOTAL_SHARES
         self.required_shares = self.NEEDED_SHARES
+        self.shares_of_happiness = self.SHARES_OF_HAPPINESS
 
         self.segment_size = min(self.MAX_SEGMENT_SIZE, self.file_size)
         # this must be a multiple of self.required_shares
@@ -246,7 +254,7 @@ class Encoder(object):
             dl.append(d)
             subshare_hash = block_hash(subshare)
             self.subshare_hashes[shareid].append(subshare_hash)
-        dl = defer.DeferredList(dl)
+        dl = defer.DeferredList(dl, fireOnOneErrback=True, consumeErrors=True)
         def _logit(res):
             log.msg("%s uploaded %s / %s bytes of your file." % (self, self.segment_size*(segnum+1), self.segment_size*self.num_segments))
             return res
@@ -257,7 +265,18 @@ class Encoder(object):
         if shareid not in self.landlords:
             return defer.succeed(None)
         sh = self.landlords[shareid]
-        return sh.callRemote("put_block", segment_num, subshare)
+        d = sh.callRemote("put_block", segment_num, subshare)
+        d.addErrback(self._remove_shareholder, shareid,
+                     "segnum=%d" % segment_num)
+        return d
+
+    def _remove_shareholder(self, why, shareid, where):
+        log.msg("error while sending %s to shareholder=%d: %s" %
+                (where, shareid, why)) # UNUSUAL
+        del self.landlords[shareid]
+        if len(self.landlords) < self.shares_of_happiness:
+            msg = "lost too many shareholders during upload"
+            raise NotEnoughPeersError(msg)
 
     def send_all_subshare_hash_trees(self):
         log.msg("%s sending subshare hash trees" % self)
@@ -266,7 +285,8 @@ class Encoder(object):
             # hashes is a list of the hashes of all subshares that were sent
             # to shareholder[shareid].
             dl.append(self.send_one_subshare_hash_tree(shareid, hashes))
-        return defer.DeferredList(dl)
+        return defer.DeferredList(dl, fireOnOneErrback=True,
+                                  consumeErrors=True)
 
     def send_one_subshare_hash_tree(self, shareid, subshare_hashes):
         t = HashTree(subshare_hashes)
@@ -278,7 +298,9 @@ class Encoder(object):
         if shareid not in self.landlords:
             return defer.succeed(None)
         sh = self.landlords[shareid]
-        return sh.callRemote("put_block_hashes", all_hashes)
+        d = sh.callRemote("put_block_hashes", all_hashes)
+        d.addErrback(self._remove_shareholder, shareid, "put_block_hashes")
+        return d
 
     def send_all_share_hash_trees(self):
         # each bucket gets a set of share hash tree nodes that are needed to
@@ -300,37 +322,49 @@ class Encoder(object):
             needed_hash_indices = t.needed_hashes(i, include_leaf=True)
             hashes = [(hi, t[hi]) for hi in needed_hash_indices]
             dl.append(self.send_one_share_hash_tree(i, hashes))
-        return defer.DeferredList(dl)
+        return defer.DeferredList(dl, fireOnOneErrback=True,
+                                  consumeErrors=True)
 
     def send_one_share_hash_tree(self, shareid, needed_hashes):
         if shareid not in self.landlords:
             return defer.succeed(None)
         sh = self.landlords[shareid]
-        return sh.callRemote("put_share_hashes", needed_hashes)
+        d = sh.callRemote("put_share_hashes", needed_hashes)
+        d.addErrback(self._remove_shareholder, shareid, "put_share_hashes")
+        return d
 
     def send_thingA_to_all_shareholders(self):
         log.msg("%s: sending thingA" % self)
         thingA = bencode.bencode(self.thingA_data)
         self.thingA_hash = thingA_hash(thingA)
         dl = []
-        for sh in self.landlords.values():
-            dl.append(self.send_thingA(sh, thingA))
-        return defer.DeferredList(dl)
+        for shareid in self.landlords.keys():
+            dl.append(self.send_thingA(shareid, thingA))
+        return defer.DeferredList(dl, fireOnOneErrback=True,
+                                  consumeErrors=True)
 
-    def send_thingA(self, sh, thingA):
-        return sh.callRemote("put_thingA", thingA)
+    def send_thingA(self, shareid, thingA):
+        sh = self.landlords[shareid]
+        d = sh.callRemote("put_thingA", thingA)
+        d.addErrback(self._remove_shareholder, shareid, "put_thingA")
+        return d
 
     def close_all_shareholders(self):
         log.msg("%s: closing shareholders" % self)
         dl = []
         for shareid in self.landlords:
-            dl.append(self.landlords[shareid].callRemote("close"))
-        return defer.DeferredList(dl)
+            d = self.landlords[shareid].callRemote("close")
+            d.addErrback(self._remove_shareholder, shareid, "close")
+            dl.append(d)
+        return defer.DeferredList(dl, fireOnOneErrback=True,
+                                  consumeErrors=True)
 
     def done(self):
         log.msg("%s: upload done" % self)
         return self.thingA_hash
 
     def err(self, f):
-        log.msg("%s: upload failed: %s" % (self, f))
+        log.msg("%s: upload failed: %s" % (self, f)) # UNUSUAL
+        if f.check(defer.FirstError):
+            return f.value.subFailure
         return f
