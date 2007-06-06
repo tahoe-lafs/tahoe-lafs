@@ -25,7 +25,7 @@
 # more details.
 
 from ez_setup import use_setuptools
-use_setuptools()
+use_setuptools(min_version='0.6a9')
 
 from setuptools import Extension, find_packages, setup
 

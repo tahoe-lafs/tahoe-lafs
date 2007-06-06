@@ -15,7 +15,7 @@ This file can also be run as a script to install or upgrade setuptools.
 """
 import sys
 
-DEFAULT_VERSION = "0.6c3"
+DEFAULT_VERSION = "0.6c5"
 DEFAULT_URL     = "http://cheeseshop.python.org/packages/%s/s/setuptools/" % sys.version[:3]
 
 md5_data = {
@@ -58,7 +58,7 @@ def _validate_md5(egg_name, data):
 
 
 def use_setuptools(
-    version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir
+    version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir, min_version=None
 ):
     """Automatically find/download setuptools and make it available on sys.path
 
@@ -84,7 +84,9 @@ def use_setuptools(
 
     import pkg_resources
     try:
-        pkg_resources.require("setuptools>="+version)
+        if not min_version:
+            min_version = version
+        pkg_resources.require("setuptools>="+min_version)
 
     except pkg_resources.VersionConflict, e:
         # XXX could we install in a subprocess here?
@@ -92,7 +94,7 @@ def use_setuptools(
             "The required version of setuptools (>=%s) is not available, and\n"
             "can't be installed while this script is running. Please install\n"
             " a more recent version first.\n\n(Currently using %r)"
-        ) % (version, e.args[0])
+        ) % (min_version, e.args[0])
         sys.exit(2)
 
 def download_setuptools(
