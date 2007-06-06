@@ -1,4 +1,25 @@
 #!/usr/bin/env python
 
+# This preamble is adapted from Twisted. If we're being run from a source
+# tree, add that tree's libdir to our path, so tahoe can be run from source
+# without a lot of tedious PYTHONPATH changes.
+import sys, os.path
+where = os.path.realpath(sys.argv[0]).split(os.sep)
+
+# look for Tahoe.home . Three cases:
+#  ...(not BASE)/allmydata-tahoe
+#  .../(BASE)/bin/allmydata-tahoe
+#  .../(BASE)/instdir/bin/allmydata-tahoe
+if len(where) >= 2 and where[-2] == "bin":
+    if len(where) >= 3 and where[-3] == "instdir":
+        base = os.sep.join(where[:-3])
+    else:
+        base = os.sep.join(where[:-2])
+
+    if os.path.exists(os.path.join(base, "Tahoe.home")):
+        # we've found our home
+        libdir = os.path.join(base, "instdir", "lib")
+        sys.path.insert(0, libdir)
+
 from allmydata.scripts import runner
 runner.run()
