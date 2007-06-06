@@ -48,6 +48,12 @@ class BasedirMixin:
             raise usage.UsageError("<basedir> parameter is required")
         self['basedir'] = os.path.abspath(os.path.expanduser(self['basedir']))
 
+    def parseArgs(self, *args):
+        if len(args) > 0:
+            self['basedir'] = args[0]
+        if len(args) > 1:
+            raise usage.UsageError("I wasn't expecting so many arguments")
+
 class StartOptions(BasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", ".", "which directory to start the node in"],
@@ -84,12 +90,6 @@ class CreateIntroducerOptions(BasedirMixin, usage.Options):
     optFlags = [
         ["quiet", "q", "operate silently"],
         ]
-
-    def parseArgs(self, *args):
-        if len(args) > 0:
-            self['basedir'] = args[0]
-        if len(args) > 1:
-            raise usage.UsageError("I wasn't expecting so many arguments")
 
 client_tac = """
 # -*- python -*-
