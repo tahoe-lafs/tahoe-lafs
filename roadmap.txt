@@ -12,7 +12,8 @@ File Encoding:
 *v2: multiple-segment (LFE)
 *v3: merkle tree to verify each share
 *v4: merkle tree to verify each segment
- v5: only retrieve the minimal number of hashes instead of all of them
+ v5: merkle tree on plaintext (and crypttext?): incremental validation
+ v6: only retrieve the minimal number of hashes instead of all of them
 
 Share Encoding:
 *v1: fake it (replication)
@@ -57,9 +58,9 @@ Storage:
 *v1: no deletion, one directory per verifierid, no owners of shares,
      leases never expire
 *v2: multiple shares per verifierid [zooko]
- v2.5: disk space limits on storage servers -- http://allmydata.org/trac/tahoe/ticket/34
- v3: deletion
- v4: leases expire, delete expired data on demand, multiple owners per share
+ v3: disk space limits on storage servers -- http://allmydata.org/trac/tahoe/ticket/34
+ v4: deletion
+ v5: leases expire, delete expired data on demand, multiple owners per share
 
 UI:
 *v1: readonly webish (nevow, URLs are filepaths)
