@@ -20,6 +20,14 @@ if len(where) >= 2 and where[-2] == "bin":
         # we've found our home
         libdir = os.path.join(base, "instdir", "lib")
         sys.path.insert(0, libdir)
+        # also update PYTHONPATH so that child processes (like twistd) will
+        # use this too
+        pp = os.environ.get("PYTHONPATH")
+        if pp:
+            pp = libdir + ":" + pp
+        else:
+            pp = libdir
+        os.environ["PYTHONPATH"] = pp
 
 from allmydata.scripts import runner
 runner.run()
