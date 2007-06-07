@@ -301,27 +301,37 @@ class FileDownloader:
         #        assert isinstance(vb, ValidatedBucket), \
         #               "vb is %s but should be a ValidatedBucket" % (vb,)
 
-    def _obtain_thingA(self, ignored=None):
+    def _obtain_thingA(self, ignored):
         # all shareholders are supposed to have a copy of thingA, and all are
         # supposed to be identical. We compute the hash of the data that
         # comes back, and compare it against the version in our URI. If they
         # don't match, ignore their data and try someone else.
-        if not self._thingA_sources:
-            raise NotEnoughPeersError("ran out of peers while fetching thingA")
-        bucket = self._thingA_sources.pop()
-        d = bucket.callRemote("get_thingA")
-        def _got(thingA):
-            h = hashtree.thingA_hash(thingA)
+        def _validate(proposal, bucket):
+            h = hashtree.thingA_hash(proposal)
             if h != self._thingA_hash:
                 msg = ("The copy of thingA we received from %s was bad" %
                        bucket)
                 raise BadThingAHashValue(msg)
-            return bencode.bdecode(thingA)
-        d.addCallback(_got)
+            return bencode.bdecode(proposal)
+        return self._obtain_validated_thing(None,
+                                            self._thingA_sources,
+                                            "thingA",
+                                            "get_thingA", (), _validate)
+
+    def _obtain_validated_thing(self, ignored, sources, name, methname, args,
+                                validatorfunc):
+        if not sources:
+            raise NotEnoughPeersError("ran out of peers while fetching %s" %
+                                      name)
+        bucket = sources[0]
+        sources = sources[1:]
+        d = bucket.callRemote(methname, *args)
+        d.addCallback(validatorfunc, bucket)
         def _bad(f):
-            log.msg("thingA from vbucket %s failed: %s" % (bucket, f)) # WEIRD
+            log.msg("%s from vbucket %s failed: %s" % (name, bucket, f)) # WEIRD
             # try again with a different one
-            return self._obtain_thingA()
+            return self._obtain_validated_thing(None, sources, name,
+                                                methname, args, validatorfunc)
         d.addErrback(_bad)
         return d
 
