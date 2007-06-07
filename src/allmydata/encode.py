@@ -226,18 +226,29 @@ class Encoder(object):
         plaintext_hasher = SHA256.new(netstring("allmydata_plaintext_segment_v1"))
         crypttext_hasher = SHA256.new(netstring("allmydata_crypttext_segment_v1"))
 
+        # memory footprint: we only hold a tiny piece of the plaintext at any
+        # given time. We build up a segment's worth of cryptttext, then hand
+        # it to the encoder. Assuming 25-of-100 encoding (4x expansion) and
+        # 2MiB max_segment_size, we get a peak memory footprint of 5*2MiB =
+        # 10MiB. Lowering max_segment_size to, say, 100KiB would drop the
+        # footprint to 500KiB at the expense of more hash-tree overhead.
+
         for i in range(self.required_shares):
             input_piece = self.infile.read(input_piece_size)
             # non-tail segments should be the full segment size
             assert len(input_piece) == input_piece_size
             plaintext_hasher.update(input_piece)
             encrypted_piece = self.cryptor.encrypt(input_piece)
+            assert len(encrypted_piece) == len(input_piece)
             crypttext_hasher.update(encrypted_piece)
+
             chunks.append(encrypted_piece)
 
         self._plaintext_hashes.append(plaintext_hasher.digest())
         self._crypttext_hashes.append(crypttext_hasher.digest())
-        d = codec.encode(chunks)
+
+        d = codec.encode(chunks) # during this call, we hit 5*segsize memory
+        del chunks
         d.addCallback(self._encoded_segment, segnum)
         return d
 
@@ -252,17 +263,22 @@ class Encoder(object):
         for i in range(self.required_shares):
             input_piece = self.infile.read(input_piece_size)
             plaintext_hasher.update(input_piece)
-            if len(input_piece) < input_piece_size:
-                # padding
-                input_piece += ('\x00' * (input_piece_size - len(input_piece)))
             encrypted_piece = self.cryptor.encrypt(input_piece)
+            assert len(encrypted_piece) == len(input_piece)
             crypttext_hasher.update(encrypted_piece)
+
+            if len(encrypted_piece) < input_piece_size:
+                # padding
+                pad_size = (input_piece_size - len(encrypted_piece))
+                encrypted_piece += ('\x00' * pad_size)
+
             chunks.append(encrypted_piece)
 
         self._plaintext_hashes.append(plaintext_hasher.digest())
         self._crypttext_hashes.append(crypttext_hasher.digest())
 
         d = codec.encode(chunks)
+        del chunks
         d.addCallback(self._encoded_segment, segnum)
         return d
 

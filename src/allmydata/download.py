@@ -9,6 +9,7 @@ from allmydata.util import idlib, mathutil, bencode
 from allmydata.util.assertutil import _assert
 from allmydata import codec, hashtree
 from allmydata.Crypto.Cipher import AES
+from allmydata.Crypto.Hash import SHA256
 from allmydata.uri import unpack_uri
 from allmydata.interfaces import IDownloadTarget, IDownloader
 
@@ -34,6 +35,7 @@ class Output:
         self._verifierid_hasher = sha.new(netstring("allmydata_verifierid_v1"))
         self._fileid_hasher = sha.new(netstring("allmydata_fileid_v1"))
         self.length = 0
+        self._segment_number = 0
         self._plaintext_hash_tree = None
         self._crypttext_hash_tree = None
 
@@ -44,11 +46,34 @@ class Output:
     def open(self):
         self.downloadable.open()
 
-    def write(self, crypttext):
+    def write_segment(self, crypttext):
         self.length += len(crypttext)
+
+        # memory footprint: 'crypttext' is the only segment_size usage
+        # outstanding. While we decrypt it into 'plaintext', we hit
+        # 2*segment_size.
         self._verifierid_hasher.update(crypttext)
+        if self._crypttext_hash_tree:
+            ch = SHA256.new(netstring("allmydata_crypttext_segment_v1"))
+            ch.update(crypttext)
+            crypttext_leaves = {self._segment_number: ch.digest()}
+            self._crypttext_hash_tree.set_hashes(leaves=crypttext_leaves)
+
         plaintext = self._decryptor.decrypt(crypttext)
+        del crypttext
+
+        # now we're back down to 1*segment_size.
+
         self._fileid_hasher.update(plaintext)
+        if self._plaintext_hash_tree:
+            ph = SHA256.new(netstring("allmydata_plaintext_segment_v1"))
+            ph.update(plaintext)
+            plaintext_leaves = {self._segment_number: ph.digest()}
+            self._plaintext_hash_tree.set_hashes(leaves=plaintext_leaves)
+
+        self._segment_number += 1
+        # We're still at 1*segment_size. The Downloadable is responsible for
+        # any memory usage beyond this.
         self.downloadable.write(plaintext)
 
     def close(self):
@@ -458,13 +483,28 @@ class FileDownloader:
         return d
 
     def _download_segment(self, res, segnum):
+        # memory footprint: when the SegmentDownloader finishes pulling down
+        # all shares, we have 1*segment_size of usage.
         segmentdler = SegmentDownloader(self, segnum, self._num_needed_shares)
         d = segmentdler.start()
+        # while the codec does its job, we hit 2*segment_size
         d.addCallback(lambda (shares, shareids):
                       self._codec.decode(shares, shareids))
-        def _done(res):
-            for buf in res:
-                self._output.write(buf)
+        # once the codec is done, we drop back to 1*segment_size, because
+        # 'shares' goes out of scope. The memory usage is all in the
+        # plaintext now, spread out into a bunch of tiny buffers.
+        def _done(buffers):
+            # we start by joining all these buffers together into a single
+            # string. This makes Output.write easier, since it wants to hash
+            # data one segment at a time anyways, and doesn't impact our
+            # memory footprint since we're already peaking at 2*segment_size
+            # inside the codec a moment ago.
+            segment = "".join(buffers)
+            del buffers
+            # we're down to 1*segment_size right now, but write_segment()
+            # will decrypt a copy of the segment internally, which will push
+            # us up to 2*segment_size while it runs.
+            self._output.write_segment(segment)
         d.addCallback(_done)
         return d
 
@@ -473,14 +513,16 @@ class FileDownloader:
         d = segmentdler.start()
         d.addCallback(lambda (shares, shareids):
                       self._tail_codec.decode(shares, shareids))
-        def _done(res):
+        def _done(buffers):
             # trim off any padding added by the upload side
-            data = ''.join(res)
+            segment = "".join(buffers)
+            del buffers
             # we never send empty segments. If the data was an exact multiple
             # of the segment size, the last segment will be full.
             pad_size = mathutil.pad_size(self._size, self._segment_size)
             tail_size = self._segment_size - pad_size
-            self._output.write(data[:tail_size])
+            segment = segment[:tail_size]
+            self._output.write_segment(segment)
         d.addCallback(_done)
         return d
 
