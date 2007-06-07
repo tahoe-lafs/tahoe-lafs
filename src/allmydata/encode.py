@@ -3,8 +3,7 @@
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import log
-from allmydata.hashtree import HashTree, \
-     block_hash, thingA_hash, plaintext_hash, crypttext_hash
+from allmydata.hashtree import HashTree, block_hash, thingA_hash
 from allmydata.Crypto.Cipher import AES
 from allmydata.Crypto.Hash import SHA256
 from allmydata.util import mathutil, bencode
