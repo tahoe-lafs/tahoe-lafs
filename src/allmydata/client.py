@@ -1,6 +1,6 @@
 
 import os, sha, stat, time
-from foolscap import Referenceable
+from foolscap import Referenceable, SturdyRef
 from zope.interface import implements
 from allmydata.interfaces import RIClient
 from allmydata import node
@@ -26,6 +26,7 @@ class Client(node.Node, Referenceable):
     WEBPORTFILE = "webport"
     INTRODUCER_FURL_FILE = "introducer.furl"
     GLOBAL_VDRIVE_FURL_FILE = "vdrive.furl"
+    MY_FURL_FILE = "myself.furl"
     SUICIDE_PREVENTION_HOTLINE_FILE = "suicide_prevention_hotline"
 
     # we're pretty narrow-minded right now
@@ -43,7 +44,7 @@ class Client(node.Node, Referenceable):
         WEBPORTFILE = os.path.join(self.basedir, self.WEBPORTFILE)
         if os.path.exists(WEBPORTFILE):
             f = open(WEBPORTFILE, "r")
-            webport = f.read() # strports string
+            webport = f.read().strip() # strports string
             f.close()
             self.add_service(WebishServer(webport))
 
@@ -75,7 +76,18 @@ class Client(node.Node, Referenceable):
 
     def tub_ready(self):
         self.log("tub_ready")
-        self.my_furl = self.tub.registerReference(self)
+
+        my_old_name = None
+        MYSELF_FURL_PATH = os.path.join(self.basedir, self.MY_FURL_FILE)
+        if os.path.exists(MYSELF_FURL_PATH):
+            my_old_furl = open(MYSELF_FURL_PATH, "r").read().strip()
+            sturdy = SturdyRef(my_old_furl)
+            my_old_name = sturdy.name
+
+        self.my_furl = self.tub.registerReference(self, my_old_name)
+        f = open(MYSELF_FURL_PATH, "w")
+        f.write(self.my_furl)
+        f.close()
 
         ic = IntroducerClient(self.tub, self.introducer_furl, self.my_furl)
         self.introducer_client = ic
