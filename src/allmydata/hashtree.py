@@ -304,6 +304,14 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
             maybe_needed.add(self.first_leaf_num + leafnum)
         return set([i for i in maybe_needed if self[i] is None])
 
+    def _name_hash(self, i):
+        name = "[%d of %d]" % (i, len(self))
+        if i >= self.first_leaf_num:
+            leafnum = i - self.first_leaf_num
+            numleaves = len(self) - self.first_leaf_num
+            name += " (leaf [%d] of %d)" % (leafnum, numleaves)
+        return name
+
     def set_hashes(self, hashes={}, leaves={}):
         """Add a bunch of hashes to the tree.
 
@@ -376,7 +384,9 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
             for i in new_hashes:
                 if self[i]:
                     if self[i] != new_hashes[i]:
-                        raise BadHashError("new hash does not match existing hash at [%d]" % i)
+                        msg = "new hash does not match existing hash at "
+                        msg += self._name_hash(i)
+                        raise BadHashError(msg)
                 else:
                     self[i] = new_hashes[i]
                     added.add(i)
