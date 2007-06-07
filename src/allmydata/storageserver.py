@@ -49,6 +49,18 @@ class BucketWriter(Referenceable):
         f.seek(self.blocksize*segmentnum)
         f.write(data)
 
+    def remote_put_plaintext_hashes(self, hashes):
+        precondition(not self.closed)
+        # TODO: verify the length of blockhashes.
+        # TODO: tighten foolscap schema to require exactly 32 bytes.
+        self._write_file('plaintext_hashes', ''.join(hashes))
+
+    def remote_put_crypttext_hashes(self, hashes):
+        precondition(not self.closed)
+        # TODO: verify the length of blockhashes.
+        # TODO: tighten foolscap schema to require exactly 32 bytes.
+        self._write_file('crypttext_hashes', ''.join(hashes))
+
     def remote_put_block_hashes(self, blockhashes):
         precondition(not self.closed)
         # TODO: verify the length of blockhashes.

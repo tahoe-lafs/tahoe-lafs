@@ -51,7 +51,12 @@ class RIBucketWriter(RemoteInterface):
         bytes in length. The last segment might be shorter.
         """
         return None
-    
+
+    def put_plaintext_hashes(hashes=ListOf(Hash, maxLength=2**20)):
+        return None
+    def put_crypttext_hashes(hashes=ListOf(Hash, maxLength=2**20)):
+        return None
+
     def put_block_hashes(blockhashes=ListOf(Hash, maxLength=2**20)):
         return None
         

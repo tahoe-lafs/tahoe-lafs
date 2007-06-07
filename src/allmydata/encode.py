@@ -3,7 +3,8 @@
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import log
-from allmydata.hashtree import HashTree, block_hash, thingA_hash
+from allmydata.hashtree import HashTree, IncompleteHashTree, \
+     block_hash, thingA_hash, plaintext_hash, crypttext_hash
 from allmydata.Crypto.Cipher import AES
 from allmydata.util import mathutil, bencode
 from allmydata.util.assertutil import _assert
@@ -164,8 +165,10 @@ class Encoder(object):
                                               self.segment_size)
         self.share_size = mathutil.div_ceil(self.file_size,
                                             self.required_shares)
+        self._plaintext_hashes = []
+        self._crypttext_hashes = []
         self.setup_encryption()
-        self.setup_codec()
+        self.setup_codec() # TODO: duplicate call?
         d = defer.succeed(None)
 
         for i in range(self.num_segments-1):
@@ -176,6 +179,10 @@ class Encoder(object):
             d.addCallback(lambda res, i=i: self.do_segment(i))
         d.addCallback(lambda res: self.do_tail_segment(self.num_segments-1))
 
+        d.addCallback(lambda res:
+                      self.send_plaintext_hash_tree_to_all_shareholders())
+        d.addCallback(lambda res:
+                      self.send_crypttext_hash_tree_to_all_shareholders())
         d.addCallback(lambda res: self.send_all_subshare_hash_trees())
         d.addCallback(lambda res: self.send_all_share_hash_trees())
         d.addCallback(lambda res: self.send_thingA_to_all_shareholders())
@@ -216,8 +223,10 @@ class Encoder(object):
             input_piece = self.infile.read(input_piece_size)
             # non-tail segments should be the full segment size
             assert len(input_piece) == input_piece_size
+            self._plaintext_hashes.append(plaintext_hash(input_piece))
             encrypted_piece = self.cryptor.encrypt(input_piece)
             chunks.append(encrypted_piece)
+            self._crypttext_hashes.append(crypttext_hash(encrypted_piece))
         d = codec.encode(chunks)
         d.addCallback(self._encoded_segment, segnum)
         return d
@@ -229,10 +238,12 @@ class Encoder(object):
 
         for i in range(self.required_shares):
             input_piece = self.infile.read(input_piece_size)
+            self._plaintext_hashes.append(plaintext_hash(input_piece))
             if len(input_piece) < input_piece_size:
                 # padding
                 input_piece += ('\x00' * (input_piece_size - len(input_piece)))
             encrypted_piece = self.cryptor.encrypt(input_piece)
+            self._crypttext_hashes.append(crypttext_hash(encrypted_piece))
             chunks.append(encrypted_piece)
         d = codec.encode(chunks)
         d.addCallback(self._encoded_segment, segnum)
@@ -298,6 +309,42 @@ class Encoder(object):
             return None
         for d0 in dl:
             d0.addErrback(_eatNotEnoughPeersError)
+        return d
+
+    def send_plaintext_hash_tree_to_all_shareholders(self):
+        log.msg("%s sending plaintext hash tree" % self)
+        t = HashTree(self._plaintext_hashes)
+        all_hashes = list(t)
+        self.thingA_data["plaintext_root_hash"] = t[0]
+        dl = []
+        for shareid in self.landlords.keys():
+            dl.append(self.send_plaintext_hash_tree(shareid, all_hashes))
+        return self._gather_responses(dl)
+
+    def send_plaintext_hash_tree(self, shareid, all_hashes):
+        if shareid not in self.landlords:
+            return defer.succeed(None)
+        sh = self.landlords[shareid]
+        d = sh.callRemote("put_plaintext_hashes", all_hashes)
+        d.addErrback(self._remove_shareholder, shareid, "put_plaintext_hashes")
+        return d
+
+    def send_crypttext_hash_tree_to_all_shareholders(self):
+        log.msg("%s sending crypttext hash tree" % self)
+        t = HashTree(self._crypttext_hashes)
+        all_hashes = list(t)
+        self.thingA_data["crypttext_root_hash"] = t[0]
+        dl = []
+        for shareid in self.landlords.keys():
+            dl.append(self.send_crypttext_hash_tree(shareid, all_hashes))
+        return self._gather_responses(dl)
+
+    def send_crypttext_hash_tree(self, shareid, all_hashes):
+        if shareid not in self.landlords:
+            return defer.succeed(None)
+        sh = self.landlords[shareid]
+        d = sh.callRemote("put_crypttext_hashes", all_hashes)
+        d.addErrback(self._remove_shareholder, shareid, "put_crypttext_hashes")
         return d
 
     def send_all_subshare_hash_trees(self):

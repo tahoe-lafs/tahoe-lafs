@@ -442,3 +442,9 @@ def block_hash(data):
 
 def thingA_hash(data):
     return tagged_hash("thingA", data)
+
+def plaintext_hash(data):
+    return tagged_hash("plaintext segment", data)
+
+def crypttext_hash(data):
+    return tagged_hash("crypttext segment", data)

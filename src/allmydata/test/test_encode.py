@@ -49,6 +49,8 @@ class FakeBucketWriter:
     def __init__(self, mode="good"):
         self.mode = mode
         self.blocks = {}
+        self.plaintext_hashes = None
+        self.crypttext_hashes = None
         self.block_hashes = None
         self.share_hashes = None
         self.closed = False
@@ -65,6 +67,16 @@ class FakeBucketWriter:
         if self.mode == "lost" and segmentnum >= 1:
             raise LostPeerError("I'm going away now")
         self.blocks[segmentnum] = data
+
+    def put_plaintext_hashes(self, hashes):
+        assert not self.closed
+        assert self.plaintext_hashes is None
+        self.plaintext_hashes = hashes
+
+    def put_crypttext_hashes(self, hashes):
+        assert not self.closed
+        assert self.crypttext_hashes is None
+        self.crypttext_hashes = hashes
 
     def put_block_hashes(self, blockhashes):
         assert not self.closed
