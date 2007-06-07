@@ -259,8 +259,9 @@ class Encoder(object):
             crypttext_hasher.update(encrypted_piece)
             chunks.append(encrypted_piece)
 
-        self._plaintext_hashes.append(plaintext_hash(input_piece))
-        self._crypttext_hashes.append(crypttext_hash(encrypted_piece))
+        self._plaintext_hashes.append(plaintext_hasher.digest())
+        self._crypttext_hashes.append(crypttext_hasher.digest())
+
         d = codec.encode(chunks)
         d.addCallback(self._encoded_segment, segnum)
         return d
