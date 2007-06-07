@@ -21,6 +21,10 @@ class HaveAllPeersError(Exception):
 
 class BadThingAHashValue(Exception):
     pass
+class BadPlaintextHashValue(Exception):
+    pass
+class BadCrypttextHashValue(Exception):
+    pass
 
 class Output:
     def __init__(self, downloadable, key):
@@ -30,6 +34,12 @@ class Output:
         self._verifierid_hasher = sha.new(netstring("allmydata_verifierid_v1"))
         self._fileid_hasher = sha.new(netstring("allmydata_fileid_v1"))
         self.length = 0
+        self._plaintext_hash_tree = None
+        self._crypttext_hash_tree = None
+
+    def setup_hashtrees(self, plaintext_hashtree, crypttext_hashtree):
+        self._plaintext_hash_tree = plaintext_hashtree
+        self._crypttext_hash_tree = crypttext_hashtree
 
     def open(self):
         self.downloadable.open()
@@ -251,6 +261,7 @@ class FileDownloader:
         # now get the thingA block from somebody and validate it
         d.addCallback(self._obtain_thingA)
         d.addCallback(self._got_thingA)
+        d.addCallback(self._get_hashtrees)
         d.addCallback(self._create_validated_buckets)
         # once we know that, we can download blocks from everybody
         d.addCallback(self._download_all_segments)
@@ -356,6 +367,50 @@ class FileDownloader:
 
         self._share_hashtree = hashtree.IncompleteHashTree(d['total_shares'])
         self._share_hashtree.set_hashes({0: self._roothash})
+
+    def _get_hashtrees(self, res):
+        d = self._get_plaintext_hashtrees()
+        d.addCallback(self._get_crypttext_hashtrees)
+        d.addCallback(self._setup_hashtrees)
+        return d
+
+    def _get_plaintext_hashtrees(self):
+        def _validate_plaintext_hashtree(proposal, bucket):
+            if proposal[0] != self._thingA_data['plaintext_root_hash']:
+                msg = ("The copy of the plaintext_root_hash we received from"
+                       " %s was bad" % bucket)
+                raise BadPlaintextHashValue(msg)
+            self._plaintext_hashes = proposal
+        d = self._obtain_validated_thing(None,
+                                         self._thingA_sources,
+                                         "plaintext_hashes",
+                                         "get_plaintext_hashes", (),
+                                         _validate_plaintext_hashtree)
+        return d
+
+    def _get_crypttext_hashtrees(self, res):
+        def _validate_crypttext_hashtree(proposal, bucket):
+            if proposal[0] != self._thingA_data['crypttext_root_hash']:
+                msg = ("The copy of the crypttext_root_hash we received from"
+                       " %s was bad" % bucket)
+                raise BadCrypttextHashValue(msg)
+            self._crypttext_hashes = proposal
+        d = self._obtain_validated_thing(None,
+                                         self._thingA_sources,
+                                         "crypttext_hashes",
+                                         "get_crypttext_hashes", (),
+                                         _validate_crypttext_hashtree)
+        return d
+
+    def _setup_hashtrees(self, res):
+        plaintext_hashtree = hashtree.IncompleteHashTree(self._total_segments)
+        plaintext_hashes = dict(list(enumerate(self._plaintext_hashes)))
+        plaintext_hashtree.set_hashes(plaintext_hashes)
+        crypttext_hashtree = hashtree.IncompleteHashTree(self._total_segments)
+        crypttext_hashes = dict(list(enumerate(self._crypttext_hashes)))
+        crypttext_hashtree.set_hashes(crypttext_hashes)
+        self._output.setup_hashtrees(plaintext_hashtree, crypttext_hashtree)
+
 
     def _create_validated_buckets(self, ignored=None):
         self._share_vbuckets = {}

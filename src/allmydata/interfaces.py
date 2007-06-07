@@ -87,6 +87,12 @@ class RIBucketReader(RemoteInterface):
         than the others.
         """
         return ShareData
+
+    def get_plaintext_hashes():
+        return ListOf(Hash, maxLength=2**20)
+    def get_crypttext_hashes():
+        return ListOf(Hash, maxLength=2**20)
+
     def get_block_hashes():
         return ListOf(Hash, maxLength=2**20)
     def get_share_hashes():

@@ -107,6 +107,11 @@ class BucketReader(Referenceable):
         f.seek(self.blocksize * blocknum)
         return f.read(self.blocksize) # this might be short for the last block
 
+    def remote_get_plaintext_hashes(self):
+        return str2l(self._read_file('plaintext_hashes'))
+    def remote_get_crypttext_hashes(self):
+        return str2l(self._read_file('crypttext_hashes'))
+
     def remote_get_block_hashes(self):
         return str2l(self._read_file('blockhashes'))
 

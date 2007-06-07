@@ -6,10 +6,14 @@ from twisted.python import log
 from allmydata.hashtree import HashTree, \
      block_hash, thingA_hash, plaintext_hash, crypttext_hash
 from allmydata.Crypto.Cipher import AES
+from allmydata.Crypto.Hash import SHA256
 from allmydata.util import mathutil, bencode
 from allmydata.util.assertutil import _assert
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder
+
+def netstring(s):
+    return "%d:%s," % (len(s), s)
 
 """
 
@@ -219,14 +223,20 @@ class Encoder(object):
         # of additional shares which can be substituted if the primary ones
         # are unavailable
 
+        plaintext_hasher = SHA256.new(netstring("allmydata_plaintext_segment_v1"))
+        crypttext_hasher = SHA256.new(netstring("allmydata_crypttext_segment_v1"))
+
         for i in range(self.required_shares):
             input_piece = self.infile.read(input_piece_size)
             # non-tail segments should be the full segment size
             assert len(input_piece) == input_piece_size
-            self._plaintext_hashes.append(plaintext_hash(input_piece))
+            plaintext_hasher.update(input_piece)
             encrypted_piece = self.cryptor.encrypt(input_piece)
+            crypttext_hasher.update(encrypted_piece)
             chunks.append(encrypted_piece)
-            self._crypttext_hashes.append(crypttext_hash(encrypted_piece))
+
+        self._plaintext_hashes.append(plaintext_hasher.digest())
+        self._crypttext_hashes.append(crypttext_hasher.digest())
         d = codec.encode(chunks)
         d.addCallback(self._encoded_segment, segnum)
         return d
@@ -236,15 +246,21 @@ class Encoder(object):
         codec = self._tail_codec
         input_piece_size = codec.get_block_size()
 
+        plaintext_hasher = SHA256.new(netstring("allmydata_plaintext_segment_v1"))
+        crypttext_hasher = SHA256.new(netstring("allmydata_crypttext_segment_v1"))
+
         for i in range(self.required_shares):
             input_piece = self.infile.read(input_piece_size)
-            self._plaintext_hashes.append(plaintext_hash(input_piece))
+            plaintext_hasher.update(input_piece)
             if len(input_piece) < input_piece_size:
                 # padding
                 input_piece += ('\x00' * (input_piece_size - len(input_piece)))
             encrypted_piece = self.cryptor.encrypt(input_piece)
-            self._crypttext_hashes.append(crypttext_hash(encrypted_piece))
+            crypttext_hasher.update(encrypted_piece)
             chunks.append(encrypted_piece)
+
+        self._plaintext_hashes.append(plaintext_hash(input_piece))
+        self._crypttext_hashes.append(crypttext_hash(encrypted_piece))
         d = codec.encode(chunks)
         d.addCallback(self._encoded_segment, segnum)
         return d
@@ -290,7 +306,7 @@ class Encoder(object):
             # even more UNUSUAL
             log.msg(" weird, they weren't in our list of landlords")
         if len(self.landlords) < self.shares_of_happiness:
-            msg = "lost too many shareholders during upload"
+            msg = "lost too many shareholders during upload: %s" % why
             raise NotEnoughPeersError(msg)
         log.msg("but we can still continue with %s shares, we'll be happy "
                 "with at least %s" % (len(self.landlords),

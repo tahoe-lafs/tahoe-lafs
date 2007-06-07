@@ -105,6 +105,19 @@ class FakeBucketWriter:
             return self.flip_bit(self.blocks[blocknum])
         return self.blocks[blocknum]
 
+    def get_plaintext_hashes(self):
+        if self.mode == "bad plaintexthash":
+            hashes = self.plaintext_hashes[:]
+            hashes[1] = self.flip_bit(hashes[1])
+            return hashes
+        return self.plaintext_hashes
+    def get_crypttext_hashes(self):
+        if self.mode == "bad crypttexthash":
+            hashes = self.crypttext_hashes[:]
+            hashes[1] = self.flip_bit(hashes[1])
+            return hashes
+        return self.crypttext_hashes
+
     def get_block_hashes(self):
         if self.mode == "bad blockhash":
             hashes = self.block_hashes[:]
