@@ -122,6 +122,8 @@ class Encoder(object):
 
         data['size'] = self.file_size
         data['segment_size'] = self.segment_size
+        data['num_segments'] = mathutil.div_ceil(self.file_size,
+                                                 self.segment_size)
         data['needed_shares'] = self.required_shares
         data['total_shares'] = self.num_shares
 
