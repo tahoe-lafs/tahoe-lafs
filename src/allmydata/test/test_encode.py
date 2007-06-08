@@ -251,10 +251,24 @@ class Roundtrip(unittest.TestCase):
                          max_segment_size=25,
                          bucket_modes={},
                          ):
+        if AVAILABLE_SHARES is None:
+            AVAILABLE_SHARES = k_and_happy_and_n[2]
+        data = make_data(datalen)
+        d = self.send(k_and_happy_and_n, AVAILABLE_SHARES,
+                      max_segment_size, bucket_modes, data)
+        # that fires with (thingA_hash, e, shareholders)
+        d.addCallback(self.recover, AVAILABLE_SHARES)
+        # that fires with newdata
+        def _downloaded(newdata):
+            self.failUnless(newdata == data)
+        d.addCallback(_downloaded)
+        return d
+
+    def send(self, k_and_happy_and_n, AVAILABLE_SHARES, max_segment_size,
+             bucket_modes, data):
         NUM_SHARES = k_and_happy_and_n[2]
         if AVAILABLE_SHARES is None:
             AVAILABLE_SHARES = NUM_SHARES
-        data = make_data(datalen)
         # force use of multiple segments
         options = {"max_segment_size": max_segment_size,
                    "needed_and_happy_and_total_shares": k_and_happy_and_n}
@@ -276,15 +290,14 @@ class Roundtrip(unittest.TestCase):
                            'fileid': "F" * 20,
                            })
         d = e.start()
-        d.addCallback(self.recover, nonkey, e, shareholders, AVAILABLE_SHARES)
-        def _downloaded(newdata):
-            self.failUnless(newdata == data)
-        d.addCallback(_downloaded)
+        def _sent(thingA_hash):
+            return (thingA_hash, e, shareholders)
+        d.addCallback(_sent)
         return d
 
-    def recover(self, thingA_hash, nonkey, e, shareholders, AVAILABLE_SHARES):
+    def recover(self, (thingA_hash, e, shareholders), AVAILABLE_SHARES):
         URI = pack_uri(storage_index="S" * 20,
-                       key=nonkey,
+                       key=e.key,
                        thingA_hash=thingA_hash,
                        needed_shares=e.required_shares,
                        total_shares=e.num_shares,
