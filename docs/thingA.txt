@@ -1,0 +1,45 @@
+
+We need a new name for this intentionally-vague block of data.
+
+This block is a bencoded dictionary. All buckets hold an identical copy. The
+hash of the serialized data is kept in the URI.
+
+The download process must obtain a valid copy of this data before any
+decoding can take place. The download process must also obtain other data
+before incremental validation can be performed. Full-file validation (for
+clients who do not wish to do incremental validation) can be performed solely
+with the data from this block.
+
+At the moment, this data block contains the following keys:
+
+ size
+ segment_size
+ num_segments
+ needed_shares
+ total_shares
+
+ codec_name
+ codec_params
+ tail_codec_params
+
+ share_root_hash
+ fileid
+ plaintext_root_hash
+ verifierid
+ crypttext_root_hash
+
+
+Some pieces are needed elsewhere (size should be visible without pulling the
+block, the Tahoe3 algorithm needs total_shares to find the right peers, all
+peer selection algorithms need needed_shares to ask a minimal set of peers).
+Some pieces are arguably redundant but are convenient to have present
+(test_encode.py makes use of num_segments).
+
+fileid/verifierid need to be renamed 'plaintext_hash' and 'crypttext_hash'
+respectively.
+
+The rule for this data block is that it should be a constant size for all
+files, regardless of file size. Therefore hash trees (which have a size that
+depends linearly upon the number of segments) are stored elsewhere in the
+bucket, with only the hash tree root stored in this data block.
+
