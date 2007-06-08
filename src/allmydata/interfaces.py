@@ -69,6 +69,11 @@ class RIBucketWriter(RemoteInterface):
         mapping strings to other strings. The hash of this data is kept in
         the URI and verified before any of the data is used. All buckets for
         a given file contain identical copies of this data.
+
+        The serialization format is specified with the following pseudocode:
+        for k in sorted(dict.keys()):
+            assert re.match(r'^[a-zA-Z_\-]+$', k)
+            write(k + ':' + netstring(dict[k]))
         """
         return None
 

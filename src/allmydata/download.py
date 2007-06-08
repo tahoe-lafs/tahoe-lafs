@@ -5,7 +5,7 @@ from twisted.python import log
 from twisted.internet import defer
 from twisted.application import service
 
-from allmydata.util import idlib, mathutil, bencode, hashutil
+from allmydata.util import idlib, mathutil, hashutil
 from allmydata.util.assertutil import _assert
 from allmydata import codec, hashtree
 from allmydata.Crypto.Cipher import AES
@@ -341,6 +341,31 @@ class FileDownloader:
         #        assert isinstance(vb, ValidatedBucket), \
         #               "vb is %s but should be a ValidatedBucket" % (vb,)
 
+    def _unpack_uri_extension_data(self, data):
+        d = {}
+        while data:
+            colon = data.index(":")
+            key = data[:colon]
+            data = data[colon+1:]
+
+            colon = data.index(":")
+            number = data[:colon]
+            length = int(number)
+            data = data[colon+1:]
+
+            value = data[:length]
+            assert data[length] == ","
+            data = data[length+1:]
+
+            d[key] = value
+
+        # convert certain things to numbers
+        for intkey in ("size", "segment_size", "num_segments",
+                       "needed_shares", "total_shares"):
+            if intkey in d:
+                d[intkey] = int(d[intkey])
+        return d
+
     def _obtain_uri_extension(self, ignored):
         # all shareholders are supposed to have a copy of uri_extension, and
         # all are supposed to be identical. We compute the hash of the data
@@ -353,7 +378,7 @@ class FileDownloader:
                 msg = ("The copy of uri_extension we received from "
                        "%s was bad" % bucket)
                 raise BadURIExtensionHashValue(msg)
-            return bencode.bdecode(proposal)
+            return self._unpack_uri_extension_data(proposal)
         return self._obtain_validated_thing(None,
                                             self._uri_extension_sources,
                                             "uri_extension",
