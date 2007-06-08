@@ -71,9 +71,9 @@ class BucketWriter(Referenceable):
         precondition(not self.closed)
         self._write_file('sharehashes', bencode.bencode(sharehashes))
 
-    def remote_put_thingA(self, data):
+    def remote_put_uri_extension(self, data):
         precondition(not self.closed)
-        self._write_file('thingA', data)
+        self._write_file('uri_extension', data)
 
     def remote_close(self):
         precondition(not self.closed)
@@ -121,8 +121,8 @@ class BucketReader(Referenceable):
         # schema
         return [tuple(i) for i in hashes]
 
-    def remote_get_thingA(self):
-        return self._read_file('thingA')
+    def remote_get_uri_extension(self):
+        return self._read_file('uri_extension')
 
 class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer)

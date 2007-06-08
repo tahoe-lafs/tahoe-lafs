@@ -220,13 +220,13 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d['storage_index'] = self.flip_bit(d['storage_index'])
         return uri.pack_uri(**d)
 
-    # TODO: add a test which mangles the thingA_hash instead, and should fail
-    # due to not being able to get a valid thingA block. Also a test which
-    # sneakily mangles the thingA block to change some of the validation
-    # data, so it will fail in the post-download phase when the file's
-    # crypttext integrity check fails. Do the same thing for the key, which
-    # should cause the download to fail the post-download plaintext
-    # verifierid check.
+    # TODO: add a test which mangles the uri_extension_hash instead, and
+    # should fail due to not being able to get a valid uri_extension block.
+    # Also a test which sneakily mangles the uri_extension block to change
+    # some of the validation data, so it will fail in the post-download phase
+    # when the file's crypttext integrity check fails. Do the same thing for
+    # the key, which should cause the download to fail the post-download
+    # plaintext verifierid check.
 
     def test_vdrive(self):
         self.basedir = "test_system/SystemTest/test_vdrive"

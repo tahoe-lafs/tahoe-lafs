@@ -91,9 +91,9 @@ class FakeBucketWriter:
         assert self.share_hashes is None
         self.share_hashes = sharehashes
 
-    def put_thingA(self, thingA):
+    def put_uri_extension(self, uri_extension):
         assert not self.closed
-        self.thingA = thingA
+        self.uri_extension = uri_extension
 
     def close(self):
         assert not self.closed
@@ -139,10 +139,10 @@ class FakeBucketWriter:
             return []
         return self.share_hashes
 
-    def get_thingA(self):
-        if self.mode == "bad thingA":
-            return flip_bit(self.thingA)
-        return self.thingA
+    def get_uri_extension(self):
+        if self.mode == "bad uri_extension":
+            return flip_bit(self.uri_extension)
+        return self.uri_extension
 
 
 def make_data(length):
@@ -265,7 +265,7 @@ class Roundtrip(unittest.TestCase):
         data = make_data(datalen)
         d = self.send(k_and_happy_and_n, AVAILABLE_SHARES,
                       max_segment_size, bucket_modes, data)
-        # that fires with (thingA_hash, e, shareholders)
+        # that fires with (uri_extension_hash, e, shareholders)
         d.addCallback(self.recover, AVAILABLE_SHARES, recover_mode)
         # that fires with newdata
         def _downloaded((newdata, fd)):
@@ -303,16 +303,16 @@ class Roundtrip(unittest.TestCase):
         verifierid_hasher = hashutil.verifierid_hasher()
         verifierid_hasher.update(cryptor.encrypt(data))
 
-        e.set_thingA_data({'verifierid': verifierid_hasher.digest(),
-                           'fileid': fileid_hasher.digest(),
-                           })
+        e.set_uri_extension_data({'verifierid': verifierid_hasher.digest(),
+                                  'fileid': fileid_hasher.digest(),
+                                  })
         d = e.start()
-        def _sent(thingA_hash):
-            return (thingA_hash, e, shareholders)
+        def _sent(uri_extension_hash):
+            return (uri_extension_hash, e, shareholders)
         d.addCallback(_sent)
         return d
 
-    def recover(self, (thingA_hash, e, shareholders), AVAILABLE_SHARES,
+    def recover(self, (uri_extension_hash, e, shareholders), AVAILABLE_SHARES,
                 recover_mode):
         key = e.key
         if "corrupt_key" in recover_mode:
@@ -320,7 +320,7 @@ class Roundtrip(unittest.TestCase):
 
         URI = pack_uri(storage_index="S" * 32,
                        key=key,
-                       thingA_hash=thingA_hash,
+                       uri_extension_hash=uri_extension_hash,
                        needed_shares=e.required_shares,
                        total_shares=e.num_shares,
                        size=e.file_size)
@@ -338,35 +338,35 @@ class Roundtrip(unittest.TestCase):
                 fd.add_share_bucket(shnum, bucket)
         fd._got_all_shareholders(None)
 
-        # Make it possible to obtain thingA from the shareholders. Arrange
-        # for shareholders[0] to be the first, so we can selectively corrupt
-        # the data it returns.
-        fd._thingA_sources = shareholders.values()
-        fd._thingA_sources.remove(shareholders[0])
-        fd._thingA_sources.insert(0, shareholders[0])
+        # Make it possible to obtain uri_extension from the shareholders.
+        # Arrange for shareholders[0] to be the first, so we can selectively
+        # corrupt the data it returns.
+        fd._uri_extension_sources = shareholders.values()
+        fd._uri_extension_sources.remove(shareholders[0])
+        fd._uri_extension_sources.insert(0, shareholders[0])
 
         d = defer.succeed(None)
 
-        # have the FileDownloader retrieve a copy of thingA itself
-        d.addCallback(fd._obtain_thingA)
+        # have the FileDownloader retrieve a copy of uri_extension itself
+        d.addCallback(fd._obtain_uri_extension)
 
         if "corrupt_crypttext_hashes" in recover_mode:
             # replace everybody's crypttext hash trees with a different one
-            # (computed over a different file), then modify our thingA to
-            # reflect the new crypttext hash tree root
-            def _corrupt_crypttext_hashes(thingA):
-                assert isinstance(thingA, dict)
-                assert 'crypttext_root_hash' in thingA
+            # (computed over a different file), then modify our uri_extension
+            # to reflect the new crypttext hash tree root
+            def _corrupt_crypttext_hashes(uri_extension):
+                assert isinstance(uri_extension, dict)
+                assert 'crypttext_root_hash' in uri_extension
                 badhash = hashutil.tagged_hash("bogus", "data")
-                bad_crypttext_hashes = [badhash] * thingA['num_segments']
+                bad_crypttext_hashes = [badhash] * uri_extension['num_segments']
                 badtree = hashtree.HashTree(bad_crypttext_hashes)
                 for bucket in shareholders.values():
                     bucket.crypttext_hashes = list(badtree)
-                thingA['crypttext_root_hash'] = badtree[0]
-                return thingA
+                uri_extension['crypttext_root_hash'] = badtree[0]
+                return uri_extension
             d.addCallback(_corrupt_crypttext_hashes)
 
-        d.addCallback(fd._got_thingA)
+        d.addCallback(fd._got_uri_extension)
 
         # also have the FileDownloader ask for hash trees
         d.addCallback(fd._get_hashtrees)
@@ -469,7 +469,7 @@ class Roundtrip(unittest.TestCase):
         return self.send_and_recover((4,8,10), bucket_modes=modemap)
 
     def assertFetchFailureIn(self, fd, where):
-        expected = {"thingA": 0,
+        expected = {"uri_extension": 0,
                     "plaintext_hashroot": 0,
                     "plaintext_hashtree": 0,
                     "crypttext_hashroot": 0,
@@ -487,13 +487,13 @@ class Roundtrip(unittest.TestCase):
         d.addCallback(self.assertFetchFailureIn, None)
         return d
 
-    def test_bad_thingA(self):
-        # the first server has a bad thingA block, so we will fail over to a
-        # different server.
-        modemap = dict([(i, "bad thingA") for i in range(1)] +
+    def test_bad_uri_extension(self):
+        # the first server has a bad uri_extension block, so we will fail
+        # over to a different server.
+        modemap = dict([(i, "bad uri_extension") for i in range(1)] +
                        [(i, "good") for i in range(1, 10)])
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        d.addCallback(self.assertFetchFailureIn, "thingA")
+        d.addCallback(self.assertFetchFailureIn, "uri_extension")
         return d
 
     def test_bad_plaintext_hashroot(self):
@@ -536,10 +536,10 @@ class Roundtrip(unittest.TestCase):
         # to test that the crypttext merkle tree is really being applied, we
         # sneak into the download process and corrupt two things: we replace
         # everybody's crypttext hashtree with a bad version (computed over
-        # bogus data), and we modify the supposedly-validated thingA block to
-        # match the new crypttext hashtree root. The download process should
-        # notice that the crypttext coming out of FEC doesn't match the tree,
-        # and fail.
+        # bogus data), and we modify the supposedly-validated uri_extension
+        # block to match the new crypttext hashtree root. The download
+        # process should notice that the crypttext coming out of FEC doesn't
+        # match the tree, and fail.
 
         modemap = dict([(i, "good") for i in range(0, 10)])
         d = self.send_and_recover((4,8,10), bucket_modes=modemap,

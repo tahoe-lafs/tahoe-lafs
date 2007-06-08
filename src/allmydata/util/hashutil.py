@@ -26,10 +26,10 @@ def block_hash(data):
 def block_hasher():
     return tagged_hasher("allmydata_encoded_subshare_v1")
 
-def thingA_hash(data):
-    return tagged_hash("thingA", data)
-def thingA_hasher():
-    return tagged_hasher("thingA")
+def uri_extension_hash(data):
+    return tagged_hash("allmydata_uri_extension_v1", data)
+def uri_extension_hasher():
+    return tagged_hasher("allmydata_uri_extension_v1")
 
 def fileid_hash(data):
     return tagged_hash("allmydata_fileid_v1", data)

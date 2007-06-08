@@ -85,7 +85,7 @@ class Encoder(object):
         self.NEEDED_SHARES = k
         self.SHARES_OF_HAPPINESS = happy
         self.TOTAL_SHARES = n
-        self.thingA_data = {}
+        self.uri_extension_data = {}
 
     def setup(self, infile, encryption_key):
         self.infile = infile
@@ -112,7 +112,7 @@ class Encoder(object):
         self._codec.set_params(self.segment_size,
                                self.required_shares, self.num_shares)
 
-        data = self.thingA_data
+        data = self.uri_extension_data
         data['codec_name'] = self._codec.get_encoder_type()
         data['codec_params'] = self._codec.get_serialized_params()
 
@@ -140,8 +140,8 @@ class Encoder(object):
                                     self.required_shares, self.num_shares)
         data['tail_codec_params'] = self._tail_codec.get_serialized_params()
 
-    def set_thingA_data(self, thingA_data):
-        self.thingA_data.update(thingA_data)
+    def set_uri_extension_data(self, uri_extension_data):
+        self.uri_extension_data.update(uri_extension_data)
 
     def get_share_size(self):
         share_size = mathutil.div_ceil(self.file_size, self.required_shares)
@@ -186,7 +186,7 @@ class Encoder(object):
                       self.send_crypttext_hash_tree_to_all_shareholders())
         d.addCallback(lambda res: self.send_all_subshare_hash_trees())
         d.addCallback(lambda res: self.send_all_share_hash_trees())
-        d.addCallback(lambda res: self.send_thingA_to_all_shareholders())
+        d.addCallback(lambda res: self.send_uri_extension_to_all_shareholders())
         d.addCallback(lambda res: self.close_all_shareholders())
         d.addCallbacks(lambda res: self.done(), self.err)
         return d
@@ -345,7 +345,7 @@ class Encoder(object):
         log.msg("%s sending plaintext hash tree" % self)
         t = HashTree(self._plaintext_hashes)
         all_hashes = list(t)
-        self.thingA_data["plaintext_root_hash"] = t[0]
+        self.uri_extension_data["plaintext_root_hash"] = t[0]
         dl = []
         for shareid in self.landlords.keys():
             dl.append(self.send_plaintext_hash_tree(shareid, all_hashes))
@@ -363,7 +363,7 @@ class Encoder(object):
         log.msg("%s sending crypttext hash tree" % self)
         t = HashTree(self._crypttext_hashes)
         all_hashes = list(t)
-        self.thingA_data["crypttext_root_hash"] = t[0]
+        self.uri_extension_data["crypttext_root_hash"] = t[0]
         dl = []
         for shareid in self.landlords.keys():
             dl.append(self.send_crypttext_hash_tree(shareid, all_hashes))
@@ -412,7 +412,7 @@ class Encoder(object):
         # create the share hash tree
         t = HashTree(self.share_root_hashes)
         # the root of this hash tree goes into our URI
-        self.thingA_data['share_root_hash'] = t[0]
+        self.uri_extension_data['share_root_hash'] = t[0]
         # now send just the necessary pieces out to each shareholder
         for i in range(self.num_shares):
             # the HashTree is given a list of leaves: 0,1,2,3..n .
@@ -430,19 +430,19 @@ class Encoder(object):
         d.addErrback(self._remove_shareholder, shareid, "put_share_hashes")
         return d
 
-    def send_thingA_to_all_shareholders(self):
-        log.msg("%s: sending thingA" % self)
-        thingA = bencode.bencode(self.thingA_data)
-        self.thingA_hash = hashutil.thingA_hash(thingA)
+    def send_uri_extension_to_all_shareholders(self):
+        log.msg("%s: sending uri_extension" % self)
+        uri_extension = bencode.bencode(self.uri_extension_data)
+        self.uri_extension_hash = hashutil.uri_extension_hash(uri_extension)
         dl = []
         for shareid in self.landlords.keys():
-            dl.append(self.send_thingA(shareid, thingA))
+            dl.append(self.send_uri_extension(shareid, uri_extension))
         return self._gather_responses(dl)
 
-    def send_thingA(self, shareid, thingA):
+    def send_uri_extension(self, shareid, uri_extension):
         sh = self.landlords[shareid]
-        d = sh.callRemote("put_thingA", thingA)
-        d.addErrback(self._remove_shareholder, shareid, "put_thingA")
+        d = sh.callRemote("put_uri_extension", uri_extension)
+        d.addErrback(self._remove_shareholder, shareid, "put_uri_extension")
         return d
 
     def close_all_shareholders(self):
@@ -456,7 +456,7 @@ class Encoder(object):
 
     def done(self):
         log.msg("%s: upload done" % self)
-        return self.thingA_hash
+        return self.uri_extension_hash
 
     def err(self, f):
         log.msg("%s: upload failed: %s" % (self, f)) # UNUSUAL

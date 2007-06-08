@@ -17,7 +17,7 @@ class HaveAllPeersError(Exception):
     # we use this to jump out of the loop
     pass
 
-class BadThingAHashValue(Exception):
+class BadURIExtensionHashValue(Exception):
     pass
 class BadPlaintextHashValue(Exception):
     pass
@@ -260,7 +260,7 @@ class FileDownloader:
 
         d = unpack_uri(uri)
         self._storage_index = d['storage_index']
-        self._thingA_hash = d['thingA_hash']
+        self._uri_extension_hash = d['uri_extension_hash']
         self._total_shares = d['total_shares']
         self._size = d['size']
         self._num_needed_shares = d['needed_shares']
@@ -270,11 +270,11 @@ class FileDownloader:
         self.active_buckets = {} # k: shnum, v: bucket
         self._share_buckets = [] # list of (sharenum, bucket) tuples
         self._share_vbuckets = {} # k: shnum, v: set of ValidatedBuckets
-        self._thingA_sources = []
+        self._uri_extension_sources = []
 
-        self._thingA_data = None
+        self._uri_extension_data = None
 
-        self._fetch_failures = {"thingA": 0,
+        self._fetch_failures = {"uri_extension": 0,
                                 "plaintext_hashroot": 0,
                                 "plaintext_hashtree": 0,
                                 "crypttext_hashroot": 0,
@@ -287,9 +287,9 @@ class FileDownloader:
         # first step: who should we download from?
         d = defer.maybeDeferred(self._get_all_shareholders)
         d.addCallback(self._got_all_shareholders)
-        # now get the thingA block from somebody and validate it
-        d.addCallback(self._obtain_thingA)
-        d.addCallback(self._got_thingA)
+        # now get the uri_extension block from somebody and validate it
+        d.addCallback(self._obtain_uri_extension)
+        d.addCallback(self._got_uri_extension)
         d.addCallback(self._get_hashtrees)
         d.addCallback(self._create_validated_buckets)
         # once we know that, we can download blocks from everybody
@@ -312,7 +312,7 @@ class FileDownloader:
         _assert(isinstance(buckets, dict), buckets) # soon foolscap will check this for us with its DictOf schema constraint
         for sharenum, bucket in buckets.iteritems():
             self.add_share_bucket(sharenum, bucket)
-            self._thingA_sources.append(bucket)
+            self._uri_extension_sources.append(bucket)
 
     def add_share_bucket(self, sharenum, bucket):
         # this is split out for the benefit of test_encode.py
@@ -341,23 +341,23 @@ class FileDownloader:
         #        assert isinstance(vb, ValidatedBucket), \
         #               "vb is %s but should be a ValidatedBucket" % (vb,)
 
-    def _obtain_thingA(self, ignored):
-        # all shareholders are supposed to have a copy of thingA, and all are
-        # supposed to be identical. We compute the hash of the data that
-        # comes back, and compare it against the version in our URI. If they
-        # don't match, ignore their data and try someone else.
+    def _obtain_uri_extension(self, ignored):
+        # all shareholders are supposed to have a copy of uri_extension, and
+        # all are supposed to be identical. We compute the hash of the data
+        # that comes back, and compare it against the version in our URI. If
+        # they don't match, ignore their data and try someone else.
         def _validate(proposal, bucket):
-            h = hashutil.thingA_hash(proposal)
-            if h != self._thingA_hash:
-                self._fetch_failures["thingA"] += 1
-                msg = ("The copy of thingA we received from %s was bad" %
-                       bucket)
-                raise BadThingAHashValue(msg)
+            h = hashutil.uri_extension_hash(proposal)
+            if h != self._uri_extension_hash:
+                self._fetch_failures["uri_extension"] += 1
+                msg = ("The copy of uri_extension we received from "
+                       "%s was bad" % bucket)
+                raise BadURIExtensionHashValue(msg)
             return bencode.bdecode(proposal)
         return self._obtain_validated_thing(None,
-                                            self._thingA_sources,
-                                            "thingA",
-                                            "get_thingA", (), _validate)
+                                            self._uri_extension_sources,
+                                            "uri_extension",
+                                            "get_uri_extension", (), _validate)
 
     def _obtain_validated_thing(self, ignored, sources, name, methname, args,
                                 validatorfunc):
@@ -379,8 +379,8 @@ class FileDownloader:
         d.addErrback(_bad)
         return d
 
-    def _got_thingA(self, thingA_data):
-        d = self._thingA_data = thingA_data
+    def _got_uri_extension(self, uri_extension_data):
+        d = self._uri_extension_data = uri_extension_data
 
         self._codec = codec.get_decoder_by_name(d['codec_name'])
         self._codec.set_serialized_params(d['codec_params'])
@@ -409,7 +409,7 @@ class FileDownloader:
 
     def _get_plaintext_hashtrees(self):
         def _validate_plaintext_hashtree(proposal, bucket):
-            if proposal[0] != self._thingA_data['plaintext_root_hash']:
+            if proposal[0] != self._uri_extension_data['plaintext_root_hash']:
                 self._fetch_failures["plaintext_hashroot"] += 1
                 msg = ("The copy of the plaintext_root_hash we received from"
                        " %s was bad" % bucket)
@@ -420,12 +420,13 @@ class FileDownloader:
                 pt_hashtree.set_hashes(pt_hashes)
             except hashtree.BadHashError:
                 # the hashes they gave us were not self-consistent, even
-                # though the root matched what we saw in the thingA block
+                # though the root matched what we saw in the uri_extension
+                # block
                 self._fetch_failures["plaintext_hashtree"] += 1
                 raise
             self._plaintext_hashtree = pt_hashtree
         d = self._obtain_validated_thing(None,
-                                         self._thingA_sources,
+                                         self._uri_extension_sources,
                                          "plaintext_hashes",
                                          "get_plaintext_hashes", (),
                                          _validate_plaintext_hashtree)
@@ -433,7 +434,7 @@ class FileDownloader:
 
     def _get_crypttext_hashtrees(self, res):
         def _validate_crypttext_hashtree(proposal, bucket):
-            if proposal[0] != self._thingA_data['crypttext_root_hash']:
+            if proposal[0] != self._uri_extension_data['crypttext_root_hash']:
                 self._fetch_failures["crypttext_hashroot"] += 1
                 msg = ("The copy of the crypttext_root_hash we received from"
                        " %s was bad" % bucket)
@@ -448,7 +449,7 @@ class FileDownloader:
             ct_hashtree.set_hashes(ct_hashes)
             self._crypttext_hashtree = ct_hashtree
         d = self._obtain_validated_thing(None,
-                                         self._thingA_sources,
+                                         self._uri_extension_sources,
                                          "crypttext_hashes",
                                          "get_crypttext_hashes", (),
                                          _validate_crypttext_hashtree)

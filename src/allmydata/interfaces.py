@@ -15,7 +15,7 @@ StorageIndex = StringConstraint(32)
 URI = StringConstraint(300) # kind of arbitrary
 MAX_BUCKETS = 200  # per peer
 ShareData = StringConstraint(100000) # 2MB segment / k=25
-ThingAData = StringConstraint(1000)
+URIExtensionData = StringConstraint(1000)
 
 class RIIntroducerClient(RemoteInterface):
     def new_peers(furls=SetOf(FURL)):
@@ -62,13 +62,13 @@ class RIBucketWriter(RemoteInterface):
     def put_share_hashes(sharehashes=ListOf(TupleOf(int, Hash), maxLength=2**20)):
         return None
 
-    def put_thingA(data=ThingAData):
-        """This as-yet-unnamed block of data contains integrity-checking
-        information (hashes of plaintext, crypttext, and shares), as well as
-        encoding parameters that are necessary to recover the data. This is a
-        bencoded dict mapping strings to other strings. The hash of this data
-        is kept in the URI and verified before any of the data is used. All
-        buckets for a given file contain identical copies of this data.
+    def put_uri_extension(data=URIExtensionData):
+        """This block of data contains integrity-checking information (hashes
+        of plaintext, crypttext, and shares), as well as encoding parameters
+        that are necessary to recover the data. This is a serialized dict
+        mapping strings to other strings. The hash of this data is kept in
+        the URI and verified before any of the data is used. All buckets for
+        a given file contain identical copies of this data.
         """
         return None
 
@@ -96,8 +96,8 @@ class RIBucketReader(RemoteInterface):
         return ListOf(Hash, maxLength=2**20)
     def get_share_hashes():
         return ListOf(TupleOf(int, Hash), maxLength=2**20)
-    def get_thingA():
-        return ThingAData
+    def get_uri_extension():
+        return URIExtensionData
 
 
 class RIStorageServer(RemoteInterface):
@@ -402,7 +402,8 @@ class IEncoder(Interface):
         input file, encrypting it, encoding the pieces, uploading the shares
         to the shareholders, then sending the hash trees.
 
-        I return a Deferred that fires with the hash of the thingA data block.
+        I return a Deferred that fires with the hash of the uri_extension
+        data block.
         """
 
 class IDecoder(Interface):

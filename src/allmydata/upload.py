@@ -235,16 +235,16 @@ class FileUploader:
         assert len(buckets) == sum([len(peer.buckets) for peer in used_peers])
         self._encoder.set_shareholders(buckets)
 
-        thingA_data = {}
-        thingA_data['verifierid'] = self._verifierid
-        thingA_data['fileid'] = self._fileid
-        self._encoder.set_thingA_data(thingA_data)
+        uri_extension_data = {}
+        uri_extension_data['verifierid'] = self._verifierid
+        uri_extension_data['fileid'] = self._fileid
+        self._encoder.set_uri_extension_data(uri_extension_data)
         return self._encoder.start()
 
-    def _compute_uri(self, thingA_hash):
+    def _compute_uri(self, uri_extension_hash):
         return pack_uri(storage_index=self._verifierid,
                         key=self._encryption_key,
-                        thingA_hash=thingA_hash,
+                        uri_extension_hash=uri_extension_hash,
                         needed_shares=self.needed_shares,
                         total_shares=self.total_shares,
                         size=self._size,
