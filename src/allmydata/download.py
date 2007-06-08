@@ -277,6 +277,13 @@ class FileDownloader:
 
         self._thingA_data = None
 
+        self._fetch_failures = {"thingA": 0,
+                                "plaintext_hashroot": 0,
+                                "plaintext_hashtree": 0,
+                                "crypttext_hashroot": 0,
+                                "crypttext_hashtree": 0,
+                                }
+
     def start(self):
         log.msg("starting download [%s]" % idlib.b2a(self._storage_index))
 
@@ -345,6 +352,7 @@ class FileDownloader:
         def _validate(proposal, bucket):
             h = hashtree.thingA_hash(proposal)
             if h != self._thingA_hash:
+                self._fetch_failures["thingA"] += 1
                 msg = ("The copy of thingA we received from %s was bad" %
                        bucket)
                 raise BadThingAHashValue(msg)
@@ -357,14 +365,17 @@ class FileDownloader:
     def _obtain_validated_thing(self, ignored, sources, name, methname, args,
                                 validatorfunc):
         if not sources:
-            raise NotEnoughPeersError("ran out of peers while fetching %s" %
-                                      name)
+            raise NotEnoughPeersError("started with zero peers while fetching "
+                                      "%s" % name)
         bucket = sources[0]
         sources = sources[1:]
         d = bucket.callRemote(methname, *args)
         d.addCallback(validatorfunc, bucket)
         def _bad(f):
             log.msg("%s from vbucket %s failed: %s" % (name, bucket, f)) # WEIRD
+            if not sources:
+                raise NotEnoughPeersError("ran out of peers, last error was %s"
+                                          % (f,))
             # try again with a different one
             return self._obtain_validated_thing(None, sources, name,
                                                 methname, args, validatorfunc)
@@ -402,10 +413,20 @@ class FileDownloader:
     def _get_plaintext_hashtrees(self):
         def _validate_plaintext_hashtree(proposal, bucket):
             if proposal[0] != self._thingA_data['plaintext_root_hash']:
+                self._fetch_failures["plaintext_hashroot"] += 1
                 msg = ("The copy of the plaintext_root_hash we received from"
                        " %s was bad" % bucket)
                 raise BadPlaintextHashValue(msg)
-            self._plaintext_hashes = proposal
+            pt_hashtree = hashtree.IncompleteHashTree(self._total_segments)
+            pt_hashes = dict(list(enumerate(proposal)))
+            try:
+                pt_hashtree.set_hashes(pt_hashes)
+            except hashtree.BadHashError:
+                # the hashes they gave us were not self-consistent, even
+                # though the root matched what we saw in the thingA block
+                self._fetch_failures["plaintext_hashtree"] += 1
+                raise
+            self._plaintext_hashtree = pt_hashtree
         d = self._obtain_validated_thing(None,
                                          self._thingA_sources,
                                          "plaintext_hashes",
@@ -416,10 +437,19 @@ class FileDownloader:
     def _get_crypttext_hashtrees(self, res):
         def _validate_crypttext_hashtree(proposal, bucket):
             if proposal[0] != self._thingA_data['crypttext_root_hash']:
+                self._fetch_failures["crypttext_hashroot"] += 1
                 msg = ("The copy of the crypttext_root_hash we received from"
                        " %s was bad" % bucket)
                 raise BadCrypttextHashValue(msg)
-            self._crypttext_hashes = proposal
+            ct_hashtree = hashtree.IncompleteHashTree(self._total_segments)
+            ct_hashes = dict(list(enumerate(proposal)))
+            try:
+                ct_hashtree.set_hashes(ct_hashes)
+            except hashtree.BadHashError:
+                self._fetch_failures["crypttext_hashtree"] += 1
+                raise
+            ct_hashtree.set_hashes(ct_hashes)
+            self._crypttext_hashtree = ct_hashtree
         d = self._obtain_validated_thing(None,
                                          self._thingA_sources,
                                          "crypttext_hashes",
@@ -428,13 +458,8 @@ class FileDownloader:
         return d
 
     def _setup_hashtrees(self, res):
-        plaintext_hashtree = hashtree.IncompleteHashTree(self._total_segments)
-        plaintext_hashes = dict(list(enumerate(self._plaintext_hashes)))
-        plaintext_hashtree.set_hashes(plaintext_hashes)
-        crypttext_hashtree = hashtree.IncompleteHashTree(self._total_segments)
-        crypttext_hashes = dict(list(enumerate(self._crypttext_hashes)))
-        crypttext_hashtree.set_hashes(crypttext_hashes)
-        self._output.setup_hashtrees(plaintext_hashtree, crypttext_hashtree)
+        self._output.setup_hashtrees(self._plaintext_hashtree,
+                                     self._crypttext_hashtree)
 
 
     def _create_validated_buckets(self, ignored=None):
