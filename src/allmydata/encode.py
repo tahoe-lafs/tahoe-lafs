@@ -10,9 +10,6 @@ from allmydata.util.assertutil import _assert
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder
 
-def netstring(s):
-    return "%d:%s," % (len(s), s)
-
 """
 
 The goal of the encoder is to turn the original file into a series of

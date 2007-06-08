@@ -569,9 +569,6 @@ class FileDownloader:
         return self._output.finish()
 
 
-def netstring(s):
-    return "%d:%s," % (len(s), s)
-
 class FileName:
     implements(IDownloadTarget)
     def __init__(self, filename):

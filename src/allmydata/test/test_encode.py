@@ -9,9 +9,6 @@ from allmydata.uri import pack_uri
 from allmydata.Crypto.Cipher import AES
 from cStringIO import StringIO
 
-def netstring(s):
-    return "%d:%s," % (len(s), s)
-
 class FakePeer:
     def __init__(self, mode="good"):
         self.ss = FakeStorageServer(mode)
