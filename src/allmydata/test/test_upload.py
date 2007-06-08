@@ -26,7 +26,7 @@ class GoodServer(unittest.TestCase):
         self.failUnless(uri.startswith("URI:"))
         d = unpack_uri(uri)
         self.failUnless(isinstance(d['storage_index'], str))
-        self.failUnlessEqual(len(d['storage_index']), 20)
+        self.failUnlessEqual(len(d['storage_index']), 32)
         self.failUnless(isinstance(d['key'], str))
         self.failUnlessEqual(len(d['key']), 16)
 

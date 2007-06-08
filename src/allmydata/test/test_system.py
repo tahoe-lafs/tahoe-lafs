@@ -216,7 +216,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         # change the storage index, which means we'll be asking about the
         # wrong file, so nobody will have any shares
         d = uri.unpack_uri(gooduri)
-        assert len(d['storage_index']) == 20
+        assert len(d['storage_index']) == 32
         d['storage_index'] = self.flip_bit(d['storage_index'])
         return uri.pack_uri(**d)
 

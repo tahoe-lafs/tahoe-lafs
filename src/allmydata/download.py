@@ -1,15 +1,14 @@
 
-import os, random, sha
+import os, random
 from zope.interface import implements
 from twisted.python import log
 from twisted.internet import defer
 from twisted.application import service
 
-from allmydata.util import idlib, mathutil, bencode
+from allmydata.util import idlib, mathutil, bencode, hashutil
 from allmydata.util.assertutil import _assert
 from allmydata import codec, hashtree
 from allmydata.Crypto.Cipher import AES
-from allmydata.Crypto.Hash import SHA256
 from allmydata.uri import unpack_uri
 from allmydata.interfaces import IDownloadTarget, IDownloader
 
@@ -32,8 +31,8 @@ class Output:
         self.downloadable = downloadable
         self._decryptor = AES.new(key=key, mode=AES.MODE_CTR,
                                   counterstart="\x00"*16)
-        self._verifierid_hasher = sha.new(netstring("allmydata_verifierid_v1"))
-        self._fileid_hasher = sha.new(netstring("allmydata_fileid_v1"))
+        self._verifierid_hasher = hashutil.verifierid_hasher()
+        self._fileid_hasher = hashutil.fileid_hasher()
         self.length = 0
         self._segment_number = 0
         self._plaintext_hash_tree = None
@@ -54,7 +53,7 @@ class Output:
         # 2*segment_size.
         self._verifierid_hasher.update(crypttext)
         if self._crypttext_hash_tree:
-            ch = SHA256.new(netstring("allmydata_crypttext_segment_v1"))
+            ch = hashutil.crypttext_segment_hasher()
             ch.update(crypttext)
             crypttext_leaves = {self._segment_number: ch.digest()}
             self._crypttext_hash_tree.set_hashes(leaves=crypttext_leaves)
@@ -66,7 +65,7 @@ class Output:
 
         self._fileid_hasher.update(plaintext)
         if self._plaintext_hash_tree:
-            ph = SHA256.new(netstring("allmydata_plaintext_segment_v1"))
+            ph = hashutil.plaintext_segment_hasher()
             ph.update(plaintext)
             plaintext_leaves = {self._segment_number: ph.digest()}
             self._plaintext_hash_tree.set_hashes(leaves=plaintext_leaves)
@@ -140,7 +139,7 @@ class ValidatedBucket:
 
             #log.msg("checking block_hash(shareid=%d, blocknum=%d) len=%d" %
             #        (self.sharenum, blocknum, len(blockdata)))
-            blockhash = hashtree.block_hash(blockdata)
+            blockhash = hashutil.block_hash(blockdata)
             # we always validate the blockhash
             bh = dict(enumerate(blockhashes))
             # replace blockhash root with validated value
@@ -350,7 +349,7 @@ class FileDownloader:
         # comes back, and compare it against the version in our URI. If they
         # don't match, ignore their data and try someone else.
         def _validate(proposal, bucket):
-            h = hashtree.thingA_hash(proposal)
+            h = hashutil.thingA_hash(proposal)
             if h != self._thingA_hash:
                 self._fetch_failures["thingA"] += 1
                 msg = ("The copy of thingA we received from %s was bad" %
@@ -392,7 +391,7 @@ class FileDownloader:
 
         verifierid = d['verifierid']
         assert isinstance(verifierid, str)
-        assert len(verifierid) == 20
+        assert len(verifierid) == 32
         self._verifierid = verifierid
         self._fileid = d['fileid']
         self._roothash = d['share_root_hash']

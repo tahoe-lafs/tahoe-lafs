@@ -7,7 +7,6 @@ from allmydata import encode, download, hashtree
 from allmydata.util import hashutil
 from allmydata.uri import pack_uri
 from allmydata.Crypto.Cipher import AES
-import sha
 from cStringIO import StringIO
 
 def netstring(s):
@@ -300,11 +299,11 @@ class Roundtrip(unittest.TestCase):
             peer = FakeBucketWriter(mode)
             shareholders[shnum] = peer
         e.set_shareholders(shareholders)
-        fileid_hasher = sha.new(netstring("allmydata_fileid_v1"))
+        fileid_hasher = hashutil.fileid_hasher()
         fileid_hasher.update(data)
         cryptor = AES.new(key=nonkey, mode=AES.MODE_CTR,
                           counterstart="\x00"*16)
-        verifierid_hasher = sha.new(netstring("allmydata_verifierid_v1"))
+        verifierid_hasher = hashutil.verifierid_hasher()
         verifierid_hasher.update(cryptor.encrypt(data))
 
         e.set_thingA_data({'verifierid': verifierid_hasher.digest(),
@@ -322,7 +321,7 @@ class Roundtrip(unittest.TestCase):
         if "corrupt_key" in recover_mode:
             key = flip_bit(key)
 
-        URI = pack_uri(storage_index="S" * 20,
+        URI = pack_uri(storage_index="S" * 32,
                        key=key,
                        thingA_hash=thingA_hash,
                        needed_shares=e.required_shares,

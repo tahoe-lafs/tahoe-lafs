@@ -4,14 +4,14 @@ from twisted.internet import defer
 from twisted.application import service
 from foolscap import Referenceable
 
-from allmydata.util import idlib
+from allmydata.util import idlib, hashutil
 from allmydata import encode
 from allmydata.uri import pack_uri
 from allmydata.interfaces import IUploadable, IUploader
 from allmydata.Crypto.Cipher import AES
 
 from cStringIO import StringIO
-import collections, random, sha
+import collections, random
 
 class NotEnoughPeersError(Exception):
     pass
@@ -75,10 +75,10 @@ class FileUploader:
 
     def set_id_strings(self, verifierid, fileid):
         assert isinstance(verifierid, str)
-        assert len(verifierid) == 20
+        assert len(verifierid) == 32
         self._verifierid = verifierid
         assert isinstance(fileid, str)
-        assert len(fileid) == 20
+        assert len(fileid) == 32
         self._fileid = fileid
 
     def set_encryption_key(self, key):
@@ -298,8 +298,8 @@ class Uploader(service.MultiService):
 
     def compute_id_strings(self, f):
         # return a list of (fileid, encryptionkey, verifierid)
-        fileid_hasher = sha.new(netstring("allmydata_fileid_v1"))
-        enckey_hasher = sha.new(netstring("allmydata_encryption_key_v1"))
+        fileid_hasher = hashutil.fileid_hasher()
+        enckey_hasher = hashutil.key_hasher()
         f.seek(0)
         BLOCKSIZE = 64*1024
         while True:
@@ -313,7 +313,7 @@ class Uploader(service.MultiService):
 
         # now make a second pass to determine the verifierid. It would be
         # nice to make this involve fewer passes.
-        verifierid_hasher = sha.new(netstring("allmydata_verifierid_v1"))
+        verifierid_hasher = hashutil.verifierid_hasher()
         key = enckey[:16]
         cryptor = AES.new(key=key, mode=AES.MODE_CTR,
                           counterstart="\x00"*16)

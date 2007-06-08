@@ -1,10 +1,11 @@
 
-import os, shutil, sha
+import os, shutil
 from zope.interface import implements
 from twisted.internet import defer
 from allmydata.util import bencode
 from allmydata.util.idlib import b2a
 from allmydata.Crypto.Cipher import AES
+from allmydata.Crypto.Hash import SHA256
 from allmydata.filetree.nodemaker import NodeMaker
 from allmydata.filetree.interfaces import INode
 from allmydata.filetree.file import CHKFileNode
@@ -382,9 +383,9 @@ def make_aes_key():
 def make_rsa_key():
     raise NotImplementedError
 def hash_sha(data):
-    return sha.new(data).digest()
+    return SHA256.new(data).digest()
 def hash_sha_to_key(data):
-    return sha.new(data).digest()[:AES_KEY_LENGTH]
+    return SHA256.new(data).digest()[:AES_KEY_LENGTH]
 def aes_encrypt(key, plaintext):
     assert isinstance(key, str)
     assert len(key) == AES_KEY_LENGTH

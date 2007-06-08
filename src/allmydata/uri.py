@@ -9,7 +9,7 @@ def pack_uri(storage_index, key, thingA_hash,
              needed_shares, total_shares, size):
     # applications should pass keyword parameters into this
     assert isinstance(storage_index, str)
-    assert len(storage_index) == 20 # sha1 hash. TODO: sha256
+    assert len(storage_index) == 32 # sha256 hash
 
     assert isinstance(thingA_hash, str)
     assert len(thingA_hash) == 32 # sha56 hash

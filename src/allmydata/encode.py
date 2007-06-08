@@ -3,10 +3,9 @@
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import log
-from allmydata.hashtree import HashTree, block_hash, thingA_hash
+from allmydata.hashtree import HashTree
 from allmydata.Crypto.Cipher import AES
-from allmydata.Crypto.Hash import SHA256
-from allmydata.util import mathutil, bencode
+from allmydata.util import mathutil, bencode, hashutil
 from allmydata.util.assertutil import _assert
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder
@@ -224,8 +223,8 @@ class Encoder(object):
         # of additional shares which can be substituted if the primary ones
         # are unavailable
 
-        plaintext_hasher = SHA256.new(netstring("allmydata_plaintext_segment_v1"))
-        crypttext_hasher = SHA256.new(netstring("allmydata_crypttext_segment_v1"))
+        plaintext_hasher = hashutil.plaintext_segment_hasher()
+        crypttext_hasher = hashutil.crypttext_segment_hasher()
 
         # memory footprint: we only hold a tiny piece of the plaintext at any
         # given time. We build up a segment's worth of cryptttext, then hand
@@ -258,8 +257,8 @@ class Encoder(object):
         codec = self._tail_codec
         input_piece_size = codec.get_block_size()
 
-        plaintext_hasher = SHA256.new(netstring("allmydata_plaintext_segment_v1"))
-        crypttext_hasher = SHA256.new(netstring("allmydata_crypttext_segment_v1"))
+        plaintext_hasher = hashutil.plaintext_segment_hasher()
+        crypttext_hasher = hashutil.crypttext_segment_hasher()
 
         for i in range(self.required_shares):
             input_piece = self.infile.read(input_piece_size)
@@ -297,7 +296,7 @@ class Encoder(object):
             shareid = shareids[i]
             d = self.send_subshare(shareid, segnum, subshare)
             dl.append(d)
-            subshare_hash = block_hash(subshare)
+            subshare_hash = hashutil.block_hash(subshare)
             self.subshare_hashes[shareid].append(subshare_hash)
         dl = self._gather_responses(dl)
         def _logit(res):
@@ -437,7 +436,7 @@ class Encoder(object):
     def send_thingA_to_all_shareholders(self):
         log.msg("%s: sending thingA" % self)
         thingA = bencode.bencode(self.thingA_data)
-        self.thingA_hash = thingA_hash(thingA)
+        self.thingA_hash = hashutil.thingA_hash(thingA)
         dl = []
         for shareid in self.landlords.keys():
             dl.append(self.send_thingA(shareid, thingA))

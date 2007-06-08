@@ -11,7 +11,6 @@ Hash = StringConstraint(maxLength=HASH_SIZE,
 Nodeid = StringConstraint(maxLength=20,
                           minLength=20) # binary format 20-byte SHA1 hash
 FURL = StringConstraint(1000)
-Verifierid = StringConstraint(20)
 StorageIndex = StringConstraint(32)
 URI = StringConstraint(300) # kind of arbitrary
 MAX_BUCKETS = 200  # per peer
@@ -121,12 +120,12 @@ RIMutableDirectoryNode_ = Any() # TODO: how can we avoid this?
 class RIMutableDirectoryNode(RemoteInterface):
     def list():
         return ListOf( TupleOf(str, # name, relative to directory
-                               ChoiceOf(RIMutableDirectoryNode_, Verifierid)),
+                               ChoiceOf(RIMutableDirectoryNode_, URI)),
                        maxLength=100,
                        )
 
     def get(name=str):
-        return ChoiceOf(RIMutableDirectoryNode_, Verifierid)
+        return ChoiceOf(RIMutableDirectoryNode_, URI)
 
     def add_directory(name=str):
         return RIMutableDirectoryNode_
