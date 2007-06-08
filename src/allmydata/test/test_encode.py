@@ -266,58 +266,55 @@ class Roundtrip(unittest.TestCase):
         e.setup_codec() # need to rebuild the codec for that change
 
         shareholders = {}
-        all_shareholders = []
         all_peers = []
         for shnum in range(NUM_SHARES):
             mode = bucket_modes.get(shnum, "good")
             peer = FakeBucketWriter(mode)
             shareholders[shnum] = peer
-            all_shareholders.append(peer)
         e.set_shareholders(shareholders)
         e.set_thingA_data({'verifierid': "V" * 20,
                            'fileid': "F" * 20,
                            })
         d = e.start()
-        def _uploaded(thingA_hash):
-            URI = pack_uri(storage_index="S" * 20,
-                           key=nonkey,
-                           thingA_hash=thingA_hash,
-                           needed_shares=e.required_shares,
-                           total_shares=e.num_shares,
-                           size=e.file_size)
-            client = None
-            target = download.Data()
-            fd = download.FileDownloader(client, URI, target)
-            fd.check_verifierid = False
-            fd.check_fileid = False
-            # grab a copy of thingA from one of the shareholders
-            thingA = shareholders[0].thingA
-            thingA_data = bencode.bdecode(thingA)
-            NOTthingA = {'codec_name': e._codec.get_encoder_type(),
-                      'codec_params': e._codec.get_serialized_params(),
-                      'tail_codec_params': e._tail_codec.get_serialized_params(),
-                      'verifierid': "V" * 20,
-                      'fileid': "F" * 20,
-                         #'share_root_hash': roothash,
-                      'segment_size': e.segment_size,
-                      'needed_shares': e.required_shares,
-                      'total_shares': e.num_shares,
-                      }
-            fd._got_thingA(thingA_data)
-            for shnum in range(AVAILABLE_SHARES):
-                bucket = all_shareholders[shnum]
-                if bucket.closed:
-                    fd.add_share_bucket(shnum, bucket)
-            fd._got_all_shareholders(None)
-            fd._create_validated_buckets(None)
-            d2 = fd._download_all_segments(None)
-            d2.addCallback(fd._done)
-            return d2
-        d.addCallback(_uploaded)
+        d.addCallback(self.recover, nonkey, e, shareholders, AVAILABLE_SHARES)
         def _downloaded(newdata):
             self.failUnless(newdata == data)
         d.addCallback(_downloaded)
+        return d
 
+    def recover(self, thingA_hash, nonkey, e, shareholders, AVAILABLE_SHARES):
+        URI = pack_uri(storage_index="S" * 20,
+                       key=nonkey,
+                       thingA_hash=thingA_hash,
+                       needed_shares=e.required_shares,
+                       total_shares=e.num_shares,
+                       size=e.file_size)
+        client = None
+        target = download.Data()
+        fd = download.FileDownloader(client, URI, target)
+        fd.check_verifierid = False
+        fd.check_fileid = False
+        # grab a copy of thingA from one of the shareholders
+        thingA = shareholders[0].thingA
+        thingA_data = bencode.bdecode(thingA)
+        NOTthingA = {'codec_name': e._codec.get_encoder_type(),
+                  'codec_params': e._codec.get_serialized_params(),
+                  'tail_codec_params': e._tail_codec.get_serialized_params(),
+                  'verifierid': "V" * 20,
+                  'fileid': "F" * 20,
+                     #'share_root_hash': roothash,
+                  'segment_size': e.segment_size,
+                  'needed_shares': e.required_shares,
+                  'total_shares': e.num_shares,
+                  }
+        fd._got_thingA(thingA_data)
+        for shnum, bucket in shareholders.items():
+            if shnum < AVAILABLE_SHARES and bucket.closed:
+                fd.add_share_bucket(shnum, bucket)
+        fd._got_all_shareholders(None)
+        fd._create_validated_buckets(None)
+        d = fd._download_all_segments(None)
+        d.addCallback(fd._done)
         return d
 
     def test_not_enough_shares(self):
