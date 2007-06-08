@@ -21,6 +21,12 @@ class Basic(unittest.TestCase):
         open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         c = client.Client(basedir)
 
+    def test_loadable_without_vdrive(self):
+        basedir = "test_client.Basic.test_loadable_without_vdrive"
+        os.mkdir(basedir)
+        open(os.path.join(basedir, "introducer.furl"), "w").write("")
+        c = client.Client(basedir)
+
     def test_permute(self):
         basedir = "test_client.Basic.test_permute"
         os.mkdir(basedir)

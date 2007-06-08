@@ -40,7 +40,6 @@ class Client(node.Node, Referenceable):
         self.add_service(StorageServer(os.path.join(basedir, self.STOREDIR)))
         self.add_service(Uploader())
         self.add_service(Downloader())
-        self.add_service(VDrive())
         WEBPORTFILE = os.path.join(self.basedir, self.WEBPORTFILE)
         if os.path.exists(WEBPORTFILE):
             f = open(WEBPORTFILE, "r")
@@ -54,11 +53,14 @@ class Client(node.Node, Referenceable):
         self.introducer_furl = f.read().strip()
         f.close()
 
+        self.global_vdrive_furl = None
         GLOBAL_VDRIVE_FURL_FILE = os.path.join(self.basedir,
                                                self.GLOBAL_VDRIVE_FURL_FILE)
-        f = open(GLOBAL_VDRIVE_FURL_FILE, "r")
-        self.global_vdrive_furl = f.read().strip()
-        f.close()
+        if os.path.exists(GLOBAL_VDRIVE_FURL_FILE):
+            f = open(GLOBAL_VDRIVE_FURL_FILE, "r")
+            self.global_vdrive_furl = f.read().strip()
+            f.close()
+            self.add_service(VDrive())
 
         hotline_file = os.path.join(self.basedir,
                                     self.SUICIDE_PREVENTION_HOTLINE_FILE)
@@ -95,8 +97,9 @@ class Client(node.Node, Referenceable):
 
         self.register_control()
 
-        self.vdrive_connector = self.tub.connectTo(self.global_vdrive_furl,
-                                                   self._got_vdrive)
+        if self.global_vdrive_furl:
+            self.vdrive_connector = self.tub.connectTo(self.global_vdrive_furl,
+                                                       self._got_vdrive)
 
     def register_control(self):
         c = ControlServer()
