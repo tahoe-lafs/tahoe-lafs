@@ -13,9 +13,6 @@ from allmydata.Crypto.Cipher import AES
 from cStringIO import StringIO
 import collections, random
 
-class NotEnoughPeersError(Exception):
-    pass
-
 class HaveAllPeersError(Exception):
     # we use this to jump out of the loop
     pass
@@ -146,7 +143,7 @@ class FileUploader:
                 # But we allocated places for enough shares.
                 log.msg("%s._locate_all_shareholders() But we allocated places for enough shares.")
                 return self.used_peers
-            raise NotEnoughPeersError
+            raise encode.NotEnoughPeersError
         # we need to keep trying
         return self._locate_more_shareholders()
 

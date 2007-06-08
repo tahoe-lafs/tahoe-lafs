@@ -11,9 +11,7 @@ from allmydata import codec, hashtree
 from allmydata.Crypto.Cipher import AES
 from allmydata.uri import unpack_uri
 from allmydata.interfaces import IDownloadTarget, IDownloader
-
-class NotEnoughPeersError(Exception):
-    pass
+from allmydata.encode import NotEnoughPeersError
 
 class HaveAllPeersError(Exception):
     # we use this to jump out of the loop

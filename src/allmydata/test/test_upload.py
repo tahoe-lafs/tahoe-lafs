@@ -3,7 +3,7 @@ from twisted.trial import unittest
 from twisted.python.failure import Failure
 from cStringIO import StringIO
 
-from allmydata import upload
+from allmydata import upload, encode
 from allmydata.uri import unpack_uri
 
 from test_encode import FakePeer
@@ -63,7 +63,7 @@ class FullServer(unittest.TestCase):
         self.u.parent = self.node
 
     def _should_fail(self, f):
-        self.failUnless(isinstance(f, Failure) and f.check(upload.NotEnoughPeersError))
+        self.failUnless(isinstance(f, Failure) and f.check(encode.NotEnoughPeersError))
 
     def testData(self):
         data = "This is some data to upload"
