@@ -25,7 +25,9 @@ def get_local_addresses_async(target='A.ROOT-SERVERS.NET'):
         reachable to.
     """
     addresses = []
-    addresses.append(get_local_ip_for(target))
+    local_ip = get_local_ip_for(target)
+    if local_ip:
+        addresses.append(local_ip)
 
     if sys.platform == "cygwin":
         d = _cygwin_hack_find_addresses(target)
@@ -44,14 +46,25 @@ def get_local_addresses_async(target='A.ROOT-SERVERS.NET'):
 def get_local_ip_for(target):
     """Find out what our IP address is for use by a given target.
 
-    @returns: the IP address as a dotted-quad string which could be used by
-        'target' to connect to us. It might work for them, it might not
+    @returns:the IP address as a dotted-quad string which could be used by
+              to connect to us. It might work for them, it might not. If
+              there is no suitable address (perhaps we don't currently have an
+              externally-visible interface), this will return None.
     """
-    target_ipaddr = socket.gethostbyname(target)
+
+    try:
+        target_ipaddr = socket.gethostbyname(target)
+    except socket.gaierror:
+        # DNS isn't running
+        return None
     udpprot = DatagramProtocol()
     port = reactor.listenUDP(0, udpprot)
-    udpprot.transport.connect(target_ipaddr, 7)
-    localip = udpprot.transport.getHost().host
+    try:
+        udpprot.transport.connect(target_ipaddr, 7)
+        localip = udpprot.transport.getHost().host
+    except socket.error:
+        # no route to that host
+        localip = None
     port.stopListening() # note, this returns a Deferred
     return localip
 
