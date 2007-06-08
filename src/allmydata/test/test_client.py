@@ -1,10 +1,12 @@
 
 import os
 from twisted.trial import unittest
+from twisted.application import service
 
 import allmydata
 from allmydata import client, introducer
 from allmydata.util import version
+from foolscap.eventual import flushEventualQueue
 
 class MyIntroducerClient(introducer.IntroducerClient):
     def __init__(self):
@@ -55,4 +57,45 @@ class Basic(unittest.TestCase):
         c = client.Client(basedir)
         mine, oldest = c.remote_get_versions()
         self.failUnlessEqual(version.Version(mine), allmydata.__version__)
+
+def flush_but_dont_ignore(res):
+    d = flushEventualQueue()
+    def _done(ignored):
+        return res
+    d.addCallback(_done)
+    return d
+
+class Run(unittest.TestCase):
+
+    def setUp(self):
+        self.sparent = service.MultiService()
+        self.sparent.startService()
+    def tearDown(self):
+        d = self.sparent.stopService()
+        d.addBoth(flush_but_dont_ignore)
+        return d
+
+    def test_loadable(self):
+        basedir = "test_client.Run.test_loadable"
+        os.mkdir(basedir)
+        dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
+        open(os.path.join(basedir, "introducer.furl"), "w").write(dummy)
+        open(os.path.join(basedir, "suicide_prevention_hotline"), "w")
+        c = client.Client(basedir)
+
+    def test_reloadable(self):
+        basedir = "test_client.Run.test_reloadable"
+        os.mkdir(basedir)
+        dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
+        open(os.path.join(basedir, "introducer.furl"), "w").write(dummy)
+        c1 = client.Client(basedir)
+        c1.setServiceParent(self.sparent)
+
+        d = c1.disownServiceParent()
+        def _restart(res):
+            c2 = client.Client(basedir)
+            c2.setServiceParent(self.sparent)
+            return c2.disownServiceParent()
+        d.addCallback(_restart)
+        return d
 
