@@ -33,7 +33,11 @@ class Welcome(rend.Page):
     def data_introducer_furl(self, ctx, data):
         return IClient(ctx).introducer_furl
     def data_connected_to_introducer(self, ctx, data):
-        if IClient(ctx).connected_to_vdrive:
+        if IClient(ctx).connected_to_introducer():
+            return "yes"
+        return "no"
+    def data_connected_to_vdrive(self, ctx, data):
+        if IClient(ctx).connected_to_vdrive():
             return "yes"
         return "no"
     def data_num_peers(self, ctx, data):
@@ -53,6 +57,13 @@ class Welcome(rend.Page):
         (nodeid_a,) = data
         ctx.fillSlots("peerid", nodeid_a)
         return ctx.tag
+
+    def render_vdrive(self, ctx, data):
+        if IClient(ctx).connected_to_vdrive():
+            return T.p["To view the global shared filestore, ",
+                       T.a(href="../vdrive")["Click Here!"],
+                       ]
+        return T.p["vdrive.furl not specified, no vdrive available."]
 
     # this is a form where users can download files by URI
 

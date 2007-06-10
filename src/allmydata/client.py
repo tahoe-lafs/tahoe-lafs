@@ -36,7 +36,7 @@ class Client(node.Node, Referenceable):
         node.Node.__init__(self, basedir)
         self.my_furl = None
         self.introducer_client = None
-        self.connected_to_vdrive = False
+        self._connected_to_vdrive = False
         self.add_service(StorageServer(os.path.join(basedir, self.STOREDIR)))
         self.add_service(Uploader())
         self.add_service(Downloader())
@@ -113,12 +113,12 @@ class Client(node.Node, Referenceable):
     def _got_vdrive(self, vdrive_root):
         # vdrive_root implements RIMutableDirectoryNode
         self.log("connected to vdrive")
-        self.connected_to_vdrive = True
+        self._connected_to_vdrive = True
         self.getServiceNamed("vdrive").set_root(vdrive_root)
         if "webish" in self.namedServices:
             self.getServiceNamed("webish").set_root_dirnode(vdrive_root)
         def _disconnected():
-            self.connected_to_vdrive = False
+            self._connected_to_vdrive = False
         vdrive_root.notifyOnDisconnect(_disconnected)
 
     def remote_get_versions(self):
@@ -137,6 +137,8 @@ class Client(node.Node, Referenceable):
 
 
     def get_all_peerids(self):
+        if not self.introducer_client:
+            return []
         return self.introducer_client.connections.iterkeys()
 
     def get_permuted_peers(self, key):
@@ -150,3 +152,11 @@ class Client(node.Node, Referenceable):
             results.append((permuted, peerid, connection))
         results.sort()
         return results
+
+    def connected_to_vdrive(self):
+        return self._connected_to_vdrive
+
+    def connected_to_introducer(self):
+        if self.introducer_client:
+            return self.introducer_client.connected_to_introducer()
+        return False

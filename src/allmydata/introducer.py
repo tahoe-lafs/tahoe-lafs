@@ -39,6 +39,7 @@ class IntroducerClient(service.Service, Referenceable):
 
         self.connections = {} # k: nodeid, v: ref
         self.reconnectors = {} # k: FURL, v: reconnector
+        self._connected = False
 
         self.connection_observers = observer.ObserverList()
 
@@ -94,12 +95,19 @@ class IntroducerClient(service.Service, Referenceable):
 
     def _got_introducer(self, introducer):
         self.log(" introducing ourselves: %s, %s" % (self, self.my_furl))
+        self._connected = True
         d = introducer.callRemote("hello",
                              node=self,
                              furl=self.my_furl)
+        introducer.notifyOnDisconnect(self._disconnected)
+
+    def _disconnected(self):
+        self._connected = False
 
     def notify_on_new_connection(self, cb):
         """Register a callback that will be fired (with nodeid, rref) when
         a new connection is established."""
         self.connection_observers.subscribe(cb)
 
+    def connected_to_introducer(self):
+        return self._connected
