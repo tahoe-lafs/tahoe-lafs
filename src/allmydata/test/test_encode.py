@@ -33,7 +33,7 @@ class FakeStorageServer:
         d = eventual.fireEventually()
         d.addCallback(lambda res: _call())
         return d
-    def allocate_buckets(self, verifierid, sharenums, shareize, blocksize, canary):
+    def allocate_buckets(self, crypttext_hash, sharenums, shareize, blocksize, canary):
         if self.mode == "full":
             return (set(), {},)
         elif self.mode == "already got them":
@@ -296,15 +296,15 @@ class Roundtrip(unittest.TestCase):
             peer = FakeBucketWriter(mode)
             shareholders[shnum] = peer
         e.set_shareholders(shareholders)
-        fileid_hasher = hashutil.fileid_hasher()
-        fileid_hasher.update(data)
+        plaintext_hasher = hashutil.plaintext_hasher()
+        plaintext_hasher.update(data)
         cryptor = AES.new(key=nonkey, mode=AES.MODE_CTR,
                           counterstart="\x00"*16)
-        verifierid_hasher = hashutil.verifierid_hasher()
-        verifierid_hasher.update(cryptor.encrypt(data))
+        crypttext_hasher = hashutil.crypttext_hasher()
+        crypttext_hasher.update(cryptor.encrypt(data))
 
-        e.set_uri_extension_data({'verifierid': verifierid_hasher.digest(),
-                                  'fileid': fileid_hasher.digest(),
+        e.set_uri_extension_data({'crypttext_hash': crypttext_hasher.digest(),
+                                  'plaintext_hash': plaintext_hasher.digest(),
                                   })
         d = e.start()
         def _sent(uri_extension_hash):

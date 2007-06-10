@@ -205,7 +205,7 @@ class ICodecEncoder(Interface):
         this means it may contain hex digits and hyphens, and nothing else.
         The idea is that the URI contains something like '%s:%s:%s' %
         (encoder.get_encoder_name(), encoder.get_serialized_params(),
-        b2a(verifierid)), and this is enough information to construct a
+        b2a(crypttext_hash)), and this is enough information to construct a
         compatible decoder.
         """
 

@@ -24,9 +24,9 @@ on their sizes):
  tail_codec_params   12
 
  share_root_hash     32 (binary) or 52 (base32-encoded) each
- fileid
+ plaintext_hash
  plaintext_root_hash
- verifierid
+ crypttext_hash
  crypttext_root_hash
 
 Some pieces are needed elsewhere (size should be visible without pulling the
@@ -34,9 +34,6 @@ block, the Tahoe3 algorithm needs total_shares to find the right peers, all
 peer selection algorithms need needed_shares to ask a minimal set of peers).
 Some pieces are arguably redundant but are convenient to have present
 (test_encode.py makes use of num_segments).
-
-fileid/verifierid need to be renamed 'plaintext_hash' and 'crypttext_hash'
-respectively.
 
 The rule for this data block is that it should be a constant size for all
 files, regardless of file size. Therefore hash trees (which have a size that

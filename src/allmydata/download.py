@@ -29,8 +29,8 @@ class Output:
         self.downloadable = downloadable
         self._decryptor = AES.new(key=key, mode=AES.MODE_CTR,
                                   counterstart="\x00"*16)
-        self._verifierid_hasher = hashutil.verifierid_hasher()
-        self._fileid_hasher = hashutil.fileid_hasher()
+        self._crypttext_hasher = hashutil.crypttext_hasher()
+        self._plaintext_hasher = hashutil.plaintext_hasher()
         self.length = 0
         self._segment_number = 0
         self._plaintext_hash_tree = None
@@ -49,7 +49,7 @@ class Output:
         # memory footprint: 'crypttext' is the only segment_size usage
         # outstanding. While we decrypt it into 'plaintext', we hit
         # 2*segment_size.
-        self._verifierid_hasher.update(crypttext)
+        self._crypttext_hasher.update(crypttext)
         if self._crypttext_hash_tree:
             ch = hashutil.crypttext_segment_hasher()
             ch.update(crypttext)
@@ -61,7 +61,7 @@ class Output:
 
         # now we're back down to 1*segment_size.
 
-        self._fileid_hasher.update(plaintext)
+        self._plaintext_hasher.update(plaintext)
         if self._plaintext_hash_tree:
             ph = hashutil.plaintext_segment_hasher()
             ph.update(plaintext)
@@ -74,8 +74,8 @@ class Output:
         self.downloadable.write(plaintext)
 
     def close(self):
-        self.verifierid = self._verifierid_hasher.digest()
-        self.fileid = self._fileid_hasher.digest()
+        self.crypttext_hash = self._crypttext_hasher.digest()
+        self.plaintext_hash = self._plaintext_hasher.digest()
         self.downloadable.close()
 
     def finish(self):
@@ -252,8 +252,8 @@ class SegmentDownloader:
         self.parent.bucket_failed(vbucket)
 
 class FileDownloader:
-    check_verifierid = True
-    check_fileid = True
+    check_crypttext_hash = True
+    check_plaintext_hash = True
 
     def __init__(self, client, uri, downloadable):
         self._client = client
@@ -412,11 +412,11 @@ class FileDownloader:
         self._tail_codec = codec.get_decoder_by_name(d['codec_name'])
         self._tail_codec.set_serialized_params(d['tail_codec_params'])
 
-        verifierid = d['verifierid']
-        assert isinstance(verifierid, str)
-        assert len(verifierid) == 32
-        self._verifierid = verifierid
-        self._fileid = d['fileid']
+        crypttext_hash = d['crypttext_hash']
+        assert isinstance(crypttext_hash, str)
+        assert len(crypttext_hash) == 32
+        self._crypttext_hash = crypttext_hash
+        self._plaintext_hash = d['plaintext_hash']
         self._roothash = d['share_root_hash']
 
         self._segment_size = segment_size = d['segment_size']
@@ -576,18 +576,20 @@ class FileDownloader:
 
     def _done(self, res):
         self._output.close()
-        log.msg("computed VERIFIERID: %s" % idlib.b2a(self._output.verifierid))
-        log.msg("computed FILEID: %s" % idlib.b2a(self._output.fileid))
-        if self.check_verifierid:
-            _assert(self._verifierid == self._output.verifierid,
-                    "bad verifierid: computed=%s, expected=%s" %
-                    (idlib.b2a(self._output.verifierid),
-                     idlib.b2a(self._verifierid)))
-        if self.check_fileid:
-            _assert(self._fileid == self._output.fileid,
-                    "bad fileid: computed=%s, expected=%s" %
-                    (idlib.b2a(self._output.fileid),
-                     idlib.b2a(self._fileid)))
+        log.msg("computed CRYPTTEXT_HASH: %s" %
+                idlib.b2a(self._output.crypttext_hash))
+        log.msg("computed PLAINTEXT_HASH: %s" %
+                idlib.b2a(self._output.plaintext_hash))
+        if self.check_crypttext_hash:
+            _assert(self._crypttext_hash == self._output.crypttext_hash,
+                    "bad crypttext_hash: computed=%s, expected=%s" %
+                    (idlib.b2a(self._output.crypttext_hash),
+                     idlib.b2a(self._crypttext_hash)))
+        if self.check_plaintext_hash:
+            _assert(self._plaintext_hash == self._output.plaintext_hash,
+                    "bad plaintext_hash: computed=%s, expected=%s" %
+                    (idlib.b2a(self._output.plaintext_hash),
+                     idlib.b2a(self._plaintext_hash)))
         _assert(self._output.length == self._size,
                 got=self._output.length, expected=self._size)
         return self._output.finish()

@@ -22,14 +22,15 @@ class TooFullError(Exception):
     pass
 
 class PeerTracker:
-    def __init__(self, peerid, permutedid, connection, sharesize, blocksize, verifierid):
+    def __init__(self, peerid, permutedid, connection,
+                 sharesize, blocksize, crypttext_hash):
         self.peerid = peerid
         self.permutedid = permutedid
         self.connection = connection # to an RIClient
         self.buckets = {} # k: shareid, v: IRemoteBucketWriter
         self.sharesize = sharesize
         self.blocksize = blocksize
-        self.verifierid = verifierid
+        self.crypttext_hash = crypttext_hash
         self._storageserver = None
 
     def query(self, sharenums):
@@ -42,9 +43,11 @@ class PeerTracker:
     def _got_storageserver(self, storageserver):
         self._storageserver = storageserver
     def _query(self, sharenums):
-        d = self._storageserver.callRemote("allocate_buckets", self.verifierid,
+        d = self._storageserver.callRemote("allocate_buckets",
+                                           self.crypttext_hash,
                                            sharenums, self.sharesize,
-                                           self.blocksize, canary=Referenceable())
+                                           self.blocksize,
+                                           canary=Referenceable())
         d.addCallback(self._got_reply)
         return d
         
@@ -70,13 +73,13 @@ class FileUploader:
         self._size = filehandle.tell()
         filehandle.seek(0)
 
-    def set_id_strings(self, verifierid, fileid):
-        assert isinstance(verifierid, str)
-        assert len(verifierid) == 32
-        self._verifierid = verifierid
-        assert isinstance(fileid, str)
-        assert len(fileid) == 32
-        self._fileid = fileid
+    def set_id_strings(self, crypttext_hash, plaintext_hash):
+        assert isinstance(crypttext_hash, str)
+        assert len(crypttext_hash) == 32
+        self._crypttext_hash = crypttext_hash
+        assert isinstance(plaintext_hash, str)
+        assert len(plaintext_hash) == 32
+        self._plaintext_hash = plaintext_hash
 
     def set_encryption_key(self, key):
         assert isinstance(key, str)
@@ -92,7 +95,7 @@ class FileUploader:
         This method returns a Deferred that will fire with the URI (a
         string)."""
 
-        log.msg("starting upload [%s]" % (idlib.b2a(self._verifierid),))
+        log.msg("starting upload [%s]" % (idlib.b2a(self._crypttext_hash),))
         assert self.needed_shares
 
         # create the encoder, so we can know how large the shares will be
@@ -103,9 +106,11 @@ class FileUploader:
 
         # we are responsible for locating the shareholders. self._encoder is
         # responsible for handling the data and sending out the shares.
-        peers = self._client.get_permuted_peers(self._verifierid)
+        peers = self._client.get_permuted_peers(self._crypttext_hash)
         assert peers
-        trackers = [ PeerTracker(peerid, permutedid, conn, share_size, block_size, self._verifierid)
+        trackers = [ PeerTracker(peerid, permutedid, conn,
+                                 share_size, block_size,
+                                 self._crypttext_hash)
                      for permutedid, peerid, conn in peers ]
         self.usable_peers = set(trackers) # this set shrinks over time
         self.used_peers = set() # while this set grows
@@ -236,13 +241,13 @@ class FileUploader:
         self._encoder.set_shareholders(buckets)
 
         uri_extension_data = {}
-        uri_extension_data['verifierid'] = self._verifierid
-        uri_extension_data['fileid'] = self._fileid
+        uri_extension_data['crypttext_hash'] = self._crypttext_hash
+        uri_extension_data['plaintext_hash'] = self._plaintext_hash
         self._encoder.set_uri_extension_data(uri_extension_data)
         return self._encoder.start()
 
     def _compute_uri(self, uri_extension_hash):
-        return pack_uri(storage_index=self._verifierid,
+        return pack_uri(storage_index=self._crypttext_hash,
                         key=self._encryption_key,
                         uri_extension_hash=uri_extension_hash,
                         needed_shares=self.needed_shares,
@@ -291,8 +296,8 @@ class Uploader(service.MultiService):
     total_shares = 100 # Total number of shares created by encoding.  If everybody has room then this is is how many we will upload.
 
     def compute_id_strings(self, f):
-        # return a list of (fileid, encryptionkey, verifierid)
-        fileid_hasher = hashutil.fileid_hasher()
+        # return a list of (plaintext_hash, encryptionkey, crypttext_hash)
+        plaintext_hasher = hashutil.plaintext_hasher()
         enckey_hasher = hashutil.key_hasher()
         f.seek(0)
         BLOCKSIZE = 64*1024
@@ -300,14 +305,14 @@ class Uploader(service.MultiService):
             data = f.read(BLOCKSIZE)
             if not data:
                 break
-            fileid_hasher.update(data)
+            plaintext_hasher.update(data)
             enckey_hasher.update(data)
-        fileid = fileid_hasher.digest()
+        plaintext_hash = plaintext_hasher.digest()
         enckey = enckey_hasher.digest()
 
-        # now make a second pass to determine the verifierid. It would be
+        # now make a second pass to determine the crypttext_hash. It would be
         # nice to make this involve fewer passes.
-        verifierid_hasher = hashutil.verifierid_hasher()
+        crypttext_hasher = hashutil.crypttext_hasher()
         key = enckey[:16]
         cryptor = AES.new(key=key, mode=AES.MODE_CTR,
                           counterstart="\x00"*16)
@@ -316,13 +321,13 @@ class Uploader(service.MultiService):
             data = f.read(BLOCKSIZE)
             if not data:
                 break
-            verifierid_hasher.update(cryptor.encrypt(data))
-        verifierid = verifierid_hasher.digest()
+            crypttext_hasher.update(cryptor.encrypt(data))
+        crypttext_hash = crypttext_hasher.digest()
 
         # and leave the file pointer at the beginning
         f.seek(0)
 
-        return fileid, key, verifierid
+        return plaintext_hash, key, crypttext_hash
 
     def upload(self, f, options={}):
         # this returns the URI
@@ -333,9 +338,9 @@ class Uploader(service.MultiService):
         u = self.uploader_class(self.parent, options)
         u.set_filehandle(fh)
         u.set_params(self.needed_shares, self.desired_shares, self.total_shares)
-        fileid, key, verifierid = self.compute_id_strings(fh)
+        plaintext_hash, key, crypttext_hash = self.compute_id_strings(fh)
         u.set_encryption_key(key)
-        u.set_id_strings(verifierid, fileid)
+        u.set_id_strings(crypttext_hash, plaintext_hash)
         d = u.start()
         def _done(res):
             f.close_filehandle(fh)

@@ -226,7 +226,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     # some of the validation data, so it will fail in the post-download phase
     # when the file's crypttext integrity check fails. Do the same thing for
     # the key, which should cause the download to fail the post-download
-    # plaintext verifierid check.
+    # plaintext_hash check.
 
     def test_vdrive(self):
         self.basedir = "test_system/SystemTest/test_vdrive"

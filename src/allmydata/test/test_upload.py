@@ -11,8 +11,9 @@ from test_encode import FakePeer
 class FakeClient:
     def __init__(self, mode="good"):
         self.mode = mode
-    def get_permuted_peers(self, verifierid):
-        return [ ("%20d"%fakeid, "%20d"%fakeid, FakePeer(self.mode),) for fakeid in range(50) ]
+    def get_permuted_peers(self, storage_index):
+        return [ ("%20d"%fakeid, "%20d"%fakeid, FakePeer(self.mode),)
+                 for fakeid in range(50) ]
 
 class GoodServer(unittest.TestCase):
     def setUp(self):

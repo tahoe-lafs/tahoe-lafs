@@ -31,15 +31,15 @@ def uri_extension_hash(data):
 def uri_extension_hasher():
     return tagged_hasher("allmydata_uri_extension_v1")
 
-def fileid_hash(data):
-    return tagged_hash("allmydata_fileid_v1", data)
-def fileid_hasher():
-    return tagged_hasher("allmydata_fileid_v1")
+def plaintext_hash(data):
+    return tagged_hash("allmydata_plaintext_hash_v1", data)
+def plaintext_hasher():
+    return tagged_hasher("allmydata_plaintext_hash_v1")
 
-def verifierid_hash(data):
-    return tagged_hash("allmydata_verifierid_v1", data)
-def verifierid_hasher():
-    return tagged_hasher("allmydata_verifierid_v1")
+def crypttext_hash(data):
+    return tagged_hash("allmydata_crypttext_hash_v1", data)
+def crypttext_hasher():
+    return tagged_hasher("allmydata_crypttext_hash_v1")
 
 def crypttext_segment_hash(data):
     return tagged_hash("allmydata_crypttext_segment_v1", data)
