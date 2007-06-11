@@ -70,9 +70,14 @@ def update():
         print "no _darcs/ but no version.py either: how did you get this tree?"
         return 0
     cmd = ["darcs", "changes", "--from-tag=^allmydata-tahoe", "--xml-output"]
-    p = Popen(cmd, stdout=PIPE)
-    output = p.communicate()[0]
-    rc = p.returncode
+    try:
+        p = Popen(cmd, stdout=PIPE)
+        output = p.communicate()[0]
+        rc = p.returncode
+    except EnvironmentError, le:
+        output = "There was an environment error: %s" % (le,)
+        rc = -1
+
     if rc != 0:
         print "unable to run 'darcs changes':"
         print output
