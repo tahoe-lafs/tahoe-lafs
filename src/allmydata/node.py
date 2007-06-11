@@ -66,6 +66,12 @@ class Node(service.MultiService):
                  % (allmydata.__version__, foolscap.__version__,
                     twisted.__version__, zfec.__version__,))
 
+    def get_versions(self):
+        return {'allmydata': allmydata.__version__,
+                'foolscap': foolscap.__version__,
+                'twisted': twisted.__version__,
+                'zfec': zfec.__version__,
+                }
 
     def startService(self):
         # note: this class can only be started and stopped once.

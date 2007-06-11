@@ -28,6 +28,11 @@ class Welcome(rend.Page):
     addSlash = True
     docFactory = getxmlfile("welcome.xhtml")
 
+    def data_version(self, ctx, data):
+        v = IClient(ctx).get_versions()
+        return "tahoe: %s, zfec: %s, foolscap: %s, twisted: %s" % \
+               (v['allmydata'], v['zfec'], v['foolscap'], v['twisted'])
+
     def data_my_nodeid(self, ctx, data):
         return idlib.b2a(IClient(ctx).nodeid)
     def data_introducer_furl(self, ctx, data):
