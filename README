@@ -1,4 +1,4 @@
-Welcome to the AllMyData "tahoe" project.  This project implements a secure,
+Welcome to the Allmydata-Tahoe project.  This project implements a secure,
 distributed, fault-tolerant storage grid.
 
 The basic idea is that the data in this storage grid is spread over all
@@ -9,7 +9,7 @@ The interface to the storage grid allows you to store and fetch files, either
 by self-authenticating cryptographic identifier or by filename and path.
 
 See the web site for all kinds of information, news, and community
-contributions, including prebuilt packages for Debian-like systems:
+contributions, and prebuilt packages for Debian-like systems:
 
 http://allmydata.org
 
@@ -136,8 +136,8 @@ There are three ways to do it.  Choose one:
   edgy, or feisty as appropriate:
 
   If you're running on a debian system, run 'make deb-dapper', 'make
-  deb-sid', 'make deb-edgy', or 'make deb-feisty', from within the tahoe
-  top-level directory, to construct two debian packages named
+  deb-sid', 'make deb-edgy', or 'make deb-feisty' from within the tahoe
+  top-level directory to construct two debian packages named
   'allmydata-tahoe' and 'python-foolscap' which you can then install with
   dpkg.
 
@@ -146,9 +146,7 @@ There are three ways to do it.  Choose one:
   The Python Way is to execute "setup.py install" for each Python package.
 
   You'll need to run "setup.py install" four separate times, one for each of
-  the four subpackages (allmydata, allmydata.Crypto, foolscap, and zfec).  If
-  you use GNU stow, add the options "--prefix=." and
-  "--root=/usr/local/stow/${PACKAGE}" after the "setup.py install" command.
+  the four subpackages (allmydata, allmydata.Crypto, foolscap, and zfec).
 
     for PACKAGE in zfec Crypto foolscap ; do
       cd src/${PACKAGE} && python setup.py install && cd ../..
@@ -187,14 +185,14 @@ TESTING THAT IT IS PROPERLY INSTALLED
 RUNNING:
 
  If you installed one of the debian packages constructed by "make deb-*",
- then it creates an 'allmydata-tahoe' executable, usually in /usr/bin .  If
- you didn't install a package you can find allmydata-tahoe in ./instdir/bin/
- .  This tool is used to create, start, and stop nodes.  Each node lives in a
- separate base directory, inside of which you can add files to configure and
- control the node.  Nodes also read and write files within that directory.
+ then it creates an 'allmydata-tahoe' executable, usually in /usr/bin .
+ Else, you can find allmydata-tahoe in ./instdir/bin/ .  This tool is used to
+ create, start, and stop nodes.  Each node lives in a separate base
+ directory, inside of which you can add files to configure and control the
+ node.  Nodes also read and write files within that directory.
 
- A grid consists of a single central 'introducer and vdrive' node and a large
- number of 'client' nodes.  If you are joining an existing grid, the
+ A grid consists of a single central 'introducer and vdrive' node and one or
+ more 'client' nodes.  If you are joining an existing grid, the
  introducer-and-vdrive node will already be running, and you'll just need to
  create a client node.  If you're creating a brand new grid, you'll need to
  create both an introducer-and-vdrive and a client (and then invite other
