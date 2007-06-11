@@ -36,8 +36,8 @@ For complete details (there are other improvements that are not in the above
 list), see this web page which shows all ticket changes, repository checkins,
 and wiki changes from May 3 to today: [2].
 
-Allmydata-Tahoe v0.3 is incompatible with v0.2 due to the upgrade of Foolscap
-and due to the new Merkle-Tree authentication.
+Allmydata-Tahoe v0.3 is incompatible with v0.2 due to the new Merkle-Tree
+authentication among other things.
 
 
 WHAT IS IT GOOD FOR?
