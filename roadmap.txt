@@ -43,14 +43,13 @@ Download Peer Selection:
 Filetable Maintenance:
 *v1: vdrive-based tree of MutableDirectoryNodes, persisted to vdrive's disk
      no accounts
- v2: move tree to client side, serialize to a file, upload,
-     vdrive.set_filetable_uri (still no accounts, just one global tree)
- v3: break world up into accounts, separate mutable spaces. Maybe
-     implement SSKs
- v4: filetree
+ v2: filetree, one space per user, plus one global mutable space
+ v3: maintain file manifest
+ v4: figure out accounts, users. Maybe implement SSKs
 
 Checker/Repairer:
 *v1: none
+ v1.5: maintain file manifest
  v2: centralized checker, repair agent
  v3: nodes also check their own files
 
