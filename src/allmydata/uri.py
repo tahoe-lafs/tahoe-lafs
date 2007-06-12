@@ -79,3 +79,10 @@ def unpack_extension(data):
             d[intkey] = int(d[intkey])
     return d
 
+
+def unpack_extension_readable(data):
+    unpacked = unpack_extension(data)
+    for k in sorted(unpacked.keys()):
+        if "hash" in k:
+            unpacked[k] = idlib.b2a(unpacked[k])
+    return unpacked

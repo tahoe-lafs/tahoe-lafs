@@ -116,6 +116,19 @@ class CreateIntroducerOptions(NoDefaultBasedirMixin, usage.Options):
         ["quiet", "q", "operate silently"],
         ]
 
+class DumpOptions(usage.Options):
+    optParameters = [
+        ["filename", "f", None, "which file to dump"],
+        ]
+
+    def parseArgs(self, filename=None):
+        if filename:
+            self['filename'] = filename
+
+    def postOptions(self):
+        if not self['filename']:
+            raise usage.UsageError("<filename> parameter is required")
+
 client_tac = """
 # -*- python -*-
 
@@ -149,6 +162,8 @@ class Options(usage.Options):
         ["start", None, StartOptions, "Start a node (of any type)."],
         ["stop", None, StopOptions, "Stop a node."],
         ["restart", None, RestartOptions, "Restart a node."],
+        ["dump-uri-extension", None, DumpOptions,
+         "Unpack and display the contents of a uri_extension file."],
         ]
 
     def postOptions(self):
@@ -192,6 +207,8 @@ def runner(argv, run_by_human=True):
             return rc
         for basedir in so.basedirs:
             rc = start(basedir, so) or rc
+    elif command == "dump-uri-extension":
+        rc = dump_uri_extension(so)
     return rc
 
 def run():
@@ -275,3 +292,35 @@ def stop(basedir, config):
         time.sleep(1)
     print "never saw process go away"
     return 1
+
+def dump_uri_extension(config):
+    from allmydata import uri
+
+    filename = config['filename']
+    unpacked = uri.unpack_extension_readable(open(filename,"rb").read())
+    keys1 = ("size", "num_segments", "segment_size",
+             "needed_shares", "total_shares")
+    keys2 = ("codec_name", "codec_params", "tail_codec_params")
+    keys3 = ("plaintext_hash", "plaintext_root_hash",
+             "crypttext_hash", "crypttext_root_hash",
+             "share_root_hash")
+    for k in keys1:
+        if k in unpacked:
+            print "%19s: %s" % (k, unpacked[k])
+    print
+    for k in keys2:
+        if k in unpacked:
+            print "%19s: %s" % (k, unpacked[k])
+    print
+    for k in keys3:
+        if k in unpacked:
+            print "%19s: %s" % (k, unpacked[k])
+
+    leftover = set(unpacked.keys()) - set(keys1 + keys2 + keys3)
+    if leftover:
+        print
+        for k in sorted(leftover):
+            print "%s: %s" % (k, unpacked[k])
+
+    print
+    return 0
