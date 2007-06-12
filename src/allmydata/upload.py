@@ -99,11 +99,25 @@ class FileUploader:
         assert self.needed_shares
 
         # create the encoder, so we can know how large the shares will be
+        share_size, block_size = self.setup_encoder()
+
+        d = self._locate_all_shareholders(share_size, block_size)
+        d.addCallback(self._send_shares)
+        d.addCallback(self._compute_uri)
+        return d
+
+    def setup_encoder(self):
         self._encoder = encode.Encoder(self._options)
         self._encoder.setup(self._filehandle, self._encryption_key)
         share_size = self._encoder.get_share_size()
         block_size = self._encoder.get_block_size()
+        return share_size, block_size
 
+    def _locate_all_shareholders(self, share_size, block_size):
+        """
+        @return: a set of PeerTracker instances that have agreed to hold some
+            shares for us
+        """
         # we are responsible for locating the shareholders. self._encoder is
         # responsible for handling the data and sending out the shares.
         peers = self._client.get_permuted_peers(self._crypttext_hash)
@@ -116,16 +130,6 @@ class FileUploader:
         self.used_peers = set() # while this set grows
         self.unallocated_sharenums = set(range(self.total_shares)) # this one shrinks
 
-        d = self._locate_all_shareholders()
-        d.addCallback(self._send_shares)
-        d.addCallback(self._compute_uri)
-        return d
-
-    def _locate_all_shareholders(self):
-        """
-        @return: a set of PeerTracker instances that have agreed to hold some
-            shares for us
-        """
         return self._locate_more_shareholders()
 
     def _locate_more_shareholders(self):
