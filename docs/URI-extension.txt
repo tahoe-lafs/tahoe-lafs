@@ -1,8 +1,10 @@
 
 "URI Extension Block"
 
-This block is a bencoded dictionary. All buckets hold an identical copy. The
-hash of the serialized data is kept in the URI.
+This block is a serialized dictionary with string keys and string values
+(some of which represent numbers, some of which are SHA-256 hashes). All
+buckets hold an identical copy. The hash of the serialized data is kept in
+the URI.
 
 The download process must obtain a valid copy of this data before any
 decoding can take place. The download process must also obtain other data
