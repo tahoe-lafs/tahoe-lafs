@@ -1,9 +1,9 @@
 # -*- test-case-name: allmydata.test.test_encode -*-
 
-import re
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import log
+from allmydata import uri
 from allmydata.hashtree import HashTree
 from allmydata.Crypto.Cipher import AES
 from allmydata.util import mathutil, hashutil
@@ -433,15 +433,7 @@ class Encoder(object):
 
     def send_uri_extension_to_all_shareholders(self):
         log.msg("%s: sending uri_extension" % self)
-        pieces = []
-        for k in sorted(self.uri_extension_data.keys()):
-            value = self.uri_extension_data[k]
-            if isinstance(value, (int, long)):
-                value = "%d" % value
-            assert isinstance(value, str), k
-            assert re.match(r'^[a-zA-Z_\-]+$', k)
-            pieces.append(k + ":" + hashutil.netstring(value))
-        uri_extension = "".join(pieces)
+        uri_extension = uri.pack_extension(self.uri_extension_data)
         self.uri_extension_hash = hashutil.uri_extension_hash(uri_extension)
         dl = []
         for shareid in self.landlords.keys():

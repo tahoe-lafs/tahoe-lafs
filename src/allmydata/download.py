@@ -9,7 +9,7 @@ from allmydata.util import idlib, mathutil, hashutil
 from allmydata.util.assertutil import _assert
 from allmydata import codec, hashtree
 from allmydata.Crypto.Cipher import AES
-from allmydata.uri import unpack_uri
+from allmydata.uri import unpack_uri, unpack_extension
 from allmydata.interfaces import IDownloadTarget, IDownloader
 from allmydata.encode import NotEnoughPeersError
 
@@ -342,29 +342,7 @@ class FileDownloader:
         #               "vb is %s but should be a ValidatedBucket" % (vb,)
 
     def _unpack_uri_extension_data(self, data):
-        d = {}
-        while data:
-            colon = data.index(":")
-            key = data[:colon]
-            data = data[colon+1:]
-
-            colon = data.index(":")
-            number = data[:colon]
-            length = int(number)
-            data = data[colon+1:]
-
-            value = data[:length]
-            assert data[length] == ","
-            data = data[length+1:]
-
-            d[key] = value
-
-        # convert certain things to numbers
-        for intkey in ("size", "segment_size", "num_segments",
-                       "needed_shares", "total_shares"):
-            if intkey in d:
-                d[intkey] = int(d[intkey])
-        return d
+        return unpack_extension(data)
 
     def _obtain_uri_extension(self, ignored):
         # all shareholders are supposed to have a copy of uri_extension, and
