@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python
 
 """
 Create src/allmydata/version.py, based upon the latest darcs release tag.
