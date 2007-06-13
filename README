@@ -96,6 +96,9 @@ gcc make python-dev python-twisted python-nevow python-pyopenssl".
 
    http://sourceforge.net/projects/pywin32/
 
+   (Tested with build 210, and known to not work with build 204.
+   Feedback with details of other builds is greatly appreciated)
+
 
 Tahoe uses a few additional libraries which are included in this source
 distribution for convenience. These will be automatically built when you type
