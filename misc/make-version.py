@@ -70,7 +70,7 @@ def update():
         print "no _darcs/ but no version.py either: how did you get this tree?"
         return 0
     darcs = 'darcs'
-    if os.platform == 'win32':
+    if sys.platform == 'win32':
         darcs = 'realdarcs'
     cmd = [darcs, "changes", "--from-tag=^allmydata-tahoe", "--xml-output"]
     try:
