@@ -3,6 +3,7 @@ from twisted.application import service, strports
 from twisted.web import static, resource, server, html
 from twisted.python import util, log
 from nevow import inevow, rend, loaders, appserver, url, tags as T
+from nevow.static import File as nevow_File # TODO: merge with static.File?
 from allmydata.util import idlib
 from allmydata.uri import unpack_uri
 from allmydata.interfaces import IDownloadTarget
@@ -333,6 +334,7 @@ class Root(rend.Page):
         return rend.Page.locateChild(self, ctx, segments)
 
     child_webform_css = webform.defaultCSS
+    child_tahoe_css = nevow_File(util.sibpath(__file__, "web/tahoe.css"))
 
     child_welcome = Welcome()
 

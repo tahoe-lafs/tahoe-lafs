@@ -4,6 +4,7 @@
     <!-- <link href="http://www.allmydata.com/common/css/styles.css"
           rel="stylesheet" type="text/css"/> -->
     <link href="/webform_css" rel="stylesheet" type="text/css"/>
+    <link href="/tahoe_css" rel="stylesheet" type="text/css"/>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   </head>
   <body>
@@ -25,7 +26,7 @@
     <td><n:slot name="filename"/></td>
     <td><n:slot name="type"/></td>
     <td><n:slot name="size"/></td>
-    <td><n:slot name="uri"/></td>
+    <td><pre class="overflow"><n:slot name="uri"/></pre></td>
     <td><n:slot name="delete"/></td>
   </tr>
 
