@@ -1,14 +1,14 @@
 
 import os
 from twisted.trial import unittest
-from allmydata.filetable import (MutableDirectoryNode, DeadDirectoryNodeError,
+from allmydata.filetable import (MutableDirectoryNode,
                                  BadDirectoryError, BadFileError, BadNameError)
 
 
 class FileTable(unittest.TestCase):
     def test_files(self):
         os.mkdir("filetable")
-        root = MutableDirectoryNode(os.path.abspath("filetable"))
+        root = MutableDirectoryNode(os.path.abspath("filetable"), "root")
         self.failUnlessEqual(root.list(), [])
         root.add_file("one", "vid-one")
         root.add_file("two", "vid-two")
@@ -54,7 +54,5 @@ class FileTable(unittest.TestCase):
         root.remove("subdir1")
         self.failUnlessEqual(root.list(), [("one", "vid-one")])
 
-        # should our (orphaned) subdir1/subdir2 node still be able to do
-        # anything?
-        self.failUnlessRaises(DeadDirectoryNodeError, subdir1.list)
+
 
