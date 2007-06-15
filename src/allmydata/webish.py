@@ -63,12 +63,20 @@ class Welcome(rend.Page):
         ctx.fillSlots("peerid", nodeid_a)
         return ctx.tag
 
-    def render_vdrive(self, ctx, data):
-        if IClient(ctx).connected_to_vdrive():
+    def render_global_vdrive(self, ctx, data):
+        if self.has_global_vdrive:
             return T.p["To view the global shared filestore, ",
-                       T.a(href="../vdrive")["Click Here!"],
+                       T.a(href="../global_vdrive")["Click Here!"],
                        ]
-        return T.p["vdrive.furl not specified, no vdrive available."]
+        return T.p["vdrive.furl not specified (or vdrive server not "
+                   "responding), no vdrive available."]
+
+    def render_my_vdrive(self, ctx, data):
+        if self.has_my_vdrive:
+            return T.p["To view your personal private non-shared filestore, ",
+                       T.a(href="../my_vdrive")["Click Here!"],
+                       ]
+        return T.p["personal vdrive not available."]
 
     # this is a form where users can download files by URI
 
@@ -351,6 +359,8 @@ class WebishServer(service.MultiService):
     def __init__(self, webport):
         service.MultiService.__init__(self)
         self.root = Root()
+        self.root.child_welcome.has_global_vdrive = False
+        self.root.child_welcome.has_my_vdrive = False
         placeholder = static.Data("sorry, still initializing", "text/plain")
         self.root.putChild("vdrive", placeholder)
         self.root.putChild("", url.here.child("welcome"))#Welcome())
@@ -372,8 +382,13 @@ class WebishServer(service.MultiService):
         #self.site._client = self.parent
 
     def set_vdrive_root(self, root):
-        self.root.putChild("vdrive", Directory(root, "/"))
+        self.root.putChild("global_vdrive", Directory(root, "/"))
+        self.root.child_welcome.has_global_vdrive = True
         # I tried doing it this way and for some reason it didn't seem to work
         #print "REMEMBERING", self.site, dl, IDownloader
         #self.site.remember(dl, IDownloader)
+
+    def set_my_vdrive_root(self, my_vdrive):
+        self.root.putChild("my_vdrive", Directory(my_vdrive, "~"))
+        self.root.child_welcome.has_my_vdrive = True
 
