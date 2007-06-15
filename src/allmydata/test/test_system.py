@@ -276,14 +276,15 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                             "I didn't see the right 'My nodeid' message "
                             "in: %s" % page)
         d.addCallback(_got_welcome)
-        d.addCallback(lambda res: getPage(base + "vdrive"))
-        d.addCallback(lambda res: getPage(base + "vdrive/subdir1"))
+        d.addCallback(lambda res: getPage(base + "global_vdrive"))
+        d.addCallback(lambda res: getPage(base + "global_vdrive/subdir1"))
         def _got_subdir1(page):
             # there ought to be an href for our file
             self.failUnless(("<td>%d</td>" % len(self.data)) in page)
             self.failUnless(">mydata567</a>" in page)
         d.addCallback(_got_subdir1)
-        d.addCallback(lambda res: getPage(base + "vdrive/subdir1/mydata567"))
+        d.addCallback(lambda res:
+                      getPage(base + "global_vdrive/subdir1/mydata567"))
         def _got_data(page):
             self.failUnlessEqual(page, self.data)
         d.addCallback(_got_data)
@@ -353,7 +354,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         # TODO: create a directory by using a form
 
         # TODO: upload by using a form on the directory page
-        #    url = base + "vdrive/subdir1/freeform_post!!upload"
+        #    url = base + "global_vdrive/subdir1/freeform_post!!upload"
 
         # TODO: delete a file by using a button on the directory page
 
