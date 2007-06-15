@@ -260,7 +260,7 @@ class Directory(rend.Page):
 
     def mkdir(self, name):
         """mkdir2"""
-        log.msg("making new webish directory")
+        log.msg("making new webish directory: %s" % (name,))
         d = self._dirnode.create_empty_directory(name)
         def _done(res):
             log.msg("webish mkdir complete")
