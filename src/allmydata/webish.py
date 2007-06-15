@@ -167,7 +167,13 @@ class Directory(rend.Page):
             ctx.fillSlots("type", "DIR")
             ctx.fillSlots("size", "-")
             ctx.fillSlots("uri", "-")
-            ctx.fillSlots("delete", "-")
+
+            del_url = url.here.child("_delete")
+            del_url = del_url.add("name", name)
+            delete = T.form(action=del_url, method="post")[
+                T.input(type='submit', value='del', name="del"),
+                ]
+            ctx.fillSlots("delete", delete)
         else:
             raise RuntimeError("unknown thing %s" % (target,))
         return ctx.tag
