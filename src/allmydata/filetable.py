@@ -2,9 +2,8 @@
 import os
 from zope.interface import implements
 from foolscap import Referenceable
-from allmydata.interfaces import RIMutableDirectoryNode
+from allmydata.interfaces import RIVirtualDriveServer, RIMutableDirectoryNode, FileNode, DirectoryNode
 from allmydata.util import bencode, idlib
-from allmydata.util.assertutil import _assert
 from twisted.application import service
 from twisted.python import log
 
@@ -23,7 +22,7 @@ class MutableDirectoryNode(Referenceable):
     I am associated with a file on disk, using a randomly-generated (and
     hopefully unique) name. This file contains a serialized dictionary which
     maps child names to 'child specifications'. These specifications are
-    tuples, either of ('file', URI), or ('subdir', nodename).
+    tuples, either of ('file', URI), or ('subdir', FURL).
     """
 
     implements(RIMutableDirectoryNode)
@@ -41,38 +40,29 @@ class MutableDirectoryNode(Referenceable):
             self._name = self.create_filename()
             self._write_to_file({}) # start out empty
 
-    def make_subnode(self, name=None):
-        return self.__class__(self._basedir, name)
-
     def _read_from_file(self):
-        f = open(os.path.join(self._basedir, self._name), "rb")
-        data = f.read()
-        f.close()
-        children_specifications = bencode.bdecode(data)
-        children = {}
-        for k,v in children_specifications.items():
-            nodetype = v[0]
-            if nodetype == "file":
-                (uri, ) = v[1:]
-                child = uri
-            elif nodetype == "subdir":
-                (nodename, ) = v[1:]
-                child = self.make_subnode(nodename)
+        data = open(os.path.join(self._basedir, self._name), "rb").read()
+        children = bencode.bdecode(data)
+        child_nodes = {}
+        for k,v in children.iteritems():
+            if v[0] == "file":
+                child_nodes[k] = FileNode(v[1])
+            elif v[0] == "subdir":
+                child_nodes[k] = DirectoryNode(v[1])
             else:
-                _assert("Unknown nodetype in node specification %s" % (v,))
-            children[k] = child
-        return children
+                raise RuntimeError("unknown child spec '%s'" % (v[0],))
+        return child_nodes
 
     def _write_to_file(self, children):
-        children_specifications = {}
-        for k,v in children.items():
-            if isinstance(v, MutableDirectoryNode):
-                child = ("subdir", v._name)
+        child_nodes = {}
+        for k,v in children.iteritems():
+            if isinstance(v, FileNode):
+                child_nodes[k] = ("file", v.uri)
+            elif isinstance(v, DirectoryNode):
+                child_nodes[k] = ("subdir", v.furl)
             else:
-                assert isinstance(v, str)
-                child = ("file", v) # URI
-            children_specifications[k] = child
-        data = bencode.bencode(children_specifications)
+                raise RuntimeError("unknown child node '%s'" % (v,))
+        data = bencode.bencode(child_nodes)
         f = open(os.path.join(self._basedir, self._name), "wb")
         f.write(data)
         f.close()
@@ -103,46 +93,71 @@ class MutableDirectoryNode(Referenceable):
         return children[name]
     remote_get = get
 
-    def add_directory(self, name):
+    def add(self, name, child):
         self.validate_name(name)
         children = self._read_from_file()
         if name in children:
-            raise BadDirectoryError("the directory already existed")
-        children[name] = child = self.make_subnode()
+            raise BadNameError("the child already existed")
+        children[name] = child
         self._write_to_file(children)
         return child
-    remote_add_directory = add_directory
-
-    def add_file(self, name, uri):
-        self.validate_name(name)
-        children = self._read_from_file()
-        children[name] = uri
-        self._write_to_file(children)
-    remote_add_file = add_file
+    remote_add = add
 
     def remove(self, name):
         self.validate_name(name)
         children = self._read_from_file()
         if name not in children:
             raise BadFileError("cannot remove non-existent child")
-        dead_child = children[name]
+        child = children[name]
         del children[name]
         self._write_to_file(children)
-        #return dead_child
+        return child
     remote_remove = remove
 
 
-class GlobalVirtualDrive(service.MultiService):
+class NoPublicRootError(Exception):
+    pass
+
+class VirtualDriveServer(service.MultiService, Referenceable):
+    implements(RIVirtualDriveServer)
     name = "filetable"
     VDRIVEDIR = "vdrive"
 
-    def __init__(self, basedir="."):
+    def __init__(self, basedir=".", offer_public_root=True):
         service.MultiService.__init__(self)
         vdrive_dir = os.path.join(basedir, self.VDRIVEDIR)
         if not os.path.exists(vdrive_dir):
             os.mkdir(vdrive_dir)
-        self._root = MutableDirectoryNode(vdrive_dir, "root")
+        self._vdrive_dir = vdrive_dir
+        self._root = None
+        if offer_public_root:
+            self._root = MutableDirectoryNode(vdrive_dir, "root")
 
-    def get_root(self):
-        return self._root
+    def startService(self):
+        service.MultiService.startService(self)
+        # _register_all_dirnodes exists to avoid hacking our Tub to
+        # automatically translate inbound your-reference names
+        # (Tub.getReferenceForName) into MutableDirectoryNode instances by
+        # looking in our basedir for them. Without that hack, we have to
+        # register all nodes at startup to make sure they'll be available to
+        # all callers. In addition, we must register any new ones that we
+        # create later on.
+        tub = self.parent.tub
+        self._register_all_dirnodes(tub)
 
+    def _register_all_dirnodes(self, tub):
+        for name in os.listdir(self._vdrive_dir):
+            node = MutableDirectoryNode(self._vdrive_dir, name)
+            ignored_furl = tub.registerReference(node, name)
+
+    def get_public_root(self):
+        if self._root:
+            return self._root
+        raise NoPublicRootError
+    remote_get_public_root = get_public_root
+
+    def create_directory(self):
+        node = MutableDirectoryNode(self._vdrive_dir)
+        furl = self.parent.tub.registerReference(node, node._name)
+        return furl
+    remote_create_directory = create_directory

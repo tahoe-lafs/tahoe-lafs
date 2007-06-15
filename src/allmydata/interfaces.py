@@ -2,7 +2,7 @@
 from zope.interface import Interface
 from foolscap.schema import StringConstraint, ListOf, TupleOf, SetOf, DictOf, \
      ChoiceOf
-from foolscap import RemoteInterface, Referenceable
+from foolscap import RemoteInterface, Referenceable, Copyable, RemoteCopy
 
 HASH_SIZE=32
 
@@ -122,26 +122,78 @@ class RIStorageServer(RemoteInterface):
 # hm, we need a solution for forward references in schemas
 from foolscap.schema import Any
 RIMutableDirectoryNode_ = Any() # TODO: how can we avoid this?
+
+class DirectoryNode(Copyable, RemoteCopy):
+    """I have either a .furl attribute or a .get(tub) method."""
+    typeToCopy = "allmydata.com/tahoe/interfaces/DirectoryNode/v1"
+    copytype = typeToCopy
+    def __init__(self, furl=None):
+        # RemoteCopy subclasses are always called without arguments
+        self.furl = furl
+    def getStateToCopy(self):
+        return {"furl": self.furl }
+    def setCopyableState(self, state):
+        self.furl = state['furl']
+    def __hash__(self):
+        return hash((self.__class__, self.furl))
+    def __cmp__(self, them):
+        if cmp(type(self), type(them)):
+            return cmp(type(self), type(them))
+        if cmp(self.__class__, them.__class__):
+            return cmp(self.__class__, them.__class__)
+        return cmp(self.furl, them.furl)
+
+class FileNode(Copyable, RemoteCopy):
+    """I have a .uri attribute."""
+    typeToCopy = "allmydata.com/tahoe/interfaces/FileNode/v1"
+    copytype = typeToCopy
+    def __init__(self, uri=None):
+        # RemoteCopy subclasses are always called without arguments
+        self.uri = uri
+    def getStateToCopy(self):
+        return {"uri": self.uri }
+    def setCopyableState(self, state):
+        self.uri = state['uri']
+    def __hash__(self):
+        return hash((self.__class__, self.uri))
+    def __cmp__(self, them):
+        if cmp(type(self), type(them)):
+            return cmp(type(self), type(them))
+        if cmp(self.__class__, them.__class__):
+            return cmp(self.__class__, them.__class__)
+        return cmp(self.uri, them.uri)
+
+FileNode_ = Any() # TODO: foolscap needs constraints on copyables
+DirectoryNode_ = Any() # TODO: same
+AnyNode_ = ChoiceOf(FileNode_, DirectoryNode_)
+
 class RIMutableDirectoryNode(RemoteInterface):
     def list():
         return ListOf( TupleOf(str, # name, relative to directory
-                               ChoiceOf(RIMutableDirectoryNode_, URI)),
+                               AnyNode_,
+                               ),
                        maxLength=100,
                        )
 
     def get(name=str):
-        return ChoiceOf(RIMutableDirectoryNode_, URI)
+        return AnyNode_
 
-    def add_directory(name=str):
-        return RIMutableDirectoryNode_
-
-    def add_file(name=str, uri=URI):
-        return None
+    def add(name=str, what=AnyNode_):
+        return AnyNode_
 
     def remove(name=str):
-        return None
+        return AnyNode_
 
-    # need more to move directories
+
+class RIVirtualDriveServer(RemoteInterface):
+    def get_public_root():
+        """If this vdrive server does not offer a public root, this will
+        raise an exception."""
+        return DirectoryNode_
+
+    def create_directory():
+        return DirectoryNode_
+
 
 
 class ICodecEncoder(Interface):

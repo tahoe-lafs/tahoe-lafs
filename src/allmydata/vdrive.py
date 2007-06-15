@@ -5,10 +5,13 @@ from twisted.application import service
 from twisted.internet import defer
 from twisted.python import log
 from allmydata import upload, download
+from allmydata.interfaces import FileNode, DirectoryNode
 
 class VDrive(service.MultiService):
     name = "vdrive"
 
+    def set_server(self, vdrive_server):
+        self.gvd_server = vdrive_server
     def set_root(self, root):
         self.gvd_root = root
 
@@ -177,3 +180,24 @@ class VDrive(service.MultiService):
     def get_file_to_filehandle(self, from_where, filehandle):
         return self.get_file(from_where, download.FileHandle(filehandle))
 
+
+# utility stuff
+def add_file(parent_node, child_name, uri):
+    child_node = FileNode(uri)
+    d = parent_node.callRemote("add", child_name, child_node)
+    return d
+
+def mkdir(vdrive_server, parent_node, child_name):
+    d = vdrive_server.callRemote("create_directory")
+    d.addCallback(lambda newdir_furl:
+                  parent_node.callRemote("add", child_name, DirectoryNode(newdir_furl)))
+    return d
+
+def add_shared_directory_furl(parent_node, child_name, furl):
+    child_node = DirectoryNode(furl)
+    d = parent_node.callRemote("add", child_name, child_node)
+    return d
+
+def create_anonymous_directory(vdrive_server):
+    d = vdrive_server.callRemote("create_directory")
+    return d

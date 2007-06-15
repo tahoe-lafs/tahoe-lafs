@@ -5,8 +5,8 @@ from twisted.python import util, log
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from allmydata.util import idlib
 from allmydata.uri import unpack_uri
-from allmydata.interfaces import IDownloadTarget#, IDownloader
-from allmydata import upload
+from allmydata.interfaces import IDownloadTarget, FileNode, DirectoryNode
+from allmydata import upload, vdrive
 from zope.interface import implements, Interface
 import urllib
 from formless import annotate, webform
@@ -21,8 +21,6 @@ def get_downloader_service(ctx):
     return IClient(ctx).getServiceNamed("downloader")
 def get_uploader_service(ctx):
     return IClient(ctx).getServiceNamed("uploader")
-def get_vdrive_service(ctx):
-    return IClient(ctx).getServiceNamed("vdrive")
 
 class Welcome(rend.Page):
     addSlash = True
@@ -99,7 +97,9 @@ class Directory(rend.Page):
     addSlash = True
     docFactory = getxmlfile("directory.xhtml")
 
-    def __init__(self, dirnode, dirname):
+    def __init__(self, tub, vdrive_server, dirnode, dirname):
+        self._tub = tub
+        self._vdrive_server = vdrive_server
         self._dirnode = dirnode
         self._dirname = dirname
 
@@ -112,10 +112,16 @@ class Directory(rend.Page):
             dirname = self._dirname + "/" + name
         d = self._dirnode.callRemote("get", name)
         def _got_child(res):
-            if isinstance(res, str):
+            if isinstance(res, FileNode):
                 dl = get_downloader_service(ctx)
                 return Downloader(dl, name, res)
-            return Directory(res, dirname)
+            elif isinstance(res, DirectoryNode):
+                d2 = self._tub.getReference(res.furl)
+                d2.addCallback(lambda dirnode:
+                               Directory(self._tub, self._vdrive_server, dirnode, dirname))
+                return d2
+            else:
+                raise RuntimeError("what is this %s" % res)
         d.addCallback(_got_child)
         return d
 
@@ -215,16 +221,16 @@ class Directory(rend.Page):
         uploader = get_uploader_service(ctx)
         d = uploader.upload(upload.FileHandle(contents.file))
         name = contents.filename
-        if privateupload:
-            d.addCallback(lambda vid: self.uploadprivate(name, vid))
-        else:
-            d.addCallback(lambda vid:
-                          self._dirnode.callRemote("add_file", name, vid))
+        def _uploaded(uri):
+            if privateupload:
+                return self.uploadprivate(name, uri)
+            return vdrive.add_file(self._dirnode, name, uri)
+        d.addCallback(_uploaded)
         def _done(res):
             log.msg("webish upload complete")
             return res
         d.addCallback(_done)
-        return d
+        return d # TODO: huh?
         return url.here.add("results",
                             "upload of '%s' complete!" % contents.filename)
 
@@ -238,7 +244,7 @@ class Directory(rend.Page):
     def mkdir(self, name):
         """mkdir2"""
         log.msg("making new webish directory")
-        d = self._dirnode.callRemote("add_directory", name)
+        d = vdrive.mkdir(self._vdrive_server, self._dirnode, name)
         def _done(res):
             log.msg("webish mkdir complete")
             return res
@@ -248,8 +254,8 @@ class Directory(rend.Page):
     def child__delete(self, ctx):
         # perform the delete, then redirect back to the directory page
         args = inevow.IRequest(ctx).args
-        vdrive = get_vdrive_service(ctx)
-        d = vdrive.remove(self._dirnode, args["name"][0])
+        name = args["name"][0]
+        d = self._dirnode.callRemote("remove", name)
         def _deleted(res):
             return url.here.up()
         d.addCallback(_deleted)
@@ -360,8 +366,8 @@ class WebishServer(service.MultiService):
         # apparently 'ISite' does not exist
         #self.site._client = self.parent
 
-    def set_root_dirnode(self, dirnode):
-        self.root.putChild("vdrive", Directory(dirnode, "/"))
+    def set_vdrive(self, tub, vdrive_server, dirnode):
+        self.root.putChild("vdrive", Directory(tub, vdrive_server, dirnode, "/"))
         # I tried doing it this way and for some reason it didn't seem to work
         #print "REMEMBERING", self.site, dl, IDownloader
         #self.site.remember(dl, IDownloader)

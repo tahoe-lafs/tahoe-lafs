@@ -1,7 +1,7 @@
 
 import os.path
 from allmydata import node
-from allmydata.filetable import GlobalVirtualDrive
+from allmydata.filetable import VirtualDriveServer
 from allmydata.introducer import Introducer
 
 
@@ -21,9 +21,8 @@ class IntroducerAndVdrive(node.Node):
         f.write(self.urls["introducer"] + "\n")
         f.close()
 
-        gvd = self.add_service(GlobalVirtualDrive(self.basedir))
-        self.urls["vdrive"] = self.tub.registerReference(gvd.get_root(),
-                                                         "vdrive")
+        vds = self.add_service(VirtualDriveServer(self.basedir))
+        self.urls["vdrive"] = self.tub.registerReference(vds, "vdrive")
         self.log(" vdrive is at %s" % self.urls["vdrive"])
         f = open(os.path.join(self.basedir, "vdrive.furl"), "w")
         f.write(self.urls["vdrive"] + "\n")

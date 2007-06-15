@@ -3,7 +3,7 @@ import os
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.application import service
-from allmydata import client, uri, download
+from allmydata import client, uri, download, vdrive
 from allmydata.introducer_and_vdrive import IntroducerAndVdrive
 from allmydata.util import idlib, fileutil, testutil
 from foolscap.eventual import flushEventualQueue
@@ -234,17 +234,32 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d = self.set_up_nodes()
         def _do_publish(res):
             log.msg("PUBLISHING")
-            v0 = self.clients[0].getServiceNamed("vdrive")
-            d1 = v0.make_directory("/", "subdir1")
-            d1.addCallback(lambda subdir1:
-                           v0.put_file_by_data(subdir1, "mydata567", DATA))
+            c0 = self.clients[0]
+            d1 = vdrive.mkdir(c0._vdrive_server, c0._vdrive_root,
+                              "subdir1")
+            d1.addCallback(lambda subdir1_node:
+                           c0.tub.getReference(subdir1_node.furl))
+            def _put_file(subdir1):
+                uploader = c0.getServiceNamed("uploader")
+                d2 = uploader.upload_data(DATA)
+                def _stash_uri(uri):
+                    self.uri = uri
+                    return uri
+                d2.addCallback(_stash_uri)
+                d2.addCallback(lambda uri: vdrive.add_file(subdir1, "mydata567", uri))
+                return d2
+            d1.addCallback(_put_file)
             return d1
         d.addCallback(_do_publish)
-        def _publish_done(uri):
-            self.uri = uri
+        def _publish_done(filenode):
             log.msg("publish finished")
-            v1 = self.clients[1].getServiceNamed("vdrive")
-            d1 = v1.get_file_to_data("/subdir1/mydata567")
+
+            c1 = self.clients[1]
+            d1 = c1._vdrive_root.callRemote("get", "subdir1")
+            d1.addCallback(lambda subdir1_dirnode:
+                           c1.tub.getReference(subdir1_dirnode.furl))
+            d1.addCallback(lambda subdir1: subdir1.callRemote("get", "mydata567"))
+            d1.addCallback(lambda filenode: c1.getServiceNamed("downloader").download_to_data(filenode.uri))
             return d1
         d.addCallback(_publish_done)
         def _get_done(data):

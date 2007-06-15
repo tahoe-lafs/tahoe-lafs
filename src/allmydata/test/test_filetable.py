@@ -3,6 +3,7 @@ import os
 from twisted.trial import unittest
 from allmydata.filetable import (MutableDirectoryNode,
                                  BadDirectoryError, BadFileError, BadNameError)
+from allmydata.interfaces import FileNode, DirectoryNode
 
 
 class FileTable(unittest.TestCase):
@@ -10,10 +11,10 @@ class FileTable(unittest.TestCase):
         os.mkdir("filetable")
         root = MutableDirectoryNode(os.path.abspath("filetable"), "root")
         self.failUnlessEqual(root.list(), [])
-        root.add_file("one", "vid-one")
-        root.add_file("two", "vid-two")
-        self.failUnlessEqual(root.list(), [("one", "vid-one"),
-                                           ("two", "vid-two")])
+        root.add("one", FileNode("vid-one"))
+        root.add("two", FileNode("vid-two"))
+        self.failUnlessEqual(root.list(), [("one", FileNode("vid-one")),
+                                           ("two", FileNode("vid-two"))])
         root.remove("two")
         self.failUnlessEqual(root.list(), [("one", "vid-one")])
         self.failUnlessRaises(BadFileError, root.remove, "two")
@@ -26,7 +27,7 @@ class FileTable(unittest.TestCase):
         self.failUnlessRaises(BadNameError, root.get, ".") # dumb
 
         # now play with directories
-        subdir1 = root.add_directory("subdir1")
+        subdir1 = root.add("subdir1", DirectoryNode("subdir1.furl"))
         self.failUnless(isinstance(subdir1, MutableDirectoryNode))
         subdir1a = root.get("subdir1")
         self.failUnless(isinstance(subdir1a, MutableDirectoryNode))

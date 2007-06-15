@@ -13,7 +13,7 @@ from allmydata.Crypto.Util.number import bytes_to_long
 from allmydata.storageserver import StorageServer
 from allmydata.upload import Uploader
 from allmydata.download import Downloader
-from allmydata.vdrive import VDrive
+#from allmydata.vdrive import VDrive
 from allmydata.webish import WebishServer
 from allmydata.control import ControlServer
 from allmydata.introducer import IntroducerClient
@@ -60,7 +60,7 @@ class Client(node.Node, Referenceable):
             f = open(GLOBAL_VDRIVE_FURL_FILE, "r")
             self.global_vdrive_furl = f.read().strip()
             f.close()
-            self.add_service(VDrive())
+            #self.add_service(VDrive())
 
         hotline_file = os.path.join(self.basedir,
                                     self.SUICIDE_PREVENTION_HOTLINE_FILE)
@@ -110,23 +110,37 @@ class Client(node.Node, Referenceable):
         f.close()
         os.chmod("control.furl", 0600)
 
-    def _got_vdrive(self, vdrive_root):
+    def _got_vdrive(self, vdrive_server):
+        # vdrive_server implements RIVirtualDriveServer
+        self.log("connected to vdrive server")
+        d = vdrive_server.callRemote("get_public_root")
+        d.addCallback(self._got_vdrive_root, vdrive_server)
+
+    def _got_vdrive_root(self, vdrive_root, vdrive_server):
         # vdrive_root implements RIMutableDirectoryNode
-        self.log("connected to vdrive")
+        self.log("got vdrive root")
         self._connected_to_vdrive = True
-        self.getServiceNamed("vdrive").set_root(vdrive_root)
-        if "webish" in self.namedServices:
-            self.getServiceNamed("webish").set_root_dirnode(vdrive_root)
+        self._vdrive_server = vdrive_server
+        self._vdrive_root = vdrive_root
         def _disconnected():
             self._connected_to_vdrive = False
         vdrive_root.notifyOnDisconnect(_disconnected)
+
+        #vdrive = self.getServiceNamed("vdrive")
+        #vdrive.set_server(vdrive_server)
+        #vdrive.set_root(vdrive_root)
+
+        if "webish" in self.namedServices:
+            webish = self.getServiceNamed("webish")
+            webish.set_vdrive(self.tub, vdrive_server, vdrive_root)
 
     def remote_get_versions(self):
         return str(allmydata.__version__), str(self.OLDEST_SUPPORTED_VERSION)
 
     def remote_get_service(self, name):
-        # TODO: 'vdrive' should not be public in the medium term
-        return self.getServiceNamed(name)
+        if name in ("storageserver",):
+            return self.getServiceNamed(name)
+        raise RuntimeError("I am unwilling to give you service %s" % name)
 
     def get_remote_service(self, nodeid, servicename):
         if nodeid not in self.introducer_client.connections:
