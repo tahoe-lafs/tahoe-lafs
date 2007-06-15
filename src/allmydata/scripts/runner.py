@@ -164,6 +164,8 @@ class Options(usage.Options):
         ["restart", None, RestartOptions, "Restart a node."],
         ["dump-uri-extension", None, DumpOptions,
          "Unpack and display the contents of a uri_extension file."],
+        ["dump-directory-node", None, DumpOptions,
+         "Unpack and display the contents of a vdrive DirectoryNode."],
         ]
 
     def postOptions(self):
@@ -209,6 +211,8 @@ def runner(argv, run_by_human=True):
             rc = start(basedir, so) or rc
     elif command == "dump-uri-extension":
         rc = dump_uri_extension(so)
+    elif command == "dump-directory-node":
+        rc = dump_directory_node(so)
     return rc
 
 def run():
@@ -324,3 +328,31 @@ def dump_uri_extension(config):
 
     print
     return 0
+
+def dump_directory_node(config):
+    from allmydata import filetable, vdrive
+    filename = config['filename']
+
+    basedir, name = os.path.split(filename)
+    dirnode = filetable.MutableDirectoryNode(basedir, name)
+
+    print
+    print "DirectoryNode at %s" % name
+    print
+
+    children = dirnode._read_from_file()
+    names = sorted(children.keys())
+    for name in names:
+        v = children[name]
+        if isinstance(v, vdrive.FileNode):
+            value = "File (uri=%s...)" % v.uri[:40]
+        elif isinstance(v, vdrive.DirectoryNode):
+            lastslash = v.furl.rindex("/")
+            furlname = v.furl[lastslash+1:lastslash+1+15]
+            value = "Directory (furl=%s.../%s...)" % (v.furl[:15], furlname)
+        else:
+            value = "weird: %s" % (v,)
+        print "%20s: %s" % (name, value)
+    print
+    return 0
+
