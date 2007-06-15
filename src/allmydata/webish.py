@@ -280,7 +280,7 @@ class Directory(rend.Page):
 
     def mount(self, name, furl):
         d = self._dirnode.attach_shared_directory(name, furl)
-        d.addCallback(lambda done: url.here.child(name))
+        #d.addCallback(lambda done: url.here.child(name))
         return d
 
     def child__delete(self, ctx):
@@ -288,9 +288,7 @@ class Directory(rend.Page):
         args = inevow.IRequest(ctx).args
         name = args["name"][0]
         d = self._dirnode.remove(name)
-        def _deleted(res):
-            return url.here.up()
-        d.addCallback(_deleted)
+        d.addCallback(lambda done: url.here.up())
         return d
 
 class WebDownloadTarget:
