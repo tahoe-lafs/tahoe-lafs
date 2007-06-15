@@ -136,6 +136,9 @@ class Directory(rend.Page):
     def render_header(self, ctx, data):
         return "Directory of '%s':" % self._dirname
 
+    def data_share_url(self, ctx, data):
+        return self._dirnode.furl
+
     def data_children(self, ctx, data):
         d = self._dirnode.list()
         return d
@@ -263,6 +266,21 @@ class Directory(rend.Page):
             log.msg("webish mkdir complete")
             return res
         d.addCallback(_done)
+        return d
+
+    def bind_mount(self, ctx):
+        namearg = annotate.Argument("name",
+                                    annotate.String("Name to place incoming directory: "))
+        furlarg = annotate.Argument("furl",
+                                    annotate.String("FURL of Shared Directory"))
+        meth = annotate.Method(arguments=[namearg, furlarg],
+                               label="Add Shared Directory")
+        return annotate.MethodBinding("mount", meth,
+                                      action="Mount Shared Directory")
+
+    def mount(self, name, furl):
+        d = self._dirnode.attach_shared_directory(name, furl)
+        d.addCallback(lambda done: url.here.child(name))
         return d
 
     def child__delete(self, ctx):
