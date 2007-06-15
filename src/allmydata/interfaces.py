@@ -2,7 +2,7 @@
 from zope.interface import Interface
 from foolscap.schema import StringConstraint, ListOf, TupleOf, SetOf, DictOf, \
      ChoiceOf
-from foolscap import RemoteInterface, Referenceable, Copyable, RemoteCopy
+from foolscap import RemoteInterface, Referenceable
 
 HASH_SIZE=32
 
@@ -123,46 +123,6 @@ class RIStorageServer(RemoteInterface):
 from foolscap.schema import Any
 RIMutableDirectoryNode_ = Any() # TODO: how can we avoid this?
 
-class DirectoryNode(Copyable, RemoteCopy):
-    """I have either a .furl attribute or a .get(tub) method."""
-    typeToCopy = "allmydata.com/tahoe/interfaces/DirectoryNode/v1"
-    copytype = typeToCopy
-    def __init__(self, furl=None):
-        # RemoteCopy subclasses are always called without arguments
-        self.furl = furl
-    def getStateToCopy(self):
-        return {"furl": self.furl }
-    def setCopyableState(self, state):
-        self.furl = state['furl']
-    def __hash__(self):
-        return hash((self.__class__, self.furl))
-    def __cmp__(self, them):
-        if cmp(type(self), type(them)):
-            return cmp(type(self), type(them))
-        if cmp(self.__class__, them.__class__):
-            return cmp(self.__class__, them.__class__)
-        return cmp(self.furl, them.furl)
-
-class FileNode(Copyable, RemoteCopy):
-    """I have a .uri attribute."""
-    typeToCopy = "allmydata.com/tahoe/interfaces/FileNode/v1"
-    copytype = typeToCopy
-    def __init__(self, uri=None):
-        # RemoteCopy subclasses are always called without arguments
-        self.uri = uri
-    def getStateToCopy(self):
-        return {"uri": self.uri }
-    def setCopyableState(self, state):
-        self.uri = state['uri']
-    def __hash__(self):
-        return hash((self.__class__, self.uri))
-    def __cmp__(self, them):
-        if cmp(type(self), type(them)):
-            return cmp(type(self), type(them))
-        if cmp(self.__class__, them.__class__):
-            return cmp(self.__class__, them.__class__)
-        return cmp(self.uri, them.uri)
-
 FileNode_ = Any() # TODO: foolscap needs constraints on copyables
 DirectoryNode_ = Any() # TODO: same
 AnyNode_ = ChoiceOf(FileNode_, DirectoryNode_)
@@ -186,14 +146,62 @@ class RIMutableDirectoryNode(RemoteInterface):
 
 
 class RIVirtualDriveServer(RemoteInterface):
-    def get_public_root():
+    def get_public_root_furl():
         """If this vdrive server does not offer a public root, this will
         raise an exception."""
-        return DirectoryNode_
+        return FURL
 
     def create_directory():
         return DirectoryNode_
 
+class IFileNode(Interface):
+    def download(target):
+        """Download the file's contents to a given IDownloadTarget"""
+    def download_to_data():
+        pass
+
+class IDirectoryNode(Interface):
+    def list():
+        """I return a Deferred that fires with a"""
+        pass
+
+    def get(name):
+        """I return a Deferred that fires with a specific named child."""
+        pass
+
+    def add(name, child):
+        """I add a child at the specific name. I return a Deferred that fires
+        when the operation finishes."""
+
+    def add_file(name, uploadable):
+        """I upload a file (using the given IUploadable), then attach the
+        resulting FileNode to the directory at the given name."""
+
+    def remove(name):
+        """I remove the child at the specific name. I return a Deferred that
+        fires when the operation finishes."""
+
+    def create_empty_directory(name):
+        """I create and attach an empty directory at the given name. I return
+        a Deferred that fires when the operation finishes."""
+
+    def attach_shared_directory(name, furl):
+        """I attach a directory that was shared (possibly by someone else)
+        with IDirectoryNode.get_furl to this parent at the given name. I
+        return a Deferred that fires when the operation finishes."""
+
+    def get_shared_directory_furl():
+        """I return a FURL that can be used to attach this directory to
+        somewhere else. The FURL is just a string, so it can be passed
+        through email or other out-of-band protocol. Use it by passing it in
+        to attach_shared_directory(). I return a Deferred that fires when the
+        operation finishes."""
+
+    def move_child_to(current_child_name, new_parent, new_child_name=None):
+        """I take one of my children and move them to a new parent. The child
+        is referenced by name. On the new parent, the child will live under
+        'new_child_name', which defaults to 'current_child_name'. I return a
+        Deferred that fires when the operation finishes."""
 
 
 class ICodecEncoder(Interface):

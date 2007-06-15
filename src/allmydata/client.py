@@ -13,7 +13,7 @@ from allmydata.Crypto.Util.number import bytes_to_long
 from allmydata.storageserver import StorageServer
 from allmydata.upload import Uploader
 from allmydata.download import Downloader
-#from allmydata.vdrive import VDrive
+from allmydata.vdrive import DirectoryNode
 from allmydata.webish import WebishServer
 from allmydata.control import ControlServer
 from allmydata.introducer import IntroducerClient
@@ -113,18 +113,15 @@ class Client(node.Node, Referenceable):
     def _got_vdrive(self, vdrive_server):
         # vdrive_server implements RIVirtualDriveServer
         self.log("connected to vdrive server")
-        d = vdrive_server.callRemote("get_public_root")
-        d.addCallback(self._got_vdrive_root, vdrive_server)
+        d = vdrive_server.callRemote("get_public_root_furl")
+        d.addCallback(self._got_vdrive_root_furl, vdrive_server)
 
-    def _got_vdrive_root(self, vdrive_root, vdrive_server):
-        # vdrive_root implements RIMutableDirectoryNode
+    def _got_vdrive_root_furl(self, vdrive_root_furl, vdrive_server):
+        root = DirectoryNode(vdrive_root_furl, self)
         self.log("got vdrive root")
-        self._connected_to_vdrive = True
         self._vdrive_server = vdrive_server
-        self._vdrive_root = vdrive_root
-        def _disconnected():
-            self._connected_to_vdrive = False
-        vdrive_root.notifyOnDisconnect(_disconnected)
+        self._vdrive_root = root
+        self._connected_to_vdrive = True
 
         #vdrive = self.getServiceNamed("vdrive")
         #vdrive.set_server(vdrive_server)
@@ -132,7 +129,7 @@ class Client(node.Node, Referenceable):
 
         if "webish" in self.namedServices:
             webish = self.getServiceNamed("webish")
-            webish.set_vdrive(self.tub, vdrive_server, vdrive_root)
+            webish.set_vdrive_root(root)
 
     def remote_get_versions(self):
         return str(allmydata.__version__), str(self.OLDEST_SUPPORTED_VERSION)

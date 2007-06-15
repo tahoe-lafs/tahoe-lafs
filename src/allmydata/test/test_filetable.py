@@ -2,8 +2,8 @@
 import os
 from twisted.trial import unittest
 from allmydata.filetable import (MutableDirectoryNode,
-                                 BadDirectoryError, BadFileError, BadNameError)
-from allmydata.interfaces import FileNode, DirectoryNode
+                                 BadFileError, BadNameError)
+from allmydata.vdrive import FileNode, DirectoryNode
 
 
 class FileTable(unittest.TestCase):

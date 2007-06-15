@@ -5,7 +5,7 @@ from twisted.application import service
 from twisted.internet import defer
 from twisted.python import log
 from allmydata import upload, download
-from allmydata.interfaces import FileNode, DirectoryNode
+from foolscap import Copyable, RemoteCopy
 
 class VDrive(service.MultiService):
     name = "vdrive"
@@ -181,23 +181,113 @@ class VDrive(service.MultiService):
         return self.get_file(from_where, download.FileHandle(filehandle))
 
 
-# utility stuff
-def add_file(parent_node, child_name, uri):
-    child_node = FileNode(uri)
-    d = parent_node.callRemote("add", child_name, child_node)
-    return d
+class DirectoryNode(Copyable, RemoteCopy):
+    """I have either a .furl attribute or a .get(tub) method."""
+    typeToCopy = "allmydata.com/tahoe/interfaces/DirectoryNode/v1"
+    copytype = typeToCopy
+    def __init__(self, furl=None, client=None):
+        # RemoteCopy subclasses are always called without arguments
+        self.furl = furl
+        self._set_client(client)
+    def _set_client(self, client):
+        self._client = client
+        return self
+    def getStateToCopy(self):
+        return {"furl": self.furl }
+    def setCopyableState(self, state):
+        self.furl = state['furl']
+    def __hash__(self):
+        return hash((self.__class__, self.furl))
+    def __cmp__(self, them):
+        if cmp(type(self), type(them)):
+            return cmp(type(self), type(them))
+        if cmp(self.__class__, them.__class__):
+            return cmp(self.__class__, them.__class__)
+        return cmp(self.furl, them.furl)
 
-def mkdir(vdrive_server, parent_node, child_name):
-    d = vdrive_server.callRemote("create_directory")
-    d.addCallback(lambda newdir_furl:
-                  parent_node.callRemote("add", child_name, DirectoryNode(newdir_furl)))
-    return d
+    def list(self):
+        d = self._client.tub.getReference(self.furl)
+        d.addCallback(lambda node: node.callRemote("list"))
+        d.addCallback(lambda children:
+                      [(name,child._set_client(self._client))
+                       for name,child in children])
+        return d
 
-def add_shared_directory_furl(parent_node, child_name, furl):
-    child_node = DirectoryNode(furl)
-    d = parent_node.callRemote("add", child_name, child_node)
-    return d
+    def get(self, name):
+        d = self._client.tub.getReference(self.furl)
+        d.addCallback(lambda node: node.callRemote("get", name))
+        d.addCallback(lambda child: child._set_client(self._client))
+        return d
 
-def create_anonymous_directory(vdrive_server):
-    d = vdrive_server.callRemote("create_directory")
-    return d
+    def add(self, name, child):
+        d = self._client.tub.getReference(self.furl)
+        d.addCallback(lambda node: node.callRemote("add", name, child))
+        d.addCallback(lambda newnode: newnode._set_client(self._client))
+        return d
+
+    def add_file(self, name, uploadable):
+        uploader = self._client.getServiceNamed("uploader")
+        d = uploader.upload(uploadable)
+        d.addCallback(lambda uri: self.add(name, FileNode(uri, self._client)))
+        return d
+
+    def remove(self, name):
+        d = self._client.tub.getReference(self.furl)
+        d.addCallback(lambda node: node.callRemote("remove", name))
+        d.addCallback(lambda newnode: newnode._set_client(self._client))
+        return d
+
+    def create_empty_directory(self, name):
+        vdrive_server = self._client._vdrive_server
+        d = vdrive_server.callRemote("create_directory")
+        d.addCallback(lambda node: self.add(name, node))
+        return d
+
+    def attach_shared_directory(self, name, furl):
+        d = self.add(name, DirectoryNode(furl))
+        return d
+
+    def get_shared_directory_furl(self):
+        return defer.succeed(self.furl)
+
+    def move_child_to(self, current_child_name,
+                      new_parent, new_child_name=None):
+        if new_child_name is None:
+            new_child_name = current_child_name
+        d = self.get(current_child_name)
+        d.addCallback(lambda child: new_parent.add(new_child_name, child))
+        d.addCallback(lambda child: self.remove(current_child_name))
+        return d
+
+class FileNode(Copyable, RemoteCopy):
+    """I have a .uri attribute."""
+    typeToCopy = "allmydata.com/tahoe/interfaces/FileNode/v1"
+    copytype = typeToCopy
+    def __init__(self, uri=None, client=None):
+        # RemoteCopy subclasses are always called without arguments
+        self.uri = uri
+        self._set_client(client)
+    def _set_client(self, client):
+        self._client = client
+        return self
+    def getStateToCopy(self):
+        return {"uri": self.uri }
+    def setCopyableState(self, state):
+        self.uri = state['uri']
+    def __hash__(self):
+        return hash((self.__class__, self.uri))
+    def __cmp__(self, them):
+        if cmp(type(self), type(them)):
+            return cmp(type(self), type(them))
+        if cmp(self.__class__, them.__class__):
+            return cmp(self.__class__, them.__class__)
+        return cmp(self.uri, them.uri)
+
+    def download(self, target):
+        downloader = self._client.getServiceNamed("downloader")
+        return downloader.download(self.uri, target)
+
+    def download_to_data(self):
+        downloader = self._client.getServiceNamed("downloader")
+        return downloader.download_to_data(self.uri)
+

@@ -2,7 +2,8 @@
 import os
 from zope.interface import implements
 from foolscap import Referenceable
-from allmydata.interfaces import RIVirtualDriveServer, RIMutableDirectoryNode, FileNode, DirectoryNode
+from allmydata.interfaces import RIVirtualDriveServer, RIMutableDirectoryNode
+from allmydata.vdrive import FileNode, DirectoryNode
 from allmydata.util import bencode, idlib
 from twisted.application import service
 from twisted.python import log
@@ -61,7 +62,7 @@ class MutableDirectoryNode(Referenceable):
             elif isinstance(v, DirectoryNode):
                 child_nodes[k] = ("subdir", v.furl)
             else:
-                raise RuntimeError("unknown child node '%s'" % (v,))
+                raise RuntimeError("unknown child[%s] node '%s'" % (k,v))
         data = bencode.bencode(child_nodes)
         f = open(os.path.join(self._basedir, self._name), "wb")
         f.write(data)
@@ -143,6 +144,7 @@ class VirtualDriveServer(service.MultiService, Referenceable):
         # all callers. In addition, we must register any new ones that we
         # create later on.
         tub = self.parent.tub
+        self._root_furl = tub.registerReference(self._root, "root")
         self._register_all_dirnodes(tub)
 
     def _register_all_dirnodes(self, tub):
@@ -150,14 +152,14 @@ class VirtualDriveServer(service.MultiService, Referenceable):
             node = MutableDirectoryNode(self._vdrive_dir, name)
             ignored_furl = tub.registerReference(node, name)
 
-    def get_public_root(self):
+    def get_public_root_furl(self):
         if self._root:
-            return self._root
+            return self._root_furl
         raise NoPublicRootError
-    remote_get_public_root = get_public_root
+    remote_get_public_root_furl = get_public_root_furl
 
     def create_directory(self):
         node = MutableDirectoryNode(self._vdrive_dir)
         furl = self.parent.tub.registerReference(node, node._name)
-        return furl
+        return DirectoryNode(furl)
     remote_create_directory = create_directory
