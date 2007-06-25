@@ -1,4 +1,5 @@
 from allmydata.Crypto.Hash import SHA256
+import os
 
 def netstring(s):
     return "%d:%s," % (len(s), s,)
@@ -56,3 +57,25 @@ def key_hash(data):
 def key_hasher():
     return tagged_hasher("allmydata_encryption_key_v1")
 
+KEYLEN = 16
+def random_key():
+    return os.urandom(KEYLEN)
+
+def dir_write_enabler_hash(write_key):
+    return tagged_hash("allmydata_dir_write_enabler_v1", write_key)
+def dir_read_key_hash(write_key):
+    return tagged_hash("allmydata_dir_read_key_v1", write_key)[:KEYLEN]
+def dir_index_hash(read_key):
+    return tagged_hash("allmydata_dir_index_v1", read_key)
+def dir_name_hash(readkey, name):
+    return tagged_pair_hash("allmydata_dir_name_v1", readkey, name)
+
+def generate_dirnode_keys_from_writekey(write_key):
+    readkey = dir_read_key_hash(write_key)
+    write_enabler = dir_write_enabler_hash(write_key)
+    index = dir_index_hash(readkey)
+    return write_key, write_enabler, readkey, index
+
+def generate_dirnode_keys_from_readkey(read_key):
+    index = dir_index_hash(read_key)
+    return None, None, read_key, index

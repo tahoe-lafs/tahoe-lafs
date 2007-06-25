@@ -240,7 +240,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             d1.addCallback(lambda subdir1_node:
                            subdir1_node.add_file("mydata567", ut))
             def _stash_uri(filenode):
-                self.uri = filenode.uri
+                self.uri = filenode.get_uri()
                 return filenode
             d1.addCallback(_stash_uri)
             return d1

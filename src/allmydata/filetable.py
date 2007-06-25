@@ -1,120 +1,16 @@
 
 import os
 from zope.interface import implements
-from foolscap import Referenceable
-from allmydata.interfaces import RIVirtualDriveServer, RIMutableDirectoryNode
-from allmydata.vdrive import FileNode, DirectoryNode
-from allmydata.util import bencode, idlib
 from twisted.application import service
-from twisted.python import log
+from foolscap import Referenceable
+from allmydata.interfaces import RIVirtualDriveServer
+from allmydata.util import bencode, idlib, hashutil, fileutil
+from allmydata import uri
 
-class BadNameError(Exception):
-    """Bad filename component"""
-
-class BadFileError(Exception):
+class BadWriteEnablerError(Exception):
     pass
-
-class BadDirectoryError(Exception):
+class ChildAlreadyPresentError(Exception):
     pass
-
-class MutableDirectoryNode(Referenceable):
-    """I represent a single directory.
-
-    I am associated with a file on disk, using a randomly-generated (and
-    hopefully unique) name. This file contains a serialized dictionary which
-    maps child names to 'child specifications'. These specifications are
-    tuples, either of ('file', URI), or ('subdir', FURL).
-    """
-
-    implements(RIMutableDirectoryNode)
-
-    def __init__(self, basedir, name=None):
-        self._basedir = basedir
-        if name:
-            self._name = name
-            # for well-known nodes, make sure they exist
-            try:
-                ignored = self._read_from_file()
-            except EnvironmentError:
-                self._write_to_file({})
-        else:
-            self._name = self.create_filename()
-            self._write_to_file({}) # start out empty
-
-    def _read_from_file(self):
-        data = open(os.path.join(self._basedir, self._name), "rb").read()
-        children = bencode.bdecode(data)
-        child_nodes = {}
-        for k,v in children.iteritems():
-            if v[0] == "file":
-                child_nodes[k] = FileNode(v[1])
-            elif v[0] == "subdir":
-                child_nodes[k] = DirectoryNode(v[1])
-            else:
-                raise RuntimeError("unknown child spec '%s'" % (v[0],))
-        return child_nodes
-
-    def _write_to_file(self, children):
-        child_nodes = {}
-        for k,v in children.iteritems():
-            if isinstance(v, FileNode):
-                child_nodes[k] = ("file", v.uri)
-            elif isinstance(v, DirectoryNode):
-                child_nodes[k] = ("subdir", v.furl)
-            else:
-                raise RuntimeError("unknown child[%s] node '%s'" % (k,v))
-        data = bencode.bencode(child_nodes)
-        f = open(os.path.join(self._basedir, self._name), "wb")
-        f.write(data)
-        f.close()
-
-
-    def create_filename(self):
-        return idlib.b2a(os.urandom(8))
-
-    def validate_name(self, name):
-        if name == "." or name == ".." or "/" in name:
-            raise BadNameError("'%s' is not cool" % name)
-
-    # these are the public methods, available to anyone who holds a reference
-
-    def list(self):
-        log.msg("Dir(%s).list()" % self._name)
-        children = self._read_from_file()
-        results = list(children.items())
-        return sorted(results)
-    remote_list = list
-
-    def get(self, name):
-        log.msg("Dir(%s).get(%s)" % (self._name, name))
-        self.validate_name(name)
-        children = self._read_from_file()
-        if name not in children:
-            raise BadFileError("no such child")
-        return children[name]
-    remote_get = get
-
-    def add(self, name, child):
-        self.validate_name(name)
-        children = self._read_from_file()
-        if name in children:
-            raise BadNameError("the child already existed")
-        children[name] = child
-        self._write_to_file(children)
-        return child
-    remote_add = add
-
-    def remove(self, name):
-        self.validate_name(name)
-        children = self._read_from_file()
-        if name not in children:
-            raise BadFileError("cannot remove non-existent child")
-        child = children[name]
-        del children[name]
-        self._write_to_file(children)
-        return child
-    remote_remove = remove
-
 
 class NoPublicRootError(Exception):
     pass
@@ -122,44 +18,93 @@ class NoPublicRootError(Exception):
 class VirtualDriveServer(service.MultiService, Referenceable):
     implements(RIVirtualDriveServer)
     name = "filetable"
-    VDRIVEDIR = "vdrive"
 
-    def __init__(self, basedir=".", offer_public_root=True):
+    def __init__(self, basedir, offer_public_root=True):
         service.MultiService.__init__(self)
-        vdrive_dir = os.path.join(basedir, self.VDRIVEDIR)
-        if not os.path.exists(vdrive_dir):
-            os.mkdir(vdrive_dir)
-        self._vdrive_dir = vdrive_dir
+        self._basedir = os.path.abspath(basedir)
+        fileutil.make_dirs(self._basedir)
         self._root = None
         if offer_public_root:
-            self._root = MutableDirectoryNode(vdrive_dir, "root")
+            rootfile = os.path.join(self._basedir, "root")
+            if not os.path.exists(rootfile):
+                write_key = hashutil.random_key()
+                (wk, we, rk, index) = \
+                     hashutil.generate_dirnode_keys_from_writekey(write_key)
+                self.create_directory(index, we)
+                f = open(rootfile, "wb")
+                f.write(wk)
+                f.close()
+                self._root = wk
+            else:
+                f = open(rootfile, "rb")
+                self._root = f.read()
 
-    def startService(self):
-        service.MultiService.startService(self)
-        # _register_all_dirnodes exists to avoid hacking our Tub to
-        # automatically translate inbound your-reference names
-        # (Tub.getReferenceForName) into MutableDirectoryNode instances by
-        # looking in our basedir for them. Without that hack, we have to
-        # register all nodes at startup to make sure they'll be available to
-        # all callers. In addition, we must register any new ones that we
-        # create later on.
-        tub = self.parent.tub
-        self._root_furl = tub.registerReference(self._root, "root")
-        self._register_all_dirnodes(tub)
+    def set_furl(self, myfurl):
+        self._myfurl = myfurl
 
-    def _register_all_dirnodes(self, tub):
-        for name in os.listdir(self._vdrive_dir):
-            node = MutableDirectoryNode(self._vdrive_dir, name)
-            ignored_furl = tub.registerReference(node, name)
-
-    def get_public_root_furl(self):
+    def get_public_root_uri(self):
         if self._root:
-            return self._root_furl
+            return uri.pack_dirnode_uri(self._myfurl, self._root)
         raise NoPublicRootError
-    remote_get_public_root_furl = get_public_root_furl
+    remote_get_public_root_uri = get_public_root_uri
 
-    def create_directory(self):
-        node = MutableDirectoryNode(self._vdrive_dir)
-        furl = self.parent.tub.registerReference(node, node._name)
-        return DirectoryNode(furl)
+    def create_directory(self, index, write_enabler):
+        data = [write_enabler, []]
+        self._write_to_file(index, data)
+        return index
     remote_create_directory = create_directory
+
+    # the file on disk consists of the write_enabler token and a list of
+    # (H(name), E(name), E(write), E(read)) tuples.
+
+    def _read_from_file(self, index):
+        name = idlib.b2a(index)
+        data = open(os.path.join(self._basedir, name), "rb").read()
+        return bencode.bdecode(data)
+
+    def _write_to_file(self, index, data):
+        name = idlib.b2a(index)
+        f = open(os.path.join(self._basedir, name), "wb")
+        f.write(bencode.bencode(data))
+        f.close()
+
+
+    def get(self, index, key):
+        data = self._read_from_file(index)
+        for (H_key, E_key, E_write, E_read) in data[1]:
+            if H_key == key:
+                return (E_write, E_read)
+        raise IndexError("unable to find key %s" % idlib.b2a(key))
+    remote_get = get
+
+    def list(self, index):
+        data = self._read_from_file(index)
+        response = [ (E_key, E_write, E_read)
+                     for (H_key, E_key, E_write, E_read) in data[1] ]
+        return response
+    remote_list = list
+
+    def delete(self, index, write_enabler, key):
+        data = self._read_from_file(index)
+        if data[0] != write_enabler:
+            raise BadWriteEnablerError
+        for i,(H_key, E_key, E_write, E_read) in enumerate(data[1]):
+            if H_key == key:
+                del data[1][i]
+                self._write_to_file(index, data)
+                return
+        raise IndexError("unable to find key %s" % idlib.b2a(key))
+    remote_delete = delete
+
+    def set(self, index, write_enabler, key,   name, write, read):
+        data = self._read_from_file(index)
+        if data[0] != write_enabler:
+            raise BadWriteEnablerError
+        # first, see if the key is already present
+        for i,(H_key, E_key, E_write, E_read) in enumerate(data[1]):
+            if H_key == key:
+                raise ChildAlreadyPresentError
+        # now just append the data
+        data[1].append( (key, name, write, read) )
+        self._write_to_file(index, data)
+    remote_set = set

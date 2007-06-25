@@ -13,9 +13,11 @@
 
 <div><a href=".">Refresh this view</a></div>
 <div><a href="..">Parent Directory</a></div>
-<div>To share this directory, paste the following FURL string into an
+<div>To share this directory, paste the following URI string into an
   "Add Shared Directory" box:
-  <pre class="overflow" n:render="string" n:data="share_url" /></div>
+  <pre class="overflow" n:render="string" n:data="share_uri" /></div>
+<div>To share a transitively read-only copy, use the following URI instead:
+  <pre class="overflow" n:render="string" n:data="share_readonly_uri" /></div>
 
 <table n:render="sequence" n:data="children" border="1">
   <tr n:pattern="header">

@@ -86,3 +86,31 @@ def unpack_extension_readable(data):
         if "hash" in k:
             unpacked[k] = idlib.b2a(unpacked[k])
     return unpacked
+
+def is_dirnode_uri(uri):
+    return uri.startswith("URI:DIR:") or uri.startswith("URI:DIR-RO:")
+def is_mutable_dirnode_uri(uri):
+    return uri.startswith("URI:DIR:")
+def unpack_dirnode_uri(uri):
+    assert is_dirnode_uri(uri)
+    # URI:DIR:furl:key
+    #  but note that the furl contains colons
+    for prefix in ("URI:DIR:", "URI:DIR-RO:"):
+        if uri.startswith(prefix):
+            uri = uri[len(prefix):]
+            break
+    else:
+        assert 0
+    colon = uri.rindex(":")
+    furl = uri[:colon]
+    key = uri[colon+1:]
+    return furl, idlib.a2b(key)
+
+def make_immutable_dirnode_uri(mutable_uri):
+    assert is_mutable_dirnode_uri(mutable_uri)
+    furl, writekey = unpack_dirnode_uri(mutable_uri)
+    readkey = hashutil.dir_read_key_hash(writekey)
+    return "URI:DIR-RO:%s:%s" % (furl, idlib.b2a(readkey))
+
+def pack_dirnode_uri(furl, writekey):
+    return "URI:DIR:%s:%s" % (furl, idlib.b2a(writekey))

@@ -126,33 +126,79 @@ RIMutableDirectoryNode_ = Any() # TODO: how can we avoid this?
 FileNode_ = Any() # TODO: foolscap needs constraints on copyables
 DirectoryNode_ = Any() # TODO: same
 AnyNode_ = ChoiceOf(FileNode_, DirectoryNode_)
-
-class RIMutableDirectoryNode(RemoteInterface):
-    def list():
-        return ListOf( TupleOf(str, # name, relative to directory
-                               AnyNode_,
-                               ),
-                       maxLength=100,
-                       )
-
-    def get(name=str):
-        return AnyNode_
-
-    def add(name=str, what=AnyNode_):
-        return AnyNode_
-
-    def remove(name=str):
-        return AnyNode_
-
+EncryptedThing = str
 
 class RIVirtualDriveServer(RemoteInterface):
-    def get_public_root_furl():
-        """If this vdrive server does not offer a public root, this will
-        raise an exception."""
-        return FURL
+    def get_public_root_uri():
+        """Obtain the URI for this server's global publically-writable root
+        directory. This returns a read-write directory URI.
 
-    def create_directory():
-        return DirectoryNode_
+        If this vdrive server does not offer a public root, this will
+        raise an exception."""
+        return URI
+
+    def create_directory(index=Hash, write_enabler=Hash):
+        """Create a new (empty) directory, unattached to anything else.
+
+        This returns the same index that was passed in.
+        """
+        return Hash
+
+    def get(index=Hash, key=Hash):
+        """Retrieve a named child of the given directory. 'index' specifies
+        which directory is being accessed, and is generally the hash of the
+        read key. 'key' is the hash of the read key and the child name.
+
+        This operation returns a pair of encrypted strings. The first string
+        is meant to be decrypted by the Write Key and provides read-write
+        access to the child. If this directory holds read-only access to the
+        child, this first string will be an empty string. The second string
+        is meant to be decrypted by the Read Key and provides read-only
+        access to the child.
+
+        When the child is a read-write directory, the encrypted URI:DIR-RO
+        will be in the read slot, and the encrypted URI:DIR will be in the
+        write slot. When the child is a read-only directory, the encrypted
+        URI:DIR-RO will be in the read slot and the write slot will be empty.
+        When the child is a CHK file, the encrypted URI:CHK will be in the
+        read slot, and the write slot will be empty.
+
+        This might raise IndexError if there is no child by the desired name.
+        """
+        return (EncryptedThing, EncryptedThing)
+
+    def list(index=Hash):
+        """List the contents of a directory.
+
+        This returns a list of (NAME, WRITE, READ) tuples. Each value is an
+        encrypted string (although the WRITE value may sometimes be an empty
+        string).
+
+        NAME: the child name, encrypted with the Read Key
+        WRITE: the child write URI, encrypted with the Write Key, or an
+               empty string if this child is read-only
+        READ: the child read URI, encrypted with the Read Key
+        """
+        return ListOf((EncryptedThing, EncryptedThing, EncryptedThing),
+                      maxLength=100,
+                      )
+
+    def set(index=Hash, write_enabler=Hash, key=Hash,
+            name=EncryptedThing, write=EncryptedThing, read=EncryptedThing):
+        """Set a child object.
+
+        This will raise IndexError if a child with the given name already
+        exists.
+        """
+        pass
+
+    def delete(index=Hash, write_enabler=Hash, key=Hash):
+        """Delete a specific child.
+
+        This uses the hashed key to locate a specific child, and deletes it.
+        """
+        pass
+
 
 class IFileNode(Interface):
     def download(target):
@@ -161,41 +207,72 @@ class IFileNode(Interface):
         pass
 
 class IDirectoryNode(Interface):
+    def is_mutable():
+        """Return True if this directory is mutable, False if it is read-only.
+        """
+    def get_uri():
+        """Return the directory URI that can be used by others to get access
+        to this directory node. If this node is read-only, the URI will only
+        offer read-only access. If this node is read-write, the URI will
+        offer read-write acess.
+
+        If you have read-write access to a directory and wish to share merely
+        read-only access with others, use get_immutable_uri().
+
+        The dirnode ('1') URI returned by this method can be used in set() on
+        a different directory ('2') to 'mount' a reference to this directory
+        ('1') under the other ('2'). This URI is just a string, so it can be
+        passed around through email or other out-of-band protocol.
+        """
+
+    def get_immutable_uri():
+        """Return the directory URI that can be used by others to get
+        read-only access to this directory node. The result is a read-only
+        URI, regardless of whether this dirnode is read-only or read-write.
+
+        If you have merely read-only access to this dirnode,
+        get_immutable_uri() will return the same thing as get_uri().
+        """
+
     def list():
-        """I return a Deferred that fires with a"""
-        pass
+        """I return a Deferred that fires with a dictionary mapping child
+        name to an IFileNode or IDirectoryNode."""
 
     def get(name):
-        """I return a Deferred that fires with a specific named child."""
-        pass
+        """I return a Deferred that fires with a specific named child node,
+        either an IFileNode or an IDirectoryNode."""
 
-    def add(name, child):
+    def set_uri(name, child_uri):
+        """I add a child (by URI) at the specific name. I return a Deferred
+        that fires when the operation finishes.
+
+        The child_uri could be for a file, or for a directory (either
+        read-write or read-only, using a URI that came from get_uri() ).
+
+        If this directory node is read-only, the Deferred will errback with a
+        NotMutableError."""
+
+    def set_node(name, child):
         """I add a child at the specific name. I return a Deferred that fires
-        when the operation finishes."""
+        when the operation finishes. This Deferred will fire with the child
+        node that was just added.
+
+        If this directory node is read-only, the Deferred will errback with a
+        NotMutableError."""
 
     def add_file(name, uploadable):
         """I upload a file (using the given IUploadable), then attach the
-        resulting FileNode to the directory at the given name."""
+        resulting FileNode to the directory at the given name. I return a
+        Deferred that fires (with the IFileNode of the uploaded file) when
+        the operation completes."""
 
-    def remove(name):
+    def delete(name):
         """I remove the child at the specific name. I return a Deferred that
         fires when the operation finishes."""
 
     def create_empty_directory(name):
         """I create and attach an empty directory at the given name. I return
         a Deferred that fires when the operation finishes."""
-
-    def attach_shared_directory(name, furl):
-        """I attach a directory that was shared (possibly by someone else)
-        with IDirectoryNode.get_furl to this parent at the given name. I
-        return a Deferred that fires when the operation finishes."""
-
-    def get_shared_directory_furl():
-        """I return a FURL that can be used to attach this directory to
-        somewhere else. The FURL is just a string, so it can be passed
-        through email or other out-of-band protocol. Use it by passing it in
-        to attach_shared_directory(). I return a Deferred that fires when the
-        operation finishes."""
 
     def move_child_to(current_child_name, new_parent, new_child_name=None):
         """I take one of my children and move them to a new parent. The child

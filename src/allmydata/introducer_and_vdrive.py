@@ -8,6 +8,7 @@ from allmydata.introducer import Introducer
 class IntroducerAndVdrive(node.Node):
     PORTNUMFILE = "introducer.port"
     NODETYPE = "introducer"
+    VDRIVEDIR = "vdrive"
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
@@ -21,8 +22,11 @@ class IntroducerAndVdrive(node.Node):
         f.write(self.urls["introducer"] + "\n")
         f.close()
 
-        vds = self.add_service(VirtualDriveServer(self.basedir))
-        self.urls["vdrive"] = self.tub.registerReference(vds, "vdrive")
+        vdrive_dir = os.path.join(self.basedir, self.VDRIVEDIR)
+        vds = self.add_service(VirtualDriveServer(vdrive_dir))
+        vds_furl = self.tub.registerReference(vds, "vdrive")
+        vds.set_furl(vds_furl)
+        self.urls["vdrive"] = vds_furl
         self.log(" vdrive is at %s" % self.urls["vdrive"])
         f = open(os.path.join(self.basedir, "vdrive.furl"), "w")
         f.write(self.urls["vdrive"] + "\n")

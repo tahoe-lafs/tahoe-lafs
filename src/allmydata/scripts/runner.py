@@ -129,6 +129,30 @@ class DumpOptions(usage.Options):
         if not self['filename']:
             raise usage.UsageError("<filename> parameter is required")
 
+class DumpRootDirnodeOptions(BasedirMixin, usage.Options):
+    optParameters = [
+        ["basedir", "C", None, "the vdrive-server's base directory"],
+        ]
+
+class DumpDirnodeOptions(BasedirMixin, usage.Options):
+    optParameters = [
+        ["uri", "u", None, "the URI of the dirnode to dump."],
+        ["basedir", "C", None, "which directory to create the introducer in"],
+        ]
+    optFlags = [
+        ["verbose", "v", "be extra noisy (show encrypted data)"],
+        ]
+    def parseArgs(self, *args):
+        if len(args) == 1:
+            self['uri'] = args[-1]
+            args = args[:-1]
+        BasedirMixin.parseArgs(self, *args)
+
+    def postOptions(self):
+        BasedirMixin.postOptions(self)
+        if not self['uri']:
+            raise usage.UsageError("<uri> parameter is required")
+
 client_tac = """
 # -*- python -*-
 
@@ -164,7 +188,9 @@ class Options(usage.Options):
         ["restart", None, RestartOptions, "Restart a node."],
         ["dump-uri-extension", None, DumpOptions,
          "Unpack and display the contents of a uri_extension file."],
-        ["dump-directory-node", None, DumpOptions,
+        ["dump-root-dirnode", None, DumpRootDirnodeOptions,
+         "Compute most of the URI for the vdrive server's root dirnode."],
+        ["dump-dirnode", None, DumpDirnodeOptions,
          "Unpack and display the contents of a vdrive DirectoryNode."],
         ]
 
@@ -211,8 +237,10 @@ def runner(argv, run_by_human=True):
             rc = start(basedir, so) or rc
     elif command == "dump-uri-extension":
         rc = dump_uri_extension(so)
-    elif command == "dump-directory-node":
-        rc = dump_directory_node(so)
+    elif command == "dump-root-dirnode":
+        rc = dump_root_dirnode(so.basedirs[0], so)
+    elif command == "dump-dirnode":
+        rc = dump_directory_node(so.basedirs[0], so)
     return rc
 
 def run():
@@ -329,30 +357,71 @@ def dump_uri_extension(config):
     print
     return 0
 
-def dump_directory_node(config):
-    from allmydata import filetable, vdrive
-    filename = config['filename']
+def dump_root_dirnode(basedir, config):
+    from allmydata import uri
 
-    basedir, name = os.path.split(filename)
-    dirnode = filetable.MutableDirectoryNode(basedir, name)
+    root_dirnode_file = os.path.join(basedir, "vdrive", "root")
+    try:
+        f = open(root_dirnode_file, "rb")
+        key = f.read()
+        rooturi = uri.pack_dirnode_uri("fakeFURL", key)
+        print rooturi
+        return 0
+    except EnvironmentError:
+        print "unable to read root dirnode file from %s" % root_dirnode_file
+        return 1
+
+def dump_directory_node(basedir, config):
+    from allmydata import filetable, vdrive, uri
+    from allmydata.util import hashutil, idlib
+    dir_uri = config['uri']
+    verbose = config['verbose']
+
+    furl, key = uri.unpack_dirnode_uri(dir_uri)
+    if uri.is_mutable_dirnode_uri(dir_uri):
+        wk, we, rk, index = hashutil.generate_dirnode_keys_from_writekey(key)
+    else:
+        wk, we, rk, index = hashutil.generate_dirnode_keys_from_readkey(key)
+
+    filename = os.path.join(basedir, "vdrive", idlib.b2a(index))
 
     print
-    print "DirectoryNode at %s" % name
+    print "dirnode uri: %s" % dir_uri
+    print "filename : %s" % filename
+    print "index        : %s" % idlib.b2a(index)
+    if wk:
+        print "writekey     : %s" % idlib.b2a(wk)
+        print "write_enabler: %s" % idlib.b2a(we)
+    else:
+        print "writekey     : None"
+        print "write_enabler: None"
+    print "readkey      : %s" % idlib.b2a(rk)
+
     print
 
-    children = dirnode._read_from_file()
-    names = sorted(children.keys())
-    for name in names:
-        v = children[name]
-        if isinstance(v, vdrive.FileNode):
-            value = "File (uri=%s...)" % v.uri[:40]
-        elif isinstance(v, vdrive.DirectoryNode):
-            lastslash = v.furl.rindex("/")
-            furlname = v.furl[lastslash+1:lastslash+1+15]
-            value = "Directory (furl=%s.../%s...)" % (v.furl[:15], furlname)
-        else:
-            value = "weird: %s" % (v,)
-        print "%20s: %s" % (name, value)
-    print
+    vds = filetable.VirtualDriveServer(os.path.join(basedir, "vdrive"), False)
+    data = vds._read_from_file(index)
+    if we:
+        if we != data[0]:
+            print "ERROR: write_enabler does not match"
+
+    for (H_key, E_key, E_write, E_read) in data[1]:
+        if verbose:
+            print " H_key %s" % idlib.b2a(H_key)
+            print " E_key %s" % idlib.b2a(E_key)
+            print " E_write %s" % idlib.b2a(E_write)
+            print " E_read %s" % idlib.b2a(E_read)
+        key = vdrive.decrypt(rk, E_key)
+        print " key %s" % key
+        if hashutil.dir_name_hash(rk, key) != H_key:
+            print "  ERROR: H_key does not match"
+        if wk and E_write:
+            if len(E_write) < 14:
+                print "  ERROR: write data is short:", idlib.b2a(E_write)
+            write = vdrive.decrypt(wk, E_write)
+            print "   write: %s" % write
+        read = vdrive.decrypt(rk, E_read)
+        print "   read: %s" % read
+        print
+
     return 0
-

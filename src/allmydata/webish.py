@@ -6,8 +6,8 @@ from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from allmydata.util import idlib
 from allmydata.uri import unpack_uri
-from allmydata.interfaces import IDownloadTarget
-from allmydata.vdrive import FileNode, DirectoryNode
+from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode
+from allmydata.vdrive import FileNode
 from allmydata import upload
 from zope.interface import implements, Interface
 import urllib
@@ -120,10 +120,10 @@ class Directory(rend.Page):
             dirname = self._dirname + "/" + name
         d = self._dirnode.get(name)
         def _got_child(res):
-            if isinstance(res, FileNode):
+            if IFileNode.providedBy(res):
                 dl = get_downloader_service(ctx)
                 return Downloader(dl, name, res)
-            elif isinstance(res, DirectoryNode):
+            elif IDirectoryNode.providedBy(res):
                 return Directory(res, dirname)
             else:
                 raise RuntimeError("what is this %s" % res)
@@ -134,18 +134,39 @@ class Directory(rend.Page):
         return ctx.tag["Directory of '%s':" % self._dirname]
 
     def render_header(self, ctx, data):
-        return "Directory of '%s':" % self._dirname
+        header = "Directory of '%s':" % self._dirname
+        if not self._dirnode.is_mutable():
+            header += " (readonly)"
+        return header
 
-    def data_share_url(self, ctx, data):
-        return self._dirnode.furl
+    def data_share_uri(self, ctx, data):
+        return self._dirnode.get_uri()
+    def data_share_readonly_uri(self, ctx, data):
+        return self._dirnode.get_immutable_uri()
 
     def data_children(self, ctx, data):
         d = self._dirnode.list()
+        d.addCallback(lambda dict: sorted(dict.items()))
         return d
 
     def render_row(self, ctx, data):
         name, target = data
-        if isinstance(target, FileNode):
+
+        if self._dirnode.is_mutable():
+            # this creates a button which will cause our child__delete method
+            # to be invoked, which deletes the file and then redirects the
+            # browser back to this directory
+            del_url = url.here.child("_delete")
+            #del_url = del_url.add("uri", target.uri)
+            del_url = del_url.add("name", name)
+            delete = T.form(action=del_url, method="post")[
+                T.input(type='submit', value='del', name="del"),
+                ]
+        else:
+            delete = "-"
+        ctx.fillSlots("delete", delete)
+
+        if IFileNode.providedBy(target):
             # file
             dlurl = urllib.quote(name)
             ctx.fillSlots("filename",
@@ -160,17 +181,7 @@ class Directory(rend.Page):
             #extract and display file size
             ctx.fillSlots("size", unpack_uri(uri)['size'])
 
-            # this creates a button which will cause our child__delete method
-            # to be invoked, which deletes the file and then redirects the
-            # browser back to this directory
-            del_url = url.here.child("_delete")
-            #del_url = del_url.add("uri", target.uri)
-            del_url = del_url.add("name", name)
-            delete = T.form(action=del_url, method="post")[
-                T.input(type='submit', value='del', name="del"),
-                ]
-            ctx.fillSlots("delete", delete)
-        elif isinstance(target, DirectoryNode):
+        elif IDirectoryNode.providedBy(target):
             # directory
             subdir_url = urllib.quote(name)
             ctx.fillSlots("filename",
@@ -178,19 +189,14 @@ class Directory(rend.Page):
             ctx.fillSlots("type", "DIR")
             ctx.fillSlots("size", "-")
             ctx.fillSlots("uri", "-")
-
-            del_url = url.here.child("_delete")
-            del_url = del_url.add("name", name)
-            delete = T.form(action=del_url, method="post")[
-                T.input(type='submit', value='del', name="del"),
-                ]
-            ctx.fillSlots("delete", delete)
         else:
             raise RuntimeError("unknown thing %s" % (target,))
         return ctx.tag
 
     def render_forms(self, ctx, data):
-        return webform.renderForms()
+        if self._dirnode.is_mutable():
+            return webform.renderForms()
+        return T.div["No upload forms: directory is immutable"]
 
     def render_results(self, ctx, data):
         req = inevow.IRequest(ctx)
@@ -235,14 +241,13 @@ class Directory(rend.Page):
         log.msg("starting webish upload")
 
         uploader = get_uploader_service(ctx)
-        d = uploader.upload(upload.FileHandle(contents.file))
+        uploadable = upload.FileHandle(contents.file)
         name = contents.filename
-        def _uploaded(uri):
-            if privateupload:
-                return self.uploadprivate(name, uri)
-            else:
-                return self._dirnode.add(name, FileNode(uri))
-        d.addCallback(_uploaded)
+        if privateupload:
+            d = uploader.upload(uploadable)
+            d.addCallback(lambda uri: self.uploadprivate(name, uri))
+        else:
+            d = self._dirnode.add_file(name, uploadable)
         def _done(res):
             log.msg("webish upload complete")
             return res
@@ -271,15 +276,15 @@ class Directory(rend.Page):
     def bind_mount(self, ctx):
         namearg = annotate.Argument("name",
                                     annotate.String("Name to place incoming directory: "))
-        furlarg = annotate.Argument("furl",
-                                    annotate.String("FURL of Shared Directory"))
-        meth = annotate.Method(arguments=[namearg, furlarg],
+        uriarg = annotate.Argument("uri",
+                                   annotate.String("URI of Shared Directory"))
+        meth = annotate.Method(arguments=[namearg, uriarg],
                                label="Add Shared Directory")
         return annotate.MethodBinding("mount", meth,
                                       action="Mount Shared Directory")
 
-    def mount(self, name, furl):
-        d = self._dirnode.attach_shared_directory(name, furl)
+    def mount(self, name, uri):
+        d = self._dirnode.set_uri(name, uri)
         #d.addCallback(lambda done: url.here.child(name))
         return d
 
@@ -287,7 +292,7 @@ class Directory(rend.Page):
         # perform the delete, then redirect back to the directory page
         args = inevow.IRequest(ctx).args
         name = args["name"][0]
-        d = self._dirnode.remove(name)
+        d = self._dirnode.delete(name)
         d.addCallback(lambda done: url.here.up())
         return d
 
@@ -324,7 +329,7 @@ class Downloader(resource.Resource):
     def __init__(self, downloader, name, filenode):
         self._downloader = downloader
         self._name = name
-        assert isinstance(filenode, FileNode)
+        IFileNode(filenode)
         self._filenode = filenode
 
     def render(self, ctx):
@@ -397,14 +402,14 @@ class WebishServer(service.MultiService):
         # apparently 'ISite' does not exist
         #self.site._client = self.parent
 
-    def set_vdrive_root(self, root):
+    def set_vdrive_rootnode(self, root):
         self.root.putChild("global_vdrive", Directory(root, "/"))
         self.root.child_welcome.has_global_vdrive = True
         # I tried doing it this way and for some reason it didn't seem to work
         #print "REMEMBERING", self.site, dl, IDownloader
         #self.site.remember(dl, IDownloader)
 
-    def set_my_vdrive_root(self, my_vdrive):
+    def set_my_vdrive_rootnode(self, my_vdrive):
         self.root.putChild("my_vdrive", Directory(my_vdrive, "~"))
         self.root.child_welcome.has_my_vdrive = True
 

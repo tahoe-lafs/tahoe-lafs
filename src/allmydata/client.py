@@ -2,8 +2,8 @@
 import os, sha, stat, time
 from foolscap import Referenceable, SturdyRef
 from zope.interface import implements
-from allmydata.interfaces import RIClient
-from allmydata import node
+from allmydata.interfaces import RIClient, IDirectoryNode
+from allmydata import node, vdrive, uri
 
 from twisted.internet import defer, reactor
 from twisted.application.internet import TimerService
@@ -13,7 +13,6 @@ from allmydata.Crypto.Util.number import bytes_to_long
 from allmydata.storageserver import StorageServer
 from allmydata.upload import Uploader
 from allmydata.download import Downloader
-from allmydata.vdrive import DirectoryNode
 from allmydata.webish import WebishServer
 from allmydata.control import ControlServer
 from allmydata.introducer import IntroducerClient
@@ -28,7 +27,7 @@ class Client(node.Node, Referenceable):
     GLOBAL_VDRIVE_FURL_FILE = "vdrive.furl"
     MY_FURL_FILE = "myself.furl"
     SUICIDE_PREVENTION_HOTLINE_FILE = "suicide_prevention_hotline"
-    MY_VDRIVE_FURL_FILE = "my_vdrive.furl"
+    MY_VDRIVE_URI_FILE = "my_vdrive.uri"
 
     # we're pretty narrow-minded right now
     OLDEST_SUPPORTED_VERSION = allmydata.__version__
@@ -115,16 +114,20 @@ class Client(node.Node, Referenceable):
     def _got_vdrive(self, vdrive_server):
         # vdrive_server implements RIVirtualDriveServer
         self.log("connected to vdrive server")
-        d = vdrive_server.callRemote("get_public_root_furl")
-        d.addCallback(self._got_vdrive_root_furl, vdrive_server)
-        d.addCallback(self._create_my_vdrive)
+        d = vdrive_server.callRemote("get_public_root_uri")
+        d.addCallback(self._got_vdrive_uri)
+        d.addCallback(self._got_vdrive_rootnode)
+        d.addCallback(self._create_my_vdrive, vdrive_server)
         d.addCallback(self._got_my_vdrive)
 
-    def _got_vdrive_root_furl(self, vdrive_root_furl, vdrive_server):
-        root = DirectoryNode(vdrive_root_furl, self)
+    def _got_vdrive_uri(self, root_uri):
+        furl, wk = uri.unpack_dirnode_uri(root_uri)
+        self._vdrive_furl = furl
+        return vdrive.create_directory_node(self, root_uri)
+
+    def _got_vdrive_rootnode(self, rootnode):
         self.log("got vdrive root")
-        self._vdrive_server = vdrive_server
-        self._vdrive_root = root
+        self._vdrive_root = rootnode
         self._connected_to_vdrive = True
 
         #vdrive = self.getServiceNamed("vdrive")
@@ -133,34 +136,34 @@ class Client(node.Node, Referenceable):
 
         if "webish" in self.namedServices:
             webish = self.getServiceNamed("webish")
-            webish.set_vdrive_root(root)
+            webish.set_vdrive_rootnode(rootnode)
 
-    def _create_my_vdrive(self, ignored=None):
-        MY_VDRIVE_FURL_FILE = os.path.join(self.basedir,
-                                           self.MY_VDRIVE_FURL_FILE)
+    def _create_my_vdrive(self, ignored, vdrive_server):
+        MY_VDRIVE_URI_FILE = os.path.join(self.basedir,
+                                           self.MY_VDRIVE_URI_FILE)
         try:
-            f = open(MY_VDRIVE_FURL_FILE, "r")
-            my_vdrive_furl = f.read().strip()
+            f = open(MY_VDRIVE_URI_FILE, "r")
+            my_vdrive_uri = f.read().strip()
             f.close()
-            return defer.succeed(DirectoryNode(my_vdrive_furl, self))
+            return vdrive.create_directory_node(self, my_vdrive_uri)
         except EnvironmentError:
-            d = self._vdrive_server.callRemote("create_directory")
+            assert self._vdrive_furl
+            d = vdrive.create_directory(self, self._vdrive_furl)
             def _got_directory(dirnode):
-                f = open(MY_VDRIVE_FURL_FILE, "w")
-                f.write(dirnode.furl + "\n")
+                f = open(MY_VDRIVE_URI_FILE, "w")
+                f.write(dirnode.get_uri() + "\n")
                 f.close()
-                dirnode._set_client(self)
                 return dirnode
             d.addCallback(_got_directory)
             return d
 
     def _got_my_vdrive(self, my_vdrive):
-        assert isinstance(my_vdrive, DirectoryNode), my_vdrive
+        IDirectoryNode(my_vdrive)
         self._my_vdrive = my_vdrive
 
         if "webish" in self.namedServices:
             webish = self.getServiceNamed("webish")
-            webish.set_my_vdrive_root(my_vdrive)
+            webish.set_my_vdrive_rootnode(my_vdrive)
 
 
     def remote_get_versions(self):
