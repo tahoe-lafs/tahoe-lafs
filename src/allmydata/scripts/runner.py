@@ -325,7 +325,7 @@ def stop(basedir, config):
     print "never saw process go away"
     return 1
 
-def dump_uri_extension(config):
+def dump_uri_extension(config, output=sys.stdout):
     from allmydata import uri
 
     filename = config['filename']
@@ -338,23 +338,23 @@ def dump_uri_extension(config):
              "share_root_hash")
     for k in keys1:
         if k in unpacked:
-            print "%19s: %s" % (k, unpacked[k])
-    print
+            print >>output, "%19s: %s" % (k, unpacked[k])
+    print >>output
     for k in keys2:
         if k in unpacked:
-            print "%19s: %s" % (k, unpacked[k])
-    print
+            print >>output, "%19s: %s" % (k, unpacked[k])
+    print >>output
     for k in keys3:
         if k in unpacked:
-            print "%19s: %s" % (k, unpacked[k])
+            print >>output, "%19s: %s" % (k, unpacked[k])
 
     leftover = set(unpacked.keys()) - set(keys1 + keys2 + keys3)
     if leftover:
-        print
+        print >>output
         for k in sorted(leftover):
-            print "%s: %s" % (k, unpacked[k])
+            print >>output, "%s: %s" % (k, unpacked[k])
 
-    print
+    print >>output
     return 0
 
 def dump_root_dirnode(basedir, config, output=sys.stdout):

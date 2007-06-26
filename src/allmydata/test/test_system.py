@@ -1,11 +1,13 @@
 
 import os
+from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.application import service
 from allmydata import client, uri, download, upload
 from allmydata.introducer_and_vdrive import IntroducerAndVdrive
 from allmydata.util import idlib, fileutil, testutil
+from allmydata.scripts import runner
 from foolscap.eventual import flushEventualQueue
 from twisted.python import log
 from twisted.python.failure import Failure
@@ -259,6 +261,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             self.failUnlessEqual(data, DATA)
         d.addCallback(_get_done)
         d.addCallback(self._test_web)
+        d.addCallback(self._test_runner)
         return d
     test_vdrive.timeout = 1100
 
@@ -359,4 +362,39 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         # TODO: delete a file by using a button on the directory page
 
         return d
+
+    def _test_runner(self, res):
+        # exercise some of the diagnostic tools in runner.py
+
+        # find a uri_extension file
+        for (dirpath, dirnames, filenames) in os.walk(self.basedir):
+            if "uri_extension" in filenames:
+                break
+        else:
+            self.fail("unable to find any uri_extension files in %s"
+                      % self.basedir)
+        log.msg("test_system.SystemTest._test_runner using %s" % dirpath)
+
+        filename = os.path.join(dirpath, "uri_extension")
+        s = StringIO()
+        rc = runner.dump_uri_extension({'filename': filename}, s)
+        output = s.getvalue()
+        self.failUnlessEqual(rc, 0)
+
+        # we only upload a single file, so we can assert some things about
+        # its size and shares
+        self.failUnless("size: %d\n" % len(self.data) in output)
+        self.failUnless("num_segments: 1\n" in output)
+        # segment_size is always a multiple of needed_shares
+        self.failUnless("segment_size: 50\n" in output)
+        self.failUnless("total_shares: 100\n" in output)
+        # keys which are supposed to be present
+        for key in ("size", "num_segments", "segment_size",
+                    "needed_shares", "total_shares",
+                    "codec_name", "codec_params", "tail_codec_params",
+                    "plaintext_hash", "plaintext_root_hash",
+                    "crypttext_hash", "crypttext_root_hash",
+                    "share_root_hash",
+                    ):
+            self.failUnless("%s: " % key in output, key)
 
