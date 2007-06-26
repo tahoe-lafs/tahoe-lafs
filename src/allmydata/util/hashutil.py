@@ -79,3 +79,13 @@ def generate_dirnode_keys_from_writekey(write_key):
 def generate_dirnode_keys_from_readkey(read_key):
     index = dir_index_hash(read_key)
     return None, None, read_key, index
+
+def _xor(a, b):
+    return "".join([chr(ord(c) ^ ord(b)) for c in a])
+
+def hmac(tag, data):
+    ikey = _xor(tag, "\x36")
+    okey = _xor(tag, "\x5c")
+    h1 = SHA256.new(ikey + data).digest()
+    h2 = SHA256.new(okey + h1).digest()
+    return h2

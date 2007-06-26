@@ -255,3 +255,35 @@ class Test(unittest.TestCase):
                              sorted(expected_keys))
         return res
 
+def flip_bit(data, offset):
+    if offset < 0:
+        offset = len(data) + offset
+    return data[:offset] + chr(ord(data[offset]) ^ 0x01) + data[offset+1:]
+
+class Encryption(unittest.TestCase):
+    def test_loopback(self):
+        key = "k" * 16
+        data = "This is some plaintext data."
+        crypttext = vdrive.encrypt(key, data)
+        plaintext = vdrive.decrypt(key, crypttext)
+        self.failUnlessEqual(data, plaintext)
+
+    def test_hmac(self):
+        key = "j" * 16
+        data = "This is some more plaintext data."
+        crypttext = vdrive.encrypt(key, data)
+        # flip a bit in the IV
+        self.failUnlessRaises(vdrive.IntegrityCheckError,
+                              vdrive.decrypt,
+                              key, flip_bit(crypttext, 0))
+        # flip a bit in the crypttext
+        self.failUnlessRaises(vdrive.IntegrityCheckError,
+                              vdrive.decrypt,
+                              key, flip_bit(crypttext, 16))
+        # flip a bit in the HMAC
+        self.failUnlessRaises(vdrive.IntegrityCheckError,
+                              vdrive.decrypt,
+                              key, flip_bit(crypttext, -1))
+        plaintext = vdrive.decrypt(key, crypttext)
+        self.failUnlessEqual(data, plaintext)
+

@@ -27,23 +27,29 @@ def create_directory_node(client, diruri):
     d.addCallback(_got)
     return d
 
+IV_LENGTH = 14
 def encrypt(key, data):
-    # TODO: add the hmac
-    IV = os.urandom(14)
-    counterstart = IV + "\x00"*2
+    IV = os.urandom(IV_LENGTH)
+    counterstart = IV + "\x00"*(16-IV_LENGTH)
     assert len(counterstart) == 16, len(counterstart)
     cryptor = AES.new(key=key, mode=AES.MODE_CTR, counterstart=counterstart)
     crypttext = cryptor.encrypt(data)
-    return IV + crypttext
+    mac = hashutil.hmac(key, IV + crypttext)
+    assert len(mac) == 32
+    return IV + crypttext + mac
+
+class IntegrityCheckError(Exception):
+    pass
 
 def decrypt(key, data):
-    # TODO: validate the hmac
-    assert len(data) >= 14, len(data)
-    IV = data[:14]
-    counterstart = IV + "\x00"*2
+    assert len(data) >= (32+IV_LENGTH), len(data)
+    IV, crypttext, mac = data[:IV_LENGTH], data[IV_LENGTH:-32], data[-32:]
+    if mac != hashutil.hmac(key, IV+crypttext):
+        raise IntegrityCheckError("HMAC does not match, crypttext is corrupted")
+    counterstart = IV + "\x00"*(16-IV_LENGTH)
     assert len(counterstart) == 16, len(counterstart)
     cryptor = AES.new(key=key, mode=AES.MODE_CTR, counterstart=counterstart)
-    plaintext = cryptor.decrypt(data[14:])
+    plaintext = cryptor.decrypt(crypttext)
     return plaintext
 
 
