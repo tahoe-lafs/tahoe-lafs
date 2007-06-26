@@ -357,7 +357,7 @@ def dump_uri_extension(config):
     print
     return 0
 
-def dump_root_dirnode(basedir, config):
+def dump_root_dirnode(basedir, config, output=sys.stdout):
     from allmydata import uri
 
     root_dirnode_file = os.path.join(basedir, "vdrive", "root")
@@ -365,13 +365,14 @@ def dump_root_dirnode(basedir, config):
         f = open(root_dirnode_file, "rb")
         key = f.read()
         rooturi = uri.pack_dirnode_uri("fakeFURL", key)
-        print rooturi
+        print >>output, rooturi
         return 0
     except EnvironmentError:
-        print "unable to read root dirnode file from %s" % root_dirnode_file
+        print >>output,  "unable to read root dirnode file from %s" % \
+              root_dirnode_file
         return 1
 
-def dump_directory_node(basedir, config):
+def dump_directory_node(basedir, config, f=sys.stdout):
     from allmydata import filetable, vdrive, uri
     from allmydata.util import hashutil, idlib
     dir_uri = config['uri']
@@ -385,43 +386,43 @@ def dump_directory_node(basedir, config):
 
     filename = os.path.join(basedir, "vdrive", idlib.b2a(index))
 
-    print
-    print "dirnode uri: %s" % dir_uri
-    print "filename : %s" % filename
-    print "index        : %s" % idlib.b2a(index)
+    print >>f
+    print >>f, "dirnode uri: %s" % dir_uri
+    print >>f, "filename : %s" % filename
+    print >>f, "index        : %s" % idlib.b2a(index)
     if wk:
-        print "writekey     : %s" % idlib.b2a(wk)
-        print "write_enabler: %s" % idlib.b2a(we)
+        print >>f, "writekey     : %s" % idlib.b2a(wk)
+        print >>f, "write_enabler: %s" % idlib.b2a(we)
     else:
-        print "writekey     : None"
-        print "write_enabler: None"
-    print "readkey      : %s" % idlib.b2a(rk)
+        print >>f, "writekey     : None"
+        print >>f, "write_enabler: None"
+    print >>f, "readkey      : %s" % idlib.b2a(rk)
 
-    print
+    print >>f
 
     vds = filetable.VirtualDriveServer(os.path.join(basedir, "vdrive"), False)
     data = vds._read_from_file(index)
     if we:
         if we != data[0]:
-            print "ERROR: write_enabler does not match"
+            print >>f, "ERROR: write_enabler does not match"
 
     for (H_key, E_key, E_write, E_read) in data[1]:
         if verbose:
-            print " H_key %s" % idlib.b2a(H_key)
-            print " E_key %s" % idlib.b2a(E_key)
-            print " E_write %s" % idlib.b2a(E_write)
-            print " E_read %s" % idlib.b2a(E_read)
+            print >>f, " H_key %s" % idlib.b2a(H_key)
+            print >>f, " E_key %s" % idlib.b2a(E_key)
+            print >>f, " E_write %s" % idlib.b2a(E_write)
+            print >>f, " E_read %s" % idlib.b2a(E_read)
         key = vdrive.decrypt(rk, E_key)
-        print " key %s" % key
+        print >>f, " key %s" % key
         if hashutil.dir_name_hash(rk, key) != H_key:
-            print "  ERROR: H_key does not match"
+            print >>f, "  ERROR: H_key does not match"
         if wk and E_write:
             if len(E_write) < 14:
-                print "  ERROR: write data is short:", idlib.b2a(E_write)
+                print >>f, "  ERROR: write data is short:", idlib.b2a(E_write)
             write = vdrive.decrypt(wk, E_write)
-            print "   write: %s" % write
+            print >>f, "   write: %s" % write
         read = vdrive.decrypt(rk, E_read)
-        print "   read: %s" % read
-        print
+        print >>f, "   read: %s" % read
+        print >>f
 
     return 0

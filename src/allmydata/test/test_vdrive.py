@@ -1,9 +1,11 @@
 
+from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import failure
 from allmydata import vdrive, filetable, uri
 from allmydata.interfaces import IDirectoryNode
+from allmydata.scripts import runner
 from foolscap import eventual
 
 class LocalReference:
@@ -31,7 +33,7 @@ class MyClient:
 
 class Test(unittest.TestCase):
     def test_create_directory(self):
-        basedir = "vdrive/test_create_directory"
+        basedir = "vdrive/test_create_directory/vdrive"
         vds = filetable.VirtualDriveServer(basedir)
         vds.set_furl("myFURL")
         self.client = client = MyClient(vds, "myFURL")
@@ -43,7 +45,7 @@ class Test(unittest.TestCase):
         return d
 
     def test_one(self):
-        basedir = "vdrive/test_one"
+        self.basedir = basedir = "vdrive/test_one/vdrive"
         vds = filetable.VirtualDriveServer(basedir)
         vds.set_furl("myFURL")
         root_uri = vds.get_public_root_uri()
@@ -237,7 +239,65 @@ class Test(unittest.TestCase):
         d.addCallback(lambda res:self.bar_node_readonly.list())
         d.addCallback(self.failUnlessKeysMatch, ["baz", "file4"])
 
+        d.addCallback(self._test_one_3)
         return d
+
+    def _test_one_3(self, res):
+        # now test some of the diag tools with the data we've created
+        s = StringIO()
+        rc = runner.dump_root_dirnode("vdrive/test_one", {}, s)
+        output = s.getvalue()
+        self.failUnless(output.startswith("URI:DIR:fakeFURL:"))
+        self.failUnlessEqual(rc, 0)
+
+        s = StringIO()
+        args = {'uri': self.bar_node.get_uri(),
+                'verbose': True,
+                }
+        rc = runner.dump_directory_node("vdrive/test_one", args, s)
+        output = s.getvalue()
+        #print output
+        self.failUnless("dirnode uri: URI:DIR:myFURL" in output)
+        self.failUnless("write_enabler" in output)
+        self.failIf("write_enabler: None" in output)
+        self.failUnless("key baz\n" in output)
+        self.failUnless(" write: URI:DIR:myFURL:" in output)
+        self.failUnless(" read: URI:DIR-RO:myFURL:" in output)
+        self.failUnless("key file4\n" in output)
+        self.failUnless("H_key " in output)
+        self.failUnlessEqual(rc, 0)
+
+        s = StringIO()
+        args = {'uri': self.bar_node.get_uri(),
+                'verbose': False,
+                }
+        rc = runner.dump_directory_node("vdrive/test_one", args, s)
+        output = s.getvalue()
+        #print output
+        self.failUnless("dirnode uri: URI:DIR:myFURL" in output)
+        self.failUnless("write_enabler" in output)
+        self.failIf("write_enabler: None" in output)
+        self.failUnless("key baz\n" in output)
+        self.failUnless(" write: URI:DIR:myFURL:" in output)
+        self.failUnless(" read: URI:DIR-RO:myFURL:" in output)
+        self.failUnless("key file4\n" in output)
+        self.failIf("H_key " in output)
+        self.failUnlessEqual(rc, 0)
+
+        s = StringIO()
+        args = {'uri': self.bar_node_readonly.get_uri(),
+                'verbose': True,
+                }
+        rc = runner.dump_directory_node("vdrive/test_one", args, s)
+        output = s.getvalue()
+        #print output
+        self.failUnless("dirnode uri: URI:DIR-RO:myFURL" in output)
+        self.failUnless("write_enabler: None" in output)
+        self.failUnless("key baz\n" in output)
+        self.failIf(" write: URI:DIR:myFURL:" in output)
+        self.failUnless(" read: URI:DIR-RO:myFURL:" in output)
+        self.failUnless("key file4\n" in output)
+        self.failUnlessEqual(rc, 0)
 
     def shouldFail(self, res, expected_failure, which, substring=None):
         if isinstance(res, failure.Failure):
