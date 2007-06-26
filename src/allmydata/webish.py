@@ -186,7 +186,11 @@ class Directory(rend.Page):
             subdir_url = urllib.quote(name)
             ctx.fillSlots("filename",
                           T.a(href=subdir_url)[html.escape(name)])
-            ctx.fillSlots("type", "DIR")
+            if target.is_mutable():
+                dirtype = "DIR"
+            else:
+                dirtype = "DIR-RO"
+            ctx.fillSlots("type", dirtype)
             ctx.fillSlots("size", "-")
             ctx.fillSlots("uri", "-")
         else:
