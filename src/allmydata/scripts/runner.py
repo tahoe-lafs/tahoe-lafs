@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 import os, subprocess, sys, signal, time
+from cStringIO import StringIO
 from twisted.python import usage
 
 from twisted.python.procutils import which
@@ -104,16 +105,10 @@ class CreateClientOptions(NoDefaultBasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to create the client in"],
         ]
-    optFlags = [
-        ["quiet", "q", "operate silently"],
-        ]
 
 class CreateIntroducerOptions(NoDefaultBasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to create the introducer in"],
-        ]
-    optFlags = [
-        ["quiet", "q", "operate silently"],
         ]
 
 class DumpOptions(usage.Options):
@@ -180,6 +175,10 @@ c.setServiceParent(application)
 class Options(usage.Options):
     synopsis = "Usage:  allmydata <command> [command options]"
 
+    optFlags = [
+        ["quiet", "q", "operate silently"],
+        ]
+
     subCommands = [
         ["create-client", None, CreateClientOptions, "Create a client node."],
         ["create-introducer", None, CreateIntroducerOptions, "Create a introducer node."],
@@ -198,7 +197,7 @@ class Options(usage.Options):
         if not hasattr(self, 'subOptions'):
             raise usage.UsageError("must specify a command")
 
-def runner(argv, run_by_human=True):
+def runner(argv, run_by_human=True, stdout=sys.stdout, stderr=sys.stderr):
     config = Options()
     try:
         config.parseOptions(argv)
@@ -214,45 +213,48 @@ def runner(argv, run_by_human=True):
     command = config.subCommand
     so = config.subOptions
 
+    if config['quiet']:
+        stdout = StringIO()
+
     rc = 0
     if command == "create-client":
         for basedir in so.basedirs:
-            rc = create_client(basedir, so) or rc
+            rc = create_client(basedir, so, stdout, stderr) or rc
     elif command == "create-introducer":
         for basedir in so.basedirs:
-            rc = create_introducer(basedir, so) or rc
+            rc = create_introducer(basedir, so, stdout, stderr) or rc
     elif command == "start":
         for basedir in so.basedirs:
-            rc = start(basedir, so) or rc
+            rc = start(basedir, so, stdout, stderr) or rc
     elif command == "stop":
         for basedir in so.basedirs:
-            rc = stop(basedir, so) or rc
+            rc = stop(basedir, so, stdout, stderr) or rc
     elif command == "restart":
         for basedir in so.basedirs:
-            rc = stop(basedir, so) or rc
+            rc = stop(basedir, so, stdout, stderr) or rc
         if rc:
-            print "not restarting"
+            print >>stderr, "not restarting"
             return rc
         for basedir in so.basedirs:
-            rc = start(basedir, so) or rc
+            rc = start(basedir, so, stdout, stderr) or rc
     elif command == "dump-uri-extension":
-        rc = dump_uri_extension(so)
+        rc = dump_uri_extension(so, stdout, stderr)
     elif command == "dump-root-dirnode":
-        rc = dump_root_dirnode(so.basedirs[0], so)
+        rc = dump_root_dirnode(so.basedirs[0], so, stdout, stderr)
     elif command == "dump-dirnode":
-        rc = dump_directory_node(so.basedirs[0], so)
+        rc = dump_directory_node(so.basedirs[0], so, stdout, stderr)
     return rc
 
 def run():
     rc = runner(sys.argv[1:])
     sys.exit(rc)
 
-def create_client(basedir, config):
+def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
     if os.path.exists(basedir):
         if os.listdir(basedir):
-            print "The base directory already exists: %s" % basedir
-            print "To avoid clobbering anything, I am going to quit now"
-            print "Please use a different directory, or delete this one"
+            print >>err, "The base directory already exists: %s" % basedir
+            print >>err, "To avoid clobbering anything, I am going to quit now"
+            print >>err, "Please use a different directory, or delete this one"
             return -1
         # we're willing to use an empty directory
     else:
@@ -260,16 +262,15 @@ def create_client(basedir, config):
     f = open(os.path.join(basedir, "client.tac"), "w")
     f.write(client_tac)
     f.close()
-    if not config['quiet']:
-        print "client created in %s" % basedir
-        print " please copy introducer.furl and vdrive.furl into the directory"
+    print >>out, "client created in %s" % basedir
+    print >>out, " please copy introducer.furl and vdrive.furl into the directory"
 
-def create_introducer(basedir, config):
+def create_introducer(basedir, config, out=sys.stdout, err=sys.stderr):
     if os.path.exists(basedir):
         if os.listdir(basedir):
-            print "The base directory already exists: %s" % basedir
-            print "To avoid clobbering anything, I am going to quit now"
-            print "Please use a different directory, or delete this one"
+            print >>err, "The base directory already exists: %s" % basedir
+            print >>err, "To avoid clobbering anything, I am going to quit now"
+            print >>err, "Please use a different directory, or delete this one"
             return -1
         # we're willing to use an empty directory
     else:
@@ -277,11 +278,10 @@ def create_introducer(basedir, config):
     f = open(os.path.join(basedir, "introducer.tac"), "w")
     f.write(introducer_tac)
     f.close()
-    if not config['quiet']:
-        print "introducer created in %s" % basedir
+    print >>out, "introducer created in %s" % basedir
 
-def start(basedir, config):
-    print "STARTING", basedir
+def start(basedir, config, out=sys.stdout, err=sys.stderr):
+    print >>out, "STARTING", basedir
     if os.path.exists(os.path.join(basedir, "client.tac")):
         tac = "client.tac"
         type = "client"
@@ -289,23 +289,23 @@ def start(basedir, config):
         tac = "introducer.tac"
         type = "introducer"
     else:
-        print "%s does not look like a node directory" % basedir
+        print >>err, "%s does not look like a node directory" % basedir
         if not os.path.isdir(basedir):
-            print " in fact, it doesn't look like a directory at all!"
+            print >>err, " in fact, it doesn't look like a directory at all!"
         sys.exit(1)
     rc = subprocess.call(["python", twistd, "-y", tac,], cwd=basedir)
     if rc == 0:
-        print "%s node probably started" % type
+        print >>out, "%s node probably started" % type
         return 0
     else:
-        print "%s node probably not started" % type
+        print >>err, "%s node probably not started" % type
         return 1
 
-def stop(basedir, config):
-    print "STOPPING", basedir
+def stop(basedir, config, out=sys.stdout, err=sys.stderr):
+    print >>out, "STOPPING", basedir
     pidfile = os.path.join(basedir, "twistd.pid")
     if not os.path.exists(pidfile):
-        print "%s does not look like a running node directory (no twistd.pid)" % basedir
+        print >>err, "%s does not look like a running node directory (no twistd.pid)" % basedir
         return 1
     pid = open(pidfile, "r").read()
     pid = int(pid)
@@ -318,14 +318,14 @@ def stop(basedir, config):
         try:
             os.kill(pid, 0)
         except OSError:
-            print "process %d is dead" % pid
+            print >>out, "process %d is dead" % pid
             return
         timer += 1
         time.sleep(1)
-    print "never saw process go away"
+    print >>err, "never saw process go away"
     return 1
 
-def dump_uri_extension(config, output=sys.stdout):
+def dump_uri_extension(config, out=sys.stdout, err=sys.stderr):
     from allmydata import uri
 
     filename = config['filename']
@@ -338,26 +338,26 @@ def dump_uri_extension(config, output=sys.stdout):
              "share_root_hash")
     for k in keys1:
         if k in unpacked:
-            print >>output, "%19s: %s" % (k, unpacked[k])
-    print >>output
+            print >>out, "%19s: %s" % (k, unpacked[k])
+    print >>out
     for k in keys2:
         if k in unpacked:
-            print >>output, "%19s: %s" % (k, unpacked[k])
-    print >>output
+            print >>out, "%19s: %s" % (k, unpacked[k])
+    print >>out
     for k in keys3:
         if k in unpacked:
-            print >>output, "%19s: %s" % (k, unpacked[k])
+            print >>out, "%19s: %s" % (k, unpacked[k])
 
     leftover = set(unpacked.keys()) - set(keys1 + keys2 + keys3)
     if leftover:
-        print >>output
+        print >>out
         for k in sorted(leftover):
-            print >>output, "%s: %s" % (k, unpacked[k])
+            print >>out, "%s: %s" % (k, unpacked[k])
 
-    print >>output
+    print >>out
     return 0
 
-def dump_root_dirnode(basedir, config, output=sys.stdout):
+def dump_root_dirnode(basedir, config, out=sys.stdout, err=sys.stderr):
     from allmydata import uri
 
     root_dirnode_file = os.path.join(basedir, "vdrive", "root")
@@ -365,14 +365,14 @@ def dump_root_dirnode(basedir, config, output=sys.stdout):
         f = open(root_dirnode_file, "rb")
         key = f.read()
         rooturi = uri.pack_dirnode_uri("fakeFURL", key)
-        print >>output, rooturi
+        print >>out, rooturi
         return 0
     except EnvironmentError:
-        print >>output,  "unable to read root dirnode file from %s" % \
+        print >>out,  "unable to read root dirnode file from %s" % \
               root_dirnode_file
         return 1
 
-def dump_directory_node(basedir, config, f=sys.stdout):
+def dump_directory_node(basedir, config, out=sys.stdout, err=sys.stderr):
     from allmydata import filetable, vdrive, uri
     from allmydata.util import hashutil, idlib
     dir_uri = config['uri']
@@ -386,43 +386,43 @@ def dump_directory_node(basedir, config, f=sys.stdout):
 
     filename = os.path.join(basedir, "vdrive", idlib.b2a(index))
 
-    print >>f
-    print >>f, "dirnode uri: %s" % dir_uri
-    print >>f, "filename : %s" % filename
-    print >>f, "index        : %s" % idlib.b2a(index)
+    print >>out
+    print >>out, "dirnode uri: %s" % dir_uri
+    print >>out, "filename : %s" % filename
+    print >>out, "index        : %s" % idlib.b2a(index)
     if wk:
-        print >>f, "writekey     : %s" % idlib.b2a(wk)
-        print >>f, "write_enabler: %s" % idlib.b2a(we)
+        print >>out, "writekey     : %s" % idlib.b2a(wk)
+        print >>out, "write_enabler: %s" % idlib.b2a(we)
     else:
-        print >>f, "writekey     : None"
-        print >>f, "write_enabler: None"
-    print >>f, "readkey      : %s" % idlib.b2a(rk)
+        print >>out, "writekey     : None"
+        print >>out, "write_enabler: None"
+    print >>out, "readkey      : %s" % idlib.b2a(rk)
 
-    print >>f
+    print >>out
 
     vds = filetable.VirtualDriveServer(os.path.join(basedir, "vdrive"), False)
     data = vds._read_from_file(index)
     if we:
         if we != data[0]:
-            print >>f, "ERROR: write_enabler does not match"
+            print >>out, "ERROR: write_enabler does not match"
 
     for (H_key, E_key, E_write, E_read) in data[1]:
         if verbose:
-            print >>f, " H_key %s" % idlib.b2a(H_key)
-            print >>f, " E_key %s" % idlib.b2a(E_key)
-            print >>f, " E_write %s" % idlib.b2a(E_write)
-            print >>f, " E_read %s" % idlib.b2a(E_read)
+            print >>out, " H_key %s" % idlib.b2a(H_key)
+            print >>out, " E_key %s" % idlib.b2a(E_key)
+            print >>out, " E_write %s" % idlib.b2a(E_write)
+            print >>out, " E_read %s" % idlib.b2a(E_read)
         key = vdrive.decrypt(rk, E_key)
-        print >>f, " key %s" % key
+        print >>out, " key %s" % key
         if hashutil.dir_name_hash(rk, key) != H_key:
-            print >>f, "  ERROR: H_key does not match"
+            print >>out, "  ERROR: H_key does not match"
         if wk and E_write:
             if len(E_write) < 14:
-                print >>f, "  ERROR: write data is short:", idlib.b2a(E_write)
+                print >>out, "  ERROR: write data is short:", idlib.b2a(E_write)
             write = vdrive.decrypt(wk, E_write)
-            print >>f, "   write: %s" % write
+            print >>out, "   write: %s" % write
         read = vdrive.decrypt(rk, E_read)
-        print >>f, "   read: %s" % read
-        print >>f
+        print >>out, "   read: %s" % read
+        print >>out
 
     return 0

@@ -16,13 +16,24 @@ class CreateNode(unittest.TestCase):
     def test_client(self):
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
-        argv = ["create-client", "--basedir", c1, "--quiet"]
-        runner.runner(argv)
+        argv = ["--quiet", "create-client", "--basedir", c1]
+        out,err = StringIO(), StringIO()
+        rc = runner.runner(argv, stdout=out, stderr=err)
+        self.failUnlessEqual(err.getvalue(), "")
+        self.failUnlessEqual(out.getvalue(), "")
+        self.failUnlessEqual(rc, 0)
         self.failUnless(os.path.exists(c1))
         self.failUnless(os.path.exists(os.path.join(c1, "client.tac")))
 
+        # creating the client a second time should throw an exception
+        out,err = StringIO(), StringIO()
+        rc = runner.runner(argv, stdout=out, stderr=err)
+        self.failIfEqual(rc, 0)
+        self.failUnlessEqual(out.getvalue(), "")
+        self.failUnless("The base directory already exists" in err.getvalue())
+
         c2 = os.path.join(basedir, "c2")
-        argv = ["create-client", "--quiet", c2]
+        argv = ["--quiet", "create-client", c2]
         runner.runner(argv)
         self.failUnless(os.path.exists(c2))
         self.failUnless(os.path.exists(os.path.join(c2, "client.tac")))
@@ -40,13 +51,24 @@ class CreateNode(unittest.TestCase):
     def test_introducer(self):
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")
-        argv = ["create-introducer", "--basedir", c1, "--quiet"]
-        runner.runner(argv)
+        argv = ["--quiet", "create-introducer", "--basedir", c1]
+        out,err = StringIO(), StringIO()
+        rc = runner.runner(argv, stdout=out, stderr=err)
+        self.failUnlessEqual(err.getvalue(), "")
+        self.failUnlessEqual(out.getvalue(), "")
+        self.failUnlessEqual(rc, 0)
         self.failUnless(os.path.exists(c1))
         self.failUnless(os.path.exists(os.path.join(c1, "introducer.tac")))
 
+        # creating the introducer a second time should throw an exception
+        out,err = StringIO(), StringIO()
+        rc = runner.runner(argv, stdout=out, stderr=err)
+        self.failIfEqual(rc, 0)
+        self.failUnlessEqual(out.getvalue(), "")
+        self.failUnless("The base directory already exists" in err.getvalue())
+
         c2 = os.path.join(basedir, "c2")
-        argv = ["create-introducer", "--quiet", c2]
+        argv = ["--quiet", "create-introducer", c2]
         runner.runner(argv)
         self.failUnless(os.path.exists(c2))
         self.failUnless(os.path.exists(os.path.join(c2, "introducer.tac")))
