@@ -376,9 +376,12 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         log.msg("test_system.SystemTest._test_runner using %s" % dirpath)
 
         filename = os.path.join(dirpath, "uri_extension")
-        s = StringIO()
-        rc = runner.dump_uri_extension({'filename': filename}, s)
-        output = s.getvalue()
+
+        out,err = StringIO(), StringIO()
+        rc = runner.runner(["dump-uri-extension",
+                            filename],
+                           stdout=out, stderr=err)
+        output = out.getvalue()
         self.failUnlessEqual(rc, 0)
 
         # we only upload a single file, so we can assert some things about
