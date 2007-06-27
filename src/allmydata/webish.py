@@ -7,7 +7,7 @@ from nevow.static import File as nevow_File # TODO: merge with static.File?
 from allmydata.util import idlib
 from allmydata.uri import unpack_uri
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode
-from allmydata.vdrive import FileNode
+from allmydata.dirnode import FileNode
 from allmydata import upload
 from zope.interface import implements, Interface
 import urllib

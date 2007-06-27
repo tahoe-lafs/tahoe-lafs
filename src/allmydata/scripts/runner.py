@@ -373,7 +373,7 @@ def dump_root_dirnode(basedir, config, out=sys.stdout, err=sys.stderr):
         return 1
 
 def dump_directory_node(basedir, config, out=sys.stdout, err=sys.stderr):
-    from allmydata import filetable, vdrive, uri
+    from allmydata import uri, dirnode
     from allmydata.util import hashutil, idlib
     dir_uri = config['uri']
     verbose = config['verbose']
@@ -400,7 +400,7 @@ def dump_directory_node(basedir, config, out=sys.stdout, err=sys.stderr):
 
     print >>out
 
-    vds = filetable.VirtualDriveServer(os.path.join(basedir, "vdrive"), False)
+    vds = dirnode.VirtualDriveServer(os.path.join(basedir, "vdrive"), False)
     data = vds._read_from_file(index)
     if we:
         if we != data[0]:
@@ -412,16 +412,16 @@ def dump_directory_node(basedir, config, out=sys.stdout, err=sys.stderr):
             print >>out, " E_key %s" % idlib.b2a(E_key)
             print >>out, " E_write %s" % idlib.b2a(E_write)
             print >>out, " E_read %s" % idlib.b2a(E_read)
-        key = vdrive.decrypt(rk, E_key)
+        key = dirnode.decrypt(rk, E_key)
         print >>out, " key %s" % key
         if hashutil.dir_name_hash(rk, key) != H_key:
             print >>out, "  ERROR: H_key does not match"
         if wk and E_write:
             if len(E_write) < 14:
                 print >>out, "  ERROR: write data is short:", idlib.b2a(E_write)
-            write = vdrive.decrypt(wk, E_write)
+            write = dirnode.decrypt(wk, E_write)
             print >>out, "   write: %s" % write
-        read = vdrive.decrypt(rk, E_read)
+        read = dirnode.decrypt(rk, E_read)
         print >>out, "   read: %s" % read
         print >>out
 

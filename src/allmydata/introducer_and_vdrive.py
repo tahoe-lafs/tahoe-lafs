@@ -1,7 +1,7 @@
 
 import os.path
 from allmydata import node
-from allmydata.filetable import VirtualDriveServer
+from allmydata.dirnode import VirtualDriveServer
 from allmydata.introducer import Introducer
 
 

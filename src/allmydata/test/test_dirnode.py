@@ -1,12 +1,101 @@
 
-from cStringIO import StringIO
 from twisted.trial import unittest
+from cStringIO import StringIO
+from foolscap import eventual
 from twisted.internet import defer
 from twisted.python import failure
-from allmydata import vdrive, filetable, uri
+from allmydata import uri, dirnode
+from allmydata.util import hashutil
 from allmydata.interfaces import IDirectoryNode
 from allmydata.scripts import runner
-from foolscap import eventual
+from allmydata.dirnode import VirtualDriveServer, \
+     ChildAlreadyPresentError, BadWriteEnablerError, NoPublicRootError
+
+# test the host-side code
+
+class DirectoryNode(unittest.TestCase):
+    def test_vdrive_server(self):
+        basedir = "dirnode_host/DirectoryNode/test_vdrive_server"
+        vds = VirtualDriveServer(basedir)
+        vds.set_furl("myFURL")
+
+        root_uri = vds.get_public_root_uri()
+        self.failUnless(uri.is_dirnode_uri(root_uri))
+        self.failUnless(uri.is_mutable_dirnode_uri(root_uri))
+        furl, key = uri.unpack_dirnode_uri(root_uri)
+        self.failUnlessEqual(furl, "myFURL")
+        self.failUnlessEqual(len(key), hashutil.KEYLEN)
+
+        wk, we, rk, index = hashutil.generate_dirnode_keys_from_writekey(key)
+        empty_list = vds.list(index)
+        self.failUnlessEqual(empty_list, [])
+
+        vds.set(index, we, "key1", "name1", "write1", "read1")
+        vds.set(index, we, "key2", "name2", "", "read2")
+
+        self.failUnlessRaises(ChildAlreadyPresentError,
+                              vds.set,
+                              index, we, "key2", "name2", "write2", "read2")
+
+        self.failUnlessRaises(BadWriteEnablerError,
+                              vds.set,
+                              index, "not the write enabler",
+                              "key2", "name2", "write2", "read2")
+
+        self.failUnlessEqual(vds.get(index, "key1"),
+                             ("write1", "read1"))
+        self.failUnlessEqual(vds.get(index, "key2"),
+                             ("", "read2"))
+        self.failUnlessRaises(IndexError,
+                              vds.get, index, "key3")
+
+        self.failUnlessEqual(sorted(vds.list(index)),
+                             [ ("name1", "write1", "read1"),
+                               ("name2", "", "read2"),
+                               ])
+
+        self.failUnlessRaises(BadWriteEnablerError,
+                              vds.delete,
+                              index, "not the write enabler", "name1")
+        self.failUnlessEqual(sorted(vds.list(index)),
+                             [ ("name1", "write1", "read1"),
+                               ("name2", "", "read2"),
+                               ])
+        self.failUnlessRaises(IndexError,
+                              vds.delete,
+                              index, we, "key3")
+
+        vds.delete(index, we, "key1")
+        self.failUnlessEqual(sorted(vds.list(index)),
+                             [ ("name2", "", "read2"),
+                               ])
+        self.failUnlessRaises(IndexError,
+                              vds.get, index, "key1")
+        self.failUnlessEqual(vds.get(index, "key2"),
+                             ("", "read2"))
+
+
+        vds2 = VirtualDriveServer(basedir)
+        vds2.set_furl("myFURL")
+        root_uri2 = vds.get_public_root_uri()
+        self.failUnless(uri.is_mutable_dirnode_uri(root_uri2))
+        furl2, key2 = uri.unpack_dirnode_uri(root_uri2)
+        (wk2, we2, rk2, index2) = \
+              hashutil.generate_dirnode_keys_from_writekey(key2)
+        self.failUnlessEqual(sorted(vds2.list(index2)),
+                             [ ("name2", "", "read2"),
+                               ])
+
+    def test_no_root(self):
+        basedir = "dirnode_host/DirectoryNode/test_no_root"
+        vds = VirtualDriveServer(basedir, offer_public_root=False)
+        vds.set_furl("myFURL")
+
+        self.failUnlessRaises(NoPublicRootError,
+                              vds.get_public_root_uri)
+
+
+# and the client-side too
 
 class LocalReference:
     def __init__(self, target):
@@ -34,10 +123,10 @@ class MyClient:
 class Test(unittest.TestCase):
     def test_create_directory(self):
         basedir = "vdrive/test_create_directory/vdrive"
-        vds = filetable.VirtualDriveServer(basedir)
+        vds = dirnode.VirtualDriveServer(basedir)
         vds.set_furl("myFURL")
         self.client = client = MyClient(vds, "myFURL")
-        d = vdrive.create_directory(client, "myFURL")
+        d = dirnode.create_directory(client, "myFURL")
         def _created(node):
             self.failUnless(IDirectoryNode.providedBy(node))
             self.failUnless(node.is_mutable())
@@ -46,13 +135,13 @@ class Test(unittest.TestCase):
 
     def test_one(self):
         self.basedir = basedir = "vdrive/test_one/vdrive"
-        vds = filetable.VirtualDriveServer(basedir)
+        vds = dirnode.VirtualDriveServer(basedir)
         vds.set_furl("myFURL")
         root_uri = vds.get_public_root_uri()
 
         self.client = client = MyClient(vds, "myFURL")
-        d1 = vdrive.create_directory_node(client, root_uri)
-        d2 = vdrive.create_directory_node(client, root_uri)
+        d1 = dirnode.create_directory_node(client, root_uri)
+        d2 = dirnode.create_directory_node(client, root_uri)
         d = defer.gatherResults( [d1,d2] )
         d.addCallback(self._test_one_1)
         return d
@@ -64,7 +153,7 @@ class Test(unittest.TestCase):
         self.rootnode = rootnode = rootnode1
         self.failUnless(rootnode.is_mutable())
         self.readonly_uri = rootnode.get_immutable_uri()
-        d = vdrive.create_directory_node(self.client, self.readonly_uri)
+        d = dirnode.create_directory_node(self.client, self.readonly_uri)
         d.addCallback(self._test_one_2)
         return d
 
@@ -86,7 +175,7 @@ class Test(unittest.TestCase):
 
         file1 = uri.pack_uri("i"*32, "k"*16, "e"*32, 25, 100, 12345)
         file2 = uri.pack_uri("i"*31 + "2", "k"*16, "e"*32, 25, 100, 12345)
-        file2_node = vdrive.FileNode(file2, None)
+        file2_node = dirnode.FileNode(file2, None)
         d.addCallback(lambda res: rootnode.set_uri("foo", file1))
         # root/
         # root/foo =file1
@@ -95,13 +184,13 @@ class Test(unittest.TestCase):
         def _listed2(res):
             self.failUnlessEqual(res.keys(), ["foo"])
             file1_node = res["foo"]
-            self.failUnless(isinstance(file1_node, vdrive.FileNode))
+            self.failUnless(isinstance(file1_node, dirnode.FileNode))
             self.failUnlessEqual(file1_node.uri, file1)
         d.addCallback(_listed2)
 
         d.addCallback(lambda res: rootnode.get("foo"))
         def _got_foo(res):
-            self.failUnless(isinstance(res, vdrive.FileNode))
+            self.failUnless(isinstance(res, dirnode.FileNode))
             self.failUnlessEqual(res.uri, file1)
         d.addCallback(_got_foo)
 
@@ -126,7 +215,7 @@ class Test(unittest.TestCase):
             # make sure the objects can be used as dict keys
             testdict = {res["foo"]: 1, res["bar"]: 2}
             bar_node = res["bar"]
-            self.failUnless(isinstance(bar_node, vdrive.MutableDirectoryNode))
+            self.failUnless(isinstance(bar_node, dirnode.MutableDirectoryNode))
             self.bar_node = bar_node
             bar_ro_uri = bar_node.get_immutable_uri()
             return rootnode.set_uri("bar-ro", bar_ro_uri)
@@ -171,18 +260,18 @@ class Test(unittest.TestCase):
         # try to add a file to bar-ro, should get exception
         d.addCallback(lambda res:
                       self.bar_node_readonly.set_uri("file3", file2))
-        d.addBoth(self.shouldFail, vdrive.NotMutableError,
+        d.addBoth(self.shouldFail, dirnode.NotMutableError,
                   "bar-ro.set('file3')")
 
         # try to delete a file from bar-ro, should get exception
         d.addCallback(lambda res: self.bar_node_readonly.delete("file2"))
-        d.addBoth(self.shouldFail, vdrive.NotMutableError,
+        d.addBoth(self.shouldFail, dirnode.NotMutableError,
                   "bar-ro.delete('file2')")
 
         # try to mkdir in bar-ro, should get exception
         d.addCallback(lambda res:
                       self.bar_node_readonly.create_empty_directory("boffo"))
-        d.addBoth(self.shouldFail, vdrive.NotMutableError,
+        d.addBoth(self.shouldFail, dirnode.NotMutableError,
                   "bar-ro.mkdir('boffo')")
 
         d.addCallback(lambda res: rootnode.delete("foo"))
@@ -218,7 +307,7 @@ class Test(unittest.TestCase):
         d.addCallback(lambda res:
                       rootnode.move_child_to("file4",
                                              self.bar_node_readonly, "boffo"))
-        d.addBoth(self.shouldFail, vdrive.NotMutableError,
+        d.addBoth(self.shouldFail, dirnode.NotMutableError,
                   "mv root/file4 root/bar-ro/boffo")
 
         d.addCallback(lambda res: rootnode.list())
@@ -328,26 +417,26 @@ class Encryption(unittest.TestCase):
     def test_loopback(self):
         key = "k" * 16
         data = "This is some plaintext data."
-        crypttext = vdrive.encrypt(key, data)
-        plaintext = vdrive.decrypt(key, crypttext)
+        crypttext = dirnode.encrypt(key, data)
+        plaintext = dirnode.decrypt(key, crypttext)
         self.failUnlessEqual(data, plaintext)
 
     def test_hmac(self):
         key = "j" * 16
         data = "This is some more plaintext data."
-        crypttext = vdrive.encrypt(key, data)
+        crypttext = dirnode.encrypt(key, data)
         # flip a bit in the IV
-        self.failUnlessRaises(vdrive.IntegrityCheckError,
-                              vdrive.decrypt,
+        self.failUnlessRaises(dirnode.IntegrityCheckError,
+                              dirnode.decrypt,
                               key, flip_bit(crypttext, 0))
         # flip a bit in the crypttext
-        self.failUnlessRaises(vdrive.IntegrityCheckError,
-                              vdrive.decrypt,
+        self.failUnlessRaises(dirnode.IntegrityCheckError,
+                              dirnode.decrypt,
                               key, flip_bit(crypttext, 16))
         # flip a bit in the HMAC
-        self.failUnlessRaises(vdrive.IntegrityCheckError,
-                              vdrive.decrypt,
+        self.failUnlessRaises(dirnode.IntegrityCheckError,
+                              dirnode.decrypt,
                               key, flip_bit(crypttext, -1))
-        plaintext = vdrive.decrypt(key, crypttext)
+        plaintext = dirnode.decrypt(key, crypttext)
         self.failUnlessEqual(data, plaintext)
 

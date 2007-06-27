@@ -3,7 +3,7 @@ import os, sha, stat, time
 from foolscap import Referenceable, SturdyRef
 from zope.interface import implements
 from allmydata.interfaces import RIClient, IDirectoryNode
-from allmydata import node, vdrive, uri
+from allmydata import node, uri
 
 from twisted.internet import defer, reactor
 from twisted.application.internet import TimerService
@@ -16,6 +16,7 @@ from allmydata.download import Downloader
 from allmydata.webish import WebishServer
 from allmydata.control import ControlServer
 from allmydata.introducer import IntroducerClient
+from allmydata.dirnode import create_directory_node, create_directory
 
 class Client(node.Node, Referenceable):
     implements(RIClient)
@@ -123,7 +124,7 @@ class Client(node.Node, Referenceable):
     def _got_vdrive_uri(self, root_uri):
         furl, wk = uri.unpack_dirnode_uri(root_uri)
         self._vdrive_furl = furl
-        return vdrive.create_directory_node(self, root_uri)
+        return create_directory_node(self, root_uri)
 
     def _got_vdrive_rootnode(self, rootnode):
         self.log("got vdrive root")
@@ -145,10 +146,10 @@ class Client(node.Node, Referenceable):
             f = open(MY_VDRIVE_URI_FILE, "r")
             my_vdrive_uri = f.read().strip()
             f.close()
-            return vdrive.create_directory_node(self, my_vdrive_uri)
+            return create_directory_node(self, my_vdrive_uri)
         except EnvironmentError:
             assert self._vdrive_furl
-            d = vdrive.create_directory(self, self._vdrive_furl)
+            d = create_directory(self, self._vdrive_furl)
             def _got_directory(dirnode):
                 f = open(MY_VDRIVE_URI_FILE, "w")
                 f.write(dirnode.get_uri() + "\n")
