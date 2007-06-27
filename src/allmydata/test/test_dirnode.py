@@ -173,8 +173,8 @@ class Test(unittest.TestCase):
             self.failUnlessEqual(res, {})
         d.addCallback(_listed)
 
-        file1 = uri.pack_uri("i"*32, "k"*16, "e"*32, 25, 100, 12345)
-        file2 = uri.pack_uri("i"*31 + "2", "k"*16, "e"*32, 25, 100, 12345)
+        file1 = uri.pack_uri("11" + " "*30, "k"*16, "e"*32, 25, 100, 12345)
+        file2 = uri.pack_uri("2i" + " "*30, "k"*16, "e"*32, 25, 100, 12345)
         file2_node = dirnode.FileNode(file2, None)
         d.addCallback(lambda res: rootnode.set_uri("foo", file1))
         # root/
@@ -184,6 +184,7 @@ class Test(unittest.TestCase):
         def _listed2(res):
             self.failUnlessEqual(res.keys(), ["foo"])
             file1_node = res["foo"]
+            self.file1_node = file1_node
             self.failUnless(isinstance(file1_node, dirnode.FileNode))
             self.failUnlessEqual(file1_node.uri, file1)
         d.addCallback(_listed2)
@@ -238,6 +239,10 @@ class Test(unittest.TestCase):
         d.addCallback(self.failUnlessIdentical, file2_node)
         # and a directory
         d.addCallback(lambda res: self.bar_node.create_empty_directory("baz"))
+        def _added_baz(baz_node):
+            self.failUnless(IDirectoryNode.providedBy(baz_node))
+            self.baz_node = baz_node
+        d.addCallback(_added_baz)
         # root/
         # root/foo =file1
         # root/bar/
@@ -256,6 +261,21 @@ class Test(unittest.TestCase):
         d.addCallback(self.failUnlessKeysMatch, ["file2", "baz"])
         d.addCallback(lambda res:
                       self.failIf(res["baz"].is_mutable()))
+
+        # test the manifest
+        d.addCallback(lambda res: self.rootnode.build_manifest())
+        def _check_manifest(manifest):
+            manifest = sorted(list(manifest))
+            self.failUnlessEqual(len(manifest), 5)
+            expected = [self.rootnode.get_refresh_capability(),
+                        self.bar_node.get_refresh_capability(),
+                        self.file1_node.get_refresh_capability(),
+                        file2_node.get_refresh_capability(),
+                        self.baz_node.get_refresh_capability(),
+                        ]
+            expected.sort()
+            self.failUnlessEqual(manifest, expected)
+        d.addCallback(_check_manifest)
 
         # try to add a file to bar-ro, should get exception
         d.addCallback(lambda res:
@@ -290,7 +310,7 @@ class Test(unittest.TestCase):
                       self.bar_node.move_child_to("file2",
                                                   self.rootnode, "file4"))
         # root/
-        # root/file4 = file4
+        # root/file4 = file2
         # root/bar/
         # root/bar/baz/
         # root/bar-ro/  (read-only)
@@ -327,6 +347,27 @@ class Test(unittest.TestCase):
         d.addCallback(self.failUnlessKeysMatch, ["baz", "file4"])
         d.addCallback(lambda res:self.bar_node_readonly.list())
         d.addCallback(self.failUnlessKeysMatch, ["baz", "file4"])
+        # root/
+        # root/bar/
+        # root/bar/file4 = file2
+        # root/bar/baz/
+        # root/bar-ro/  (read-only)
+        # root/bar-ro/file4 = file2
+        # root/bar-ro/baz/
+
+        # test the manifest
+        d.addCallback(lambda res: self.rootnode.build_manifest())
+        def _check_manifest2(manifest):
+            manifest = sorted(list(manifest))
+            self.failUnlessEqual(len(manifest), 4)
+            expected = [self.rootnode.get_refresh_capability(),
+                        self.bar_node.get_refresh_capability(),
+                        file2_node.get_refresh_capability(),
+                        self.baz_node.get_refresh_capability(),
+                        ]
+            expected.sort()
+            self.failUnlessEqual(manifest, expected)
+        d.addCallback(_check_manifest2)
 
         d.addCallback(self._test_one_3)
         return d

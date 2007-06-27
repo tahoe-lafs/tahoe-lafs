@@ -329,6 +329,39 @@ class ImmutableDirectoryNode:
         d.addCallback(lambda child: self.delete(current_child_name))
         return d
 
+    def build_manifest(self):
+        # given a dirnode, construct a list refresh-capabilities for all the
+        # nodes it references.
+
+        # this is just a tree-walker, except that following each edge
+        # requires a Deferred.
+
+        manifest = set()
+        manifest.add(self.get_refresh_capability())
+
+        d = self._build_manifest_from_node(self, manifest)
+        d.addCallback(lambda res: manifest)
+        return d
+
+    def _build_manifest_from_node(self, node, manifest):
+        d = node.list()
+        def _got_list(res):
+            dl = []
+            for name, child in res.iteritems():
+                manifest.add(child.get_refresh_capability())
+                if IDirectoryNode.providedBy(child):
+                    dl.append(self._build_manifest_from_node(child, manifest))
+            if dl:
+                return defer.DeferredList(dl)
+        d.addCallback(_got_list)
+        return d
+
+    def get_refresh_capability(self):
+        ro_uri = self.get_immutable_uri()
+        furl, rk = uri.unpack_dirnode_uri(ro_uri)
+        wk, we, rk, index = hashutil.generate_dirnode_keys_from_readkey(rk)
+        return "DIR-REFRESH:%s" % idlib.b2a(index)
+
 class MutableDirectoryNode(ImmutableDirectoryNode):
     implements(IDirectoryNode)
 
@@ -371,6 +404,10 @@ class FileNode:
         if cmp(self.__class__, them.__class__):
             return cmp(self.__class__, them.__class__)
         return cmp(self.uri, them.uri)
+
+    def get_refresh_capability(self):
+        d = uri.unpack_uri(self.uri)
+        return "CHK-REFRESH:%s" % idlib.b2a(d['storage_index'])
 
     def download(self, target):
         downloader = self._client.getServiceNamed("downloader")

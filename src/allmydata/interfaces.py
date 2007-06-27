@@ -206,10 +206,22 @@ class IFileNode(Interface):
     def download_to_data():
         pass
 
+    def get_uri():
+        """Return the URI that can be used by others to get access to this
+        file.
+        """
+
+    def get_refresh_capability():
+        """Return a string that represents the 'refresh capability' for this
+        node. The holder of this capability will be able to renew the lease
+        for this node, protecting it from garbage-collection.
+        """
+
 class IDirectoryNode(Interface):
     def is_mutable():
         """Return True if this directory is mutable, False if it is read-only.
         """
+
     def get_uri():
         """Return the directory URI that can be used by others to get access
         to this directory node. If this node is read-only, the URI will only
@@ -219,10 +231,11 @@ class IDirectoryNode(Interface):
         If you have read-write access to a directory and wish to share merely
         read-only access with others, use get_immutable_uri().
 
-        The dirnode ('1') URI returned by this method can be used in set() on
-        a different directory ('2') to 'mount' a reference to this directory
-        ('1') under the other ('2'). This URI is just a string, so it can be
-        passed around through email or other out-of-band protocol.
+        The dirnode ('1') URI returned by this method can be used in
+        set_uri() on a different directory ('2') to 'mount' a reference to
+        this directory ('1') under the other ('2'). This URI is just a
+        string, so it can be passed around through email or other out-of-band
+        protocol.
         """
 
     def get_immutable_uri():
@@ -232,6 +245,12 @@ class IDirectoryNode(Interface):
 
         If you have merely read-only access to this dirnode,
         get_immutable_uri() will return the same thing as get_uri().
+        """
+
+    def get_refresh_capability():
+        """Return a string that represents the 'refresh capability' for this
+        node. The holder of this capability will be able to renew the lease
+        for this node, protecting it from garbage-collection.
         """
 
     def list():
@@ -280,6 +299,9 @@ class IDirectoryNode(Interface):
         'new_child_name', which defaults to 'current_child_name'. I return a
         Deferred that fires when the operation finishes."""
 
+    def build_manifest():
+        """Return a set of refresh-capabilities for all nodes (directories
+        and files) reachable from this one."""
 
 class ICodecEncoder(Interface):
     def set_params(data_size, required_shares, max_shares):
