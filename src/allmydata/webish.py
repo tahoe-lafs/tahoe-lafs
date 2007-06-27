@@ -114,6 +114,8 @@ class Directory(rend.Page):
     def childFactory(self, ctx, name):
         if name.startswith("freeform"): # ick
             return None
+        if name == "@manifest": # ick, this time it's my fault
+            return Manifest(self._dirnode, self._dirname)
         if self._dirname == "/":
             dirname = "/" + name
         else:
@@ -350,6 +352,24 @@ class Downloader(resource.Resource):
         self._filenode.download(WebDownloadTarget(req))
         return server.NOT_DONE_YET
 
+class Manifest(rend.Page):
+    docFactory = getxmlfile("manifest.xhtml")
+    def __init__(self, dirnode, dirname):
+        self._dirnode = dirnode
+        self._dirname = dirname
+
+    def render_title(self, ctx):
+        return T.title["Manifest of %s" % self._dirname]
+
+    def render_header(self, ctx):
+        return T.p["Manifest of %s" % self._dirname]
+
+    def data_items(self, ctx, data):
+        return self._dirnode.build_manifest()
+
+    def render_row(self, ctx, refresh_cap):
+        ctx.fillSlots("refresh_capability", refresh_cap)
+        return ctx.tag
 
 
 class Root(rend.Page):
