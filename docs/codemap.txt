@@ -23,8 +23,10 @@ Within src/allmydata/ :
  node.py: the base Node, which handles connection establishment and
           application startup
 
- client.py, introducer_and_vdrive.py: two specialized subclasses of Node, for users
-                      and the central introducer/vdrive handler, respectively
+ client.py, introducer_and_vdrive.py:
+   these are two specialized subclasses of Node, for users and the central
+   introducer/vdrive handler, respectively. Each works by assembling a
+   collection of services underneath a top-level Node instance.
 
  introducer.py: node introduction handlers, client is used by client.py,
                 server is used by introducer_and_vdrive.py
@@ -38,19 +40,20 @@ Within src/allmydata/ :
 
  download.py: download-side peer selection, share retrieval, decoding
 
- filetable.py, vdrive.py: implements the current one-global-vdrive layer,
-                          part runs on client nodes, part runs on the
-                          central vdrive handler
+ dirnode.py: implements the directory nodes. One part runs on the
+             global vdrive server, the other runs inside a client
+             (starting with vdrive.py)
+
+ vdrive.py: provides a client-side service that accesses the global
+            shared virtual drive and the per-user private drive.
 
  webish.py, web/*.xhtml: provides the web frontend, using a Nevow server
 
- workqueue.py, filetree/*.py: building blocks for the future filetree work
+ uri.py: URI packing/parsing routines
 
  hashtree.py: Merkle hash tree classes
 
  debugshell.py, manhole.py: SSH-connected python shell, for debug purposes
-
- uri.py: URI packing/parsing routines
 
  util/*.py: misc utility classes
 
@@ -59,9 +62,9 @@ Within src/allmydata/ :
 
 Both the client and the central introducer-and-vdrive node runs as a tree of
 (twisted.application.service) Service instances. The Foolscap "Tub" is one of
-these. Client nodes have an Uploader service and a Downloader service that turn
-data into URIs and back again. They also have a VDrive service which provides
-access to the single global shared filesystem.
+these. Client nodes have an Uploader service and a Downloader service that
+turn data into URIs and back again. They also have a VirtualDrive service
+which provides access to the single global shared filesystem.
 
 The Uploader is given an "upload source" (which could be an open filehandle,
 a filename on local disk, or even a string), and returns a Deferred that

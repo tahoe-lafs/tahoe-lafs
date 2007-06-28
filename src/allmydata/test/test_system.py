@@ -238,7 +238,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             log.msg("PUBLISHING")
             ut = upload.Data(DATA)
             c0 = self.clients[0]
-            d1 = c0._vdrive_root.create_empty_directory("subdir1")
+            d1 = c0.getServiceNamed("vdrive").get_public_root()
+            d1.addCallback(lambda root: root.create_empty_directory("subdir1"))
             d1.addCallback(lambda subdir1_node:
                            subdir1_node.add_file("mydata567", ut))
             def _stash_uri(filenode):
@@ -251,7 +252,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             log.msg("publish finished")
 
             c1 = self.clients[1]
-            d1 = c1._vdrive_root.get("subdir1")
+            d1 = c1.getServiceNamed("vdrive").get_public_root()
+            d1.addCallback(lambda root: root.get("subdir1"))
             d1.addCallback(lambda subdir1: subdir1.get("mydata567"))
             d1.addCallback(lambda filenode: filenode.download_to_data())
             return d1

@@ -42,7 +42,7 @@ class Welcome(rend.Page):
             return "yes"
         return "no"
     def data_connected_to_vdrive(self, ctx, data):
-        if IClient(ctx).connected_to_vdrive():
+        if IClient(ctx).getServiceNamed("vdrive").have_public_root():
             return "yes"
         return "no"
     def data_num_peers(self, ctx, data):
@@ -64,7 +64,7 @@ class Welcome(rend.Page):
         return ctx.tag
 
     def render_global_vdrive(self, ctx, data):
-        if self.has_global_vdrive:
+        if IClient(ctx).getServiceNamed("vdrive").have_public_root():
             return T.p["To view the global shared filestore, ",
                        T.a(href="../global_vdrive")["Click Here!"],
                        ]
@@ -72,7 +72,7 @@ class Welcome(rend.Page):
                    "responding), no vdrive available."]
 
     def render_my_vdrive(self, ctx, data):
-        if self.has_my_vdrive:
+        if IClient(ctx).getServiceNamed("vdrive").have_private_root():
             return T.p["To view your personal private non-shared filestore, ",
                        T.a(href="../my_vdrive")["Click Here!"],
                        ]
@@ -397,6 +397,26 @@ class Root(rend.Page):
 
     child_welcome = Welcome()
 
+    def child_global_vdrive(self, ctx):
+        client = IClient(ctx)
+        vdrive = client.getServiceNamed("vdrive")
+        if vdrive.have_public_root():
+            d = vdrive.get_public_root()
+            d.addCallback(lambda dirnode: Directory(dirnode, "/"))
+            return d
+        else:
+            return static.Data("sorry, still initializing", "text/plain")
+
+    def child_private_vdrive(self, ctx):
+        client = IClient(ctx)
+        vdrive = client.getServiceNamed("vdrive")
+        if vdrive.have_private_root():
+            d = vdrive.get_private_root()
+            d.addCallback(lambda dirnode: Directory(dirnode, "~"))
+            return d
+        else:
+            return static.Data("sorry, still initializing", "text/plain")
+
 
 class WebishServer(service.MultiService):
     name = "webish"
@@ -404,10 +424,6 @@ class WebishServer(service.MultiService):
     def __init__(self, webport):
         service.MultiService.__init__(self)
         self.root = Root()
-        self.root.child_welcome.has_global_vdrive = False
-        self.root.child_welcome.has_my_vdrive = False
-        placeholder = static.Data("sorry, still initializing", "text/plain")
-        self.root.putChild("vdrive", placeholder)
         self.root.putChild("", url.here.child("welcome"))#Welcome())
                            
         self.site = site = appserver.NevowSite(self.root)
@@ -425,15 +441,3 @@ class WebishServer(service.MultiService):
         # I thought you could do the same with an existing interface, but
         # apparently 'ISite' does not exist
         #self.site._client = self.parent
-
-    def set_vdrive_rootnode(self, root):
-        self.root.putChild("global_vdrive", Directory(root, "/"))
-        self.root.child_welcome.has_global_vdrive = True
-        # I tried doing it this way and for some reason it didn't seem to work
-        #print "REMEMBERING", self.site, dl, IDownloader
-        #self.site.remember(dl, IDownloader)
-
-    def set_my_vdrive_rootnode(self, my_vdrive):
-        self.root.putChild("my_vdrive", Directory(my_vdrive, "~"))
-        self.root.child_welcome.has_my_vdrive = True
-

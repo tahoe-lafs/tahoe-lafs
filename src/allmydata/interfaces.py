@@ -655,6 +655,35 @@ class IUploader(Interface):
     def upload_filehandle(filehane):
         """Like upload(), but accepts an open filehandle."""
 
+class IVirtualDrive(Interface):
+    """I am a service that may be available to a client.
+
+    Within any client program, this service can be retrieved by using
+    client.getService('vdrive').
+    """
+
+    def have_public_root():
+        """Return a Boolean, True if get_public_root() will work."""
+    def get_public_root():
+        """Get the public read-write directory root.
+
+        This returns a Deferred that fires with an IDirectoryNode instance
+        corresponding to the global shared root directory."""
+
+
+    def have_private_root():
+        """Return a Boolean, True if get_public_root() will work."""
+    def get_private_root():
+        """Get the private directory root.
+
+        This returns a Deferred that fires with an IDirectoryNode instance
+        corresponding to this client's private root directory."""
+
+    def get_node(self, uri):
+        """Transform a URI into an IDirectoryNode or IFileNode.
+
+        This returns a Deferred that will fire with an instance that provides
+        either IDirectoryNode or IFileNode, as appropriate."""
 
 class NotCapableError(Exception):
     """You have tried to write to a read-only node."""
