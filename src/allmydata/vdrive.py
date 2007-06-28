@@ -71,12 +71,6 @@ class VirtualDrive(service.MultiService):
             d.addCallback(_got_directory)
 
 
-    def get_node(self, node_uri):
-        if uri.is_dirnode_uri(node_uri):
-            return dirnode.create_directory_node(self.parent, node_uri)
-        else:
-            return defer.succeed(dirnode.FileNode(node_uri, self.parent))
-
     def have_public_root(self):
         return bool(self._global_uri)
     def get_public_root(self):
@@ -91,3 +85,30 @@ class VirtualDrive(service.MultiService):
             return defer.fail(NoPrivateVirtualDriveError())
         return self.get_node(self._private_uri)
 
+    def get_node(self, node_uri):
+        if uri.is_dirnode_uri(node_uri):
+            return dirnode.create_directory_node(self.parent, node_uri)
+        else:
+            return defer.succeed(dirnode.FileNode(node_uri, self.parent))
+
+
+    def get_node_at_path(self, path, root=None):
+        assert isinstance(path, (list, tuple))
+
+        if root is None:
+            if path and path[0] == "~":
+                d = self.get_private_root()
+                d.addCallback(lambda node:
+                              self.get_node_at_path(path[1:], node))
+                return d
+            d = self.get_public_root()
+            d.addCallback(lambda node: self.get_node_at_path(path, node))
+            return d
+
+        if path:
+            assert path[0] != ""
+            d = root.get(path[0])
+            d.addCallback(lambda node: self.get_node_at_path(path[1:], node))
+            return d
+
+        return root

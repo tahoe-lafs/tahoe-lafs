@@ -8,6 +8,7 @@ from allmydata import client, uri, download, upload
 from allmydata.introducer_and_vdrive import IntroducerAndVdrive
 from allmydata.util import idlib, fileutil, testutil
 from allmydata.scripts import runner
+from allmydata.interfaces import IDirectoryNode
 from foolscap.eventual import flushEventualQueue
 from twisted.python import log
 from twisted.python.failure import Failure
@@ -104,7 +105,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return defer.succeed(None)
 
     def test_connections(self):
-        self.basedir = "test_system/SystemTest/test_connections"
+        self.basedir = "system/SystemTest/test_connections"
         d = self.set_up_nodes()
         self.extra_node = None
         d.addCallback(lambda res: self.add_extra_node(5))
@@ -128,7 +129,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     del test_connections
 
     def test_upload_and_download(self):
-        self.basedir = "test_system/SystemTest/test_upload_and_download"
+        self.basedir = "system/SystemTest/test_upload_and_download"
         # we use 4000 bytes of data, which will result in about 400k written
         # to disk among all our simulated nodes
         DATA = "Some data to upload\n" * 200
@@ -231,41 +232,130 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     # plaintext_hash check.
 
     def test_vdrive(self):
-        self.basedir = "test_system/SystemTest/test_vdrive"
+        self.basedir = "system/SystemTest/test_vdrive"
         self.data = DATA = "Some data to publish to the virtual drive\n"
         d = self.set_up_nodes()
-        def _do_publish(res):
-            log.msg("PUBLISHING")
-            ut = upload.Data(DATA)
-            c0 = self.clients[0]
-            d1 = c0.getServiceNamed("vdrive").get_public_root()
-            d1.addCallback(lambda root: root.create_empty_directory("subdir1"))
-            d1.addCallback(lambda subdir1_node:
-                           subdir1_node.add_file("mydata567", ut))
-            def _stash_uri(filenode):
-                self.uri = filenode.get_uri()
-                return filenode
-            d1.addCallback(_stash_uri)
-            return d1
-        d.addCallback(_do_publish)
-        def _publish_done(filenode):
-            log.msg("publish finished")
+        d.addCallback(self.log, "starting publish")
+        d.addCallback(self._do_publish)
+        # at this point, we have the following global filesystem:
+        # /
+        # /subdir1
+        # /subdir1/mydata567
 
-            c1 = self.clients[1]
-            d1 = c1.getServiceNamed("vdrive").get_public_root()
-            d1.addCallback(lambda root: root.get("subdir1"))
-            d1.addCallback(lambda subdir1: subdir1.get("mydata567"))
-            d1.addCallback(lambda filenode: filenode.download_to_data())
-            return d1
-        d.addCallback(_publish_done)
-        def _get_done(data):
-            log.msg("get finished")
-            self.failUnlessEqual(data, DATA)
-        d.addCallback(_get_done)
+        d.addCallback(self._bounce_client0)
+        d.addCallback(self.log, "bounced client0")
+
+        d.addCallback(self._check_publish1)
+        d.addCallback(self.log, "did _check_publish1")
+        d.addCallback(self._check_publish2)
+        d.addCallback(self.log, "did _check_publish2")
+        d.addCallback(self._do_publish_private)
+        d.addCallback(self.log, "did _do_publish_private")
+        # now we also have:
+        #  ~client0/personal/sekrit data
+        d.addCallback(self._check_publish_private)
+        d.addCallback(self.log, "did _check_publish_private")
         d.addCallback(self._test_web)
         d.addCallback(self._test_runner)
         return d
     test_vdrive.timeout = 1100
+
+    def _do_publish(self, res):
+        ut = upload.Data(self.data)
+        c0 = self.clients[0]
+        d = c0.getServiceNamed("vdrive").get_public_root()
+        d.addCallback(lambda root: root.create_empty_directory("subdir1"))
+        d.addCallback(lambda subdir1_node:
+                      subdir1_node.add_file("mydata567", ut))
+        d.addCallback(self.log, "publish finished")
+        def _stash_uri(filenode):
+            self.uri = filenode.get_uri()
+            return filenode
+        d.addCallback(_stash_uri)
+        return d
+
+    def _bounce_client0(self, res):
+        old_client0 = self.clients[0]
+        d = old_client0.disownServiceParent()
+        assert isinstance(d, defer.Deferred)
+        d.addCallback(self.log, "STOPPED")
+        def _stopped(res):
+            new_client0 = client.Client(basedir=self.getdir("client0"))
+            self.add_service(new_client0)
+            self.clients[0] = new_client0
+            return self.wait_for_connections()
+        d.addCallback(_stopped)
+        d.addCallback(self.log, "CONNECTED")
+        def _connected(res):
+            # now find out where the web port was
+            l = self.clients[0].getServiceNamed("webish").listener
+            port = l._port.getHost().port
+            self.webish_url = "http://localhost:%d/" % port
+        d.addCallback(_connected)
+        d.addCallback(self.log, "GOT WEB LISTENER")
+        return d
+
+    def log(self, res, msg):
+        #print msg
+        log.msg(msg)
+        return res
+
+    def _do_publish_private(self, res):
+        ut = upload.Data(self.data)
+        vdrive0 = self.clients[0].getServiceNamed("vdrive")
+        d = vdrive0.get_node_at_path(["~"])
+        d.addCallback(self.log, "GOT ~")
+        d.addCallback(lambda node: node.create_empty_directory("personal"))
+        d.addCallback(self.log, "made ~/personal")
+        d.addCallback(lambda node: node.add_file("sekrit data", ut))
+        return d
+
+    def _check_publish1(self, res):
+        # this one uses the iterative API
+        c1 = self.clients[1]
+        d = c1.getServiceNamed("vdrive").get_public_root()
+        d.addCallback(self.log, "check_publish1 got /")
+        d.addCallback(lambda root: root.get("subdir1"))
+        d.addCallback(lambda subdir1: subdir1.get("mydata567"))
+        d.addCallback(lambda filenode: filenode.download_to_data())
+        d.addCallback(self.log, "get finished")
+        def _get_done(data):
+            self.failUnlessEqual(data, self.data)
+        d.addCallback(_get_done)
+        return d
+
+    def _check_publish2(self, res):
+        # this one uses the path-based API
+        vdrive1 = self.clients[1].getServiceNamed("vdrive")
+        def get_path(path):
+            return vdrive1.get_node_at_path(path.split("/"))
+        d = get_path("subdir1")
+        d.addCallback(lambda dirnode:
+                      self.failUnless(IDirectoryNode.providedBy(dirnode)))
+        d.addCallback(lambda res: get_path("subdir1/mydata567"))
+        d.addCallback(lambda filenode: filenode.download_to_data())
+        d.addCallback(lambda data: self.failUnlessEqual(data, self.data))
+
+        d.addCallback(lambda res: get_path("subdir1/mydata567"))
+        def _got_filenode(filenode):
+            d1 = vdrive1.get_node(filenode.get_uri())
+            d1.addCallback(self.failUnlessEqual, filenode)
+            return d1
+        d.addCallback(_got_filenode)
+        return d
+
+    def _check_publish_private(self, res):
+        # this one uses the path-based API
+        def get_path(path):
+            vdrive0 = self.clients[0].getServiceNamed("vdrive")
+            return vdrive0.get_node_at_path(path.split("/"))
+        d = get_path("~/personal")
+        d.addCallback(lambda dirnode:
+                      self.failUnless(IDirectoryNode.providedBy(dirnode)))
+        d.addCallback(lambda res: get_path("~/personal/sekrit data"))
+        d.addCallback(lambda filenode: filenode.download_to_data())
+        d.addCallback(lambda data: self.failUnlessEqual(data, self.data))
+        return d
 
     def _test_web(self, res):
         base = self.webish_url

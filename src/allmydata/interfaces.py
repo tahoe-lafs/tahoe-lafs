@@ -679,6 +679,19 @@ class IVirtualDrive(Interface):
         This returns a Deferred that fires with an IDirectoryNode instance
         corresponding to this client's private root directory."""
 
+    def get_node_at_path(self, path):
+        """Transform a path into an IDirectoryNode or IFileNode.
+
+        The path is a list of path-name elements, typically constructed by
+        doing userpath.split('/') . If the first element of this list is '~',
+        the rest will be interpreted relative to the local user's private
+        root directory. Otherwse it will be interpreted relative to the
+        global public root directory.
+
+        This method returns a Deferred that fires with the node in question,
+        or errbacks with an IndexError if the target node could not be found.
+        """
+
     def get_node(self, uri):
         """Transform a URI into an IDirectoryNode or IFileNode.
 
