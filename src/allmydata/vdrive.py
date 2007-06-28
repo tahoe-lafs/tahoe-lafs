@@ -50,21 +50,23 @@ class VirtualDrive(service.MultiService):
                           vdrive_server.callRemote("get_public_root_uri"))
             def _got_global_uri(global_uri):
                 self._global_uri = global_uri
+                f = open(global_uri_file, "w")
+                f.write(self._global_uri + "\n")
+                f.close()
             d.addCallback(_got_global_uri)
 
         private_uri_file = os.path.join(basedir,
                                         self.MY_VDRIVE_URI_FILE)
         if os.path.exists(private_uri_file):
             f = open(private_uri_file)
-            private_vdrive_uri = f.read().strip()
+            self._private_uri = f.read().strip()
             f.close()
         elif global_vdrive_furl:
             d = dirnode.create_directory(client, global_vdrive_furl)
             def _got_directory(dirnode):
-                private_uri = dirnode.get_uri()
-                self._private_uri = private_uri
+                self._private_uri = dirnode.get_uri()
                 f = open(private_uri_file, "w")
-                f.write(private_uri + "\n")
+                f.write(self._private_uri + "\n")
                 f.close()
             d.addCallback(_got_directory)
 
