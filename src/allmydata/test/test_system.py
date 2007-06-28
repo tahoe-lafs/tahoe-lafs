@@ -8,7 +8,8 @@ from allmydata import client, uri, download, upload
 from allmydata.introducer_and_vdrive import IntroducerAndVdrive
 from allmydata.util import idlib, fileutil, testutil
 from allmydata.scripts import runner
-from allmydata.interfaces import IDirectoryNode
+from allmydata.interfaces import IDirectoryNode, IFileNode
+from allmydata.dirnode import NotMutableError
 from foolscap.eventual import flushEventualQueue
 from twisted.python import log
 from twisted.python.failure import Failure
@@ -241,6 +242,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         # /
         # /subdir1
         # /subdir1/mydata567
+        # /subdir1/subdir2/
+        # /subdir1/subdir2/mydata992
 
         d.addCallback(self._bounce_client0)
         d.addCallback(self.log, "bounced client0")
@@ -253,6 +256,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(self.log, "did _do_publish_private")
         # now we also have:
         #  ~client0/personal/sekrit data
+        #  ~client0/s2-rw -> /subdir1/subdir2/
+        #  ~client0/s2-ro -> /subdir1/subdir2/ (read-only)
         d.addCallback(self._check_publish_private)
         d.addCallback(self.log, "did _check_publish_private")
         d.addCallback(self._test_web)
@@ -265,13 +270,18 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         c0 = self.clients[0]
         d = c0.getServiceNamed("vdrive").get_public_root()
         d.addCallback(lambda root: root.create_empty_directory("subdir1"))
-        d.addCallback(lambda subdir1_node:
-                      subdir1_node.add_file("mydata567", ut))
-        d.addCallback(self.log, "publish finished")
-        def _stash_uri(filenode):
-            self.uri = filenode.get_uri()
-            return filenode
-        d.addCallback(_stash_uri)
+        def _made_subdir1(subdir1_node):
+            d1 = subdir1_node.add_file("mydata567", ut)
+            d1.addCallback(self.log, "publish finished")
+            def _stash_uri(filenode):
+                self.uri = filenode.get_uri()
+            d1.addCallback(_stash_uri)
+            d1.addCallback(lambda res:
+                           subdir1_node.create_empty_directory("subdir2"))
+            d1.addCallback(lambda subdir2:
+                           subdir2.add_file("mydata992", ut))
+            return d1
+        d.addCallback(_made_subdir1)
         return d
 
     def _bounce_client0(self, res):
@@ -296,7 +306,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return d
 
     def log(self, res, msg):
-        #print msg
+        #print "MSG: %s  RES: %s" % (msg, res)
         log.msg(msg)
         return res
 
@@ -305,9 +315,22 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         vdrive0 = self.clients[0].getServiceNamed("vdrive")
         d = vdrive0.get_node_at_path(["~"])
         d.addCallback(self.log, "GOT ~")
-        d.addCallback(lambda node: node.create_empty_directory("personal"))
-        d.addCallback(self.log, "made ~/personal")
-        d.addCallback(lambda node: node.add_file("sekrit data", ut))
+        def _got_root(rootnode):
+            d1 = rootnode.create_empty_directory("personal")
+            d1.addCallback(self.log, "made ~/personal")
+            d1.addCallback(lambda node: node.add_file("sekrit data", ut))
+            d1.addCallback(self.log, "made ~/personal/sekrit data")
+            d1.addCallback(lambda res:
+                           vdrive0.get_node_at_path(["subdir1", "subdir2"]))
+            def _got_s2(s2node):
+                d2 = rootnode.set_uri("s2-rw", s2node.get_uri())
+                d2.addCallback(lambda node:
+                               rootnode.set_uri("s2-ro",
+                                                s2node.get_immutable_uri()))
+                return d2
+            d1.addCallback(_got_s2)
+            return d1
+        d.addCallback(_got_root)
         return d
 
     def _check_publish1(self, res):
@@ -350,12 +373,101 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             vdrive0 = self.clients[0].getServiceNamed("vdrive")
             return vdrive0.get_node_at_path(path.split("/"))
         d = get_path("~/personal")
+        def _got_personal(personal):
+            self._personal_node = personal
+            return personal
+        d.addCallback(_got_personal)
         d.addCallback(lambda dirnode:
                       self.failUnless(IDirectoryNode.providedBy(dirnode)))
         d.addCallback(lambda res: get_path("~/personal/sekrit data"))
         d.addCallback(lambda filenode: filenode.download_to_data())
         d.addCallback(lambda data: self.failUnlessEqual(data, self.data))
+        d.addCallback(lambda res: get_path("~/s2-rw"))
+        d.addCallback(lambda dirnode: self.failUnless(dirnode.is_mutable()))
+        d.addCallback(lambda res: get_path("~/s2-ro"))
+        def _got_s2ro(dirnode):
+            self.failIf(dirnode.is_mutable())
+            d1 = defer.succeed(None)
+            d1.addCallback(lambda res: dirnode.list())
+            d1.addCallback(self.log, "dirnode.list")
+            d1.addCallback(lambda res: dirnode.create_empty_directory("nope"))
+            d1.addBoth(self.shouldFail, NotMutableError, "mkdir(nope)")
+            d1.addCallback(self.log, "doing add_file(ro)")
+            ut = upload.Data("I will disappear, unrecorded and unobserved. The tragedy of my demise is made more poignant by its silence, but this beauty is not for you to ever know.")
+            d1.addCallback(lambda res: dirnode.add_file("hope", ut))
+            d1.addBoth(self.shouldFail, NotMutableError, "add_file(nope)")
+
+            d1.addCallback(self.log, "doing get(ro)")
+            d1.addCallback(lambda res: dirnode.get("mydata992"))
+            d1.addCallback(lambda filenode:
+                           self.failUnless(IFileNode.providedBy(filenode)))
+
+            d1.addCallback(self.log, "doing delete(ro)")
+            d1.addCallback(lambda res: dirnode.delete("mydata992"))
+            d1.addBoth(self.shouldFail, NotMutableError, "delete(nope)")
+
+            d1.addCallback(lambda res: dirnode.set_uri("hopeless", self.uri))
+            d1.addBoth(self.shouldFail, NotMutableError, "set_uri(nope)")
+
+            d1.addCallback(lambda res: dirnode.get("missing"))
+            d1.addBoth(self.shouldFail, IndexError, "get(missing)",
+                       "unable to find child named 'missing'")
+
+            d1.addCallback(self.log, "doing move_child_to(ro)")
+            personal = self._personal_node
+            d1.addCallback(lambda res:
+                           dirnode.move_child_to("mydata992",
+                                                 personal, "nope"))
+            d1.addBoth(self.shouldFail, NotMutableError, "mv from readonly")
+
+            d1.addCallback(self.log, "doing move_child_to(ro)2")
+            d1.addCallback(lambda res:
+                           personal.move_child_to("sekrit data",
+                                                  dirnode, "nope"))
+            d1.addBoth(self.shouldFail, NotMutableError, "mv to readonly")
+
+            d1.addCallback(self.log, "finished with _got_s2ro")
+            return d1
+        d.addCallback(_got_s2ro)
+        d.addCallback(lambda res: get_path("~"))
+        def _got_home(home):
+            personal = self._personal_node
+            d1 = defer.succeed(None)
+            d1.addCallback(self.log, "mv '~/personal/sekrit data' to ~/sekrit")
+            d1.addCallback(lambda res:
+                           personal.move_child_to("sekrit data",home,"sekrit"))
+
+            d1.addCallback(self.log, "mv ~/sekrit '~/sekrit data'")
+            d1.addCallback(lambda res:
+                           home.move_child_to("sekrit", home, "sekrit data"))
+
+            d1.addCallback(self.log, "mv '~/sekret data' ~/personal/")
+            d1.addCallback(lambda res:
+                           home.move_child_to("sekrit data", personal))
+
+            d1.addCallback(lambda res: home.build_manifest())
+            d1.addCallback(self.log, "manifest")
+            #  four items:
+            # ~client0/personal/
+            # ~client0/personal/sekrit data
+            # ~client0/s2-rw  (same as ~client/s2-ro)
+            # ~client0/s2-rw/mydata992 (same as ~client/s2-rw/mydata992)
+            d1.addCallback(lambda manifest:
+                           self.failUnlessEqual(len(manifest), 4))
+            return d1
+        d.addCallback(_got_home)
         return d
+
+    def shouldFail(self, res, expected_failure, which, substring=None):
+        if isinstance(res, Failure):
+            res.trap(expected_failure)
+            if substring:
+                self.failUnless(substring in str(res),
+                                "substring '%s' not in '%s'"
+                                % (substring, str(res)))
+        else:
+            self.fail("%s was supposed to raise %s, not get '%s'" %
+                      (which, expected_failure, res))
 
     def _test_web(self, res):
         base = self.webish_url
