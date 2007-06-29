@@ -1,43 +1,28 @@
 NEW VERSION RELEASED
 
-We are pleased to announce the release of version 0.3.0 of Allmydata-Tahoe, a
+We are pleased to announce the release of version 0.4 of Allmydata-Tahoe, a
 secure, decentralized storage grid under a free-software licence.  This is
-the follow-up to v0.2 which was released May 2, 2007 (see [1]).
+the follow-up to v0.3 which was released June 6, 2007 (see [1]).
 
 Since then we've made several improvements, including:
 
- * fix IP address configuration so that you can run a node behind a firewall
-   or NAT box (ticket #22)
+ * Add encrypted, mutable directories, so that you can organize your files
+   into directories, change the contents of directories, and share your
+   directories with your friends, without thereby sharing your directories
+   with anyone else -- not even with the owners of the servers that host
+   your directories.
 
- * better packaging, build process, command-line, documentation (tickets #8,
-   #21, #23, #35, #46, #51)
-
- * handle the loss of peers during the upload process by uploading to the
-   remaining peers (ticket #17)
-
- * display size of files (ticket #37) (thanks to Faried Nawaz)
-
- * private storage -- upload a file without publishing its decryption key
-   (ticket #33) (thanks to Faried Nawaz)
-
- * add Merkle-Tree authentication on ciphertext and on plaintext (ticket #64)
-
- * enable SSL encryption on the connection between web browser and node
-   (ticket #55)
-
- * improved unit tests including memory-usage tests
-
- * faster unit tests (ticket #20)
-
- * upgrade to a newer version of Foolscap, the remote object protocol
+ * make it so that web browsers can connect to the Tahoe node securely with
+   https (ticket #55)
 
 
-For complete details (there are other improvements that are not in the above
-list), see this web page which shows all ticket changes, repository checkins,
-and wiki changes from May 3 to today: [2].
+For complete details, see this web page which shows all ticket changes,
+repository checkins, and wiki changes from June 11 to today, June 29: [2].
 
-Allmydata-Tahoe v0.3 is incompatible with v0.2 due to the new Merkle-Tree
-authentication among other things.
+Allmydata-Tahoe v0.4 is incompatible with v0.3 due to the new encrypted
+directory structure, among other things.  (Note that this applies only to
+directories -- individual files uploaded with v0.3 are probably downloadable
+with v0.4.)
 
 
 WHAT IS IT GOOD FOR?
@@ -160,17 +145,17 @@ hackers and allowing them to spend part of their work time on the
 next-generation, free-software project).  We are eternally grateful!
 
 
-Zooko O'Whielacronx
+Zooko O'Whielacronx and Brian Warner
 on behalf of the Allmydata-Tahoe team
-June 11, 2007
-San Francisco
+June 29, 2007
+Boulder, Colorado and San Francisco, California
 
 
-[1]  http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=686
-[2]  http://allmydata.org/trac/tahoe/timeline?from=06%2F11%2F2007&daysback=39&changeset=on&milestone=on&ticket=on&wiki=on&update=Update
+[1]  http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=790
+[2]  http://allmydata.org/trac/tahoe/timeline?from=2007-06-29&daysback=17&changeset=on&ticket=on&wiki=on&update=Update
 [3]  http://allmydata.org/trac/tahoe/wiki/UseCases
-[4]  http://allmydata.org/source/tahoe/tahoe-0.3.tar.gz
-[5]  http://allmydata.org/trac/tahoe/browser/README?rev=748
+[4]  http://allmydata.org/source/tahoe/tahoe-0.4.tar.gz
+[5]  http://allmydata.org/trac/tahoe/browser/README?rev=844
 [6]  http://allmydata.org/trac/tahoe/browser/roadmap.txt
 [7]  http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
 [8]  http://allmydata.org/trac/tahoe
