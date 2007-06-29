@@ -28,25 +28,28 @@ with v0.4.)
 WHAT IS IT GOOD FOR?
 
 The source code that we are releasing is the current working prototype for
-Allmydata's next-generation product.  This release is targeted at hackers and
-users who are willing to use a minimal, text-oriented web user interface.
+Allmydata's next-generation product.  This release is targeted at hackers
+and users who are willing to use a minimal, text-oriented web user
+interface.
 
 This software is not yet recommended for storage of highly confidential data
-nor for important data which is not otherwise backed up, but it is useful for
-experimentation, prototyping, and extension.
+nor for important data which is not otherwise backed up, but it is useful
+for experimentation, prototyping, and extension.
 
-This release of Allmydata-Tahoe marks the first version which is be suitable
-for Use Case #2: "groups of friends who want to share backup and
-file-sharing" (see the wiki page "UseCases": [3]).  It is easy to set up a
-private grid which is securely shared among a specific, limited set of
-friends.  Files uploaded to this shared grid will be available to all
-friends, even when some of the computers are unavailable.
+This release of Allmydata-Tahoe is suitable for Use Case #2: "groups of
+friends who want to share backup and file-sharing" (see the wiki page
+"UseCases": [3]).  It is easy to set up a private grid which is securely
+shared among a specific, limited set of friends.  Files uploaded to this
+shared grid will be available to all friends, even when some of the
+computers are unavailable.  It is also easy to use a public grid, but to
+encrypt individual files and directories so that only intended recipients
+can read them.
 
 
 LICENCE
 
-Tahoe is offered under the GNU General Public License (v2 or later), with the
-added permission that, if you become obligated to release a derived work
+Tahoe is offered under the GNU General Public License (v2 or later), with
+the added permission that, if you become obligated to release a derived work
 under this licence (as per section 2.b), you may delay the fulfillment of
 this obligation for up to 12 months.
 
@@ -86,11 +89,12 @@ HACKING AND COMMUNITY
 Please join the mailing list [7] to discuss the ideas behind Tahoe and
 extensions of and uses of Tahoe.  Patches that extend and improve Tahoe are
 gratefully accepted -- roadmap.txt shows the next improvements that we plan
-to make.  You can browse the revision control history, source code, and issue
-tracking at the Trac instance [8].  Please see the buildbot [9], which shows
-how Tahoe builds and passes unit tests on each checkin, and the code coverage
-results [10] and percentage-covered graph [11], which show how much of the
-Tahoe source code is currently exercised by the test suite.
+to make and CREDITS lists the names of people who've contributed to the
+project.  You can browse the revision control history, source code, and
+issue tracking at the Trac instance [8].  Please see the buildbot [9], which
+shows how Tahoe builds and passes unit tests on each checkin, and the code
+coverage results [10] and percentage-covered graph [11], which show how much
+of the Tahoe source code is currently exercised by the test suite.
 
 
 NETWORK ARCHITECTURE
@@ -100,12 +104,12 @@ server called an "introducer" is used to discover other peers with which to
 connect.
 
 To store a file, the file is encrypted and erasure coded, and each resulting
-share is uploaded to a different peer.  The secure hash of the encrypted file
-and the encryption key are packed into a URI, knowledge of which is necessary
-and sufficient to recover the file.
+share is uploaded to a different peer.  The secure hash of the encrypted
+file and the encryption key are packed into a URI, knowledge of which is
+necessary and sufficient to recover the file.
 
-To fetch a file, starting with the URI, a subset of shares is downloaded from
-peers, the file is reconstructed from the shares, and then decrypted.
+To fetch a file, starting with the URI, a subset of shares is downloaded
+from peers, the file is reconstructed from the shares, and then decrypted.
 
 A single distinct server called a "vdrive server" maintains a global mapping
 from pathnames/filenames to URIs.
@@ -115,11 +119,11 @@ inherent in this version.  In particular, the completely-connected property
 of the grid and the requirement of a single distinct introducer and vdrive
 server limits the possible size of the grid.  We have plans to loosen these
 limitations (see roadmap.txt).  Currently it should be noted that the grid
-already depends as little as possible on the accessibility and correctness of
-the introduction server and the vdrive server.  Also note that the choice of
-which servers to use is easily configured -- you should be able to set up a
-private grid for you and your friends almost as easily as to connect to our
-public test grid.
+already depends as little as possible on the accessibility and correctness
+of the introduction server and the vdrive server.  Also note that the choice
+of which servers to use is easily configured -- you should be able to set up
+a private grid for you and your friends almost as easily as to connect to
+our public test grid.
 
 
 SOFTWARE ARCHITECTURE
