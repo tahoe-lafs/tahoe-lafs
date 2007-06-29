@@ -5,7 +5,8 @@ Connection Management:
 *v1: foolscap, no relay, live=connected-to-introducer, broadcast updates, fully connected topology
 *v2: configurable IP address -- http://allmydata.org/trac/tahoe/ticket/22
  v3: live != connected-to-introducer, connect on demand
- v4: relay?
+ v4: decentralized introduction -- http://allmydata.org/trac/tahoe/ticket/68
+ v5: relay?
 
 File Encoding:
 *v1: single-segment, no merkle trees
