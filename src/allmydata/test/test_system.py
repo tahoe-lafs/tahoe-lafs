@@ -289,6 +289,11 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d = old_client0.disownServiceParent()
         assert isinstance(d, defer.Deferred)
         d.addCallback(self.log, "STOPPED")
+        # I think windows requires a moment to let the connection really stop
+        # and the port number made available for re-use. TODO: examine the
+        # behavior, see if this is really the problem, see if we can do
+        # better than blindly waiting for a second.
+        d.addCallback(self.stall, 1.0)
         def _stopped(res):
             new_client0 = client.Client(basedir=self.getdir("client0"))
             self.add_service(new_client0)
@@ -309,6 +314,11 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         #print "MSG: %s  RES: %s" % (msg, res)
         log.msg(msg)
         return res
+
+    def stall(self, res, delay=1.0):
+        d = defer.Deferred()
+        reactor.callLater(delay, d.callback, res)
+        return d
 
     def _do_publish_private(self, res):
         ut = upload.Data(self.data)
