@@ -69,10 +69,7 @@ def update():
             return 0
         print "no _darcs/ but no version.py either: how did you get this tree?"
         return 0
-    darcs = 'darcs'
-    if sys.platform == 'win32':
-        darcs = 'realdarcs'
-    cmd = [darcs, "changes", "--from-tag=^allmydata-tahoe", "--xml-output"]
+    cmd = ["darcs", "changes", "--from-tag=^allmydata-tahoe", "--xml-output"]
     try:
         p = Popen(cmd, stdout=PIPE)
         output = p.communicate()[0]
