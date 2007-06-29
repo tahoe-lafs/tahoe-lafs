@@ -133,13 +133,31 @@ class Directory(rend.Page):
         return d
 
     def render_title(self, ctx, data):
-        return ctx.tag["Directory of '%s':" % self._dirname]
+        return ctx.tag["Directory '%s':" % self._dirname]
 
     def render_header(self, ctx, data):
-        header = "Directory of '%s':" % self._dirname
+        parent_directories = self._dirname.split("/")
+        num_dirs = len(parent_directories)
+
+        header = ["Directory '"]
+        for i,d in enumerate(parent_directories):
+            if d == "":
+                link = "/".join([".."] * (num_dirs - i))
+                header.append(T.a(href=link)["/"])
+            else:
+                if i == num_dirs-1:
+                    link = "."
+                else:
+                    link = "/".join([".."] * (num_dirs - i - 1))
+                header.append(T.a(href=link)[d])
+                if i < num_dirs - 1:
+                    header.append("/")
+        header.append("'")
+
         if not self._dirnode.is_mutable():
-            header += " (readonly)"
-        return header
+            header.append(" (readonly)")
+        header.append(":")
+        return ctx.tag[header]
 
     def data_share_uri(self, ctx, data):
         return self._dirnode.get_uri()
