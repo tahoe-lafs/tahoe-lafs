@@ -105,13 +105,6 @@ class Client(node.Node, Referenceable):
             return self.getServiceNamed(name)
         raise RuntimeError("I am unwilling to give you service %s" % name)
 
-    def get_remote_service(self, nodeid, servicename):
-        if nodeid not in self.introducer_client.connections:
-            return defer.fail(IndexError("no connection to that peer"))
-        peer = self.introducer_client.connections[nodeid]
-        d = peer.callRemote("get_service", name=servicename)
-        return d
-
 
     def get_all_peerids(self):
         if not self.introducer_client:
@@ -129,9 +122,6 @@ class Client(node.Node, Referenceable):
             results.append((permuted, peerid, connection))
         results.sort()
         return results
-
-    def connected_to_vdrive(self):
-        return self._connected_to_vdrive
 
     def connected_to_introducer(self):
         if self.introducer_client:
