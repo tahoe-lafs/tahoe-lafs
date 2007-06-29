@@ -5,7 +5,7 @@ from zope.interface import implements
 from allmydata.interfaces import RIClient
 from allmydata import node
 
-from twisted.internet import defer, reactor
+from twisted.internet import reactor
 from twisted.application.internet import TimerService
 
 import allmydata
