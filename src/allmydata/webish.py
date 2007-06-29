@@ -71,10 +71,10 @@ class Welcome(rend.Page):
         return T.p["vdrive.furl not specified (or vdrive server not "
                    "responding), no vdrive available."]
 
-    def render_my_vdrive(self, ctx, data):
+    def render_private_vdrive(self, ctx, data):
         if IClient(ctx).getServiceNamed("vdrive").have_private_root():
             return T.p["To view your personal private non-shared filestore, ",
-                       T.a(href="../my_vdrive")["Click Here!"],
+                       T.a(href="../private_vdrive")["Click Here!"],
                        ]
         return T.p["personal vdrive not available."]
 
