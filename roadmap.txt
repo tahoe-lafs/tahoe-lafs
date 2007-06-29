@@ -40,12 +40,13 @@ Download Peer Selection:
      (the "A" list), if necessary ask the ones after them, etc.
  v3: denver airport?
 
-Filetable Maintenance:
+Directory/Filesystem Maintenance:
 *v1: vdrive-based tree of MutableDirectoryNodes, persisted to vdrive's disk
      no accounts
- v2: filetree, one space per user, plus one global mutable space
+*v2: single-host dirnodes, one tree per user, plus one global mutable space
  v3: maintain file manifest
- v4: figure out accounts, users. Maybe implement SSKs
+ v3.5: distributed storage for dirnodes
+ v4: figure out accounts, users, quotas, snapshots, versioning, etc
 
 Checker/Repairer:
 *v1: none
