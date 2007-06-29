@@ -190,21 +190,20 @@ class RIVirtualDriveServer(RemoteInterface):
         This will raise IndexError if a child with the given name already
         exists.
         """
-        pass
 
     def delete(index=Hash, write_enabler=Hash, key=Hash):
         """Delete a specific child.
 
         This uses the hashed key to locate a specific child, and deletes it.
         """
-        pass
 
 
 class IFileNode(Interface):
     def download(target):
         """Download the file's contents to a given IDownloadTarget"""
     def download_to_data():
-        pass
+        """Download the file's contents. Return a Deferred that fires
+        with those contents."""
 
     def get_uri():
         """Return the URI that can be used by others to get access to this
