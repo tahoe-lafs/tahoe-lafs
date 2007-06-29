@@ -12,7 +12,7 @@ File Encoding:
 *v2: multiple-segment (LFE)
 *v3: merkle tree to verify each share
 *v4: merkle tree to verify each segment
- v5: merkle tree on plaintext (and crypttext?): incremental validation
+*v5: merkle tree on plaintext and crypttext: incremental validation
  v6: only retrieve the minimal number of hashes instead of all of them
 
 Share Encoding:
@@ -23,8 +23,11 @@ Share Encoding:
 
 URI:
 *v1: really big
- v2: derive more information from version and filesize, to remove codec_name,
-     codec_params, tail_codec_params, needed_shares, total_shares, segment_size
+*v2: store URI Extension with shares
+ v3: derive storage index from readkey
+ v4: perhaps derive more information from version and filesize, to remove
+     codec_name, codec_params, tail_codec_params, needed_shares,
+     total_shares, segment_size from the URI Extension
 
 Upload Peer Selection:
 *v1: permuted peer list, consistent hash
@@ -44,7 +47,7 @@ Directory/Filesystem Maintenance:
 *v1: vdrive-based tree of MutableDirectoryNodes, persisted to vdrive's disk
      no accounts
 *v2: single-host dirnodes, one tree per user, plus one global mutable space
- v3: maintain file manifest
+ v3: maintain file manifest, delete on remove
  v3.5: distributed storage for dirnodes
  v4: figure out accounts, users, quotas, snapshots, versioning, etc
 
@@ -58,14 +61,14 @@ Storage:
 *v1: no deletion, one directory per verifierid, no owners of shares,
      leases never expire
 *v2: multiple shares per verifierid [zooko]
- v3: disk space limits on storage servers -- http://allmydata.org/trac/tahoe/ticket/34
+ v3: disk space limits on storage servers -- ticket #34
  v4: deletion
  v5: leases expire, delete expired data on demand, multiple owners per share
 
 UI:
 *v1: readonly webish (nevow, URLs are filepaths)
 *v2: read/write webish, mkdir, del (files)
- v2.5: del (directories)
+*v2.5: del (directories)
  v3: PB+CLI tool.
  v3.25: XML-RPC
  v3.5: XUIL?
