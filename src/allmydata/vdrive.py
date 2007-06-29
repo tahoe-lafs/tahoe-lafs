@@ -93,6 +93,11 @@ class VirtualDrive(service.MultiService):
 
 
     def get_node_at_path(self, path, root=None):
+        if not isinstance(path, (list, tuple)):
+            assert isinstance(path, (str, unicode))
+            if path[0] == "/":
+                path = path[1:]
+            path = path.split("/")
         assert isinstance(path, (list, tuple))
 
         if root is None:

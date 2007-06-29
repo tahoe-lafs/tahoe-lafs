@@ -313,7 +313,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     def _do_publish_private(self, res):
         ut = upload.Data(self.data)
         vdrive0 = self.clients[0].getServiceNamed("vdrive")
-        d = vdrive0.get_node_at_path(["~"])
+        d = vdrive0.get_node_at_path("~")
         d.addCallback(self.log, "GOT ~")
         def _got_root(rootnode):
             d1 = rootnode.create_empty_directory("personal")
@@ -350,12 +350,11 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     def _check_publish2(self, res):
         # this one uses the path-based API
         vdrive1 = self.clients[1].getServiceNamed("vdrive")
-        def get_path(path):
-            return vdrive1.get_node_at_path(path.split("/"))
+        get_path = vdrive1.get_node_at_path
         d = get_path("subdir1")
         d.addCallback(lambda dirnode:
                       self.failUnless(IDirectoryNode.providedBy(dirnode)))
-        d.addCallback(lambda res: get_path("subdir1/mydata567"))
+        d.addCallback(lambda res: get_path("/subdir1/mydata567"))
         d.addCallback(lambda filenode: filenode.download_to_data())
         d.addCallback(lambda data: self.failUnlessEqual(data, self.data))
 
@@ -371,7 +370,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         # this one uses the path-based API
         def get_path(path):
             vdrive0 = self.clients[0].getServiceNamed("vdrive")
-            return vdrive0.get_node_at_path(path.split("/"))
+            return vdrive0.get_node_at_path(path)
         d = get_path("~/personal")
         def _got_personal(personal):
             self._personal_node = personal

@@ -682,11 +682,17 @@ class IVirtualDrive(Interface):
     def get_node_at_path(self, path):
         """Transform a path into an IDirectoryNode or IFileNode.
 
-        The path is a list of path-name elements, typically constructed by
-        doing userpath.split('/') . If the first element of this list is '~',
-        the rest will be interpreted relative to the local user's private
-        root directory. Otherwse it will be interpreted relative to the
-        global public root directory.
+        The path can either be a single string or a list of path-name
+        elements. The former is generated from the latter by using
+        .join('/'). If the first element of this list is '~', the rest will
+        be interpreted relative to the local user's private root directory.
+        Otherwse it will be interpreted relative to the global public root
+        directory. As a result, the following three values of 'path' are
+        equivalent::
+
+         '/dirname/foo.txt'
+         'dirname/foo.txt'
+         ['dirname', 'foo.txt']
 
         This method returns a Deferred that fires with the node in question,
         or errbacks with an IndexError if the target node could not be found.
