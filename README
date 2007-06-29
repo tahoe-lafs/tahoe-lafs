@@ -1,5 +1,6 @@
 Welcome to the Allmydata-Tahoe project.  This project implements a secure,
-distributed, fault-tolerant storage grid.
+distributed, fault-tolerant storage grid.  All of the source code is available 
+under a Free Software licence.
 
 The basic idea is that the data in this storage grid is spread over all
 participating nodes, using an algorithm that can recover the data even if a
@@ -46,8 +47,8 @@ gcc make python-dev python-twisted python-nevow python-pyopenssl".
 
  + GNU make (build tool)
 
- + Python 2.4 or newer (tested against 2.4, and 2.5.1, but v2.5 or higher
-   is required on Windows-native), including development headers (language)
+ + Python 2.4 or newer (tested against 2.4, and 2.5.1 -- on Windows-native 
+   Python 2.5 or higher is required), including development headers (language)
 
    http://python.org/
 
@@ -65,7 +66,7 @@ gcc make python-dev python-twisted python-nevow python-pyopenssl".
    Twisted requires zope.interface, a copy of which is included in the
    Twisted distribution.
 
- + Python Nevow (0.9.0 or later) (web presentation language)
+ + Python Nevow (0.9.18 or later) (web presentation language)
 
    http://divmod.org/trac/wiki/DivmodNevow
 
@@ -108,7 +109,7 @@ CTR-mode API).
 BUILDING:
 
  Just type 'make' in the top-level tahoe directory.  This works on Windows
- too, provided that you have the dependencies mentioned above (either a
+ too, provided that you have the dependencies mentioned above.  (Either a
  normal cygwin build or a mingw-style native build will be done by the
  makefile, depending on whether the version of python that you have installed
  is the Windows-native python or the cygwin python.)
