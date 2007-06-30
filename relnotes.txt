@@ -76,12 +76,12 @@ number into a file called 'webport').  The front page of this webserver
 shows the node's status, including which introducer is being used and which
 other nodes are connected.  Links from the status page lead to others that
 give access to a shared virtual filesystem, in which each directory is
-represented by a separate page.  Each directory page shows a list of the
+represented by a separate page.  Each client node also has a separate 
+(non-shared) virtual filesystem.  Each directory page shows a list of the
 files available there, with download links, and forms to upload new files.
 
-Other ways to access the filesystem are planned, as well as other structures
-than the single globally-shared namespace implemented by this release:
-please see the roadmap.txt [6] for some rough details.
+Other ways to access the filesystem are planned: please see the roadmap.txt
+[6] for some rough details.
 
 
 HACKING AND COMMUNITY
