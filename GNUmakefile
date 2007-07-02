@@ -161,7 +161,7 @@ endif
 
 upload-figleaf:
 	rsync -a coverage-html/ $(UPLOAD_TARGET)
-	ssh $(UPLOAD_HOST) make update-tahoe-figleaf $(COVERAGEDIR)
+	ssh $(UPLOAD_HOST) make update-tahoe-figleaf COVERAGEDIR=$(COVERAGEDIR)
 else
 upload-figleaf:
 	echo "this target is meant to be run with UPLOAD_TARGET=host:/path/"
