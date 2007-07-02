@@ -151,8 +151,17 @@ figleaf-output:
 
 # 'upload-figleaf' is meant to be run with an UPLOAD_TARGET=host:/dir setting
 ifdef UPLOAD_TARGET
+
+ifndef UPLOAD_HOST
+$(error UPLOAD_HOST must be set when using UPLOAD_TARGET)
+endif
+ifndef COVERAGEDIR
+$(error COVERAGEDIR must be set when using UPLOAD_TARGET)
+endif
+
 upload-figleaf:
 	rsync -a coverage-html/ $(UPLOAD_TARGET)
+	ssh $(UPLOAD_HOST) make update-tahoe-figleaf $(COVERAGEDIR)
 else
 upload-figleaf:
 	echo "this target is meant to be run with UPLOAD_TARGET=host:/path/"
