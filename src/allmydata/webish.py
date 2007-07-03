@@ -328,12 +328,12 @@ class WebDownloadTarget:
         self._content_encoding = content_encoding
         self._opened = False
 
-    def open(self):
+    def open(self, size):
         self._opened = True
         self._req.setHeader("content-type", self._content_type)
         if self._content_encoding:
-            self._req.setHeader('content-encoding', self._content_encoding)
-        # TODO: it would be nice to set the size header here
+            self._req.setHeader("content-encoding", self._content_encoding)
+        self._req.setHeader("content-length", str(size))
 
     def write(self, data):
         self._req.write(data)

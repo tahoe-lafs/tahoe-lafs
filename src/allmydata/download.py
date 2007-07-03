@@ -25,13 +25,14 @@ class BadCrypttextHashValue(Exception):
     pass
 
 class Output:
-    def __init__(self, downloadable, key):
+    def __init__(self, downloadable, key, total_length):
         self.downloadable = downloadable
         self._decryptor = AES.new(key=key, mode=AES.MODE_CTR,
                                   counterstart="\x00"*16)
         self._crypttext_hasher = hashutil.crypttext_hasher()
         self._plaintext_hasher = hashutil.plaintext_hasher()
         self.length = 0
+        self.total_length = total_length
         self._segment_number = 0
         self._plaintext_hash_tree = None
         self._crypttext_hash_tree = None
@@ -71,7 +72,7 @@ class Output:
         # any memory usage beyond this.
         if not self._opened:
             self._opened = True
-            self.downloadable.open()
+            self.downloadable.open(self.total_length)
         self.downloadable.write(plaintext)
 
     def fail(self, why):
@@ -270,7 +271,7 @@ class FileDownloader:
         self._size = d['size']
         self._num_needed_shares = d['needed_shares']
 
-        self._output = Output(downloadable, d['key'])
+        self._output = Output(downloadable, d['key'], self._size)
 
         self.active_buckets = {} # k: shnum, v: bucket
         self._share_buckets = [] # list of (sharenum, bucket) tuples
@@ -585,7 +586,7 @@ class FileName:
     implements(IDownloadTarget)
     def __init__(self, filename):
         self._filename = filename
-    def open(self):
+    def open(self, size):
         self.f = open(self._filename, "wb")
         return self.f
     def write(self, data):
@@ -604,7 +605,7 @@ class Data:
     implements(IDownloadTarget)
     def __init__(self):
         self._data = []
-    def open(self):
+    def open(self, size):
         pass
     def write(self, data):
         self._data.append(data)
@@ -627,7 +628,7 @@ class FileHandle:
     implements(IDownloadTarget)
     def __init__(self, filehandle):
         self._filehandle = filehandle
-    def open(self):
+    def open(self, size):
         pass
     def write(self, data):
         self._filehandle.write(data)
