@@ -1,10 +1,11 @@
 
 def foo(): pass # keep the line number constant
 
+import os
 from twisted.trial import unittest
 
 from allmydata.util import bencode, idlib, humanreadable, mathutil
-from allmydata.util import assertutil
+from allmydata.util import assertutil, fileutil
 
 
 class IDLib(unittest.TestCase):
@@ -270,3 +271,90 @@ class Asserts(unittest.TestCase):
         m = self.should_assert(f, False, othermsg="message2")
         self.failUnlessEqual("postcondition: othermsg: 'message2' <type 'str'>", m)
 
+class FileUtil(unittest.TestCase):
+    def mkdir(self, basedir, path, mode=0777):
+        fn = os.path.join(basedir, path)
+        fileutil.make_dirs(fn, mode)
+
+    def touch(self, basedir, path, mode=None):
+        fn = os.path.join(basedir, path)
+        f = open(fn, "w")
+        f.write("touch\n")
+        f.close()
+        if mode is not None:
+            os.chmod(fn, mode)
+
+    def test_rm_dir(self):
+        basedir = "util/FileUtil/test_rm_dir"
+        fileutil.make_dirs(basedir)
+        # create it again to test idempotency
+        fileutil.make_dirs(basedir)
+        d = os.path.join(basedir, "doomed")
+        self.mkdir(d, "a/b")
+        self.touch(d, "a/b/1.txt")
+        self.touch(d, "a/b/2.txt", 0444)
+        self.touch(d, "a/b/3.txt", 0)
+        self.mkdir(d, "a/c")
+        self.touch(d, "a/c/1.txt")
+        self.touch(d, "a/c/2.txt", 0444)
+        self.touch(d, "a/c/3.txt", 0)
+        os.chmod(os.path.join(d, "a/c"), 0444)
+        self.mkdir(d, "a/d")
+        self.touch(d, "a/d/1.txt")
+        self.touch(d, "a/d/2.txt", 0444)
+        self.touch(d, "a/d/3.txt", 0)
+        os.chmod(os.path.join(d, "a/d"), 0)
+
+        fileutil.rm_dir(d)
+        self.failIf(os.path.exists(d))
+        # remove it again to test idempotency
+        fileutil.rm_dir(d)
+
+    def test_remove_if_possible(self):
+        basedir = "util/FileUtil/test_remove_if_possible"
+        fileutil.make_dirs(basedir)
+        self.touch(basedir, "here")
+        fn = os.path.join(basedir, "here")
+        fileutil.remove_if_possible(fn)
+        self.failIf(os.path.exists(fn))
+        fileutil.remove_if_possible(fn) # should be idempotent
+        fileutil.rm_dir(basedir)
+        fileutil.remove_if_possible(fn) # should survive errors
+
+    def test_open_or_create(self):
+        basedir = "util/FileUtil/test_open_or_create"
+        fileutil.make_dirs(basedir)
+        fn = os.path.join(basedir, "here")
+        f = fileutil.open_or_create(fn)
+        f.write("stuff.")
+        f.close()
+        f = fileutil.open_or_create(fn)
+        f.seek(0, 2)
+        f.write("more.")
+        f.close()
+        f = open(fn, "r")
+        data = f.read()
+        f.close()
+        self.failUnlessEqual(data, "stuff.more.")
+
+    def test_NamedTemporaryDirectory(self):
+        basedir = "util/FileUtil/test_NamedTemporaryDirectory"
+        fileutil.make_dirs(basedir)
+        td = fileutil.NamedTemporaryDirectory(dir=basedir)
+        name = td.name
+        self.failUnless(basedir in name)
+        self.failUnless(basedir in repr(td))
+        self.failUnless(os.path.isdir(name))
+        del td
+        # it is conceivable that we need to force gc here, but I'm not sure
+        self.failIf(os.path.isdir(name))
+
+    def test_rename(self):
+        basedir = "util/FileUtil/test_rename"
+        fileutil.make_dirs(basedir)
+        self.touch(basedir, "here")
+        fn = os.path.join(basedir, "here")
+        fn2 = os.path.join(basedir, "there")
+        fileutil.rename(fn, fn2)
+        self.failIf(os.path.exists(fn))
+        self.failUnless(os.path.exists(fn2))
