@@ -330,7 +330,18 @@ class WebDownloadTarget:
         self._req.write(data)
     def close(self):
         self._req.finish()
-    def fail(self):
+    def fail(self, why):
+        # I think the content-type is already set, and the response code has
+        # already been sent, so we can't provide a clean error indication. We
+        # can emit text (which a browser might interpret as something else),
+        # and if we sent a Size header, they might notice that we've
+        # truncated the data. Keep the error message small to improve the
+        # chances of having our error response be shorter than the intended
+        # results.
+        #
+        # We don't have a lot of options, unfortunately.
+
+        self._req.write("problem during download\n")
         self._req.finish()
     def register_canceller(self, cb):
         pass
@@ -366,8 +377,11 @@ class Downloader(resource.Resource):
         req.setHeader("content-type", type)
         if encoding:
             req.setHeader('content-encoding', encoding)
+        # TODO: it would be nice to set the size header here
 
-        self._filenode.download(WebDownloadTarget(req))
+        d = self._filenode.download(WebDownloadTarget(req))
+        # exceptions during download are handled by the WebDownloadTarget
+        d.addErrback(lambda why: None)
         return server.NOT_DONE_YET
 
 class Manifest(rend.Page):

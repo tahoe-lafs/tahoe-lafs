@@ -73,6 +73,9 @@ class Output:
         # any memory usage beyond this.
         self.downloadable.write(plaintext)
 
+    def fail(self, why):
+        self.downloadable.fail(why)
+
     def close(self):
         self.crypttext_hash = self._crypttext_hasher.digest()
         self.plaintext_hash = self._plaintext_hasher.digest()
@@ -266,6 +269,7 @@ class FileDownloader:
         self._num_needed_shares = d['needed_shares']
 
         self._output = Output(downloadable, d['key'])
+        self._output.open()
 
         self.active_buckets = {} # k: shnum, v: bucket
         self._share_buckets = [] # list of (sharenum, bucket) tuples
@@ -294,6 +298,10 @@ class FileDownloader:
         d.addCallback(self._create_validated_buckets)
         # once we know that, we can download blocks from everybody
         d.addCallback(self._download_all_segments)
+        def _failed(why):
+            self._output.fail(why)
+            return why
+        d.addErrback(_failed)
         d.addCallback(self._done)
         return d
 
@@ -500,7 +508,6 @@ class FileDownloader:
         # of ValidatedBuckets, which themselves are wrappers around
         # RIBucketReader references.
         self.active_buckets = {} # k: shnum, v: ValidatedBucket instance
-        self._output.open()
 
         d = defer.succeed(None)
         for segnum in range(self._total_segments-1):
@@ -584,7 +591,7 @@ class FileName:
         self.f.write(data)
     def close(self):
         self.f.close()
-    def fail(self):
+    def fail(self, why):
         self.f.close()
         os.unlink(self._filename)
     def register_canceller(self, cb):
@@ -603,7 +610,7 @@ class Data:
     def close(self):
         self.data = "".join(self._data)
         del self._data
-    def fail(self):
+    def fail(self, why):
         del self._data
     def register_canceller(self, cb):
         pass # we won't use it
@@ -626,7 +633,7 @@ class FileHandle:
     def close(self):
         # the originator of the filehandle reserves the right to close it
         pass
-    def fail(self):
+    def fail(self, why):
         pass
     def register_canceller(self, cb):
         pass

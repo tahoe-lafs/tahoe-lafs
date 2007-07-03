@@ -522,6 +522,15 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             self.failUnlessEqual(page, self.data)
         d.addCallback(_got_from_uri2)
 
+        # download from a bogus URI, make sure we get a reasonable error
+        def _get_from_bogus_uri(res):
+            return getPage(base + "download_uri/%s?filename=%s"
+                           % (self.mangle_uri(self.uri), "mydata567"))
+        d.addCallback(_get_from_bogus_uri)
+        def _got_from_bogus_uri(page):
+            self.failUnlessEqual(page, "problem during download\n")
+        d.addCallback(_got_from_bogus_uri)
+
         # download from a URI pasted into a form. Use POST, build a
         # multipart/form-data, submit it. This actualy redirects us to a
         # /download_uri?uri=%s URL, and twisted.web.client doesn't seem to

@@ -605,14 +605,15 @@ class IDecoder(Interface):
 
 class IDownloadTarget(Interface):
     def open():
-        """Called before any calls to write() or close()."""
+        """Called before any calls to write(), close(), or fail()."""
     def write(data):
         """Output some data to the target."""
     def close():
         """Inform the target that there is no more data to be written."""
-    def fail():
-        """fail() is called to indicate that the download has failed. No
-        further methods will be invoked on the IDownloadTarget after fail()."""
+    def fail(why):
+        """fail() is called to indicate that the download has failed. 'why'
+        is a Failure object indicating what went wrong. No further methods
+        will be invoked on the IDownloadTarget after fail()."""
     def register_canceller(cb):
         """The FileDownloader uses this to register a no-argument function
         that the target can call to cancel the download. Once this canceller
@@ -626,7 +627,10 @@ class IDownloadTarget(Interface):
 class IDownloader(Interface):
     def download(uri, target):
         """Perform a CHK download, sending the data to the given target.
-        'target' must provide IDownloadTarget."""
+        'target' must provide IDownloadTarget.
+
+        Returns a Deferred that fires (with the results of target.finish)
+        when the download is finished, or errbacks if something went wrong."""
 
 class IUploadable(Interface):
     def get_filehandle():
