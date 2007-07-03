@@ -605,7 +605,9 @@ class IDecoder(Interface):
 
 class IDownloadTarget(Interface):
     def open():
-        """Called before any calls to write(), close(), or fail()."""
+        """Called before any calls to write() or close(). If an error
+        occurs before any data is available, fail() may be called without
+        a previous call to open()."""
     def write(data):
         """Output some data to the target."""
     def close():

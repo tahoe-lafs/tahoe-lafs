@@ -1,6 +1,6 @@
 
 from twisted.application import service, strports
-from twisted.web import static, resource, server, html
+from twisted.web import static, resource, server, html, http
 from twisted.python import util, log
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
@@ -322,27 +322,47 @@ class Directory(rend.Page):
 
 class WebDownloadTarget:
     implements(IDownloadTarget)
-    def __init__(self, req):
+    def __init__(self, req, content_type, content_encoding):
         self._req = req
+        self._content_type = content_type
+        self._content_encoding = content_encoding
+        self._opened = False
+
     def open(self):
-        pass
+        self._opened = True
+        self._req.setHeader("content-type", self._content_type)
+        if self._content_encoding:
+            self._req.setHeader('content-encoding', self._content_encoding)
+        # TODO: it would be nice to set the size header here
+
     def write(self, data):
         self._req.write(data)
     def close(self):
         self._req.finish()
-    def fail(self, why):
-        # I think the content-type is already set, and the response code has
-        # already been sent, so we can't provide a clean error indication. We
-        # can emit text (which a browser might interpret as something else),
-        # and if we sent a Size header, they might notice that we've
-        # truncated the data. Keep the error message small to improve the
-        # chances of having our error response be shorter than the intended
-        # results.
-        #
-        # We don't have a lot of options, unfortunately.
 
-        self._req.write("problem during download\n")
+    def fail(self, why):
+        if self._opened:
+            # The content-type is already set, and the response code
+            # has already been sent, so we can't provide a clean error
+            # indication. We can emit text (which a browser might interpret
+            # as something else), and if we sent a Size header, they might
+            # notice that we've truncated the data. Keep the error message
+            # small to improve the chances of having our error response be
+            # shorter than the intended results.
+            #
+            # We don't have a lot of options, unfortunately.
+            self._req.write("problem during download\n")
+        else:
+            # We haven't written anything yet, so we can provide a sensible
+            # error message.
+            msg = str(why.type)
+            msg.replace("\n", "|")
+            self._req.setResponseCode(http.INTERNAL_SERVER_ERROR, msg)
+            self._req.setHeader("content-type", "text/plain")
+            # TODO: HTML-formatted exception?
+            self._req.write(str(why))
         self._req.finish()
+
     def register_canceller(self, cb):
         pass
     def finish(self):
@@ -374,12 +394,8 @@ class Downloader(resource.Resource):
                              static.File.contentTypes,
                              static.File.contentEncodings,
                              defaultType="text/plain")
-        req.setHeader("content-type", type)
-        if encoding:
-            req.setHeader('content-encoding', encoding)
-        # TODO: it would be nice to set the size header here
 
-        d = self._filenode.download(WebDownloadTarget(req))
+        d = self._filenode.download(WebDownloadTarget(req, type, encoding))
         # exceptions during download are handled by the WebDownloadTarget
         d.addErrback(lambda why: None)
         return server.NOT_DONE_YET

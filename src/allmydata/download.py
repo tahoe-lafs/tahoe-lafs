@@ -35,13 +35,11 @@ class Output:
         self._segment_number = 0
         self._plaintext_hash_tree = None
         self._crypttext_hash_tree = None
+        self._opened = False
 
     def setup_hashtrees(self, plaintext_hashtree, crypttext_hashtree):
         self._plaintext_hash_tree = plaintext_hashtree
         self._crypttext_hash_tree = crypttext_hashtree
-
-    def open(self):
-        self.downloadable.open()
 
     def write_segment(self, crypttext):
         self.length += len(crypttext)
@@ -71,9 +69,13 @@ class Output:
         self._segment_number += 1
         # We're still at 1*segment_size. The Downloadable is responsible for
         # any memory usage beyond this.
+        if not self._opened:
+            self._opened = True
+            self.downloadable.open()
         self.downloadable.write(plaintext)
 
     def fail(self, why):
+        log.msg("UNUSUAL: download failed: %s" % why)
         self.downloadable.fail(why)
 
     def close(self):
@@ -269,7 +271,6 @@ class FileDownloader:
         self._num_needed_shares = d['needed_shares']
 
         self._output = Output(downloadable, d['key'])
-        self._output.open()
 
         self.active_buckets = {} # k: shnum, v: bucket
         self._share_buckets = [] # list of (sharenum, bucket) tuples
