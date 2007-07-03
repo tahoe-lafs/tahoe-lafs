@@ -1,0 +1,414 @@
+
+= Tahoe Directory Nodes =
+
+As explained in the architecture docs, Tahoe can be roughly viewed as a
+collection of three layers. The lowest layer is the distributed filestore, or
+DHT: it provides operations that accept files and upload them to the mesh,
+creating a URI in the process which securely references the file's contents.
+The middle layer is the filesystem, creating a structure of directories and
+filenames resembling the traditional unix/windows filesystems. The top layer
+is the application layer, which uses the lower layers to provide useful
+services to users, like a backup application, or a way to share files with
+friends.
+
+This document examines the middle layer, the "filesystem".
+
+== DHT Primitives ==
+
+In the lowest layer (DHT), we've defined two operations thus far, both of
+which refer to "CHK URIs", which reference immutable data:
+
+ chk_uri = put(data)
+ data = get(chk_uri)
+
+We anticipate creating mutable slots in the DHT layer at some point, which
+will add some new operations to this layer:
+
+ slotname = create_slot()
+ set(slotname, data)
+ data = get(slotname)
+
+== Filesystem Goals ==
+
+The main goal for the middle (filesystem) layer is to give users a way to
+organize the data that they have uploaded into the mesh. The traditional way
+to do this in computer filesystems is to put this data into files, give those
+files names, and collect these names into directories.
+
+Each directory is a series of name-value pairs, which maps "child name" to an
+object of some kind. Those child objects might be files, or they might be
+other directories.
+
+The directory structure is therefore a directed graph of nodes, in which each
+node might be a directory node or a file node. All file nodes are terminal
+nodes.
+
+== Dirnode Goals ==
+
+What properties might be desireable for these directory nodes? In no
+particular order:
+
+ 1: functional. Code which does not work doesn't count.
+ 2: easy to document, explain, and understand
+ 3: private: it should not be possible for others to see the contents of a
+             directory
+ 4: integrity: it should not be possible for others to modify the contents
+               of a directory
+ 5: available: directories should survive host failure, just like files do
+ 6: efficient: in storage, communication bandwidth, number of round-trips
+ 7: easy to delegate individual directories in a flexible way
+ 8: updateness: everybody looking at a directory should see the same contents
+ 9: monotonicity: everybody looking at a directory should see the same
+                  sequence of updates
+
+We do not meet all of these goals. For the current release, we favored #1,
+#2, and #7 above the rest, which lead us to the following design. In a later
+#section, we discuss some alternate designs and potential changes to the
+#existing code that can help us achieve the other goals.
+
+In tahoe-0.4.0, each "dirnode" is stored as a file on a single "vdrive
+server". The name of this file is an unguessable string. The contents are an
+encrypted representation of the directory's name-to-child mapping. Foolscap
+is used to provide remote access to this file. A collection of "directory
+URIs" are used to hold all the parameters necessary to access, read, and
+write this dirnode.
+
+== Dirnode secret values ==
+
+Each dirnode begins life as a "writekey", a randomly-generated AES key. This
+key is hashed (using a tagged hash, see src/allmydata/util/hashutil.py for
+details) to form the "readkey". The readkey is hashed to form the "storage
+index". The writekey is hashed with a different tag to form the "write
+enabler".
+
+Clients who have read-write access to the dirnode know the writekey, and can
+derive all the other secrets from it. Clients with merely read-only access to
+the dirnode know the readkey (and can derive the storage index), but do not
+know the writekey or the write enabler. The vdrive server knows only the
+storage index and the write enabler.
+
+== Dirnode capability URIs ==
+
+The "write capability" for a dirnode grants read-write access to its
+contents. This is expressed on concrete form as the "dirnode write URI": a
+printable string which contains the following pieces of information:
+
+ furl of the vdrive server hosting this dirnode
+ writekey
+
+The "read capability" grants read-only access to a dirnode, and its "dirnode
+read URI" contains:
+
+ furl of the vdrive server hosting this dirnode
+ readkey
+
+For example,
+URI:DIR:pb://xextf3eap44o3wi27mf7ehiur6wvhzr6@207.7.153.180:56677,127.0.0.1:56677/vdrive:shrrn75qq3x7uxfzk326ncahd4======
+is a write-capability URI, while
+URI:DIR-RO:pb://xextf3eap44o3wi27mf7ehiur6wvhzr6@207.7.153.180:56677,127.0.0.1:56677/vdrive:4c2legsthoe52qywuaturgwdrm======
+is a read-capability URI, both for the same dirnode.
+
+
+== Dirnode storage format ==
+
+Each dirnode is stored in a single file, saved on the vdrive server, using
+the (base32-encoded) storage index as a filename. The contents of this file
+are a serialized dictionary which maps H_name (explained below) to a tuple
+with three values: (E_name, E_write, E_read). The vdrive server is made
+available as a Foolscap "Referenceable" object, with the following
+operations:
+
+ create_dirnode(index, write_enabler) -> None
+ list(index) -> list of (E_name, E_write, E_read) tuples
+ get(index, H_name) -> (E_write, E_read)
+ set(index, write_enabler, H_name, E_name, E_write, E_read)
+ delete(index, write_enabler, H_name)
+
+For any given entry of this dictionary, the following values are obtained by
+hashing or encryption:
+
+  H_name is the hash of the readkey and the child's name.
+  E_name is the child's name, encrypted with the readkey
+  E_write is the child's write-URI, encrypted with the writekey
+  E_read is the child's read-URI, encrypted with the readkey
+
+All encryption uses AES in CTR mode, in which the high-order 10 or 12 bytes
+of the 16-byte key are used as an IV (randomly chosen each time the data is
+changed), and the remaining bytes are used as the CTR-mode offset. An
+HMAC-SHA256 is computed for each encrypted value and stored alongside. The
+stored E_name/E_write/E_read values are thus the concatenation of IV,
+encrypted data, and HMAC.
+
+When a new dirnode is created, it records the write_enabler. All operations
+that modify an existing dirnode (set and delete) require the write_enabler be
+presented.
+
+This approach insures that clients who do not have the read or write keys
+(including the vdrive server, which knows the storage index but not the keys)
+will be unable to see any of the contents of the dirnode. Clients who have
+the readkey but not the writekey will not be allowed to modify the dirnode.
+The H_name value allows clients to perform lookups of specific keys rather
+than requiring them to download the whole dirnode for each operation.
+
+By putting both read-only and read-write child access capabilities in each
+entry, encrypted by different keys, this approach provides transitive
+read-only-ness: if a client has only a readkey for the parent dirnode, they
+will only get readkeys (and not writekeys) for any children, including other
+directories. When we create mutable slots in the mesh and we start having
+read-write file URIs, we can use the same approach to insure that read-only
+access to a directory means read-only access to the files as well.
+
+
+== Design Goals, redux ==
+
+How well does this design meet the goals?
+
+ #1 functional: YES: the code works and has extensive unit tests
+ #2 documentable: YES: this document is the existence proof
+ #3 private: MOSTLY: see the discussion below
+ #4 integrity: MOSTLY: the vdrive server can rollback individual slots
+ #5 availability: BARELY: if the vdrive server is offline, the dirnode will
+                          be unuseable. If the vdrive server fails,
+                          the dirnode will be lost forever.
+ #6 efficient: MOSTLY:
+      network: single dirnode lookup is very efficient, since clients can
+               fetch specific keys rather than being required to get or set
+               the entire dirnode each time. Traversing many directories
+               takes a lot of roundtrips, and these can't be collapsed with
+               promise-pipelining because the intermediate values must only
+               be visible to the client. Modifying many dirnodes at once
+               (e.g. importing a large pre-existing directory tree) is pretty
+               slow, since each graph edge must be created independently.
+      storage: each child has a separate IV, which makes them larger than
+               if all children were aggregated into a single encrypted string
+ #7 delegation: VERY: each dirnode is a completely independent object,
+                to which clients can be granted separate read-write or
+                read-only access
+ #8 updateness: VERY: with only a single point of access, and no caching,
+                each client operation starts by fetching the current
+                value, so there are no opportunities for staleness
+ #9 monotonicity: VERY: the single point of access also protects against
+                  retrograde motion
+     
+
+
+=== Privacy leaks in the vdrive server ===
+
+Dirnodes are very private against other clients: traffic between the client
+and the vdrive server is protected by the Foolscap SSL connection, so they
+can observe very little. Storage index values are hashes of secrets and thus
+unguessable, and they are not made public, so other clients cannot snoop
+through encrypted dirnodes that they have not been told about.
+
+On the other hand, the vdrive server gets to see the access patterns of each
+client who is using dirnodes hosted there. The childnames and URIs are
+encrypted and not visible to anyone (including the vdrive server), but the
+vdrive server is in a good position to infer a lot of data about the
+directory structure. It knows the length of all childnames, and from the
+length of the child URIs themselves it can tell whether children are file
+URIs vs. directory URIs vs read-only directory URIs. By watching a client's
+access patterns it can deduce the connection between (encrypted) child 1 and
+target directory 2 (i.e. if the client does a 'get' of the first child, then
+immediately does an operation on directory 2, it can assume the two are
+related. From this the vdrive server can build a graph with the same shape as
+the filesystem, even though the nodes and edges will be unlabled.
+
+By providing CHK-level storage services as well (or colluding with a server
+who is), the vdrive server can infer the storage index of file nodes that are
+downloaded shortly after their childname is looked up.
+
+
+=== Integrity failures in the vdrive server ===
+
+The HMAC prevents the vdrive server from modifying the child names or child
+URI values without detection: changing a few bytes will cause an HMAC failure
+that the client can detect. This means the vdrive server can make the dirnode
+unavailable, but not corrupt it.
+
+However, the vdrive server can perform a rollback attack: either replacing an
+individual entry in the encrypted table with an old version, or replacing the
+entire table. Despite not knowing what the child names or URIs are, the
+vdrive server can undo changes made by authorized clients. It could also
+perform selective rollback, showing different clients different versions of
+the filesystem. To solve this problem either requires mutable data (like a
+sequence number or hash) to be stored in the URI which points to this dirnode
+(rendering them non-constant, and losing most of their value), or requires
+spreading the dirnode out over multiple non-colluding servers (which might
+improve availability but makes updateness and monotonicity harder).
+
+
+=== Improving the availability of dirnodes ===
+
+Clearly it is somewhat disappointing to have a sexy distributed filestore at
+the bottom layer and then have a single-point-of-failure vdrive server on top
+of it. However, this approach meets many of the design goals and is extremely
+simple to explain and implement. There are many avenues to improve the
+reliability and availability of dirnodes. (note that reliability and
+availability can be separate goals).
+
+A simple way to improve the reliability of dirnodes would be to make the
+vdrive server be responsible for saving the dirnode contents in a fashion
+that will survive the failure of its local disk, for example by simply
+rsync'ing all the dirnodes off to a separate machine on a periodic basis, and
+pulling them back in the case of disk failure.
+
+To improve availability, we must allow clients to access their dirnodes even
+if the vdrive server is offline. The first step here is to create multiple
+vdrive servers, putting a list of furls into the DIR:URI, with instructions
+to update all of them during write, and accept the first answer that comes
+back during read. This introduces issues of updateness and monotonicity: if a
+dirnode is changed while one of the vdrive servers is offline, the servers
+will diverge, and subsequent clients will see different contents depending
+upon which server they ask.
+
+A more comforting way to improve both reliability and availability is to
+spread the dirnodes out over the mesh in the same way that CHK files work.
+The general name for this approach is the "SSK directory slot", a structure
+for keeping a mutable slot on multiple hosts, setting and retrieving its
+contents at various times, and reconciling differences by comparing sequence
+numbers. The "slot name" is the hash of a public key, which is also used to
+sign updates, such that the SSK storage hosts will only accept updates from
+those in possession of the corresponding private key. This approach (although
+not yet implemented) will provide fairly good reliability and availability
+properties, at the expense of complexity and updateness/monotonicity. It can
+also improve integrity, since an attacker would have to corrupt multiple
+storage servers to successfully perform a rollback attack.
+
+Reducing centralization can improve reliability, as long as the overall
+reliability of the mesh is greater than the reliability of the original
+centralized services.
+
+=== Improving the efficiency of dirnodes ===
+
+By storing each child of a dirnode in a separate element of the dictionary,
+we provide efficient directory traversal and clean+simple dirnode delegation
+behavior. This comes at the cost of efficiency for other operations,
+specifically things that operation on multiple dirnodes at once.
+
+When a backup program is run for the first time, it needs to copy a large
+amount of data from a pre-existing filesystem into reliable storage. This
+means that a large and complex directory structure needs to be duplicated in
+the dirnode layer. With the one-object-per-dirnode approach described here,
+this requires as many operations as there are edges in the imported
+filesystem graph.
+
+Another approach would be to aggregate multiple directories into a single
+storage object. This object would contain a serialized graph rather than a
+single name-to-child dictionary. Most directory operations would fetch the
+whole block of data (and presumeably cache it for a while to avoid lots of
+re-fetches), and modification operations would need to replace the whole
+thing at once. This "realm" approach would have the added benefit of
+combining more data into a single encrypted bundle (perhaps hiding the shape
+of the graph from the vdrive server better), and would reduce round-trips
+when performing deep directory traversals (assuming the realm was already
+cached). It would also prevent fine-grained rollback attacks from working:
+the vdrive server could change the entire dirnode to look like an earlier
+state, but it could not independently roll back individual edges.
+
+The drawbacks of this aggregation would be that small accesses (adding a
+single child, looking up a single child) would require pulling or pushing a
+lot of unrelated data, increasing network overhead (and necessitating
+test-and-set semantics for the modification side, which increases the chances
+that a user operation will fail, making it more challenging to provide
+promises of atomicity to the user). 
+
+It would also make it much more difficult to enable the delegation
+("sharing") of specific directories. Since each aggregate "realm" provides
+all-or-nothing access control, the act of delegating any directory from the
+middle of the realm would require the realm first be split into the upper
+piece that isn't being shared and the lower piece that is. This splitting
+would have to be done in response to what is essentially a read operation,
+which is not traditionally supposed to be a high-effort action.
+
+
+=== Dirnode expiration and leases ===
+
+Dirnodes are created any time a client wishes to add a new directory. How
+long do they live? What's to keep them from sticking around forever, taking
+up space that nobody can reach any longer?
+
+Our plan is to define the vdrive servers to keep dirnodes alive with
+"leases". Clients which know and care about specific dirnodes can ask to keep
+them alive for a while, by renewing a lease on them (with a typical period of
+one month). Clients are expected to assist in the deletion of dirnodes by
+canceling their leases as soon as they are done with them. This means that
+when a client deletes a directory, it should also cancel its lease on that
+directory. When the lease count on a dirnode goes to zero, the vdrive server
+can delete the related storage. Multiple clients may all have leases on the
+same dirnode: the server may delete the dirnode only after all of the leases
+have gone away.
+
+We expect that clients will periodically create a "manifest": a list of
+so-called "refresh capabilities" for all of the dirnodes and files that they
+can reach. They will give this manifest to the "repairer", which is a service
+that keeps files (and dirnodes) alive on behalf of clients who cannot take on
+this responsibility for themselves. These refresh capabilities include the
+storage index, but do *not* include the readkeys or writekeys, so the
+repairer does not get to read the files or directories that it is helping to
+keep alive.
+
+After each change to the user's vdrive, the client creates a manifest and
+looks for differences from their previous version. Anything which was removed
+prompts the client to send out lease-cancellation messages, allowing the data
+to be deleted.
+
+
+== Starting Points: root dirnodes ==
+
+Any client can record the URI of a directory node in some external form (say,
+in a local file) and use it as the starting point of later traversal. The
+current vdrive servers are configured to create a "root" dirnode at startup
+and publish its URI to the world: this forms the basis of the "global shared
+vdrive" used in the demonstration application. In addition, client code is
+currently designed to create a new (unattached) dirnode at startup and record
+its URI: this forms the root of the "per-user private vdrive" presented as
+the "~" directory.
+
+== Mounting and Sharing Directories ==
+
+The biggest benefit of this dirnode approach is that sharing individual
+directories is almost trivial. Alice creates a subdirectory that she wants to
+use to share files with Bob. This subdirectory is attached to Alice's
+filesystem at "~alice/share-with-bob". She asks her filesystem for the
+read-write directory URI for that new directory, and emails it to Bob. When
+Bob receives the URI, he asks his own local vdrive to attach the given URI,
+perhaps at a place named "~bob/shared-with-alice". Every time either party
+writes a file into this directory, the other will be able to read it. If
+Alice prefers, she can give a read-only URI to Bob instead, and then Bob will
+be able to read files but not change the contents of the directory. Neither
+Alice nor Bob will get access to any files above the mounted directory: there
+are no 'parent directory' pointers. If Alice creates a nested set of
+directories, "~alice/share-with-bob/subdir2", and gives a read-only URI to
+share-with-bob to Bob, then Bob will be unable to write to either
+share-with-bob/ or subdir2/.
+
+A suitable UI needs to be created to allow users to easily perform this
+sharing action: dragging a folder their vdrive to an IM or email user icon,
+for example. The UI will need to give the sending user an opportunity to
+indicate whether they want to grant read-write or read-only access to the
+recipient. The recipient then needs an interface to drag the new folder into
+their vdrive and give it a home.
+
+== Revocation ==
+
+When Alice decides that she no longer wants Bob to be able to access the
+shared directory, what should she do? Suppose she's shared this folder with
+both Bob and Carol, and now she wants Carol to retain access to it but Bob to
+be shut out. Ideally Carol should not have to do anything: her access should
+continue unabated.
+
+The current plan is to have her client create a deep copy of the folder in
+question, delegate access to the new folder to the remaining members of the
+group (Carol), asking the lucky survivors to replace their old reference with
+the new one. Bob may still have access to the old folder, but he is now the
+only one who cares: everyone else has moved on, and he will no longer be able
+to see their new changes. In a strict sense, this is the strongest form of
+revocation that can be accomplished: there is no point trying to force Bob to
+forget about the files that he read a moment before being kicked out. In
+addition it must be noted that anyone who can access the directory can proxy
+for Bob, reading files to him and accepting changes whenever he wants.
+Preventing delegation between communication parties is just as pointless as
+asking Bob to forget previously accessed files. However, there may be value
+to configuring the UI to ask Carol to not share files with Bob, or to
+removing all files from Bob's view at the same time his access is revoked.
+
