@@ -184,3 +184,14 @@ def open_or_create(fname, binarymode=True):
         return open(fname, binarymode and "r+b" or "r+")
     except EnvironmentError:
         return open(fname, binarymode and "w+b" or "w+")
+
+
+def du(basedir):
+    size = 0
+
+    for root, dirs, files in os.walk(basedir):
+        for f in files:
+            fn = os.path.join(root, f)
+            size += os.path.getsize(fn)
+
+    return size
