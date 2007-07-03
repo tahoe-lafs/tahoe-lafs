@@ -45,7 +45,7 @@ nodes.
 
 == Dirnode Goals ==
 
-What properties might be desireable for these directory nodes? In no
+What properties might be desirable for these directory nodes? In no
 particular order:
 
  1: functional. Code which does not work doesn't count.
@@ -62,9 +62,9 @@ particular order:
                   sequence of updates
 
 We do not meet all of these goals. For the current release, we favored #1,
-#2, and #7 above the rest, which lead us to the following design. In a later
-#section, we discuss some alternate designs and potential changes to the
-#existing code that can help us achieve the other goals.
+#2, and #7 above the rest, which led us to the following design. In a later
+section, we discuss some alternate designs and potential changes to the
+existing code that can help us achieve the other goals.
 
 In tahoe-0.4.0, each "dirnode" is stored as a file on a single "vdrive
 server". The name of this file is an unguessable string. The contents are an
