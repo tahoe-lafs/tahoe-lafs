@@ -1,5 +1,5 @@
 
-import os, sha, stat, time
+import os, sha, stat, time, re
 from foolscap import Referenceable, SturdyRef
 from zope.interface import implements
 from allmydata.interfaces import RIClient
@@ -7,6 +7,7 @@ from allmydata import node
 
 from twisted.internet import reactor
 from twisted.application.internet import TimerService
+from twisted.python import log
 
 import allmydata
 from allmydata.Crypto.Util.number import bytes_to_long
@@ -27,6 +28,7 @@ class Client(node.Node, Referenceable):
     INTRODUCER_FURL_FILE = "introducer.furl"
     MY_FURL_FILE = "myself.furl"
     SUICIDE_PREVENTION_HOTLINE_FILE = "suicide_prevention_hotline"
+    SIZELIMIT_FILE = "sizelimit"
 
     # we're pretty narrow-minded right now
     OLDEST_SUPPORTED_VERSION = allmydata.__version__
@@ -35,7 +37,7 @@ class Client(node.Node, Referenceable):
         node.Node.__init__(self, basedir)
         self.my_furl = None
         self.introducer_client = None
-        self.add_service(StorageServer(os.path.join(basedir, self.STOREDIR)))
+        self.init_storage()
         self.add_service(Uploader())
         self.add_service(Downloader())
         self.add_service(VirtualDrive())
@@ -57,6 +59,31 @@ class Client(node.Node, Referenceable):
         if os.path.exists(hotline_file):
             hotline = TimerService(1.0, self._check_hotline, hotline_file)
             hotline.setServiceParent(self)
+
+    def init_storage(self):
+        storedir = os.path.join(self.basedir, self.STOREDIR)
+        sizelimit = None
+        SIZELIMIT_FILE = os.path.join(self.basedir,
+                                      self.SIZELIMIT_FILE)
+        if os.path.exists(SIZELIMIT_FILE):
+            f = open(SIZELIMIT_FILE, "r")
+            data = f.read().strip()
+            f.close()
+            m = re.match(r"^(\d+)([kKmMgG]?[bB]?)$", data)
+            if not m:
+                log.msg("SIZELIMIT_FILE contains unparseable value %s" % data)
+            else:
+                number, suffix = m.groups()
+                suffix = suffix.upper()
+                if suffix.endswith("B"):
+                    suffix = suffix[:-1]
+                multiplier = {"": 1,
+                              "K": 1000,
+                              "M": 1000 * 1000,
+                              "G": 1000 * 1000 * 1000,
+                              }[suffix]
+                sizelimit = int(number) * multiplier
+        self.add_service(StorageServer(storedir, sizelimit))
 
     def _check_hotline(self, hotline_file):
         if os.path.exists(hotline_file):

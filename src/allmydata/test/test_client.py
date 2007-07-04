@@ -29,6 +29,56 @@ class Basic(unittest.TestCase):
         open(os.path.join(basedir, "introducer.furl"), "w").write("")
         c = client.Client(basedir)
 
+    def test_sizelimit_1(self):
+        basedir = "client.Basic.test_sizelimit_1"
+        os.mkdir(basedir)
+        open(os.path.join(basedir, "introducer.furl"), "w").write("")
+        open(os.path.join(basedir, "vdrive.furl"), "w").write("")
+        open(os.path.join(basedir, "sizelimit"), "w").write("1000")
+        c = client.Client(basedir)
+        self.failUnlessEqual(c.getServiceNamed("storageserver").sizelimit,
+                             1000)
+
+    def test_sizelimit_2(self):
+        basedir = "client.Basic.test_sizelimit_2"
+        os.mkdir(basedir)
+        open(os.path.join(basedir, "introducer.furl"), "w").write("")
+        open(os.path.join(basedir, "vdrive.furl"), "w").write("")
+        open(os.path.join(basedir, "sizelimit"), "w").write("10K")
+        c = client.Client(basedir)
+        self.failUnlessEqual(c.getServiceNamed("storageserver").sizelimit,
+                             10*1000)
+
+    def test_sizelimit_3(self):
+        basedir = "client.Basic.test_sizelimit_3"
+        os.mkdir(basedir)
+        open(os.path.join(basedir, "introducer.furl"), "w").write("")
+        open(os.path.join(basedir, "vdrive.furl"), "w").write("")
+        open(os.path.join(basedir, "sizelimit"), "w").write("5mB")
+        c = client.Client(basedir)
+        self.failUnlessEqual(c.getServiceNamed("storageserver").sizelimit,
+                             5*1000*1000)
+
+    def test_sizelimit_4(self):
+        basedir = "client.Basic.test_sizelimit_4"
+        os.mkdir(basedir)
+        open(os.path.join(basedir, "introducer.furl"), "w").write("")
+        open(os.path.join(basedir, "vdrive.furl"), "w").write("")
+        open(os.path.join(basedir, "sizelimit"), "w").write("78Gb")
+        c = client.Client(basedir)
+        self.failUnlessEqual(c.getServiceNamed("storageserver").sizelimit,
+                             78*1000*1000*1000)
+
+    def test_sizelimit_bad(self):
+        basedir = "client.Basic.test_sizelimit_bad"
+        os.mkdir(basedir)
+        open(os.path.join(basedir, "introducer.furl"), "w").write("")
+        open(os.path.join(basedir, "vdrive.furl"), "w").write("")
+        open(os.path.join(basedir, "sizelimit"), "w").write("bogus")
+        c = client.Client(basedir)
+        self.failUnlessEqual(c.getServiceNamed("storageserver").sizelimit,
+                             None)
+
     def test_permute(self):
         basedir = "test_client.Basic.test_permute"
         os.mkdir(basedir)
