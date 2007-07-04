@@ -62,7 +62,7 @@ Storage:
 *v1: no deletion, one directory per verifierid, no owners of shares,
      leases never expire
 *v2: multiple shares per verifierid [zooko]
- v3: disk space limits on storage servers -- ticket #34
+*v3: disk space limits on storage servers -- ticket #34
  v4: deletion
  v5: leases expire, delete expired data on demand, multiple owners per share
 
