@@ -16,9 +16,12 @@ class Bucket(unittest.TestCase):
         fileutil.make_dirs(basedir)
         return incoming, final
 
+    def bucket_writer_closed(self, bw):
+        pass
+
     def test_create(self):
         incoming, final = self.make_workdir("test_create")
-        bw = storageserver.BucketWriter(incoming, final, 25)
+        bw = storageserver.BucketWriter(self, incoming, final, 25, 57)
         bw.remote_put_block(0, "a"*25)
         bw.remote_put_block(1, "b"*25)
         bw.remote_put_block(2, "c"*7) # last block may be short
@@ -26,7 +29,7 @@ class Bucket(unittest.TestCase):
 
     def test_readwrite(self):
         incoming, final = self.make_workdir("test_readwrite")
-        bw = storageserver.BucketWriter(incoming, final, 25)
+        bw = storageserver.BucketWriter(self, incoming, final, 25, 57)
         bw.remote_put_block(0, "a"*25)
         bw.remote_put_block(1, "b"*25)
         bw.remote_put_block(2, "c"*7) # last block may be short
@@ -52,12 +55,12 @@ class Server(unittest.TestCase):
         return self.sparent.stopService()
 
     def workdir(self, name):
-        basedir = os.path.join("test_storage", "Server", name)
+        basedir = os.path.join("storage", "Server", name)
         return basedir
 
-    def create(self, name):
+    def create(self, name, sizelimit=None):
         workdir = self.workdir(name)
-        ss = storageserver.StorageServer(workdir)
+        ss = storageserver.StorageServer(workdir, sizelimit)
         ss.setServiceParent(self.sparent)
         return ss
 
@@ -104,3 +107,48 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(already, set([2,3,4]))
         self.failUnlessEqual(set(writers.keys()), set([5]))
 
+    def test_sizelimits(self):
+        ss = self.create("test_sizelimits", 100)
+        canary = Referenceable()
+        
+        already,writers = ss.remote_allocate_buckets("vid1", [0,1,2],
+                                                     25, 5, canary)
+        self.failUnlessEqual(len(writers), 3)
+        # now the StorageServer should have 75 bytes provisionally allocated,
+        # allowing only 25 more to be claimed
+
+        already2,writers2 = ss.remote_allocate_buckets("vid2", [0,1,2],
+                                                       25, 5, canary)
+        self.failUnlessEqual(len(writers2), 1)
+
+        # we abandon the first set, so their provisional allocation should be
+        # returned
+        del already
+        del writers
+
+        # and we close the second set, so their provisional allocation should
+        # become real, long-term allocation
+        for bw in writers2.values():
+            bw.remote_close()
+        del already2
+        del writers2
+        del bw
+
+        # now there should be 25 bytes allocated, and 75 free
+        already3,writers3 = ss.remote_allocate_buckets("vid3", [0,1,2,3],
+                                                       25, 5, canary)
+        self.failUnlessEqual(len(writers3), 3)
+
+        del already3
+        del writers3
+        ss.disownServiceParent()
+        del ss
+
+        # creating a new StorageServer in the same directory should see the
+        # same usage. note that metadata will be counted at startup but not
+        # during runtime, so if we were creating any metadata, the allocation
+        # would be more than 25 bytes and this test would need to be changed.
+        ss = self.create("test_sizelimits", 100)
+        already4,writers4 = ss.remote_allocate_buckets("vid4", [0,1,2,3],
+                                                       25, 5, canary)
+        self.failUnlessEqual(len(writers4), 3)

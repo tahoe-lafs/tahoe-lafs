@@ -1,4 +1,4 @@
-import os, re
+import os, re, weakref
 
 from foolscap import Referenceable
 from twisted.application import service
@@ -25,14 +25,19 @@ NUM_RE=re.compile("[0-9]*")
 class BucketWriter(Referenceable):
     implements(RIBucketWriter)
 
-    def __init__(self, incominghome, finalhome, blocksize):
+    def __init__(self, ss, incominghome, finalhome, blocksize, sharesize):
+        self.ss = ss
         self.incominghome = incominghome
         self.finalhome = finalhome
         self.blocksize = blocksize
+        self.sharesize = sharesize
         self.closed = False
         self._next_segnum = 0
         fileutil.make_dirs(incominghome)
         self._write_file('blocksize', str(blocksize))
+
+    def allocated_size(self):
+        return self.sharesize
 
     def _write_file(self, fname, data):
         open(os.path.join(self.incominghome, fname), 'wb').write(data)
@@ -87,6 +92,7 @@ class BucketWriter(Referenceable):
             pass
             
         self.closed = True
+        self.ss.bucket_writer_closed(self)
 
 def str2l(s):
     """ split string (pulled from storage) into a list of blockids """
@@ -128,31 +134,61 @@ class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer)
     name = 'storageserver'
 
-    def __init__(self, storedir):
+    def __init__(self, storedir, sizelimit=None):
+        service.MultiService.__init__(self)
         fileutil.make_dirs(storedir)
         self.storedir = storedir
+        self.sizelimit = sizelimit
         self.incomingdir = os.path.join(storedir, 'incoming')
         self._clean_incomplete()
         fileutil.make_dirs(self.incomingdir)
+        self._active_writers = weakref.WeakKeyDictionary()
 
-        service.MultiService.__init__(self)
+        self.measure_size()
 
     def _clean_incomplete(self):
         fileutil.rm_dir(self.incomingdir)
+
+    def measure_size(self):
+        self.consumed = fileutil.du(self.storedir)
+
+    def allocated_size(self):
+        space = self.consumed
+        for bw in self._active_writers:
+            space += bw.allocated_size()
+        return space
 
     def remote_allocate_buckets(self, storage_index, sharenums, sharesize,
                                 blocksize, canary):
         alreadygot = set()
         bucketwriters = {} # k: shnum, v: BucketWriter
+        si_s = idlib.b2a(storage_index)
+        space_per_bucket = sharesize
+        no_limits = self.sizelimit is None
+        yes_limits = not no_limits
+        if yes_limits:
+            remaining_space = self.sizelimit - self.allocated_size()
         for shnum in sharenums:
-            incominghome = os.path.join(self.incomingdir, idlib.b2a(storage_index), "%d"%shnum)
-            finalhome = os.path.join(self.storedir, idlib.b2a(storage_index), "%d"%shnum)
+            incominghome = os.path.join(self.incomingdir, si_s, "%d" % shnum)
+            finalhome = os.path.join(self.storedir, si_s, "%d" % shnum)
             if os.path.exists(incominghome) or os.path.exists(finalhome):
                 alreadygot.add(shnum)
+            elif no_limits or remaining_space >= space_per_bucket:
+                bw = BucketWriter(self, incominghome, finalhome,
+                                  blocksize, space_per_bucket)
+                bucketwriters[shnum] = bw
+                self._active_writers[bw] = 1
+                if yes_limits:
+                    remaining_space -= space_per_bucket
             else:
-                bucketwriters[shnum] = BucketWriter(incominghome, finalhome, blocksize)
-            
+                # not enough space to accept this bucket
+                pass
+
         return alreadygot, bucketwriters
+
+    def bucket_writer_closed(self, bw):
+        self.consumed += bw.allocated_size()
+        del self._active_writers[bw]
 
     def remote_get_buckets(self, storage_index):
         bucketreaders = {} # k: sharenum, v: BucketReader
@@ -160,7 +196,8 @@ class StorageServer(service.MultiService, Referenceable):
         try:
             for f in os.listdir(storagedir):
                 if NUM_RE.match(f):
-                    bucketreaders[int(f)] = BucketReader(os.path.join(storagedir, f))
+                    br = BucketReader(os.path.join(storagedir, f))
+                    bucketreaders[int(f)] = br
         except OSError:
             # Commonly caused by there being no buckets at all.
             pass
