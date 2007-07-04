@@ -92,7 +92,7 @@ class BucketWriter(Referenceable):
             pass
             
         self.closed = True
-        self.ss.bucket_writer_closed(self)
+        self.ss.bucket_writer_closed(self, fileutil.du(self.finalhome))
 
 def str2l(s):
     """ split string (pulled from storage) into a list of blockids """
@@ -186,8 +186,8 @@ class StorageServer(service.MultiService, Referenceable):
 
         return alreadygot, bucketwriters
 
-    def bucket_writer_closed(self, bw):
-        self.consumed += bw.allocated_size()
+    def bucket_writer_closed(self, bw, consumed_size):
+        self.consumed += consumed_size
         del self._active_writers[bw]
 
     def remote_get_buckets(self, storage_index):

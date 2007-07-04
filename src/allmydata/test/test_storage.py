@@ -16,7 +16,7 @@ class Bucket(unittest.TestCase):
         fileutil.make_dirs(basedir)
         return incoming, final
 
-    def bucket_writer_closed(self, bw):
+    def bucket_writer_closed(self, bw, consumed):
         pass
 
     def test_create(self):
