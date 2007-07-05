@@ -1,0 +1,51 @@
+#! /usr/bin/python
+
+# This is a munin plugin to track the number of files that each node's
+# StorageServer is holding on behalf of other nodes. Each file that has been
+# uploaded to the mesh (and has shares present on this node) will be counted
+# here. When there are <= 100 nodes in the mesh, this count will equal the
+# total number of files that are active in the entire mesh. When there are
+# 200 nodes present in the mesh, it will represent about half of the total
+# number.
+
+# Copy this plugin into /etc/munun/plugins/tahoe-files and then put
+# the following in your /etc/munin/plugin-conf.d/foo file to let it know
+# where to find the basedirectory for each node:
+#
+#  [tahoe-storagespace]
+#  env.basedir_NODE1 /path/to/node1
+#  env.basedir_NODE2 /path/to/node2
+#  env.basedir_NODE3 /path/to/node3
+#
+
+import os, sys
+
+nodedirs = []
+for k,v in os.environ.items():
+    if k.startswith("basedir_"):
+        nodename = k[len("basedir_"):]
+        nodedirs.append( (nodename, v) )
+nodedirs.sort()
+
+configinfo = \
+"""graph_title Allmydata Tahoe Filecount
+graph_vlabel bytes
+graph_category tahoe
+graph_info This graph shows the number of files hosted by this node's StorageServer
+"""
+for nodename, basedir in nodedirs:
+    configinfo += "%s.label %s\n" % (nodename, nodename)
+    configinfo += "%s.draw LINE2\n" % (nodename,)
+
+
+if len(sys.argv) > 1:
+    if sys.argv[1] == "config":
+        print configinfo
+        sys.exit(0)
+
+for nodename, basedir in nodedirs:
+    files = len(os.listdir(os.path.join(basedir, "storage")))
+    if os.path.exists(os.path.join(basedir, "storage", "incoming")):
+        files -= 1 # the 'incoming' directory doesn't count
+    print "%s.value %d" % (nodename, files)
+

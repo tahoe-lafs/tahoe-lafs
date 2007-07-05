@@ -1,0 +1,53 @@
+#! /usr/bin/python
+
+# This is a munin plugin to track the amount of disk space each node's
+# StorageServer is consuming on behalf of other nodes. This is where the
+# shares are kept. If there are N nodes present in the mesh, the total space
+# consumed by the entire mesh will be about N times the space reported by
+# this plugin.
+
+# Copy this plugin into /etc/munun/plugins/tahoe-storagespace and then put
+# the following in your /etc/munin/plugin-conf.d/foo file to let it know
+# where to find the basedirectory for each node:
+#
+#  [tahoe-storagespace]
+#  env.basedir_NODE1 /path/to/node1
+#  env.basedir_NODE2 /path/to/node2
+#  env.basedir_NODE3 /path/to/node3
+#
+# Allmydata-tahoe must be installed on the system where this plugin is used,
+# since it imports a utility module from allmydata.utils .
+
+import os, sys
+
+from allmydata.util import fileutil
+
+nodedirs = []
+for k,v in os.environ.items():
+    if k.startswith("basedir_"):
+        nodename = k[len("basedir_"):]
+        nodedirs.append( (nodename, v) )
+nodedirs.sort()
+
+seriesname = "storage"
+
+configinfo = \
+"""graph_title Allmydata Tahoe Shareholder Space
+graph_vlabel bytes
+graph_category tahoe
+graph_info This graph shows the space consumed by this node's StorageServer
+"""
+for nodename, basedir in nodedirs:
+    configinfo += "%s.label %s\n" % (nodename, nodename)
+    configinfo += "%s.draw LINE2\n" % (nodename,)
+
+
+if len(sys.argv) > 1:
+    if sys.argv[1] == "config":
+        print configinfo
+        sys.exit(0)
+
+for nodename, basedir in nodedirs:
+    usage = fileutil.du(os.path.join(basedir, "storage"))
+    print "%s.value %d" % (nodename, usage)
+
