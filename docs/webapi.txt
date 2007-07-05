@@ -1,0 +1,246 @@
+
+Writing "8011" into CLIENTDIR/webport causes the client to run a webserver on
+port 8011. Writing "tcp:8011:interface=127.0.0.1" into CLIENTDIR/webport does
+the same but binds to the loopback interface, insuring that only the programs
+on the local host can connect. Using
+"ssl:8011:privateKey=mykey.pem:certKey=cert.pem" would run an SSL server. See
+twisted.application.strports for more details.
+
+If CLIENTDIR/webpassword exists, it will be used (somehow) to require HTTP
+Digest Authentication for all webserver connections.
+
+
+The client provides some small number of "virtual drives". In the 0.4.0
+release, this number is two: the first is the global shared vdrive, the
+second is the private non-shared vdrive. We will call these "global" and
+"private" for now.
+
+For the purpose of this document, let us assume that the vdrives currently
+contain the following directories and files:
+
+ global/
+ global/Documents/
+ global/Documents/notes.txt
+
+ private/
+ private/Pictures/
+ private/Pictures/tractors.jpg
+
+
+== vdrive ==
+
+Within the webserver, there is a tree of resources. The top-level "vdrive"
+resource gives access to files and directories in all of the user's virtual
+drives. For example, the URL that corresponds to notes.txt would be:
+
+FILEURL = http://localhost:8011/vdrive/global/Documents/notes.txt
+
+and the URL for tractors.jpg would be:
+
+ http://localhost:8011/vdrive/private/Pictures/tractors.jpg
+
+In addition, each directory has a corresponding URL. The Pictures URL is:
+
+DIRURL = http://localhost:8011/vdrive/private/Pictures
+
+Now, what can we do with these URLs? By varying the HTTP "method"
+(GET/PUT/POST/DELETE) and by appending a type-indicating query argument, we
+control how what we want to do with the data and how it should be presented.
+
+In the following examples, FILEURL and DIRURL are abbreviations for the
+previously listed examples. In addition. NEWFILEURL and NEWDIRURL are URLs
+for files and directories which do not yet exist.
+
+=== Files ===
+
+ GET FILEURL
+
+  This simply retrives the contents of the file at the given place in the
+  vdrive. The Content-Type is set according to the vdrive's metadata (if
+  available) or by using the usual filename-extension-magic built into most
+  webservers. The file's contents are provided in the body of the HTTP
+  response.
+
+    (thought: we could conceivably provide some measure of gathering-peers
+    progress and pre-plaintext status information by emitting some extra
+    X-Tahoe-Status headers. Of course, once the headers are done and we start
+    sending plaintext, we have to stop sending such headers)
+
+ PUT NEWFILEURL
+
+  This uploads a file to the given place in the vdrive. It will create
+  intermediate directory nodes as necessary. The file's contents are taken
+  from the body of the HTTP request. For convenience, the HTTP response
+  contains the URI that results from uploading the file, although the client
+  is not obligated to do anything with the URI. According to the HTTP/1.1
+  specification (rfc2068), this should return a 200 (OK) code when modifying
+  and existing file, and a 201 (Created) code when creating a new file.
+
+ DELETE FILEURL
+
+  This deletes the given file from the vdrive. Note that this *does not*
+  delete any parent directories, so a sequence of 'PUT NEWFILEURL' and
+  'DELETE NEWFILEURL' does not return the vdrive to its original state (it
+  may leave some intermediate directory nodes).
+
+ GET FILEURL?t=json
+ GET FILEURL?t=xml
+
+  This returns machine-parseable information about the file in the HTTP
+  response body, including file size, metadata (like Content-Type), and URIs.
+  This information is also required to contain a flag that distinguishes
+  between files and directories. Programatic clients are expected to use this
+  query before actually downloading the file's contents.
+
+ GET FILEURL?localfile=$FILENAME
+
+  This instructs the client to download the given file and write its contents
+  into the local filesystem at $FILENAME. This request will only be accepted
+  from an HTTP client connection originating at 127.0.0.1 . This request is
+  most useful when the client node and the HTTP client are operated by the
+  same user. $FILENAME should be an absolute pathname.
+
+   (thoughts: we could use either the response headers or the response body
+   to indicate download progress)
+
+ PUT NEWFILEURL?localfile=$FILENAME
+
+  This uploads file to the vdrive and gets the contents from a file in the
+  client's local filesystem. As with GET, this request will only be accepted
+  from an HTTP connection originating from 127.0.0.1.
+
+   (we could indicate upload progress too. The response body could contain
+   the URI of the uploaded file)
+
+
+ GET FILEURL?t=uri
+
+  This returns the URI of the given file in the HTTP response body.
+
+=== Directories ===
+
+ GET DIRURL
+
+  This returns an HTML page, intended to be used by humans, which contains
+  HREF links to all files and directories reachable from this dirnode. These
+  HREF links do not have a t= argument, meaning that a human who follows them
+  will get pages also meant for a human. It also contains forms to upload new
+  files, and to delete files and directories. These forms use POST methods to
+  do their job.
+
+ GET DIRURL?t=json
+ GET DIRURL?t=xml
+
+  This returns machine-parseable information about this directory in the HTTP
+  response body. This information first contains a flag to indicate that
+  DIRURL referenced a directory (as opposed to a file). Then it contains a
+  flag to indicate whether this is a read-write dirnode or a read-only
+  dirnode. Finally it also contains information about the children of this
+  directory, probably as a mapping from child name to a set of metadata about
+  the child (basically the same data that would appear in a corresponding
+  GET?t=xml of the child itself). A programmatic client should be able to use
+  the information from this query to display filesystem navigation choices to
+  a human user.
+
+ GET DIRURL?t=uri
+ GET DIRURL?t=readonly-uri
+
+  Return a URI for this dirnode in the HTTP response body. If the dirnode is
+  read-only, the t=uri and t=readonly-uri responses will be the same.
+
+ PUT NEWDIRURL?t=mkdir
+
+  Create a new empty directory at the given path. The HTTP response contains
+  the URI of the given directory, although the client is not obligated to do
+  anything with it.
+
+ GET DIRURL?localdir=$DIRNAME
+
+  This instructs the client to perform a recursive download of the given
+  directory and all its descendant files and directories, writing the results
+  to the local filesystem starting at DIRNAME.
+
+  (thoughts: we could use the response headers or the response body to
+  indicate download progress)
+
+ PUT NEWDIRURL?localdir=$DIRNAME
+
+  This instructs the client to perform a recursive upload of a directory on
+  the local filesystem into the vdrive at the given location.
+
+
+== POST Forms ==
+
+ POST DIRURL?t=upload-form
+ 
+  This instructs the client to upload a file into the given dirnode. We need
+  this because forms are the only way for a web browser to upload a file
+  (browsers do not know how to do PUT or DELETE). The file's contents and the
+  new child name will be included in the form's arguments. This can only be
+  used to upload a single file at a time.
+
+ POST DIRURL?t=mkdir-form
+
+  This instructs the client to create a new empty directory. The name of the
+  new child directory will be included in the form's arguments.
+
+ POST DIRURL?t=put-uri-form
+
+  This instructs the client to attach a child that is referenced by URI (just
+  like the PUT NEWFILEURL?t=uri method). The name and URI of the new child
+  will be included in the form's arguments.
+
+ POST DIRURL?t=delete-form
+
+  This instructs the client to delete a file from the given dirnode. The name
+  of the child to be deleted will be included in the form's arguments.
+
+
+== URI ==
+
+ http://localhost:8011/uri/$URI
+
+  A separate top-level resource namespace ("uri" instead of "vdrive") is used
+  to get access to files and dirnodes that are indexed directly by URI,
+  rather than by going through the vdrive. The resource thus referenced is
+  used the same way as if it were accessed through the vdrive, including
+  child-resource-traversal behavior. For example, if the URI corresponds to a
+  file, then
+
+   GET http://localhost:8011/uri/$URI
+
+  would retrieve the contents of the file. If the URI corresponds to a
+  directory, then:
+
+   PUT http://localhost:8011/uri/$URI/subdir/newfile?localfile=$FILENAME
+
+  would upload a file (with contents taken from the local filesystem) to a
+  new file in a subdirectory of the referenced dirnode.
+
+ PUT NEWFILEURL?t=uri
+
+  This attaches a child (either a file or a directory) to the vdrive at the
+  given location. The URI is provided in the body of the HTTP request. This
+  can be used to attach a shared directory to the vdrive. Intermediate
+  directories are created on-demand just like with the regular PUT command.
+
+== XMLRPC ==
+
+ http://localhost:8011/xmlrpc
+
+  This resource provides an XMLRPC server on which all of the previous
+  operations can be expressed as function calls taking a "pathname" argument.
+  This is provided for applications that want to think of everything in terms
+  of XMLRPC.
+
+   listdir(vdrivename, path) -> dict of (childname -> (stuff))
+   put(vdrivename, path, contents) -> URI
+   get(vdrivename, path) -> contents
+   mkdir(vdrivename, path) -> URI
+   put_localfile(vdrivename, path, localfilename) -> URI
+   get_localfile(vdrivename, path, localfilename)
+   put_localdir(vdrivename, path, localdirname)   # recursive
+   get_localdir(vdrivename, path, localdirname)   # recursive
+   put_uri(vdrivename, path, URI)
+
+   etc..
