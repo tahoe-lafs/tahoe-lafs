@@ -42,8 +42,8 @@
 ^dist($|/)
 ^debian($|/)
 
-^(dapper|sid|feisty)/debian/allmydata
-^(dapper|sid|feisty)/debian/files$
+^misc/(dapper|sid|feisty)/debian/allmydata
+^misc/(dapper|sid|feisty)/debian/files$
 ^build($|/)
 ^build-stamp$
 ^python-build-stamp-2.[45]$
