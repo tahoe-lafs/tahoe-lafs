@@ -213,33 +213,33 @@ show-version:
 .PHONY: deb-dapper deb-sid deb-edgy deb-feisty deb-etch
 .PHONY: increment-deb-version
 .PHONY: deb-dapper-head deb-sid-head deb-edgy-head deb-feisty-head
-.PHONY:  deb-etch-head
+.PHONY: deb-etch-head
 
 setup-dapper:
 	rm -f debian
-	ln -s dapper/debian debian
+	ln -s misc/dapper/debian debian
 	chmod a+x debian/rules
 
 setup-sid:
 	rm -f debian
-	ln -s sid/debian debian
+	ln -s misc/sid/debian debian
 	chmod a+x debian/rules
 
 # edgy uses the feisty control files for now
 setup-edgy:
 	rm -f debian
-	ln -s feisty/debian debian
+	ln -s misc/feisty/debian debian
 	chmod a+x debian/rules
 
 setup-feisty:
 	rm -f debian
-	ln -s feisty/debian debian
+	ln -s misc/feisty/debian debian
 	chmod a+x debian/rules
 
 # etch uses the fesity control files for now
 setup-etch:
 	rm -f debian
-	ln -s feisty/debian debian
+	ln -s misc/feisty/debian debian
 	chmod a+x debian/rules
 
 
