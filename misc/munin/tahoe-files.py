@@ -12,7 +12,7 @@
 # the following in your /etc/munin/plugin-conf.d/foo file to let it know
 # where to find the basedirectory for each node:
 #
-#  [tahoe-storagespace]
+#  [tahoe-files]
 #  env.basedir_NODE1 /path/to/node1
 #  env.basedir_NODE2 /path/to/node2
 #  env.basedir_NODE3 /path/to/node3
@@ -29,7 +29,7 @@ nodedirs.sort()
 
 configinfo = \
 """graph_title Allmydata Tahoe Filecount
-graph_vlabel bytes
+graph_vlabel files
 graph_category tahoe
 graph_info This graph shows the number of files hosted by this node's StorageServer
 """

@@ -9,7 +9,7 @@
 # the following in your /etc/munin/plugin-conf.d/foo file to let it know
 # where to find the basedirectory for the vdrive server.
 #
-#  [tahoe-storagespace]
+#  [tahoe-dirnodes]
 #  env.basedir /path/to/vdrivenode
 
 import os, sys
@@ -18,7 +18,7 @@ nodedir = os.environ["basedir"]
 
 configinfo = \
 """graph_title Allmydata Tahoe Dirnode Count
-graph_vlabel bytes
+graph_vlabel dirnodes
 graph_category tahoe
 graph_info This graph shows the number of directory nodes hosted by this vdrive server
 dirnodes.label dirnodes
