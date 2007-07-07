@@ -46,7 +46,7 @@ class DirectoryNode(unittest.TestCase):
                              ("write1", "read1"))
         self.failUnlessEqual(vds.get(index, "key2"),
                              ("", "read2"))
-        self.failUnlessRaises(IndexError,
+        self.failUnlessRaises(KeyError,
                               vds.get, index, "key3")
 
         self.failUnlessEqual(sorted(vds.list(index)),
@@ -61,7 +61,7 @@ class DirectoryNode(unittest.TestCase):
                              [ ("name1", "write1", "read1"),
                                ("name2", "", "read2"),
                                ])
-        self.failUnlessRaises(IndexError,
+        self.failUnlessRaises(KeyError,
                               vds.delete,
                               index, we, "key3")
 
@@ -69,7 +69,7 @@ class DirectoryNode(unittest.TestCase):
         self.failUnlessEqual(sorted(vds.list(index)),
                              [ ("name2", "", "read2"),
                                ])
-        self.failUnlessRaises(IndexError,
+        self.failUnlessRaises(KeyError,
                               vds.get, index, "key1")
         self.failUnlessEqual(vds.get(index, "key2"),
                              ("", "read2"))
@@ -197,7 +197,7 @@ class Test(unittest.TestCase):
 
         d.addCallback(lambda res: rootnode.get("missing"))
         # this should raise an exception
-        d.addBoth(self.shouldFail, IndexError, "get('missing')",
+        d.addBoth(self.shouldFail, KeyError, "get('missing')",
                   "unable to find child named 'missing'")
 
         d.addCallback(lambda res: rootnode.create_empty_directory("bar"))

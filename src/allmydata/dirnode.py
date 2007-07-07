@@ -78,7 +78,7 @@ class VirtualDriveServer(service.MultiService, Referenceable):
         for (H_key, E_key, E_write, E_read) in data[1]:
             if H_key == key:
                 return (E_write, E_read)
-        raise IndexError("unable to find key %s" % idlib.b2a(key))
+        raise KeyError("unable to find key %s" % idlib.b2a(key))
     remote_get = get
 
     def list(self, index):
@@ -97,7 +97,7 @@ class VirtualDriveServer(service.MultiService, Referenceable):
                 del data[1][i]
                 self._write_to_file(index, data)
                 return
-        raise IndexError("unable to find key %s" % idlib.b2a(key))
+        raise KeyError("unable to find key %s" % idlib.b2a(key))
     remote_delete = delete
 
     def set(self, index, write_enabler, key,   name, write, read):
@@ -240,9 +240,9 @@ class ImmutableDirectoryNode:
         H_name = self._hash_name(name)
         d = self._rref.callRemote("get", self._index, H_name)
         def _check_index_error(f):
-            f.trap(IndexError)
-            raise IndexError("get(index=%s): unable to find child named '%s'"
-                             % (idlib.b2a(self._index), name))
+            f.trap(KeyError)
+            raise KeyError("get(index=%s): unable to find child named '%s'"
+                           % (idlib.b2a(self._index), name))
         d.addErrback(_check_index_error)
         d.addCallback(lambda (E_write, E_read):
                       self._decrypt_child(E_write, E_read))
