@@ -362,6 +362,20 @@ class ImmutableDirectoryNode:
         wk, we, rk, index = hashutil.generate_dirnode_keys_from_readkey(rk)
         return "DIR-REFRESH:%s" % idlib.b2a(index)
 
+    def get_child_at_path(self, path):
+        if not path:
+            return self
+        if isinstance(path, (str, unicode)):
+            path = path.split("/")
+        childname = path[0]
+        remaining_path = path[1:]
+        d = self.get(childname)
+        if remaining_path:
+            def _got(node):
+                return node.get_child_at_path(remaining_path)
+            d.addCallback(_got)
+        return d
+
 class MutableDirectoryNode(ImmutableDirectoryNode):
     implements(IDirectoryNode)
 

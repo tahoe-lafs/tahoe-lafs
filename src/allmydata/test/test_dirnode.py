@@ -262,6 +262,21 @@ class Test(unittest.TestCase):
         d.addCallback(lambda res:
                       self.failIf(res["baz"].is_mutable()))
 
+        d.addCallback(lambda res: rootnode.get_child_at_path("bar/file2"))
+        def _got_file2(res):
+            self.failUnless(isinstance(res, dirnode.FileNode))
+            self.failUnlessEqual(res.uri, file2)
+        d.addCallback(_got_file2)
+
+        d.addCallback(lambda res: rootnode.get_child_at_path(["bar", "file2"]))
+        d.addCallback(_got_file2)
+
+        d.addCallback(lambda res: self.bar_node.get_child_at_path(["file2"]))
+        d.addCallback(_got_file2)
+
+        d.addCallback(lambda res: self.bar_node.get_child_at_path([]))
+        d.addCallback(lambda res: self.failUnlessIdentical(res, self.bar_node))
+
         # test the manifest
         d.addCallback(lambda res: self.rootnode.build_manifest())
         def _check_manifest(manifest):

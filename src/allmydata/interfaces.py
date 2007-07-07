@@ -260,6 +260,17 @@ class IDirectoryNode(Interface):
         """I return a Deferred that fires with a specific named child node,
         either an IFileNode or an IDirectoryNode."""
 
+    def get_child_at_path(path):
+        """Transform a child path into an IDirectoryNode or IFileNode.
+
+        I perform a recursive series of 'get' operations to find the named
+        descendant node. I return a Deferred that fires with the node, or
+        errbacks with IndexError if the node could not be found.
+
+        The path can be either a single string (slash-separated) or a list of
+        path-name elements.
+        """
+
     def set_uri(name, child_uri):
         """I add a child (by URI) at the specific name. I return a Deferred
         that fires when the operation finishes.
