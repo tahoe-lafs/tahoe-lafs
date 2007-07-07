@@ -634,7 +634,7 @@ class IDownloadTarget(Interface):
         """The FileDownloader uses this to register a no-argument function
         that the target can call to cancel the download. Once this canceller
         is invoked, no further calls to write() or close() will be made."""
-    def finish(self):
+    def finish():
         """When the FileDownloader is done, this finish() function will be
         called. Whatever it returns will be returned to the invoker of
         Downloader.download.
@@ -698,7 +698,7 @@ class IVirtualDrive(Interface):
         This returns a Deferred that fires with an IDirectoryNode instance
         corresponding to this client's private root directory."""
 
-    def get_node_at_path(self, path):
+    def get_node_at_path(path):
         """Transform a path into an IDirectoryNode or IFileNode.
 
         The path can either be a single string or a list of path-name
@@ -717,7 +717,7 @@ class IVirtualDrive(Interface):
         or errbacks with an IndexError if the target node could not be found.
         """
 
-    def get_node(self, uri):
+    def get_node(uri):
         """Transform a URI into an IDirectoryNode or IFileNode.
 
         This returns a Deferred that will fire with an instance that provides
