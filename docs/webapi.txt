@@ -80,8 +80,8 @@ for files and directories which do not yet exist.
 
   This deletes the given file from the vdrive. Note that this *does not*
   delete any parent directories, so a sequence of 'PUT NEWFILEURL' and
-  'DELETE NEWFILEURL' does not return the vdrive to its original state (it
-  may leave some intermediate directory nodes).
+  'DELETE NEWFILEURL' does not necessarily return the vdrive to its original
+  state (it may leave some intermediate directory nodes).
 
  GET FILEURL?t=json
  GET FILEURL?t=xml
@@ -154,6 +154,14 @@ for files and directories which do not yet exist.
   the URI of the given directory, although the client is not obligated to do
   anything with it.
 
+ DELETE DIRURL
+
+  This deletes the given directory (and all of its children). Note that this
+  *does not* delete any parent directories, so a sequence of 'PUT
+  NEWDIRURL?t=mkdir' and 'DELETE NEWDIRURL does not necessarily return the
+  vdrive to its original state (it may leave some intermediate directory
+  nodes).
+
  GET DIRURL?localdir=$DIRNAME
 
   This instructs the client to perform a recursive download of the given
@@ -166,7 +174,12 @@ for files and directories which do not yet exist.
  PUT NEWDIRURL?localdir=$DIRNAME
 
   This instructs the client to perform a recursive upload of a directory on
-  the local filesystem into the vdrive at the given location.
+  the local filesystem into the vdrive at the given location. NEWDIRURL will
+  be created if necessary. When the operation is complete, the directory
+  referenced by NEWDIRURL will contain all of the files and directories that
+  were present in DIRNAME, so this is equivalent to the unix commands:
+
+   mkdir -p NEWDIRURL; cp -r DIRNAME/* NEWDIRURL/
 
 
 == POST Forms ==
