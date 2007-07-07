@@ -419,7 +419,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             d1.addBoth(self.shouldFail, NotMutableError, "set_uri(nope)")
 
             d1.addCallback(lambda res: dirnode.get("missing"))
-            d1.addBoth(self.shouldFail, IndexError, "get(missing)",
+            d1.addBoth(self.shouldFail, KeyError, "get(missing)",
                        "unable to find child named 'missing'")
 
             d1.addCallback(self.log, "doing move_child_to(ro)")
