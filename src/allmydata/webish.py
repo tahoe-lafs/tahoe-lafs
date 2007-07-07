@@ -2,13 +2,14 @@
 from twisted.application import service, strports
 from twisted.web import static, resource, server, html, http
 from twisted.python import util, log
+from twisted.internet import defer
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from allmydata.util import idlib
 from allmydata.uri import unpack_uri
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode
 from allmydata.dirnode import FileNode
-from allmydata import upload
+from allmydata import upload, download
 from zope.interface import implements, Interface
 import urllib
 from formless import annotate, webform
@@ -24,84 +25,6 @@ def get_downloader_service(ctx):
 def get_uploader_service(ctx):
     return IClient(ctx).getServiceNamed("uploader")
 
-class Welcome(rend.Page):
-    addSlash = True
-    docFactory = getxmlfile("welcome.xhtml")
-
-    def data_version(self, ctx, data):
-        v = IClient(ctx).get_versions()
-        return "tahoe: %s, zfec: %s, foolscap: %s, twisted: %s" % \
-               (v['allmydata'], v['zfec'], v['foolscap'], v['twisted'])
-
-    def data_my_nodeid(self, ctx, data):
-        return idlib.b2a(IClient(ctx).nodeid)
-    def data_introducer_furl(self, ctx, data):
-        return IClient(ctx).introducer_furl
-    def data_connected_to_introducer(self, ctx, data):
-        if IClient(ctx).connected_to_introducer():
-            return "yes"
-        return "no"
-    def data_connected_to_vdrive(self, ctx, data):
-        if IClient(ctx).getServiceNamed("vdrive").have_public_root():
-            return "yes"
-        return "no"
-    def data_num_peers(self, ctx, data):
-        #client = inevow.ISite(ctx)._client
-        client = IClient(ctx)
-        return len(list(client.get_all_peerids()))
-
-    def data_peers(self, ctx, data):
-        d = []
-        client = IClient(ctx)
-        for nodeid in sorted(client.get_all_peerids()):
-            row = (idlib.b2a(nodeid),)
-            d.append(row)
-        return d
-
-    def render_row(self, ctx, data):
-        (nodeid_a,) = data
-        ctx.fillSlots("peerid", nodeid_a)
-        return ctx.tag
-
-    def render_global_vdrive(self, ctx, data):
-        if IClient(ctx).getServiceNamed("vdrive").have_public_root():
-            return T.p["To view the global shared filestore, ",
-                       T.a(href="../global_vdrive")["Click Here!"],
-                       ]
-        return T.p["vdrive.furl not specified (or vdrive server not "
-                   "responding), no vdrive available."]
-
-    def render_private_vdrive(self, ctx, data):
-        if IClient(ctx).getServiceNamed("vdrive").have_private_root():
-            return T.p["To view your personal private non-shared filestore, ",
-                       T.a(href="../private_vdrive")["Click Here!"],
-                       ]
-        return T.p["personal vdrive not available."]
-
-    # this is a form where users can download files by URI
-
-    def bind_download(self, ctx):
-        uriarg = annotate.Argument("uri",
-                                   annotate.String("URI of file to download: "))
-        namearg = annotate.Argument("filename",
-                                    annotate.String("Filename to download as: "))
-        ctxarg = annotate.Argument("ctx", annotate.Context())
-        meth = annotate.Method(arguments=[uriarg, namearg, ctxarg],
-                               label="Download File by URI")
-        # buttons always use value=data.label
-        # MethodBindingRenderer uses value=(data.action or data.label)
-        return annotate.MethodBinding("download", meth, action="Download")
-
-    def download(self, uri, filename, ctx):
-        log.msg("webish downloading URI")
-        target = url.here.sibling("download_uri").add("uri", uri)
-        if filename:
-            target = target.add("filename", filename)
-        return target
-
-    def render_forms(self, ctx, data):
-        return webform.renderForms()
-
 
 class Directory(rend.Page):
     addSlash = True
@@ -112,27 +35,15 @@ class Directory(rend.Page):
         self._dirname = dirname
 
     def childFactory(self, ctx, name):
+        print "Directory.childFactory", name
         if name.startswith("freeform"): # ick
             return None
         if name == "@manifest": # ick, this time it's my fault
             return Manifest(self._dirnode, self._dirname)
-        if self._dirname == "/":
-            dirname = "/" + name
-        else:
-            dirname = self._dirname + "/" + name
-        d = self._dirnode.get(name)
-        def _got_child(res):
-            if IFileNode.providedBy(res):
-                dl = get_downloader_service(ctx)
-                return Downloader(dl, name, res)
-            elif IDirectoryNode.providedBy(res):
-                return Directory(res, dirname)
-            else:
-                raise RuntimeError("what is this %s" % res)
-        d.addCallback(_got_child)
-        return d
+        return rend.NotFound
 
     def render_title(self, ctx, data):
+        print "DIRECTORY.render_title"
         return ctx.tag["Directory '%s':" % self._dirname]
 
     def render_header(self, ctx, data):
@@ -380,15 +291,13 @@ class TypedFile(static.File):
                                        self.contentEncodings,
                                        self.defaultType)
 
-class Downloader(resource.Resource):
-    def __init__(self, downloader, name, filenode):
-        self._downloader = downloader
+class FileDownloader(resource.Resource):
+    def __init__(self, name, filenode):
         self._name = name
         IFileNode(filenode)
         self._filenode = filenode
 
-    def render(self, ctx):
-        req = inevow.IRequest(ctx)
+    def render(self, req):
         gte = static.getTypeAndEncoding
         type, encoding = gte(self._name,
                              static.File.contentTypes,
@@ -399,6 +308,242 @@ class Downloader(resource.Resource):
         # exceptions during download are handled by the WebDownloadTarget
         d.addErrback(lambda why: None)
         return server.NOT_DONE_YET
+
+class BlockingFileError(Exception):
+    """We cannot auto-create a parent directory, because there is a file in
+    the way"""
+
+LOCALHOST = "127.0.0.1"
+
+class NeedLocalhostError:
+    implements(inevow.IResource)
+
+    def locateChild(self, ctx, segments):
+        return rend.NotFound
+
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        req.setResponseCode(http.FORBIDDEN)
+        req.setHeader("content-type", "text/plain")
+        return "localfile= or localdir= requires a local connection"
+
+        
+
+class LocalFileDownloader(resource.Resource):
+    def __init__(self, filenode, local_filename):
+        self._local_filename = local_filename
+        IFileNode(filenode)
+        self._filenode = filenode
+
+    def render(self, req):
+        print "LOCALFILEDOWNLOADER", self._local_filename
+        target = download.FileName(self._local_filename)
+        d = self._filenode.download(target)
+        def _done(res):
+            req.write(self._filenode.get_uri())
+            req.finish()
+        d.addCallback(_done)
+        return server.NOT_DONE_YET
+
+class FileJSONMetadata(rend.Page):
+    def __init__(self, filenode):
+        self._filenode = filenode
+
+    def renderHTTP(self, ctx):
+        file_uri = self._filenode.get_uri()
+        pieces = unpack_uri(file_uri)
+        data = "filenode\n"
+        data += "JSONny stuff here\n"
+        data += "uri=%s, size=%s" % (file_uri, pieces['size'])
+        return data
+
+class FileXMLMetadata(FileJSONMetadata):
+    def renderHTTP(self, ctx):
+        file_uri = self._filenode.get_uri()
+        pieces = unpack_uri(file_uri)
+        data = "<xmlish>\n"
+        data += "filenode\n"
+        data += "stuff here\n"
+        data += "uri=%s, size=%s" % (file_uri, pieces['size'])
+        return data
+
+class FileURI(FileJSONMetadata):
+    def renderHTTP(self, ctx):
+        file_uri = self._filenode.get_uri()
+        return file_uri
+
+class LocalDirectoryDownloader(resource.Resource):
+    def __init__(self, dirnode):
+        self._dirnode = dirnode
+
+    def renderHTTP(self, ctx):
+        dl = get_downloader_service(ctx)
+        pass # TODO
+
+class DirectoryJSONMetadata(rend.Page):
+    def __init__(self, dirnode):
+        self._dirnode = dirnode
+
+    def renderHTTP(self, ctx):
+        file_uri = self._dirnode.get_uri()
+        data = "dirnode\n"
+        data += "JSONny stuff here\n"
+        d = self._dirnode.list()
+        def _got(children, data):
+            for name, childnode in children.iteritems():
+                data += "name=%s, child_uri=%s" % (name, childnode.get_uri())
+            return data
+        d.addCallback(_got, data)
+        def _done(data):
+            data += "done\n"
+            return data
+        d.addCallback(_done)
+        return d
+
+class DirectoryXMLMetadata(DirectoryJSONMetadata):
+    def renderHTTP(self, ctx):
+        file_uri = self._dirnode.get_uri()
+        pieces = unpack_uri(file_uri)
+        data = "<xmlish>\n"
+        data += "dirnode\n"
+        data += "stuff here\n"
+        d = self._dirnode.list()
+        def _got(children, data):
+            for name, childnode in children:
+                data += "name=%s, child_uri=%s" % (name, childnode.get_uri())
+            return data
+        d.addCallback(_got)
+        def _done(data):
+            data += "</done>\n"
+            return data
+        d.addCallback(_done)
+        return d
+
+class DirectoryURI(DirectoryJSONMetadata):
+    def renderHTTP(self, ctx):
+        dir_uri = self._dirnode.get_uri()
+        return dir_uri
+
+class DirectoryReadonlyURI(DirectoryJSONMetadata):
+    def renderHTTP(self, ctx):
+        dir_uri = self._dirnode.get_immutable_uri()
+        return dir_uri
+
+class POSTHandler(rend.Page):
+    def __init__(self, node):
+        self._node = node
+
+    # TODO: handler methods
+
+class DELETEHandler(rend.Page):
+    def __init__(self, node, name):
+        self._node = node
+        self._name = name
+
+    def renderHTTP(self, ctx):
+        d = self._node.delete(self._name)
+        def _done(res):
+            # what should this return??
+            return "%s deleted" % self._name
+        d.addCallback(_done)
+        return d
+
+class PUTHandler(rend.Page):
+    def __init__(self, node, path, t, localfile, localdir):
+        self._node = node
+        self._path = path
+        self._t = t
+        self._localfile = localfile
+        self._localdir = localdir
+
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        t = self._t
+        localfile = self._localfile
+        localdir = self._localdir
+        self._uploader = get_uploader_service(ctx)
+
+        # we must traverse the path, creating new directories as necessary
+        d = self._get_or_create_directories(self._node, self._path[:-1])
+        name = self._path[-1]
+        if localfile:
+            d.addCallback(self._upload_localfile, localfile, name)
+        elif localdir:
+            d.addCallback(self._upload_localdir, localdir)
+        elif t == "uri":
+            d.addCallback(self._attach_uri, req.content, name)
+        elif t == "mkdir":
+            d.addCallback(self._mkdir, name)
+        else:
+            d.addCallback(self._upload_file, req.content, name)
+        def _check_blocking(f):
+            f.trap(BlockingFileError)
+            req.setResponseCode(http.FORBIDDEN)
+            req.setHeader("content-type", "text/plain")
+            return str(f)
+        d.addErrback(_check_blocking)
+        return d
+
+    def _get_or_create_directories(self, node, path):
+        if not IDirectoryNode.providedBy(node):
+            raise BlockingFileError
+        if not path:
+            return node
+        d = node.get(path[0])
+        def _maybe_create(f):
+            f.trap(KeyError)
+            print "CREATING", path[0]
+            return node.create_empty_directory(path[0])
+        d.addErrback(_maybe_create)
+        d.addCallback(self._get_or_create_directories, path[1:])
+        return d
+
+    def _mkdir(self, node, name):
+        d = node.create_empty_directory(name)
+        def _done(newnode):
+            return newnode.get_uri()
+        d.addCallback(_done)
+        return d
+
+    def _upload_file(self, node, contents, name):
+        uploadable = upload.FileHandle(contents)
+        d = self._uploader.upload(uploadable)
+        def _uploaded(uri):
+            d1 = node.set_uri(name, uri)
+            d1.addCallback(lambda res: uri)
+            return d1
+        d.addCallback(_uploaded)
+        def _done(uri):
+            log.msg("webish upload complete")
+            return uri
+        d.addCallback(_done)
+        return d
+
+    def _upload_localfile(self, node, localfile, name):
+        uploadable = upload.FileName(localfile)
+        d = self._uploader.upload(uploadable)
+        def _uploaded(uri):
+            print "SETTING URI", name, uri
+            d1 = node.set_uri(name, uri)
+            d1.addCallback(lambda res: uri)
+            return d1
+        d.addCallback(_uploaded)
+        def _done(uri):
+            log.msg("webish upload complete")
+            return uri
+        d.addCallback(_done)
+        return d
+
+    def _attach_uri(self, parentnode, contents, name):
+        newuri = contents.read().strip()
+        d = parentnode.set_uri(name, newuri)
+        def _done(res):
+            return newuri
+        d.addCallback(_done)
+        return d
+
+    def _upload_localdir(self, node, localdir):
+        pass # TODO
 
 class Manifest(rend.Page):
     docFactory = getxmlfile("manifest.xhtml")
@@ -419,10 +564,148 @@ class Manifest(rend.Page):
         ctx.fillSlots("refresh_capability", refresh_cap)
         return ctx.tag
 
+class VDrive(rend.Page):
+
+    def __init__(self, node, name):
+        self.node = node
+        self.name = name
+
+    def get_child_at_path(self, path):
+        if path:
+            return self.node.get_child_at_path(path)
+        return defer.succeed(self.node)
+
+    def locateChild(self, ctx, segments):
+        req = inevow.IRequest(ctx)
+        method = req.method
+        path = segments
+
+        # when we're pointing at a directory (like /vdrive/public/my_pix),
+        # Directory.addSlash causes a redirect to /vdrive/public/my_pix/,
+        # which appears here as ['my_pix', '']. This is supposed to hit the
+        # same Directory as ['my_pix'].
+        if path and path[-1] == '':
+            path = path[:-1]
+
+        print "VDrive.locateChild", method, segments, req.args
+        t = ""
+        if "t" in req.args:
+            t = req.args["t"][0]
+
+        localfile = None
+        if "localfile" in req.args:
+            localfile = req.args["localfile"][0]
+        localdir = None
+        if "localdir" in req.args:
+            localdir = req.args["localdir"][0]
+        if (localfile or localdir) and req.getHost().host != LOCALHOST:
+            return NeedLocalhostError(), ()
+        # TODO: think about clobbering/revealing config files and node secrets
+
+        if method == "GET":
+            # the node must exist, and our operation will be performed on the
+            # node itself.
+            name = path[-1]
+            d = self.get_child_at_path(path)
+            def file_or_dir(node):
+                if IFileNode.providedBy(node):
+                    if localfile:
+                        # write contents to a local file
+                        return LocalFileDownloader(node, localfile), ()
+                    elif t == "":
+                        # send contents as the result
+                        print "FileDownloader"
+                        return FileDownloader(name, node), ()
+                    elif t == "json":
+                        print "Localfilejsonmetadata"
+                        return FileJSONMetadata(node), ()
+                    elif t == "xml":
+                        return FileXMLMetadata(node), ()
+                    elif t == "uri":
+                        return FileURI(node), ()
+                    else:
+                        raise RuntimeError("bad t=%s" % t)
+                elif IDirectoryNode.providedBy(node):
+                    print "GOT DIR"
+                    if localdir:
+                        # recursive download to a local directory
+                        return LocalDirectoryDownloader(node, localdir), ()
+                    elif t == "":
+                        # send an HTML representation of the directory
+                        print "GOT HTML DIR"
+                        return Directory(node, name), ()
+                    elif t == "json":
+                        return DirectoryJSONMetadata(node), ()
+                    elif t == "xml":
+                        return DirectoryXMLMetadata(node), ()
+                    elif t == "uri":
+                        return DirectoryURI(node), ()
+                    elif t == "readonly-uri":
+                        return DirectoryReadonlyURI(node), ()
+                    else:
+                        raise RuntimeError("bad t=%s" % t)
+                else:
+                    raise RuntimeError("unknown node type")
+            d.addCallback(file_or_dir)
+        elif method == "POST":
+            # the node must exist, and our operation will be performed on the
+            # node itself.
+            d = self.get_child_at_path(path)
+            d.addCallback(lambda node: POSTHandler(node), ())
+        elif method == "DELETE":
+            # the node must exist, and our operation will be performed on its
+            # parent node.
+            assert path # you can't delete the root
+            d = self.get_child_at_path(path[:-1])
+            d.addCallback(lambda node: DELETEHandler(node, path[-1]), )
+        elif method in ("PUT",):
+            # the node may or may not exist, and our operation may involve
+            # all the ancestors of the node.
+            return PUTHandler(self.node, path, t, localfile, localdir), ()
+        else:
+            return rend.NotFound
+        def _trap_KeyError(f):
+            f.trap(KeyError)
+            return rend.FourOhFour(), ()
+        d.addErrback(_trap_KeyError)
+        return d
+
 
 class Root(rend.Page):
+
+    addSlash = True
+    docFactory = getxmlfile("welcome.xhtml")
+
     def locateChild(self, ctx, segments):
-        if segments[0] == "download_uri":
+        client = IClient(ctx)
+        vdrive = client.getServiceNamed("vdrive")
+        print "Root.locateChild", segments
+
+        if segments[0] == "vdrive":
+            if len(segments) < 2:
+                return rend.NotFound
+            if segments[1] == "global":
+                d = vdrive.get_public_root()
+                name = "public vdrive"
+            elif segments[1] == "private":
+                d = vdrive.get_private_root()
+                name = "private vdrive"
+            else:
+                return rend.NotFound
+            d.addCallback(lambda dirnode: VDrive(dirnode, name))
+            d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
+            return d
+        elif segments[0] == "uri":
+            if len(segments) < 2:
+                return rend.NotFound
+            uri = segments[1]
+            d = vdrive.get_node(uri)
+            d.addCallback(lambda node: VDrive(node), uri)
+            d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
+            return d
+        elif segments[0] == "xmlrpc":
+            pass # TODO
+        elif segments[0] == "download_uri":
             req = inevow.IRequest(ctx)
             dl = get_downloader_service(ctx)
             filename = "unknown_filename"
@@ -436,14 +719,14 @@ class Root(rend.Page):
                 uri = req.args["uri"][0]
             else:
                 return rend.NotFound
-            child = Downloader(dl, filename, FileNode(uri, IClient(ctx)))
+            child = FileDownloader(filename, FileNode(uri, IClient(ctx)))
             return child, ()
         return rend.Page.locateChild(self, ctx, segments)
 
     child_webform_css = webform.defaultCSS
     child_tahoe_css = nevow_File(util.sibpath(__file__, "web/tahoe.css"))
 
-    child_welcome = Welcome()
+    #child_welcome = Welcome()
 
     def child_global_vdrive(self, ctx):
         client = IClient(ctx)
@@ -465,6 +748,80 @@ class Root(rend.Page):
         else:
             return static.Data("sorry, still initializing", "text/plain")
 
+    def data_version(self, ctx, data):
+        v = IClient(ctx).get_versions()
+        return "tahoe: %s, zfec: %s, foolscap: %s, twisted: %s" % \
+               (v['allmydata'], v['zfec'], v['foolscap'], v['twisted'])
+
+    def data_my_nodeid(self, ctx, data):
+        return idlib.b2a(IClient(ctx).nodeid)
+    def data_introducer_furl(self, ctx, data):
+        return IClient(ctx).introducer_furl
+    def data_connected_to_introducer(self, ctx, data):
+        if IClient(ctx).connected_to_introducer():
+            return "yes"
+        return "no"
+    def data_connected_to_vdrive(self, ctx, data):
+        if IClient(ctx).getServiceNamed("vdrive").have_public_root():
+            return "yes"
+        return "no"
+    def data_num_peers(self, ctx, data):
+        #client = inevow.ISite(ctx)._client
+        client = IClient(ctx)
+        return len(list(client.get_all_peerids()))
+
+    def data_peers(self, ctx, data):
+        d = []
+        client = IClient(ctx)
+        for nodeid in sorted(client.get_all_peerids()):
+            row = (idlib.b2a(nodeid),)
+            d.append(row)
+        return d
+
+    def render_row(self, ctx, data):
+        (nodeid_a,) = data
+        ctx.fillSlots("peerid", nodeid_a)
+        return ctx.tag
+
+    def render_global_vdrive(self, ctx, data):
+        if IClient(ctx).getServiceNamed("vdrive").have_public_root():
+            return T.p["To view the global shared filestore, ",
+                       T.a(href="../global_vdrive")["Click Here!"],
+                       ]
+        return T.p["vdrive.furl not specified (or vdrive server not "
+                   "responding), no vdrive available."]
+
+    def render_private_vdrive(self, ctx, data):
+        if IClient(ctx).getServiceNamed("vdrive").have_private_root():
+            return T.p["To view your personal private non-shared filestore, ",
+                       T.a(href="../private_vdrive")["Click Here!"],
+                       ]
+        return T.p["personal vdrive not available."]
+
+    # this is a form where users can download files by URI
+
+    def bind_download(self, ctx):
+        uriarg = annotate.Argument("uri",
+                                   annotate.String("URI of file to download: "))
+        namearg = annotate.Argument("filename",
+                                    annotate.String("Filename to download as: "))
+        ctxarg = annotate.Argument("ctx", annotate.Context())
+        meth = annotate.Method(arguments=[uriarg, namearg, ctxarg],
+                               label="Download File by URI")
+        # buttons always use value=data.label
+        # MethodBindingRenderer uses value=(data.action or data.label)
+        return annotate.MethodBinding("download", meth, action="Download")
+
+    def download(self, uri, filename, ctx):
+        log.msg("webish downloading URI")
+        target = url.here.sibling("download_uri").add("uri", uri)
+        if filename:
+            target = target.add("filename", filename)
+        return target
+
+    def render_forms(self, ctx, data):
+        return webform.renderForms()
+
 
 class WebishServer(service.MultiService):
     name = "webish"
@@ -472,7 +829,7 @@ class WebishServer(service.MultiService):
     def __init__(self, webport):
         service.MultiService.__init__(self)
         self.root = Root()
-        self.root.putChild("", url.here.child("welcome"))#Welcome())
+        #self.root.putChild("", url.here.child("welcome"))#Welcome())
                            
         self.site = site = appserver.NevowSite(self.root)
         s = strports.service(webport, site)
