@@ -1,11 +1,12 @@
 
+import os.path
 from twisted.application import service, strports
 from twisted.web import static, resource, server, html, http
 from twisted.python import util, log
 from twisted.internet import defer
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
-from allmydata.util import idlib
+from allmydata.util import idlib, fileutil
 from allmydata.uri import unpack_uri
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode
 from allmydata.dirnode import FileNode
@@ -327,6 +328,18 @@ class NeedLocalhostError:
         req.setHeader("content-type", "text/plain")
         return "localfile= or localdir= requires a local connection"
 
+class NeedAbsolutePathError:
+    implements(inevow.IResource)
+
+    def locateChild(self, ctx, segments):
+        return rend.NotFound
+
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        req.setResponseCode(http.FORBIDDEN)
+        req.setHeader("content-type", "text/plain")
+        return "localfile= or localdir= requires an absolute path"
+
         
 
 class LocalFileDownloader(resource.Resource):
@@ -372,13 +385,68 @@ class FileURI(FileJSONMetadata):
         file_uri = self._filenode.get_uri()
         return file_uri
 
-class LocalDirectoryDownloader(resource.Resource):
-    def __init__(self, dirnode):
-        self._dirnode = dirnode
+class DirnodeWalkerMixin:
+    """Visit all nodes underneath (and including) the rootnode, one at a
+    time. For each one, call the visitor. The visitor will see the
+    IDirectoryNode before it sees any of the IFileNodes inside. If the
+    visitor returns a Deferred, I do not call the visitor again until it has
+    fired.
+    """
 
-    def renderHTTP(self, ctx):
-        dl = get_downloader_service(ctx)
-        pass # TODO
+    def _walk_if_we_could_use_generators(self, rootnode, rootpath=()):
+        # this is what we'd be doing if we didn't have the Deferreds and thus
+        # could use generators
+        yield rootpath, rootnode
+        for childname, childnode in rootnode.list().items():
+            childpath = rootpath + (childname,)
+            if IFileNode.providedBy(childnode):
+                yield childpath, childnode
+            elif IDirectoryNode.providedBy(childnode):
+                for res in self._walk_if_we_could_use_generators(childnode,
+                                                                 childpath):
+                    yield res
+
+    def walk(self, rootnode, visitor, rootpath=()):
+        d = rootnode.list()
+        def _listed(listing):
+            return listing.items()
+        d.addCallback(_listed)
+        d.addCallback(self._handle_items, visitor, rootpath)
+        return d
+
+    def _handle_items(self, items, visitor, rootpath):
+        if not items:
+            return
+        childname, childnode = items[0]
+        childpath = rootpath + (childname,)
+        d = defer.maybeDeferred(visitor, childpath, childnode)
+        if IDirectoryNode.providedBy(childnode):
+            d.addCallback(lambda res: self.walk(childnode, visitor, childpath))
+        d.addCallback(lambda res:
+                      self._handle_items(items[1:], visitor, rootpath))
+        return d
+
+class LocalDirectoryDownloader(resource.Resource, DirnodeWalkerMixin):
+    def __init__(self, dirnode, localdir):
+        self._dirnode = dirnode
+        self._localdir = localdir
+
+    def _handle(self, path, node):
+        print "DONWLOADING", path, node
+        localfile = os.path.join(self._localdir, os.sep.join(path))
+        if IDirectoryNode.providedBy(node):
+            fileutil.make_dirs(localfile)
+        elif IFileNode.providedBy(node):
+            target = download.FileName(localfile)
+            return node.download(target)
+
+    def render(self, req):
+        d = self.walk(self._dirnode, self._handle)
+        def _done(res):
+            req.setHeader("content-type", "text/plain")
+            return "operation complete"
+        d.addCallback(_done)
+        return d
 
 class DirectoryJSONMetadata(rend.Page):
     def __init__(self, dirnode):
@@ -441,11 +509,20 @@ class DELETEHandler(rend.Page):
         self._name = name
 
     def renderHTTP(self, ctx):
+        print "DELETEHandler.renderHTTP", self._name
+        req = inevow.IRequest(ctx)
         d = self._node.delete(self._name)
         def _done(res):
             # what should this return??
             return "%s deleted" % self._name
         d.addCallback(_done)
+        def _trap_missing(f):
+            print "TRAPPED MISSING"
+            f.trap(KeyError)
+            req.setResponseCode(http.NOT_FOUND)
+            req.setHeader("content-type", "text/plain")
+            return "no such child %s" % self._name
+        d.addErrback(_trap_missing)
         return d
 
 class PUTHandler(rend.Page):
@@ -521,17 +598,8 @@ class PUTHandler(rend.Page):
 
     def _upload_localfile(self, node, localfile, name):
         uploadable = upload.FileName(localfile)
-        d = self._uploader.upload(uploadable)
-        def _uploaded(uri):
-            print "SETTING URI", name, uri
-            d1 = node.set_uri(name, uri)
-            d1.addCallback(lambda res: uri)
-            return d1
-        d.addCallback(_uploaded)
-        def _done(uri):
-            log.msg("webish upload complete")
-            return uri
-        d.addCallback(_done)
+        d = node.add_file(name, uploadable)
+        d.addCallback(lambda filenode: filenode.get_uri())
         return d
 
     def _attach_uri(self, parentnode, contents, name):
@@ -543,7 +611,40 @@ class PUTHandler(rend.Page):
         return d
 
     def _upload_localdir(self, node, localdir):
-        pass # TODO
+        # build up a list of files to upload
+        all_files = []
+        all_dirs = []
+        for root, dirs, files in os.walk(localdir):
+            path = tuple(root.split(os.sep))
+            for d in dirs:
+                all_dirs.append(path + (d,))
+            for f in files:
+                all_files.append(path + (f,))
+        d = defer.succeed(None)
+        for dir in all_dirs:
+            if dir:
+                d.addCallback(self._makedir, node, dir)
+        for f in all_files:
+            d.addCallback(self._upload_one_file, node, localdir, f)
+        return d
+
+    def _makedir(self, res, node, dir):
+        d = defer.succeed(None)
+        # get the parent. As long as os.walk gives us parents before
+        # children, this ought to work
+        d.addCallback(lambda res: node.get_child_at_path(dir[:-1]))
+        # then create the child directory
+        d.addCallback(lambda parent: parent.create_empty_directory(dir[-1]))
+        return d
+
+    def _upload_one_file(self, res, node, localdir, f):
+        # get the parent. We can be sure this exists because we already
+        # went through and created all the directories we require.
+        localfile = os.path.join(localdir, f)
+        d = node.get_child_at_path(f[:-1])
+        d.addCallback(self._upload_localfile, localfile, f[-1])
+        return d
+
 
 class Manifest(rend.Page):
     docFactory = getxmlfile("manifest.xhtml")
@@ -595,11 +696,16 @@ class VDrive(rend.Page):
         localfile = None
         if "localfile" in req.args:
             localfile = req.args["localfile"][0]
+            if localfile != os.path.abspath(localfile):
+                return NeedAbsolutePathError(), ()
         localdir = None
         if "localdir" in req.args:
             localdir = req.args["localdir"][0]
-        if (localfile or localdir) and req.getHost().host != LOCALHOST:
-            return NeedLocalhostError(), ()
+            if localdir != os.path.abspath(localdir):
+                return NeedAbsolutePathError(), ()
+        if localfile or localdir:
+            if req.getHost().host != LOCALHOST:
+                return NeedLocalhostError(), ()
         # TODO: think about clobbering/revealing config files and node secrets
 
         if method == "GET":
@@ -651,13 +757,18 @@ class VDrive(rend.Page):
             # the node must exist, and our operation will be performed on the
             # node itself.
             d = self.get_child_at_path(path)
-            d.addCallback(lambda node: POSTHandler(node), ())
+            def _got(node):
+                return POSTHandler(node), ()
+            d.addCallback(_got)
         elif method == "DELETE":
             # the node must exist, and our operation will be performed on its
             # parent node.
             assert path # you can't delete the root
+            print "AT DELETE"
             d = self.get_child_at_path(path[:-1])
-            d.addCallback(lambda node: DELETEHandler(node, path[-1]), )
+            def _got(node):
+                return DELETEHandler(node, path[-1]), ()
+            d.addCallback(_got)
         elif method in ("PUT",):
             # the node may or may not exist, and our operation may involve
             # all the ancestors of the node.

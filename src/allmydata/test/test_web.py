@@ -8,6 +8,7 @@ from twisted.web import client, error
 from twisted.python import failure
 from allmydata import webish, interfaces, dirnode, uri
 from allmydata.encode import NotEnoughPeersError
+from allmydata.util import fileutil
 import itertools
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
@@ -64,12 +65,14 @@ class MyUploader(service.Service):
 
 class MyDirectoryNode(dirnode.MutableDirectoryNode):
 
-    def __init__(self, nodes, uri=None):
-        self._nodes = nodes
+    def __init__(self, nodes, files, client, uri=None):
+        self._my_nodes = nodes
+        self._my_files = files
+        self._my_client = client
         if uri is None:
             uri = str(uri_counter.next())
         self._uri = str(uri)
-        self._nodes[self._uri] = self
+        self._my_nodes[self._uri] = self
         self.children = {}
         self._mutable = True
 
@@ -79,22 +82,38 @@ class MyDirectoryNode(dirnode.MutableDirectoryNode):
     def get(self, name):
         def _try():
             uri = self.children[name]
-            if uri not in self._nodes:
+            if uri not in self._my_nodes:
                 raise IndexError("this isn't supposed to happen")
-            return self._nodes[uri]
+            return self._my_nodes[uri]
         return defer.maybeDeferred(_try)
 
     def set_uri(self, name, child_uri):
         self.children[name] = child_uri
         return defer.succeed(None)
 
+    def add_file(self, name, uploadable):
+        f = uploadable.get_filehandle()
+        data = f.read()
+        uri = str(uri_counter.next())
+        self._my_files[uri] = data
+        self._my_nodes[uri] = MyFileNode(uri, self._my_client)
+        uploadable.close_filehandle(f)
+
+        self.children[name] = uri
+        return defer.succeed(self._my_nodes[uri])
+
+    def delete(self, name):
+        def _try():
+            del self.children[name]
+        return defer.maybeDeferred(_try)
+
     def create_empty_directory(self, name):
-        node = MyDirectoryNode(self._nodes)
+        node = MyDirectoryNode(self._my_nodes, self._my_files, self._my_client)
         self.children[name] = node.get_uri()
         return defer.succeed(node)
 
     def list(self):
-        kids = dict([(name, self._nodes[uri])
+        kids = dict([(name, self._my_nodes[uri])
                      for name,uri in self.children.iteritems()])
         return defer.succeed(kids)
 
@@ -134,43 +153,56 @@ class Web(unittest.TestCase):
         ul = MyUploader(self.files)
         ul.setServiceParent(self.s)
 
-        v.public_root = MyDirectoryNode(self.nodes)
-        v.private_root = MyDirectoryNode(self.nodes)
-        foo = MyDirectoryNode(self.nodes)
+        v.public_root = self.makedir()
+        self.public_root = v.public_root
+        v.private_root = self.makedir()
+        foo = self.makedir()
         self._foo_node = foo
         self._foo_uri = foo.get_uri()
         self._foo_readonly_uri = foo.get_immutable_uri()
         v.public_root.children["foo"] = foo.get_uri()
 
-        self.BAR_CONTENTS = "bar.txt contents"
 
-        bar_uri = uri.pack_uri("SI"+"0"*30,
-                               "K"+"0"*15,
-                               "EH"+"0"*30,
-                               25, 100, 123)
-        bar_txt = MyFileNode(bar_uri, self.s)
-        self._bar_txt_uri = bar_txt.get_uri()
-        self.nodes[bar_uri] = bar_txt
-        self.files[bar_txt.get_uri()] = self.BAR_CONTENTS
-        foo.children["bar.txt"] = bar_txt.get_uri()
+        self._bar_txt_uri = self.makefile(0)
+        self.BAR_CONTENTS = self.files[self._bar_txt_uri]
+        foo.children["bar.txt"] = self._bar_txt_uri
+        foo.children["empty"] = self.makedir().get_uri()
+        sub_uri = foo.children["sub"] = self.makedir().get_uri()
+        sub = self.nodes[sub_uri]
 
-        foo.children["sub"] = MyDirectoryNode(self.nodes).get_uri()
+        blocking_uri = self.makefile(1)
+        foo.children["blockingfile"] = blocking_uri
 
-        blocking_uri = uri.pack_uri("SI"+"1"*30,
-                                    "K"+"1"*15,
-                                    "EH"+"1"*30,
-                                    25, 100, 124)
-        blocking_file = MyFileNode(blocking_uri, self.s)
-        self.nodes[blocking_uri] = blocking_file
-        self.files[blocking_uri] = "blocking contents"
-        foo.children["blockingfile"] = blocking_file.get_uri()
+        baz_file = self.makefile(2)
+        sub.children["baz.txt"] = baz_file
 
         # public/
         # public/foo/
         # public/foo/bar.txt
-        # public/foo/sub/
         # public/foo/blockingfile
+        # public/foo/empty/
+        # public/foo/sub/
+        # public/foo/sub/baz.txt
         self.NEWFILE_CONTENTS = "newfile contents\n"
+
+    def makefile(self, number):
+        n = str(number)
+        assert len(n) == 1
+        newuri = uri.pack_uri("SI" + n*30,
+                              "K" + n*15,
+                              "EH" + n*30,
+                              25, 100, 123+number)
+        assert newuri not in self.nodes
+        assert newuri not in self.files
+        node = MyFileNode(newuri, self.s)
+        self.nodes[newuri] = node
+        contents = "contents of file %s\n" % n
+        self.files[newuri] = contents
+        return newuri
+
+    def makedir(self):
+        node = MyDirectoryNode(self.nodes, self.files, self.s)
+        return node
 
     def tearDown(self):
         return self.s.stopService()
@@ -191,6 +223,7 @@ class Web(unittest.TestCase):
         return client.getPage(url, method="DELETE")
 
     def POST(self, urlpath, data):
+        raise unittest.SkipTest("not yet")
         url = self.webish_url + urlpath
         return client.getPage(url, method="POST", postdata=data)
 
@@ -211,8 +244,8 @@ class Web(unittest.TestCase):
             res.trap(error.Error)
             self.failUnlessEqual(res.value.status, "404")
         else:
-            self.fail("%s was supposed to raise %s, not get '%s'" %
-                      (which, expected_failure, res))
+            self.fail("%s was supposed to Error(404), not get '%s'" %
+                      (which, res))
 
     def test_create(self): # YES
         pass
@@ -274,12 +307,21 @@ class Web(unittest.TestCase):
                   "403 Forbidden")
         return d
 
-    def test_DELETE_FILEURL(self):
+    def test_DELETE_FILEURL(self): # YES
         d = self.DELETE("/vdrive/global/foo/bar.txt")
+        def _check(res):
+            self.failIf("bar.txt" in self._foo_node.children)
+        d.addCallback(_check)
         return d
 
-    def test_DELETE_FILEURL_missing(self):
+    def test_DELETE_FILEURL_missing(self): # YES
         d = self.DELETE("/vdrive/global/foo/missing")
+        d.addBoth(self.should404, "test_DELETE_FILEURL_missing")
+        return d
+
+    def test_DELETE_FILEURL_missing2(self): # YES
+        d = self.DELETE("/vdrive/global/missing/missing")
+        d.addBoth(self.should404, "test_DELETE_FILEURL_missing2")
         return d
 
     def test_GET_FILEURL_json(self): # YES
@@ -301,7 +343,7 @@ class Web(unittest.TestCase):
 
     def test_GET_FILEURL_localfile(self): # YES
         localfile = os.path.abspath("web/GET_FILEURL_localfile")
-        os.makedirs("web")
+        fileutil.make_dirs("web")
         d = self.GET("/vdrive/global/foo/bar.txt?localfile=%s" % localfile)
         def _done(res):
             self.failUnless(os.path.exists(localfile))
@@ -317,7 +359,7 @@ class Web(unittest.TestCase):
         old_LOCALHOST = webish.LOCALHOST
         webish.LOCALHOST = "127.0.0.2"
         localfile = os.path.abspath("web/GET_FILEURL_localfile_nonlocal")
-        os.makedirs("web")
+        fileutil.make_dirs("web")
         d = self.GET("/vdrive/global/foo/bar.txt?localfile=%s" % localfile)
         d.addBoth(self.shouldFail, error.Error, "localfile non-local",
                   "403 Forbidden")
@@ -331,9 +373,20 @@ class Web(unittest.TestCase):
         d.addBoth(_reset)
         return d
 
+    def test_GET_FILEURL_localfile_nonabsolute(self):
+        localfile = "web/nonabsolute/path"
+        fileutil.make_dirs("web/nonabsolute")
+        d = self.GET("/vdrive/global/foo/bar.txt?localfile=%s" % localfile)
+        d.addBoth(self.shouldFail, error.Error, "localfile non-absolute",
+                  "403 Forbidden")
+        def _check(res):
+            self.failIf(os.path.exists(localfile))
+        d.addCallback(_check)
+        return d
+
     def test_PUT_NEWFILEURL_localfile(self): # YES
         localfile = os.path.abspath("web/PUT_NEWFILEURL_localfile")
-        os.makedirs("web")
+        fileutil.make_dirs("web")
         f = open(localfile, "wb")
         f.write(self.NEWFILE_CONTENTS)
         f.close()
@@ -349,7 +402,7 @@ class Web(unittest.TestCase):
 
     def test_PUT_NEWFILEURL_localfile_mkdirs(self): # YES
         localfile = os.path.abspath("web/PUT_NEWFILEURL_localfile_mkdirs")
-        os.makedirs("web")
+        fileutil.make_dirs("web")
         f = open(localfile, "wb")
         f.write(self.NEWFILE_CONTENTS)
         f.close()
@@ -436,32 +489,127 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_DELETE_DIRURL(self):
+    def test_DELETE_DIRURL(self): # YES
         d = self.DELETE("/vdrive/global/foo")
+        def _check(res):
+            self.failIf("foo" in self.public_root.children)
+        d.addCallback(_check)
         return d
 
-    def test_DELETE_DIRURL_missing(self):
+    def test_DELETE_DIRURL_missing(self): # YES
+        d = self.DELETE("/vdrive/global/foo/missing")
+        d.addBoth(self.should404, "test_DELETE_DIRURL_missing")
+        def _check(res):
+            self.failUnless("foo" in self.public_root.children)
+        d.addCallback(_check)
+        return d
+
+    def test_DELETE_DIRURL_missing2(self): # YES
         d = self.DELETE("/vdrive/global/missing")
+        d.addBoth(self.should404, "test_DELETE_DIRURL_missing2")
         return d
 
-    def test_GET_DIRURL_localdir(self):
+    def test_walker(self): # YES
+        out = []
+        def _visitor(path, node):
+            out.append((path, node))
+            return defer.succeed(None)
+        w = webish.DirnodeWalkerMixin()
+        d = w.walk(self.public_root, _visitor)
+        def _check(res):
+            names = [path for (path,node) in out]
+            self.failUnlessEqual(sorted(names),
+                                 [('foo',),
+                                  ('foo','bar.txt'),
+                                  ('foo','blockingfile'),
+                                  ('foo', 'empty'),
+                                  ('foo', 'sub'),
+                                  ('foo','sub','baz.txt'),
+                                  ])
+            subindex = names.index( ('foo', 'sub') )
+            bazindex = names.index( ('foo', 'sub', 'baz.txt') )
+            self.failUnless(subindex < bazindex)
+            for path,node in out:
+                if path[-1] in ('bar.txt', 'blockingfile', 'baz.txt'):
+                    self.failUnless(interfaces.IFileNode.providedBy(node))
+                else:
+                    self.failUnless(interfaces.IDirectoryNode.providedBy(node))
+        d.addCallback(_check)
+        return d
+
+    def test_GET_DIRURL_localdir(self): # YES
         localdir = os.path.abspath("web/GET_DIRURL_localdir")
-        os.makedirs("web")
+        fileutil.make_dirs("web")
         d = self.GET("/vdrive/global/foo?localdir=%s" % localdir)
+        def _check(res):
+            barfile = os.path.join(localdir, "bar.txt")
+            self.failUnless(os.path.exists(barfile))
+            data = open(barfile, "rb").read()
+            self.failUnlessEqual(data, self.BAR_CONTENTS)
+            blockingfile = os.path.join(localdir, "blockingfile")
+            self.failUnless(os.path.exists(blockingfile))
+            subdir = os.path.join(localdir, "sub")
+            self.failUnless(os.path.isdir(subdir))
+        d.addCallback(_check)
         return d
 
-    def test_PUT_NEWDIRURL_localdir(self):
+    def touch(self, localdir, filename):
+        path = os.path.join(localdir, filename)
+        f = open(path, "w")
+        f.write("contents of %s\n" % filename)
+        f.close()
+
+    def test_PUT_NEWDIRURL_localdir(self): # NO
         localdir = os.path.abspath("web/PUT_NEWDIRURL_localdir")
-        os.makedirs("web")
         # create some files there
-        d = self.GET("/vdrive/global/foo/newdir?localdir=%s" % localdir)
+        fileutil.make_dirs(os.path.join(localdir, "web"))
+        fileutil.make_dirs(os.path.join(localdir, "web/one"))
+        fileutil.make_dirs(os.path.join(localdir, "web/two"))
+        fileutil.make_dirs(os.path.join(localdir, "web/three"))
+        self.touch(localdir, "web/three/foo.txt")
+        self.touch(localdir, "web/three/bar.txt")
+        self.touch(localdir, "web/zap.zip")
+        d = self.PUT("/vdrive/global/foo/newdir?localdir=%s" % localdir, "")
+        def _check(res):
+            self.failUnless("newdir" in self._foo_node.children)
+            webnode = self.nodes[self._foo_node.children["newdir"]]
+            self.failUnlessEqual(sorted(webnode.children.keys()),
+                                 sorted(["one", "two", "three", "zap.zip"]))
+            threenode = self.nodes[webnode.children["three"]]
+            self.failUnlessEqual(sorted(threenode.children.keys()),
+                                 sorted(["foo.txt", "bar.txt"]))
+            barnode = self.nodes[threenode.children["foo.txt"]]
+            contents = self.files[barnode.get_uri()]
+            self.failUnlessEqual(contents, "contents of web/three/bar.txt")
+        d.addCallback(_check)
         return d
 
-    def test_PUT_NEWDIRURL_localdir_mkdirs(self):
+    def test_PUT_NEWDIRURL_localdir_mkdirs(self): # NO
         localdir = os.path.abspath("web/PUT_NEWDIRURL_localdir_mkdirs")
-        os.makedirs("web")
         # create some files there
-        d = self.GET("/vdrive/global/foo/subdir/newdir?localdir=%s" % localdir)
+        fileutil.make_dirs(os.path.join(localdir, "web"))
+        fileutil.make_dirs(os.path.join(localdir, "web/one"))
+        fileutil.make_dirs(os.path.join(localdir, "web/two"))
+        fileutil.make_dirs(os.path.join(localdir, "web/three"))
+        self.touch(localdir, "web/three/foo.txt")
+        self.touch(localdir, "web/three/bar.txt")
+        self.touch(localdir, "web/zap.zip")
+        d = self.PUT("/vdrive/global/foo/subdir/newdir?localdir=%s" % localdir,
+                     "")
+        def _check(res):
+            self.failUnless("subdir" in self._foo_node.children)
+            subnode = self.nodes[self._foo_node.children["subdir"]]
+            self.failUnless("newdir" in subnode.children)
+            webnode = self.nodes[subnode.children["newdir"]]
+            self.failUnlessEqual(sorted(webnode.children.keys()),
+                                 sorted(["one", "two", "three", "zap.zip"]))
+            threenode = self.nodes[webnode.children["three"]]
+            self.failUnlessEqual(sorted(threenode.children.keys()),
+                                 sorted(["foo.txt", "bar.txt"]))
+            barnode = self.nodes[threenode.children["foo.txt"]]
+            contents = self.files[barnode.get_uri()]
+            self.failUnlessEqual(contents, "contents of web/three/bar.txt")
+        d.addCallback(_check)
         return d
 
     def test_POST_upload(self):
@@ -485,14 +633,17 @@ class Web(unittest.TestCase):
         return d
 
     def test_URI_GET(self):
+        raise unittest.SkipTest("not yet")
         d = self.GET("/uri/%s/bar.txt" % foo_uri)
         return d
 
     def test_PUT_NEWFILEURL_uri(self):
+        raise unittest.SkipTest("not yet")
         d = self.PUT("/vdrive/global/foo/new.txt?uri", new_uri)
         return d
 
     def test_XMLRPC(self):
+        raise unittest.SkipTest("not yet")
         pass
 
 
