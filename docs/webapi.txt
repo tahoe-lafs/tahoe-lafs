@@ -117,6 +117,12 @@ for files and directories which do not yet exist.
 
   This returns the URI of the given file in the HTTP response body.
 
+ GET FILEURL?t=readonly-uri
+
+  This also returns the URI of the given file. For now, all files are
+  immutable, so t=uri and t=readonly-uri return the same value. In the
+  future, when we have mutable files, they will return different values.
+
 === Directories ===
 
  GET DIRURL
@@ -147,6 +153,10 @@ for files and directories which do not yet exist.
 
   Return a URI for this dirnode in the HTTP response body. If the dirnode is
   read-only, the t=uri and t=readonly-uri responses will be the same.
+
+ GET DIRURL?t=manifest
+
+  Return an HTML-formatted manifest of the given directory, for debugging.
 
  PUT NEWDIRURL?t=mkdir
 

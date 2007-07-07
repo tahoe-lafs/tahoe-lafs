@@ -99,20 +99,30 @@ class Directory(rend.Page):
             delete = "-"
         ctx.fillSlots("delete", delete)
 
+        childdata = [T.a(href="%s?t=json" % name)["JSON"], ", ",
+                     T.a(href="%s?t=xml" % name)["XML"], ", ",
+                     T.a(href="%s?t=uri" % name)["URI"], ", ",
+                     T.a(href="%s?t=readonly-uri" % name)["readonly-URI"], ", ",
+                     T.a(href="/uri/%s" % target.get_uri())["URI-link"],
+                     ]
+        ctx.fillSlots("data", childdata)
+
         if IFileNode.providedBy(target):
             # file
             dlurl = urllib.quote(name)
             ctx.fillSlots("filename",
                           T.a(href=dlurl)[html.escape(name)])
             ctx.fillSlots("type", "FILE")
-            uri = target.uri
-            dl_uri_url = url.root.child("download_uri").child(uri)
-            # add a filename= query argument to give it a Content-Type
-            dl_uri_url = dl_uri_url.add("filename", name)
-            ctx.fillSlots("uri", T.a(href=dl_uri_url)[html.escape(uri)])
+
+
+            #uri = target.uri
+            #dl_uri_url = url.root.child("download_uri").child(uri)
+            ## add a filename= query argument to give it a Content-Type
+            #dl_uri_url = dl_uri_url.add("filename", name)
+            #ctx.fillSlots("uri", T.a(href=dl_uri_url)[html.escape(uri)])
 
             #extract and display file size
-            ctx.fillSlots("size", unpack_uri(uri)['size'])
+            ctx.fillSlots("size", unpack_uri(target.get_uri())['size'])
 
         elif IDirectoryNode.providedBy(target):
             # directory
@@ -125,7 +135,6 @@ class Directory(rend.Page):
                 dirtype = "DIR-RO"
             ctx.fillSlots("type", dirtype)
             ctx.fillSlots("size", "-")
-            ctx.fillSlots("uri", "-")
         else:
             raise RuntimeError("unknown thing %s" % (target,))
         return ctx.tag
@@ -746,6 +755,8 @@ class VDrive(rend.Page):
                     elif t == "xml":
                         return FileXMLMetadata(node), ()
                     elif t == "uri":
+                        return FileURI(node), ()
+                    elif t == "readonly-uri":
                         return FileURI(node), ()
                     else:
                         raise RuntimeError("bad t=%s" % t)
