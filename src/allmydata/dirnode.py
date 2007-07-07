@@ -364,7 +364,7 @@ class ImmutableDirectoryNode:
 
     def get_child_at_path(self, path):
         if not path:
-            return self
+            return defer.succeed(self)
         if isinstance(path, (str, unicode)):
             path = path.split("/")
         childname = path[0]

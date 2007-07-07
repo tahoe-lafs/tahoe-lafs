@@ -546,6 +546,7 @@ class PUTHandler(rend.Page):
         if localfile:
             d.addCallback(self._upload_localfile, localfile, name)
         elif localdir:
+            d.addCallback(self._get_or_create_directories, self._path[-1:])
             d.addCallback(self._upload_localdir, localdir)
         elif t == "uri":
             d.addCallback(self._attach_uri, req.content, name)
@@ -611,11 +612,18 @@ class PUTHandler(rend.Page):
         return d
 
     def _upload_localdir(self, node, localdir):
+        print "PUTHandler._upload_localdir", localdir
         # build up a list of files to upload
         all_files = []
         all_dirs = []
         for root, dirs, files in os.walk(localdir):
-            path = tuple(root.split(os.sep))
+            print "walking", root
+            if root == localdir:
+                path = ()
+            else:
+                relative_root = root[len(localdir)+1:]
+                path = tuple(relative_root.split(os.sep))
+            print "  path", path
             for d in dirs:
                 all_dirs.append(path + (d,))
             for f in files:
@@ -629,6 +637,7 @@ class PUTHandler(rend.Page):
         return d
 
     def _makedir(self, res, node, dir):
+        print "_makedir", node, dir
         d = defer.succeed(None)
         # get the parent. As long as os.walk gives us parents before
         # children, this ought to work
@@ -638,9 +647,10 @@ class PUTHandler(rend.Page):
         return d
 
     def _upload_one_file(self, res, node, localdir, f):
+        print "_upload_one_file", node, localdir, f
         # get the parent. We can be sure this exists because we already
         # went through and created all the directories we require.
-        localfile = os.path.join(localdir, f)
+        localfile = os.path.join(localdir, *f)
         d = node.get_child_at_path(f[:-1])
         d.addCallback(self._upload_localfile, localfile, f[-1])
         return d

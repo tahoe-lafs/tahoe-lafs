@@ -559,56 +559,79 @@ class Web(unittest.TestCase):
         f.write("contents of %s\n" % filename)
         f.close()
 
-    def test_PUT_NEWDIRURL_localdir(self): # NO
+    def walk_mynodes(self, node, path=()):
+        yield path, node
+        if interfaces.IDirectoryNode.providedBy(node):
+            for name in sorted(node.children.keys()):
+                child_uri = node.children[name]
+                childnode = self.nodes[child_uri]
+                childpath = path + (name,)
+                for xpath,xnode in self.walk_mynodes(childnode, childpath):
+                    yield xpath, xnode
+
+    def dump_root(self):
+        print "NODEWALK"
+        for path,node in self.walk_mynodes(self.public_root):
+            print path
+
+    def test_PUT_NEWDIRURL_localdir(self): # YES
         localdir = os.path.abspath("web/PUT_NEWDIRURL_localdir")
         # create some files there
-        fileutil.make_dirs(os.path.join(localdir, "web"))
-        fileutil.make_dirs(os.path.join(localdir, "web/one"))
-        fileutil.make_dirs(os.path.join(localdir, "web/two"))
-        fileutil.make_dirs(os.path.join(localdir, "web/three"))
-        self.touch(localdir, "web/three/foo.txt")
-        self.touch(localdir, "web/three/bar.txt")
-        self.touch(localdir, "web/zap.zip")
+        fileutil.make_dirs(os.path.join(localdir, "one"))
+        fileutil.make_dirs(os.path.join(localdir, "one/sub"))
+        fileutil.make_dirs(os.path.join(localdir, "two"))
+        fileutil.make_dirs(os.path.join(localdir, "three"))
+        self.touch(localdir, "three/foo.txt")
+        self.touch(localdir, "three/bar.txt")
+        self.touch(localdir, "zap.zip")
+
         d = self.PUT("/vdrive/global/foo/newdir?localdir=%s" % localdir, "")
         def _check(res):
             self.failUnless("newdir" in self._foo_node.children)
-            webnode = self.nodes[self._foo_node.children["newdir"]]
-            self.failUnlessEqual(sorted(webnode.children.keys()),
+            newnode = self.nodes[self._foo_node.children["newdir"]]
+            self.failUnlessEqual(sorted(newnode.children.keys()),
                                  sorted(["one", "two", "three", "zap.zip"]))
-            threenode = self.nodes[webnode.children["three"]]
+            onenode = self.nodes[newnode.children["one"]]
+            self.failUnlessEqual(sorted(onenode.children.keys()),
+                                 sorted(["sub"]))
+            threenode = self.nodes[newnode.children["three"]]
             self.failUnlessEqual(sorted(threenode.children.keys()),
                                  sorted(["foo.txt", "bar.txt"]))
-            barnode = self.nodes[threenode.children["foo.txt"]]
+            barnode = self.nodes[threenode.children["bar.txt"]]
             contents = self.files[barnode.get_uri()]
-            self.failUnlessEqual(contents, "contents of web/three/bar.txt")
+            self.failUnlessEqual(contents, "contents of three/bar.txt\n")
         d.addCallback(_check)
         return d
 
-    def test_PUT_NEWDIRURL_localdir_mkdirs(self): # NO
+    def test_PUT_NEWDIRURL_localdir_mkdirs(self): # YES
         localdir = os.path.abspath("web/PUT_NEWDIRURL_localdir_mkdirs")
         # create some files there
-        fileutil.make_dirs(os.path.join(localdir, "web"))
-        fileutil.make_dirs(os.path.join(localdir, "web/one"))
-        fileutil.make_dirs(os.path.join(localdir, "web/two"))
-        fileutil.make_dirs(os.path.join(localdir, "web/three"))
-        self.touch(localdir, "web/three/foo.txt")
-        self.touch(localdir, "web/three/bar.txt")
-        self.touch(localdir, "web/zap.zip")
+        fileutil.make_dirs(os.path.join(localdir, "one"))
+        fileutil.make_dirs(os.path.join(localdir, "one/sub"))
+        fileutil.make_dirs(os.path.join(localdir, "two"))
+        fileutil.make_dirs(os.path.join(localdir, "three"))
+        self.touch(localdir, "three/foo.txt")
+        self.touch(localdir, "three/bar.txt")
+        self.touch(localdir, "zap.zip")
+
         d = self.PUT("/vdrive/global/foo/subdir/newdir?localdir=%s" % localdir,
                      "")
         def _check(res):
             self.failUnless("subdir" in self._foo_node.children)
             subnode = self.nodes[self._foo_node.children["subdir"]]
             self.failUnless("newdir" in subnode.children)
-            webnode = self.nodes[subnode.children["newdir"]]
-            self.failUnlessEqual(sorted(webnode.children.keys()),
+            newnode = self.nodes[subnode.children["newdir"]]
+            self.failUnlessEqual(sorted(newnode.children.keys()),
                                  sorted(["one", "two", "three", "zap.zip"]))
-            threenode = self.nodes[webnode.children["three"]]
+            onenode = self.nodes[newnode.children["one"]]
+            self.failUnlessEqual(sorted(onenode.children.keys()),
+                                 sorted(["sub"]))
+            threenode = self.nodes[newnode.children["three"]]
             self.failUnlessEqual(sorted(threenode.children.keys()),
                                  sorted(["foo.txt", "bar.txt"]))
-            barnode = self.nodes[threenode.children["foo.txt"]]
+            barnode = self.nodes[threenode.children["bar.txt"]]
             contents = self.files[barnode.get_uri()]
-            self.failUnlessEqual(contents, "contents of web/three/bar.txt")
+            self.failUnlessEqual(contents, "contents of three/bar.txt\n")
         d.addCallback(_check)
         return d
 
