@@ -31,39 +31,40 @@ class Directory(rend.Page):
     addSlash = True
     docFactory = getxmlfile("directory.xhtml")
 
-    def __init__(self, dirnode, dirname):
+    def __init__(self, dirnode, dirpath):
         self._dirnode = dirnode
-        self._dirname = dirname
+        self._dirpath = dirpath
 
     def childFactory(self, ctx, name):
         print "Directory.childFactory", name
         if name.startswith("freeform"): # ick
             return None
-        if name == "@manifest": # ick, this time it's my fault
-            return Manifest(self._dirnode, self._dirname)
+        #if name == "@manifest": # ick, this time it's my fault
+        #    return Manifest(self._dirnode, self._dirpath)
         return rend.NotFound
+
+    def dirpath_as_string(self):
+        return "/" + "/".join(self._dirpath)
 
     def render_title(self, ctx, data):
         print "DIRECTORY.render_title"
-        return ctx.tag["Directory '%s':" % self._dirname]
+        return ctx.tag["Directory '%s':" % self.dirpath_as_string()]
 
     def render_header(self, ctx, data):
-        parent_directories = self._dirname.split("/")
+        parent_directories = ("<root>",) + self._dirpath
         num_dirs = len(parent_directories)
 
         header = ["Directory '"]
         for i,d in enumerate(parent_directories):
-            if d == "":
-                link = "/".join([".."] * (num_dirs - i))
-                header.append(T.a(href=link)["/"])
+            upness = num_dirs - i - 1
+            if upness:
+                link = "/".join( ("..",) * upness )
             else:
-                if i == num_dirs-1:
-                    link = "."
-                else:
-                    link = "/".join([".."] * (num_dirs - i - 1))
-                header.append(T.a(href=link)[d])
-                if i < num_dirs - 1:
-                    header.append("/")
+                link = "."
+            print "LINK", link, d
+            header.append(T.a(href=link)[d])
+            if upness != 0:
+                header.append("/")
         header.append("'")
 
         if not self._dirnode.is_mutable():
@@ -363,7 +364,12 @@ class FileJSONMetadata(rend.Page):
         self._filenode = filenode
 
     def renderHTTP(self, ctx):
-        file_uri = self._filenode.get_uri()
+        req = inevow.IRequest(ctx)
+        req.setHeader("content-type", "text/plain")
+        return self.renderNode(self._filenode)
+
+    def renderNode(self, filenode):
+        file_uri = filenode.get_uri()
         pieces = unpack_uri(file_uri)
         data = "filenode\n"
         data += "JSONny stuff here\n"
@@ -371,8 +377,8 @@ class FileJSONMetadata(rend.Page):
         return data
 
 class FileXMLMetadata(FileJSONMetadata):
-    def renderHTTP(self, ctx):
-        file_uri = self._filenode.get_uri()
+    def renderNode(self, filenode):
+        file_uri = filenode.get_uri()
         pieces = unpack_uri(file_uri)
         data = "<xmlish>\n"
         data += "filenode\n"
@@ -381,8 +387,8 @@ class FileXMLMetadata(FileJSONMetadata):
         return data
 
 class FileURI(FileJSONMetadata):
-    def renderHTTP(self, ctx):
-        file_uri = self._filenode.get_uri()
+    def renderNode(self, filenode):
+        file_uri = filenode.get_uri()
         return file_uri
 
 class DirnodeWalkerMixin:
@@ -453,10 +459,14 @@ class DirectoryJSONMetadata(rend.Page):
         self._dirnode = dirnode
 
     def renderHTTP(self, ctx):
-        file_uri = self._dirnode.get_uri()
+        req = inevow.IRequest(ctx)
+        req.setHeader("content-type", "text/plain")
+        return self.renderNode(self._dirnode)
+
+    def renderNode(self, node):
         data = "dirnode\n"
         data += "JSONny stuff here\n"
-        d = self._dirnode.list()
+        d = node.list()
         def _got(children, data):
             for name, childnode in children.iteritems():
                 data += "name=%s, child_uri=%s" % (name, childnode.get_uri())
@@ -469,18 +479,16 @@ class DirectoryJSONMetadata(rend.Page):
         return d
 
 class DirectoryXMLMetadata(DirectoryJSONMetadata):
-    def renderHTTP(self, ctx):
-        file_uri = self._dirnode.get_uri()
-        pieces = unpack_uri(file_uri)
+    def renderNode(self, node):
         data = "<xmlish>\n"
         data += "dirnode\n"
         data += "stuff here\n"
-        d = self._dirnode.list()
+        d = node.list()
         def _got(children, data):
-            for name, childnode in children:
+            for name, childnode in children.iteritems():
                 data += "name=%s, child_uri=%s" % (name, childnode.get_uri())
             return data
-        d.addCallback(_got)
+        d.addCallback(_got, data)
         def _done(data):
             data += "</done>\n"
             return data
@@ -488,14 +496,12 @@ class DirectoryXMLMetadata(DirectoryJSONMetadata):
         return d
 
 class DirectoryURI(DirectoryJSONMetadata):
-    def renderHTTP(self, ctx):
-        dir_uri = self._dirnode.get_uri()
-        return dir_uri
+    def renderNode(self, node):
+        return node.get_uri()
 
 class DirectoryReadonlyURI(DirectoryJSONMetadata):
-    def renderHTTP(self, ctx):
-        dir_uri = self._dirnode.get_immutable_uri()
-        return dir_uri
+    def renderNode(self, node):
+        return node.get_immutable_uri()
 
 class POSTHandler(rend.Page):
     def __init__(self, node):
@@ -658,15 +664,18 @@ class PUTHandler(rend.Page):
 
 class Manifest(rend.Page):
     docFactory = getxmlfile("manifest.xhtml")
-    def __init__(self, dirnode, dirname):
+    def __init__(self, dirnode, dirpath):
         self._dirnode = dirnode
-        self._dirname = dirname
+        self._dirpath = dirpath
+
+    def dirpath_as_string(self):
+        return "/" + "/".join(self._dirpath)
 
     def render_title(self, ctx):
-        return T.title["Manifest of %s" % self._dirname]
+        return T.title["Manifest of %s" % self.dirpath_as_string()]
 
     def render_header(self, ctx):
-        return T.p["Manifest of %s" % self._dirname]
+        return T.p["Manifest of %s" % self.dirpath_as_string()]
 
     def data_items(self, ctx, data):
         return self._dirnode.build_manifest()
@@ -721,7 +730,6 @@ class VDrive(rend.Page):
         if method == "GET":
             # the node must exist, and our operation will be performed on the
             # node itself.
-            name = path[-1]
             d = self.get_child_at_path(path)
             def file_or_dir(node):
                 if IFileNode.providedBy(node):
@@ -731,7 +739,7 @@ class VDrive(rend.Page):
                     elif t == "":
                         # send contents as the result
                         print "FileDownloader"
-                        return FileDownloader(name, node), ()
+                        return FileDownloader(path[-1], node), ()
                     elif t == "json":
                         print "Localfilejsonmetadata"
                         return FileJSONMetadata(node), ()
@@ -749,7 +757,7 @@ class VDrive(rend.Page):
                     elif t == "":
                         # send an HTML representation of the directory
                         print "GOT HTML DIR"
-                        return Directory(node, name), ()
+                        return Directory(node, path), ()
                     elif t == "json":
                         return DirectoryJSONMetadata(node), ()
                     elif t == "xml":
@@ -758,6 +766,8 @@ class VDrive(rend.Page):
                         return DirectoryURI(node), ()
                     elif t == "readonly-uri":
                         return DirectoryReadonlyURI(node), ()
+                    elif t == "manifest":
+                        return Manifest(node, path), ()
                     else:
                         raise RuntimeError("bad t=%s" % t)
                 else:
@@ -847,9 +857,9 @@ class Root(rend.Page):
     child_webform_css = webform.defaultCSS
     child_tahoe_css = nevow_File(util.sibpath(__file__, "web/tahoe.css"))
 
-    #child_welcome = Welcome()
+    #NOTchild_welcome = Welcome()
 
-    def child_global_vdrive(self, ctx):
+    def NOTchild_global_vdrive(self, ctx):
         client = IClient(ctx)
         vdrive = client.getServiceNamed("vdrive")
         if vdrive.have_public_root():
@@ -859,7 +869,7 @@ class Root(rend.Page):
         else:
             return static.Data("sorry, still initializing", "text/plain")
 
-    def child_private_vdrive(self, ctx):
+    def NOTchild_private_vdrive(self, ctx):
         client = IClient(ctx)
         vdrive = client.getServiceNamed("vdrive")
         if vdrive.have_private_root():
@@ -907,7 +917,7 @@ class Root(rend.Page):
     def render_global_vdrive(self, ctx, data):
         if IClient(ctx).getServiceNamed("vdrive").have_public_root():
             return T.p["To view the global shared filestore, ",
-                       T.a(href="../global_vdrive")["Click Here!"],
+                       T.a(href="vdrive/global")["Click Here!"],
                        ]
         return T.p["vdrive.furl not specified (or vdrive server not "
                    "responding), no vdrive available."]
@@ -915,7 +925,7 @@ class Root(rend.Page):
     def render_private_vdrive(self, ctx, data):
         if IClient(ctx).getServiceNamed("vdrive").have_private_root():
             return T.p["To view your personal private non-shared filestore, ",
-                       T.a(href="../private_vdrive")["Click Here!"],
+                       T.a(href="vdrive/private")["Click Here!"],
                        ]
         return T.p["personal vdrive not available."]
 

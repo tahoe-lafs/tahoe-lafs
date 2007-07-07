@@ -13,13 +13,23 @@
 
 <div><a href=".">Refresh this view</a></div>
 <div><a href="..">Parent Directory</a></div>
-<div><a href="@manifest">Manifest for this directory</a></div>
+<div>Other representations of this directory:
+<a href="?t=manifest">manifest</a>,
+<a href="?t=uri">URI</a>,
+<a href="?t=readonly-uri">read-only URI</a>,
+<a href="?t=json">JSON</a>,
+<a href="?t=xml">XML</a>
+</div>
+
+<!--
 <div>To share this directory, paste the following URI string into an
   "Add Shared Directory" box:
   <pre class="overflow" n:render="string" n:data="share_uri" /></div>
 <div>To share a transitively read-only copy, use the following URI instead:
   <pre class="overflow" n:render="string" n:data="share_readonly_uri" /></div>
+-->
 
+<div>
 <table n:render="sequence" n:data="children" border="1">
   <tr n:pattern="header">
     <td>Filename</td>
@@ -39,6 +49,7 @@
   <tr n:pattern="empty"><td>directory is empty!</td></tr>
 
 </table>
+</div>
 
 <div n:render="forms"/>
 
