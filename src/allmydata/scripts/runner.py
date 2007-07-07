@@ -100,6 +100,11 @@ class RestartOptions(BasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to restart the node in"],
         ]
+    optFlags = [
+        ["force", "f", "if the node is not already running, start it "
+         "instead of complaining that you should have used 'start' instead "
+         "of 'restart'"],
+        ]
 
 class CreateClientOptions(NoDefaultBasedirMixin, usage.Options):
     optParameters = [
@@ -232,6 +237,9 @@ def runner(argv, run_by_human=True, stdout=sys.stdout, stderr=sys.stderr):
     elif command == "restart":
         for basedir in so.basedirs:
             rc = stop(basedir, so, stdout, stderr) or rc
+        if rc == 2 and so['force']:
+            print >>stderr, "ignoring couldn't-stop"
+            rc = 0
         if rc:
             print >>stderr, "not restarting"
             return rc
@@ -306,7 +314,7 @@ def stop(basedir, config, out=sys.stdout, err=sys.stderr):
     pidfile = os.path.join(basedir, "twistd.pid")
     if not os.path.exists(pidfile):
         print >>err, "%s does not look like a running node directory (no twistd.pid)" % basedir
-        return 1
+        return 2
     pid = open(pidfile, "r").read()
     pid = int(pid)
 
