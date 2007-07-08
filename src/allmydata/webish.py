@@ -7,7 +7,7 @@ from twisted.internet import defer
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from allmydata.util import idlib, fileutil
-from allmydata.uri import unpack_uri
+from allmydata.uri import unpack_uri, is_dirnode_uri
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode
 from allmydata.dirnode import FileNode
 from allmydata import upload, download
@@ -87,6 +87,7 @@ class Directory(rend.Page):
             # to be invoked, which deletes the file and then redirects the
             # browser back to this directory
             del_url = url.here.add("t", "delete").add("name", name)
+            del_url = del_url.add("when_done", url.here)
             delete = T.form(action=del_url, method="post")[
                 T.input(type='submit', value='del', name="del"),
                 ]
@@ -141,6 +142,7 @@ class Directory(rend.Page):
                        enctype="multipart/form-data")[
             T.fieldset[
             T.input(type="hidden", name="t", value="mkdir"),
+            T.input(type="hidden", name="when_done", value=url.here),
             T.legend(class_="freeform-form-label")["Create a new directory"],
             "New directory name: ",
             T.input(type="text", name="name"), " ",
@@ -150,6 +152,7 @@ class Directory(rend.Page):
                         enctype="multipart/form-data")[
             T.fieldset[
             T.input(type="hidden", name="t", value="upload"),
+            T.input(type="hidden", name="when_done", value=url.here),
             T.legend(class_="freeform-form-label")["Upload a file to this directory"],
             "Choose a file to upload: ",
             T.input(type="file", name="file", class_="freeform-input-file"),
@@ -160,6 +163,7 @@ class Directory(rend.Page):
                         enctype="multipart/form-data")[
             T.fieldset[
             T.input(type="hidden", name="t", value="uri"),
+            T.input(type="hidden", name="when_done", value=url.here),
             T.legend(class_="freeform-form-label")["Attach a file or directory"
                                                    " (by URI) to this"
                                                    "directory"],
@@ -475,6 +479,10 @@ class POSTHandler(rend.Page):
         elif name in req.fields:
             name = req.fields["name"].value
 
+        when_done = None
+        if "when_done" in req.args:
+            when_done = req.args["when_done"][0]
+
         if t == "mkdir":
             if not name:
                 raise RuntimeError("mkdir requires a name")
@@ -482,19 +490,19 @@ class POSTHandler(rend.Page):
             def _done(res):
                 return "directory created"
             d.addCallback(_done)
-            return d
         elif t == "uri":
             if not name:
                 raise RuntimeError("set-uri requires a name")
             if "uri" in req.args:
-                uri = req.args["uri"][0]
+                newuri = req.args["uri"][0]
             else:
-                uri = req.fields["uri"].value
-            d = self._node.set_uri(name, uri)
+                newuri = req.fields["uri"].value
+            # sanity checking
+            assert(is_dirnode_uri(newuri) or unpack_uri(newuri))
+            d = self._node.set_uri(name, newuri)
             def _done(res):
-                return uri
+                return newuri
             d.addCallback(_done)
-            return d
         elif t == "delete":
             if not name:
                 raise RuntimeError("delete requires a name")
@@ -502,7 +510,6 @@ class POSTHandler(rend.Page):
             def _done(res):
                 return "thing deleted"
             d.addCallback(_done)
-            return d
         elif t == "upload":
             contents = req.fields["file"]
             name = name or contents.filename
@@ -511,11 +518,12 @@ class POSTHandler(rend.Page):
             def _done(newnode):
                 return newnode.get_uri()
             d.addCallback(_done)
-            return d
         else:
             print "BAD t=%s" % t
             return "BAD t=%s" % t
-        return "nope"
+        if when_done:
+            d.addCallback(lambda res: url.URL.fromString(when_done))
+        return d
 
 class DELETEHandler(rend.Page):
     def __init__(self, node, name):
