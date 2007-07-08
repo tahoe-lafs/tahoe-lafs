@@ -183,6 +183,10 @@ class Web(unittest.TestCase):
         baz_file = self.makefile(2)
         sub.children["baz.txt"] = baz_file
 
+        rodir = self.makedir()
+        rodir._mutable = False
+        v.public_root.children["readonly"] = rodir.get_uri()
+
         # public/
         # public/foo/
         # public/foo/bar.txt
@@ -190,6 +194,7 @@ class Web(unittest.TestCase):
         # public/foo/empty/
         # public/foo/sub/
         # public/foo/sub/baz.txt
+        # public/readonly/
         self.NEWFILE_CONTENTS = "newfile contents\n"
 
     def makefile(self, number):
@@ -469,6 +474,15 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    def test_GET_DIRURL_readonly(self):
+        # the addSlash means we get a redirect here
+        d = self.GET("/vdrive/global/readonly", followRedirect=True)
+        def _check(res):
+            self.failUnless("(readonly)" in res)
+            self.failIf("Upload a file" in res)
+        d.addCallback(_check)
+        return d
+
     def test_GET_DIRURL_json(self): # YES
         d = self.GET("/vdrive/global/foo?t=json")
         def _got(json):
@@ -549,6 +563,7 @@ class Web(unittest.TestCase):
                                   ('foo', 'empty'),
                                   ('foo', 'sub'),
                                   ('foo','sub','baz.txt'),
+                                  ('readonly',)
                                   ])
             subindex = names.index( ('foo', 'sub') )
             bazindex = names.index( ('foo', 'sub', 'baz.txt') )
