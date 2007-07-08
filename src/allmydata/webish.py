@@ -308,7 +308,7 @@ class FileJSONMetadata(rend.Page):
                  'uri': file_uri,
                  'size': pieces['size'],
                  })
-        return JSONEncoder().encode(data)
+        return JSONEncoder(indent=1).encode(data)
 
 class FileURI(FileJSONMetadata):
     def renderNode(self, filenode):
@@ -412,7 +412,7 @@ class DirectoryJSONMetadata(rend.Page):
                          'uri': node.get_uri(),
                          }
             data = ("dirnode", contents)
-            return JSONEncoder().encode(data)
+            return JSONEncoder(indent=1).encode(data)
         d.addCallback(_got)
         return d
 
