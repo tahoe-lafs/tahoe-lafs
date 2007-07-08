@@ -27,7 +27,7 @@ def pack_uri(storage_index, key, uri_extension_hash,
 
 
 def unpack_uri(uri):
-    assert uri.startswith("URI:")
+    assert uri.startswith("URI:"), uri
     d = {}
     (header,
      storage_index_s, key_s, uri_extension_hash_s,

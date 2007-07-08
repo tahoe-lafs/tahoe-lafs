@@ -69,7 +69,7 @@ class MyDirectoryNode(dirnode.MutableDirectoryNode):
         self._my_files = files
         self._my_client = client
         if uri is None:
-            uri = str(uri_counter.next())
+            uri = "URI:DIR:stuff/%s" % str(uri_counter.next())
         self._uri = str(uri)
         self._my_nodes[self._uri] = self
         self.children = {}
@@ -750,7 +750,7 @@ class Web(unittest.TestCase):
         return res
 
     def test_GET_URI_URL(self): # YES
-        base = "/uri/%s" % self._bar_txt_uri
+        base = "/uri/%s" % self._bar_txt_uri.replace("/","!")
         d = self.GET(base)
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(base+"?filename=bar.txt"))
@@ -760,9 +760,15 @@ class Web(unittest.TestCase):
         return d
 
     def test_GET_URI_URL_dir(self): # YES
-        base = "/uri/%s?t=json" % self._foo_uri
+        base = "/uri/%s?t=json" % self._foo_uri.replace("/","!")
         d = self.GET(base)
         d.addCallback(self.failUnlessIsFooJSON)
+        return d
+
+    def test_GET_URI_URL_missing(self):
+        base = "/uri/missing?t=json"
+        d = self.GET(base)
+        d.addBoth(self.should404, "test_GET_URI_URL_missing")
         return d
 
     def test_PUT_NEWFILEURL_uri(self): # YES

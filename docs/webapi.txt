@@ -259,6 +259,12 @@ for files and directories which do not yet exist.
   would upload a file (with contents taken from the local filesystem) to a
   new file in a subdirectory of the referenced dirnode.
 
+  Note that since tahoe URIs may contain slashes (in particular, dirnode URIs
+  contain a FURL, which resembles a regular HTTP URL and starts with pb://),
+  when URIs are used in this form, they must be specially quoted. All slashes
+  in the URI must be replaced by '!' characters.
+
+
  PUT NEWFILEURL?t=uri
 
   This attaches a child (either a file or a directory) to the vdrive at the
@@ -276,6 +282,10 @@ for files and directories which do not yet exist.
   Note that this form only redirects to the specific node indicated by the
   URI: unlike the GET /uri/$URI form, you cannot traverse to child nodes by
   appending additional path segments to the URL.
+
+  The $URI provided as a query argument is allowed to contain slashes. The
+  redirection provided will escape the slashes with exclamation points, as
+  described above.
 
 == XMLRPC ==
 

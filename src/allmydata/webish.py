@@ -101,11 +101,12 @@ class Directory(rend.Page):
             delete = "-"
         ctx.fillSlots("delete", delete)
 
+        uri_link = urllib.quote(target.get_uri().replace("/", "!"))
         childdata = [T.a(href="%s?t=json" % name)["JSON"], ", ",
                      T.a(href="%s?t=xml" % name)["XML"], ", ",
                      T.a(href="%s?t=uri" % name)["URI"], ", ",
                      T.a(href="%s?t=readonly-uri" % name)["readonly-URI"], ", ",
-                     T.a(href="/uri/%s" % target.get_uri())["URI-link"],
+                     T.a(href="/uri/%s" % uri_link)["URI-link"],
                      ]
         ctx.fillSlots("data", childdata)
 
@@ -846,19 +847,23 @@ class Root(rend.Page):
             d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
             return d
         elif segments[0] == "uri":
-            if len(segments) == 1:
+            if len(segments) == 1 or segments[1] == '':
                 if "uri" in req.args:
-                    uri = req.args["uri"][0]
+                    uri = req.args["uri"][0].replace("/", "!")
                     there = url.URL.fromContext(ctx)
                     there = there.clear("uri")
                     there = there.child("uri").child(uri)
                     return there, ()
             if len(segments) < 2:
                 return rend.NotFound
-            uri = segments[1]
+            uri = segments[1].replace("!", "/")
             d = vdrive.get_node(uri)
-            d.addCallback(lambda node: VDrive(node, "<from-uri>"))
+            d.addCallback(lambda node: VDrive(node, "from-uri"))
             d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
+            def _trap_KeyError(f):
+                f.trap(KeyError)
+                return rend.FourOhFour(), ()
+            d.addErrback(_trap_KeyError)
             return d
         elif segments[0] == "xmlrpc":
             pass # TODO
