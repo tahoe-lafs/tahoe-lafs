@@ -295,7 +295,13 @@ class Web(unittest.TestCase):
         pass
 
     def test_welcome(self): # YES
-        d = self.GET("")
+        d = self.GET("/")
+        def _check(res):
+            self.failUnless('Welcome To AllMyData' in res)
+            self.failUnless('Tahoe' in res)
+            self.failUnless('To view the global shared filestore' in res)
+            self.failUnless('To view your personal private non-shared' in res)
+        d.addCallback(_check)
         return d
 
     def test_GET_FILEURL(self): # YES
