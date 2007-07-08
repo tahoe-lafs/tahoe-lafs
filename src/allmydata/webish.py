@@ -31,7 +31,8 @@ class Directory(rend.Page):
     addSlash = True
     docFactory = getxmlfile("directory.xhtml")
 
-    def __init__(self, dirnode, dirpath):
+    def __init__(self, rootname, dirnode, dirpath):
+        self._rootname = rootname
         self._dirnode = dirnode
         self._dirpath = dirpath
 
@@ -49,7 +50,7 @@ class Directory(rend.Page):
         return ctx.tag["Directory '%s':" % self.dirpath_as_string()]
 
     def render_header(self, ctx, data):
-        parent_directories = ("<root>",) + self._dirpath
+        parent_directories = ("<%s>" % self._rootname,) + self._dirpath
         num_dirs = len(parent_directories)
 
         header = ["Directory '"]
@@ -772,7 +773,7 @@ class VDrive(rend.Page):
                         return LocalDirectoryDownloader(node, localdir), ()
                     elif t == "":
                         # send an HTML representation of the directory
-                        return Directory(node, path), ()
+                        return Directory(self.name, node, path), ()
                     elif t == "json":
                         return DirectoryJSONMetadata(node), ()
                     elif t == "xml":
