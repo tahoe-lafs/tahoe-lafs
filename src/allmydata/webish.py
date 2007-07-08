@@ -9,7 +9,6 @@ from nevow.static import File as nevow_File # TODO: merge with static.File?
 from allmydata.util import idlib, fileutil
 from allmydata.uri import unpack_uri, is_dirnode_uri
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode
-from allmydata.dirnode import FileNode
 from allmydata import upload, download
 from zope.interface import implements, Interface
 import urllib
@@ -20,12 +19,6 @@ def getxmlfile(name):
 
 class IClient(Interface):
     pass
-
-def get_downloader_service(ctx):
-    return IClient(ctx).getServiceNamed("downloader")
-def get_uploader_service(ctx):
-    return IClient(ctx).getServiceNamed("uploader")
-
 
 class Directory(rend.Page):
     addSlash = True
@@ -569,7 +562,6 @@ class PUTHandler(rend.Page):
         t = self._t
         localfile = self._localfile
         localdir = self._localdir
-        self._uploader = get_uploader_service(ctx)
 
         # we must traverse the path, creating new directories as necessary
         d = self._get_or_create_directories(self._node, self._path[:-1])
@@ -615,15 +607,10 @@ class PUTHandler(rend.Page):
 
     def _upload_file(self, node, contents, name):
         uploadable = upload.FileHandle(contents)
-        d = self._uploader.upload(uploadable)
-        def _uploaded(uri):
-            d1 = node.set_uri(name, uri)
-            d1.addCallback(lambda res: uri)
-            return d1
-        d.addCallback(_uploaded)
-        def _done(uri):
+        d = node.add_file(name, uploadable)
+        def _done(filenode):
             log.msg("webish upload complete")
-            return uri
+            return filenode.get_uri()
         d.addCallback(_done)
         return d
 
@@ -867,47 +854,10 @@ class Root(rend.Page):
             return d
         elif segments[0] == "xmlrpc":
             pass # TODO
-        elif segments[0] == "download_uri":
-            dl = get_downloader_service(ctx)
-            filename = "unknown_filename"
-            if "filename" in req.args:
-                filename = req.args["filename"][0]
-            if len(segments) > 1:
-                # http://host/download_uri/URIGOESHERE
-                uri = segments[1]
-            elif "uri" in req.args:
-                # http://host/download_uri?uri=URIGOESHERE
-                uri = req.args["uri"][0]
-            else:
-                return rend.NotFound
-            child = FileDownloader(FileNode(uri, IClient(ctx)), filename)
-            return child, ()
         return rend.Page.locateChild(self, ctx, segments)
 
     child_webform_css = webform.defaultCSS
     child_tahoe_css = nevow_File(util.sibpath(__file__, "web/tahoe.css"))
-
-    #NOTchild_welcome = Welcome()
-
-    def NOTchild_global_vdrive(self, ctx):
-        client = IClient(ctx)
-        vdrive = client.getServiceNamed("vdrive")
-        if vdrive.have_public_root():
-            d = vdrive.get_public_root()
-            d.addCallback(lambda dirnode: Directory(dirnode, "/"))
-            return d
-        else:
-            return static.Data("sorry, still initializing", "text/plain")
-
-    def NOTchild_private_vdrive(self, ctx):
-        client = IClient(ctx)
-        vdrive = client.getServiceNamed("vdrive")
-        if vdrive.have_private_root():
-            d = vdrive.get_private_root()
-            d.addCallback(lambda dirnode: Directory(dirnode, "~"))
-            return d
-        else:
-            return static.Data("sorry, still initializing", "text/plain")
 
     def data_version(self, ctx, data):
         v = IClient(ctx).get_versions()
@@ -981,8 +931,6 @@ class WebishServer(service.MultiService):
     def __init__(self, webport):
         service.MultiService.__init__(self)
         self.root = Root()
-        #self.root.putChild("", url.here.child("welcome"))#Welcome())
-                           
         self.site = site = appserver.NevowSite(self.root)
         s = strports.service(webport, site)
         s.setServiceParent(self)
