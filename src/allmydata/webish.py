@@ -124,7 +124,11 @@ class Directory(rend.Page):
             #ctx.fillSlots("uri", T.a(href=dl_uri_url)[html.escape(uri)])
 
             #extract and display file size
-            ctx.fillSlots("size", unpack_uri(target.get_uri())['size'])
+            try:
+                size = unpack_uri(target.get_uri())['size']
+            except AssertionError:
+                size = "?"
+            ctx.fillSlots("size", size)
 
         elif IDirectoryNode.providedBy(target):
             # directory
