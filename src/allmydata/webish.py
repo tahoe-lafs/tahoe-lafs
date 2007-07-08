@@ -84,7 +84,6 @@ class Directory(rend.Page):
 
         uri_link = urllib.quote(target.get_uri().replace("/", "!"))
         childdata = [T.a(href="%s?t=json" % name)["JSON"], ", ",
-                     T.a(href="%s?t=xml" % name)["XML"], ", ",
                      T.a(href="%s?t=uri" % name)["URI"], ", ",
                      T.a(href="%s?t=readonly-uri" % name)["readonly-URI"], ", ",
                      T.a(href="/uri/%s" % uri_link)["URI-link"],
@@ -225,18 +224,6 @@ class WebDownloadTarget:
     def finish(self):
         pass
 
-class TypedFile(static.File):
-    # serve data from a named file, but using a Content-Type derived from a
-    # different filename
-    isLeaf = True
-    def __init__(self, path, requested_filename):
-        static.File.__init__(self, path)
-        gte = static.getTypeAndEncoding
-        self.type, self.encoding = gte(requested_filename,
-                                       self.contentTypes,
-                                       self.contentEncodings,
-                                       self.defaultType)
-
 class FileDownloader(resource.Resource):
     def __init__(self, filenode, name):
         IFileNode(filenode)
@@ -316,16 +303,6 @@ class FileJSONMetadata(rend.Page):
         pieces = unpack_uri(file_uri)
         data = "filenode\n"
         data += "JSONny stuff here\n"
-        data += "uri=%s, size=%s" % (file_uri, pieces['size'])
-        return data
-
-class FileXMLMetadata(FileJSONMetadata):
-    def renderNode(self, filenode):
-        file_uri = filenode.get_uri()
-        pieces = unpack_uri(file_uri)
-        data = "<xmlish>\n"
-        data += "filenode\n"
-        data += "stuff here\n"
         data += "uri=%s, size=%s" % (file_uri, pieces['size'])
         return data
 
@@ -416,23 +393,6 @@ class DirectoryJSONMetadata(rend.Page):
         d.addCallback(_got, data)
         def _done(data):
             data += "done\n"
-            return data
-        d.addCallback(_done)
-        return d
-
-class DirectoryXMLMetadata(DirectoryJSONMetadata):
-    def renderNode(self, node):
-        data = "<xmlish>\n"
-        data += "dirnode\n"
-        data += "stuff here\n"
-        d = node.list()
-        def _got(children, data):
-            for name, childnode in children.iteritems():
-                data += "name=%s, child_uri=%s" % (name, childnode.get_uri())
-            return data
-        d.addCallback(_got, data)
-        def _done(data):
-            data += "</done>\n"
             return data
         d.addCallback(_done)
         return d
@@ -731,8 +691,6 @@ class VDrive(rend.Page):
                         return FileDownloader(node, filename), ()
                     elif t == "json":
                         return FileJSONMetadata(node), ()
-                    elif t == "xml":
-                        return FileXMLMetadata(node), ()
                     elif t == "uri":
                         return FileURI(node), ()
                     elif t == "readonly-uri":
@@ -748,8 +706,6 @@ class VDrive(rend.Page):
                         return Directory(self.name, node, path), ()
                     elif t == "json":
                         return DirectoryJSONMetadata(node), ()
-                    elif t == "xml":
-                        return DirectoryXMLMetadata(node), ()
                     elif t == "uri":
                         return DirectoryURI(node), ()
                     elif t == "readonly-uri":

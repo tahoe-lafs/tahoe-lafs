@@ -845,31 +845,3 @@ class Web(unittest.TestCase):
         raise unittest.SkipTest("not yet")
         pass
 
-
-
-"""
- # GET /   (welcome)
- # GET FILEURL
-# PUT NEWFILEURL
-# DELETE FILEURL
- # GET FILEURL?t=json
-# GET FILEURL?localfile=$FILENAME
-# PUT NEWFILEURL?localfile=$FILENAME
-# GET FILEURL?t=uri
-# GET DIRURL
-# GET DIRURL?t=json
-# GET DIRURL?t=uri
-# GET DIRURL?t=readonly-uri
-# PUT NEWDIRURL?t=mkdir
-# DELETE DIRURL
-# GET DIRURL?localdir=$DIRNAME
-# PUT NEWDIRURL?localdir=$DIRNAME
-# POST DIRURL?t=upload-form
-# POST DIRURL?t=mkdir-form
-# POST DIRURL?t=put-uri-form
-# POST DIRURL?t=delete-form
-# GET .../url/$URI
-#  and a few others
-# PUT NEWFILEURL?t=uri
-# /xmlrpc
-"""

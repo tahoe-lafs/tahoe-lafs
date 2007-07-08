@@ -84,7 +84,6 @@ for files and directories which do not yet exist.
   state (it may leave some intermediate directory nodes).
 
  GET FILEURL?t=json
- GET FILEURL?t=xml
 
   This returns machine-parseable information about the file in the HTTP
   response body, including file size, metadata (like Content-Type), and URIs.
@@ -135,7 +134,6 @@ for files and directories which do not yet exist.
   do their job.
 
  GET DIRURL?t=json
- GET DIRURL?t=xml
 
   This returns machine-parseable information about this directory in the HTTP
   response body. This information first contains a flag to indicate that
@@ -144,7 +142,7 @@ for files and directories which do not yet exist.
   dirnode. Finally it also contains information about the children of this
   directory, probably as a mapping from child name to a set of metadata about
   the child (basically the same data that would appear in a corresponding
-  GET?t=xml of the child itself). A programmatic client should be able to use
+  GET?t=json of the child itself). A programmatic client should be able to use
   the information from this query to display filesystem navigation choices to
   a human user.
 
