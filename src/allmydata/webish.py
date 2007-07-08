@@ -86,9 +86,7 @@ class Directory(rend.Page):
             # this creates a button which will cause our child__delete method
             # to be invoked, which deletes the file and then redirects the
             # browser back to this directory
-            del_url = url.here.child("_delete")
-            #del_url = del_url.add("uri", target.uri)
-            del_url = del_url.add("name", name)
+            del_url = url.here.add("t", "delete").add("name", name)
             delete = T.form(action=del_url, method="post")[
                 T.input(type='submit', value='del', name="del"),
                 ]
@@ -465,24 +463,41 @@ class POSTHandler(rend.Page):
 
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
-        t = req.fields["t"].value
-        if t == "mkdir":
+
+        if "t" in req.args:
+            t = req.args["t"][0]
+        else:
+            t = req.fields["t"].value
+
+        name = None
+        if "name" in req.args:
+            name = req.args["name"][0]
+        elif name in req.fields:
             name = req.fields["name"].value
+
+        if t == "mkdir":
+            if not name:
+                raise RuntimeError("mkdir requires a name")
             d = self._node.create_empty_directory(name)
             def _done(res):
                 return "directory created"
             d.addCallback(_done)
             return d
         elif t == "uri":
-            name = req.fields["name"].value
-            uri = req.fields["uri"].value
+            if not name:
+                raise RuntimeError("set-uri requires a name")
+            if "uri" in req.args:
+                uri = req.args["uri"][0]
+            else:
+                uri = req.fields["uri"].value
             d = self._node.set_uri(name, uri)
             def _done(res):
                 return uri
             d.addCallback(_done)
             return d
         elif t == "delete":
-            name = req.fields["name"].value
+            if not name:
+                raise RuntimeError("delete requires a name")
             d = self._node.delete(name)
             def _done(res):
                 return "thing deleted"
@@ -490,9 +505,7 @@ class POSTHandler(rend.Page):
             return d
         elif t == "upload":
             contents = req.fields["file"]
-            name = contents.filename
-            if "name" in req.fields:
-                name = req.fields["name"].value
+            name = name or contents.filename
             uploadable = upload.FileHandle(contents.file)
             d = self._node.add_file(name, uploadable)
             def _done(newnode):
