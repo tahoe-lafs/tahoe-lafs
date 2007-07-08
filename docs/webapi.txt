@@ -194,7 +194,10 @@ for files and directories which do not yet exist.
 
 == POST Forms ==
 
- POST DIRURL?t=upload-form
+ POST DIRURL
+  t=upload
+  name=childname  (optional)
+  file=newfile
  
   This instructs the client to upload a file into the given dirnode. We need
   this because forms are the only way for a web browser to upload a file
@@ -202,18 +205,25 @@ for files and directories which do not yet exist.
   new child name will be included in the form's arguments. This can only be
   used to upload a single file at a time.
 
- POST DIRURL?t=mkdir-form
+ POST DIRURL
+  t=mkdir
+  name=childname
 
   This instructs the client to create a new empty directory. The name of the
   new child directory will be included in the form's arguments.
 
- POST DIRURL?t=put-uri-form
+ POST DIRURL
+  t=uri
+  name=childname
+  uri=newuri
 
   This instructs the client to attach a child that is referenced by URI (just
   like the PUT NEWFILEURL?t=uri method). The name and URI of the new child
   will be included in the form's arguments.
 
- POST DIRURL?t=delete-form
+ POST DIRURL
+  t=delete
+  name=childname
 
   This instructs the client to delete a file from the given dirnode. The name
   of the child to be deleted will be included in the form's arguments.
@@ -232,8 +242,17 @@ for files and directories which do not yet exist.
 
    GET http://localhost:8011/uri/$URI
 
-  would retrieve the contents of the file. If the URI corresponds to a
-  directory, then:
+  would retrieve the contents of the file. Since files accessed this way do
+  not have a naturally-occurring filename (from which a MIME-type can be
+  derived), one can be specified using a 'filename=' query argument. This
+  filename is also the one used if the 'save=true' argument is set, which
+  adds a 'Content-Disposition: attachment' header to prompt most web browsers
+  to save the file to disk rather than attempting to display it:
+
+   GET http://localhost:8011/uri/$URI?filename=foo.jpg
+   GET http://localhost:8011/uri/$URI?filename=foo.jpg&save=true
+
+  If the URI corresponds to a directory, then:
 
    PUT http://localhost:8011/uri/$URI/subdir/newfile?localfile=$FILENAME
 
@@ -246,6 +265,17 @@ for files and directories which do not yet exist.
   given location. The URI is provided in the body of the HTTP request. This
   can be used to attach a shared directory to the vdrive. Intermediate
   directories are created on-demand just like with the regular PUT command.
+
+ GET http://localhost:8011/uri?uri=$URI
+
+  This causes a redirect to /uri/$URI, and retains any additional query
+  arguments (like filename= or save=). This is for the convenience of web
+  forms which allow the user to paste in a URI (obtained through some
+  out-of-band channel, like IM or email).
+
+  Note that this form only redirects to the specific node indicated by the
+  URI: unlike the GET /uri/$URI form, you cannot traverse to child nodes by
+  appending additional path segments to the URL.
 
 == XMLRPC ==
 

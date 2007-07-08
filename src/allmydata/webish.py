@@ -303,10 +303,10 @@ class TypedFile(static.File):
                                        self.defaultType)
 
 class FileDownloader(resource.Resource):
-    def __init__(self, name, filenode):
-        self._name = name
+    def __init__(self, filenode, name):
         IFileNode(filenode)
         self._filenode = filenode
+        self._name = name
 
     def render(self, req):
         gte = static.getTypeAndEncoding
@@ -515,8 +515,57 @@ class DirectoryReadonlyURI(DirectoryJSONMetadata):
 class POSTHandler(rend.Page):
     def __init__(self, node):
         self._node = node
-
     # TODO: handler methods
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        print "POST", req, req.args#, req.content.read()
+        #print " ", req.requestHeaders
+        #print req.__class__
+        #print req.fields
+        #print dir(req.fields)
+        print req.fields.keys()
+        t = req.fields["t"].value
+        if t == "mkdir":
+            name = req.fields["name"].value
+            print "CREATING DIR", name
+            d = self._node.create_empty_directory(name)
+            def _done(res):
+                return "directory created"
+            d.addCallback(_done)
+            return d
+        elif t == "uri":
+            name = req.fields["name"].value
+            uri = req.fields["uri"].value
+            d = self._node.set_uri(name, uri)
+            def _done(res):
+                return uri
+            d.addCallback(_done)
+            return d
+        elif t == "delete":
+            name = req.fields["name"].value
+            d = self._node.delete(name)
+            def _done(res):
+                return "thing deleted"
+            d.addCallback(_done)
+            return d
+        elif t == "upload":
+            contents = req.fields["file"]
+            name = contents.filename
+            print "filename", name
+            if "name" in req.fields:
+                name = req.fields["name"].value
+                print "NAME WAS", name
+            uploadable = upload.FileHandle(contents.file)
+            d = self._node.add_file(name, uploadable)
+            def _done(newnode):
+                print "UPLOAD DONW", name
+                return newnode.get_uri()
+            d.addCallback(_done)
+            return d
+        else:
+            print "BAD t=%s" % t
+            return "BAD t=%s" % t
+        return "nope"
 
 class DELETEHandler(rend.Page):
     def __init__(self, node, name):
@@ -742,13 +791,18 @@ class VDrive(rend.Page):
             d = self.get_child_at_path(path)
             def file_or_dir(node):
                 if IFileNode.providedBy(node):
+                    filename = "unknown"
+                    if path:
+                        filename = path[-1]
+                    if "filename" in req.args:
+                        filename = req.args["filename"][0]
                     if localfile:
                         # write contents to a local file
                         return LocalFileDownloader(node, localfile), ()
                     elif t == "":
                         # send contents as the result
                         print "FileDownloader"
-                        return FileDownloader(path[-1], node), ()
+                        return FileDownloader(node, filename), ()
                     elif t == "json":
                         print "Localfilejsonmetadata"
                         return FileJSONMetadata(node), ()
@@ -820,6 +874,7 @@ class Root(rend.Page):
 
     def locateChild(self, ctx, segments):
         client = IClient(ctx)
+        req = inevow.IRequest(ctx)
         vdrive = client.getServiceNamed("vdrive")
         print "Root.locateChild", segments
 
@@ -838,17 +893,26 @@ class Root(rend.Page):
             d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
             return d
         elif segments[0] == "uri":
+            print "looking at /uri", segments, req.args
+            if len(segments) == 1:
+                if "uri" in req.args:
+                    uri = req.args["uri"][0]
+                    print "REDIRECTING"
+                    there = url.URL.fromContext(ctx)
+                    there = there.clear("uri")
+                    there = there.child("uri").child(uri)
+                    print " TO", there
+                    return there, ()
             if len(segments) < 2:
                 return rend.NotFound
             uri = segments[1]
             d = vdrive.get_node(uri)
-            d.addCallback(lambda node: VDrive(node), uri)
+            d.addCallback(lambda node: VDrive(node, "<from-uri>"))
             d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
             return d
         elif segments[0] == "xmlrpc":
             pass # TODO
         elif segments[0] == "download_uri":
-            req = inevow.IRequest(ctx)
             dl = get_downloader_service(ctx)
             filename = "unknown_filename"
             if "filename" in req.args:
@@ -861,7 +925,7 @@ class Root(rend.Page):
                 uri = req.args["uri"][0]
             else:
                 return rend.NotFound
-            child = FileDownloader(filename, FileNode(uri, IClient(ctx)))
+            child = FileDownloader(FileNode(uri, IClient(ctx)), filename)
             return child, ()
         return rend.Page.locateChild(self, ctx, segments)
 

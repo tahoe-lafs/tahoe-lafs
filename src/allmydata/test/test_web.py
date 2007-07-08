@@ -1,11 +1,11 @@
 
-import re, os.path
+import re, os.path, urllib
 from zope.interface import implements
 from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.web import client, error
-from twisted.python import failure
+from twisted.python import failure, log
 from allmydata import webish, interfaces, dirnode, uri
 from allmydata.encode import NotEnoughPeersError
 from allmydata.util import fileutil
@@ -125,6 +125,8 @@ class MyVirtualDrive(service.Service):
     name = "vdrive"
     public_root = None
     private_root = None
+    def __init__(self, nodes):
+        self._my_nodes = nodes
     def have_public_root(self):
         return bool(self.public_root)
     def have_private_root(self):
@@ -133,6 +135,11 @@ class MyVirtualDrive(service.Service):
         return defer.succeed(self.public_root)
     def get_private_root(self):
         return defer.succeed(self.private_root)
+
+    def get_node(self, uri):
+        def _try():
+            return self._my_nodes[uri]
+        return defer.maybeDeferred(_try)
 
 class Web(unittest.TestCase):
     def setUp(self):
@@ -143,11 +150,12 @@ class Web(unittest.TestCase):
         port = s.listener._port.getHost().port
         self.webish_url = "http://localhost:%d" % port
 
-        v = MyVirtualDrive()
-        v.setServiceParent(self.s)
-
         self.nodes = {} # maps URI to node
         self.files = {} # maps file URI to contents
+
+        v = MyVirtualDrive(self.nodes)
+        v.setServiceParent(self.s)
+
         dl = MyDownloader(self.files)
         dl.setServiceParent(self.s)
         ul = MyUploader(self.files)
@@ -210,9 +218,15 @@ class Web(unittest.TestCase):
     def failUnlessIsBarDotTxt(self, res):
         self.failUnlessEqual(res, self.BAR_CONTENTS)
 
-    def GET(self, urlpath):
+    def failUnlessIsFooJSON(self, res):
+        self.failUnless("JSONny stuff here" in res)
+        self.failUnless("name=bar.txt, child_uri=%s" % self._bar_txt_uri
+                        in res)
+        self.failUnless("name=blockingfile" in res)
+
+    def GET(self, urlpath, followRedirect=False):
         url = self.webish_url + urlpath
-        return client.getPage(url, method="GET")
+        return client.getPage(url, method="GET", followRedirect=followRedirect)
 
     def PUT(self, urlpath, data):
         url = self.webish_url + urlpath
@@ -222,10 +236,33 @@ class Web(unittest.TestCase):
         url = self.webish_url + urlpath
         return client.getPage(url, method="DELETE")
 
-    def POST(self, urlpath, data):
-        raise unittest.SkipTest("not yet")
+    def POST(self, urlpath, **fields):
         url = self.webish_url + urlpath
-        return client.getPage(url, method="POST", postdata=data)
+        sepbase = "boogabooga"
+        sep = "--" + sepbase
+        form = []
+        form.append(sep)
+        form.append('Content-Disposition: form-data; name="_charset"')
+        form.append('')
+        form.append('UTF-8')
+        form.append(sep)
+        for name, value in fields.iteritems():
+            if isinstance(value, tuple):
+                filename, value = value
+                form.append('Content-Disposition: form-data; name="%s"; '
+                            'filename="%s"' % (name, filename))
+            else:
+                form.append('Content-Disposition: form-data; name="%s"' % name)
+            form.append('')
+            form.append(value)
+            form.append(sep)
+        form[-1] += "--"
+        body = "\r\n".join(form) + "\r\n"
+        headers = {"content-type": "multipart/form-data; boundary=%s" % sepbase,
+                   }
+        print "BODY", body
+        return client.getPage(url, method="POST", postdata=body,
+                              headers=headers, followRedirect=False)
 
     def shouldFail(self, res, expected_failure, which, substring=None):
         print "SHOULDFAIL", res
@@ -434,7 +471,8 @@ class Web(unittest.TestCase):
         return d
 
     def test_GET_DIRURL(self): # YES
-        d = self.GET("/vdrive/global/foo")
+        # the addSlash means we get a redirect here
+        d = self.GET("/vdrive/global/foo", followRedirect=True)
         def _check(res):
             self.failUnless(re.search(r'<td><a href="bar.txt">bar.txt</a></td>'
                                       '\s+<td>FILE</td>'
@@ -635,34 +673,123 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_POST_upload(self):
-        form = "TODO"
-        d = self.POST("/vdrive/global/foo", form)
+    def test_POST_upload(self): # YES
+        d = self.POST("/vdrive/global/foo", t="upload",
+                      file=("new.txt", self.NEWFILE_CONTENTS))
+        def _check(res):
+            self.failUnless("new.txt" in self._foo_node.children)
+            new_uri = self._foo_node.children["new.txt"]
+            new_contents = self.files[new_uri]
+            self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
+            self.failUnlessEqual(res.strip(), new_uri)
+        d.addCallback(_check)
         return d
 
-    def test_POST_mkdir(self):
-        form = "TODO"
-        d = self.POST("/vdrive/global/foo", form)
+    def test_POST_upload_named(self): # YES
+        d = self.POST("/vdrive/global/foo", t="upload",
+                      name="new.txt", file=self.NEWFILE_CONTENTS)
+        def _check(res):
+            self.failUnless("new.txt" in self._foo_node.children)
+            new_uri = self._foo_node.children["new.txt"]
+            new_contents = self.files[new_uri]
+            self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
+            self.failUnlessEqual(res.strip(), new_uri)
+        d.addCallback(_check)
         return d
 
-    def test_POST_put_uri(self):
-        form = "TODO"
-        d = self.POST("/vdrive/global/foo", form)
+    def test_POST_mkdir(self): # YES, return value?
+        d = self.POST("/vdrive/global/foo", t="mkdir", name="newdir")
+        def _check(res):
+            self.failUnless("newdir" in self._foo_node.children)
+            newdir_uri = self._foo_node.children["newdir"]
+            newdir_node = self.nodes[newdir_uri]
+            self.failIf(newdir_node.children)
+        d.addCallback(_check)
         return d
 
-    def test_POST_delete(self):
-        form = "TODO, bar.txt"
-        d = self.POST("/vdrive/global/foo", form)
+    def test_POST_put_uri(self): # YES
+        newuri = self.makefile(8)
+        contents = self.files[newuri]
+        d = self.POST("/vdrive/global/foo", t="uri", name="new.txt", uri=newuri)
+        def _check(res):
+            self.failUnless("new.txt" in self._foo_node.children)
+            new_uri = self._foo_node.children["new.txt"]
+            new_contents = self.files[new_uri]
+            self.failUnlessEqual(new_contents, contents)
+            self.failUnlessEqual(res.strip(), new_uri)
+        d.addCallback(_check)
         return d
 
-    def test_URI_GET(self):
-        raise unittest.SkipTest("not yet")
-        d = self.GET("/uri/%s/bar.txt" % foo_uri)
+    def test_POST_delete(self): # yes
+        d = self.POST("/vdrive/global/foo", t="delete", name="bar.txt")
+        def _check(res):
+            self.failIf("bar.txt" in self._foo_node.children)
+        d.addCallback(_check)
         return d
 
-    def test_PUT_NEWFILEURL_uri(self):
-        raise unittest.SkipTest("not yet")
-        d = self.PUT("/vdrive/global/foo/new.txt?uri", new_uri)
+    def shouldRedirect(self, res, target):
+        if not isinstance(res, failure.Failure):
+            self.fail("we were expecting to get redirected to %s, not get an"
+                      " actual page: %s" % (target, res))
+        res.trap(error.PageRedirect)
+        # the PageRedirect does not seem to capture the uri= query arg
+        # properly, so we can't check for it.
+        print "location:", res.value.location
+        realtarget = self.webish_url + target
+        self.failUnlessEqual(res.value.location, realtarget)
+
+    def test_GET_URI_form(self): # YES
+        base = "/uri?uri=%s" % self._bar_txt_uri
+        # this is supposed to give us a redirect to /uri/$URI, plus arguments
+        targetbase = "/uri/%s" % urllib.quote(self._bar_txt_uri)
+        d = self.GET(base)
+        d.addBoth(self.shouldRedirect, targetbase)
+        d.addCallback(lambda res: self.GET(base+"&filename=bar.txt"))
+        d.addBoth(self.shouldRedirect, targetbase+"?filename=bar.txt")
+        d.addCallback(lambda res: self.GET(base+"&t=json"))
+        d.addBoth(self.shouldRedirect, targetbase+"?t=json")
+        d.addCallback(self.log, "about to get file by uri")
+        d.addCallback(lambda res: self.GET(base, followRedirect=True))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(self.log, "got file by uri, about to get dir by uri")
+        d.addCallback(lambda res: self.GET("/uri?uri=%s&t=json" % self._foo_uri,
+                                           followRedirect=True))
+        d.addCallback(self.failUnlessIsFooJSON)
+        d.addCallback(self.log, "got dir by uri")
+
+        return d
+
+    def log(self, res, msg):
+        print "MSG: %s  RES: %s" % (msg, res)
+        log.msg(msg)
+        return res
+
+    def test_GET_URI_URL(self): # YES
+        base = "/uri/%s" % self._bar_txt_uri
+        d = self.GET(base)
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(base+"?filename=bar.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(base+"?filename=bar.txt&save=true"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        return d
+
+    def test_GET_URI_URL_dir(self): # YES
+        base = "/uri/%s?t=json" % self._foo_uri
+        d = self.GET(base)
+        d.addCallback(self.failUnlessIsFooJSON)
+        return d
+
+    def test_PUT_NEWFILEURL_uri(self): # YES
+        new_uri = self.makefile(8)
+        d = self.PUT("/vdrive/global/foo/new.txt?t=uri", new_uri)
+        def _check(res):
+            self.failUnless("new.txt" in self._foo_node.children)
+            new_uri = self._foo_node.children["new.txt"]
+            new_contents = self.files[new_uri]
+            self.failUnlessEqual(new_contents, self.files[new_uri])
+            self.failUnlessEqual(res.strip(), new_uri)
+        d.addCallback(_check)
         return d
 
     def test_XMLRPC(self):
