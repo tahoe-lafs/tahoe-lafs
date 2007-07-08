@@ -137,9 +137,44 @@ class Directory(rend.Page):
         return ctx.tag
 
     def render_forms(self, ctx, data):
-        if self._dirnode.is_mutable():
-            return webform.renderForms()
-        return T.div["No upload forms: directory is immutable"]
+        if not self._dirnode.is_mutable():
+            return T.div["No upload forms: directory is immutable"]
+        mkdir = T.form(action=".", method="post",
+                       enctype="multipart/form-data")[
+            T.fieldset[
+            T.input(type="hidden", name="t", value="mkdir"),
+            T.legend(class_="freeform-form-label")["Create a new directory"],
+            "New directory name: ",
+            T.input(type="text", name="name"), " ",
+            T.input(type="submit", value="Create"),
+            ]]
+        upload = T.form(action=".", method="post",
+                        enctype="multipart/form-data")[
+            T.fieldset[
+            T.input(type="hidden", name="t", value="upload"),
+            T.legend(class_="freeform-form-label")["Upload a file to this directory"],
+            "Choose a file to upload: ",
+            T.input(type="file", name="file", class_="freeform-input-file"),
+            " ",
+            T.input(type="submit", value="Upload"),
+            ]]
+        mount = T.form(action=".", method="post",
+                        enctype="multipart/form-data")[
+            T.fieldset[
+            T.input(type="hidden", name="t", value="uri"),
+            T.legend(class_="freeform-form-label")["Attach a file or directory"
+                                                   " (by URI) to this"
+                                                   "directory"],
+            "New child name: ",
+            T.input(type="text", name="name"), " ",
+            "URI of new child: ",
+            T.input(type="text", name="uri"), " ",
+            T.input(type="submit", value="Attach"),
+            ]]
+        return [T.div(class_="freeform-form")[mkdir],
+                T.div(class_="freeform-form")[upload],
+                T.div(class_="freeform-form")[mount],
+                ]
 
     def render_results(self, ctx, data):
         req = inevow.IRequest(ctx)
@@ -147,89 +182,6 @@ class Directory(rend.Page):
             return req.args["results"]
         else:
             return ""
-
-    def bind_upload(self, ctx):
-        """upload1"""
-        # Note: this comment is no longer accurate, as it reflects the older
-        # (apparently deprecated) formless.autocallable /
-        # annotate.TypedInterface approach.
-
-        # Each method gets a box. The string in the autocallable(action=)
-        # argument is put on the border of the box, as well as in the submit
-        # button. The top-most contents of the box are the method's
-        # docstring, if any. Each row contains a string for the argument
-        # followed by the argument's input box. If you do not provide an
-        # action= argument to autocallable, the method name is capitalized
-        # and used instead.
-        up = annotate.FileUpload(label="Choose a file to upload: ",
-                                 required=True,
-                                 requiredFailMessage="Do iT!")
-        contentsarg = annotate.Argument("contents", up)
-
-        privateUpload = annotate.Radio(label="Private?", choices=["Yes"])
-        privatearg = annotate.Argument("privateupload", privateUpload)
-
-        ctxarg = annotate.Argument("ctx", annotate.Context())
-        meth = annotate.Method(arguments=[contentsarg, privatearg, ctxarg],
-                               label="Upload File to this directory")
-        return annotate.MethodBinding("upload", meth, action="Upload")
-
-    def uploadprivate(self, filename, uri):
-        message = "webish upload complete, filename %s %s" % (filename, uri)
-        log.msg(message)
-        return url.here.add("filename", filename).add("results", message)
-
-    def upload(self, contents, privateupload, ctx):
-        # contents is a cgi.FieldStorage instance
-        log.msg("starting webish upload")
-
-        uploader = get_uploader_service(ctx)
-        uploadable = upload.FileHandle(contents.file)
-        name = contents.filename
-        if privateupload:
-            d = uploader.upload(uploadable)
-            d.addCallback(lambda uri: self.uploadprivate(name, uri))
-        else:
-            d = self._dirnode.add_file(name, uploadable)
-        def _done(res):
-            log.msg("webish upload complete")
-            return res
-        d.addCallback(_done)
-        return d # TODO: huh?
-        return url.here.add("results",
-                            "upload of '%s' complete!" % contents.filename)
-
-    def bind_mkdir(self, ctx):
-        """Make new directory 1"""
-        namearg = annotate.Argument("name",
-                                    annotate.String("New directory name: "))
-        meth = annotate.Method(arguments=[namearg], label="Make New Subdirectory")
-        return annotate.MethodBinding("mkdir", meth, action="Create Directory")
-
-    def mkdir(self, name):
-        """mkdir2"""
-        log.msg("making new webish directory: %s" % (name,))
-        d = self._dirnode.create_empty_directory(name)
-        def _done(res):
-            log.msg("webish mkdir complete")
-            return res
-        d.addCallback(_done)
-        return d
-
-    def bind_mount(self, ctx):
-        namearg = annotate.Argument("name",
-                                    annotate.String("Name to place incoming directory: "))
-        uriarg = annotate.Argument("uri",
-                                   annotate.String("URI of Shared Directory"))
-        meth = annotate.Method(arguments=[namearg, uriarg],
-                               label="Add Shared Directory")
-        return annotate.MethodBinding("mount", meth,
-                                      action="Mount Shared Directory")
-
-    def mount(self, name, uri):
-        d = self._dirnode.set_uri(name, uri)
-        #d.addCallback(lambda done: url.here.child(name))
-        return d
 
     def child__delete(self, ctx):
         # perform the delete, then redirect back to the directory page

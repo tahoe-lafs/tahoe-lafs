@@ -51,7 +51,61 @@
 </table>
 </div>
 
+
 <div n:render="forms"/>
+
+<!--
+<div class="freeform-form">
+  <form action="." method="post" enctype="multipart/form-data">
+  <fieldset>
+  <input type="hidden" name="t" value="mkdir" />
+
+  <legend class="freeform-form-label">
+  Create a new directory
+  </legend>
+  New directory name: <input type="text" name="name" />
+  <input type="submit" value="Create" />
+
+  </fieldset>
+  </form>
+</div>
+
+<div class="freeform-form">
+  <form action="." method="post" enctype="multipart/form-data">
+  <fieldset>
+  <input type="hidden" name="t" value="upload" />
+
+  <legend class="freeform-form-label">
+  Upload a file to this directory
+  </legend>
+  Choose a file to upload:
+  <input type="file" name="file" class="freeform-input-file" />
+  <input type="submit" value="Upload" />
+
+  </fieldset>
+  </form>
+</div>
+
+<div class="freeform-form">
+  <form action="." method="post" enctype="multipart/form-data">
+  <fieldset>
+  <input type="hidden" name="t" value="uri" />
+
+  <legend class="freeform-form-label">
+  Attach a file or directory (by URI) to this directory
+  </legend>
+
+  New child name: <input type="text" name="name" />
+  URI of new child: <input type="text" name="uri" />
+
+  <input type="submit" value="Attach" />
+
+  </fieldset>
+  </form>
+</div>
+-->
+
+
 
 <div class="results" n:render="results"/>
 
