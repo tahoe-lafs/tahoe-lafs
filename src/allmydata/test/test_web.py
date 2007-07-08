@@ -35,7 +35,6 @@ class MyDownloader(service.Service):
         self.files = files
 
     def download(self, uri, target):
-        print "DOWNLOADING", uri
         if uri not in self.files:
             e = NotEnoughPeersError()
             f = failure.Failure(e)
@@ -260,12 +259,10 @@ class Web(unittest.TestCase):
         body = "\r\n".join(form) + "\r\n"
         headers = {"content-type": "multipart/form-data; boundary=%s" % sepbase,
                    }
-        print "BODY", body
         return client.getPage(url, method="POST", postdata=body,
                               headers=headers, followRedirect=False)
 
     def shouldFail(self, res, expected_failure, which, substring=None):
-        print "SHOULDFAIL", res
         if isinstance(res, failure.Failure):
             res.trap(expected_failure)
             if substring:
@@ -298,16 +295,6 @@ class Web(unittest.TestCase):
 
     def test_GET_FILEURL_missing(self): # YES
         d = self.GET("/vdrive/global/foo/missing")
-        def _oops(f):
-            print f
-            print dir(f)
-            print f.value
-            print dir(f.value)
-            print f.value.args
-            print f.value.response
-            print f.value.status
-            return f
-        #d.addBoth(_oops)
         d.addBoth(self.should404, "test_GET_FILEURL_missing")
         return d
 
@@ -404,7 +391,6 @@ class Web(unittest.TestCase):
             self.failIf(os.path.exists(localfile))
         d.addCallback(_check)
         def _reset(res):
-            print "RESETTING", res
             webish.LOCALHOST = old_LOCALHOST
             return res
         d.addBoth(_reset)
@@ -734,7 +720,6 @@ class Web(unittest.TestCase):
         res.trap(error.PageRedirect)
         # the PageRedirect does not seem to capture the uri= query arg
         # properly, so we can't check for it.
-        print "location:", res.value.location
         realtarget = self.webish_url + target
         self.failUnlessEqual(res.value.location, realtarget)
 
@@ -760,7 +745,7 @@ class Web(unittest.TestCase):
         return d
 
     def log(self, res, msg):
-        print "MSG: %s  RES: %s" % (msg, res)
+        #print "MSG: %s  RES: %s" % (msg, res)
         log.msg(msg)
         return res
 

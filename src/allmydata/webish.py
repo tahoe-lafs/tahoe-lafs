@@ -36,7 +36,6 @@ class Directory(rend.Page):
         self._dirpath = dirpath
 
     def childFactory(self, ctx, name):
-        print "Directory.childFactory", name
         if name.startswith("freeform"): # ick
             return None
         #if name == "@manifest": # ick, this time it's my fault
@@ -47,7 +46,6 @@ class Directory(rend.Page):
         return "/" + "/".join(self._dirpath)
 
     def render_title(self, ctx, data):
-        print "DIRECTORY.render_title"
         return ctx.tag["Directory '%s':" % self.dirpath_as_string()]
 
     def render_header(self, ctx, data):
@@ -61,7 +59,6 @@ class Directory(rend.Page):
                 link = "/".join( ("..",) * upness )
             else:
                 link = "."
-            print "LINK", link, d
             header.append(T.a(href=link)[d])
             if upness != 0:
                 header.append("/")
@@ -359,7 +356,6 @@ class LocalFileDownloader(resource.Resource):
         self._filenode = filenode
 
     def render(self, req):
-        print "LOCALFILEDOWNLOADER", self._local_filename
         target = download.FileName(self._local_filename)
         d = self._filenode.download(target)
         def _done(res):
@@ -447,7 +443,6 @@ class LocalDirectoryDownloader(resource.Resource, DirnodeWalkerMixin):
         self._localdir = localdir
 
     def _handle(self, path, node):
-        print "DONWLOADING", path, node
         localfile = os.path.join(self._localdir, os.sep.join(path))
         if IDirectoryNode.providedBy(node):
             fileutil.make_dirs(localfile)
@@ -515,19 +510,12 @@ class DirectoryReadonlyURI(DirectoryJSONMetadata):
 class POSTHandler(rend.Page):
     def __init__(self, node):
         self._node = node
-    # TODO: handler methods
+
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
-        print "POST", req, req.args#, req.content.read()
-        #print " ", req.requestHeaders
-        #print req.__class__
-        #print req.fields
-        #print dir(req.fields)
-        print req.fields.keys()
         t = req.fields["t"].value
         if t == "mkdir":
             name = req.fields["name"].value
-            print "CREATING DIR", name
             d = self._node.create_empty_directory(name)
             def _done(res):
                 return "directory created"
@@ -551,14 +539,11 @@ class POSTHandler(rend.Page):
         elif t == "upload":
             contents = req.fields["file"]
             name = contents.filename
-            print "filename", name
             if "name" in req.fields:
                 name = req.fields["name"].value
-                print "NAME WAS", name
             uploadable = upload.FileHandle(contents.file)
             d = self._node.add_file(name, uploadable)
             def _done(newnode):
-                print "UPLOAD DONW", name
                 return newnode.get_uri()
             d.addCallback(_done)
             return d
@@ -573,7 +558,6 @@ class DELETEHandler(rend.Page):
         self._name = name
 
     def renderHTTP(self, ctx):
-        print "DELETEHandler.renderHTTP", self._name
         req = inevow.IRequest(ctx)
         d = self._node.delete(self._name)
         def _done(res):
@@ -581,7 +565,6 @@ class DELETEHandler(rend.Page):
             return "%s deleted" % self._name
         d.addCallback(_done)
         def _trap_missing(f):
-            print "TRAPPED MISSING"
             f.trap(KeyError)
             req.setResponseCode(http.NOT_FOUND)
             req.setHeader("content-type", "text/plain")
@@ -634,7 +617,6 @@ class PUTHandler(rend.Page):
         d = node.get(path[0])
         def _maybe_create(f):
             f.trap(KeyError)
-            print "CREATING", path[0]
             return node.create_empty_directory(path[0])
         d.addErrback(_maybe_create)
         d.addCallback(self._get_or_create_directories, path[1:])
@@ -676,18 +658,15 @@ class PUTHandler(rend.Page):
         return d
 
     def _upload_localdir(self, node, localdir):
-        print "PUTHandler._upload_localdir", localdir
         # build up a list of files to upload
         all_files = []
         all_dirs = []
         for root, dirs, files in os.walk(localdir):
-            print "walking", root
             if root == localdir:
                 path = ()
             else:
                 relative_root = root[len(localdir)+1:]
                 path = tuple(relative_root.split(os.sep))
-            print "  path", path
             for d in dirs:
                 all_dirs.append(path + (d,))
             for f in files:
@@ -701,7 +680,6 @@ class PUTHandler(rend.Page):
         return d
 
     def _makedir(self, res, node, dir):
-        print "_makedir", node, dir
         d = defer.succeed(None)
         # get the parent. As long as os.walk gives us parents before
         # children, this ought to work
@@ -711,7 +689,6 @@ class PUTHandler(rend.Page):
         return d
 
     def _upload_one_file(self, res, node, localdir, f):
-        print "_upload_one_file", node, localdir, f
         # get the parent. We can be sure this exists because we already
         # went through and created all the directories we require.
         localfile = os.path.join(localdir, *f)
@@ -765,7 +742,6 @@ class VDrive(rend.Page):
         if path and path[-1] == '':
             path = path[:-1]
 
-        print "VDrive.locateChild", method, segments, req.args
         t = ""
         if "t" in req.args:
             t = req.args["t"][0]
@@ -801,10 +777,8 @@ class VDrive(rend.Page):
                         return LocalFileDownloader(node, localfile), ()
                     elif t == "":
                         # send contents as the result
-                        print "FileDownloader"
                         return FileDownloader(node, filename), ()
                     elif t == "json":
-                        print "Localfilejsonmetadata"
                         return FileJSONMetadata(node), ()
                     elif t == "xml":
                         return FileXMLMetadata(node), ()
@@ -815,13 +789,11 @@ class VDrive(rend.Page):
                     else:
                         raise RuntimeError("bad t=%s" % t)
                 elif IDirectoryNode.providedBy(node):
-                    print "GOT DIR"
                     if localdir:
                         # recursive download to a local directory
                         return LocalDirectoryDownloader(node, localdir), ()
                     elif t == "":
                         # send an HTML representation of the directory
-                        print "GOT HTML DIR"
                         return Directory(node, path), ()
                     elif t == "json":
                         return DirectoryJSONMetadata(node), ()
@@ -849,7 +821,6 @@ class VDrive(rend.Page):
             # the node must exist, and our operation will be performed on its
             # parent node.
             assert path # you can't delete the root
-            print "AT DELETE"
             d = self.get_child_at_path(path[:-1])
             def _got(node):
                 return DELETEHandler(node, path[-1]), ()
@@ -876,7 +847,6 @@ class Root(rend.Page):
         client = IClient(ctx)
         req = inevow.IRequest(ctx)
         vdrive = client.getServiceNamed("vdrive")
-        print "Root.locateChild", segments
 
         if segments[0] == "vdrive":
             if len(segments) < 2:
@@ -893,15 +863,12 @@ class Root(rend.Page):
             d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
             return d
         elif segments[0] == "uri":
-            print "looking at /uri", segments, req.args
             if len(segments) == 1:
                 if "uri" in req.args:
                     uri = req.args["uri"][0]
-                    print "REDIRECTING"
                     there = url.URL.fromContext(ctx)
                     there = there.clear("uri")
                     there = there.child("uri").child(uri)
-                    print " TO", there
                     return there, ()
             if len(segments) < 2:
                 return rend.NotFound
