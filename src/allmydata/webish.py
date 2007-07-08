@@ -29,13 +29,6 @@ class Directory(rend.Page):
         self._dirnode = dirnode
         self._dirpath = dirpath
 
-    def childFactory(self, ctx, name):
-        if name.startswith("freeform"): # ick
-            return None
-        #if name == "@manifest": # ick, this time it's my fault
-        #    return Manifest(self._dirnode, self._dirpath)
-        return rend.NotFound
-
     def dirpath_as_string(self):
         return "/" + "/".join(self._dirpath)
 
