@@ -14,7 +14,7 @@ from foolscap.eventual import flushEventualQueue
 from twisted.python import log
 from twisted.python.failure import Failure
 from twisted.web.client import getPage
-from twisted.web.error import PageRedirect, Error
+from twisted.web.error import Error
 
 def flush_but_dont_ignore(res):
     d = flushEventualQueue()
@@ -528,62 +528,16 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                            % (self.mangle_uri(self.uri), "mydata567"))
         d.addCallback(_get_from_bogus_uri)
         d.addBoth(self.shouldFail, Error, "downloading bogus URI",
-                  "NotEnoughPeersError")
+                  "404 Not Found")
 
         # TODO: mangle the second segment of a file, to test errors that
         # occur after we've already sent some good data, which uses a
         # different error path.
 
-        # download from a URI pasted into a form. Use POST, build a
-        # multipart/form-data, submit it. This actualy redirects us to a
-        # /download_uri?uri=%s URL, and twisted.web.client doesn't seem to
-        # handle POST redirects very well (it does a second POST instead of
-        # the GET that a browser seems to do), so we just verify that we get
-        # the right redirect response.
-        def _get_from_form(res):
-            url = base + "welcome/freeform_post!!download"
-            sep = "-"*40 + "boogabooga"
-            form = [sep,
-                    "Content-Disposition: form-data; name=\"_charset_\"",
-                    "",
-                    "UTF-8",
-                    sep,
-                    "Content-Disposition: form-data; name=\"uri\"",
-                    "",
-                    self.uri,
-                    sep,
-                    "Content-Disposition: form-data; name=\"filename\"",
-                    "",
-                    "foo.txt",
-                    sep,
-                    "Content-Disposition: form-data; name=\"download\"",
-                    "",
-                    "Download",
-                    sep + "--",
-                    ]
-            body = "\r\n".join(form)
-            headers = {"content-type":
-                       "multipart/form-data; boundary=%s" % sep,
-                       }
-            return getPage(url, None, "POST", body, headers=headers,
-                           followRedirect=False)
-        d.addCallback(_get_from_form)
-        def _got_from_form_worked_unexpectedly(page):
-            self.fail("we weren't supposed to get an actual page: %s" %
-                      (page,))
-        def _got_from_form_redirect(f):
-            f.trap(PageRedirect)
-            # the PageRedirect does not seem to capture the uri= query arg
-            # properly, so we can't check for it.
-            self.failUnless(f.value.location.startswith(base+"download_uri?"))
-        d.addCallbacks(_got_from_form_worked_unexpectedly,
-                       _got_from_form_redirect)
-
+        # TODO: download a URI with a form
         # TODO: create a directory by using a form
-
         # TODO: upload by using a form on the directory page
         #    url = base + "global_vdrive/subdir1/freeform_post!!upload"
-
         # TODO: delete a file by using a button on the directory page
 
         return d
