@@ -69,6 +69,11 @@ class Directory(rend.Page):
         header.append(":")
         return ctx.tag[header]
 
+    def render_welcome(self, ctx, data):
+        depth = len(self._dirpath) + 2
+        link = "/".join([".."] * depth)
+        return T.div[T.a(href=link)["Return to Welcome page"]]
+
     def data_share_uri(self, ctx, data):
         return self._dirnode.get_uri()
     def data_share_readonly_uri(self, ctx, data):
