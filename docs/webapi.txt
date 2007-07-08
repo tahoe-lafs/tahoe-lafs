@@ -91,6 +91,11 @@ for files and directories which do not yet exist.
   between files and directories. Programatic clients are expected to use this
   query before actually downloading the file's contents.
 
+  The JSON data is as follows:
+
+   [ 'filenode', { 'mutable': bool, 'uri': file_uri, 'size': bytes } ]
+
+
  GET FILEURL?localfile=$FILENAME
 
   This instructs the client to download the given file and write its contents
@@ -145,6 +150,20 @@ for files and directories which do not yet exist.
   GET?t=json of the child itself). A programmatic client should be able to use
   the information from this query to display filesystem navigation choices to
   a human user.
+
+  The JSON data is as follows:
+
+    [ 'dirnode', { 'mutable': bool, 'uri': uri, 'children': children } ]
+
+   where 'children' is a dictionary in which the keys are child names
+   and the values depend upon whether the child is a file or a directory:
+
+     'foo.txt': [ 'filenode', { 'mutable': bool, 'uri': uri, 'size': bytes } ]
+     'subdir':  [ 'dirnode', { 'mutable': bool, 'uri': uri } ]
+
+   note that the value is the same as the JSON representation of the
+   corresponding FILEURL or DIRURL (except that dirnodes do not recurse).
+
 
  GET DIRURL?t=uri
  GET DIRURL?t=readonly-uri

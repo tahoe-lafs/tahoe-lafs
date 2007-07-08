@@ -7,6 +7,7 @@ from twisted.internet import defer
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from allmydata.util import idlib, fileutil
+from allmydata.util.json_encoder import JSONEncoder
 from allmydata.uri import unpack_uri, is_dirnode_uri
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode
 from allmydata import upload, download
@@ -289,6 +290,7 @@ class LocalFileDownloader(resource.Resource):
         d.addCallback(_done)
         return server.NOT_DONE_YET
 
+
 class FileJSONMetadata(rend.Page):
     def __init__(self, filenode):
         self._filenode = filenode
@@ -301,10 +303,12 @@ class FileJSONMetadata(rend.Page):
     def renderNode(self, filenode):
         file_uri = filenode.get_uri()
         pieces = unpack_uri(file_uri)
-        data = "filenode\n"
-        data += "JSONny stuff here\n"
-        data += "uri=%s, size=%s" % (file_uri, pieces['size'])
-        return data
+        data = ("filenode",
+                {'mutable': False,
+                 'uri': file_uri,
+                 'size': pieces['size'],
+                 })
+        return JSONEncoder().encode(data)
 
 class FileURI(FileJSONMetadata):
     def renderNode(self, filenode):
@@ -383,18 +387,33 @@ class DirectoryJSONMetadata(rend.Page):
         return self.renderNode(self._dirnode)
 
     def renderNode(self, node):
-        data = "dirnode\n"
-        data += "JSONny stuff here\n"
         d = node.list()
-        def _got(children, data):
+        def _got(children):
+            kids = {}
             for name, childnode in children.iteritems():
-                data += "name=%s, child_uri=%s" % (name, childnode.get_uri())
-            return data
-        d.addCallback(_got, data)
-        def _done(data):
-            data += "done\n"
-            return data
-        d.addCallback(_done)
+                if IFileNode.providedBy(childnode):
+                    kiduri = childnode.get_uri()
+                    pieces = unpack_uri(kiduri)
+                    kiddata = ("filenode",
+                               {'mutable': False,
+                                'uri': kiduri,
+                                'size': pieces['size'],
+                                })
+                else:
+                    assert IDirectoryNode.providedBy(childnode)
+                    kiduri = childnode.get_uri()
+                    kiddata = ("dirnode",
+                               {'mutable': childnode.is_mutable(),
+                                'uri': kiduri,
+                                })
+                kids[name] = kiddata
+            contents = { 'children': kids,
+                         'mutable': node.is_mutable(),
+                         'uri': node.get_uri(),
+                         }
+            data = ("dirnode", contents)
+            return JSONEncoder().encode(data)
+        d.addCallback(_got)
         return d
 
 class DirectoryURI(DirectoryJSONMetadata):

@@ -227,11 +227,37 @@ class Web(unittest.TestCase):
     def failUnlessIsBarDotTxt(self, res):
         self.failUnlessEqual(res, self.BAR_CONTENTS)
 
+    def worlds_cheapest_json_decoder(self, json):
+        # don't write tests that use 'true' or 'false' as filenames
+        json = re.sub('false', 'False', json)
+        json = re.sub('true', 'True', json)
+        json = re.sub(r'\\/', '/', json)
+        return eval(json)
+
+    def failUnlessIsBarJSON(self, res):
+        data = self.worlds_cheapest_json_decoder(res)
+        self.failUnless(isinstance(data, list))
+        self.failUnlessEqual(data[0], "filenode")
+        self.failUnless(isinstance(data[1], dict))
+        self.failUnlessEqual(data[1]["mutable"], False)
+        self.failUnlessEqual(data[1]["size"], 123)
+        self.failUnlessEqual(data[1]["uri"], self._bar_txt_uri)
+
     def failUnlessIsFooJSON(self, res):
-        self.failUnless("JSONny stuff here" in res)
-        self.failUnless("name=bar.txt, child_uri=%s" % self._bar_txt_uri
-                        in res)
-        self.failUnless("name=blockingfile" in res)
+        data = self.worlds_cheapest_json_decoder(res)
+        self.failUnless(isinstance(data, list))
+        self.failUnlessEqual(data[0], "dirnode")
+        self.failUnless(isinstance(data[1], dict))
+        self.failUnlessEqual(data[1]["mutable"], True)
+        self.failUnlessEqual(data[1]["uri"], self._foo_uri)
+        kidnames = sorted(data[1]["children"].keys())
+        self.failUnlessEqual(kidnames,
+                             ["bar.txt", "blockingfile", "empty", "sub"])
+        kids = data[1]["children"]
+        self.failUnlessEqual(kids["sub"][0], "dirnode")
+        self.failUnlessEqual(kids["bar.txt"][0], "filenode")
+        self.failUnlessEqual(kids["bar.txt"][1]["size"], 123)
+        self.failUnlessEqual(kids["bar.txt"][1]["uri"], self._bar_txt_uri)
 
     def GET(self, urlpath, followRedirect=False):
         url = self.webish_url + urlpath
@@ -370,10 +396,7 @@ class Web(unittest.TestCase):
         # instead. This may make it tricky to emulate the S3 interface
         # completely.
         d = self.GET("/vdrive/global/foo/bar.txt?t=json")
-        def _got(json):
-            # TODO
-            self.failUnless("JSON" in json, json)
-        d.addCallback(_got)
+        d.addCallback(self.failUnlessIsBarJSON)
         return d
 
     def test_GET_FILEURL_json_missing(self): # YES
