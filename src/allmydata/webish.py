@@ -13,7 +13,7 @@ from allmydata.dirnode import FileNode
 from allmydata import upload, download
 from zope.interface import implements, Interface
 import urllib
-from formless import annotate, webform
+from formless import webform
 
 def getxmlfile(name):
     return loaders.xmlfile(util.sibpath(__file__, "web/%s" % name))
@@ -956,27 +956,18 @@ class Root(rend.Page):
 
     # this is a form where users can download files by URI
 
-    def bind_download(self, ctx):
-        uriarg = annotate.Argument("uri",
-                                   annotate.String("URI of file to download: "))
-        namearg = annotate.Argument("filename",
-                                    annotate.String("Filename to download as: "))
-        ctxarg = annotate.Argument("ctx", annotate.Context())
-        meth = annotate.Method(arguments=[uriarg, namearg, ctxarg],
-                               label="Download File by URI")
-        # buttons always use value=data.label
-        # MethodBindingRenderer uses value=(data.action or data.label)
-        return annotate.MethodBinding("download", meth, action="Download")
-
-    def download(self, uri, filename, ctx):
-        log.msg("webish downloading URI")
-        target = url.here.sibling("download_uri").add("uri", uri)
-        if filename:
-            target = target.add("filename", filename)
-        return target
-
-    def render_forms(self, ctx, data):
-        return webform.renderForms()
+    def render_download_form(self, ctx, data):
+        form = T.form(action="uri", method="get",
+                      enctype="multipart/form-data")[
+            T.fieldset[
+            T.legend(class_="freeform-form-label")["Download a file"],
+            "URI of file to download: ",
+            T.input(type="text", name="uri"), " ",
+            "Filename to download as: ",
+            T.input(type="text", name="filename"), " ",
+            T.input(type="submit", value="Download"),
+            ]]
+        return T.div[form]
 
 
 class WebishServer(service.MultiService):
