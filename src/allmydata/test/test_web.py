@@ -78,6 +78,9 @@ class MyDirectoryNode(dirnode.MutableDirectoryNode):
     def get_immutable_uri(self):
         return self.get_uri() + "RO"
 
+    def get_refresh_capability(self):
+        return "refresh:" + self.get_uri()
+
     def get(self, name):
         def _try():
             uri = self.children[name]
@@ -186,6 +189,7 @@ class Web(unittest.TestCase):
         rodir = self.makedir()
         rodir._mutable = False
         v.public_root.children["readonly"] = rodir.get_uri()
+        rodir.children["nor"] = baz_file
 
         # public/
         # public/foo/
@@ -195,6 +199,7 @@ class Web(unittest.TestCase):
         # public/foo/sub/
         # public/foo/sub/baz.txt
         # public/readonly/
+        # public/readonly/nor
         self.NEWFILE_CONTENTS = "newfile contents\n"
 
     def makefile(self, number):
@@ -401,7 +406,7 @@ class Web(unittest.TestCase):
         d.addBoth(_reset)
         return d
 
-    def test_GET_FILEURL_localfile_nonabsolute(self):
+    def test_GET_FILEURL_localfile_nonabsolute(self): # YES
         localfile = "web/nonabsolute/path"
         fileutil.make_dirs("web/nonabsolute")
         d = self.GET("/vdrive/global/foo/bar.txt?localfile=%s" % localfile)
@@ -454,6 +459,12 @@ class Web(unittest.TestCase):
         def _check(res):
             self.failUnlessEqual(res, self._bar_txt_uri)
         d.addCallback(_check)
+        d.addCallback(lambda res:
+                      self.GET("/vdrive/global/foo/bar.txt?t=readonly-uri"))
+        def _check2(res):
+            # for now, for files, uris and readonly-uris are the same
+            self.failUnlessEqual(res, self._bar_txt_uri)
+        d.addCallback(_check2)
         return d
 
     def test_GET_FILEURL_uri_missing(self): # YES
@@ -472,22 +483,41 @@ class Web(unittest.TestCase):
             self.failUnless(re.search(r'<td><a href="sub">sub</a></td>'
                                       '\s+<td>DIR</td>', res))
         d.addCallback(_check)
-        return d
 
-    def test_GET_DIRURL_readonly(self):
-        # the addSlash means we get a redirect here
-        d = self.GET("/vdrive/global/readonly", followRedirect=True)
-        def _check(res):
+        # look at a directory which is readonly
+        d.addCallback(lambda res:
+                      self.GET("/vdrive/global/readonly", followRedirect=True))
+        def _check2(res):
             self.failUnless("(readonly)" in res)
             self.failIf("Upload a file" in res)
-        d.addCallback(_check)
+        d.addCallback(_check2)
+
+        # and at a directory that contains a readonly directory
+        d.addCallback(lambda res:
+                      self.GET("/vdrive/global", followRedirect=True))
+        def _check3(res):
+            self.failUnless(re.search(r'<td><a href="readonly">readonly</a>'
+                                      '</td>\s+<td>DIR-RO</td>', res))
+        d.addCallback(_check3)
+
+        # and take a quick peek at the private vdrive
+        d.addCallback(lambda res:
+                      self.GET("/vdrive/private", followRedirect=True))
+        def _check4(res):
+            pass
+        d.addCallback(_check4)
+
         return d
 
     def test_GET_DIRURL_json(self): # YES
         d = self.GET("/vdrive/global/foo?t=json")
-        def _got(json):
-            # TODO
-            self.failUnless("JSON" in json, json)
+        d.addCallback(self.failUnlessIsFooJSON)
+        return d
+
+    def test_GET_DIRURL_manifest(self): # YES
+        d = self.GET("/vdrive/global/foo?t=manifest", followRedirect=True)
+        def _got(manifest):
+            self.failUnless("Refresh Capabilities" in manifest)
         d.addCallback(_got)
         return d
 
@@ -563,13 +593,14 @@ class Web(unittest.TestCase):
                                   ('foo', 'empty'),
                                   ('foo', 'sub'),
                                   ('foo','sub','baz.txt'),
-                                  ('readonly',)
+                                  ('readonly',),
+                                  ('readonly', 'nor'),
                                   ])
             subindex = names.index( ('foo', 'sub') )
             bazindex = names.index( ('foo', 'sub', 'baz.txt') )
             self.failUnless(subindex < bazindex)
             for path,node in out:
-                if path[-1] in ('bar.txt', 'blockingfile', 'baz.txt'):
+                if path[-1] in ('bar.txt', 'blockingfile', 'baz.txt', 'nor'):
                     self.failUnless(interfaces.IFileNode.providedBy(node))
                 else:
                     self.failUnless(interfaces.IDirectoryNode.providedBy(node))
@@ -708,6 +739,18 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    def test_POST_mkdir_whendone(self): # YES
+        d = self.POST("/vdrive/global/foo?when_done=/THERE",
+                      t="mkdir", name="newdir")
+        d.addBoth(self.shouldRedirect, "/THERE")
+        def _check(res):
+            self.failUnless("newdir" in self._foo_node.children)
+            newdir_uri = self._foo_node.children["newdir"]
+            newdir_node = self.nodes[newdir_uri]
+            self.failIf(newdir_node.children)
+        d.addCallback(_check)
+        return d
+
     def test_POST_put_uri(self): # YES
         newuri = self.makefile(8)
         contents = self.files[newuri]
@@ -721,7 +764,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_POST_delete(self): # yes
+    def test_POST_delete(self): # YES
         d = self.POST("/vdrive/global/foo", t="delete", name="bar.txt")
         def _check(res):
             self.failIf("bar.txt" in self._foo_node.children)
@@ -780,7 +823,7 @@ class Web(unittest.TestCase):
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
-    def test_GET_URI_URL_missing(self):
+    def test_GET_URI_URL_missing(self): # YES
         base = "/uri/missing?t=json"
         d = self.GET(base)
         d.addBoth(self.should404, "test_GET_URI_URL_missing")

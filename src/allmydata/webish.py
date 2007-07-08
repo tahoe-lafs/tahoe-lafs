@@ -61,11 +61,6 @@ class Directory(rend.Page):
         link = "/".join([".."] * depth)
         return T.div[T.a(href=link)["Return to Welcome page"]]
 
-    def data_share_uri(self, ctx, data):
-        return self._dirnode.get_uri()
-    def data_share_readonly_uri(self, ctx, data):
-        return self._dirnode.get_immutable_uri()
-
     def data_children(self, ctx, data):
         d = self._dirnode.list()
         d.addCallback(lambda dict: sorted(dict.items()))
@@ -181,14 +176,6 @@ class Directory(rend.Page):
             return req.args["results"]
         else:
             return ""
-
-    def child__delete(self, ctx):
-        # perform the delete, then redirect back to the directory page
-        args = inevow.IRequest(ctx).args
-        name = args["name"][0]
-        d = self._dirnode.delete(name)
-        d.addCallback(lambda done: url.here.up())
-        return d
 
 class WebDownloadTarget:
     implements(IDownloadTarget)
