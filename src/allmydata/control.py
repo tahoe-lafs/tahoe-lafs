@@ -4,6 +4,28 @@ from twisted.application import service
 from foolscap import Referenceable
 from allmydata.interfaces import RIControlClient
 from allmydata.util import testutil
+from twisted.python import log
+
+def get_memory_usage():
+    # this is obviously linux-specific
+    stat_names = ("VmPeak",
+                  "VmSize",
+                  #"VmHWM",
+                  "VmData")
+    stats = {}
+    for line in open("/proc/self/status", "r").readlines():
+        name, right = line.split(":",2)
+        if name in stat_names:
+            assert right.endswith(" kB\n")
+            right = right[:-4]
+            stats[name] = int(right) * 1024
+    return stats
+
+def log_memory_usage(where=""):
+    stats = get_memory_usage()
+    log.msg("VmSize: %9d  VmPeak: %9d  %s" % (stats["VmSize"],
+                                              stats["VmPeak"],
+                                              where))
 
 
 class ControlServer(Referenceable, service.Service, testutil.PollMixin):
@@ -29,16 +51,4 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
         return d
 
     def remote_get_memory_usage(self):
-        # this is obviously linux-specific
-        stat_names = ("VmPeak",
-                      "VmSize",
-                      #"VmHWM",
-                      "VmData")
-        stats = {}
-        for line in open("/proc/self/status", "r").readlines():
-            name, right = line.split(":",2)
-            if name in stat_names:
-                assert right.endswith(" kB\n")
-                right = right[:-4]
-                stats[name] = int(right) * 1024
-        return stats
+        return get_memory_usage()
