@@ -119,6 +119,42 @@ class RIStorageServer(RemoteInterface):
     def get_buckets(storage_index=StorageIndex):
         return DictOf(int, RIBucketReader, maxKeys=MAX_BUCKETS)
 
+
+class IStorageBucketWriter(Interface):
+    def put_block(segmentnum, data):
+        pass
+
+    def put_plaintext_hashes(hashes):
+        pass
+    def put_crypttext_hashes(hashes):
+        pass
+    def put_block_hashes(blockhashes):
+        pass
+    def put_share_hashes(sharehashes):
+        pass
+    def put_uri_extension(data):
+        pass
+    def close():
+        pass
+
+class IStorageBucketReader(Interface):
+
+    def get_block(blocknum):
+        pass
+
+    def get_plaintext_hashes():
+        pass
+    def get_crypttext_hashes():
+        pass
+    def get_block_hashes():
+        pass
+    def get_share_hashes():
+        pass
+    def get_uri_extension():
+        pass
+
+
+
 # hm, we need a solution for forward references in schemas
 from foolscap.schema import Any
 RIMutableDirectoryNode_ = Any() # TODO: how can we avoid this?

@@ -7,7 +7,7 @@ from twisted.application import service
 
 from allmydata.util import idlib, mathutil, hashutil
 from allmydata.util.assertutil import _assert
-from allmydata import codec, hashtree
+from allmydata import codec, hashtree, storageserver
 from allmydata.Crypto.Cipher import AES
 from allmydata.uri import unpack_uri, unpack_extension
 from allmydata.interfaces import IDownloadTarget, IDownloader
@@ -109,7 +109,7 @@ class ValidatedBucket:
         # of the share hash tree to validate it from our share hash up to the
         # hashroot.
         if not self._share_hash:
-            d1 = self.bucket.callRemote('get_share_hashes')
+            d1 = self.bucket.get_share_hashes()
         else:
             d1 = defer.succeed(None)
 
@@ -117,12 +117,12 @@ class ValidatedBucket:
         # validate the requested block up to the share hash
         needed = self.block_hash_tree.needed_hashes(blocknum)
         if needed:
-            # TODO: get fewer hashes, callRemote('get_block_hashes', needed)
-            d2 = self.bucket.callRemote('get_block_hashes')
+            # TODO: get fewer hashes, use get_block_hashes(needed)
+            d2 = self.bucket.get_block_hashes()
         else:
             d2 = defer.succeed([])
 
-        d3 = self.bucket.callRemote('get_block', blocknum)
+        d3 = self.bucket.get_block(blocknum)
 
         d = defer.gatherResults([d1, d2, d3])
         d.addCallback(self._got_data, blocknum)
@@ -321,8 +321,9 @@ class FileDownloader:
     def _got_response(self, buckets, connection):
         _assert(isinstance(buckets, dict), buckets) # soon foolscap will check this for us with its DictOf schema constraint
         for sharenum, bucket in buckets.iteritems():
-            self.add_share_bucket(sharenum, bucket)
-            self._uri_extension_sources.append(bucket)
+            b = storageserver.ReadBucketProxy(bucket)
+            self.add_share_bucket(sharenum, b)
+            self._uri_extension_sources.append(b)
 
     def add_share_bucket(self, sharenum, bucket):
         # this is split out for the benefit of test_encode.py
@@ -379,7 +380,8 @@ class FileDownloader:
                                       "%s" % name)
         bucket = sources[0]
         sources = sources[1:]
-        d = bucket.callRemote(methname, *args)
+        #d = bucket.callRemote(methname, *args)
+        d = getattr(bucket, methname)(*args)
         d.addCallback(validatorfunc, bucket)
         def _bad(f):
             log.msg("%s from vbucket %s failed: %s" % (name, bucket, f)) # WEIRD

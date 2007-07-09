@@ -5,7 +5,7 @@ from twisted.application import service
 
 from zope.interface import implements
 from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
-     RIBucketReader
+     RIBucketReader, IStorageBucketWriter, IStorageBucketReader
 from allmydata import interfaces
 from allmydata.util import bencode, fileutil, idlib
 from allmydata.util.assertutil import precondition
@@ -203,3 +203,44 @@ class StorageServer(service.MultiService, Referenceable):
             pass
 
         return bucketreaders
+
+class WriteBucketProxy:
+    implements(IStorageBucketWriter)
+    def __init__(self, rref):
+        self._rref = rref
+
+    def put_block(self, segmentnum, data):
+        return self._rref.callRemote("put_block", segmentnum, data)
+
+    def put_plaintext_hashes(self, hashes):
+        return self._rref.callRemote("put_plaintext_hashes", hashes)
+    def put_crypttext_hashes(self, hashes):
+        return self._rref.callRemote("put_crypttext_hashes", hashes)
+    def put_block_hashes(self, blockhashes):
+        return self._rref.callRemote("put_block_hashes", blockhashes)
+    def put_share_hashes(self, sharehashes):
+        return self._rref.callRemote("put_share_hashes", sharehashes)
+    def put_uri_extension(self, data):
+        return self._rref.callRemote("put_uri_extension", data)
+    def close(self):
+        return self._rref.callRemote("close")
+
+class ReadBucketProxy:
+    implements(IStorageBucketReader)
+    def __init__(self, rref):
+        self._rref = rref
+
+    def get_block(self, blocknum):
+        return self._rref.callRemote("get_block", blocknum)
+
+    def get_plaintext_hashes(self):
+        return self._rref.callRemote("get_plaintext_hashes")
+    def get_crypttext_hashes(self):
+        return self._rref.callRemote("get_crypttext_hashes")
+    def get_block_hashes(self):
+        return self._rref.callRemote("get_block_hashes")
+    def get_share_hashes(self):
+        return self._rref.callRemote("get_share_hashes")
+    def get_uri_extension(self):
+        return self._rref.callRemote("get_uri_extension")
+

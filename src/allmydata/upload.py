@@ -5,7 +5,7 @@ from twisted.application import service
 from foolscap import Referenceable
 
 from allmydata.util import idlib, hashutil
-from allmydata import encode
+from allmydata import encode, storageserver
 from allmydata.uri import pack_uri
 from allmydata.interfaces import IUploadable, IUploader
 from allmydata.Crypto.Cipher import AES
@@ -53,8 +53,10 @@ class PeerTracker:
         
     def _got_reply(self, (alreadygot, buckets)):
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
-        self.buckets.update(buckets)
-        return (alreadygot, set(buckets.keys()))
+        b = dict( [ (sharenum, storageserver.WriteBucketProxy(rref))
+                    for sharenum, rref in buckets.iteritems() ] )
+        self.buckets.update(b)
+        return (alreadygot, set(b.keys()))
 
 class FileUploader:
 

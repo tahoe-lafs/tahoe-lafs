@@ -1,4 +1,5 @@
 
+from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python.failure import Failure
@@ -7,6 +8,7 @@ from allmydata import encode, download, hashtree
 from allmydata.util import hashutil
 from allmydata.uri import pack_uri
 from allmydata.Crypto.Cipher import AES
+from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader
 from cStringIO import StringIO
 
 class FakePeer:
@@ -48,6 +50,7 @@ def flip_bit(good): # flips the last bit
     return good[:-1] + chr(ord(good[-1]) ^ 0x01)
 
 class FakeBucketWriter:
+    implements(IStorageBucketWriter, IStorageBucketReader)
     # these are used for both reading and writing
     def __init__(self, mode="good"):
         self.mode = mode
@@ -59,90 +62,123 @@ class FakeBucketWriter:
         self.closed = False
 
     def callRemote(self, methname, *args, **kwargs):
+        # this allows FakeBucketWriter to be used either as an
+        # IStorageBucketWriter or as the remote reference that it wraps. This
+        # should be cleaned up eventually when we change RIBucketWriter to
+        # have just write(offset, data) and close()
         def _call():
             meth = getattr(self, methname)
             return meth(*args, **kwargs)
-        return defer.maybeDeferred(_call)
+        d = eventual.fireEventually()
+        d.addCallback(lambda res: _call())
+        return d
 
     def put_block(self, segmentnum, data):
-        assert not self.closed
-        assert segmentnum not in self.blocks
-        if self.mode == "lost" and segmentnum >= 1:
-            raise LostPeerError("I'm going away now")
-        self.blocks[segmentnum] = data
+        def _try():
+            assert not self.closed
+            assert segmentnum not in self.blocks
+            if self.mode == "lost" and segmentnum >= 1:
+                raise LostPeerError("I'm going away now")
+            self.blocks[segmentnum] = data
+        return defer.maybeDeferred(_try)
 
     def put_plaintext_hashes(self, hashes):
-        assert not self.closed
-        assert self.plaintext_hashes is None
-        self.plaintext_hashes = hashes
+        def _try():
+            assert not self.closed
+            assert self.plaintext_hashes is None
+            self.plaintext_hashes = hashes
+        return defer.maybeDeferred(_try)
 
     def put_crypttext_hashes(self, hashes):
-        assert not self.closed
-        assert self.crypttext_hashes is None
-        self.crypttext_hashes = hashes
+        def _try():
+            assert not self.closed
+            assert self.crypttext_hashes is None
+            self.crypttext_hashes = hashes
+        return defer.maybeDeferred(_try)
 
     def put_block_hashes(self, blockhashes):
-        assert not self.closed
-        assert self.block_hashes is None
-        self.block_hashes = blockhashes
+        def _try():
+            assert not self.closed
+            assert self.block_hashes is None
+            self.block_hashes = blockhashes
+        return defer.maybeDeferred(_try)
         
     def put_share_hashes(self, sharehashes):
-        assert not self.closed
-        assert self.share_hashes is None
-        self.share_hashes = sharehashes
+        def _try():
+            assert not self.closed
+            assert self.share_hashes is None
+            self.share_hashes = sharehashes
+        return defer.maybeDeferred(_try)
 
     def put_uri_extension(self, uri_extension):
-        assert not self.closed
-        self.uri_extension = uri_extension
+        def _try():
+            assert not self.closed
+            self.uri_extension = uri_extension
+        return defer.maybeDeferred(_try)
 
     def close(self):
-        assert not self.closed
-        self.closed = True
+        def _try():
+            assert not self.closed
+            self.closed = True
+        return defer.maybeDeferred(_try)
 
     def get_block(self, blocknum):
-        assert isinstance(blocknum, (int, long))
-        if self.mode == "bad block":
-            return flip_bit(self.blocks[blocknum])
-        return self.blocks[blocknum]
+        def _try():
+            assert isinstance(blocknum, (int, long))
+            if self.mode == "bad block":
+                return flip_bit(self.blocks[blocknum])
+            return self.blocks[blocknum]
+        return defer.maybeDeferred(_try)
 
     def get_plaintext_hashes(self):
-        hashes = self.plaintext_hashes[:]
-        if self.mode == "bad plaintext hashroot":
-            hashes[0] = flip_bit(hashes[0])
-        if self.mode == "bad plaintext hash":
-            hashes[1] = flip_bit(hashes[1])
-        return hashes
+        def _try():
+            hashes = self.plaintext_hashes[:]
+            if self.mode == "bad plaintext hashroot":
+                hashes[0] = flip_bit(hashes[0])
+            if self.mode == "bad plaintext hash":
+                hashes[1] = flip_bit(hashes[1])
+            return hashes
+        return defer.maybeDeferred(_try)
 
     def get_crypttext_hashes(self):
-        hashes = self.crypttext_hashes[:]
-        if self.mode == "bad crypttext hashroot":
-            hashes[0] = flip_bit(hashes[0])
-        if self.mode == "bad crypttext hash":
-            hashes[1] = flip_bit(hashes[1])
-        return hashes
+        def _try():
+            hashes = self.crypttext_hashes[:]
+            if self.mode == "bad crypttext hashroot":
+                hashes[0] = flip_bit(hashes[0])
+            if self.mode == "bad crypttext hash":
+                hashes[1] = flip_bit(hashes[1])
+            return hashes
+        return defer.maybeDeferred(_try)
 
     def get_block_hashes(self):
-        if self.mode == "bad blockhash":
-            hashes = self.block_hashes[:]
-            hashes[1] = flip_bit(hashes[1])
-            return hashes
-        return self.block_hashes
+        def _try():
+            if self.mode == "bad blockhash":
+                hashes = self.block_hashes[:]
+                hashes[1] = flip_bit(hashes[1])
+                return hashes
+            return self.block_hashes
+        return defer.maybeDeferred(_try)
+
     def get_share_hashes(self):
-        if self.mode == "bad sharehash":
-            hashes = self.share_hashes[:]
-            hashes[1] = (hashes[1][0], flip_bit(hashes[1][1]))
-            return hashes
-        if self.mode == "missing sharehash":
-            # one sneaky attack would be to pretend we don't know our own
-            # sharehash, which could manage to frame someone else.
-            # download.py is supposed to guard against this case.
-            return []
-        return self.share_hashes
+        def _try():
+            if self.mode == "bad sharehash":
+                hashes = self.share_hashes[:]
+                hashes[1] = (hashes[1][0], flip_bit(hashes[1][1]))
+                return hashes
+            if self.mode == "missing sharehash":
+                # one sneaky attack would be to pretend we don't know our own
+                # sharehash, which could manage to frame someone else.
+                # download.py is supposed to guard against this case.
+                return []
+            return self.share_hashes
+        return defer.maybeDeferred(_try)
 
     def get_uri_extension(self):
-        if self.mode == "bad uri_extension":
-            return flip_bit(self.uri_extension)
-        return self.uri_extension
+        def _try():
+            if self.mode == "bad uri_extension":
+                return flip_bit(self.uri_extension)
+            return self.uri_extension
+        return defer.maybeDeferred(_try)
 
 
 def make_data(length):

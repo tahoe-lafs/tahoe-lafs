@@ -9,7 +9,7 @@ from allmydata.Crypto.Cipher import AES
 from allmydata.util import mathutil, hashutil
 from allmydata.util.assertutil import _assert
 from allmydata.codec import CRSEncoder
-from allmydata.interfaces import IEncoder
+from allmydata.interfaces import IEncoder, IStorageBucketWriter
 
 """
 
@@ -158,6 +158,7 @@ class Encoder(object):
         for k in landlords:
             # it would be nice to:
             #assert RIBucketWriter.providedBy(landlords[k])
+            assert IStorageBucketWriter(landlords[k])
             pass
         self.landlords = landlords.copy()
 
@@ -307,7 +308,7 @@ class Encoder(object):
         if shareid not in self.landlords:
             return defer.succeed(None)
         sh = self.landlords[shareid]
-        d = sh.callRemote("put_block", segment_num, subshare)
+        d = sh.put_block(segment_num, subshare)
         d.addErrback(self._remove_shareholder, shareid,
                      "segnum=%d" % segment_num)
         return d
@@ -356,7 +357,7 @@ class Encoder(object):
         if shareid not in self.landlords:
             return defer.succeed(None)
         sh = self.landlords[shareid]
-        d = sh.callRemote("put_plaintext_hashes", all_hashes)
+        d = sh.put_plaintext_hashes(all_hashes)
         d.addErrback(self._remove_shareholder, shareid, "put_plaintext_hashes")
         return d
 
@@ -374,7 +375,7 @@ class Encoder(object):
         if shareid not in self.landlords:
             return defer.succeed(None)
         sh = self.landlords[shareid]
-        d = sh.callRemote("put_crypttext_hashes", all_hashes)
+        d = sh.put_crypttext_hashes(all_hashes)
         d.addErrback(self._remove_shareholder, shareid, "put_crypttext_hashes")
         return d
 
@@ -397,7 +398,7 @@ class Encoder(object):
         if shareid not in self.landlords:
             return defer.succeed(None)
         sh = self.landlords[shareid]
-        d = sh.callRemote("put_block_hashes", all_hashes)
+        d = sh.put_block_hashes(all_hashes)
         d.addErrback(self._remove_shareholder, shareid, "put_block_hashes")
         return d
 
@@ -427,7 +428,7 @@ class Encoder(object):
         if shareid not in self.landlords:
             return defer.succeed(None)
         sh = self.landlords[shareid]
-        d = sh.callRemote("put_share_hashes", needed_hashes)
+        d = sh.put_share_hashes(needed_hashes)
         d.addErrback(self._remove_shareholder, shareid, "put_share_hashes")
         return d
 
@@ -442,7 +443,7 @@ class Encoder(object):
 
     def send_uri_extension(self, shareid, uri_extension):
         sh = self.landlords[shareid]
-        d = sh.callRemote("put_uri_extension", uri_extension)
+        d = sh.put_uri_extension(uri_extension)
         d.addErrback(self._remove_shareholder, shareid, "put_uri_extension")
         return d
 
@@ -450,7 +451,7 @@ class Encoder(object):
         log.msg("%s: closing shareholders" % self)
         dl = []
         for shareid in self.landlords:
-            d = self.landlords[shareid].callRemote("close")
+            d = self.landlords[shareid].close()
             d.addErrback(self._remove_shareholder, shareid, "close")
             dl.append(d)
         return self._gather_responses(dl)
