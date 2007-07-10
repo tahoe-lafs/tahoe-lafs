@@ -1,0 +1,3 @@
+[paste.filter_app_factory]
+json = simplejson.jsonfilter:factory
+
