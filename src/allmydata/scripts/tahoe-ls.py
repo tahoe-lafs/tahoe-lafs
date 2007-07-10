@@ -1,6 +1,6 @@
 #! /usr/bin/python
 
-import optparse, sys, urllib
+import optparse, urllib
 import simplejson
 
 def GET(url, outf):
