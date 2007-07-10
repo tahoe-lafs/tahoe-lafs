@@ -18,8 +18,8 @@ if len(args) == 1 or args[1] == "-":
 else:
     targfname = args[1]
 
-base = "http://tahoebs1.allmydata.com:8011/"
-base += "vdrive/"
+base = options.server
+base += "/vdrive/"
 base += options.vdrive
 base += "/"
 
