@@ -14,6 +14,7 @@ the appropriate options to ``use_setuptools()``.
 This file can also be run as a script to install or upgrade setuptools.
 """
 import sys
+
 DEFAULT_VERSION = "0.6c5"
 DEFAULT_URL     = "http://cheeseshop.python.org/packages/%s/s/setuptools/" % sys.version[:3]
 
@@ -57,17 +58,14 @@ def _validate_md5(egg_name, data):
 
 
 def use_setuptools(
-    version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir,
-    download_delay=15
+    version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir, min_version=None
 ):
     """Automatically find/download setuptools and make it available on sys.path
 
     `version` should be a valid setuptools version number that is available
     as an egg for download under the `download_base` URL (which should end with
     a '/').  `to_dir` is the directory where setuptools will be downloaded, if
-    it is not already available.  If `download_delay` is specified, it should
-    be the number of seconds that will be paused before initiating a download,
-    should one be required.  If an older version of setuptools is installed,
+    it is not already available.  If an older version of setuptools is installed,
     this routine will print a message to ``sys.stderr`` and raise SystemExit in
     an attempt to abort the calling script.
     """
@@ -80,13 +78,15 @@ def use_setuptools(
             )
             sys.exit(2)
     except ImportError:
-        egg = download_setuptools(version, download_base, to_dir, download_delay)
+        egg = download_setuptools(version, download_base, to_dir)
         sys.path.insert(0, egg)
         import setuptools; setuptools.bootstrap_install_from = egg
 
     import pkg_resources
     try:
-        pkg_resources.require("setuptools>="+version)
+        if not min_version:
+            min_version = version
+        pkg_resources.require("setuptools>="+min_version)
 
     except pkg_resources.VersionConflict, e:
         # XXX could we install in a subprocess here?
@@ -94,19 +94,17 @@ def use_setuptools(
             "The required version of setuptools (>=%s) is not available, and\n"
             "can't be installed while this script is running. Please install\n"
             " a more recent version first.\n\n(Currently using %r)"
-        ) % (version, e.args[0])
+        ) % (min_version, e.args[0])
         sys.exit(2)
 
 def download_setuptools(
-    version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir,
-    delay = 15
+    version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir
 ):
     """Download setuptools from a specified location and return its filename
 
     `version` should be a valid setuptools version number that is available
     as an egg for download under the `download_base` URL (which should end
     with a '/'). `to_dir` is the directory where the egg will be downloaded.
-    `delay` is the number of seconds to pause before an actual download attempt.
     """
     import urllib2, shutil
     egg_name = "setuptools-%s-py%s.egg" % (version,sys.version[:3])
@@ -116,14 +114,13 @@ def download_setuptools(
     if not os.path.exists(saveto):  # Avoid repeated downloads
         try:
             from distutils import log
-            if delay:
+            if True:
                 log.warn("""
 ---------------------------------------------------------------------------
 This script requires setuptools version %s to run (even to display
 help).  I will attempt to download it for you (from
 %s), but
 you may need to enable firewall access for this script first.
-I will start the download in %d seconds.
 
 (Note: if this machine does not have network access, please obtain the file
 
@@ -131,8 +128,8 @@ I will start the download in %d seconds.
 
 and place it in this directory before rerunning this script.)
 ---------------------------------------------------------------------------""",
-                    version, download_base, delay, url
-                ); from time import sleep; sleep(delay)
+                    version, download_base, url
+                );
             log.warn("Downloading %s", url)
             src = urllib2.urlopen(url)
             # Read/write all in one block, so we don't create a corrupt file
@@ -152,7 +149,7 @@ def main(argv, version=DEFAULT_VERSION):
     except ImportError:
         egg = None
         try:
-            egg = download_setuptools(version, delay=0)
+            egg = download_setuptools(version)
             sys.path.insert(0,egg)
             from setuptools.command.easy_install import main
             return main(list(argv)+[egg])   # we're done here
@@ -173,7 +170,7 @@ def main(argv, version=DEFAULT_VERSION):
             from setuptools.command.easy_install import main
         except ImportError:
             from easy_install import main
-        main(list(argv)+[download_setuptools(delay=0)])
+        main(list(argv)+[download_setuptools()])
         sys.exit(0) # try to force an exit
     else:
         if argv:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import ez_setup
-ez_setup.use_setuptools()
+ez_setup.use_setuptools(min_version="0.6c3")
 
 from setuptools import setup, find_packages, Extension, Feature
 from distutils.command.build_ext import build_ext
