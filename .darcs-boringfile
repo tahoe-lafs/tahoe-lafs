@@ -63,7 +63,7 @@
 ^src/zfec/zfec.egg-info($|/)
 ^src/simplejson/build($|/)
 ^src/simplejson/dist($|/)
-^src/simplejson/simplejson\.egg-info/native_libs\.txt$
+^src/simplejson/simplejson\.egg-info($|/)
 
 # this file is maintained by the buildbot
 ^\.buildbot-sourcedata$
