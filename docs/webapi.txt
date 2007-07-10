@@ -98,7 +98,7 @@ for files and directories which do not yet exist.
    [ 'filenode', { 'mutable': bool, 'uri': file_uri, 'size': bytes } ]
 
 
- GET FILEURL?localfile=$FILENAME
+ GET FILEURL?t=download&localfile=$FILENAME
 
   This instructs the client to download the given file and write its contents
   into the local filesystem at $FILENAME. This request will only be accepted
@@ -109,7 +109,7 @@ for files and directories which do not yet exist.
    (thoughts: we could use either the response headers or the response body
    to indicate download progress)
 
- PUT NEWFILEURL?localfile=$FILENAME
+ PUT NEWFILEURL?t=upload&localfile=$FILENAME
 
   This uploads file to the vdrive and gets the contents from a file in the
   client's local filesystem. As with GET, this request will only be accepted
@@ -191,7 +191,7 @@ for files and directories which do not yet exist.
   vdrive to its original state (it may leave some intermediate directory
   nodes).
 
- GET DIRURL?localdir=$DIRNAME
+ GET DIRURL?t=download&localdir=$DIRNAME
 
   This instructs the client to perform a recursive download of the given
   directory and all its descendant files and directories, writing the results
@@ -200,7 +200,7 @@ for files and directories which do not yet exist.
   (thoughts: we could use the response headers or the response body to
   indicate download progress)
 
- PUT NEWDIRURL?localdir=$DIRNAME
+ PUT NEWDIRURL?t=upload&localdir=$DIRNAME
 
   This instructs the client to perform a recursive upload of a directory on
   the local filesystem into the vdrive at the given location. NEWDIRURL will
@@ -213,7 +213,7 @@ for files and directories which do not yet exist.
   Note that the "curl" utility can be used to provoke this sort of recursive
   upload, since the -T option will make it use an HTTP 'PUT':
 
-   curl -T /dev/null http://localhost:8011/vdrive/global/newdir?localdir=/home/user/directory-to-upload'
+   curl -T /dev/null 'http://localhost:8011/vdrive/global/newdir?t=upload&localdir=/home/user/directory-to-upload'
 
 
 == POST Forms ==

@@ -407,7 +407,8 @@ class Web(unittest.TestCase):
     def test_GET_FILEURL_localfile(self): # YES
         localfile = os.path.abspath("web/GET_FILEURL_localfile")
         fileutil.make_dirs("web")
-        d = self.GET("/vdrive/global/foo/bar.txt?localfile=%s" % localfile)
+        d = self.GET("/vdrive/global/foo/bar.txt?t=download&localfile=%s"
+                     % localfile)
         def _done(res):
             self.failUnless(os.path.exists(localfile))
             data = open(localfile, "rb").read()
@@ -423,7 +424,8 @@ class Web(unittest.TestCase):
         webish.LOCALHOST = "127.0.0.2"
         localfile = os.path.abspath("web/GET_FILEURL_localfile_nonlocal")
         fileutil.make_dirs("web")
-        d = self.GET("/vdrive/global/foo/bar.txt?localfile=%s" % localfile)
+        d = self.GET("/vdrive/global/foo/bar.txt?t=download&localfile=%s"
+                     % localfile)
         d.addBoth(self.shouldFail, error.Error, "localfile non-local",
                   "403 Forbidden")
         def _check(res):
@@ -438,7 +440,8 @@ class Web(unittest.TestCase):
     def test_GET_FILEURL_localfile_nonabsolute(self): # YES
         localfile = "web/nonabsolute/path"
         fileutil.make_dirs("web/nonabsolute")
-        d = self.GET("/vdrive/global/foo/bar.txt?localfile=%s" % localfile)
+        d = self.GET("/vdrive/global/foo/bar.txt?t=download&localfile=%s"
+                     % localfile)
         d.addBoth(self.shouldFail, error.Error, "localfile non-absolute",
                   "403 Forbidden")
         def _check(res):
@@ -452,7 +455,8 @@ class Web(unittest.TestCase):
         f = open(localfile, "wb")
         f.write(self.NEWFILE_CONTENTS)
         f.close()
-        d = self.PUT("/vdrive/global/foo/new.txt?localfile=%s" % localfile, "")
+        d = self.PUT("/vdrive/global/foo/new.txt?t=upload&localfile=%s" %
+                     localfile, "")
         def _check(res):
             self.failUnless("new.txt" in self._foo_node.children)
             new_uri = self._foo_node.children["new.txt"]
@@ -468,8 +472,8 @@ class Web(unittest.TestCase):
         f = open(localfile, "wb")
         f.write(self.NEWFILE_CONTENTS)
         f.close()
-        d = self.PUT("/vdrive/global/foo/newdir/new.txt?localfile=%s" %
-                     localfile, "")
+        d = self.PUT("/vdrive/global/foo/newdir/new.txt?t=upload&localfile=%s"
+                     % localfile, "")
         def _check(res):
             self.failIf("new.txt" in self._foo_node.children)
             self.failUnless("newdir" in self._foo_node.children)
@@ -639,7 +643,7 @@ class Web(unittest.TestCase):
     def test_GET_DIRURL_localdir(self): # YES
         localdir = os.path.abspath("web/GET_DIRURL_localdir")
         fileutil.make_dirs("web")
-        d = self.GET("/vdrive/global/foo?localdir=%s" % localdir)
+        d = self.GET("/vdrive/global/foo?t=download&localdir=%s" % localdir)
         def _check(res):
             barfile = os.path.join(localdir, "bar.txt")
             self.failUnless(os.path.exists(barfile))
@@ -684,7 +688,8 @@ class Web(unittest.TestCase):
         self.touch(localdir, "three/bar.txt")
         self.touch(localdir, "zap.zip")
 
-        d = self.PUT("/vdrive/global/foo/newdir?localdir=%s" % localdir, "")
+        d = self.PUT("/vdrive/global/foo/newdir?t=upload&localdir=%s"
+                     % localdir, "")
         def _check(res):
             self.failUnless("newdir" in self._foo_node.children)
             newnode = self.nodes[self._foo_node.children["newdir"]]
@@ -713,7 +718,8 @@ class Web(unittest.TestCase):
         self.touch(localdir, "three/bar.txt")
         self.touch(localdir, "zap.zip")
 
-        d = self.PUT("/vdrive/global/foo/subdir/newdir?localdir=%s" % localdir,
+        d = self.PUT("/vdrive/global/foo/subdir/newdir?t=upload&localdir=%s"
+                     % localdir,
                      "")
         def _check(res):
             self.failUnless("subdir" in self._foo_node.children)

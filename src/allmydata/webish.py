@@ -525,11 +525,14 @@ class PUTHandler(rend.Page):
         # we must traverse the path, creating new directories as necessary
         d = self._get_or_create_directories(self._node, self._path[:-1])
         name = self._path[-1]
-        if localfile:
-            d.addCallback(self._upload_localfile, localfile, name)
-        elif localdir:
-            d.addCallback(self._get_or_create_directories, self._path[-1:])
-            d.addCallback(self._upload_localdir, localdir)
+        if t == "upload":
+            if localfile:
+                d.addCallback(self._upload_localfile, localfile, name)
+            elif localdir:
+                d.addCallback(self._get_or_create_directories, self._path[-1:])
+                d.addCallback(self._upload_localdir, localdir)
+            else:
+                raise RuntimeError("t=upload requires localfile= or localdir=")
         elif t == "uri":
             d.addCallback(self._attach_uri, req.content, name)
         elif t == "mkdir":
@@ -702,9 +705,12 @@ class VDrive(rend.Page):
                         filename = path[-1]
                     if "filename" in req.args:
                         filename = req.args["filename"][0]
-                    if localfile:
-                        # write contents to a local file
-                        return LocalFileDownloader(node, localfile), ()
+                    if t == "download":
+                        if localfile:
+                            # write contents to a local file
+                            return LocalFileDownloader(node, localfile), ()
+                        # send contents as the result
+                        return FileDownloader(node, filename), ()
                     elif t == "":
                         # send contents as the result
                         return FileDownloader(node, filename), ()
@@ -717,9 +723,11 @@ class VDrive(rend.Page):
                     else:
                         raise RuntimeError("bad t=%s" % t)
                 elif IDirectoryNode.providedBy(node):
-                    if localdir:
-                        # recursive download to a local directory
-                        return LocalDirectoryDownloader(node, localdir), ()
+                    if t == "download":
+                        if localdir:
+                            # recursive download to a local directory
+                            return LocalDirectoryDownloader(node, localdir), ()
+                        raise RuntimeError("t=download requires localdir=")
                     elif t == "":
                         # send an HTML representation of the directory
                         return Directory(self.name, node, path), ()
