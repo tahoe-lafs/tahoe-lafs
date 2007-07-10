@@ -58,7 +58,7 @@ PP=PYTHONPATH=$(PYTHONPATH)
 make-version:
 	$(PYTHON) misc/make-version.py
 
-build: make-version build-zfec build-Crypto build-foolscap
+build: make-version build-zfec build-Crypto build-foolscap build-simplejson
 	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="$(INSTDIR)" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
 
 build-zfec:
@@ -68,6 +68,10 @@ build-zfec:
 build-foolscap:
 	cd src/foolscap && \
 	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="$(INSTDIR)" --record="$(INSTDIR)/foolscap_install.log" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
+
+build-simplejson:
+	cd src/simplejson && \
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="$(INSTDIR)" --record="$(INSTDIR)/simplejson_install.log" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
 
 build-Crypto:
 	cd src/Crypto && \
