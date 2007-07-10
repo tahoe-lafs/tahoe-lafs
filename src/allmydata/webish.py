@@ -7,7 +7,7 @@ from twisted.internet import defer
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from allmydata.util import idlib, fileutil
-from allmydata.util.json_encoder import JSONEncoder
+import simplejson
 from allmydata.uri import unpack_uri, is_dirnode_uri
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode
 from allmydata import upload, download
@@ -308,7 +308,7 @@ class FileJSONMetadata(rend.Page):
                  'uri': file_uri,
                  'size': pieces['size'],
                  })
-        return JSONEncoder(indent=1).encode(data)
+        return simplejson.dumps(data, indent=1)
 
 class FileURI(FileJSONMetadata):
     def renderNode(self, filenode):
@@ -412,7 +412,7 @@ class DirectoryJSONMetadata(rend.Page):
                          'uri': node.get_uri(),
                          }
             data = ("dirnode", contents)
-            return JSONEncoder(indent=1).encode(data)
+            return simplejson.dumps(data, indent=1)
         d.addCallback(_got)
         return d
 
