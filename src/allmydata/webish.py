@@ -158,7 +158,7 @@ class Directory(rend.Page):
             T.input(type="hidden", name="when_done", value=url.here),
             T.legend(class_="freeform-form-label")["Attach a file or directory"
                                                    " (by URI) to this"
-                                                   "directory"],
+                                                   " directory"],
             "New child name: ",
             T.input(type="text", name="name"), " ",
             "URI of new child: ",
