@@ -76,6 +76,8 @@ for files and directories which do not yet exist.
   specification (rfc2068), this should return a 200 (OK) code when modifying
   and existing file, and a 201 (Created) code when creating a new file.
 
+  To use this, run 'curl -T localfile http://localhost:8011/vdrive/global/newfile'
+
  DELETE FILEURL
 
   This deletes the given file from the vdrive. Note that this *does not*
@@ -207,6 +209,11 @@ for files and directories which do not yet exist.
   were present in DIRNAME, so this is equivalent to the unix commands:
 
    mkdir -p NEWDIRURL; cp -r DIRNAME/* NEWDIRURL/
+
+  Note that the "curl" utility can be used to provoke this sort of recursive
+  upload, since the -T option will make it use an HTTP 'PUT':
+
+   curl -T /dev/null http://localhost:8011/vdrive/global/newdir?localdir=/home/user/directory-to-upload'
 
 
 == POST Forms ==
