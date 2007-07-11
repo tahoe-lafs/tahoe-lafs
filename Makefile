@@ -257,10 +257,19 @@ setup-deb: is-known-debian-arch
 	ln -s misc/$(TAHOE_ARCH)/debian debian
 	chmod +x debian/rules
 
-deb-ARCH: is-known-debian-arch setup-deb
-	fakeroot debian/rules binary
+deb-foolscap-ARCH: is-known-debian-arch
 	$(MAKE) -C src/foolscap debian-$(FOOLSCAP_ARCH)
 	mv src/python-foolscap*.deb ..
+
+# etch (current debian stable) has python-simplejson-1.3
+# sid (debian unstable) currently has python-simplejson 1.7.1
+# edgy has 1.3
+# feisty has 1.4
+# gutsy has 1.7.1
+
+deb-ARCH: is-known-debian-arch setup-deb
+	fakeroot debian/rules binary
+	$(MAKE) deb-foolscap-ARCH
 	echo
 	echo "The newly built .deb packages are in the parent directory from here."
 
