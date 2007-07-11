@@ -30,38 +30,30 @@ def testtwistd(loc):
         return subprocess.call(["python", loc,], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except:
         return -1
-    
-twistd = None
-if not twistd:
+
+def find_twistd():
     for maybetwistd in which("twistd"):
         ret = testtwistd(maybetwistd)
         if ret == 0:
-            twistd = maybetwistd
-            break
+            return maybetwistd
 
-if not twistd:
     for maybetwistd in which("twistd.py"):
         ret = testtwistd(maybetwistd)
         if ret == 0:
-            twistd = maybetwistd
-            break
+            return maybetwistd
 
-if not twistd:
     maybetwistd = os.path.join(sys.prefix, 'Scripts', 'twistd')
     ret = testtwistd(maybetwistd)
     if ret == 0:
-        twistd = maybetwistd
+        return maybetwistd
 
-if not twistd:
     maybetwistd = os.path.join(sys.prefix, 'Scripts', 'twistd.py')
     ret = testtwistd(maybetwistd)
     if ret == 0:
-        twistd = maybetwistd
+        return maybetwistd
 
-if not twistd:
     print "Can't find twistd (it comes with Twisted).  Aborting."
     sys.exit(1)
-
 
 
 def do_start(basedir, config, out=sys.stdout, err=sys.stderr):
@@ -77,6 +69,7 @@ def do_start(basedir, config, out=sys.stdout, err=sys.stderr):
         if not os.path.isdir(basedir):
             print >>err, " in fact, it doesn't look like a directory at all!"
         sys.exit(1)
+    twistd = find_twistd()
     rc = subprocess.call(["python", twistd, "-y", tac,], cwd=basedir)
     if rc == 0:
         print >>out, "%s node probably started" % type
