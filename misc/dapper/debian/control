@@ -7,6 +7,6 @@ Standards-Version: 3.7.2
 
 Package: allmydata-tahoe
 Architecture: all
-Depends: python (>= 2.4), python (<< 2.5), python2.4-foolscap, python-twisted, python-nevow, python-pyopenssl
+Depends: python (>= 2.4), python (<< 2.5), python2.4-foolscap, python-twisted, python-nevow, python-pyopenssl, python-simplejson
 Description: A secure distributed filestore
  Allmydata (tahoe2)
