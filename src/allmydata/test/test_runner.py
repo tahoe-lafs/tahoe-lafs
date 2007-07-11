@@ -4,7 +4,7 @@ from twisted.trial import unittest
 from cStringIO import StringIO
 from twisted.python import usage
 import os.path
-from allmydata.scripts import runner
+from allmydata.scripts import runner, debug
 from allmydata.util import fileutil
 
 class CreateNode(unittest.TestCase):
@@ -92,7 +92,8 @@ class CreateNode(unittest.TestCase):
 class Diagnostics(unittest.TestCase):
     def test_dump_root_dirnode_failure(self):
         s = StringIO()
-        rc = runner.dump_root_dirnode("missing_basedir", {}, s)
+        config = {'basedirs': ["missing_basedir"]}
+        rc = debug.dump_root_dirnode(config, s)
         output = s.getvalue()
         self.failUnless("unable to read root dirnode file from" in output)
         self.failIfEqual(rc, 0)

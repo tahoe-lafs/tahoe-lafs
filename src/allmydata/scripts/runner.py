@@ -1,10 +1,11 @@
-#! /usr/bin/env python
 
 import os, subprocess, sys, signal, time
 from cStringIO import StringIO
 from twisted.python import usage
 
 from twisted.python.procutils import which
+from allmydata.scripts import debug
+from allmydata.scripts.common import BasedirMixin, NoDefaultBasedirMixin
 
 def testtwistd(loc):
     try:
@@ -43,49 +44,6 @@ if not twistd:
     print "Can't find twistd (it comes with Twisted).  Aborting."
     sys.exit(1)
 
-class BasedirMixin:
-    optFlags = [
-        ["multiple", "m", "allow multiple basedirs to be specified at once"],
-        ]
-
-    def postOptions(self):
-        if not self.basedirs:
-            raise usage.UsageError("<basedir> parameter is required")
-        if self['basedir']:
-            del self['basedir']
-        self['basedirs'] = [os.path.abspath(os.path.expanduser(b))
-                            for b in self.basedirs]
-
-    def parseArgs(self, *args):
-        self.basedirs = []
-        if self['basedir']:
-            self.basedirs.append(self['basedir'])
-        if self['multiple']:
-            self.basedirs.extend(args)
-        else:
-            if len(args) == 0 and not self.basedirs:
-                self.basedirs.append(".")
-            if len(args) > 0:
-                self.basedirs.append(args[0])
-            if len(args) > 1:
-                raise usage.UsageError("I wasn't expecting so many arguments")
-
-class NoDefaultBasedirMixin(BasedirMixin):
-    def parseArgs(self, *args):
-        # create-client won't default to --basedir=.
-        self.basedirs = []
-        if self['basedir']:
-            self.basedirs.append(self['basedir'])
-        if self['multiple']:
-            self.basedirs.extend(args)
-        else:
-            if len(args) > 0:
-                self.basedirs.append(args[0])
-            if len(args) > 1:
-                raise usage.UsageError("I wasn't expecting so many arguments")
-        if not self.basedirs:
-            raise usage.UsageError("--basedir must be provided")
-
 class StartOptions(BasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to start the node in"],
@@ -115,43 +73,6 @@ class CreateIntroducerOptions(NoDefaultBasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to create the introducer in"],
         ]
-
-class DumpOptions(usage.Options):
-    optParameters = [
-        ["filename", "f", None, "which file to dump"],
-        ]
-
-    def parseArgs(self, filename=None):
-        if filename:
-            self['filename'] = filename
-
-    def postOptions(self):
-        if not self['filename']:
-            raise usage.UsageError("<filename> parameter is required")
-
-class DumpRootDirnodeOptions(BasedirMixin, usage.Options):
-    optParameters = [
-        ["basedir", "C", None, "the vdrive-server's base directory"],
-        ]
-
-class DumpDirnodeOptions(BasedirMixin, usage.Options):
-    optParameters = [
-        ["uri", "u", None, "the URI of the dirnode to dump."],
-        ["basedir", "C", None, "which directory to create the introducer in"],
-        ]
-    optFlags = [
-        ["verbose", "v", "be extra noisy (show encrypted data)"],
-        ]
-    def parseArgs(self, *args):
-        if len(args) == 1:
-            self['uri'] = args[-1]
-            args = args[:-1]
-        BasedirMixin.parseArgs(self, *args)
-
-    def postOptions(self):
-        BasedirMixin.postOptions(self)
-        if not self['uri']:
-            raise usage.UsageError("<uri> parameter is required")
 
 client_tac = """
 # -*- python -*-
@@ -190,13 +111,7 @@ class Options(usage.Options):
         ["start", None, StartOptions, "Start a node (of any type)."],
         ["stop", None, StopOptions, "Stop a node."],
         ["restart", None, RestartOptions, "Restart a node."],
-        ["dump-uri-extension", None, DumpOptions,
-         "Unpack and display the contents of a uri_extension file."],
-        ["dump-root-dirnode", None, DumpRootDirnodeOptions,
-         "Compute most of the URI for the vdrive server's root dirnode."],
-        ["dump-dirnode", None, DumpDirnodeOptions,
-         "Unpack and display the contents of a vdrive DirectoryNode."],
-        ]
+        ] + debug.subCommands
 
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
@@ -245,12 +160,9 @@ def runner(argv, run_by_human=True, stdout=sys.stdout, stderr=sys.stderr):
             return rc
         for basedir in so.basedirs:
             rc = start(basedir, so, stdout, stderr) or rc
-    elif command == "dump-uri-extension":
-        rc = dump_uri_extension(so, stdout, stderr)
-    elif command == "dump-root-dirnode":
-        rc = dump_root_dirnode(so.basedirs[0], so, stdout, stderr)
-    elif command == "dump-dirnode":
-        rc = dump_directory_node(so.basedirs[0], so, stdout, stderr)
+    elif command in debug.dispatch:
+        rc = debug.dispatch[command](so, stdout, stderr)
+
     return rc
 
 def run():
@@ -332,105 +244,3 @@ def stop(basedir, config, out=sys.stdout, err=sys.stderr):
         time.sleep(1)
     print >>err, "never saw process go away"
     return 1
-
-def dump_uri_extension(config, out=sys.stdout, err=sys.stderr):
-    from allmydata import uri
-
-    filename = config['filename']
-    unpacked = uri.unpack_extension_readable(open(filename,"rb").read())
-    keys1 = ("size", "num_segments", "segment_size",
-             "needed_shares", "total_shares")
-    keys2 = ("codec_name", "codec_params", "tail_codec_params")
-    keys3 = ("plaintext_hash", "plaintext_root_hash",
-             "crypttext_hash", "crypttext_root_hash",
-             "share_root_hash")
-    for k in keys1:
-        if k in unpacked:
-            print >>out, "%19s: %s" % (k, unpacked[k])
-    print >>out
-    for k in keys2:
-        if k in unpacked:
-            print >>out, "%19s: %s" % (k, unpacked[k])
-    print >>out
-    for k in keys3:
-        if k in unpacked:
-            print >>out, "%19s: %s" % (k, unpacked[k])
-
-    leftover = set(unpacked.keys()) - set(keys1 + keys2 + keys3)
-    if leftover:
-        print >>out
-        for k in sorted(leftover):
-            print >>out, "%s: %s" % (k, unpacked[k])
-
-    print >>out
-    return 0
-
-def dump_root_dirnode(basedir, config, out=sys.stdout, err=sys.stderr):
-    from allmydata import uri
-
-    root_dirnode_file = os.path.join(basedir, "vdrive", "root")
-    try:
-        f = open(root_dirnode_file, "rb")
-        key = f.read()
-        rooturi = uri.pack_dirnode_uri("fakeFURL", key)
-        print >>out, rooturi
-        return 0
-    except EnvironmentError:
-        print >>out,  "unable to read root dirnode file from %s" % \
-              root_dirnode_file
-        return 1
-
-def dump_directory_node(basedir, config, out=sys.stdout, err=sys.stderr):
-    from allmydata import uri, dirnode
-    from allmydata.util import hashutil, idlib
-    dir_uri = config['uri']
-    verbose = config['verbose']
-
-    furl, key = uri.unpack_dirnode_uri(dir_uri)
-    if uri.is_mutable_dirnode_uri(dir_uri):
-        wk, we, rk, index = hashutil.generate_dirnode_keys_from_writekey(key)
-    else:
-        wk, we, rk, index = hashutil.generate_dirnode_keys_from_readkey(key)
-
-    filename = os.path.join(basedir, "vdrive", idlib.b2a(index))
-
-    print >>out
-    print >>out, "dirnode uri: %s" % dir_uri
-    print >>out, "filename : %s" % filename
-    print >>out, "index        : %s" % idlib.b2a(index)
-    if wk:
-        print >>out, "writekey     : %s" % idlib.b2a(wk)
-        print >>out, "write_enabler: %s" % idlib.b2a(we)
-    else:
-        print >>out, "writekey     : None"
-        print >>out, "write_enabler: None"
-    print >>out, "readkey      : %s" % idlib.b2a(rk)
-
-    print >>out
-
-    vds = dirnode.VirtualDriveServer(os.path.join(basedir, "vdrive"), False)
-    data = vds._read_from_file(index)
-    if we:
-        if we != data[0]:
-            print >>out, "ERROR: write_enabler does not match"
-
-    for (H_key, E_key, E_write, E_read) in data[1]:
-        if verbose:
-            print >>out, " H_key %s" % idlib.b2a(H_key)
-            print >>out, " E_key %s" % idlib.b2a(E_key)
-            print >>out, " E_write %s" % idlib.b2a(E_write)
-            print >>out, " E_read %s" % idlib.b2a(E_read)
-        key = dirnode.decrypt(rk, E_key)
-        print >>out, " key %s" % key
-        if hashutil.dir_name_hash(rk, key) != H_key:
-            print >>out, "  ERROR: H_key does not match"
-        if wk and E_write:
-            if len(E_write) < 14:
-                print >>out, "  ERROR: write data is short:", idlib.b2a(E_write)
-            write = dirnode.decrypt(wk, E_write)
-            print >>out, "   write: %s" % write
-        read = dirnode.decrypt(rk, E_read)
-        print >>out, "   read: %s" % read
-        print >>out
-
-    return 0
