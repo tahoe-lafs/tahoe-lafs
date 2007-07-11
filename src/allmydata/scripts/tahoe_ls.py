@@ -3,10 +3,6 @@
 import urllib
 import simplejson
 
-def GET(url, outf):
-    f = urllib.urlopen(url)
-    outf.write(f.read())
-
 def list(server, vdrive, vdrive_file):
 
     if server[-1] != "/":
@@ -15,7 +11,6 @@ def list(server, vdrive, vdrive_file):
     if vdrive_file:
         url += vdrive_file
     url += "?t=json"
-    print "URL:", url
     data = urllib.urlopen(url).read()
 
     parsed = simplejson.loads(data)
