@@ -213,85 +213,82 @@ DEBCOMMENTS="'make deb' build"
 show-version:
 	@echo $(VER)
 
-.PHONY: setup-dapper setup-sid setup-edgy setup-feisty setup-etch
-.PHONY: deb-dapper deb-sid deb-edgy deb-feisty deb-etch
+.PHONY: setup-deb deb-ARCH is-known-debian-arch
+.PHONY: deb-dapper deb-sid deb-feisty deb-edgy deb-etch
+
+deb-dapper:
+	$(MAKE) deb-ARCH ARCH=dapper
+deb-sid:
+	$(MAKE) deb-ARCH ARCH=sid
+deb-feisty:
+	$(MAKE) deb-ARCH ARCH=feisty
+# edgy uses the feisty control files for now
+deb-edgy:
+	$(MAKE) deb-ARCH ARCH=edgy TAHOE_ARCH=feisty
+# etch uses the feisty control files for now
+deb-etch:
+	$(MAKE) deb-ARCH ARCH=etch FOOLSCAP_ARCH=sid TAHOE_ARCH=feisty
+
+# we know how to handle the following debian architectures
+KNOWN_DEBIAN_ARCHES := dapper sid feisty edgy etch
+
+ifeq ($(findstring x-$(ARCH)-x,$(foreach arch,$(KNOWN_DEBIAN_ARCHES),"x-$(arch)-x")),)
+is-known-debian-arch:
+	@echo "ARCH must be set when using setup-deb or deb-ARCH"
+	@echo "I know how to handle:" $(KNOWN_DEBIAN_ARCHES)
+	/bin/false
+else
+is-known-debian-arch:
+	/bin/true
+endif
+
+ifndef FOOLSCAP_ARCH
+FOOLSCAP_ARCH=$(ARCH)
+endif
+ifndef TAHOE_ARCH
+TAHOE_ARCH=$(ARCH)
+endif
+
+setup-deb: is-known-debian-arch
+	rm -f debian
+	ln -s misc/$(TAHOE_ARCH)/debian debian
+	chmod +x debian/rules
+
+deb-ARCH: is-known-debian-arch setup-deb
+	fakeroot debian/rules binary
+	$(MAKE) -C src/foolscap debian-$(FOOLSCAP_ARCH)
+	mv src/python-foolscap*.deb ..
+	echo
+	echo "The newly built .deb packages are in the parent directory from here."
+
 .PHONY: increment-deb-version
 .PHONY: deb-dapper-head deb-sid-head deb-edgy-head deb-feisty-head
 .PHONY: deb-etch-head
 
-setup-dapper:
-	rm -f debian
-	ln -s misc/dapper/debian debian
-	chmod a+x debian/rules
-
-setup-sid:
-	rm -f debian
-	ln -s misc/sid/debian debian
-	chmod a+x debian/rules
-
-# edgy uses the feisty control files for now
-setup-edgy:
-	rm -f debian
-	ln -s misc/feisty/debian debian
-	chmod a+x debian/rules
-
-setup-feisty:
-	rm -f debian
-	ln -s misc/feisty/debian debian
-	chmod a+x debian/rules
-
-# etch uses the fesity control files for now
-setup-etch:
-	rm -f debian
-	ln -s misc/feisty/debian debian
-	chmod a+x debian/rules
-
-
-deb-dapper: setup-dapper
-	fakeroot debian/rules binary && \
-	make -C src/foolscap debian-dapper && \
-	mv src/python-foolscap*.deb .. && \
-	echo && \
-	echo "The newly built .deb packages are in the parent directory from here."
-
-deb-sid: setup-sid
-	fakeroot debian/rules binary && \
-	make -C src/foolscap debian-sid && \
-	mv src/python-foolscap*.deb .. && \
-	echo && \
-	echo "The newly built .deb packages are in the parent directory from here."
-
-deb-edgy: setup-edgy
-	fakeroot debian/rules binary && \
-	make -C src/foolscap debian-edgy && \
-	mv src/python-foolscap*.deb .. && \
-	echo && \
-	echo "The newly built .deb packages are in the parent directory from here."
-
-deb-feisty: setup-feisty
-	fakeroot debian/rules binary && \
-	make -C src/foolscap debian-feisty && \
-	mv src/python-foolscap*.deb .. && \
-	echo && \
-	echo "The newly built .deb packages are in the parent directory from here."
-
-deb-etch: setup-etch
-	fakeroot debian/rules binary && \
-	make -C src/foolscap debian-sid && \
-	mv src/python-foolscap*.deb .. && \
-	echo && \
-	echo "The newly built .deb packages are in the parent directory from here."
+# The buildbot runs the following targets after each change, to produce
+# up-to-date tahoe .debs. These steps do not create foolscap or simplejson
+# .debs, only the deb-$ARCH targets (above) do that.
 
 increment-deb-version: make-version
 	debchange --newversion $(VER) $(DEBCOMMENTS)
-deb-dapper-head: setup-dapper increment-deb-version
+deb-dapper-head:
+	$(MAKE) setup-deb ARCH=dapper
+	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
-deb-sid-head: setup-sid increment-deb-version
+deb-sid-head:
+	$(MAKE) setup-deb ARCH=sid
+	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
-deb-edgy-head: setup-edgy increment-deb-version
+deb-edgy-head:
+	$(MAKE) setup-deb ARCH=edgy
+	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
-deb-feisty-head: setup-feisty increment-deb-version
+deb-feisty-head:
+	$(MAKE) setup-deb ARCH=feisty
+	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
-deb-etch-head: setup-etch increment-deb-version
+deb-etch-head:
+	$(MAKE) setup-deb ARCH=etch
+	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 
