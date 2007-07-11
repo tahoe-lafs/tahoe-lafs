@@ -1,3 +1,6 @@
+
+# this Makefile requires GNU make
+
 default: build
 
 BASE=$(shell pwd)
