@@ -83,13 +83,8 @@ class Directory(rend.Page):
             delete = "-"
         ctx.fillSlots("delete", delete)
 
+        # build the base of the uri_link link url
         uri_link = urllib.quote(target.get_uri().replace("/", "!"))
-        childdata = [T.a(href="%s?t=json" % name)["JSON"], ", ",
-                     T.a(href="%s?t=uri" % name)["URI"], ", ",
-                     T.a(href="%s?t=readonly-uri" % name)["readonly-URI"], ", ",
-                     T.a(href="/uri/%s" % uri_link)["URI-link"],
-                     ]
-        ctx.fillSlots("data", childdata)
 
         if IFileNode.providedBy(target):
             # file
@@ -112,6 +107,9 @@ class Directory(rend.Page):
                 size = "?"
             ctx.fillSlots("size", size)
 
+            # if we're a file, add the filename to the uri_link url
+            uri_link += '?%s' % (urllib.urlencode({'filename': name}),)
+
         elif IDirectoryNode.providedBy(target):
             # directory
             subdir_url = urllib.quote(name)
@@ -125,6 +123,14 @@ class Directory(rend.Page):
             ctx.fillSlots("size", "-")
         else:
             raise RuntimeError("unknown thing %s" % (target,))
+
+        childdata = [T.a(href="%s?t=json" % name)["JSON"], ", ",
+                     T.a(href="%s?t=uri" % name)["URI"], ", ",
+                     T.a(href="%s?t=readonly-uri" % name)["readonly-URI"], ", ",
+                     T.a(href="/uri/%s" % uri_link)["URI-link"],
+                     ]
+        ctx.fillSlots("data", childdata)
+
         return ctx.tag
 
     def render_forms(self, ctx, data):
