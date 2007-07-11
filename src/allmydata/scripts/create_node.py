@@ -1,0 +1,80 @@
+
+import os, sys
+from twisted.python import usage
+from allmydata.scripts.common import NoDefaultBasedirMixin
+
+class CreateClientOptions(NoDefaultBasedirMixin, usage.Options):
+    optParameters = [
+        ["basedir", "C", None, "which directory to create the client in"],
+        ]
+
+class CreateIntroducerOptions(NoDefaultBasedirMixin, usage.Options):
+    optParameters = [
+        ["basedir", "C", None, "which directory to create the introducer in"],
+        ]
+
+client_tac = """
+# -*- python -*-
+
+from allmydata import client
+from twisted.application import service
+
+c = client.Client()
+
+application = service.Application("allmydata_client")
+c.setServiceParent(application)
+"""
+
+introducer_tac = """
+# -*- python -*-
+
+from allmydata import introducer_and_vdrive
+from twisted.application import service
+
+c = introducer_and_vdrive.IntroducerAndVdrive()
+
+application = service.Application("allmydata_introducer")
+c.setServiceParent(application)
+"""
+
+def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
+    if os.path.exists(basedir):
+        if os.listdir(basedir):
+            print >>err, "The base directory already exists: %s" % basedir
+            print >>err, "To avoid clobbering anything, I am going to quit now"
+            print >>err, "Please use a different directory, or delete this one"
+            return -1
+        # we're willing to use an empty directory
+    else:
+        os.mkdir(basedir)
+    f = open(os.path.join(basedir, "client.tac"), "w")
+    f.write(client_tac)
+    f.close()
+    print >>out, "client created in %s" % basedir
+    print >>out, " please copy introducer.furl and vdrive.furl into the directory"
+
+def create_introducer(basedir, config, out=sys.stdout, err=sys.stderr):
+    if os.path.exists(basedir):
+        if os.listdir(basedir):
+            print >>err, "The base directory already exists: %s" % basedir
+            print >>err, "To avoid clobbering anything, I am going to quit now"
+            print >>err, "Please use a different directory, or delete this one"
+            return -1
+        # we're willing to use an empty directory
+    else:
+        os.mkdir(basedir)
+    f = open(os.path.join(basedir, "introducer.tac"), "w")
+    f.write(introducer_tac)
+    f.close()
+    print >>out, "introducer created in %s" % basedir
+
+subCommands = [
+    ["create-client", None, CreateClientOptions, "Create a client node."],
+    ["create-introducer", None, CreateIntroducerOptions, "Create a introducer node."],
+
+]
+
+dispatch = {
+    "create-client": create_client,
+    "create-introducer": create_introducer,
+    }
