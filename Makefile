@@ -217,10 +217,8 @@ show-version:
 	@echo $(VER)
 
 .PHONY: setup-deb deb-ARCH is-known-debian-arch
-.PHONY: deb-dapper deb-sid deb-feisty deb-edgy deb-etch
+.PHONY: deb-sid deb-feisty deb-edgy deb-etch
 
-deb-dapper:
-	$(MAKE) deb-ARCH ARCH=dapper
 deb-sid:
 	$(MAKE) deb-ARCH ARCH=sid
 deb-feisty:
@@ -233,7 +231,7 @@ deb-etch:
 	$(MAKE) deb-ARCH ARCH=etch FOOLSCAP_ARCH=sid TAHOE_ARCH=feisty
 
 # we know how to handle the following debian architectures
-KNOWN_DEBIAN_ARCHES := dapper sid feisty edgy etch
+KNOWN_DEBIAN_ARCHES := sid feisty edgy etch
 
 ifeq ($(findstring x-$(ARCH)-x,$(foreach arch,$(KNOWN_DEBIAN_ARCHES),"x-$(arch)-x")),)
 is-known-debian-arch:
@@ -274,7 +272,7 @@ deb-ARCH: is-known-debian-arch setup-deb
 	echo "The newly built .deb packages are in the parent directory from here."
 
 .PHONY: increment-deb-version
-.PHONY: deb-dapper-head deb-sid-head deb-edgy-head deb-feisty-head
+.PHONY: deb-sid-head deb-edgy-head deb-feisty-head
 .PHONY: deb-etch-head
 
 # The buildbot runs the following targets after each change, to produce
@@ -283,10 +281,6 @@ deb-ARCH: is-known-debian-arch setup-deb
 
 increment-deb-version: make-version
 	debchange --newversion $(VER) $(DEBCOMMENTS)
-deb-dapper-head:
-	$(MAKE) setup-deb ARCH=dapper
-	$(MAKE) increment-deb-version
-	fakeroot debian/rules binary
 deb-sid-head:
 	$(MAKE) setup-deb ARCH=sid
 	$(MAKE) increment-deb-version
