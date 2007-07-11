@@ -3,7 +3,7 @@ import sys
 from cStringIO import StringIO
 from twisted.python import usage
 
-from allmydata.scripts import debug, create_node, startstop_node
+from allmydata.scripts import debug, create_node, startstop_node, cli
 
 class Options(usage.Options):
     synopsis = "Usage:  allmydata <command> [command options]"
@@ -16,6 +16,7 @@ class Options(usage.Options):
     subCommands += create_node.subCommands
     subCommands += startstop_node.subCommands
     subCommands += debug.subCommands
+    subCommands += cli.subCommands
 
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
@@ -49,6 +50,8 @@ def runner(argv, run_by_human=True, stdout=sys.stdout, stderr=sys.stderr):
         rc = startstop_node.dispatch[command](so, stdout, stderr)
     elif command in debug.dispatch:
         rc = debug.dispatch[command](so, stdout, stderr)
+    elif command in cli.dispatch:
+        rc = cli.dispatch[command](so, stdout, stderr)
 
     return rc
 
