@@ -71,7 +71,7 @@ build-foolscap:
 
 build-simplejson:
 	cd src/simplejson && \
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="$(INSTDIR)" --record="$(INSTDIR)/simplejson_install.log" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
+	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --single-version-externally-managed --prefix="$(INSTDIR)" --record="$(INSTDIR)/simplejson_install.log" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
 
 build-Crypto:
 	cd src/Crypto && \
