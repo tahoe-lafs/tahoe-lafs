@@ -280,7 +280,7 @@ deb-sid-head:
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 deb-edgy-head:
-	$(MAKE) setup-deb ARCH=edgy
+	$(MAKE) setup-deb ARCH=edgy TAHOE_ARCH=feisty
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 deb-feisty-head:
@@ -288,7 +288,7 @@ deb-feisty-head:
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 deb-etch-head:
-	$(MAKE) setup-deb ARCH=etch
+	$(MAKE) setup-deb ARCH=etch TAHOE_ARCH=feisty
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 
