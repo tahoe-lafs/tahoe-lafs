@@ -65,7 +65,10 @@ class FileUploader:
         self._client = client
         self._options = options
 
-    def set_params(self, needed_shares, shares_of_happiness, total_shares):
+    def set_params(self, encoding_parameters):
+        self._encoding_parameters = encoding_parameters
+
+        needed_shares, shares_of_happiness, total_shares = encoding_parameters
         self.needed_shares = needed_shares
         self.shares_of_happiness = shares_of_happiness
         self.total_shares = total_shares
@@ -111,6 +114,7 @@ class FileUploader:
 
     def setup_encoder(self):
         self._encoder = encode.Encoder(self._options)
+        self._encoder.set_params(self._encoding_parameters)
         self._encoder.setup(self._filehandle, self._encryption_key)
         share_size = self._encoder.get_share_size()
         block_size = self._encoder.get_block_size()
@@ -313,9 +317,12 @@ class Uploader(service.MultiService):
     uploader_class = FileUploader
     URI_LIT_SIZE_THRESHOLD = 55
 
-    needed_shares = 25 # Number of shares required to reconstruct a file.
-    desired_shares = 75 # We will abort an upload unless we can allocate space for at least this many.
-    total_shares = 100 # Total number of shares created by encoding.  If everybody has room then this is is how many we will upload.
+    DEFAULT_ENCODING_PARAMETERS = (25, 75, 100)
+    # this is a tuple of (needed, desired, total). 'needed' is the number of
+    # shares required to reconstruct a file. 'desired' means that we will
+    # abort an upload unless we can allocate space for at least this many.
+    # 'total' is the total number of shares created by encoding. If everybody
+    # has room then this is is how many we will upload.
 
     def compute_id_strings(self, f):
         # return a list of (plaintext_hash, encryptionkey, crypttext_hash)
@@ -366,8 +373,10 @@ class Uploader(service.MultiService):
         else:
             u = self.uploader_class(self.parent, options)
             u.set_filehandle(fh)
-            u.set_params(self.needed_shares, self.desired_shares,
-                         self.total_shares)
+            encoding_parameters = self.parent.get_encoding_parameters()
+            if not encoding_parameters:
+                encoding_parameters = self.DEFAULT_ENCODING_PARAMETERS
+            u.set_params(encoding_parameters)
             plaintext_hash, key, crypttext_hash = self.compute_id_strings(fh)
             u.set_encryption_key(key)
             u.set_id_strings(crypttext_hash, plaintext_hash)

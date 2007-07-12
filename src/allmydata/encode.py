@@ -88,6 +88,12 @@ class Encoder(object):
         self.TOTAL_SHARES = n
         self.uri_extension_data = {}
 
+    def set_params(self, encoding_parameters):
+        k,d,n = encoding_parameters
+        self.NEEDED_SHARES = k
+        self.SHARES_OF_HAPPINESS = d
+        self.TOTAL_SHARES = n
+
     def setup(self, infile, encryption_key):
         self.infile = infile
         assert isinstance(encryption_key, str)

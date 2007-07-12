@@ -14,6 +14,8 @@ class FakeClient:
     def get_permuted_peers(self, storage_index):
         return [ ("%20d"%fakeid, "%20d"%fakeid, FakePeer(self.mode),)
                  for fakeid in range(50) ]
+    def get_encoding_parameters(self):
+        return None
 
 DATA = """
 Once upon a time, there was a beautiful princess named Buttercup. She lived

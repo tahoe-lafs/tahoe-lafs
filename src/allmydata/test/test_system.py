@@ -573,8 +573,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         self.failUnless("size: %d\n" % len(self.data) in output)
         self.failUnless("num_segments: 1\n" in output)
         # segment_size is always a multiple of needed_shares
-        self.failUnless("segment_size: 125\n" in output)
-        self.failUnless("total_shares: 100\n" in output)
+        self.failUnless("segment_size: 114\n" in output)
+        self.failUnless("total_shares: 10\n" in output)
         # keys which are supposed to be present
         for key in ("size", "num_segments", "segment_size",
                     "needed_shares", "total_shares",

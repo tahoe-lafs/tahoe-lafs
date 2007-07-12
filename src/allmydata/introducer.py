@@ -9,11 +9,16 @@ from allmydata.util import idlib, observer
 
 class Introducer(service.MultiService, Referenceable):
     implements(RIIntroducer)
+    name = "introducer"
 
     def __init__(self):
         service.MultiService.__init__(self)
         self.nodes = set()
         self.furls = set()
+        self._encoding_parameters = None
+
+    def set_encoding_parameters(self, parameters):
+        self._encoding_parameters = parameters
 
     def remote_hello(self, node, furl):
         log.msg("introducer: new contact at %s, node is %s" % (furl, node))
@@ -24,6 +29,9 @@ class Introducer(service.MultiService, Referenceable):
         node.notifyOnDisconnect(_remove)
         self.furls.add(furl)
         node.callRemote("new_peers", self.furls)
+        if self._encoding_parameters is not None:
+            node.callRemote("set_encoding_parameters",
+                            self._encoding_parameters)
         for othernode in self.nodes:
             othernode.callRemote("new_peers", set([furl]))
         self.nodes.add(node)
@@ -42,6 +50,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._connected = False
 
         self.connection_observers = observer.ObserverList()
+        self.encoding_parameters = None
 
     def startService(self):
         service.Service.startService(self)
@@ -59,6 +68,9 @@ class IntroducerClient(service.Service, Referenceable):
     def remote_new_peers(self, furls):
         for furl in furls:
             self._new_peer(furl)
+
+    def remote_set_encoding_parameters(self, parameters):
+        self.encoding_parameters = parameters
 
     def stopService(self):
         service.Service.stopService(self)

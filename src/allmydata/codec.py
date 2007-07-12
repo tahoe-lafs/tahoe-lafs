@@ -113,9 +113,13 @@ class CRSDecoder(object):
         return self.required_shares
 
     def decode(self, some_shares, their_shareids):
-        precondition(len(some_shares) == len(their_shareids), len(some_shares), len(their_shareids))
-        precondition(len(some_shares) == self.required_shares, len(some_shares), self.required_shares)
-        return defer.succeed(self.decoder.decode(some_shares, [int(s) for s in their_shareids]))
+        precondition(len(some_shares) == len(their_shareids),
+                     len(some_shares), len(their_shareids))
+        precondition(len(some_shares) == self.required_shares,
+                     len(some_shares), self.required_shares)
+        data = self.decoder.decode(some_shares,
+                                   [int(s) for s in their_shareids])
+        return defer.succeed(data)
 
 
 all_encoders = {

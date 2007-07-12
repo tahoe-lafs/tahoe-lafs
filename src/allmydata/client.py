@@ -150,6 +150,11 @@ class Client(node.Node, Referenceable):
         results.sort()
         return results
 
+    def get_encoding_parameters(self):
+        if not self.introducer_client:
+            return None
+        return self.introducer_client.encoding_parameters
+
     def connected_to_introducer(self):
         if self.introducer_client:
             return self.introducer_client.connected_to_introducer()
