@@ -10,7 +10,7 @@ from allmydata.util import idlib, fileutil
 import simplejson
 from allmydata.uri import unpack_uri, is_dirnode_uri
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode
-from allmydata import upload, download
+from allmydata import upload, download, uri
 from zope.interface import implements, Interface
 import urllib
 from formless import webform
@@ -107,7 +107,7 @@ class Directory(rend.Page):
 
             #extract and display file size
             try:
-                size = unpack_uri(target.get_uri())['size']
+                size = uri.get_filenode_size(target.get_uri())
             except AssertionError:
                 size = "?"
             ctx.fillSlots("size", size)
@@ -302,11 +302,10 @@ class FileJSONMetadata(rend.Page):
 
     def renderNode(self, filenode):
         file_uri = filenode.get_uri()
-        pieces = unpack_uri(file_uri)
         data = ("filenode",
                 {'mutable': False,
                  'uri': file_uri,
-                 'size': pieces['size'],
+                 'size': uri.get_filenode_size(file_uri),
                  })
         return simplejson.dumps(data, indent=1)
 
@@ -393,11 +392,10 @@ class DirectoryJSONMetadata(rend.Page):
             for name, childnode in children.iteritems():
                 if IFileNode.providedBy(childnode):
                     kiduri = childnode.get_uri()
-                    pieces = unpack_uri(kiduri)
                     kiddata = ("filenode",
                                {'mutable': False,
                                 'uri': kiduri,
-                                'size': pieces['size'],
+                                'size': uri.get_filenode_size(kiduri),
                                 })
                 else:
                     assert IDirectoryNode.providedBy(childnode)

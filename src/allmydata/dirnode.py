@@ -340,6 +340,11 @@ class ImmutableDirectoryNode:
         manifest.add(self.get_refresh_capability())
 
         d = self._build_manifest_from_node(self, manifest)
+        # LIT nodes have no refresh-capability: their data is stored inside
+        # the URI itself, so there is no need to refresh anything. They
+        # indicate this by returning None from their get_refresh_capability
+        # method. We need to remove any such Nones from our set.
+        d.addCallback(lambda res: manifest.discard(None))
         d.addCallback(lambda res: manifest)
         return d
 
@@ -420,8 +425,11 @@ class FileNode:
         return cmp(self.uri, them.uri)
 
     def get_refresh_capability(self):
-        d = uri.unpack_uri(self.uri)
-        return "CHK-REFRESH:%s" % idlib.b2a(d['storage_index'])
+        t = uri.get_uri_type(self.uri)
+        if t == "CHK":
+            d = uri.unpack_uri(self.uri)
+            return "CHK-REFRESH:%s" % idlib.b2a(d['storage_index'])
+        return None
 
     def download(self, target):
         downloader = self._client.getServiceNamed("downloader")

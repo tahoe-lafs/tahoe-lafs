@@ -9,6 +9,8 @@ class LIT(unittest.TestCase):
         u = uri.pack_lit(data)
         self.failUnlessEqual(uri.get_uri_type(u), "LIT")
         self.failUnlessEqual(uri.unpack_lit(u), data)
+        self.failUnless(uri.is_filenode_uri(u))
+        self.failUnlessEqual(uri.get_filenode_size(u), len(data))
 
     def test_nonascii(self):
         data = "This contains \x00 and URI:LIT: and \n, oh my."
@@ -38,6 +40,9 @@ class CHK(unittest.TestCase):
         self.failUnlessEqual(d['needed_shares'], needed_shares)
         self.failUnlessEqual(d['total_shares'], total_shares)
         self.failUnlessEqual(d['size'], size)
+
+        self.failUnless(uri.is_filenode_uri(u))
+        self.failUnlessEqual(uri.get_filenode_size(u), size)
 
 class Extension(unittest.TestCase):
     def test_pack(self):

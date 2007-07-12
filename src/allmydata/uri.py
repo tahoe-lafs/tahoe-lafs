@@ -12,6 +12,17 @@ def get_uri_type(uri):
         return "LIT"
     return "CHK"
 
+def is_filenode_uri(uri):
+    return get_uri_type(uri) in ("LIT", "CHK")
+
+def get_filenode_size(uri):
+    assert is_filenode_uri(uri)
+    t = get_uri_type(uri)
+    if t == "LIT":
+        return len(unpack_lit(uri))
+    return unpack_uri(uri)['size']
+
+
 # the URI shall be an ascii representation of the file. It shall contain
 # enough information to retrieve and validate the contents. It shall be
 # expressed in a limited character set (namely [TODO]).

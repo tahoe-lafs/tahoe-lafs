@@ -180,7 +180,7 @@ class Web(unittest.TestCase):
         sub_uri = foo.children["sub"] = self.makedir().get_uri()
         sub = self.nodes[sub_uri]
 
-        blocking_uri = self.makefile(1)
+        blocking_uri = self.make_smallfile(1)
         foo.children["blockingfile"] = blocking_uri
 
         baz_file = self.makefile(2)
@@ -214,6 +214,18 @@ class Web(unittest.TestCase):
         node = MyFileNode(newuri, self.s)
         self.nodes[newuri] = node
         contents = "contents of file %s\n" % n
+        self.files[newuri] = contents
+        return newuri
+
+    def make_smallfile(self, number):
+        n = str(number)
+        assert len(n) == 1
+        contents = "small data %s\n" % n
+        newuri = uri.pack_lit(contents)
+        assert newuri not in self.nodes
+        assert newuri not in self.files
+        node = MyFileNode(newuri, self.s)
+        self.nodes[newuri] = node
         self.files[newuri] = contents
         return newuri
 

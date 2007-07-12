@@ -326,7 +326,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return d
 
     def _do_publish_private(self, res):
-        ut = upload.Data(self.data)
+        self.smalldata = "sssh, very secret stuff"
+        ut = upload.Data(self.smalldata)
         vdrive0 = self.clients[0].getServiceNamed("vdrive")
         d = vdrive0.get_node_at_path("~")
         d.addCallback(self.log, "GOT ~")
@@ -395,7 +396,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                       self.failUnless(IDirectoryNode.providedBy(dirnode)))
         d.addCallback(lambda res: get_path("~/personal/sekrit data"))
         d.addCallback(lambda filenode: filenode.download_to_data())
-        d.addCallback(lambda data: self.failUnlessEqual(data, self.data))
+        d.addCallback(lambda data: self.failUnlessEqual(data, self.smalldata))
         d.addCallback(lambda res: get_path("~/s2-rw"))
         d.addCallback(lambda dirnode: self.failUnless(dirnode.is_mutable()))
         d.addCallback(lambda res: get_path("~/s2-ro"))
