@@ -33,7 +33,7 @@ class RIIntroducerClient(RemoteInterface):
         grid (there is no point to producing more shares than there are
         peers), and k according to the desired reliability-vs-overhead goals.
 
-        Note that the current encoding technology requires k>=2.
+        Note that setting k=1 is equivalent to simple replication.
         """
         return None
 
