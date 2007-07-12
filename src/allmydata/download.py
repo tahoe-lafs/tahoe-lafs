@@ -7,9 +7,8 @@ from twisted.application import service
 
 from allmydata.util import idlib, mathutil, hashutil
 from allmydata.util.assertutil import _assert
-from allmydata import codec, hashtree, storageserver
+from allmydata import codec, hashtree, storageserver, uri
 from allmydata.Crypto.Cipher import AES
-from allmydata.uri import unpack_uri, unpack_extension
 from allmydata.interfaces import IDownloadTarget, IDownloader
 from allmydata.encode import NotEnoughPeersError
 
@@ -261,10 +260,10 @@ class FileDownloader:
     check_crypttext_hash = True
     check_plaintext_hash = True
 
-    def __init__(self, client, uri, downloadable):
+    def __init__(self, client, u, downloadable):
         self._client = client
 
-        d = unpack_uri(uri)
+        d = uri.unpack_uri(u)
         self._storage_index = d['storage_index']
         self._uri_extension_hash = d['uri_extension_hash']
         self._total_shares = d['total_shares']
@@ -353,7 +352,7 @@ class FileDownloader:
         #               "vb is %s but should be a ValidatedBucket" % (vb,)
 
     def _unpack_uri_extension_data(self, data):
-        return unpack_extension(data)
+        return uri.unpack_extension(data)
 
     def _obtain_uri_extension(self, ignored):
         # all shareholders are supposed to have a copy of uri_extension, and
@@ -583,6 +582,18 @@ class FileDownloader:
                 got=self._output.length, expected=self._size)
         return self._output.finish()
 
+class LiteralDownloader:
+    def __init__(self, client, uri, downloadable):
+        self._uri = uri
+        self._downloadable = downloadable
+
+    def start(self):
+        data = uri.unpack_lit(self._uri)
+        self._downloadable.open(len(data))
+        self._downloadable.write(data)
+        self._downloadable.close()
+        return defer.maybeDeferred(self._downloadable.finish)
+
 
 class FileName:
     implements(IDownloadTarget)
@@ -650,13 +661,17 @@ class Downloader(service.MultiService):
     implements(IDownloader)
     name = "downloader"
 
-    def download(self, uri, t):
+    def download(self, u, t):
         assert self.parent
         assert self.running
         t = IDownloadTarget(t)
         assert t.write
         assert t.close
-        dl = FileDownloader(self.parent, uri, t)
+        utype = uri.get_uri_type(u)
+        if utype == "CHK":
+            dl = FileDownloader(self.parent, u, t)
+        elif utype == "LIT":
+            dl = LiteralDownloader(self.parent, u, t)
         d = dl.start()
         return d
 
