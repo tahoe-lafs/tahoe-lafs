@@ -1,7 +1,7 @@
 
 Writing "8011" into CLIENTDIR/webport causes the client to run a webserver on
 port 8011. Writing "tcp:8011:interface=127.0.0.1" into CLIENTDIR/webport does
-the same but binds to the loopback interface, insuring that only the programs
+the same but binds to the loopback interface, ensuring that only the programs
 on the local host can connect. Using
 "ssl:8011:privateKey=mykey.pem:certKey=cert.pem" would run an SSL server. See
 twisted.application.strports for more details.
