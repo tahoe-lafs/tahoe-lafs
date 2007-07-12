@@ -216,7 +216,7 @@ class RIVirtualDriveServer(RemoteInterface):
         READ: the child read URI, encrypted with the Read Key
         """
         return ListOf((EncryptedThing, EncryptedThing, EncryptedThing),
-                      maxLength=100,
+                      maxLength=1000,
                       )
 
     def set(index=Hash, write_enabler=Hash, key=Hash,
