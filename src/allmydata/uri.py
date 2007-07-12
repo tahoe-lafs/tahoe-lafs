@@ -2,6 +2,16 @@
 import re
 from allmydata.util import idlib, hashutil
 
+def get_uri_type(uri):
+    assert uri.startswith("URI:")
+    if uri.startswith("URI:DIR:"):
+        return "DIR"
+    if uri.startswith("URI:DIR-RO:"):
+        return "DIR-RO"
+    if uri.startswith("URI:LIT:"):
+        return "LIT"
+    return "CHK"
+
 # the URI shall be an ascii representation of the file. It shall contain
 # enough information to retrieve and validate the contents. It shall be
 # expressed in a limited character set (namely [TODO]).
@@ -86,6 +96,15 @@ def unpack_extension_readable(data):
         if "hash" in k:
             unpacked[k] = idlib.b2a(unpacked[k])
     return unpacked
+
+def pack_lit(data):
+    return "URI:LIT:%s" % idlib.b2a(data)
+
+def unpack_lit(uri):
+    assert uri.startswith("URI:LIT:")
+    data_s = uri[len("URI:LIT:"):]
+    return idlib.a2b(data_s)
+
 
 def is_dirnode_uri(uri):
     return uri.startswith("URI:DIR:") or uri.startswith("URI:DIR-RO:")

@@ -6,12 +6,13 @@ from foolscap import Referenceable
 
 from allmydata.util import idlib, hashutil
 from allmydata import encode, storageserver
-from allmydata.uri import pack_uri
+from allmydata.uri import pack_uri, pack_lit
 from allmydata.interfaces import IUploadable, IUploader
 from allmydata.Crypto.Cipher import AES
 
 from cStringIO import StringIO
 import collections, random
+
 
 class HaveAllPeersError(Exception):
     # we use this to jump out of the loop
@@ -261,6 +262,20 @@ class FileUploader:
                         size=self._size,
                         )
 
+class LiteralUploader:
+
+    def __init__(self, client, options={}):
+        self._client = client
+        self._options = options
+
+    def set_filehandle(self, filehandle):
+        self._filehandle = filehandle
+
+    def start(self):
+        self._filehandle.seek(0)
+        data = self._filehandle.read()
+        return defer.succeed(pack_lit(data))
+
 
 class FileName:
     implements(IUploadable)
@@ -296,6 +311,7 @@ class Uploader(service.MultiService):
     implements(IUploader)
     name = "uploader"
     uploader_class = FileUploader
+    URI_LIT_SIZE_THRESHOLD = 55
 
     needed_shares = 25 # Number of shares required to reconstruct a file.
     desired_shares = 75 # We will abort an upload unless we can allocate space for at least this many.
@@ -341,12 +357,20 @@ class Uploader(service.MultiService):
         assert self.running
         f = IUploadable(f)
         fh = f.get_filehandle()
-        u = self.uploader_class(self.parent, options)
-        u.set_filehandle(fh)
-        u.set_params(self.needed_shares, self.desired_shares, self.total_shares)
-        plaintext_hash, key, crypttext_hash = self.compute_id_strings(fh)
-        u.set_encryption_key(key)
-        u.set_id_strings(crypttext_hash, plaintext_hash)
+        fh.seek(0,2)
+        size = fh.tell()
+        fh.seek(0)
+        if size <= self.URI_LIT_SIZE_THRESHOLD:
+            u = LiteralUploader(self.parent, options)
+            u.set_filehandle(fh)
+        else:
+            u = self.uploader_class(self.parent, options)
+            u.set_filehandle(fh)
+            u.set_params(self.needed_shares, self.desired_shares,
+                         self.total_shares)
+            plaintext_hash, key, crypttext_hash = self.compute_id_strings(fh)
+            u.set_encryption_key(key)
+            u.set_id_strings(crypttext_hash, plaintext_hash)
         d = u.start()
         def _done(res):
             f.close_filehandle(fh)

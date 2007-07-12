@@ -23,6 +23,11 @@ def flush_but_dont_ignore(res):
     d.addCallback(_done)
     return d
 
+LARGE_DATA = """
+This is some data to publish to the virtual drive, which needs to be large
+enough to not fit inside a LIT uri.
+"""
+
 class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
     def setUp(self):
@@ -234,7 +239,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
     def test_vdrive(self):
         self.basedir = "system/SystemTest/test_vdrive"
-        self.data = DATA = "Some data to publish to the virtual drive\n"
+        self.data = LARGE_DATA
         d = self.set_up_nodes()
         d.addCallback(self.log, "starting publish")
         d.addCallback(self._do_publish)
@@ -568,7 +573,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         self.failUnless("size: %d\n" % len(self.data) in output)
         self.failUnless("num_segments: 1\n" in output)
         # segment_size is always a multiple of needed_shares
-        self.failUnless("segment_size: 50\n" in output)
+        self.failUnless("segment_size: 125\n" in output)
         self.failUnless("total_shares: 100\n" in output)
         # keys which are supposed to be present
         for key in ("size", "num_segments", "segment_size",
