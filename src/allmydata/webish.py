@@ -74,9 +74,10 @@ class Directory(rend.Page):
             # this creates a button which will cause our child__delete method
             # to be invoked, which deletes the file and then redirects the
             # browser back to this directory
-            del_url = url.here.add("t", "delete").add("name", name)
-            del_url = del_url.add("when_done", url.here)
-            delete = T.form(action=del_url, method="post")[
+            delete = T.form(action=url.here, method="post")[
+                T.input(type='hidden', name='t', value='delete'),
+                T.input(type='hidden', name='name', value=name),
+                T.input(type='hidden', name='when_done', value=url.here),
                 T.input(type='submit', value='del', name="del"),
                 ]
         else:
