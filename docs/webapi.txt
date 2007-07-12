@@ -215,6 +215,13 @@ for files and directories which do not yet exist.
 
    curl -T /dev/null 'http://localhost:8011/vdrive/global/newdir?t=upload&localdir=/home/user/directory-to-upload'
 
+ GET DIRURL?t=rename-form&name=$CHILDNAME
+
+  This provides a useful facility to browser-based user interfaces.
+  It returns a page containing a form targetting the POST DIRURL t=rename
+  functionality listed below, with the provided $CHILDNAME present in the
+  'from_name' field of that form.  i.e. this presents a form offering to
+  rename $CHILDNAME, requesting the new name, and submitting POST rename
 
 == POST Forms ==
 
@@ -252,6 +259,15 @@ for files and directories which do not yet exist.
   This instructs the client to delete a file from the given dirnode. The name
   of the child to be deleted will be included in the form's arguments.
 
+ POST DIRURL
+  t=rename
+  from_name=oldchildname
+  to_name=newchildname
+
+  This instructs the client to rename a child within the given dirnode. The
+  child specified by 'from_name' is removed, and reattached as a child named
+  for 'to_name'.  This is unconditional and will replace any child already
+  present under 'to_name', akin to 'mv -f' in unix parlance.
 
 == URI ==
 

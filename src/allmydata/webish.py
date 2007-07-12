@@ -80,9 +80,18 @@ class Directory(rend.Page):
                 T.input(type='hidden', name='when_done', value=url.here),
                 T.input(type='submit', value='del', name="del"),
                 ]
+
+            rename = T.form(action=url.here, method="get")[
+                T.input(type='hidden', name='t', value='rename-form'),
+                T.input(type='hidden', name='name', value=name),
+                T.input(type='hidden', name='when_done', value=url.here),
+                T.input(type='submit', value='rename', name="rename"),
+                ]
         else:
             delete = "-"
+            rename = "-"
         ctx.fillSlots("delete", delete)
+        ctx.fillSlots("rename", rename)
 
         # build the base of the uri_link link url
         uri_link = urllib.quote(target.get_uri().replace("/", "!"))
@@ -429,6 +438,46 @@ class DirectoryReadonlyURI(DirectoryJSONMetadata):
     def renderNode(self, node):
         return node.get_immutable_uri()
 
+class RenameForm(rend.Page):
+    addSlash = True
+    docFactory = getxmlfile("rename-form.xhtml")
+
+    def __init__(self, rootname, dirnode, dirpath):
+        self._rootname = rootname
+        self._dirnode = dirnode
+        self._dirpath = dirpath
+
+    def dirpath_as_string(self):
+        return "/" + "/".join(self._dirpath)
+
+    def render_title(self, ctx, data):
+        return ctx.tag["Directory '%s':" % self.dirpath_as_string()]
+
+    def render_header(self, ctx, data):
+        parent_directories = ("<%s>" % self._rootname,) + self._dirpath
+        num_dirs = len(parent_directories)
+
+        header = [ "Rename in directory '",
+                   "<%s>/" % self._rootname,
+                   "/".join(self._dirpath),
+                   "':", ]
+
+        if not self._dirnode.is_mutable():
+            header.append(" (readonly)")
+        return ctx.tag[header]
+
+    def render_when_done(self, ctx, data):
+        return T.input(type="hidden", name="when_done", value=url.here)
+
+    def render_get_name(self, ctx, data):
+        req = inevow.IRequest(ctx)
+        if 'name' in req.args:
+            name = req.args['name'][0]
+        else:
+            name = ''
+        ctx.tag.attributes['value'] = name
+        return ctx.tag
+
 class POSTHandler(rend.Page):
     def __init__(self, node):
         self._node = node
@@ -477,6 +526,25 @@ class POSTHandler(rend.Page):
             d = self._node.delete(name)
             def _done(res):
                 return "thing deleted"
+            d.addCallback(_done)
+        elif t == "rename":
+            from_name = 'from_name' in req.fields and req.fields["from_name"].value
+            to_name = 'to_name' in req.fields and req.fields["to_name"].value
+            if not from_name or not to_name:
+                raise RuntimeError("rename requires from_name and to_name")
+            if not IDirectoryNode.providedBy(self._node):
+                raise RuntimeError("rename must only be called on directories")
+            d = self._node.get(from_name)
+            def add_dest(child):
+                uri = child.get_uri()
+                # now actually do the rename
+                return self._node.set_uri(to_name, uri)
+            d.addCallback(add_dest)
+            def rm_src(junk):
+                return self._node.delete(from_name)
+            d.addCallback(rm_src)
+            def _done(res):
+                return "thing renamed"
             d.addCallback(_done)
         elif t == "upload":
             contents = req.fields["file"]
@@ -744,6 +812,8 @@ class VDrive(rend.Page):
                         return DirectoryReadonlyURI(node), ()
                     elif t == "manifest":
                         return Manifest(node, path), ()
+                    elif t == 'rename-form':
+                        return RenameForm(self.name, node, path), ()
                     else:
                         raise RuntimeError("bad t=%s" % t)
                 else:
