@@ -95,12 +95,12 @@ class StorageServer(service.MultiService, Referenceable):
             space += bw.allocated_size()
         return space
 
-    def remote_allocate_buckets(self, storage_index, sharenums, sharesize,
+    def remote_allocate_buckets(self, storage_index, sharenums, allocated_size,
                                 canary):
         alreadygot = set()
         bucketwriters = {} # k: shnum, v: BucketWriter
         si_s = idlib.b2a(storage_index)
-        space_per_bucket = sharesize
+        space_per_bucket = allocated_size
         no_limits = self.sizelimit is None
         yes_limits = not no_limits
         if yes_limits:
@@ -169,18 +169,28 @@ section starts. Each offset is measured from the beginning of the file.
       start of uri_extension
 """
 
+def allocated_size(data_size, num_segments, num_share_hashes,
+                   uri_extension_size):
+    wbp = WriteBucketProxy(None, data_size, 0, num_segments, num_share_hashes,
+                           uri_extension_size)
+    uri_extension_starts_at = wbp._offsets['uri_extension']
+    return uri_extension_starts_at + 4 + uri_extension_size
+
 class WriteBucketProxy:
     implements(IStorageBucketWriter)
     def __init__(self, rref, data_size, segment_size, num_segments,
-                 num_share_hashes):
+                 num_share_hashes, uri_extension_size):
         self._rref = rref
         self._segment_size = segment_size
+        self._num_segments = num_segments
 
         HASH_SIZE = interfaces.HASH_SIZE
         self._segment_hash_size = (2*num_segments - 1) * HASH_SIZE
         # how many share hashes are included in each share? This will be
         # about ln2(num_shares).
         self._share_hash_size = num_share_hashes * (2+HASH_SIZE)
+        # we commit to not sending a uri extension larger than this
+        self._uri_extension_size = uri_extension_size
 
         offsets = self._offsets = {}
         x = 0x1c
@@ -215,10 +225,12 @@ class WriteBucketProxy:
         offset = self._offsets['data'] + segmentnum * self._segment_size
         assert offset + len(data) <= self._offsets['uri_extension']
         assert isinstance(data, str)
-        if segmentnum < self._segment_size-1:
-            assert len(data) == self._segment_size
+        if segmentnum < self._num_segments-1:
+            precondition(len(data) == self._segment_size,
+                         len(data), self._segment_size)
         else:
-            assert len(data) <= self._segment_size
+            precondition(len(data) <= self._segment_size,
+                         len(data), self._segment_size)
         return self._write(offset, data)
 
     def put_plaintext_hashes(self, hashes):
@@ -252,13 +264,15 @@ class WriteBucketProxy:
         assert isinstance(sharehashes, list)
         data = "".join([struct.pack(">H", hashnum) + hashvalue
                         for hashnum,hashvalue in sharehashes])
-        assert len(data) == self._share_hash_size
+        precondition(len(data) == self._share_hash_size,
+                     len(data), self._share_hash_size)
         assert offset + len(data) <= self._offsets['uri_extension']
         return self._write(offset, data)
 
     def put_uri_extension(self, data):
         offset = self._offsets['uri_extension']
         assert isinstance(data, str)
+        assert len(data) <= self._uri_extension_size
         length = struct.pack(">L", len(data))
         return self._write(offset, length+data)
 
@@ -273,6 +287,7 @@ class ReadBucketProxy:
     implements(IStorageBucketReader)
     def __init__(self, rref):
         self._rref = rref
+        self._started = False
 
     def startIfNecessary(self):
         if self._started:

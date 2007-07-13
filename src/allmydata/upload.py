@@ -5,7 +5,7 @@ from twisted.application import service
 from foolscap import Referenceable
 
 from allmydata.util import idlib, hashutil
-from allmydata import encode, storageserver
+from allmydata import encode, storageserver, hashtree
 from allmydata.uri import pack_uri, pack_lit
 from allmydata.interfaces import IUploadable, IUploader
 from allmydata.Crypto.Cipher import AES
@@ -22,6 +22,13 @@ class HaveAllPeersError(Exception):
 class TooFullError(Exception):
     pass
 
+# our current uri_extension is 846 bytes for small files, a few bytes
+# more for larger ones (since the filesize is encoded in decimal in a
+# few places). Ask for a little bit more just in case we need it. If
+# the extension changes size, we can change EXTENSION_SIZE to
+# allocate a more accurate amount of space.
+EXTENSION_SIZE = 1000
+
 class PeerTracker:
     def __init__(self, peerid, permutedid, connection,
                  sharesize, blocksize, num_segments, num_share_hashes,
@@ -31,6 +38,13 @@ class PeerTracker:
         self.connection = connection # to an RIClient
         self.buckets = {} # k: shareid, v: IRemoteBucketWriter
         self.sharesize = sharesize
+        #print "PeerTracker", peerid, permutedid, sharesize
+        as = storageserver.allocated_size(sharesize,
+                                          num_segments,
+                                          num_share_hashes,
+                                          EXTENSION_SIZE)
+        self.allocated_size = as
+                                                           
         self.blocksize = blocksize
         self.num_segments = num_segments
         self.num_share_hashes = num_share_hashes
@@ -47,10 +61,11 @@ class PeerTracker:
     def _got_storageserver(self, storageserver):
         self._storageserver = storageserver
     def _query(self, sharenums):
+        #print " query", self.peerid, len(sharenums)
         d = self._storageserver.callRemote("allocate_buckets",
                                            self.crypttext_hash,
-                                           sharenums, self.sharesize,
-                                           self.blocksize,
+                                           sharenums,
+                                           self.allocated_size,
                                            canary=Referenceable())
         d.addCallback(self._got_reply)
         return d
@@ -62,7 +77,8 @@ class PeerTracker:
             bp = storageserver.WriteBucketProxy(rref, self.sharesize,
                                                 self.blocksize,
                                                 self.num_segments,
-                                                self.num_share_hashes)
+                                                self.num_share_hashes,
+                                                EXTENSION_SIZE)
             b[sharenum] = bp
         self.buckets.update(b)
         return (alreadygot, set(b.keys()))
@@ -137,11 +153,16 @@ class FileUploader:
         # responsible for handling the data and sending out the shares.
         peers = self._client.get_permuted_peers(self._crypttext_hash)
         assert peers
+
         # TODO: eek, don't pull this from here, find a better way. gross.
         num_segments = self._encoder.uri_extension_data['num_segments']
-        from allmydata.util.mathutil import next_power_of_k
-        import math
-        num_share_hashes = max(int(math.log(next_power_of_k(self.total_shares,2),2)),1)
+        ht = hashtree.IncompleteHashTree(self.total_shares)
+        # this needed_hashes computation should mirror
+        # Encoder.send_all_share_hash_trees. We use an IncompleteHashTree
+        # (instead of a HashTree) because we don't require actual hashing
+        # just to count the levels.
+        num_share_hashes = len(ht.needed_hashes(0, include_leaf=True))
+
         trackers = [ PeerTracker(peerid, permutedid, conn,
                                  share_size, block_size,
                                  num_segments, num_share_hashes,
@@ -217,10 +238,11 @@ class FileUploader:
             if ring[0][1] == SHARE:
                 sharenums_to_query.add(ring[0][2])
             else:
-                d = peer.query(sharenums_to_query)
-                d.addCallbacks(self._got_response, self._got_error, callbackArgs=(peer, sharenums_to_query), errbackArgs=(peer,))
-                outstanding_queries.append(d)
-                d.addErrback(log.err)
+                if True or sharenums_to_query:
+                    d = peer.query(sharenums_to_query)
+                    d.addCallbacks(self._got_response, self._got_error, callbackArgs=(peer, sharenums_to_query), errbackArgs=(peer,))
+                    outstanding_queries.append(d)
+                    d.addErrback(log.err)
                 peer = ring[0][2]
                 sharenums_to_query = set()
             ring.rotate(-1)

@@ -3,7 +3,6 @@ from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python.failure import Failure
-from foolscap import eventual
 from allmydata import encode, download, hashtree
 from allmydata.util import hashutil
 from allmydata.uri import pack_uri
@@ -11,45 +10,13 @@ from allmydata.Crypto.Cipher import AES
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader
 from cStringIO import StringIO
 
-class FakePeer:
-    def __init__(self, mode="good"):
-        self.ss = FakeStorageServer(mode)
-
-    def callRemote(self, methname, *args, **kwargs):
-        def _call():
-            meth = getattr(self, methname)
-            return meth(*args, **kwargs)
-        return defer.maybeDeferred(_call)
-
-    def get_service(self, sname):
-        assert sname == "storageserver"
-        return self.ss
-
-class FakeStorageServer:
-    def __init__(self, mode):
-        self.mode = mode
-    def callRemote(self, methname, *args, **kwargs):
-        def _call():
-            meth = getattr(self, methname)
-            return meth(*args, **kwargs)
-        d = eventual.fireEventually()
-        d.addCallback(lambda res: _call())
-        return d
-    def allocate_buckets(self, crypttext_hash, sharenums, shareize, blocksize, canary):
-        if self.mode == "full":
-            return (set(), {},)
-        elif self.mode == "already got them":
-            return (set(sharenums), {},)
-        else:
-            return (set(), dict([(shnum, FakeBucketWriter(),) for shnum in sharenums]),)
-
 class LostPeerError(Exception):
     pass
 
 def flip_bit(good): # flips the last bit
     return good[:-1] + chr(ord(good[-1]) ^ 0x01)
 
-class FakeBucketWriter:
+class FakeBucketWriterProxy:
     implements(IStorageBucketWriter, IStorageBucketReader)
     # these are used for both reading and writing
     def __init__(self, mode="good"):
@@ -195,7 +162,7 @@ class Encode(unittest.TestCase):
         shareholders = {}
         all_shareholders = []
         for shnum in range(NUM_SHARES):
-            peer = FakeBucketWriter()
+            peer = FakeBucketWriterProxy()
             shareholders[shnum] = peer
             all_shareholders.append(peer)
         e.set_shareholders(shareholders)
@@ -322,7 +289,7 @@ class Roundtrip(unittest.TestCase):
         all_peers = []
         for shnum in range(NUM_SHARES):
             mode = bucket_modes.get(shnum, "good")
-            peer = FakeBucketWriter(mode)
+            peer = FakeBucketWriterProxy(mode)
             shareholders[shnum] = peer
         e.set_shareholders(shareholders)
         plaintext_hasher = hashutil.plaintext_hasher()

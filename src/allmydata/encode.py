@@ -162,10 +162,7 @@ class Encoder(object):
     def set_shareholders(self, landlords):
         assert isinstance(landlords, dict)
         for k in landlords:
-            # it would be nice to:
-            #assert RIBucketWriter.providedBy(landlords[k])
-            assert IStorageBucketWriter(landlords[k])
-            pass
+            assert IStorageBucketWriter.providedBy(landlords[k])
         self.landlords = landlords.copy()
 
     def start(self):

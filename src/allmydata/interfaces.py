@@ -80,7 +80,7 @@ class RIBucketReader(RemoteInterface):
 class RIStorageServer(RemoteInterface):
     def allocate_buckets(storage_index=StorageIndex,
                          sharenums=SetOf(int, maxLength=MAX_BUCKETS),
-                         sharesize=int, blocksize=int, canary=Referenceable):
+                         allocated_size=int, canary=Referenceable):
         """
         @param canary: If the canary is lost before close(), the bucket is deleted.
         @return: tuple of (alreadygot, allocated), where alreadygot is what we

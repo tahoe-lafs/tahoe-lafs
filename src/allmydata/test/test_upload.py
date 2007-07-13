@@ -1,12 +1,79 @@
 
 from twisted.trial import unittest
 from twisted.python.failure import Failure
+from twisted.internet import defer
 from cStringIO import StringIO
 
-from allmydata import upload, encode
+from allmydata import upload, encode, storageserver
 from allmydata.uri import unpack_uri, unpack_lit
+from allmydata.util.assertutil import precondition
+from foolscap import eventual
 
-from test_encode import FakePeer
+class FakePeer:
+    def __init__(self, mode="good"):
+        self.ss = FakeStorageServer(mode)
+
+    def callRemote(self, methname, *args, **kwargs):
+        def _call():
+            meth = getattr(self, methname)
+            return meth(*args, **kwargs)
+        return defer.maybeDeferred(_call)
+
+    def get_service(self, sname):
+        assert sname == "storageserver"
+        return self.ss
+
+class FakeStorageServer:
+    def __init__(self, mode):
+        self.mode = mode
+    def callRemote(self, methname, *args, **kwargs):
+        def _call():
+            meth = getattr(self, methname)
+            return meth(*args, **kwargs)
+        d = eventual.fireEventually()
+        d.addCallback(lambda res: _call())
+        return d
+
+    def allocate_buckets(self, crypttext_hash, sharenums,
+                         share_size, blocksize, canary):
+        #print "FakeStorageServer.allocate_buckets(num=%d, size=%d)" % (len(sharenums), share_size)
+        if self.mode == "full":
+            return (set(), {},)
+        elif self.mode == "already got them":
+            return (set(sharenums), {},)
+        else:
+            return (set(),
+                    dict([( shnum, FakeBucketWriter(share_size) )
+                          for shnum in sharenums]),
+                    )
+
+class FakeBucketWriter:
+    # a diagnostic version of storageserver.BucketWriter
+    def __init__(self, size):
+        self.data = StringIO()
+        self.closed = False
+        self._size = size
+
+    def callRemote(self, methname, *args, **kwargs):
+        def _call():
+            meth = getattr(self, "remote_" + methname)
+            return meth(*args, **kwargs)
+        d = eventual.fireEventually()
+        d.addCallback(lambda res: _call())
+        return d
+
+    def remote_write(self, offset, data):
+        precondition(not self.closed)
+        precondition(offset >= 0)
+        precondition(offset+len(data) <= self._size,
+                     "offset=%d + data=%d > size=%d" %
+                     (offset, len(data), self._size))
+        self.data.seek(offset)
+        self.data.write(data)
+
+    def remote_close(self):
+        precondition(not self.closed)
+        self.closed = True
 
 class FakeClient:
     def __init__(self, mode="good"):

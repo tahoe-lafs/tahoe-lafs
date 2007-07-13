@@ -5,8 +5,10 @@ from twisted.application import service
 from twisted.internet import defer
 from foolscap import Referenceable
 import os.path
-from allmydata import storageserver, interfaces
+from allmydata import interfaces
 from allmydata.util import fileutil, hashutil
+from allmydata.storageserver import BucketWriter, BucketReader, \
+     WriteBucketProxy, ReadBucketProxy, StorageServer
 
 
 class Bucket(unittest.TestCase):
@@ -23,7 +25,7 @@ class Bucket(unittest.TestCase):
 
     def test_create(self):
         incoming, final = self.make_workdir("test_create")
-        bw = storageserver.BucketWriter(self, incoming, final, 200)
+        bw = BucketWriter(self, incoming, final, 200)
         bw.remote_write(0, "a"*25)
         bw.remote_write(25, "b"*25)
         bw.remote_write(50, "c"*25)
@@ -32,14 +34,14 @@ class Bucket(unittest.TestCase):
 
     def test_readwrite(self):
         incoming, final = self.make_workdir("test_readwrite")
-        bw = storageserver.BucketWriter(self, incoming, final, 200)
+        bw = BucketWriter(self, incoming, final, 200)
         bw.remote_write(0, "a"*25)
         bw.remote_write(25, "b"*25)
         bw.remote_write(50, "c"*7) # last block may be short
         bw.remote_close()
 
         # now read from it
-        br = storageserver.BucketReader(final)
+        br = BucketReader(final)
         self.failUnlessEqual(br.remote_read(0, 25), "a"*25)
         self.failUnlessEqual(br.remote_read(25, 25), "b"*25)
         self.failUnlessEqual(br.remote_read(50, 7), "c"*7)
@@ -59,7 +61,7 @@ class BucketProxy(unittest.TestCase):
         final = os.path.join(basedir, "bucket")
         fileutil.make_dirs(basedir)
         fileutil.make_dirs(os.path.join(basedir, "tmp"))
-        bw = storageserver.BucketWriter(self, incoming, final, size)
+        bw = BucketWriter(self, incoming, final, size)
         rb = RemoteBucket()
         rb.target = bw
         return bw, rb, final
@@ -69,11 +71,12 @@ class BucketProxy(unittest.TestCase):
 
     def test_create(self):
         bw, rb, final = self.make_bucket("test_create", 500)
-        bp = storageserver.WriteBucketProxy(rb,
-                                            data_size=300,
-                                            segment_size=10,
-                                            num_segments=5,
-                                            num_share_hashes=3)
+        bp = WriteBucketProxy(rb,
+                              data_size=300,
+                              segment_size=10,
+                              num_segments=5,
+                              num_share_hashes=3,
+                              uri_extension_size=500)
         self.failUnless(interfaces.IStorageBucketWriter.providedBy(bp))
 
     def test_readwrite(self):
@@ -98,11 +101,12 @@ class BucketProxy(unittest.TestCase):
         uri_extension = "s" + "E"*498 + "e"
 
         bw, rb, final = self.make_bucket("test_readwrite", 1406)
-        bp = storageserver.WriteBucketProxy(rb,
-                                            data_size=100,
-                                            segment_size=25,
-                                            num_segments=4,
-                                            num_share_hashes=3)
+        bp = WriteBucketProxy(rb,
+                              data_size=100,
+                              segment_size=25,
+                              num_segments=4,
+                              num_share_hashes=3,
+                              uri_extension_size=len(uri_extension))
 
         d = bp.start()
         d.addCallback(lambda res: bp.put_block(0, "a"*25))
@@ -118,13 +122,13 @@ class BucketProxy(unittest.TestCase):
 
         # now read everything back
         def _start_reading(res):
-            br = storageserver.BucketReader(final)
+            br = BucketReader(final)
             rb = RemoteBucket()
             rb.target = br
-            rbp = storageserver.ReadBucketProxy(rb)
+            rbp = ReadBucketProxy(rb)
             self.failUnless(interfaces.IStorageBucketReader.providedBy(rbp))
 
-            d1 = rbp.start()
+            d1 = rbp.startIfNecessary()
             d1.addCallback(lambda res: rbp.get_block(0))
             d1.addCallback(lambda res: self.failUnlessEqual(res, "a"*25))
             d1.addCallback(lambda res: rbp.get_block(1))
@@ -169,7 +173,7 @@ class Server(unittest.TestCase):
 
     def create(self, name, sizelimit=None):
         workdir = self.workdir(name)
-        ss = storageserver.StorageServer(workdir, sizelimit)
+        ss = StorageServer(workdir, sizelimit)
         ss.setServiceParent(self.sparent)
         return ss
 
