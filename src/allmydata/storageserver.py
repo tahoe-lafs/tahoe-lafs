@@ -302,23 +302,26 @@ class ReadBucketProxy:
     def start(self):
         # TODO: for small shares, read the whole bucket in start()
         d = self._read(0, 8*4)
-        self._offsets = {}
-        def _got_offsets(data):
-            self._segment_size = struct.unpack(">L", data[0:4])[0]
-            self._data_size = struct.unpack(">L", data[4:8])[0]
-            x = 0x08
-            for field in ( 'data',
-                           'plaintext_hash_tree',
-                           'crypttext_hash_tree',
-                           'block_hashes',
-                           'share_hashes',
-                           'uri_extension',
-                           ):
-                offset = struct.unpack(">L", data[x:x+4])[0]
-                x += 4
-                self._offsets[field] = offset
-        d.addCallback(_got_offsets)
+        d.addCallback(self._parse_offsets)
         return d
+
+    def _parse_offsets(self, data):
+        precondition(len(data) == 8*4)
+        self._offsets = {}
+        self._segment_size = struct.unpack(">L", data[0:4])[0]
+        self._data_size = struct.unpack(">L", data[4:8])[0]
+        x = 0x08
+        for field in ( 'data',
+                       'plaintext_hash_tree',
+                       'crypttext_hash_tree',
+                       'block_hashes',
+                       'share_hashes',
+                       'uri_extension',
+                       ):
+            offset = struct.unpack(">L", data[x:x+4])[0]
+            x += 4
+            self._offsets[field] = offset
+        return self._offsets
 
     def get_block(self, blocknum):
         num_segments = mathutil.div_ceil(self._data_size, self._segment_size)
