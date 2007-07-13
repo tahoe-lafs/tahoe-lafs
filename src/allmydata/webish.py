@@ -322,18 +322,18 @@ class DirnodeWalkerMixin:
     fired.
     """
 
-    def _walk_if_we_could_use_generators(self, rootnode, rootpath=()):
-        # this is what we'd be doing if we didn't have the Deferreds and thus
-        # could use generators
-        yield rootpath, rootnode
-        for childname, childnode in rootnode.list().items():
-            childpath = rootpath + (childname,)
-            if IFileNode.providedBy(childnode):
-                yield childpath, childnode
-            elif IDirectoryNode.providedBy(childnode):
-                for res in self._walk_if_we_could_use_generators(childnode,
-                                                                 childpath):
-                    yield res
+##    def _walk_if_we_could_use_generators(self, rootnode, rootpath=()):
+##        # this is what we'd be doing if we didn't have the Deferreds and
+##        # thus could use generators
+##        yield rootpath, rootnode
+##        for childname, childnode in rootnode.list().items():
+##            childpath = rootpath + (childname,)
+##            if IFileNode.providedBy(childnode):
+##                yield childpath, childnode
+##            elif IDirectoryNode.providedBy(childnode):
+##                for res in self._walk_if_we_could_use_generators(childnode,
+##                                                                 childpath):
+##                    yield res
 
     def walk(self, rootnode, visitor, rootpath=()):
         d = rootnode.list()
