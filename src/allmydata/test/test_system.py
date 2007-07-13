@@ -551,16 +551,22 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     def _test_runner(self, res):
         # exercise some of the diagnostic tools in runner.py
 
-        # find a uri_extension file
+        # find a share
         for (dirpath, dirnames, filenames) in os.walk(self.basedir):
-            if "uri_extension" in filenames:
+            if "storage" not in dirpath:
+                continue
+            if not filenames:
+                continue
+            pieces = dirpath.split(os.sep)
+            if pieces[-2] == "storage":
+                # we're sitting in .../storage/$SINDEX , and there are
+                # sharefiles here
+                filename = os.path.join(dirpath, filenames[0])
                 break
         else:
             self.fail("unable to find any uri_extension files in %s"
                       % self.basedir)
-        log.msg("test_system.SystemTest._test_runner using %s" % dirpath)
-
-        filename = os.path.join(dirpath, "uri_extension")
+        log.msg("test_system.SystemTest._test_runner using %s" % filename)
 
         out,err = StringIO(), StringIO()
         rc = runner.runner(["dump-uri-extension",

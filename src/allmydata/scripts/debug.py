@@ -1,5 +1,7 @@
 
-import os, sys
+# do not import any allmydata modules at this level. Do that from inside
+# individual functions instead.
+import os, sys, struct
 from twisted.python import usage
 from allmydata.scripts.common import BasedirMixin
 
@@ -41,10 +43,18 @@ class DumpDirnodeOptions(BasedirMixin, usage.Options):
             raise usage.UsageError("<uri> parameter is required")
 
 def dump_uri_extension(config, out=sys.stdout, err=sys.stderr):
-    from allmydata import uri
+    from allmydata import uri, storageserver
 
     filename = config['filename']
-    unpacked = uri.unpack_extension_readable(open(filename,"rb").read())
+    f = open(filename,"rb")
+    # use a ReadBucketProxy to parse the bucket and find the uri extension
+    bp = storageserver.ReadBucketProxy(None)
+    offsets = bp._parse_offsets(f.read(8*4))
+    f.seek(offsets['uri_extension'])
+    length = struct.unpack(">L", f.read(4))[0]
+    data = f.read(length)
+
+    unpacked = uri.unpack_extension_readable(data)
     keys1 = ("size", "num_segments", "segment_size",
              "needed_shares", "total_shares")
     keys2 = ("codec_name", "codec_params", "tail_codec_params")
@@ -66,6 +76,7 @@ def dump_uri_extension(config, out=sys.stdout, err=sys.stderr):
     leftover = set(unpacked.keys()) - set(keys1 + keys2 + keys3)
     if leftover:
         print >>out
+        print >>out, "LEFTOVER:"
         for k in sorted(leftover):
             print >>out, "%s: %s" % (k, unpacked[k])
 
