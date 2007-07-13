@@ -119,7 +119,7 @@ class ValidatedBucket:
         if not self._share_hash:
             d1 = self.bucket.get_share_hashes()
         else:
-            d1 = defer.succeed(None)
+            d1 = defer.succeed([])
 
         # we might need to grab some elements of our block hash tree, to
         # validate the requested block up to the share hash
@@ -149,9 +149,12 @@ class ValidatedBucket:
                 sht.set_hashes(sh)
                 self._share_hash = sht.get_leaf(self.sharenum)
 
-            #log.msg("checking block_hash(shareid=%d, blocknum=%d) len=%d" %
-            #        (self.sharenum, blocknum, len(blockdata)))
             blockhash = hashutil.block_hash(blockdata)
+            #log.msg("checking block_hash(shareid=%d, blocknum=%d) len=%d "
+            #        "%r .. %r: %s" %
+            #        (self.sharenum, blocknum, len(blockdata),
+            #         blockdata[:50], blockdata[-50:], idlib.b2a(blockhash)))
+
             # we always validate the blockhash
             bh = dict(enumerate(blockhashes))
             # replace blockhash root with validated value
@@ -163,20 +166,33 @@ class ValidatedBucket:
             # likely a programming error
             log.msg("hash failure in block=%d, shnum=%d on %s" %
                     (blocknum, self.sharenum, self.bucket))
-            #log.msg(" block length: %d" % len(blockdata))
-            #log.msg(" block hash: %s" % idlib.b2a_or_none(blockhash)) # not safe
-            #log.msg(" block data: %r" % (blockdata,))
-            #log.msg(" root hash: %s" % idlib.b2a(self._roothash))
-            #log.msg(" share hash tree:\n" + self.share_hash_tree.dump())
-            #log.msg(" block hash tree:\n" + self.block_hash_tree.dump())
-            #lines = []
-            #for i,h in sorted(sharehashes):
-            #    lines.append("%3d: %s" % (i, idlib.b2a_or_none(h)))
-            #log.msg(" sharehashes:\n" + "\n".join(lines) + "\n")
-            #lines = []
-            #for i,h in enumerate(blockhashes):
-            #    lines.append("%3d: %s" % (i, idlib.b2a_or_none(h)))
-            #log.msg(" blockhashes:\n" + "\n".join(lines) + "\n")
+            if self._share_hash:
+                log.msg(""" failure occurred when checking the block_hash_tree.
+                This suggests that either the block data was bad, or that the
+                block hashes we received along with it were bad.""")
+            else:
+                log.msg(""" the failure probably occurred when checking the
+                share_hash_tree, which suggests that the share hashes we
+                received from the remote peer were bad.""")
+            log.msg(" have self._share_hash: %s" % bool(self._share_hash))
+            log.msg(" block length: %d" % len(blockdata))
+            log.msg(" block hash: %s" % idlib.b2a_or_none(blockhash)) # not safe
+            if len(blockdata) < 100:
+                log.msg(" block data: %r" % (blockdata,))
+            else:
+                log.msg(" block data start/end: %r .. %r" %
+                        (blockdata[:50], blockdata[-50:]))
+            log.msg(" root hash: %s" % idlib.b2a(self._roothash))
+            log.msg(" share hash tree:\n" + self.share_hash_tree.dump())
+            log.msg(" block hash tree:\n" + self.block_hash_tree.dump())
+            lines = []
+            for i,h in sorted(sharehashes):
+                lines.append("%3d: %s" % (i, idlib.b2a_or_none(h)))
+            log.msg(" sharehashes:\n" + "\n".join(lines) + "\n")
+            lines = []
+            for i,h in enumerate(blockhashes):
+                lines.append("%3d: %s" % (i, idlib.b2a_or_none(h)))
+            log.msg(" blockhashes:\n" + "\n".join(lines) + "\n")
             raise
 
         # If we made it here, the block is good. If the hash trees didn't

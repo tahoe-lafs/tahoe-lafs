@@ -302,6 +302,11 @@ class Encoder(object):
             d = self.send_subshare(shareid, segnum, subshare)
             dl.append(d)
             subshare_hash = hashutil.block_hash(subshare)
+            #from allmydata.util import idlib
+            #log.msg("creating block (shareid=%d, blocknum=%d) "
+            #        "len=%d %r .. %r: %s" %
+            #        (shareid, segnum, len(subshare),
+            #         subshare[:50], subshare[-50:], idlib.b2a(subshare_hash)))
             self.subshare_hashes[shareid].append(subshare_hash)
         dl = self._gather_responses(dl)
         def _logit(res):

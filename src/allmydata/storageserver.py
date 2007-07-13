@@ -6,9 +6,8 @@ from twisted.internet import defer
 
 from zope.interface import implements
 from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
-     RIBucketReader, IStorageBucketWriter, IStorageBucketReader
-from allmydata import interfaces
-from allmydata.util import fileutil, idlib
+     RIBucketReader, IStorageBucketWriter, IStorageBucketReader, HASH_SIZE
+from allmydata.util import fileutil, idlib, mathutil
 from allmydata.util.assertutil import precondition
 
 # store/
@@ -151,22 +150,23 @@ a series of four-byte big-endian offset values, which indicate where each
 section starts. Each offset is measured from the beginning of the file.
 
 0x00: segment size
-0x04: offset of data (=00 00 00 1c)
-0x08: offset of plaintext_hash_tree
-0x0c: offset of crypttext_hash_tree
-0x10: offset of block_hashes
-0x14: offset of share_hashes
-0x18: offset of uri_extension_length + uri_extension
-0x1c: start of data
-      start of plaintext_hash_tree
-      start of crypttext_hash_tree
-      start of block_hashes
-      start of share_hashes
+0x04: data size
+0x08: offset of data (=00 00 00 1c)
+0x0c: offset of plaintext_hash_tree
+0x10: offset of crypttext_hash_tree
+0x14: offset of block_hashes
+0x18: offset of share_hashes
+0x1c: offset of uri_extension_length + uri_extension
+0x20: start of data
+?   : start of plaintext_hash_tree
+?   : start of crypttext_hash_tree
+?   : start of block_hashes
+?   : start of share_hashes
        each share_hash is written as a two-byte (big-endian) hashnum
        followed by the 32-byte SHA-256 hash. We only store the hashes
        necessary to validate the share hash root
-      start of uri_extension_length (four-byte big-endian value)
-      start of uri_extension
+?   : start of uri_extension_length (four-byte big-endian value)
+?   : start of uri_extension
 """
 
 def allocated_size(data_size, num_segments, num_share_hashes,
@@ -181,10 +181,10 @@ class WriteBucketProxy:
     def __init__(self, rref, data_size, segment_size, num_segments,
                  num_share_hashes, uri_extension_size):
         self._rref = rref
+        self._data_size = data_size
         self._segment_size = segment_size
         self._num_segments = num_segments
 
-        HASH_SIZE = interfaces.HASH_SIZE
         self._segment_hash_size = (2*num_segments - 1) * HASH_SIZE
         # how many share hashes are included in each share? This will be
         # about ln2(num_shares).
@@ -193,7 +193,7 @@ class WriteBucketProxy:
         self._uri_extension_size = uri_extension_size
 
         offsets = self._offsets = {}
-        x = 0x1c
+        x = 0x20
         offsets['data'] = x
         x += data_size
         offsets['plaintext_hash_tree'] = x
@@ -206,16 +206,17 @@ class WriteBucketProxy:
         x += self._share_hash_size
         offsets['uri_extension'] = x
 
-        offset_data = struct.pack(">LLLLLLL",
+        offset_data = struct.pack(">LLLLLLLL",
                                   segment_size,
+                                  data_size,
                                   offsets['data'],
                                   offsets['plaintext_hash_tree'],
                                   offsets['crypttext_hash_tree'],
                                   offsets['block_hashes'],
                                   offsets['share_hashes'],
-                                  offsets['uri_extension']
+                                  offsets['uri_extension'],
                                   )
-        assert len(offset_data) == 7*4
+        assert len(offset_data) == 8*4
         self._offset_data = offset_data
 
     def start(self):
@@ -229,7 +230,9 @@ class WriteBucketProxy:
             precondition(len(data) == self._segment_size,
                          len(data), self._segment_size)
         else:
-            precondition(len(data) <= self._segment_size,
+            precondition(len(data) == (self._data_size -
+                                       (self._segment_size *
+                                        (self._num_segments - 1))),
                          len(data), self._segment_size)
         return self._write(offset, data)
 
@@ -298,17 +301,19 @@ class ReadBucketProxy:
 
     def start(self):
         # TODO: for small shares, read the whole bucket in start()
-        d = self._read(0, 7*4)
+        d = self._read(0, 8*4)
         self._offsets = {}
         def _got_offsets(data):
             self._segment_size = struct.unpack(">L", data[0:4])[0]
-            x = 4
+            self._data_size = struct.unpack(">L", data[4:8])[0]
+            x = 0x08
             for field in ( 'data',
                            'plaintext_hash_tree',
                            'crypttext_hash_tree',
                            'block_hashes',
                            'share_hashes',
-                           'uri_extension' ):
+                           'uri_extension',
+                           ):
                 offset = struct.unpack(">L", data[x:x+4])[0]
                 x += 4
                 self._offsets[field] = offset
@@ -316,13 +321,20 @@ class ReadBucketProxy:
         return d
 
     def get_block(self, blocknum):
+        num_segments = mathutil.div_ceil(self._data_size, self._segment_size)
+        if blocknum < num_segments-1:
+            size = self._segment_size
+        else:
+            size = self._data_size % self._segment_size
+            if size == 0:
+                size = self._segment_size
         offset = self._offsets['data'] + blocknum * self._segment_size
-        return self._read(offset, self._segment_size)
+        return self._read(offset, size)
 
     def _str2l(self, s):
         """ split string (pulled from storage) into a list of blockids """
-        return [ s[i:i+interfaces.HASH_SIZE]
-                 for i in range(0, len(s), interfaces.HASH_SIZE) ]
+        return [ s[i:i+HASH_SIZE]
+                 for i in range(0, len(s), HASH_SIZE) ]
 
     def get_plaintext_hashes(self):
         offset = self._offsets['plaintext_hash_tree']
@@ -348,7 +360,6 @@ class ReadBucketProxy:
     def get_share_hashes(self):
         offset = self._offsets['share_hashes']
         size = self._offsets['uri_extension'] - offset
-        HASH_SIZE = interfaces.HASH_SIZE
         assert size % (2+HASH_SIZE) == 0
         d = self._read(offset, size)
         def _unpack_share_hashes(data):

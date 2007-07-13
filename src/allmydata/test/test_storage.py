@@ -102,7 +102,7 @@ class BucketProxy(unittest.TestCase):
 
         bw, rb, final = self.make_bucket("test_readwrite", 1406)
         bp = WriteBucketProxy(rb,
-                              data_size=100,
+                              data_size=95,
                               segment_size=25,
                               num_segments=4,
                               num_share_hashes=3,
@@ -112,7 +112,7 @@ class BucketProxy(unittest.TestCase):
         d.addCallback(lambda res: bp.put_block(0, "a"*25))
         d.addCallback(lambda res: bp.put_block(1, "b"*25))
         d.addCallback(lambda res: bp.put_block(2, "c"*25))
-        d.addCallback(lambda res: bp.put_block(3, "d"*25))
+        d.addCallback(lambda res: bp.put_block(3, "d"*20))
         d.addCallback(lambda res: bp.put_plaintext_hashes(plaintext_hashes))
         d.addCallback(lambda res: bp.put_crypttext_hashes(crypttext_hashes))
         d.addCallback(lambda res: bp.put_block_hashes(block_hashes))
@@ -136,7 +136,7 @@ class BucketProxy(unittest.TestCase):
             d1.addCallback(lambda res: rbp.get_block(2))
             d1.addCallback(lambda res: self.failUnlessEqual(res, "c"*25))
             d1.addCallback(lambda res: rbp.get_block(3))
-            d1.addCallback(lambda res: self.failUnlessEqual(res, "d"*25))
+            d1.addCallback(lambda res: self.failUnlessEqual(res, "d"*20))
 
             d1.addCallback(lambda res: rbp.get_plaintext_hashes())
             d1.addCallback(lambda res:

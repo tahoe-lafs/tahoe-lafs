@@ -4,7 +4,7 @@ from twisted.python.failure import Failure
 from twisted.internet import defer
 from cStringIO import StringIO
 
-from allmydata import upload, encode, storageserver
+from allmydata import upload, encode
 from allmydata.uri import unpack_uri, unpack_lit
 from allmydata.util.assertutil import precondition
 from foolscap import eventual
@@ -35,7 +35,7 @@ class FakeStorageServer:
         return d
 
     def allocate_buckets(self, crypttext_hash, sharenums,
-                         share_size, blocksize, canary):
+                         share_size, canary):
         #print "FakeStorageServer.allocate_buckets(num=%d, size=%d)" % (len(sharenums), share_size)
         if self.mode == "full":
             return (set(), {},)
