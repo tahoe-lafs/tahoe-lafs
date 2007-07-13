@@ -102,8 +102,17 @@ class ValidatedBucket:
         self.share_hash_tree = share_hash_tree
         self._roothash = roothash
         self.block_hash_tree = hashtree.IncompleteHashTree(num_blocks)
+        self.started = False
 
     def get_block(self, blocknum):
+        if not self.started:
+            d = self.bucket.start()
+            def _started(res):
+                self.started = True
+                return self.get_block(blocknum)
+            d.addCallback(_started)
+            return d
+
         # the first time we use this bucket, we need to fetch enough elements
         # of the share hash tree to validate it from our share hash up to the
         # hashroot.
@@ -380,7 +389,8 @@ class FileDownloader:
         bucket = sources[0]
         sources = sources[1:]
         #d = bucket.callRemote(methname, *args)
-        d = getattr(bucket, methname)(*args)
+        d = bucket.startIfNecessary()
+        d.addCallback(lambda res: getattr(bucket, methname)(*args))
         d.addCallback(validatorfunc, bucket)
         def _bad(f):
             log.msg("%s from vbucket %s failed: %s" % (name, bucket, f)) # WEIRD

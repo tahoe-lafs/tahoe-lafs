@@ -180,6 +180,9 @@ class Encoder(object):
         self.setup_codec() # TODO: duplicate call?
         d = defer.succeed(None)
 
+        for l in self.landlords.values():
+            d.addCallback(lambda res, l=l: l.start())
+
         for i in range(self.num_segments-1):
             # note to self: this form doesn't work, because lambda only
             # captures the slot, not the value

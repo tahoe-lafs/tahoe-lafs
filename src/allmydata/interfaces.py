@@ -61,6 +61,38 @@ class RIClient(RemoteInterface):
         return Nodeid
 
 class RIBucketWriter(RemoteInterface):
+    def write(offset=int, data=ShareData):
+        return None
+
+    def close():
+        """
+        If the data that has been written is incomplete or inconsistent then
+        the server will throw the data away, else it will store it for future
+        retrieval.
+        """
+        return None
+
+class RIBucketReader(RemoteInterface):
+    def read(offset=int, length=int):
+        return ShareData
+
+
+class RIStorageServer(RemoteInterface):
+    def allocate_buckets(storage_index=StorageIndex,
+                         sharenums=SetOf(int, maxLength=MAX_BUCKETS),
+                         sharesize=int, blocksize=int, canary=Referenceable):
+        """
+        @param canary: If the canary is lost before close(), the bucket is deleted.
+        @return: tuple of (alreadygot, allocated), where alreadygot is what we
+            already have and is what we hereby agree to accept
+        """
+        return TupleOf(SetOf(int, maxLength=MAX_BUCKETS),
+                       DictOf(int, RIBucketWriter, maxKeys=MAX_BUCKETS))
+    def get_buckets(storage_index=StorageIndex):
+        return DictOf(int, RIBucketReader, maxKeys=MAX_BUCKETS)
+
+
+class IStorageBucketWriter(Interface):
     def put_block(segmentnum=int, data=ShareData):
         """@param data: For most segments, this data will be 'blocksize'
         bytes in length. The last segment might be shorter.
@@ -92,16 +124,11 @@ class RIBucketWriter(RemoteInterface):
             write(k + ':' + netstring(dict[k]))
         """
         return None
-
     def close():
-        """
-        If the data that has been written is incomplete or inconsistent then
-        the server will throw the data away, else it will store it for future
-        retrieval.
-        """
-        return None
+        pass
 
-class RIBucketReader(RemoteInterface):
+class IStorageBucketReader(Interface):
+
     def get_block(blocknum=int):
         """Most blocks will be the same size. The last block might be shorter
         than the others.
@@ -119,55 +146,6 @@ class RIBucketReader(RemoteInterface):
         return ListOf(TupleOf(int, Hash), maxLength=2**20)
     def get_uri_extension():
         return URIExtensionData
-
-
-class RIStorageServer(RemoteInterface):
-    def allocate_buckets(storage_index=StorageIndex,
-                         sharenums=SetOf(int, maxLength=MAX_BUCKETS),
-                         sharesize=int, blocksize=int, canary=Referenceable):
-        """
-        @param canary: If the canary is lost before close(), the bucket is deleted.
-        @return: tuple of (alreadygot, allocated), where alreadygot is what we
-            already have and is what we hereby agree to accept
-        """
-        return TupleOf(SetOf(int, maxLength=MAX_BUCKETS),
-                       DictOf(int, RIBucketWriter, maxKeys=MAX_BUCKETS))
-    def get_buckets(storage_index=StorageIndex):
-        return DictOf(int, RIBucketReader, maxKeys=MAX_BUCKETS)
-
-
-class IStorageBucketWriter(Interface):
-    def put_block(segmentnum, data):
-        pass
-
-    def put_plaintext_hashes(hashes):
-        pass
-    def put_crypttext_hashes(hashes):
-        pass
-    def put_block_hashes(blockhashes):
-        pass
-    def put_share_hashes(sharehashes):
-        pass
-    def put_uri_extension(data):
-        pass
-    def close():
-        pass
-
-class IStorageBucketReader(Interface):
-
-    def get_block(blocknum):
-        pass
-
-    def get_plaintext_hashes():
-        pass
-    def get_crypttext_hashes():
-        pass
-    def get_block_hashes():
-        pass
-    def get_share_hashes():
-        pass
-    def get_uri_extension():
-        pass
 
 
 

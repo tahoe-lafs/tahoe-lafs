@@ -24,13 +24,16 @@ class TooFullError(Exception):
 
 class PeerTracker:
     def __init__(self, peerid, permutedid, connection,
-                 sharesize, blocksize, crypttext_hash):
+                 sharesize, blocksize, num_segments, num_share_hashes,
+                 crypttext_hash):
         self.peerid = peerid
         self.permutedid = permutedid
         self.connection = connection # to an RIClient
         self.buckets = {} # k: shareid, v: IRemoteBucketWriter
         self.sharesize = sharesize
         self.blocksize = blocksize
+        self.num_segments = num_segments
+        self.num_share_hashes = num_share_hashes
         self.crypttext_hash = crypttext_hash
         self._storageserver = None
 
@@ -54,8 +57,13 @@ class PeerTracker:
         
     def _got_reply(self, (alreadygot, buckets)):
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
-        b = dict( [ (sharenum, storageserver.WriteBucketProxy(rref))
-                    for sharenum, rref in buckets.iteritems() ] )
+        b = {}
+        for sharenum, rref in buckets.iteritems():
+            bp = storageserver.WriteBucketProxy(rref, self.sharesize,
+                                                self.blocksize,
+                                                self.num_segments,
+                                                self.num_share_hashes)
+            b[sharenum] = bp
         self.buckets.update(b)
         return (alreadygot, set(b.keys()))
 
@@ -129,8 +137,14 @@ class FileUploader:
         # responsible for handling the data and sending out the shares.
         peers = self._client.get_permuted_peers(self._crypttext_hash)
         assert peers
+        # TODO: eek, don't pull this from here, find a better way. gross.
+        num_segments = self._encoder.uri_extension_data['num_segments']
+        from allmydata.util.mathutil import next_power_of_k
+        import math
+        num_share_hashes = max(int(math.log(next_power_of_k(self.total_shares,2),2)),1)
         trackers = [ PeerTracker(peerid, permutedid, conn,
                                  share_size, block_size,
+                                 num_segments, num_share_hashes,
                                  self._crypttext_hash)
                      for permutedid, peerid, conn in peers ]
         self.usable_peers = set(trackers) # this set shrinks over time

@@ -61,17 +61,10 @@ class FakeBucketWriter:
         self.share_hashes = None
         self.closed = False
 
-    def callRemote(self, methname, *args, **kwargs):
-        # this allows FakeBucketWriter to be used either as an
-        # IStorageBucketWriter or as the remote reference that it wraps. This
-        # should be cleaned up eventually when we change RIBucketWriter to
-        # have just write(offset, data) and close()
-        def _call():
-            meth = getattr(self, methname)
-            return meth(*args, **kwargs)
-        d = eventual.fireEventually()
-        d.addCallback(lambda res: _call())
-        return d
+    def startIfNecessary(self):
+        return defer.succeed(self)
+    def start(self):
+        return defer.succeed(self)
 
     def put_block(self, segmentnum, data):
         def _try():
