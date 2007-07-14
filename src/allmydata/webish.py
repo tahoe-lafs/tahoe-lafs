@@ -117,6 +117,9 @@ class Directory(rend.Page):
                 size = "?"
             ctx.fillSlots("size", size)
 
+            text_plain_link = "/uri/%s?filename=foo.txt" % uri_link
+            text_plain_tag = T.a(href=text_plain_link)["text/plain"]
+
             # if we're a file, add the filename to the uri_link url
             uri_link += '?%s' % (urllib.urlencode({'filename': name}),)
 
@@ -131,6 +134,7 @@ class Directory(rend.Page):
                 dirtype = "DIR-RO"
             ctx.fillSlots("type", dirtype)
             ctx.fillSlots("size", "-")
+            text_plain_tag = None
         else:
             raise RuntimeError("unknown thing %s" % (target,))
 
@@ -139,6 +143,9 @@ class Directory(rend.Page):
                      T.a(href="%s?t=readonly-uri" % name)["readonly-URI"], ", ",
                      T.a(href="/uri/%s" % uri_link)["URI-link"],
                      ]
+        if text_plain_tag:
+            childdata.extend([", ", text_plain_tag])
+
         ctx.fillSlots("data", childdata)
 
         return ctx.tag
