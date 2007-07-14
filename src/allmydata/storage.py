@@ -185,7 +185,8 @@ class WriteBucketProxy:
         self._segment_size = segment_size
         self._num_segments = num_segments
 
-        self._segment_hash_size = (2*num_segments - 1) * HASH_SIZE
+        effective_segments = mathutil.next_power_of_k(num_segments,2)
+        self._segment_hash_size = (2*effective_segments - 1) * HASH_SIZE
         # how many share hashes are included in each share? This will be
         # about ln2(num_shares).
         self._share_hash_size = num_share_hashes * (2+HASH_SIZE)
