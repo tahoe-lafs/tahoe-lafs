@@ -14,7 +14,7 @@ FURL = StringConstraint(1000)
 StorageIndex = StringConstraint(32)
 URI = StringConstraint(300) # kind of arbitrary
 MAX_BUCKETS = 200  # per peer
-ShareData = StringConstraint(100000) # 2MB segment / k=25
+ShareData = StringConstraint(700000) # 2MB segment / k=3 = 670kB
 URIExtensionData = StringConstraint(1000)
 
 class RIIntroducerClient(RemoteInterface):
