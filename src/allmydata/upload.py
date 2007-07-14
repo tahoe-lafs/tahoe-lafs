@@ -5,7 +5,7 @@ from twisted.application import service
 from foolscap import Referenceable
 
 from allmydata.util import idlib, hashutil
-from allmydata import encode, storageserver, hashtree
+from allmydata import encode, storage, hashtree
 from allmydata.uri import pack_uri, pack_lit
 from allmydata.interfaces import IUploadable, IUploader
 from allmydata.Crypto.Cipher import AES
@@ -39,10 +39,10 @@ class PeerTracker:
         self.buckets = {} # k: shareid, v: IRemoteBucketWriter
         self.sharesize = sharesize
         #print "PeerTracker", peerid, permutedid, sharesize
-        as = storageserver.allocated_size(sharesize,
-                                          num_segments,
-                                          num_share_hashes,
-                                          EXTENSION_SIZE)
+        as = storage.allocated_size(sharesize,
+                                    num_segments,
+                                    num_share_hashes,
+                                    EXTENSION_SIZE)
         self.allocated_size = as
                                                            
         self.blocksize = blocksize
@@ -74,11 +74,11 @@ class PeerTracker:
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
         b = {}
         for sharenum, rref in buckets.iteritems():
-            bp = storageserver.WriteBucketProxy(rref, self.sharesize,
-                                                self.blocksize,
-                                                self.num_segments,
-                                                self.num_share_hashes,
-                                                EXTENSION_SIZE)
+            bp = storage.WriteBucketProxy(rref, self.sharesize,
+                                          self.blocksize,
+                                          self.num_segments,
+                                          self.num_share_hashes,
+                                          EXTENSION_SIZE)
             b[sharenum] = bp
         self.buckets.update(b)
         return (alreadygot, set(b.keys()))

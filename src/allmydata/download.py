@@ -7,7 +7,7 @@ from twisted.application import service
 
 from allmydata.util import idlib, mathutil, hashutil
 from allmydata.util.assertutil import _assert
-from allmydata import codec, hashtree, storageserver, uri
+from allmydata import codec, hashtree, storage, uri
 from allmydata.Crypto.Cipher import AES
 from allmydata.interfaces import IDownloadTarget, IDownloader
 from allmydata.encode import NotEnoughPeersError
@@ -345,7 +345,7 @@ class FileDownloader:
     def _got_response(self, buckets, connection):
         _assert(isinstance(buckets, dict), buckets) # soon foolscap will check this for us with its DictOf schema constraint
         for sharenum, bucket in buckets.iteritems():
-            b = storageserver.ReadBucketProxy(bucket)
+            b = storage.ReadBucketProxy(bucket)
             self.add_share_bucket(sharenum, b)
             self._uri_extension_sources.append(b)
 

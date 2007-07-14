@@ -11,7 +11,7 @@ from twisted.python import log
 
 import allmydata
 from allmydata.Crypto.Util.number import bytes_to_long
-from allmydata.storageserver import StorageServer
+from allmydata.storage import StorageServer
 from allmydata.upload import Uploader
 from allmydata.download import Downloader
 from allmydata.webish import WebishServer

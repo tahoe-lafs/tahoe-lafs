@@ -7,7 +7,7 @@ from foolscap import Referenceable
 import os.path
 from allmydata import interfaces
 from allmydata.util import fileutil, hashutil
-from allmydata.storageserver import BucketWriter, BucketReader, \
+from allmydata.storage import BucketWriter, BucketReader, \
      WriteBucketProxy, ReadBucketProxy, StorageServer
 
 

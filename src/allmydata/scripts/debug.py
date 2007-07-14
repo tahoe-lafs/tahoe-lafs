@@ -43,12 +43,12 @@ class DumpDirnodeOptions(BasedirMixin, usage.Options):
             raise usage.UsageError("<uri> parameter is required")
 
 def dump_uri_extension(config, out=sys.stdout, err=sys.stderr):
-    from allmydata import uri, storageserver
+    from allmydata import uri, storage
 
     filename = config['filename']
     f = open(filename,"rb")
     # use a ReadBucketProxy to parse the bucket and find the uri extension
-    bp = storageserver.ReadBucketProxy(None)
+    bp = storage.ReadBucketProxy(None)
     offsets = bp._parse_offsets(f.read(8*4))
     f.seek(offsets['uri_extension'])
     length = struct.unpack(">L", f.read(4))[0]
