@@ -241,24 +241,33 @@ class WriteBucketProxy:
         offset = self._offsets['plaintext_hash_tree']
         assert isinstance(hashes, list)
         data = "".join(hashes)
-        assert len(data) == self._segment_hash_size
-        assert offset + len(data) <= self._offsets['crypttext_hash_tree']
+        precondition(len(data) == self._segment_hash_size,
+                     len(data), self._segment_hash_size)
+        precondition(offset+len(data) <= self._offsets['crypttext_hash_tree'],
+                     offset, len(data), offset+len(data),
+                     self._offsets['crypttext_hash_tree'])
         return self._write(offset, data)
 
     def put_crypttext_hashes(self, hashes):
         offset = self._offsets['crypttext_hash_tree']
         assert isinstance(hashes, list)
         data = "".join(hashes)
-        assert len(data) == self._segment_hash_size
-        assert offset + len(data) <= self._offsets['block_hashes']
+        precondition(len(data) == self._segment_hash_size,
+                     len(data), self._segment_hash_size)
+        precondition(offset + len(data) <= self._offsets['block_hashes'],
+                     offset, len(data), offset+len(data),
+                     self._offsets['block_hashes'])
         return self._write(offset, data)
 
     def put_block_hashes(self, blockhashes):
         offset = self._offsets['block_hashes']
         assert isinstance(blockhashes, list)
         data = "".join(blockhashes)
-        assert len(data) == self._segment_hash_size
-        assert offset + len(data) <= self._offsets['share_hashes']
+        precondition(len(data) == self._segment_hash_size,
+                     len(data), self._segment_hash_size)
+        precondition(offset + len(data) <= self._offsets['share_hashes'],
+                     offset, len(data), offset+len(data),
+                     self._offsets['share_hashes'])
         return self._write(offset, data)
 
     def put_share_hashes(self, sharehashes):
@@ -270,13 +279,16 @@ class WriteBucketProxy:
                         for hashnum,hashvalue in sharehashes])
         precondition(len(data) == self._share_hash_size,
                      len(data), self._share_hash_size)
-        assert offset + len(data) <= self._offsets['uri_extension']
+        precondition(offset + len(data) <= self._offsets['uri_extension'],
+                     offset, len(data), offset+len(data),
+                     self._offsets['uri_extension'])
         return self._write(offset, data)
 
     def put_uri_extension(self, data):
         offset = self._offsets['uri_extension']
         assert isinstance(data, str)
-        assert len(data) <= self._uri_extension_size
+        precondition(len(data) <= self._uri_extension_size,
+                     len(data), self._uri_extension_size)
         length = struct.pack(">L", len(data))
         return self._write(offset, length+data)
 
