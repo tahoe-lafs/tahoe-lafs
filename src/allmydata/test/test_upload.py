@@ -140,6 +140,14 @@ class GoodServer(unittest.TestCase):
         d.addCallback(self._check_large, SIZE_LARGE)
         return d
 
+    def test_data_large_odd_segments(self):
+        data = self.get_data(SIZE_LARGE)
+        segsize = int(SIZE_LARGE / 2.5)
+        # we want 3 segments, since that's not a power of two
+        d = self.u.upload_data(data, {"max_segment_size": segsize})
+        d.addCallback(self._check_large, SIZE_LARGE)
+        return d
+
     def test_filehandle_zero(self):
         data = self.get_data(SIZE_ZERO)
         d = self.u.upload_filehandle(StringIO(data))
