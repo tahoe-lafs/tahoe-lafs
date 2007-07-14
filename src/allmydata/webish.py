@@ -624,7 +624,7 @@ class PUTHandler(rend.Page):
         if not IDirectoryNode.providedBy(node):
             raise BlockingFileError
         if not path:
-            return node
+            return defer.succeed(node)
         d = node.get(path[0])
         def _maybe_create(f):
             f.trap(KeyError)
