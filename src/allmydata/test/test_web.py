@@ -700,11 +700,11 @@ class Web(unittest.TestCase):
         self.touch(localdir, "three/bar.txt")
         self.touch(localdir, "zap.zip")
 
-        d = self.PUT("/vdrive/global/foo/newdir?t=upload&localdir=%s"
+        d = self.PUT("/vdrive/global/newdir?t=upload&localdir=%s"
                      % localdir, "")
         def _check(res):
-            self.failUnless("newdir" in self._foo_node.children)
-            newnode = self.nodes[self._foo_node.children["newdir"]]
+            self.failUnless("newdir" in self.public_root.children)
+            newnode = self.nodes[self.public_root.children["newdir"]]
             self.failUnlessEqual(sorted(newnode.children.keys()),
                                  sorted(["one", "two", "three", "zap.zip"]))
             onenode = self.nodes[newnode.children["one"]]

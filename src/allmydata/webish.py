@@ -602,6 +602,7 @@ class PUTHandler(rend.Page):
             if localfile:
                 d.addCallback(self._upload_localfile, localfile, name)
             elif localdir:
+                # take the last step
                 d.addCallback(self._get_or_create_directories, self._path[-1:])
                 d.addCallback(self._upload_localdir, localdir)
             else:
