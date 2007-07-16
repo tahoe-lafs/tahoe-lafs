@@ -502,7 +502,7 @@ class POSTHandler(rend.Page):
             name = req.args["name"][0]
         elif name in req.fields:
             name = req.fields["name"].value
-        if "/" in name:
+        if name and "/" in name:
             req.setResponseCode(http.BAD_REQUEST)
             req.setHeader("content-type", "text/plain")
             return "name= may not contain a slash"
