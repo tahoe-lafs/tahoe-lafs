@@ -73,7 +73,7 @@ class Encoder(object):
     NEEDED_SHARES = 25
     SHARES_OF_HAPPINESS = 75
     TOTAL_SHARES = 100
-    MAX_SEGMENT_SIZE = 2*MiB
+    MAX_SEGMENT_SIZE = 1*MiB
 
     def __init__(self, options={}):
         object.__init__(self)
