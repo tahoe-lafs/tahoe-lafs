@@ -234,7 +234,8 @@ for files and directories which do not yet exist.
   this because forms are the only way for a web browser to upload a file
   (browsers do not know how to do PUT or DELETE). The file's contents and the
   new child name will be included in the form's arguments. This can only be
-  used to upload a single file at a time.
+  used to upload a single file at a time. To avoid confusion, name= is not
+  allowed to contain a slash (a 400 Bad Request error will result).
 
  POST DIRURL
   t=mkdir

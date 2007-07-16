@@ -310,13 +310,18 @@ class Web(unittest.TestCase):
         return client.getPage(url, method="POST", postdata=body,
                               headers=headers, followRedirect=False)
 
-    def shouldFail(self, res, expected_failure, which, substring=None):
+    def shouldFail(self, res, expected_failure, which,
+                   substring=None, response_substring=None):
         if isinstance(res, failure.Failure):
             res.trap(expected_failure)
             if substring:
                 self.failUnless(substring in str(res),
                                 "substring '%s' not in '%s'"
                                 % (substring, str(res)))
+            if response_substring:
+                self.failUnless(response_substring in res.value.response,
+                                "respose substring '%s' not in '%s'"
+                                % (response_substring, res.value.response))
         else:
             self.fail("%s was supposed to raise %s, not get '%s'" %
                       (which, expected_failure, res))
@@ -773,6 +778,23 @@ class Web(unittest.TestCase):
             new_contents = self.files[new_uri]
             self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
             self.failUnlessEqual(res.strip(), new_uri)
+        d.addCallback(_check)
+        return d
+
+    def test_POST_upload_named_badfilename(self): # YES
+        d = self.POST("/vdrive/global/foo", t="upload",
+                      name="slashes/are/bad.txt", file=self.NEWFILE_CONTENTS)
+        d.addBoth(self.shouldFail, error.Error,
+                  "test_POST_upload_named_badfilename",
+                  "400 Bad Request",
+                  "name= may not contain a slash",
+                  )
+        def _check(res):
+            # make sure that nothing was added
+            kids = sorted(self._foo_node.children.keys())
+            self.failUnlessEqual(sorted(["bar.txt", "blockingfile",
+                                         "empty", "sub"]),
+                                 kids)
         d.addCallback(_check)
         return d
 
