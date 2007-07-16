@@ -387,7 +387,8 @@ class Web(unittest.TestCase):
         d = self.PUT("/vdrive/global/foo/blockingfile/new.txt",
                      self.NEWFILE_CONTENTS)
         d.addBoth(self.shouldFail, error.Error, "PUT_NEWFILEURL_blocked",
-                  "403 Forbidden")
+                  "400 Bad Request",
+                  "cannot create directory because there is a file in the way")
         return d
 
     def test_DELETE_FILEURL(self): # YES
@@ -444,7 +445,8 @@ class Web(unittest.TestCase):
         d = self.GET("/vdrive/global/foo/bar.txt?t=download&localfile=%s"
                      % localfile)
         d.addBoth(self.shouldFail, error.Error, "localfile non-local",
-                  "403 Forbidden")
+                  "403 Forbidden",
+                  "localfile= or localdir= requires a local connection")
         def _check(res):
             self.failIf(os.path.exists(localfile))
         d.addCallback(_check)
@@ -460,7 +462,8 @@ class Web(unittest.TestCase):
         d = self.GET("/vdrive/global/foo/bar.txt?t=download&localfile=%s"
                      % localfile)
         d.addBoth(self.shouldFail, error.Error, "localfile non-absolute",
-                  "403 Forbidden")
+                  "403 Forbidden",
+                  "localfile= or localdir= requires an absolute path")
         def _check(res):
             self.failIf(os.path.exists(localfile))
         d.addCallback(_check)

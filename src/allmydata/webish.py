@@ -626,15 +626,18 @@ class PUTHandler(rend.Page):
             d.addCallback(self._upload_file, req.content, name)
         def _check_blocking(f):
             f.trap(BlockingFileError)
-            req.setResponseCode(http.FORBIDDEN)
+            req.setResponseCode(http.BAD_REQUEST)
             req.setHeader("content-type", "text/plain")
-            return str(f)
+            return str(f.value)
         d.addErrback(_check_blocking)
         return d
 
     def _get_or_create_directories(self, node, path):
         if not IDirectoryNode.providedBy(node):
-            raise BlockingFileError
+            # unfortunately it is too late to provide the name of the
+            # blocking directory in the error message.
+            raise BlockingFileError("cannot create directory because there "
+                                    "is a file in the way")
         if not path:
             return defer.succeed(node)
         d = node.get(path[0])
