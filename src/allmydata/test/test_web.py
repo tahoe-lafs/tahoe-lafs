@@ -843,6 +843,57 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    def test_POST_rename_file(self): # YES
+        d = self.POST("/vdrive/global/foo", t="rename",
+                      from_name="bar.txt", to_name='wibble.txt')
+        def _check(res):
+            self.failIf("bar.txt" in self._foo_node.children)
+            self.failUnless("wibble.txt" in self._foo_node.children)
+        d.addCallback(_check)
+        d.addCallback(lambda res: self.GET("/vdrive/global/foo/wibble.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET("/vdrive/global/foo/wibble.txt?t=json"))
+        d.addCallback(self.failUnlessIsBarJSON)
+        return d
+
+    def test_POST_rename_file_slash_fail(self): # YES
+        d = self.POST("/vdrive/global/foo", t="rename",
+                      from_name="bar.txt", to_name='kirk/spock.txt')
+        d.addBoth(self.shouldFail, error.Error,
+                  "test_POST_rename_file_slash_fail",
+                  "400 Bad Request",
+                  "to_name= may not contain a slash",
+                  )
+        def _check1(res):
+            self.failUnless("bar.txt" in self._foo_node.children)
+        d.addCallback(_check1)
+        d.addCallback(lambda res: self.POST("/vdrive/global", t="rename",
+                      from_name="foo/bar.txt", to_name='george.txt'))
+        d.addBoth(self.shouldFail, error.Error,
+                  "test_POST_rename_file_slash_fail",
+                  "400 Bad Request",
+                  "from_name= may not contain a slash",
+                  )
+        def _check2(res):
+            self.failUnless("foo" in self.public_root.children)
+            self.failIf("george.txt" in self.public_root.children)
+            self.failUnless("bar.txt" in self._foo_node.children)
+        d.addCallback(_check2)
+        d.addCallback(lambda res: self.GET("/vdrive/global/foo?t=json"))
+        d.addCallback(self.failUnlessIsFooJSON)
+        return d
+
+    def test_POST_rename_dir(self): # YES
+        d = self.POST("/vdrive/global", t="rename",
+                      from_name="foo", to_name='plunk')
+        def _check(res):
+            self.failIf("foo" in self.public_root.children)
+            self.failUnless("plunk" in self.public_root.children)
+        d.addCallback(_check)
+        d.addCallback(lambda res: self.GET("/vdrive/global/plunk?t=json"))
+        d.addCallback(self.failUnlessIsFooJSON)
+        return d
+
     def shouldRedirect(self, res, target):
         if not isinstance(res, failure.Failure):
             self.fail("we were expecting to get redirected to %s, not get an"
@@ -872,6 +923,15 @@ class Web(unittest.TestCase):
         d.addCallback(self.failUnlessIsFooJSON)
         d.addCallback(self.log, "got dir by uri")
 
+        return d
+
+    def test_GET_rename_form(self): # YES
+        d = self.GET("/vdrive/global/foo?t=rename-form&name=bar.txt",
+                     followRedirect=True) # XXX [ ] todo: figure out why '.../foo' doesn't work
+        def _check(res):
+            self.failUnless(re.search(r'name="when_done" value=".*vdrive/global/foo/', res))
+            self.failUnless(re.search(r'name="from_name" value="bar\.txt"', res))
+        d.addCallback(_check)
         return d
 
     def log(self, res, msg):

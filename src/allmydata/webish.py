@@ -545,6 +545,11 @@ class POSTHandler(rend.Page):
                 raise RuntimeError("rename requires from_name and to_name")
             if not IDirectoryNode.providedBy(self._node):
                 raise RuntimeError("rename must only be called on directories")
+            for k,v in [ ('from_name', from_name), ('to_name', to_name) ]:
+                if v and "/" in v:
+                    req.setResponseCode(http.BAD_REQUEST)
+                    req.setHeader("content-type", "text/plain")
+                    return "%s= may not contain a slash" % (k,)
             d = self._node.get(from_name)
             def add_dest(child):
                 uri = child.get_uri()
