@@ -1,11 +1,11 @@
 #! /usr/bin/env python
 
-import os, shutil
-
+import os, shutil, sys
+from cStringIO import StringIO
 from twisted.internet import defer, reactor, protocol, error
 from twisted.application import service, internet
 from allmydata import client, introducer_and_vdrive
-from allmydata.scripts import runner
+from allmydata.scripts import create_node
 from allmydata.util import testutil
 import foolscap
 from foolscap import eventual
@@ -14,7 +14,7 @@ from twisted.python import log
 class SystemFramework(testutil.PollMixin):
     numnodes = 5
 
-    def __init__(self, basedir):
+    def __init__(self, basedir, mode):
         self.basedir = basedir = os.path.abspath(basedir)
         if not basedir.startswith(os.path.abspath(".")):
             raise AssertionError("safety issue: basedir must be a subdir")
@@ -26,6 +26,8 @@ class SystemFramework(testutil.PollMixin):
         self.proc = None
         self.tub = foolscap.Tub()
         self.tub.setServiceParent(self.sparent)
+        self.discard_shares = True
+        self.mode = mode
 
     def run(self):
         log.startLogging(open(os.path.join(self.basedir, "log"), "w"),
@@ -45,7 +47,9 @@ class SystemFramework(testutil.PollMixin):
         reactor.run()
 
     def setUp(self):
-        print "STARTING"
+        #print "STARTING"
+        self.stats = {}
+        self.statsfile = open(os.path.join(self.basedir, "stats.out"), "w")
         d = self.make_introducer_and_vdrive()
         def _more(res):
             self.make_nodes()
@@ -53,7 +57,7 @@ class SystemFramework(testutil.PollMixin):
         d.addCallback(_more)
         def _record_control_furl(control_furl):
             self.control_furl = control_furl
-            print "OBTAINING '%s'" % (control_furl,)
+            #print "OBTAINING '%s'" % (control_furl,)
             return self.tub.getReference(self.control_furl)
         d.addCallback(_record_control_furl)
         def _record_control(control_rref):
@@ -62,7 +66,8 @@ class SystemFramework(testutil.PollMixin):
                                            self.numnodes+1)
         d.addCallback(_record_control)
         def _ready(res):
-            print "CLIENT READY"
+            #print "CLIENT READY"
+            pass
         d.addCallback(_ready)
         return d
 
@@ -75,6 +80,9 @@ class SystemFramework(testutil.PollMixin):
             d.addCallback(lambda res: self.kill_client())
         d.addCallback(lambda res: self.sparent.stopService())
         d.addCallback(lambda res: eventual.flushEventualQueue())
+        def _close_statsfile(res):
+            self.statsfile.close()
+        d.addCallback(_close_statsfile)
         d.addCallback(lambda res: passthrough)
         return d
 
@@ -104,6 +112,13 @@ class SystemFramework(testutil.PollMixin):
             f = open(os.path.join(nodedir, "vdrive.furl"), "w")
             f.write(vdrive_furl)
             f.close()
+            if self.discard_shares:
+                # for this test, we tell the storage servers to throw out all
+                # their stored data, since we're only testing upload and not
+                # download.
+                f = open(os.path.join(nodedir, "debug_no_storage"), "w")
+                f.write("no_storage\n")
+                f.close()
             c = self.add_service(client.Client(basedir=nodedir))
             self.nodes.append(c)
         # the peers will start running, eventually they will connect to each
@@ -124,8 +139,8 @@ this file are ignored.
         # this returns a Deferred that fires with the client's control.furl
         log.msg("MAKING CLIENT")
         clientdir = self.clientdir = os.path.join(self.basedir, "client")
-        config = {'basedir': clientdir, 'quiet': True}
-        runner.create_client(config)
+        quiet = StringIO()
+        create_node.create_client(clientdir, {}, out=quiet)
         log.msg("DONE MAKING CLIENT")
         f = open(os.path.join(clientdir, "introducer.furl"), "w")
         f.write(self.introducer_furl + "\n")
@@ -133,6 +148,10 @@ this file are ignored.
         f = open(os.path.join(clientdir, "vdrive.furl"), "w")
         f.write(self.introducer_furl + "\n")
         f.close()
+        if self.discard_shares:
+            f = open(os.path.join(clientdir, "debug_no_storage"), "w")
+            f.write("no_storage\n")
+            f.close()
         self.keepalive_file = os.path.join(clientdir,
                                            "suicide_prevention_hotline")
         # now start updating the mtime.
@@ -191,11 +210,15 @@ this file are ignored.
             size -= l
         return filename
 
+    def stash_stats(self, stats, name):
+        self.statsfile.write("%s %s: %d\n" % (self.mode, name, stats['VmPeak']))
+        self.stats[name] = stats['VmPeak']
+
     def do_test(self):
-        print "CLIENT STARTED"
-        print "FURL", self.control_furl
-        print "RREF", self.control_rref
-        print
+        #print "CLIENT STARTED"
+        #print "FURL", self.control_furl
+        #print "RREF", self.control_rref
+        #print
         kB = 1000; MB = 1000*1000
         files = {}
         uris = {}
@@ -206,15 +229,20 @@ this file are ignored.
             def _print(stats):
                 print "VmSize: %9d  VmPeak: %9d" % (stats["VmSize"],
                                                     stats["VmPeak"])
+                return stats
             d.addCallback(_print)
             return d
 
         def _do_upload(res, size):
             name = '%d' % size
             files[name] = self.create_data(name, size)
+            print
+            print "uploading %s" % name
             d = control.callRemote("upload_from_file_to_uri", files[name])
             def _done(uri):
                 uris[name] = uri
+                os.remove(files[name])
+                del files[name]
                 print "uploaded %s" % name
             d.addCallback(_done)
             return d
@@ -224,10 +252,17 @@ this file are ignored.
         for i in range(10):
             d.addCallback(_do_upload, size=10*kB+i)
             d.addCallback(_print_usage)
+        d.addCallback(self.stash_stats, "10kB")
 
-        for i in range(10):
+        for i in range(3):
             d.addCallback(_do_upload, size=10*MB+i)
             d.addCallback(_print_usage)
+        d.addCallback(self.stash_stats, "10MB")
+
+        #for i in range(1):
+        #    d.addCallback(_do_upload, size=50*MB+i)
+        #    d.addCallback(_print_usage)
+        #d.addCallback(self.stash_stats, "50MB")
 
         #d.addCallback(self.stall)
         def _done(res):
@@ -251,6 +286,9 @@ class ClientWatcher(protocol.ProcessProtocol):
 
 
 if __name__ == '__main__':
-    sf = SystemFramework("_test_memory")
+    mode = "upload"
+    if len(sys.argv) > 1:
+        mode = sys.argv[1]
+    sf = SystemFramework("_test_memory", mode)
     sf.run()
 
