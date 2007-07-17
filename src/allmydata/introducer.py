@@ -123,3 +123,9 @@ class IntroducerClient(service.Service, Referenceable):
 
     def connected_to_introducer(self):
         return self._connected
+
+    def get_all_peerids(self):
+        return self.connections.iterkeys()
+
+    def get_all_peers(self):
+        return self.connections.iteritems()

@@ -139,14 +139,14 @@ class Client(node.Node, Referenceable):
     def get_all_peerids(self):
         if not self.introducer_client:
             return []
-        return self.introducer_client.connections.iterkeys()
+        return self.introducer_client.get_all_peerids()
 
     def get_permuted_peers(self, key):
         """
         @return: list of (permuted-peerid, peerid, connection,)
         """
         results = []
-        for peerid, connection in self.introducer_client.connections.iteritems():
+        for peerid, connection in self.introducer_client.get_all_peers():
             assert isinstance(peerid, str)
             permuted = bytes_to_long(sha.new(key + peerid).digest())
             results.append((permuted, peerid, connection))
