@@ -45,10 +45,12 @@ class VirtualDrive(service.MultiService):
             self._global_uri = f.read().strip()
             f.close()
         elif global_vdrive_furl:
+            self.parent.log("fetching global_uri")
             d = tub.getReference(global_vdrive_furl)
             d.addCallback(lambda vdrive_server:
                           vdrive_server.callRemote("get_public_root_uri"))
             def _got_global_uri(global_uri):
+                self.parent.log("got global_uri")
                 self._global_uri = global_uri
                 f = open(global_uri_file, "w")
                 f.write(self._global_uri + "\n")
