@@ -4,7 +4,7 @@ from zope.interface import implements
 from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer
-from twisted.web import client, error
+from twisted.web import client, error, http
 from twisted.python import failure, log
 from allmydata import webish, interfaces, dirnode, uri
 from allmydata.encode import NotEnoughPeersError
@@ -186,6 +186,9 @@ class Web(unittest.TestCase):
         baz_file = self.makefile(2)
         sub.children["baz.txt"] = baz_file
 
+        self._bad_file_uri = self.makefile(3)
+        del self.files[self._bad_file_uri]
+
         rodir = self.makedir()
         rodir._mutable = False
         v.public_root.children["readonly"] = rodir.get_uri()
@@ -333,6 +336,24 @@ class Web(unittest.TestCase):
         else:
             self.fail("%s was supposed to Error(404), not get '%s'" %
                       (which, res))
+
+    def shouldHTTPError(self, res, which, code=None, substring=None,
+                        response_substring=None):
+        if isinstance(res, failure.Failure):
+            res.trap(error.Error)
+            if code is not None:
+                self.failUnlessEqual(res.value.status, str(code))
+            if substring:
+                self.failUnless(substring in str(res),
+                                "substring '%s' not in '%s'"
+                                % (substring, str(res)))
+            if response_substring:
+                self.failUnless(response_substring in res.value.response,
+                                "respose substring '%s' not in '%s'"
+                                % (response_substring, res.value.response))
+        else:
+            self.fail("%s was supposed to Error(%s), not get '%s'" %
+                      (which, code, res))
 
     def test_create(self): # YES
         pass
@@ -956,9 +977,14 @@ class Web(unittest.TestCase):
         return d
 
     def test_GET_URI_URL_missing(self): # YES
-        base = "/uri/missing?t=json"
+        base = "/uri/%s" % self._bad_file_uri.replace("/","!")
         d = self.GET(base)
-        d.addBoth(self.should404, "test_GET_URI_URL_missing")
+        d.addBoth(self.shouldHTTPError, "test_GET_URI_URL_missing",
+                  http.GONE, response_substring="NotEnoughPeersError")
+        # TODO: how can we exercise both sides of WebDownloadTarget.fail
+        # here? we must arrange for a download to fail after target.open()
+        # has been called, and then inspect the response to see that it is
+        # shorter than we expected.
         return d
 
     def test_PUT_NEWFILEURL_uri(self): # YES

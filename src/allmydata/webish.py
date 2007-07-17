@@ -237,7 +237,7 @@ class WebDownloadTarget:
             # error message.
             msg = str(why.type)
             msg.replace("\n", "|")
-            self._req.setResponseCode(http.INTERNAL_SERVER_ERROR, msg)
+            self._req.setResponseCode(http.GONE, msg)
             self._req.setHeader("content-type", "text/plain")
             # TODO: HTML-formatted exception?
             self._req.write(str(why))
