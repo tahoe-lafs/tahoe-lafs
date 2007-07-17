@@ -83,7 +83,9 @@ class Client(node.Node, Referenceable):
                               "G": 1000 * 1000 * 1000,
                               }[suffix]
                 sizelimit = int(number) * multiplier
-        self.add_service(StorageServer(storedir, sizelimit))
+        NOSTORAGE_FILE = os.path.join(self.basedir, "debug_no_storage")
+        no_storage = os.path.exists(NOSTORAGE_FILE)
+        self.add_service(StorageServer(storedir, sizelimit, no_storage))
 
     def _check_hotline(self, hotline_file):
         if os.path.exists(hotline_file):

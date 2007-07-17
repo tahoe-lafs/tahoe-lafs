@@ -31,6 +31,7 @@ class BucketWriter(Referenceable):
         self.finalhome = finalhome
         self._size = size
         self.closed = False
+        self.throw_out_all_data = False
         # touch the file, so later callers will see that we're working on it
         f = open(self.incominghome, 'ab')
         f.close()
@@ -42,6 +43,8 @@ class BucketWriter(Referenceable):
         precondition(not self.closed)
         precondition(offset >= 0)
         precondition(offset+len(data) <= self._size)
+        if self.throw_out_all_data:
+            return
         f = open(self.incominghome, 'ab')
         f.seek(offset)
         f.write(data)
@@ -70,11 +73,12 @@ class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer)
     name = 'storageserver'
 
-    def __init__(self, storedir, sizelimit=None):
+    def __init__(self, storedir, sizelimit=None, no_storage=False):
         service.MultiService.__init__(self)
         fileutil.make_dirs(storedir)
         self.storedir = storedir
         self.sizelimit = sizelimit
+        self.no_storage = no_storage
         self.incomingdir = os.path.join(storedir, 'incoming')
         self._clean_incomplete()
         fileutil.make_dirs(self.incomingdir)
@@ -113,6 +117,8 @@ class StorageServer(service.MultiService, Referenceable):
                 fileutil.make_dirs(os.path.join(self.incomingdir, si_s))
                 bw = BucketWriter(self, incominghome, finalhome,
                                   space_per_bucket)
+                if self.no_storage:
+                    bw.throw_out_all_data = True
                 bucketwriters[shnum] = bw
                 self._active_writers[bw] = 1
                 if yes_limits:
