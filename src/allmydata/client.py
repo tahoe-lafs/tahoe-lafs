@@ -118,10 +118,11 @@ class Client(node.Node, Referenceable):
         c = ControlServer()
         c.setServiceParent(self)
         control_url = self.tub.registerReference(c)
-        f = open("control.furl", "w")
+        control_furl_file = os.path.join(self.basedir, "control.furl")
+        f = open(control_furl_file, "w")
         f.write(control_url + "\n")
         f.close()
-        os.chmod("control.furl", 0600)
+        os.chmod(control_furl_file, 0600)
 
 
     def remote_get_versions(self):
