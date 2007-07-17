@@ -101,7 +101,7 @@ class SystemFramework(testutil.PollMixin):
     def make_nodes(self):
         q = self.introducer_and_vdrive
         self.introducer_furl = q.urls["introducer"]
-        vdrive_furl = q.urls["vdrive"]
+        self.vdrive_furl = q.urls["vdrive"]
         self.nodes = []
         for i in range(self.numnodes):
             nodedir = os.path.join(self.basedir, "node%d" % i)
@@ -110,7 +110,7 @@ class SystemFramework(testutil.PollMixin):
             f.write(self.introducer_furl)
             f.close()
             f = open(os.path.join(nodedir, "vdrive.furl"), "w")
-            f.write(vdrive_furl)
+            f.write(self.vdrive_furl)
             f.close()
             if self.discard_shares:
                 # for this test, we tell the storage servers to throw out all
@@ -146,7 +146,7 @@ this file are ignored.
         f.write(self.introducer_furl + "\n")
         f.close()
         f = open(os.path.join(clientdir, "vdrive.furl"), "w")
-        f.write(self.introducer_furl + "\n")
+        f.write(self.vdrive_furl + "\n")
         f.close()
         if self.discard_shares:
             f = open(os.path.join(clientdir, "debug_no_storage"), "w")
