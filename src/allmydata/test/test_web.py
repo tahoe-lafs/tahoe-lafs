@@ -373,6 +373,11 @@ class Web(unittest.TestCase):
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
+    def test_GET_FILEURL_download(self): # YES
+        d = self.GET("/vdrive/global/foo/bar.txt?t=download")
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        return d
+
     def test_GET_FILEURL_missing(self): # YES
         d = self.GET("/vdrive/global/foo/missing")
         d.addBoth(self.should404, "test_GET_FILEURL_missing")
@@ -694,6 +699,18 @@ class Web(unittest.TestCase):
             self.failUnless(os.path.exists(blockingfile))
             subdir = os.path.join(localdir, "sub")
             self.failUnless(os.path.isdir(subdir))
+        d.addCallback(_check)
+        return d
+
+    def test_GET_DIRURL_localdir_nonabsolute(self): # YES
+        localdir = "web/nonabsolute/dirpath"
+        fileutil.make_dirs("web/nonabsolute")
+        d = self.GET("/vdrive/global/foo?t=download&localdir=%s" % localdir)
+        d.addBoth(self.shouldFail, error.Error, "localdir non-absolute",
+                  "403 Forbidden",
+                  "localfile= or localdir= requires an absolute path")
+        def _check(res):
+            self.failIf(os.path.exists(localdir))
         d.addCallback(_check)
         return d
 

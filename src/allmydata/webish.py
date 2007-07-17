@@ -275,9 +275,6 @@ LOCALHOST = "127.0.0.1"
 class NeedLocalhostError:
     implements(inevow.IResource)
 
-    def locateChild(self, ctx, segments):
-        return rend.NotFound
-
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
         req.setResponseCode(http.FORBIDDEN)
@@ -286,9 +283,6 @@ class NeedLocalhostError:
 
 class NeedAbsolutePathError:
     implements(inevow.IResource)
-
-    def locateChild(self, ctx, segments):
-        return rend.NotFound
 
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
