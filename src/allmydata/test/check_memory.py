@@ -4,6 +4,7 @@ import os, shutil, sys
 from cStringIO import StringIO
 from twisted.internet import defer, reactor, protocol, error
 from twisted.application import service, internet
+from twisted.web.client import getPage
 from allmydata import client, introducer_and_vdrive
 from allmydata.scripts import create_node
 from allmydata.util import testutil
@@ -148,6 +149,14 @@ this file are ignored.
         f = open(os.path.join(clientdir, "vdrive.furl"), "w")
         f.write(self.vdrive_furl + "\n")
         f.close()
+        f = open(os.path.join(clientdir, "webport"), "w")
+        # TODO: ideally we would set webport=0 and then ask the node what
+        # port it picked. But at the moment it is not convenient to do this,
+        # so we just pick a relatively unique one.
+        webport = max(os.getpid(), 2000)
+        f.write("tcp:%d:interface=127.0.0.1\n" % webport)
+        f.close()
+        self.webish_url = "http://localhost:%d" % webport
         if self.discard_shares:
             f = open(os.path.join(clientdir, "debug_no_storage"), "w")
             f.write("no_storage\n")
@@ -214,6 +223,33 @@ this file are ignored.
         self.statsfile.write("%s %s: %d\n" % (self.mode, name, stats['VmPeak']))
         self.stats[name] = stats['VmPeak']
 
+    def POST(self, urlpath, **fields):
+        url = self.webish_url + urlpath
+        sepbase = "boogabooga"
+        sep = "--" + sepbase
+        form = []
+        form.append(sep)
+        form.append('Content-Disposition: form-data; name="_charset"')
+        form.append('')
+        form.append('UTF-8')
+        form.append(sep)
+        for name, value in fields.iteritems():
+            if isinstance(value, tuple):
+                filename, value = value
+                form.append('Content-Disposition: form-data; name="%s"; '
+                            'filename="%s"' % (name, filename))
+            else:
+                form.append('Content-Disposition: form-data; name="%s"' % name)
+            form.append('')
+            form.append(value)
+            form.append(sep)
+        form[-1] += "--"
+        body = "\r\n".join(form) + "\r\n"
+        headers = {"content-type": "multipart/form-data; boundary=%s" % sepbase,
+                   }
+        return getPage(url, method="POST", postdata=body,
+                       headers=headers, followRedirect=False)
+
     def do_test(self):
         #print "CLIENT STARTED"
         #print "FURL", self.control_furl
@@ -235,19 +271,30 @@ this file are ignored.
 
         def _do_upload(res, size):
             name = '%d' % size
-            files[name] = self.create_data(name, size)
             print
             print "uploading %s" % name
-            d = control.callRemote("upload_from_file_to_uri", files[name])
-            def _done(uri):
+            if self.mode == "upload":
+                files[name] = self.create_data(name, size)
+                d = control.callRemote("upload_from_file_to_uri", files[name])
+                def _done(uri):
+                    os.remove(files[name])
+                    del files[name]
+                    return uri
+                d.addCallback(_done)
+            elif self.mode == "upload-POST":
+                data = "a" * size
+                url = "/vdrive/global"
+                d = self.POST(url, t="upload", file=("%d.data" % size, data))
+            else:
+                raise RuntimeError("unknown mode=%s" % self.mode)
+            def _complete(uri):
                 uris[name] = uri
-                os.remove(files[name])
-                del files[name]
                 print "uploaded %s" % name
-            d.addCallback(_done)
+            d.addCallback(_complete)
             return d
 
         d = _print_usage()
+        d.addCallback(self.stash_stats, "0B")
 
         for i in range(10):
             d.addCallback(_do_upload, size=10*kB+i)
