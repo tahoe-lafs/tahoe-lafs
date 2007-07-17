@@ -190,8 +190,11 @@ count-lines:
 	@grep TODO `find src -name '*.py' |grep -v /build/` | wc --lines
 
 check-memory: build
+	touch memstats.out
 	$(PP) $(PYTHON) src/allmydata/test/check_memory.py upload
+	cat _test_memory/stats.out >>memstats.out
 	$(PP) $(PYTHON) src/allmydata/test/check_memory.py upload-POST
+	cat _test_memory/stats.out >>memstats.out
 
 test-darcs-boringfile:
 	$(MAKE)
