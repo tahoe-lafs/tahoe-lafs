@@ -47,7 +47,7 @@ More information on darcs is available at http://darcs.net
 
 Please join the zfec mailing list and submit patches:
 
-<https://postman.allmydata.com/cgi-bin/mailman/listinfo/zfec> 
+<http://allmydata.org/cgi-bin/mailman/listinfo/zfec-dev>
 
 
  * Overview
