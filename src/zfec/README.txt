@@ -36,6 +36,10 @@ stow") tool, then give it these arguments: "python ./setup.py install
 --single-version-externally-managed
 --record=${specificdirectory}/zfec-install.log --prefix=${specificdirectory}"
 
+To run the self-tests, execute "python ./setup.py test" (or if you have 
+Twisted Python installed, you can run "trial zfec" for nicer output and test 
+options.)
+
 
  * Community
 
