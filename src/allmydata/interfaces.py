@@ -679,14 +679,54 @@ class IDownloader(Interface):
         when the download is finished, or errbacks if something went wrong."""
 
 class IUploadable(Interface):
-    def get_filehandle():
-        """Return a filehandle from which the data to be uploaded can be
-        read. It must implement .read, .seek, and .tell (since the latter two
-        are used to determine the length of the data)."""
-    def close_filehandle(f):
-        """The upload is finished. This provides the same filehandle as was
-        returned by get_filehandle. This is an appropriate place to close the
-        filehandle."""
+    def get_size():
+        """Return a Deferred that will fire with the length of the data to be
+        uploaded, in bytes. This will be called before the data is actually
+        used, to compute encoding parameters.
+        """
+
+    def get_encryption_key(encoding_parameters):
+        """Return a Deferred that fires with a 16-byte AES key. This key will
+        be used to encrypt the data. The key will also be hashed to derive
+        the StorageIndex. 'encoding_parameters' is a string which indicates
+        how the data will be encoded (codec name, blocksize, number of
+        shares): Uploadables may wish to use these parameters while computing
+        the encryption key.
+
+        Uploadables which want to achieve convergence should hash their file
+        contents and the encoding_parameters to form the key (which of course
+        requires a full pass over the data). Uploadables can use the
+        upload.ConvergentUploadMixin class to achieve this automatically.
+
+        Uploadables which do not care about convergence (or do not wish to
+        make multiple passes over the data) can simply return a
+        strongly-random 16 byte string.
+        """
+
+    def read(length):
+        """Return a Deferred that fires with a list of strings (perhaps with
+        only a single element) which, when concatenated together, contain the
+        next 'length' bytes of data. If EOF is near, this may provide fewer
+        than 'length' bytes. The total number of bytes provided by read()
+        before it signals EOF must equal the size provided by get_size().
+
+        If the data must be acquired through multiple internal read
+        operations, returning a list instead of a single string may help to
+        reduce string copies.
+
+        'length' will typically be equal to (min(get_size(),1MB)/req_shares),
+        so a 10kB file means length=3kB, 100kB file means length=30kB,
+        and >=1MB file means length=300kB.
+
+        This method provides for a single full pass through the data. Later
+        use cases may desire multiple passes or access to only parts of the
+        data (such as a mutable file making small edits-in-place). This API
+        will be expanded once those use cases are better understood.
+        """
+
+    def close():
+        """The upload is finished, and whatever filehandle was in use may be
+        closed."""
 
 class IUploader(Interface):
     def upload(uploadable):

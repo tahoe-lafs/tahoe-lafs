@@ -1,3 +1,5 @@
+
+import os
 from zope.interface import implements
 from twisted.python import log
 from twisted.internet import defer
@@ -8,7 +10,6 @@ from allmydata.util import idlib, hashutil
 from allmydata import encode, storage, hashtree
 from allmydata.uri import pack_uri, pack_lit
 from allmydata.interfaces import IUploadable, IUploader
-from allmydata.Crypto.Cipher import AES
 
 from cStringIO import StringIO
 import collections, random
@@ -83,94 +84,39 @@ class PeerTracker:
         self.buckets.update(b)
         return (alreadygot, set(b.keys()))
 
-class FileUploader:
+class Tahoe3PeerSelector:
 
-    def __init__(self, client, options={}):
-        self._client = client
-        self._options = options
-
-    def set_params(self, encoding_parameters):
-        self._encoding_parameters = encoding_parameters
-
-        needed_shares, shares_of_happiness, total_shares = encoding_parameters
-        self.needed_shares = needed_shares
-        self.shares_of_happiness = shares_of_happiness
-        self.total_shares = total_shares
-
-    def set_filehandle(self, filehandle):
-        self._filehandle = filehandle
-        filehandle.seek(0, 2)
-        self._size = filehandle.tell()
-        filehandle.seek(0)
-
-    def set_id_strings(self, crypttext_hash, plaintext_hash):
-        assert isinstance(crypttext_hash, str)
-        assert len(crypttext_hash) == 32
-        self._crypttext_hash = crypttext_hash
-        assert isinstance(plaintext_hash, str)
-        assert len(plaintext_hash) == 32
-        self._plaintext_hash = plaintext_hash
-
-    def set_encryption_key(self, key):
-        assert isinstance(key, str)
-        assert len(key) == 16  # AES-128
-        self._encryption_key = key
-
-    def start(self):
-        """Start uploading the file.
-
-        The source of the data to be uploaded must have been set before this
-        point by calling set_filehandle().
-
-        This method returns a Deferred that will fire with the URI (a
-        string)."""
-
-        log.msg("starting upload [%s]" % (idlib.b2a(self._crypttext_hash),))
-        assert self.needed_shares
-
-        # create the encoder, so we can know how large the shares will be
-        share_size, block_size = self.setup_encoder()
-
-        d = self._locate_all_shareholders(share_size, block_size)
-        d.addCallback(self._send_shares)
-        d.addCallback(self._compute_uri)
-        return d
-
-    def setup_encoder(self):
-        self._encoder = encode.Encoder(self._options)
-        self._encoder.set_params(self._encoding_parameters)
-        self._encoder.setup(self._filehandle, self._encryption_key)
-        share_size = self._encoder.get_share_size()
-        block_size = self._encoder.get_block_size()
-        return share_size, block_size
-
-    def _locate_all_shareholders(self, share_size, block_size):
+    def get_shareholders(self, client,
+                         storage_index, share_size, block_size,
+                         num_segments, total_shares, shares_of_happiness):
         """
         @return: a set of PeerTracker instances that have agreed to hold some
             shares for us
         """
+
+        self.total_shares = total_shares
+        self.shares_of_happiness = shares_of_happiness
+
         # we are responsible for locating the shareholders. self._encoder is
         # responsible for handling the data and sending out the shares.
-        peers = self._client.get_permuted_peers(self._crypttext_hash)
+        peers = client.get_permuted_peers(storage_index)
         assert peers
 
-        # TODO: eek, don't pull this from here, find a better way. gross.
-        num_segments = self._encoder.uri_extension_data['num_segments']
-        ht = hashtree.IncompleteHashTree(self.total_shares)
         # this needed_hashes computation should mirror
         # Encoder.send_all_share_hash_trees. We use an IncompleteHashTree
         # (instead of a HashTree) because we don't require actual hashing
         # just to count the levels.
+        ht = hashtree.IncompleteHashTree(total_shares)
         num_share_hashes = len(ht.needed_hashes(0, include_leaf=True))
 
         trackers = [ PeerTracker(peerid, permutedid, conn,
                                  share_size, block_size,
                                  num_segments, num_share_hashes,
-                                 self._crypttext_hash)
+                                 storage_index)
                      for permutedid, peerid, conn in peers ]
         self.usable_peers = set(trackers) # this set shrinks over time
         self.used_peers = set() # while this set grows
-        self.unallocated_sharenums = set(range(self.total_shares)) # this one shrinks
+        self.unallocated_sharenums = set(range(total_shares)) # this one shrinks
 
         return self._locate_more_shareholders()
 
@@ -181,18 +127,23 @@ class FileUploader:
 
     def _located_some_shareholders(self, res):
         log.msg("_located_some_shareholders")
-        log.msg(" still need homes for %d shares, still have %d usable peers" % (len(self.unallocated_sharenums), len(self.usable_peers)))
+        log.msg(" still need homes for %d shares, still have %d usable peers"
+                % (len(self.unallocated_sharenums), len(self.usable_peers)))
         if not self.unallocated_sharenums:
             # Finished allocating places for all shares.
-            log.msg("%s._locate_all_shareholders() Finished allocating places for all shares." % self)
+            log.msg("%s._locate_all_shareholders() "
+                    "Finished allocating places for all shares." % self)
             log.msg("used_peers is %s" % (self.used_peers,))
             return self.used_peers
         if not self.usable_peers:
             # Ran out of peers who have space.
-            log.msg("%s._locate_all_shareholders() Ran out of peers who have space." % self)
-            if len(self.unallocated_sharenums) < (self.total_shares - self.shares_of_happiness):
+            log.msg("%s._locate_all_shareholders() "
+                    "Ran out of peers who have space." % self)
+            margin = self.total_shares - self.shares_of_happiness
+            if len(self.unallocated_sharenums) < margin:
                 # But we allocated places for enough shares.
-                log.msg("%s._locate_all_shareholders() But we allocated places for enough shares.")
+                log.msg("%s._locate_all_shareholders() "
+                        "But we allocated places for enough shares.")
                 return self.used_peers
             raise encode.NotEnoughPeersError
         # we need to keep trying
@@ -201,7 +152,10 @@ class FileUploader:
     def _create_ring_of_things(self):
         PEER = 1 # must sort later than SHARE, for consistency with download
         SHARE = 0
-        ring_of_things = [] # a list of (position_in_ring, whatami, x) where whatami is SHARE if x is a sharenum or else PEER if x is a PeerTracker instance
+        # ring_of_things is a list of (position_in_ring, whatami, x) where
+        # whatami is SHARE if x is a sharenum or else PEER if x is a
+        # PeerTracker instance
+        ring_of_things = []
         ring_of_things.extend([ (peer.permutedid, PEER, peer,)
                                 for peer in self.usable_peers ])
         shares = [ (i * 2**160 / self.total_shares, SHARE, i)
@@ -258,7 +212,11 @@ class FileUploader:
         # sets into sets.Set on us, even when we're using 2.4
         alreadygot = set(alreadygot)
         allocated = set(allocated)
-        #log.msg("%s._got_response(%s, %s, %s): self.unallocated_sharenums: %s, unhandled: %s" % (self, (alreadygot, allocated), peer, shares_we_requested, self.unallocated_sharenums, shares_we_requested - alreadygot - allocated))
+        #log.msg("%s._got_response(%s, %s, %s): "
+        #        "self.unallocated_sharenums: %s, unhandled: %s"
+        #        % (self, (alreadygot, allocated), peer, shares_we_requested,
+        #           self.unallocated_sharenums,
+        #           shares_we_requested - alreadygot - allocated))
         self.unallocated_sharenums -= alreadygot
         self.unallocated_sharenums -= allocated
 
@@ -266,15 +224,90 @@ class FileUploader:
             self.used_peers.add(peer)
 
         if shares_we_requested - alreadygot - allocated:
-            #log.msg("%s._got_response(%s, %s, %s): self.unallocated_sharenums: %s, unhandled: %s HE'S FULL" % (self, (alreadygot, allocated), peer, shares_we_requested, self.unallocated_sharenums, shares_we_requested - alreadygot - allocated))
             # Then he didn't accept some of the shares, so he's full.
+
+            #log.msg("%s._got_response(%s, %s, %s): "
+            #        "self.unallocated_sharenums: %s, unhandled: %s HE'S FULL"
+            #        % (self,
+            #           (alreadygot, allocated), peer, shares_we_requested,
+            #           self.unallocated_sharenums,
+            #           shares_we_requested - alreadygot - allocated))
             self.usable_peers.remove(peer)
 
     def _got_error(self, f, peer):
         log.msg("%s._got_error(%s, %s)" % (self, f, peer,))
         self.usable_peers.remove(peer)
 
-    def _send_shares(self, used_peers):
+
+class CHKUploader:
+    peer_selector_class = Tahoe3PeerSelector
+
+    def __init__(self, client, uploadable, options={}):
+        self._client = client
+        self._uploadable = IUploadable(uploadable)
+        self._options = options
+
+    def set_params(self, encoding_parameters):
+        self._encoding_parameters = encoding_parameters
+
+        needed_shares, shares_of_happiness, total_shares = encoding_parameters
+        self.needed_shares = needed_shares
+        self.shares_of_happiness = shares_of_happiness
+        self.total_shares = total_shares
+
+    def start(self):
+        """Start uploading the file.
+
+        This method returns a Deferred that will fire with the URI (a
+        string)."""
+
+        log.msg("starting upload of %s" % self._uploadable)
+
+        d = self._uploadable.get_size()
+        d.addCallback(self.setup_encoder)
+        d.addCallback(self._uploadable.get_encryption_key)
+        d.addCallback(self.setup_keys)
+        d.addCallback(self.locate_all_shareholders)
+        d.addCallback(self.set_shareholders)
+        d.addCallback(lambda res: self._encoder.start())
+        d.addCallback(self._compute_uri)
+        return d
+
+    def setup_encoder(self, size):
+        self._size = size
+        self._encoder = encode.Encoder(self._options)
+        self._encoder.set_size(size)
+        self._encoder.set_params(self._encoding_parameters)
+        self._encoder.set_uploadable(self._uploadable)
+        self._encoder.setup()
+        return self._encoder.get_serialized_params()
+
+    def setup_keys(self, key):
+        assert isinstance(key, str)
+        assert len(key) == 16  # AES-128
+        self._encryption_key = key
+        self._encoder.set_encryption_key(key)
+        storage_index = hashutil.storage_index_chk_hash(key)
+        assert isinstance(storage_index, str)
+        # TODO: is there any point to having the SI be longer than the key?
+        # There's certainly no extra entropy to be had..
+        assert len(storage_index) == 32  # SHA-256
+        self._storage_index = storage_index
+        log.msg(" upload SI is [%s]" % (idlib.b2a(storage_index,)))
+
+
+    def locate_all_shareholders(self, ignored=None):
+        peer_selector = self.peer_selector_class()
+        share_size = self._encoder.get_share_size()
+        block_size = self._encoder.get_block_size()
+        num_segments = self._encoder.get_num_segments()
+        gs = peer_selector.get_shareholders
+        d = gs(self._client,
+               self._storage_index, share_size, block_size,
+               num_segments, self.total_shares, self.shares_of_happiness)
+        return d
+
+    def set_shareholders(self, used_peers):
         """
         @param used_peers: a sequence of PeerTracker objects
         """
@@ -287,14 +320,8 @@ class FileUploader:
         assert len(buckets) == sum([len(peer.buckets) for peer in used_peers])
         self._encoder.set_shareholders(buckets)
 
-        uri_extension_data = {}
-        uri_extension_data['crypttext_hash'] = self._crypttext_hash
-        uri_extension_data['plaintext_hash'] = self._plaintext_hash
-        self._encoder.set_uri_extension_data(uri_extension_data)
-        return self._encoder.start()
-
     def _compute_uri(self, uri_extension_hash):
-        return pack_uri(storage_index=self._crypttext_hash,
+        return pack_uri(storage_index=self._storage_index,
                         key=self._encryption_key,
                         uri_extension_hash=uri_extension_hash,
                         needed_shares=self.needed_shares,
@@ -302,55 +329,101 @@ class FileUploader:
                         size=self._size,
                         )
 
+def read_this_many_bytes(uploadable, size, prepend_data=[]):
+    d = uploadable.read(size)
+    def _got(data):
+        assert isinstance(list)
+        bytes = sum([len(piece) for piece in data])
+        assert bytes > 0
+        assert bytes <= size
+        remaining = size - bytes
+        if remaining:
+            return read_this_many_bytes(uploadable, remaining,
+                                        prepend_data + data)
+        return prepend_data + data
+    d.addCallback(_got)
+    return d
+
 class LiteralUploader:
 
-    def __init__(self, client, options={}):
+    def __init__(self, client, uploadable, options={}):
         self._client = client
+        self._uploadable = IUploadable(uploadable)
         self._options = options
 
-    def set_filehandle(self, filehandle):
-        self._filehandle = filehandle
+    def set_params(self, encoding_parameters):
+        pass
 
     def start(self):
-        self._filehandle.seek(0)
-        data = self._filehandle.read()
-        return defer.succeed(pack_lit(data))
+        d = self._uploadable.get_size()
+        d.addCallback(lambda size: read_this_many_bytes(self._uploadable, size))
+        d.addCallback(lambda data: pack_lit("".join(data)))
+        return d
 
-
-class FileName:
-    implements(IUploadable)
-    def __init__(self, filename):
-        self._filename = filename
-    def get_filehandle(self):
-        return open(self._filename, "rb")
-    def close_filehandle(self, f):
-        f.close()
-
-class Data:
-    implements(IUploadable)
-    def __init__(self, data):
-        self._data = data
-    def get_filehandle(self):
-        return StringIO(self._data)
-    def close_filehandle(self, f):
+    def close(self):
         pass
 
-class FileHandle:
+
+class ConvergentUploadMixin:
+    # to use this, the class it is mixed in to must have a seekable
+    # filehandle named self._filehandle
+
+    def get_encryption_key(self, encoding_parameters):
+        f = self._filehandle
+        enckey_hasher = hashutil.key_hasher()
+        #enckey_hasher.update(encoding_parameters) # TODO
+        f.seek(0)
+        BLOCKSIZE = 64*1024
+        while True:
+            data = f.read(BLOCKSIZE)
+            if not data:
+                break
+            enckey_hasher.update(data)
+        enckey = enckey_hasher.digest()[:16]
+        f.seek(0)
+        return defer.succeed(enckey)
+
+class NonConvergentUploadMixin:
+    def get_encryption_key(self, encoding_parameters):
+        return defer.succeed(os.urandom(16))
+
+
+class FileHandle(ConvergentUploadMixin):
     implements(IUploadable)
+
     def __init__(self, filehandle):
         self._filehandle = filehandle
-    def get_filehandle(self):
-        return self._filehandle
-    def close_filehandle(self, f):
+
+    def get_size(self):
+        self._filehandle.seek(0,2)
+        size = self._filehandle.tell()
+        self._filehandle.seek(0)
+        return defer.succeed(size)
+
+    def read(self, length):
+        return defer.succeed([self._filehandle.read(length)])
+
+    def close(self):
         # the originator of the filehandle reserves the right to close it
         pass
+
+class FileName(FileHandle):
+    def __init__(self, filename):
+        FileHandle.__init__(self, open(filename, "rb"))
+    def close(self):
+        FileHandle.close(self)
+        self._filehandle.close()
+
+class Data(FileHandle):
+    def __init__(self, data):
+        FileHandle.__init__(self, StringIO(data))
 
 class Uploader(service.MultiService):
     """I am a service that allows file uploading.
     """
     implements(IUploader)
     name = "uploader"
-    uploader_class = FileUploader
+    uploader_class = CHKUploader
     URI_LIT_SIZE_THRESHOLD = 55
 
     DEFAULT_ENCODING_PARAMETERS = (25, 75, 100)
@@ -360,65 +433,23 @@ class Uploader(service.MultiService):
     # 'total' is the total number of shares created by encoding. If everybody
     # has room then this is is how many we will upload.
 
-    def compute_id_strings(self, f):
-        # return a list of (plaintext_hash, encryptionkey, crypttext_hash)
-        plaintext_hasher = hashutil.plaintext_hasher()
-        enckey_hasher = hashutil.key_hasher()
-        f.seek(0)
-        BLOCKSIZE = 64*1024
-        while True:
-            data = f.read(BLOCKSIZE)
-            if not data:
-                break
-            plaintext_hasher.update(data)
-            enckey_hasher.update(data)
-        plaintext_hash = plaintext_hasher.digest()
-        enckey = enckey_hasher.digest()
-
-        # now make a second pass to determine the crypttext_hash. It would be
-        # nice to make this involve fewer passes.
-        crypttext_hasher = hashutil.crypttext_hasher()
-        key = enckey[:16]
-        cryptor = AES.new(key=key, mode=AES.MODE_CTR,
-                          counterstart="\x00"*16)
-        f.seek(0)
-        while True:
-            data = f.read(BLOCKSIZE)
-            if not data:
-                break
-            crypttext_hasher.update(cryptor.encrypt(data))
-        crypttext_hash = crypttext_hasher.digest()
-
-        # and leave the file pointer at the beginning
-        f.seek(0)
-
-        return plaintext_hash, key, crypttext_hash
-
-    def upload(self, f, options={}):
+    def upload(self, uploadable, options={}):
         # this returns the URI
         assert self.parent
         assert self.running
-        f = IUploadable(f)
-        fh = f.get_filehandle()
-        fh.seek(0,2)
-        size = fh.tell()
-        fh.seek(0)
-        if size <= self.URI_LIT_SIZE_THRESHOLD:
-            u = LiteralUploader(self.parent, options)
-            u.set_filehandle(fh)
-        else:
-            u = self.uploader_class(self.parent, options)
-            u.set_filehandle(fh)
-            encoding_parameters = self.parent.get_encoding_parameters()
-            if not encoding_parameters:
-                encoding_parameters = self.DEFAULT_ENCODING_PARAMETERS
-            u.set_params(encoding_parameters)
-            plaintext_hash, key, crypttext_hash = self.compute_id_strings(fh)
-            u.set_encryption_key(key)
-            u.set_id_strings(crypttext_hash, plaintext_hash)
-        d = u.start()
+        uploadable = IUploadable(uploadable)
+        d = uploadable.get_size()
+        def _got_size(size):
+            uploader_class = self.uploader_class
+            if size <= self.URI_LIT_SIZE_THRESHOLD:
+                uploader_class = LiteralUploader
+            uploader = self.uploader_class(self.parent, uploadable, options)
+            uploader.set_params(self.parent.get_encoding_parameters()
+                                or self.DEFAULT_ENCODING_PARAMETERS)
+            return uploader.start()
+        d.addCallback(_got_size)
         def _done(res):
-            f.close_filehandle(fh)
+            uploadable.close()
             return res
         d.addBoth(_done)
         return d

@@ -55,12 +55,15 @@ class MyUploader(service.Service):
         self.files = files
 
     def upload(self, uploadable):
-        f = uploadable.get_filehandle()
-        data = f.read()
-        uri = str(uri_counter.next())
-        self.files[uri] = data
-        uploadable.close_filehandle(f)
-        return defer.succeed(uri)
+        d = uploadable.get_size()
+        d.addCallback(lambda size: uploadable.read(size))
+        d.addCallback(lambda data: "".join(data))
+        def _got_data(data):
+            uri = str(uri_counter.next())
+            self.files[uri] = data
+            uploadable.close()
+        d.addCallback(_got_data)
+        return d
 
 class MyDirectoryNode(dirnode.MutableDirectoryNode):
 
@@ -94,15 +97,18 @@ class MyDirectoryNode(dirnode.MutableDirectoryNode):
         return defer.succeed(None)
 
     def add_file(self, name, uploadable):
-        f = uploadable.get_filehandle()
-        data = f.read()
-        uri = str(uri_counter.next())
-        self._my_files[uri] = data
-        self._my_nodes[uri] = MyFileNode(uri, self._my_client)
-        uploadable.close_filehandle(f)
-
-        self.children[name] = uri
-        return defer.succeed(self._my_nodes[uri])
+        d = uploadable.get_size()
+        d.addCallback(lambda size: uploadable.read(size))
+        d.addCallback(lambda data: "".join(data))
+        def _got_data(data):
+            uri = str(uri_counter.next())
+            self._my_files[uri] = data
+            self._my_nodes[uri] = MyFileNode(uri, self._my_client)
+            self.children[name] = uri
+            uploadable.close()
+            return self._my_nodes[uri]
+        d.addCallback(_got_data)
+        return d
 
     def delete(self, name):
         def _try():

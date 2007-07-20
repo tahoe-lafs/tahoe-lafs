@@ -22,6 +22,9 @@ def tagged_pair_hash(tag, val1, val2):
 def tagged_hasher(tag):
     return SHA256.new(netstring(tag))
 
+def storage_index_chk_hash(data):
+    return tagged_hash("allmydata_CHK_storage_index_v1", data)
+
 def block_hash(data):
     return tagged_hash("allmydata_encoded_subshare_v1", data)
 def block_hasher():
