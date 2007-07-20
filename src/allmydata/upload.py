@@ -330,9 +330,11 @@ class CHKUploader:
                         )
 
 def read_this_many_bytes(uploadable, size, prepend_data=[]):
+    if size == 0:
+        return defer.succeed([])
     d = uploadable.read(size)
     def _got(data):
-        assert isinstance(list)
+        assert isinstance(data, list)
         bytes = sum([len(piece) for piece in data])
         assert bytes > 0
         assert bytes <= size
@@ -443,7 +445,7 @@ class Uploader(service.MultiService):
             uploader_class = self.uploader_class
             if size <= self.URI_LIT_SIZE_THRESHOLD:
                 uploader_class = LiteralUploader
-            uploader = self.uploader_class(self.parent, uploadable, options)
+            uploader = uploader_class(self.parent, uploadable, options)
             uploader.set_params(self.parent.get_encoding_parameters()
                                 or self.DEFAULT_ENCODING_PARAMETERS)
             return uploader.start()

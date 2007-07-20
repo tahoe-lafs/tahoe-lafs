@@ -1,4 +1,5 @@
 
+import os
 from twisted.trial import unittest
 from twisted.python.failure import Failure
 from twisted.internet import defer
@@ -8,6 +9,56 @@ from allmydata import upload, encode
 from allmydata.uri import unpack_uri, unpack_lit
 from allmydata.util.assertutil import precondition
 from foolscap import eventual
+
+class Uploadable(unittest.TestCase):
+    def shouldEqual(self, data, expected):
+        self.failUnless(isinstance(data, list))
+        for e in data:
+            self.failUnless(isinstance(e, str))
+        s = "".join(data)
+        self.failUnlessEqual(s, expected)
+
+    def test_filehandle(self):
+        s = StringIO("a"*41)
+        u = upload.FileHandle(s)
+        d = u.get_size()
+        d.addCallback(self.failUnlessEqual, 41)
+        d.addCallback(lambda res: u.read(1))
+        d.addCallback(self.shouldEqual, "a")
+        d.addCallback(lambda res: u.read(80))
+        d.addCallback(self.shouldEqual, "a"*40)
+        d.addCallback(lambda res: u.close()) # this doesn't close the filehandle
+        d.addCallback(lambda res: s.close()) # that privilege is reserved for us
+        return d
+
+    def test_filename(self):
+        basedir = "upload/Uploadable/test_filename"
+        os.makedirs(basedir)
+        fn = os.path.join(basedir, "file")
+        f = open(fn, "w")
+        f.write("a"*41)
+        f.close()
+        u = upload.FileName(fn)
+        d = u.get_size()
+        d.addCallback(self.failUnlessEqual, 41)
+        d.addCallback(lambda res: u.read(1))
+        d.addCallback(self.shouldEqual, "a")
+        d.addCallback(lambda res: u.read(80))
+        d.addCallback(self.shouldEqual, "a"*40)
+        d.addCallback(lambda res: u.close())
+        return d
+
+    def test_data(self):
+        s = "a"*41
+        u = upload.Data(s)
+        d = u.get_size()
+        d.addCallback(self.failUnlessEqual, 41)
+        d.addCallback(lambda res: u.read(1))
+        d.addCallback(self.shouldEqual, "a")
+        d.addCallback(lambda res: u.read(80))
+        d.addCallback(self.shouldEqual, "a"*40)
+        d.addCallback(lambda res: u.close())
+        return d
 
 class FakePeer:
     def __init__(self, mode="good"):

@@ -3,7 +3,7 @@ from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python.failure import Failure
-from allmydata import encode, download, hashtree
+from allmydata import encode, upload, download, hashtree
 from allmydata.util import hashutil
 from allmydata.uri import pack_uri
 from allmydata.Crypto.Cipher import AES
@@ -154,10 +154,12 @@ class Encode(unittest.TestCase):
         # force use of multiple segments
         options = {"max_segment_size": max_segment_size}
         e = encode.Encoder(options)
+        e.set_size(datalen)
+        e.set_uploadable(upload.Data(data))
         nonkey = "\x00" * 16
-        e.setup(StringIO(data), nonkey)
+        e.set_encryption_key(nonkey)
+        e.setup()
         assert e.num_shares == NUM_SHARES # else we'll be completely confused
-        e.setup_codec() # need to rebuild the codec for that change
         assert (NUM_SEGMENTS-1)*e.segment_size < len(data) <= NUM_SEGMENTS*e.segment_size
         shareholders = {}
         all_shareholders = []
@@ -279,11 +281,12 @@ class Roundtrip(unittest.TestCase):
         options = {"max_segment_size": max_segment_size,
                    "needed_and_happy_and_total_shares": k_and_happy_and_n}
         e = encode.Encoder(options)
+        e.set_size(len(data))
+        e.set_uploadable(upload.Data(data))
         nonkey = "\x00" * 16
-        e.setup(StringIO(data), nonkey)
-
+        e.set_encryption_key(nonkey)
+        e.setup()
         assert e.num_shares == NUM_SHARES # else we'll be completely confused
-        e.setup_codec() # need to rebuild the codec for that change
 
         shareholders = {}
         all_peers = []
@@ -292,16 +295,7 @@ class Roundtrip(unittest.TestCase):
             peer = FakeBucketWriterProxy(mode)
             shareholders[shnum] = peer
         e.set_shareholders(shareholders)
-        plaintext_hasher = hashutil.plaintext_hasher()
-        plaintext_hasher.update(data)
-        cryptor = AES.new(key=nonkey, mode=AES.MODE_CTR,
-                          counterstart="\x00"*16)
-        crypttext_hasher = hashutil.crypttext_hasher()
-        crypttext_hasher.update(cryptor.encrypt(data))
 
-        e.set_uri_extension_data({'crypttext_hash': crypttext_hasher.digest(),
-                                  'plaintext_hash': plaintext_hasher.digest(),
-                                  })
         d = e.start()
         def _sent(uri_extension_hash):
             return (uri_extension_hash, e, shareholders)
