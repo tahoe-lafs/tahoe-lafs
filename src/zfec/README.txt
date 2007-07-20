@@ -31,15 +31,10 @@ and the addition of a command-line tool named "zfec".
 This package is managed with the "setuptools" package management tool.  To
 build and install the package directly into your system, just run "python
 ./setup.py install".  If you prefer to keep the package limited to a specific
-directory so that you can explicitly manage it (perhaps by using the "GNU
+directory so that you can manage it yourself (perhaps by using the "GNU
 stow") tool, then give it these arguments: "python ./setup.py install
---prefix=. --root=$specificdirectory".
-
-Note: the installation script conflicts with setuptools with version number
-earlier than 0.6c3.  (Such a version of setuptools is available in Ubuntu
-6.06 LTS Dapper.)  If you have such a conflicting version of setuptools, you
-can either upgrade to a newer version of setuptools, or simply uninstall that
-old, conflicting version.
+--single-version-externally-managed
+--record=${specificdirectory}/zfec-install.log --prefix=${specificdirectory}"
 
 
  * Community
