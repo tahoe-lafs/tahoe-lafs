@@ -6,7 +6,10 @@ code".
 It is offered under the GNU General Public License (v2 or later), with the
 added permission that, if you become obligated to release a derived work
 under this licence (as per section 2.b), you may delay the fulfillment of
-this obligation for up to 12 months.  See the COPYING file for details.
+this obligation for up to 12 months.  If you are obligated to release code 
+under section 2.b of this licence, such code must be released under these 
+same terms including the 12-month grace period clause.  See the COPYING 
+file for details.
 
 The most widely known example of an erasure code is the RAID-5 algorithm
 which makes it so that in the event of the loss of any one hard drive, the
