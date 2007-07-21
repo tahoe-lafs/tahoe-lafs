@@ -3,12 +3,9 @@ from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python.failure import Failure
-from allmydata import encode, upload, download, hashtree
+from allmydata import encode, upload, download, hashtree, uri
 from allmydata.util import hashutil
-from allmydata.uri import pack_uri
-from allmydata.Crypto.Cipher import AES
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader
-from cStringIO import StringIO
 
 class LostPeerError(Exception):
     pass
@@ -308,12 +305,12 @@ class Roundtrip(unittest.TestCase):
         if "corrupt_key" in recover_mode:
             key = flip_bit(key)
 
-        URI = pack_uri(storage_index="S" * 32,
-                       key=key,
-                       uri_extension_hash=uri_extension_hash,
-                       needed_shares=e.required_shares,
-                       total_shares=e.num_shares,
-                       size=e.file_size)
+        URI = uri.CHKFileURI(storage_index="S" * 32,
+                             key=key,
+                             uri_extension_hash=uri_extension_hash,
+                             needed_shares=e.required_shares,
+                             total_shares=e.num_shares,
+                             size=e.file_size).to_string()
         client = None
         target = download.Data()
         fd = download.FileDownloader(client, URI, target)

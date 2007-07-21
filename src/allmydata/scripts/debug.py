@@ -91,8 +91,8 @@ def dump_root_dirnode(config, out=sys.stdout, err=sys.stderr):
     try:
         f = open(root_dirnode_file, "rb")
         key = f.read()
-        rooturi = uri.pack_dirnode_uri("fakeFURL", key)
-        print >>out, rooturi
+        rooturi = uri.DirnodeURI("fakeFURL", key)
+        print >>out, rooturi.to_string()
         return 0
     except EnvironmentError:
         print >>out,  "unable to read root dirnode file from %s" % \
@@ -100,22 +100,24 @@ def dump_root_dirnode(config, out=sys.stdout, err=sys.stderr):
         return 1
 
 def dump_directory_node(config, out=sys.stdout, err=sys.stderr):
-    from allmydata import uri, dirnode
+    from allmydata import dirnode
     from allmydata.util import hashutil, idlib
+    from allmydata.interfaces import IDirnodeURI
     basedir = config['basedirs'][0]
-    dir_uri = config['uri']
+    dir_uri = IDirnodeURI(config['uri'])
     verbose = config['verbose']
 
-    furl, key = uri.unpack_dirnode_uri(dir_uri)
-    if uri.is_mutable_dirnode_uri(dir_uri):
-        wk, we, rk, index = hashutil.generate_dirnode_keys_from_writekey(key)
+    if dir_uri.is_readonly():
+        wk, we, rk, index = \
+            hashutil.generate_dirnode_keys_from_readkey(dir_uri.readkey)
     else:
-        wk, we, rk, index = hashutil.generate_dirnode_keys_from_readkey(key)
+        wk, we, rk, index = \
+            hashutil.generate_dirnode_keys_from_writekey(dir_uri.writekey)
 
     filename = os.path.join(basedir, "vdrive", idlib.b2a(index))
 
     print >>out
-    print >>out, "dirnode uri: %s" % dir_uri
+    print >>out, "dirnode uri: %s" % dir_uri.to_string()
     print >>out, "filename : %s" % filename
     print >>out, "index        : %s" % idlib.b2a(index)
     if wk:

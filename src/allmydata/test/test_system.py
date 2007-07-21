@@ -8,7 +8,7 @@ from allmydata import client, uri, download, upload
 from allmydata.introducer_and_vdrive import IntroducerAndVdrive
 from allmydata.util import idlib, fileutil, testutil
 from allmydata.scripts import runner
-from allmydata.interfaces import IDirectoryNode, IFileNode
+from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
 from allmydata.dirnode import NotMutableError
 from foolscap.eventual import flushEventualQueue
 from twisted.python import log
@@ -224,10 +224,14 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     def mangle_uri(self, gooduri):
         # change the storage index, which means we'll be asking about the
         # wrong file, so nobody will have any shares
-        d = uri.unpack_uri(gooduri)
-        assert len(d['storage_index']) == 32
-        d['storage_index'] = self.flip_bit(d['storage_index'])
-        return uri.pack_uri(**d)
+        u = IFileURI(gooduri)
+        u2 = uri.CHKFileURI(storage_index=self.flip_bit(u.storage_index),
+                            key=u.key,
+                            uri_extension_hash=u.uri_extension_hash,
+                            needed_shares=u.needed_shares,
+                            total_shares=u.total_shares,
+                            size=u.size)
+        return u2.to_string()
 
     # TODO: add a test which mangles the uri_extension_hash instead, and
     # should fail due to not being able to get a valid uri_extension block.

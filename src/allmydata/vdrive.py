@@ -2,8 +2,8 @@
 import os
 from twisted.application import service
 from zope.interface import implements
-from allmydata.interfaces import IVirtualDrive
-from allmydata import dirnode, uri
+from allmydata.interfaces import IVirtualDrive, IDirnodeURI, IURI
+from allmydata import dirnode
 from twisted.internet import defer
 
 class NoGlobalVirtualDriveError(Exception):
@@ -88,7 +88,8 @@ class VirtualDrive(service.MultiService):
         return self.get_node(self._private_uri)
 
     def get_node(self, node_uri):
-        if uri.is_dirnode_uri(node_uri):
+        node_uri = IURI(node_uri)
+        if IDirnodeURI.providedBy(node_uri):
             return dirnode.create_directory_node(self.parent, node_uri)
         else:
             return defer.succeed(dirnode.FileNode(node_uri, self.parent))

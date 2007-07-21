@@ -48,6 +48,17 @@ class MyDownloader(service.Service):
 
 uri_counter = itertools.count()
 
+def make_newuri(data):
+    n = uri_counter.next()
+    assert len(str(n)) < 5
+    newuri = uri.CHKFileURI(storage_index="SI%05d" % n + "i"*25,
+                            key="K"*16,
+                            uri_extension_hash="EH" + "h"*30,
+                            needed_shares=25,
+                            total_shares=100,
+                            size=len(data))
+    return newuri.to_string()
+
 class MyUploader(service.Service):
     implements(interfaces.IUploader)
     name = "uploader"
@@ -59,30 +70,25 @@ class MyUploader(service.Service):
         d.addCallback(lambda size: uploadable.read(size))
         d.addCallback(lambda data: "".join(data))
         def _got_data(data):
-            uri = str(uri_counter.next())
-            self.files[uri] = data
+            newuri = make_newuri(data)
+            self.files[newuri] = data
             uploadable.close()
         d.addCallback(_got_data)
         return d
 
 class MyDirectoryNode(dirnode.MutableDirectoryNode):
 
-    def __init__(self, nodes, files, client, uri=None):
+    def __init__(self, nodes, files, client, myuri=None):
         self._my_nodes = nodes
         self._my_files = files
         self._my_client = client
-        if uri is None:
-            uri = "URI:DIR:stuff/%s" % str(uri_counter.next())
-        self._uri = str(uri)
+        if myuri is None:
+            u = uri.DirnodeURI("furl", "idx%s" % str(uri_counter.next()))
+            myuri = u.to_string()
+        self._uri = myuri
         self._my_nodes[self._uri] = self
         self.children = {}
         self._mutable = True
-
-    def get_immutable_uri(self):
-        return self.get_uri() + "RO"
-
-    def get_refresh_capability(self):
-        return "refresh:" + self.get_uri()
 
     def get(self, name):
         def _try():
@@ -101,12 +107,12 @@ class MyDirectoryNode(dirnode.MutableDirectoryNode):
         d.addCallback(lambda size: uploadable.read(size))
         d.addCallback(lambda data: "".join(data))
         def _got_data(data):
-            uri = str(uri_counter.next())
-            self._my_files[uri] = data
-            self._my_nodes[uri] = MyFileNode(uri, self._my_client)
-            self.children[name] = uri
+            newuri = make_newuri(data)
+            self._my_files[newuri] = data
+            self._my_nodes[newuri] = MyFileNode(newuri, self._my_client)
+            self.children[name] = newuri
             uploadable.close()
-            return self._my_nodes[uri]
+            return self._my_nodes[newuri]
         d.addCallback(_got_data)
         return d
 
@@ -214,10 +220,12 @@ class Web(unittest.TestCase):
     def makefile(self, number):
         n = str(number)
         assert len(n) == 1
-        newuri = uri.pack_uri("SI" + n*30,
-                              "K" + n*15,
-                              "EH" + n*30,
-                              25, 100, 123+number)
+        newuri = uri.CHKFileURI(storage_index="SI" + n*30,
+                                key="K" + n*15,
+                                uri_extension_hash="EH" + n*30,
+                                needed_shares=25,
+                                total_shares=100,
+                                size=123+number).to_string()
         assert newuri not in self.nodes
         assert newuri not in self.files
         node = MyFileNode(newuri, self.s)
@@ -230,7 +238,7 @@ class Web(unittest.TestCase):
         n = str(number)
         assert len(n) == 1
         contents = "small data %s\n" % n
-        newuri = uri.pack_lit(contents)
+        newuri = uri.LiteralFileURI(contents).to_string()
         assert newuri not in self.nodes
         assert newuri not in self.files
         node = MyFileNode(newuri, self.s)

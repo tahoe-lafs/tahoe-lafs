@@ -6,7 +6,7 @@ from twisted.internet import defer
 from twisted.python import failure
 from allmydata import uri, dirnode
 from allmydata.util import hashutil
-from allmydata.interfaces import IDirectoryNode
+from allmydata.interfaces import IDirectoryNode, IDirnodeURI
 from allmydata.scripts import runner
 from allmydata.dirnode import VirtualDriveServer, \
      ChildAlreadyPresentError, BadWriteEnablerError, NoPublicRootError
@@ -20,13 +20,13 @@ class DirectoryNode(unittest.TestCase):
         vds.set_furl("myFURL")
 
         root_uri = vds.get_public_root_uri()
-        self.failUnless(uri.is_dirnode_uri(root_uri))
-        self.failUnless(uri.is_mutable_dirnode_uri(root_uri))
-        furl, key = uri.unpack_dirnode_uri(root_uri)
-        self.failUnlessEqual(furl, "myFURL")
-        self.failUnlessEqual(len(key), hashutil.KEYLEN)
+        u = IDirnodeURI(root_uri)
+        self.failIf(u.is_readonly())
+        self.failUnlessEqual(u.furl, "myFURL")
+        self.failUnlessEqual(len(u.writekey), hashutil.KEYLEN)
 
-        wk, we, rk, index = hashutil.generate_dirnode_keys_from_writekey(key)
+        wk, we, rk, index = \
+            hashutil.generate_dirnode_keys_from_writekey(u.writekey)
         empty_list = vds.list(index)
         self.failUnlessEqual(empty_list, [])
 
@@ -78,10 +78,10 @@ class DirectoryNode(unittest.TestCase):
         vds2 = VirtualDriveServer(basedir)
         vds2.set_furl("myFURL")
         root_uri2 = vds.get_public_root_uri()
-        self.failUnless(uri.is_mutable_dirnode_uri(root_uri2))
-        furl2, key2 = uri.unpack_dirnode_uri(root_uri2)
+        u2 = IDirnodeURI(root_uri2)
+        self.failIf(u2.is_readonly())
         (wk2, we2, rk2, index2) = \
-              hashutil.generate_dirnode_keys_from_writekey(key2)
+              hashutil.generate_dirnode_keys_from_writekey(u2.writekey)
         self.failUnlessEqual(sorted(vds2.list(index2)),
                              [ ("name2", "", "read2"),
                                ])
@@ -173,8 +173,18 @@ class Test(unittest.TestCase):
             self.failUnlessEqual(res, {})
         d.addCallback(_listed)
 
-        file1 = uri.pack_uri("11" + " "*30, "k"*16, "e"*32, 25, 100, 12345)
-        file2 = uri.pack_uri("2i" + " "*30, "k"*16, "e"*32, 25, 100, 12345)
+        file1 = uri.CHKFileURI(storage_index="11" + " "*30,
+                               key="k"*16,
+                               uri_extension_hash="e"*32,
+                               needed_shares=25,
+                               total_shares=100,
+                               size=12345).to_string()
+        file2 = uri.CHKFileURI(storage_index="2i" + " "*30,
+                               key="k"*16,
+                               uri_extension_hash="e"*32,
+                               needed_shares=25,
+                               total_shares=100,
+                               size=12345).to_string()
         file2_node = dirnode.FileNode(file2, None)
         d.addCallback(lambda res: rootnode.set_uri("foo", file1))
         # root/

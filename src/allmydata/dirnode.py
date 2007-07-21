@@ -5,7 +5,8 @@ from twisted.application import service
 from twisted.internet import defer
 from foolscap import Referenceable
 from allmydata import uri
-from allmydata.interfaces import RIVirtualDriveServer, IDirectoryNode, IFileNode
+from allmydata.interfaces import RIVirtualDriveServer, \
+     IDirectoryNode, IFileNode, IFileURI, IDirnodeURI, IURI
 from allmydata.util import bencode, idlib, hashutil, fileutil
 from allmydata.Crypto.Cipher import AES
 
@@ -48,7 +49,8 @@ class VirtualDriveServer(service.MultiService, Referenceable):
 
     def get_public_root_uri(self):
         if self._root:
-            return uri.pack_dirnode_uri(self._myfurl, self._root)
+            u = uri.DirnodeURI(self._myfurl, self._root)
+            return u.to_string()
         raise NoPublicRootError
     remote_get_public_root_uri = get_public_root_uri
 
@@ -121,16 +123,14 @@ class NotMutableError(Exception):
 
 
 def create_directory_node(client, diruri):
-    assert uri.is_dirnode_uri(diruri)
-    if uri.is_mutable_dirnode_uri(diruri):
-        dirnode_class = MutableDirectoryNode
-    else:
-        dirnode_class = ImmutableDirectoryNode
-    (furl, key) = uri.unpack_dirnode_uri(diruri)
-    d = client.tub.getReference(furl)
+    u = IURI(diruri)
+    assert IDirnodeURI.providedBy(u)
+    d = client.tub.getReference(u.furl)
     def _got(rref):
-        dirnode = dirnode_class(diruri, client, rref, key)
-        return dirnode
+        if isinstance(u, uri.DirnodeURI):
+            return MutableDirectoryNode(u, client, rref)
+        else: # uri.ReadOnlyDirnodeURI
+            return ImmutableDirectoryNode(u, client, rref)
     d.addCallback(_got)
     return d
 
@@ -163,12 +163,14 @@ def decrypt(key, data):
 class ImmutableDirectoryNode:
     implements(IDirectoryNode)
 
-    def __init__(self, myuri, client, rref, readkey):
-        self._uri = myuri
+    def __init__(self, myuri, client, rref):
+        u = IDirnodeURI(myuri)
+        assert u.is_readonly()
+        self._uri = u.to_string()
         self._client = client
         self._tub = client.tub
         self._rref = rref
-        self._readkey = readkey
+        self._readkey = u.readkey
         self._writekey = None
         self._write_enabler = None
         self._index = hashutil.dir_index_hash(self._readkey)
@@ -188,10 +190,7 @@ class ImmutableDirectoryNode:
 
     def get_immutable_uri(self):
         # return the dirnode URI for a read-only form of this directory
-        if self._mutable:
-            return uri.make_immutable_dirnode_uri(self._uri)
-        else:
-            return self._uri
+        return IDirnodeURI(self._uri).get_readonly().to_string()
 
     def __hash__(self):
         return hash((self.__class__, self._uri))
@@ -256,7 +255,9 @@ class ImmutableDirectoryNode:
         E_name = self._encrypt(self._readkey, name)
         E_write = ""
         if self._writekey and write_child:
+            assert isinstance(write_child, str)
             E_write = self._encrypt(self._writekey, write_child)
+        assert isinstance(read_child, str)
         E_read = self._encrypt(self._readkey, read_child)
         d = self._rref.callRemote("set", self._index, self._write_enabler,
                                   H_name, E_name, E_write, E_read)
@@ -280,30 +281,28 @@ class ImmutableDirectoryNode:
         return d
 
     def _create_node(self, child_uri):
-        if uri.is_dirnode_uri(child_uri):
-            return create_directory_node(self._client, child_uri)
+        u = IURI(child_uri)
+        if IDirnodeURI.providedBy(u):
+            return create_directory_node(self._client, u)
         else:
-            return defer.succeed(FileNode(child_uri, self._client))
+            return defer.succeed(FileNode(u, self._client))
 
     def _split_uri(self, child_uri):
-        if uri.is_dirnode_uri(child_uri):
-            if uri.is_mutable_dirnode_uri(child_uri):
-                write = child_uri
-                read = uri.make_immutable_dirnode_uri(child_uri)
-            else:
-                write = None
-                read = child_uri
-            return (write, read)
-        return (None, child_uri) # file
+        u = IURI(child_uri)
+        if u.is_mutable() and not u.is_readonly():
+            write = u.to_string()
+        else:
+            write = None
+        read = u.get_readonly().to_string()
+        return (write, read)
 
     def create_empty_directory(self, name):
         if not self._mutable:
             return defer.fail(NotMutableError())
         child_writekey = hashutil.random_key()
-        my_furl, parent_writekey = uri.unpack_dirnode_uri(self._uri)
-        child_uri = uri.pack_dirnode_uri(my_furl, child_writekey)
-        child = MutableDirectoryNode(child_uri, self._client, self._rref,
-                                     child_writekey)
+        furl = IDirnodeURI(self._uri).furl
+        u = uri.DirnodeURI(furl, child_writekey)
+        child = MutableDirectoryNode(u, self._client, self._rref)
         d = self._rref.callRemote("create_directory",
                                   child._index, child._write_enabler)
         d.addCallback(lambda index: self.set_node(name, child))
@@ -362,8 +361,8 @@ class ImmutableDirectoryNode:
         return d
 
     def get_refresh_capability(self):
-        ro_uri = self.get_immutable_uri()
-        furl, rk = uri.unpack_dirnode_uri(ro_uri)
+        u = IDirnodeURI(self._uri).get_readonly()
+        rk = u.readkey
         wk, we, rk, index = hashutil.generate_dirnode_keys_from_readkey(rk)
         return "DIR-REFRESH:%s" % idlib.b2a(index)
 
@@ -384,21 +383,28 @@ class ImmutableDirectoryNode:
 class MutableDirectoryNode(ImmutableDirectoryNode):
     implements(IDirectoryNode)
 
-    def __init__(self, myuri, client, rref, writekey):
-        readkey = hashutil.dir_read_key_hash(writekey)
-        ImmutableDirectoryNode.__init__(self, myuri, client, rref, readkey)
-        self._writekey = writekey
-        self._write_enabler = hashutil.dir_write_enabler_hash(writekey)
+    def __init__(self, myuri, client, rref):
+        u = IDirnodeURI(myuri)
+        assert not u.is_readonly()
+        self._writekey = u.writekey
+        self._write_enabler = hashutil.dir_write_enabler_hash(u.writekey)
+        readkey = hashutil.dir_read_key_hash(u.writekey)
+        self._uri = u.to_string()
+        self._client = client
+        self._tub = client.tub
+        self._rref = rref
+        self._readkey = readkey
+        self._index = hashutil.dir_index_hash(self._readkey)
         self._mutable = True
 
 def create_directory(client, furl):
     write_key = hashutil.random_key()
     (wk, we, rk, index) = \
          hashutil.generate_dirnode_keys_from_writekey(write_key)
-    myuri = uri.pack_dirnode_uri(furl, wk)
+    u = uri.DirnodeURI(furl, wk)
     d = client.tub.getReference(furl)
     def _got_vdrive_server(vdrive_server):
-        node = MutableDirectoryNode(myuri, client, vdrive_server, wk)
+        node = MutableDirectoryNode(u, client, vdrive_server)
         d2 = vdrive_server.callRemote("create_directory", index, we)
         d2.addCallback(lambda res: node)
         return d2
@@ -409,11 +415,15 @@ class FileNode:
     implements(IFileNode)
 
     def __init__(self, uri, client):
-        self.uri = uri
+        u = IFileURI(uri)
+        self.uri = u.to_string()
         self._client = client
 
     def get_uri(self):
         return self.uri
+
+    def get_size(self):
+        return IFileURI(self.uri).get_size()
 
     def __hash__(self):
         return hash((self.__class__, self.uri))
@@ -425,10 +435,9 @@ class FileNode:
         return cmp(self.uri, them.uri)
 
     def get_refresh_capability(self):
-        t = uri.get_uri_type(self.uri)
-        if t == "CHK":
-            d = uri.unpack_uri(self.uri)
-            return "CHK-REFRESH:%s" % idlib.b2a(d['storage_index'])
+        u = IFileURI(self.uri)
+        if isinstance(u, uri.CHKFileURI):
+            return "CHK-REFRESH:%s" % idlib.b2a(u.storage_index)
         return None
 
     def download(self, target):

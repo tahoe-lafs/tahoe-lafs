@@ -1,66 +1,202 @@
 
 import re
+from zope.interface import implements
+from twisted.python.components import registerAdapter
 from allmydata.util import idlib, hashutil
-
-def get_uri_type(uri):
-    assert uri.startswith("URI:")
-    if uri.startswith("URI:DIR:"):
-        return "DIR"
-    if uri.startswith("URI:DIR-RO:"):
-        return "DIR-RO"
-    if uri.startswith("URI:LIT:"):
-        return "LIT"
-    return "CHK"
-
-def is_filenode_uri(uri):
-    return get_uri_type(uri) in ("LIT", "CHK")
-
-def get_filenode_size(uri):
-    assert is_filenode_uri(uri)
-    t = get_uri_type(uri)
-    if t == "LIT":
-        return len(unpack_lit(uri))
-    return unpack_uri(uri)['size']
-
+from allmydata.interfaces import IURI, IDirnodeURI, IFileURI
 
 # the URI shall be an ascii representation of the file. It shall contain
 # enough information to retrieve and validate the contents. It shall be
 # expressed in a limited character set (namely [TODO]).
 
-def pack_uri(storage_index, key, uri_extension_hash,
-             needed_shares, total_shares, size):
-    # applications should pass keyword parameters into this
-    assert isinstance(storage_index, str)
-    assert len(storage_index) == 32 # sha256 hash
 
-    assert isinstance(uri_extension_hash, str)
-    assert len(uri_extension_hash) == 32 # sha56 hash
+class _BaseURI:
+    def __hash__(self):
+        return hash((self.__class__, self.to_string()))
+    def __cmp__(self, them):
+        if cmp(type(self), type(them)):
+            return cmp(type(self), type(them))
+        if cmp(self.__class__, them.__class__):
+            return cmp(self.__class__, them.__class__)
+        return cmp(self.to_string(), them.to_string())
 
-    assert isinstance(key, str)
-    assert len(key) == 16 # AES-128
-    assert isinstance(needed_shares, int)
-    assert isinstance(total_shares, int)
-    assert isinstance(size, (int,long))
+class CHKFileURI(_BaseURI):
+    implements(IURI, IFileURI)
 
-    return "URI:%s:%s:%s:%d:%d:%d" % (idlib.b2a(storage_index), idlib.b2a(key),
-                                      idlib.b2a(uri_extension_hash),
-                                      needed_shares, total_shares, size)
+    def __init__(self, **kwargs):
+        # construct me with kwargs, since there are so many of them
+        if not kwargs:
+            return
+        for name in ("storage_index", "key", "uri_extension_hash",
+                     "needed_shares", "total_shares", "size"):
+            value = kwargs[name]
+            setattr(self, name, value)
 
+    def init_from_string(self, uri):
+        assert uri.startswith("URI:CHK:"), uri
+        d = {}
+        (header_uri, header_chk,
+         storage_index_s, key_s, uri_extension_hash_s,
+         needed_shares_s, total_shares_s, size_s) = uri.split(":")
+        assert header_uri == "URI"
+        assert header_chk == "CHK"
+        self.storage_index = idlib.a2b(storage_index_s)
+        self.key = idlib.a2b(key_s)
+        self.uri_extension_hash = idlib.a2b(uri_extension_hash_s)
+        self.needed_shares = int(needed_shares_s)
+        self.total_shares = int(total_shares_s)
+        self.size = int(size_s)
+        return self
 
-def unpack_uri(uri):
-    assert uri.startswith("URI:"), uri
-    d = {}
-    (header,
-     storage_index_s, key_s, uri_extension_hash_s,
-     needed_shares_s, total_shares_s, size_s) = uri.split(":")
-    assert header == "URI"
-    d['storage_index'] = idlib.a2b(storage_index_s)
-    d['key'] = idlib.a2b(key_s)
-    d['uri_extension_hash'] = idlib.a2b(uri_extension_hash_s)
-    d['needed_shares'] = int(needed_shares_s)
-    d['total_shares'] = int(total_shares_s)
-    d['size'] = int(size_s)
-    return d
+    def to_string(self):
+        assert isinstance(self.storage_index, str)
+        assert len(self.storage_index) == 32 # sha256 hash
+
+        assert isinstance(self.uri_extension_hash, str)
+        assert len(self.uri_extension_hash) == 32 # sha56 hash
+
+        assert isinstance(self.key, str)
+        assert len(self.key) == 16 # AES-128
+        assert isinstance(self.needed_shares, int)
+        assert isinstance(self.total_shares, int)
+        assert isinstance(self.size, (int,long))
+
+        return ("URI:CHK:%s:%s:%s:%d:%d:%d" %
+                (idlib.b2a(self.storage_index),
+                 idlib.b2a(self.key),
+                 idlib.b2a(self.uri_extension_hash),
+                 self.needed_shares,
+                 self.total_shares,
+                 self.size))
+
+    def is_readonly(self):
+        return True
+    def is_mutable(self):
+        return False
+    def get_readonly(self):
+        return self
+
+    def get_size(self):
+        return self.size
+
+class LiteralFileURI(_BaseURI):
+    implements(IURI, IFileURI)
+
+    def __init__(self, data=None):
+        if data is not None:
+            self.data = data
+
+    def init_from_string(self, uri):
+        assert uri.startswith("URI:LIT:")
+        data_s = uri[len("URI:LIT:"):]
+        self.data = idlib.a2b(data_s)
+        return self
+
+    def to_string(self):
+        return "URI:LIT:%s" % idlib.b2a(self.data)
+
+    def is_readonly(self):
+        return True
+    def is_mutable(self):
+        return False
+    def get_readonly(self):
+        return self
+
+    def get_size(self):
+        return len(self.data)
+
+class DirnodeURI(_BaseURI):
+    implements(IURI, IDirnodeURI)
+
+    def __init__(self, furl=None, writekey=None):
+        if furl is not None or writekey is not None:
+            assert furl is not None
+            assert writekey is not None
+            self.furl = furl
+            self.writekey = writekey
+
+    def init_from_string(self, uri):
+        # URI:DIR:furl:key
+        #  but note that the furl contains colons
+        prefix = "URI:DIR:"
+        assert uri.startswith(prefix)
+        uri = uri[len(prefix):]
+        colon = uri.rindex(":")
+        self.furl = uri[:colon]
+        self.writekey = idlib.a2b(uri[colon+1:])
+        return self
+
+    def to_string(self):
+        return "URI:DIR:%s:%s" % (self.furl, idlib.b2a(self.writekey))
+
+    def is_readonly(self):
+        return False
+    def is_mutable(self):
+        return True
+    def get_readonly(self):
+        u = ReadOnlyDirnodeURI()
+        u.furl = self.furl
+        u.readkey = hashutil.dir_read_key_hash(self.writekey)
+        return u
+
+class ReadOnlyDirnodeURI(_BaseURI):
+    implements(IURI, IDirnodeURI)
+
+    def __init__(self, furl=None, readkey=None):
+        if furl is not None or readkey is not None:
+            assert furl is not None
+            assert readkey is not None
+            self.furl = furl
+            self.readkey = readkey
+
+    def init_from_string(self, uri):
+        # URI:DIR-RO:furl:key
+        #  but note that the furl contains colons
+        prefix = "URI:DIR-RO:"
+        assert uri.startswith(prefix)
+        uri = uri[len(prefix):]
+        colon = uri.rindex(":")
+        self.furl = uri[:colon]
+        self.readkey = idlib.a2b(uri[colon+1:])
+        return self
+
+    def to_string(self):
+        return "URI:DIR-RO:%s:%s" % (self.furl, idlib.b2a(self.readkey))
+
+    def is_readonly(self):
+        return True
+    def is_mutable(self):
+        return True
+    def get_readonly(self):
+        return self
+
+def from_string(s):
+    if s.startswith("URI:CHK:"):
+        return CHKFileURI().init_from_string(s)
+    elif s.startswith("URI:LIT:"):
+        return LiteralFileURI().init_from_string(s)
+    elif s.startswith("URI:DIR:"):
+        return DirnodeURI().init_from_string(s)
+    elif s.startswith("URI:DIR-RO:"):
+        return ReadOnlyDirnodeURI().init_from_string(s)
+    else:
+        raise RuntimeError("unknown URI type: %s.." % s[:10])
+
+registerAdapter(from_string, str, IURI)
+
+def from_string_dirnode(s):
+    u = from_string(s)
+    assert IDirnodeURI.providedBy(u)
+    return u
+
+registerAdapter(from_string_dirnode, str, IDirnodeURI)
+
+def from_string_filenode(s):
+    u = from_string(s)
+    assert IFileURI.providedBy(u)
+    return u
+
+registerAdapter(from_string_filenode, str, IFileURI)
 
 
 def pack_extension(data):
@@ -108,39 +244,3 @@ def unpack_extension_readable(data):
             unpacked[k] = idlib.b2a(unpacked[k])
     return unpacked
 
-def pack_lit(data):
-    return "URI:LIT:%s" % idlib.b2a(data)
-
-def unpack_lit(uri):
-    assert uri.startswith("URI:LIT:")
-    data_s = uri[len("URI:LIT:"):]
-    return idlib.a2b(data_s)
-
-
-def is_dirnode_uri(uri):
-    return uri.startswith("URI:DIR:") or uri.startswith("URI:DIR-RO:")
-def is_mutable_dirnode_uri(uri):
-    return uri.startswith("URI:DIR:")
-def unpack_dirnode_uri(uri):
-    assert is_dirnode_uri(uri)
-    # URI:DIR:furl:key
-    #  but note that the furl contains colons
-    for prefix in ("URI:DIR:", "URI:DIR-RO:"):
-        if uri.startswith(prefix):
-            uri = uri[len(prefix):]
-            break
-    else:
-        assert 0
-    colon = uri.rindex(":")
-    furl = uri[:colon]
-    key = uri[colon+1:]
-    return furl, idlib.a2b(key)
-
-def make_immutable_dirnode_uri(mutable_uri):
-    assert is_mutable_dirnode_uri(mutable_uri)
-    furl, writekey = unpack_dirnode_uri(mutable_uri)
-    readkey = hashutil.dir_read_key_hash(writekey)
-    return "URI:DIR-RO:%s:%s" % (furl, idlib.b2a(readkey))
-
-def pack_dirnode_uri(furl, writekey):
-    return "URI:DIR:%s:%s" % (furl, idlib.b2a(writekey))

@@ -7,8 +7,7 @@ from twisted.application import service
 from foolscap import Referenceable
 
 from allmydata.util import idlib, hashutil
-from allmydata import encode, storage, hashtree
-from allmydata.uri import pack_uri, pack_lit
+from allmydata import encode, storage, hashtree, uri
 from allmydata.interfaces import IUploadable, IUploader
 
 from cStringIO import StringIO
@@ -321,13 +320,14 @@ class CHKUploader:
         self._encoder.set_shareholders(buckets)
 
     def _compute_uri(self, uri_extension_hash):
-        return pack_uri(storage_index=self._storage_index,
-                        key=self._encryption_key,
-                        uri_extension_hash=uri_extension_hash,
-                        needed_shares=self.needed_shares,
-                        total_shares=self.total_shares,
-                        size=self._size,
-                        )
+        u = uri.CHKFileURI(storage_index=self._storage_index,
+                           key=self._encryption_key,
+                           uri_extension_hash=uri_extension_hash,
+                           needed_shares=self.needed_shares,
+                           total_shares=self.total_shares,
+                           size=self._size,
+                           )
+        return u.to_string()
 
 def read_this_many_bytes(uploadable, size, prepend_data=[]):
     if size == 0:
@@ -359,7 +359,8 @@ class LiteralUploader:
     def start(self):
         d = self._uploadable.get_size()
         d.addCallback(lambda size: read_this_many_bytes(self._uploadable, size))
-        d.addCallback(lambda data: pack_lit("".join(data)))
+        d.addCallback(lambda data: uri.LiteralFileURI("".join(data)))
+        d.addCallback(lambda u: u.to_string())
         return d
 
     def close(self):

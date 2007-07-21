@@ -9,7 +9,7 @@ from allmydata.util import idlib, mathutil, hashutil
 from allmydata.util.assertutil import _assert
 from allmydata import codec, hashtree, storage, uri
 from allmydata.Crypto.Cipher import AES
-from allmydata.interfaces import IDownloadTarget, IDownloader
+from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI
 from allmydata.encode import NotEnoughPeersError
 
 class HaveAllPeersError(Exception):
@@ -288,14 +288,14 @@ class FileDownloader:
     def __init__(self, client, u, downloadable):
         self._client = client
 
-        d = uri.unpack_uri(u)
-        self._storage_index = d['storage_index']
-        self._uri_extension_hash = d['uri_extension_hash']
-        self._total_shares = d['total_shares']
-        self._size = d['size']
-        self._num_needed_shares = d['needed_shares']
+        u = IFileURI(u)
+        self._storage_index = u.storage_index
+        self._uri_extension_hash = u.uri_extension_hash
+        self._total_shares = u.total_shares
+        self._size = u.size
+        self._num_needed_shares = u.needed_shares
 
-        self._output = Output(downloadable, d['key'], self._size)
+        self._output = Output(downloadable, u.key, self._size)
 
         self.active_buckets = {} # k: shnum, v: bucket
         self._share_buckets = [] # list of (sharenum, bucket) tuples
@@ -609,12 +609,13 @@ class FileDownloader:
         return self._output.finish()
 
 class LiteralDownloader:
-    def __init__(self, client, uri, downloadable):
-        self._uri = uri
+    def __init__(self, client, u, downloadable):
+        self._uri = IFileURI(u)
+        assert isinstance(self._uri, uri.LiteralFileURI)
         self._downloadable = downloadable
 
     def start(self):
-        data = uri.unpack_lit(self._uri)
+        data = self._uri.data
         self._downloadable.open(len(data))
         self._downloadable.write(data)
         self._downloadable.close()
@@ -625,16 +626,19 @@ class FileName:
     implements(IDownloadTarget)
     def __init__(self, filename):
         self._filename = filename
+        self.f = None
     def open(self, size):
         self.f = open(self._filename, "wb")
         return self.f
     def write(self, data):
         self.f.write(data)
     def close(self):
-        self.f.close()
+        if self.f:
+            self.f.close()
     def fail(self, why):
-        self.f.close()
-        os.unlink(self._filename)
+        if self.f:
+            self.f.close()
+            os.unlink(self._filename)
     def register_canceller(self, cb):
         pass # we won't use it
     def finish(self):
@@ -690,14 +694,16 @@ class Downloader(service.MultiService):
     def download(self, u, t):
         assert self.parent
         assert self.running
+        u = IFileURI(u)
         t = IDownloadTarget(t)
         assert t.write
         assert t.close
-        utype = uri.get_uri_type(u)
-        if utype == "CHK":
-            dl = FileDownloader(self.parent, u, t)
-        elif utype == "LIT":
+        if isinstance(u, uri.LiteralFileURI):
             dl = LiteralDownloader(self.parent, u, t)
+        elif isinstance(u, uri.CHKFileURI):
+            dl = FileDownloader(self.parent, u, t)
+        else:
+            raise RuntimeError("I don't know how to download a %s" % u)
         d = dl.start()
         return d
 

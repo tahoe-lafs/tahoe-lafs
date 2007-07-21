@@ -228,6 +228,38 @@ class RIVirtualDriveServer(RemoteInterface):
         """
 
 
+class IURI(Interface):
+    def init_from_string(uri):
+        """Accept a string (as created by my to_string() method) and populate
+        this instance with its data. I am not normally called directly,
+        please use the module-level uri.from_string() function to convert
+        arbitrary URI strings into IURI-providing instances."""
+
+    def is_readonly():
+        """Return False if this URI be used to modify the data. Return True
+        if this URI cannot be used to modify the data."""
+
+    def is_mutable():
+        """Return True if the data can be modified by *somebody* (perhaps
+        someone who has a more powerful URI than this one)."""
+
+    def get_readonly():
+        """Return another IURI instance, which represents a read-only form of
+        this one. If is_readonly() is True, this returns self."""
+
+    def to_string():
+        """Return a string of printable ASCII characters, suitable for
+        passing into init_from_string."""
+
+class IDirnodeURI(Interface):
+    """I am a URI which represents a dirnode."""
+
+class IFileURI(Interface):
+    """I am a URI which represents a filenode."""
+    def get_size():
+        """Return the length (in bytes) of the file that I represent."""
+
+
 class IFileNode(Interface):
     def download(target):
         """Download the file's contents to a given IDownloadTarget"""
@@ -239,6 +271,8 @@ class IFileNode(Interface):
         """Return the URI that can be used by others to get access to this
         file.
         """
+    def get_size():
+        """Return the length (in bytes) of the data this node represents."""
 
     def get_refresh_capability():
         """Return a string that represents the 'refresh capability' for this
@@ -788,7 +822,7 @@ class IVirtualDrive(Interface):
         """
 
     def get_node(uri):
-        """Transform a URI into an IDirectoryNode or IFileNode.
+        """Transform a URI (or IURI) into an IDirectoryNode or IFileNode.
 
         This returns a Deferred that will fire with an instance that provides
         either IDirectoryNode or IFileNode, as appropriate."""

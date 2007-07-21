@@ -2,23 +2,50 @@
 from twisted.trial import unittest
 from allmydata import uri
 from allmydata.util import hashutil
+from allmydata.interfaces import IURI, IFileURI, IDirnodeURI
 
-class LIT(unittest.TestCase):
+class Literal(unittest.TestCase):
     def test_pack(self):
         data = "This is some small data"
-        u = uri.pack_lit(data)
-        self.failUnlessEqual(uri.get_uri_type(u), "LIT")
-        self.failUnlessEqual(uri.unpack_lit(u), data)
-        self.failUnless(uri.is_filenode_uri(u))
-        self.failUnlessEqual(uri.get_filenode_size(u), len(data))
+        u = uri.LiteralFileURI(data)
+        self.failUnless(IURI.providedBy(u))
+        self.failUnless(IFileURI.providedBy(u))
+        self.failIf(IDirnodeURI.providedBy(u))
+        self.failUnlessEqual(u.data, data)
+        self.failUnlessEqual(u.get_size(), len(data))
+        self.failUnless(u.is_readonly())
+        self.failIf(u.is_mutable())
+
+        u2 = uri.from_string(u.to_string())
+        self.failUnless(IURI.providedBy(u2))
+        self.failUnless(IFileURI.providedBy(u2))
+        self.failIf(IDirnodeURI.providedBy(u2))
+        self.failUnlessEqual(u2.data, data)
+        self.failUnlessEqual(u2.get_size(), len(data))
+        self.failUnless(u.is_readonly())
+        self.failIf(u.is_mutable())
 
     def test_nonascii(self):
         data = "This contains \x00 and URI:LIT: and \n, oh my."
-        u = uri.pack_lit(data)
-        self.failUnlessEqual(uri.get_uri_type(u), "LIT")
-        self.failUnlessEqual(uri.unpack_lit(u), data)
+        u = uri.LiteralFileURI(data)
+        self.failUnless(IURI.providedBy(u))
+        self.failUnless(IFileURI.providedBy(u))
+        self.failIf(IDirnodeURI.providedBy(u))
+        self.failUnlessEqual(u.data, data)
+        self.failUnlessEqual(u.get_size(), len(data))
+        self.failUnless(u.is_readonly())
+        self.failIf(u.is_mutable())
 
-class CHK(unittest.TestCase):
+        u2 = uri.from_string(u.to_string())
+        self.failUnless(IURI.providedBy(u2))
+        self.failUnless(IFileURI.providedBy(u2))
+        self.failIf(IDirnodeURI.providedBy(u2))
+        self.failUnlessEqual(u2.data, data)
+        self.failUnlessEqual(u2.get_size(), len(data))
+        self.failUnless(u.is_readonly())
+        self.failIf(u.is_mutable())
+
+class CHKFile(unittest.TestCase):
     def test_pack(self):
         storage_index = hashutil.tagged_hash("foo", "bar")
         key = "\x00" * 16
@@ -26,23 +53,42 @@ class CHK(unittest.TestCase):
         needed_shares = 25
         total_shares = 100
         size = 1234
-        u = uri.pack_uri(storage_index=storage_index,
-                         key=key,
-                         uri_extension_hash=uri_extension_hash,
-                         needed_shares=needed_shares,
-                         total_shares=total_shares,
-                         size=size)
-        self.failUnlessEqual(uri.get_uri_type(u), "CHK")
-        d = uri.unpack_uri(u)
-        self.failUnlessEqual(d['storage_index'], storage_index)
-        self.failUnlessEqual(d['key'], key)
-        self.failUnlessEqual(d['uri_extension_hash'], uri_extension_hash)
-        self.failUnlessEqual(d['needed_shares'], needed_shares)
-        self.failUnlessEqual(d['total_shares'], total_shares)
-        self.failUnlessEqual(d['size'], size)
+        u = uri.CHKFileURI(storage_index=storage_index,
+                           key=key,
+                           uri_extension_hash=uri_extension_hash,
+                           needed_shares=needed_shares,
+                           total_shares=total_shares,
+                           size=size)
+        self.failUnlessEqual(u.storage_index, storage_index)
+        self.failUnlessEqual(u.key, key)
+        self.failUnlessEqual(u.uri_extension_hash, uri_extension_hash)
+        self.failUnlessEqual(u.needed_shares, needed_shares)
+        self.failUnlessEqual(u.total_shares, total_shares)
+        self.failUnlessEqual(u.size, size)
+        self.failUnless(u.is_readonly())
+        self.failIf(u.is_mutable())
+        self.failUnless(IURI.providedBy(u))
+        self.failUnless(IFileURI.providedBy(u))
+        self.failIf(IDirnodeURI.providedBy(u))
+        self.failUnlessEqual(u.get_size(), 1234)
+        self.failUnless(u.is_readonly())
+        self.failIf(u.is_mutable())
 
-        self.failUnless(uri.is_filenode_uri(u))
-        self.failUnlessEqual(uri.get_filenode_size(u), size)
+        u2 = uri.from_string(u.to_string())
+        self.failUnlessEqual(u2.storage_index, storage_index)
+        self.failUnlessEqual(u2.key, key)
+        self.failUnlessEqual(u2.uri_extension_hash, uri_extension_hash)
+        self.failUnlessEqual(u2.needed_shares, needed_shares)
+        self.failUnlessEqual(u2.total_shares, total_shares)
+        self.failUnlessEqual(u2.size, size)
+        self.failUnless(u2.is_readonly())
+        self.failIf(u2.is_mutable())
+        self.failUnless(IURI.providedBy(u2))
+        self.failUnless(IFileURI.providedBy(u2))
+        self.failIf(IDirnodeURI.providedBy(u2))
+        self.failUnlessEqual(u2.get_size(), 1234)
+        self.failUnless(u2.is_readonly())
+        self.failIf(u2.is_mutable())
 
 class Extension(unittest.TestCase):
     def test_pack(self):
@@ -64,26 +110,40 @@ class Dirnode(unittest.TestCase):
         furl = "pb://stuff@morestuff:stuff/andstuff"
         writekey = "\x01" * 16
 
-        u = uri.pack_dirnode_uri(furl, writekey)
-        self.failUnless(uri.is_dirnode_uri(u))
-        self.failIf(uri.is_dirnode_uri("NOT A DIRNODE URI"))
-        self.failIf(uri.is_dirnode_uri("URI:stuff"))
-        self.failUnless(uri.is_mutable_dirnode_uri(u))
-        self.failIf(uri.is_mutable_dirnode_uri("NOT A DIRNODE URI"))
-        self.failIf(uri.is_mutable_dirnode_uri("URI:stuff"))
-        self.failUnlessEqual(uri.get_uri_type(u), "DIR")
+        u = uri.DirnodeURI(furl, writekey)
+        self.failUnlessEqual(u.furl, furl)
+        self.failUnlessEqual(u.writekey, writekey)
+        self.failIf(u.is_readonly())
+        self.failUnless(u.is_mutable())
+        self.failUnless(IURI.providedBy(u))
+        self.failIf(IFileURI.providedBy(u))
+        self.failUnless(IDirnodeURI.providedBy(u))
 
-        rou = uri.make_immutable_dirnode_uri(u)
-        self.failUnless(uri.is_dirnode_uri(rou))
-        self.failIf(uri.is_mutable_dirnode_uri(rou))
-        self.failUnlessEqual(uri.get_uri_type(rou), "DIR-RO")
+        u2 = uri.from_string(u.to_string())
+        self.failUnlessEqual(u2.furl, furl)
+        self.failUnlessEqual(u2.writekey, writekey)
+        self.failIf(u2.is_readonly())
+        self.failUnless(u2.is_mutable())
+        self.failUnless(IURI.providedBy(u2))
+        self.failIf(IFileURI.providedBy(u2))
+        self.failUnless(IDirnodeURI.providedBy(u2))
 
-        d = uri.unpack_dirnode_uri(u)
-        self.failUnlessEqual(d[0], furl)
-        self.failUnlessEqual(d[1], writekey)
+        u3 = u2.get_readonly()
+        readkey = hashutil.dir_read_key_hash(writekey)
+        self.failUnlessEqual(u3.furl, furl)
+        self.failUnlessEqual(u3.readkey, readkey)
+        self.failUnless(u3.is_readonly())
+        self.failUnless(u3.is_mutable())
+        self.failUnless(IURI.providedBy(u3))
+        self.failIf(IFileURI.providedBy(u3))
+        self.failUnless(IDirnodeURI.providedBy(u3))
 
-        d2 = uri.unpack_dirnode_uri(rou)
-        self.failUnlessEqual(d2[0], furl)
-        rk = hashutil.dir_read_key_hash(writekey)
-        self.failUnlessEqual(d2[1], rk)
+        u4 = uri.ReadOnlyDirnodeURI(furl, readkey)
+        self.failUnlessEqual(u4.furl, furl)
+        self.failUnlessEqual(u4.readkey, readkey)
+        self.failUnless(u4.is_readonly())
+        self.failUnless(u4.is_mutable())
+        self.failUnless(IURI.providedBy(u4))
+        self.failIf(IFileURI.providedBy(u4))
+        self.failUnless(IDirnodeURI.providedBy(u4))
 

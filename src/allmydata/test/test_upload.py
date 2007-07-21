@@ -5,8 +5,8 @@ from twisted.python.failure import Failure
 from twisted.internet import defer
 from cStringIO import StringIO
 
-from allmydata import upload, encode
-from allmydata.uri import unpack_uri, unpack_lit
+from allmydata import upload, encode, uri
+from allmydata.interfaces import IFileURI
 from allmydata.util.assertutil import precondition
 from foolscap import eventual
 
@@ -154,21 +154,19 @@ class GoodServer(unittest.TestCase):
         self.u.running = True
         self.u.parent = self.node
 
-    def _check_small(self, uri, size):
-        self.failUnless(isinstance(uri, str))
-        self.failUnless(uri.startswith("URI:LIT:"))
-        d = unpack_lit(uri)
-        self.failUnlessEqual(len(d), size)
+    def _check_small(self, newuri, size):
+        u = IFileURI(newuri)
+        self.failUnless(isinstance(u, uri.LiteralFileURI))
+        self.failUnlessEqual(len(u.data), size)
 
-    def _check_large(self, uri, size):
-        self.failUnless(isinstance(uri, str))
-        self.failUnless(uri.startswith("URI:"))
-        d = unpack_uri(uri)
-        self.failUnless(isinstance(d['storage_index'], str))
-        self.failUnlessEqual(len(d['storage_index']), 32)
-        self.failUnless(isinstance(d['key'], str))
-        self.failUnlessEqual(len(d['key']), 16)
-        self.failUnlessEqual(d['size'], size)
+    def _check_large(self, newuri, size):
+        u = IFileURI(newuri)
+        self.failUnless(isinstance(u, uri.CHKFileURI))
+        self.failUnless(isinstance(u.storage_index, str))
+        self.failUnlessEqual(len(u.storage_index), 32)
+        self.failUnless(isinstance(u.key, str))
+        self.failUnlessEqual(len(u.key), 16)
+        self.failUnlessEqual(u.size, size)
 
     def get_data(self, size):
         return DATA[:size]

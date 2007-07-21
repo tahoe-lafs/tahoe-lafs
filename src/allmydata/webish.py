@@ -8,9 +8,8 @@ from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from allmydata.util import idlib, fileutil
 import simplejson
-from allmydata.uri import unpack_uri, is_dirnode_uri
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode
-from allmydata import upload, download, uri
+from allmydata import upload, download
 from zope.interface import implements, Interface
 import urllib
 from formless import webform
@@ -103,19 +102,7 @@ class Directory(rend.Page):
                           T.a(href=dlurl)[html.escape(name)])
             ctx.fillSlots("type", "FILE")
 
-
-            #uri = target.uri
-            #dl_uri_url = url.root.child("download_uri").child(uri)
-            ## add a filename= query argument to give it a Content-Type
-            #dl_uri_url = dl_uri_url.add("filename", name)
-            #ctx.fillSlots("uri", T.a(href=dl_uri_url)[html.escape(uri)])
-
-            #extract and display file size
-            try:
-                size = uri.get_filenode_size(target.get_uri())
-            except AssertionError:
-                size = "?"
-            ctx.fillSlots("size", size)
+            ctx.fillSlots("size", target.get_size())
 
             text_plain_link = "/uri/%s?filename=foo.txt" % uri_link
             text_plain_tag = T.a(href=text_plain_link)["text/plain"]
@@ -322,7 +309,7 @@ class FileJSONMetadata(rend.Page):
         data = ("filenode",
                 {'mutable': False,
                  'uri': file_uri,
-                 'size': uri.get_filenode_size(file_uri),
+                 'size': filenode.get_size(),
                  })
         return simplejson.dumps(data, indent=1)
 
@@ -412,7 +399,7 @@ class DirectoryJSONMetadata(rend.Page):
                     kiddata = ("filenode",
                                {'mutable': False,
                                 'uri': kiduri,
-                                'size': uri.get_filenode_size(kiduri),
+                                'size': childnode.get_size(),
                                 })
                 else:
                     assert IDirectoryNode.providedBy(childnode)
@@ -519,8 +506,6 @@ class POSTHandler(rend.Page):
                 newuri = req.args["uri"][0]
             else:
                 newuri = req.fields["uri"].value
-            # sanity checking
-            assert(is_dirnode_uri(newuri) or unpack_uri(newuri))
             d = self._node.set_uri(name, newuri)
             def _done(res):
                 return newuri
