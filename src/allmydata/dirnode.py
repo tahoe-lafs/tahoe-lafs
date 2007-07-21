@@ -354,7 +354,7 @@ class ImmutableDirectoryNode:
             dl = []
             for name, child in res.iteritems():
                 manifest.add(child.get_refresh_capability())
-                if IDirectoryNode.providedBy(child):
+                if IDirectoryNode.providedBy(child) and child not in manifest:
                     dl.append(self._build_manifest_from_node(child, manifest))
             if dl:
                 return defer.DeferredList(dl)
