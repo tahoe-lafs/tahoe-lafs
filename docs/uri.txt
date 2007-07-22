@@ -1,0 +1,156 @@
+
+= Tahoe URIs =
+
+Each file and directory in a Tahoe filesystem is described by a "URI". There
+are different kinds of URIs for different kinds of objects, and there are
+different kinds of URIs to provide different kinds of access to those
+objects.
+
+Each URI provides both '''location''' and '''identification''' properties.
+'''location''' means that holding the URI is sufficient to locate the data it
+represents (this means it contains a storage index or a lookup key, whatever
+is necessary to find the place or places where the data is being kept).
+'''identification''' means that the URI also serves to validate the data: an
+attacker who wants to trick you into into using the wrong data will be
+limited in their abilities by the identification properties of the URI.
+
+Some URIs are subsets of others. In particular, if you know a URI which
+allows you to modify some object, you can produce a weaker read-only URI and
+give it to someone else, and they will be able to read that object but not
+modify it. Each URI represents some '''capability''', and some capabilities
+are derived from others.
+
+source:src/allmydata/uri.py is the main place where URIs are processed. It is
+the authoritative definition point for all the the URI types described
+herein.
+
+== File URIs ==
+
+The lowest layer of the Tahoe architecture (the "grid") is reponsible for
+mapping URIs to data. This is basically a distributed hash table, in which
+the URI is the key, and some sequence of bytes is the value.
+
+At present, all the entries in this DHT are immutable. That means that each
+URI represents a fixed chunk of data. The URI itself is derived from the data
+when it is uploaded into the grid, and can be used to locate and download
+that data from the grid at some time in the future.
+
+It is important to note that the "files" described by these URIs are just a
+bunch of bytes, and that __no__ filenames or other metadata is retained at
+this layer. The vdrive layer (which sits above the grid layer) is entirely
+responsible for directories and filenames and the like.
+
+=== CHI URIs ===
+
+CHK (Content Hash Keyed) files are immutable sequences of bytes. They are
+uploaded in a distributed fashion using a "storage index" (for the "location"
+property), and encrypted using a "read key". A secure hash of the data is
+computed to help validate the data afterwards (providing the "identification"
+property). All of these pieces, plus information about the file's size and
+the number of shares into which it has been distributed, are put into the
+"CHK" uri.
+
+In the current release, these URIs contain both the storage index and the
+read key. The plan is to derive the storage index from the read key, so only
+the latter will appear in the URI.
+
+The current format for CHK URIs is the concatenation of the following
+strings:
+
+ URI:CHK:(storage-index):(key):(hash):(needed-shares):(total-shares):(size)
+
+Where (storage-index) is the base32 encoding of the (binary) storage index
+(which itself is a SHA-256 hash), (key) is the base32 encoding of the 16-byte
+AES read key, (hash) is the base32 encoding of the SHA-256 hash of the URI
+Extension Block, (needed-shares) is an ascii decimal representation of the
+number of shares required to reconstruct this file, (total-shares) is the
+same representation of the total number of shares created, and (size) is an
+ascii decimal representation of the size of the data represented by this URI.
+
+For example, the following is a CHK URI, generated from the contents of the
+architecture.txt document that lives next to this one in the source tree:
+
+URI:CHK:khzth3n672elnovimdpaczwuyukwm42vkdzenbqoaj6sqebk3zjq====:ihrbeov7lbvoduupd4qblysj7a======:bg5agsdt62jb34hxvxmdsbza6do64f4fg5anxxod2buttbo6udzq====:3:10:28733
+
+
+=== LIT URIs ===
+
+LITeral files are also an immutable sequence of bytes, but they are so short
+that the data is stored inside the URI itself. These are used for files of 55
+bytes or shorter, which is the point at which the LIT URI is the same length
+as a CHK URI would be.
+
+LIT URIs do not require an upload or download phase, as their data is stored
+directly in the URI.
+
+The format of a LIT URI is simply a fixed prefix concatenated with the base32
+encoding of the file's data:
+
+ URI:LIT:bjuw4y3movsgkidbnrwg26lemf2gcl3xmvrc6kropbuhi3lmbi======
+
+The LIT URI for an empty file is "URI:LIT:", and the LIT URI for a 5-byte
+file that contains the string "hello" is "URI:LIT:nbswy3dp".
+
+=== Mutable File URIs ===
+
+The current release does not provide for mutable files, hence all file URIs
+correspond to immutable data. Future releases will probably add mutable
+files, creating a new class of Mutable File URIs. These URIs will contain the
+hash of a public key and also a symmetric read- or write- key. The URI refers
+to a "mutable slot" into which arbitrary data can be uploaded at various
+times. Each time this kind of URI is submitted to the Downloader, the caller
+will receive the current contents of the slot (i.e. the data that was most
+recently uploaded to it). The public key will be used to validate the data.
+
+Note that this form of validation is limited to confirming that the data
+retrieved matches __some__ data that was uploaded in the past. The downloader
+may still be vulnerable to replay attacks, although the distributed storage
+mechanism will probably minimize this vulnerability.
+
+== Directory URIs ==
+
+The grid layer provides a mapping from URI to data. To turn this into a graph
+of directories and files, the "vdrive" layer (which sits on top of the grid
+layer) needs to keep track of "directory nodes", or "dirnodes" for short.
+source:docs/dirnodes.txt describes how these work.
+
+In the current release, each dirnode is stored (in encrypted form) on a
+single "vdrive server". The Foolscap FURL that points at this server is kept
+inside the "dirnode URI", as well as the read-key or write-key used in the
+encryption. There are two forms of dirnode URIs: the read-write form contains
+the write-key (from which the read-key can be derived by hashing), while the
+read-only form only contains the read-key. The storage index is derived from
+the read-key, so both kinds of URIs implicitly contain the storage index.
+
+The format of a read-write directory URI is the literal string "URI:DIR:",
+followed by the FURL of the vdrive server, another ":", then the
+base32-encoded representation of the write-key. For example:
+
+ URI:DIR:pb://ugltpehrf73gnb4qbjigxmmzbmznjxo6@10.0.0.16:59571,127.0.0.1:59571/vdrive:x2amqa52r6kqe7iemndilvtntm======
+
+A read-only directory URI is similar: "DIR-RO" is used instead of "DIR", and
+the read-key is used instead of the write-key:
+
+ URI:DIR-RO:pb://ugltpehrf73gnb4qbjigxmmzbmznjxo6@10.0.0.16:59571,127.0.0.1:59571/vdrive:l4dqkt3lianmxecxv7nol3ka2i======
+
+== Internal Usage of URIs ==
+
+The classes in source:src/allmydata/uri.py are used to pack and unpack these
+various kinds of URIs. Three Interfaces are defined (IURI, IFileURI, and
+IDirnodeURI) which are implemented by these classes, and string-to-URI-class
+conversion routines have been registered as adapters, so that code which
+wants to extract e.g. the size of a CHK or LIT uri can do:
+
+{{{
+print IFileURI(uri).get_size()
+}}}
+
+If the URI does not represent a CHK or LIT uri (for example, if it was for a
+directory instead), the adaptation will fail, raising a TypeError inside the
+IFileURI() call.
+
+Several utility methods are provided on these objects. The most important is
+{{{ to_string() }}}, which returns the string form of the URI. Therefore {{{
+IURI(uri).to_string == uri }}} is true for any valid URI. See the IURI class
+in source:src/allmydata/interfaces.py for more details.
+
