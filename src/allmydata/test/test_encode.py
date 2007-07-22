@@ -302,15 +302,21 @@ class Roundtrip(unittest.TestCase):
     def recover(self, (uri_extension_hash, e, shareholders), AVAILABLE_SHARES,
                 recover_mode):
         key = e.key
-        if "corrupt_key" in recover_mode:
-            key = flip_bit(key)
 
-        URI = uri.CHKFileURI(storage_index="S" * 32,
-                             key=key,
-                             uri_extension_hash=uri_extension_hash,
-                             needed_shares=e.required_shares,
-                             total_shares=e.num_shares,
-                             size=e.file_size).to_string()
+        if "corrupt_key" in recover_mode:
+            # we corrupt the key, so that the decrypted data is corrupted and
+            # will fail the plaintext hash check. Since we're manually
+            # attaching shareholders, the fact that the storage index is also
+            # corrupted doesn't matter.
+            key = flip_bit(e.key)
+
+        u = uri.CHKFileURI(key=key,
+                           uri_extension_hash=uri_extension_hash,
+                           needed_shares=e.required_shares,
+                           total_shares=e.num_shares,
+                           size=e.file_size)
+        URI = u.to_string()
+
         client = None
         target = download.Data()
         fd = download.FileDownloader(client, URI, target)

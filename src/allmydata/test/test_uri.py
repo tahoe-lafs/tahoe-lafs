@@ -47,14 +47,13 @@ class Literal(unittest.TestCase):
 
 class CHKFile(unittest.TestCase):
     def test_pack(self):
-        storage_index = hashutil.tagged_hash("foo", "bar")
-        key = "\x00" * 16
+        key = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+        storage_index = hashutil.storage_index_chk_hash(key)
         uri_extension_hash = hashutil.uri_extension_hash("stuff")
         needed_shares = 25
         total_shares = 100
         size = 1234
-        u = uri.CHKFileURI(storage_index=storage_index,
-                           key=key,
+        u = uri.CHKFileURI(key=key,
                            uri_extension_hash=uri_extension_hash,
                            needed_shares=needed_shares,
                            total_shares=total_shares,

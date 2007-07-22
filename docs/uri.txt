@@ -48,29 +48,25 @@ property), and encrypted using a "read key". A secure hash of the data is
 computed to help validate the data afterwards (providing the "identification"
 property). All of these pieces, plus information about the file's size and
 the number of shares into which it has been distributed, are put into the
-"CHK" uri.
-
-In the current release, these URIs contain both the storage index and the
-read key. The plan is to derive the storage index from the read key, so only
-the latter will appear in the URI.
+"CHK" uri. The storage index is derived by hashing the read key, so it does
+not need to be physically present in the URI.
 
 The current format for CHK URIs is the concatenation of the following
 strings:
 
- URI:CHK:(storage-index):(key):(hash):(needed-shares):(total-shares):(size)
+ URI:CHK:(key):(hash):(needed-shares):(total-shares):(size)
 
-Where (storage-index) is the base32 encoding of the (binary) storage index
-(which itself is a SHA-256 hash), (key) is the base32 encoding of the 16-byte
-AES read key, (hash) is the base32 encoding of the SHA-256 hash of the URI
-Extension Block, (needed-shares) is an ascii decimal representation of the
-number of shares required to reconstruct this file, (total-shares) is the
-same representation of the total number of shares created, and (size) is an
-ascii decimal representation of the size of the data represented by this URI.
+Where (key) is the base32 encoding of the 16-byte AES read key, (hash) is the
+base32 encoding of the SHA-256 hash of the URI Extension Block,
+(needed-shares) is an ascii decimal representation of the number of shares
+required to reconstruct this file, (total-shares) is the same representation
+of the total number of shares created, and (size) is an ascii decimal
+representation of the size of the data represented by this URI.
 
 For example, the following is a CHK URI, generated from the contents of the
 architecture.txt document that lives next to this one in the source tree:
 
-URI:CHK:khzth3n672elnovimdpaczwuyukwm42vkdzenbqoaj6sqebk3zjq====:ihrbeov7lbvoduupd4qblysj7a======:bg5agsdt62jb34hxvxmdsbza6do64f4fg5anxxod2buttbo6udzq====:3:10:28733
+URI:CHK:ihrbeov7lbvoduupd4qblysj7a======:bg5agsdt62jb34hxvxmdsbza6do64f4fg5anxxod2buttbo6udzq====:3:10:28733
 
 
 === LIT URIs ===

@@ -51,8 +51,7 @@ uri_counter = itertools.count()
 def make_newuri(data):
     n = uri_counter.next()
     assert len(str(n)) < 5
-    newuri = uri.CHKFileURI(storage_index="SI%05d" % n + "i"*25,
-                            key="K"*16,
+    newuri = uri.CHKFileURI(key="K%05d" % n + "k"*10,
                             uri_extension_hash="EH" + "h"*30,
                             needed_shares=25,
                             total_shares=100,
@@ -220,8 +219,7 @@ class Web(unittest.TestCase):
     def makefile(self, number):
         n = str(number)
         assert len(n) == 1
-        newuri = uri.CHKFileURI(storage_index="SI" + n*30,
-                                key="K" + n*15,
+        newuri = uri.CHKFileURI(key="K" + n*15,
                                 uri_extension_hash="EH" + n*30,
                                 needed_shares=25,
                                 total_shares=100,

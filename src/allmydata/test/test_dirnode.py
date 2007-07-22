@@ -173,14 +173,12 @@ class Test(unittest.TestCase):
             self.failUnlessEqual(res, {})
         d.addCallback(_listed)
 
-        file1 = uri.CHKFileURI(storage_index="11" + " "*30,
-                               key="k"*16,
+        file1 = uri.CHKFileURI(key="k"*15+"1",
                                uri_extension_hash="e"*32,
                                needed_shares=25,
                                total_shares=100,
                                size=12345).to_string()
-        file2 = uri.CHKFileURI(storage_index="2i" + " "*30,
-                               key="k"*16,
+        file2 = uri.CHKFileURI(key="k"*15+"2",
                                uri_extension_hash="e"*32,
                                needed_shares=25,
                                total_shares=100,

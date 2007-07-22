@@ -292,7 +292,7 @@ class CHKUploader:
         # There's certainly no extra entropy to be had..
         assert len(storage_index) == 32  # SHA-256
         self._storage_index = storage_index
-        log.msg(" upload SI is [%s]" % (idlib.b2a(storage_index,)))
+        log.msg(" upload storage_index is [%s]" % (idlib.b2a(storage_index,)))
 
 
     def locate_all_shareholders(self, ignored=None):
@@ -320,13 +320,13 @@ class CHKUploader:
         self._encoder.set_shareholders(buckets)
 
     def _compute_uri(self, uri_extension_hash):
-        u = uri.CHKFileURI(storage_index=self._storage_index,
-                           key=self._encryption_key,
+        u = uri.CHKFileURI(key=self._encryption_key,
                            uri_extension_hash=uri_extension_hash,
                            needed_shares=self.needed_shares,
                            total_shares=self.total_shares,
                            size=self._size,
                            )
+        assert u.storage_index == self._storage_index
         return u.to_string()
 
 def read_this_many_bytes(uploadable, size, prepend_data=[]):

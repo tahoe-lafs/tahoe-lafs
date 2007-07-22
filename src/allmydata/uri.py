@@ -27,43 +27,50 @@ class CHKFileURI(_BaseURI):
         # construct me with kwargs, since there are so many of them
         if not kwargs:
             return
-        for name in ("storage_index", "key", "uri_extension_hash",
-                     "needed_shares", "total_shares", "size"):
-            value = kwargs[name]
-            setattr(self, name, value)
+        keys = ("key", "uri_extension_hash",
+                "needed_shares", "total_shares", "size")
+        for name in kwargs:
+            if name in keys:
+                value = kwargs[name]
+                setattr(self, name, value)
+            else:
+                raise TypeError("CHKFileURI does not accept '%s=' argument"
+                                % name)
+        self.storage_index = hashutil.storage_index_chk_hash(self.key)
 
     def init_from_string(self, uri):
         assert uri.startswith("URI:CHK:"), uri
         d = {}
         (header_uri, header_chk,
-         storage_index_s, key_s, uri_extension_hash_s,
+         key_s, uri_extension_hash_s,
          needed_shares_s, total_shares_s, size_s) = uri.split(":")
         assert header_uri == "URI"
         assert header_chk == "CHK"
-        self.storage_index = idlib.a2b(storage_index_s)
+
         self.key = idlib.a2b(key_s)
+        assert isinstance(self.key, str)
+        assert len(self.key) == 16 # AES-128
+
+        self.storage_index = hashutil.storage_index_chk_hash(self.key)
+        assert isinstance(self.storage_index, str)
+        assert len(self.storage_index) == 32 # sha256 hash
+
         self.uri_extension_hash = idlib.a2b(uri_extension_hash_s)
+        assert isinstance(self.uri_extension_hash, str)
+        assert len(self.uri_extension_hash) == 32 # sha56 hash
+
         self.needed_shares = int(needed_shares_s)
         self.total_shares = int(total_shares_s)
         self.size = int(size_s)
         return self
 
     def to_string(self):
-        assert isinstance(self.storage_index, str)
-        assert len(self.storage_index) == 32 # sha256 hash
-
-        assert isinstance(self.uri_extension_hash, str)
-        assert len(self.uri_extension_hash) == 32 # sha56 hash
-
-        assert isinstance(self.key, str)
-        assert len(self.key) == 16 # AES-128
         assert isinstance(self.needed_shares, int)
         assert isinstance(self.total_shares, int)
         assert isinstance(self.size, (int,long))
 
-        return ("URI:CHK:%s:%s:%s:%d:%d:%d" %
-                (idlib.b2a(self.storage_index),
-                 idlib.b2a(self.key),
+        return ("URI:CHK:%s:%s:%d:%d:%d" %
+                (idlib.b2a(self.key),
                  idlib.b2a(self.uri_extension_hash),
                  self.needed_shares,
                  self.total_shares,

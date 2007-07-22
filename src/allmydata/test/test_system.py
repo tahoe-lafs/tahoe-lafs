@@ -222,11 +222,10 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return good[:-1] + chr(ord(good[-1]) ^ 0x01)
 
     def mangle_uri(self, gooduri):
-        # change the storage index, which means we'll be asking about the
-        # wrong file, so nobody will have any shares
+        # change the key, which changes the storage index, which means we'll
+        # be asking about the wrong file, so nobody will have any shares
         u = IFileURI(gooduri)
-        u2 = uri.CHKFileURI(storage_index=self.flip_bit(u.storage_index),
-                            key=u.key,
+        u2 = uri.CHKFileURI(key=self.flip_bit(u.key),
                             uri_extension_hash=u.uri_extension_hash,
                             needed_shares=u.needed_shares,
                             total_shares=u.total_shares,
