@@ -32,14 +32,12 @@ class VirtualDriveServer(service.MultiService, Referenceable):
         if offer_public_root:
             rootfile = os.path.join(self._basedir, "root")
             if not os.path.exists(rootfile):
-                write_key = hashutil.random_key()
-                (wk, we, rk, index) = \
-                     hashutil.generate_dirnode_keys_from_writekey(write_key)
-                self.create_directory(index, we)
+                u = uri.DirnodeURI("fakefurl", hashutil.random_key())
+                self.create_directory(u.storage_index, u.write_enabler)
                 f = open(rootfile, "wb")
-                f.write(wk)
+                f.write(u.writekey)
                 f.close()
-                self._root = wk
+                self._root = u.writekey
             else:
                 f = open(rootfile, "rb")
                 self._root = f.read()
@@ -170,10 +168,11 @@ class ImmutableDirectoryNode:
         self._client = client
         self._tub = client.tub
         self._rref = rref
+
         self._readkey = u.readkey
-        self._writekey = None
-        self._write_enabler = None
-        self._index = hashutil.dir_index_hash(self._readkey)
+        self._writekey = u.writekey
+        self._write_enabler = u.write_enabler
+        self._index = u.storage_index
         self._mutable = False
 
     def dump(self):
@@ -362,9 +361,7 @@ class ImmutableDirectoryNode:
 
     def get_refresh_capability(self):
         u = IDirnodeURI(self._uri).get_readonly()
-        rk = u.readkey
-        wk, we, rk, index = hashutil.generate_dirnode_keys_from_readkey(rk)
-        return "DIR-REFRESH:%s" % idlib.b2a(index)
+        return "DIR-REFRESH:%s" % idlib.b2a(u.storage_index)
 
     def get_child_at_path(self, path):
         if not path:
@@ -386,26 +383,24 @@ class MutableDirectoryNode(ImmutableDirectoryNode):
     def __init__(self, myuri, client, rref):
         u = IDirnodeURI(myuri)
         assert not u.is_readonly()
-        self._writekey = u.writekey
-        self._write_enabler = hashutil.dir_write_enabler_hash(u.writekey)
-        readkey = hashutil.dir_read_key_hash(u.writekey)
         self._uri = u.to_string()
         self._client = client
         self._tub = client.tub
         self._rref = rref
-        self._readkey = readkey
-        self._index = hashutil.dir_index_hash(self._readkey)
+
+        self._readkey = u.readkey
+        self._writekey = u.writekey
+        self._write_enabler = u.write_enabler
+        self._index = u.storage_index
         self._mutable = True
 
 def create_directory(client, furl):
-    write_key = hashutil.random_key()
-    (wk, we, rk, index) = \
-         hashutil.generate_dirnode_keys_from_writekey(write_key)
-    u = uri.DirnodeURI(furl, wk)
+    u = uri.DirnodeURI(furl, hashutil.random_key())
     d = client.tub.getReference(furl)
     def _got_vdrive_server(vdrive_server):
         node = MutableDirectoryNode(u, client, vdrive_server)
-        d2 = vdrive_server.callRemote("create_directory", index, we)
+        d2 = vdrive_server.callRemote("create_directory",
+                                      u.storage_index, u.write_enabler)
         d2.addCallback(lambda res: node)
         return d2
     d.addCallback(_got_vdrive_server)

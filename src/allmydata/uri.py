@@ -114,6 +114,7 @@ class DirnodeURI(_BaseURI):
             assert writekey is not None
             self.furl = furl
             self.writekey = writekey
+            self._derive_values()
 
     def init_from_string(self, uri):
         # URI:DIR:furl:key
@@ -124,7 +125,15 @@ class DirnodeURI(_BaseURI):
         colon = uri.rindex(":")
         self.furl = uri[:colon]
         self.writekey = idlib.a2b(uri[colon+1:])
+        self._derive_values()
         return self
+
+    def _derive_values(self):
+        wk, we, rk, index = \
+            hashutil.generate_dirnode_keys_from_writekey(self.writekey)
+        self.write_enabler = we
+        self.readkey = rk
+        self.storage_index = index
 
     def to_string(self):
         return "URI:DIR:%s:%s" % (self.furl, idlib.b2a(self.writekey))
@@ -134,10 +143,7 @@ class DirnodeURI(_BaseURI):
     def is_mutable(self):
         return True
     def get_readonly(self):
-        u = ReadOnlyDirnodeURI()
-        u.furl = self.furl
-        u.readkey = hashutil.dir_read_key_hash(self.writekey)
-        return u
+        return ReadOnlyDirnodeURI(self.furl, self.readkey)
 
 class ReadOnlyDirnodeURI(_BaseURI):
     implements(IURI, IDirnodeURI)
@@ -148,6 +154,7 @@ class ReadOnlyDirnodeURI(_BaseURI):
             assert readkey is not None
             self.furl = furl
             self.readkey = readkey
+            self._derive_values()
 
     def init_from_string(self, uri):
         # URI:DIR-RO:furl:key
@@ -158,7 +165,15 @@ class ReadOnlyDirnodeURI(_BaseURI):
         colon = uri.rindex(":")
         self.furl = uri[:colon]
         self.readkey = idlib.a2b(uri[colon+1:])
+        self._derive_values()
         return self
+
+    def _derive_values(self):
+        wk, we, rk, index = \
+            hashutil.generate_dirnode_keys_from_readkey(self.readkey)
+        self.writekey = wk # None
+        self.write_enabler = we # None
+        self.storage_index = index
 
     def to_string(self):
         return "URI:DIR-RO:%s:%s" % (self.furl, idlib.b2a(self.readkey))
