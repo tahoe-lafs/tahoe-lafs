@@ -29,14 +29,20 @@ probably downloadable with v0.4.)
 
 WHAT IS IT GOOD FOR?
 
-The source code that we are releasing is the current working prototype
-for Allmydata's next-generation product.  This release is targeted at
-hackers and users who are willing to use a minimal, text-oriented web
-user interface.
+With Tahoe, you can back up your files in a distributed way onto a set
+of computers, such that if some of the computers fail or become
+unavailable, you can retrieve your data from the remainder.  You can
+also securely share your files with other users.
 
-This software is not yet recommended for storage of highly
-confidential data nor for important data which is not otherwise backed
-up, but it is useful for experimentation, prototyping, and extension.
+This release is targeted at hackers and users who are willing to use a
+text-oriented web user interface, or a command-line user interface.
+(Or a RESTful API.  Just telnet to localhost and type HTTP requests to
+get started...)
+
+Because this software is new and little tested, it is not yet
+recommended for storage of highly confidential data nor for important
+data which is not otherwise backed up, but it is useful for
+experimentation, prototyping, and extension.
 
 This release of Allmydata-Tahoe is suitable for Use Case #2: "groups
 of friends who want to share backup and file-sharing" (see the wiki
