@@ -47,18 +47,18 @@ that would cause it to consume more space than it wants to provide. When a
 lease expires, the data is deleted. Peers might renew their leases.
 
 This storage is used to hold "shares", which are themselves used to store
-files in the grid. There are many shares for each file, typically around 100
-(the exact number depends upon the tradeoffs made between reliability,
-overhead, and storage space consumed). The files are indexed by a piece of
-the URI called the "verifierid", which is derived from the contents of the
-file. Leases are indexed by verifierid, and a single StorageServer may hold
-multiple shares for the corresponding file. Multiple peers can hold leases on
-the same file, in which case the shares will be kept alive until the last
-lease expires. The typical lease is expected to be for one month: enough time
-for interested parties to renew it, but not so long that abandoned data
-consumes unreasonable space. Peers are expected to "delete" (drop leases) on
-data that they know they no longer want: lease expiration is meant as a
-safety measure.
+files in the grid. There are many shares for each file, typically between 10
+and 100 (the exact number depends upon the tradeoffs made between
+reliability, overhead, and storage space consumed). The files are indexed by
+a "StorageIndex", which is derived from the encryption key, which may be
+randomly generated or it may be derived from the contents of the file. Leases
+are indexed by StorageIndex, and a single StorageServer may hold multiple
+shares for the corresponding file. Multiple peers can hold leases on the same
+file, in which case the shares will be kept alive until the last lease
+expires. The typical lease is expected to be for one month: enough time for
+interested parties to renew it, but not so long that abandoned data consumes
+unreasonable space. Peers are expected to "delete" (drop leases) on data that
+they know they no longer want: lease expiration is meant as a safety measure.
 
 In this release, peers learn about each other through the "introducer". Each
 peer connects to this central introducer at startup, and receives a list of
@@ -78,28 +78,34 @@ http://allmydata.org/trac/tahoe/ticket/22 ).
 FILE ENCODING
 
 When a file is to be added to the grid, it is first encrypted using a key
-that is derived from the hash of the file itself. The encrypted file is then
-broken up into segments so it can be processed in small pieces (to minimize
-the memory footprint of both encode and decode operations, and to increase
-the so-called "alacrity": how quickly can the download operation provide
-validated data to the user, basically the lag between hitting "play" and the
-movie actually starting). Each segment is erasure coded, which creates
-encoded blocks that are larger than the input segment, such that only a
-subset of the output blocks are required to reconstruct the segment. These
-blocks are then combined into "shares", such that a subset of the shares can
-be used to reconstruct the whole file. The shares are then deposited in
-StorageServers in other peers.
+that is derived from the hash of the file itself (if convergence is desired)
+or randomly generated (if not). The encrypted file is then broken up into
+segments so it can be processed in small pieces (to minimize the memory
+footprint of both encode and decode operations, and to increase the so-called
+"alacrity": how quickly can the download operation provide validated data to
+the user, basically the lag between hitting "play" and the movie actually
+starting). Each segment is erasure coded, which creates encoded blocks that
+are larger than the input segment, such that only a subset of the output
+blocks are required to reconstruct the segment. These blocks are then
+combined into "shares", such that a subset of the shares can be used to
+reconstruct the whole file. The shares are then deposited in StorageServers
+in other peers.
 
-A tagged hash of the original file is called the "fileid", while a
-differently-tagged hash of the original file provides the encryption key. A
-tagged hash of the *encrypted* file is called the "verifierid", and is used
-for both peer selection (described below) and to index shares within the
-StorageServers on the selected peers.
+A tagged hash of the encryption key is used to form the "storage index",
+which is used for both peer selection (described below) and to index shares
+within the StorageServers on the selected peers.
 
-The URI contains the fileid, the verifierid, the encryption key, any encoding
-parameters necessary to perform the eventual decoding process, and some
-additional hashes that allow the download process to validate the data it
-receives.
+A variety of hashes are computed while the shares are being produced, to
+validate the plaintext, the crypttext, and the shares themselves. Merkle hash
+trees are also produced to enable validation of individual segments of
+plaintext or crypttext without requiring the download/decoding of the whole
+file. These hashes go into the "URI Extension Block", which will be stored
+with each share.
+
+The URI contains the encryption key, the hash of the URI Extension Block, and
+any encoding parameters necessary to perform the eventual decoding process.
+For convenience, it also contains the size of the file being stored.
+
 
 On the download side, the node that wishes to turn a URI into a sequence of
 bytes will obtain the necessary shares from remote nodes, break them into
@@ -113,8 +119,12 @@ Netstrings are used where necessary to insure these tags cannot be confused
 with the data to be hashed. All encryption uses AES in CTR mode. The erasure
 coding is performed with zfec (a python wrapper around Rizzo's FEC library).
 A Merkle Hash Tree is used to validate the encoded blocks before they are fed
-into the decode process, and a second tree is used to validate the shares
-before they are retrieved. The hash tree root is put into the URI.
+into the decode process, and a transverse tree is used to validate the shares
+before they are retrieved. A third merkle tree is constructed over the
+plaintext segments, and a fourth is constructed over the crypttext segments.
+All necessary hash chains are stored with the shares, and the hash tree roots
+are put in the URI extension block. The final hash of the extension block
+goes into the URI itself.
 
 Note that the number of shares created is fixed at the time the file is
 uploaded: it is not possible to create additional shares later. The use of a
@@ -126,13 +136,16 @@ calculated correctly.
 URIs
 
 Each URI represents a specific set of bytes. Think of it like a hash
-function: you feed in a bunch of bytes, and you get out a URI. The URI is
-deterministically derived from the input data: changing even one bit of the
-input data will result in a drastically different URI. The URI provides both
-"identification" and "location": you can use it to locate/retrieve a set of
-bytes that are probably the same as the original file, and then you can use
-it to validate that these potential bytes are indeed the ones that you were
-looking for.
+function: you feed in a bunch of bytes, and you get out a URI. If convergence
+is enabled, the URI is deterministically derived from the input data:
+changing even one bit of the input data will result in a drastically
+different URI. If convergence is not enabled, the encoding process will
+generate a different URI each time the file is uploaded.
+
+The URI provides both "location" and "identification": you can use it to
+locate/retrieve a set of bytes that are possibly the same as the original
+file, and then you can use it to validate ("identify") that these potential
+bytes are indeed the ones that you were looking for.
 
 URIs refer to an immutable set of bytes. If you modify a file and upload the
 new version to the grid, you will get a different URI. URIs do not represent
