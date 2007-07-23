@@ -31,8 +31,8 @@ WHAT IS IT GOOD FOR?
 
 With Tahoe, you can back up your files in a distributed way onto a set
 of computers, such that if some of the computers fail or become
-unavailable, you can retrieve your data from the remainder.  You can
-also securely share your files with other users.
+unavailable, you can still retrieve your data from the remainder.  You
+can also securely share your files with other users.
 
 This release is targeted at hackers and users who are willing to use a
 text-oriented web user interface, or a command-line user interface.
