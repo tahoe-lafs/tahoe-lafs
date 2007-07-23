@@ -23,7 +23,9 @@ def tagged_hasher(tag):
     return SHA256.new(netstring(tag))
 
 def storage_index_chk_hash(data):
-    return tagged_hash("allmydata_CHK_storage_index_v1", data)
+    # storage index is truncated to 128 bits (16 bytes). We're only hashing a
+    # 16-byte value to get it, so there's no point in using a larger value.
+    return tagged_hash("allmydata_CHK_storage_index_v1", data)[:16]
 
 def block_hash(data):
     return tagged_hash("allmydata_encoded_subshare_v1", data)

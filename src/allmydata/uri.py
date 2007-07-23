@@ -53,7 +53,7 @@ class CHKFileURI(_BaseURI):
 
         self.storage_index = hashutil.storage_index_chk_hash(self.key)
         assert isinstance(self.storage_index, str)
-        assert len(self.storage_index) == 32 # sha256 hash
+        assert len(self.storage_index) == 16 # sha256 hash truncated to 128
 
         self.uri_extension_hash = idlib.a2b(uri_extension_hash_s)
         assert isinstance(self.uri_extension_hash, str)

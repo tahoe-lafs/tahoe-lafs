@@ -11,7 +11,7 @@ Hash = StringConstraint(maxLength=HASH_SIZE,
 Nodeid = StringConstraint(maxLength=20,
                           minLength=20) # binary format 20-byte SHA1 hash
 FURL = StringConstraint(1000)
-StorageIndex = StringConstraint(32)
+StorageIndex = StringConstraint(16)
 URI = StringConstraint(300) # kind of arbitrary
 MAX_BUCKETS = 200  # per peer
 ShareData = StringConstraint(400000) # 1MB segment / k=3 = 334kB

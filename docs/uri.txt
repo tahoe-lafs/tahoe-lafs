@@ -48,8 +48,9 @@ property), and encrypted using a "read key". A secure hash of the data is
 computed to help validate the data afterwards (providing the "identification"
 property). All of these pieces, plus information about the file's size and
 the number of shares into which it has been distributed, are put into the
-"CHK" uri. The storage index is derived by hashing the read key, so it does
-not need to be physically present in the URI.
+"CHK" uri. The storage index is derived by hashing the read key (using a
+tagged SHA-256 hash, then truncated to 128 bits), so it does not need to be
+physically present in the URI.
 
 The current format for CHK URIs is the concatenation of the following
 strings:

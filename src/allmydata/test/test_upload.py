@@ -163,7 +163,7 @@ class GoodServer(unittest.TestCase):
         u = IFileURI(newuri)
         self.failUnless(isinstance(u, uri.CHKFileURI))
         self.failUnless(isinstance(u.storage_index, str))
-        self.failUnlessEqual(len(u.storage_index), 32)
+        self.failUnlessEqual(len(u.storage_index), 16)
         self.failUnless(isinstance(u.key, str))
         self.failUnlessEqual(len(u.key), 16)
         self.failUnlessEqual(u.size, size)

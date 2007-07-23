@@ -288,9 +288,9 @@ class CHKUploader:
         self._encoder.set_encryption_key(key)
         storage_index = hashutil.storage_index_chk_hash(key)
         assert isinstance(storage_index, str)
-        # TODO: is there any point to having the SI be longer than the key?
-        # There's certainly no extra entropy to be had..
-        assert len(storage_index) == 32  # SHA-256
+        # There's no point to having the SI be longer than the key, so we
+        # specify that it is truncated to the same 128 bits as the AES key.
+        assert len(storage_index) == 16  # SHA-256 truncated to 128b
         self._storage_index = storage_index
         log.msg(" upload storage_index is [%s]" % (idlib.b2a(storage_index,)))
 
