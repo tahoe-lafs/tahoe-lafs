@@ -588,60 +588,110 @@ class ICodecDecoder(Interface):
         """
 
 class IEncoder(Interface):
-    """I take a file-like object that provides a sequence of bytes and a list
-    of shareholders, then encrypt, encode, hash, and deliver shares to those
-    shareholders. I will compute all the necessary Merkle hash trees that are
-    necessary to validate the data that eventually comes back from the
-    shareholders. I provide the root hash of the hash tree, and the encoding
-    parameters, both of which must be included in the URI.
+    """I take an object that provides IEncryptedUploadable, which provides
+    encrypted data, and a list of shareholders. I then encode, hash, and
+    deliver shares to those shareholders. I will compute all the necessary
+    Merkle hash trees that are necessary to validate the crypttext that
+    eventually comes back from the shareholders. I provide the URI Extension
+    Block Hash, and the encoding parameters, both of which must be included
+    in the URI.
 
     I do not choose shareholders, that is left to the IUploader. I must be
     given a dict of RemoteReferences to storage buckets that are ready and
     willing to receive data.
     """
 
-    def setup(infile):
-        """I take a file-like object (providing seek, tell, and read) from
-        which all the plaintext data that is to be uploaded can be read. I
-        will seek to the beginning of the file before reading any data.
-        setup() must be called before making any other calls, in particular
-        before calling get_reservation_size().
+    def set_size(size):
+        """Specify the number of bytes that will be encoded. This must be
+        peformed before get_serialized_params() can be called.
+        """
+    def set_params(params):
+        """Override the default encoding parameters. 'params' is a tuple of
+        (k,d,n), where 'k' is the number of required shares, 'd' is the
+        shares_of_happiness, and 'n' is the total number of shares that will
+        be created.
+
+        Encoding parameters can be set in three ways. 1: The Encoder class
+        provides defaults (25/75/100). 2: the Encoder can be constructed with
+        an 'options' dictionary, in which the
+        needed_and_happy_and_total_shares' key can be a (k,d,n) tuple. 3:
+        set_params((k,d,n)) can be called.
+
+        If you intend to use set_params(), you must call it before
+        get_share_size or get_param are called.
         """
 
-    def get_share_size():
-        """I return the size of the data that will be stored on each
-        shareholder. This is aggregate amount of data that will be sent to
-        the shareholder, summed over all the put_block() calls I will ever
-        make.
+    def set_encrypted_uploadable(u):
+        """Provide a source of encrypted upload data. 'u' must implement
+        IEncryptedUploadable.
 
-        TODO: this might also include some amount of overhead, like the size
-        of all the hashes. We need to decide whether this is useful or not.
+        When this is called, the IEncryptedUploadable will be queried for its
+        length and the storage_index that should be used.
 
-        It is useful to determine this size before asking potential
-        shareholders whether they will grant a lease or not, since their
-        answers will depend upon how much space we need.
+        This returns a Deferred that fires with this Encoder instance.
+
+        This must be performed before start() can be called.
         """
 
-    def get_block_size(): # TODO: can we avoid exposing this?
-        """I return the size of the individual blocks that will be delivered
-        to a shareholder's put_block() method. By knowing this, the
-        shareholder will be able to keep all blocks in a single file and
-        still provide random access when reading them.
+    def get_param(name):
+        """Return an encoding parameter, by name.
+
+        'storage_index': return a string with the (16-byte truncated SHA-256
+                         hash) storage index to which these shares should be
+                         pushed.
+
+        'share_counts': return a tuple describing how many shares are used:
+                        (needed_shares, shares_of_happiness, total_shares)
+
+        'num_segments': return an int with the number of segments that
+                        will be encoded.
+
+        'segment_size': return an int with the size of each segment.
+
+        'block_size': return the size of the individual blocks that will
+                      be delivered to a shareholder's put_block() method. By
+                      knowing this, the shareholder will be able to keep all
+                      blocks in a single file and still provide random access
+                      when reading them. # TODO: can we avoid exposing this?
+
+        'share_size': an int with the size of the data that will be stored
+                      on each shareholder. This is aggregate amount of data
+                      that will be sent to the shareholder, summed over all
+                      the put_block() calls I will ever make. It is useful to
+                      determine this size before asking potential
+                      shareholders whether they will grant a lease or not,
+                      since their answers will depend upon how much space we
+                      need. TODO: this might also include some amount of
+                      overhead, like the size of all the hashes. We need to
+                      decide whether this is useful or not.
+
+        'serialized_params': a string with a concise description of the
+                             codec name and its parameters. This may be passed
+                             into the IUploadable to let it make sure that
+                             the same file encoded with different parameters
+                             will result in different storage indexes.
+
+        Once this is called, set_size() and set_params() may not be called.
         """
 
     def set_shareholders(shareholders):
-        """I take a dictionary that maps share identifiers (small integers,
-        starting at 0) to RemoteReferences that provide RIBucketWriter. This
-        must be called before start().
-        """
+        """Tell the encoder where to put the encoded shares. 'shareholders'
+        must be a dictionary that maps share number (an integer ranging from
+        0 to n-1) to an instance that provides IStorageBucketWriter. This
+        must be performed before start() can be called."""
 
     def start():
-        """I start the upload. This process involves reading data from the
-        input file, encrypting it, encoding the pieces, uploading the shares
+        """Begin the encode/upload process. This involves reading encrypted
+        data from the IEncryptedUploadable, encoding it, uploading the shares
         to the shareholders, then sending the hash trees.
 
-        I return a Deferred that fires with the hash of the uri_extension
-        data block.
+        set_encrypted_uploadable() and set_shareholders() must be called
+        before this can be invoked.
+
+        This returns a Deferred that fires with a tuple of
+        (uri_extension_hash, needed_shares, total_shares, size) when the
+        upload process is complete. This information, plus the encryption
+        key, is sufficient to construct the URI.
         """
 
 class IDecoder(Interface):
@@ -712,6 +762,62 @@ class IDownloader(Interface):
         Returns a Deferred that fires (with the results of target.finish)
         when the download is finished, or errbacks if something went wrong."""
 
+class IEncryptedUploadable(Interface):
+    def get_size():
+        """This behaves just like IUploadable.get_size()."""
+
+    def set_serialized_encoding_parameters(serialized_encoding_parameters):
+        """Tell me what encoding parameters will be used for my data.
+
+        'serialized_encoding_parameters' is a string which indicates how the
+        data will be encoded (codec name, blocksize, number of shares).
+
+        I may use this when get_storage_index() is called, to influence the
+        index that I return. Or, I may just ignore it.
+
+        set_serialized_encoding_parameters() may be called 0 or 1 times. If
+        called, it must be called before get_storage_index().
+        """
+
+    def get_storage_index():
+        """Return a Deferred that fires with a 16-byte storage index. This
+        value may be influenced by the parameters earlier set by
+        set_serialized_encoding_parameters().
+        """
+
+    def set_segment_size(segment_size):
+        """Set the segment size, to allow the IEncryptedUploadable to
+        accurately create the plaintext segment hash tree. This must be
+        called before any calls to read_encrypted."""
+
+    def read_encrypted(length):
+        """This behaves just like IUploadable.read(), but returns crypttext
+        instead of plaintext. set_segment_size() must be called before the
+        first call to read_encrypted()."""
+
+    def get_plaintext_segment_hashtree_nodes(num_segments):
+        """Get the nodes of a merkle hash tree over the plaintext segments.
+
+        This returns a Deferred which fires with a sequence of hashes. Each
+        hash is a node of a merkle hash tree, generally obtained from::
+
+         tuple(HashTree(segment_hashes))
+
+        'num_segments' is used to assert that the number of segments that the
+        IEncryptedUploadable handled matches the number of segments that the
+        encoder was expecting.
+        """
+
+    def get_plaintext_hash():
+        """Get the hash of the whole plaintext.
+
+        This returns a Deferred which fires with a tagged SHA-256 hash of the
+        whole plaintext, obtained from hashutil.plaintext_hash(data).
+        """
+
+    def close():
+        """Just like IUploadable.close()."""
+
 class IUploadable(Interface):
     def get_size():
         """Return a Deferred that will fire with the length of the data to be
@@ -719,22 +825,36 @@ class IUploadable(Interface):
         used, to compute encoding parameters.
         """
 
-    def get_encryption_key(encoding_parameters):
+    def set_serialized_encoding_parameters(serialized_encoding_parameters):
+        """Tell me what encoding parameters will be used for my data.
+
+        'serialized_encoding_parameters' is a string which indicates how the
+        data will be encoded (codec name, blocksize, number of shares).
+
+        I may use this when get_encryption_key() is called, to influence the
+        key that I return. Or, I may just ignore it.
+
+        set_serialized_encoding_parameters() may be called 0 or 1 times. If
+        called, it must be called before get_encryption_key().
+        """
+
+    def get_encryption_key():
         """Return a Deferred that fires with a 16-byte AES key. This key will
         be used to encrypt the data. The key will also be hashed to derive
-        the StorageIndex. 'encoding_parameters' is a string which indicates
-        how the data will be encoded (codec name, blocksize, number of
-        shares): Uploadables may wish to use these parameters while computing
-        the encryption key.
+        the StorageIndex.
 
         Uploadables which want to achieve convergence should hash their file
-        contents and the encoding_parameters to form the key (which of course
-        requires a full pass over the data). Uploadables can use the
-        upload.ConvergentUploadMixin class to achieve this automatically.
+        contents and the serialized_encoding_parameters to form the key
+        (which of course requires a full pass over the data). Uploadables can
+        use the upload.ConvergentUploadMixin class to achieve this
+        automatically.
 
         Uploadables which do not care about convergence (or do not wish to
         make multiple passes over the data) can simply return a
         strongly-random 16 byte string.
+
+        get_encryption_key() may be called multiple times: the IUploadable is
+        required to return the same value each time.
         """
 
     def read(length):

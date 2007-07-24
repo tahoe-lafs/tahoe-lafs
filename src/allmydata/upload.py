@@ -6,9 +6,10 @@ from twisted.internet import defer
 from twisted.application import service
 from foolscap import Referenceable
 
-from allmydata.util import idlib, hashutil
+from allmydata.util import hashutil
 from allmydata import encode, storage, hashtree, uri
-from allmydata.interfaces import IUploadable, IUploader
+from allmydata.interfaces import IUploadable, IUploader, IEncryptedUploadable
+from allmydata.Crypto.Cipher import AES
 
 from cStringIO import StringIO
 import collections, random
@@ -238,75 +239,172 @@ class Tahoe3PeerSelector:
         self.usable_peers.remove(peer)
 
 
+class EncryptAnUploadable:
+    """This is a wrapper that takes an IUploadable and provides
+    IEncryptedUploadable."""
+    implements(IEncryptedUploadable)
+
+    def __init__(self, original):
+        self.original = original
+        self._encryptor = None
+        self._plaintext_hasher = hashutil.plaintext_hasher()
+        self._plaintext_segment_hasher = None
+        self._plaintext_segment_hashes = []
+        self._params = None
+
+    def get_size(self):
+        return self.original.get_size()
+
+    def set_serialized_encoding_parameters(self, params):
+        self._params = params
+
+    def _get_encryptor(self):
+        if self._encryptor:
+            return defer.succeed(self._encryptor)
+
+        if self._params is not None:
+            self.original.set_serialized_encoding_parameters(self._params)
+
+        d = self.original.get_encryption_key()
+        def _got(key):
+            e = AES.new(key=key, mode=AES.MODE_CTR, counterstart="\x00"*16)
+            self._encryptor = e
+
+            storage_index = hashutil.storage_index_chk_hash(key)
+            assert isinstance(storage_index, str)
+            # There's no point to having the SI be longer than the key, so we
+            # specify that it is truncated to the same 128 bits as the AES key.
+            assert len(storage_index) == 16  # SHA-256 truncated to 128b
+            self._storage_index = storage_index
+
+            return e
+        d.addCallback(_got)
+        return d
+
+    def get_storage_index(self):
+        d = self._get_encryptor()
+        d.addCallback(lambda res: self._storage_index)
+        return d
+
+    def set_segment_size(self, segsize):
+        self._segment_size = segsize
+
+    def _get_segment_hasher(self):
+        p = self._plaintext_segment_hasher
+        if p:
+            left = self._segment_size - self._plaintext_segment_hashed_bytes
+            return p, left
+        p = hashutil.plaintext_segment_hasher()
+        self._plaintext_segment_hasher = p
+        self._plaintext_segment_hashed_bytes = 0
+        return p, self._segment_size
+
+    def _update_segment_hash(self, chunk):
+        offset = 0
+        while offset < len(chunk):
+            p, segment_left = self._get_segment_hasher()
+            chunk_left = len(chunk) - offset
+            this_segment = min(chunk_left, segment_left)
+            p.update(chunk[offset:offset+this_segment])
+            self._plaintext_segment_hashed_bytes += this_segment
+
+            if self._plaintext_segment_hashed_bytes == self._segment_size:
+                # we've filled this segment
+                self._plaintext_segment_hashes.append(p.digest())
+                self._plaintext_segment_hasher = None
+
+            offset += this_segment
+
+    def read_encrypted(self, length):
+        d = self._get_encryptor()
+        d.addCallback(lambda res: self.original.read(length))
+        def _got(data):
+            assert isinstance(data, (tuple, list)), type(data)
+            data = list(data)
+            cryptdata = []
+            # we use data.pop(0) instead of 'for chunk in data' to save
+            # memory: each chunk is destroyed as soon as we're done with it.
+            while data:
+                chunk = data.pop(0)
+                self._plaintext_hasher.update(chunk)
+                self._update_segment_hash(chunk)
+                cryptdata.append(self._encryptor.encrypt(chunk))
+                del chunk
+            return cryptdata
+        d.addCallback(_got)
+        return d
+
+    def get_plaintext_segment_hashtree_nodes(self, num_segments):
+        if len(self._plaintext_segment_hashes) < num_segments:
+            # close out the last one
+            assert len(self._plaintext_segment_hashes) == num_segments-1
+            p, segment_left = self._get_segment_hasher()
+            self._plaintext_segment_hashes.append(p.digest())
+            del self._plaintext_segment_hasher
+        assert len(self._plaintext_segment_hashes) == num_segments
+        ht = hashtree.HashTree(self._plaintext_segment_hashes)
+        return defer.succeed(list(ht))
+
+    def get_plaintext_hash(self):
+        h = self._plaintext_hasher.digest()
+        return defer.succeed(h)
+
+
 class CHKUploader:
     peer_selector_class = Tahoe3PeerSelector
 
-    def __init__(self, client, uploadable, options={}):
+    def __init__(self, client, options={}):
         self._client = client
-        self._uploadable = IUploadable(uploadable)
         self._options = options
 
     def set_params(self, encoding_parameters):
         self._encoding_parameters = encoding_parameters
 
-        needed_shares, shares_of_happiness, total_shares = encoding_parameters
-        self.needed_shares = needed_shares
-        self.shares_of_happiness = shares_of_happiness
-        self.total_shares = total_shares
-
-    def start(self):
+    def start(self, uploadable):
         """Start uploading the file.
 
         This method returns a Deferred that will fire with the URI (a
         string)."""
 
-        log.msg("starting upload of %s" % self._uploadable)
+        uploadable = IUploadable(uploadable)
+        log.msg("starting upload of %s" % uploadable)
 
-        d = self._uploadable.get_size()
-        d.addCallback(self.setup_encoder)
-        d.addCallback(self._uploadable.get_encryption_key)
-        d.addCallback(self.setup_keys)
+        eu = EncryptAnUploadable(uploadable)
+        d = self.start_encrypted(eu)
+        def _uploaded(res):
+            d1 = uploadable.get_encryption_key()
+            d1.addCallback(lambda key: self._compute_uri(res, key))
+            return d1
+        d.addCallback(_uploaded)
+        return d
+
+    def start_encrypted(self, encrypted):
+        eu = IEncryptedUploadable(encrypted)
+
+        e = encode.Encoder(self._options)
+        e.set_params(self._encoding_parameters)
+        d = e.set_encrypted_uploadable(eu)
         d.addCallback(self.locate_all_shareholders)
-        d.addCallback(self.set_shareholders)
-        d.addCallback(lambda res: self._encoder.start())
-        d.addCallback(self._compute_uri)
+        d.addCallback(self.set_shareholders, e)
+        d.addCallback(lambda res: e.start())
+        # this fires with the uri_extension_hash and other data
         return d
 
-    def setup_encoder(self, size):
-        self._size = size
-        self._encoder = encode.Encoder(self._options)
-        self._encoder.set_size(size)
-        self._encoder.set_params(self._encoding_parameters)
-        self._encoder.set_uploadable(self._uploadable)
-        self._encoder.setup()
-        return self._encoder.get_serialized_params()
-
-    def setup_keys(self, key):
-        assert isinstance(key, str)
-        assert len(key) == 16  # AES-128
-        self._encryption_key = key
-        self._encoder.set_encryption_key(key)
-        storage_index = hashutil.storage_index_chk_hash(key)
-        assert isinstance(storage_index, str)
-        # There's no point to having the SI be longer than the key, so we
-        # specify that it is truncated to the same 128 bits as the AES key.
-        assert len(storage_index) == 16  # SHA-256 truncated to 128b
-        self._storage_index = storage_index
-        log.msg(" upload storage_index is [%s]" % (idlib.b2a(storage_index,)))
-
-
-    def locate_all_shareholders(self, ignored=None):
+    def locate_all_shareholders(self, encoder):
         peer_selector = self.peer_selector_class()
-        share_size = self._encoder.get_share_size()
-        block_size = self._encoder.get_block_size()
-        num_segments = self._encoder.get_num_segments()
+
+        storage_index = encoder.get_param("storage_index")
+        share_size = encoder.get_param("share_size")
+        block_size = encoder.get_param("block_size")
+        num_segments = encoder.get_param("num_segments")
+        k,desired,n = encoder.get_param("share_counts")
+
         gs = peer_selector.get_shareholders
-        d = gs(self._client,
-               self._storage_index, share_size, block_size,
-               num_segments, self.total_shares, self.shares_of_happiness)
+        d = gs(self._client, storage_index, share_size, block_size,
+               num_segments, n, desired)
         return d
 
-    def set_shareholders(self, used_peers):
+    def set_shareholders(self, used_peers, encoder):
         """
         @param used_peers: a sequence of PeerTracker objects
         """
@@ -317,16 +415,17 @@ class CHKUploader:
         for peer in used_peers:
             buckets.update(peer.buckets)
         assert len(buckets) == sum([len(peer.buckets) for peer in used_peers])
-        self._encoder.set_shareholders(buckets)
+        encoder.set_shareholders(buckets)
 
-    def _compute_uri(self, uri_extension_hash):
-        u = uri.CHKFileURI(key=self._encryption_key,
+    def _compute_uri(self, (uri_extension_hash,
+                            needed_shares, total_shares, size),
+                     key):
+        u = uri.CHKFileURI(key=key,
                            uri_extension_hash=uri_extension_hash,
-                           needed_shares=self.needed_shares,
-                           total_shares=self.total_shares,
-                           size=self._size,
+                           needed_shares=needed_shares,
+                           total_shares=total_shares,
+                           size=size,
                            )
-        assert u.storage_index == self._storage_index
         return u.to_string()
 
 def read_this_many_bytes(uploadable, size, prepend_data=[]):
@@ -348,17 +447,17 @@ def read_this_many_bytes(uploadable, size, prepend_data=[]):
 
 class LiteralUploader:
 
-    def __init__(self, client, uploadable, options={}):
+    def __init__(self, client, options={}):
         self._client = client
-        self._uploadable = IUploadable(uploadable)
         self._options = options
 
     def set_params(self, encoding_parameters):
         pass
 
-    def start(self):
-        d = self._uploadable.get_size()
-        d.addCallback(lambda size: read_this_many_bytes(self._uploadable, size))
+    def start(self, uploadable):
+        uploadable = IUploadable(uploadable)
+        d = uploadable.get_size()
+        d.addCallback(lambda size: read_this_many_bytes(uploadable, size))
         d.addCallback(lambda data: uri.LiteralFileURI("".join(data)))
         d.addCallback(lambda u: u.to_string())
         return d
@@ -370,25 +469,40 @@ class LiteralUploader:
 class ConvergentUploadMixin:
     # to use this, the class it is mixed in to must have a seekable
     # filehandle named self._filehandle
+    _params = None
+    _key = None
 
-    def get_encryption_key(self, encoding_parameters):
-        f = self._filehandle
-        enckey_hasher = hashutil.key_hasher()
-        #enckey_hasher.update(encoding_parameters) # TODO
-        f.seek(0)
-        BLOCKSIZE = 64*1024
-        while True:
-            data = f.read(BLOCKSIZE)
-            if not data:
-                break
-            enckey_hasher.update(data)
-        enckey = enckey_hasher.digest()[:16]
-        f.seek(0)
-        return defer.succeed(enckey)
+    def set_serialized_encoding_parameters(self, params):
+        self._params = params
+        # ignored for now
+
+    def get_encryption_key(self):
+        if self._key is None:
+            f = self._filehandle
+            enckey_hasher = hashutil.key_hasher()
+            #enckey_hasher.update(encoding_parameters) # TODO
+            f.seek(0)
+            BLOCKSIZE = 64*1024
+            while True:
+                data = f.read(BLOCKSIZE)
+                if not data:
+                    break
+                enckey_hasher.update(data)
+            f.seek(0)
+            self._key = enckey_hasher.digest()[:16]
+
+        return defer.succeed(self._key)
 
 class NonConvergentUploadMixin:
+    _key = None
+
+    def set_serialized_encoding_parameters(self, params):
+        pass
+
     def get_encryption_key(self, encoding_parameters):
-        return defer.succeed(os.urandom(16))
+        if self._key is None:
+            self._key = os.urandom(16)
+        return defer.succeed(self._key)
 
 
 class FileHandle(ConvergentUploadMixin):
@@ -446,10 +560,10 @@ class Uploader(service.MultiService):
             uploader_class = self.uploader_class
             if size <= self.URI_LIT_SIZE_THRESHOLD:
                 uploader_class = LiteralUploader
-            uploader = uploader_class(self.parent, uploadable, options)
+            uploader = uploader_class(self.parent, options)
             uploader.set_params(self.parent.get_encoding_parameters()
                                 or self.DEFAULT_ENCODING_PARAMETERS)
-            return uploader.start()
+            return uploader.start(uploadable)
         d.addCallback(_got_size)
         def _done(res):
             uploadable.close()

@@ -5,6 +5,7 @@ from twisted.internet import defer
 from twisted.python.failure import Failure
 from allmydata import encode, upload, download, hashtree, uri
 from allmydata.util import hashutil
+from allmydata.util.assertutil import _assert
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader
 
 class LostPeerError(Exception):
@@ -151,24 +152,34 @@ class Encode(unittest.TestCase):
         # force use of multiple segments
         options = {"max_segment_size": max_segment_size}
         e = encode.Encoder(options)
-        e.set_size(datalen)
-        e.set_uploadable(upload.Data(data))
-        nonkey = "\x00" * 16
-        e.set_encryption_key(nonkey)
-        e.setup()
-        assert e.num_shares == NUM_SHARES # else we'll be completely confused
-        assert (NUM_SEGMENTS-1)*e.segment_size < len(data) <= NUM_SEGMENTS*e.segment_size
-        shareholders = {}
+        u = upload.Data(data)
+        eu = upload.EncryptAnUploadable(u)
+        d = e.set_encrypted_uploadable(eu)
+
         all_shareholders = []
-        for shnum in range(NUM_SHARES):
-            peer = FakeBucketWriterProxy()
-            shareholders[shnum] = peer
-            all_shareholders.append(peer)
-        e.set_shareholders(shareholders)
-        d = e.start()
-        def _check(roothash):
-            self.failUnless(isinstance(roothash, str))
-            self.failUnlessEqual(len(roothash), 32)
+        def _ready(res):
+            k,happy,n = e.get_param("share_counts")
+            _assert(n == NUM_SHARES) # else we'll be completely confused
+            numsegs = e.get_param("num_segments")
+            _assert(numsegs == NUM_SEGMENTS, numsegs, NUM_SEGMENTS)
+            segsize = e.get_param("segment_size")
+            _assert( (NUM_SEGMENTS-1)*segsize < len(data) <= NUM_SEGMENTS*segsize,
+                     NUM_SEGMENTS, segsize,
+                     (NUM_SEGMENTS-1)*segsize, len(data), NUM_SEGMENTS*segsize)
+
+            shareholders = {}
+            for shnum in range(NUM_SHARES):
+                peer = FakeBucketWriterProxy()
+                shareholders[shnum] = peer
+                all_shareholders.append(peer)
+            e.set_shareholders(shareholders)
+            return e.start()
+        d.addCallback(_ready)
+
+        def _check(res):
+            (uri_extension_hash, required_shares, num_shares, file_size) = res
+            self.failUnless(isinstance(uri_extension_hash, str))
+            self.failUnlessEqual(len(uri_extension_hash), 32)
             for i,peer in enumerate(all_shareholders):
                 self.failUnless(peer.closed)
                 self.failUnlessEqual(len(peer.blocks), NUM_SEGMENTS)
@@ -278,43 +289,45 @@ class Roundtrip(unittest.TestCase):
         options = {"max_segment_size": max_segment_size,
                    "needed_and_happy_and_total_shares": k_and_happy_and_n}
         e = encode.Encoder(options)
-        e.set_size(len(data))
-        e.set_uploadable(upload.Data(data))
-        nonkey = "\x00" * 16
-        e.set_encryption_key(nonkey)
-        e.setup()
-        assert e.num_shares == NUM_SHARES # else we'll be completely confused
+        u = upload.Data(data)
+        eu = upload.EncryptAnUploadable(u)
+        d = e.set_encrypted_uploadable(eu)
 
         shareholders = {}
-        all_peers = []
-        for shnum in range(NUM_SHARES):
-            mode = bucket_modes.get(shnum, "good")
-            peer = FakeBucketWriterProxy(mode)
-            shareholders[shnum] = peer
-        e.set_shareholders(shareholders)
-
-        d = e.start()
-        def _sent(uri_extension_hash):
-            return (uri_extension_hash, e, shareholders)
+        def _ready(res):
+            k,happy,n = e.get_param("share_counts")
+            assert n == NUM_SHARES # else we'll be completely confused
+            all_peers = []
+            for shnum in range(NUM_SHARES):
+                mode = bucket_modes.get(shnum, "good")
+                peer = FakeBucketWriterProxy(mode)
+                shareholders[shnum] = peer
+            e.set_shareholders(shareholders)
+            return e.start()
+        d.addCallback(_ready)
+        def _sent(res):
+            d1 = u.get_encryption_key()
+            d1.addCallback(lambda key: (res, key, shareholders))
+            return d1
         d.addCallback(_sent)
         return d
 
-    def recover(self, (uri_extension_hash, e, shareholders), AVAILABLE_SHARES,
+    def recover(self, (res, key, shareholders), AVAILABLE_SHARES,
                 recover_mode):
-        key = e.key
+        (uri_extension_hash, required_shares, num_shares, file_size) = res
 
         if "corrupt_key" in recover_mode:
             # we corrupt the key, so that the decrypted data is corrupted and
             # will fail the plaintext hash check. Since we're manually
             # attaching shareholders, the fact that the storage index is also
             # corrupted doesn't matter.
-            key = flip_bit(e.key)
+            key = flip_bit(key)
 
         u = uri.CHKFileURI(key=key,
                            uri_extension_hash=uri_extension_hash,
-                           needed_shares=e.required_shares,
-                           total_shares=e.num_shares,
-                           size=e.file_size)
+                           needed_shares=required_shares,
+                           total_shares=num_shares,
+                           size=file_size)
         URI = u.to_string()
 
         client = None
@@ -551,7 +564,7 @@ class Roundtrip(unittest.TestCase):
                                   recover_mode=("corrupt_key"))
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(hashtree.BadHashError))
+            self.failUnless(res.check(hashtree.BadHashError), res)
         d.addBoth(_done)
         return d
 

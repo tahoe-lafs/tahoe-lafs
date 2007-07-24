@@ -5,11 +5,11 @@ from twisted.internet import defer
 from twisted.python import log
 from allmydata import uri
 from allmydata.hashtree import HashTree
-from allmydata.Crypto.Cipher import AES
 from allmydata.util import mathutil, hashutil
 from allmydata.util.assertutil import _assert
 from allmydata.codec import CRSEncoder
-from allmydata.interfaces import IEncoder, IStorageBucketWriter
+from allmydata.interfaces import IEncoder, IStorageBucketWriter, \
+     IEncryptedUploadable
 
 """
 
@@ -87,21 +87,20 @@ class Encoder(object):
         self.SHARES_OF_HAPPINESS = happy
         self.TOTAL_SHARES = n
         self.uri_extension_data = {}
+        self._codec = None
 
     def set_size(self, size):
+        assert not self._codec
         self.file_size = size
 
     def set_params(self, encoding_parameters):
+        assert not self._codec
         k,d,n = encoding_parameters
         self.NEEDED_SHARES = k
         self.SHARES_OF_HAPPINESS = d
         self.TOTAL_SHARES = n
 
-    def set_uploadable(self, uploadable):
-        self._uploadable = uploadable
-
-    def setup(self):
-
+    def _setup_codec(self):
         self.num_shares = self.TOTAL_SHARES
         self.required_shares = self.NEEDED_SHARES
         self.shares_of_happiness = self.SHARES_OF_HAPPINESS
@@ -110,9 +109,9 @@ class Encoder(object):
         # this must be a multiple of self.required_shares
         self.segment_size = mathutil.next_multiple(self.segment_size,
                                                    self.required_shares)
-        self._setup_codec()
 
-    def _setup_codec(self):
+        # now set up the codec
+
         assert self.segment_size % self.required_shares == 0
         self.num_segments = mathutil.div_ceil(self.file_size,
                                               self.segment_size)
@@ -150,24 +149,48 @@ class Encoder(object):
                                     self.required_shares, self.num_shares)
         data['tail_codec_params'] = self._tail_codec.get_serialized_params()
 
-    def get_serialized_params(self):
-        return self._codec.get_serialized_params()
-
-    def set_encryption_key(self, key):
-        assert isinstance(key, str)
-        assert len(key) == 16 # AES-128
-        self.key = key
-
-    def get_share_size(self):
+    def _get_share_size(self):
         share_size = mathutil.div_ceil(self.file_size, self.required_shares)
-        overhead = self.compute_overhead()
+        overhead = self._compute_overhead()
         return share_size + overhead
-    def compute_overhead(self):
+
+    def _compute_overhead(self):
         return 0
-    def get_block_size(self):
-        return self._codec.get_block_size()
-    def get_num_segments(self):
-        return self.num_segments
+
+    def set_encrypted_uploadable(self, uploadable):
+        u = self._uploadable = IEncryptedUploadable(uploadable)
+        d = u.get_size()
+        d.addCallback(self.set_size)
+        d.addCallback(lambda res: self.get_param("serialized_params"))
+        d.addCallback(u.set_serialized_encoding_parameters)
+        d.addCallback(lambda res: u.get_storage_index())
+        def _done(storage_index):
+            self._storage_index = storage_index
+            return self
+        d.addCallback(_done)
+        return d
+
+    def get_param(self, name):
+        if not self._codec:
+            self._setup_codec()
+
+        if name == "storage_index":
+            return self._storage_index
+        elif name == "share_counts":
+            return (self.required_shares, self.shares_of_happiness,
+                    self.num_shares)
+        elif name == "num_segments":
+            return self.num_segments
+        elif name == "segment_size":
+            return self.segment_size
+        elif name == "block_size":
+            return self._codec.get_block_size()
+        elif name == "share_size":
+            return self._get_share_size()
+        elif name == "serialized_params":
+            return self._codec.get_serialized_params()
+        else:
+            raise KeyError("unknown parameter name '%s'" % name)
 
     def set_shareholders(self, landlords):
         assert isinstance(landlords, dict)
@@ -177,12 +200,20 @@ class Encoder(object):
 
     def start(self):
         #paddedsize = self._size + mathutil.pad_size(self._size, self.needed_shares)
-        self._plaintext_hasher = hashutil.plaintext_hasher()
-        self._plaintext_hashes = []
+        if not self._codec:
+            self._setup_codec()
+
         self._crypttext_hasher = hashutil.crypttext_hasher()
         self._crypttext_hashes = []
-        self.setup_encryption()
-        d = defer.succeed(None)
+        self.segment_num = 0
+        self.subshare_hashes = [[] for x in range(self.num_shares)]
+        # subshare_hashes[i] is a list that will be accumulated and then send
+        # to landlord[i]. This list contains a hash of each segment_share
+        # that we sent to that landlord.
+        self.share_root_hashes = [None] * self.num_shares
+
+        d = defer.maybeDeferred(self._uploadable.set_segment_size,
+                                self.segment_size)
 
         for l in self.landlords.values():
             d.addCallback(lambda res, l=l: l.start())
@@ -198,7 +229,7 @@ class Encoder(object):
         d.addCallback(lambda res: self._encode_tail_segment(last_segnum))
         d.addCallback(self._send_segment, last_segnum)
 
-        d.addCallback(lambda res: self.finish_flat_hashes())
+        d.addCallback(lambda res: self.finish_hashing())
 
         d.addCallback(lambda res:
                       self.send_plaintext_hash_tree_to_all_shareholders())
@@ -211,16 +242,6 @@ class Encoder(object):
         d.addCallback(lambda res: self.close_all_shareholders())
         d.addCallbacks(lambda res: self.done(), self.err)
         return d
-
-    def setup_encryption(self):
-        self.cryptor = AES.new(key=self.key, mode=AES.MODE_CTR,
-                               counterstart="\x00"*16)
-        self.segment_num = 0
-        self.subshare_hashes = [[] for x in range(self.num_shares)]
-        # subshare_hashes[i] is a list that will be accumulated and then send
-        # to landlord[i]. This list contains a hash of each segment_share
-        # that we sent to that landlord.
-        self.share_root_hashes = [None] * self.num_shares
 
     def _encode_segment(self, segnum):
         codec = self._codec
@@ -241,7 +262,6 @@ class Encoder(object):
         # of additional shares which can be substituted if the primary ones
         # are unavailable
 
-        plaintext_segment_hasher = hashutil.plaintext_segment_hasher()
         crypttext_segment_hasher = hashutil.crypttext_segment_hasher()
 
         # memory footprint: we only hold a tiny piece of the plaintext at any
@@ -252,12 +272,10 @@ class Encoder(object):
         # footprint to 500KiB at the expense of more hash-tree overhead.
 
         d = self._gather_data(self.required_shares, input_piece_size,
-                              plaintext_segment_hasher,
                               crypttext_segment_hasher)
         def _done(chunks):
             for c in chunks:
                 assert len(c) == input_piece_size
-            self._plaintext_hashes.append(plaintext_segment_hasher.digest())
             self._crypttext_hashes.append(crypttext_segment_hasher.digest())
             # during this call, we hit 5*segsize memory
             return codec.encode(chunks)
@@ -269,11 +287,9 @@ class Encoder(object):
         codec = self._tail_codec
         input_piece_size = codec.get_block_size()
 
-        plaintext_segment_hasher = hashutil.plaintext_segment_hasher()
         crypttext_segment_hasher = hashutil.crypttext_segment_hasher()
 
         d = self._gather_data(self.required_shares, input_piece_size,
-                              plaintext_segment_hasher,
                               crypttext_segment_hasher,
                               allow_short=True)
         def _done(chunks):
@@ -281,14 +297,13 @@ class Encoder(object):
                 # a short trailing chunk will have been padded by
                 # _gather_data
                 assert len(c) == input_piece_size
-            self._plaintext_hashes.append(plaintext_segment_hasher.digest())
             self._crypttext_hashes.append(crypttext_segment_hasher.digest())
             return codec.encode(chunks)
         d.addCallback(_done)
         return d
 
     def _gather_data(self, num_chunks, input_chunk_size,
-                     plaintext_segment_hasher, crypttext_segment_hasher,
+                     crypttext_segment_hasher,
                      allow_short=False,
                      previous_chunks=[]):
         """Return a Deferred that will fire when the required number of
@@ -299,19 +314,13 @@ class Encoder(object):
         if not num_chunks:
             return defer.succeed(previous_chunks)
 
-        d = self._uploadable.read(input_chunk_size)
+        d = self._uploadable.read_encrypted(input_chunk_size)
         def _got(data):
             encrypted_pieces = []
             length = 0
-            # we use data.pop(0) instead of 'for input_piece in data' to save
-            # memory: each piece is destroyed as soon as we're done with it.
             while data:
-                input_piece = data.pop(0)
-                length += len(input_piece)
-                plaintext_segment_hasher.update(input_piece)
-                self._plaintext_hasher.update(input_piece)
-                encrypted_piece = self.cryptor.encrypt(input_piece)
-                assert len(encrypted_piece) == len(input_piece)
+                encrypted_piece = data.pop(0)
+                length += len(encrypted_piece)
                 crypttext_segment_hasher.update(encrypted_piece)
                 self._crypttext_hasher.update(encrypted_piece)
                 encrypted_pieces.append(encrypted_piece)
@@ -331,7 +340,6 @@ class Encoder(object):
         d.addCallback(_got)
         d.addCallback(lambda chunks:
                       self._gather_data(num_chunks-1, input_chunk_size,
-                                        plaintext_segment_hasher,
                                         crypttext_segment_hasher,
                                         allow_short, chunks))
         return d
@@ -403,20 +411,28 @@ class Encoder(object):
             d0.addErrback(_eatNotEnoughPeersError)
         return d
 
-    def finish_flat_hashes(self):
-        plaintext_hash = self._plaintext_hasher.digest()
+    def finish_hashing(self):
         crypttext_hash = self._crypttext_hasher.digest()
-        self.uri_extension_data["plaintext_hash"] = plaintext_hash
         self.uri_extension_data["crypttext_hash"] = crypttext_hash
+        u = self._uploadable
+        d = u.get_plaintext_hash()
+        def _got(plaintext_hash):
+            self.uri_extension_data["plaintext_hash"] = plaintext_hash
+            return u.get_plaintext_segment_hashtree_nodes(self.num_segments)
+        d.addCallback(_got)
+        def _got_hashtree_nodes(t):
+            self.uri_extension_data["plaintext_root_hash"] = t[0]
+            self._plaintext_hashtree_nodes = t
+        d.addCallback(_got_hashtree_nodes)
+        return d
 
     def send_plaintext_hash_tree_to_all_shareholders(self):
         log.msg("%s sending plaintext hash tree" % self)
-        t = HashTree(self._plaintext_hashes)
-        all_hashes = list(t)
-        self.uri_extension_data["plaintext_root_hash"] = t[0]
         dl = []
         for shareid in self.landlords.keys():
-            dl.append(self.send_plaintext_hash_tree(shareid, all_hashes))
+            d = self.send_plaintext_hash_tree(shareid,
+                                              self._plaintext_hashtree_nodes)
+            dl.append(d)
         return self._gather_responses(dl)
 
     def send_plaintext_hash_tree(self, shareid, all_hashes):
@@ -528,7 +544,8 @@ class Encoder(object):
 
     def done(self):
         log.msg("%s: upload done" % self)
-        return self.uri_extension_hash
+        return (self.uri_extension_hash, self.required_shares,
+                self.num_shares, self.file_size)
 
     def err(self, f):
         log.msg("%s: upload failed: %s" % (self, f)) # UNUSUAL
