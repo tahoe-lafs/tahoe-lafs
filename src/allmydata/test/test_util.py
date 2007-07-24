@@ -10,18 +10,13 @@ from allmydata.util import assertutil, fileutil
 
 class IDLib(unittest.TestCase):
     def test_b2a(self):
-        self.failUnlessEqual(idlib.b2a("\x12\x34"), "ci2a====")
+        self.failUnlessEqual(idlib.b2a("\x12\x34"), "ne4y")
     def test_b2a_or_none(self):
         self.failUnlessEqual(idlib.b2a_or_none(None), None)
-        self.failUnlessEqual(idlib.b2a_or_none("\x12\x34"), "ci2a====")
+        self.failUnlessEqual(idlib.b2a_or_none("\x12\x34"), "ne4y")
     def test_a2b(self):
-        self.failUnlessEqual(idlib.a2b("ci2a===="), "\x12\x34")
-        self.failUnlessRaises(TypeError, idlib.a2b, "bogus")
-    def test_peerid(self):
-        # these are 160-bit numbers
-        peerid = "\x80" + "\x00" * 19
-        short = idlib.peerid_to_short_string(peerid)
-        self.failUnlessEqual(short, "qaaa")
+        self.failUnlessEqual(idlib.a2b("ne4y"), "\x12\x34")
+        self.failUnlessRaises(AssertionError, idlib.a2b, "b0gus")
 
 class NoArgumentException(Exception):
     def __init__(self):

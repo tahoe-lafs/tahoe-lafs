@@ -1,3 +1,5 @@
+from base64 import b32encode, b32decode
+
 import os.path, re
 
 import twisted
@@ -5,7 +7,7 @@ from twisted.python import log
 from twisted.application import service
 from twisted.internet import defer, reactor
 from foolscap import Tub, eventual
-from allmydata.util import idlib, iputil, observer
+from allmydata.util import iputil, observer
 from allmydata.util.assertutil import precondition
 
 
@@ -34,9 +36,9 @@ class Node(service.MultiService):
         self.tub = Tub(certFile=certfile)
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)
-        self.nodeid = idlib.a2b(self.tub.tubID)
+        self.nodeid = b32encode(self.tub.tubID).lower()
         f = open(os.path.join(self.basedir, self.NODEIDFILE), "w")
-        f.write(idlib.b2a(self.nodeid) + "\n")
+        f.write(b32encode(self.nodeid).lower() + "\n")
         f.close()
         self.short_nodeid = self.tub.tubID[:4] # ready for printing
         assert self.PORTNUMFILE, "Your node.Node subclass must provide PORTNUMFILE"

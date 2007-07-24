@@ -1,3 +1,4 @@
+from base64 import b32encode, b32decode
 
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
@@ -7,7 +8,7 @@ from foolscap import Tub, Referenceable
 from foolscap.eventual import flushEventualQueue
 from twisted.application import service
 from allmydata.introducer import IntroducerClient, Introducer
-from allmydata.util import idlib, testutil
+from allmydata.util import testutil
 
 class MyNode(Referenceable):
     pass
@@ -56,7 +57,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
         self.waiting_for_connections = NUMCLIENTS*NUMCLIENTS
         d = self._done_counting = defer.Deferred()
         def _count(nodeid, rref):
-            log.msg("NEW CONNECTION! %s %s" % (idlib.b2a(nodeid), rref))
+            log.msg("NEW CONNECTION! %s %s" % (b32encode(nodeid).lower(), rref))
             self.waiting_for_connections -= 1
             if self.waiting_for_connections == 0:
                 self._done_counting.callback("done!")
@@ -92,7 +93,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
             origin_c = clients[0]
             # find a target that is not themselves
             for nodeid,rref in origin_c.connections.items():
-                if idlib.b2a(nodeid) != tubs[origin_c].tubID:
+                if b32encode(nodeid).lower() != tubs[origin_c].tubID:
                     victim = rref
                     break
             log.msg(" disconnecting %s->%s" % (tubs[origin_c].tubID, victim))
@@ -111,7 +112,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
             origin_c = clients[0]
             # find a target that *is* themselves
             for nodeid,rref in origin_c.connections.items():
-                if idlib.b2a(nodeid) == tubs[origin_c].tubID:
+                if b32encode(nodeid).lower() == tubs[origin_c].tubID:
                     victim = rref
                     break
             log.msg(" disconnecting %s->%s" % (tubs[origin_c].tubID, victim))

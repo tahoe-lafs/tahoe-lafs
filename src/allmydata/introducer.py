@@ -1,4 +1,6 @@
 
+from base64 import b32encode, b32decode
+
 import re
 from zope.interface import implements
 from twisted.application import service
@@ -92,9 +94,9 @@ class IntroducerClient(service.Service, Referenceable):
         # them, which may or may not be what we want.
         m = re.match(r'pb://(\w+)@', furl)
         assert m
-        nodeid = idlib.a2b(m.group(1))
+        nodeid = b32decode(m.group(1).upper())
         def _got_peer(rref):
-            self.log(" connected to(%s)" % idlib.b2a(nodeid))
+            self.log(" connected to(%s)" % b32encode(nodeid).lower())
             self.connection_observers.notify(nodeid, rref)
             self.connections[nodeid] = rref
             def _lost():
