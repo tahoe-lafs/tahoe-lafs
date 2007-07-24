@@ -25,7 +25,7 @@ Share Encoding:
 URI:
 *v1: really big
 *v2: store URI Extension with shares
- v3: derive storage index from readkey
+*v3: derive storage index from readkey
  v4: perhaps derive more information from version and filesize, to remove
      codec_name, codec_params, tail_codec_params, needed_shares,
      total_shares, segment_size from the URI Extension
