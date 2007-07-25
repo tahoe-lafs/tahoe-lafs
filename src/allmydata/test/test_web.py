@@ -851,7 +851,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_POST_mkdir(self):, return value?
+    def test_POST_mkdir(self): # return value?
         d = self.POST("/vdrive/global/foo", t="mkdir", name="newdir")
         def _check(res):
             self.failUnless("newdir" in self._foo_node.children)
