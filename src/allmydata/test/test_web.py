@@ -367,10 +367,10 @@ class Web(unittest.TestCase):
             self.fail("%s was supposed to Error(%s), not get '%s'" %
                       (which, code, res))
 
-    def test_create(self): # YES
+    def test_create(self):
         pass
 
-    def test_welcome(self): # YES
+    def test_welcome(self):
         d = self.GET("/")
         def _check(res):
             self.failUnless('Welcome To AllMyData' in res)
@@ -380,22 +380,22 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_GET_FILEURL(self): # YES
+    def test_GET_FILEURL(self):
         d = self.GET("/vdrive/global/foo/bar.txt")
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
-    def test_GET_FILEURL_download(self): # YES
+    def test_GET_FILEURL_download(self):
         d = self.GET("/vdrive/global/foo/bar.txt?t=download")
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
-    def test_GET_FILEURL_missing(self): # YES
+    def test_GET_FILEURL_missing(self):
         d = self.GET("/vdrive/global/foo/missing")
         d.addBoth(self.should404, "test_GET_FILEURL_missing")
         return d
 
-    def test_PUT_NEWFILEURL(self): # YES
+    def test_PUT_NEWFILEURL(self):
         d = self.PUT("/vdrive/global/foo/new.txt", self.NEWFILE_CONTENTS)
         def _check(res):
             self.failUnless("new.txt" in self._foo_node.children)
@@ -406,7 +406,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_PUT_NEWFILEURL_mkdirs(self): # YES
+    def test_PUT_NEWFILEURL_mkdirs(self):
         d = self.PUT("/vdrive/global/foo/newdir/new.txt", self.NEWFILE_CONTENTS)
         def _check(res):
             self.failIf("new.txt" in self._foo_node.children)
@@ -421,7 +421,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_PUT_NEWFILEURL_blocked(self): # YES
+    def test_PUT_NEWFILEURL_blocked(self):
         d = self.PUT("/vdrive/global/foo/blockingfile/new.txt",
                      self.NEWFILE_CONTENTS)
         d.addBoth(self.shouldFail, error.Error, "PUT_NEWFILEURL_blocked",
@@ -429,24 +429,24 @@ class Web(unittest.TestCase):
                   "cannot create directory because there is a file in the way")
         return d
 
-    def test_DELETE_FILEURL(self): # YES
+    def test_DELETE_FILEURL(self):
         d = self.DELETE("/vdrive/global/foo/bar.txt")
         def _check(res):
             self.failIf("bar.txt" in self._foo_node.children)
         d.addCallback(_check)
         return d
 
-    def test_DELETE_FILEURL_missing(self): # YES
+    def test_DELETE_FILEURL_missing(self):
         d = self.DELETE("/vdrive/global/foo/missing")
         d.addBoth(self.should404, "test_DELETE_FILEURL_missing")
         return d
 
-    def test_DELETE_FILEURL_missing2(self): # YES
+    def test_DELETE_FILEURL_missing2(self):
         d = self.DELETE("/vdrive/global/missing/missing")
         d.addBoth(self.should404, "test_DELETE_FILEURL_missing2")
         return d
 
-    def test_GET_FILEURL_json(self): # YES
+    def test_GET_FILEURL_json(self):
         # twisted.web.http.parse_qs ignores any query args without an '=', so
         # I can't do "GET /path?json", I have to do "GET /path/t=json"
         # instead. This may make it tricky to emulate the S3 interface
@@ -455,12 +455,12 @@ class Web(unittest.TestCase):
         d.addCallback(self.failUnlessIsBarJSON)
         return d
 
-    def test_GET_FILEURL_json_missing(self): # YES
+    def test_GET_FILEURL_json_missing(self):
         d = self.GET("/vdrive/global/foo/missing?json")
         d.addBoth(self.should404, "test_GET_FILEURL_json_missing")
         return d
 
-    def test_GET_FILEURL_localfile(self): # YES
+    def test_GET_FILEURL_localfile(self):
         localfile = os.path.abspath("web/GET_FILEURL_localfile")
         fileutil.make_dirs("web")
         d = self.GET("/vdrive/global/foo/bar.txt?t=download&localfile=%s"
@@ -472,7 +472,7 @@ class Web(unittest.TestCase):
         d.addCallback(_done)
         return d
 
-    def test_GET_FILEURL_localfile_nonlocal(self): # YES
+    def test_GET_FILEURL_localfile_nonlocal(self):
         # TODO: somehow pretend that we aren't local, and verify that the
         # server refuses to write to local files, probably by changing the
         # server's idea of what counts as "local".
@@ -494,7 +494,7 @@ class Web(unittest.TestCase):
         d.addBoth(_reset)
         return d
 
-    def test_GET_FILEURL_localfile_nonabsolute(self): # YES
+    def test_GET_FILEURL_localfile_nonabsolute(self):
         localfile = "web/nonabsolute/path"
         fileutil.make_dirs("web/nonabsolute")
         d = self.GET("/vdrive/global/foo/bar.txt?t=download&localfile=%s"
@@ -507,7 +507,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_PUT_NEWFILEURL_localfile(self): # YES
+    def test_PUT_NEWFILEURL_localfile(self):
         localfile = os.path.abspath("web/PUT_NEWFILEURL_localfile")
         fileutil.make_dirs("web")
         f = open(localfile, "wb")
@@ -524,7 +524,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_PUT_NEWFILEURL_localfile_mkdirs(self): # YES
+    def test_PUT_NEWFILEURL_localfile_mkdirs(self):
         localfile = os.path.abspath("web/PUT_NEWFILEURL_localfile_mkdirs")
         fileutil.make_dirs("web")
         f = open(localfile, "wb")
@@ -545,7 +545,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_GET_FILEURL_uri(self): # YES
+    def test_GET_FILEURL_uri(self):
         d = self.GET("/vdrive/global/foo/bar.txt?t=uri")
         def _check(res):
             self.failUnlessEqual(res, self._bar_txt_uri)
@@ -558,12 +558,12 @@ class Web(unittest.TestCase):
         d.addCallback(_check2)
         return d
 
-    def test_GET_FILEURL_uri_missing(self): # YES
+    def test_GET_FILEURL_uri_missing(self):
         d = self.GET("/vdrive/global/foo/missing?t=uri")
         d.addBoth(self.should404, "test_GET_FILEURL_uri_missing")
         return d
 
-    def test_GET_DIRURL(self): # YES
+    def test_GET_DIRURL(self):
         # the addSlash means we get a redirect here
         d = self.GET("/vdrive/global/foo", followRedirect=True)
         def _check(res):
@@ -600,33 +600,33 @@ class Web(unittest.TestCase):
 
         return d
 
-    def test_GET_DIRURL_json(self): # YES
+    def test_GET_DIRURL_json(self):
         d = self.GET("/vdrive/global/foo?t=json")
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
-    def test_GET_DIRURL_manifest(self): # YES
+    def test_GET_DIRURL_manifest(self):
         d = self.GET("/vdrive/global/foo?t=manifest", followRedirect=True)
         def _got(manifest):
             self.failUnless("Refresh Capabilities" in manifest)
         d.addCallback(_got)
         return d
 
-    def test_GET_DIRURL_uri(self): # YES
+    def test_GET_DIRURL_uri(self):
         d = self.GET("/vdrive/global/foo?t=uri")
         def _check(res):
             self.failUnlessEqual(res, self._foo_uri)
         d.addCallback(_check)
         return d
 
-    def test_GET_DIRURL_readonly_uri(self): # YES
+    def test_GET_DIRURL_readonly_uri(self):
         d = self.GET("/vdrive/global/foo?t=readonly-uri")
         def _check(res):
             self.failUnlessEqual(res, self._foo_readonly_uri)
         d.addCallback(_check)
         return d
 
-    def test_PUT_NEWDIRURL(self): # YES
+    def test_PUT_NEWDIRURL(self):
         d = self.PUT("/vdrive/global/foo/newdir?t=mkdir", "")
         def _check(res):
             self.failUnless("newdir" in self._foo_node.children)
@@ -636,7 +636,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_PUT_NEWDIRURL_mkdirs(self): # YES
+    def test_PUT_NEWDIRURL_mkdirs(self):
         d = self.PUT("/vdrive/global/foo/subdir/newdir?t=mkdir", "")
         def _check(res):
             self.failIf("newdir" in self._foo_node.children)
@@ -648,14 +648,14 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_DELETE_DIRURL(self): # YES
+    def test_DELETE_DIRURL(self):
         d = self.DELETE("/vdrive/global/foo")
         def _check(res):
             self.failIf("foo" in self.public_root.children)
         d.addCallback(_check)
         return d
 
-    def test_DELETE_DIRURL_missing(self): # YES
+    def test_DELETE_DIRURL_missing(self):
         d = self.DELETE("/vdrive/global/foo/missing")
         d.addBoth(self.should404, "test_DELETE_DIRURL_missing")
         def _check(res):
@@ -663,12 +663,12 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_DELETE_DIRURL_missing2(self): # YES
+    def test_DELETE_DIRURL_missing2(self):
         d = self.DELETE("/vdrive/global/missing")
         d.addBoth(self.should404, "test_DELETE_DIRURL_missing2")
         return d
 
-    def test_walker(self): # YES
+    def test_walker(self):
         out = []
         def _visitor(path, node):
             out.append((path, node))
@@ -698,7 +698,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_GET_DIRURL_localdir(self): # YES
+    def test_GET_DIRURL_localdir(self):
         localdir = os.path.abspath("web/GET_DIRURL_localdir")
         fileutil.make_dirs("web")
         d = self.GET("/vdrive/global/foo?t=download&localdir=%s" % localdir)
@@ -714,7 +714,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_GET_DIRURL_localdir_nonabsolute(self): # YES
+    def test_GET_DIRURL_localdir_nonabsolute(self):
         localdir = "web/nonabsolute/dirpath"
         fileutil.make_dirs("web/nonabsolute")
         d = self.GET("/vdrive/global/foo?t=download&localdir=%s" % localdir)
@@ -747,7 +747,7 @@ class Web(unittest.TestCase):
         for path,node in self.walk_mynodes(self.public_root):
             print path
 
-    def test_PUT_NEWDIRURL_localdir(self): # YES
+    def test_PUT_NEWDIRURL_localdir(self):
         localdir = os.path.abspath("web/PUT_NEWDIRURL_localdir")
         # create some files there
         fileutil.make_dirs(os.path.join(localdir, "one"))
@@ -777,7 +777,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_PUT_NEWDIRURL_localdir_mkdirs(self): # YES
+    def test_PUT_NEWDIRURL_localdir_mkdirs(self):
         localdir = os.path.abspath("web/PUT_NEWDIRURL_localdir_mkdirs")
         # create some files there
         fileutil.make_dirs(os.path.join(localdir, "one"))
@@ -810,7 +810,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_POST_upload(self): # YES
+    def test_POST_upload(self):
         d = self.POST("/vdrive/global/foo", t="upload",
                       file=("new.txt", self.NEWFILE_CONTENTS))
         def _check(res):
@@ -822,7 +822,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_POST_upload_named(self): # YES
+    def test_POST_upload_named(self):
         d = self.POST("/vdrive/global/foo", t="upload",
                       name="new.txt", file=self.NEWFILE_CONTENTS)
         def _check(res):
@@ -834,7 +834,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_POST_upload_named_badfilename(self): # YES
+    def test_POST_upload_named_badfilename(self):
         d = self.POST("/vdrive/global/foo", t="upload",
                       name="slashes/are/bad.txt", file=self.NEWFILE_CONTENTS)
         d.addBoth(self.shouldFail, error.Error,
@@ -851,7 +851,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_POST_mkdir(self): # YES, return value?
+    def test_POST_mkdir(self):, return value?
         d = self.POST("/vdrive/global/foo", t="mkdir", name="newdir")
         def _check(res):
             self.failUnless("newdir" in self._foo_node.children)
@@ -861,7 +861,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_POST_mkdir_whendone(self): # YES
+    def test_POST_mkdir_whendone(self):
         d = self.POST("/vdrive/global/foo?when_done=/THERE",
                       t="mkdir", name="newdir")
         d.addBoth(self.shouldRedirect, "/THERE")
@@ -873,7 +873,7 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_POST_put_uri(self): # YES
+    def test_POST_put_uri(self):
         newuri = self.makefile(8)
         contents = self.files[newuri]
         d = self.POST("/vdrive/global/foo", t="uri", name="new.txt", uri=newuri)
@@ -886,14 +886,14 @@ class Web(unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_POST_delete(self): # YES
+    def test_POST_delete(self):
         d = self.POST("/vdrive/global/foo", t="delete", name="bar.txt")
         def _check(res):
             self.failIf("bar.txt" in self._foo_node.children)
         d.addCallback(_check)
         return d
 
-    def test_POST_rename_file(self): # YES
+    def test_POST_rename_file(self):
         d = self.POST("/vdrive/global/foo", t="rename",
                       from_name="bar.txt", to_name='wibble.txt')
         def _check(res):
@@ -906,7 +906,7 @@ class Web(unittest.TestCase):
         d.addCallback(self.failUnlessIsBarJSON)
         return d
 
-    def test_POST_rename_file_slash_fail(self): # YES
+    def test_POST_rename_file_slash_fail(self):
         d = self.POST("/vdrive/global/foo", t="rename",
                       from_name="bar.txt", to_name='kirk/spock.txt')
         d.addBoth(self.shouldFail, error.Error,
@@ -933,7 +933,7 @@ class Web(unittest.TestCase):
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
-    def test_POST_rename_dir(self): # YES
+    def test_POST_rename_dir(self):
         d = self.POST("/vdrive/global", t="rename",
                       from_name="foo", to_name='plunk')
         def _check(res):
@@ -954,7 +954,7 @@ class Web(unittest.TestCase):
         realtarget = self.webish_url + target
         self.failUnlessEqual(res.value.location, realtarget)
 
-    def test_GET_URI_form(self): # YES
+    def test_GET_URI_form(self):
         base = "/uri?uri=%s" % self._bar_txt_uri
         # this is supposed to give us a redirect to /uri/$URI, plus arguments
         targetbase = "/uri/%s" % urllib.quote(self._bar_txt_uri)
@@ -975,7 +975,7 @@ class Web(unittest.TestCase):
 
         return d
 
-    def test_GET_rename_form(self): # YES
+    def test_GET_rename_form(self):
         d = self.GET("/vdrive/global/foo?t=rename-form&name=bar.txt",
                      followRedirect=True) # XXX [ ] todo: figure out why '.../foo' doesn't work
         def _check(res):
@@ -989,7 +989,7 @@ class Web(unittest.TestCase):
         log.msg(msg)
         return res
 
-    def test_GET_URI_URL(self): # YES
+    def test_GET_URI_URL(self):
         base = "/uri/%s" % self._bar_txt_uri.replace("/","!")
         d = self.GET(base)
         d.addCallback(self.failUnlessIsBarDotTxt)
@@ -999,13 +999,13 @@ class Web(unittest.TestCase):
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
-    def test_GET_URI_URL_dir(self): # YES
+    def test_GET_URI_URL_dir(self):
         base = "/uri/%s?t=json" % self._foo_uri.replace("/","!")
         d = self.GET(base)
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
-    def test_GET_URI_URL_missing(self): # YES
+    def test_GET_URI_URL_missing(self):
         base = "/uri/%s" % self._bad_file_uri.replace("/","!")
         d = self.GET(base)
         d.addBoth(self.shouldHTTPError, "test_GET_URI_URL_missing",
@@ -1016,7 +1016,7 @@ class Web(unittest.TestCase):
         # shorter than we expected.
         return d
 
-    def test_PUT_NEWFILEURL_uri(self): # YES
+    def test_PUT_NEWFILEURL_uri(self):
         new_uri = self.makefile(8)
         d = self.PUT("/vdrive/global/foo/new.txt?t=uri", new_uri)
         def _check(res):
