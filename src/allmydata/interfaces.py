@@ -96,19 +96,29 @@ class IStorageBucketWriter(Interface):
     def put_block(segmentnum=int, data=ShareData):
         """@param data: For most segments, this data will be 'blocksize'
         bytes in length. The last segment might be shorter.
+        @return: a Deferred that fires (with None) when the operation completes
         """
-        return None
 
     def put_plaintext_hashes(hashes=ListOf(Hash, maxLength=2**20)):
-        return None
+        """
+        @return: a Deferred that fires (with None) when the operation completes
+        """
+
     def put_crypttext_hashes(hashes=ListOf(Hash, maxLength=2**20)):
-        return None
+        """
+        @return: a Deferred that fires (with None) when the operation completes
+        """
 
     def put_block_hashes(blockhashes=ListOf(Hash, maxLength=2**20)):
-        return None
+        """
+        @return: a Deferred that fires (with None) when the operation completes
+        """
         
-    def put_share_hashes(sharehashes=ListOf(TupleOf(int, Hash), maxLength=2**20)):
-        return None
+    def put_share_hashes(sharehashes=ListOf(TupleOf(int, Hash),
+                                            maxLength=2**20)):
+        """
+        @return: a Deferred that fires (with None) when the operation completes
+        """
 
     def put_uri_extension(data=URIExtensionData):
         """This block of data contains integrity-checking information (hashes
@@ -122,30 +132,52 @@ class IStorageBucketWriter(Interface):
         for k in sorted(dict.keys()):
             assert re.match(r'^[a-zA-Z_\-]+$', k)
             write(k + ':' + netstring(dict[k]))
+
+        @return: a Deferred that fires (with None) when the operation completes
         """
-        return None
+
     def close():
-        pass
+        """Finish writing and close the bucket. The share is not finalized
+        until this method is called: if the uploading client disconnects
+        before calling close(), the partially-written share will be
+        discarded.
+
+        @return: a Deferred that fires (with None) when the operation completes
+        """
 
 class IStorageBucketReader(Interface):
 
     def get_block(blocknum=int):
         """Most blocks will be the same size. The last block might be shorter
         than the others.
+
+        @return: ShareData
         """
-        return ShareData
 
     def get_plaintext_hashes():
-        return ListOf(Hash, maxLength=2**20)
+        """
+        @return: ListOf(Hash, maxLength=2**20)
+        """
+
     def get_crypttext_hashes():
-        return ListOf(Hash, maxLength=2**20)
+        """
+        @return: ListOf(Hash, maxLength=2**20)
+        """
 
     def get_block_hashes():
-        return ListOf(Hash, maxLength=2**20)
+        """
+        @return: ListOf(Hash, maxLength=2**20)
+        """
+
     def get_share_hashes():
-        return ListOf(TupleOf(int, Hash), maxLength=2**20)
+        """
+        @return: ListOf(TupleOf(int, Hash), maxLength=2**20)
+        """
+
     def get_uri_extension():
-        return URIExtensionData
+        """
+        @return: URIExtensionData
+        """
 
 
 
