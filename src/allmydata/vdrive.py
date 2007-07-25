@@ -25,47 +25,71 @@ class VirtualDrive(service.MultiService):
         self._global_uri = None
         self._private_uri = None
 
+    def log(self, msg):
+        self.parent.log(msg)
+
     def startService(self):
         service.MultiService.startService(self)
         basedir = self.parent.basedir
-        client = self.parent
         tub = self.parent.tub
 
-        global_vdrive_furl = None
+        global_uri_file = os.path.join(basedir, self.GLOBAL_VDRIVE_URI_FILE)
+        if os.path.exists(global_uri_file):
+            f = open(global_uri_file)
+            self._global_uri = f.read().strip()
+            f.close()
+            self.log("using global vdrive uri %s" % self._global_uri)
+
+        private_uri_file = os.path.join(basedir, self.MY_VDRIVE_URI_FILE)
+        if os.path.exists(private_uri_file):
+            f = open(private_uri_file)
+            self._private_uri = f.read().strip()
+            f.close()
+            self.log("using private vdrive uri %s" % self._private_uri)
+
         furl_file = os.path.join(basedir, self.GLOBAL_VDRIVE_FURL_FILE)
         if os.path.exists(furl_file):
             f = open(furl_file, "r")
             global_vdrive_furl = f.read().strip()
             f.close()
+        else:
+            self.log("no %s, cannot access global or private dirnodes"
+                     % furl_file)
+            return
 
-        global_uri_file = os.path.join(basedir,
-                                       self.GLOBAL_VDRIVE_URI_FILE)
-        if os.path.exists(global_uri_file):
-            f = open(global_uri_file)
-            self._global_uri = f.read().strip()
-            f.close()
-        elif global_vdrive_furl:
-            self.parent.log("fetching global_uri")
-            d = tub.getReference(global_vdrive_furl)
-            d.addCallback(lambda vdrive_server:
-                          vdrive_server.callRemote("get_public_root_uri"))
-            def _got_global_uri(global_uri):
-                self.parent.log("got global_uri")
-                self._global_uri = global_uri
-                f = open(global_uri_file, "w")
-                f.write(self._global_uri + "\n")
-                f.close()
-            d.addCallback(_got_global_uri)
+        tub.connectTo(global_vdrive_furl,
+                      self._got_vdrive_server, global_vdrive_furl)
 
-        private_uri_file = os.path.join(basedir,
-                                        self.MY_VDRIVE_URI_FILE)
-        if os.path.exists(private_uri_file):
-            f = open(private_uri_file)
-            self._private_uri = f.read().strip()
+        if not self._global_uri:
+            self.log("will fetch global_uri when we attach to the "
+                     "vdrive server")
+
+        if not self._private_uri:
+            self.log("will create private_uri when we attach to the "
+                     "vdrive server")
+
+
+    def _got_vdrive_server(self, vdrive_server, global_vdrive_furl):
+        self.log("connected to vdrive server")
+        basedir = self.parent.basedir
+        global_uri_file = os.path.join(basedir, self.GLOBAL_VDRIVE_URI_FILE)
+        private_uri_file = os.path.join(basedir, self.MY_VDRIVE_URI_FILE)
+
+        d = vdrive_server.callRemote("get_public_root_uri")
+        def _got_global_uri(global_uri):
+            self.log("got global_uri: %s" % global_uri)
+            self._global_uri = global_uri
+            f = open(global_uri_file, "w")
+            f.write(self._global_uri + "\n")
             f.close()
-        elif global_vdrive_furl:
-            d = dirnode.create_directory(client, global_vdrive_furl)
+        d.addCallback(_got_global_uri)
+
+        if not self._private_uri:
+            d.addCallback(lambda res:
+                          dirnode.create_directory(self.parent,
+                                                   global_vdrive_furl))
             def _got_directory(dirnode):
+                self.log("creating private uri")
                 self._private_uri = dirnode.get_uri()
                 f = open(private_uri_file, "w")
                 f.write(self._private_uri + "\n")
