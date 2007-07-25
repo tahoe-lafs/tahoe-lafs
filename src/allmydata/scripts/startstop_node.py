@@ -70,7 +70,9 @@ def do_start(basedir, config, out=sys.stdout, err=sys.stderr):
             print >>err, " in fact, it doesn't look like a directory at all!"
         sys.exit(1)
     twistd = find_twistd()
-    rc = subprocess.call(["python", twistd, "-y", tac,], cwd=basedir)
+    os.mkdir(os.path.join(basedir, "logs"))
+    cmd = ["python", twistd, "-y", tac, "--logfile", "logs/twistd.log"]
+    rc = subprocess.call(cmd, cwd=basedir)
     if rc == 0:
         print >>out, "%s node probably started" % type
         return 0
