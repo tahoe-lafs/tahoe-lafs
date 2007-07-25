@@ -1,4 +1,4 @@
-from base64 import b32encode, b32decode
+from base64 import b32encode
 
 import os.path, re
 

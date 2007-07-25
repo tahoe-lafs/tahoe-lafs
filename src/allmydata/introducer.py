@@ -7,7 +7,7 @@ from twisted.application import service
 from twisted.python import log
 from foolscap import Referenceable
 from allmydata.interfaces import RIIntroducer, RIIntroducerClient
-from allmydata.util import idlib, observer
+from allmydata.util import observer
 
 class Introducer(service.MultiService, Referenceable):
     implements(RIIntroducer)
