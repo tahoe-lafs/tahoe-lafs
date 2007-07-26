@@ -5,8 +5,7 @@ from allmydata.util import hashutil
 from allmydata.interfaces import IURI, IFileURI, IDirnodeURI
 
 class Literal(unittest.TestCase):
-    def test_pack(self):
-        data = "This is some small data"
+    def _help_test(self, data):
         u = uri.LiteralFileURI(data)
         self.failUnless(IURI.providedBy(u))
         self.failUnless(IFileURI.providedBy(u))
@@ -24,26 +23,18 @@ class Literal(unittest.TestCase):
         self.failUnlessEqual(u2.get_size(), len(data))
         self.failUnless(u.is_readonly())
         self.failIf(u.is_mutable())
+        
+    def test_empty(self):
+        data = "" # This data is some *very* small data!
+        return self._help_test(data)
+    
+    def test_pack(self):
+        data = "This is some small data"
+        return self._help_test(data)
 
     def test_nonascii(self):
         data = "This contains \x00 and URI:LIT: and \n, oh my."
-        u = uri.LiteralFileURI(data)
-        self.failUnless(IURI.providedBy(u))
-        self.failUnless(IFileURI.providedBy(u))
-        self.failIf(IDirnodeURI.providedBy(u))
-        self.failUnlessEqual(u.data, data)
-        self.failUnlessEqual(u.get_size(), len(data))
-        self.failUnless(u.is_readonly())
-        self.failIf(u.is_mutable())
-
-        u2 = uri.from_string(u.to_string())
-        self.failUnless(IURI.providedBy(u2))
-        self.failUnless(IFileURI.providedBy(u2))
-        self.failIf(IDirnodeURI.providedBy(u2))
-        self.failUnlessEqual(u2.data, data)
-        self.failUnlessEqual(u2.get_size(), len(data))
-        self.failUnless(u.is_readonly())
-        self.failIf(u.is_mutable())
+        return self._help_test(data)
 
 class CHKFile(unittest.TestCase):
     def test_pack(self):
