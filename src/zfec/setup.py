@@ -20,7 +20,7 @@
 # http://allmydata.com/.
 
 from ez_setup import use_setuptools
-use_setuptools(min_version='0.6a9')
+use_setuptools(min_version='0.6c6')
 
 from setuptools import Extension, find_packages, setup
 

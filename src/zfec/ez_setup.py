@@ -15,7 +15,7 @@ This file can also be run as a script to install or upgrade setuptools.
 """
 import sys
 
-DEFAULT_VERSION = "0.6c5"
+DEFAULT_VERSION = "0.6c6"
 DEFAULT_URL     = "http://cheeseshop.python.org/packages/%s/s/setuptools/" % sys.version[:3]
 
 md5_data = {
@@ -40,6 +40,7 @@ md5_data = {
     'setuptools-0.6c5-py2.3.egg': 'ee9fd80965da04f2f3e6b3576e9d8167',
     'setuptools-0.6c5-py2.4.egg': 'afe2adf1c01701ee841761f5bcd8aa64',
     'setuptools-0.6c5-py2.5.egg': 'a8d3f61494ccaa8714dfed37bccd3d5d',
+    'setuptools-0.6c6-py2.5.egg': 'b2f8a7520709a5b34f80946de5f02f53',
 }
 
 import sys, os
@@ -90,6 +91,7 @@ def use_setuptools(
 
     except pkg_resources.VersionConflict, e:
         # XXX could we install in a subprocess here?
+        # --arnowa here we would need an elegant update solution, i think
         print >>sys.stderr, (
             "The required version of setuptools (>=%s) is not available, and\n"
             "can't be installed while this script is running. Please install\n"
@@ -157,7 +159,7 @@ def main(argv, version=DEFAULT_VERSION):
             if egg and os.path.exists(egg):
                 os.unlink(egg)
     else:
-        if setuptools.__version__ == '0.0.1':
+        if setuptools.__version__ == "0.0.1": #Does this happen?? --arnowa
             # tell the user to uninstall obsolete version
             use_setuptools(version)
 
