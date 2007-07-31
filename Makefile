@@ -212,6 +212,13 @@ clean: clean-zfec clean-Crypto clean-foolscap
 	rm -f debian
 	rm -rf instdir
 
+install: 
+	cd src/zfec && python ./setup.py install && cd ../..
+	cd src/foolscap && python ./setup.py install && cd ../..
+	cd src/Crypto && python ./setup.py install && cd ../..
+	python ./setup.py install
+
+
 # DEBIAN PACKAGING
 
 VER=$(shell $(PYTHON) misc/get-version.py)
