@@ -147,6 +147,10 @@ There are three ways to do it.  Choose one:
 
  The Python Way:
 
+  This is automated by the makefile's "install" target, but in case you want
+  to configure the location or other install options you can learn how it is
+  done here:
+
   The Python Way is to execute "setup.py install" for each Python package.
 
   You'll need to run "setup.py install" four separate times, one for each of
