@@ -15,10 +15,8 @@ D: added private publish, added display of file size
 
 N: Arno Waschk
 E: hamamatsu@gmx.de
-W: ???
-P: ???
-D: documentation (wiki), testing (cygwin)
-S: ???
+W: www.arnowashcke.de
+D: documentation (wiki), testing (cygwin), porting/packaging (cygwin)
 
 N: Arc O Median
 D: bug reports
