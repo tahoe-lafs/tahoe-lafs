@@ -39,19 +39,18 @@ text-oriented web user interface, or a command-line user interface.
 (Or a RESTful API.  Just telnet to localhost and type HTTP requests to
 get started...)
 
-Because this software is new and little tested, it is not yet
-recommended for storage of highly confidential data nor for important
-data which is not otherwise backed up, but it is useful for
-experimentation, prototyping, and extension.
+Because this software is new, it is not yet recommended for storage of
+highly confidential data nor for important data which is not otherwise
+backed up, but it works and there are no known security flaws which
+would compromise confidentiality.
 
-This release of Allmydata-Tahoe is suitable for Use Case #2: "groups
-of friends who want to share backup and file-sharing" (see the wiki
-page "UseCases": [3]).  It is easy to set up a private grid which is
-securely shared among a specific, limited set of friends.  Files
-uploaded to this shared grid will be available to all friends, even
-when some of the computers are unavailable.  It is also easy to use a
-public grid, but to encrypt individual files and directories so that
-only intended recipients can read them.
+This release of Allmydata-Tahoe is suitable for the "friendnet" Use
+Case (see the wiki page "UseCases": [3]).  It is easy to set up a
+private grid which is securely shared among a specific, limited set of
+friends.  Files uploaded to this shared grid will be available to all
+friends, even when some of the computers are unavailable.  It is also
+easy to use a public grid, but to encrypt individual files and
+directories so that only intended recipients can read them.
 
 
 LICENCE
