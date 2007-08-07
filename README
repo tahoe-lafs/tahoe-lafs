@@ -74,7 +74,7 @@ gcc make python-dev python-twisted python-nevow python-pyopenssl".
 
    Note: The build process will automatically download and install
    setuptools if it is not present.  However, if an old, incompatible
-   version of setuptools (< v0.6c3) is present, then the build will fail.
+   version of setuptools (< v0.6c6) is present, then the build will fail.
    Therefore, if the build fails due to setuptools not being compatible,
    you can either upgrade or uninstall your version of setuptools and try
    again.
