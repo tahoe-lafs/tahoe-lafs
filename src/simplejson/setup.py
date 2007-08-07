@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import ez_setup
+import sys
 if 'cygwin' in sys.platform.lower():
     min_version='0.6c6'
 else:
