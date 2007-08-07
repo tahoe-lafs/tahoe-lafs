@@ -20,7 +20,12 @@
 # http://allmydata.com/.
 
 from ez_setup import use_setuptools
-use_setuptools(min_version='0.6c6')
+import sys
+if 'cygwin' in sys.platform.lower():
+    min_version='0.6c6'
+else:
+    min_version='0.6a9'
+use_setuptools(min_version=min_version)
 
 from setuptools import Extension, find_packages, setup
 

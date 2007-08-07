@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 
 import ez_setup
-ez_setup.use_setuptools(min_version="0.6c6")
+if 'cygwin' in sys.platform.lower():
+    min_version='0.6c6'
+else:
+    min_version='0.6a9'
+ez_setup.use_setuptools(min_version=min_version)
 
 from setuptools import setup, find_packages, Extension, Feature
 from distutils.command.build_ext import build_ext
