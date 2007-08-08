@@ -7,7 +7,7 @@ if False:
     from twisted.python import log
     log.startLogging(sys.stderr)
 
-from twisted.python import failure, log
+from twisted.python import failure, log, reflect
 from twisted.internet import defer
 from twisted.trial import unittest
 
@@ -117,6 +117,7 @@ class TestAnswer(unittest.TestCase):
         req = TestRequest(12)
         self.broker.addRequest(req)
         u = self.newUnslicer()
+        u.start(0)
         u.checkToken(INT, 0)
         u.receiveChild(12) # causes broker.getRequest
         u.checkToken(STRING, 8)
@@ -130,6 +131,7 @@ class TestAnswer(unittest.TestCase):
         req.setConstraint(IConstraint(str))
         self.broker.addRequest(req)
         u = self.newUnslicer()
+        u.start(0)
         u.checkToken(INT, 0)
         u.receiveChild(12) # causes broker.getRequest
         u.checkToken(STRING, 15)
@@ -617,7 +619,7 @@ class TestService(unittest.TestCase):
         return d
     testBadMethod2.timeout = 5
     def _testBadMethod2_eb(self, f):
-        self.failUnlessEqual(f.type, 'exceptions.AttributeError')
+        self.failUnlessEqual(reflect.qual(f.type), 'exceptions.AttributeError')
         self.failUnlessSubstring("TargetWithoutInterfaces", f.value)
         self.failUnlessSubstring(" has no attribute 'remote_missing'", f.value)
 

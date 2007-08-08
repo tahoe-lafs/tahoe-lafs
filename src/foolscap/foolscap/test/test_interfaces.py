@@ -121,7 +121,7 @@ class TestInterface(TargetMixin, unittest.TestCase):
             for i in range(len(s)):
                 line = s[i]
                 #print line
-                if ("test/test_interfaces.py" in line
+                if ("test_interfaces.py" in line
                     and i+1 < len(s)
                     and "rr.callRemote" in s[i+1]):
                     return # all good

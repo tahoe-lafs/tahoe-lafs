@@ -3,11 +3,11 @@ from twisted.python import failure, log, reflect
 from twisted.internet import defer
 
 from foolscap import copyable, slicer, tokens
-from foolscap.eventual import eventually
 from foolscap.copyable import AttributeDictConstraint
 from foolscap.constraint import ByteStringConstraint
 from foolscap.slicers.list import ListConstraint
 from tokens import BananaError, Violation
+from foolscap.util import AsyncAND
 
 
 class FailureConstraint(AttributeDictConstraint):
@@ -162,21 +162,6 @@ class InboundDelivery:
         self.methodname = methodname
         self.methodSchema = methodSchema
         self.allargs = allargs
-        if allargs.isReady():
-            self.runnable = True
-        self.runnable = False
-
-    def isRunnable(self):
-        if self.allargs.isReady():
-            return True
-        return False
-
-    def whenRunnable(self):
-        if self.allargs.isReady():
-            return defer.succeed(self)
-        d = self.allargs.whenReady()
-        d.addCallback(lambda res: self)
-        return d
 
     def logFailure(self, f):
         # called if tub.logLocalFailures is True
@@ -211,7 +196,8 @@ class ArgumentUnslicer(slicer.ScopedUnslicer):
         self.argname = None
         self.argConstraint = None
         self.num_unreferenceable_children = 0
-        self.num_unready_children = 0
+        self._all_children_are_referenceable_d = None
+        self._ready_deferreds = []
         self.closed = False
 
     def checkToken(self, typebyte, size):
@@ -248,7 +234,7 @@ class ArgumentUnslicer(slicer.ScopedUnslicer):
         if self.debug:
             log.msg("%s.receiveChild: %s %s %s %s %s args=%s kwargs=%s" %
                     (self, self.closed, self.num_unreferenceable_children,
-                     self.num_unready_children, token, ready_deferred,
+                     len(self._ready_deferreds), token, ready_deferred,
                      self.args, self.kwargs))
         if self.numargs is None:
             # this token is the number of positional arguments
@@ -273,12 +259,10 @@ class ArgumentUnslicer(slicer.ScopedUnslicer):
                 # resolved yet.
                 self.num_unreferenceable_children += 1
                 argvalue.addCallback(self.updateChild, argpos)
-                argvalue.addErrback(self.explode)
             if ready_deferred:
                 if self.debug:
                     log.msg("%s.receiveChild got an unready posarg" % self)
-                self.num_unready_children += 1
-                ready_deferred.addCallback(self.childReady)
+                self._ready_deferreds.append(ready_deferred)
             if len(self.args) < self.numargs:
                 # more to come
                 ms = self.methodSchema
@@ -291,6 +275,7 @@ class ArgumentUnslicer(slicer.ScopedUnslicer):
 
         if self.argname is None:
             # this token is the name of a keyword argument
+            assert ready_deferred is None
             self.argname = token
             # if the argname is invalid, this may raise Violation
             ms = self.methodSchema
@@ -308,12 +293,10 @@ class ArgumentUnslicer(slicer.ScopedUnslicer):
         if isinstance(argvalue, defer.Deferred):
             self.num_unreferenceable_children += 1
             argvalue.addCallback(self.updateChild, self.argname)
-            argvalue.addErrback(self.explode)
         if ready_deferred:
             if self.debug:
                 log.msg("%s.receiveChild got an unready kwarg" % self)
-            self.num_unready_children += 1
-            ready_deferred.addCallback(self.childReady)
+            self._ready_deferreds.append(ready_deferred)
         self.argname = None
         return
 
@@ -333,70 +316,31 @@ class ArgumentUnslicer(slicer.ScopedUnslicer):
         else:
             self.kwargs[which] = obj
         self.num_unreferenceable_children -= 1
-        self.checkComplete()
+        if self.num_unreferenceable_children == 0:
+            if self._all_children_are_referenceable_d:
+                self._all_children_are_referenceable_d.callback(None)
         return obj
 
-    def childReady(self, obj):
-        self.num_unready_children -= 1
-        if self.debug:
-            log.msg("%s.childReady, now %d left" %
-                    (self, self.num_unready_children))
-            log.msg(" obj=%s, args=%s, kwargs=%s" %
-                    (obj, self.args, self.kwargs))
-        self.checkComplete()
-        return obj
-
-    def checkComplete(self):
-        # this is called each time one of our children gets updated or
-        # becomes ready (like when a Gift is finally resolved)
-        if self.debug:
-            log.msg("%s.checkComplete: %s %s %s args=%s kwargs=%s" %
-                    (self, self.closed, self.num_unreferenceable_children,
-                     self.num_unready_children, self.args, self.kwargs))
-
-        if not self.closed:
-            return
-        if self.num_unreferenceable_children:
-            return
-        if self.num_unready_children:
-            return
-        # yup, we're done. Notify anyone who is still waiting
-        if self.debug:
-            log.msg(" we are ready")
-        for d in self.watchers:
-            eventually(d.callback, self)
-        del self.watchers
 
     def receiveClose(self):
         if self.debug:
             log.msg("%s.receiveClose: %s %s %s" %
                     (self, self.closed, self.num_unreferenceable_children,
-                     self.num_unready_children))
+                     len(self._ready_deferreds)))
         if (self.numargs is None or
             len(self.args) < self.numargs or
             self.argname is not None):
             raise BananaError("'arguments' sequence ended too early")
         self.closed = True
-        self.watchers = []
-        # we don't return a ready_deferred. Instead, the InboundDelivery
-        # object queries our isReady() method directly.
-        return self, None
-
-    def isReady(self):
-        assert self.closed
+        dl = []
         if self.num_unreferenceable_children:
-            return False
-        if self.num_unready_children:
-            return False
-        return True
-
-    def whenReady(self):
-        assert self.closed
-        if self.isReady():
-            return defer.succeed(self)
-        d = defer.Deferred()
-        self.watchers.append(d)
-        return d
+            d = self._all_children_are_referenceable_d = defer.Deferred()
+            dl.append(d)
+        dl.extend(self._ready_deferreds)
+        ready_deferred = None
+        if dl:
+            ready_deferred = AsyncAND(dl)
+        return self, ready_deferred
 
     def describe(self):
         s = "<arguments"
@@ -409,11 +353,9 @@ class ArgumentUnslicer(slicer.ScopedUnslicer):
                 else:
                     s += " arg[?]"
         if self.closed:
-            if self.isReady():
-                # waiting to be delivered
-                s += " ready"
-            else:
-                s += " waiting"
+            s += " closed"
+            # TODO: it would be nice to indicate if we still have unready
+            # children
         s += ">"
         return s
 
@@ -430,6 +372,7 @@ class CallUnslicer(slicer.ScopedUnslicer):
         self.interface = None
         self.methodname = None
         self.methodSchema = None # will be a MethodArgumentsConstraint
+        self._ready_deferreds = []
 
     def checkToken(self, typebyte, size):
         # TODO: limit strings by returning a number instead of None
@@ -472,13 +415,13 @@ class CallUnslicer(slicer.ScopedUnslicer):
 
     def receiveChild(self, token, ready_deferred=None):
         assert not isinstance(token, defer.Deferred)
-        assert ready_deferred is None
         if self.debug:
             log.msg("%s.receiveChild [s%d]: %s" %
                     (self, self.stage, repr(token)))
 
         if self.stage == 0: # reqID
             # we don't yet know which reqID to send any failure to
+            assert ready_deferred is None
             self.reqID = token
             self.stage = 1
             if self.reqID != 0:
@@ -488,6 +431,7 @@ class CallUnslicer(slicer.ScopedUnslicer):
 
         if self.stage == 1: # objID
             # this might raise an exception if objID is invalid
+            assert ready_deferred is None
             self.objID = token
             self.obj = self.broker.getMyReferenceByCLID(token)
             #iface = self.broker.getRemoteInterfaceByName(token)
@@ -517,6 +461,7 @@ class CallUnslicer(slicer.ScopedUnslicer):
             # class). If this expectation were to go away, a quick
             # obj.__class__ -> RemoteReferenceSchema cache could be built.
 
+            assert ready_deferred is None
             self.stage = 3
 
             if self.objID < 0:
@@ -548,6 +493,8 @@ class CallUnslicer(slicer.ScopedUnslicer):
             # queue the message. It will not be executed until all the
             # arguments are ready. The .args list and .kwargs dict may change
             # before then.
+            if ready_deferred:
+                self._ready_deferreds.append(ready_deferred)
             self.stage = 4
             return
 
@@ -559,7 +506,10 @@ class CallUnslicer(slicer.ScopedUnslicer):
                                    self.interface, self.methodname,
                                    self.methodSchema,
                                    self.allargs)
-        return delivery, None
+        ready_deferred = None
+        if self._ready_deferreds:
+            ready_deferred = AsyncAND(self._ready_deferreds)
+        return delivery, ready_deferred
 
     def describe(self):
         s = "<methodcall"
@@ -600,6 +550,11 @@ class AnswerUnslicer(slicer.ScopedUnslicer):
     resultConstraint = None
     haveResults = False
 
+    def start(self, count):
+        slicer.ScopedUnslicer.start(self, count)
+        self._ready_deferreds = []
+        self._child_deferred = None
+
     def checkToken(self, typebyte, size):
         if self.request is None:
             if typebyte != tokens.INT:
@@ -633,15 +588,20 @@ class AnswerUnslicer(slicer.ScopedUnslicer):
         return unslicer
 
     def receiveChild(self, token, ready_deferred=None):
-        assert not isinstance(token, defer.Deferred)
-        assert ready_deferred is None
         if self.request == None:
+            assert not isinstance(token, defer.Deferred)
+            assert ready_deferred is None
             reqID = token
             # may raise Violation for bad reqIDs
             self.request = self.broker.getRequest(reqID)
             self.resultConstraint = self.request.constraint
         else:
-            self.results = token
+            if isinstance(token, defer.Deferred):
+                self._child_deferred = token
+            else:
+                self._child_deferred = defer.succeed(token)
+            if ready_deferred:
+                self._ready_deferreds.append(ready_deferred)
             self.haveResults = True
 
     def reportViolation(self, f):
@@ -652,7 +612,32 @@ class AnswerUnslicer(slicer.ScopedUnslicer):
         return f # give up our sequence
 
     def receiveClose(self):
-        self.request.complete(self.results)
+        # three things must happen before our request is complete:
+        #   receiveClose has occurred
+        #   the receiveChild object deferred (if any) has fired
+        #   ready_deferred has finished
+        # If ready_deferred errbacks, provide its failure object to the
+        # request. If not, provide the request with whatever receiveChild
+        # got.
+
+        if not self._child_deferred:
+            raise BananaError("Answer didn't include an answer")
+
+        if self._ready_deferreds:
+            d = AsyncAND(self._ready_deferreds)
+        else:
+            d = defer.succeed(None)
+
+        def _ready(res):
+            return self._child_deferred
+        d.addCallback(_ready)
+
+        def _done(res):
+            self.request.complete(res)
+        def _fail(f):
+            self.request.fail(f)
+        d.addCallbacks(_done, _fail)
+
         return None, None
 
     def describe(self):
@@ -818,6 +803,30 @@ class CopiedFailure(failure.Failure, copyable.RemoteCopyOldStyle):
         self.frames = []
         self.stack = []
 
+        # MAYBE: for native exception types, be willing to wire up a
+        # reference to the real exception class. For other exception types,
+        # our .type attribute will be a string, which (from a Failure's point
+        # of view) looks as if someone raised an old-style string exception.
+        # This is here so that trial will properly render a CopiedFailure
+        # that comes out of a test case (since it unconditionally does
+        # reflect.qual(f.type)
+
+        # ACTUALLY: replace self.type with a class that looks a lot like the
+        # original exception class (meaning that reflect.qual() will return
+        # the same string for this as for the original). If someone calls our
+        # .trap method, resulting in a new Failure with contents copied from
+        # this one, then the new Failure.printTraceback will attempt to use
+        # reflect.qual() on our self.type, so it needs to be a class instead
+        # of a string.
+
+        assert isinstance(self.type, str)
+        typepieces = self.type.split(".")
+        class ExceptionLikeString:
+            pass
+        self.type = ExceptionLikeString
+        self.type.__module__ = ".".join(typepieces[:-1])
+        self.type.__name__ = typepieces[-1]
+
     def __str__(self):
         return "[CopiedFailure instance: %s]" % self.getBriefTraceback()
 
@@ -829,3 +838,21 @@ class CopiedFailure(failure.Failure, copyable.RemoteCopyOldStyle):
         file.write(self.traceback)
 
 copyable.registerRemoteCopy(FailureSlicer.classname, CopiedFailure)
+
+class CopiedFailureSlicer(FailureSlicer):
+    # A calls B. B calls C. C fails and sends a Failure to B. B gets a
+    # CopiedFailure and sends it to A. A should get a CopiedFailure too. This
+    # class lives on B and slicers the CopiedFailure as it is sent to A.
+    slices = CopiedFailure
+
+    def getStateToCopy(self, obj, broker):
+        state = {}
+        for k in ('value', 'type', 'parents'):
+            state[k] = getattr(obj, k)
+        if broker.unsafeTracebacks:
+            state['traceback'] = obj.traceback
+        else:
+            state['traceback'] = "Traceback unavailable\n"
+        if not isinstance(state['type'], str):
+            state['type'] = reflect.qual(state['type']) # Exception class
+        return state

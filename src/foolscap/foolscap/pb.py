@@ -230,6 +230,8 @@ class Tub(service.MultiService):
         self.nameToReference = weakref.WeakValueDictionary()
         self.referenceToName = weakref.WeakKeyDictionary()
         self.strongReferences = []
+        self.nameLookupHandlers = []
+
         # remote stuff. Most of these use a TubRef (or NoAuthTubRef) as a
         # dictionary key
         self.tubConnectors = {} # maps TubRef to a TubConnector
@@ -487,7 +489,15 @@ class Tub(service.MultiService):
         return name
 
     def getReferenceForName(self, name):
-        return self.nameToReference[name]
+        if name in self.nameToReference:
+            return self.nameToReference[name]
+        for lookup in self.nameLookupHandlers:
+            ref = lookup(name)
+            if ref:
+                if ref not in self.referenceToName:
+                    self.referenceToName[ref] = name
+                return ref
+        raise KeyError("unable to find reference for name '%s'" % (name,))
 
     def getReferenceForURL(self, url):
         # TODO: who should this be used by?
@@ -525,6 +535,46 @@ class Tub(service.MultiService):
         if ref in self.strongReferences:
             self.strongReferences.remove(ref)
         self.revokeReference(ref)
+
+    def registerNameLookupHandler(self, lookup):
+        """Add a function to help convert names to Referenceables.
+
+        When remote systems pass a FURL to their Tub.getReference(), our Tub
+        will be asked to locate a Referenceable for the name inside that
+        furl. The normal mechanism for this is to look at the table
+        maintained by registerReference() and unregisterReference(). If the
+        name does not exist in that table, other 'lookup handler' functions
+        are given a chance. Each lookup handler is asked in turn, and the
+        first which returns a non-None value wins.
+
+        This may be useful for cases where the furl represents an object that
+        lives on disk, or is generated on demand: rather than creating all
+        possible Referenceables at startup, the lookup handler can create or
+        retrieve the objects only when someone asks for them.
+
+        Note that constructing the FURLs of these objects may be non-trivial.
+        It is safe to create an object, use tub.registerReference in one
+        invocation of a program to obtain (and publish) the furl, parse the
+        furl to extract the name, save the contents of the object on disk,
+        then in a later invocation of the program use a lookup handler to
+        retrieve the object from disk. This approach means the objects that
+        are created in a given invocation stick around (inside
+        tub.strongReferences) for the rest of that invocation. An alternatve
+        approach is to create the object but *not* use tub.registerReference,
+        but in that case you have to construct the FURL yourself, and the Tub
+        does not currently provide any support for doing this robustly.
+
+        @param lookup: a callable which accepts a name (as a string) and
+                       returns either a Referenceable or None. Note that
+                       these strings should not contain a slash, a question
+                       mark, or an ampersand, as these are reserved in the
+                       FURL for later expansion (to add parameters beyond the
+                       object name)
+        """
+        self.nameLookupHandlers.append(lookup)
+
+    def unregisterNameLookupHandler(self, lookup):
+        self.nameLookupHandlers.remove(lookup)
 
     def getReference(self, sturdyOrURL):
         """Acquire a RemoteReference for the given SturdyRef/URL.

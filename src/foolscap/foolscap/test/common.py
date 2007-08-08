@@ -266,6 +266,9 @@ class Target(Referenceable):
         return 24
     def remote_fail(self):
         raise ValueError("you asked me to fail")
+    def remote_fail_remotely(self, target):
+        return target.callRemote("fail")
+
     def remote_failstring(self):
         raise "string exceptions are annoying"
 

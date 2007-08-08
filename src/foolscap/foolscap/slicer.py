@@ -1,6 +1,7 @@
 # -*- test-case-name: foolscap.test.test_banana -*-
 
 from twisted.python.components import registerAdapter
+from twisted.python import log
 from zope.interface import implements
 from twisted.internet.defer import Deferred
 import tokens
@@ -190,6 +191,11 @@ class BaseUnslicer:
         return self.open(opentype)
 
     def receiveChild(self, obj, ready_deferred=None):
+        """Unslicers for containers should accumulate their children's
+        ready_deferreds, then combine them in an AsyncAND when receiveClose()
+        happens, and return the AsyncAND as the ready_deferreds half of the
+        receiveClose() return value.
+        """
         pass
 
     def reportViolation(self, why):
@@ -221,16 +227,20 @@ class BaseUnslicer:
         return None
 
     def explode(self, failure):
-        """If something goes wrong in a Deferred callback, it may be too
-        late to reject the token and to normal error handling. I haven't
-        figured out how to do sensible error-handling in this situation.
-        This method exists to make sure that the exception shows up
-        *somewhere*. If this is called, it is also likely that a placeholder
-        (probably a Deferred) will be left in the unserialized object about
-        to be handed to the RootUnslicer.
+        """If something goes wrong in a Deferred callback, it may be too late
+        to reject the token and to normal error handling. I haven't figured
+        out how to do sensible error-handling in this situation. This method
+        exists to make sure that the exception shows up *somewhere*. If this
+        is called, it is also likely that a placeholder (probably a Deferred)
+        will be left in the unserialized object graph about to be handed to
+        the RootUnslicer.
         """
-        print "KABOOM"
-        print failure
+
+        # RootUnslicer pays attention to this .exploded attribute and refuses
+        # to deliver anything if it is set. But PBRootUnslicer ignores it.
+        # TODO: clean this up, and write some unit tests to trigger it (by
+        # violating schemas?)
+        log.msg("BaseUnslicer.explode: %s" % failure)
         self.protocol.exploded = failure
 
 class ScopedUnslicer(BaseUnslicer):

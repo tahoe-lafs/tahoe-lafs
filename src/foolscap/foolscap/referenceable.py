@@ -11,7 +11,7 @@ from zope.interface import implements
 from twisted.python.components import registerAdapter
 Interface = interface.Interface
 from twisted.internet import defer
-from twisted.python import failure
+from twisted.python import failure, log
 
 from foolscap import ipb, slicer, tokens, call
 BananaError = tokens.BananaError
@@ -21,7 +21,7 @@ from foolscap.remoteinterface import getRemoteInterface, \
      getRemoteInterfaceByName, RemoteInterfaceConstraint
 from foolscap.schema import constraintMap
 from foolscap.copyable import Copyable, RemoteCopy
-from foolscap.eventual import eventually
+from foolscap.eventual import eventually, fireEventually
 
 class OnlyReferenceable(object):
     implements(ipb.IReferenceable)
@@ -538,6 +538,33 @@ class RemoteMethodReference(RemoteReference):
         methodSchema = None
         return interfaceName, methodName, methodSchema
 
+class LocalReferenceable:
+    implements(ipb.IRemoteReference)
+    def __init__(self, original):
+        self.original = original
+
+    def notifyOnDisconnect(self, callback, *args, **kwargs):
+        # local objects never disconnect
+        return None
+    def dontNotifyOnDisconnect(self, marker):
+        pass
+
+    def callRemote(self, methname, *args, **kwargs):
+        def _try(ignored):
+            meth = getattr(self.original, "remote_" + methname)
+            return meth(*args, **kwargs)
+        d = fireEventually()
+        d.addCallback(_try)
+        return d
+
+    def callRemoteOnly(self, methname, *args, **kwargs):
+        d = self.callRemote(methname, *args, **kwargs)
+        d.addErrback(lambda f: None)
+        return None
+
+registerAdapter(LocalReferenceable, ipb.IReferenceable, ipb.IRemoteReference)
+    
+
 
 class YourReferenceSlicer(slicer.BaseSlicer):
     """I handle pb.RemoteReference objects (being sent back home to the
@@ -635,11 +662,26 @@ class TheirReferenceUnslicer(slicer.LeafUnslicer):
         # but the message delivery must still wait for the getReference to
         # complete. See to it that we fire the object deferred before we fire
         # the ready_deferred.
-        obj_deferred, ready_deferred = defer.Deferred(), defer.Deferred()
+
+        obj_deferred = defer.Deferred()
+        ready_deferred = defer.Deferred()
+
         def _ready(rref):
             obj_deferred.callback(rref)
             ready_deferred.callback(rref)
-        d.addCallback(_ready)
+        def _failed(f):
+            # if an error in getReference() occurs, log it locally (with
+            # priority UNUSUAL), because this end might need to diagnose some
+            # connection or networking problems.
+            log.msg("gift (%s) failed to resolve: %s" % (self.url, f))
+            # deliver a placeholder object to the container, but signal the
+            # ready_deferred that we've failed. This will bubble up to the
+            # enclosing InboundDelivery, and when it gets to the top of the
+            # queue, it will be flunked.
+            obj_deferred.callback("Place holder for a Gift which failed to "
+                                  "resolve: %s" % f)
+            ready_deferred.errback(f)
+        d.addCallbacks(_ready, _failed)
 
         return obj_deferred, ready_deferred
 

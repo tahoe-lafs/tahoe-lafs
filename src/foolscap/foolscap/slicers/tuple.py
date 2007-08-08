@@ -1,10 +1,11 @@
 # -*- test-case-name: foolscap.test.test_banana -*-
 
-from twisted.internet.defer import Deferred, DeferredList
+from twisted.internet.defer import Deferred
 from foolscap.tokens import Violation
 from foolscap.slicer import BaseUnslicer
 from foolscap.slicers.list import ListSlicer
 from foolscap.constraint import OpenerConstraint, Any, UnboundedSchema, IConstraint
+from foolscap.util import AsyncAND
 
 
 class TupleSlicer(ListSlicer):
@@ -91,7 +92,7 @@ class TupleUnslicer(BaseUnslicer):
     def complete(self):
         ready_deferred = None
         if self._ready_deferreds:
-            ready_deferred = DeferredList(self._ready_deferreds)
+            ready_deferred = AsyncAND(self._ready_deferreds)
 
         t = tuple(self.list)
         if self.debug:
@@ -111,7 +112,7 @@ class TupleUnslicer(BaseUnslicer):
                 print " not finished yet"
             ready_deferred = None
             if self._ready_deferreds:
-                ready_deferred = DeferredList(self._ready_deferreds)
+                ready_deferred = AsyncAND(self._ready_deferreds)
             return self.deferred, ready_deferred
 
         # the list is already complete

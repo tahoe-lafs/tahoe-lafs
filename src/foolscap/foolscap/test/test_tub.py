@@ -11,7 +11,7 @@ try:
 except ImportError:
     pass
 
-from foolscap import Tub, UnauthenticatedTub
+from foolscap import Tub, UnauthenticatedTub, SturdyRef, Referenceable
 from foolscap.referenceable import RemoteReference
 from foolscap.eventual import eventually, flushEventualQueue
 from foolscap.test.common import HelperTarget, TargetMixin
@@ -115,5 +115,95 @@ class QueuedStartup(TargetMixin, unittest.TestCase):
         d.addCallback(_validate)
         self.services.append(t1)
         eventually(t1.startService)
+        return d
+
+
+class NameLookup(TargetMixin, unittest.TestCase):
+
+    # test registerNameLookupHandler
+
+    def setUp(self):
+        TargetMixin.setUp(self)
+        self.tubA, self.tubB = [GoodEnoughTub(), GoodEnoughTub()]
+        self.services = [self.tubA, self.tubB]
+        self.tubA.startService()
+        self.tubB.startService()
+        l = self.tubB.listenOn("tcp:0:interface=127.0.0.1")
+        self.tubB.setLocation("127.0.0.1:%d" % l.getPortnum())
+        self.url_on_b = self.tubB.registerReference(Referenceable())
+        self.lookups = []
+        self.lookups2 = []
+        self.names = {}
+        self.names2 = {}
+
+    def tearDown(self):
+        d = TargetMixin.tearDown(self)
+        def _more(res):
+            return defer.DeferredList([s.stopService() for s in self.services])
+        d.addCallback(_more)
+        d.addCallback(flushEventualQueue)
+        return d
+
+    def lookup(self, name):
+        self.lookups.append(name)
+        return self.names.get(name, None)
+
+    def lookup2(self, name):
+        self.lookups2.append(name)
+        return self.names2.get(name, None)
+
+    def testNameLookup(self):
+        t1 = HelperTarget()
+        t2 = HelperTarget()
+        self.names["foo"] = t1
+        self.names2["bar"] = t2
+        self.names2["baz"] = t2
+        self.tubB.registerNameLookupHandler(self.lookup)
+        self.tubB.registerNameLookupHandler(self.lookup2)
+        # hack up a new furl pointing at the same tub but with a name that
+        # hasn't been registered.
+        s = SturdyRef(self.url_on_b)
+        s.name = "foo"
+
+        d = self.tubA.getReference(s)
+
+        def _check(res):
+            self.failUnless(isinstance(res, RemoteReference))
+            self.failUnlessEqual(self.lookups, ["foo"])
+            # the first lookup should short-circuit the process
+            self.failUnlessEqual(self.lookups2, [])
+            self.lookups = []; self.lookups2 = []
+            s.name = "bar"
+            return self.tubA.getReference(s)
+        d.addCallback(_check)
+
+        def _check2(res):
+            self.failUnless(isinstance(res, RemoteReference))
+            # if the first lookup fails, the second handler should be asked
+            self.failUnlessEqual(self.lookups, ["bar"])
+            self.failUnlessEqual(self.lookups2, ["bar"])
+            self.lookups = []; self.lookups2 = []
+            # make sure that loopbacks use this too
+            return self.tubB.getReference(s)
+        d.addCallback(_check2)
+
+        def _check3(res):
+            self.failUnless(isinstance(res, RemoteReference))
+            self.failUnlessEqual(self.lookups, ["bar"])
+            self.failUnlessEqual(self.lookups2, ["bar"])
+            self.lookups = []; self.lookups2 = []
+            # and make sure we can de-register handlers
+            self.tubB.unregisterNameLookupHandler(self.lookup)
+            s.name = "baz"
+            return self.tubA.getReference(s)
+        d.addCallback(_check3)
+
+        def _check4(res):
+            self.failUnless(isinstance(res, RemoteReference))
+            self.failUnlessEqual(self.lookups, [])
+            self.failUnlessEqual(self.lookups2, ["baz"])
+            self.lookups = []; self.lookups2 = []
+        d.addCallback(_check4)
+
         return d
 

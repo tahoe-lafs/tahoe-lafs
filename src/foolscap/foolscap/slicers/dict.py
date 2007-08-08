@@ -1,10 +1,11 @@
 # -*- test-case-name: foolscap.test.test_banana -*-
 
 from twisted.python import log
-from twisted.internet.defer import Deferred, DeferredList
+from twisted.internet.defer import Deferred
 from foolscap.tokens import Violation, BananaError
 from foolscap.slicer import BaseSlicer, BaseUnslicer
 from foolscap.constraint import OpenerConstraint, Any, UnboundedSchema, IConstraint
+from foolscap.util import AsyncAND
 
 class DictSlicer(BaseSlicer):
     opentype = ('dict',)
@@ -105,7 +106,7 @@ class DictUnslicer(BaseUnslicer):
     def receiveClose(self):
         ready_deferred = None
         if self._ready_deferreds:
-            ready_deferred = DeferredList(self._ready_deferreds)
+            ready_deferred = AsyncAND(self._ready_deferreds)
         return self.d, ready_deferred
 
     def describe(self):

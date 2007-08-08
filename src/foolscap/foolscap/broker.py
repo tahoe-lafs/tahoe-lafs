@@ -111,8 +111,7 @@ class PBRootUnslicer(RootUnslicer):
 
     def receiveChild(self, token, ready_deferred):
         if isinstance(token, call.InboundDelivery):
-            assert ready_deferred is None
-            self.broker.scheduleCall(token)
+            self.broker.scheduleCall(token, ready_deferred)
 
 
 
@@ -215,6 +214,7 @@ class Broker(banana.Banana, referenceable.Referenceable):
         self.disconnectWatchers = []
         # receiving side uses these
         self.inboundDeliveryQueue = []
+        self._call_is_running = False
         self.activeLocalCalls = {} # the other side wants an answer from us
 
     def setTub(self, tub):
@@ -506,33 +506,31 @@ class Broker(banana.Banana, referenceable.Referenceable):
                 return m
         return None
 
-    def scheduleCall(self, delivery):
-        self.inboundDeliveryQueue.append(delivery)
+    def scheduleCall(self, delivery, ready_deferred):
+        self.inboundDeliveryQueue.append( (delivery,ready_deferred) )
         eventually(self.doNextCall)
 
-    def doNextCall(self, ignored=None):
+    def doNextCall(self):
+        if self._call_is_running:
+            return
         if not self.inboundDeliveryQueue:
             return
-        nextCall = self.inboundDeliveryQueue[0]
-        if nextCall.isRunnable():
-            # remove it and arrange to run again soon
-            self.inboundDeliveryQueue.pop(0)
-            delivery = nextCall
-            if self.inboundDeliveryQueue:
-                eventually(self.doNextCall)
-
-            # now perform the actual delivery
-            d = defer.maybeDeferred(self._doCall, delivery)
-            d.addCallback(self._callFinished, delivery)
-            d.addErrback(self.callFailed, delivery.reqID, delivery)
-            return
-        # arrange to wake up when the next call becomes runnable
-        d = nextCall.whenRunnable()
-        d.addCallback(self.doNextCall)
+        delivery, ready_deferred = self.inboundDeliveryQueue.pop(0)
+        self._call_is_running = True
+        if not ready_deferred:
+            ready_deferred = defer.succeed(None)
+        d = ready_deferred
+        d.addCallback(lambda res: self._doCall(delivery))
+        d.addCallback(self._callFinished, delivery)
+        d.addErrback(self.callFailed, delivery.reqID, delivery)
+        def _done(res):
+            self._call_is_running = False
+            eventually(self.doNextCall)
+        d.addBoth(_done)
+        return None
 
     def _doCall(self, delivery):
         obj = delivery.obj
-        assert delivery.allargs.isReady()
         args = delivery.allargs.args
         kwargs = delivery.allargs.kwargs
         for i in args + kwargs.values():

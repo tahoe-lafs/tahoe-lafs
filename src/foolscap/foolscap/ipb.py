@@ -62,6 +62,10 @@ class IRemoteReference(Interface):
         notifyOnDisconnect handlers are cancelled.
         """
 
+    def dontNotifyOnDisconnect(cookie):
+        """Deregister a callback that was registered with notifyOnDisconnect.
+        """
+
     def callRemote(name, *args, **kwargs):
         """Invoke a method on the remote object with which I am associated.
 

@@ -1,3 +1,129 @@
+2007-08-07  Brian Warner  <warner@lothar.com>
+
+	* foolscap/__init__.py: release Foolscap-0.1.5
+	* misc/{sid|sarge|dapper|edgy|feisty}/debian/changelog: same
+
+2007-08-07  Brian Warner  <warner@lothar.com>
+
+	* NEWS: update for the upcoming release
+
+	* foolscap/pb.py (Tub.registerNameLookupHandler): new function to
+	augment Tub.registerReference(). This allows names to be looked up
+	at request time, rather than requiring all Referenceables be
+	pre-registered with registerReference(). The chief use of this
+	would be for FURLs which point at objects that live on disk in
+	some persistent state until they are needed. Closes #6.
+	(Tub.unregisterNameLookupHandler): allow handlers to be removed
+	(Tub.getReferenceForName): use the handler during lookup
+	* foolscap/test/test_tub.py (NameLookup): test it
+
+2007-07-27  Brian Warner  <warner@lothar.com>
+
+	* foolscap/referenceable.py (LocalReferenceable): implement an
+	adapter that allows code to do IRemoteReference(t).callRemote(...)
+	and have it work for both RemoteReferences and local
+	Referenceables. You might want to do this if you're getting back
+	introductions to a variety of remote Referenceables, some of which
+	might actually be on your local system, and you want to treat all
+	of the, the same way. Local Referenceables will be wrapped with a
+	class that implements callRemote() and makes it behave like an
+	actual remote callRemote() would. Closes ticket #1.
+	* foolscap/test/test_reference.py (LocalReference): test it
+
+2007-07-26  Brian Warner  <warner@lothar.com>
+
+	* foolscap/call.py (AnswerUnslicer.receiveChild): accept a
+	ready_deferred, to accomodate Gifts in return values. Closes #5.
+	(AnswerUnslicer.receiveClose): .. and don't fire the response
+	until any such Gifts resolve
+	* foolscap/test/test_gifts.py (Gifts.testReturn): test it
+	(Gifts.testReturnInContainer): same
+	(Bad.testReturn_swissnum): and test the failure case too
+
+	* foolscap/test/test_pb.py (TestAnswer.testAccept1): fix a test
+	which wasn't calling start() properly and was broken by that change
+	(TestAnswer.testAccept2): same
+
+	* foolscap/test/test_gifts.py (Bad.setUp): disable these tests when
+	we don't have crypto, since TubIDs are not mangleable in the same
+	way without crypto.
+
+	* foolscap/slicer.py (BaseUnslicer.receiveChild): new convention:
+	Unslicers should accumulate their children's ready_deferreds into
+	an AsyncAND, and pass it to the parent. If something goes wrong,
+	the ready_deferred should errback, which will abandon the method
+	call that contains it.
+	* foolscap/slicers/dict.py (DictUnslicer.receiveClose): same
+	* foolscap/slicers/tuple.py (TupleUnslicer.receiveClose): same
+	(TupleUnslicer.complete): same
+	* foolscap/slicers/set.py (SetUnslicer.receiveClose): same
+	* foolscap/slicers/list.py (ListUnslicer.receiveClose): same
+	* foolscap/call.py (CallUnslicer.receiveClose): same
+
+	* foolscap/referenceable.py (TheirReferenceUnslicer.receiveClose):
+	use our ready_deferred to signal whether the gift resolves
+	correctly or not. If it fails, errback ready_deferred (to prevent
+	the message from being delivered without the resolved gift), but
+	callback obj_deferred with a placeholder to avoid causing too much
+	distress to the container.
+
+	* foolscap/broker.py (PBRootUnslicer.receiveChild): accept
+	ready_deferred in the InboundDelivery, stash both of them in the
+	broker.
+	(Broker.scheduleCall): rewrite inbound delivery handling: use a
+	self._call_is_running flag to prevent concurrent deliveries, and
+	wait for the ready_deferred before delivering the top-most
+	message. If the ready_deferred errbacks, that gets routed to
+	self.callFailed so the caller hears about the problem. This closes
+	ticket #2.
+
+	* foolscap/call.py (InboundDelivery): remove whenRunnable, relying
+	upon the ready_deferred to let the Broker know when the message
+	can be delivered.
+	(ArgumentUnslicer): significant cleanup, using ready_deferred.
+	Remove isReady and whenReady.
+
+	* foolscap/test/test_gifts.py (Base): factor setup code out
+	(Base.createCharacters): registerReference(tubname), for debugging
+	(Bad): add a bunch of tests to make sure that gifts which fail to
+	resolve (for various reasons) will inform the caller about the
+	problem, via an errback on the original callRemote()'s Deferred.
+
+2007-07-25  Brian Warner  <warner@lothar.com>
+
+	* foolscap/util.py (AsyncAND): new utility class, which is like
+	DeferredList but is specifically for control flow rather than data
+	flow.
+	* foolscap/test/test_util.py: test it
+
+	* foolscap/call.py (CopiedFailure.setCopyableState): set .type to
+	a class that behaves (as least as far as reflect.qual() is
+	concerned) just like the original exception class. This improves
+	the behavior of derived Failure objects, as well as trial's
+	handling of CopiedFailures that get handed to log.err().
+	CopiedFailures are now a bit more like actual Failures. See ticket
+	#4 (http://foolscap.lothar.com/trac/ticket/4) for more details.
+	(CopiedFailureSlicer): make sure that CopiedFailures can be
+	serialized, so that A-calls-B-calls-C can return a failure all
+	the way back.
+	* foolscap/test/test_call.py (TestCall.testCopiedFailure): test it
+	* foolscap/test/test_copyable.py: update to match, now we must
+	compare reflect.qual(f.type) against some extension classname,
+	rather than just f.type.
+	* foolscap/test/test_pb.py: same
+	* foolscap/test/common.py: same
+
+2007-07-15  Brian Warner  <warner@lothar.com>
+
+	* foolscap/test/test_interfaces.py (TestInterface.testStack):
+	don't look for a '/' in the stacktrace, since it won't be there
+	under windows. Thanks to 'strank'. Closes Twisted#2731.
+
+2007-06-29  Brian Warner  <warner@lothar.com>
+
+	* foolscap/__init__.py: bump revision to 0.1.4+ while between releases
+	* misc/{sid|sarge|dapper|edgy|feisty}/debian/changelog: same
+
 2007-05-14  Brian Warner  <warner@lothar.com>
 
 	* foolscap/__init__.py: release Foolscap-0.1.4

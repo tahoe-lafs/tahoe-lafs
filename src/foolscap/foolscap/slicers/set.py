@@ -9,6 +9,7 @@ from foolscap.slicer import BaseUnslicer
 from foolscap.tokens import Violation
 from foolscap.constraint import OpenerConstraint, UnboundedSchema, Any, \
      IConstraint
+from foolscap.util import AsyncAND
 
 class SetSlicer(ListSlicer):
     opentype = ("set",)
@@ -136,7 +137,7 @@ class SetUnslicer(BaseUnslicer):
     def receiveClose(self):
         ready_deferred = None
         if self._ready_deferreds:
-            ready_deferred = defer.DeferredList(self._ready_deferreds)
+            ready_deferred = AsyncAND(self._ready_deferreds)
         return self.set, ready_deferred
 
 class FrozenSetUnslicer(TupleUnslicer):

@@ -143,6 +143,20 @@ class TestCall(TargetMixin, unittest.TestCase):
         self.failUnless(f.check("string exceptions are annoying"),
                         "wrong exception type: %s" % f)
 
+    def testCopiedFailure(self):
+        # A calls B, who calls C. C fails. B gets a CopiedFailure and reports
+        # it back to A. What does a get?
+        rr, target = self.setupTarget(TargetWithoutInterfaces())
+        d = rr.callRemote("fail_remotely", target)
+        def _check(f):
+            # f should be a CopiedFailure
+            self.failUnless(isinstance(f, failure.Failure),
+                            "Hey, we didn't fail: %s" % f)
+            self.failUnless(f.check(ValueError),
+                            "wrong exception type: %s" % f)
+            self.failUnlessSubstring("you asked me to fail", f.value)
+        d.addBoth(_check)
+        return d
 
     def testCall2(self):
         # server end uses an interface this time, but not the client end

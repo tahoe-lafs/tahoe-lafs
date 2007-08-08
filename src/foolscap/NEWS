@@ -1,5 +1,66 @@
 User visible changes in Foolscap (aka newpb/pb2).           -*- outline -*-
 
+* Release 0.1.5 (07 Aug 2007)
+
+** Compatibility
+
+This release is fully compatible with 0.1.4 and 0.1.3 .
+
+** CopiedFailure improvements
+
+When a remote method call fails, the calling side gets back a CopiedFailure
+instance. These instances now behave slightly more like the (local) Failure
+objects that they are intended to mirror, in that .type now behaves much like
+the original class. This should allow trial tests which result in a
+CopiedFailure to be logged without exploding. In addition, chained failures
+(where A calls B, and B calls C, and C fails, so C's Failure is eventually
+returned back to A) should work correctly now.
+
+** Gift improvements
+
+Gifts inside return values should properly stall the delivery of the response
+until the gift is resolved. Gifts in all sorts of containers should work
+properly now. Gifts which cannot be resolved successfully (either because the
+hosting Tub cannot be reached, or because the name cannot be found) will now
+cause a proper error rather than hanging forever. Unresolvable gifts in
+method arguments will cause the message to not be delivered and an error to
+be returned to the caller. Unresolvable gifts in method return values will
+cause the caller to receive an error.
+
+** IRemoteReference() adapter
+
+The IRemoteReference() interface now has an adapter from Referenceable which
+creates a wrapper that enables the use of callRemote() and other
+IRemoteReference methods on a local object.
+
+The situation where this might be useful is when you have a central
+introducer and a bunch of clients, and the clients are introducing themselves
+to each other (to create a fully-connected mesh), and the introductions are
+using live references (i.e. Gifts), then when a specific client learns about
+itself from the introducer, that client will receive a local object instead
+of a RemoteReference. Each client will wind up with n-1 RemoteReferences and
+a single local object.
+
+This adapter allows the client to treat all these introductions as equal. A
+client that wishes to send a message to everyone it's been introduced to
+(including itself) can use:
+
+  for i in introductions:
+    IRemoteReference(i).callRemote("hello", args)
+
+In the future, if we implement coercing Guards (instead of
+compliance-asserting Constraints), then IRemoteReference will be useful as a
+guard on methods that want to insure that they can do callRemote (and
+notifyOnDisconnect, etc) on their argument.
+
+** Tub.registerNameLookupHandler
+
+This method allows a one-argument name-lookup callable to be attached to the
+Tub. This augments the table maintained by Tub.registerReference, allowing
+Referenceables to be created on the fly, or persisted/retrieved on disk
+instead of requiring all of them to be generated and registered at startup.
+
+
 * Release 0.1.4 (14 May 2007)
 
 ** Compatibility

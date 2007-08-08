@@ -53,3 +53,4 @@ docs:
 	lore -p --config template=$(DOC_TEMPLATE) --config ext=.html \
 	`find doc -name '*.xhtml'`
 
+

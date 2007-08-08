@@ -1,6 +1,6 @@
 
 from twisted.trial import unittest
-from twisted.python import components, failure
+from twisted.python import components, failure, reflect
 from foolscap.test.common import TargetMixin, HelperTarget
 
 from foolscap import copyable, tokens
@@ -121,13 +121,15 @@ class Copyable(TargetMixin, unittest.TestCase):
     def _testFailure1_1(self, (f,)):
         #print "CopiedFailure is:", f
         #print f.__dict__
-        self.failUnlessEqual(f.type, "exceptions.RuntimeError")
+        self.failUnlessEqual(reflect.qual(f.type), "exceptions.RuntimeError")
+        self.failUnless(f.check, RuntimeError)
         self.failUnlessEqual(f.value, "message here")
         self.failUnlessEqual(f.frames, [])
         self.failUnlessEqual(f.tb, None)
         self.failUnlessEqual(f.stack, [])
         # there should be a traceback
-        self.failUnless(f.traceback.find("raise RuntimeError") != -1)
+        self.failUnless(f.traceback.find("raise RuntimeError") != -1,
+                        "no 'raise RuntimeError' in '%s'" % (f.traceback,))
 
     def testFailure2(self):
         self.callingBroker.unsafeTracebacks = False
@@ -141,7 +143,8 @@ class Copyable(TargetMixin, unittest.TestCase):
     def _testFailure2_1(self, (f,)):
         #print "CopiedFailure is:", f
         #print f.__dict__
-        self.failUnlessEqual(f.type, "exceptions.RuntimeError")
+        self.failUnlessEqual(reflect.qual(f.type), "exceptions.RuntimeError")
+        self.failUnless(f.check, RuntimeError)
         self.failUnlessEqual(f.value, "message here")
         self.failUnlessEqual(f.frames, [])
         self.failUnlessEqual(f.tb, None)
