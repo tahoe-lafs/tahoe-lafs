@@ -4,7 +4,7 @@
 # most recent version authored by Zooko O'Whielacronx, working for Allmydata
 
 # from the Python Standard Library
-import re, socket, sys
+import os, re, socket, sys
 
 # from Twisted
 from twisted.internet import defer
@@ -12,6 +12,9 @@ from twisted.internet import reactor
 from twisted.internet.protocol import DatagramProtocol
 from twisted.internet.utils import getProcessOutput
 from twisted.python.procutils import which
+
+# from allmydata.util
+import observer
 
 def get_local_addresses_async(target='A.ROOT-SERVERS.NET'):
     """
@@ -46,7 +49,7 @@ def get_local_addresses_async(target='A.ROOT-SERVERS.NET'):
 def get_local_ip_for(target):
     """Find out what our IP address is for use by a given target.
 
-    @returns:the IP address as a dotted-quad string which could be used by
+    @return: the IP address as a dotted-quad string which could be used by
               to connect to us. It might work for them, it might not. If
               there is no suitable address (perhaps we don't currently have an
               externally-visible interface), this will return None.
@@ -112,6 +115,40 @@ _irix_path = '/usr/etc/ifconfig'
 # Solaris 2.x
 _sunos_path = '/usr/sbin/ifconfig'
 
+class SequentialTrier(object):
+    """ I hold a list of executables to try and try each one in turn
+    until one gives me a list of IP addresses."""
+
+    def __init__(self, exebasename, args, regex):
+        assert not os.path.isabs(exebasename)
+        self.exes_left_to_try = which(exebasename)
+        self.exes_left_to_try.reverse()
+        self.args = args
+        self.regex = regex
+        self.o = observer.OneShotObserverList()
+        self._try_next()
+
+    def _try_next(self):
+        if not self.exes_left_to_try:
+            self.o.fire(None)
+        else:
+            exe = self.exes_left_to_try.pop()
+            d2 = _query(exe, self.args, self.regex)
+
+            def cb(res):
+                if res:
+                    self.o.fire(res)
+                else:
+                    self._try_next()
+
+            def eb(why):
+                self._try_next()
+
+            d2.addCallbacks(cb, eb)
+
+    def when_tried(self):
+        return self.o.when_fired()
+    
 # k: platform string as provided in the value of _platform_map
 # v: tuple of (path_to_tool, args, regex,)
 _tool_map = {
@@ -130,22 +167,17 @@ def _find_addresses_via_config():
         raise UnsupportedPlatformError(sys.platform)
 
     (pathtotool, args, regex,) = _tool_map[platform]
-    
-    l = []
-    for executable in which(pathtotool):
-        l.append(_query(executable, args, regex))
-    dl = defer.DeferredList(l)
-    def _gather_results(res):
-        addresses = []
-        for (succ, addrs,) in res:
-            if succ:
-                for addr in addrs:
-                    if addr not in addresses:
-                        addresses.append(addr)
-        return addresses
-    dl.addCallback(_gather_results)
-    return dl
 
+    # If pathtotool is a fully qualified path then we just try that.
+    # If it is merely an executable name then we use Twisted's
+    # "which()" utility and try each executable in turn until one
+    # gives us something that resembles a dotted-quad IPv4 address.
+
+    if os.path.isabs(pathtotool):
+        return _query(pathtotool, args, regex)
+    else:
+        return SequentialTrier(pathtotool, args, regex).when_tried()
+        
 def _query(path, args, regex):
     d = getProcessOutput(path, args)
     def _parse(output):
