@@ -171,10 +171,10 @@ Running-In-Place Way.  Choose one:
 
   The Python Way is to execute "setup.py install" for each Python package.
 
-  You'll need to run "setup.py install" four separate times, one for each of
-  the four subpackages (allmydata, allmydata.Crypto, foolscap, and zfec).
+  You'll need to run "setup.py install" five separate times, one for each of
+  the five subpackages (allmydata, allmydata.Crypto, foolscap, simplejson, and zfec).
 
-    for PACKAGE in zfec Crypto foolscap ; do
+    for PACKAGE in zfec Crypto foolscap simplejson; do
       cd src/${PACKAGE} && python setup.py install && cd ../..
     done
 
