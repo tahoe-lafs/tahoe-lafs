@@ -890,7 +890,7 @@ class _ActionsContainer(object):
                  description,
                  conflict_handler):
         superinit = super(_ActionsContainer, self).__init__
-        superinit(description=description)
+        superinit()
 
         self.description = description
         self.conflict_handler = conflict_handler
