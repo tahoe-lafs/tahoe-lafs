@@ -154,7 +154,9 @@ There are three ways to do it.  Choose one:
  The Python Way:
 
   Just run make install.
-  If case you want to configure the location or other install options you can learn how it is done here:
+
+  In case you want to configure the location or other install options you can
+  learn how it is done here:
 
   The Python Way is to execute "setup.py install" for each Python package.
 
