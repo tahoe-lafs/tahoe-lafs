@@ -216,6 +216,7 @@ install:
 	cd src/zfec && python ./setup.py install && cd ../..
 	cd src/foolscap && python ./setup.py install && cd ../..
 	cd src/Crypto && python ./setup.py install && cd ../..
+	cd src/simplejson && python ./setup.py install && cd ../..
 	python ./setup.py install
 
 
