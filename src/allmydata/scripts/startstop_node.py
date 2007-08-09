@@ -91,7 +91,14 @@ def do_stop(basedir, config, out=sys.stdout, err=sys.stderr):
     pid = int(pid)
 
     timer = 0
-    os.kill(pid, signal.SIGTERM)
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except OSError, oserr:
+        if oserr.errno == 3:
+            print oserr.strerror
+            return 1
+        else:
+            raise
     time.sleep(0.1)
     while timer < 5:
         # poll once per second until twistd.pid goes away, up to 5 seconds
