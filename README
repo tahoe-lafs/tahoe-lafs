@@ -241,7 +241,7 @@ RUNNING:
  --basedir $HERE'.  After that, the client node should be off and running.
  The first thing it will do is connect to the introducer and introduce itself
  to all other nodes on the grid.  You can follow its progress by looking at
- the $HERE/twistd.log file.
+ the $HERE/logs/twistd.log file.
 
  To actually use the client, enable the web interface by writing a port
  number (like "8080") into a file named $HERE/webport and then restarting the
