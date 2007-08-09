@@ -2,6 +2,7 @@
 import os, sys, signal, time, subprocess
 from twisted.python import usage
 from allmydata.scripts.common import BasedirMixin
+from allmydata.util import fileutil
 from twisted.python.procutils import which
 
 class StartOptions(BasedirMixin, usage.Options):
@@ -70,7 +71,7 @@ def do_start(basedir, config, out=sys.stdout, err=sys.stderr):
             print >>err, " in fact, it doesn't look like a directory at all!"
         sys.exit(1)
     twistd = find_twistd()
-    os.mkdir(os.path.join(basedir, "logs"))
+    fileutil.make_dirs(os.path.join(basedir, "logs"))
     cmd = ["python", twistd, "-y", tac, "--logfile", "logs/twistd.log"]
     rc = subprocess.call(cmd, cwd=basedir)
     if rc == 0:
