@@ -336,6 +336,72 @@ def encode_file(inf, cb, k, m, chunksize=4096):
         res = enc.encode(l)
         cb(res, indatasize)
 
+import sha
+def encode_file_not_really(inf, cb, k, m, chunksize=4096):
+    enc = zfec.Encoder(k, m)
+    l = tuple([ array.array('c') for i in range(k) ])
+    indatasize = k*chunksize # will be reset to shorter upon EOF
+    eof = False
+    ZEROES=array.array('c', ['\x00'])*chunksize
+    while not eof:
+        # This loop body executes once per segment.
+        i = 0
+        while (i<len(l)):
+            # This loop body executes once per chunk.
+            a = l[i]
+            del a[:]
+            try:
+                a.fromfile(inf, chunksize)
+                i += 1
+            except EOFError:
+                eof = True
+                indatasize = i*chunksize + len(a)
+                
+                # padding
+                a.fromstring("\x00" * (chunksize-len(a)))
+                i += 1
+                while (i<len(l)):
+                    a = l[i]
+                    a[:] = ZEROES
+                    i += 1
+
+        # res = enc.encode(l)
+        cb(None, None)
+
+def encode_file_not_really_and_hash(inf, cb, k, m, chunksize=4096):
+    hasher = sha.new()
+    enc = zfec.Encoder(k, m)
+    l = tuple([ array.array('c') for i in range(k) ])
+    indatasize = k*chunksize # will be reset to shorter upon EOF
+    eof = False
+    ZEROES=array.array('c', ['\x00'])*chunksize
+    while not eof:
+        # This loop body executes once per segment.
+        i = 0
+        while (i<len(l)):
+            # This loop body executes once per chunk.
+            a = l[i]
+            del a[:]
+            try:
+                a.fromfile(inf, chunksize)
+                i += 1
+            except EOFError:
+                eof = True
+                indatasize = i*chunksize + len(a)
+                
+                # padding
+                a.fromstring("\x00" * (chunksize-len(a)))
+                i += 1
+                while (i<len(l)):
+                    a = l[i]
+                    a[:] = ZEROES
+                    i += 1
+
+        # res = enc.encode(l)
+        for thing in l:
+            hasher.update(thing)
+        cb(None, None)
+
 def encode_file_stringy(inf, cb, k, m, chunksize=4096):
     """
     Read in the contents of inf, encode, and call cb with the results.
