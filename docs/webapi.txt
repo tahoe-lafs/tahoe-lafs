@@ -73,8 +73,8 @@ for files and directories which do not yet exist.
   from the body of the HTTP request. For convenience, the HTTP response
   contains the URI that results from uploading the file, although the client
   is not obligated to do anything with the URI. According to the HTTP/1.1
-  specification (rfc2068), this should return a 200 (OK) code when modifying
-  and existing file, and a 201 (Created) code when creating a new file.
+  specification (rfc2616), this should return a 200 (OK) code when modifying
+  an existing file, and a 201 (Created) code when creating a new file.
 
   To use this, run 'curl -T localfile http://localhost:8011/vdrive/global/newfile'
 
