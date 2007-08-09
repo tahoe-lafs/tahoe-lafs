@@ -172,7 +172,8 @@ Running-In-Place Way.  Choose one:
   The Python Way is to execute "setup.py install" for each Python package.
 
   You'll need to run "setup.py install" five separate times, one for each of
-  the five subpackages (allmydata, allmydata.Crypto, foolscap, simplejson, and zfec).
+  the five subpackages (allmydata, allmydata.Crypto, foolscap, simplejson,
+  and zfec).
 
     for PACKAGE in zfec Crypto foolscap simplejson; do
       cd src/${PACKAGE} && python setup.py install && cd ../..
@@ -212,12 +213,12 @@ TESTING THAT IT IS PROPERLY INSTALLED
 
 RUNNING:
 
- If you installed one of the debian packages constructed by "make deb-*", or installed "The Python Way", 
- then it creates an 'allmydata-tahoe' executable, usually in /usr/bin .
- Else, you can find allmydata-tahoe in ./instdir/bin/ .  This tool is used to
- create, start, and stop nodes.  Each node lives in a separate base
- directory, inside of which you can add files to configure and control the
- node.  Nodes also read and write files within that directory.
+ If you installed one of the debian packages constructed by "make deb-*", or
+ installed "The Python Way", then it creates an 'allmydata-tahoe' executable,
+ usually in /usr/bin . Else, you can find allmydata-tahoe in ./instdir/bin/ .
+ This tool is used to create, start, and stop nodes.  Each node lives in a
+ separate base directory, inside of which you can add files to configure and
+ control the node.  Nodes also read and write files within that directory.
 
  A grid consists of a single central 'introducer and vdrive' node and one or
  more 'client' nodes.  If you are joining an existing grid, the
