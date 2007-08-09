@@ -8,7 +8,7 @@ virtual drive, and the application that sits on top.
 
 The lowest layer is the "grid", basically a DHT (Distributed Hash Table)
 which maps URIs to data. The URIs are relatively short ascii strings
-(currently about 140 bytes), and each is used as references to an immutable
+(currently about 140 bytes), and each is used as a reference to an immutable
 arbitrary-length sequence of data bytes. This data is distributed around the
 grid in a large number of nodes, such that a statistically unlikely number
 of nodes would have to be unavailable for the data to become unavailable.
