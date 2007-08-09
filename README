@@ -212,7 +212,7 @@ TESTING THAT IT IS PROPERLY INSTALLED
 
 RUNNING:
 
- If you installed one of the debian packages constructed by "make deb-*",
+ If you installed one of the debian packages constructed by "make deb-*", or installed "The Python Way", 
  then it creates an 'allmydata-tahoe' executable, usually in /usr/bin .
  Else, you can find allmydata-tahoe in ./instdir/bin/ .  This tool is used to
  create, start, and stop nodes.  Each node lives in a separate base
