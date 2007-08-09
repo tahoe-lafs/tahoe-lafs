@@ -306,10 +306,10 @@ this file are ignored.
             d.addCallback(_print_usage)
         d.addCallback(self.stash_stats, "10MB")
 
-        #for i in range(1):
-        #    d.addCallback(_do_upload, size=50*MB+i)
-        #    d.addCallback(_print_usage)
-        #d.addCallback(self.stash_stats, "50MB")
+        for i in range(3):
+            d.addCallback(_do_upload, size=50*MB+i)
+            d.addCallback(_print_usage)
+        d.addCallback(self.stash_stats, "50MB")
 
         #d.addCallback(self.stall)
         def _done(res):
