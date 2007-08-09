@@ -59,8 +59,9 @@ class IntroducerClient(service.Service, Referenceable):
         self.introducer_reconnector = self.tub.connectTo(self.introducer_furl,
                                                          self._got_introducer)
         def connect_failed(failure):
-            self.log("\n\nInitial Introducer connection failed: perhaps it's down\n")
-            log.err(failure)
+            self.log("\n\nInitial Introducer connection failed: "
+                     "perhaps it's down\n")
+            self.log(str(failure))
         d = self.tub.getReference(self.introducer_furl)
         d.addErrback(connect_failed)
 

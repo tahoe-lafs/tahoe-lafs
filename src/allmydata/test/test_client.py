@@ -2,6 +2,7 @@
 import os
 from twisted.trial import unittest
 from twisted.application import service
+from twisted.internet import reactor, defer
 
 import allmydata
 from allmydata import client, introducer
@@ -133,6 +134,11 @@ class Run(unittest.TestCase):
         open(os.path.join(basedir, "suicide_prevention_hotline"), "w")
         c = client.Client(basedir)
 
+    def stall(self, res=None, delay=1):
+        d = defer.Deferred()
+        reactor.callLater(delay, d.callback, res)
+        return d
+
     def test_reloadable(self):
         basedir = "test_client.Run.test_reloadable"
         os.mkdir(basedir)
@@ -141,7 +147,8 @@ class Run(unittest.TestCase):
         c1 = client.Client(basedir)
         c1.setServiceParent(self.sparent)
 
-        d = c1.disownServiceParent()
+        d = self.stall(delay=0.1)
+        d.addCallback(lambda res: c1.disownServiceParent())
         def _restart(res):
             c2 = client.Client(basedir)
             c2.setServiceParent(self.sparent)
