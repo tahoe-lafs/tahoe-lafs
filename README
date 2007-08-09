@@ -23,6 +23,13 @@ LICENCE:
  this obligation for up to 12 months.  See the COPYING file for details.
 
 
+GETTING PRECOMPILED BINARIES:
+
+See http://allmydata.org .  Currently pre-compiled binaries are available
+only for Debian or Ubuntu.  For any other platform you have to build it
+yourself from source, which is what this text file is all about.
+
+
 GETTING THE SOURCE CODE:
 
 The code is available via darcs by running the following command:
