@@ -29,6 +29,11 @@ The code is available via darcs by running the following command:
 
 darcs get http://allmydata.org/source/tahoe/trunk tahoe
 
+This will create a directory named "tahoe" in the current working directory
+and put a copy of the latest source code into it.  Later, if you want to get
+any new changes, then cd into that directory and run the command "darcs
+pull".
+
 Tarballs of sources are available at:
 
 http://allmydata.org/source/tahoe/
