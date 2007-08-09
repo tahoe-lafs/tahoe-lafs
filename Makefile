@@ -114,8 +114,8 @@ stop-introducer: build
 
 .PHONY: test-all test test-foolscap test-figleaf figleaf-output
 
-# you can use 'make test TEST=allmydata.test.test_introducer' to run just a
-# specific test. TEST=allmydata.test.test_client.Basic.test_permute works
+# you can use 'make test TEST=allmydata.test.test_introducer' to run just
+# test_introducer. TEST=allmydata.test.test_client.Basic.test_permute works
 # too.
 TEST=allmydata zfec
 REPORTER=
