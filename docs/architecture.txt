@@ -24,7 +24,7 @@ Allmydata uses this for a backup service, in which the application copies the
 files to be backed up from the local disk into the virtual drive on a
 periodic basis. By providing read-only access to the same virtual drive
 later, a user can recover older versions of their files. Other sorts of
-applications can run on top of the virtual drive, of course, anything that
+applications can run on top of the virtual drive, of course -- anything that
 has a use for a secure, robust, distributed filestore.
 
 Note: some of the description below indicates design targets rather than
@@ -71,8 +71,7 @@ connectivity to participate. In the current release, nodes behind NAT boxes
 will connect to all nodes that they can open connections to, but they cannot
 open connections to other nodes behind NAT boxes.  Therefore, the more nodes
 there are behind NAT boxes the less the topology resembles the intended
-fully-connected mesh topology.  (See also
-http://allmydata.org/trac/tahoe/ticket/22 ).
+fully-connected mesh topology.
 
 
 FILE ENCODING
@@ -84,12 +83,11 @@ segments so it can be processed in small pieces (to minimize the memory
 footprint of both encode and decode operations, and to increase the so-called
 "alacrity": how quickly can the download operation provide validated data to
 the user, basically the lag between hitting "play" and the movie actually
-starting). Each segment is erasure coded, which creates encoded blocks that
-are larger than the input segment, such that only a subset of the output
-blocks are required to reconstruct the segment. These blocks are then
-combined into "shares", such that a subset of the shares can be used to
-reconstruct the whole file. The shares are then deposited in StorageServers
-in other peers.
+starting). Each segment is erasure coded, which creates encoded blocks such
+that only a subset of them are required to reconstruct the segment. These
+blocks are then combined into "shares", such that a subset of the shares can
+be used to reconstruct the whole file. The shares are then deposited in
+StorageServers in other peers.
 
 A tagged hash of the encryption key is used to form the "storage index",
 which is used for both peer selection (described below) and to index shares
