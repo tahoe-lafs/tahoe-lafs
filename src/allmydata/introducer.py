@@ -112,8 +112,8 @@ class IntroducerClient(service.Service, Referenceable):
         self.log(" introducing ourselves: %s, %s" % (self, self.my_furl))
         self._connected = True
         d = introducer.callRemote("hello",
-                             node=self,
-                             furl=self.my_furl)
+                                  node=self,
+                                  furl=self.my_furl)
         introducer.notifyOnDisconnect(self._disconnected)
 
     def _disconnected(self):

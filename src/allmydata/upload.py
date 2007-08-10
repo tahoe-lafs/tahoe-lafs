@@ -88,7 +88,8 @@ class Tahoe3PeerSelector:
 
     def get_shareholders(self, client,
                          storage_index, share_size, block_size,
-                         num_segments, total_shares, shares_of_happiness):
+                         num_segments, total_shares, shares_of_happiness,
+                         push_to_ourselves):
         """
         @return: a set of PeerTracker instances that have agreed to hold some
             shares for us
@@ -99,8 +100,9 @@ class Tahoe3PeerSelector:
 
         # we are responsible for locating the shareholders. self._encoder is
         # responsible for handling the data and sending out the shares.
-        peers = client.get_permuted_peers(storage_index)
-        assert peers
+        peers = client.get_permuted_peers(storage_index, push_to_ourselves)
+
+        assert peers, "peer selection left us with zero peers for our data"
 
         # this needed_hashes computation should mirror
         # Encoder.send_all_share_hash_trees. We use an IncompleteHashTree
@@ -398,10 +400,11 @@ class CHKUploader:
         block_size = encoder.get_param("block_size")
         num_segments = encoder.get_param("num_segments")
         k,desired,n = encoder.get_param("share_counts")
+        push_to_ourselves = self._options.get("push_to_ourselves", False)
 
         gs = peer_selector.get_shareholders
         d = gs(self._client, storage_index, share_size, block_size,
-               num_segments, n, desired)
+               num_segments, n, desired, push_to_ourselves)
         return d
 
     def set_shareholders(self, used_peers, encoder):
@@ -554,6 +557,10 @@ class Uploader(service.MultiService):
         # this returns the URI
         assert self.parent
         assert self.running
+        push_to_ourselves = self.parent.get_push_to_ourselves()
+        if push_to_ourselves is not None:
+            options["push_to_ourselves"] = push_to_ourselves
+
         uploadable = IUploadable(uploadable)
         d = uploadable.get_size()
         def _got_size(size):

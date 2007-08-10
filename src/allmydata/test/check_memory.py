@@ -161,6 +161,10 @@ this file are ignored.
             f = open(os.path.join(clientdir, "debug_no_storage"), "w")
             f.write("no_storage\n")
             f.close()
+        if self.mode == "upload-self":
+            f = open(os.path.join(clientdir, "push_to_ourselves"), "w")
+            f.write("push_to_ourselves\n")
+            f.close()
         self.keepalive_file = os.path.join(clientdir,
                                            "suicide_prevention_hotline")
         # now start updating the mtime.
@@ -273,7 +277,7 @@ this file are ignored.
             name = '%d' % size
             print
             print "uploading %s" % name
-            if self.mode == "upload":
+            if self.mode in ("upload", "upload-self"):
                 files[name] = self.create_data(name, size)
                 d = control.callRemote("upload_from_file_to_uri", files[name])
                 def _done(uri):

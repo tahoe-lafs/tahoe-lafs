@@ -129,9 +129,11 @@ class FakeBucketWriter:
 class FakeClient:
     def __init__(self, mode="good"):
         self.mode = mode
-    def get_permuted_peers(self, storage_index):
+    def get_permuted_peers(self, storage_index, include_myself):
         return [ ("%20d"%fakeid, "%20d"%fakeid, FakePeer(self.mode),)
                  for fakeid in range(50) ]
+    def get_push_to_ourselves(self):
+        return None
     def get_encoding_parameters(self):
         return None
 

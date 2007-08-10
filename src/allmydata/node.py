@@ -36,6 +36,8 @@ class Node(service.MultiService):
         self.tub = Tub(certFile=certfile)
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)
+        # I think self.nodeid is kind of whacked. Shouldn't it equal the
+        # fingerprint portion of our furl?
         self.nodeid = b32encode(self.tub.tubID).lower()
         f = open(os.path.join(self.basedir, self.NODEIDFILE), "w")
         f.write(b32encode(self.nodeid).lower() + "\n")

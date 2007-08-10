@@ -1,5 +1,6 @@
 
 import os, sha, stat, time, re
+from base64 import b32decode
 from foolscap import Referenceable, SturdyRef
 from zope.interface import implements
 from allmydata.interfaces import RIClient
@@ -29,6 +30,7 @@ class Client(node.Node, Referenceable):
     MY_FURL_FILE = "myself.furl"
     SUICIDE_PREVENTION_HOTLINE_FILE = "suicide_prevention_hotline"
     SIZELIMIT_FILE = "sizelimit"
+    PUSH_TO_OURSELVES_FILE = "push_to_ourselves"
 
     # we're pretty narrow-minded right now
     OLDEST_SUPPORTED_VERSION = allmydata.__version__
@@ -38,6 +40,7 @@ class Client(node.Node, Referenceable):
         self.my_furl = None
         self.introducer_client = None
         self.init_storage()
+        self.init_options()
         self.add_service(Uploader())
         self.add_service(Downloader())
         self.add_service(VirtualDrive())
@@ -86,6 +89,12 @@ class Client(node.Node, Referenceable):
         NOSTORAGE_FILE = os.path.join(self.basedir, "debug_no_storage")
         no_storage = os.path.exists(NOSTORAGE_FILE)
         self.add_service(StorageServer(storedir, sizelimit, no_storage))
+
+    def init_options(self):
+        self.push_to_ourselves = None
+        filename = os.path.join(self.basedir, self.PUSH_TO_OURSELVES_FILE)
+        if os.path.exists(filename):
+            self.push_to_ourselves = True
 
     def _check_hotline(self, hotline_file):
         if os.path.exists(hotline_file):
@@ -141,17 +150,24 @@ class Client(node.Node, Referenceable):
             return []
         return self.introducer_client.get_all_peerids()
 
-    def get_permuted_peers(self, key):
+    def get_permuted_peers(self, key, include_myself=True):
         """
         @return: list of (permuted-peerid, peerid, connection,)
         """
         results = []
+        myid = b32decode(self.tub.tubID.upper())
         for peerid, connection in self.introducer_client.get_all_peers():
             assert isinstance(peerid, str)
+            if not include_myself and peerid == myid:
+                self.log("get_permuted_peers: removing myself from the list")
+                continue
             permuted = bytes_to_long(sha.new(key + peerid).digest())
             results.append((permuted, peerid, connection))
         results.sort()
         return results
+
+    def get_push_to_ourselves(self):
+        return self.push_to_ourselves
 
     def get_encoding_parameters(self):
         if not self.introducer_client:
