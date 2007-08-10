@@ -28,6 +28,8 @@ contain the following directories and files:
  private/
  private/Pictures/
  private/Pictures/tractors.jpg
+ private/Pictures/family/
+ private/Pictures/family/bobby.jpg
 
 
 Within the webserver, there is a tree of resources. The top-level "vdrive"
@@ -231,6 +233,7 @@ allmydata.org uri format to relieve the user of this requirement.
 
  GET $URI_URL
  GET $URI_URL?t=json
+ GET $URI_URL?t=uri
  GET $URI_URL?t=readonly-uri
 
   These each behave the same way that their name-based URL equivalent does,
@@ -239,15 +242,28 @@ allmydata.org uri format to relieve the user of this requirement.
   parent directories as it does with the name-based URLs, since a URI
   uniquely identifies an object regardless of its location.
 
-  Since files accessed this way do not have a filename (from which a
+  Since files accessed directly this way do not have a filename (from which a
   MIME-type can be derived), one can be specified using a 'filename=' query
   argument. This filename is also the one used if the 'save=true' argument is
-  set.
+  set. For example:
+
+   GET http://localhost:8011/uri/$TRACTORS_URI?filename=tractors.jpg
+
+  If the URI represents a directory, you can append additional path segments
+  to $URI_URL to access children of that directory. For example, if we first
+  obtained the URI of the "private/Pictures" directory by doing:
+
+   GET http://localhost:8011/vdrive/private/Pictures?t=uri   -> PICTURES_URI
+
+  then we could download "private/Pictures/family/bobby.jpg" by fetching:
+
+   GET http://localhost:8011/uri/$PICTURES_URI/family/bobby.jpg
 
   Note that since the $URI_URL already contains the URI, the only use for the
   "?t=readonly-uri" command is if the thing identified is a directory and you
   have read-write access to it and you want to get a URI which provides
-  read-only access to it.
+  read-only access to it. "?t=uri" is completely redundant but included for
+  completeness.
 
  GET http://localhost:8011/uri?uri=$URI
 
@@ -256,7 +272,7 @@ allmydata.org uri format to relieve the user of this requirement.
   forms which allow the user to paste in a URI (obtained through some
   out-of-band channel, like IM or email).
 
-  Note that this form only redirects to the specific node indicated by the
+  Note that this form merely redirects to the specific node indicated by the
   URI: unlike the GET /uri/$URI form, you cannot traverse to child nodes by
   appending additional path segments to the URL.
 
@@ -265,7 +281,7 @@ allmydata.org uri format to relieve the user of this requirement.
   described above.
 
 
-== TOCTTOU bugs ==
+== Time-Of-Check-To-Time-Of-Use ("TOCTTOU") bugs ==
 
 Note that since directories are mutable you can get surprises if you query
 the vdrive, e.g. "GET $URL?t=json", examine the resulting JSON-encoded
@@ -308,8 +324,9 @@ reaches the server".  Use URIs if you want "this particular object".
 If you are basing your decision to fetch from or update the vdrive on
 filesystem information that was returned by an earlier query, then you
 usually intend to fetch or update the particular object that was in that
-location when you queried it, rather than whatever object is going to be in
-that location when your request reaches the server.
+location when you first queried it, rather than whatever object is going to
+be in that location when your subsequent fetch request finally reaches the
+server.
 
 
 == POST forms ==
