@@ -19,8 +19,7 @@
 # since it imports a utility module from allmydata.utils .
 
 import os, sys
-
-from allmydata.util import fileutil
+import commands
 
 nodedirs = []
 for k,v in os.environ.items():
@@ -48,6 +47,11 @@ if len(sys.argv) > 1:
         sys.exit(0)
 
 for nodename, basedir in nodedirs:
-    usage = fileutil.du(os.path.join(basedir, "storage"))
+    cmd = "du --bytes --summarize %s" % os.path.join(basedir, "storage")
+    rc,out = commands.getstatusoutput(cmd)
+    if rc != 0:
+        sys.exit(rc)
+    bytes, extra = out.split()
+    usage = int(bytes)
     print "%s.value %d" % (nodename, usage)
 
