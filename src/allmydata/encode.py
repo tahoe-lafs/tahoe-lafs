@@ -3,6 +3,7 @@
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import log
+from foolscap import eventual
 from allmydata import uri
 from allmydata.hashtree import HashTree
 from allmydata.util import mathutil, hashutil
@@ -212,8 +213,9 @@ class Encoder(object):
         # that we sent to that landlord.
         self.share_root_hashes = [None] * self.num_shares
 
-        d = defer.maybeDeferred(self._uploadable.set_segment_size,
-                                self.segment_size)
+        d = eventual.fireEventually()
+        d.addCallback(lambda res:
+                      self._uploadable.set_segment_size(self.segment_size))
 
         for l in self.landlords.values():
             d.addCallback(lambda res, l=l: l.start())
@@ -225,9 +227,11 @@ class Encoder(object):
             # use this form instead:
             d.addCallback(lambda res, i=i: self._encode_segment(i))
             d.addCallback(self._send_segment, i)
+            d.addCallback(self._turn_barrier)
         last_segnum = self.num_segments - 1
         d.addCallback(lambda res: self._encode_tail_segment(last_segnum))
         d.addCallback(self._send_segment, last_segnum)
+        d.addCallback(self._turn_barrier)
 
         d.addCallback(lambda res: self.finish_hashing())
 
@@ -242,6 +246,16 @@ class Encoder(object):
         d.addCallback(lambda res: self.close_all_shareholders())
         d.addCallbacks(lambda res: self.done(), self.err)
         return d
+
+    def _turn_barrier(self, res):
+        # putting this method in a Deferred chain imposes a guaranteed
+        # reactor turn between the pre- and post- portions of that chain.
+        # This can be useful to limit memory consumption: since Deferreds do
+        # not do tail recursion, code which uses defer.succeed(result) for
+        # consistency will cause objects to live for longer than you might
+        # normally expect.
+
+        return eventual.fireEventually(res)
 
     def _encode_segment(self, segnum):
         codec = self._codec
