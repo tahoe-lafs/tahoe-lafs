@@ -184,6 +184,10 @@ nothing exists.
 
 === directories by name ===
 
+ GET $URL?t=manifest 
+
+  Return an HTML-formatted manifest of the given directory, for debugging. 
+
  PUT $NEWURL?t=mkdir
 
   Create a new empty directory at the given path. The HTTP response contains
