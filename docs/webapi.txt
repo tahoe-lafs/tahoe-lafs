@@ -122,6 +122,14 @@ nothing exists.
   (Currently all files are immutable so everyone has read-only access to all
   files.)
 
+ GET $URL?t=download&localfile=$LOCALPATH 
+
+  This instructs the node to download the given file or directory and write 
+  it into the local filesystem at $LOCALPATH. This request will only be 
+  accepted from an HTTP client connection originating at 127.0.0.1 . This 
+  request is most useful when the client node and the HTTP client are 
+  operated by the same user. $LOCALPATH should be an absolute pathname. 
+ 
  PUT $URL?t=uri
 
   This attaches a child (either a file or a directory) to the vdrive at the
@@ -129,6 +137,26 @@ nothing exists.
   request. This can be used to attach a shared directory to the
   vdrive. Intermediate directories are created on-demand just like with the
   regular PUT command.
+
+ PUT $NEWURL?t=upload&localfile=$LOCALPATH 
+ 
+  This uploads a file or directory from the node's local filesystem to the 
+  vdrive.  As with "GET $URL?t=download&localfile=$LOCALPATH", this request 
+  will only be accepted from an HTTP connection originating from 127.0.0.1. 
+ 
+  If $LOCALPATH points to a directory on the node's local filesystem, then 
+  the node performs a recursive upload of the directory into the vdrive at 
+  the given location. $NEWURL will be created if necessary. When the 
+  operation is complete, the directory referenced by $NEWURL will contain all 
+  of the files and directories that were present in $LOCALPATH, so this is 
+  equivalent to the unix commands: 
+ 
+   mkdir -p $NEWURL; cp -r $LOCALPATH/* $NEWURL/ 
+ 
+  Note that the "curl" utility can be used to provoke this sort of recursive 
+  upload, since the -T option will make it use an HTTP 'PUT': 
+ 
+   curl -T /dev/null 'http://localhost:8011/vdrive/global/newdir?t=upload&localdir=/home/user/directory-to-upload' 
 
  DELETE $URL
 
