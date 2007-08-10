@@ -1,13 +1,13 @@
 == connecting to the tahoe node ==
 
-Writing "8011" into NODEDIR/webport causes the node to run a webserver on
-port 8011. Writing "tcp:8011:interface=127.0.0.1" into NODEDIR/webport does
+Writing "8011" into $NODEDIR/webport causes the node to run a webserver on
+port 8011. Writing "tcp:8011:interface=127.0.0.1" into $NODEDIR/webport does
 the same but binds to the loopback interface, ensuring that only the programs
 on the local host can connect. Using
 "ssl:8011:privateKey=mykey.pem:certKey=cert.pem" would run an SSL server. See
 twisted.application.strports for more details.
 
-If NODEDIR/webpassword exists, it will be used (somehow) to require HTTP
+If $NODEDIR/webpassword exists, it will be used (somehow) to require HTTP
 Digest Authentication for all webserver connections.  XXX specify how
 
 
@@ -44,7 +44,7 @@ In addition, each directory has a corresponding URL. The Pictures URL is:
 
 http://localhost:8011/vdrive/private/Pictures
 
-Now, what can we do with these URLs? By varying the HTTP "method"
+Now, what can we do with these URLs? By varying the HTTP method
 (GET/PUT/POST/DELETE) and by appending a type-indicating query argument, we
 control how what we want to do with the data and how it should be presented.
 
@@ -108,14 +108,6 @@ nothing exists.
    Before writing code that uses these results, please see the important note
    below about TOCTTOU bugs.
 
- DELETE $URL
-
-  This deletes the given file or directory from the vdrive.  If it is a
-  directory then this deletes all of its chilren.  Note that this *does not*
-  delete any parent directories, so a sequence of 'PUT NEWURL' and 'DELETE
-  NEWURL' does not necessarily return the vdrive to its original state (it
-  may leave some intermediate directory nodes).
-
  GET $URL?t=uri
 
   This returns the URI of the given file or directory in the HTTP response
@@ -130,43 +122,24 @@ nothing exists.
   (Currently all files are immutable so everyone has read-only access to all
   files.)
 
- GET $URL?t=download&localfile=$LOCALPATH
+ PUT $URL?t=uri
 
-  This instructs the node to download the given file or directory and write
-  it into the local filesystem at $LOCALPATH. This request will only be
-  accepted from an HTTP client connection originating at 127.0.0.1 . This
-  request is most useful when the client node and the HTTP client are
-  operated by the same user. $LOCALPATH should be an absolute pathname.
+  This attaches a child (either a file or a directory) to the vdrive at the
+  given location. The URI of the child is provided in the body of the HTTP
+  request. This can be used to attach a shared directory to the
+  vdrive. Intermediate directories are created on-demand just like with the
+  regular PUT command.
 
- PUT $NEWURL?t=upload&localfile=$LOCALPATH
+ DELETE $URL
 
-  This uploads a file or directory from the node's local filesystem to the
-  vdrive.  As with "GET $URL?t=download&localfile=$LOCALPATH", this request
-  will only be accepted from an HTTP connection originating from 127.0.0.1.
-
-  If $LOCALPATH points to a directory on the node's local filesystem, then
-  the node performs a recursive upload of the directory into the vdrive at
-  the given location. $NEWURL will be created if necessary. When the
-  operation is complete, the directory referenced by $NEWURL will contain all
-  of the files and directories that were present in $LOCALPATH, so this is
-  equivalent to the unix commands:
-
-   mkdir -p $NEWURL; cp -r $LOCALPATH/* $NEWURL/
-
-  Note that the "curl" utility can be used to provoke this sort of recursive
-  upload, since the -T option will make it use an HTTP 'PUT':
-
-   curl -T /dev/null 'http://localhost:8011/vdrive/global/newdir?t=upload&localdir=/home/user/directory-to-upload'
+  This deletes the given file or directory from the vdrive.  If it is a
+  directory then this deletes all of its chilren.  Note that this *does not*
+  delete any parent directories, so a sequence of 'PUT $NEWURL' and 'DELETE
+  $NEWURL' does not necessarily return the vdrive to its original state (it
+  may leave some intermediate directory nodes).
 
 
 === files by name ===
-
- GET $URL?t=file
-
-  If the given place in the vdrive contains a file, then this simply
-  retrieves the contents of the file, exactly as described in the "GET $URL"
-  paragraph of the "Files and Directories" section.  If the given place does
-  not contain a file then this returns an error. XYZ specify the error
 
  PUT $NEWURL
 
@@ -183,10 +156,6 @@ nothing exists.
 
 === directories by name ===
 
- GET $URL?t=manifest
-
-  Return an HTML-formatted manifest of the given directory, for debugging.
-
  PUT $NEWURL?t=mkdir
 
   Create a new empty directory at the given path. The HTTP response contains
@@ -198,26 +167,26 @@ nothing exists.
   This provides a useful facility to browser-based user interfaces.  It
   returns a page containing a form targetting the "POST $URL t=rename"
   functionality described below, with the provided $CHILDNAME present in the
-  'from_name' field of that form.  i.e. this presents a form offering to
+  'from_name' field of that form.  I.e. this presents a form offering to
   rename $CHILDNAME, requesting the new name, and submitting POST rename.
 
 
 == URIs ==
 
-A separate top-level resource namespace ("uri" instead of "vdrive") is used
+A separate top-level resource namespace ("uri/" instead of "vdrive/") is used
 to get access to files and dirnodes that are indexed directly by URI, rather
 than by going through the vdrive. The resource thus referenced is used the
-same way as if it were accessed through the vdrive, (including accessing a
+same way as if it were accessed through the vdrive (including accessing a
 directory's children with "$URI/childname").
 
 For example, this identifies a file or directory:
 
 http://localhost:8011/uri/$URI
 
-And this identifies a file or directory in a subdirectory of the identified
-directory:
+And this identifies a file or directory "foo" in a subdirectory "somedir" of
+the identified directory:
 
-http://localhost:8011/uri/$URI/subdir/foo
+http://localhost:8011/uri/$URI/somedir/foo
 
 In the following examples, "$URI_URL" is a shorthand for a URL like the one
 above, with "uri/" as the top level, followed by a URI.
@@ -230,23 +199,16 @@ allmydata.org uri format to relieve the user of this requirement.
 
  GET $URI_URL
 
-  This behaves the same way a "GET $URL", described in the "files and
-  directories" section above, but which file or directory you get does not
-  depend on the contents of parent directories as it does with the name-based
-  URLs, since a URI uniquely identifies an object regardless of its location.
+  This behaves the same way that a "GET $URL" does, described in the "files
+  and directories" section above.  The difference is that which file or
+  directory you get does not depend on the contents of parent directories as
+  it does with the name-based URLs, since a URI uniquely identifies an object
+  regardless of its location.
 
-  If the URI identifies a file, then this retrieves the contents of the
-  file. Since files accessed this way do not have a filename (from which a
+  Since files accessed this way do not have a filename (from which a
   MIME-type can be derived), one can be specified using a 'filename=' query
   argument. This filename is also the one used if the 'save=true' argument is
   set.
-
- PUT $URL?t=uri
-
-  This attaches a child (either a file or a directory) to the vdrive at the
-  given location. The URI is provided in the body of the HTTP request. This
-  can be used to attach a shared directory to the vdrive. Intermediate
-  directories are created on-demand just like with the regular PUT command.
 
  GET http://localhost:8011/uri?uri=$URI
 
