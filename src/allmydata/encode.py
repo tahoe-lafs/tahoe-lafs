@@ -6,7 +6,7 @@ from twisted.python import log
 from foolscap import eventual
 from allmydata import uri
 from allmydata.hashtree import HashTree
-from allmydata.util import mathutil, hashutil
+from allmydata.util import mathutil, hashutil, idlib
 from allmydata.util.assertutil import _assert
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder, IStorageBucketWriter, \
@@ -89,6 +89,11 @@ class Encoder(object):
         self.TOTAL_SHARES = n
         self.uri_extension_data = {}
         self._codec = None
+
+    def __repr__(self):
+        if hasattr(self, "_storage_index"):
+            return "<Encoder for %s>" % idlib.b2a(self._storage_index)[:6]
+        return "<Encoder for unknown storage index>"
 
     def set_size(self, size):
         assert not self._codec
