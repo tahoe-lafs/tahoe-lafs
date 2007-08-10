@@ -154,7 +154,7 @@ class MyVirtualDrive(service.Service):
             return self._my_nodes[uri]
         return defer.maybeDeferred(_try)
 
-class WebMixin(unittest.TestCase):
+class WebMixin(object):
     def setUp(self):
         self.s = MyClient()
         self.s.startService()
@@ -367,7 +367,7 @@ class WebMixin(unittest.TestCase):
             self.fail("%s was supposed to Error(%s), not get '%s'" %
                       (which, code, res))
 
-class Web(WebMixin):
+class Web(WebMixin, unittest.TestCase):
     def test_create(self):
         pass
 
