@@ -193,6 +193,8 @@ check-memory: build
 	touch memstats.out
 	$(PP) $(PYTHON) src/allmydata/test/check_memory.py upload
 	cat _test_memory/stats.out >>memstats.out
+	$(PP) $(PYTHON) src/allmydata/test/check_memory.py upload-self
+	cat _test_memory/stats.out >>memstats.out
 	$(PP) $(PYTHON) src/allmydata/test/check_memory.py upload-POST
 	cat _test_memory/stats.out >>memstats.out
 
