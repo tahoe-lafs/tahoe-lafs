@@ -198,17 +198,24 @@ in the URI must be replaced by '!' characters.  XXX consider changing the
 allmydata.org uri format to relieve the user of this requirement.
 
  GET $URI_URL
+ GET $URI_URL?t=json
+ GET $URI_URL?t=readonly-uri
 
-  This behaves the same way that a "GET $URL" does, described in the "files
-  and directories" section above.  The difference is that which file or
-  directory you get does not depend on the contents of parent directories as
-  it does with the name-based URLs, since a URI uniquely identifies an object
-  regardless of its location.
+  These each behave the same way that their name-based URL equivalent does,
+  described in the "files and directories" section above.  The difference is
+  that which file or directory you access does not depend on the contents of
+  parent directories as it does with the name-based URLs, since a URI
+  uniquely identifies an object regardless of its location.
 
   Since files accessed this way do not have a filename (from which a
   MIME-type can be derived), one can be specified using a 'filename=' query
   argument. This filename is also the one used if the 'save=true' argument is
   set.
+
+  Note that since the $URI_URL already contains the URI, the only use for the
+  "?t=readonly-uri" command is if the thing identified is a directory and you
+  have read-write access to it and you want to get a URI which provides
+  read-only access to it.
 
  GET http://localhost:8011/uri?uri=$URI
 
