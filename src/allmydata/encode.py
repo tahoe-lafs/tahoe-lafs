@@ -384,9 +384,15 @@ class Encoder(object):
             #        (shareid, segnum, len(subshare),
             #         subshare[:50], subshare[-50:], idlib.b2a(subshare_hash)))
             self.subshare_hashes[shareid].append(subshare_hash)
+
         dl = self._gather_responses(dl)
         def _logit(res):
-            log.msg("%s uploaded %s / %s bytes of your file." % (self, self.segment_size*(segnum+1), self.segment_size*self.num_segments))
+            log.msg("%s uploaded %s / %s bytes (%d%%) of your file." %
+                    (self,
+                     self.segment_size*(segnum+1),
+                     self.segment_size*self.num_segments,
+                     100 * (segnum+1) / self.num_segments,
+                     ))
             return res
         dl.addCallback(_logit)
         return dl
