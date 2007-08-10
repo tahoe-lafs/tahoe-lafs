@@ -74,3 +74,8 @@
 
 # this file is maintained by the buildbot
 ^\.buildbot-sourcedata$
+
+# these .eggs are downloaded by ez_setup.py when it doesn't like the version
+# that is currently installed (or it is missing).
+^src/simplejson/setuptools-.*\.egg$
+^src/zfec/setuptools-.*\.egg$
