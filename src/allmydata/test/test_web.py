@@ -158,7 +158,8 @@ class WebMixin(object):
     def setUp(self):
         self.s = MyClient()
         self.s.startService()
-        s = webish.WebishServer("0")
+        self.ws = s = webish.WebishServer("0")
+        s.allow_local_access(True)
         s.setServiceParent(self.s)
         port = s.listener._port.getHost().port
         self.webish_url = "http://localhost:%d" % port
@@ -461,16 +462,31 @@ class Web(WebMixin, unittest.TestCase):
         d.addBoth(self.should404, "test_GET_FILEURL_json_missing")
         return d
 
+    def disable_local_access(self, res=None):
+        self.ws.allow_local_access(False)
+        return res
+
     def test_GET_FILEURL_localfile(self):
         localfile = os.path.abspath("web/GET_FILEURL_localfile")
+        url = "/vdrive/global/foo/bar.txt?t=download&localfile=%s" % localfile
         fileutil.make_dirs("web")
-        d = self.GET("/vdrive/global/foo/bar.txt?t=download&localfile=%s"
-                     % localfile)
+        d = self.GET(url)
         def _done(res):
             self.failUnless(os.path.exists(localfile))
             data = open(localfile, "rb").read()
             self.failUnlessEqual(data, self.BAR_CONTENTS)
         d.addCallback(_done)
+        return d
+
+    def test_GET_FILEURL_localfile_disabled(self):
+        localfile = os.path.abspath("web/GET_FILEURL_localfile_disabled")
+        url = "/vdrive/global/foo/bar.txt?t=download&localfile=%s" % localfile
+        fileutil.make_dirs("web")
+        self.disable_local_access()
+        d = self.GET(url)
+        d.addBoth(self.shouldFail, error.Error, "localfile disabled",
+                  "403 Forbidden",
+                  "local file access is disabled")
         return d
 
     def test_GET_FILEURL_localfile_nonlocal(self):
@@ -510,12 +526,12 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_PUT_NEWFILEURL_localfile(self):
         localfile = os.path.abspath("web/PUT_NEWFILEURL_localfile")
+        url = "/vdrive/global/foo/new.txt?t=upload&localfile=%s" % localfile
         fileutil.make_dirs("web")
         f = open(localfile, "wb")
         f.write(self.NEWFILE_CONTENTS)
         f.close()
-        d = self.PUT("/vdrive/global/foo/new.txt?t=upload&localfile=%s" %
-                     localfile, "")
+        d = self.PUT(url, "")
         def _check(res):
             self.failUnless("new.txt" in self._foo_node.children)
             new_uri = self._foo_node.children["new.txt"]
@@ -523,6 +539,20 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
             self.failUnlessEqual(res.strip(), new_uri)
         d.addCallback(_check)
+        return d
+
+    def test_PUT_NEWFILEURL_localfile_disabled(self):
+        localfile = os.path.abspath("web/PUT_NEWFILEURL_localfile_disabled")
+        url = "/vdrive/global/foo/new.txt?t=upload&localfile=%s" % localfile
+        fileutil.make_dirs("web")
+        f = open(localfile, "wb")
+        f.write(self.NEWFILE_CONTENTS)
+        f.close()
+        self.disable_local_access()
+        d = self.PUT(url, "")
+        d.addBoth(self.shouldFail, error.Error, "put localfile disabled",
+                  "403 Forbidden",
+                  "local file access is disabled")
         return d
 
     def test_PUT_NEWFILEURL_localfile_mkdirs(self):
@@ -715,6 +745,16 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    def test_GET_DIRURL_localdir_disabled(self):
+        localdir = os.path.abspath("web/GET_DIRURL_localdir_disabled")
+        fileutil.make_dirs("web")
+        self.disable_local_access()
+        d = self.GET("/vdrive/global/foo?t=download&localdir=%s" % localdir)
+        d.addBoth(self.shouldFail, error.Error, "localfile disabled",
+                  "403 Forbidden",
+                  "local file access is disabled")
+        return d
+
     def test_GET_DIRURL_localdir_nonabsolute(self):
         localdir = "web/nonabsolute/dirpath"
         fileutil.make_dirs("web/nonabsolute")
@@ -776,6 +816,25 @@ class Web(WebMixin, unittest.TestCase):
             contents = self.files[barnode.get_uri()]
             self.failUnlessEqual(contents, "contents of three/bar.txt\n")
         d.addCallback(_check)
+        return d
+
+    def test_PUT_NEWDIRURL_localdir_disabled(self):
+        localdir = os.path.abspath("web/PUT_NEWDIRURL_localdir_disabled")
+        # create some files there
+        fileutil.make_dirs(os.path.join(localdir, "one"))
+        fileutil.make_dirs(os.path.join(localdir, "one/sub"))
+        fileutil.make_dirs(os.path.join(localdir, "two"))
+        fileutil.make_dirs(os.path.join(localdir, "three"))
+        self.touch(localdir, "three/foo.txt")
+        self.touch(localdir, "three/bar.txt")
+        self.touch(localdir, "zap.zip")
+
+        self.disable_local_access()
+        d = self.PUT("/vdrive/global/newdir?t=upload&localdir=%s"
+                     % localdir, "")
+        d.addBoth(self.shouldFail, error.Error, "localfile disabled",
+                  "403 Forbidden",
+                  "local file access is disabled")
         return d
 
     def test_PUT_NEWDIRURL_localdir_mkdirs(self):

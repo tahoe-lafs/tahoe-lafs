@@ -19,6 +19,9 @@ def getxmlfile(name):
 
 class IClient(Interface):
     pass
+class ILocalAccess(Interface):
+    def allow_local_access():
+        pass
 
 
 # we must override twisted.web.http.Request.requestReceived with a version
@@ -347,7 +350,15 @@ class NeedAbsolutePathError:
         req.setHeader("content-type", "text/plain")
         return "localfile= or localdir= requires an absolute path"
 
-        
+class LocalAccessDisabledError:
+    implements(inevow.IResource)
+
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        req.setResponseCode(http.FORBIDDEN)
+        req.setHeader("content-type", "text/plain")
+        return "local file access is disabled"
+
 
 class LocalFileDownloader(resource.Resource):
     def __init__(self, filenode, local_filename):
@@ -832,6 +843,8 @@ class VDrive(rend.Page):
             if localdir != os.path.abspath(localdir):
                 return NeedAbsolutePathError(), ()
         if localfile or localdir:
+            if not ILocalAccess(ctx).allow_local_access():
+                return LocalAccessDisabledError(), ()
             if req.getHost().host != LOCALHOST:
                 return NeedLocalhostError(), ()
         # TODO: think about clobbering/revealing config files and node secrets
@@ -1032,17 +1045,29 @@ class Root(rend.Page):
         return T.div[form]
 
 
+class LocalAccess:
+    implements(ILocalAccess)
+    def __init__(self):
+        self.local_access = False
+    def allow_local_access(self):
+        return self.local_access
+
 class WebishServer(service.MultiService):
     name = "webish"
 
-    def __init__(self, webport):
+    def __init__(self, webport, local_access=False):
         service.MultiService.__init__(self)
         self.root = Root()
         self.site = site = appserver.NevowSite(self.root)
         self.site.requestFactory = MyRequest
+        self.allow_local = LocalAccess()
+        self.site.remember(self.allow_local, ILocalAccess)
         s = strports.service(webport, site)
         s.setServiceParent(self)
         self.listener = s # stash it so the tests can query for the portnum
+
+    def allow_local_access(self, enable=True):
+        self.allow_local.local_access = enable
 
     def startService(self):
         service.MultiService.startService(self)

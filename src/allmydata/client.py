@@ -26,6 +26,7 @@ class Client(node.Node, Referenceable):
     STOREDIR = 'storage'
     NODETYPE = "client"
     WEBPORTFILE = "webport"
+    WEB_ALLOW_LOCAL_ACCESS_FILE = "webport_allow_localfile"
     INTRODUCER_FURL_FILE = "introducer.furl"
     MY_FURL_FILE = "myself.furl"
     SUICIDE_PREVENTION_HOTLINE_FILE = "suicide_prevention_hotline"
@@ -49,7 +50,12 @@ class Client(node.Node, Referenceable):
             f = open(WEBPORTFILE, "r")
             webport = f.read().strip() # strports string
             f.close()
-            self.add_service(WebishServer(webport))
+            ws = WebishServer(webport)
+            local_access_file = os.path.join(self.basedir,
+                                             self.WEB_ALLOW_LOCAL_ACCESS_FILE)
+            if os.path.exists(local_access_file):
+                ws.allow_local_access(True)
+            self.add_service(ws)
 
         INTRODUCER_FURL_FILE = os.path.join(self.basedir,
                                             self.INTRODUCER_FURL_FILE)
