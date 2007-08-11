@@ -481,7 +481,7 @@ class POSTHandler(rend.Page):
         name = None
         if "name" in req.args:
             name = req.args["name"][0]
-        elif name in req.fields:
+        elif "name" in req.fields:
             name = req.fields["name"].value
         if name and "/" in name:
             req.setResponseCode(http.BAD_REQUEST)
