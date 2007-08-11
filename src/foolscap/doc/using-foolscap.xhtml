@@ -145,10 +145,10 @@ listen on a port, and tell it the protocol/hostname/portnumber at which that
 port is accessibly to the outside world.</p>
 
 <p>In general, the Tub will generate its own identity, the <em>TubID</em>, by
-creating an SSL private key certificate and hashing it into a suitably-long
+creating an SSL public key certificate and hashing it into a suitably-long
 random-looking string. This is the primary identifier of the Tub: everything
 else is just a <em>location hint</em> that suggests how the Tub might be
-reached. The fact that the TubID is tied to the private key allows FURLs to
+reached. The fact that the TubID is tied to the public key allows FURLs to
 be <q>secure</q> references (meaning that no third party can cause you to
 connect to the wrong reference). You can also create a Tub with a
 pre-existing certificate, which is how Tubs can retain a persistent identity
@@ -236,7 +236,7 @@ application.</p>
 
 <h4>Using a persistent certificate</h4>
 
-<p>The Tub uses a TLS private-key certificate as the base of all its
+<p>The Tub uses a TLS public-key certificate as the base of all its
 cryptographic operations. If you don't give it one when you create the Tub,
 it will generate a brand-new one.</p>
 
