@@ -37,6 +37,7 @@ class Client(node.Node, Referenceable):
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
+        self.logSource="Client"
         self.my_furl = None
         self.introducer_client = None
         self.init_storage()

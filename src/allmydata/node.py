@@ -7,9 +7,8 @@ from twisted.python import log
 from twisted.application import service
 from twisted.internet import defer, reactor
 from foolscap import Tub, eventual
-from allmydata.util import iputil, observer
+from allmydata.util import iputil, observer, humanreadable
 from allmydata.util.assertutil import precondition
-
 
 # Just to get their versions:
 import allmydata
@@ -52,6 +51,7 @@ class Node(service.MultiService):
         # our IP address and thus do tub.setLocation, and we can't register
         # any services with the Tub until after that point
         self.tub.setServiceParent(self)
+        self.logSource="Node"
 
         AUTHKEYSFILEBASE = "authorized_keys."
         for f in os.listdir(self.basedir):
@@ -117,8 +117,18 @@ class Node(service.MultiService):
         self.log("Node.shutdown")
         return self.stopService()
 
-    def log(self, msg):
-        log.msg(self.short_nodeid + ": " + msg)
+    def log(self, msg, src="", args=()):
+        if src:
+            logsrc = src
+        else:
+            logsrc=self.logSource
+        if args:
+            try:
+                msg = msg % tuple(map(humanreadable.hr, args))
+            except TypeError, e:
+                msg = "ERROR: output string '%s' contained invalid %% expansion, error: %s, args: %s\n" % (`msg`, e, `args`)
+        log.FileLogObserver.timeFormat="%y%m%d-%H:%M:%S"
+        log.callWithContext({"system":logsrc},log.msg,(self.short_nodeid + ": " + humanreadable.hr(msg)))
 
     def _setup_tub(self, local_addresses):
         # we can't get a dynamically-assigned portnum until our Tub is
