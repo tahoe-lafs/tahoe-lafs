@@ -51,7 +51,7 @@ Now, what can we do with these URLs? By varying the HTTP method
 control how what we want to do with the data and how it should be presented.
 
 
-=== files and directories by name ===
+=== Manipulating files and directories by name ===
 
 In the following examples "$URL" is a shorthand for a URL like the ones
 described above, with "vdrive/" as the top level, followed by a
@@ -124,14 +124,6 @@ nothing exists.
   (Currently all files are immutable so everyone has read-only access to all
   files.)
 
- GET $URL?t=download&localfile=$LOCALPATH 
-
-  This instructs the node to download the given file or directory and write 
-  it into the local filesystem at $LOCALPATH. This request will only be 
-  accepted from an HTTP client connection originating at 127.0.0.1 . This 
-  request is most useful when the client node and the HTTP client are 
-  operated by the same user. $LOCALPATH should be an absolute pathname. 
- 
  PUT $URL?t=uri
 
   This attaches a child (either a file or a directory) to the vdrive at the
@@ -139,26 +131,6 @@ nothing exists.
   request. This can be used to attach a shared directory to the
   vdrive. Intermediate directories are created on-demand just like with the
   regular PUT command.
-
- PUT $NEWURL?t=upload&localfile=$LOCALPATH 
- 
-  This uploads a file or directory from the node's local filesystem to the 
-  vdrive.  As with "GET $URL?t=download&localfile=$LOCALPATH", this request 
-  will only be accepted from an HTTP connection originating from 127.0.0.1. 
- 
-  If $LOCALPATH points to a directory on the node's local filesystem, then 
-  the node performs a recursive upload of the directory into the vdrive at 
-  the given location. $NEWURL will be created if necessary. When the 
-  operation is complete, the directory referenced by $NEWURL will contain all 
-  of the files and directories that were present in $LOCALPATH, so this is 
-  equivalent to the unix commands: 
- 
-   mkdir -p $NEWURL; cp -r $LOCALPATH/* $NEWURL/ 
- 
-  Note that the "curl" utility can be used to provoke this sort of recursive 
-  upload, since the -T option will make it use an HTTP 'PUT': 
- 
-   curl -T /dev/null 'http://localhost:8011/vdrive/global/newdir?t=upload&localdir=/home/user/directory-to-upload' 
 
  DELETE $URL
 
@@ -169,7 +141,7 @@ nothing exists.
   may leave some intermediate directory nodes).
 
 
-=== files by name ===
+=== Manipulating files by name ===
 
  PUT $NEWURL
 
@@ -184,11 +156,7 @@ nothing exists.
   To use this, run 'curl -T localfile http://localhost:8011/vdrive/global/newfile'
 
 
-=== directories by name ===
-
- GET $URL?t=manifest 
-
-  Return an HTML-formatted manifest of the given directory, for debugging. 
+=== Manipulating directories by name ===
 
  PUT $NEWURL?t=mkdir
 
@@ -398,3 +366,63 @@ server.
 
    etc..
 
+
+== Testing/Debugging Commands ==
+
+ GET $URL?t=download&localfile=$LOCALPATH
+ GET $URL?t=download&localdir=$LOCALPATH
+
+  The localfile= form instructs the node to download the given file and write
+  it into the local filesystem at $LOCALPATH. The localdir= form instructs
+  the node to recursively download everything from the given directory and
+  below into the local filesystem. To avoid surprises, the localfile= form
+  will signal an error if $URL actually refers to a directory, likewise if
+  localdir= is used with a $URL that refers to a file.
+
+  This request will only be accepted from an HTTP client connection
+  originating at 127.0.0.1 . This request is most useful when the client node
+  and the HTTP client are operated by the same user. $LOCALPATH should be an
+  absolute pathname.
+
+  This form is only implemented for testing purposes, because of a trivially
+  easy attack: any web server that the local browser visits could serve an
+  IMG tag that causes the local node to modify the local filesystem.
+  Therefore this form is only enabled if you create a file named
+  'webport_allow_localfile' in the node's base directory.
+
+ PUT $NEWURL?t=upload&localfile=$LOCALPATH
+ PUT $NEWURL?t=upload&localdir=$LOCALPATH
+
+  This uploads a file or directory from the node's local filesystem to the
+  vdrive. As with "GET $URL?t=download&localfile=$LOCALPATH", this request
+  will only be accepted from an HTTP connection originating from 127.0.0.1 .
+
+  The localfile= form expects that $LOCALPATH will point to a file on the
+  node's local filesystem, and cause sthe node to upload that one file into
+  the vdrive at the given location. Any parent directories will be created in
+  the vdrive as necessary.
+
+  The localdir= form expects that $LOCALPATH will point to a directory on the
+  node's local filesystem, and it causes the node to perform a recursive
+  upload of the directory into the vdrive at the given location, creating
+  parent directories as necessary. When the operation is complete, the
+  directory referenced by $NEWURL will contain all of the files and
+  directories that were present in $LOCALPATH, so this is equivalent to the
+  unix commands:
+
+   mkdir -p $NEWURL; cp -r $LOCALPATH/* $NEWURL/
+
+  Note that the "curl" utility can be used to provoke this sort of recursive
+  upload, since the -T option will make it use an HTTP 'PUT':
+
+   curl -T /dev/null 'http://localhost:8011/vdrive/global/newdir?t=upload&localdir=/home/user/directory-to-upload'
+
+  This form is only implemented for testing purposes, because any attacker's
+  web server that a local browser visits could serve an IMG tag that causes
+  the local node to modify the local filesystem. Therefore this form is only
+  enabled if you create a file named 'webport_allow_localfile' in the node's
+  base directory.
+
+ GET $URL?t=manifest
+
+  Return an HTML-formatted manifest of the given directory, for debugging.
