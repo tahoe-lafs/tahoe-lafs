@@ -20,6 +20,76 @@ def getxmlfile(name):
 class IClient(Interface):
     pass
 
+
+# we must override twisted.web.http.Request.requestReceived with a version
+# that doesn't use cgi.parse_multipart() . Since we actually use Nevow, we
+# override the nevow-specific subclass, nevow.appserver.NevowRequest . This
+# is an exact copy of twisted.web.http.Request (from SVN HEAD on 10-Aug-2007)
+# that modifies the way form arguments are parsed. Note that this sort of
+# surgery may induce a dependency upon a particular version of twisted.web
+
+parse_qs = http.parse_qs
+class MyRequest(appserver.NevowRequest):
+    def requestReceived(self, command, path, version):
+        """Called by channel when all data has been received.
+
+        This method is not intended for users.
+        """
+        self.content.seek(0,0)
+        self.args = {}
+        self.stack = []
+
+        self.method, self.uri = command, path
+        self.clientproto = version
+        x = self.uri.split('?', 1)
+
+        if len(x) == 1:
+            self.path = self.uri
+        else:
+            self.path, argstring = x
+            self.args = parse_qs(argstring, 1)
+
+        # cache the client and server information, we'll need this later to be
+        # serialized and sent with the request so CGIs will work remotely
+        self.client = self.channel.transport.getPeer()
+        self.host = self.channel.transport.getHost()
+
+        # Argument processing.
+
+##      The original twisted.web.http.Request.requestReceived code parsed the
+##      content and added the form fields it found there to self.args . It
+##      did this with cgi.parse_multipart, which holds the arguments in RAM
+##      and is thus unsuitable for large file uploads. The Nevow subclass
+##      (nevow.appserver.NevowRequest) uses cgi.FieldStorage instead (putting
+##      the results in self.fields), which is much more memory-efficient.
+##      Since we know we're using Nevow, we can anticipate these arguments
+##      appearing in self.fields instead of self.args, and thus skip the
+##      parse-content-into-self.args step.
+
+##      args = self.args
+##      ctype = self.getHeader('content-type')
+##      if self.method == "POST" and ctype:
+##          mfd = 'multipart/form-data'
+##          key, pdict = cgi.parse_header(ctype)
+##          if key == 'application/x-www-form-urlencoded':
+##              args.update(parse_qs(self.content.read(), 1))
+##          elif key == mfd:
+##              try:
+##                  args.update(cgi.parse_multipart(self.content, pdict))
+##              except KeyError, e:
+##                  if e.args[0] == 'content-disposition':
+##                      # Parse_multipart can't cope with missing
+##                      # content-dispostion headers in multipart/form-data
+##                      # parts, so we catch the exception and tell the client
+##                      # it was a bad request.
+##                      self.channel.transport.write(
+##                              "HTTP/1.1 400 Bad Request\r\n\r\n")
+##                      self.channel.transport.loseConnection()
+##                      return
+##                  raise
+
+        self.process()
+
 class Directory(rend.Page):
     addSlash = True
     docFactory = getxmlfile("directory.xhtml")
@@ -969,6 +1039,7 @@ class WebishServer(service.MultiService):
         service.MultiService.__init__(self)
         self.root = Root()
         self.site = site = appserver.NevowSite(self.root)
+        self.site.requestFactory = MyRequest
         s = strports.service(webport, site)
         s.setServiceParent(self)
         self.listener = s # stash it so the tests can query for the portnum
