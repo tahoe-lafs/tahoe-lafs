@@ -1,6 +1,6 @@
-from base64 import b32encode
 
 import os.path, re
+from base64 import b32decode, b32encode
 
 import twisted
 from twisted.python import log
@@ -36,13 +36,11 @@ class Node(service.MultiService):
         self.tub = Tub(certFile=certfile)
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)
-        # I think self.nodeid is kind of whacked. Shouldn't it equal the
-        # fingerprint portion of our furl?
-        self.nodeid = b32encode(self.tub.tubID).lower()
+        self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
         f = open(os.path.join(self.basedir, self.NODEIDFILE), "w")
         f.write(b32encode(self.nodeid).lower() + "\n")
         f.close()
-        self.short_nodeid = self.tub.tubID[:4] # ready for printing
+        self.short_nodeid = b32encode(self.nodeid).lower()[:8] # ready for printing
         assert self.PORTNUMFILE, "Your node.Node subclass must provide PORTNUMFILE"
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
         try:

@@ -1,4 +1,5 @@
 
+from base64 import b32decode, b32encode
 import os
 from cStringIO import StringIO
 from twisted.trial import unittest
@@ -496,7 +497,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                             "I didn't see the right 'connected peers' message "
                             "in: %s" % page
                             )
-            expected = "My nodeid: <span>%s</span>" % idlib.b2a(self.clients[0].nodeid)
+            expected = "My nodeid: <span>%s</span>" % (b32encode(self.clients[0].nodeid).lower(),)
             self.failUnless(expected in page,
                             "I didn't see the right 'My nodeid' message "
                             "in: %s" % page)

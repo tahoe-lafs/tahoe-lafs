@@ -1,4 +1,5 @@
 
+from base64 import b32decode, b32encode
 import os.path
 from twisted.application import service, strports
 from twisted.web import static, resource, server, html, http
@@ -985,7 +986,7 @@ class Root(rend.Page):
                (v['allmydata'], v['zfec'], v['foolscap'], v['twisted'])
 
     def data_my_nodeid(self, ctx, data):
-        return idlib.b2a(IClient(ctx).nodeid)
+        return b32encode(IClient(ctx).nodeid).lower()
     def data_introducer_furl(self, ctx, data):
         return IClient(ctx).introducer_furl
     def data_connected_to_introducer(self, ctx, data):
@@ -1005,7 +1006,7 @@ class Root(rend.Page):
         d = []
         client = IClient(ctx)
         for nodeid in sorted(client.get_all_peerids()):
-            row = (idlib.b2a(nodeid),)
+            row = (b32encode(nodeid).lower(),)
             d.append(row)
         return d
 
