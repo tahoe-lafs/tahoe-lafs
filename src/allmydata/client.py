@@ -161,10 +161,9 @@ class Client(node.Node, Referenceable):
         @return: list of (permuted-peerid, peerid, connection,)
         """
         results = []
-        myid = b32decode(self.tub.tubID.upper())
         for peerid, connection in self.introducer_client.get_all_peers():
             assert isinstance(peerid, str)
-            if not include_myself and peerid == myid:
+            if not include_myself and peerid == self.nodeid:
                 self.log("get_permuted_peers: removing myself from the list")
                 continue
             permuted = bytes_to_long(sha.new(key + peerid).digest())
