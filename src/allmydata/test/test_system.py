@@ -119,7 +119,13 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _check(extra_node):
             self.extra_node = extra_node
             for c in self.clients:
-                self.failUnlessEqual(len(list(c.get_all_peerids())), 6)
+                all_peerids = list(c.get_all_peerids())
+                self.failUnlessEqual(len(all_peerids), 6)
+                permuted_peers = list(c.get_permuted_peers("a", True))
+                self.failUnlessEqual(len(permuted_peers), 6)
+                permuted_other_peers = list(c.get_permuted_peers("a", False))
+                self.failUnlessEqual(len(permuted_other_peers), 5)
+
         d.addCallback(_check)
         def _shutdown_extra_node(res):
             if self.extra_node:
@@ -141,6 +147,15 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         # to disk among all our simulated nodes
         DATA = "Some data to upload\n" * 200
         d = self.set_up_nodes()
+        def _check_connections(res):
+            for c in self.clients:
+                all_peerids = list(c.get_all_peerids())
+                self.failUnlessEqual(len(all_peerids), 5)
+                permuted_peers = list(c.get_permuted_peers("a", True))
+                self.failUnlessEqual(len(permuted_peers), 5)
+                permuted_other_peers = list(c.get_permuted_peers("a", False))
+                self.failUnlessEqual(len(permuted_other_peers), 4)
+        d.addCallback(_check_connections)
         def _do_upload(res):
             log.msg("UPLOADING")
             u = self.clients[0].getServiceNamed("uploader")
