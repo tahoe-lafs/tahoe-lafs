@@ -1,5 +1,5 @@
 
-from base64 import b32decode, b32encode
+from base64 import b32encode
 import os
 from cStringIO import StringIO
 from twisted.trial import unittest
@@ -7,7 +7,7 @@ from twisted.internet import defer, reactor
 from twisted.application import service
 from allmydata import client, uri, download, upload
 from allmydata.introducer_and_vdrive import IntroducerAndVdrive
-from allmydata.util import idlib, fileutil, testutil
+from allmydata.util import fileutil, testutil
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
 from allmydata.dirnode import NotMutableError

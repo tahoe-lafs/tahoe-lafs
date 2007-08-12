@@ -1,6 +1,5 @@
 
 import os, sha, stat, time, re
-from base64 import b32decode
 from foolscap import Referenceable, SturdyRef
 from zope.interface import implements
 from allmydata.interfaces import RIClient

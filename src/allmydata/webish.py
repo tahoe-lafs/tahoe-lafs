@@ -1,5 +1,5 @@
 
-from base64 import b32decode, b32encode
+from base64 import b32encode
 import os.path
 from twisted.application import service, strports
 from twisted.web import static, resource, server, html, http
@@ -7,7 +7,7 @@ from twisted.python import util, log
 from twisted.internet import defer
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
-from allmydata.util import idlib, fileutil
+from allmydata.util import fileutil
 import simplejson
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode
 from allmydata import upload, download
