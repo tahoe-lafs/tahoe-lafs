@@ -97,7 +97,7 @@ class IntroducerClient(service.Service, Referenceable):
         assert m
         nodeid = b32decode(m.group(1).upper())
         def _got_peer(rref):
-            self.log(" connected to(%s)" % b32encode(nodeid).lower())
+            self.log("connected to %s" % b32encode(nodeid).lower()[:8])
             self.connection_observers.notify(nodeid, rref)
             self.connections[nodeid] = rref
             def _lost():
@@ -105,11 +105,11 @@ class IntroducerClient(service.Service, Referenceable):
                 # not. Could this cause a problem?
                 del self.connections[nodeid]
             rref.notifyOnDisconnect(_lost)
-        self.log(" connecting to(%s)" % furl)
+        self.log("connecting to %s" % b32encode(nodeid).lower()[:8])
         self.reconnectors[furl] = self.tub.connectTo(furl, _got_peer)
 
     def _got_introducer(self, introducer):
-        self.log(" introducing ourselves: %s, %s" % (self, self.my_furl))
+        self.log("introducing ourselves: %s, %s" % (self, self.my_furl[6:13]))
         self._connected = True
         d = introducer.callRemote("hello",
                                   node=self,
