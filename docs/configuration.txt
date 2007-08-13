@@ -1,0 +1,160 @@
+
+= Configuring a Tahoe node =
+
+A Tahoe node is configured by writing files to its base directory. These
+files are read by the node when it starts, so each time you change them, you
+need to restart the node.
+
+The node also writes state to its base directory, so it will create files on
+its own.
+
+This document contains a complete list of the config files that are examined
+by the client node, as well as the state files that you'll observe in its
+base directory.
+
+== Client Configuration ==
+
+introducer.furl and vdrive.furl (mandatory): These FURLs tell the client how
+to connect to the introducer/vdrive server. Each Tahoe grid is defined by
+this pair. They are created by the introducer/vdrive-server node and written
+into its base directory when it starts, whereupon they should be published to
+everyone who wishes to attach a client to that grid
+
+webport (optional): This controls where the client's webserver should listen,
+providing vdrive access as defined in webapi.txt . This file should contain a
+Twisted "strports" specification, such as "8080" or
+"tcp:8080:interface=127.0.0.1".
+
+client.port (optional): This controls which port the node listens on. If not
+provided, the node will ask the kernel for any available port, and write it
+to this file so that subsequent runs will re-use the same port.
+
+advertised_ip_addresses (optional): The node normally uses tools like
+'ifconfig' to determine the set of IP addresses on which it can be reached
+from nodes both near and far. The node introduces itself to the rest of the
+grid with a FURL that contains a series of (ipaddr, port) pairs which other
+nodes will use to contact this one. By providing this file, you can add to
+this list. This can be useful if your node is running behind a firewall, but
+you have created a port-forwarding to allow the outside world to access it.
+Each line must have a dotted-quad IP address and an optional :portnum
+specification:
+
+ 123.45.67.89
+ 44.55.66.77:8098
+
+Lines that do not provide a port number will use the same client.port as the
+automatically-discovered addresses.
+
+authorized_keys.SSHPORT: This enables an SSH-based interactive Python shell,
+which can be used to inspect the internal state of the node, for debugging.
+To cause the node to accept SSH connections on port 8022, symlink
+"authorized_keys.8022" to your ~/.ssh/authorized_keys file, and it will
+accept the same keys as the rest of your account.
+
+
+== Node State ==
+
+node.pem : This contains an SSL private-key certificate. The node generates
+this the first time it is started, and re-uses it on subsequent runs. This
+certificate allows the node to have a cryptographically-strong identifier
+(the Foolscap "TubID"), and to establish secure connections to other nodes.
+
+global_root.uri: The first time the client contacts the vdrive-server, it
+retrieves the dirnode URI of the global root directory, and writes it into
+this file. On subsequent runs, this URI is used each time the user accesses
+the global vdrive.
+
+my_vdrive.uri: The first time the client contacts the vdrive-server, it will
+create a brand new directory to use as the non-shared private vdrive root,
+and it stores the dirnode URI of this directory in this file. On subsequent
+runs, it will read the URI from this file to provide access to the private
+vdrive.
+
+storage/ : Nodes which host StorageServers will create this directory to hold
+shares of files on behalf of other clients. There will be a directory
+underneath it for each StorageIndex for which this node is holding shares.
+There is also an "incoming" directory where partially-completed shares are
+held while they are being received.
+
+client.tac : this file defines the client, by constructing the actual Client
+instance each time the node is started. It is used by the 'twistd'
+daemonization program (in the "-y" mode), which is run internally by the
+"allmydata-tahoe start" command. This file is created by the "allmydata-tahoe
+create-client" command.
+
+control.furl : this file contains a FURL that provides access to a control
+port on the client node, from which files can be uploaded and downloaded.
+This file is created with permissions that prevent anyone else from reading
+it, to insure that only the owner of the client node can use this feature.
+This port is intended for debugging and testing use.
+
+== Introducer/vdrive-server configuration ==
+
+Introducer/vdrive-server nodes use the same 'advertised_ip_addresses' file
+as client nodes. They also use 'authorized_keys.SSHPORT'.
+
+encoding_parameters (optional): This file sets the encoding parameters that
+will be distributed to all client nodes and used when they encode files
+(unless locally overridden). It should contain three numbers, separated by
+whitespace, called "needed", "desired", and "total".
+
+ "needed": this is the number of shares that will be needed to reconstruct
+           the file. Each share that is pushed to a StorageServer will be
+           the size of the original file divided by this number.
+ "desired": the encoding/upload process will be happy if it can push
+            this many shares to StorageServers. If it cannot, it will
+            report failure.
+ "total": this is the total number of shares that will be produced. The
+          expansion factor (i.e. the amount of space consumed on the whole
+          grid divided by the size of the file) will be total/needed. It does
+          not make a lot of sense to have "total" be much larger than the
+          maximum number of storage nodes you expect to ever have.
+
+The default value of encoding_parameters is "3 7 10".
+
+
+== Introducer/vdrive-server state ==
+
+The Introducer / Virtual-Drive Server node maintains some different state
+than regular client nodes. Both of these services are currently hosted inside
+the same node, although keeping the FURLs in separate files will make it
+easier to split these services in the future.
+
+introducer.furl : This is generated the first time the introducer node is
+started, and used again on subsequent runs, to give the introduction service
+a persistent long-term identity. This file should be published and copied
+into new client nodes before they are started for the first time.
+
+vdrive.furl : This is also generated the first time the node is started, and
+re-used on later runs. This FURL provides access to the vdrive service, used
+both to create+access all dirnodes and to learn about the global shared root
+vdrive.
+
+introducer.port : this serves exactly the same purpose as 'client.port', but
+has a different name to make it clear what kind of node is being run.
+
+vdrive/ : this directory is created by the vdrive service to hold the
+encrypted contents of dirnodes on behalf of all clients. It contains one file
+per dirnode, plus a file named 'root' which contains the binary storage index
+of the global shared root vdrive.
+
+introducer.tac : this file is like client.tac but defines an
+introducer/vdrive-server node instead of a client node.
+
+== Other files ==
+
+logs/ : Each Tahoe node creates a directory to hold the log messages produced
+as the node runs. These logfiles are created and rotated by the "twistd"
+daemonization program, so logs/twistd.log will contain the most recent
+messages, logs/twistd.log.1 will contain the previous ones, logs/twistd.log.2
+will be older still, and so on. twistd rotates logfiles after they grow
+beyond 1MB in size. If the space consumed by logfiles becomes troublesome,
+they should be pruned: a cron job to delete all files that were created more
+than a month ago in this logs/ directory should be sufficient.
+
+my_nodeid : this is written by all nodes after startup, and contains a
+base32-encoded (i.e. human-readable) NodeID that identifies this specific
+node. This NodeID is the same string that gets displayed on the web page (in
+the "which peers am I connected to" list), and the shortened form (the first
+characters) is recorded in various log messages.
+
