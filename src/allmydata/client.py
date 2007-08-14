@@ -65,6 +65,7 @@ class Client(node.Node, Referenceable):
         hotline_file = os.path.join(self.basedir,
                                     self.SUICIDE_PREVENTION_HOTLINE_FILE)
         if os.path.exists(hotline_file):
+            self.log("hotline file noticed, starting timer")
             hotline = TimerService(1.0, self._check_hotline, hotline_file)
             hotline.setServiceParent(self)
 
