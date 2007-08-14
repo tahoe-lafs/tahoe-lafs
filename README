@@ -120,9 +120,9 @@ Tahoe uses a few additional libraries which are included in this source
 distribution for convenience. These will be automatically built when you type
 'make', but if you have separate installations of them you may wish to modify
 the makefile to use those in preference to the included versions. They
-include Foolscap (a secure remote-object-invocation library), zfec (erasure
-coding), and a modified version of PyCrypto (enhanced to provide a faster
-CTR-mode API).
+include Foolscap (a secure remote-object-invocation library) and zfec
+(erasure coding). There are also pieces of PyCrypto copied into
+allmydata.Crypto, modified to provide a faster CTR-mode API.
 
 
 BUILDING:
@@ -173,11 +173,10 @@ Running-In-Place Way.  Choose one:
 
   The Python Way is to execute "setup.py install" for each Python package.
 
-  You'll need to run "setup.py install" five separate times, one for each of
-  the five subpackages (allmydata, allmydata.Crypto, foolscap, simplejson,
-  and zfec).
+  You'll need to run "setup.py install" four separate times, one for each of
+  the four subpackages (allmydata, foolscap, simplejson, and zfec).
 
-    for PACKAGE in zfec Crypto foolscap simplejson; do
+    for PACKAGE in zfec foolscap simplejson; do
       cd src/${PACKAGE} && python setup.py install && cd ../..
     done
 

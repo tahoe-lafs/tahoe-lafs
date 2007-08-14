@@ -6,13 +6,9 @@ A brief map to where the code lives in this distribution:
  src/zfec: the erasure-coding library, turns data into shares and back again.
            When installed, this provides the 'zfec' package.
 
- src/Crypto: a modified version of PyCrypto, which includes a patch to
-             greatly improve the speed of CTR mode, which unfortunately makes
-             it incompatible with the normal version of PyCrypto. When
-             installed, this provides the 'allmydata.Crypto' package.
-
  src/allmydata: the bulk of the code for this project. When installed, this
-                provides the 'allmydata' package
+                provides the 'allmydata' package. This includes a few pieces
+                copied from the PyCrypto package, in allmydata/Crypto/* .
 
 Within src/allmydata/ :
 

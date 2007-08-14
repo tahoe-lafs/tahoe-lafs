@@ -61,7 +61,7 @@ PP=PYTHONPATH=$(PYTHONPATH)
 make-version:
 	$(PYTHON) misc/make-version.py "allmydata-tahoe" "src/allmydata/_version.py"
 
-build: make-version build-zfec build-Crypto build-foolscap build-simplejson
+build: make-version build-zfec build-foolscap build-simplejson
 	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="$(INSTDIR)" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
 
 build-zfec:
@@ -76,10 +76,6 @@ build-simplejson:
 	cd src/simplejson && \
 	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --single-version-externally-managed --prefix="$(INSTDIR)" --record="$(INSTDIR)/simplejson_install.log" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
 
-build-Crypto:
-	cd src/Crypto && \
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="$(INSTDIR)" --record="$(INSTDIR)/Crypto_install.log" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
-
 clean-zfec:
 	-cd src/zfec && \
 	$(PP) $(PYTHON) ./setup.py clean --all
@@ -88,9 +84,6 @@ clean-foolscap:
 	-cd src/foolscap && \
 	$(PP) $(PYTHON) ./setup.py clean --all
 
-clean-Crypto:
-	cd src/Crypto && \
-	$(PP) $(PYTHON) ./setup.py clean --all
 
 
 # RUNNING
@@ -209,15 +202,15 @@ test-clean:
 	find . |grep -v allfiles.tmp |sort >allfiles.tmp.new
 	diff allfiles.tmp.old allfiles.tmp.new
 
-clean: clean-zfec clean-Crypto clean-foolscap
+clean: clean-zfec clean-foolscap
 	rm -rf build
 	rm -f debian
 	rm -rf instdir
+	find src/allmydata -name '*.so' -print0 |xargs -0 rm
 
 install: 
 	cd src/zfec && python ./setup.py install && cd ../..
 	cd src/foolscap && python ./setup.py install && cd ../..
-	cd src/Crypto && python ./setup.py install && cd ../..
 	cd src/simplejson && python ./setup.py install && cd ../..
 	python ./setup.py install
 

@@ -65,24 +65,38 @@ if os.path.exists(VERSIONFILE):
         print "unable to find version in version.py"
         raise RuntimeError("if version.py exists, it must be well-formed")
 
-setup(name='allmydata-tahoe',
-      version=verstr,
-      description='secure, distributed storage grid',
-      long_description="""Welcome to the AllMyData "tahoe" project. This project implements a
+
+LONG_DESCRIPTION=\
+"""Welcome to the AllMyData "tahoe" project. This project implements a
 secure, distributed, fault-tolerant storage grid.
 
 The basic idea is that the data in this storage grid is spread over all
 participating nodes, using an algorithm that can recover the data even if a
-majority of the nodes are no longer available.""",
+majority of the nodes are no longer available."""
+
+setup(name='allmydata-tahoe',
+      version=verstr,
+      description='secure, distributed storage grid',
+      long_description=LONG_DESCRIPTION,
       author='Allmydata, Inc.',
       author_email='tahoe-dev@allmydata.org',
       url='http://allmydata.org/',
       license='GNU GPL',
       packages=["allmydata", "allmydata.test", "allmydata.util",
-                "allmydata.scripts",],
+                "allmydata.scripts",
+                "allmydata.Crypto", "allmydata.Crypto.Cipher",
+                "allmydata.Crypto.Hash", "allmydata.Crypto.Util"],
       package_dir={ "allmydata": "src/allmydata",},
       scripts = ["bin/allmydata-tahoe"],
       package_data={ 'allmydata': ['web/*.xhtml', 'web/*.html', 'web/*.css'] },
       classifiers=trove_classifiers,
       test_suite="allmydata.test",
+      ext_modules=[
+          Extension("allmydata.Crypto.Cipher.AES",
+                    include_dirs=["src/allmydata/Crypto"],
+                    sources=["src/allmydata/Crypto/AES.c"]),
+          Extension("allmydata.Crypto.Hash.SHA256",
+                    include_dirs=["src/allmydata/Crypto"],
+                    sources=["src/allmydata/Crypto/SHA256.c"]),
+          ],
       )

@@ -11,7 +11,6 @@ PREFIX=$(shell pwd)/debian/allmydata-tahoe/usr
 
 build/allmydata-tahoe::
 	cd src/zfec && python2.4 setup.py install --single-version-externally-managed --root=$(PREFIX)/..
-	cd src/Crypto && python2.4 setup.py install --prefix=$(PREFIX)
 	python2.4 setup.py install --prefix=$(PREFIX)
 
 clean::

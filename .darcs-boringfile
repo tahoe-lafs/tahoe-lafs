@@ -60,7 +60,6 @@
 ^\.figleaf\.el$
 ^instdir($|/)
 ^src/zfec/build($|/)
-^src/Crypto/build($|/)
 ^_test_memory($|/)
 
 # _version.py is generated at build time, and never checked in
@@ -79,3 +78,7 @@
 # that is currently installed (or it is missing).
 ^src/simplejson/setuptools-.*\.egg$
 ^src/zfec/setuptools-.*\.egg$
+
+# generated crypto extension modules
+^src/allmydata/Crypto/[^/]*/.*\.so$
+
