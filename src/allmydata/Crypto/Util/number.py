@@ -13,10 +13,11 @@
 __revision__ = "$Id: number.py,v 1.13 2003/04/04 18:21:07 akuchling Exp $"
 
 bignum = long
+_fastmath = None
 try:
     from allmydata.Crypto.PublicKey import _fastmath
 except ImportError:
-    _fastmath = None
+    pass
 
 # Commented out and replaced with faster versions below
 ## def long2str(n):
