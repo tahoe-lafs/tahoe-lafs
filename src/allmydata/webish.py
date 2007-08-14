@@ -573,6 +573,8 @@ class POSTHandler(rend.Page):
         when_done = None
         if "when_done" in req.args:
             when_done = req.args["when_done"][0]
+        if "when_done" in req.fields:
+            when_done = req.fields["when_done"].value
 
         if t == "mkdir":
             if not name:

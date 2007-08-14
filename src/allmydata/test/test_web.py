@@ -882,6 +882,18 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    def test_POST_upload_whendone(self):
+        d = self.POST("/vdrive/global/foo", t="upload", when_done="/THERE",
+                      file=("new.txt", self.NEWFILE_CONTENTS))
+        d.addBoth(self.shouldRedirect, "/THERE")
+        def _check(res):
+            self.failUnless("new.txt" in self._foo_node.children)
+            new_uri = self._foo_node.children["new.txt"]
+            new_contents = self.files[new_uri]
+            self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
+        d.addCallback(_check)
+        return d
+
     def test_POST_upload_named(self):
         d = self.POST("/vdrive/global/foo", t="upload",
                       name="new.txt", file=self.NEWFILE_CONTENTS)
@@ -921,7 +933,19 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_POST_mkdir_whendone(self):
+    def test_POST_mkdir_whendone_field(self):
+        d = self.POST("/vdrive/global/foo",
+                      t="mkdir", name="newdir", when_done="/THERE")
+        d.addBoth(self.shouldRedirect, "/THERE")
+        def _check(res):
+            self.failUnless("newdir" in self._foo_node.children)
+            newdir_uri = self._foo_node.children["newdir"]
+            newdir_node = self.nodes[newdir_uri]
+            self.failIf(newdir_node.children)
+        d.addCallback(_check)
+        return d
+
+    def test_POST_mkdir_whendone_queryarg(self):
         d = self.POST("/vdrive/global/foo?when_done=/THERE",
                       t="mkdir", name="newdir")
         d.addBoth(self.shouldRedirect, "/THERE")
