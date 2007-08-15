@@ -352,6 +352,10 @@ class IDirectoryNode(Interface):
         """I return a Deferred that fires with a dictionary mapping child
         name to an IFileNode or IDirectoryNode."""
 
+    def has_child(name):
+        """I return a Deferred that fires with a boolean, True if there
+        exists a child of the given name, False if not."""
+
     def get(name):
         """I return a Deferred that fires with a specific named child node,
         either an IFileNode or an IDirectoryNode."""

@@ -234,6 +234,16 @@ class ImmutableDirectoryNode:
     def _hash_name(self, name):
         return hashutil.dir_name_hash(self._readkey, name)
 
+    def has_child(self, name):
+        d = self.get(name)
+        def _good(res):
+            return True
+        def _err(f):
+            f.trap(KeyError)
+            return False
+        d.addCallbacks(_good, _err)
+        return d
+
     def get(self, name):
         H_name = self._hash_name(name)
         d = self._rref.callRemote("get", self._index, H_name)

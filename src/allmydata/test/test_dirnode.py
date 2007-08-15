@@ -378,6 +378,12 @@ class Test(unittest.TestCase):
         # root/bar-ro/file4 = file2
         # root/bar-ro/baz/
 
+        # test has_child
+        d.addCallback(lambda res: rootnode.has_child("bar"))
+        d.addCallback(self.failUnlessEqual, True)
+        d.addCallback(lambda res: rootnode.has_child("missing"))
+        d.addCallback(self.failUnlessEqual, False)
+
         # test the manifest
         d.addCallback(lambda res: self.rootnode.build_manifest())
         def _check_manifest2(manifest):
