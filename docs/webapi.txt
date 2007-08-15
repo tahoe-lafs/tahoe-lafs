@@ -249,53 +249,46 @@ allmydata.org uri format to relieve the user of this requirement.
   described above.
 
 
-== Time-Of-Check-To-Time-Of-Use ("TOCTTOU") bugs ==
+== names versus identifiers ==
 
-Note that since directories are mutable you can get surprises if you query
-the vdrive, e.g. "GET $URL?t=json", examine the resulting JSON-encoded
-information, and then fetch from or update the vdrive using a name-based URL.
-This is because the actual state of the vdrive could have changed after you
-did the "GET $URL?t=json" query and before you did the subsequent fetch or
-update.
+The vdrive provides a mutable filesystem, but the ways that the filesystem
+can change are limited. The only thing that can change is that the mapping
+from child names to child objects that each directory contains can be changed
+by adding a new child name pointing to an object, removing an existing child
+name, or changing an existing child name to point to a different object.
 
-For example, suppose you query to find out that "vdrive/private/somedir/foo"
-is a file which has a certain number of bytes, and then you issue a "GET
-vdrive/private/somedir/foo" to fetch the file.  The file that you get might
-have a different number of bytes than the one that you chose to fetch,
-because the "foo" entry in the "somedir" directory may have been changed to
-point to a different file between your query and your fetch, or because the
-"somedir" entry in the private vdrive might have been changed to point to a
-different directory.
+Obviously if you query tahoe for information about the filesystem and then
+act upon the filesystem (such as by getting a listing of the contents of a
+directory and then adding a file to the directory), then the filesystem might
+have been changed after you queried it and before you acted upon it.
+However, if you use the URI instead of the pathname of an object when you act
+upon the object, then the only change that can happen is when the object is a
+directory then the set of child names it has might be different. If, on the
+other hand, you act upon the object using its pathname, then a different
+object might be in that place, which can result in more kinds of surprises.
 
-Potentially more damaging, suppose that the "foo" entry was changed to point
-to a directory instead of a file.  Then instead of receiving the expected
-file, you receive a file containing an HTML page describing the directory
-contents!
+For example, suppose you are writing code which recursively downloads the
+contents of a directory. The first thing your code does is fetch the listing
+of the contents of the directory. For each child that it fetched, if that
+child is a file then it downloads the file, and if that child is a directory
+then it recurses into that directory. Now, if the download and the recurse
+actions are performed using the child's name, then the results might be
+wrong, because for example a child name that pointed to a sub-directory when
+you listed the directory might have been changed to point to a file, in which
+case your attempt to recurse into it would result in an error and the file
+would be skipped, or a child name that pointed to a file when you listed the
+directory might now point to a sub-directory, in which case your attempt to
+download the child would result in a file containing HTML text describing the
+sub-directory!
 
-These are examples of TOCTTOU bugs ( http://en.wikipedia.org/wiki/TOCTTOU ).
-
-A good way to avoid these bugs is to issue your second request, not with a
-URL based on the sequence of names that lead to the object, but instead with
-the URI of the object.  For example, in the case that you query a directory
-listing (with "GET vdrive/private/somedir?t=json"), find a file named "foo"
-therein that you want to download, and then download the file, if you
-download it with its URI ("GET uri/$URI") instead of its URL ("GET
-vdrive/private/somedir/foo") then you will get the file that was in the
-"somedir/" directory under the name "foo" when you queried that directory,
-even if the "somedir/" directory has since been changed so that its "foo"
-child now points to a different file or to a directory.
+If your recursive algorithm uses the URI of the child instead of the name of
+the child, then those kinds of mistakes just can't happen. Note that both the
+child's name and the child's URI are included in the results of listing the
+parent directory, so it isn't harder to use the URI for this purpose.
 
 In general, use names if you want "whatever object (whether file or
-directory) is found by following this sequence of names when my request
-reaches the server".  Use URIs if you want "this particular object".
-
-If you are basing your decision to fetch from or update the vdrive on
-filesystem information that was returned by an earlier query, then you
-usually intend to fetch or update the particular object that was in that
-location when you first queried it, rather than whatever object is going to
-be in that location when your subsequent fetch request finally reaches the
-server.
-
+directory) is found by following this name (or sequence of names) when my
+request reaches the server". Use URIs if you want "this particular object".
 
 == POST forms ==
 
