@@ -206,7 +206,7 @@ clean: clean-zfec clean-foolscap
 	rm -rf build
 	rm -f debian
 	rm -rf instdir
-	-@find src/allmydata -name '*.so' -print0 |xargs -0 rm
+	rm -f `find src/allmydata -name '*.so'`
 
 install: 
 	cd src/zfec && python ./setup.py install && cd ../..
