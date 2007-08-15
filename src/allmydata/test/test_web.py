@@ -400,12 +400,36 @@ class Web(WebMixin, unittest.TestCase):
     def test_PUT_NEWFILEURL(self):
         d = self.PUT("/vdrive/global/foo/new.txt", self.NEWFILE_CONTENTS)
         def _check(res):
+            # TODO: we lose the response code, so we can't check this
+            #self.failUnlessEqual(responsecode, 201)
             self.failUnless("new.txt" in self._foo_node.children)
             new_uri = self._foo_node.children["new.txt"]
             new_contents = self.files[new_uri]
             self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
             self.failUnlessEqual(res.strip(), new_uri)
         d.addCallback(_check)
+        return d
+
+    def test_PUT_NEWFILEURL_replace(self):
+        d = self.PUT("/vdrive/global/foo/bar.txt", self.NEWFILE_CONTENTS)
+        def _check(res):
+            # TODO: we lose the response code, so we can't check this
+            #self.failUnlessEqual(responsecode, 200)
+            self.failUnless("bar.txt" in self._foo_node.children)
+            new_uri = self._foo_node.children["bar.txt"]
+            new_contents = self.files[new_uri]
+            self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
+            self.failUnlessEqual(res.strip(), new_uri)
+        d.addCallback(_check)
+        return d
+
+    def test_PUT_NEWFILEURL_no_replace(self):
+        d = self.PUT("/vdrive/global/foo/bar.txt?replace=false",
+                     self.NEWFILE_CONTENTS)
+        d.addBoth(self.shouldFail, error.Error, "PUT_NEWFILEURL_no_replace",
+                  "409 Conflict",
+                  "There was already a child by that name, and you asked me "
+                  "to not replace it")
         return d
 
     def test_PUT_NEWFILEURL_mkdirs(self):
@@ -665,6 +689,24 @@ class Web(WebMixin, unittest.TestCase):
             newdir_node = self.nodes[newdir_uri]
             self.failIf(newdir_node.children)
         d.addCallback(_check)
+        return d
+
+    def test_PUT_NEWDIRURL_replace(self):
+        d = self.PUT("/vdrive/global/foo/sub?t=mkdir", "")
+        def _check(res):
+            self.failUnless("sub" in self._foo_node.children)
+            newdir_uri = self._foo_node.children["sub"]
+            newdir_node = self.nodes[newdir_uri]
+            self.failIf(newdir_node.children)
+        d.addCallback(_check)
+        return d
+
+    def test_PUT_NEWDIRURL_no_replace(self):
+        d = self.PUT("/vdrive/global/foo/sub?t=mkdir&replace=false", "")
+        d.addBoth(self.shouldFail, error.Error, "PUT_NEWDIRURL_no_replace",
+                  "409 Conflict",
+                  "There was already a child by that name, and you asked me "
+                  "to not replace it")
         return d
 
     def test_PUT_NEWDIRURL_mkdirs(self):
@@ -1110,6 +1152,27 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnlessEqual(new_contents, self.files[new_uri])
             self.failUnlessEqual(res.strip(), new_uri)
         d.addCallback(_check)
+        return d
+
+    def test_PUT_NEWFILEURL_uri_replace(self):
+        new_uri = self.makefile(8)
+        d = self.PUT("/vdrive/global/foo/bar.txt?t=uri", new_uri)
+        def _check(res):
+            self.failUnless("bar.txt" in self._foo_node.children)
+            new_uri = self._foo_node.children["bar.txt"]
+            new_contents = self.files[new_uri]
+            self.failUnlessEqual(new_contents, self.files[new_uri])
+            self.failUnlessEqual(res.strip(), new_uri)
+        d.addCallback(_check)
+        return d
+
+    def test_PUT_NEWFILEURL_uri_no_replace(self):
+        new_uri = self.makefile(8)
+        d = self.PUT("/vdrive/global/foo/bar.txt?t=uri&replace=false", new_uri)
+        d.addBoth(self.shouldFail, error.Error, "PUT_NEWFILEURL_uri_no_replace",
+                  "409 Conflict",
+                  "There was already a child by that name, and you asked me "
+                  "to not replace it")
         return d
 
     def test_XMLRPC(self):

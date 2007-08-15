@@ -330,6 +330,8 @@ class FileDownloader(resource.Resource):
 class BlockingFileError(Exception):
     """We cannot auto-create a parent directory, because there is a file in
     the way"""
+class NoReplacementError(Exception):
+    """There was already a child by that name, and you asked me to not replace it"""
 
 LOCALHOST = "127.0.0.1"
 
@@ -549,8 +551,9 @@ class RenameForm(rend.Page):
         return ctx.tag
 
 class POSTHandler(rend.Page):
-    def __init__(self, node):
+    def __init__(self, node, replace):
         self._node = node
+        self._replace = replace
 
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
@@ -661,12 +664,13 @@ class DELETEHandler(rend.Page):
         return d
 
 class PUTHandler(rend.Page):
-    def __init__(self, node, path, t, localfile, localdir):
+    def __init__(self, node, path, t, localfile, localdir, replace):
         self._node = node
         self._path = path
         self._t = t
         self._localfile = localfile
         self._localdir = localdir
+        self._replace = replace
 
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
@@ -677,6 +681,7 @@ class PUTHandler(rend.Page):
         # we must traverse the path, creating new directories as necessary
         d = self._get_or_create_directories(self._node, self._path[:-1])
         name = self._path[-1]
+        d.addCallback(self._check_replacement, name, self._replace)
         if t == "upload":
             if localfile:
                 d.addCallback(self._upload_localfile, localfile, name)
@@ -698,6 +703,12 @@ class PUTHandler(rend.Page):
             req.setHeader("content-type", "text/plain")
             return str(f.value)
         d.addErrback(_check_blocking)
+        def _check_replacement(f):
+            f.trap(NoReplacementError)
+            req.setResponseCode(http.CONFLICT)
+            req.setHeader("content-type", "text/plain")
+            return str(f.value)
+        d.addErrback(_check_replacement)
         return d
 
     def _get_or_create_directories(self, node, path):
@@ -714,6 +725,19 @@ class PUTHandler(rend.Page):
             return node.create_empty_directory(path[0])
         d.addErrback(_maybe_create)
         d.addCallback(self._get_or_create_directories, path[1:])
+        return d
+
+    def _check_replacement(self, node, name, replace):
+        if replace:
+            return node
+        d = node.has_child(name)
+        def _got(present):
+            if present:
+                raise NoReplacementError("There was already a child by that "
+                                         "name, and you asked me to not "
+                                         "replace it.")
+            return node
+        d.addCallback(_got)
         return d
 
     def _mkdir(self, node, name):
@@ -852,6 +876,14 @@ class VDrive(rend.Page):
                 return NeedLocalhostError(), ()
         # TODO: think about clobbering/revealing config files and node secrets
 
+        replace = True
+#        if "replace" in req.fields:
+#            if req.fields["replace"].value.lower() in ("false", "0"):
+#                replace = False
+        if "replace" in req.args:
+            if req.args["replace"][0].lower() in ("false", "0"):
+                replace = False
+
         if method == "GET":
             # the node must exist, and our operation will be performed on the
             # node itself.
@@ -909,7 +941,7 @@ class VDrive(rend.Page):
             # node itself.
             d = self.get_child_at_path(path)
             def _got(node):
-                return POSTHandler(node), ()
+                return POSTHandler(node, replace), ()
             d.addCallback(_got)
         elif method == "DELETE":
             # the node must exist, and our operation will be performed on its
@@ -922,7 +954,7 @@ class VDrive(rend.Page):
         elif method in ("PUT",):
             # the node may or may not exist, and our operation may involve
             # all the ancestors of the node.
-            return PUTHandler(self.node, path, t, localfile, localdir), ()
+            return PUTHandler(self.node, path, t, localfile, localdir, replace), ()
         else:
             return rend.NotFound
         def _trap_KeyError(f):
