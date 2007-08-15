@@ -555,6 +555,19 @@ class POSTHandler(rend.Page):
         self._node = node
         self._replace = replace
 
+    def _check_replacement(self, name):
+        if self._replace:
+            return defer.succeed(None)
+        d = self._node.has_child(name)
+        def _got(present):
+            if present:
+                raise NoReplacementError("There was already a child by that "
+                                         "name, and you asked me to not "
+                                         "replace it.")
+            return None
+        d.addCallback(_got)
+        return d
+
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
 
@@ -579,10 +592,15 @@ class POSTHandler(rend.Page):
         if "when_done" in req.fields:
             when_done = req.fields["when_done"].value
 
+        if "replace" in req.fields:
+            if req.fields["replace"].value.lower() in ("false", "0"):
+                self._replace = False
+
         if t == "mkdir":
             if not name:
                 raise RuntimeError("mkdir requires a name")
-            d = self._node.create_empty_directory(name)
+            d = self._check_replacement(name)
+            d.addCallback(lambda res: self._node.create_empty_directory(name))
             def _done(res):
                 return "directory created"
             d.addCallback(_done)
@@ -593,7 +611,8 @@ class POSTHandler(rend.Page):
                 newuri = req.args["uri"][0]
             else:
                 newuri = req.fields["uri"].value
-            d = self._node.set_uri(name, newuri)
+            d = self._check_replacement(name)
+            d.addCallback(lambda res: self._node.set_uri(name, newuri))
             def _done(res):
                 return newuri
             d.addCallback(_done)
@@ -616,7 +635,8 @@ class POSTHandler(rend.Page):
                     req.setResponseCode(http.BAD_REQUEST)
                     req.setHeader("content-type", "text/plain")
                     return "%s= may not contain a slash" % (k,)
-            d = self._node.get(from_name)
+            d = self._check_replacement(to_name)
+            d.addCallback(lambda res: self._node.get(from_name))
             def add_dest(child):
                 uri = child.get_uri()
                 # now actually do the rename
@@ -632,7 +652,8 @@ class POSTHandler(rend.Page):
             contents = req.fields["file"]
             name = name or contents.filename
             uploadable = upload.FileHandle(contents.file)
-            d = self._node.add_file(name, uploadable)
+            d = self._check_replacement(name)
+            d.addCallback(lambda res: self._node.add_file(name, uploadable))
             def _done(newnode):
                 return newnode.get_uri()
             d.addCallback(_done)
@@ -641,6 +662,17 @@ class POSTHandler(rend.Page):
             return "BAD t=%s" % t
         if when_done:
             d.addCallback(lambda res: url.URL.fromString(when_done))
+        def _check_replacement(f):
+            # TODO: make this more human-friendly: maybe send them to the
+            # when_done page but with an extra query-arg that will display
+            # the error message in a big box at the top of the page. The
+            # directory page that when_done= usually points to accepts a
+            # result= argument.. use that.
+            f.trap(NoReplacementError)
+            req.setResponseCode(http.CONFLICT)
+            req.setHeader("content-type", "text/plain")
+            return str(f.value)
+        d.addErrback(_check_replacement)
         return d
 
 class DELETEHandler(rend.Page):
@@ -877,9 +909,6 @@ class VDrive(rend.Page):
         # TODO: think about clobbering/revealing config files and node secrets
 
         replace = True
-#        if "replace" in req.fields:
-#            if req.fields["replace"].value.lower() in ("false", "0"):
-#                replace = False
         if "replace" in req.args:
             if req.args["replace"][0].lower() in ("false", "0"):
                 replace = False

@@ -707,6 +707,12 @@ class Web(WebMixin, unittest.TestCase):
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
+        def _check(res):
+            self.failUnless("sub" in self._foo_node.children)
+            newdir_uri = self._foo_node.children["sub"]
+            newdir_node = self.nodes[newdir_uri]
+            self.failUnlessEqual(newdir_node.children.keys(), ["baz.txt"])
+        d.addCallback(_check)
         return d
 
     def test_PUT_NEWDIRURL_mkdirs(self):
@@ -924,6 +930,41 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    def test_POST_upload_replace(self):
+        d = self.POST("/vdrive/global/foo", t="upload",
+                      file=("bar.txt", self.NEWFILE_CONTENTS))
+        def _check(res):
+            self.failUnless("bar.txt" in self._foo_node.children)
+            new_uri = self._foo_node.children["bar.txt"]
+            new_contents = self.files[new_uri]
+            self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
+            self.failUnlessEqual(res.strip(), new_uri)
+        d.addCallback(_check)
+        return d
+
+    def test_POST_upload_no_replace_queryarg(self):
+        d = self.POST("/vdrive/global/foo?replace=false", t="upload",
+                      file=("bar.txt", self.NEWFILE_CONTENTS))
+        d.addBoth(self.shouldFail, error.Error,
+                  "POST_upload_no_replace_queryarg",
+                  "409 Conflict",
+                  "There was already a child by that name, and you asked me "
+                  "to not replace it")
+        d.addCallback(lambda res: self.GET("/vdrive/global/foo/bar.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        return d
+
+    def test_POST_upload_no_replace_field(self):
+        d = self.POST("/vdrive/global/foo", t="upload", replace="false",
+                      file=("bar.txt", self.NEWFILE_CONTENTS))
+        d.addBoth(self.shouldFail, error.Error, "POST_upload_no_replace_field",
+                  "409 Conflict",
+                  "There was already a child by that name, and you asked me "
+                  "to not replace it")
+        d.addCallback(lambda res: self.GET("/vdrive/global/foo/bar.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        return d
+
     def test_POST_upload_whendone(self):
         d = self.POST("/vdrive/global/foo", t="upload", when_done="/THERE",
                       file=("new.txt", self.NEWFILE_CONTENTS))
@@ -975,6 +1016,46 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    def test_POST_mkdir_replace(self): # return value?
+        d = self.POST("/vdrive/global/foo", t="mkdir", name="sub")
+        def _check(res):
+            self.failUnless("sub" in self._foo_node.children)
+            newdir_uri = self._foo_node.children["sub"]
+            newdir_node = self.nodes[newdir_uri]
+            self.failIf(newdir_node.children)
+        d.addCallback(_check)
+        return d
+
+    def test_POST_mkdir_no_replace_queryarg(self): # return value?
+        d = self.POST("/vdrive/global/foo?replace=false", t="mkdir", name="sub")
+        d.addBoth(self.shouldFail, error.Error,
+                  "POST_mkdir_no_replace_queryarg",
+                  "409 Conflict",
+                  "There was already a child by that name, and you asked me "
+                  "to not replace it")
+        def _check(res):
+            self.failUnless("sub" in self._foo_node.children)
+            newdir_uri = self._foo_node.children["sub"]
+            newdir_node = self.nodes[newdir_uri]
+            self.failUnlessEqual(newdir_node.children.keys(), ["baz.txt"])
+        d.addCallback(_check)
+        return d
+
+    def test_POST_mkdir_no_replace_field(self): # return value?
+        d = self.POST("/vdrive/global/foo", t="mkdir", name="sub",
+                      replace="false")
+        d.addBoth(self.shouldFail, error.Error, "POST_mkdir_no_replace_field",
+                  "409 Conflict",
+                  "There was already a child by that name, and you asked me "
+                  "to not replace it")
+        def _check(res):
+            self.failUnless("sub" in self._foo_node.children)
+            newdir_uri = self._foo_node.children["sub"]
+            newdir_node = self.nodes[newdir_uri]
+            self.failUnlessEqual(newdir_node.children.keys(), ["baz.txt"])
+        d.addCallback(_check)
+        return d
+
     def test_POST_mkdir_whendone_field(self):
         d = self.POST("/vdrive/global/foo",
                       t="mkdir", name="newdir", when_done="/THERE")
@@ -1012,6 +1093,47 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    def test_POST_put_uri_replace(self):
+        newuri = self.makefile(8)
+        contents = self.files[newuri]
+        d = self.POST("/vdrive/global/foo", t="uri", name="bar.txt", uri=newuri)
+        def _check(res):
+            self.failUnless("bar.txt" in self._foo_node.children)
+            new_uri = self._foo_node.children["bar.txt"]
+            new_contents = self.files[new_uri]
+            self.failUnlessEqual(new_contents, contents)
+            self.failUnlessEqual(res.strip(), new_uri)
+        d.addCallback(_check)
+        return d
+
+    def test_POST_put_uri_no_replace_queryarg(self):
+        newuri = self.makefile(8)
+        contents = self.files[newuri]
+        d = self.POST("/vdrive/global/foo?replace=false", t="uri",
+                      name="bar.txt", uri=newuri)
+        d.addBoth(self.shouldFail, error.Error,
+                  "POST_put_uri_no_replace_queryarg",
+                  "409 Conflict",
+                  "There was already a child by that name, and you asked me "
+                  "to not replace it")
+        d.addCallback(lambda res: self.GET("/vdrive/global/foo/bar.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        return d
+
+    def test_POST_put_uri_no_replace_field(self):
+        newuri = self.makefile(8)
+        contents = self.files[newuri]
+        d = self.POST("/vdrive/global/foo", t="uri", replace="false",
+                      name="bar.txt", uri=newuri)
+        d.addBoth(self.shouldFail, error.Error,
+                  "POST_put_uri_no_replace_field",
+                  "409 Conflict",
+                  "There was already a child by that name, and you asked me "
+                  "to not replace it")
+        d.addCallback(lambda res: self.GET("/vdrive/global/foo/bar.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        return d
+
     def test_POST_delete(self):
         d = self.POST("/vdrive/global/foo", t="delete", name="bar.txt")
         def _check(res):
@@ -1031,6 +1153,51 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(lambda res: self.GET("/vdrive/global/foo/wibble.txt?t=json"))
         d.addCallback(self.failUnlessIsBarJSON)
         return d
+
+    def test_POST_rename_file_replace(self):
+        # rename a file and replace a directory with it
+        d = self.POST("/vdrive/global/foo", t="rename",
+                      from_name="bar.txt", to_name='empty')
+        def _check(res):
+            self.failIf("bar.txt" in self._foo_node.children)
+            self.failUnless("empty" in self._foo_node.children)
+        d.addCallback(_check)
+        d.addCallback(lambda res: self.GET("/vdrive/global/foo/empty"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET("/vdrive/global/foo/empty?t=json"))
+        d.addCallback(self.failUnlessIsBarJSON)
+        return d
+
+    def test_POST_rename_file_no_replace_queryarg(self):
+        # rename a file and replace a directory with it
+        d = self.POST("/vdrive/global/foo?replace=false", t="rename",
+                      from_name="bar.txt", to_name='empty')
+        d.addBoth(self.shouldFail, error.Error,
+                  "POST_rename_file_no_replace_queryarg",
+                  "409 Conflict",
+                  "There was already a child by that name, and you asked me "
+                  "to not replace it")
+        d.addCallback(lambda res: self.GET("/vdrive/global/foo/empty?t=json"))
+        d.addCallback(self.failUnlessIsEmptyJSON)
+        return d
+
+    def test_POST_rename_file_no_replace_field(self):
+        # rename a file and replace a directory with it
+        d = self.POST("/vdrive/global/foo", t="rename", replace="false",
+                      from_name="bar.txt", to_name='empty')
+        d.addBoth(self.shouldFail, error.Error,
+                  "POST_rename_file_no_replace_field",
+                  "409 Conflict",
+                  "There was already a child by that name, and you asked me "
+                  "to not replace it")
+        d.addCallback(lambda res: self.GET("/vdrive/global/foo/empty?t=json"))
+        d.addCallback(self.failUnlessIsEmptyJSON)
+        return d
+
+    def failUnlessIsEmptyJSON(self, res):
+        data = self.worlds_cheapest_json_decoder(res)
+        self.failUnlessEqual(data[0], "dirnode")
+        self.failUnlessEqual(len(data[1]["children"]), 0)
 
     def test_POST_rename_file_slash_fail(self):
         d = self.POST("/vdrive/global/foo", t="rename",
