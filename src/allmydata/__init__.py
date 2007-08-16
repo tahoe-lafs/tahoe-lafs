@@ -9,7 +9,7 @@ community web site: U{http://allmydata.org/}
 
 __version__ = "unknown"
 try:
-    from allmydata.version import __version__
+    from _version import __version__
 except ImportError:
     # we're running in a tree that hasn't run misc/make-version.py, so we
     # don't know what our version is. This should not happen very often.

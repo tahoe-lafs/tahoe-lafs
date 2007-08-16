@@ -59,7 +59,7 @@ PP=PYTHONPATH=$(PYTHONPATH)
 
 .PHONY: make-version build
 make-version:
-	$(PYTHON) misc/make-version.py
+	$(PYTHON) misc/make-version.py "allmydata-tahoe" "src/allmydata/_version.py"
 
 build: make-version build-zfec build-Crypto build-foolscap build-simplejson
 	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="$(INSTDIR)" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
