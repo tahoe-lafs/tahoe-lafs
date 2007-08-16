@@ -29,7 +29,7 @@ def put(serverurl, vdrive, vdrive_fname, local_fname, verbosity):
     so.connect((host, port,))
 
     CHUNKSIZE=2**16
-    data = "PUT %s HTTP/1.1\r\nHostname: %s\r\n\r\n" % (url, host,)
+    data = "PUT %s HTTP/1.1\r\nConnection: close\r\nHostname: %s\r\n\r\n" % (url, host,)
     while data:
         try:
             sent = so.send(data)
@@ -45,16 +45,32 @@ def put(serverurl, vdrive, vdrive_fname, local_fname, verbosity):
     respbuf = []
     data = so.recv(CHUNKSIZE)
     while data:
-        print "debuggery 1 okay now we've got some more data: %r" % (data,)
+        # print "debuggery 1 okay now we've got some more data: %r" % (data,)
         respbuf.append(data)
         data = so.recv(CHUNKSIZE)
 
     so.shutdown(socket.SHUT_WR)
+
     data = so.recv(CHUNKSIZE)
     while data:
-        print "debuggery 2 okay now we've got some more data: %r" % (data,)
+        # print "debuggery 2 okay now we've got some more data: %r" % (data,)
         respbuf.append(data)
         data = so.recv(CHUNKSIZE)
+
+    respstr = ''.join(respbuf)
+
+    RESP_RE=re.compile("^HTTP/[0-9]\.[0-9] ([0-9]*) *([A-Za-z_]*)")  # This regex is soooo ad hoc...  --Zooko 2007-08-16
+    mo = RESP_RE.match(respstr)
+    if mo:
+        code = int(mo.group(1))
+        word = mo.group(2)
+
+        if code in (200, 201,):
+            print "%s %s" % (code, word,)
+            return 0
+    
+    print respstr
+    return 1
 
 def main():
     import optparse
@@ -69,7 +85,7 @@ def main():
     if len(args) > 1:
         vdrive_file = args[1]
 
-    put(options.server, options.vdrive, vdrive_file, local_file)
+    return put(options.server, options.vdrive, vdrive_file, local_file)
 
 if __name__ == '__main__':
     main()
