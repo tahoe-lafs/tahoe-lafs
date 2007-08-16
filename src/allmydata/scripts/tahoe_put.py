@@ -33,9 +33,8 @@ def put(serverurl, vdrive, vdrive_fname, local_fname, verbosity):
     while data:
         try:
             sent = so.send(data)
-            print "XXXXXXXX I just sent %s" % (data[:sent],)
         except Exception, le:
-            print "BOOOOO le: %r" % (le,)
+            print "got socket error: %s" % (le,)
             return -1
 
         if sent == len(data):
@@ -46,14 +45,14 @@ def put(serverurl, vdrive, vdrive_fname, local_fname, verbosity):
     respbuf = []
     data = so.recv(CHUNKSIZE)
     while data:
-        print "WHEEEEE okay now we've got some more data: %r" % (data,)
+        print "debuggery 1 okay now we've got some more data: %r" % (data,)
         respbuf.append(data)
         data = so.recv(CHUNKSIZE)
 
     so.shutdown(socket.SHUT_WR)
     data = so.recv(CHUNKSIZE)
     while data:
-        print "WHEEEEE 22222 okay now we've got some more data: %r" % (data,)
+        print "debuggery 2 okay now we've got some more data: %r" % (data,)
         respbuf.append(data)
         data = so.recv(CHUNKSIZE)
 
