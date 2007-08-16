@@ -108,7 +108,7 @@ the vdrive where currently nothing exists.
      'subdir':  [ 'dirnode', { 'mutable': bool, 'uri': uri } ]
 
    note that the value is the same as the JSON representation of the
-   corresponding FILEURL or DIRURL (except that dirnodes do not recurse --
+   corresponding FILEURL or DIRURL (except that directories do not recurse --
    the "children" entry of the child is omitted).
 
    Before writing code that uses these results, please see the important note
@@ -148,7 +148,7 @@ the vdrive where currently nothing exists.
   directory then this deletes all of its chilren.  Note that this *does not*
   delete any parent directories, so a sequence of 'PUT $NEWURL' and 'DELETE
   $NEWURL' does not necessarily return the vdrive to its original state (it
-  may leave some intermediate directory nodes).
+  may leave some intermediate directories).
 
 
 === Manipulating files by name ===
@@ -160,10 +160,10 @@ file rather than a directory.
  PUT $NEWURL
 
   This uploads a file to the given place in the vdrive. It will create
-  intermediate directory nodes as necessary. The file's contents are taken
-  from the body of the HTTP request. For convenience, the HTTP response
-  contains the URI that results from uploading the file, although the node
-  is not obligated to do anything with the URI. According to the HTTP/1.1
+  intermediate directories as necessary. The file's contents are taken from
+  the body of the HTTP request. For convenience, the HTTP response contains
+  the URI that results from uploading the file, although the node is not
+  obligated to do anything with the URI. According to the HTTP/1.1
   specification (rfc2616), this should return a 200 (OK) code when modifying
   an existing file, and a 201 (Created) code when creating a new file.
 
@@ -208,9 +208,9 @@ than files.
 == URIs ==
 
 A separate top-level resource namespace ("uri/" instead of "vdrive/") is used
-to get access to files and dirnodes that are indexed directly by URI, rather
-than by going through the vdrive. The resource thus referenced is used the
-same way as if it were accessed through the vdrive (including accessing a
+to get access to files and directories that are indexed directly by URI,
+rather than by going through the vdrive. The resource thus referenced is used
+the same way as if it were accessed through the vdrive (including accessing a
 directory's children with "$URI/childname").
 
 For example, this identifies a file or directory:
@@ -274,7 +274,7 @@ details.
   out-of-band channel, like IM or email).
 
   Note that this form merely redirects to the specific node indicated by the
-  URI: unlike the GET /uri/$URI form, you cannot traverse to child nodes by
+  URI: unlike the GET /uri/$URI form, you cannot traverse to children by
   appending additional path segments to the URL.
 
   The $URI provided as a query argument is allowed to contain slashes. The
@@ -330,7 +330,7 @@ request reaches the server". Use URIs if you want "this particular object".
   name=childname  (optional)
   file=newfile
  
-  This instructs the node to upload a file into the given dirnode. We need
+  This instructs the node to upload a file into the given directory. We need
   this because forms are the only way for a web browser to upload a file
   (browsers do not know how to do PUT or DELETE). The file's contents and the
   new child name will be included in the form's arguments. This can only be
@@ -363,7 +363,7 @@ request reaches the server". Use URIs if you want "this particular object".
   t=delete
   name=childname
 
-  This instructs the node to delete a file from the given dirnode. The name
+  This instructs the node to delete a file from the given directory. The name
   of the child to be deleted will be included in the form's arguments.
 
  POST $URL
@@ -371,7 +371,7 @@ request reaches the server". Use URIs if you want "this particular object".
   from_name=oldchildname
   to_name=newchildname
 
-  This instructs the node to rename a child within the given dirnode. The
+  This instructs the node to rename a child within the given directory. The
   child specified by 'from_name' is removed, and reattached as a child named
   for 'to_name'. An existing child at 'to_name' is replaced unless a
   "replace=false" argument is provided, making the default behavior similar
@@ -431,7 +431,7 @@ request reaches the server". Use URIs if you want "this particular object".
   will only be accepted from an HTTP connection originating from 127.0.0.1 .
 
   The localfile= form expects that $LOCALPATH will point to a file on the
-  node's local filesystem, and cause sthe node to upload that one file into
+  node's local filesystem, and causes the node to upload that one file into
   the vdrive at the given location. Any parent directories will be created in
   the vdrive as necessary.
 
