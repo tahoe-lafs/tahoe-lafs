@@ -3,9 +3,10 @@ import sys
 from cStringIO import StringIO
 from twisted.python import usage
 
+from allmydata.scripts.common import BaseOptions
 import debug, create_node, startstop_node, cli
 
-class Options(cli.OptionsMixin):
+class Options(BaseOptions, usage.Options):
     synopsis = "Usage:  allmydata <command> [command options]"
 
     subCommands = []
@@ -13,15 +14,6 @@ class Options(cli.OptionsMixin):
     subCommands += startstop_node.subCommands
     subCommands += debug.subCommands
     subCommands += cli.subCommands
-
-    def opt_version(self):
-        from twisted import copyright
-        import allmydata, zfec, foolscap
-        print "Twisted version:", copyright.version
-        print "Foolscap version:", foolscap.__version__
-        print "zfec version:", zfec.__version__
-        print "allmydata version:", allmydata.__version__
-        sys.exit(0)
 
     def postOptions(self):
         if not hasattr(self, 'subOptions'):

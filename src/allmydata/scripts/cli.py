@@ -1,14 +1,9 @@
 
 import os.path, sys
 from twisted.python import usage
+from allmydata.scripts.common import BaseOptions
 
-class OptionsMixin(usage.Options):
-    optFlags = [
-        ["quiet", "q", "Operate silently."],
-        ["version", "V", "Display version numbers and exit."],
-        ]
-
-class VDriveOptions(OptionsMixin):
+class VDriveOptions(BaseOptions, usage.Options):
     optParameters = [
         ["vdrive", "d", "global",
          "which virtual drive to use: 'global' or 'private'"],
@@ -20,6 +15,8 @@ class VDriveOptions(OptionsMixin):
 class ListOptions(VDriveOptions):
     def parseArgs(self, vdrive_filename=""):
         self['vdrive_filename'] = vdrive_filename
+
+    longdesc = """List the contents of some portion of the virtual drive."""
 
 class GetOptions(VDriveOptions):
     def parseArgs(self, vdrive_filename, local_filename="-"):

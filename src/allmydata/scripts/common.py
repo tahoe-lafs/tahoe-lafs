@@ -1,6 +1,22 @@
 
-import os
+import os, sys
 from twisted.python import usage
+
+
+class BaseOptions:
+    optFlags = [
+        ["quiet", "q", "Operate silently."],
+        ["version", "V", "Display version numbers and exit."],
+        ]
+
+    def opt_version(self):
+        from twisted import copyright
+        import allmydata, zfec, foolscap
+        print "Twisted version:", copyright.version
+        print "Foolscap version:", foolscap.__version__
+        print "zfec version:", zfec.__version__
+        print "allmydata version:", allmydata.__version__
+        sys.exit(0)
 
 
 class BasedirMixin:
