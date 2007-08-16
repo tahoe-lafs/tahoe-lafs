@@ -105,5 +105,5 @@ setup(name='allmydata-tahoe',
           # but I doubt we'd want to use the pure-python version).
 #          Extension("allmydata.Crypto.PublicKey._fastmath",
 #                    sources=["src/allmydata/Crypto/_fastmath.c"]),
-#          ],
+          ],
       )
