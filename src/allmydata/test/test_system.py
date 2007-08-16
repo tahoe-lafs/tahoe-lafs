@@ -503,6 +503,14 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             self.fail("%s was supposed to raise %s, not get '%s'" %
                       (which, expected_failure, res))
 
+    def PUT(self, urlpath, data):
+        url = self.webish_url + urlpath
+        return getPage(url, method="PUT", postdata=data)
+
+    def GET(self, urlpath, followRedirect=False):
+        url = self.webish_url + urlpath
+        return getPage(url, method="GET", followRedirect=followRedirect)
+
     def _test_web(self, res):
         base = self.webish_url
         d = getPage(base)
@@ -517,22 +525,25 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                             "I didn't see the right 'My nodeid' message "
                             "in: %s" % page)
         d.addCallback(_got_welcome)
-        d.addCallback(lambda res: getPage(base + "global_vdrive"))
-        d.addCallback(lambda res: getPage(base + "global_vdrive/subdir1"))
+        d.addCallback(self.log, "done with _got_welcome")
+        d.addCallback(lambda res: getPage(base + "vdrive/global"))
+        d.addCallback(lambda res: getPage(base + "vdrive/global/subdir1"))
         def _got_subdir1(page):
             # there ought to be an href for our file
             self.failUnless(("<td>%d</td>" % len(self.data)) in page)
             self.failUnless(">mydata567</a>" in page)
         d.addCallback(_got_subdir1)
+        d.addCallback(self.log, "done with _got_subdir1")
         d.addCallback(lambda res:
-                      getPage(base + "global_vdrive/subdir1/mydata567"))
+                      getPage(base + "vdrive/global/subdir1/mydata567"))
         def _got_data(page):
             self.failUnlessEqual(page, self.data)
         d.addCallback(_got_data)
 
         # download from a URI embedded in a URL
+        d.addCallback(self.log, "_get_from_uri")
         def _get_from_uri(res):
-            return getPage(base + "download_uri/%s?filename=%s"
+            return getPage(base + "uri/%s?filename=%s"
                            % (self.uri, "mydata567"))
         d.addCallback(_get_from_uri)
         def _got_from_uri(page):
@@ -540,20 +551,30 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(_got_from_uri)
 
         # download from a URI embedded in a URL, second form
+        d.addCallback(self.log, "_get_from_uri2")
         def _get_from_uri2(res):
-            return getPage(base + "download_uri?uri=%s" % (self.uri,))
+            return getPage(base + "uri?uri=%s" % (self.uri,))
         d.addCallback(_get_from_uri2)
         def _got_from_uri2(page):
             self.failUnlessEqual(page, self.data)
         d.addCallback(_got_from_uri2)
 
         # download from a bogus URI, make sure we get a reasonable error
+        d.addCallback(self.log, "_get_from_bogus_uri")
         def _get_from_bogus_uri(res):
-            return getPage(base + "download_uri/%s?filename=%s"
-                           % (self.mangle_uri(self.uri), "mydata567"))
+            d1 = getPage(base + "uri/%s?filename=%s"
+                         % (self.mangle_uri(self.uri), "mydata567"))
+            d1.addBoth(self.shouldFail, Error, "downloading bogus URI",
+                       "410 allmydata.encode.NotEnoughPeersError")
+            return d1
         d.addCallback(_get_from_bogus_uri)
-        d.addBoth(self.shouldFail, Error, "downloading bogus URI",
-                  "404 Not Found")
+
+        # upload a file with PUT
+        d.addCallback(self.log, "about to try PUT")
+        d.addCallback(lambda res: self.PUT("vdrive/global/subdir3/new.txt",
+                                           "new.txt contents"))
+        d.addCallback(lambda res: self.GET("vdrive/global/subdir3/new.txt"))
+        d.addCallback(self.failUnlessEqual, "new.txt contents")
 
         # TODO: mangle the second segment of a file, to test errors that
         # occur after we've already sent some good data, which uses a
