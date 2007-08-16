@@ -8,26 +8,29 @@ released June 29, 2007 (see [1]).
 Since then we've made several improvements, including:
 
  * a RESTful API for programmatically controlling your tahoe node with
-   the programming language of your choice:
+ * the programming language of your choice:
 
    http://allmydata.org/trac/tahoe/browser/docs/webapi.txt
 
  * a command-line interface for uploading and downloading files in the
-   old Unix style (ticket #53)
+   Unix style (ticket #53)
 
- * significantly reduced the memory used when uploading files (ticket #29)
+ * ported to Solaris
 
- * significantly reduced the bandwidth and disk space used when uploading many small files (tickets #80, 81, #85)
+ * significantly reduced the memory used when uploading files 
+   (ticket #29)
+
+ * significantly reduced the bandwidth and disk space used when
+   uploading many small files (tickets #80, 81, #85)
 
  * added configurable erasure-coding parameters: how many total shares
    to produce, and how many shares are required to reconstruct the
    file (ticket #84)
 
- * many bugs fixed or enhancements implemented; for a list of all
-   tickets closed since the v0.4 release, see [2].
-
  * added configurable limits on how much disk space your node will
    allocate for storing data on behalf of other peers (ticket #34)
+
+ * many bugs fixed and enhancements implemented
 
 For complete details, see this web page which shows all ticket
 changes, repository checkins, and wiki changes from June 29 to today,
@@ -75,8 +78,8 @@ period clause.
 
 INSTALLATION
 
-This release of Tahoe works on Linux/x86, Linux/amd64, Mac/Intel,
-Mac/PPC, Windows-native, and Cygwin.
+This release of Tahoe works on Linux, Mac OS X, Windows-native,
+Cygwin, and Solaris.
 
 To install, download the tarball [4], untar it, go into the resulting
 directory, and follow the directions in the README [5].
