@@ -817,7 +817,7 @@ class Web(WebMixin, unittest.TestCase):
 
     def touch(self, localdir, filename):
         path = os.path.join(localdir, filename)
-        f = open(path, "w")
+        f = open(path, "wb")
         f.write("contents of %s\n" % filename)
         f.close()
 
