@@ -10,7 +10,15 @@ extended version number class
 """
 
 # from setuptools, but intended to be included in future version of Python Standard Library (PEP 365)
-import pkg_resources
+try:
+    import pkg_resources
+except ImportError:
+    import distutils.version
+    def cmp_version(v1, v2):
+        return cmp(distutils.version.LooseVersion(str(v1)), distutils.version.LooseVersion(str(v2)))
+else:
+    def cmp_version(v1, v2):
+        return cmp(pkg_resources.parse_version(str(v1)), pkg_resources.parse_version(str(v2)))
 
 # bindann, by Nathan Wilcox (needed only for debugging)
 try:
@@ -130,4 +138,4 @@ class Version(object):
         return self.__str__()
 
     def __cmp__ (self, other):
-        return cmp(pkg_resources.parse_version(str(self)), pkg_resources.parse_version(str(other)))
+        return cmp_version(self, other)
