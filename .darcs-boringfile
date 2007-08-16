@@ -63,8 +63,8 @@
 ^src/Crypto/build($|/)
 ^_test_memory($|/)
 
-# version.py is generated at build time, and never checked in
-^src/allmydata/version\.py$
+# _version.py is generated at build time, and never checked in
+^src/allmydata/_version\.py$
 
 ^src/foolscap/build($|/)
 ^src/zfec/zfec.egg-info($|/)
