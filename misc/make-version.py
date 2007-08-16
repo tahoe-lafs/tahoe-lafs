@@ -107,7 +107,7 @@ def update(pkgname, verfilename):
 
     if count:
         # this is an interim version
-        verstr = "%s-dev-r%d" % (last_tag, count)
+        verstr = "%s-%d" % (last_tag, count)
     else:
         # this is a release
         verstr = last_tag

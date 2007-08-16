@@ -63,28 +63,28 @@ import re
 
 # Developers see "full version strings", like this:
 
-# "1.0.0a1-dev-r55"
-#  ^ ^ ^^^  ^    ^
-#  | | |||  |    |
-#  | | |||  |    '- nano version number
-#  | | |||  '- "dev" if this is a development version (not a release version)
+# "1.0.0a1-55"
+#  ^ ^ ^^^  ^
+#  | | |||  |
+#  | | |||  '- nano version number
 #  | | ||'- release number
 #  | | |'- a=alpha, b=beta, c=release candidate or none
 #  | | '- micro version number
 #  | '- minor version number
 #  '- major version number
 
-# The presence of "-dev" means that this is a development version.  There are
-# no guarantees about compatibility, etc.  This version is considered to be
-# more recent than the version without this field (e.g. "1.0.0a1").
+# The presence of the nano version number means that this is a development
+# version.  There are no guarantees about compatibility, etc.  This version is
+# considered to be more recent than the version without this field
+# (e.g. "1.0.0a1").
 
-# The next number is the "nano version number".  It is meaningful only to
-# developers.  It gets generated automatically from darcs revision control
-# history by "make-version-from-darcs-history.py".  It is the count of patches
-# that have been applied since the last version number tag was applied.
+# The nano version number is meaningful only to developers.  It gets generated
+# automatically from darcs revision control history by "make-version.py".  It
+# is the count of patches that have been applied since the last version number
+# tag was applied.
 
 VERSION_BASE_RE_STR="(\d+)\.(\d+)(\.(\d+))?((a|b|c)(\d+))?"
-VERSION_RE_STR=VERSION_BASE_RE_STR + "(-dev-r(\d+))?"
+VERSION_RE_STR=VERSION_BASE_RE_STR + "(-(\d+))?"
 VERSION_RE=re.compile("^" + VERSION_RE_STR + "$")
 
 class Version(object):
@@ -117,10 +117,10 @@ class Version(object):
             self.prereleasetag = reltag
             self.prerelease = reltagnum
 
-        if mo.group(7):
-            self.nano = int(mo.group(8))
+        if mo.group(8):
+            self.nano = int(mo.group(9))
 
-        self.fullstr = "%d.%d.%d%s%s" % (self.major, self.minor, self.micro, self.prereleasetag and "%s%d" % (self.prereleasetag, self.prerelease,) or "", self.nano and "-dev-r%d" % (self.nano,) or "",)
+        self.fullstr = "%d.%d.%d%s%s" % (self.major, self.minor, self.micro, self.prereleasetag and "%s%d" % (self.prereleasetag, self.prerelease,) or "", self.nano and "-%d" % (self.nano,) or "",)
 
     def user_str(self):
         return self.strictversion.__str__()
