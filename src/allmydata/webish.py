@@ -585,6 +585,8 @@ class POSTHandler(rend.Page):
             req.setResponseCode(http.BAD_REQUEST)
             req.setHeader("content-type", "text/plain")
             return "name= may not contain a slash"
+        # we allow the user to delete an empty-named file, but not to create
+        # them, since that's an easy and confusing mistake to make
 
         when_done = None
         if "when_done" in req.args:
@@ -617,8 +619,16 @@ class POSTHandler(rend.Page):
                 return newuri
             d.addCallback(_done)
         elif t == "delete":
-            if not name:
-                raise RuntimeError("delete requires a name")
+            if name is None:
+                # apparently an <input type="hidden" name="name" value="">
+                # won't show up in the resulting encoded form.. the 'name'
+                # field is completely missing. So to allow deletion of an
+                # empty file, we have to pretend that None means ''. The only
+                # downide of this is a slightly confusing error message if
+                # someone does a POST without a name= field. For our own HTML
+                # thisn't a big deal, because we create the 'delete' POST
+                # buttons ourselves.
+                name = ''
             d = self._node.delete(name)
             def _done(res):
                 return "thing deleted"
@@ -651,6 +661,8 @@ class POSTHandler(rend.Page):
         elif t == "upload":
             contents = req.fields["file"]
             name = name or contents.filename
+            if not name:
+                raise RuntimeError("set-uri requires a name")
             uploadable = upload.FileHandle(contents.file)
             d = self._check_replacement(name)
             d.addCallback(lambda res: self._node.add_file(name, uploadable))
