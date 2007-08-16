@@ -1,35 +1,44 @@
 NEW VERSION RELEASED
 
-We are pleased to announce the release of version 0.4 of
+We are pleased to announce the release of version 0.5 of
 Allmydata-Tahoe, a secure, decentralized storage grid under a
-free-software licence.  This is the follow-up to v0.3 which was
-released June 6, 2007 (see [1]).
+free-software licence.  This is the follow-up to v0.4 which was
+released June 29, 2007 (see [1]).
 
 Since then we've made several improvements, including:
 
- * Add encrypted, mutable directories, so that you can organize your
-   files into directories, change the contents of directories, and
-   share your directories with your friends, without thereby sharing
-   your directories with anyone else -- not even with the owners of
-   the servers that host your directories.
+ * a RESTful API for programmatically controlling your tahoe node with
+   the programming language of your choice:
 
- * make it so that web browsers can connect to the Tahoe node securely
-   with https (ticket #55)
+   http://allmydata.org/trac/tahoe/browser/docs/webapi.txt
 
+ * a command-line interface for uploading and downloading files in the
+   old Unix style (ticket #53)
+
+ * significantly reduced the memory used when uploading files (ticket #29)
+
+ * significantly reduced the bandwidth and disk space used when uploading many small files (tickets #80, 81, #85)
+
+ * added configurable erasure-coding parameters: how many total shares
+   to produce, and how many shares are required to reconstruct the
+   file (ticket #84)
+
+ * many bugs fixed or enhancements implemented; for a list of all
+   tickets closed since the v0.4 release, see [2].
+
+ * added configurable limits on how much disk space your node will
+   allocate for storing data on behalf of other peers (ticket #34)
 
 For complete details, see this web page which shows all ticket
-changes, repository checkins, and wiki changes from June 11 to today,
-June 29: [2].
+changes, repository checkins, and wiki changes from June 29 to today,
+August 16: [2].
 
-Allmydata-Tahoe v0.4 is incompatible with v0.3 due to the new
-encrypted directory structure, among other things.  (Note that this
-applies only to directories -- individual files uploaded with v0.3 are
-probably downloadable with v0.4.)
+Allmydata-Tahoe v0.5 is incompatible with v0.4 due to XXX
 
 
 WHAT IS IT GOOD FOR?
 
-With Tahoe, you can back up your files in a distributed way onto a set
+With Tahoe, you can store your files in a distributed way across a set
 of computers, such that if some of the computers fail or become
 unavailable, you can still retrieve your data from the remainder.  You
 can also securely share your files with other users.
@@ -58,7 +67,10 @@ LICENCE
 Tahoe is offered under the GNU General Public License (v2 or later),
 with the added permission that, if you become obligated to release a
 derived work under this licence (as per section 2.b), you may delay
-the fulfillment of this obligation for up to 12 months.
+the fulfillment of this obligation for up to 12 months.  If you are
+obligated to release code under section 2.b of this licence, such code
+must be released under these same terms including the 12-month grace
+period clause.
 
 
 INSTALLATION
@@ -169,8 +181,8 @@ June 29, 2007
 Boulder, Colorado and San Francisco, California
 
 
-[1]  http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=790
-[2]  http://allmydata.org/trac/tahoe/timeline?from=2007-06-29&daysback=17&changeset=on&ticket=on&wiki=on&update=Update
+[1]  http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=849
+[2]  http://allmydata.org/trac/tahoe/timeline?from=2007-08-16&daysback=50&changeset=on&ticket=on&wiki=on&update=Update
 [3]  http://allmydata.org/trac/tahoe/wiki/UseCases
 [4]  http://allmydata.org/source/tahoe/tahoe-0.4.tar.gz
 [5]  http://allmydata.org/trac/tahoe/browser/README?rev=844
