@@ -2,7 +2,13 @@
 import os.path, sys
 from twisted.python import usage
 
-class VDriveOptions(usage.Options):
+class OptionsMixin(usage.Options):
+    optFlags = [
+        ["quiet", "q", "Operate silently."],
+        ["version", "V", "Display version numbers and exit."],
+        ]
+
+class VDriveOptions(OptionsMixin):
     optParameters = [
         ["vdrive", "d", "global",
          "which virtual drive to use: 'global' or 'private'"],
@@ -24,13 +30,27 @@ class GetOptions(VDriveOptions):
         return "%s get VDRIVE_FILE LOCAL_FILE" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """Retrieve a file from the virtual drive and write it to the
-    local disk. If LOCAL_FILE is omitted or '-', the contents of the file
+    local filesystem. If LOCAL_FILE is omitted or '-', the contents of the file
     will be written to stdout."""
+
+class PutOptions(VDriveOptions):
+    def parseArgs(self, local_filename, vdrive_filename):
+        self['vdrive_filename'] = vdrive_filename
+        self['local_filename'] = local_filename
+
+    def getSynopsis(self):
+        return "%s put LOCAL_FILEVDRI VE_FILE" % (os.path.basename(sys.argv[0]),)
+
+    longdesc = """Put a file into the virtual drive (copying the file's
+    contents from the local filesystem). If LOCAL_FILE is omitted or '-', the
+    contents of the file will be read from stdin."""
+
 
 
 subCommands = [
     ["ls", None, ListOptions, "List a directory"],
     ["get", None, GetOptions, "Retrieve a file from the virtual drive."],
+    ["put", None, PutOptions, "Upload a file into the virtual drive."],
     ]
 
 def list(config, stdout, stderr):
@@ -59,8 +79,24 @@ def get(config, stdout, stderr):
                   (vdrive_filename, local_filename)
     return rc
 
+def put(config, stdout, stderr):
+    from allmydata.scripts import tahoe_put
+    vdrive_filename = config['vdrive_filename']
+    local_filename = config['local_filename']
+    if config['quiet']:
+        verbosity = 0
+    else:
+        verbosity = 2
+    rc = tahoe_put.put(config['server'],
+                       config['vdrive'],
+                       vdrive_filename,
+                       local_filename,
+                       verbosity)
+    return rc
+
 dispatch = {
     "ls": list,
     "get": get,
+    "put": put,
     }
 

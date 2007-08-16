@@ -3,15 +3,10 @@ import sys
 from cStringIO import StringIO
 from twisted.python import usage
 
-from allmydata.scripts import debug, create_node, startstop_node, cli
+import debug, create_node, startstop_node, cli
 
-class Options(usage.Options):
+class Options(cli.OptionsMixin):
     synopsis = "Usage:  allmydata <command> [command options]"
-
-    optFlags = [
-        ["quiet", "q", "Operate silently."],
-        ["version", "V", "Display version numbers and exit."],
-        ]
 
     subCommands = []
     subCommands += create_node.subCommands
