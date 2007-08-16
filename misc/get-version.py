@@ -19,7 +19,7 @@ the version available in the code image when you do:
 import os.path, re
 
 def get_version():
-    VERSIONFILE = "src/allmydata/version.py"
+    VERSIONFILE = "src/allmydata/_version.py"
     verstr = "unknown"
     if os.path.exists(VERSIONFILE):
         VSRE = re.compile("^verstr = ['\"]([^'\"]*)['\"]", re.M)
