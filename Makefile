@@ -312,3 +312,5 @@ deb-etch-head:
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 
+build_ext:
+	$(PYTHON) setup.py build_ext -i
