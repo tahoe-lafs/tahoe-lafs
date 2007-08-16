@@ -136,6 +136,12 @@ the vdrive where currently nothing exists.
   vdrive. Intermediate directories are created on-demand just like with the
   regular PUT command.
 
+  If there was already a child at the given name, this command will replace
+  the old child with the new one, and will return an HTTP 200 (OK) response
+  code. If there was not already a child there, it will return 201 (Created).
+  If you add an "replace=false" query argument, the command will return a 409
+  (Conflict) error rather than replacing an existing child.
+
  DELETE $URL
 
   This deletes the given file or directory from the vdrive.  If it is a
@@ -161,6 +167,12 @@ file rather than a directory.
   specification (rfc2616), this should return a 200 (OK) code when modifying
   an existing file, and a 201 (Created) code when creating a new file.
 
+  If there was already a child at the given name, this command will replace
+  the old child with the new one, and will return an HTTP 200 (OK) response
+  code. If there was not already a child there, it will return 201 (Created).
+  If you add an "replace=false" query argument, the command will return a 409
+  (Conflict) error rather than replacing an existing child.
+
   To use this, run 'curl -T localfile http://localhost:8011/vdrive/global/newfile'
 
 
@@ -174,6 +186,12 @@ than files.
   Create a new empty directory at the given path. The HTTP response contains
   the URI of the given directory, although the client is not obligated to do
   anything with it.
+
+  If there was already a child at the given name, this command will replace
+  the old child with the new one, and will return an HTTP 200 (OK) response
+  code. If there was not already a child there, it will return 201 (Created).
+  If you add an "replace=false" query argument, the command will return a 409
+  (Conflict) error rather than replacing an existing child.
 
  GET $URL?t=rename-form&name=$CHILDNAME
 
@@ -319,12 +337,17 @@ request reaches the server". Use URIs if you want "this particular object".
   used to upload a single file at a time. To avoid confusion, name= is not
   allowed to contain a slash (a 400 Bad Request error will result).
 
+  If there was already a child at the given name, this command will replace
+  the old child with the new one. But if you add a "replace=false" argument,
+  the command will refuse to replace the child, signalling an error instead.
+
  POST $URL
   t=mkdir
   name=childname
 
   This instructs the node to create a new empty directory. The name of the
-  new child directory will be included in the form's arguments.
+  new child directory will be included in the form's arguments. Existing
+  children are replaced unless a "replace=false" argument is provided.
 
  POST $URL
   t=uri
@@ -332,8 +355,9 @@ request reaches the server". Use URIs if you want "this particular object".
   uri=newuri
 
   This instructs the node to attach a child that is referenced by URI (just
-  like the PUT $URL?t=uri method). The name and URI of the new child
-  will be included in the form's arguments.
+  like the PUT $URL?t=uri method). The name and URI of the new child will be
+  included in the form's arguments. Existing children are replaced unless a
+  "replace=false" argument is provided.
 
  POST $URL
   t=delete
@@ -349,8 +373,9 @@ request reaches the server". Use URIs if you want "this particular object".
 
   This instructs the node to rename a child within the given dirnode. The
   child specified by 'from_name' is removed, and reattached as a child named
-  for 'to_name'.  This is unconditional and will replace any child already
-  present under 'to_name', akin to 'mv -f' in unix parlance.
+  for 'to_name'. An existing child at 'to_name' is replaced unless a
+  "replace=false" argument is provided, making the default behavior similar
+  to the unix 'mv -f' command.
 
 
 == XMLRPC ==
