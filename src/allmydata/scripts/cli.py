@@ -8,8 +8,8 @@ class VDriveOptions(BaseOptions, usage.Options):
         ["vdrive", "d", "global",
          "which virtual drive to use: 'global' or 'private'"],
 
-        ["server", "s", "http://tahoebs1.allmydata.com:8011/",
-         "which vdrive server to use, a URL like http://example.com/"],
+        ["node-url", "u", None,
+         "URL of the tahoe node to use, a URL like \"http://127.0.0.1:8888\""],
         ]
 
 class ListOptions(VDriveOptions):
@@ -52,7 +52,7 @@ subCommands = [
 
 def list(config, stdout, stderr):
     from allmydata.scripts import tahoe_ls
-    rc = tahoe_ls.list(config['server'],
+    rc = tahoe_ls.list(config['node-url'],
                        config['vdrive'],
                        config['vdrive_filename'])
     return rc
@@ -61,7 +61,7 @@ def get(config, stdout, stderr):
     from allmydata.scripts import tahoe_get
     vdrive_filename = config['vdrive_filename']
     local_filename = config['local_filename']
-    rc = tahoe_get.get(config['server'],
+    rc = tahoe_get.get(config['node-url'],
                        config['vdrive'],
                        vdrive_filename,
                        local_filename)
@@ -84,7 +84,7 @@ def put(config, stdout, stderr):
         verbosity = 0
     else:
         verbosity = 2
-    rc = tahoe_put.put(config['server'],
+    rc = tahoe_put.put(config['node-url'],
                        config['vdrive'],
                        vdrive_filename,
                        local_filename,
