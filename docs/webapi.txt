@@ -7,8 +7,12 @@ on the local host can connect. Using
 "ssl:8011:privateKey=mykey.pem:certKey=cert.pem" would run an SSL server. See
 twisted.application.strports for more details.
 
-If $NODEDIR/webpassword exists, it will be used (somehow) to require HTTP
-Digest Authentication for all webserver connections.  XXX specify how
+In this release, anyone who can connect to this port will be able to use the
+vdrive. Authentication will be added in a near-future release, probably by
+having the node generate an unguessable prefix which should be inserted
+before the 'vdrive' segment in the URLS described below, and writing this
+nonce to a read-by-owner-only file in $NODEDIR. Please see ticket #98 for
+details.
 
 
 == vdrive ==
@@ -55,9 +59,9 @@ control how what we want to do with the data and how it should be presented.
 
 In the following examples "$URL" is a shorthand for a URL like the ones
 described above, with "vdrive/" as the top level, followed by a
-slash-separated sequence of file or directory names.  "$NEWURL" is a
-shorthand for a URL pointing to a location in the vdrive where currently
-nothing exists.
+slash-separated sequence of directory names, ending with the name of a file
+or a directory. "$NEWURL" is a shorthand for a URL pointing to a location in
+the vdrive where currently nothing exists.
 
  GET $URL
 
@@ -143,6 +147,10 @@ nothing exists.
 
 === Manipulating files by name ===
 
+In these examples, $NEWURL is specifically defined to point to a location in
+the vdrive where currently nothing exists, and will be used to refer to a
+file rather than a directory.
+
  PUT $NEWURL
 
   This uploads a file to the given place in the vdrive. It will create
@@ -158,6 +166,9 @@ nothing exists.
 
 === Manipulating directories by name ===
 
+In this section, $URL and $NEWURL specifically refer to directories, rather
+than files.
+
  PUT $NEWURL?t=mkdir
 
   Create a new empty directory at the given path. The HTTP response contains
@@ -166,11 +177,14 @@ nothing exists.
 
  GET $URL?t=rename-form&name=$CHILDNAME
 
-  This provides a useful facility to browser-based user interfaces.  It
+  This provides a useful facility to browser-based user interfaces. It
   returns a page containing a form targetting the "POST $URL t=rename"
   functionality described below, with the provided $CHILDNAME present in the
-  'from_name' field of that form.  I.e. this presents a form offering to
+  'from_name' field of that form. I.e. this presents a form offering to
   rename $CHILDNAME, requesting the new name, and submitting POST rename.
+  Note that this can be used to rename both files and directories, but the
+  GET request itself is always directed to the directory containing the
+  object to be renamed.
 
 
 == URIs ==
@@ -196,8 +210,9 @@ above, with "uri/" as the top level, followed by a URI.
 Note that since tahoe URIs may contain slashes (in particular, dirnode URIs
 contain a FURL, which resembles a regular HTTP URL and starts with pb://),
 when URIs are used in this form, they must be specially quoted. All slashes
-in the URI must be replaced by '!' characters.  XXX consider changing the
-allmydata.org uri format to relieve the user of this requirement.
+in the URI must be replaced by '!' characters. The intent is to remove this
+unpleasant requirement in a future release: please see ticket #102 for
+details.
 
  GET $URI_URL
  GET $URI_URL?t=json
