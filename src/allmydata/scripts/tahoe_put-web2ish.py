@@ -2,10 +2,8 @@
 
 import re, sys
 
-from twisted import web2 
-from twisted.web2 import client, http, stream
-import twisted.web2.client.http
-
+from twisted.web2 import stream
+from twisted.web2.client.http import HTTPClientProtocol, ClientRequest
 from twisted.internet import defer, reactor, protocol
 
 SERVERURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
@@ -32,9 +30,9 @@ def _put(serverurl, vdrive, vdrive_fname, local_fname, verbosity):
         infileobj = sys.stdin
     else:
         infileobj = open(local_fname, "rb")
-    instream = web2.stream.FileStream(infileobj)
+    instream = stream.FileStream(infileobj)
     
-    d2 = protocol.ClientCreator(reactor, web2.client.http.HTTPClientProtocol).connectTCP(host, port)
+    d2 = protocol.ClientCreator(reactor, HTTPClientProtocol).connectTCP(host, port)
 
     def got_resp(resp):
         # If this isn't a 200 or 201, then write out the response data and
@@ -46,7 +44,7 @@ def _put(serverurl, vdrive, vdrive_fname, local_fname, verbosity):
             def exit(dummy):
                 d.errback(resp.code)
 
-            return web2.http.stream.readStream(resp.stream, writeit).addCallback(exit)
+            return stream.readStream(resp.stream, writeit).addCallback(exit)
 
         # If we are in quiet mode, then just exit with the resp.code.
         if verbosity == 0:
@@ -75,13 +73,14 @@ def _put(serverurl, vdrive, vdrive_fname, local_fname, verbosity):
             outbuf.append("URI: %s" % (uri,))
         
             sys.stdout.write(''.join(outbuf))
+            sys.stdout.write("\n")
 
             d.callback(resp.code)
 
-        web2.http.stream.readStream(resp.stream, gather_uri).addCallback(output_result)
+        stream.readStream(resp.stream, gather_uri).addCallback(output_result)
                 
     def send_req(proto):
-        proto.submitRequest(web2.client.http.ClientRequest('PUT', url, {}, instream)).addCallback(got_resp)
+        proto.submitRequest(ClientRequest('PUT', url, {}, instream)).addCallback(got_resp)
 
     d2.addCallback(send_req)
 
