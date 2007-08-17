@@ -3,12 +3,12 @@
 import urllib
 import simplejson
 
-def list(nodeurl, vdrive, vdrive_file):
+def list(nodeurl, vdrive, vdrive_pathname):
     if nodeurl[-1] != "/":
         nodeurl += "/"
     url = nodeurl + "vdrive/" + vdrive + "/"
-    if vdrive_file:
-        url += vdrive_file
+    if vdrive_pathname:
+        url += vdrive_pathname
     url += "?t=json"
     data = urllib.urlopen(url).read()
 
@@ -40,11 +40,11 @@ def main():
     if not isinstance(options.nodeurl, basestring) or not NODEURL_RE.match(options.nodeurl):
         raise ValueError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (options.nodeurl,))
     
-    vdrive_file = ""
+    vdrive_pathname = ""
     if args:
-        vdrive_file = args[0]
+        vdrive_pathname = args[0]
 
-    list(options.nodeurl, options.vdrive, vdrive_file)
+    list(options.nodeurl, options.vdrive, vdrive_pathname)
 
 if __name__ == '__main__':
     main()

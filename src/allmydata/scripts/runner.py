@@ -49,6 +49,8 @@ def runner(argv, run_by_human=True, stdout=sys.stdout, stderr=sys.stderr):
         rc = debug.dispatch[command](so, stdout, stderr)
     elif command in cli.dispatch:
         rc = cli.dispatch[command](so, stdout, stderr)
+    else:
+        raise usage.UsageError()
 
     return rc
 

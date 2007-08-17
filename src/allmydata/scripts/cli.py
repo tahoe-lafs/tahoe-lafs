@@ -19,8 +19,8 @@ class VDriveOptions(BaseOptions, usage.Options):
             raise usage.UsageError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (self['node-url'],))
         
 class ListOptions(VDriveOptions):
-    def parseArgs(self, vdrive_filename=""):
-        self['vdrive_filename'] = vdrive_filename
+    def parseArgs(self, vdrive_pathname=""):
+        self['vdrive_pathname'] = vdrive_pathname
 
     longdesc = """List the contents of some portion of the virtual drive."""
 
@@ -38,8 +38,8 @@ class GetOptions(VDriveOptions):
 
 class PutOptions(VDriveOptions):
     def parseArgs(self, local_filename, vdrive_filename):
-        self['vdrive_filename'] = vdrive_filename
         self['local_filename'] = local_filename
+        self['vdrive_filename'] = vdrive_filename
 
     def getSynopsis(self):
         return "%s put LOCAL_FILEVDRI VE_FILE" % (os.path.basename(sys.argv[0]),)
@@ -48,19 +48,26 @@ class PutOptions(VDriveOptions):
     contents from the local filesystem). If LOCAL_FILE is omitted or '-', the
     contents of the file will be read from stdin."""
 
+class RmOptions(VDriveOptions):
+    def parseArgs(self, vdrive_pathname):
+        self['vdrive_pathname'] = vdrive_pathname
+
+    def getSynopsis(self):
+        return "%s rm VE_FILE" % (os.path.basename(sys.argv[0]),)
 
 
 subCommands = [
     ["ls", None, ListOptions, "List a directory"],
     ["get", None, GetOptions, "Retrieve a file from the virtual drive."],
     ["put", None, PutOptions, "Upload a file into the virtual drive."],
+    ["rm", None, RmOptions, "Unlink a file or directory in the virtual drive."],
     ]
 
 def list(config, stdout, stderr):
     from allmydata.scripts import tahoe_ls
     rc = tahoe_ls.list(config['node-url'],
                        config['vdrive'],
-                       config['vdrive_filename'])
+                       config['vdrive_pathname'])
     return rc
 
 def get(config, stdout, stderr):
@@ -92,8 +99,21 @@ def put(config, stdout, stderr):
         verbosity = 2
     rc = tahoe_put.put(config['node-url'],
                        config['vdrive'],
-                       vdrive_filename,
                        local_filename,
+                       vdrive_filename,
+                       verbosity)
+    return rc
+
+def rm(config, stdout, stderr):
+    from allmydata.scripts import tahoe_rm
+    vdrive_pathname = config['vdrive_pathname']
+    if config['quiet']:
+        verbosity = 0
+    else:
+        verbosity = 2
+    rc = tahoe_rm.rm(config['node-url'],
+                       config['vdrive'],
+                       vdrive_pathname,
                        verbosity)
     return rc
 
@@ -101,5 +121,6 @@ dispatch = {
     "ls": list,
     "get": get,
     "put": put,
+    "rm": rm,
     }
 

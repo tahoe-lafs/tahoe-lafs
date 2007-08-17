@@ -2,12 +2,12 @@
 
 import sys, urllib
 
-def get(nodeurl, vdrive, vdrive_file, local_file):
+def get(nodeurl, vdrive, vdrive_fname, local_file):
     if nodeurl[-1] != "/":
         nodeurl += "/"
     url = nodeurl + "vdrive/" + vdrive + "/"
-    if vdrive_file:
-        url += vdrive_file
+    if vdrive_fname:
+        url += vdrive_fname
 
     if local_file is None or local_file == "-":
         outf = sys.stdout
@@ -36,12 +36,12 @@ def main():
     if not isinstance(options.nodeurl, basestring) or not NODEURL_RE.match(options.nodeurl):
         raise ValueError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (options.nodeurl,))
     
-    vdrive_file = args[0]
+    vdrive_fname = args[0]
     local_file = None
     if len(args) > 1:
         local_file = args[1]
 
-    get(options.nodeurl, options.vdrive, vdrive_file, local_file)
+    get(options.nodeurl, options.vdrive, vdrive_fname, local_file)
 
 if __name__ == '__main__':
     main()

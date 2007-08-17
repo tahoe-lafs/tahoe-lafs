@@ -104,10 +104,11 @@ available there, with download links, and forms to upload new files.
 
 USAGE - command-line interface
 
-Run "allmydata-tahoe ls [VIRTUAL DIRECTORY NAME]" to list the contents
-of a virtual directory.  Run "allmydata-tahoe get [VIRTUAL FILE NAME]
-[LOCAL FILE NAME]" to download a file.  Run "allmydata-tahoe put
-[LOCAL FILE NAME] [VIRTUAL FILE NAME]" to upload a file.
+Run "allmydata-tahoe ls [VIRTUAL PATH NAME]" to list the contents of a
+virtual directory.  Run "allmydata-tahoe get [VIRTUAL FILE NAME] [LOCAL FILE
+NAME]" to download a file.  Run "allmydata-tahoe put [LOCAL FILE NAME]
+[VIRTUAL FILE NAME]" to upload a file.  Run "allmydata-tahoe rm [VIRTUAL PATH
+NAME]" to unlink a file or directory in the virtual drive.
 
 USAGE - other
 

@@ -4,7 +4,7 @@ import re, socket, sys
 
 NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
-def put(nodeurl, vdrive, local_fname, vdrive_fname, verbosity):
+def rm(nodeurl, vdrive, vdrive_pathname, verbosity):
     """
     @param verbosity: 0, 1, or 2, meaning quiet, verbose, or very verbose
 
@@ -15,30 +15,15 @@ def put(nodeurl, vdrive, local_fname, vdrive_fname, verbosity):
     port = int(mo.group(3))
 
     url = "/vdrive/" + vdrive + "/"
-    if vdrive_fname:
-        url += vdrive_fname
-
-    if local_fname is None or local_fname == "-":
-        infileobj = sys.stdin
-    else:
-        infileobj = open(local_fname, "rb")
+    if vdrive_pathname:
+        url += vdrive_pathname
 
     so = socket.socket()
     so.connect((host, port,))
 
     CHUNKSIZE=2**16
-    data = "PUT %s HTTP/1.1\r\nConnection: close\r\nHostname: %s\r\n\r\n" % (url, host,)
-    while data:
-        try:
-            sent = so.send(data)
-        except Exception, le:
-            print "got socket error: %s" % (le,)
-            return -1
-
-        if sent == len(data):
-            data = infileobj.read(CHUNKSIZE)
-        else:
-            data = data[sent:]
+    data = "DELETE %s HTTP/1.1\r\nConnection: close\r\nHostname: %s\r\n\r\n" % (url, host,)
+    sent = so.send(data)
 
     respbuf = []
     data = so.recv(CHUNKSIZE)
@@ -65,7 +50,7 @@ def put(nodeurl, vdrive, local_fname, vdrive_fname, verbosity):
         code = int(mo.group(1))
         word = mo.group(2)
 
-        if code in (200, 201,):
+        if code == 200:
             print "%s %s" % (code, word,)
             return 0
     
@@ -84,12 +69,9 @@ def main():
     if not isinstance(options.nodeurl, basestring) or not NODEURL_RE.match(options.nodeurl):
         raise ValueError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (options.nodeurl,))
     
-    local_file = args[0]
-    vdrive_fname = None
-    if len(args) > 1:
-        vdrive_fname = args[1]
+    vdrive_pathname = args[0]
 
-    return put(options.nodeurl, options.vdrive, vdrive_fname, local_file)
+    return put(options.nodeurl, options.vdrive, vdrive_pathname, local_file)
 
 if __name__ == '__main__':
     main()
