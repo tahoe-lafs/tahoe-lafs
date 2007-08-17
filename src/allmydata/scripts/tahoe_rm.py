@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import re, socket, sys
+import re, socket
 
 NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
@@ -71,7 +71,7 @@ def main():
     
     vdrive_pathname = args[0]
 
-    return put(options.nodeurl, options.vdrive, vdrive_pathname, local_file)
+    return rm(options.nodeurl, options.vdrive, vdrive_pathname, 0)
 
 if __name__ == '__main__':
     main()
