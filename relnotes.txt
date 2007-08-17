@@ -182,13 +182,13 @@ available separately: [16]).
 Tahoe is sponsored by Allmydata, Inc. [17], a provider of consumer
 backup services.  Allmydata, Inc. contributes hardware, software,
 ideas, bug reports, suggestions, demands, and money (employing several
-Allmydata-Tahoe hackers and allowing them to spend part of their work
-time on the next-generation, free-software project).  We are eternally
-grateful!
+allmydata.org Tahoe hackers and allowing them to spend part of their
+work time on the next-generation, free-software project).  We are
+eternally grateful!
 
 
 Zooko O'Whielacronx
-on behalf of the Allmydata-Tahoe team
+on behalf of the allmydata.org Tahoe team
 August 17, 2007
 Grand Junction, Colorado
 
