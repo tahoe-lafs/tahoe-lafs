@@ -4,15 +4,18 @@ import re, socket, sys
 
 SERVERURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
-def put(serverurl, vdrive, vdrive_fname, local_fname, verbosity):
+def put(nodeurl, vdrive, vdrive_fname, local_fname, verbosity):
     """
     @param verbosity: 0, 1, or 2, meaning quiet, verbose, or very verbose
 
     @return: a Deferred which eventually fires with the exit code
     """
-    mo = SERVERURL_RE.match(serverurl)
+    if not isinstance(nodeurl, basestring):
+        raise ValueError("nodeurl is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (nodeurl,))
+
+    mo = SERVERURL_RE.match(nodeurl)
     if not mo:
-        raise ValueError("serverurl is required to look like \"http://HOSTNAMEORADDR:PORT\"")
+        raise ValueError("nodeurl is required to look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (nodeurl,))
     host = mo.group(1)
     port = int(mo.group(3))
 
