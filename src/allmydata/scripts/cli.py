@@ -1,7 +1,9 @@
 
-import os.path, sys
+import os.path, re, sys
 from twisted.python import usage
 from allmydata.scripts.common import BaseOptions
+
+NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
 class VDriveOptions(BaseOptions, usage.Options):
     optParameters = [
@@ -12,6 +14,10 @@ class VDriveOptions(BaseOptions, usage.Options):
          "URL of the tahoe node to use, a URL like \"http://127.0.0.1:8888\""],
         ]
 
+    def postOptions(self):
+        if not isinstance(self['node-url'], basestring) or not NODEURL_RE.match(self['node-url']):
+            raise usage.UsageError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (self['node-url'],))
+        
 class ListOptions(VDriveOptions):
     def parseArgs(self, vdrive_filename=""):
         self['vdrive_filename'] = vdrive_filename

@@ -2,11 +2,13 @@
 
 import sys, urllib
 
-def get(server, vdrive, vdrive_file, local_file):
+def get(nodeurl, vdrive, vdrive_file, local_file):
+    if not isinstance(nodeurl, basestring):
+        raise ValueError("nodeurl is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (nodeurl,))
 
-    if server[-1] != "/":
-        server += "/"
-    url = server + "vdrive/" + vdrive + "/"
+    if nodeurl[-1] != "/":
+        nodeurl += "/"
+    url = nodeurl + "vdrive/" + vdrive + "/"
     if vdrive_file:
         url += vdrive_file
 
@@ -26,19 +28,23 @@ def get(server, vdrive, vdrive_file, local_file):
 
 
 def main():
-    import optparse
+    import optparse, re
     parser = optparse.OptionParser()
     parser.add_option("-d", "--vdrive", dest="vdrive", default="global")
-    parser.add_option("-s", "--server", dest="server", default="http://tahoebs1.allmydata.com:8011")
+    parser.add_option("-u", "--nodeurl", dest="nodeurl")
 
     (options, args) = parser.parse_args()
 
+    NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
+    if not isinstance(options.nodeurl, basestring) or not NODEURL_RE.match(options.nodeurl):
+        raise ValueError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (options.nodeurl,))
+    
     vdrive_file = args[0]
     local_file = None
     if len(args) > 1:
         local_file = args[1]
 
-    get(options.server, options.vdrive, vdrive_file, local_file)
+    get(options.nodeurl, options.vdrive, vdrive_file, local_file)
 
 if __name__ == '__main__':
     main()

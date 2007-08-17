@@ -2,7 +2,7 @@
 
 import re, socket, sys
 
-SERVERURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
+NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
 def put(nodeurl, vdrive, vdrive_fname, local_fname, verbosity):
     """
@@ -13,7 +13,7 @@ def put(nodeurl, vdrive, vdrive_fname, local_fname, verbosity):
     if not isinstance(nodeurl, basestring):
         raise ValueError("nodeurl is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (nodeurl,))
 
-    mo = SERVERURL_RE.match(nodeurl)
+    mo = NODEURL_RE.match(nodeurl)
     if not mo:
         raise ValueError("nodeurl is required to look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (nodeurl,))
     host = mo.group(1)
@@ -78,19 +78,23 @@ def put(nodeurl, vdrive, vdrive_fname, local_fname, verbosity):
     return 1
 
 def main():
-    import optparse
+    import optparse, re
     parser = optparse.OptionParser()
     parser.add_option("-d", "--vdrive", dest="vdrive", default="global")
-    parser.add_option("-s", "--server", dest="server", default="http://tahoebs1.allmydata.com:8011")
+    parser.add_option("-u", "--node-url", dest="nodeurl")
 
     (options, args) = parser.parse_args()
 
+    NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
+    if not isinstance(options.nodeurl, basestring) or not NODEURL_RE.match(options.nodeurl):
+        raise ValueError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (options.nodeurl,))
+    
     local_file = args[0]
     vdrive_file = None
     if len(args) > 1:
         vdrive_file = args[1]
 
-    return put(options.server, options.vdrive, vdrive_file, local_file)
+    return put(options.nodeurl, options.vdrive, vdrive_file, local_file)
 
 if __name__ == '__main__':
     main()
