@@ -10,12 +10,7 @@ def put(nodeurl, vdrive, vdrive_fname, local_fname, verbosity):
 
     @return: a Deferred which eventually fires with the exit code
     """
-    if not isinstance(nodeurl, basestring):
-        raise ValueError("nodeurl is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (nodeurl,))
-
     mo = NODEURL_RE.match(nodeurl)
-    if not mo:
-        raise ValueError("nodeurl is required to look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (nodeurl,))
     host = mo.group(1)
     port = int(mo.group(3))
 

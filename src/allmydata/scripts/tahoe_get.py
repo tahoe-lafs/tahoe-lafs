@@ -3,9 +3,6 @@
 import sys, urllib
 
 def get(nodeurl, vdrive, vdrive_file, local_file):
-    if not isinstance(nodeurl, basestring):
-        raise ValueError("nodeurl is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (nodeurl,))
-
     if nodeurl[-1] != "/":
         nodeurl += "/"
     url = nodeurl + "vdrive/" + vdrive + "/"
