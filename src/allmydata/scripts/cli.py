@@ -42,7 +42,7 @@ class PutOptions(VDriveOptions):
         self['vdrive_filename'] = vdrive_filename
 
     def getSynopsis(self):
-        return "%s put LOCAL_FILEVDRI VE_FILE" % (os.path.basename(sys.argv[0]),)
+        return "%s put LOCAL_FILE VDRIVE_FILE" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """Put a file into the virtual drive (copying the file's
     contents from the local filesystem). If LOCAL_FILE is omitted or '-', the
