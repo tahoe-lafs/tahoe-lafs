@@ -45,8 +45,8 @@ class PutOptions(VDriveOptions):
         return "%s put LOCAL_FILE VDRIVE_FILE" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """Put a file into the virtual drive (copying the file's
-    contents from the local filesystem). If LOCAL_FILE is omitted or '-', the
-    contents of the file will be read from stdin."""
+    contents from the local filesystem). LOCAL_FILE is required to be a
+    local file (it can't be stdin)."""
 
 class RmOptions(VDriveOptions):
     def parseArgs(self, vdrive_pathname):

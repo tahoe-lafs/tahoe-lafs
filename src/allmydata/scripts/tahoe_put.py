@@ -18,16 +18,16 @@ def put(nodeurl, vdrive, local_fname, vdrive_fname, verbosity):
     if vdrive_fname:
         url += vdrive_fname
 
-    if local_fname is None or local_fname == "-":
-        infileobj = sys.stdin
-    else:
-        infileobj = open(local_fname, "rb")
+    infileobj = open(local_fname, "rb")
+    infileobj.seek(0, 2)
+    infilelen = infileobj.tell()
+    infileobj.seek(0, 0)
 
     so = socket.socket()
     so.connect((host, port,))
 
     CHUNKSIZE=2**16
-    data = "PUT %s HTTP/1.1\r\nConnection: close\r\nHostname: %s\r\n\r\n" % (url, host,)
+    data = "PUT %s HTTP/1.1\r\nConnection: close\r\nContent-Length: %s\r\nHostname: %s\r\n\r\n" % (url, infilelen, host,)
     while data:
         try:
             sent = so.send(data)
