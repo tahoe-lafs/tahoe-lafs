@@ -576,6 +576,12 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(lambda res: self.GET("vdrive/global/subdir3/new.txt"))
         d.addCallback(self.failUnlessEqual, "new.txt contents")
 
+        # can we replace files in place?
+        d.addCallback(lambda res: self.PUT("vdrive/global/subdir3/new.txt",
+                                           "NEWER contents"))
+        d.addCallback(lambda res: self.GET("vdrive/global/subdir3/new.txt"))
+        d.addCallback(self.failUnlessEqual, "NEWER contents")
+
         # TODO: mangle the second segment of a file, to test errors that
         # occur after we've already sent some good data, which uses a
         # different error path.
