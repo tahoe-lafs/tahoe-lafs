@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import re, socket, sys
+import re, socket
 
 NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
