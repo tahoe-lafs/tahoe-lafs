@@ -565,7 +565,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             d1 = getPage(base + "uri/%s?filename=%s"
                          % (self.mangle_uri(self.uri), "mydata567"))
             d1.addBoth(self.shouldFail, Error, "downloading bogus URI",
-                       "410 allmydata.encode.NotEnoughPeersError")
+                       "410")
             return d1
         d.addCallback(_get_from_bogus_uri)
 
