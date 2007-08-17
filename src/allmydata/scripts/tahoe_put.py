@@ -48,7 +48,6 @@ def put(nodeurl, vdrive, vdrive_fname, local_fname, verbosity):
     respbuf = []
     data = so.recv(CHUNKSIZE)
     while data:
-        # print "debuggery 1 okay now we've got some more data: %r" % (data,)
         respbuf.append(data)
         data = so.recv(CHUNKSIZE)
 
@@ -56,14 +55,17 @@ def put(nodeurl, vdrive, vdrive_fname, local_fname, verbosity):
 
     data = so.recv(CHUNKSIZE)
     while data:
-        # print "debuggery 2 okay now we've got some more data: %r" % (data,)
         respbuf.append(data)
         data = so.recv(CHUNKSIZE)
 
     respstr = ''.join(respbuf)
 
-    RESP_RE=re.compile("^HTTP/[0-9]\.[0-9] ([0-9]*) *([A-Za-z_]*)")  # This regex is soooo ad hoc...  --Zooko 2007-08-16
-    mo = RESP_RE.match(respstr)
+    headerend = respstr.find('\r\n\r\n')
+    if headerend == -1:
+        headerend = len(respstr)
+    header = respstr[:headerend]
+    RESP_RE=re.compile("^HTTP/[0-9]\.[0-9] ([0-9]*) *([A-Za-z_ ]*)")  # This regex is soooo ad hoc...  --Zooko 2007-08-16
+    mo = RESP_RE.match(header)
     if mo:
         code = int(mo.group(1))
         word = mo.group(2)
@@ -72,7 +74,7 @@ def put(nodeurl, vdrive, vdrive_fname, local_fname, verbosity):
             print "%s %s" % (code, word,)
             return 0
     
-    print respstr
+    print respstr[headerend:]
     return 1
 
 def main():
