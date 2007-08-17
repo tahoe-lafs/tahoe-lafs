@@ -9,7 +9,7 @@ from allmydata.util import hashutil
 from allmydata.interfaces import IDirectoryNode, IDirnodeURI
 from allmydata.scripts import runner
 from allmydata.dirnode import VirtualDriveServer, \
-     ChildAlreadyPresentError, BadWriteEnablerError, NoPublicRootError
+     BadWriteEnablerError, NoPublicRootError
 
 # test the host-side code
 
@@ -31,11 +31,9 @@ class DirectoryNode(unittest.TestCase):
         self.failUnlessEqual(empty_list, [])
 
         vds.set(index, we, "key1", "name1", "write1", "read1")
+        vds.set(index, we, "key2", "name2", "write2", "read2")
+        # we should be able to replace entries without complaint
         vds.set(index, we, "key2", "name2", "", "read2")
-
-        self.failUnlessRaises(ChildAlreadyPresentError,
-                              vds.set,
-                              index, we, "key2", "name2", "write2", "read2")
 
         self.failUnlessRaises(BadWriteEnablerError,
                               vds.set,

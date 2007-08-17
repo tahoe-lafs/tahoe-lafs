@@ -247,10 +247,8 @@ class RIVirtualDriveServer(RemoteInterface):
 
     def set(index=Hash, write_enabler=Hash, key=Hash,
             name=EncryptedThing, write=EncryptedThing, read=EncryptedThing):
-        """Set a child object.
-
-        This will raise IndexError if a child with the given name already
-        exists.
+        """Set a child object. I will replace any existing child of the same
+        name.
         """
 
     def delete(index=Hash, write_enabler=Hash, key=Hash):
@@ -373,7 +371,8 @@ class IDirectoryNode(Interface):
 
     def set_uri(name, child_uri):
         """I add a child (by URI) at the specific name. I return a Deferred
-        that fires when the operation finishes.
+        that fires when the operation finishes. I will replace any existing
+        child of the same name.
 
         The child_uri could be for a file, or for a directory (either
         read-write or read-only, using a URI that came from get_uri() ).
@@ -384,7 +383,8 @@ class IDirectoryNode(Interface):
     def set_node(name, child):
         """I add a child at the specific name. I return a Deferred that fires
         when the operation finishes. This Deferred will fire with the child
-        node that was just added.
+        node that was just added. I will replace any existing child of the
+        same name.
 
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""

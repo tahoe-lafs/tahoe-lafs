@@ -14,8 +14,6 @@ from allmydata.Crypto.Cipher import AES
 
 class BadWriteEnablerError(Exception):
     pass
-class ChildAlreadyPresentError(Exception):
-    pass
 
 class NoPublicRootError(Exception):
     pass
@@ -107,7 +105,11 @@ class VirtualDriveServer(service.MultiService, Referenceable):
         # first, see if the key is already present
         for i,(H_key, E_key, E_write, E_read) in enumerate(data[1]):
             if H_key == key:
-                raise ChildAlreadyPresentError
+                # it is, we need to remove it first. Recurse to complete the
+                # operation.
+                self.delete(index, write_enabler, key)
+                return self.set(index, write_enabler, key,
+                                name, write, read)
         # now just append the data
         data[1].append( (key, name, write, read) )
         self._write_to_file(index, data)
