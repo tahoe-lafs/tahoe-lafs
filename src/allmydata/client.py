@@ -122,7 +122,7 @@ class Client(node.Node, Referenceable):
 
         self.my_furl = self.tub.registerReference(self, my_old_name)
         f = open(MYSELF_FURL_PATH, "w")
-        f.write(self.my_furl)
+        f.write(self.my_furl + "\n")
         f.close()
 
         ic = IntroducerClient(self.tub, self.introducer_furl, self.my_furl)
