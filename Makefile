@@ -77,8 +77,16 @@ build-simplejson:
 	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --single-version-externally-managed --prefix="$(INSTDIR)" --record="$(INSTDIR)/simplejson_install.log" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
 
 clean-zfec:
-	-cd src/zfec && \
-	$(PP) $(PYTHON) ./setup.py clean --all
+	-cd src/zfec && $(PP) $(PYTHON) ./setup.py clean --all
+	rm -rf src/zfec/zfec.egg-info
+	rm -f src/zfec/setuptools-*.egg
+	find src/zfec -name '*.pyc' |xargs rm -f
+
+clean-simplejson:
+	-cd src/simplejson && $(PP) $(PYTHON) ./setup.py clean --all
+	rm -rf src/simplejson/simplejson.egg-info
+	rm -f src/zfec/setuptools-*.egg
+	find src/simplejson -name '*.pyc' |xargs rm -f
 
 clean-foolscap:
 	-cd src/foolscap && $(PP) $(PYTHON) ./setup.py clean --all
@@ -147,7 +155,8 @@ figleaf-output:
 # after doing test-figleaf and figleaf-output, point your browser at
 # coverage-html/index.html
 
-.PHONY: upload-figleaf .figleaf.el pyflakes count-lines check-memory clean
+.PHONY: upload-figleaf .figleaf.el pyflakes count-lines check-memory
+.PHONY: clean clean-zfec clean-simplejson clean-foolscap
 
 # 'upload-figleaf' is meant to be run with an UPLOAD_TARGET=host:/dir setting
 ifdef UPLOAD_TARGET
@@ -202,7 +211,7 @@ test-clean:
 	find . |grep -v allfiles.tmp |sort >allfiles.tmp.new
 	diff allfiles.tmp.old allfiles.tmp.new
 
-clean: clean-zfec clean-foolscap
+clean: clean-zfec clean-foolscap clean-simplejson
 	rm -rf build
 	rm -f debian
 	rm -rf instdir
