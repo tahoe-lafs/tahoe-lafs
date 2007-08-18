@@ -81,8 +81,8 @@ clean-zfec:
 	$(PP) $(PYTHON) ./setup.py clean --all
 
 clean-foolscap:
-	-cd src/foolscap && \
-	$(PP) $(PYTHON) ./setup.py clean --all
+	-cd src/foolscap && $(PP) $(PYTHON) ./setup.py clean --all
+	find src/foolscap -name '*.pyc' |xargs rm -f
 
 
 
@@ -207,6 +207,7 @@ clean: clean-zfec clean-foolscap
 	rm -f debian
 	rm -rf instdir
 	rm -f `find src/allmydata -name '*.so'`
+	rm -f src/allmydata/_version.py
 
 install: 
 	cd src/zfec && python ./setup.py install && cd ../..
