@@ -85,7 +85,7 @@ clean-zfec:
 clean-simplejson:
 	-cd src/simplejson && $(PP) $(PYTHON) ./setup.py clean --all
 	rm -rf src/simplejson/simplejson.egg-info
-	rm -f src/zfec/setuptools-*.egg
+	rm -f src/simplejson/setuptools-*.egg
 	find src/simplejson -name '*.pyc' |xargs rm -f
 
 clean-foolscap:
