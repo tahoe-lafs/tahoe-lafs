@@ -262,10 +262,6 @@ setup-deb: is-known-debian-arch
 	ln -s misc/$(TAHOE_ARCH)/debian debian
 	chmod +x debian/rules
 
-deb-foolscap-ARCH: is-known-debian-arch
-	$(MAKE) -C src/foolscap debian-$(FOOLSCAP_ARCH)
-	mv src/python-foolscap*.deb ..
-
 # etch (current debian stable) has python-simplejson-1.3
 # sid (debian unstable) currently has python-simplejson 1.7.1
 # edgy has 1.3
@@ -274,7 +270,6 @@ deb-foolscap-ARCH: is-known-debian-arch
 
 deb-ARCH: is-known-debian-arch setup-deb
 	fakeroot debian/rules binary
-	$(MAKE) deb-foolscap-ARCH
 	echo
 	echo "The newly built .deb packages are in the parent directory from here."
 
@@ -283,8 +278,7 @@ deb-ARCH: is-known-debian-arch setup-deb
 .PHONY: deb-etch-head
 
 # The buildbot runs the following targets after each change, to produce
-# up-to-date tahoe .debs. These steps do not create foolscap or simplejson
-# .debs, only the deb-$ARCH targets (above) do that.
+# up-to-date tahoe .debs. These steps do not create .debs for anything else.
 
 increment-deb-version: make-version
 	debchange --newversion $(VER) $(DEBCOMMENTS)
