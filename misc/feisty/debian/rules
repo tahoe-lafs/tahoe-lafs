@@ -11,7 +11,6 @@ STAGING_DIR=$(CURDIR)/debian/allmydata-tahoe
 
 install/allmydata-tahoe::
 	mkdir -pm755 $(STAGING_DIR)
-	cd src/zfec && python setup.py install --single-version-externally-managed --root=$(STAGING_DIR)
 	python setup.py install --root=$(STAGING_DIR)
 
 	dh_pycentral
