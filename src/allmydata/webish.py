@@ -21,7 +21,7 @@ def getxmlfile(name):
 class IClient(Interface):
     pass
 class ILocalAccess(Interface):
-    def allow_local_access():
+    def local_access_is_allowed():
         pass
 
 
@@ -920,7 +920,7 @@ class VDrive(rend.Page):
             if localdir != os.path.abspath(localdir):
                 return NeedAbsolutePathError(), ()
         if localfile or localdir:
-            if not ILocalAccess(ctx).allow_local_access():
+            if not ILocalAccess(ctx).local_access_is_allowed():
                 return LocalAccessDisabledError(), ()
             if req.getHost().host != LOCALHOST:
                 return NeedLocalhostError(), ()
@@ -1132,7 +1132,7 @@ class LocalAccess:
     implements(ILocalAccess)
     def __init__(self):
         self.local_access = False
-    def allow_local_access(self):
+    def local_access_is_allowed(self):
         return self.local_access
 
 class WebishServer(service.MultiService):
