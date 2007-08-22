@@ -1,2 +1,2 @@
 
-include allmydata/web/*.xhtml
+include allmydata/web/*.xhtml allmydata/web/*.html allmydata/web/*.css
