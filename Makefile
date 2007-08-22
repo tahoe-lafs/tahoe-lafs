@@ -196,7 +196,7 @@ test-darcs-boringfile:
 	$(PYTHON) misc/test-darcs-boringfile.py
 
 test-clean:
-	find . |sort >allfiles.tmp.old
+	find . |grep -v allfiles.tmp |sort >allfiles.tmp.old
 	$(MAKE)
 	$(MAKE) clean
 	find . |grep -v allfiles.tmp |sort >allfiles.tmp.new
