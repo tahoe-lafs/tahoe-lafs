@@ -82,7 +82,7 @@ majority of the nodes are no longer available.""",
                 "allmydata.scripts",],
       package_dir={ "allmydata": "src/allmydata",},
       scripts = ["bin/allmydata-tahoe"],
-      package_data={ 'allmydata': ['web/*.xhtml', 'web/*.css'] },
+      package_data={ 'allmydata': ['web/*.xhtml', 'web/*.html', 'web/*.css'] },
       classifiers=trove_classifiers,
       test_suite="allmydata.test",
       )

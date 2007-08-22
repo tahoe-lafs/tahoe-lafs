@@ -285,6 +285,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(self._check_publish_private)
         d.addCallback(self.log, "did _check_publish_private")
         d.addCallback(self._test_web)
+        d.addCallback(self._test_web_start)
         d.addCallback(self._test_runner)
         return d
     test_vdrive.timeout = 1100
@@ -582,6 +583,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(lambda res: self.GET("vdrive/global/subdir3/new.txt"))
         d.addCallback(self.failUnlessEqual, "NEWER contents")
 
+
         # TODO: mangle the second segment of a file, to test errors that
         # occur after we've already sent some good data, which uses a
         # different error path.
@@ -593,6 +595,16 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         # TODO: delete a file by using a button on the directory page
 
         return d
+
+    def _test_web_start(self, res):
+        basedir = self.clients[0].basedir
+        startfile = os.path.join(basedir, "start.html")
+        self.failUnless(os.path.exists(startfile))
+        start_html = open(startfile, "r").read()
+        self.failUnless(self.webish_url in start_html)
+        private_uri = self.clients[0].getServiceNamed("vdrive")._private_uri
+        private_url = self.webish_url + "uri/" + private_uri.replace("/","!")
+        self.failUnless(private_url in start_html)
 
     def _test_runner(self, res):
         # exercise some of the diagnostic tools in runner.py

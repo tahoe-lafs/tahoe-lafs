@@ -1,7 +1,7 @@
 
 from base64 import b32encode
 import os.path
-from twisted.application import service, strports
+from twisted.application import service, strports, internet
 from twisted.web import static, resource, server, html, http
 from twisted.python import util, log
 from twisted.internet import defer
@@ -1021,9 +1021,6 @@ class Root(rend.Page):
             if segments[1] == "global":
                 d = vdrive.get_public_root()
                 name = "public vdrive"
-            elif segments[1] == "private":
-                d = vdrive.get_private_root()
-                name = "private vdrive"
             else:
                 return rend.NotFound
             d.addCallback(lambda dirnode: VDrive(dirnode, name))
@@ -1099,9 +1096,13 @@ class Root(rend.Page):
                    "responding), no vdrive available."]
 
     def render_private_vdrive(self, ctx, data):
-        if IClient(ctx).getServiceNamed("vdrive").have_private_root():
+        basedir = IClient(ctx).basedir
+        start_html = os.path.abspath(os.path.join(basedir, "start.html"))
+        if os.path.exists(start_html):
             return T.p["To view your personal private non-shared filestore, ",
-                       T.a(href="vdrive/private")["Click Here!"],
+                       "use this browser to open the following file from ",
+                       "your local filesystem:",
+                       T.pre[start_html],
                        ]
         return T.p["personal vdrive not available."]
 
@@ -1131,8 +1132,9 @@ class LocalAccess:
 class WebishServer(service.MultiService):
     name = "webish"
 
-    def __init__(self, webport, local_access=False):
+    def __init__(self, webport):
         service.MultiService.__init__(self)
+        self.webport = webport
         self.root = Root()
         self.site = site = appserver.NevowSite(self.root)
         self.site.requestFactory = MyRequest
@@ -1155,3 +1157,23 @@ class WebishServer(service.MultiService):
         # I thought you could do the same with an existing interface, but
         # apparently 'ISite' does not exist
         #self.site._client = self.parent
+
+    def create_start_html(self, private_uri, startfile):
+        f = open(startfile, "w")
+        os.chmod(startfile, 0600)
+        template = open(util.sibpath(__file__, "web/start.html"), "r").read()
+        # what is our webport?
+        s = self.listener
+        if isinstance(s, internet.TCPServer):
+            base_url = "http://localhost:%d" % s._port.getHost().port
+        elif isinstance(s, internet.SSLServer):
+            base_url = "https://localhost:%d" % s._port.getHost().port
+        else:
+            base_url = "UNKNOWN"  # this will break the href
+            # TODO: emit a start.html that explains that we don't know
+            # how to create a suitable URL
+        fields = {"private_uri": private_uri.replace("/","!"),
+                  "base_url": base_url,
+                  }
+        f.write(template % fields)
+        f.close()

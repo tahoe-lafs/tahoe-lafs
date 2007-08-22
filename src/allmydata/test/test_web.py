@@ -16,6 +16,7 @@ import itertools
 
 class MyClient(service.MultiService):
     nodeid = "fake_nodeid"
+    basedir = "fake_basedir"
     def get_versions(self):
         return {'allmydata': "fake",
                 'foolscap': "fake",
@@ -378,9 +379,32 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnless('Welcome To AllMyData' in res)
             self.failUnless('Tahoe' in res)
             self.failUnless('To view the global shared filestore' in res)
-            self.failUnless('To view your personal private non-shared' in res)
+            self.failUnless('personal vdrive not available.' in res)
+
+            self.s.basedir = 'web/test_welcome'
+            fileutil.make_dirs("web/test_welcome")
+            self.ws.create_start_html("private_uri",
+                                      "web/test_welcome/start.html")
+            return self.GET("/")
         d.addCallback(_check)
+        def _check2(res):
+            self.failUnless('To view your personal private non-shared' in res)
+            self.failUnless('from your local filesystem:' in res)
+            self.failUnless(os.path.abspath('web/test_welcome/start.html')
+                            in res)
+        d.addCallback(_check2)
         return d
+
+    def test_start_html(self):
+        fileutil.make_dirs("web")
+        startfile = "web/start.html"
+        self.ws.create_start_html("private_uri", startfile)
+
+        self.failUnless(os.path.exists(startfile))
+        start_html = open(startfile, "r").read()
+        self.failUnless(self.webish_url in start_html)
+        private_url = self.webish_url + "/uri/private_uri"
+        self.failUnless(private_url in start_html)
 
     def test_GET_FILEURL(self):
         d = self.GET("/vdrive/global/foo/bar.txt")
@@ -645,13 +669,6 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnless(re.search(r'<td><a href="readonly">readonly</a>'
                                       '</td>\s+<td>DIR-RO</td>', res))
         d.addCallback(_check3)
-
-        # and take a quick peek at the private vdrive
-        d.addCallback(lambda res:
-                      self.GET("/vdrive/private", followRedirect=True))
-        def _check4(res):
-            pass
-        d.addCallback(_check4)
 
         return d
 

@@ -3,6 +3,7 @@ import os
 from twisted.application import service
 from zope.interface import implements
 from allmydata.interfaces import IVirtualDrive, IDirnodeURI, IURI
+from allmydata.util import observer
 from allmydata import dirnode
 from twisted.internet import defer
 
@@ -24,6 +25,7 @@ class VirtualDrive(service.MultiService):
         service.MultiService.__init__(self)
         self._global_uri = None
         self._private_uri = None
+        self._private_root_observer = observer.OneShotObserverList()
 
     def log(self, msg):
         self.parent.log(msg)
@@ -46,6 +48,7 @@ class VirtualDrive(service.MultiService):
             self._private_uri = f.read().strip()
             f.close()
             self.log("using private vdrive uri %s" % self._private_uri)
+            self._private_root_observer.fire(self._private_uri)
 
         furl_file = os.path.join(basedir, self.GLOBAL_VDRIVE_FURL_FILE)
         if os.path.exists(furl_file):
@@ -94,6 +97,7 @@ class VirtualDrive(service.MultiService):
                 f = open(private_uri_file, "w")
                 f.write(self._private_uri + "\n")
                 f.close()
+                self._private_root_observer.fire(self._private_uri)
             d.addCallback(_got_directory)
 
 
@@ -103,6 +107,15 @@ class VirtualDrive(service.MultiService):
         if not self._global_uri:
             return defer.fail(NoGlobalVirtualDriveError())
         return self.get_node(self._global_uri)
+
+    def when_private_root_available(self):
+        """Return a Deferred that will fire with the URI of the private
+        vdrive root, when it is available.
+
+        This might be right away if the private vdrive was already present.
+        The first time the node is started, this will take a bit longer.
+        """
+        return self._private_root_observer.when_fired()
 
     def have_private_root(self):
         return bool(self._private_uri)

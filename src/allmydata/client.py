@@ -50,10 +50,7 @@ class Client(node.Node, Referenceable):
         except EnvironmentError:
             pass # absent or unreadable webport file
         else:
-            ws = WebishServer(webport)
-            ws.allow_local_access(os.path.exists(os.path.join(self.basedir,
-                                  self.WEB_ALLOW_LOCAL_ACCESS_FILE)))
-            self.add_service(ws)
+            self.init_web(webport)
 
         INTRODUCER_FURL_FILE = os.path.join(self.basedir,
                                             self.INTRODUCER_FURL_FILE)
@@ -99,6 +96,18 @@ class Client(node.Node, Referenceable):
         filename = os.path.join(self.basedir, self.PUSH_TO_OURSELVES_FILE)
         if os.path.exists(filename):
             self.push_to_ourselves = True
+
+    def init_web(self, webport):
+        # this must be called after the VirtualDrive is attached
+        ws = WebishServer(webport)
+        ws.allow_local_access(os.path.exists(os.path.join(self.basedir,
+                              self.WEB_ALLOW_LOCAL_ACCESS_FILE)))
+        self.add_service(ws)
+        vd = self.getServiceNamed("vdrive")
+        startfile = os.path.join(self.basedir, "start.html")
+        d = vd.when_private_root_available()
+        d.addCallback(ws.create_start_html, startfile)
+
 
     def _check_hotline(self, hotline_file):
         if os.path.exists(hotline_file):
