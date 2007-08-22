@@ -44,23 +44,20 @@ class Client(node.Node, Referenceable):
         self.add_service(Uploader())
         self.add_service(Downloader())
         self.add_service(VirtualDrive())
-        WEBPORTFILE = os.path.join(self.basedir, self.WEBPORTFILE)
-        if os.path.exists(WEBPORTFILE):
-            f = open(WEBPORTFILE, "r")
-            webport = f.read().strip() # strports string
-            f.close()
+        try:
+            webport = open(os.path.join(self.basedir, self.WEBPORTFILE),
+                           "r").read().strip() # strports string
+        except EnvironmentError:
+            pass # absent or unreadable webport file
+        else:
             ws = WebishServer(webport)
-            local_access_file = os.path.join(self.basedir,
-                                             self.WEB_ALLOW_LOCAL_ACCESS_FILE)
-            if os.path.exists(local_access_file):
-                ws.allow_local_access(True)
+            ws.allow_local_access(os.path.exists(os.path.join(self.basedir,
+                                  self.WEB_ALLOW_LOCAL_ACCESS_FILE)))
             self.add_service(ws)
 
         INTRODUCER_FURL_FILE = os.path.join(self.basedir,
                                             self.INTRODUCER_FURL_FILE)
-        f = open(INTRODUCER_FURL_FILE, "r")
-        self.introducer_furl = f.read().strip()
-        f.close()
+        self.introducer_furl = open(INTRODUCER_FURL_FILE, "r").read().strip()
 
         hotline_file = os.path.join(self.basedir,
                                     self.SUICIDE_PREVENTION_HOTLINE_FILE)
@@ -72,12 +69,13 @@ class Client(node.Node, Referenceable):
     def init_storage(self):
         storedir = os.path.join(self.basedir, self.STOREDIR)
         sizelimit = None
-        SIZELIMIT_FILE = os.path.join(self.basedir,
-                                      self.SIZELIMIT_FILE)
-        if os.path.exists(SIZELIMIT_FILE):
-            f = open(SIZELIMIT_FILE, "r")
-            data = f.read().strip()
-            f.close()
+
+        try:
+            data = open(os.path.join(self.basedir, self.SIZELIMIT_FILE),
+                        "r").read().strip()
+        except EnvironmentError:
+            pass # absent or unreadable sizelimit file
+        else:
             m = re.match(r"^(\d+)([kKmMgG]?[bB]?)$", data)
             if not m:
                 log.msg("SIZELIMIT_FILE contains unparseable value %s" % data)
@@ -114,16 +112,18 @@ class Client(node.Node, Referenceable):
         self.log("tub_ready")
 
         my_old_name = None
-        MYSELF_FURL_PATH = os.path.join(self.basedir, self.MY_FURL_FILE)
-        if os.path.exists(MYSELF_FURL_PATH):
-            my_old_furl = open(MYSELF_FURL_PATH, "r").read().strip()
+        try:
+            my_old_furl = open(os.path.join(self.basedir, self.MY_FURL_FILE),
+                               "r").read().strip()
+        except EnvironmentError:
+            pass # absent or unreadable myfurl file
+        else:
             sturdy = SturdyRef(my_old_furl)
             my_old_name = sturdy.name
 
         self.my_furl = self.tub.registerReference(self, my_old_name)
-        f = open(MYSELF_FURL_PATH, "w")
-        f.write(self.my_furl + "\n")
-        f.close()
+        open(os.path.join(self.basedir, self.MY_FURL_FILE),
+             "w").write(self.my_furl + "\n")
 
         ic = IntroducerClient(self.tub, self.introducer_furl, self.my_furl)
         self.introducer_client = ic
@@ -136,9 +136,7 @@ class Client(node.Node, Referenceable):
         c.setServiceParent(self)
         control_url = self.tub.registerReference(c)
         control_furl_file = os.path.join(self.basedir, "control.furl")
-        f = open(control_furl_file, "w")
-        f.write(control_url + "\n")
-        f.close()
+        open(control_furl_file, "w").write(control_url + "\n")
         os.chmod(control_furl_file, 0600)
 
 
