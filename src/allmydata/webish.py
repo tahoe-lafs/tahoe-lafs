@@ -167,22 +167,29 @@ class Directory(rend.Page):
         ctx.fillSlots("rename", rename)
 
         # build the base of the uri_link link url
-        uri_link = urllib.quote(target.get_uri().replace("/", "!"))
+        uri_link = "/uri/" + urllib.quote(target.get_uri().replace("/", "!"))
 
         if IFileNode.providedBy(target):
             # file
-            dlurl = urllib.quote(name)
+
+            # add the filename to the uri_link url
+            uri_link += '?%s' % (urllib.urlencode({'filename': name}),)
+
+            # to prevent javascript in displayed .html files from stealing a
+            # secret vdrive URI from the URL, send the browser to a URI-based
+            # page that doesn't know about the vdrive at all
+            #dlurl = urllib.quote(name)
+            dlurl = uri_link
+
             ctx.fillSlots("filename",
                           T.a(href=dlurl)[html.escape(name)])
             ctx.fillSlots("type", "FILE")
 
             ctx.fillSlots("size", target.get_size())
 
-            text_plain_link = "/uri/%s?filename=foo.txt" % uri_link
+            text_plain_link = uri_link + "?filename=foo.txt"
             text_plain_tag = T.a(href=text_plain_link)["text/plain"]
 
-            # if we're a file, add the filename to the uri_link url
-            uri_link += '?%s' % (urllib.urlencode({'filename': name}),)
 
         elif IDirectoryNode.providedBy(target):
             # directory
@@ -202,7 +209,7 @@ class Directory(rend.Page):
         childdata = [T.a(href="%s?t=json" % name)["JSON"], ", ",
                      T.a(href="%s?t=uri" % name)["URI"], ", ",
                      T.a(href="%s?t=readonly-uri" % name)["readonly-URI"], ", ",
-                     T.a(href="/uri/%s" % uri_link)["URI-link"],
+                     T.a(href=uri_link)["URI-link"],
                      ]
         if text_plain_tag:
             childdata.extend([", ", text_plain_tag])

@@ -646,7 +646,10 @@ class Web(WebMixin, unittest.TestCase):
         # the addSlash means we get a redirect here
         d = self.GET("/vdrive/global/foo", followRedirect=True)
         def _check(res):
-            self.failUnless(re.search(r'<td><a href="bar.txt">bar.txt</a></td>'
+            # the FILE reference points to a URI, but it should end in bar.txt
+            self.failUnless(re.search(r'<td>'
+                                      '<a href="[^"]+bar.txt">bar.txt</a>'
+                                      '</td>'
                                       '\s+<td>FILE</td>'
                                       '\s+<td>123</td>'
                                       , res))
