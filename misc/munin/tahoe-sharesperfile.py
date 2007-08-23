@@ -56,5 +56,5 @@ for nodename, basedir in nodedirs:
         shares_per_file = 1.0 * shares / files
     else:
         shares_per_file = 0.0
-    print "%s.value %d" % (nodename, shares_per_file)
+    print "%s.value %.1f" % (nodename, shares_per_file)
 
