@@ -1,11 +1,24 @@
-NEW VERSION RELEASED
+NEW VERSION RELEASED -- Allmydata-Tahoe version 0.5.1
 
-We are pleased to announce the release of version 0.5 of allmydata.org
-"Tahoe", a secure, decentralized storage grid under a free-software
-licence.  This is the follow-up to v0.4 which was released June 29,
-2007 (see [1]).
+We are pleased to announce the release of version 0.5.1 of
+allmydata.org "Tahoe", a secure, decentralized storage grid under a
+free-software licence.  This is a security patch to v0.5.0, which was
+the follow-up to v0.4, which was released June 29, 2007 (see [1]).
 
-Since then we've made several improvements, including:
+Since v0.5.0 we've made the following changes:
+
+ * fixed security flaw in which XSS/XSRF attacks could disclose
+   private files or delete files (ticket #98)
+
+ * updated the webapi and the webapi.txt document for clarity and
+   easier access to read/write permission metadata (ticket #118)
+
+ * removed the --vdrive option from the command-line tools, since the
+   security fix makes the private vdrive unavailable to the
+   command-line tools; We will make it available again in a secure way
+   in a future release -- see ticket #120.
+
+Since v0.4 we've made several improvements, including:
 
  * a RESTful API for programming your Tahoe node in the language of
    your choice [2]
@@ -31,10 +44,11 @@ Since then we've made several improvements, including:
 
 For complete details, see this web page which shows all ticket
 changes, repository checkins, and wiki changes from June 29 to today,
-August 17: [3].
+August 23: [3].
 
-Allmydata.org Tahoe v0.5 is incompatible with v0.4 due to a change in
-the formatting of URIs to make them more human-friendly.
+Allmydata.org Tahoe v0.5.1 is compatible with Allmydata.org Tahoe
+v0.5.0.  It is incompatible with v0.4 due to a change in the
+formatting of URIs to make them more human-friendly.
 
 
 WHAT IS IT GOOD FOR?
@@ -189,16 +203,16 @@ eternally grateful!
 
 Zooko O'Whielacronx
 on behalf of the allmydata.org Tahoe team
-August 17, 2007
-Grand Junction, Colorado
+August 23, 2007
+Boulder, Colorado
 
 
 [1]  http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=849
 [2]  http://allmydata.org/trac/tahoe/browser/docs/webapi.txt
-[3]  http://allmydata.org/trac/tahoe/timeline?from=2007-08-17&daysback=51&changeset=on&ticket=on&wiki=on&update=Update
+[3]  http://allmydata.org/trac/tahoe/timeline?from=2007-08-23&daysback=57&changeset=on&ticket=on&wiki=on&update=Update
 [4]  http://allmydata.org/trac/tahoe/wiki/UseCases
-[5]  http://allmydata.org/source/tahoe/tahoe-0.5.tar.gz
-[6]  http://allmydata.org/trac/tahoe/browser/README?rev=1102
+[5]  http://allmydata.org/source/tahoe/tahoe-0.5.1.tar.gz
+[6]  http://allmydata.org/trac/tahoe/browser/README?rev=1141
 [7]  http://allmydata.org/trac/tahoe/browser/roadmap.txt
 [8]  http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
 [9]  http://allmydata.org/trac/tahoe
