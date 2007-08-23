@@ -398,8 +398,7 @@ class FileJSONMetadata(rend.Page):
     def renderNode(self, filenode):
         file_uri = filenode.get_uri()
         data = ("filenode",
-                {'mutable': False,
-                 'uri': file_uri,
+                {'ro_uri': file_uri,
                  'size': filenode.get_size(),
                  })
         return simplejson.dumps(data, indent=1)
@@ -488,22 +487,22 @@ class DirectoryJSONMetadata(rend.Page):
                 if IFileNode.providedBy(childnode):
                     kiduri = childnode.get_uri()
                     kiddata = ("filenode",
-                               {'mutable': False,
-                                'uri': kiduri,
+                               {'ro_uri': kiduri,
                                 'size': childnode.get_size(),
                                 })
                 else:
                     assert IDirectoryNode.providedBy(childnode)
-                    kiduri = childnode.get_uri()
                     kiddata = ("dirnode",
-                               {'mutable': childnode.is_mutable(),
-                                'uri': kiduri,
+                               {'ro_uri': childnode.get_immutable_uri(),
                                 })
+                    if childnode.is_mutable():
+                        kiddata[1]['rw_uri'] = childnode.get_uri()
                 kids[name] = kiddata
             contents = { 'children': kids,
-                         'mutable': node.is_mutable(),
-                         'uri': node.get_uri(),
+                         'ro_uri': node.get_immutable_uri(),
                          }
+            if node.is_mutable():
+                contents['rw_uri'] = node.get_uri()
             data = ("dirnode", contents)
             return simplejson.dumps(data, indent=1)
         d.addCallback(_got)

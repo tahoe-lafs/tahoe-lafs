@@ -268,17 +268,18 @@ class WebMixin(object):
         self.failUnless(isinstance(data, list))
         self.failUnlessEqual(data[0], "filenode")
         self.failUnless(isinstance(data[1], dict))
-        self.failUnlessEqual(data[1]["mutable"], False)
+        self.failIf("rw_uri" in data[1]) # immutable
+        self.failUnlessEqual(data[1]["ro_uri"], self._bar_txt_uri)
         self.failUnlessEqual(data[1]["size"], 123)
-        self.failUnlessEqual(data[1]["uri"], self._bar_txt_uri)
 
     def failUnlessIsFooJSON(self, res):
         data = self.worlds_cheapest_json_decoder(res)
         self.failUnless(isinstance(data, list))
         self.failUnlessEqual(data[0], "dirnode")
         self.failUnless(isinstance(data[1], dict))
-        self.failUnlessEqual(data[1]["mutable"], True)
-        self.failUnlessEqual(data[1]["uri"], self._foo_uri)
+        self.failUnless("rw_uri" in data[1]) # mutable
+        self.failUnlessEqual(data[1]["rw_uri"], self._foo_uri)
+        self.failUnlessEqual(data[1]["ro_uri"], self._foo_readonly_uri)
         kidnames = sorted(data[1]["children"].keys())
         self.failUnlessEqual(kidnames,
                              ["bar.txt", "blockingfile", "empty", "sub"])
@@ -286,7 +287,7 @@ class WebMixin(object):
         self.failUnlessEqual(kids["sub"][0], "dirnode")
         self.failUnlessEqual(kids["bar.txt"][0], "filenode")
         self.failUnlessEqual(kids["bar.txt"][1]["size"], 123)
-        self.failUnlessEqual(kids["bar.txt"][1]["uri"], self._bar_txt_uri)
+        self.failUnlessEqual(kids["bar.txt"][1]["ro_uri"], self._bar_txt_uri)
 
     def GET(self, urlpath, followRedirect=False):
         url = self.webish_url + urlpath
