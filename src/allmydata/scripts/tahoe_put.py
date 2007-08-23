@@ -4,7 +4,7 @@ import re, socket, sys
 
 NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
-def put(nodeurl, vdrive, local_fname, vdrive_fname, verbosity):
+def put(nodeurl, local_fname, vdrive_fname, verbosity):
     """
     @param verbosity: 0, 1, or 2, meaning quiet, verbose, or very verbose
 
@@ -14,7 +14,7 @@ def put(nodeurl, vdrive, local_fname, vdrive_fname, verbosity):
     host = mo.group(1)
     port = int(mo.group(3))
 
-    url = "/vdrive/" + vdrive + "/"
+    url = "/vdrive/global/"
     if vdrive_fname:
         url += vdrive_fname
 
@@ -75,7 +75,6 @@ def put(nodeurl, vdrive, local_fname, vdrive_fname, verbosity):
 def main():
     import optparse, re
     parser = optparse.OptionParser()
-    parser.add_option("-d", "--vdrive", dest="vdrive", default="global")
     parser.add_option("-u", "--node-url", dest="nodeurl")
 
     (options, args) = parser.parse_args()
@@ -89,7 +88,7 @@ def main():
     if len(args) > 1:
         vdrive_fname = args[1]
 
-    return put(options.nodeurl, options.vdrive, vdrive_fname, local_file)
+    return put(options.nodeurl, vdrive_fname, local_file)
 
 if __name__ == '__main__':
     main()

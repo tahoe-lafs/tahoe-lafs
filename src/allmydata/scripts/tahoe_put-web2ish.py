@@ -8,7 +8,7 @@ from twisted.internet import defer, reactor, protocol
 
 SERVERURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
-def _put(serverurl, vdrive, vdrive_fname, local_fname, verbosity):
+def _put(serverurl, vdrive_fname, local_fname, verbosity):
     """
     @param verbosity: 0, 1, or 2, meaning quiet, verbose, or very verbose
 
@@ -22,7 +22,7 @@ def _put(serverurl, vdrive, vdrive_fname, local_fname, verbosity):
 
     d = defer.Deferred()
     
-    url = "/vdrive/" + vdrive + "/"
+    url = "/vdrive/global/"
     if vdrive_fname:
         url += vdrive_fname
 
@@ -66,9 +66,9 @@ def _put(serverurl, vdrive, vdrive_fname, local_fname, verbosity):
              
             if verbosity == 2:
                 if resp.code == 200:
-                    outbuf.append("modified existing mapping in vdrive %s of name %s to point to " % (vdrive, vdrive_fname,))
+                    outbuf.append("modified existing mapping of name %s to point to " % (vdrive_fname,))
                 elif resp.code == 201:
-                    outbuf.append("created new mapping in vdrive %s of name %s to point to " % (vdrive, vdrive_fname,))
+                    outbuf.append("created new mapping of name %s to point to " % (vdrive_fname,))
 
             outbuf.append("URI: %s" % (uri,))
         
@@ -86,7 +86,7 @@ def _put(serverurl, vdrive, vdrive_fname, local_fname, verbosity):
 
     return d
 
-def put(server, vdrive, vdrive_fname, local_fname, verbosity):
+def put(server, vdrive_fname, local_fname, verbosity):
     """
     This starts the reactor, does the PUT command, waits for the result, stops
     the reactor, and returns the exit code. 
@@ -95,7 +95,7 @@ def put(server, vdrive, vdrive_fname, local_fname, verbosity):
 
     @return: the exit code
     """
-    d = _put(server, vdrive, vdrive_fname, local_fname, verbosity)
+    d = _put(server, vdrive_fname, local_fname, verbosity)
     exitcode = [ None ]
     def exit(result):
         exitcode[0] = result
@@ -105,4 +105,4 @@ def put(server, vdrive, vdrive_fname, local_fname, verbosity):
     d.addCallbacks(exit, exit)
     reactor.run()
     return exitcode[0]
-    
+

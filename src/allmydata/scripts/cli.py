@@ -7,9 +7,6 @@ NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
 class VDriveOptions(BaseOptions, usage.Options):
     optParameters = [
-        ["vdrive", "d", "global",
-         "which virtual drive to use: 'global' or 'private'"],
-
         ["node-url", "u", None,
          "URL of the tahoe node to use, a URL like \"http://127.0.0.1:8888\""],
         ]
@@ -66,7 +63,6 @@ subCommands = [
 def list(config, stdout, stderr):
     from allmydata.scripts import tahoe_ls
     rc = tahoe_ls.list(config['node-url'],
-                       config['vdrive'],
                        config['vdrive_pathname'])
     return rc
 
@@ -75,7 +71,6 @@ def get(config, stdout, stderr):
     vdrive_filename = config['vdrive_filename']
     local_filename = config['local_filename']
     rc = tahoe_get.get(config['node-url'],
-                       config['vdrive'],
                        vdrive_filename,
                        local_filename)
     if rc == 0:
@@ -98,7 +93,6 @@ def put(config, stdout, stderr):
     else:
         verbosity = 2
     rc = tahoe_put.put(config['node-url'],
-                       config['vdrive'],
                        local_filename,
                        vdrive_filename,
                        verbosity)
@@ -112,7 +106,6 @@ def rm(config, stdout, stderr):
     else:
         verbosity = 2
     rc = tahoe_rm.rm(config['node-url'],
-                       config['vdrive'],
                        vdrive_pathname,
                        verbosity)
     return rc

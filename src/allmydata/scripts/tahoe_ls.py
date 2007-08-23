@@ -3,10 +3,10 @@
 import urllib
 import simplejson
 
-def list(nodeurl, vdrive, vdrive_pathname):
+def list(nodeurl, vdrive_pathname):
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    url = nodeurl + "vdrive/" + vdrive + "/"
+    url = nodeurl + "vdrive/global/"
     if vdrive_pathname:
         url += vdrive_pathname
     url += "?t=json"
@@ -31,7 +31,6 @@ def list(nodeurl, vdrive, vdrive_pathname):
 def main():
     import optparse, re
     parser = optparse.OptionParser()
-    parser.add_option("-d", "--vdrive", dest="vdrive", default="global")
     parser.add_option("-u", "--node-url", dest="nodeurl")
 
     (options, args) = parser.parse_args()
@@ -44,7 +43,7 @@ def main():
     if args:
         vdrive_pathname = args[0]
 
-    list(options.nodeurl, options.vdrive, vdrive_pathname)
+    list(options.nodeurl, vdrive_pathname)
 
 if __name__ == '__main__':
     main()

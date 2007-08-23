@@ -2,10 +2,10 @@
 
 import sys, urllib
 
-def get(nodeurl, vdrive, vdrive_fname, local_file):
+def get(nodeurl, vdrive_fname, local_file):
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    url = nodeurl + "vdrive/" + vdrive + "/"
+    url = nodeurl + "vdrive/global/"
     if vdrive_fname:
         url += vdrive_fname
 
@@ -27,7 +27,6 @@ def get(nodeurl, vdrive, vdrive_fname, local_file):
 def main():
     import optparse, re
     parser = optparse.OptionParser()
-    parser.add_option("-d", "--vdrive", dest="vdrive", default="global")
     parser.add_option("-u", "--nodeurl", dest="nodeurl")
 
     (options, args) = parser.parse_args()
@@ -41,7 +40,7 @@ def main():
     if len(args) > 1:
         local_file = args[1]
 
-    get(options.nodeurl, options.vdrive, vdrive_fname, local_file)
+    get(options.nodeurl, vdrive_fname, local_file)
 
 if __name__ == '__main__':
     main()
