@@ -142,7 +142,7 @@ e. downloading a file
   attachment' header to prompt most web browsers to save the file to disk
   rather than attempting to display it.
 
-  A filename (from which MIME type can be derived, for use in the
+  A filename (from which a MIME type can be derived, for use in the
   Content-Type header) can be specified using a 'filename=' query argument.
   This is especially useful if the $URL does not end with the name of the
   file (e.g. if it ends with the URI of the file instead). This filename is
@@ -184,8 +184,8 @@ h. attaching a file or directory as the child of an extant directory
   There is an optional "?replace=" param whose value can be "true", "t", "1",
   "false", "f", or "0" (case-insensitive), and which defaults to "true". If
   the indicated directory already contains the given child name, then if
-  replace is True then the value of that name is changed to be the new URI.
-  If replace is False then an HTTP 409 "Conflict" error is returned.
+  replace is true then the value of that name is changed to be the new URI.
+  If replace is false then an HTTP 409 "Conflict" error is returned.
 
   This can be used to attach a shared directory (a directory that other
   people can read or write) to the vdrive. Intermediate directories, if any,
@@ -208,7 +208,7 @@ i. removing a name from a directory
   they can continue to access the resource through the URI. Only if a person
   is not in possession of the URI, and they do not have access to any
   directories which contain names pointing to this resource, are they
-  prevented from accessing the resource. (this behavior is very similar to
+  prevented from accessing the resource. (This behavior is very similar to
   the way hardlinks and anonymous files work in traditional unix
   filesystems).
 
