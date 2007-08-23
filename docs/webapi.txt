@@ -19,9 +19,6 @@ on the local host can connect. Using
 "ssl:8011:privateKey=mykey.pem:certKey=cert.pem" would run an SSL server. See
 twisted.application.strports for more details.
 
-If $NODEDIR/webpassword exists, it will be used (somehow) to require HTTP
-Digest Authentication for all webserver connections.  XXX specify how
-
 b. file names
 
 The node provides some small number of "virtual drives". In the 0.5
@@ -58,9 +55,15 @@ http://localhost:8011/vdrive/private/Pictures
 
 c. URIs
 
+From the "URIs" chapter in architecture.txt, recall that each file and
+directory has a unique "URI". This is a string which provides a secure
+reference to the file or directory: if you know the URI, you can retrieve
+(and possibly modify) the object. If you don't know the URI, you cannot
+access the object.
+
 A separate top-level namespace ("uri/" instead of "vdrive/") is used to
 access to files and directories directly by URI, rather than by going through
-the vdrive.
+the pathnames in the vdrive.
 
 For example, this identifies a file or directory:
 
@@ -72,10 +75,10 @@ subdirectory "Pictures" of the identified directory:
 http://localhost:8011/uri/$URI/Pictures/tractors.jpg
 
 In the following examples, "$URL" is a shorthand for a URL like the ones
-above, either with "vdrive/" as the top level and a sequence of
-slash-separated pathnames following, or with "uri/" as the top level,
-followed by a URI, optionally followed by a sequence of slash-separated
-pathnames.
+above, either with "vdrive/" and a vdrive name as the top level and a
+sequence of slash-separated pathnames following, or with "uri/" as the top
+level, followed by a URI, optionally followed by a sequence of
+slash-separated pathnames.
 
 Now, what can we do with these URLs? By varying the HTTP method
 (GET/PUT/POST/DELETE) and by appending a type-indicating query argument, we
@@ -86,8 +89,9 @@ d. examining files or directories
   GET $URL?t=json
 
   This returns machine-parseable information about the indicated file or
-  directory in the HTTP response body. This information contains a flag that
-  indicates whether the thing is a file or a directory.
+  directory in the HTTP response body. The JSON always contains a list, and
+  the first element of the list is always a flag that indicates whether the
+  referenced object is a file or a directory.
 
   If it is a file, then the information includes file size and URI, like
   this:
@@ -127,21 +131,22 @@ e. downloading a file
   response.
 
   If the indicated object a directory, then this returns an HTML page,
-  intended to be used by humans, which contains HREF links to all files and
-  directories reachable from this directory. These HREF links do not have a
-  t= argument, meaning that a human who follows them will get pages also
-  meant for a human. It also contains forms to upload new files, and to
-  delete files and directories. These forms use POST methods to do their job.
+  intended to be displayed to a human by a web browser, which contains HREF
+  links to all files and directories reachable from this directory. These
+  HREF links do not have a t= argument, meaning that a human who follows them
+  will get pages also meant for a human. It also contains forms to upload new
+  files, and to delete files and directories. These forms use POST methods to
+  do their job.
 
   You can add the "save=true" argument, which adds a 'Content-Disposition:
   attachment' header to prompt most web browsers to save the file to disk
   rather than attempting to display it.
 
-  A filename (from which a MIME type can be derived) can be specified using a
-  'filename=' query argument. This is especially useful if the $URL does not
-  end with the name of the file (because it instead ends with the identifier
-  of the file). This filename is also the one used if the 'save=true'
-  argument is set. For example:
+  A filename (from which MIME type can be derived, for use in the
+  Content-Type header) can be specified using a 'filename=' query argument.
+  This is especially useful if the $URL does not end with the name of the
+  file (e.g. if it ends with the URI of the file instead). This filename is
+  also the one used if the 'save=true' argument is set. For example:
 
    GET http://localhost:8011/uri/$TRACTORS_URI?filename=tractors.jpg
 
@@ -176,11 +181,11 @@ h. attaching a file or directory as the child of an extant directory
 
   The URI of the child is provided in the body of the HTTP request.
 
-  There is an optional "?overwrite=" param whose value can be "true", "t",
-  "1", "false", "f", or "0" (case-insensitive), and which defaults to "true".
-  If the indicated directory already contains the given child name, then if
-  overwrite is true then the value of that name is changed to be the new URI.
-  If overwrite is false then an error is returned. XXX specify the error
+  There is an optional "?replace=" param whose value can be "true", "t", "1",
+  "false", "f", or "0" (case-insensitive), and which defaults to "true". If
+  the indicated directory already contains the given child name, then if
+  replace is True then the value of that name is changed to be the new URI.
+  If replace is False then an HTTP 409 "Conflict" error is returned.
 
   This can be used to attach a shared directory (a directory that other
   people can read or write) to the vdrive. Intermediate directories, if any,
@@ -203,7 +208,9 @@ i. removing a name from a directory
   they can continue to access the resource through the URI. Only if a person
   is not in possession of the URI, and they do not have access to any
   directories which contain names pointing to this resource, are they
-  prevented from accessing the resource.
+  prevented from accessing the resource. (this behavior is very similar to
+  the way hardlinks and anonymous files work in traditional unix
+  filesystems).
 
 2. convenience methods
 
@@ -221,7 +228,7 @@ a. uploading a file and attaching it to the vdrive
   the client is not obligated to do anything with the URI. According to the
   HTTP/1.1 specification (rfc2616), this should return a 200 (OK) code when
   modifying an existing file, and a 201 (Created) code when creating a new
-  file.
+  file. (TODO: as of 0.5, the web server only returns 200, never 201).
 
   To use this, run 'curl -T localfile http://localhost:8011/vdrive/global/newfile'
 
@@ -260,7 +267,7 @@ sub-directory!).
 If your recursive algorithm uses the uri of the child instead of the name of
 the child, then those kinds of mistakes just can't happen. Note that both the
 child's name and the child's URI are included in the results of listing the
-parent directory, so it isn't harder to use the URI for this purpose.
+parent directory, so it isn't any harder to use the URI for this purpose.
 
 In general, use names if you want "whatever object (whether file or
 directory) is found by following this name (or sequence of names) when my
