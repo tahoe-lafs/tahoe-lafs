@@ -591,6 +591,8 @@ class POSTHandler(rend.Page):
             req.setResponseCode(http.BAD_REQUEST)
             req.setHeader("content-type", "text/plain")
             return "name= may not contain a slash"
+        if name is not None:
+            name = name.strip()
         # we allow the user to delete an empty-named file, but not to create
         # them, since that's an easy and confusing mistake to make
 
@@ -641,7 +643,11 @@ class POSTHandler(rend.Page):
             d.addCallback(_done)
         elif t == "rename":
             from_name = 'from_name' in req.fields and req.fields["from_name"].value
+            if from_name is not None:
+                from_name = from_name.strip()
             to_name = 'to_name' in req.fields and req.fields["to_name"].value
+            if to_name is not None:
+                to_name = to_name.strip()
             if not from_name or not to_name:
                 raise RuntimeError("rename requires from_name and to_name")
             if not IDirectoryNode.providedBy(self._node):
@@ -667,6 +673,8 @@ class POSTHandler(rend.Page):
         elif t == "upload":
             contents = req.fields["file"]
             name = name or contents.filename
+            if name is not None:
+                name = name.strip()
             if not name:
                 raise RuntimeError("set-uri requires a name")
             uploadable = upload.FileHandle(contents.file)
