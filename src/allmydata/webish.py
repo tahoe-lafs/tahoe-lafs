@@ -616,9 +616,9 @@ class POSTHandler(rend.Page):
             if not name:
                 raise RuntimeError("set-uri requires a name")
             if "uri" in req.args:
-                newuri = req.args["uri"][0]
+                newuri = req.args["uri"][0].strip()
             else:
-                newuri = req.fields["uri"].value
+                newuri = req.fields["uri"].value.strip()
             d = self._check_replacement(name)
             d.addCallback(lambda res: self._node.set_uri(name, newuri))
             def _done(res):
