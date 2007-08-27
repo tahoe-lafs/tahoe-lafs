@@ -11,6 +11,7 @@ from allmydata.util import fileutil
 import simplejson
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode
 from allmydata import upload, download
+from allmydata import provisioning
 from zope.interface import implements, Interface
 import urllib
 from formless import webform
@@ -1065,6 +1066,8 @@ class Root(rend.Page):
 
     child_webform_css = webform.defaultCSS
     child_tahoe_css = nevow_File(util.sibpath(__file__, "web/tahoe.css"))
+
+    child_provisioning = provisioning.ProvisioningTool()
 
     def data_version(self, ctx, data):
         v = IClient(ctx).get_versions()
