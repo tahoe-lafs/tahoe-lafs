@@ -80,6 +80,16 @@ def dump_uri_extension(config, out=sys.stdout, err=sys.stderr):
         for k in sorted(leftover):
             print >>out, "%s: %s" % (k, unpacked[k])
 
+    sizes = {}
+    sizes['data'] = bp._data_size
+    sizes['validation'] = (offsets['uri_extension'] -
+                           offsets['plaintext_hash_tree'])
+    sizes['uri-extension'] = len(data)
+    print >>out
+    print >>out, "Size of data within the share:"
+    for k in sorted(sizes):
+        print >>out, "%19s: %s" % (k, sizes[k])
+
     print >>out
     return 0
 
