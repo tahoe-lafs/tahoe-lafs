@@ -78,7 +78,7 @@ class Node(service.MultiService):
                 return None
             raise
 
-    def get_or_create_config(self, name, default_fn, mode="w"):
+    def get_or_create_config(self, name, default_fn, mode="w", filemode=None):
         """Try to get the (string) contents of a config file, and return it.
         Any leading or trailing whitespace will be stripped from the data.
 
@@ -95,10 +95,15 @@ class Node(service.MultiService):
                 value = default_fn()
             fn = os.path.join(self.basedir, name)
             try:
-                open(fn, mode).write(value)
+                f = open(fn, mode)
+                f.write(value)
+                f.close()
+                if filemode is not None:
+                    os.chmod(fn, filemode)
             except EnvironmentError, e:
                 self.log("Unable to write config file '%s'" % fn)
                 self.log(e)
+            value = value.strip()
         return value
 
     def write_config(self, name, value, mode="w"):
