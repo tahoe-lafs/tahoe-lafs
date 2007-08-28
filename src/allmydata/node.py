@@ -25,7 +25,6 @@ class Node(service.MultiService):
     PORTNUMFILE = None
     CERTFILE = "node.pem"
     LOCAL_IP_FILE = "advertised_ip_addresses"
-    NODEIDFILE = "my_nodeid"
 
     def __init__(self, basedir="."):
         service.MultiService.__init__(self)
@@ -36,9 +35,7 @@ class Node(service.MultiService):
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)
         self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
-        f = open(os.path.join(self.basedir, self.NODEIDFILE), "w")
-        f.write(b32encode(self.nodeid).lower() + "\n")
-        f.close()
+        self.write_config("my_nodeid", b32encode(self.nodeid).lower() + "\n")
         self.short_nodeid = b32encode(self.nodeid).lower()[:8] # ready for printing
         assert self.PORTNUMFILE, "Your node.Node subclass must provide PORTNUMFILE"
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
@@ -67,6 +64,44 @@ class Node(service.MultiService):
                  " twisted: %s, zfec: %s"
                  % (allmydata.__version__, foolscap.__version__,
                     twisted.__version__, zfec.__version__,))
+
+    def get_config(self, name, mode="r", required=False):
+        """Get the (string) contents of a config file, or None if the file
+        did not exist. If required=True, raise an exception rather than
+        returning None. Any leading or trailing whitespace will be stripped
+        from the data."""
+        fn = os.path.join(self.basedir, name)
+        try:
+            return open(fn, mode).read().strip()
+        except EnvironmentError:
+            if not required:
+                return None
+            raise
+
+    def get_or_create_config(self, name, default, mode="w"):
+        """Try to get the (string) contents of a config file. If the file
+        does not exist, create it with the given default value, and return
+        the default value. Any leading or trailing whitespace will be
+        stripped from the data."""
+        value = self.get_config(name)
+        if value is None:
+            value = default
+            fn = os.path.join(self.basedir, name)
+            try:
+                open(fn, mode).write(value)
+            except EnvironmentError, e:
+                self.log("Unable to write config file '%s'" % fn)
+                self.log(e)
+        return value
+
+    def write_config(self, name, value, mode="w"):
+        """Write a string to a config file."""
+        fn = os.path.join(self.basedir, name)
+        try:
+            open(fn, mode).write(value)
+        except EnvironmentError, e:
+            self.log("Unable to write config file '%s'" % fn)
+            self.log(e)
 
     def get_versions(self):
         return {'allmydata': allmydata.__version__,

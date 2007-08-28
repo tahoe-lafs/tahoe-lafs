@@ -24,13 +24,7 @@ class Client(node.Node, Referenceable):
     PORTNUMFILE = "client.port"
     STOREDIR = 'storage'
     NODETYPE = "client"
-    WEBPORTFILE = "webport"
-    WEB_ALLOW_LOCAL_ACCESS_FILE = "webport_allow_localfile"
-    INTRODUCER_FURL_FILE = "introducer.furl"
-    MY_FURL_FILE = "myself.furl"
     SUICIDE_PREVENTION_HOTLINE_FILE = "suicide_prevention_hotline"
-    SIZELIMIT_FILE = "sizelimit"
-    PUSH_TO_OURSELVES_FILE = "push_to_ourselves"
 
     # we're pretty narrow-minded right now
     OLDEST_SUPPORTED_VERSION = allmydata.__version__
@@ -45,17 +39,11 @@ class Client(node.Node, Referenceable):
         self.add_service(Uploader())
         self.add_service(Downloader())
         self.add_service(VirtualDrive())
-        try:
-            webport = open(os.path.join(self.basedir, self.WEBPORTFILE),
-                           "r").read().strip() # strports string
-        except EnvironmentError:
-            pass # absent or unreadable webport file
-        else:
-            self.init_web(webport)
+        webport = self.get_config("webport")
+        if webport:
+            self.init_web(webport) # strports string
 
-        INTRODUCER_FURL_FILE = os.path.join(self.basedir,
-                                            self.INTRODUCER_FURL_FILE)
-        self.introducer_furl = open(INTRODUCER_FURL_FILE, "r").read().strip()
+        self.introducer_furl = self.get_config("introducer.furl", required=True)
 
         hotline_file = os.path.join(self.basedir,
                                     self.SUICIDE_PREVENTION_HOTLINE_FILE)
@@ -68,12 +56,8 @@ class Client(node.Node, Referenceable):
         storedir = os.path.join(self.basedir, self.STOREDIR)
         sizelimit = None
 
-        try:
-            data = open(os.path.join(self.basedir, self.SIZELIMIT_FILE),
-                        "r").read().strip()
-        except EnvironmentError:
-            pass # absent or unreadable sizelimit file
-        else:
+        data = self.get_config("sizelimit")
+        if data:
             m = re.match(r"^(\d+)([kKmMgG]?[bB]?)$", data)
             if not m:
                 log.msg("SIZELIMIT_FILE contains unparseable value %s" % data)
@@ -88,21 +72,19 @@ class Client(node.Node, Referenceable):
                               "G": 1000 * 1000 * 1000,
                               }[suffix]
                 sizelimit = int(number) * multiplier
-        NOSTORAGE_FILE = os.path.join(self.basedir, "debug_no_storage")
-        no_storage = os.path.exists(NOSTORAGE_FILE)
+        no_storage = self.get_config("debug_no_storage") is not None
         self.add_service(StorageServer(storedir, sizelimit, no_storage))
 
     def init_options(self):
         self.push_to_ourselves = None
-        filename = os.path.join(self.basedir, self.PUSH_TO_OURSELVES_FILE)
-        if os.path.exists(filename):
+        if self.get_config("push_to_ourselves") is not None:
             self.push_to_ourselves = True
 
     def init_web(self, webport):
         # this must be called after the VirtualDrive is attached
         ws = WebishServer(webport)
-        ws.allow_local_access(os.path.exists(os.path.join(self.basedir,
-                              self.WEB_ALLOW_LOCAL_ACCESS_FILE)))
+        if self.get_config("webport_allow_localfile") is not None:
+            ws.allow_local_access(True)
         self.add_service(ws)
         vd = self.getServiceNamed("vdrive")
         startfile = os.path.join(self.basedir, "start.html")
@@ -122,18 +104,13 @@ class Client(node.Node, Referenceable):
         self.log("tub_ready")
 
         my_old_name = None
-        try:
-            my_old_furl = open(os.path.join(self.basedir, self.MY_FURL_FILE),
-                               "r").read().strip()
-        except EnvironmentError:
-            pass # absent or unreadable myfurl file
-        else:
+        my_old_furl = self.get_config("myself.furl")
+        if my_old_furl is not None:
             sturdy = SturdyRef(my_old_furl)
             my_old_name = sturdy.name
 
         self.my_furl = self.tub.registerReference(self, my_old_name)
-        open(os.path.join(self.basedir, self.MY_FURL_FILE),
-             "w").write(self.my_furl + "\n")
+        self.write_config("myself.furl", self.my_furl + "\n")
 
         ic = IntroducerClient(self.tub, self.introducer_furl, self.my_furl)
         self.introducer_client = ic
