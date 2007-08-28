@@ -319,7 +319,7 @@ class WebMixin(object):
             else:
                 form.append('Content-Disposition: form-data; name="%s"' % name)
             form.append('')
-            form.append(value)
+            form.append(str(value))
             form.append(sep)
         form[-1] += "--"
         body = "\r\n".join(form) + "\r\n"
@@ -393,6 +393,32 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnless('from your local filesystem:' in res)
             self.failUnless(os.path.abspath('web/test_welcome/start.html')
                             in res)
+        d.addCallback(_check2)
+        return d
+
+    def test_provisioning(self):
+        d = self.GET("/provisioning/")
+        def _check(res):
+            self.failUnless('Tahoe Provisioning Tool' in res)
+            fields = {'filled': True,
+                      "num_users": int(50e3),
+                      "files_per_user": 1000,
+                      "space_per_user": int(1e9),
+                      "sharing_ratio": 1.0,
+                      "encoding_parameters": "3-of-10",
+                      "num_servers": 30,
+                      "ownership_mode": "A",
+                      "download_rate": 100,
+                      "upload_rate": 10,
+                      "delete_rate": 10,
+                      "lease_timer": 7,
+                      }
+            return self.POST("/provisioning/", **fields)
+
+        d.addCallback(_check)
+        def _check2(res):
+            self.failUnless('Tahoe Provisioning Tool' in res)
+            self.failUnless("Share space consumed: 167.01TB" in res)
         d.addCallback(_check2)
         return d
 
