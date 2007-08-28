@@ -6,7 +6,10 @@ from twisted.internet import defer
 from twisted.application import service
 from foolscap import Referenceable
 
-from allmydata.util import hashutil
+from allmydata.util.hashutil import file_renewal_secret_hash, \
+     file_cancel_secret_hash, bucket_renewal_secret_hash, \
+     bucket_cancel_secret_hash, plaintext_hasher, \
+     storage_index_chk_hash, plaintext_segment_hasher, key_hasher
 from allmydata import encode, storage, hashtree, uri
 from allmydata.interfaces import IUploadable, IUploader, IEncryptedUploadable
 from allmydata.Crypto.Cipher import AES
@@ -33,7 +36,8 @@ EXTENSION_SIZE = 1000
 class PeerTracker:
     def __init__(self, peerid, permutedid, connection,
                  sharesize, blocksize, num_segments, num_share_hashes,
-                 storage_index):
+                 storage_index,
+                 bucket_renewal_secret, bucket_cancel_secret):
         self.peerid = peerid
         self.permutedid = permutedid
         self.connection = connection # to an RIClient
@@ -52,12 +56,8 @@ class PeerTracker:
         self.storage_index = storage_index
         self._storageserver = None
 
-        h = hashutil.bucket_renewal_secret_hash
-        # XXX
-        self.my_secret = "secret"
-        self.renew_secret = h(self.my_secret, self.storage_index, self.peerid)
-        h = hashutil.bucket_cancel_secret_hash
-        self.cancel_secret = h(self.my_secret, self.storage_index, self.peerid)
+        self.renew_secret = bucket_renewal_secret
+        self.cancel_secret = bucket_cancel_secret
 
     def query(self, sharenums):
         if not self._storageserver:
@@ -120,10 +120,23 @@ class Tahoe3PeerSelector:
         ht = hashtree.IncompleteHashTree(total_shares)
         num_share_hashes = len(ht.needed_hashes(0, include_leaf=True))
 
+        client_renewal_secret = client.get_renewal_secret()
+        client_cancel_secret = client.get_cancel_secret()
+
+        file_renewal_secret = file_renewal_secret_hash(client_renewal_secret,
+                                                       storage_index)
+        file_cancel_secret = file_cancel_secret_hash(client_cancel_secret,
+                                                     storage_index)
+
         trackers = [ PeerTracker(peerid, permutedid, conn,
                                  share_size, block_size,
                                  num_segments, num_share_hashes,
-                                 storage_index)
+                                 storage_index,
+                                 bucket_renewal_secret_hash(file_renewal_secret,
+                                                            peerid),
+                                 bucket_cancel_secret_hash(file_cancel_secret,
+                                                           peerid),
+                                 )
                      for permutedid, peerid, conn in peers ]
         self.usable_peers = set(trackers) # this set shrinks over time
         self.used_peers = set() # while this set grows
@@ -258,7 +271,7 @@ class EncryptAnUploadable:
     def __init__(self, original):
         self.original = original
         self._encryptor = None
-        self._plaintext_hasher = hashutil.plaintext_hasher()
+        self._plaintext_hasher = plaintext_hasher()
         self._plaintext_segment_hasher = None
         self._plaintext_segment_hashes = []
         self._params = None
@@ -281,7 +294,7 @@ class EncryptAnUploadable:
             e = AES.new(key=key, mode=AES.MODE_CTR, counterstart="\x00"*16)
             self._encryptor = e
 
-            storage_index = hashutil.storage_index_chk_hash(key)
+            storage_index = storage_index_chk_hash(key)
             assert isinstance(storage_index, str)
             # There's no point to having the SI be longer than the key, so we
             # specify that it is truncated to the same 128 bits as the AES key.
@@ -305,7 +318,7 @@ class EncryptAnUploadable:
         if p:
             left = self._segment_size - self._plaintext_segment_hashed_bytes
             return p, left
-        p = hashutil.plaintext_segment_hasher()
+        p = plaintext_segment_hasher()
         self._plaintext_segment_hasher = p
         self._plaintext_segment_hashed_bytes = 0
         return p, self._segment_size
@@ -491,7 +504,7 @@ class ConvergentUploadMixin:
     def get_encryption_key(self):
         if self._key is None:
             f = self._filehandle
-            enckey_hasher = hashutil.key_hasher()
+            enckey_hasher = key_hasher()
             #enckey_hasher.update(encoding_parameters) # TODO
             f.seek(0)
             BLOCKSIZE = 64*1024

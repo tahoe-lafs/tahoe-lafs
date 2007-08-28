@@ -137,6 +137,11 @@ class FakeClient:
     def get_encoding_parameters(self):
         return None
 
+    def get_renewal_secret(self):
+        return ""
+    def get_cancel_secret(self):
+        return ""
+
 DATA = """
 Once upon a time, there was a beautiful princess named Buttercup. She lived
 in a magical land where every file was stored securely among millions of

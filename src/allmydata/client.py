@@ -168,3 +168,8 @@ class Client(node.Node, Referenceable):
         if self.introducer_client:
             return self.introducer_client.connected_to_introducer()
         return False
+
+    def get_renewal_secret(self):
+        return ""
+    def get_cancel_secret(self):
+        return ""
