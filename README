@@ -109,6 +109,8 @@ gcc make python-dev python-twisted python-nevow python-pyopenssl".
    libraries with the cygwin package management tool, then get the pyOpenSSL
    source code, cd into it, and run "python ./setup.py install".
 
+ + pysqlite3 (database library)
+
  + the pywin32 package: only required on Windows
 
    http://sourceforge.net/projects/pywin32/

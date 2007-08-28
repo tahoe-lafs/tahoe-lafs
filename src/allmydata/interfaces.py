@@ -105,6 +105,20 @@ class RIStorageServer(RemoteInterface):
         """
         return TupleOf(SetOf(int, maxLength=MAX_BUCKETS),
                        DictOf(int, RIBucketWriter, maxKeys=MAX_BUCKETS))
+
+    def renew_lease(storage_index=StorageIndex, renew_secret=LeaseRenewSecret):
+        """
+        Renew the lease on a given bucket. Some networks will use this, some
+        will not.
+        """
+
+    def cancel_lease(storage_index=StorageIndex,
+                     cancel_secret=LeaseCancelSecret):
+        """
+        Cancel the lease on a given bucket. If this was the last lease on the
+        bucket, the bucket will be deleted.
+        """
+
     def get_buckets(storage_index=StorageIndex):
         return DictOf(int, RIBucketReader, maxKeys=MAX_BUCKETS)
 

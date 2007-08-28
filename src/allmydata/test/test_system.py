@@ -616,8 +616,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             if not filenames:
                 continue
             pieces = dirpath.split(os.sep)
-            if pieces[-2] == "storage":
-                # we're sitting in .../storage/$SINDEX , and there are
+            if pieces[-3] == "storage" and pieces[-2] == "shares":
+                # we're sitting in .../storage/shares/$SINDEX , and there are
                 # sharefiles here
                 filename = os.path.join(dirpath, filenames[0])
                 break

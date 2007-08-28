@@ -5,14 +5,11 @@ from twisted.application import service
 from twisted.internet import defer
 from foolscap import Referenceable
 import os.path
+import itertools
 from allmydata import interfaces
 from allmydata.util import fileutil, hashutil
 from allmydata.storage import BucketWriter, BucketReader, \
      WriteBucketProxy, ReadBucketProxy, StorageServer
-
-RS = hashutil.tagged_hash("blah", "foo")
-CS = RS
-
 
 class Bucket(unittest.TestCase):
     def make_workdir(self, name):
@@ -167,6 +164,7 @@ class Server(unittest.TestCase):
 
     def setUp(self):
         self.sparent = service.MultiService()
+        self._secret = itertools.count()
     def tearDown(self):
         return self.sparent.stopService()
 
@@ -183,14 +181,20 @@ class Server(unittest.TestCase):
     def test_create(self):
         ss = self.create("test_create")
 
+    def allocate(self, ss, storage_index, sharenums, size):
+        renew_secret = hashutil.tagged_hash("blah", "%d" % self._secret.next())
+        cancel_secret = hashutil.tagged_hash("blah", "%d" % self._secret.next())
+        return ss.remote_allocate_buckets(storage_index,
+                                          renew_secret, cancel_secret,
+                                          sharenums, size, Referenceable())
+
     def test_allocate(self):
         ss = self.create("test_allocate")
 
         self.failUnlessEqual(ss.remote_get_buckets("vid"), {})
 
         canary = Referenceable()
-        already,writers = ss.remote_allocate_buckets("vid", RS, CS, [0,1,2],
-                                                     75, canary)
+        already,writers = self.allocate(ss, "vid", [0,1,2], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
 
@@ -208,8 +212,7 @@ class Server(unittest.TestCase):
 
         # now if we about writing again, the server should offer those three
         # buckets as already present
-        already,writers = ss.remote_allocate_buckets("vid", RS, CS, [0,1,2,3,4],
-                                                     75, canary)
+        already,writers = self.allocate(ss, "vid", [0,1,2,3,4], 75)
         self.failUnlessEqual(already, set([0,1,2]))
         self.failUnlessEqual(set(writers.keys()), set([3,4]))
 
@@ -217,8 +220,7 @@ class Server(unittest.TestCase):
         # tell new uploaders that they already exist (so that we don't try to
         # upload into them a second time)
 
-        already,writers = ss.remote_allocate_buckets("vid", RS, CS, [2,3,4,5],
-                                                     75, canary)
+        already,writers = self.allocate(ss, "vid", [2,3,4,5], 75)
         self.failUnlessEqual(already, set([2,3,4]))
         self.failUnlessEqual(set(writers.keys()), set([5]))
 
@@ -226,15 +228,13 @@ class Server(unittest.TestCase):
         ss = self.create("test_sizelimits", 100)
         canary = Referenceable()
         
-        already,writers = ss.remote_allocate_buckets("vid1", RS, CS, [0,1,2],
-                                                     25, canary)
+        already,writers = self.allocate(ss, "vid1", [0,1,2], 25)
         self.failUnlessEqual(len(writers), 3)
         # now the StorageServer should have 75 bytes provisionally allocated,
         # allowing only 25 more to be claimed
         self.failUnlessEqual(len(ss._active_writers), 3)
 
-        already2,writers2 = ss.remote_allocate_buckets("vid2", RS, CS, [0,1,2],
-                                                       25, canary)
+        already2,writers2 = self.allocate(ss, "vid2", [0,1,2], 25)
         self.failUnlessEqual(len(writers2), 1)
         self.failUnlessEqual(len(ss._active_writers), 4)
 
@@ -255,9 +255,7 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(ss._active_writers), 0)
 
         # now there should be 25 bytes allocated, and 75 free
-        already3,writers3 = ss.remote_allocate_buckets("vid3", RS, CS,
-                                                       [0,1,2,3],
-                                                       25, canary)
+        already3,writers3 = self.allocate(ss,"vid3", [0,1,2,3], 25)
         self.failUnlessEqual(len(writers3), 3)
         self.failUnlessEqual(len(ss._active_writers), 3)
 
@@ -272,8 +270,77 @@ class Server(unittest.TestCase):
         # during runtime, so if we were creating any metadata, the allocation
         # would be more than 25 bytes and this test would need to be changed.
         ss = self.create("test_sizelimits", 100)
-        already4,writers4 = ss.remote_allocate_buckets("vid4",
-                                                       RS, CS, [0,1,2,3],
-                                                       25, canary)
+        already4,writers4 = self.allocate(ss, "vid4", [0,1,2,3], 25)
         self.failUnlessEqual(len(writers4), 3)
         self.failUnlessEqual(len(ss._active_writers), 3)
+
+    def test_leases(self):
+        ss = self.create("test_leases")
+        canary = Referenceable()
+        sharenums = range(5)
+        size = 100
+
+        rs0,cs0 = (hashutil.tagged_hash("blah", "%d" % self._secret.next()),
+                   hashutil.tagged_hash("blah", "%d" % self._secret.next()))
+        already,writers = ss.remote_allocate_buckets("si0", rs0, cs0,
+                                                     sharenums, size, canary)
+        self.failUnlessEqual(len(already), 0)
+        self.failUnlessEqual(len(writers), 5)
+        for wb in writers.values():
+            wb.remote_close()
+
+        rs1,cs1 = (hashutil.tagged_hash("blah", "%d" % self._secret.next()),
+                   hashutil.tagged_hash("blah", "%d" % self._secret.next()))
+        already,writers = ss.remote_allocate_buckets("si1", rs1, cs1,
+                                                     sharenums, size, canary)
+        for wb in writers.values():
+            wb.remote_close()
+
+        # take out a second lease on si1
+        rs2,cs2 = (hashutil.tagged_hash("blah", "%d" % self._secret.next()),
+                   hashutil.tagged_hash("blah", "%d" % self._secret.next()))
+        already,writers = ss.remote_allocate_buckets("si1", rs2, cs2,
+                                                     sharenums, size, canary)
+        self.failUnlessEqual(len(already), 5)
+        self.failUnlessEqual(len(writers), 0)
+
+        # check that si0 is readable
+        readers = ss.remote_get_buckets("si0")
+        self.failUnlessEqual(len(readers), 5)
+
+        # renew the first lease. Only the proper renew_secret should work
+        ss.remote_renew_lease("si0", rs0)
+        self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si0", cs0)
+        self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si0", rs1)
+
+        # check that si0 is still readable
+        readers = ss.remote_get_buckets("si0")
+        self.failUnlessEqual(len(readers), 5)
+
+        # now cancel it
+        self.failUnlessRaises(IndexError, ss.remote_cancel_lease, "si0", rs0)
+        self.failUnlessRaises(IndexError, ss.remote_cancel_lease, "si0", cs1)
+        ss.remote_cancel_lease("si0", cs0)
+
+        # si0 should now be gone
+        readers = ss.remote_get_buckets("si0")
+        self.failUnlessEqual(len(readers), 0)
+        # and the renew should no longer work
+        self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si0", rs0)
+
+
+        # cancel the first lease on si1, leaving the second in place
+        ss.remote_cancel_lease("si1", cs1)
+        readers = ss.remote_get_buckets("si1")
+        self.failUnlessEqual(len(readers), 5)
+        # the corresponding renew should no longer work
+        self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si1", rs1)
+
+        ss.remote_renew_lease("si1", rs2)
+        # cancelling the second should make it go away
+        ss.remote_cancel_lease("si1", cs2)
+        readers = ss.remote_get_buckets("si1")
+        self.failUnlessEqual(len(readers), 0)
+        self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si1", rs1)
+        self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si1", rs2)
+
