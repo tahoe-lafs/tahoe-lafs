@@ -18,6 +18,7 @@ from allmydata.webish import WebishServer
 from allmydata.control import ControlServer
 from allmydata.introducer import IntroducerClient
 from allmydata.vdrive import VirtualDrive
+from allmydata.util import hashutil, idlib
 
 class Client(node.Node, Referenceable):
     implements(RIClient)
@@ -34,6 +35,7 @@ class Client(node.Node, Referenceable):
         self.logSource="Client"
         self.my_furl = None
         self.introducer_client = None
+        self.init_secret()
         self.init_storage()
         self.init_options()
         self.add_service(Uploader())
@@ -51,6 +53,13 @@ class Client(node.Node, Referenceable):
             self.log("hotline file noticed, starting timer")
             hotline = TimerService(1.0, self._check_hotline, hotline_file)
             hotline.setServiceParent(self)
+
+    def init_secret(self):
+        def make_secret():
+            return idlib.b2a(os.urandom(16)) + "\n"
+        secret_s = self.get_or_create_config("secret", make_secret,
+                                             filemode=0600)
+        self._secret = idlib.a2b(secret_s)
 
     def init_storage(self):
         storedir = os.path.join(self.basedir, self.STOREDIR)
@@ -172,6 +181,7 @@ class Client(node.Node, Referenceable):
         return False
 
     def get_renewal_secret(self):
-        return ""
+        return hashutil.my_renewal_secret_hash(self._secret)
+
     def get_cancel_secret(self):
-        return ""
+        return hashutil.my_cancel_secret_hash(self._secret)

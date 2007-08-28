@@ -1,12 +1,12 @@
 
-import os
+import os, stat
 from twisted.trial import unittest
 from twisted.application import service
 from twisted.internet import reactor, defer
 
 import allmydata
 from allmydata import client, introducer
-from allmydata.util import version_class
+from allmydata.util import version_class, idlib
 from foolscap.eventual import flushEventualQueue
 
 class MyIntroducerClient(introducer.IntroducerClient):
@@ -29,6 +29,20 @@ class Basic(unittest.TestCase):
         os.mkdir(basedir)
         open(os.path.join(basedir, "introducer.furl"), "w").write("")
         c = client.Client(basedir)
+
+    def test_secrets(self):
+        basedir = "test_client.Basic.test_secrets"
+        os.mkdir(basedir)
+        open(os.path.join(basedir, "introducer.furl"), "w").write("")
+        open(os.path.join(basedir, "vdrive.furl"), "w").write("")
+        c = client.Client(basedir)
+        secret_file = os.path.join(basedir, "secret")
+        self.failUnless(os.path.exists(secret_file))
+        self.failUnlessEqual(os.stat(secret_file)[stat.ST_MODE] & 0777, 0600)
+        renew_secret = c.get_renewal_secret()
+        self.failUnless(idlib.b2a(renew_secret))
+        cancel_secret = c.get_cancel_secret()
+        self.failUnless(idlib.b2a(cancel_secret))
 
     def test_sizelimit_1(self):
         basedir = "client.Basic.test_sizelimit_1"
