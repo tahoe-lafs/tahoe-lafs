@@ -78,14 +78,21 @@ class Node(service.MultiService):
                 return None
             raise
 
-    def get_or_create_config(self, name, default, mode="w"):
-        """Try to get the (string) contents of a config file. If the file
-        does not exist, create it with the given default value, and return
-        the default value. Any leading or trailing whitespace will be
-        stripped from the data."""
+    def get_or_create_config(self, name, default_fn, mode="w"):
+        """Try to get the (string) contents of a config file, and return it.
+        Any leading or trailing whitespace will be stripped from the data.
+
+        If the file does not exist, try to create it using default_fn, and
+        then return the value that was written. If 'default_fn' is a string,
+        use it as a default value. If not, treat it as a 0-argument callable
+        which is expected to return a string.
+        """
         value = self.get_config(name)
         if value is None:
-            value = default
+            if isinstance(default_fn, (str, unicode)):
+                value = default_fn
+            else:
+                value = default_fn()
             fn = os.path.join(self.basedir, name)
             try:
                 open(fn, mode).write(value)

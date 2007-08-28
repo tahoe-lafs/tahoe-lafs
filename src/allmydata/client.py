@@ -103,6 +103,8 @@ class Client(node.Node, Referenceable):
     def tub_ready(self):
         self.log("tub_ready")
 
+        # we use separate get_config/write_config here because we want to
+        # update the connection hints each time.
         my_old_name = None
         my_old_furl = self.get_config("myself.furl")
         if my_old_furl is not None:
