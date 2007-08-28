@@ -66,6 +66,34 @@ KEYLEN = 16
 def random_key():
     return os.urandom(KEYLEN)
 
+def file_renewal_secret_hash(my_secret, storage_index):
+    my_renewal_secret = tagged_hash(my_secret, "bucket_renewal_secret")
+    file_renewal_secret = tagged_pair_hash("file_renewal_secret",
+                                           my_renewal_secret, storage_index)
+    return file_renewal_secret
+
+def file_cancel_secret_hash(my_secret, storage_index):
+    my_cancel_secret = tagged_hash(my_secret, "bucket_cancel_secret")
+    file_cancel_secret = tagged_pair_hash("file_cancel_secret",
+                                          my_cancel_secret, storage_index)
+    return file_cancel_secret
+
+def bucket_renewal_secret_hash(my_secret, storage_index, peerid):
+    my_renewal_secret = tagged_hash(my_secret, "bucket_renewal_secret")
+    file_renewal_secret = tagged_pair_hash("file_renewal_secret",
+                                           my_renewal_secret, storage_index)
+    bucket_renewal_secret = tagged_pair_hash("bucket_renewal_secret",
+                                             file_renewal_secret, peerid)
+    return bucket_renewal_secret
+
+def bucket_cancel_secret_hash(my_secret, storage_index, peerid):
+    my_cancel_secret = tagged_hash(my_secret, "bucket_cancel_secret")
+    file_cancel_secret = tagged_pair_hash("file_cancel_secret",
+                                          my_cancel_secret, storage_index)
+    bucket_cancel_secret = tagged_pair_hash("bucket_cancel_secret",
+                                            file_cancel_secret, peerid)
+    return bucket_cancel_secret
+
 def dir_write_enabler_hash(write_key):
     return tagged_hash("allmydata_dir_write_enabler_v1", write_key)
 def dir_read_key_hash(write_key):

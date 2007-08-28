@@ -33,7 +33,7 @@ EXTENSION_SIZE = 1000
 class PeerTracker:
     def __init__(self, peerid, permutedid, connection,
                  sharesize, blocksize, num_segments, num_share_hashes,
-                 crypttext_hash):
+                 storage_index):
         self.peerid = peerid
         self.permutedid = permutedid
         self.connection = connection # to an RIClient
@@ -49,8 +49,15 @@ class PeerTracker:
         self.blocksize = blocksize
         self.num_segments = num_segments
         self.num_share_hashes = num_share_hashes
-        self.crypttext_hash = crypttext_hash
+        self.storage_index = storage_index
         self._storageserver = None
+
+        h = hashutil.bucket_renewal_secret_hash
+        # XXX
+        self.my_secret = "secret"
+        self.renew_secret = h(self.my_secret, self.storage_index, self.peerid)
+        h = hashutil.bucket_cancel_secret_hash
+        self.cancel_secret = h(self.my_secret, self.storage_index, self.peerid)
 
     def query(self, sharenums):
         if not self._storageserver:
@@ -64,7 +71,9 @@ class PeerTracker:
     def _query(self, sharenums):
         #print " query", self.peerid, len(sharenums)
         d = self._storageserver.callRemote("allocate_buckets",
-                                           self.crypttext_hash,
+                                           self.storage_index,
+                                           self.renew_secret,
+                                           self.cancel_secret,
                                            sharenums,
                                            self.allocated_size,
                                            canary=Referenceable())

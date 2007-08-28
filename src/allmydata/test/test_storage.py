@@ -10,6 +10,9 @@ from allmydata.util import fileutil, hashutil
 from allmydata.storage import BucketWriter, BucketReader, \
      WriteBucketProxy, ReadBucketProxy, StorageServer
 
+RS = hashutil.tagged_hash("blah", "foo")
+CS = RS
+
 
 class Bucket(unittest.TestCase):
     def make_workdir(self, name):
@@ -186,7 +189,7 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(ss.remote_get_buckets("vid"), {})
 
         canary = Referenceable()
-        already,writers = ss.remote_allocate_buckets("vid", [0,1,2],
+        already,writers = ss.remote_allocate_buckets("vid", RS, CS, [0,1,2],
                                                      75, canary)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
@@ -205,7 +208,7 @@ class Server(unittest.TestCase):
 
         # now if we about writing again, the server should offer those three
         # buckets as already present
-        already,writers = ss.remote_allocate_buckets("vid", [0,1,2,3,4],
+        already,writers = ss.remote_allocate_buckets("vid", RS, CS, [0,1,2,3,4],
                                                      75, canary)
         self.failUnlessEqual(already, set([0,1,2]))
         self.failUnlessEqual(set(writers.keys()), set([3,4]))
@@ -214,7 +217,7 @@ class Server(unittest.TestCase):
         # tell new uploaders that they already exist (so that we don't try to
         # upload into them a second time)
 
-        already,writers = ss.remote_allocate_buckets("vid", [2,3,4,5],
+        already,writers = ss.remote_allocate_buckets("vid", RS, CS, [2,3,4,5],
                                                      75, canary)
         self.failUnlessEqual(already, set([2,3,4]))
         self.failUnlessEqual(set(writers.keys()), set([5]))
@@ -223,14 +226,14 @@ class Server(unittest.TestCase):
         ss = self.create("test_sizelimits", 100)
         canary = Referenceable()
         
-        already,writers = ss.remote_allocate_buckets("vid1", [0,1,2],
+        already,writers = ss.remote_allocate_buckets("vid1", RS, CS, [0,1,2],
                                                      25, canary)
         self.failUnlessEqual(len(writers), 3)
         # now the StorageServer should have 75 bytes provisionally allocated,
         # allowing only 25 more to be claimed
         self.failUnlessEqual(len(ss._active_writers), 3)
 
-        already2,writers2 = ss.remote_allocate_buckets("vid2", [0,1,2],
+        already2,writers2 = ss.remote_allocate_buckets("vid2", RS, CS, [0,1,2],
                                                        25, canary)
         self.failUnlessEqual(len(writers2), 1)
         self.failUnlessEqual(len(ss._active_writers), 4)
@@ -252,7 +255,8 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(ss._active_writers), 0)
 
         # now there should be 25 bytes allocated, and 75 free
-        already3,writers3 = ss.remote_allocate_buckets("vid3", [0,1,2,3],
+        already3,writers3 = ss.remote_allocate_buckets("vid3", RS, CS,
+                                                       [0,1,2,3],
                                                        25, canary)
         self.failUnlessEqual(len(writers3), 3)
         self.failUnlessEqual(len(ss._active_writers), 3)
@@ -268,7 +272,8 @@ class Server(unittest.TestCase):
         # during runtime, so if we were creating any metadata, the allocation
         # would be more than 25 bytes and this test would need to be changed.
         ss = self.create("test_sizelimits", 100)
-        already4,writers4 = ss.remote_allocate_buckets("vid4", [0,1,2,3],
+        already4,writers4 = ss.remote_allocate_buckets("vid4",
+                                                       RS, CS, [0,1,2,3],
                                                        25, canary)
         self.failUnlessEqual(len(writers4), 3)
         self.failUnlessEqual(len(ss._active_writers), 3)

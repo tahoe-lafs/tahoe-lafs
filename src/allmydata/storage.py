@@ -98,7 +98,9 @@ class StorageServer(service.MultiService, Referenceable):
             space += bw.allocated_size()
         return space
 
-    def remote_allocate_buckets(self, storage_index, sharenums, allocated_size,
+    def remote_allocate_buckets(self, storage_index,
+                                renew_secret, cancel_secret,
+                                sharenums, allocated_size,
                                 canary):
         alreadygot = set()
         bucketwriters = {} # k: shnum, v: BucketWriter

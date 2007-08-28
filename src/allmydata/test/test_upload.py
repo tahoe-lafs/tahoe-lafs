@@ -85,8 +85,8 @@ class FakeStorageServer:
         d.addCallback(lambda res: _call())
         return d
 
-    def allocate_buckets(self, crypttext_hash, sharenums,
-                         share_size, canary):
+    def allocate_buckets(self, storage_index, renew_secret, cancel_secret,
+                         sharenums, share_size, canary):
         #print "FakeStorageServer.allocate_buckets(num=%d, size=%d)" % (len(sharenums), share_size)
         if self.mode == "full":
             return (set(), {},)
