@@ -11,7 +11,14 @@ from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
 from allmydata.util import fileutil, idlib, mathutil
 from allmydata.util.assertutil import precondition
 
-from pysqlite2 import dbapi2 as sqlite
+try:
+    # python2.5 ships with sqlite builtin
+    import sqlite3.dbapi2
+    sqlite = sqlite3.dbapi2
+except ImportError:
+    # for python2.4, it's installed under a different name
+    import pysqlite2.dbapi2
+    sqlite = pysqlite2.dbapi2
 
 # store/
 # store/owners.db
