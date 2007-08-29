@@ -148,4 +148,3 @@ class Constraint(unittest.TestCase):
        fileURI = 'URI:CHK:f3mf6az85wpcai8ma4qayfmxuc:nnw518w5hu3t5oohwtp7ah9n81z9rfg6c1ywk33ia3m64o67nsgo:3:10:345834'
        self.failUnlessRaises(Violation, DirnodeURI.checkObject, fileURI, False)
 
- 
