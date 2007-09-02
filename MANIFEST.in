@@ -1,3 +1,2 @@
 
 include allmydata/web/*.xhtml allmydata/web/*.html allmydata/web/*.css
-include allmydata/*.sql

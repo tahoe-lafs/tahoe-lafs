@@ -4,7 +4,7 @@ from twisted.trial import unittest
 from twisted.application import service
 from twisted.internet import defer
 from foolscap import Referenceable
-import os.path
+import time, os.path, stat
 import itertools
 from allmydata import interfaces
 from allmydata.util import fileutil, hashutil
@@ -23,9 +23,16 @@ class Bucket(unittest.TestCase):
     def bucket_writer_closed(self, bw, consumed):
         pass
 
+    def make_lease(self):
+        owner_num = 0
+        renew_secret = os.urandom(32)
+        cancel_secret = os.urandom(32)
+        expiration_time = time.time() + 5000
+        return (owner_num, renew_secret, cancel_secret, expiration_time)
+
     def test_create(self):
         incoming, final = self.make_workdir("test_create")
-        bw = BucketWriter(self, incoming, final, 200)
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
         bw.remote_write(0, "a"*25)
         bw.remote_write(25, "b"*25)
         bw.remote_write(50, "c"*25)
@@ -34,7 +41,7 @@ class Bucket(unittest.TestCase):
 
     def test_readwrite(self):
         incoming, final = self.make_workdir("test_readwrite")
-        bw = BucketWriter(self, incoming, final, 200)
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
         bw.remote_write(0, "a"*25)
         bw.remote_write(25, "b"*25)
         bw.remote_write(50, "c"*7) # last block may be short
@@ -61,10 +68,17 @@ class BucketProxy(unittest.TestCase):
         final = os.path.join(basedir, "bucket")
         fileutil.make_dirs(basedir)
         fileutil.make_dirs(os.path.join(basedir, "tmp"))
-        bw = BucketWriter(self, incoming, final, size)
+        bw = BucketWriter(self, incoming, final, size, self.make_lease())
         rb = RemoteBucket()
         rb.target = bw
         return bw, rb, final
+
+    def make_lease(self):
+        owner_num = 0
+        renew_secret = os.urandom(32)
+        cancel_secret = os.urandom(32)
+        expiration_time = time.time() + 5000
+        return (owner_num, renew_secret, cancel_secret, expiration_time)
 
     def bucket_writer_closed(self, bw, consumed):
         pass
@@ -225,16 +239,21 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(set(writers.keys()), set([5]))
 
     def test_sizelimits(self):
-        ss = self.create("test_sizelimits", 100)
+        ss = self.create("test_sizelimits", 5000)
         canary = Referenceable()
-        
-        already,writers = self.allocate(ss, "vid1", [0,1,2], 25)
+        # a newly created and filled share incurs this much overhead, beyond
+        # the size we request.
+        OVERHEAD = 3*4
+        LEASE_SIZE = 4+32+32+4
+
+        already,writers = self.allocate(ss, "vid1", [0,1,2], 1000)
         self.failUnlessEqual(len(writers), 3)
-        # now the StorageServer should have 75 bytes provisionally allocated,
-        # allowing only 25 more to be claimed
+        # now the StorageServer should have 3000 bytes provisionally
+        # allocated, allowing only 2000 more to be claimed
         self.failUnlessEqual(len(ss._active_writers), 3)
 
-        already2,writers2 = self.allocate(ss, "vid2", [0,1,2], 25)
+        # allocating 1001-byte shares only leaves room for one
+        already2,writers2 = self.allocate(ss, "vid2", [0,1,2], 1001)
         self.failUnlessEqual(len(writers2), 1)
         self.failUnlessEqual(len(ss._active_writers), 4)
 
@@ -243,9 +262,11 @@ class Server(unittest.TestCase):
         del already
         del writers
         self.failUnlessEqual(len(ss._active_writers), 1)
+        # now we have a provisional allocation of 1001 bytes
 
         # and we close the second set, so their provisional allocation should
-        # become real, long-term allocation
+        # become real, long-term allocation, and grows to include the
+        # overhead.
         for bw in writers2.values():
             bw.remote_write(0, "a"*25)
             bw.remote_close()
@@ -254,10 +275,12 @@ class Server(unittest.TestCase):
         del bw
         self.failUnlessEqual(len(ss._active_writers), 0)
 
-        # now there should be 25 bytes allocated, and 75 free
-        already3,writers3 = self.allocate(ss,"vid3", [0,1,2,3], 25)
-        self.failUnlessEqual(len(writers3), 3)
-        self.failUnlessEqual(len(ss._active_writers), 3)
+        allocated = 1001 + OVERHEAD + LEASE_SIZE
+        # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
+        # 5000-1085=3915 free, therefore we can fit 39 100byte shares
+        already3,writers3 = self.allocate(ss,"vid3", range(100), 100)
+        self.failUnlessEqual(len(writers3), 39)
+        self.failUnlessEqual(len(ss._active_writers), 39)
 
         del already3
         del writers3
@@ -266,13 +289,37 @@ class Server(unittest.TestCase):
         del ss
 
         # creating a new StorageServer in the same directory should see the
-        # same usage. note that metadata will be counted at startup but not
-        # during runtime, so if we were creating any metadata, the allocation
-        # would be more than 25 bytes and this test would need to be changed.
-        ss = self.create("test_sizelimits", 100)
-        already4,writers4 = self.allocate(ss, "vid4", [0,1,2,3], 25)
-        self.failUnlessEqual(len(writers4), 3)
-        self.failUnlessEqual(len(ss._active_writers), 3)
+        # same usage.
+
+        # metadata that goes into the share file is counted upon share close,
+        # as well as at startup. metadata that goes into other files will not
+        # be counted until the next startup, so if we were creating any
+        # extra-file metadata, the allocation would be more than 'allocated'
+        # and this test would need to be changed.
+        ss = self.create("test_sizelimits", 5000)
+        already4,writers4 = self.allocate(ss, "vid4", range(100), 100)
+        self.failUnlessEqual(len(writers4), 39)
+        self.failUnlessEqual(len(ss._active_writers), 39)
+
+    def test_seek(self):
+        basedir = self.workdir("test_seek_behavior")
+        fileutil.make_dirs(basedir)
+        filename = os.path.join(basedir, "testfile")
+        f = open(filename, "wb")
+        f.write("start")
+        f.close()
+        # mode="w" allows seeking-to-create-holes, but truncates pre-existing
+        # files. mode="a" preserves previous contents but does not allow
+        # seeking-to-create-holes. mode="r+" allows both.
+        f = open(filename, "rb+")
+        f.seek(100)
+        f.write("100")
+        f.close()
+        filelen = os.stat(filename)[stat.ST_SIZE]
+        self.failUnlessEqual(filelen, 100+3)
+        f2 = open(filename, "rb")
+        self.failUnlessEqual(f2.read(5), "start")
+
 
     def test_leases(self):
         ss = self.create("test_leases")
@@ -289,6 +336,10 @@ class Server(unittest.TestCase):
         for wb in writers.values():
             wb.remote_close()
 
+        leases = list(ss.get_leases("si0"))
+        self.failUnlessEqual(len(leases), 1)
+        self.failUnlessEqual(set([l[1] for l in leases]), set([rs0]))
+
         rs1,cs1 = (hashutil.tagged_hash("blah", "%d" % self._secret.next()),
                    hashutil.tagged_hash("blah", "%d" % self._secret.next()))
         already,writers = ss.remote_allocate_buckets("si1", rs1, cs1,
@@ -303,6 +354,10 @@ class Server(unittest.TestCase):
                                                      sharenums, size, canary)
         self.failUnlessEqual(len(already), 5)
         self.failUnlessEqual(len(writers), 0)
+
+        leases = list(ss.get_leases("si1"))
+        self.failUnlessEqual(len(leases), 2)
+        self.failUnlessEqual(set([l[1] for l in leases]), set([rs1, rs2]))
 
         # check that si0 is readable
         readers = ss.remote_get_buckets("si0")
@@ -336,6 +391,10 @@ class Server(unittest.TestCase):
         # the corresponding renew should no longer work
         self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si1", rs1)
 
+        leases = list(ss.get_leases("si1"))
+        self.failUnlessEqual(len(leases), 1)
+        self.failUnlessEqual(set([l[1] for l in leases]), set([rs2]))
+
         ss.remote_renew_lease("si1", rs2)
         # cancelling the second should make it go away
         ss.remote_cancel_lease("si1", cs2)
@@ -343,4 +402,7 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(readers), 0)
         self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si1", rs1)
         self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si1", rs2)
+
+        leases = list(ss.get_leases("si1"))
+        self.failUnlessEqual(len(leases), 0)
 
