@@ -627,7 +627,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         log.msg("test_system.SystemTest._test_runner using %s" % filename)
 
         out,err = StringIO(), StringIO()
-        rc = runner.runner(["dump-uri-extension",
+        rc = runner.runner(["dump-share",
                             filename],
                            stdout=out, stderr=err)
         output = out.getvalue()

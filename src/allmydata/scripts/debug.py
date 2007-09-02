@@ -1,7 +1,7 @@
 
 # do not import any allmydata modules at this level. Do that from inside
 # individual functions instead.
-import os, sys, struct
+import os, sys, struct, time
 from twisted.python import usage
 from allmydata.scripts.common import BasedirMixin
 
@@ -42,17 +42,17 @@ class DumpDirnodeOptions(BasedirMixin, usage.Options):
         if not self['uri']:
             raise usage.UsageError("<uri> parameter is required")
 
-def dump_uri_extension(config, out=sys.stdout, err=sys.stderr):
+def dump_share(config, out=sys.stdout, err=sys.stderr):
     from allmydata import uri, storage
 
-    filename = config['filename']
-    f = open(filename,"rb")
+    f = storage.ShareFile(config['filename'])
     # use a ReadBucketProxy to parse the bucket and find the uri extension
     bp = storage.ReadBucketProxy(None)
-    offsets = bp._parse_offsets(f.read(8*4))
-    f.seek(offsets['uri_extension'])
-    length = struct.unpack(">L", f.read(4))[0]
-    data = f.read(length)
+    offsets = bp._parse_offsets(f.read_share_data(0, 8*4))
+    seek = offsets['uri_extension']
+    length = struct.unpack(">L", f.read_share_data(seek, 4))[0]
+    seek += 4
+    data = f.read_share_data(seek, length)
 
     unpacked = uri.unpack_extension_readable(data)
     keys1 = ("size", "num_segments", "segment_size",
@@ -89,6 +89,46 @@ def dump_uri_extension(config, out=sys.stdout, err=sys.stderr):
     print >>out, "Size of data within the share:"
     for k in sorted(sizes):
         print >>out, "%19s: %s" % (k, sizes[k])
+
+    # display lease information too
+    now = time.time()
+    leases = list(f.iter_leases())
+    if leases:
+        for i,lease in enumerate(leases):
+            (owner_num, renew_secret, cancel_secret, expiration_time) = lease
+            remains = expiration_time - now
+            when = "%ds" % remains
+            if remains > 24*3600:
+                when += " (%d days)" % (remains / (24*3600))
+            elif remains > 3600:
+                when += " (%d hours)" % (remains / 3600)
+            print >>out, "Lease #%d: owner=%d, expire in %s" % (i, owner_num,
+                                                                when)
+    else:
+        print >>out, "No leases."
+
+    print >>out
+    return 0
+
+def dump_share_leases(config, out=sys.stdout, err=sys.stderr):
+    from allmydata import storage
+
+    f = storage.ShareFile(config['filename'])
+    now = time.time()
+    leases = list(f.iter_leases())
+    if leases:
+        for i,lease in enumerate(leases):
+            (owner_num, renew_secret, cancel_secret, expiration_time) = lease
+            remains = expiration_time - now
+            when = "%ds" % remains
+            if remains > 24*3600:
+                when += " (%d days)" % (remains / (24*3600))
+            elif remains > 3600:
+                when += " (%d hours)" % (remains / 3600)
+            print >>out, "Lease #%d: owner=%d, expire in %s" % (i, owner_num,
+                                                                when)
+    else:
+        print >>out, "No leases."
 
     print >>out
     return 0
@@ -169,8 +209,10 @@ def dump_directory_node(config, out=sys.stdout, err=sys.stderr):
 
 
 subCommands = [
-    ["dump-uri-extension", None, DumpOptions,
-     "Unpack and display the contents of a uri_extension file."],
+    ["dump-share", None, DumpOptions,
+     "Unpack and display the contents of a share (uri_extension and leases)."],
+    ["dump-share-leases", None, DumpOptions,
+     "Unpack and display the leases for a given share."],
     ["dump-root-dirnode", None, DumpRootDirnodeOptions,
      "Compute most of the URI for the vdrive server's root dirnode."],
     ["dump-dirnode", None, DumpDirnodeOptions,
@@ -178,7 +220,8 @@ subCommands = [
     ]
 
 dispatch = {
-    "dump-uri-extension": dump_uri_extension,
+    "dump-share": dump_share,
+    "dump-share-leases": dump_share_leases,
     "dump-root-dirnode": dump_root_dirnode,
     "dump-dirnode": dump_directory_node,
     }
