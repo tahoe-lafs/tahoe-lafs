@@ -406,3 +406,23 @@ class Server(unittest.TestCase):
         leases = list(ss.get_leases("si1"))
         self.failUnlessEqual(len(leases), 0)
 
+
+        # test overlapping uploads
+        rs3,cs3 = (hashutil.tagged_hash("blah", "%d" % self._secret.next()),
+                   hashutil.tagged_hash("blah", "%d" % self._secret.next()))
+        rs4,cs4 = (hashutil.tagged_hash("blah", "%d" % self._secret.next()),
+                   hashutil.tagged_hash("blah", "%d" % self._secret.next()))
+        already,writers = ss.remote_allocate_buckets("si3", rs3, cs3,
+                                                     sharenums, size, canary)
+        self.failUnlessEqual(len(already), 0)
+        self.failUnlessEqual(len(writers), 5)
+        already2,writers2 = ss.remote_allocate_buckets("si3", rs4, cs4,
+                                                       sharenums, size, canary)
+        self.failUnlessEqual(len(already2), 5)
+        self.failUnlessEqual(len(writers2), 0)
+        for wb in writers.values():
+            wb.remote_close()
+
+        leases = list(ss.get_leases("si3"))
+        self.failUnlessEqual(len(leases), 2)
+

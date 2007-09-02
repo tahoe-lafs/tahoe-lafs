@@ -157,7 +157,6 @@ class BucketWriter(Referenceable):
         self.incominghome = incominghome
         self.finalhome = finalhome
         self._size = size
-        self._lease_info = lease_info
         self.closed = False
         self.throw_out_all_data = False
         # touch the file, so later callers will see that we're working on it.
@@ -167,6 +166,9 @@ class BucketWriter(Referenceable):
         f.write(struct.pack(">LLL", 1, size, 0))
         f.close()
         self._sharefile = ShareFile(self.incominghome)
+        # also, add our lease to the file now, so that other ones can be
+        # added by simultaneous uploaders
+        self._sharefile.add_lease(lease_info)
 
     def allocated_size(self):
         return self._size
@@ -179,7 +181,6 @@ class BucketWriter(Referenceable):
 
     def remote_close(self):
         precondition(not self.closed)
-        self._sharefile.add_lease(self._lease_info)
         fileutil.rename(self.incominghome, self.finalhome)
         self._sharefile = None
         self.closed = True
@@ -256,13 +257,13 @@ class StorageServer(service.MultiService, Referenceable):
             finalhome = os.path.join(self.sharedir, si_s, "%d" % shnum)
             if os.path.exists(incominghome) or os.path.exists(finalhome):
                 alreadygot.add(shnum)
-                # add a lease
+                # add a lease for the client whose upload was pre-empted
                 if os.path.exists(incominghome):
-                    # TODO: add a lease to the still-in-construction share
-                    pass
+                    # the lease gets added to the still-in-construction share
+                    sf = ShareFile(incominghome)
                 else:
                     sf = ShareFile(finalhome)
-                    sf.add_lease(lease_info)
+                sf.add_lease(lease_info)
             elif no_limits or remaining_space >= space_per_bucket:
                 fileutil.make_dirs(os.path.join(self.incomingdir, si_s))
                 bw = BucketWriter(self, incominghome, finalhome,
