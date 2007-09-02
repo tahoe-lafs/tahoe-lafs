@@ -332,14 +332,6 @@ class StorageServer(service.MultiService, Referenceable):
         if not found_buckets:
             raise IndexError("no such lease to cancel")
 
-    def delete_bucket(self, storage_index):
-        storagedir = os.path.join(self.sharedir, idlib.b2a(storage_index))
-        # measure the usage of this directory, to remove it from our current
-        # total
-        consumed = fileutil.du(storagedir)
-        fileutil.rm_dir(storagedir)
-        self.consumed -= consumed
-
     def bucket_writer_closed(self, bw, consumed_size):
         self.consumed += consumed_size
         del self._active_writers[bw]
