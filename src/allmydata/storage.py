@@ -283,15 +283,6 @@ class StorageServer(service.MultiService, Referenceable):
 
         return alreadygot, bucketwriters
 
-    def get_or_add_owner(self, owner):
-        # this will be more fully implemented when we get the Introduction
-        # protocol built. At that point, it should take the 'owner' argument
-        # (either a FURL or a Sealer/public-key) and look it up in a
-        # persistent table, returning a short integer. If the owner doesn't
-        # yet exist in the table, create a new entry for it and return the
-        # new index.
-        return 0
-
     def remote_renew_lease(self, storage_index, renew_secret):
         new_expire_time = time.time() + 31*24*60*60
         found_buckets = False
