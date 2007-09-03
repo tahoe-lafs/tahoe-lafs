@@ -120,6 +120,13 @@ class ShareFile:
                 return
         raise IndexError("unable to renew non-existent lease")
 
+    def add_or_renew_lease(self, lease_info):
+        owner_num, renew_secret, cancel_secret, expire_time = lease_info
+        try:
+            self.renew_lease(renew_secret, expire_time)
+        except IndexError:
+            self.add_lease(lease_info)
+
     def cancel_lease(self, cancel_secret):
         """Remove a lease with the given cancel_secret. Return
         (num_remaining_leases, space_freed). Raise IndexError if there was no
@@ -263,7 +270,7 @@ class StorageServer(service.MultiService, Referenceable):
                     sf = ShareFile(incominghome)
                 else:
                     sf = ShareFile(finalhome)
-                sf.add_lease(lease_info)
+                sf.add_or_renew_lease(lease_info)
             elif no_limits or remaining_space >= space_per_bucket:
                 fileutil.make_dirs(os.path.join(self.incomingdir, si_s))
                 bw = BucketWriter(self, incominghome, finalhome,
