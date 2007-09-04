@@ -102,7 +102,7 @@ class BucketProxy(unittest.TestCase):
         # nodes. Furthermore, let's assume the uri_extension is 500 bytes
         # long. That should make the whole share:
         #
-        # 0x1c + 100 + 7*32 + 7*32 + 7*32 + 3*(2+32) + 4+500 = 1406 bytes long
+        # 0x24 + 100 + 7*32 + 7*32 + 7*32 + 3*(2+32) + 4+500 = 1414 bytes long
 
         plaintext_hashes = [hashutil.tagged_hash("plain", "bar%d" % i)
                             for i in range(7)]
@@ -114,7 +114,7 @@ class BucketProxy(unittest.TestCase):
                         for i in (1,9,13)]
         uri_extension = "s" + "E"*498 + "e"
 
-        bw, rb, final = self.make_bucket("test_readwrite", 1406)
+        bw, rb, final = self.make_bucket("test_readwrite", 1414)
         bp = WriteBucketProxy(rb,
                               data_size=95,
                               segment_size=25,

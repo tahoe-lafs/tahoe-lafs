@@ -8,7 +8,7 @@ from zope.interface import implements
 from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
      RIBucketReader, IStorageBucketWriter, IStorageBucketReader, HASH_SIZE
 from allmydata.util import fileutil, idlib, mathutil
-from allmydata.util.assertutil import precondition
+from allmydata.util.assertutil import precondition, _assert
 
 # storage/
 # storage/shares/incoming
@@ -377,15 +377,16 @@ Share data is written into a single file. At the start of the file, there is
 a series of four-byte big-endian offset values, which indicate where each
 section starts. Each offset is measured from the beginning of the file.
 
-0x00: segment size
-0x04: data size
-0x08: offset of data (=00 00 00 1c)
-0x0c: offset of plaintext_hash_tree
-0x10: offset of crypttext_hash_tree
-0x14: offset of block_hashes
-0x18: offset of share_hashes
-0x1c: offset of uri_extension_length + uri_extension
-0x20: start of data
+0x00: version number (=00 00 00 01)
+0x04: segment size
+0x08: data size
+0x0c: offset of data (=00 00 00 24)
+0x10: offset of plaintext_hash_tree
+0x14: offset of crypttext_hash_tree
+0x18: offset of block_hashes
+0x1c: offset of share_hashes
+0x20: offset of uri_extension_length + uri_extension
+0x24: start of data
 ?   : start of plaintext_hash_tree
 ?   : start of crypttext_hash_tree
 ?   : start of block_hashes
@@ -422,7 +423,7 @@ class WriteBucketProxy:
         self._uri_extension_size = uri_extension_size
 
         offsets = self._offsets = {}
-        x = 0x20
+        x = 0x24
         offsets['data'] = x
         x += data_size
         offsets['plaintext_hash_tree'] = x
@@ -435,7 +436,8 @@ class WriteBucketProxy:
         x += self._share_hash_size
         offsets['uri_extension'] = x
 
-        offset_data = struct.pack(">LLLLLLLL",
+        offset_data = struct.pack(">LLLLLLLLL",
+                                  1, # version number
                                   segment_size,
                                   data_size,
                                   offsets['data'],
@@ -445,7 +447,7 @@ class WriteBucketProxy:
                                   offsets['share_hashes'],
                                   offsets['uri_extension'],
                                   )
-        assert len(offset_data) == 8*4
+        assert len(offset_data) == 0x24
         self._offset_data = offset_data
 
     def start(self):
@@ -542,16 +544,17 @@ class ReadBucketProxy:
 
     def start(self):
         # TODO: for small shares, read the whole bucket in start()
-        d = self._read(0, 8*4)
+        d = self._read(0, 0x24)
         d.addCallback(self._parse_offsets)
         return d
 
     def _parse_offsets(self, data):
-        precondition(len(data) == 8*4)
+        precondition(len(data) == 0x24)
         self._offsets = {}
-        self._segment_size = struct.unpack(">L", data[0:4])[0]
-        self._data_size = struct.unpack(">L", data[4:8])[0]
-        x = 0x08
+        (version, self._segment_size, self._data_size) = \
+                  struct.unpack(">LLL", data[0:0xc])
+        _assert(version == 1)
+        x = 0x0c
         for field in ( 'data',
                        'plaintext_hash_tree',
                        'crypttext_hash_tree',

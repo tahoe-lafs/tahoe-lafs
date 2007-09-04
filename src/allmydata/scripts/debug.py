@@ -48,7 +48,7 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
     f = storage.ShareFile(config['filename'])
     # use a ReadBucketProxy to parse the bucket and find the uri extension
     bp = storage.ReadBucketProxy(None)
-    offsets = bp._parse_offsets(f.read_share_data(0, 8*4))
+    offsets = bp._parse_offsets(f.read_share_data(0, 0x24))
     seek = offsets['uri_extension']
     length = struct.unpack(">L", f.read_share_data(seek, 4))[0]
     seek += 4
