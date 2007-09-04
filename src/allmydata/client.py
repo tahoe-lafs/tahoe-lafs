@@ -14,7 +14,6 @@ from allmydata.Crypto.Util.number import bytes_to_long
 from allmydata.storage import StorageServer
 from allmydata.upload import Uploader
 from allmydata.download import Downloader
-from allmydata.webish import WebishServer
 from allmydata.control import ControlServer
 from allmydata.introducer import IntroducerClient
 from allmydata.vdrive import VirtualDrive
@@ -90,6 +89,7 @@ class Client(node.Node, Referenceable):
             self.push_to_ourselves = True
 
     def init_web(self, webport):
+        from allmydata.webish import WebishServer
         # this must be called after the VirtualDrive is attached
         ws = WebishServer(webport)
         if self.get_config("webport_allow_localfile") is not None:
