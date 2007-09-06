@@ -62,8 +62,9 @@ def make_newuri(data):
 class MyUploader(service.Service):
     implements(interfaces.IUploader)
     name = "uploader"
-    def __init__(self, files):
+    def __init__(self, files, nodes):
         self.files = files
+        self.nodes = nodes
 
     def upload(self, uploadable):
         d = uploadable.get_size()
@@ -72,7 +73,9 @@ class MyUploader(service.Service):
         def _got_data(data):
             newuri = make_newuri(data)
             self.files[newuri] = data
+            self.nodes[newuri] = MyFileNode(newuri, self.parent)
             uploadable.close()
+            return newuri
         d.addCallback(_got_data)
         return d
 
@@ -173,7 +176,7 @@ class WebMixin(object):
 
         dl = MyDownloader(self.files)
         dl.setServiceParent(self.s)
-        ul = MyUploader(self.files)
+        ul = MyUploader(self.files, self.nodes)
         ul.setServiceParent(self.s)
 
         v.public_root = self.makedir()
@@ -1387,6 +1390,20 @@ class Web(WebMixin, unittest.TestCase):
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
+        return d
+
+    def test_PUT_NEWFILE_URI(self):
+        file_contents = "New file contents here\n"
+        d = self.PUT("/uri", file_contents)
+        def _check(uri):
+            self.failUnless(uri in self.files)
+            self.failUnless(uri in self.nodes)
+            self.failUnlessEqual(self.files[uri], file_contents)
+            return self.GET("/uri/%s" % uri.replace("/","!"))
+        d.addCallback(_check)
+        def _check2(res):
+            self.failUnlessEqual(res, file_contents)
+        d.addCallback(_check2)
         return d
 
     def test_XMLRPC(self):

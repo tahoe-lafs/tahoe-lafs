@@ -1019,6 +1019,36 @@ class VDrive(rend.Page):
         d.addErrback(_trap_KeyError)
         return d
 
+class URIPUTHandler(rend.Page):
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        assert req.method == "PUT"
+
+        t = ""
+        if "t" in req.args:
+            t = req.args["t"][0]
+
+        if t == "":
+            # "PUT /uri", to create an unlinked file. This is like PUT but
+            # without the associated set_uri.
+            uploadable = upload.FileHandle(req.content)
+            uploader = IClient(ctx).getServiceNamed("uploader")
+            d = uploader.upload(uploadable)
+            # that fires with the URI of the new file
+            return d
+
+        if t == "mkdir":
+            # "PUT /uri?t=mkdir", to create an unlinked directory. We use the
+            # public vdriveserver to create the dirnode.
+            vdrive = IClient(ctx).getServiceNamed("vdrive")
+            d = vdrive.create_directory()
+            d.addCallback(lambda dirnode: dirnode.get_uri())
+            return d
+
+        req.setResponseCode(http.BAD_REQUEST)
+        req.setHeader("content-type", "text/plain")
+        return "/uri only accepts PUT"
+
 
 class Root(rend.Page):
 
@@ -1049,6 +1079,11 @@ class Root(rend.Page):
                     there = there.clear("uri")
                     there = there.child("uri").child(uri)
                     return there, ()
+            if len(segments) == 1 and req.method == "PUT":
+                # /uri
+                # either "PUT /uri" to create an unlinked file, or
+                # "PUT /uri?t=mkdir" to create an unlinked directory
+                return URIPUTHandler(), ()
             if len(segments) < 2:
                 return rend.NotFound
             uri = segments[1].replace("!", "/")
