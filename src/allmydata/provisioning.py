@@ -1,9 +1,42 @@
 
 from nevow import inevow, loaders, rend, tags as T
 from twisted.python import util
+import math
 
 def getxmlfile(name):
     return loaders.xmlfile(util.sibpath(__file__, "web/%s" % name))
+
+# factorial and binomial copied from
+# http://mail.python.org/pipermail/python-list/2007-April/435718.html
+
+def factorial(n):
+    """factorial(n): return the factorial of the integer n.
+    factorial(0) = 1
+    factorial(n) with n<0 is -factorial(abs(n))
+    """
+    result = 1
+    for i in xrange(1, abs(n)+1):
+        result *= i
+    if n >= 0:
+        return result
+    else:
+        return -result
+
+def binomial(n, k):
+    if not 0 <= k <= n:
+        return 0
+    if k == 0 or k == n:
+        return 1
+    # calculate n!/k! as one product, avoiding factors that
+    # just get canceled
+    P = k+1
+    for i in xrange(k+2, n+1):
+        P *= i
+    # if you are paranoid:
+    # C, rem = divmod(P, factorial(n-k))
+    # assert rem == 0
+    # return C
+    return P//factorial(n-k)
 
 class ProvisioningTool(rend.Page):
     addSlash = True
@@ -132,8 +165,10 @@ class ProvisioningTool(rend.Page):
                   " no convergence)", i_sharing_ratio)
 
         # Encoding parameters
-        encoding_choices = [("3-of-10", "3-of-10"),
-                            ("25-of-100", "25-of-100"),
+        encoding_choices = [("3-of-10", "3.3x (3-of-10)"),
+                            ("5-of-10", "2x (5-of-10)"),
+                            ("8-of-10", "1.25x (8-of-10)"),
+                            ("25-of-100", "4x (25-of-100)"),
                             ]
         encoding_parameters, i_encoding_parameters = \
                              get_and_set("encoding_parameters",
@@ -160,6 +195,20 @@ class ProvisioningTool(rend.Page):
                      get_and_set("num_servers", num_server_choices, 30, int)
         add_input("Servers",
                   "How many servers are there?", i_num_servers)
+
+        # availability is measured in dBA = -dBF, where 0dBF is 100% failure,
+        # 10dBF is 10% failure, 20dBF is 1% failure, etc
+        server_dBA_choices = [ (20, "99% [20dBA] (14min/day or 3.5days/year)"),
+                               (30, "99.9% [30dBA] (87sec/day or 9hours/year)"),
+                               (40, "99.99% [40dBA] (60sec/week or 53min/year)"),
+                               (50, "99.999% [50dBA] (5min per year)"),
+                               ]
+        server_dBA, i_server_availability = \
+                    get_and_set("server_availability",
+                                server_dBA_choices,
+                                20, int)
+        add_input("Servers",
+                  "What is the server availability?", i_server_availability)
 
         # deletion/gc/ownership mode
         ownership_choices = [ ("A", "no deletion, no gc, no owners"),
@@ -429,6 +478,19 @@ class ProvisioningTool(rend.Page):
                              (100.0 * share_data_per_server /
                               share_space_per_server)])
 
+            # availability
+            file_dBA = self.file_availability(k, n, server_dBA)
+            user_files_dBA = self.many_files_availability(file_dBA,
+                                                          files_per_user)
+            all_files_dBA = self.many_files_availability(file_dBA, total_files)
+            add_output("Users",
+                       T.div["availability of: ",
+                             "arbitrary file = %d dBA, " % file_dBA,
+                             "all files of user1 = %d dBA, " % user_files_dBA,
+                             "all files in grid = %d dBA" % all_files_dBA,
+                             ],
+                       )
+
 
         all_sections = []
         all_sections.append(build_section("Users"))
@@ -449,3 +511,53 @@ class ProvisioningTool(rend.Page):
               ]
 
         return f
+
+    def file_availability(self, k, n, server_dBA):
+        """
+        The full formula for the availability of a specific file is::
+
+         1 - sum([choose(N,i) * p**i * (1-p)**(N-i)] for i in range(k)])
+
+        Where choose(N,i) = N! / ( i! * (N-i)! ) . Note that each term of
+        this summation is the probability that there are exactly 'i' servers
+        available, and what we're doing is adding up the cases where i is too
+        low.
+
+        This is a nuisance to calculate at all accurately, especially once N
+        gets large, and when p is close to unity. So we make an engineering
+        approximation: if (1-p) is very small, then each [i] term is much
+        larger than the [i-1] term, and the sum is dominated by the i=k-1
+        term. This only works for (1-p) < 10%, and when the choose() function
+        doesn't rise fast enough to compensate. For high-expansion encodings
+        (3-of-10, 25-of-100), the choose() function is rising at the same
+        time as the (1-p)**(N-i) term, so that's not an issue. For
+        low-expansion encodings (7-of-10, 75-of-100) the two values are
+        moving in opposite directions, so more care must be taken.
+
+        Note that the p**i term has only a minor effect as long as (1-p)*N is
+        small, and even then the effect is attenuated by the 1-p term.
+        """
+
+        assert server_dBA > 9  # >=90% availability to use the approximation
+        factor = binomial(n, k-1)
+        factor_dBA = 10 * math.log10(factor)
+        exponent = n - k + 1
+        file_dBA = server_dBA * exponent - factor_dBA
+        return file_dBA
+
+    def many_files_availability(self, file_dBA, num_files):
+        """The probability that 'num_files' independent bernoulli trials will
+        succeed (i.e. we can recover all files in the grid at any given
+        moment) is p**num_files . Since p is close to unity, we express in p
+        in dBA instead, so we can get useful precision on q (=1-p), and then
+        the formula becomes::
+
+         P_some_files_unavailable = 1 - (1 - q)**num_files
+
+        That (1-q)**n expands with the usual binomial sequence, 1 - nq +
+        Xq**2 ... + Xq**n . We use the same approximation as before, since we
+        know q is close to zero, and we get to ignore all the terms past -nq.
+        """
+
+        many_files_dBA = file_dBA - 10 * math.log10(num_files)
+        return many_files_dBA
