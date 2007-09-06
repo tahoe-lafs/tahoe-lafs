@@ -60,6 +60,7 @@ class VirtualDrive(service.MultiService):
                      % furl_file)
             return
 
+        self.global_vdrive_furl = global_vdrive_furl
         tub.connectTo(global_vdrive_furl,
                       self._got_vdrive_server, global_vdrive_furl)
 
@@ -157,3 +158,9 @@ class VirtualDrive(service.MultiService):
             return d
 
         return root
+
+    def create_directory(self):
+        # return a new+empty+unlinked dirnode
+        assert self.global_vdrive_furl
+        d = dirnode.create_directory(self.parent, self.global_vdrive_furl)
+        return d

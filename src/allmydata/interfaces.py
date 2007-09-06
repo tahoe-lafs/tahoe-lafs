@@ -1015,6 +1015,11 @@ class IVirtualDrive(Interface):
         This returns a Deferred that will fire with an instance that provides
         either IDirectoryNode or IFileNode, as appropriate."""
 
+    def create_directory():
+        """Return a new IDirectoryNode that is empty and not linked by
+        anything."""
+
+
 class NotCapableError(Exception):
     """You have tried to write to a read-only node."""
 

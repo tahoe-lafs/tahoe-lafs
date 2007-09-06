@@ -142,8 +142,9 @@ class MyVirtualDrive(service.Service):
     name = "vdrive"
     public_root = None
     private_root = None
-    def __init__(self, nodes):
+    def __init__(self, nodes, files):
         self._my_nodes = nodes
+        self._my_files = files
     def have_public_root(self):
         return bool(self.public_root)
     def have_private_root(self):
@@ -158,6 +159,12 @@ class MyVirtualDrive(service.Service):
             return self._my_nodes[uri]
         return defer.maybeDeferred(_try)
 
+    def create_directory(self):
+        # the dirnode adds itself to self.nodes
+        dirnode = MyDirectoryNode(self._my_nodes, self._my_files, self.parent)
+        return defer.succeed(dirnode)
+
+
 class WebMixin(object):
     def setUp(self):
         self.s = MyClient()
@@ -171,7 +178,7 @@ class WebMixin(object):
         self.nodes = {} # maps URI to node
         self.files = {} # maps file URI to contents
 
-        v = MyVirtualDrive(self.nodes)
+        v = MyVirtualDrive(self.nodes, self.files)
         v.setServiceParent(self.s)
 
         dl = MyDownloader(self.files)
@@ -1404,6 +1411,16 @@ class Web(WebMixin, unittest.TestCase):
         def _check2(res):
             self.failUnlessEqual(res, file_contents)
         d.addCallback(_check2)
+        return d
+
+    def test_PUT_NEWDIR_URI(self):
+        d = self.PUT("/uri?t=mkdir", "")
+        def _check(uri):
+            self.failUnless(uri in self.nodes)
+            self.failUnless(isinstance(self.nodes[uri], MyDirectoryNode))
+            return self.GET("/uri/%s?t=json" % uri.replace("/","!"))
+        d.addCallback(_check)
+        d.addCallback(self.failUnlessIsEmptyJSON)
         return d
 
     def test_XMLRPC(self):
