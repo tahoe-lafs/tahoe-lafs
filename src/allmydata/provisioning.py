@@ -166,18 +166,23 @@ class ProvisioningTool(rend.Page):
                   " no convergence)", i_sharing_ratio)
 
         # Encoding parameters
-        encoding_choices = [("3-of-10", "3.3x (3-of-10)"),
-                            ("5-of-10", "2x (5-of-10)"),
-                            ("8-of-10", "1.25x (8-of-10)"),
-                            ("25-of-100", "4x (25-of-100)"),
+        encoding_choices = [("3-of-10-5", "3.3x (3-of-10, repair below 5)"),
+                            ("3-of-10-8", "3.3x (3-of-10, repair below 8)"),
+                            ("5-of-10-7", "2x (5-of-10, repair below 7)"),
+                            ("8-of-10-9", "1.25x (8-of-10, repair below 9)"),
+                            ("25-of-100-50", "4x (25-of-100, repair below 50)"),
                             ]
         encoding_parameters, i_encoding_parameters = \
                              get_and_set("encoding_parameters",
-                                         encoding_choices, "3-of-10", str)
+                                         encoding_choices, "3-of-10-5", str)
         encoding_pieces = encoding_parameters.split("-")
         k = int(encoding_pieces[0])
         assert encoding_pieces[1] == "of"
         n = int(encoding_pieces[2])
+        # we repair the file when the number of available shares drops below
+        # this value
+        repair_threshold = int(encoding_pieces[3])
+
         add_input("Servers",
                   "What are the default encoding parameters?",
                   i_encoding_parameters)
@@ -308,6 +313,19 @@ class ProvisioningTool(rend.Page):
                   i_lease)
         seconds_per_lease = 24*60*60*lease_timer
 
+        check_timer_choices = [ (1, "every week"),
+                                (4, "every month"),
+                                (8, "every two months"),
+                                (16, "every four months"),
+                                ]
+        check_timer, i_check_timer = \
+                     get_and_set("check_timer", check_timer_choices, 4, int)
+        add_input("Users",
+                  "How frequently should we check on each file?",
+                  i_check_timer)
+        file_check_interval = check_timer * 7 * 24 * 3600
+
+
         if filled:
             add_output("Users", T.div["Total users: %s" % number(num_users)])
             add_output("Users",
@@ -316,6 +334,7 @@ class ProvisioningTool(rend.Page):
             add_output("Users",
                        T.div["Average file size: ", number(file_size)])
             total_files = num_users * files_per_user / sharing_ratio
+            user_file_check_interval = file_check_interval / files_per_user
 
             add_output("Grid",
                        T.div["Total number of files in grid: ",
@@ -453,6 +472,14 @@ class ProvisioningTool(rend.Page):
                              " , bytes = ",
                              number(client_download_byte_rate, "Bps"),
                              ])
+            total_file_check_rate = 1.0 * total_files / file_check_interval
+            client_check_share_rate = total_file_check_rate / num_users
+            add_output("Users",
+                       T.div["file check rate: shares = ",
+                             number(client_check_share_rate, "Hz"),
+                             " (interval = %s)" %
+                             number(1 / client_check_share_rate, "s"),
+                             ])
 
             client_upload_share_rate = upload_rate * n
             # TODO: doesn't include overhead
@@ -474,6 +501,11 @@ class ProvisioningTool(rend.Page):
                              number(server_inbound_share_rate, "Hz"),
                              " , bytes = ",
                               number(server_inbound_byte_rate, "Bps"),
+                             ])
+            add_output("Servers",
+                       T.div["share check rate (inbound): ",
+                             number(total_file_check_rate * n / num_servers,
+                                    "Hz"),
                              ])
 
             server_share_modify_rate = ((client_upload_share_rate +
@@ -520,6 +552,10 @@ class ProvisioningTool(rend.Page):
                        T.div[" %% share data: %.2f%%" %
                              (100.0 * share_data_per_server /
                               share_space_per_server)])
+            add_output("Grid",
+                       T.div["file check rate: ",
+                             number(total_file_check_rate,
+                                    "Hz")])
 
             total_drives = mathutil.div_ceil(int(total_share_space),
                                              int(drive_size))
@@ -561,14 +597,25 @@ class ProvisioningTool(rend.Page):
                        T.div["share data loss rate: ",
                              number(share_data_loss_rate,"Bps")])
 
-            # assuming we choose to regenerate shares when they are halfway
-            # to failure, what is the rate of repair? Basically we need to
-            # regenerate all shares once every time_until_files_lost/2
-            repair_rate = total_space / (time_until_files_lost / 2)
-            add_output("Grid",
-                       T.div["plaintext repair rate: ",
-                             number(repair_rate, "Bps"),
-                             " (repairing when file is halfway to lost time)"])
+            P_disk_failure_during_interval = (drive_failure_rate *
+                                              file_check_interval)
+            disk_failure_dBF = 10*math.log10(P_disk_failure_during_interval)
+            disk_failure_dBA = -disk_failure_dBF
+            file_survives_dBA = self.file_availability(k, repair_threshold,
+                                                       disk_failure_dBA)
+            user_files_survives_dBA = self.many_files_availability( \
+                file_survives_dBA, files_per_user)
+            all_files_survives_dBA = self.many_files_availability( \
+                file_survives_dBA, total_files)
+            add_output("Users",
+                       T.div["survival of: ",
+                             "arbitrary file = %d dBA, " % file_survives_dBA,
+                             "all files of user1 = %d dBA, " %
+                             user_files_survives_dBA,
+                             "all files in grid = %d dBA" %
+                             all_files_survives_dBA,
+                             ])
+
 
 
         all_sections = []
