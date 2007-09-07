@@ -557,8 +557,9 @@ class ProvisioningTool(rend.Page):
                              number(total_file_check_rate,
                                     "Hz")])
 
-            total_drives = mathutil.div_ceil(int(total_share_space),
-                                             int(drive_size))
+            total_drives = max(mathutil.div_ceil(int(total_share_space),
+                                                 int(drive_size)),
+                               num_servers)
             add_output("Drives",
                        T.div["Total drives: ", number(total_drives), " drives"])
             drives_per_server = mathutil.div_ceil(total_drives, num_servers)
