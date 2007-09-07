@@ -5,7 +5,7 @@ import os
 from twisted.trial import unittest
 
 from allmydata.util import bencode, idlib, humanreadable, mathutil
-from allmydata.util import assertutil, fileutil
+from allmydata.util import assertutil, fileutil, testutil
 
 
 class IDLib(unittest.TestCase):
@@ -368,3 +368,23 @@ class FileUtil(unittest.TestCase):
         used = fileutil.du(basedir)
         self.failUnlessEqual(10+11+12+13, used)
 
+class PollMixinTests(unittest.TestCase):
+    def setUp(self):
+        self.pm = testutil.PollMixin()
+
+    def _check(self, d):
+        def fail_unless_arg_is_true(arg):
+            self.failUnless(arg is True, repr(arg))
+        d.addCallback(fail_unless_arg_is_true)
+        return d
+
+    def test_PollMixin_True(self):
+        d = self.pm.poll(check_f=lambda : True,
+                         pollinterval=0.1)
+        return self._check(d)
+
+    def test_PollMixin_False_then_True(self):
+        i = iter([False, True])
+        d = self.pm.poll(check_f=i.next,
+                         pollinterval=0.1)
+        return self._check(d)
