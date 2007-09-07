@@ -2,6 +2,7 @@
 from nevow import inevow, loaders, rend, tags as T
 from twisted.python import util
 import math
+from allmydata.util import mathutil
 
 def getxmlfile(name):
     return loaders.xmlfile(util.sibpath(__file__, "web/%s" % name))
@@ -185,6 +186,7 @@ class ProvisioningTool(rend.Page):
         num_server_choices = [ (5, "5 servers"),
                                (10, "10 servers"),
                                (30, "30 servers"),
+                               (50, "50 servers"),
                                (100, "100 servers"),
                                (1000, "1k servers"),
                                (10e3, "10k servers"),
@@ -209,6 +211,46 @@ class ProvisioningTool(rend.Page):
                                 20, int)
         add_input("Servers",
                   "What is the server availability?", i_server_availability)
+
+        drive_MTBF_choices = [ (40, "40,000 Hours"),
+                               ]
+        drive_MTBF, i_drive_MTBF = \
+                    get_and_set("drive_MTBF", drive_MTBF_choices, 40, int)
+        add_input("Drives",
+                  "What is the hard drive MTBF?", i_drive_MTBF)
+        # http://www.tgdaily.com/content/view/30990/113/
+        # http://labs.google.com/papers/disk_failures.pdf
+        # google sees:
+        #  1.7% of the drives they replaced were 0-1 years old
+        #  8% of the drives they repalced were 1-2 years old
+        #  8.6% were 2-3 years old
+        #  6% were 3-4 years old, about 8% were 4-5 years old
+
+        drive_size_choices = [ (100, "100 GB"),
+                               (250, "250 GB"),
+                               (500, "500 GB"),
+                               (750, "750 GB"),
+                               ]
+        drive_size, i_drive_size = \
+                    get_and_set("drive_size", drive_size_choices, 750, int)
+        drive_size = drive_size * 1e9
+        add_input("Drives",
+                  "What is the capacity of each hard drive?", i_drive_size)
+        drive_failure_model_choices = [ ("E", "Exponential"),
+                                        ("U", "Uniform"),
+                                        ]
+        drive_failure_model, i_drive_failure_model = \
+                             get_and_set("drive_failure_model",
+                                         drive_failure_model_choices,
+                                         "E", str)
+        add_input("Drives",
+                  "How should we model drive failures?", i_drive_failure_model)
+
+        # drive_failure_rate is in failures per second
+        if drive_failure_model == "E":
+            drive_failure_rate = 1.0 / (drive_MTBF * 1000 * 3600)
+        else:
+            drive_failure_rate = 0.5 / (drive_MTBF * 1000 * 3600)
 
         # deletion/gc/ownership mode
         ownership_choices = [ ("A", "no deletion, no gc, no owners"),
@@ -401,6 +443,7 @@ class ProvisioningTool(rend.Page):
                              ")",
                              ])
 
+
             # rates
             client_download_share_rate = download_rate * k
             client_download_byte_rate = download_rate * file_size
@@ -478,6 +521,21 @@ class ProvisioningTool(rend.Page):
                              (100.0 * share_data_per_server /
                               share_space_per_server)])
 
+            total_drives = mathutil.div_ceil(int(total_share_space),
+                                             int(drive_size))
+            add_output("Drives",
+                       T.div["Total drives: ", number(total_drives), " drives"])
+            drives_per_server = mathutil.div_ceil(total_drives, num_servers)
+            add_output("Servers",
+                       T.div["Drives per server: ", drives_per_server])
+
+            any_drive_failure_rate = total_drives * drive_failure_rate
+            any_drive_MTBF = 1 // any_drive_failure_rate  # in seconds
+            any_drive_MTBF_days = any_drive_MTBF / 86400
+            add_output("Drives",
+                       T.div["MTBF (any drive): ",
+                             number(any_drive_MTBF_days), " days"])
+
             # availability
             file_dBA = self.file_availability(k, n, server_dBA)
             user_files_dBA = self.many_files_availability(file_dBA,
@@ -491,10 +549,32 @@ class ProvisioningTool(rend.Page):
                              ],
                        )
 
+            time_until_files_lost = (n-k+1) / any_drive_failure_rate
+            add_output("Grid",
+                       T.div["avg time until files are lost: ",
+                             number(time_until_files_lost, "s"), ", ",
+                             number(time_until_files_lost/86400, " days"),
+                             ])
+
+            share_data_loss_rate = any_drive_failure_rate * drive_size
+            add_output("Grid",
+                       T.div["share data loss rate: ",
+                             number(share_data_loss_rate,"Bps")])
+
+            # assuming we choose to regenerate shares when they are halfway
+            # to failure, what is the rate of repair? Basically we need to
+            # regenerate all shares once every time_until_files_lost/2
+            repair_rate = total_space / (time_until_files_lost / 2)
+            add_output("Grid",
+                       T.div["plaintext repair rate: ",
+                             number(repair_rate, "Bps"),
+                             " (repairing when file is halfway to lost time)"])
+
 
         all_sections = []
         all_sections.append(build_section("Users"))
         all_sections.append(build_section("Servers"))
+        all_sections.append(build_section("Drives"))
         if "Grid" in sections:
             all_sections.append(build_section("Grid"))
 
