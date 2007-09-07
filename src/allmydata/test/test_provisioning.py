@@ -29,7 +29,7 @@ class Provisioning(unittest.TestCase):
                        "files_per_user": 1000,
                        "space_per_user": 1e9,
                        "sharing_ratio": 1.0,
-                       "encoding_parameters": "3-of-10",
+                       "encoding_parameters": "3-of-10-5",
                        "num_servers": 30,
                        "ownership_mode": "A",
                        "download_rate": 100,
