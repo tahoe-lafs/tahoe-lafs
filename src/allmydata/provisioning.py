@@ -597,6 +597,13 @@ class ProvisioningTool(rend.Page):
                        T.div["share data loss rate: ",
                              number(share_data_loss_rate,"Bps")])
 
+            # the worst-case survival numbers occur when we do a file check
+            # and the file is just above the threshold for repair (so we
+            # decide to not repair it). The question is then: what is the
+            # chance that the file will decay so badly before the next check
+            # that we can't recover it? The resulting probability is per
+            # check interval.
+            # Note that the chances of us getting into this situation are low.
             P_disk_failure_during_interval = (drive_failure_rate *
                                               file_check_interval)
             disk_failure_dBF = 10*math.log10(P_disk_failure_during_interval)
@@ -614,6 +621,7 @@ class ProvisioningTool(rend.Page):
                              user_files_survives_dBA,
                              "all files in grid = %d dBA" %
                              all_files_survives_dBA,
+                             " (per worst-case check interval)",
                              ])
 
 
