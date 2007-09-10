@@ -140,6 +140,7 @@ class ProvisioningTool(rend.Page):
         space_per_user_sizes = [(1e6, "1MB"),
                                 (10e6, "10MB"),
                                 (100e6, "100MB"),
+                                (200e6, "200MB"),
                                 (1e9, "1GB"),
                                 (2e9, "2GB"),
                                 (5e9, "5GB"),
@@ -147,9 +148,10 @@ class ProvisioningTool(rend.Page):
                                 (100e9, "100GB"),
                                 (1e12, "1TB"),
                                 ]
+        # current allmydata average utilization 127MB per user
         space_per_user, i_space_per_user = get_and_set("space_per_user",
                                                        space_per_user_sizes,
-                                                       1e9)
+                                                       200e6)
         add_input("Users",
                   "How much data is in each user's vdrive? (avg)",
                   i_space_per_user)
@@ -170,6 +172,7 @@ class ProvisioningTool(rend.Page):
                             ("3-of-10-8", "3.3x (3-of-10, repair below 8)"),
                             ("5-of-10-7", "2x (5-of-10, repair below 7)"),
                             ("8-of-10-9", "1.25x (8-of-10, repair below 9)"),
+                            ("27-of-30-28", "1.1x (27-of-30, repair below 28"),
                             ("25-of-100-50", "4x (25-of-100, repair below 50)"),
                             ]
         encoding_parameters, i_encoding_parameters = \
@@ -190,6 +193,7 @@ class ProvisioningTool(rend.Page):
         # Server info
         num_server_choices = [ (5, "5 servers"),
                                (10, "10 servers"),
+                               (15, "15 servers"),
                                (30, "30 servers"),
                                (50, "50 servers"),
                                (100, "100 servers"),
@@ -566,6 +570,52 @@ class ProvisioningTool(rend.Page):
             add_output("Servers",
                        T.div["Drives per server: ", drives_per_server])
 
+            # costs
+            if drive_size == 750 * 1e9:
+                add_output("Servers", T.div["750GB drive: $250 each"])
+                drive_cost = 250
+            else:
+                add_output("Servers",
+                           T.div[T.b["unknown cost per drive, assuming $100"]])
+                drive_cost = 100
+
+            if drives_per_server <= 4:
+                add_output("Servers", T.div["1U box with <= 4 drives: $1500"])
+                server_cost = 1500 # typical 1U box
+            elif drives_per_server <= 12:
+                add_output("Servers", T.div["2U box with <= 12 drives: $2500"])
+                server_cost = 2500 # 2U box
+            else:
+                add_output("Servers",
+                           T.div[T.b["Note: too many drives per server, "
+                                     "assuming $300"]])
+                server_cost = 3000
+
+            server_capital_cost = (server_cost + drives_per_server * drive_cost)
+            total_server_cost = float(num_servers * server_capital_cost)
+            add_output("Servers", T.div["Capital cost per server: $",
+                                        server_capital_cost])
+            add_output("Grid", T.div["Capital cost for all servers: $",
+                                     number(total_server_cost)])
+            # $70/Mbps/mo
+            # $44/server/mo power+space
+            server_bandwidth = max(server_inbound_byte_rate,
+                                   server_outbound_byte_rate)
+            server_bandwidth_mbps = mathutil.div_ceil(int(server_bandwidth*8),
+                                                      int(1e6))
+            server_monthly_cost = 70*server_bandwidth_mbps + 44
+            total_server_monthly_cost = float(num_servers * server_monthly_cost)
+            add_output("Servers", T.div["Monthly cost per server: $",
+                                        server_monthly_cost])
+            add_output("Grid", T.div["Monthly cost for all servers: $",
+                                     number(total_server_monthly_cost)])
+            add_output("Users", T.div["Capital cost per user: $",
+                                      number(total_server_cost / num_users)])
+            add_output("Users",
+                       T.div["Monthly cost per user: $",
+                             number(total_server_monthly_cost / num_users)])
+
+            # reliability
             any_drive_failure_rate = total_drives * drive_failure_rate
             any_drive_MTBF = 1 // any_drive_failure_rate  # in seconds
             any_drive_MTBF_days = any_drive_MTBF / 86400
