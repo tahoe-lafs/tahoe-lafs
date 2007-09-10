@@ -604,16 +604,10 @@ class ProvisioningTool(rend.Page):
             server_bandwidth_mbps = mathutil.div_ceil(int(server_bandwidth*8),
                                                       int(1e6))
             server_monthly_cost = 70*server_bandwidth_mbps + 44
-            total_server_monthly_cost = float(num_servers * server_monthly_cost)
             add_output("Servers", T.div["Monthly cost per server: $",
                                         server_monthly_cost])
-            add_output("Grid", T.div["Monthly cost for all servers: $",
-                                     number(total_server_monthly_cost)])
             add_output("Users", T.div["Capital cost per user: $",
                                       number(total_server_cost / num_users)])
-            add_output("Users",
-                       T.div["Monthly cost per user: $",
-                             number(total_server_monthly_cost / num_users)])
 
             # reliability
             any_drive_failure_rate = total_drives * drive_failure_rate
@@ -622,6 +616,21 @@ class ProvisioningTool(rend.Page):
             add_output("Drives",
                        T.div["MTBF (any drive): ",
                              number(any_drive_MTBF_days), " days"])
+            drive_replacement_monthly_cost = (float(drive_cost)
+                                              * any_drive_failure_rate
+                                              *30*86400)
+            add_output("Grid",
+                       T.div["Monthly cost of replacing drives: $",
+                             number(drive_replacement_monthly_cost)])
+
+            total_server_monthly_cost = float(num_servers * server_monthly_cost
+                                              + drive_replacement_monthly_cost)
+
+            add_output("Grid", T.div["Monthly cost for all servers: $",
+                                     number(total_server_monthly_cost)])
+            add_output("Users",
+                       T.div["Monthly cost per user: $",
+                             number(total_server_monthly_cost / num_users)])
 
             # availability
             file_dBA = self.file_availability(k, n, server_dBA)
