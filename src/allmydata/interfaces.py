@@ -15,7 +15,9 @@ StorageIndex = StringConstraint(16)
 URI = StringConstraint(300) # kind of arbitrary
 DirnodeURI = StringConstraint(300, regexp=r'^URI:DIR(-RO)?:pb://[a-z0-9]+@[^/]+/[^:]+:[a-z0-9]+$')
 MAX_BUCKETS = 200  # per peer
-ShareData = StringConstraint(400000) # 1MB segment / k=3 = 334kB
+
+# MAX_SEGMENT_SIZE in encode.py is 1 MiB (this constraint allows k = 1)
+ShareData = StringConstraint(2**20)
 URIExtensionData = StringConstraint(1000)
 LeaseRenewSecret = Hash # used to protect bucket lease renewal requests
 LeaseCancelSecret = Hash # used to protect bucket lease cancellation requests
