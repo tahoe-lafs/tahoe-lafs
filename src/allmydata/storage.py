@@ -75,7 +75,7 @@ class ShareFile:
         assert f.tell() == offset
         f.write(struct.pack(">L32s32sL",
                             owner_num, renew_secret, cancel_secret,
-                            expiration_time))
+                            int(expiration_time)))
 
     def _read_num_leases(self, f):
         f.seek(0x08)
