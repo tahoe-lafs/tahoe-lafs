@@ -55,7 +55,7 @@ trove_classifiers=[
     ]
 
 
-VERSIONFILE = "src/allmydata/version.py"
+VERSIONFILE = "src/allmydata/_version.py"
 verstr = "unknown"
 if os.path.exists(VERSIONFILE):
     VSRE = re.compile("^verstr = ['\"]([^'\"]*)['\"]", re.M)
@@ -64,8 +64,8 @@ if os.path.exists(VERSIONFILE):
     if mo:
         verstr = mo.group(1)
     else:
-        print "unable to find version in version.py"
-        raise RuntimeError("if version.py exists, it must be well-formed")
+        print "unable to find version in src/allmydata/_version.py"
+        raise RuntimeError("if _version.py exists, it must be well-formed")
 
 
 LONG_DESCRIPTION=\
