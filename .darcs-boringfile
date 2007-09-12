@@ -74,10 +74,10 @@
 # this file is maintained by the buildbot
 ^\.buildbot-sourcedata$
 
-# these .eggs are downloaded by ez_setup.py when it doesn't like the version
-# that is currently installed (or it is missing).
-^src/simplejson/setuptools-.*\.egg$
-^src/zfec/setuptools-.*\.egg$
+# automatically-build dependencies (using the 'build-deps' target) go here
+^support
+# creating a tahoe egg puts files here
+^allmydata_tahoe.egg-info
 
 # generated crypto extension modules
 ^src/allmydata/Crypto/[^/]*/.*\.so$

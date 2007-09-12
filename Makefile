@@ -64,6 +64,19 @@ make-version:
 build: make-version
 	$(PP) $(PYTHON) ./setup.py build_ext -i
 
+PYVER=$(shell $(PYTHON) misc/pyver.py)
+SUPPORT = $(BASE)/support
+SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
+build-deps:
+	mkdir -p $(SUPPORTLIB)
+	PYTHONPATH=$(SUPPORTLIB) $(PYTHON) setup.py install \
+	 --prefix=$(SUPPORT)
+EGGSPATH = $(shell $(PYTHON) misc/find-dep-eggs.py)
+show-eggspath:
+	@echo $(EGGSPATH)
+
+PP = PYTHONPATH=$(EGGSPATH)
+
 # 'make install' will do the following:
 #   build+install tahoe (probably to /usr/lib/pythonN.N/site-packages)
 

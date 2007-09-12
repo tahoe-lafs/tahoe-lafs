@@ -181,7 +181,9 @@ Running-In-Place Way.  Choose one:
  The Running-In-Place Way:
 
   You can use Tahoe without installing it. Once you've built Tahoe then you
-  can execute "./bin/allmydata-tahoe".
+  can execute "./bin/allmydata-tahoe". (When the allmydata-tahoe script is in
+  an Tahoe source distribution, it adds the necessary directory to the Python
+  "sys.path".)
 
 
 TESTING THAT IT IS PROPERLY INSTALLED
