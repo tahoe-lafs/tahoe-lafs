@@ -55,43 +55,31 @@ TRIAL=$(PYTHON) -u "$(TRIALPATH)" --rterrors --reactor=$(REACTOR)
 show-instdir:
 	@echo $(INSTDIR)/lib
 
-PP=PYTHONPATH=$(PYTHONPATH)
+#PP=PYTHONPATH=$(PYTHONPATH)
 
 .PHONY: make-version build
 make-version:
 	$(PYTHON) misc/make-version.py "allmydata-tahoe" "src/allmydata/_version.py"
 
-build: make-version build-zfec build-foolscap build-simplejson
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="$(INSTDIR)" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
+build: make-version
+	$(PP) $(PYTHON) ./setup.py build_ext -i
 
-build-zfec:
-	cd src/zfec &&  \
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --single-version-externally-managed --prefix="$(INSTDIR)" --record="$(INSTDIR)/zfec_install.log" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
+# 'make install' will do the following:
+#   build+install tahoe (probably to /usr/lib/pythonN.N/site-packages)
 
-build-foolscap:
-	cd src/foolscap && \
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --prefix="$(INSTDIR)" --record="$(INSTDIR)/foolscap_install.log" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
+# 'make install PREFIX=/usr/local/stow/tahoe-N.N' will do the following:
+#   build+install tahoe to the given PREFIX
 
-build-simplejson:
-	cd src/simplejson && \
-	$(PP) $(PYTHON) ./setup.py $(EXTRA_SETUP_ARGS) install --single-version-externally-managed --prefix="$(INSTDIR)" --record="$(INSTDIR)/simplejson_install.log" --install-lib="$(INSTDIR)/lib" --install-scripts="$(INSTDIR)/bin"
-
-clean-zfec:
-	-cd src/zfec && $(PP) $(PYTHON) ./setup.py clean --all
-	rm -rf src/zfec/zfec.egg-info
-	rm -f src/zfec/setuptools-*.egg
-	find src/zfec -name '*.pyc' |xargs rm -f
-
-clean-simplejson:
-	-cd src/simplejson && $(PP) $(PYTHON) ./setup.py clean --all
-	rm -rf src/simplejson/simplejson.egg-info
-	rm -f src/simplejson/setuptools-*.egg
-	find src/simplejson -name '*.pyc' |xargs rm -f
-
-clean-foolscap:
-	-cd src/foolscap && $(PP) $(PYTHON) ./setup.py clean --all
-	find src/foolscap -name '*.pyc' |xargs rm -f
-
+install: make-version
+ifdef PREFIX
+	mkdir -p $(PREFIX)
+	$(PP) $(PYTHON) ./setup.py install \
+           --single-version-externally-managed \
+           --prefix=$(PREFIX) --record=./tahoe.files
+else
+	$(PP) $(PYTHON) ./setup.py install \
+           --single-version-externally-managed
+endif
 
 
 # RUNNING
@@ -120,15 +108,15 @@ stop-introducer: build
 
 # TESTING
 
-.PHONY: test-all test test-foolscap test-figleaf figleaf-output
+.PHONY: test-all test test-figleaf figleaf-output
 
 # you can use 'make test TEST=allmydata.test.test_introducer' to run just
 # test_introducer. TEST=allmydata.test.test_client.Basic.test_permute works
 # too.
-TEST=allmydata zfec
+TEST=allmydata
 REPORTER=
 
-test-all: test-foolscap test
+test-all: test
 
 # use 'make test REPORTER=--reporter=bwverbose' from buildbot, to supress the
 # ansi color sequences
@@ -136,12 +124,6 @@ test-all: test-foolscap test
 test: build
 	$(PP) $(TRIAL) $(REPORTER) $(TEST)
 
-# foolscap tests need to be run in their own source dir, so that the paths to
-# the .pyc files are correct (since some of the foolscap tests depend upon
-# stack traces having actual source code in them, and they don't when the
-# tests are run from the 'instdir' that the tahoe makefile uses).
-test-foolscap:
-	cd src/foolscap && PYTHONPATH=$(ORIGPYTHONPATH) $(TRIAL) $(REPORTER) foolscap
 
 test-figleaf: build
 	find $(INSTDIR) -name '*.pyc' |xargs rm
@@ -156,7 +138,7 @@ figleaf-output:
 # coverage-html/index.html
 
 .PHONY: upload-figleaf .figleaf.el pyflakes count-lines check-memory
-.PHONY: clean clean-zfec clean-simplejson clean-foolscap
+.PHONY: clean
 
 # 'upload-figleaf' is meant to be run with an UPLOAD_TARGET=host:/dir setting
 ifdef UPLOAD_TARGET
@@ -211,18 +193,13 @@ test-clean:
 	find . |grep -v allfiles.tmp |sort >allfiles.tmp.new
 	diff allfiles.tmp.old allfiles.tmp.new
 
-clean: clean-zfec clean-foolscap clean-simplejson
+clean:
 	rm -rf build
 	rm -f debian
 	rm -rf instdir
-	rm -f `find src/allmydata -name '*.so'`
-	rm -f src/allmydata/_version.py
+	rm -f `find src/allmydata -name '*.so' -or -name '*.pyc'`
+	rm -rf allmydata_tahoe.egg-info
 
-install: 
-	cd src/zfec && python ./setup.py install && cd ../..
-	cd src/foolscap && python ./setup.py install && cd ../..
-	cd src/simplejson && python ./setup.py install && cd ../..
-	python ./setup.py install
 
 
 # DEBIAN PACKAGING
@@ -245,7 +222,7 @@ deb-edgy:
 	$(MAKE) deb-ARCH ARCH=edgy TAHOE_ARCH=feisty
 # etch uses the feisty control files for now
 deb-etch:
-	$(MAKE) deb-ARCH ARCH=etch FOOLSCAP_ARCH=sid TAHOE_ARCH=feisty
+	$(MAKE) deb-ARCH ARCH=etch TAHOE_ARCH=feisty
 
 # we know how to handle the following debian architectures
 KNOWN_DEBIAN_ARCHES := sid feisty edgy etch
@@ -260,9 +237,6 @@ is-known-debian-arch:
 	/bin/true
 endif
 
-ifndef FOOLSCAP_ARCH
-FOOLSCAP_ARCH=$(ARCH)
-endif
 ifndef TAHOE_ARCH
 TAHOE_ARCH=$(ARCH)
 endif

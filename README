@@ -118,15 +118,6 @@ gcc make python-dev python-twisted python-nevow python-pyopenssl".
    Feedback with details of other builds is greatly appreciated)
 
 
-Tahoe uses a few additional libraries which are included in this source
-distribution for convenience. These will be automatically built when you type
-'make', but if you have separate installations of them you may wish to modify
-the makefile to use those in preference to the included versions. They
-include Foolscap (a secure remote-object-invocation library) and zfec
-(erasure coding). There are also pieces of PyCrypto copied into
-allmydata.Crypto, modified to provide a faster CTR-mode API.
-
-
 BUILDING:
 
  Just type 'make' in the top-level tahoe directory.  This works on Windows
@@ -138,7 +129,7 @@ BUILDING:
  If the desired version of 'python' is not already on your PATH, then type
  'make PYTHON=/path/to/your/preferred/python'.
 
- 'make test-all' runs the unit test suites.  (This can take a long time on
+ 'make test' runs the unit test suites.  (This can take a long time on
  slow computers.  There are a lot of tests and some of them do a lot of
  public-key cryptography.)
 
@@ -165,34 +156,32 @@ Running-In-Place Way.  Choose one:
   directory to construct a debian package named 'allmydata-tahoe' which you
   can then install with dpkg.
 
- The Python Way:
+ The Setuptools Way:
 
-  Just run make install.  (This works on cygwin and Windows, too.)
+  Just run 'python setup.py install'. This will compile and install the Tahoe
+  code to a system-specific standard location (somewhere inside /usr/lib/ on
+  unix). It will also acquire and install many of the necessary dependencies
+  in the same place. (The dependency-checking can handle foolscap and zfec,
+  but you are still responsible for ensuring that twisted, nevow, and
+  pyopenssl are installed).
 
-  In case you want to configure the location or other install options you can
-  learn how it is done here:
+  To install it to a non-standard location, learn about the
+  "--single-version-externally-managed" flag, and visit
+  http://allmydata.org/trac/tahoe/wiki/Installing .
 
-  The Python Way is to execute "setup.py install" for each Python package.
+ The easy_install Way:
 
-  You'll need to run "setup.py install" four separate times, one for each of
-  the four subpackages (allmydata, foolscap, simplejson, and zfec).
-
-    for PACKAGE in zfec foolscap simplejson; do
-      cd src/${PACKAGE} && python setup.py install && cd ../..
-    done
-
-    # the tahoe subpackage's setup.py script is in the root directory
-    PACKAGE=tahoe
-    python setup.py install
+  Tahoe is registered with the Python Package Index (PyPI), so the
+  'easy_install' tool can download and install it for you. Just type
+  'easy_install allmydata-tahoe' from any shell. That will download the most
+  recent Tahoe source tarball, unpack it in a temporary directory, install it
+  to the standard location, then download and install any easy_install-able
+  dependencies (like zfec and foolscap) that you need.
 
  The Running-In-Place Way:
 
-  The Running-In-Place Way is to add a directory to your PYTHONPATH.
-
-  To run from a source tree (without installing first) just build it
-  (i.e. type 'make'), which will put all the necessary libraries into a local
-  directory named "./instdir/lib", which you can then add to your 
-  PYTHONPATH .  It will put executables into "./instdir/bin".
+  You can use Tahoe without installing it. Once you've built Tahoe then you
+  can execute "./bin/allmydata-tahoe".
 
 
 TESTING THAT IT IS PROPERLY INSTALLED

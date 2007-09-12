@@ -21,7 +21,7 @@
 # http://allmydata.com/.
 
 import re, os.path
-from distutils.core import Extension, setup
+from setuptools import Extension, setup
 
 trove_classifiers=[
     "Development Status :: 3 - Alpha", 
@@ -95,6 +95,17 @@ setup(name='allmydata-tahoe',
       package_data={ 'allmydata': ['web/*.xhtml', 'web/*.html', 'web/*.css'] },
       classifiers=trove_classifiers,
       test_suite="allmydata.test",
+      install_requires=["zfec >= 1.0.3",
+                        "foolscap >= 0.1.6", "simplejson", "nevow"],
+      dependency_links=["http://allmydata.org/trac/tahoe/wiki/Dependencies",
+                        #  this form is used when the unpacked source
+                        #  distribution is copied into our tree:
+                        #"file:misc/dependencies/zfec-1.0.2/"
+                        #  and this form is used when we provide a tarball
+                        #"file:misc/dependencies/zfec-1.0.2.tar.gz",
+                        # The file: URL can start with either 'misc' or
+                        # './misc' to get a relative path.
+                        ],
       ext_modules=[
           Extension("allmydata.Crypto.Cipher.AES",
                     include_dirs=["src/allmydata/Crypto"],
