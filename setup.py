@@ -11,8 +11,10 @@
 # Software Foundation; either version 2 of the License, or (at your option)
 # any later version, with the added permission that, if you become obligated
 # to release a derived work under this licence (as per section 2.b), you may
-# delay the fulfillment of this obligation for up to 12 months.  See the file
-# COPYING for details.
+# delay the fulfillment of this obligation for up to 12 months.  If you are
+# obligated to release code under section 2.b of this licence, you are
+# obligated to release it under these same terms, including the 12-month grace
+# period clause.  See the COPYING file for details.
 #
 # If you would like to inquire about a commercial relationship with Allmydata,
 # Inc., please contact partnerships@allmydata.com and visit
