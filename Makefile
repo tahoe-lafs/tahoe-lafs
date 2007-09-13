@@ -60,13 +60,13 @@ SUPPORT = $(BASE)/support
 SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
 build-deps:
 	mkdir -p $(SUPPORTLIB)
-	PYTHONPATH=$(SUPPORTLIB) $(PYTHON) setup.py install \
+	PYTHONPATH=$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB) $(PYTHON) setup.py install \
 	 --prefix=$(SUPPORT)
 EGGSPATH = $(shell $(PYTHON) misc/find-dep-eggs.py)
 show-eggspath:
 	@echo $(EGGSPATH)
 
-PP=PYTHONPATH=$(EGGSPATH):$(PYTHONPATH)
+PP=PYTHONPATH=$(EGGSPATH)$(PATHSEP)$(PYTHONPATH)
 
 .PHONY: make-version build
 make-version:
