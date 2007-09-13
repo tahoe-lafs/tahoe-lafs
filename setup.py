@@ -20,8 +20,15 @@
 # Inc., please contact partnerships@allmydata.com and visit
 # http://allmydata.com/.
 
-import re, os.path
+from ez_setup import use_setuptools
+import sys
+if 'cygwin' in sys.platform.lower():
+    min_version='0.6c6'
+else:
+    min_version='0.6a9'
+use_setuptools(min_version=min_version)
 from setuptools import Extension, setup
+import re, os.path
 
 trove_classifiers=[
     "Development Status :: 3 - Alpha", 
