@@ -55,15 +55,6 @@ TRIAL=$(PYTHON) -u "$(TRIALPATH)" --rterrors --reactor=$(REACTOR)
 show-instdir:
 	@echo $(INSTDIR)/lib
 
-#PP=PYTHONPATH=$(PYTHONPATH)
-
-.PHONY: make-version build
-make-version:
-	$(PYTHON) misc/make-version.py "allmydata-tahoe" "src/allmydata/_version.py"
-
-build: make-version
-	$(PP) $(PYTHON) ./setup.py build_ext -i
-
 PYVER=$(shell $(PYTHON) misc/pyver.py)
 SUPPORT = $(BASE)/support
 SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
@@ -75,7 +66,14 @@ EGGSPATH = $(shell $(PYTHON) misc/find-dep-eggs.py)
 show-eggspath:
 	@echo $(EGGSPATH)
 
-PP = PYTHONPATH=$(EGGSPATH)
+PP=PYTHONPATH=$(EGGSPATH):$(PYTHONPATH)
+
+.PHONY: make-version build
+make-version:
+	$(PP) $(PYTHON) misc/make-version.py "allmydata-tahoe" "src/allmydata/_version.py"
+
+build: make-version
+	$(PP) $(PYTHON) ./setup.py build_ext -i
 
 # 'make install' will do the following:
 #   build+install tahoe (probably to /usr/lib/pythonN.N/site-packages)
