@@ -133,4 +133,5 @@ setup(name='allmydata-tahoe',
 #          Extension("allmydata.Crypto.PublicKey._fastmath",
 #                    sources=["src/allmydata/Crypto/_fastmath.c"]),
           ],
+      zip_safe=False, # We prefer unzipped for easier access.
       )
