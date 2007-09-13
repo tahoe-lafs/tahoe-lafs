@@ -84,6 +84,17 @@ The basic idea is that the data in this storage grid is spread over all
 participating nodes, using an algorithm that can recover the data even if a
 majority of the nodes are no longer available."""
 
+
+# This form is used when the unpacked source distribution is copied into our tree:
+#"file:misc/dependencies/zfec-1.0.2/"
+# and this form is used when we provide a tarball
+# "file:misc/dependencies/zfec-1.0.2.tar.gz",
+# The file: URL can start with either 'misc' or './misc' to get a relative path.
+
+dependency_tarballs=[ os.path.join("misc", "dependencies", fn) for fn in os.listdir(os.path.join("misc", "dependencies")) if fn.endswith(".tar.gz") ]
+
+dependency_links=["http://allmydata.org/trac/tahoe/wiki/Dependencies"] + dependency_tarballs
+
 setup(name='allmydata-tahoe',
       version=verstr,
       description='secure, distributed storage grid',
@@ -108,15 +119,7 @@ setup(name='allmydata-tahoe',
                         #"nevow", # we need nevow, but it doesn't seem to be
                                   # installable by easy_install
                         ],
-      dependency_links=["http://allmydata.org/trac/tahoe/wiki/Dependencies",
-                        #  this form is used when the unpacked source
-                        #  distribution is copied into our tree:
-                        #"file:misc/dependencies/zfec-1.0.2/"
-                        #  and this form is used when we provide a tarball
-                        #"file:misc/dependencies/zfec-1.0.2.tar.gz",
-                        # The file: URL can start with either 'misc' or
-                        # './misc' to get a relative path.
-                        ],
+      dependency_links=dependency_links,
       ext_modules=[
           Extension("allmydata.Crypto.Cipher.AES",
                     include_dirs=["src/allmydata/Crypto"],
