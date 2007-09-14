@@ -43,6 +43,10 @@ else
  SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
 endif
 
+ifeq ($(PLAT),cygwin)
+REACTOR = poll
+endif
+
 ifneq ($(REACTOR),)
 	REACTOROPT := --reactor=$(REACTOR)
 else
