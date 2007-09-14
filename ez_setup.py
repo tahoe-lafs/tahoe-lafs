@@ -96,22 +96,6 @@ def download_setuptools(
     if not os.path.exists(saveto):  # Avoid repeated downloads
         try:
             from distutils import log
-            if True:
-                log.warn("""
----------------------------------------------------------------------------
-This script requires setuptools version %s to run (even to display
-help).  I will attempt to download it for you (from
-%s), but
-you may need to enable firewall access for this script first.
-
-(Note: if this machine does not have network access, please obtain the file
-
-   %s
-
-and place it in this directory before rerunning this script.)
----------------------------------------------------------------------------""",
-                    version, download_base, url
-                );
             log.warn("Downloading %s", url)
             src = urllib2.urlopen(url)
             # Read/write all in one block, so we don't create a corrupt file
