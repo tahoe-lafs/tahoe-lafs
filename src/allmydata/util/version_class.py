@@ -20,13 +20,6 @@ else:
     def cmp_version(v1, v2):
         return cmp(pkg_resources.parse_version(str(v1)), pkg_resources.parse_version(str(v2)))
 
-# bindann, by Nathan Wilcox (needed only for debugging)
-try:
-    import bindann
-    bindann.install_exception_handler()
-except ImportError:
-    pass
-
 # Python Standard Library
 import re
 
