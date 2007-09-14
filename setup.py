@@ -115,7 +115,7 @@ setup(name='allmydata-tahoe',
       classifiers=trove_classifiers,
       test_suite="allmydata.test",
       install_requires=["zfec >= 1.0.3",
-                        "foolscap >= 0.1.6", "simplejson",
+                        "foolscap >= 0.1.6", "simplejson >= 1.4",
                         #"nevow", # we need nevow, but it doesn't seem to be
                                   # installable by easy_install
                         ],
