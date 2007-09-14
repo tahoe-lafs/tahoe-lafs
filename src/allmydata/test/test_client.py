@@ -38,7 +38,6 @@ class Basic(unittest.TestCase):
         c = client.Client(basedir)
         secret_file = os.path.join(basedir, "secret")
         self.failUnless(os.path.exists(secret_file))
-        self.failUnlessEqual(os.stat(secret_file)[stat.ST_MODE] & 0777, 0600)
         renew_secret = c.get_renewal_secret()
         self.failUnless(idlib.b2a(renew_secret))
         cancel_secret = c.get_cancel_secret()
