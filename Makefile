@@ -100,6 +100,7 @@ TEST=allmydata
 # suppress the ansi color sequences
 
 test: build
+	$(PP) $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, OpenSSL'
 	$(PP) $(TRIAL) $(REPORTER) $(TEST)
 
 test-figleaf: build
