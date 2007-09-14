@@ -16,9 +16,7 @@
 
 default: build
 
-BASE=$(shell pwd)
 PYTHON=python
-INSTDIR=$(BASE)/instdir
 PATHSEP=$(shell python -c 'import os ; print os.pathsep')
 TRIALPATH=$(shell which trial.py 2>/dev/null)
 ifeq ($(TRIALPATH),)
@@ -31,62 +29,45 @@ ifeq ($(TRIALPATH),)
 TRIALPATH=$(shell $(PYTHON) -c "import os, sys; print repr(os.path.join(sys.prefix, \"Scripts\", \"trial\"))")
 endif
 
-EXTRA_SETUP_ARGS=
-REACTOR=poll
+REACTOR=
 
 PLAT = $(strip $(shell python -c "import sys ; print sys.platform"))
-ifeq ($(PLAT),cygwin)
- # The platform is Windows with cygwin build tools and the cygwin Python interpreter.
- INSTDIR := $(shell cygpath -u $(INSTDIR))
+ifeq ($(PLAT),win32)
+ # The platform is Windows with cygwin build tools and the native Python interpreter.
+ TRIALPATH := $(shell cygpath -w $(TRIALPATH))
+ SUPPORT = $(shell cygpath -w $(shell pwd))\support
+ SUPPORTLIB := $(SUPPORT)\Lib\site-packages
 else
- ifeq ($(PLAT),win32)
-  # The platform is Windows with cygwin build tools and the native Python interpreter.
-  EXTRA_SETUP_ARGS=build -c mingw32
-  REACTOR=select
-  INSTDIR := $(shell cygpath -w $(INSTDIR))
-  TRIALPATH := $(shell cygpath -w $(TRIALPATH))
-  ifneq ($(PYTHONPATH),)
-   PYTHONPATH := $(shell cygpath -w $(PYTHONPATH))
-  endif
- endif
+ PYVER=$(shell $(PYTHON) misc/pyver.py)
+ SUPPORT = $(shell pwd)/support
+ SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
 endif
 
-ORIGPYTHONPATH=$(PYTHONPATH)
-
-# Append instdir/lib instead of prepending it so that people can override
-# things from lib with alternate packages of their choosing by setting their
-# PYTHONPATH.
-
-ifneq ($(PYTHONPATH),)
-PYTHONPATH := "$(PYTHONPATH)$(PATHSEP)$(INSTDIR)/lib"
+ifneq ($(REACTOR),)
+	REACTOROPT := --reactor=$(REACTOR)
 else
-PYTHONPATH := "$(INSTDIR)/lib"
+	REACTOROPT := 
 endif
 
-TRIAL=$(PYTHON) -u "$(TRIALPATH)" --rterrors --reactor=$(REACTOR)
+TRIAL=$(PYTHON) -u "$(TRIALPATH)" --rterrors $(REACTOROPT)
 
-show-instdir:
-	@echo $(INSTDIR)/lib
-
-PYVER=$(shell $(PYTHON) misc/pyver.py)
-SUPPORT = $(BASE)/support
-SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
 build-deps:
-	mkdir -p $(SUPPORTLIB)
-	PYTHONPATH=$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB) $(PYTHON) setup.py install \
-	 --prefix=$(SUPPORT)
+	mkdir -p "$(SUPPORTLIB)"
+	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)" $(PYTHON) setup.py install \
+	 --prefix="$(SUPPORT)"
+
 EGGSPATH = $(shell $(PYTHON) misc/find-dep-eggs.py)
 show-eggspath:
 	@echo $(EGGSPATH)
 
-PP=PYTHONPATH=$(EGGSPATH)$(PATHSEP)$(PYTHONPATH)
+PP=PYTHONPATH="$(EGGSPATH)$(PATHSEP)$(PYTHONPATH)"
 
 .PHONY: make-version build
 make-version:
-	$(PP) $(PYTHON) misc/make-version.py "allmydata-tahoe" "src/allmydata/_version.py"
+	$(PYTHON) misc/make-version.py "allmydata-tahoe" "src/allmydata/_version.py"
 
 build: make-version
-	$(PP) $(PYTHON) ./setup.py build_ext -i
+	$(PYTHON) ./setup.py build_ext -i
 
 # 'make install' will do the following:
 #   build+install tahoe (probably to /usr/lib/pythonN.N/site-packages)
@@ -106,56 +87,27 @@ else
 endif
 
 
-# RUNNING
-#
-# these targets let you create a client node in the current directory and
-# start/stop it.
-
-.PHONY: create-client start-client stop-client run-client
-.PHONY: create-introducer start-introducer stop-introducer
-
-create-client: build
-	$(PP) $(PYTHON) bin/allmydata-tahoe create-client -C CLIENTDIR
-start-client: build
-	$(PP) $(PYTHON) bin/allmydata-tahoe start -C CLIENTDIR
-stop-client: build
-	$(PP) $(PYTHON) bin/allmydata-tahoe stop -C CLIENTDIR
-
-create-introducer: build
-	$(PP) $(PYTHON) bin/allmydata-tahoe create-introducer -C INTRODUCERDIR
-start-introducer: build
-	$(PP) $(PYTHON) bin/allmydata-tahoe start -C INTRODUCERDIR
-stop-introducer: build
-	$(PP) $(PYTHON) bin/allmydata-tahoe stop -C INTRODUCERDIR
-
-
-
 # TESTING
 
-.PHONY: test-all test test-figleaf figleaf-output
+.PHONY: test test-figleaf figleaf-output
 
 # you can use 'make test TEST=allmydata.test.test_introducer' to run just
 # test_introducer. TEST=allmydata.test.test_client.Basic.test_permute works
 # too.
 TEST=allmydata
-REPORTER=
 
-test-all: test
-
-# use 'make test REPORTER=--reporter=bwverbose' from buildbot, to supress the
-# ansi color sequences
+# use 'make test REPORTER=--reporter=bwverbose' from buildbot, to
+# suppress the ansi color sequences
 
 test: build
 	$(PP) $(TRIAL) $(REPORTER) $(TEST)
 
-
 test-figleaf: build
-	find $(INSTDIR) -name '*.pyc' |xargs rm
 	rm -f .figleaf
 	$(PP) $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
 
 figleaf-output:
-	$(PP) $(PYTHON) misc/figleaf2html -d coverage-html -r $(INSTDIR)/lib -x misc/figleaf.excludes
+	$(PP) $(PYTHON) misc/figleaf2html -d coverage-html -r src -x misc/figleaf.excludes
 	@echo "now point your browser at coverage-html/index.html"
 
 # after doing test-figleaf and figleaf-output, point your browser at
@@ -184,10 +136,10 @@ upload-figleaf:
 endif
 
 .figleaf.el: .figleaf
-	$(PP) $(PYTHON) misc/figleaf2el.py .figleaf $(INSTDIR)/lib
+	$(PYTHON) misc/figleaf2el.py .figleaf src
 
 pyflakes:
-	$(PP) $(PYTHON) -OOu `which pyflakes` src/allmydata
+	$(PYTHON) -OOu `which pyflakes` src/allmydata
 
 count-lines:
 	@echo -n "files: "
@@ -220,9 +172,9 @@ test-clean:
 clean:
 	rm -rf build
 	rm -f debian
-	rm -rf instdir
 	rm -f `find src/allmydata -name '*.so' -or -name '*.pyc'`
 	rm -rf allmydata_tahoe.egg-info
+	rm -rf support
 
 
 
@@ -306,6 +258,3 @@ deb-etch-head:
 	$(MAKE) setup-deb ARCH=etch TAHOE_ARCH=feisty
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
-
-build_ext:
-	$(PYTHON) setup.py build_ext -i

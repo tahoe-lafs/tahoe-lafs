@@ -2,13 +2,16 @@
 
 import os.path, sys
 
-pyver = "python%d.%d" % (sys.version_info[:2])
-
 path = []
-support_lib = "support/lib/%s/site-packages" % pyver
+if sys.platform == 'win32':
+    support_lib = "support/Lib/site-packages"
+else:
+    pyver = "python%d.%d" % (sys.version_info[:2])
+    support_lib = "support/lib/%s/site-packages" % pyver
+
 if os.path.exists(support_lib):
     for fn in os.listdir(support_lib):
         if fn.endswith(".egg"):
             path.append(os.path.abspath(os.path.join(support_lib, fn)))
 
-print ":".join(path)
+print os.pathsep.join(path)
