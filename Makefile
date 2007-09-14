@@ -164,10 +164,10 @@ test-darcs-boringfile:
 	$(PYTHON) misc/test-darcs-boringfile.py
 
 test-clean:
-	find . |grep -v allfiles.tmp |sort >allfiles.tmp.old
+	find . |grep -v allfiles.tmp |grep -v src/allmydata/_version.py |sort >allfiles.tmp.old
 	$(MAKE)
 	$(MAKE) clean
-	find . |grep -v allfiles.tmp |sort >allfiles.tmp.new
+	find . |grep -v allfiles.tmp |grep -v src/allmydata/_version.py |sort >allfiles.tmp.new
 	diff allfiles.tmp.old allfiles.tmp.new
 
 clean:
@@ -176,6 +176,8 @@ clean:
 	rm -f `find src/allmydata -name '*.so' -or -name '*.pyc'`
 	rm -rf allmydata_tahoe.egg-info
 	rm -rf support
+	rm -rf setuptools*.egg
+	rm -f ez_setup.pyc
 
 
 
@@ -223,11 +225,14 @@ setup-deb: is-known-debian-arch
 	ln -s misc/$(TAHOE_ARCH)/debian debian
 	chmod +x debian/rules
 
-# etch (current debian stable) has python-simplejson-1.3
+# etch (current debian stable) has python-simplejson-1.3, which doesn't 
+#  support indent=
 # sid (debian unstable) currently has python-simplejson 1.7.1
-# edgy has 1.3
-# feisty has 1.4
+# edgy has 1.3, which doesn't support indent=
+# feisty has 1.4, which supports indent= but emits a deprecation warning
 # gutsy has 1.7.1
+#
+# we need 1.4 or newer
 
 deb-ARCH: is-known-debian-arch setup-deb
 	fakeroot debian/rules binary
