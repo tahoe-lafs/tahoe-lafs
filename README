@@ -64,8 +64,8 @@ gcc make python-dev python-twisted python-nevow python-pyopenssl".
 
  + GNU make (build tool)
 
- + Python 2.4 or newer (tested against 2.4, and 2.5.1 -- on Windows-native 
-   Python 2.5 or higher is required), including development headers (language)
+ + Python 2.4 or newer (tested against 2.4, and 2.5.1 ), including
+   development headers (language)
 
    http://python.org/
 
