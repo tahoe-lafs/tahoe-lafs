@@ -60,7 +60,7 @@ EGGSPATH = $(shell $(PYTHON) misc/find-dep-eggs.py)
 show-eggspath:
 	@echo $(EGGSPATH)
 
-PP=PYTHONPATH="$(EGGSPATH)$(PATHSEP)$(PYTHONPATH)"
+PP=PYTHONPATH="src$(PATHSEP)$(EGGSPATH)$(PATHSEP)$(PYTHONPATH)"
 
 .PHONY: make-version build
 make-version:
