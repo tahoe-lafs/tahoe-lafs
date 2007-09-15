@@ -37,10 +37,12 @@ ifeq ($(PLAT),win32)
  TRIALPATH := $(shell cygpath -w $(TRIALPATH))
  SUPPORT = $(shell cygpath -w $(shell pwd))\support
  SUPPORTLIB := $(SUPPORT)\Lib\site-packages
+ SRCPATH := $(shell cygpath -w $(shell pwd))\src
 else
  PYVER=$(shell $(PYTHON) misc/pyver.py)
  SUPPORT = $(shell pwd)/support
  SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
+ SRCPATH := $(shell pwd)/src
 endif
 
 ifeq ($(PLAT),cygwin)
@@ -65,7 +67,7 @@ EGGSPATH = $(shell $(PYTHON) misc/find-dep-eggs.py)
 show-eggspath:
 	@echo $(EGGSPATH)
 
-PP=PYTHONPATH="src$(PATHSEP)$(EGGSPATH)$(PATHSEP)$(PYTHONPATH)"
+PP=PYTHONPATH="$(SRCPATH)$(PATHSEP)$(EGGSPATH)$(PATHSEP)$(PYTHONPATH)"
 
 .PHONY: make-version build
 make-version:
