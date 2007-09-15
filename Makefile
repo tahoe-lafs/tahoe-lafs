@@ -96,7 +96,16 @@ endif
 
 # TESTING
 
-.PHONY: test test-figleaf figleaf-output
+.PHONY: check-deps test test-figleaf figleaf-output
+
+
+check-deps:
+	$(PP) \
+	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, OpenSSL'
+
+.checked-deps:
+	$(MAKE) check-deps
+	touch .checked-deps
 
 # you can use 'make test TEST=allmydata.test.test_introducer' to run just
 # test_introducer. TEST=allmydata.test.test_client.Basic.test_permute works
@@ -106,13 +115,11 @@ TEST=allmydata
 # use 'make test REPORTER=--reporter=bwverbose' from buildbot, to
 # suppress the ansi color sequences
 
-test: build
-	$(PP) \
-	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, OpenSSL'
+test: build .checked-deps
 	$(PP) \
 	 $(TRIAL) $(REPORTER) $(TEST)
 
-test-figleaf: build
+test-figleaf: build .checked-deps
 	rm -f .figleaf
 	$(PP) \
 	 $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
@@ -183,12 +190,12 @@ test-clean:
 	diff allfiles.tmp.old allfiles.tmp.new
 
 clean:
-	rm -rf build _trial_temp _test_memory
+	rm -rf build _trial_temp _test_memory .checked-deps
 	rm -f debian
 	rm -f `find src/allmydata -name '*.so' -or -name '*.pyc'`
 	rm -rf tahoe_deps.egg-info allmydata_tahoe.egg-info
-	rm -rf support
-	rm -rf setuptools*.egg ez_setup.pyc
+	rm -rf support dist
+	rm -rf setuptools*.egg *.pyc
 
 
 
