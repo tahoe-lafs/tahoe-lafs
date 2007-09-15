@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-import random, math, os, re
+import random, math, re
 from twisted.python import usage
 
 class Args(usage.Options):

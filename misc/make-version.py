@@ -1,7 +1,5 @@
 #! /usr/bin/env python
 
-import os, sys
-
 """
 Create _version.py, based upon the latest darcs release tag.
 

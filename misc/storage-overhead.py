@@ -1,7 +1,6 @@
 #! /usr/bin/python
 
 import sys, math
-from cStringIO import StringIO
 from allmydata import upload, uri, encode, storage
 from allmydata.util import mathutil
 

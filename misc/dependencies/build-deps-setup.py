@@ -2,7 +2,7 @@
 
 # N.B.: this expects to run from the top of the source tree
 
-import os, sys
+import sys
 from ez_setup import use_setuptools
 if 'cygwin' in sys.platform.lower():
     min_version='0.6c6'
