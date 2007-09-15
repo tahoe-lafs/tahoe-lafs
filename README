@@ -161,9 +161,9 @@ Running-In-Place Way.  Choose one:
   Just run 'python setup.py install'. This will compile and install the Tahoe
   code to a system-specific standard location (somewhere inside /usr/lib/ on
   unix). It will also acquire and install many of the necessary dependencies
-  in the same place. (The dependency-checking can handle foolscap and zfec,
-  but you are still responsible for ensuring that twisted, nevow, and
-  pyopenssl are installed).
+  in the same place. (The dependency-checking can handle foolscap, nevow, and
+  zfec, but you are still responsible for ensuring that twisted and pyopenssl
+  are installed).
 
   To install it to a non-standard location, learn about the
   "--single-version-externally-managed" flag, and visit
