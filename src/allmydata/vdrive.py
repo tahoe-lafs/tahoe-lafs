@@ -101,6 +101,11 @@ class VirtualDrive(service.MultiService):
                 self._private_root_observer.fire(self._private_uri)
             d.addCallback(_got_directory)
 
+        def _oops(f):
+            self.log("error getting URIs from vdrive server")
+            log.err(f)
+        d.addErrback(_oops)
+
 
     def have_public_root(self):
         return bool(self._global_uri)
