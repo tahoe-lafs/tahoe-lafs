@@ -202,6 +202,17 @@ class Server(unittest.TestCase):
                                           renew_secret, cancel_secret,
                                           sharenums, size, Referenceable())
 
+    def test_remove_incoming(self):
+        ss = self.create("test_remove_incoming")
+        already, writers = self.allocate(ss, "vid", range(3), 10)
+        for i,wb in writers.items():
+            wb.remote_write(0, "%10d" % i)
+            wb.remote_close()
+        incomingdir = os.path.join(self.workdir("test_remove_incoming"),
+                                   "shares", "incoming")
+        leftover_dirs = os.listdir(incomingdir)
+        self.failUnlessEqual(leftover_dirs, [])
+
     def test_allocate(self):
         ss = self.create("test_allocate")
 

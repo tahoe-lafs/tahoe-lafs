@@ -195,6 +195,12 @@ class BucketWriter(Referenceable):
         filelen = os.stat(self.finalhome)[stat.ST_SIZE]
         self.ss.bucket_writer_closed(self, filelen)
 
+        # if we were the last share to be moved, remove the incoming/
+        # directory that was our parent
+        parentdir = os.path.split(self.incominghome)[0]
+        if not os.listdir(parentdir):
+            os.rmdir(parentdir)
+
 
 class BucketReader(Referenceable):
     implements(RIBucketReader)
