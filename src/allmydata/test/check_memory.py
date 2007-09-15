@@ -29,6 +29,7 @@ class SystemFramework(testutil.PollMixin):
         self.tub.setServiceParent(self.sparent)
         self.discard_shares = True
         self.mode = mode
+        self.failed = False
 
     def run(self):
         log.startLogging(open(os.path.join(self.basedir, "log"), "w"),
@@ -41,11 +42,17 @@ class SystemFramework(testutil.PollMixin):
         d.addCallback(lambda res: self.do_test())
         d.addBoth(self.tearDown)
         def _err(err):
+            self.failed = err
             log.err(err)
             print err
         d.addErrback(_err)
-        d.addBoth(lambda res: reactor.stop())
+        def _done(res):
+            reactor.stop()
+            return res
+        d.addBoth(_done)
         reactor.run()
+        if self.failed:
+            self.failed.raiseException()
 
     def setUp(self):
         #print "STARTING"
@@ -183,7 +190,10 @@ this file are ignored.
         # control.furl file to appear.
         furl_file = os.path.join(clientdir, "control.furl")
         def _check():
-            if pp.ended:
+            if pp.ended and pp.ended.value.status != 0:
+                # the twistd process ends normally (with rc=0) if the child
+                # is successfully launched. It ends abnormally (with rc!=0)
+                # if the child cannot be launched.
                 raise RuntimeError("process ended while waiting for startup")
             return os.path.exists(furl_file)
         d = self.poll(_check, 0.1)
@@ -341,8 +351,7 @@ class ClientWatcher(protocol.ProcessProtocol):
     def errReceived(self, data):
         print "ERR:", data
     def processEnded(self, reason):
-        print "PROCESSENDED", reason
-        self.ended = True
+        self.ended = reason
         self.d.callback(None)
 
 
