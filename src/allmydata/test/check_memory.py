@@ -183,6 +183,8 @@ this file are ignored.
         # control.furl file to appear.
         furl_file = os.path.join(clientdir, "control.furl")
         def _check():
+            if pp.ended:
+                raise RuntimeError("process ended while waiting for startup")
             return os.path.exists(furl_file)
         d = self.poll(_check, 0.1)
         # once it exists, wait a moment before we read from it, just in case
@@ -333,11 +335,14 @@ this file are ignored.
 
 
 class ClientWatcher(protocol.ProcessProtocol):
+    ended = False
     def outReceived(self, data):
         print "OUT:", data
     def errReceived(self, data):
         print "ERR:", data
     def processEnded(self, reason):
+        print "PROCESSENDED", reason
+        self.ended = True
         self.d.callback(None)
 
 
