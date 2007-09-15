@@ -12,17 +12,10 @@ use_setuptools(min_version=min_version, download_base="file:misc/dependencies/")
 
 from setuptools import setup
 
-dependency_tarballs=[ os.path.join("misc", "dependencies", fn)
-                      for fn in os.listdir(os.path.join("misc", "dependencies"))
-                      if fn.endswith(".tar.gz") ]
-dependency_links=["http://allmydata.org/trac/tahoe/wiki/Dependencies"] + dependency_tarballs
+from calcdeps import install_requires, dependency_links
 
 setup(name='tahoe-deps',
       version="1",
-      install_requires=["zfec >= 1.0.3",
-                        "foolscap >= 0.1.6",
-                        "simplejson >= 1.4",
-                        "nevow",
-                        ],
+      install_requires=install_requires,
       dependency_links=dependency_links,
       )

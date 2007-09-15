@@ -31,6 +31,8 @@ use_setuptools(min_version=min_version, download_base="file:misc/dependencies/")
 from setuptools import Extension, setup
 import re, os.path
 
+from calcdeps import install_requires, dependency_links
+
 trove_classifiers=[
     "Development Status :: 3 - Alpha", 
     "Environment :: Console",
@@ -85,19 +87,6 @@ participating nodes, using an algorithm that can recover the data even if a
 majority of the nodes are no longer available."""
 
 
-# This form is used when the unpacked source distribution is copied into our
-# tree:
-#  "file:misc/dependencies/zfec-1.0.2/"
-# and this form is used when we provide a tarball
-#  "file:misc/dependencies/zfec-1.0.2.tar.gz",
-# The file: URL can start with either 'misc' or './misc' to get a relative path.
-
-dependency_tarballs=[ "file:" + os.path.join("misc", "dependencies", fn)
-                      for fn in os.listdir(os.path.join("misc", "dependencies"))
-                      if fn.endswith(".tar.gz") ]
-
-dependency_links=["http://allmydata.org/trac/tahoe/wiki/Dependencies"] + dependency_tarballs
-
 setup(name='allmydata-tahoe',
       version=verstr,
       description='secure, distributed storage grid',
@@ -117,11 +106,7 @@ setup(name='allmydata-tahoe',
       package_data={ 'allmydata': ['web/*.xhtml', 'web/*.html', 'web/*.css'] },
       classifiers=trove_classifiers,
       test_suite="allmydata.test",
-      install_requires=["zfec >= 1.0.3",
-                        "foolscap >= 0.1.6",
-                        "simplejson >= 1.4",
-                        "nevow",
-                        ],
+      install_requires=install_requires,
       dependency_links=dependency_links,
       ext_modules=[
           Extension("allmydata.Crypto.Cipher.AES",

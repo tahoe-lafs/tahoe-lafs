@@ -69,8 +69,8 @@ gcc make python-dev python-twisted python-nevow python-pyopenssl".
 
    http://python.org/
 
- + Python Twisted (tested against both 2.4 and 2.5) (network and operating
-   system integration library)
+ + Twisted Python (tested against 2.2.0, 2.4.0, and 2.5.0) (network and
+   operating system integration library)
 
    http://twistedmatrix.com/
 
@@ -81,11 +81,15 @@ gcc make python-dev python-twisted python-nevow python-pyopenssl".
    * web, trial, conch
 
    Twisted requires zope.interface, a copy of which is included in the
-   Twisted distribution.
+   Twisted distribution. Note that Twisted does *not* require the entire Zope
+   distribution, merely the much smaller zope.interface component.
 
- + Python Nevow (0.9.18 or later) (web presentation language)
+ + Python Nevow (0.6.0 or later) (web presentation language)
 
    http://divmod.org/trac/wiki/DivmodNevow
+
+   Note that the current version of Nevow (0.9.18) requires Twisted 2.4.0 or
+   later.
 
  + Python setuptools (build and distribution tool)
 
