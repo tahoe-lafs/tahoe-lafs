@@ -181,7 +181,8 @@ this file are ignored.
 
         pp = ClientWatcher()
         self.proc_done = pp.d = defer.Deferred()
-        cmd = ["twistd", "-y", "client.tac"]
+        logfile = os.path.join(self.basedir, "client.log")
+        cmd = ["twistd", "-y", "client.tac", "-l", logfile]
         env = os.environ.copy()
         self.proc = reactor.spawnProcess(pp, cmd[0], cmd, env, path=clientdir)
         log.msg("CLIENT STARTED")
