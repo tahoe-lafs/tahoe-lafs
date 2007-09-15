@@ -55,9 +55,10 @@ endif
 
 TRIAL=$(PYTHON) -u "$(TRIALPATH)" --rterrors $(REACTOROPT)
 
-build-deps:
+build-deps: build
 	mkdir -p "$(SUPPORTLIB)"
-	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)" $(PYTHON) setup.py install \
+	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)." \
+         $(PYTHON) misc/dependencies/build-deps-setup.py install \
 	 --prefix="$(SUPPORT)"
 
 EGGSPATH = $(shell $(PYTHON) misc/find-dep-eggs.py)
@@ -72,12 +73,12 @@ make-version:
 
 build: make-version
 	$(PYTHON) ./setup.py build_ext -i
+	chmod +x bin/allmydata-tahoe
 
 # 'make install' will do the following:
 #   build+install tahoe (probably to /usr/lib/pythonN.N/site-packages)
-
-# 'make install PREFIX=/usr/local/stow/tahoe-N.N' will do the following:
-#   build+install tahoe to the given PREFIX
+# 'make install PREFIX=/usr/local/stow/tahoe-N.N' will do the same, but to
+# a different location
 
 install: make-version
 ifdef PREFIX
@@ -178,10 +179,9 @@ clean:
 	rm -rf build
 	rm -f debian
 	rm -f `find src/allmydata -name '*.so' -or -name '*.pyc'`
-	rm -rf allmydata_tahoe.egg-info
+	rm -rf tahoe_deps.egg-info allmydata_tahoe.egg-info
 	rm -rf support
-	rm -rf setuptools*.egg
-	rm -f ez_setup.pyc
+	rm -rf setuptools*.egg ez_setup.pyc
 
 
 

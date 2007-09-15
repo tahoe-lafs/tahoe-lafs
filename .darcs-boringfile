@@ -80,6 +80,8 @@
 ^setuptools-.*.egg$
 # creating a tahoe egg puts files here
 ^allmydata_tahoe.egg-info
+# the 'build-deps' commands results in this directory:
+^tahoe_deps.egg-info
 
 # generated crypto extension modules
 ^src/allmydata/Crypto/[^/]*/.*\.so$
