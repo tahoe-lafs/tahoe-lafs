@@ -833,6 +833,9 @@ class PUTHandler(rend.Page):
         # build up a list of files to upload
         all_files = []
         all_dirs = []
+        msg = "No files to upload! %s is empty" % localdir
+        if not os.path.exists(localdir):
+            msg = "%s doesn't exist!" % localdir
         for root, dirs, files in os.walk(localdir):
             if root == localdir:
                 path = ()
@@ -843,7 +846,7 @@ class PUTHandler(rend.Page):
                 all_dirs.append(path + (d,))
             for f in files:
                 all_files.append(path + (f,))
-        d = defer.succeed(None)
+        d = defer.succeed(msg)
         for dir in all_dirs:
             if dir:
                 d.addCallback(self._makedir, node, dir)
