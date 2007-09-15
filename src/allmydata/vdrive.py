@@ -1,11 +1,12 @@
 
 import os
-from twisted.application import service
 from zope.interface import implements
+from twisted.python import log
+from twisted.application import service
+from twisted.internet import defer
 from allmydata.interfaces import IVirtualDrive, IDirnodeURI, IURI
 from allmydata.util import observer
 from allmydata import dirnode
-from twisted.internet import defer
 
 class NoGlobalVirtualDriveError(Exception):
     pass
