@@ -183,7 +183,7 @@ test-clean:
 	diff allfiles.tmp.old allfiles.tmp.new
 
 clean:
-	rm -rf build
+	rm -rf build _trial_temp _test_memory
 	rm -f debian
 	rm -f `find src/allmydata -name '*.so' -or -name '*.pyc'`
 	rm -rf tahoe_deps.egg-info allmydata_tahoe.egg-info
