@@ -107,15 +107,19 @@ TEST=allmydata
 # suppress the ansi color sequences
 
 test: build
-	$(PP) $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, OpenSSL'
-	$(PP) $(TRIAL) $(REPORTER) $(TEST)
+	$(PP) \
+	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, OpenSSL'
+	$(PP) \
+	 $(TRIAL) $(REPORTER) $(TEST)
 
 test-figleaf: build
 	rm -f .figleaf
-	$(PP) $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
+	$(PP) \
+	 $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
 
 figleaf-output:
-	$(PP) $(PYTHON) misc/figleaf2html -d coverage-html -r src -x misc/figleaf.excludes
+	$(PP) \
+	 $(PYTHON) misc/figleaf2html -d coverage-html -r src -x misc/figleaf.excludes
 	@echo "now point your browser at coverage-html/index.html"
 
 # after doing test-figleaf and figleaf-output, point your browser at
@@ -159,11 +163,14 @@ count-lines:
 
 check-memory: build
 	touch memstats.out
-	$(PP) $(PYTHON) src/allmydata/test/check_memory.py upload
+	$(PP) \
+	 $(PYTHON) src/allmydata/test/check_memory.py upload
 	cat _test_memory/stats.out >>memstats.out
-	$(PP) $(PYTHON) src/allmydata/test/check_memory.py upload-self
+	$(PP) \
+	 $(PYTHON) src/allmydata/test/check_memory.py upload-self
 	cat _test_memory/stats.out >>memstats.out
-	$(PP) $(PYTHON) src/allmydata/test/check_memory.py upload-POST
+	$(PP) \
+	 $(PYTHON) src/allmydata/test/check_memory.py upload-POST
 	cat _test_memory/stats.out >>memstats.out
 
 test-darcs-boringfile:
