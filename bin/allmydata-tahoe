@@ -6,27 +6,39 @@
 import sys, os.path
 where = os.path.realpath(sys.argv[0]).split(os.sep)
 
-# look for Tahoe.home . Three cases:
+# look for Tahoe.home . Two cases:
 #  ...(not BASE)/allmydata-tahoe
 #  .../(BASE)/bin/allmydata-tahoe
-#  .../(BASE)/instdir/bin/allmydata-tahoe
 if len(where) >= 2 and where[-2] == "bin":
-    if len(where) >= 3 and where[-3] == "instdir":
-        base = os.sep.join(where[:-3])
-    else:
-        base = os.sep.join(where[:-2])
+    base = os.sep.join(where[:-2])
 
     if os.path.exists(os.path.join(base, "Tahoe.home")):
-        # we've found our home
-        libdir = os.path.join(base, "instdir", "lib")
-        sys.path.insert(0, libdir)
+        # we've found our home. Put the tahoe source at the front of sys.path
+        srcdir = os.path.join(base, "src")
+        sys.path.insert(0, srcdir)
+        # and put any support eggs at the end of sys.path
+        if sys.platform == "win32":
+            supportdir = os.path.join(base, "support", "Lib", "site-packages")
+        else:
+            supportdir = os.path.join(base, "support",
+                                      "lib",
+                                      "python%d.%d" % sys.version_info[:2],
+                                      "site-packages")
+        support_eggs = []
+        if os.path.exists(supportdir):
+            for fn in os.listdir(supportdir):
+                if fn.endswith(".egg"):
+                    support_eggs.append(os.path.join(supportdir, fn))
+
+        sys.path.extend(support_eggs)
+
         # also update PYTHONPATH so that child processes (like twistd) will
         # use this too
         pp = os.environ.get("PYTHONPATH")
         if pp:
-            pp = libdir + ":" + pp
+            pp = srcdir + os.pathsep + pp + os.pathsep.join(support_eggs)
         else:
-            pp = libdir
+            pp = os.pathsep.join([srcdir] + support_eggs)
         os.environ["PYTHONPATH"] = pp
 
 from allmydata.scripts import runner
