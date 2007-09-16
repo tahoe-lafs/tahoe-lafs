@@ -7,7 +7,7 @@ from twisted.application import service, internet
 from twisted.web.client import getPage
 from allmydata import client, introducer_and_vdrive
 from allmydata.scripts import create_node
-from allmydata.util import testutil
+from allmydata.util import testutil, fileutil
 import foolscap
 from foolscap import eventual
 from twisted.python import log
@@ -19,9 +19,10 @@ class SystemFramework(testutil.PollMixin):
         self.basedir = basedir = os.path.abspath(basedir)
         if not basedir.startswith(os.path.abspath(".")):
             raise AssertionError("safety issue: basedir must be a subdir")
-        if os.path.exists(basedir):
-            shutil.rmtree(basedir)
-        os.mkdir(basedir)
+        self.testdir = testdir = os.path.join(basedir, "test")
+        if os.path.exists(testdir):
+            shutil.rmtree(testdir)
+        fileutil.make_dirs(testdir)
         self.sparent = service.MultiService()
         self.sparent.startService()
         self.proc = None
@@ -32,9 +33,9 @@ class SystemFramework(testutil.PollMixin):
         self.failed = False
 
     def run(self):
-        log.startLogging(open(os.path.join(self.basedir, "log"), "w"),
+        log.startLogging(open(os.path.join(self.testdir, "log"), "w"),
                          setStdout=False)
-        #logfile = open(os.path.join(self.basedir, "log"), "w")
+        #logfile = open(os.path.join(self.testdir, "log"), "w")
         #flo = log.FileLogObserver(logfile)
         #log.startLoggingWithObserver(flo.emit, setStdout=False)
         d = eventual.fireEventually()
@@ -57,7 +58,7 @@ class SystemFramework(testutil.PollMixin):
     def setUp(self):
         #print "STARTING"
         self.stats = {}
-        self.statsfile = open(os.path.join(self.basedir, "stats.out"), "w")
+        self.statsfile = open(os.path.join(self.basedir, "stats.out"), "a")
         d = self.make_introducer_and_vdrive()
         def _more(res):
             self.make_nodes()
@@ -99,7 +100,7 @@ class SystemFramework(testutil.PollMixin):
         return s
 
     def make_introducer_and_vdrive(self):
-        iv_basedir = os.path.join(self.basedir, "introducer_and_vdrive")
+        iv_basedir = os.path.join(self.testdir, "introducer_and_vdrive")
         os.mkdir(iv_basedir)
         iv = introducer_and_vdrive.IntroducerAndVdrive(basedir=iv_basedir)
         self.introducer_and_vdrive = self.add_service(iv)
@@ -112,7 +113,7 @@ class SystemFramework(testutil.PollMixin):
         self.vdrive_furl = q.urls["vdrive"]
         self.nodes = []
         for i in range(self.numnodes):
-            nodedir = os.path.join(self.basedir, "node%d" % i)
+            nodedir = os.path.join(self.testdir, "node%d" % i)
             os.mkdir(nodedir)
             f = open(os.path.join(nodedir, "introducer.furl"), "w")
             f.write(self.introducer_furl)
@@ -146,7 +147,7 @@ this file are ignored.
     def start_client(self):
         # this returns a Deferred that fires with the client's control.furl
         log.msg("MAKING CLIENT")
-        clientdir = self.clientdir = os.path.join(self.basedir, "client")
+        clientdir = self.clientdir = os.path.join(self.testdir, "client")
         quiet = StringIO()
         create_node.create_client(clientdir, {}, out=quiet)
         log.msg("DONE MAKING CLIENT")
@@ -182,7 +183,7 @@ this file are ignored.
         pp = ClientWatcher()
         self.proc_done = pp.d = defer.Deferred()
         logfile = os.path.join(self.basedir, "client.log")
-        cmd = ["twistd", "-y", "client.tac", "-l", logfile]
+        cmd = ["twistd", "-n", "-y", "client.tac", "-l", logfile]
         env = os.environ.copy()
         self.proc = reactor.spawnProcess(pp, cmd[0], cmd, env, path=clientdir)
         log.msg("CLIENT STARTED")
@@ -220,14 +221,14 @@ this file are ignored.
         # returns a Deferred that fires when the process exits. This may only
         # be called once.
         try:
-            self.proc.signalProcess("KILL")
+            self.proc.signalProcess("INT")
         except error.ProcessExitedAlready:
             pass
         return self.proc_done
 
 
     def create_data(self, name, size):
-        filename = os.path.join(self.basedir, name + ".data")
+        filename = os.path.join(self.testdir, name + ".data")
         f = open(filename, "wb")
         block = "a" * 8192
         while size > 0:
@@ -238,6 +239,7 @@ this file are ignored.
 
     def stash_stats(self, stats, name):
         self.statsfile.write("%s %s: %d\n" % (self.mode, name, stats['VmPeak']))
+        self.statsfile.flush()
         self.stats[name] = stats['VmPeak']
 
     def POST(self, urlpath, **fields):
@@ -360,6 +362,9 @@ if __name__ == '__main__':
     mode = "upload"
     if len(sys.argv) > 1:
         mode = sys.argv[1]
+    # put the logfile and stats.out in _test_memory/ . These stick around.
+    # put the nodes and other files in _test_memory/test/ . These are
+    # removed each time we run.
     sf = SystemFramework("_test_memory", mode)
     sf.run()
 
