@@ -78,6 +78,7 @@ class FakeStorageServer:
     def __init__(self, mode):
         self.mode = mode
         self.allocated = []
+        self.queries = 0
     def callRemote(self, methname, *args, **kwargs):
         def _call():
             meth = getattr(self, methname)
@@ -89,6 +90,7 @@ class FakeStorageServer:
     def allocate_buckets(self, storage_index, renew_secret, cancel_secret,
                          sharenums, share_size, canary):
         #print "FakeStorageServer.allocate_buckets(num=%d, size=%d)" % (len(sharenums), share_size)
+        self.queries += 1
         if self.mode == "full":
             return (set(), {},)
         elif self.mode == "already got them":
@@ -304,6 +306,7 @@ class PeerSelection(unittest.TestCase):
             for p in self.node.last_peers:
                 allocated = p.ss.allocated
                 self.failUnlessEqual(len(allocated), 1)
+                self.failUnlessEqual(p.ss.queries, 1)
         d.addCallback(_check)
         return d
 
@@ -319,6 +322,7 @@ class PeerSelection(unittest.TestCase):
             for p in self.node.last_peers:
                 allocated = p.ss.allocated
                 self.failUnlessEqual(len(allocated), 2)
+                self.failUnlessEqual(p.ss.queries, 2)
         d.addCallback(_check)
         return d
 
@@ -337,11 +341,30 @@ class PeerSelection(unittest.TestCase):
                 allocated = p.ss.allocated
                 self.failUnless(len(allocated) in (1,2), len(allocated))
                 if len(allocated) == 1:
+                    self.failUnlessEqual(p.ss.queries, 1)
                     got_one.append(p)
                 else:
+                    self.failUnlessEqual(p.ss.queries, 2)
                     got_two.append(p)
             self.failUnlessEqual(len(got_one), 49)
             self.failUnlessEqual(len(got_two), 1)
+        d.addCallback(_check)
+        return d
+
+    def test_four_each(self):
+        # if we have 200 shares, and there are 50 peers, then each peer gets
+        # 4 shares. The design goal is to accomplish this with only two
+        # queries per peer.
+
+        data = self.get_data(SIZE_LARGE)
+        self.u.DEFAULT_ENCODING_PARAMETERS = (100, 150, 200)
+        d = self.u.upload_data(data)
+        d.addCallback(self._check_large, SIZE_LARGE)
+        def _check(res):
+            for p in self.node.last_peers:
+                allocated = p.ss.allocated
+                self.failUnlessEqual(len(allocated), 4)
+                self.failUnlessEqual(p.ss.queries, 2)
         d.addCallback(_check)
         return d
 

@@ -124,7 +124,7 @@ class Tahoe2PeerSelector:
 
         self.homeless_shares = range(total_shares)
         # self.uncontacted_peers = list() # peers we haven't asked yet
-        self.contacted_peers = list() # peers worth asking again
+        self.contacted_peers = ["start"] # peers worth asking again
         self.use_peers = set() # PeerTrackers that have shares assigned to them
         self.preexisting_shares = {} # sharenum -> PeerTracker holding the share
 
@@ -191,13 +191,19 @@ class Tahoe2PeerSelector:
             d = peer.query(shares_to_ask)
             d.addBoth(self._got_response, peer, shares_to_ask)
             return d
-        elif self.contacted_peers:
+        elif len(self.contacted_peers) > 1:
             # ask a peer that we've already asked.
-            num_shares = mathutil.div_ceil(len(self.homeless_shares),
-                                           len(self.contacted_peers))
-            shares_to_ask = set(self.homeless_shares[:num_shares])
-            self.homeless_shares[:num_shares] = []
             peer = self.contacted_peers.pop(0)
+            if peer == "start":
+                # we're at the beginning of the list, so re-calculate
+                # shares_per_peer
+                num_shares = mathutil.div_ceil(len(self.homeless_shares),
+                                               len(self.contacted_peers))
+                self.shares_per_peer = num_shares
+                self.contacted_peers.append("start")
+                peer = self.contacted_peers.pop(0)
+            shares_to_ask = set(self.homeless_shares[:self.shares_per_peer])
+            self.homeless_shares[:self.shares_per_peer] = []
             self.query_count += 1
             d = peer.query(shares_to_ask)
             d.addBoth(self._got_response, peer, shares_to_ask)
@@ -231,7 +237,7 @@ class Tahoe2PeerSelector:
             log.msg("%s got error during peer selection: %s" % (peer, res))
             self.error_count += 1
             self.homeless_shares = list(shares_to_ask) + self.homeless_shares
-            if self.uncontacted_peers or self.contacted_peers:
+            if self.uncontacted_peers or len(self.contacted_peers) > 1:
                 # there is still hope, so just loop
                 pass
             else:
