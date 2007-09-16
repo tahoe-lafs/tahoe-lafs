@@ -77,6 +77,7 @@ class FakePeer:
 class FakeStorageServer:
     def __init__(self, mode):
         self.mode = mode
+        self.allocated = []
     def callRemote(self, methname, *args, **kwargs):
         def _call():
             meth = getattr(self, methname)
@@ -93,6 +94,8 @@ class FakeStorageServer:
         elif self.mode == "already got them":
             return (set(sharenums), {},)
         else:
+            for shnum in sharenums:
+                self.allocated.append( (storage_index, shnum) )
             return (set(),
                     dict([( shnum, FakeBucketWriter(share_size) )
                           for shnum in sharenums]),
@@ -130,8 +133,10 @@ class FakeClient:
     def __init__(self, mode="good"):
         self.mode = mode
     def get_permuted_peers(self, storage_index, include_myself):
-        return [ ("%20d"%fakeid, "%20d"%fakeid, FakePeer(self.mode),)
-                 for fakeid in range(50) ]
+        peers = [ ("%20d"%fakeid, "%20d"%fakeid, FakePeer(self.mode),)
+                  for fakeid in range(50) ]
+        self.last_peers = [p[2] for p in peers]
+        return peers
     def get_push_to_ourselves(self):
         return None
     def get_encoding_parameters(self):
@@ -266,6 +271,78 @@ class FullServer(unittest.TestCase):
         data = DATA
         d = self.u.upload_data(data)
         d.addBoth(self._should_fail)
+        return d
+
+class PeerSelection(unittest.TestCase):
+    def setUp(self):
+        self.node = FakeClient(mode="good")
+        self.u = upload.Uploader()
+        self.u.running = True
+        self.u.parent = self.node
+
+    def get_data(self, size):
+        return DATA[:size]
+
+    def _check_large(self, newuri, size):
+        u = IFileURI(newuri)
+        self.failUnless(isinstance(u, uri.CHKFileURI))
+        self.failUnless(isinstance(u.storage_index, str))
+        self.failUnlessEqual(len(u.storage_index), 16)
+        self.failUnless(isinstance(u.key, str))
+        self.failUnlessEqual(len(u.key), 16)
+        self.failUnlessEqual(u.size, size)
+
+    def test_one_each(self):
+        # if we have 50 shares, and there are 50 peers, and they all accept a
+        # share, we should get exactly one share per peer
+
+        data = self.get_data(SIZE_LARGE)
+        self.u.DEFAULT_ENCODING_PARAMETERS = (25, 30, 50)
+        d = self.u.upload_data(data)
+        d.addCallback(self._check_large, SIZE_LARGE)
+        def _check(res):
+            for p in self.node.last_peers:
+                allocated = p.ss.allocated
+                self.failUnlessEqual(len(allocated), 1)
+        d.addCallback(_check)
+        return d
+
+    def test_two_each(self):
+        # if we have 100 shares, and there are 50 peers, and they all accept
+        # all shares, we should get exactly two shares per peer
+
+        data = self.get_data(SIZE_LARGE)
+        self.u.DEFAULT_ENCODING_PARAMETERS = (50, 75, 100)
+        d = self.u.upload_data(data)
+        d.addCallback(self._check_large, SIZE_LARGE)
+        def _check(res):
+            for p in self.node.last_peers:
+                allocated = p.ss.allocated
+                self.failUnlessEqual(len(allocated), 2)
+        d.addCallback(_check)
+        return d
+
+    def test_one_each_plus_one_extra(self):
+        # if we have 51 shares, and there are 50 peers, then one peer gets
+        # two shares and the rest get just one
+
+        data = self.get_data(SIZE_LARGE)
+        self.u.DEFAULT_ENCODING_PARAMETERS = (24, 41, 51)
+        d = self.u.upload_data(data)
+        d.addCallback(self._check_large, SIZE_LARGE)
+        def _check(res):
+            got_one = []
+            got_two = []
+            for p in self.node.last_peers:
+                allocated = p.ss.allocated
+                self.failUnless(len(allocated) in (1,2), len(allocated))
+                if len(allocated) == 1:
+                    got_one.append(p)
+                else:
+                    got_two.append(p)
+            self.failUnlessEqual(len(got_one), 49)
+            self.failUnlessEqual(len(got_two), 1)
+        d.addCallback(_check)
         return d
 
 

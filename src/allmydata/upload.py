@@ -579,7 +579,7 @@ class EncryptAnUploadable:
 
 
 class CHKUploader:
-    peer_selector_class = Tahoe3PeerSelector
+    peer_selector_class = Tahoe2PeerSelector
 
     def __init__(self, client, options={}):
         self._client = client
