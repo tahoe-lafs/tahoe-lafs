@@ -86,3 +86,4 @@
 # generated crypto extension modules
 ^src/allmydata/Crypto/[^/]*/.*\.so$
 
+^\.checked-deps$
