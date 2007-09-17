@@ -155,7 +155,8 @@ upload-figleaf:
 endif
 
 .figleaf.el: .figleaf
-	$(PYTHON) misc/figleaf2el.py .figleaf src
+	$(PP) \
+	 $(PYTHON) misc/figleaf2el.py .figleaf src
 
 pyflakes:
 	$(PYTHON) -OOu `which pyflakes` src/allmydata
