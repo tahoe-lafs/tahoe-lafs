@@ -236,8 +236,9 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(b[0].remote_read(0, 25), "%25d" % 0)
 
         # now if we about writing again, the server should offer those three
-        # buckets as already present
-        already,writers = self.allocate(ss, "vid", [0,1,2,3,4], 75)
+        # buckets as already present. It should offer them even if we don't
+        # ask about those specific ones.
+        already,writers = self.allocate(ss, "vid", [2,3,4], 75)
         self.failUnlessEqual(already, set([0,1,2]))
         self.failUnlessEqual(set(writers.keys()), set([3,4]))
 
@@ -246,7 +247,7 @@ class Server(unittest.TestCase):
         # upload into them a second time)
 
         already,writers = self.allocate(ss, "vid", [2,3,4,5], 75)
-        self.failUnlessEqual(already, set([2,3,4]))
+        self.failUnlessEqual(already, set([0,1,2,3,4]))
         self.failUnlessEqual(set(writers.keys()), set([5]))
 
     def test_sizelimits(self):
