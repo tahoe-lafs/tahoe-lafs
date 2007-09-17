@@ -202,7 +202,7 @@ def from_string(s):
     elif s.startswith("URI:DIR-RO:"):
         return ReadOnlyDirnodeURI().init_from_string(s)
     else:
-        raise RuntimeError("unknown URI type: %s.." % s[:10])
+        raise TypeError("unknown URI type: %s.." % s[:10])
 
 registerAdapter(from_string, str, IURI)
 

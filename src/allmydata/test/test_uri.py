@@ -37,6 +37,19 @@ class Literal(unittest.TestCase):
         data = "This contains \x00 and URI:LIT: and \n, oh my."
         return self._help_test(data)
 
+class Compare(unittest.TestCase):
+    def test_compare(self):
+        lit1 = uri.LiteralFileURI("some data")
+        fileURI = 'URI:CHK:f3mf6az85wpcai8ma4qayfmxuc:nnw518w5hu3t5oohwtp7ah9n81z9rfg6c1ywk33ia3m64o67nsgo:3:10:345834'
+        chk1 = uri.CHKFileURI().init_from_string(fileURI)
+        chk2 = uri.CHKFileURI().init_from_string(fileURI)
+        self.failIfEqual(lit1, chk1)
+        self.failUnlessEqual(chk1, chk2)
+        self.failIfEqual(chk1, "not actually a URI")
+        # these should be hashable too
+        s = set([lit1, chk1, chk2])
+        self.failUnlessEqual(len(s), 2) # since chk1==chk2
+
 class CHKFile(unittest.TestCase):
     def test_pack(self):
         key = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
@@ -80,6 +93,24 @@ class CHKFile(unittest.TestCase):
         self.failUnlessEqual(u2.get_size(), 1234)
         self.failUnless(u2.is_readonly())
         self.failIf(u2.is_mutable())
+
+    def test_pack_badly(self):
+        key = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+        storage_index = hashutil.storage_index_chk_hash(key)
+        uri_extension_hash = hashutil.uri_extension_hash("stuff")
+        needed_shares = 25
+        total_shares = 100
+        size = 1234
+        self.failUnlessRaises(TypeError,
+                              uri.CHKFileURI,
+                              key=key,
+                              uri_extension_hash=uri_extension_hash,
+                              needed_shares=needed_shares,
+                              total_shares=total_shares,
+                              size=size,
+
+                              bogus_extra_argument="reject me",
+                              )
 
 class Extension(unittest.TestCase):
     def test_pack(self):
@@ -137,6 +168,11 @@ class Dirnode(unittest.TestCase):
         self.failUnless(IURI.providedBy(u4))
         self.failIf(IFileURI.providedBy(u4))
         self.failUnless(IDirnodeURI.providedBy(u4))
+
+class Invalid(unittest.TestCase):
+    def test_create_invalid(self):
+        not_uri = "I am not a URI"
+        self.failUnlessRaises(TypeError, uri.from_string, not_uri)
 
 
 class Constraint(unittest.TestCase):
