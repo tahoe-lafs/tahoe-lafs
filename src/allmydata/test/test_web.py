@@ -1445,6 +1445,14 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check2)
         return d
 
+    def test_PUT_NEWFILE_URI_only_PUT(self):
+        d = self.PUT("/uri?t=bogus", "")
+        d.addBoth(self.shouldFail, error.Error,
+                  "PUT_NEWFILE_URI_only_PUT",
+                  "400 Bad Request",
+                  "/uri only accepts PUT and PUT?t=mkdir")
+        return d
+
     def test_PUT_NEWDIR_URI(self):
         d = self.PUT("/uri?t=mkdir", "")
         def _check(uri):

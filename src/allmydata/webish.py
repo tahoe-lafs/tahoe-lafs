@@ -23,7 +23,8 @@ class IClient(Interface):
     pass
 class ILocalAccess(Interface):
     def local_access_is_allowed():
-        pass
+        """Return True if t=upload&localdir= is allowed, giving anyone who
+        can talk to the webserver control over the local (disk) filesystem."""
 
 
 # we must override twisted.web.http.Request.requestReceived with a version
@@ -1050,7 +1051,7 @@ class URIPUTHandler(rend.Page):
 
         req.setResponseCode(http.BAD_REQUEST)
         req.setHeader("content-type", "text/plain")
-        return "/uri only accepts PUT"
+        return "/uri only accepts PUT and PUT?t=mkdir"
 
 
 class Root(rend.Page):
