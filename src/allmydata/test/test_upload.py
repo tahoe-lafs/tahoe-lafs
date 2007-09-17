@@ -132,11 +132,12 @@ class FakeBucketWriter:
         self.closed = True
 
 class FakeClient:
-    def __init__(self, mode="good"):
+    def __init__(self, mode="good", num_servers=50):
         self.mode = mode
+        self.num_servers = num_servers
     def get_permuted_peers(self, storage_index, include_myself):
         peers = [ ("%20d"%fakeid, "%20d"%fakeid, FakePeer(self.mode),)
-                  for fakeid in range(50) ]
+                  for fakeid in range(self.num_servers) ]
         self.last_peers = [p[2] for p in peers]
         return peers
     def get_push_to_ourselves(self):
@@ -276,8 +277,9 @@ class FullServer(unittest.TestCase):
         return d
 
 class PeerSelection(unittest.TestCase):
-    def setUp(self):
-        self.node = FakeClient(mode="good")
+
+    def make_client(self, num_servers=50):
+        self.node = FakeClient(mode="good", num_servers=num_servers)
         self.u = upload.Uploader()
         self.u.running = True
         self.u.parent = self.node
@@ -298,6 +300,7 @@ class PeerSelection(unittest.TestCase):
         # if we have 50 shares, and there are 50 peers, and they all accept a
         # share, we should get exactly one share per peer
 
+        self.make_client()
         data = self.get_data(SIZE_LARGE)
         self.u.DEFAULT_ENCODING_PARAMETERS = (25, 30, 50)
         d = self.u.upload_data(data)
@@ -314,6 +317,7 @@ class PeerSelection(unittest.TestCase):
         # if we have 100 shares, and there are 50 peers, and they all accept
         # all shares, we should get exactly two shares per peer
 
+        self.make_client()
         data = self.get_data(SIZE_LARGE)
         self.u.DEFAULT_ENCODING_PARAMETERS = (50, 75, 100)
         d = self.u.upload_data(data)
@@ -330,6 +334,7 @@ class PeerSelection(unittest.TestCase):
         # if we have 51 shares, and there are 50 peers, then one peer gets
         # two shares and the rest get just one
 
+        self.make_client()
         data = self.get_data(SIZE_LARGE)
         self.u.DEFAULT_ENCODING_PARAMETERS = (24, 41, 51)
         d = self.u.upload_data(data)
@@ -356,6 +361,7 @@ class PeerSelection(unittest.TestCase):
         # 4 shares. The design goal is to accomplish this with only two
         # queries per peer.
 
+        self.make_client()
         data = self.get_data(SIZE_LARGE)
         self.u.DEFAULT_ENCODING_PARAMETERS = (100, 150, 200)
         d = self.u.upload_data(data)
@@ -365,6 +371,25 @@ class PeerSelection(unittest.TestCase):
                 allocated = p.ss.allocated
                 self.failUnlessEqual(len(allocated), 4)
                 self.failUnlessEqual(p.ss.queries, 2)
+        d.addCallback(_check)
+        return d
+
+    def test_three_of_ten(self):
+        # if we have 10 shares and 3 servers, I want to see 3+3+4 rather than
+        # 4+4+2
+
+        self.make_client(3)
+        data = self.get_data(SIZE_LARGE)
+        self.u.DEFAULT_ENCODING_PARAMETERS = (3, 5, 10)
+        d = self.u.upload_data(data)
+        d.addCallback(self._check_large, SIZE_LARGE)
+        def _check(res):
+            counts = {}
+            for p in self.node.last_peers:
+                allocated = p.ss.allocated
+                counts[len(allocated)] = counts.get(len(allocated), 0) + 1
+            histogram = [counts.get(i, 0) for i in range(5)]
+            self.failUnlessEqual(histogram, [0,0,0,2,1])
         d.addCallback(_check)
         return d
 

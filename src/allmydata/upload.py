@@ -124,7 +124,8 @@ class Tahoe2PeerSelector:
 
         self.homeless_shares = range(total_shares)
         # self.uncontacted_peers = list() # peers we haven't asked yet
-        self.contacted_peers = ["start"] # peers worth asking again
+        self.contacted_peers = [] # peers worth asking again
+        self.contacted_peers2 = [] # peers that we have asked again
         self.use_peers = set() # PeerTrackers that have shares assigned to them
         self.preexisting_shares = {} # sharenum -> PeerTracker holding the share
 
@@ -189,25 +190,27 @@ class Tahoe2PeerSelector:
             self.query_count += 1
             self.num_peers_contacted += 1
             d = peer.query(shares_to_ask)
-            d.addBoth(self._got_response, peer, shares_to_ask)
+            d.addBoth(self._got_response, peer, shares_to_ask,
+                      self.contacted_peers)
             return d
-        elif len(self.contacted_peers) > 1:
+        elif self.contacted_peers:
             # ask a peer that we've already asked.
+            num_shares = mathutil.div_ceil(len(self.homeless_shares),
+                                           len(self.contacted_peers))
             peer = self.contacted_peers.pop(0)
-            if peer == "start":
-                # we're at the beginning of the list, so re-calculate
-                # shares_per_peer
-                num_shares = mathutil.div_ceil(len(self.homeless_shares),
-                                               len(self.contacted_peers))
-                self.shares_per_peer = num_shares
-                self.contacted_peers.append("start")
-                peer = self.contacted_peers.pop(0)
-            shares_to_ask = set(self.homeless_shares[:self.shares_per_peer])
-            self.homeless_shares[:self.shares_per_peer] = []
+            shares_to_ask = set(self.homeless_shares[:num_shares])
+            self.homeless_shares[:num_shares] = []
             self.query_count += 1
             d = peer.query(shares_to_ask)
-            d.addBoth(self._got_response, peer, shares_to_ask)
+            d.addBoth(self._got_response, peer, shares_to_ask,
+                      self.contacted_peers2)
             return d
+        elif self.contacted_peers2:
+            # we've finished the second-or-later pass. Move all the remaining
+            # peers back into self.contacted_peers for the next pass.
+            self.contacted_peers.extend(self.contacted_peers2)
+            self.contacted_peers[:] = []
+            return self._loop()
         else:
             # no more peers. If we haven't placed enough shares, we fail.
             placed_shares = self.total_shares - len(self.homeless_shares)
@@ -230,14 +233,16 @@ class Tahoe2PeerSelector:
                 # we placed enough to be happy, so we're done
                 return self.use_peers
 
-    def _got_response(self, res, peer, shares_to_ask):
+    def _got_response(self, res, peer, shares_to_ask, put_peer_here):
         if isinstance(res, failure.Failure):
             # This is unusual, and probably indicates a bug or a network
             # problem.
             log.msg("%s got error during peer selection: %s" % (peer, res))
             self.error_count += 1
             self.homeless_shares = list(shares_to_ask) + self.homeless_shares
-            if self.uncontacted_peers or len(self.contacted_peers) > 1:
+            if (self.uncontacted_peers
+                or self.contacted_peers
+                or self.contacted_peers2):
                 # there is still hope, so just loop
                 pass
             else:
@@ -290,7 +295,7 @@ class Tahoe2PeerSelector:
             else:
                 # if they *were* able to accept everything, they might be
                 # willing to accept even more.
-                self.contacted_peers.append(peer)
+                put_peer_here.append(peer)
 
         # now loop
         return self._loop()
