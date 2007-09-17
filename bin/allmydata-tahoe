@@ -36,7 +36,7 @@ if len(where) >= 2 and where[-2] == "bin":
         # use this too
         pp = os.environ.get("PYTHONPATH")
         if pp:
-            pp = srcdir + os.pathsep + pp + os.pathsep.join(support_eggs)
+            pp = os.pathsep.join([srcdir] + pp.split(os.pathsep) + support_eggs)
         else:
             pp = os.pathsep.join([srcdir] + support_eggs)
         os.environ["PYTHONPATH"] = pp
