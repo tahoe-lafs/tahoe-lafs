@@ -6,7 +6,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.web import client, error, http
 from twisted.python import failure, log
-from allmydata import webish, interfaces, dirnode, uri
+from allmydata import webish, interfaces, dirnode, uri, provisioning
 from allmydata.encode import NotEnoughPeersError
 from allmydata.util import fileutil
 import itertools
@@ -406,6 +406,13 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check2)
         return d
 
+    def test_provisioning_math(self):
+        self.failUnlessEqual(provisioning.binomial(10, 0), 1)
+        self.failUnlessEqual(provisioning.binomial(10, 1), 10)
+        self.failUnlessEqual(provisioning.binomial(10, 2), 45)
+        self.failUnlessEqual(provisioning.binomial(10, 9), 10)
+        self.failUnlessEqual(provisioning.binomial(10, 10), 1)
+
     def test_provisioning(self):
         d = self.GET("/provisioning/")
         def _check(res):
@@ -429,7 +436,32 @@ class Web(WebMixin, unittest.TestCase):
         def _check2(res):
             self.failUnless('Tahoe Provisioning Tool' in res)
             self.failUnless("Share space consumed: 167.01TB" in res)
+
+            fields = {'filled': True,
+                      "num_users": int(50e6),
+                      "files_per_user": 1000,
+                      "space_per_user": int(5e9),
+                      "sharing_ratio": 1.0,
+                      "encoding_parameters": "25-of-100-50",
+                      "num_servers": 30000,
+                      "ownership_mode": "E",
+                      "drive_failure_model": "U",
+                      "drive_size": 1000,
+                      "download_rate": 1000,
+                      "upload_rate": 100,
+                      "delete_rate": 100,
+                      "lease_timer": 7,
+                      }
+            return self.POST("/provisioning/", **fields)
         d.addCallback(_check2)
+        def _check3(res):
+            self.failUnless("Share space consumed: huge!" in res)
+            fields = {'filled': True}
+            return self.POST("/provisioning/", **fields)
+        d.addCallback(_check3)
+        def _check4(res):
+            self.failUnless("Share space consumed:" in res)
+        d.addCallback(_check4)
         return d
 
     def test_start_html(self):

@@ -18,14 +18,11 @@ def factorial(n):
     result = 1
     for i in xrange(1, abs(n)+1):
         result *= i
-    if n >= 0:
-        return result
-    else:
-        return -result
+    assert n >= 0
+    return result
 
 def binomial(n, k):
-    if not 0 <= k <= n:
-        return 0
+    assert 0 <= k <= n
     if k == 0 or k == n:
         return 1
     # calculate n!/k! as one product, avoiding factors that
@@ -78,12 +75,12 @@ class ProvisioningTool(rend.Page):
         def add_input(section, text, entry):
             if section not in sections:
                 sections[section] = []
-            sections[section].append(T.div[text, ": ", entry])
+            sections[section].extend([T.div[text, ": ", entry], "\n"])
 
         def add_output(section, entry):
             if section not in sections:
                 sections[section] = []
-            sections[section].append(T.div[entry])
+            sections[section].extend([entry, "\n"])
 
         def build_section(section):
             return T.fieldset[T.legend[section], sections[section]]
