@@ -110,29 +110,6 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
     print >>out
     return 0
 
-def dump_share_leases(config, out=sys.stdout, err=sys.stderr):
-    from allmydata import storage
-
-    f = storage.ShareFile(config['filename'])
-    now = time.time()
-    leases = list(f.iter_leases())
-    if leases:
-        for i,lease in enumerate(leases):
-            (owner_num, renew_secret, cancel_secret, expiration_time) = lease
-            remains = expiration_time - now
-            when = "%ds" % remains
-            if remains > 24*3600:
-                when += " (%d days)" % (remains / (24*3600))
-            elif remains > 3600:
-                when += " (%d hours)" % (remains / 3600)
-            print >>out, "Lease #%d: owner=%d, expire in %s" % (i, owner_num,
-                                                                when)
-    else:
-        print >>out, "No leases."
-
-    print >>out
-    return 0
-
 def dump_root_dirnode(config, out=sys.stdout, err=sys.stderr):
     from allmydata import uri
 
@@ -211,8 +188,6 @@ def dump_directory_node(config, out=sys.stdout, err=sys.stderr):
 subCommands = [
     ["dump-share", None, DumpOptions,
      "Unpack and display the contents of a share (uri_extension and leases)."],
-    ["dump-share-leases", None, DumpOptions,
-     "Unpack and display the leases for a given share."],
     ["dump-root-dirnode", None, DumpRootDirnodeOptions,
      "Compute most of the URI for the vdrive server's root dirnode."],
     ["dump-dirnode", None, DumpDirnodeOptions,
@@ -221,7 +196,6 @@ subCommands = [
 
 dispatch = {
     "dump-share": dump_share,
-    "dump-share-leases": dump_share_leases,
     "dump-root-dirnode": dump_root_dirnode,
     "dump-dirnode": dump_directory_node,
     }
