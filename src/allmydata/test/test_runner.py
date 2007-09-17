@@ -1,6 +1,8 @@
 
 from twisted.trial import unittest
+from twisted.python.runtime import platformType
 
+import time
 from cStringIO import StringIO
 from twisted.python import usage
 import os.path
@@ -9,7 +11,7 @@ from allmydata.util import fileutil
 
 class CreateNode(unittest.TestCase):
     def workdir(self, name):
-        basedir = os.path.join("test_runner", name)
+        basedir = os.path.join("test_runner", "CreateNode", name)
         fileutil.make_dirs(basedir)
         return basedir
 
@@ -97,3 +99,43 @@ class Diagnostics(unittest.TestCase):
         output = s.getvalue()
         self.failUnless("unable to read root dirnode file from" in output)
         self.failIfEqual(rc, 0)
+
+class RunNode(unittest.TestCase):
+    def workdir(self, name):
+        basedir = os.path.join("test_runner", "RunNode", name)
+        fileutil.make_dirs(basedir)
+        return basedir
+
+    def test_client(self):
+        if platformType == "win32":
+            raise unittest.SkipTest("twistd does not fork under windows")
+        basedir = self.workdir("test_client")
+        c1 = os.path.join(basedir, "c1")
+        argv = ["--quiet", "create-client", "--basedir", c1]
+        out,err = StringIO(), StringIO()
+        rc = runner.runner(argv, stdout=out, stderr=err)
+        self.failUnlessEqual(rc, 0)
+        open(os.path.join(c1, "suicide_prevention_hotline_file"), "w").write("")
+        open(os.path.join(c1, "introducer.furl"), "w").write("pb://xrndsskn2zuuian5ltnxrte7lnuqdrkz@127.0.0.1:55617/introducer\n")
+        # now it's safe to start the node
+
+        argv = ["--quiet", "start", c1]
+        out,err = StringIO(), StringIO()
+        rc = runner.runner(argv, stdout=out, stderr=err)
+        self.failUnlessEqual(rc, 0)
+        time.sleep(0.1) # the child process needs a moment to write the pidfile
+        self.failUnless(os.path.exists(os.path.join(c1, "twistd.pid")))
+
+        argv = ["--quiet", "restart", c1]
+        out,err = StringIO(), StringIO()
+        rc = runner.runner(argv, stdout=out, stderr=err)
+        self.failUnlessEqual(rc, 0)
+        time.sleep(0.1)
+        self.failUnless(os.path.exists(os.path.join(c1, "twistd.pid")))
+
+        argv = ["--quiet", "stop", c1]
+        out,err = StringIO(), StringIO()
+        rc = runner.runner(argv, stdout=out, stderr=err)
+        self.failUnlessEqual(rc, 0)
+        self.failIf(os.path.exists(os.path.join(c1, "twistd.pid")))
+
