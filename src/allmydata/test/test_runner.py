@@ -1,12 +1,11 @@
 
 from twisted.trial import unittest
 
-import time
 from cStringIO import StringIO
-from twisted.python import usage
-import sys, os.path
+from twisted.python import usage, runtime
+import os.path
 from allmydata.scripts import runner, debug
-from allmydata.util import fileutil
+from allmydata.util import fileutil, testutil
 
 class CreateNode(unittest.TestCase):
     def workdir(self, name):
@@ -99,16 +98,15 @@ class Diagnostics(unittest.TestCase):
         self.failUnless("unable to read root dirnode file from" in output)
         self.failIfEqual(rc, 0)
 
-class RunNode(unittest.TestCase):
+class RunNode(unittest.TestCase, testutil.PollMixin):
     def workdir(self, name):
         basedir = os.path.join("test_runner", "RunNode", name)
         fileutil.make_dirs(basedir)
         return basedir
 
     def test_client(self):
-        if sys.platform in ("win32", "cygwin"):
-            # thus might not be entirely true, but I've yet to see proper
-            # daemonization on a windows box. -warner
+        if runtime.platformType == "win32":
+            # twistd on windows doesn't daemonize. cygwin works normally.
             raise unittest.SkipTest("twistd does not fork under windows")
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
@@ -116,27 +114,68 @@ class RunNode(unittest.TestCase):
         out,err = StringIO(), StringIO()
         rc = runner.runner(argv, stdout=out, stderr=err)
         self.failUnlessEqual(rc, 0)
-        open(os.path.join(c1, "suicide_prevention_hotline_file"), "w").write("")
+        # by writing this file, we get ten seconds before the client will
+        # exit. This insures that even if the test fails (and the 'stop'
+        # command doesn't work), the client should still terminate.
+        HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
+        open(HOTLINE_FILE, "w").write("")
         open(os.path.join(c1, "introducer.furl"), "w").write("pb://xrndsskn2zuuian5ltnxrte7lnuqdrkz@127.0.0.1:55617/introducer\n")
         # now it's safe to start the node
+
+        TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
 
         argv = ["--quiet", "start", c1]
         out,err = StringIO(), StringIO()
         rc = runner.runner(argv, stdout=out, stderr=err)
         self.failUnlessEqual(rc, 0)
-        time.sleep(0.1) # the child process needs a moment to write the pidfile
-        self.failUnless(os.path.exists(os.path.join(c1, "twistd.pid")))
+        self.failUnlessEqual(out.getvalue(), "")
+        self.failUnlessEqual(err.getvalue(), "")
 
-        argv = ["--quiet", "restart", c1]
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        self.failUnlessEqual(rc, 0)
-        time.sleep(0.1)
-        self.failUnless(os.path.exists(os.path.join(c1, "twistd.pid")))
+        # the parent (twistd) has exited. However, twistd writes the pid from
+        # the child, not the parent, so we can't expect twistd.pid to exist
+        # quite yet.
 
-        argv = ["--quiet", "stop", c1]
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        self.failUnlessEqual(rc, 0)
-        self.failIf(os.path.exists(os.path.join(c1, "twistd.pid")))
+        # the node is running, but it might not have made it past the first
+        # reactor turn yet, and if we kill it too early, it won't remove the
+        # twistd.pid file. So wait until it does something that we know it
+        # won't do until after the first turn.
+
+        PORTNUMFILE = os.path.join(c1, "client.port")
+        def _node_has_started():
+            return os.path.exists(PORTNUMFILE)
+        d = self.poll(_node_has_started)
+
+        def _started(res):
+            self.failUnless(os.path.exists(TWISTD_PID_FILE))
+            # rm this so we can detect when the second incarnation is ready
+            os.unlink(PORTNUMFILE)
+            argv = ["--quiet", "restart", c1]
+            out,err = StringIO(), StringIO()
+            rc = runner.runner(argv, stdout=out, stderr=err)
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(out.getvalue(), "")
+            self.failUnlessEqual(err.getvalue(), "")
+        d.addCallback(_started)
+
+        # again, the second incarnation of the node might not be ready yet,
+        # so poll until it is
+        d.addCallback(lambda res: self.poll(_node_has_started))
+
+        # now we can kill it
+        def _stop(res):
+            self.failUnless(os.path.exists(TWISTD_PID_FILE))
+            argv = ["--quiet", "stop", c1]
+            out,err = StringIO(), StringIO()
+            rc = runner.runner(argv, stdout=out, stderr=err)
+            # the parent has exited by now
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(out.getvalue(), "")
+            self.failUnlessEqual(err.getvalue(), "")
+            # the parent was supposed to poll and wait until it sees
+            # twistd.pid go away before it exits, so twistd.pid should be
+            # gone by now.
+            self.failIf(os.path.exists(TWISTD_PID_FILE))
+        d.addCallback(_stop)
+        return d
+
 
