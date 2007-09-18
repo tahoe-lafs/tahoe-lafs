@@ -1,54 +1,39 @@
-NEW VERSION RELEASED -- Allmydata-Tahoe version 0.5.1
+NEW VERSION RELEASED -- Allmydata-Tahoe version 0.6
 
-We are pleased to announce the release of version 0.5.1 of
-allmydata.org "Tahoe", a secure, decentralized storage grid under a
-free-software licence.  This is a security patch to v0.5.0, which was
-the follow-up to v0.4, which was released June 29, 2007 (see [1]).
+We are pleased to announce the release of version 0.6 of allmydata.org
+"Tahoe", a secure, decentralized storage grid under a free-software
+licence.  This is the successor to v0.5.1, which was released 
+August 8, 2007 (see [1]).
 
-Since v0.5.0 we've made the following changes:
+Since v0.5.1 we've made the following changes:
 
- * fixed security flaw in which XSS/XSRF attacks could disclose
-   private files or delete files (ticket #98)
+ * Distribute shares more evenly onto servers -- this makes files more
+   reliable when there are few servers. (ticket #132)
 
- * updated the webapi and the webapi.txt document for clarity and
-   easier access to read/write permission metadata (ticket #118)
+ * Package Tahoe with setuptools/easy_install.  This makes it so that
+   other libraries that Tahoe depends upon get automatically installed
+   when Tahoe is installed.  It also means that people who have Python
+   and the easy_install tool can execute "easy_install
+   allmydata-tahoe" on the command-line (including on Windows), and it
+   will download and install Tahoe. (tickets #82, 93, 130)
 
- * removed the --vdrive option from the command-line tools, since the
-   security fix makes the private vdrive unavailable to the
-   command-line tools; We will make it available again in a secure way
-   in a future release -- see ticket #120.
+ * Shares have a version number in them so that in the future we can
+   upgrade the share format without losing old data. (ticket #90)
 
-Since v0.4 we've made several improvements, including:
+ * Servers now track which nodes are responsible for which shares.
+   This gives us the information to compute which shares are safe to
+   delete, but we haven't yet implemented deletion itself. (tickets
+   #119, #67)
+ 
+ * improved logging, thanks to Arno
 
- * a RESTful API for programming your Tahoe node in the language of
-   your choice [2]
-
- * a command-line interface in the Unix style for uploading and
-   downloading files (ticket #53)
-
- * ported to Solaris
-
- * reduced the memory used when uploading large files (ticket #29)
-
- * reduced the bandwidth and disk space used when uploading many small
-   files (tickets #80, 81, #85)
-
- * added configurable erasure-coding parameters: how many total shares
-   to produce, and how many shares are required to reconstruct the
-   file (ticket #84)
-
- * added configurable limits on how much disk space your node will
-   allocate for storing data on behalf of other peers (ticket #34)
-
- * many bugs fixed and enhancements implemented
 
 For complete details, see this web page which shows all ticket
-changes, repository checkins, and wiki changes from June 29 to today,
-August 23: [3].
+changes, repository checkins, and wiki changes from August 24 to
+today, September 18: [2].
 
-Allmydata.org Tahoe v0.5.1 is compatible with Allmydata.org Tahoe
-v0.5.0.  It is incompatible with v0.4 due to a change in the
-formatting of URIs to make them more human-friendly.
+Allmydata.org Tahoe v0.6 is incompatible with Allmydata.org Tahoe
+v0.5.1 because of the share format version number and the leases.
 
 
 WHAT IS IT GOOD FOR?
@@ -69,7 +54,7 @@ backed up. Given that caveat, this software works and there are no
 known security flaws which would compromise confidentiality or data
 integrity.
 
-This release of Tahoe is suitable for the "friendnet" use case [4].
+This release of Tahoe is suitable for the "friendnet" use case [3].
 It is easy to set up a private grid which is securely shared among a
 specific, limited set of friends.  Files uploaded to this shared grid
 will be available to all friends, even when some of the computers are
@@ -91,10 +76,7 @@ grace period clause.
 INSTALLATION
 
 This release of Tahoe works on Linux, Mac OS X, Windows, Cygwin, and
-Solaris.
-
-To install, download the tarball [5], untar it, go into the resulting
-directory, and follow the directions in the README [6].
+Solaris.  For installation instructions please see the README [4].
 
 
 USAGE - web interface
@@ -106,10 +88,10 @@ the client node's working directory.  To join a grid, copy in the
 introducer, and copy its .furl files.  See the README for step-by-step
 instructions.
 
-Each client node runs a local webserver (enabled by writing the
+Each client node can run a local webserver (enabled by writing the
 desired port number into a file called 'webport').  The welcome page
 of this webserver shows the node's status, including which introducer
-is being used and which other nodes are connected.  Links from the
+is being used and which other nodes are connected.
 
 Links from the welcome page lead to other pages that give access to a
 virtual filesystem, in which each directory is represented by a
@@ -126,23 +108,22 @@ NAME]" to unlink a file or directory in the virtual drive.
 
 USAGE - other
 
-You can control the filesystem through the RESTful web API [2].  Other
-ways to access the filesystem are planned: please see the roadmap.txt
-[7] for some plans.
+You can control the filesystem through the RESTful web API [5].  Other
+ways to access the filesystem are planned: please see the 
+roadmap.txt [6] for some plans.
 
 
 HACKING AND COMMUNITY
 
-Please join the mailing list [8] to discuss the ideas behind Tahoe and
+Please join the mailing list [7] to discuss the ideas behind Tahoe and
 extensions of and uses of Tahoe.  Patches that extend and improve
-Tahoe are gratefully accepted -- roadmap.txt shows the next
-improvements that we plan to make and CREDITS lists the names of
-people who've contributed to the project.  You can browse the revision
-control history, source code, and issue tracking at the Trac instance
-[9].  Please see the buildbot [10], which shows how Tahoe builds and
-passes unit tests on each checkin, and the code coverage results [11]
-and percentage-covered graph [12], which show how much of the Tahoe
-source code is currently exercised by the test suite.
+Tahoe are gratefully accepted -- roadmap.txt [6] shows the next
+improvements that we plan to make and CREDITS [8] lists the names of
+people who've contributed to the project.  The wiki Dev page [9]
+collects various hacking resources including revision history
+browsing, automated test results (including code coverage), automated
+performance tests, graphs of how many people are using the public test
+grid for how many files, and more.
 
 
 NETWORK ARCHITECTURE
@@ -163,7 +144,7 @@ then decrypted.
 A single distinct server called a "vdrive server" maintains a global
 mapping from pathnames/filenames to URIs.
 
-We are acutely aware of the limitations of decentralization and
+We are acutely aware of the limitations on decentralization and
 scalability inherent in this version.  In particular, the
 completely-connected property of the grid and the requirement of a
 single distinct introducer and vdrive server limits the possible size
@@ -171,9 +152,9 @@ of the grid.  We have plans to loosen these limitations (see
 roadmap.txt).  Currently it should be noted that the grid already
 depends as little as possible on the accessibility and correctness of
 the introduction server and the vdrive server.  Also note that the
-choice of which servers to use is easily configured -- you should be
-able to set up a private grid for you and your friends almost as
-easily as to connect to our public test grid.
+choice of which servers to use is easily configured -- you can set up
+a private grid for you and your friends as easily as connecting to our
+public test grid.
 
 
 SOFTWARE ARCHITECTURE
@@ -182,18 +163,21 @@ Tahoe is a "from the ground-up" rewrite, inspired by Allmydata's
 existing consumer backup service.  It is primarily written in the
 Python programming language.
 
-Tahoe is based on the Foolscap library [13] which provides a remote
+Tahoe is based on the Foolscap library [10] which provides a remote
 object protocol inspired by the capability-secure "E" programming
-language [14].  Foolscap allows us to express the intended behavior of
+language [11].  Foolscap allows us to express the intended behavior of
 the distributed grid directly in object-oriented terms while relying
 on a well-engineered, secure transport layer.
 
-The network layer is provided by the Twisted library [15].
+The network layer is provided by the Twisted library [12].
 Computationally intensive operations are performed in native compiled
 code, such as the "zfec" library for fast erasure coding (also
-available separately: [16]).
+available separately: [13]).
 
-Tahoe is sponsored by Allmydata, Inc. [17], a provider of consumer
+
+SPONSORSHIP
+
+Tahoe is sponsored by Allmydata, Inc. [14], a provider of consumer
 backup services.  Allmydata, Inc. contributes hardware, software,
 ideas, bug reports, suggestions, demands, and money (employing several
 allmydata.org Tahoe hackers and allowing them to spend part of their
@@ -203,25 +187,22 @@ eternally grateful!
 
 Zooko O'Whielacronx
 on behalf of the allmydata.org Tahoe team
-August 23, 2007
+September 18, 2007
 Boulder, Colorado
 
 
-[1]  http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=849
-[2]  http://allmydata.org/trac/tahoe/browser/docs/webapi.txt
-[3]  http://allmydata.org/trac/tahoe/timeline?from=2007-08-23&daysback=57&changeset=on&ticket=on&wiki=on&update=Update
-[4]  http://allmydata.org/trac/tahoe/wiki/UseCases
-[5]  http://allmydata.org/source/tahoe/tahoe-0.5.1.tar.gz
-[6]  http://allmydata.org/trac/tahoe/browser/README?rev=1141
-[7]  http://allmydata.org/trac/tahoe/browser/roadmap.txt
-[8]  http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
-[9]  http://allmydata.org/trac/tahoe
-[10] http://allmydata.org/buildbot
-[11] http://allmydata.org/tahoe-figleaf/figleaf/
-[12] http://allmydata.org/tahoe-figleaf-graph/hanford.allmydata.com-tahoe_figleaf.html
-[13] http://twistedmatrix.com/trac/wiki/FoolsCap
-[14] http://erights.org/
-[15] http://twistedmatrix.com/
-[16] http://allmydata.org/trac/tahoe/browser/src/zfec
-[17] http://allmydata.com
+[1]  http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=1154
+[2]  http://allmydata.org/trac/tahoe/timeline?from=2007-09-18&daysback=24&changeset=on&milestone=on&ticket=on&ticket_details=on&wiki=on&update=Update XXX UPDATE TIMESTAMPS BEFORE RELEASE PLEASE --Zooko
+[3]  http://allmydata.org/trac/tahoe/wiki/UseCases
+[4]  http://allmydata.org/trac/tahoe/browser/README?rev=1248 XXX UPDATE PATCH NUMBER BEFORE RELEASE PLEASE --Zooko
+[5]  http://allmydata.org/trac/tahoe/browser/docs/webapi.txt?rev=1151
+[6]  http://allmydata.org/trac/tahoe/browser/roadmap.txt
+[7]  http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
+[8]  http://allmydata.org/trac/tahoe/browser/CREDITS?rev=1122 XXX UPDATE PATCH NUMBER BEFORE RELEASE PLEASE --Zooko
+[9]  http://allmydata.org/trac/tahoe/wiki/Dev
+[10] http://twistedmatrix.com/trac/wiki/FoolsCap
+[11] http://erights.org/
+[12] http://twistedmatrix.com/
+[13] http://allmydata.org/source/zfec/zfec/
+[14] http://allmydata.com
 
