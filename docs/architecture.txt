@@ -182,71 +182,75 @@ set of all peers (by sorting the peers by HASH(verifierid+peerid)). Each file
 gets a different permutation, which (on average) will evenly distribute
 shares among the grid and avoid hotspots.
 
-This permutation places the peers around a 2^256-sized ring, like the rim of
-a big clock. The 100-or-so shares are then placed around the same ring (at 0,
-1/100*2^256, 2/100*2^256, ... 99/100*2^256). Imagine that we start at 0 with
-an empty basket in hand and proceed clockwise. When we come to a share, we
-pick it up and put it in the basket. When we come to a peer, we ask that peer
-if they will give us a lease for every share in our basket.
+We use this permuted list of peers to ask each peer, in turn, if it will hold
+on to share for us, by sending an 'allocate_buckets() query' to each one.
+Some will say yes, others (those who are full) will say no: when a peer
+refuses our request, we just take that share to the next peer on the list. We
+keep going until we run out of shares to place. At the end of the process,
+we'll have a table that maps each share number to a peer, and then we can
+begin the encode+push phase, using the table to decide where each share
+should be sent.
 
-The peer will grant us leases for some of those shares and reject others (if
-they are full or almost full). If they reject all our requests, we remove
-them from the ring, because they are full and thus unhelpful. Each share they
-accept is removed from the basket. The remainder stay in the basket as we
-continue walking clockwise.
+Most of the time, this will result in one share per peer, which gives us
+maximum reliability (since it disperses the failures as widely as possible).
+If there are fewer useable peers than there are shares, we'll be forced to
+loop around, eventually giving multiple shares to a single peer. This reduces
+reliability, so it isn't the sort of thing we want to happen all the time,
+and either indicates that the default encoding parameters are set incorrectly
+(creating more shares than you have peers), or that the grid does not have
+enough space (many peers are full). But apart from that, it doesn't hurt. If
+we have to loop through the peer list a second time, we accelerate the query
+process, by asking each peer to hold multiple shares on the second pass. In
+most cases, this means we'll never send more than two queries to any given
+peer.
 
-We keep walking, accumulating shares and distributing them to peers, until
-either we find a home for all shares, or there are no peers left in the ring
-(because they are all full). If we run out of peers before we run out of
-shares, the upload may be considered a failure, depending upon how many
-shares we were able to place. The current parameters try to place 100 shares,
-of which 25 must be retrievable to recover the file, and the peer selection
-algorithm is happy if it was able to place at least 75 shares. These numbers
-are adjustable: 25-out-of-100 means an expansion factor of 4x (every file in
-the grid consumes four times as much space when totalled across all
-StorageServers), but is highly reliable (the actual reliability is a binomial
-distribution function of the expected availability of the individual peers,
-but in general it goes up very quickly with the expansion factor).
+If a peer is unreachable, or has an error, or refuses to accept any of our
+shares, we remove them from the permuted list, so we won't query them a
+second time for this file. If a peer already has shares for the file we're
+uploading (or if someone else is currently sending them shares), we add that
+information to the share-to-peer table. This lets us do less work for files
+which have been uploaded once before, while making sure we still wind up with
+as many shares as we desire.
 
-If the file has been uploaded before (or if two uploads are happening at the
-same time), a peer might already have shares for the same file we are
-proposing to send to them. In this case, those shares are removed from the
-list and assumed to be available (or will be soon). This reduces the number
-of uploads that must be performed.
+If we are unable to place every share that we want, but we still managed to
+place a quantity known as "shares of happiness", we'll do the upload anyways.
+If we cannot place at least this many, the upload is declared a failure.
+
+The current defaults use k=3, shares_of_happiness=7, and N=10, meaning that
+we'll try to place 10 shares, we'll be happy if we can place 7, and we need
+to get back any 3 to recover the file. This results in a 3.3x expansion
+factor. In general, you should set N about equal to the number of peers in
+your grid, then set N/k to achieve your desired availability goals.
 
 When downloading a file, the current release just asks all known peers for
 any shares they might have, chooses the minimal necessary subset, then starts
 downloading and processing those shares. A later release will use the full
 algorithm to reduce the number of queries that must be sent out. This
 algorithm uses the same consistent-hashing permutation as on upload, but
-instead of one walker with one basket, we have 100 walkers (one per share).
-They each proceed clockwise in parallel until they find a peer, and put that
-one on the "A" list: out of all peers, this one is the most likely to be the
-same one to which the share was originally uploaded. The next peer that each
-walker encounters is put on the "B" list, etc.
+stops after it has located k shares (instead of all N). This reduces the
+number of queries that must be sent before downloading can begin.
 
-All the "A" list peers are asked for any shares they might have. If enough of
-them can provide a share, the download phase begins and those shares are
-retrieved and decoded. If not, the "B" list peers are contacted, etc. This
-routine will eventually find all the peers that have shares, and will find
-them quickly if there is significant overlap between the set of peers that
-were present when the file was uploaded and the set of peers that are present
-as it is downloaded (i.e. if the "peerlist stability" is high). Some limits
-may be imposed in large grids to avoid querying a million peers; this
-provides a tradeoff between the work spent to discover that a file is
-unrecoverable and the probability that a retrieval will fail when it could
-have succeeded if we had just tried a little bit harder. The appropriate
-value of this tradeoff will depend upon the size of the grid, and will change
-over time.
+The actual number of queries is directly related to the availability of the
+peers and the degree of overlap between the peerlist used at upload and at
+download. For stable grids, this overlap is very high, and usually the first
+k queries will result in shares. The number of queries grows as the stability
+decreases. Some limits may be imposed in large grids to avoid querying a
+million peers; this provides a tradeoff between the work spent to discover
+that a file is unrecoverable and the probability that a retrieval will fail
+when it could have succeeded if we had just tried a little bit harder. The
+appropriate value of this tradeoff will depend upon the size of the grid, and
+will change over time.
 
-Other peer selection algorithms are being evaluated. One of them (known as
-"tahoe 2") uses the same consistent hash, starts at 0 and requests one lease
-per peer until it gets 100 of them. This is likely to get better overlap
-(since a single insertion or deletion will still leave 99 overlapping peers),
-but is non-ideal in other ways (TODO: what were they?). It would also make it
-easier to select peers on the basis of their reliability, uptime, or
-reputation: we could pick 75 good peers plus 50 marginal peers, if it seemed
-likely that this would provide as good service as 100 good peers.
+Other peer selection algorithms are possible. One earlier version (known as
+"tahoe 3") used the permutation to place the peers around a large ring,
+distributed shares evenly around the same ring, then walks clockwise from 0
+with a basket: each time we encounter a share, put it in the basket, each
+time we encounter a peer, give them as many shares from our basket as they'll
+accept. This reduced the number of queries (usually to 1) for small grids
+(where N is larger than the number of peers), but resulted in extremely
+non-uniform share distribution, which significantly hurt reliability
+(sometimes the permutation resulted in most of the shares being dumped on a
+single peer).
 
 Another algorithm (known as "denver airport"[2]) uses the permuted hash to
 decide on an approximate target for each share, then sends lease requests via
@@ -262,75 +266,177 @@ SWARMING DOWNLOAD, TRICKLING UPLOAD
 
 Because the shares being downloaded are distributed across a large number of
 peers, the download process will pull from many of them at the same time. The
-current encoding parameters require 25 shares to be retrieved for each
-segment, which means that up to 25 peers will be used simultaneously. This
-allows the download process to use the sum of the available peers' upload
-bandwidths, resulting in downloads that take full advantage of the common 8x
-disparity between download and upload bandwith on modern ADSL lines.
+current encoding parameters require 3 shares to be retrieved for each
+segment, which means that up to 3 peers will be used simultaneously. For
+larger networks, 25-of-100 encoding is preferred, meaning 25 peers can be
+used simultaneously. This allows the download process to use the sum of the
+available peers' upload bandwidths, resulting in downloads that take full
+advantage of the common 8x disparity between download and upload bandwith on
+modern ADSL lines.
 
 On the other hand, uploads are hampered by the need to upload encoded shares
-that are larger than the original data (4x larger with the current default
+that are larger than the original data (3.3x larger with the current default
 encoding parameters), through the slow end of the asymmetric connection. This
 means that on a typical 8x ADSL line, uploading a file will take about 32
 times longer than downloading it again later.
 
 Smaller expansion ratios can reduce this upload penalty, at the expense of
-reliability. See RELIABILITY, below.
+reliability. See RELIABILITY, below. A project known as "offloaded uploading"
+can eliminate the penalty, if there is a node somewhere else in the network
+that is willing to do the work of encoding and upload for you.
 
 
-FILETREE: THE VIRTUAL DRIVE LAYER
+VDRIVE and DIRNODES: THE VIRTUAL DRIVE LAYER
 
 The "virtual drive" layer is responsible for mapping human-meaningful
 pathnames (directories and filenames) to pieces of data. The actual bytes
-inside these files are referenced by URI, but the "filetree" is where the
+inside these files are referenced by URI, but the "vdrive" is where the
 directory names, file names, and metadata are kept.
 
-The current release has a very simplistic filetree model. There is a single
-globally-shared directory structure, which maps filename to URI. This
-structure is maintained in a central node (which happens to be the same node
-that houses the Introducer), by writing URIs to files in a local filesystem.
+In the current release, the virtual drive is a graph of "dirnodes". Each
+dirnode represents a single directory, and thus contains a table of named
+children. These children are either other dirnodes or actual files. All
+children are referenced by their URI. Each client creates a "private vdrive"
+dirnode at startup. The clients also receive access to a "global vdrive"
+dirnode from the central introducer/vdrive server, which is shared between
+all clients and serves as an easy demonstration of having multiple writers
+for a single dirnode.
 
-A future release (probably the next one) will offer each application the
-ability to have a separate file tree. Each tree can reference others. Some
-trees are redirections, while others actually contain subdirectories full of
-filenames. The redirections may be mutable by some users but not by others,
-allowing both read-only and read-write views of the same data. This will
-enable individual users to have their own personal space, with links to
-spaces that are shared with specific other users, and other spaces that are
-globally visible. Eventually the application layer will present these pieces
-in a way that allows the sharing of a specific file or the creation of a
-"virtual CD" as easily as dragging a folder onto a user icon.
+The dirnode itself has two forms of URI: one is read-write and the other is
+read-only. The table of children inside the dirnode has a read-write and
+read-only URI for each child. If you have a read-only URI for a given
+dirnode, you will not be able to access the read-write URI of the children.
+This results in "transitively read-only" dirnode access.
 
-The URIs described above are "Content Hash Key" (CHK) identifiers[3], in
-which the identifier refers to a specific, unchangeable sequence of bytes. In
-this project, CHK identifiers are used for both files and immutable versions
-of directories: the tree of directory and file nodes is serialized into a
-sequence of bytes, which is then uploaded and turned into a URI. Each time
-the directory is changed, a new URI is generated for it and propagated to the
-filetree above it. There is a separate kind of upload, not yet implemented,
-called SSK (short for Signed Subspace Key), in which the URI refers to a
-mutable slot. Some users have a write-capability to this slot, allowing them
-to change the data that it refers to. Others only have a read-capability,
-merely letting them read the current contents. These SSK slots can be used to
-provide mutability in the filetree, so that users can actually change the
-contents of their virtual drive. Redirection nodes can also provide
-mutability, such as a central service which allows a user to set the current
-URI of their top-level filetree. SSK slots provide a decentralized way to
-accomplish this mutability, whereas centralized redirection nodes are more
-vulnerable to single-point-of-failure issues.
+By having two different URIs, you can choose which you want to share with
+someone else. If you create a new directory and share the read-write URI for
+it with a friend, then you will both be able to modify its contents. If
+instead you give them the read-only URI, then they will *not* be able to
+modify the contents. Any URI that you receive can be attached to any dirnode
+that you can modify, so very powerful shared+published directory structures
+can be built from these components.
+
+This structure enable individual users to have their own personal space, with
+links to spaces that are shared with specific other users, and other spaces
+that are globally visible. Eventually the application layer will present
+these pieces in a way that allows the sharing of a specific file or the
+creation of a "virtual CD" as easily as dragging a folder onto a user icon.
+
+In the current release, these dirnodes are *not* distributed. Instead, each
+dirnode lives on a single host, in a file on it's local (physical) disk. In
+addition, all dirnodes are on the same host, known as the "Introducer And
+VDrive Node". This simplifies implementation and consistency, but obviously
+has a drastic effect on reliability: the file data can survive multiple host
+failures, but the vdrive that points to that data cannot. Fixing this
+situation is a high priority task.
+
+
+LEASES, REFRESHING, GARBAGE COLLECTION
+
+Shares are uploaded to a storage server, but they do not necessarily stay
+there forever. We are anticipating three main share-lifetime management modes
+for Tahoe: 1) per-share leases which expire, 2) per-account timers which
+expire and cancel all leases for the account, and 3) centralized account
+management without expiration timers.
+
+Multiple clients may be interested in a given share, for example if two
+clients uploaded the same file, or if two clients are sharing a directory and
+both want to make sure the files therein remain available. Consequently, each
+share (technically each "bucket", which may contain multiple shares for a
+single storage index) has a set of leases, one per client. One way to
+visualize this is with a large table, with shares (i.e. buckets, or storage
+indices, or files) as the rows, and accounts as columns. Each square of this
+table might hold a lease.
+
+Using limited-duration leases reduces the storage consumed by clients who
+have (for whatever reason) forgotten about the share they once cared about.
+Clients are supposed to explicitly cancel leases for every file that they
+remove from their vdrive, and when the last lease is removed on a share, the
+storage server deletes that share. However, the storage server might be
+offline when the client deletes the file, or the client might experience a
+bug or a race condition that results in forgetting about the file. Using
+leases that expire unless otherwise renewed ensures that these lost files
+will not consume storage space forever. On the other hand, they require
+periodic maintenance, which can become prohibitively expensive for large
+grids. In addition, clients who go offline for a while are then obligated to
+get someone else to keep their files alive for them.
+
+
+In the first mode, each client holds a limited-duration lease on each share
+(typically one month), and clients are obligated to periodically renew these
+leases to keep them from expiring (typically once a week). In this mode, the
+storage server does not know anything about which client is which: it only
+knows about leases.
+
+In the second mode, each server maintains a list of clients and which leases
+they hold. This is called the "account list", and each time a client wants to
+upload a share or establish a lease, it provides credentials to allow the
+server to know which Account it will be using. Rather than putting individual
+timers on each lease, the server puts a timer on the Account. When the
+account expires, all of the associated leases are cancelled.
+
+In this mode, clients are obligated to renew the Account periodically, but
+not the (thousands of) individual share leases. Clients which forget about
+files are still incurring a storage cost for those files. An occasional
+reconcilliation process (in which the client presents the storage server with
+a list of all the files it cares about, and the server removes leases for
+anything that isn't on the list) can be used to free this storage, but the
+effort involved is large, so reconcilliation must be done very infrequently.
+
+Our plan is to have the clients create their own Accounts, based upon the
+possession of a private key. Clients can create as many accounts as they
+wish, but they are responsible for their own maintenance. Servers can add up
+all the leases for each account and present a report of usage, in bytes per
+account. This is intended for friendnet scenarios where it would be nice to
+know how much space your friends are consuming on your disk.
+
+In the third mode, the Account objects are centrally managed, and are not
+expired by the storage servers. In this mode, the client presents credentials
+that are issued by a central authority, such as a signed message which the
+storage server can verify. The storage used by this account is not freed
+unless and until the central account manager says so.
+
+This mode is more appropriate for a commercial offering, in which use of the
+storage servers is contingent upon a monthly fee, or other membership
+criteria. Being able to ask the storage usage for each account (or establish
+limits on it) helps to enforce whatever kind of membership policy is desired.
+
+
+Each lease is created with a pair of secrets: the "renew secret" and the
+"cancel secret". These are just random-looking strings, derived by hashing
+other higher-level secrets, starting with a per-client master secret. Anyone
+who knows the secret is allowed to restart the expiration timer, or cancel
+the lease altogether. Having these be individual values allows the original
+uploading node to delegate these capabilities to others.
+
+In the current release, clients provide lease secrets to the storage server,
+and each lease contains an expiration time, but there is no facility to
+actually expire leases, nor are there explicit owners (the "ownerid" field of
+each lease is always set to zero). In addition, many features have not been
+implemented yet: the client should claim leases on files which are added to
+the vdrive by linking (as opposed to uploading), and the client should cancel
+leases on files which are removed from the vdrive, but neither has been
+written yet. This means that shares are not ever deleted in this release.
 
 
 FILE REPAIRER
 
-Each node is expected to explicitly drop leases on files that it knows it no
-longer wants (the "delete" operation). Nodes are also expected to renew
-leases on files that still exist in their filetrees. When nodes are offline
-for an extended period of time, their files may decay (both because of leases
-expiring and because of StorageServers going offline). A File Verifier is
-used to check on the health of any given file, and a File Repairer is used to
-to keep desired files alive. The two are conceptually distinct (the repairer
-is run if the verifier decides it is necessary), but in practice they will be
-closely related, and may run in the same process.
+Shares may go away because the storage server hosting them has suffered a
+failure: either temporary downtime (affecting availability of the file), or a
+permanent data loss (affecting the reliability of the file). Hard drives
+crash, power supplies explode, coffee spills, and asteroids strike. The goal
+of a robust distributed filesystem is to survive these setbacks.
+
+To work against this slow, continually loss of shares, a File Checker is used
+to periodically count the number of shares still available for any given
+file. A more extensive form of checking known as the File Verifier can
+download the crypttext of the target file and perform integrity checks (using
+strong hashes) to make sure the data is stil intact. When the file is found
+to have decayed below some threshold, the File Repairer can be used to
+regenerate and re-upload the missing shares. These processes are conceptually
+distinct (the repairer is only run if the checker/verifier decides it is
+necessary), but in practice they will be closely related, and may run in the
+same process.
 
 The repairer process does not get the full URI of the file to be maintained:
 it merely gets the "repairer capability" subset, which does not include the
@@ -368,32 +474,32 @@ The design goal for this project is that an attacker may be able to deny
 service (i.e. prevent you from recovering a file that was uploaded earlier)
 but can accomplish none of the following three attacks:
 
- 1) violate privacy: the attacker gets to view data to which you have not
-    granted them access
+ 1) violate confidentiality: the attacker gets to view data to which you have
+    not granted them access
  2) violate consistency: the attacker convinces you that the wrong data is
     actually the data you were intending to retrieve
- 3) violate mutability: the attacker gets to modify a filetree (either the
+ 3) violate mutability: the attacker gets to modify a dirnode (either the
     pathnames or the file contents) to which you have not given them
     mutability rights
 
 Data validity and consistency (the promise that the downloaded data will
 match the originally uploaded data) is provided by the hashes embedded the
-URI. Data security (the promise that the data is only readable by people with
-the URI) is provided by the encryption key embedded in the URI. Data
-availability (the hope that data which has been uploaded in the past will be
-downloadable in the future) is provided by the grid, which distributes
-failures in a way that reduces the correlation between individual node
-failure and overall file recovery failure.
+URI. Data confidentiality (the promise that the data is only readable by
+people with the URI) is provided by the encryption key embedded in the URI.
+Data availability (the hope that data which has been uploaded in the past
+will be downloadable in the future) is provided by the grid, which
+distributes failures in a way that reduces the correlation between individual
+node failure and overall file recovery failure.
 
 Many of these security properties depend upon the usual cryptographic
 assumptions: the resistance of AES and RSA to attack, the resistance of
 SHA256 to pre-image attacks, and upon the proximity of 2^-128 and 2^-256 to
-zero. A break in AES would allow a privacy violation, a pre-image break in
-SHA256 would allow a consistency violation, and a break in RSA would allow a
-mutability violation. The discovery of a collision in SHA256 is unlikely to
-allow much, but could conceivably allow a consistency violation in data that
-was uploaded by the attacker. If SHA256 is threatened, further analysis will
-be warranted.
+zero. A break in AES would allow a confidentiality violation, a pre-image
+break in SHA256 would allow a consistency violation, and a break in RSA would
+allow a mutability violation. The discovery of a collision in SHA256 is
+unlikely to allow much, but could conceivably allow a consistency violation
+in data that was uploaded by the attacker. If SHA256 is threatened, further
+analysis will be warranted.
 
 There is no attempt made to provide anonymity, neither of the origin of a
 piece of data nor the identity of the subsequent downloaders. In general,
@@ -403,34 +509,36 @@ for a coalition of more than 1% of the nodes to correlate the set of peers
 who are all uploading or downloading the same file, even if the attacker does
 not know the contents of the file in question.
 
-Also note that the file size and verifierid are not protected. Many people
-can determine the size of the file you are accessing, and if they already
-know the contents of a given file, they will be able to determine that you
-are uploading or downloading the same one.
+Also note that the file size and (when convergence is being used) a keyed
+hash of the plaintext are not protected. Many people can determine the size
+of the file you are accessing, and if they already know the contents of a
+given file, they will be able to determine that you are uploading or
+downloading the same one.
 
 A likely enhancement is the ability to use distinct encryption keys for each
 file, avoiding the file-correlation attacks at the expense of increased
-storage consumption.
+storage consumption. This is known as "non-convergent" encoding.
 
-The capability-based security model is used throughout this project. Filetree
+The capability-based security model is used throughout this project. dirnode
 operations are expressed in terms of distinct read and write capabilities.
 The URI of a file is the read-capability: knowing the URI is equivalent to
 the ability to read the corresponding data. The capability to validate and
-repair a file is a subset of the read-capability. The capability to read an
-SSK slot is a subset of the capability to modify it. These capabilities may
-be expressly delegated (irrevocably) by simply transferring the relevant
-secrets. Special forms of SSK slots can be used to make revocable delegations
-of particular directories. Certain redirections in the filetree code are
-expressed as Foolscap "furls", which are also capabilities and provide access
-to an instance of code running on a central server: these can be delegated
-just as easily as any other capability, and can be made revocable by
-delegating access to a forwarder instead of the actual target.
+repair a file is a subset of the read-capability. When distributed dirnodes
+are implemented (with SSK slots), the capability to read an SSK slot will be
+a subset of the capability to modify it. These capabilities may be expressly
+delegated (irrevocably) by simply transferring the relevant secrets. Special
+forms of SSK slots can be used to make revocable delegations of particular
+directories. Dirnode references contain Foolscap "FURLs", which are also
+capabilities and provide access to an instance of code running on a central
+server: these can be delegated just as easily as any other capability, and
+can be made revocable by delegating access to a forwarder instead of the
+actual target.
 
 The application layer can provide whatever security/access model is desired,
 but we expect the first few to also follow capability discipline: rather than
-user accounts with passwords, each user will get a furl to their private
-filetree, and the presentation layer will give them the ability to break off
-pieces of this filetree for delegation or sharing with others on demand.
+user accounts with passwords, each user will get a FURL to their private
+dirnode, and the presentation layer will give them the ability to break off
+pieces of this vdrive for delegation or sharing with others on demand.
 
 
 RELIABILITY
@@ -489,6 +597,11 @@ still retaining high reliability, but large unstable grids (where nodes are
 coming and going very quickly) may require more repair/verification bandwidth
 than actual upload/download traffic.
 
+Tahoe nodes that run a webserver have a page dedicated to provisioning
+decisions: this tool may help you evaluate different expansion factors and
+view the disk consumption of each. It is also acquiring some sections with
+availability/reliability numbers, as well as preliminary cost analysis data.
+This tool will continue to evolve as our analysis improves.
 
 ------------------------------
 
@@ -496,12 +609,8 @@ than actual upload/download traffic.
 
 [2]: all of these names are derived from the location where they were
      concocted, in this case in a car ride from Boulder to DEN. To be
-     precise, "tahoe 1" was an unworkable scheme in which everyone holding
-     shares for a given file formed a sort of cabal which kept track of all
-     the others, "tahoe 2" is the first-100-peers in the permuted hash, and
-     this document descibes "tahoe 3", or perhaps "potrero hill 1".
-
-[3]: the terms CHK and SSK come from Freenet,
-     http://wiki.freenetproject.org/FreenetCHKPages ,
-     although we use "SSK" in a slightly different way
+     precise, "tahoe 1" was an unworkable scheme in which everyone who holds
+     shares for a given file would form a sort of cabal which kept track of
+     all the others, "tahoe 2" is the first-100-peers in the permuted hash,
+     and this document descibes "tahoe 3", or perhaps "potrero hill 1".
 
