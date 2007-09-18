@@ -1,11 +1,10 @@
 
 from twisted.trial import unittest
-from twisted.python.runtime import platformType
 
 import time
 from cStringIO import StringIO
 from twisted.python import usage
-import os.path
+import sys, os.path
 from allmydata.scripts import runner, debug
 from allmydata.util import fileutil
 
@@ -107,7 +106,9 @@ class RunNode(unittest.TestCase):
         return basedir
 
     def test_client(self):
-        if platformType == "win32":
+        if sys.platform in ("win32", "cygwin"):
+            # thus might not be entirely true, but I've yet to see proper
+            # daemonization on a windows box. -warner
             raise unittest.SkipTest("twistd does not fork under windows")
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
