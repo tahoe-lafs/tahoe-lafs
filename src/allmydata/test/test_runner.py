@@ -127,9 +127,11 @@ class RunNode(unittest.TestCase, testutil.PollMixin):
         argv = ["--quiet", "start", c1]
         out,err = StringIO(), StringIO()
         rc = runner.runner(argv, stdout=out, stderr=err)
-        self.failUnlessEqual(rc, 0)
-        self.failUnlessEqual(out.getvalue(), "")
-        self.failUnlessEqual(err.getvalue(), "")
+        outs = out.getvalue() ; errs = err.getvalue()
+        errstr = "OUT: '%s', ERR: '%s'" % (outs, errs)
+        self.failUnlessEqual(rc, 0, errstr)
+        self.failUnlessEqual(outs, "", errstr)
+        self.failUnlessEqual(errs, "", errstr)
 
         # the parent (twistd) has exited. However, twistd writes the pid from
         # the child, not the parent, so we can't expect twistd.pid to exist
@@ -152,9 +154,11 @@ class RunNode(unittest.TestCase, testutil.PollMixin):
             argv = ["--quiet", "restart", c1]
             out,err = StringIO(), StringIO()
             rc = runner.runner(argv, stdout=out, stderr=err)
-            self.failUnlessEqual(rc, 0)
-            self.failUnlessEqual(out.getvalue(), "")
-            self.failUnlessEqual(err.getvalue(), "")
+            outs = out.getvalue() ; errs = err.getvalue()
+            errstr = "OUT: '%s', ERR: '%s'" % (outs, errs)
+            self.failUnlessEqual(rc, 0, errstr)
+            self.failUnlessEqual(outs, "", errstr)
+            self.failUnlessEqual(errs, "", errstr)
         d.addCallback(_started)
 
         # again, the second incarnation of the node might not be ready yet,
@@ -168,9 +172,11 @@ class RunNode(unittest.TestCase, testutil.PollMixin):
             out,err = StringIO(), StringIO()
             rc = runner.runner(argv, stdout=out, stderr=err)
             # the parent has exited by now
-            self.failUnlessEqual(rc, 0)
-            self.failUnlessEqual(out.getvalue(), "")
-            self.failUnlessEqual(err.getvalue(), "")
+            outs = out.getvalue() ; errs = err.getvalue()
+            errstr = "OUT: '%s', ERR: '%s'" % (outs, errs)
+            self.failUnlessEqual(rc, 0, errstr)
+            self.failUnlessEqual(outs, "", errstr)
+            self.failUnlessEqual(errs, "", errstr)
             # the parent was supposed to poll and wait until it sees
             # twistd.pid go away before it exits, so twistd.pid should be
             # gone by now.
