@@ -15,7 +15,7 @@ class MyNode(Referenceable):
 
 class LoggingMultiService(service.MultiService):
     def log(self, msg):
-        pass
+        log.msg(msg)
 
 class TestIntroducer(unittest.TestCase, testutil.PollMixin):
     def setUp(self):
@@ -83,10 +83,13 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
 
         # d will fire once everybody is connected
 
-        def _check(res):
-            log.msg("doing _check")
+        def _check1(res):
+            log.msg("doing _check1")
             for c in clients:
                 self.failUnlessEqual(len(c.connections), NUMCLIENTS)
+                self.failUnless(c._connected) # to the introducer
+        d.addCallback(_check1)
+        def _disconnect_somebody_else(res):
             # now disconnect somebody's connection to someone else
             self.waiting_for_connections = 2
             d2 = self._done_counting = defer.Deferred()
@@ -100,11 +103,13 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
             victim.tracker.broker.transport.loseConnection()
             log.msg(" did disconnect")
             return d2
-        d.addCallback(_check)
-        def _check_again(res):
-            log.msg("doing _check_again")
+        d.addCallback(_disconnect_somebody_else)
+        def _check2(res):
+            log.msg("doing _check2")
             for c in clients:
                 self.failUnlessEqual(len(c.connections), NUMCLIENTS)
+        d.addCallback(_check2)
+        def _disconnect_yourself(res):
             # now disconnect somebody's connection to themselves. This will
             # only result in one new connection, since it is a loopback.
             self.waiting_for_connections = 1
@@ -119,13 +124,27 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
             victim.tracker.broker.transport.loseConnection()
             log.msg(" did disconnect")
             return d2
-        d.addCallback(_check_again)
-        def _check_again2(res):
-            log.msg("doing _check_again2")
+        d.addCallback(_disconnect_yourself)
+        def _check3(res):
+            log.msg("doing _check3")
             for c in clients:
                 self.failUnlessEqual(len(c.connections), NUMCLIENTS)
-            # now disconnect somebody's connection to themselves
-        d.addCallback(_check_again2)
+        d.addCallback(_check3)
+        def _shutdown_introducer(res):
+            # now shut down the introducer. We do this by shutting down the
+            # tub it's using. Nobody's connections (to each other) should go
+            # down. All clients should notice the loss, and no other errors
+            # should occur.
+            log.msg("shutting down the introducer")
+            return self.central_tub.disownServiceParent()
+        d.addCallback(_shutdown_introducer)
+        d.addCallback(self.stall, 2)
+        def _check4(res):
+            log.msg("doing _check4")
+            for c in clients:
+                self.failUnlessEqual(len(c.connections), NUMCLIENTS)
+                self.failIf(c._connected)
+        d.addCallback(_check4)
         return d
     test_system.timeout = 2400
 

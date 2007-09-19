@@ -117,6 +117,7 @@ class IntroducerClient(service.Service, Referenceable):
         introducer.notifyOnDisconnect(self._disconnected)
 
     def _disconnected(self):
+        self.log("bummer, we've lost our connection to the introducer")
         self._connected = False
 
     def notify_on_new_connection(self, cb):
