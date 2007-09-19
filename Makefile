@@ -190,6 +190,11 @@ check-memory: .built
 	$(PP) \
 	 $(PYTHON) src/allmydata/test/check_memory.py download-GET-slow
 
+check-memory-once: .built
+	rm -rf _test_memory
+	$(PP) \
+	 $(PYTHON) src/allmydata/test/check_memory.py $(TYPE)
+
 
 test-darcs-boringfile:
 	$(MAKE)
