@@ -20,12 +20,11 @@ Since v0.5.1 we've made the following changes:
  * Shares have a version number in them so that in the future we can
    upgrade the share format without losing old data. (ticket #90)
 
- * Servers now track which nodes are responsible for which shares.
-   This gives us the information to compute which shares are safe to
-   delete, but we haven't yet implemented deletion itself. (tickets
-   #119, #67)
- 
  * improved logging, thanks to Arno
+
+ * Shares now contain leases, which gives us the information to compute which
+   shares are safe to delete, but we haven't yet implemented deletion itself.
+   Eventually, this will enable client quota tracking. (tickets #119, #67)
 
 
 For complete details, see this web page which shows all ticket
@@ -185,10 +184,10 @@ work time on the next-generation, free-software project).  We are
 eternally grateful!
 
 
-Zooko O'Whielacronx
+Zooko O'Whielacronx and Brian Warner
 on behalf of the allmydata.org Tahoe team
 September 18, 2007
-Boulder, Colorado
+Boulder, Colorado and San Francisco, California
 
 
 [1]  http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=1154
