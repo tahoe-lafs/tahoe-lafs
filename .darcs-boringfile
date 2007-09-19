@@ -87,3 +87,5 @@
 ^src/allmydata/Crypto/[^/]*/.*\.so$
 
 ^\.checked-deps$
+^\.built$
+

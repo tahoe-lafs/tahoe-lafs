@@ -57,7 +57,9 @@ endif
 
 TRIAL=$(PYTHON) -u "$(TRIALPATH)" --rterrors $(REACTOROPT)
 
-build-deps: build
+# build-deps wants setuptools to have been built first. It's easiest to
+# accomplish this by depending upon the tahoe compile.
+build-deps: .built
 	mkdir -p "$(SUPPORTLIB)"
 	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)." \
          $(PYTHON) misc/dependencies/build-deps-setup.py install \
@@ -72,6 +74,10 @@ PP=PYTHONPATH="$(SRCPATH)$(PATHSEP)$(EGGSPATH)$(PATHSEP)$(PYTHONPATH)"
 .PHONY: make-version build
 make-version:
 	$(PYTHON) misc/make-version.py "allmydata-tahoe" "src/allmydata/_version.py"
+
+.built:
+	$(MAKE) build
+	touch .built
 
 build: make-version
 	$(PYTHON) ./setup.py build_ext -i
@@ -115,11 +121,11 @@ TEST=allmydata
 # use 'make test REPORTER=--reporter=bwverbose' from buildbot, to
 # suppress the ansi color sequences
 
-test: build .checked-deps
+test: .built .checked-deps
 	$(PP) \
 	 $(TRIAL) $(REPORTER) $(TEST)
 
-test-figleaf: build .checked-deps
+test-figleaf: .built .checked-deps
 	rm -f .figleaf
 	$(PP) \
 	 $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
@@ -169,7 +175,7 @@ count-lines:
 	@echo -n "TODO: "
 	@grep TODO `find src -name '*.py' |grep -v /build/` | wc --lines
 
-check-memory: build
+check-memory: .built
 	rm -rf _test_memory
 	$(PP) \
 	 $(PYTHON) src/allmydata/test/check_memory.py upload
@@ -197,7 +203,7 @@ test-clean:
 	diff allfiles.tmp.old allfiles.tmp.new
 
 clean:
-	rm -rf build _trial_temp _test_memory .checked-deps
+	rm -rf build _trial_temp _test_memory .checked-deps .built
 	rm -f debian
 	rm -f `find src/allmydata -name '*.so' -or -name '*.pyc'`
 	rm -rf tahoe_deps.egg-info allmydata_tahoe.egg-info
