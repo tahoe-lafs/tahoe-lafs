@@ -49,7 +49,8 @@ class Client(node.Node, Referenceable):
         hotline_file = os.path.join(self.basedir,
                                     self.SUICIDE_PREVENTION_HOTLINE_FILE)
         if os.path.exists(hotline_file):
-            self.log("hotline file noticed, starting timer")
+            age = time.time() - os.stat(hotline_file)[stat.ST_MTIME]
+            self.log("hotline file noticed (%ds old), starting timer" % age)
             hotline = TimerService(1.0, self._check_hotline, hotline_file)
             hotline.setServiceParent(self)
 
@@ -106,7 +107,10 @@ class Client(node.Node, Referenceable):
             mtime = os.stat(hotline_file)[stat.ST_MTIME]
             if mtime > time.time() - 10.0:
                 return
-        self.log("hotline missing or too old, shutting down")
+            else:
+                self.log("hotline file too old, shutting down")
+        else:
+            self.log("hotline file missing, shutting down")
         reactor.stop()
 
     def tub_ready(self):

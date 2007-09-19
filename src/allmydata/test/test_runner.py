@@ -3,6 +3,7 @@ from twisted.trial import unittest
 
 from cStringIO import StringIO
 from twisted.python import usage, runtime
+from twisted.internet import defer
 import os.path
 from allmydata.scripts import runner, debug
 from allmydata.util import fileutil, testutil
@@ -124,38 +125,45 @@ class RunNode(unittest.TestCase, testutil.PollMixin):
 
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
 
-        argv = ["--quiet", "start", c1]
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        outs = out.getvalue() ; errs = err.getvalue()
-        errstr = "OUT: '%s', ERR: '%s'" % (outs, errs)
-        self.failUnlessEqual(rc, 0, errstr)
-        self.failUnlessEqual(outs, "", errstr)
-        self.failUnlessEqual(errs, "", errstr)
+        d = defer.succeed(None)
+        def _start(res):
+            argv = ["--quiet", "start", c1]
+            out,err = StringIO(), StringIO()
+            rc = runner.runner(argv, stdout=out, stderr=err)
+            open(HOTLINE_FILE, "w").write("")
+            outs = out.getvalue() ; errs = err.getvalue()
+            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc, outs, errs)
+            self.failUnlessEqual(rc, 0, errstr)
+            self.failUnlessEqual(outs, "", errstr)
+            self.failUnlessEqual(errs, "", errstr)
 
-        # the parent (twistd) has exited. However, twistd writes the pid from
-        # the child, not the parent, so we can't expect twistd.pid to exist
-        # quite yet.
+            # the parent (twistd) has exited. However, twistd writes the pid
+            # from the child, not the parent, so we can't expect twistd.pid
+            # to exist quite yet.
 
-        # the node is running, but it might not have made it past the first
-        # reactor turn yet, and if we kill it too early, it won't remove the
-        # twistd.pid file. So wait until it does something that we know it
-        # won't do until after the first turn.
+            # the node is running, but it might not have made it past the
+            # first reactor turn yet, and if we kill it too early, it won't
+            # remove the twistd.pid file. So wait until it does something
+            # that we know it won't do until after the first turn.
+
+        d.addCallback(_start)
 
         PORTNUMFILE = os.path.join(c1, "client.port")
         def _node_has_started():
             return os.path.exists(PORTNUMFILE)
-        d = self.poll(_node_has_started)
+        d.addCallback(lambda res: self.poll(_node_has_started))
 
         def _started(res):
+            open(HOTLINE_FILE, "w").write("")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
             # rm this so we can detect when the second incarnation is ready
             os.unlink(PORTNUMFILE)
             argv = ["--quiet", "restart", c1]
             out,err = StringIO(), StringIO()
             rc = runner.runner(argv, stdout=out, stderr=err)
+            open(HOTLINE_FILE, "w").write("")
             outs = out.getvalue() ; errs = err.getvalue()
-            errstr = "OUT: '%s', ERR: '%s'" % (outs, errs)
+            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc, outs, errs)
             self.failUnlessEqual(rc, 0, errstr)
             self.failUnlessEqual(outs, "", errstr)
             self.failUnlessEqual(errs, "", errstr)
@@ -165,15 +173,19 @@ class RunNode(unittest.TestCase, testutil.PollMixin):
         # so poll until it is
         d.addCallback(lambda res: self.poll(_node_has_started))
 
-        # now we can kill it
+        # now we can kill it. TODO: On a slow machine, the node might kill
+        # itself before we get a chance too, especially if spawning the
+        # 'allmydata-tahoe stop' command takes a while.
         def _stop(res):
+            open(HOTLINE_FILE, "w").write("")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
             argv = ["--quiet", "stop", c1]
             out,err = StringIO(), StringIO()
             rc = runner.runner(argv, stdout=out, stderr=err)
+            open(HOTLINE_FILE, "w").write("")
             # the parent has exited by now
             outs = out.getvalue() ; errs = err.getvalue()
-            errstr = "OUT: '%s', ERR: '%s'" % (outs, errs)
+            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc, outs, errs)
             self.failUnlessEqual(rc, 0, errstr)
             self.failUnlessEqual(outs, "", errstr)
             self.failUnlessEqual(errs, "", errstr)
@@ -182,6 +194,10 @@ class RunNode(unittest.TestCase, testutil.PollMixin):
             # gone by now.
             self.failIf(os.path.exists(TWISTD_PID_FILE))
         d.addCallback(_stop)
+        def _remove_hotline(res):
+            os.unlink(HOTLINE_FILE)
+            return res
+        d.addBoth(_remove_hotline)
         return d
 
     def test_baddir(self):
