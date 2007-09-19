@@ -215,7 +215,7 @@ this file are ignored.
             f = open(os.path.join(clientdir, "debug_no_storage"), "w")
             f.write("no_storage\n")
             f.close()
-        if self.mode in ("upload-self"):
+        if self.mode == "upload-self":
             f = open(os.path.join(clientdir, "push_to_ourselves"), "w")
             f.write("push_to_ourselves\n")
             f.close()
