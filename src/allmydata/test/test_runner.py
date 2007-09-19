@@ -184,4 +184,29 @@ class RunNode(unittest.TestCase, testutil.PollMixin):
         d.addCallback(_stop)
         return d
 
+    def test_baddir(self):
+        basedir = self.workdir("test_baddir")
+        fileutil.make_dirs(basedir)
+        argv = ["--quiet", "start", "--basedir", basedir]
+        out,err = StringIO(), StringIO()
+        rc = runner.runner(argv, stdout=out, stderr=err)
+        self.failUnlessEqual(rc, 1)
+        self.failUnless("does not look like a node directory" in err.getvalue())
+
+        argv = ["--quiet", "stop", "--basedir", basedir]
+        out,err = StringIO(), StringIO()
+        rc = runner.runner(argv, stdout=out, stderr=err)
+        self.failUnlessEqual(rc, 2)
+        self.failUnless("does not look like a running node directory"
+                        in err.getvalue())
+
+        not_a_dir = os.path.join(basedir, "bogus")
+        argv = ["--quiet", "start", "--basedir", not_a_dir]
+        out,err = StringIO(), StringIO()
+        rc = runner.runner(argv, stdout=out, stderr=err)
+        self.failUnlessEqual(rc, 1)
+        self.failUnless("does not look like a node directory" in err.getvalue())
+        self.failUnless("doesn't look like a directory at all"
+                        in err.getvalue())
+
 

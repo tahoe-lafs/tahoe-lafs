@@ -69,7 +69,7 @@ def do_start(basedir, config, out=sys.stdout, err=sys.stderr):
         print >>err, "%s does not look like a node directory" % basedir
         if not os.path.isdir(basedir):
             print >>err, " in fact, it doesn't look like a directory at all!"
-        sys.exit(1)
+        return 1
     twistd = find_twistd()
     fileutil.make_dirs(os.path.join(basedir, "logs"))
     cmd = ["python", twistd, "-y", tac, "--logfile", "logs/twistd.log"]
