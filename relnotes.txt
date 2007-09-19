@@ -17,6 +17,10 @@ Since v0.5.1 we've made the following changes:
    allmydata-tahoe" on the command-line (including on Windows), and it
    will download and install Tahoe. (tickets #82, 93, 130)
 
+ * Memory usage during download is now small, even if your node is
+   streaming the downloaded content to a dumb web browser over
+   HTTP. (ticket #129)
+
  * Shares have a version number in them so that in the future we can
    upgrade the share format without losing old data. (ticket #90)
 
