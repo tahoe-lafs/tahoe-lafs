@@ -171,9 +171,13 @@ this file are ignored.
             f = open(os.path.join(clientdir, "debug_no_storage"), "w")
             f.write("no_storage\n")
             f.close()
-        if self.mode in ("upload-self", "download", "download-GET"):
+        if self.mode in ("upload-self"):
             f = open(os.path.join(clientdir, "push_to_ourselves"), "w")
             f.write("push_to_ourselves\n")
+            f.close()
+        else:
+            f = open(os.path.join(clientdir, "sizelimit"), "w")
+            f.write("0\n")
             f.close()
         self.keepalive_file = os.path.join(clientdir,
                                            "suicide_prevention_hotline")
