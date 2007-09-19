@@ -181,6 +181,8 @@ check-memory: build
 	 $(PYTHON) src/allmydata/test/check_memory.py download
 	$(PP) \
 	 $(PYTHON) src/allmydata/test/check_memory.py download-GET
+	$(PP) \
+	 $(PYTHON) src/allmydata/test/check_memory.py download-GET-slow
 
 
 test-darcs-boringfile:
