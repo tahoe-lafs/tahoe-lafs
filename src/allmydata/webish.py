@@ -5,6 +5,7 @@ from twisted.application import service, strports, internet
 from twisted.web import static, resource, server, html, http
 from twisted.python import util, log
 from twisted.internet import defer
+from twisted.internet.interfaces import IConsumer
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from allmydata.util import fileutil
@@ -271,12 +272,18 @@ class Directory(rend.Page):
             return ""
 
 class WebDownloadTarget:
-    implements(IDownloadTarget)
+    implements(IDownloadTarget, IConsumer)
     def __init__(self, req, content_type, content_encoding):
         self._req = req
         self._content_type = content_type
         self._content_encoding = content_encoding
         self._opened = False
+        self._producer = None
+
+    def registerProducer(self, producer, streaming):
+        self._req.registerProducer(producer, streaming)
+    def unregisterProducer(self):
+        self._req.unregisterProducer()
 
     def open(self, size):
         self._opened = True
