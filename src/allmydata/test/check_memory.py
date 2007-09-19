@@ -72,10 +72,7 @@ class SystemFramework(testutil.PollMixin):
         self.proc = None
         self.tub = foolscap.Tub()
         self.tub.setServiceParent(self.sparent)
-        self.discard_shares = True
         self.mode = mode
-        if mode in ("download", "download-GET", "download-GET-slow"):
-            self.discard_shares = False
         self.failed = False
 
     def run(self):
@@ -167,12 +164,24 @@ class SystemFramework(testutil.PollMixin):
             f = open(os.path.join(nodedir, "vdrive.furl"), "w")
             f.write(self.vdrive_furl)
             f.close()
-            if self.discard_shares:
-                # for this test, we tell the storage servers to throw out all
-                # their stored data, since we're only testing upload and not
-                # download.
+            # the only tests for which we want the internal nodes to actually
+            # retain shares are the ones where somebody's going to download
+            # them.
+            if self.mode in ("download", "download-GET", "download-GET-slow"):
+                # retain shares
+                pass
+            else:
+                # for these tests, we tell the storage servers to pretend to
+                # accept shares, but really just throw them out, since we're
+                # only testing upload and not download.
                 f = open(os.path.join(nodedir, "debug_no_storage"), "w")
                 f.write("no_storage\n")
+                f.close()
+            if self.mode in ("receive",):
+                # for this mode, the client-under-test gets all the shares,
+                # so our internal nodes can refuse requests
+                f = open(os.path.join(nodedir, "sizelimit"), "w")
+                f.write("0\n")
                 f.close()
             c = self.add_service(client.Client(basedir=nodedir))
             self.nodes.append(c)
@@ -211,17 +220,21 @@ this file are ignored.
         f.write("tcp:%d:interface=127.0.0.1\n" % webport)
         f.close()
         self.webish_url = "http://localhost:%d" % webport
-        if self.discard_shares:
-            f = open(os.path.join(clientdir, "debug_no_storage"), "w")
-            f.write("no_storage\n")
+        if self.mode in ("upload-self", "receive"):
+            # accept and store shares, to trigger the memory consumption bugs
+            pass
+        else:
+            # don't accept any shares
+            f = open(os.path.join(clientdir, "sizelimit"), "w")
+            f.write("0\n")
             f.close()
+            ## also, if we do receive any shares, throw them away
+            #f = open(os.path.join(clientdir, "debug_no_storage"), "w")
+            #f.write("no_storage\n")
+            #f.close()
         if self.mode == "upload-self":
             f = open(os.path.join(clientdir, "push_to_ourselves"), "w")
             f.write("push_to_ourselves\n")
-            f.close()
-        else:
-            f = open(os.path.join(clientdir, "sizelimit"), "w")
-            f.write("0\n")
             f.close()
         self.keepalive_file = os.path.join(clientdir,
                                            "suicide_prevention_hotline")
@@ -349,6 +362,12 @@ this file are ignored.
             data = "a" * size
             url = "/vdrive/global"
             d = self.POST(url, t="upload", file=("%d.data" % size, data))
+        elif self.mode in ("receive",):
+            # upload the data from a local peer, so that the
+            # client-under-test receives and stores the shares
+            files[name] = self.create_data(name, size)
+            u = self.nodes[0].getServiceNamed("uploader")
+            d = u.upload_filename(files[name])
         elif self.mode in ("download", "download-GET", "download-GET-slow"):
             # upload the data from a local peer, then have the
             # client-under-test download it.

@@ -138,8 +138,8 @@ figleaf-output:
 # after doing test-figleaf and figleaf-output, point your browser at
 # coverage-html/index.html
 
-.PHONY: upload-figleaf .figleaf.el pyflakes count-lines check-memory
-.PHONY: clean
+.PHONY: upload-figleaf .figleaf.el pyflakes count-lines
+.PHONY: check-memory check-memory-once clean
 
 # 'upload-figleaf' is meant to be run with an UPLOAD_TARGET=host:/dir setting
 ifdef UPLOAD_TARGET
@@ -193,7 +193,7 @@ check-memory: .built
 check-memory-once: .built
 	rm -rf _test_memory
 	$(PP) \
-	 $(PYTHON) src/allmydata/test/check_memory.py $(TYPE)
+	 $(PYTHON) src/allmydata/test/check_memory.py $(MODE)
 
 
 test-darcs-boringfile:
