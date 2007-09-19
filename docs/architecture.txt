@@ -116,13 +116,14 @@ All hashes use SHA256, and a different tag is used for each purpose.
 Netstrings are used where necessary to insure these tags cannot be confused
 with the data to be hashed. All encryption uses AES in CTR mode. The erasure
 coding is performed with zfec (a python wrapper around Rizzo's FEC library).
+
 A Merkle Hash Tree is used to validate the encoded blocks before they are fed
 into the decode process, and a transverse tree is used to validate the shares
-before they are retrieved. A third merkle tree is constructed over the
-plaintext segments, and a fourth is constructed over the crypttext segments.
-All necessary hash chains are stored with the shares, and the hash tree roots
-are put in the URI extension block. The final hash of the extension block
-goes into the URI itself.
+as they are retrieved. A third merkle tree is constructed over the plaintext
+segments, and a fourth is constructed over the crypttext segments.  All
+necessary hashes are stored with the shares, and the hash tree roots are put
+in the URI extension block. The final hash of the extension block goes into
+the URI itself.
 
 Note that the number of shares created is fixed at the time the file is
 uploaded: it is not possible to create additional shares later. The use of a
