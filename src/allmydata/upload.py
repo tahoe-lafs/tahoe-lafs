@@ -563,7 +563,7 @@ class NonConvergentUploadMixin:
     def set_serialized_encoding_parameters(self, params):
         pass
 
-    def get_encryption_key(self, encoding_parameters):
+    def get_encryption_key(self):
         if self._key is None:
             self._key = os.urandom(16)
         return defer.succeed(self._key)
