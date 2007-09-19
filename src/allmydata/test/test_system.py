@@ -576,6 +576,12 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                                            "new.txt contents"))
         d.addCallback(lambda res: self.GET("vdrive/global/subdir3/new.txt"))
         d.addCallback(self.failUnlessEqual, "new.txt contents")
+        # and again with something large enough to use multiple segments,
+        # and hopefully trigger pauseProducing too
+        d.addCallback(lambda res: self.PUT("vdrive/global/subdir3/big.txt",
+                                           "big" * 500000)) # 1.5MB
+        d.addCallback(lambda res: self.GET("vdrive/global/subdir3/big.txt"))
+        d.addCallback(lambda res: self.failUnlessEqual(len(res), 1500000))
 
         # can we replace files in place?
         d.addCallback(lambda res: self.PUT("vdrive/global/subdir3/new.txt",
