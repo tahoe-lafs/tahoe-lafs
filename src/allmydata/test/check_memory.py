@@ -1,10 +1,10 @@
 #! /usr/bin/env python
 
-import os, shutil, sys
+import os, shutil, sys, urllib
 from cStringIO import StringIO
 from twisted.internet import defer, reactor, protocol, error
 from twisted.application import service, internet
-from twisted.web.client import getPage
+from twisted.web.client import getPage, downloadPage
 from allmydata import client, introducer_and_vdrive
 from allmydata.scripts import create_node
 from allmydata.util import testutil, fileutil
@@ -30,6 +30,8 @@ class SystemFramework(testutil.PollMixin):
         self.tub.setServiceParent(self.sparent)
         self.discard_shares = True
         self.mode = mode
+        if mode in ("download", "download-GET"):
+            self.discard_shares = False
         self.failed = False
 
     def run(self):
@@ -169,7 +171,7 @@ this file are ignored.
             f = open(os.path.join(clientdir, "debug_no_storage"), "w")
             f.write("no_storage\n")
             f.close()
-        if self.mode == "upload-self":
+        if self.mode in ("upload-self", "download", "download-GET"):
             f = open(os.path.join(clientdir, "push_to_ourselves"), "w")
             f.write("push_to_ourselves\n")
             f.close()
@@ -269,6 +271,65 @@ this file are ignored.
         return getPage(url, method="POST", postdata=body,
                        headers=headers, followRedirect=False)
 
+    def GET_discard(self, urlpath):
+        # TODO: Slow
+        url = self.webish_url + urlpath + "?filename=dummy-get.out"
+        return downloadPage(url, os.path.join(self.basedir, "dummy-get.out"))
+
+    def _print_usage(self, res=None):
+        d = self.control_rref.callRemote("get_memory_usage")
+        def _print(stats):
+            print "VmSize: %9d  VmPeak: %9d" % (stats["VmSize"],
+                                                stats["VmPeak"])
+            return stats
+        d.addCallback(_print)
+        return d
+
+    def _do_upload(self, res, size, files, uris):
+        name = '%d' % size
+        print
+        print "uploading %s" % name
+        if self.mode in ("upload", "upload-self"):
+            files[name] = self.create_data(name, size)
+            d = self.control_rref.callRemote("upload_from_file_to_uri",
+                                             files[name])
+            def _done(uri):
+                os.remove(files[name])
+                del files[name]
+                return uri
+            d.addCallback(_done)
+        elif self.mode == "upload-POST":
+            data = "a" * size
+            url = "/vdrive/global"
+            d = self.POST(url, t="upload", file=("%d.data" % size, data))
+        elif self.mode in ("download", "download-GET"):
+            # upload the data from a local peer, then have the
+            # client-under-test download it.
+            files[name] = self.create_data(name, size)
+            u = self.nodes[0].getServiceNamed("uploader")
+            d = u.upload_filename(files[name])
+        else:
+            raise RuntimeError("unknown mode=%s" % self.mode)
+        def _complete(uri):
+            uris[name] = uri
+            print "uploaded %s" % name
+        d.addCallback(_complete)
+        return d
+
+    def _do_download(self, res, size, uris):
+        if self.mode not in ("download", "download-GET"):
+            return
+        name = '%d' % size
+        uri = uris[name]
+        if self.mode == "download":
+            d = self.control_rref.callRemote("download_from_uri_to_file",
+                                             uri, "dummy.out")
+        if self.mode == "download-GET":
+            url = "/uri/%s" % uri
+            d = self.GET_discard(urllib.quote(url))
+
+        return d
+
     def do_test(self):
         #print "CLIENT STARTED"
         #print "FURL", self.control_furl
@@ -277,62 +338,32 @@ this file are ignored.
         kB = 1000; MB = 1000*1000
         files = {}
         uris = {}
-        control = self.control_rref
 
-        def _print_usage(res=None):
-            d = control.callRemote("get_memory_usage")
-            def _print(stats):
-                print "VmSize: %9d  VmPeak: %9d" % (stats["VmSize"],
-                                                    stats["VmPeak"])
-                return stats
-            d.addCallback(_print)
-            return d
-
-        def _do_upload(res, size):
-            name = '%d' % size
-            print
-            print "uploading %s" % name
-            if self.mode in ("upload", "upload-self"):
-                files[name] = self.create_data(name, size)
-                d = control.callRemote("upload_from_file_to_uri", files[name])
-                def _done(uri):
-                    os.remove(files[name])
-                    del files[name]
-                    return uri
-                d.addCallback(_done)
-            elif self.mode == "upload-POST":
-                data = "a" * size
-                url = "/vdrive/global"
-                d = self.POST(url, t="upload", file=("%d.data" % size, data))
-            else:
-                raise RuntimeError("unknown mode=%s" % self.mode)
-            def _complete(uri):
-                uris[name] = uri
-                print "uploaded %s" % name
-            d.addCallback(_complete)
-            return d
-
-        d = _print_usage()
+        d = self._print_usage()
         d.addCallback(self.stash_stats, "0B")
 
         for i in range(10):
-            d.addCallback(_do_upload, size=10*kB+i)
-            d.addCallback(_print_usage)
+            d.addCallback(self._do_upload, 10*kB+i, files, uris)
+            d.addCallback(self._do_download, 10*kB+i, uris)
+            d.addCallback(self._print_usage)
         d.addCallback(self.stash_stats, "10kB")
 
         for i in range(3):
-            d.addCallback(_do_upload, size=10*MB+i)
-            d.addCallback(_print_usage)
+            d.addCallback(self._do_upload, 10*MB+i, files, uris)
+            d.addCallback(self._do_download, 10*MB+i, uris)
+            d.addCallback(self._print_usage)
         d.addCallback(self.stash_stats, "10MB")
 
-        for i in range(3):
-            d.addCallback(_do_upload, size=50*MB+i)
-            d.addCallback(_print_usage)
+        for i in range(1):
+            d.addCallback(self._do_upload, 50*MB+i, files, uris)
+            d.addCallback(self._do_download, 50*MB+i, uris)
+            d.addCallback(self._print_usage)
         d.addCallback(self.stash_stats, "50MB")
 
         #for i in range(1):
-        #    d.addCallback(_do_upload, size=100*MB+i)
-        #    d.addCallback(_print_usage)
+        #    d.addCallback(self._do_upload, 100*MB+i, files, uris)
+        #    d.addCallback(self._do_download, 100*MB+i, uris)
+        #    d.addCallback(self._print_usage)
         #d.addCallback(self.stash_stats, "100MB")
 
         #d.addCallback(self.stall)

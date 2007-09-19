@@ -177,6 +177,10 @@ check-memory: build
 	 $(PYTHON) src/allmydata/test/check_memory.py upload-self
 	$(PP) \
 	 $(PYTHON) src/allmydata/test/check_memory.py upload-POST
+	$(PP) \
+	 $(PYTHON) src/allmydata/test/check_memory.py download
+	$(PP) \
+	 $(PYTHON) src/allmydata/test/check_memory.py download-GET
 
 
 test-darcs-boringfile:
