@@ -1053,3 +1053,9 @@ class RIControlClient(RemoteInterface):
         keys are 'VmPeak', 'VmSize', and 'VmData'. The values are integers,
         measuring memory consupmtion in bytes."""
         return DictOf(str, int)
+
+    def upload_speed_test(size=int):
+        """Write a tempfile to disk of the given size. Measure how long
+        it takes to upload it to the servers.
+        """
+        return float

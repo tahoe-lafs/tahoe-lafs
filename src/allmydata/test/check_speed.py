@@ -15,6 +15,7 @@ class SpeedTest:
         f.close()
         self.base_service = service.MultiService()
         self.failed = None
+        self.times = {}
 
     def run(self):
         print "STARTING"
@@ -54,12 +55,23 @@ class SpeedTest:
         reactor.callLater(delay, d.callback, result)
         return d
 
+    def record_time(self, time, key):
+        print "TIME (%s): %s" % (key, time)
+        self.times[key] = time
+
     def do_test(self):
         print "doing test"
-        d = self.client_rref.callRemote("get_memory_usage")
+        rr = self.client_rref
+        d = rr.callRemote("get_memory_usage")
         def _got(res):
             print "MEMORY USAGE:", res
         d.addCallback(_got)
+        d.addCallback(lambda res: rr.callRemote("upload_speed_test", 1000))
+        d.addCallback(self.record_time, "startup")
+        d.addCallback(lambda res: rr.callRemote("upload_speed_test", int(1e6)))
+        d.addCallback(self.record_time, "1MB.1")
+        d.addCallback(lambda res: rr.callRemote("upload_speed_test", int(1e6)))
+        d.addCallback(self.record_time, "1MB.2")
         return d
 
     def tearDown(self, res):
