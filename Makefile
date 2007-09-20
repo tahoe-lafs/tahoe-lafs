@@ -202,6 +202,16 @@ check-memory-once: .built
 	$(PP) \
 	 $(PYTHON) src/allmydata/test/check_memory.py $(MODE)
 
+# this target uses a pre-established client node to run a canned set of
+# performance tests against a test network that is also pre-established
+# (probably on a remote machine). Provide it with the path to a local
+# directory where this client node has been created (and populated with the
+# necessary FURLs of the test network). This target will restart that client
+# with the current code and then run the tests.
+check-speed: .built
+	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
+	$(PYTHON) bin/allmydata-tahoe restart -f $(TESTCLIENTDIR)
+	$(PYTHON) src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
 
 test-darcs-boringfile:
 	$(MAKE)
