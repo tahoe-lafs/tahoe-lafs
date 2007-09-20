@@ -33,12 +33,7 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
     implements(RIControlClient)
 
     def remote_wait_for_client_connections(self, num_clients):
-        def _check():
-            current_clients = list(self.parent.get_all_peerids())
-            return len(current_clients) >= num_clients
-        d = self.poll(_check, 0.5)
-        d.addCallback(lambda res: None)
-        return d
+        return self.parent.debug_wait_for_client_connections(num_clients)
 
     def remote_upload_from_file_to_uri(self, filename):
         uploader = self.parent.getServiceNamed("uploader")
@@ -52,9 +47,6 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
         return d
 
     def remote_upload_speed_test(self, size):
-        """Write a tempfile to disk of the given size. Measure how long
-        it takes to upload it to the servers.
-        """
         assert size > 8
         fn = os.path.join(self.parent.basedir, idlib.b2a(os.urandom(8)))
         f = open(fn, "w")

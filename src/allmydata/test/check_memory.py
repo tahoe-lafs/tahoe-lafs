@@ -377,18 +377,21 @@ this file are ignored.
             data = "a" * size
             url = "/vdrive/global"
             d = self.POST(url, t="upload", file=("%d.data" % size, data))
-        elif self.mode in ("receive",):
-            # upload the data from a local peer, so that the
+        elif self.mode in ("receive",
+                           "download", "download-GET", "download-GET-slow"):
+            # mode=receive: upload the data from a local peer, so that the
             # client-under-test receives and stores the shares
+            #
+            # mode=download*: upload the data from a local peer, then have
+            # the client-under-test download it.
+            #
+            # we need to wait until the uploading node has connected to all
+            # peers, since the wait_for_client_connections() above doesn't
+            # pay attention to our self.nodes[] and their connections.
             files[name] = self.create_data(name, size)
             u = self.nodes[0].getServiceNamed("uploader")
-            d = u.upload_filename(files[name])
-        elif self.mode in ("download", "download-GET", "download-GET-slow"):
-            # upload the data from a local peer, then have the
-            # client-under-test download it.
-            files[name] = self.create_data(name, size)
-            u = self.nodes[0].getServiceNamed("uploader")
-            d = u.upload_filename(files[name])
+            d = self.nodes[0].debug_wait_for_client_connections(self.numnodes+1)
+            d.addCallback(lambda res: u.upload_filename(files[name]))
         else:
             raise RuntimeError("unknown mode=%s" % self.mode)
         def _complete(uri):

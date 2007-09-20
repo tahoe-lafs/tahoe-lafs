@@ -17,9 +17,9 @@ from allmydata.download import Downloader
 from allmydata.control import ControlServer
 from allmydata.introducer import IntroducerClient
 from allmydata.vdrive import VirtualDrive
-from allmydata.util import hashutil, idlib
+from allmydata.util import hashutil, idlib, testutil
 
-class Client(node.Node, Referenceable):
+class Client(node.Node, Referenceable, testutil.PollMixin):
     implements(RIClient)
     PORTNUMFILE = "client.port"
     STOREDIR = 'storage'
@@ -189,3 +189,16 @@ class Client(node.Node, Referenceable):
 
     def get_cancel_secret(self):
         return hashutil.my_cancel_secret_hash(self._secret)
+
+    def debug_wait_for_client_connections(self, num_clients):
+        """Return a Deferred that fires (with None) when we have connections
+        to the given number of peers. Useful for tests that set up a
+        temporary test network and need to know when it is safe to proceed
+        with an upload or download."""
+        def _check():
+            current_clients = list(self.get_all_peerids())
+            return len(current_clients) >= num_clients
+        d = self.poll(_check, 0.5)
+        d.addCallback(lambda res: None)
+        return d
+
