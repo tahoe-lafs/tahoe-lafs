@@ -1,5 +1,5 @@
 
-import os, sys, signal, time, subprocess
+import os, sys, signal, time
 from twisted.python import usage
 from allmydata.scripts.common import BasedirMixin
 from allmydata.util import fileutil
@@ -25,38 +25,6 @@ class RestartOptions(BasedirMixin, usage.Options):
          "of 'restart'"],
         ]
 
-
-def testtwistd(loc):
-    try:
-        return subprocess.call(["python", loc,], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except:
-        return -1
-
-def find_twistd():
-    for maybetwistd in which("twistd"):
-        ret = testtwistd(maybetwistd)
-        if ret == 0:
-            return maybetwistd
-
-    for maybetwistd in which("twistd.py"):
-        ret = testtwistd(maybetwistd)
-        if ret == 0:
-            return maybetwistd
-
-    maybetwistd = os.path.join(sys.prefix, 'Scripts', 'twistd')
-    ret = testtwistd(maybetwistd)
-    if ret == 0:
-        return maybetwistd
-
-    maybetwistd = os.path.join(sys.prefix, 'Scripts', 'twistd.py')
-    ret = testtwistd(maybetwistd)
-    if ret == 0:
-        return maybetwistd
-
-    print "Can't find twistd (it comes with Twisted).  Aborting."
-    sys.exit(1)
-
-
 def do_start(basedir, config, out=sys.stdout, err=sys.stderr):
     print >>out, "STARTING", basedir
     if os.path.exists(os.path.join(basedir, "client.tac")):
@@ -70,10 +38,26 @@ def do_start(basedir, config, out=sys.stdout, err=sys.stderr):
         if not os.path.isdir(basedir):
             print >>err, " in fact, it doesn't look like a directory at all!"
         return 1
-    twistd = find_twistd()
+    twistds = which("twistd")
+    if not twistds:
+        print "Can't find twistd (it comes with Twisted).  Aborting."
+        sys.exit(1)
+    twistd = twistds[0]
+    path, ext = os.path.splitext(twistd)
+    if ext.lower() in [".exe", ".bat",]:
+        cmd = [twistd,]
+    else:
+        cmd = [sys.executable, twistd,]
+    
     fileutil.make_dirs(os.path.join(basedir, "logs"))
-    cmd = ["python", twistd, "-y", tac, "--logfile", "logs/twistd.log"]
-    rc = subprocess.call(cmd, cwd=basedir)
+    cmd.extend(["-y", tac, "--logfile", os.path.join("logs", "twistd.log")])
+    print "os.chdir(%s)" % (basedir,)
+    curdir = os.getcwd()
+    try:
+        os.chdir(basedir)
+        rc = os.system(' '.join(cmd))
+    finally:
+        os.chdir(curdir)
     if rc == 0:
         print >>out, "%s node probably started" % type
         return 0
