@@ -2,9 +2,10 @@
 import os, time
 from zope.interface import implements
 from twisted.application import service
+from twisted.internet import defer
 from foolscap import Referenceable
 from allmydata.interfaces import RIControlClient
-from allmydata.util import testutil, idlib
+from allmydata.util import testutil, fileutil
 from twisted.python import log
 
 def get_memory_usage():
@@ -46,26 +47,43 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
         d.addCallback(lambda res: filename)
         return d
 
-    def remote_upload_speed_test(self, size):
+    def remote_upload_speed_test(self, count, size):
         assert size > 8
-        fn = os.path.join(self.parent.basedir, idlib.b2a(os.urandom(8)))
-        f = open(fn, "w")
-        f.write(os.urandom(8))
-        size -= 8
-        while size > 0:
-            chunk = min(size, 4096)
-            f.write("\x00" * chunk)
-            size -= chunk
-        f.close()
+        basedir = os.path.join(self.parent.basedir, "_speed_test_data")
+        log.msg("speed_test: count=%d, size=%d" % (count, size))
+        fileutil.make_dirs(basedir)
+        for i in range(count):
+            s = size
+            fn = os.path.join(basedir, str(i))
+            if os.path.exists(fn):
+                os.unlink(fn)
+            f = open(fn, "w")
+            f.write(os.urandom(8))
+            s -= 8
+            while s > 0:
+                chunk = min(s, 4096)
+                f.write("\x00" * chunk)
+                s -= chunk
+            f.close()
         uploader = self.parent.getServiceNamed("uploader")
         start = time.time()
-        d = uploader.upload_filename(fn)
-        def _done(uri):
+        d = defer.succeed(None)
+        def _do_one_file(uri, i):
+            if i >= count:
+                return
+            fn = os.path.join(basedir, str(i))
+            d1 = uploader.upload_filename(fn)
+            d1.addCallback(_do_one_file, i+1)
+            return d1
+        d.addCallback(_do_one_file, 0)
+        def _done(ignored):
             stop = time.time()
             return stop - start
         d.addCallback(_done)
         def _cleanup(res):
-            os.unlink(fn)
+            for i in range(count):
+                fn = os.path.join(basedir, str(i))
+                os.unlink(fn)
             return res
         d.addBoth(_cleanup)
         return d

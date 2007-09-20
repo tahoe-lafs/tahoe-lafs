@@ -212,6 +212,7 @@ check-memory-once: .built
 check-speed: .built
 	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
 	$(PYTHON) bin/allmydata-tahoe restart -f $(TESTCLIENTDIR)
+	sleep 1
 	$(PYTHON) src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
 
 test-darcs-boringfile:

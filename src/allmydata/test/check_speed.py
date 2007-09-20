@@ -6,6 +6,8 @@ from twisted.python import log
 from twisted.application import service
 from foolscap import Tub, eventual
 
+MB = 1000000
+
 class SpeedTest:
     def __init__(self, test_client_dir):
         #self.real_stderr = sys.stderr
@@ -59,6 +61,11 @@ class SpeedTest:
         print "TIME (%s): %s" % (key, time)
         self.times[key] = time
 
+    def one_test(self, res, name, count, size):
+        d = self.client_rref.callRemote("upload_speed_test", count, size)
+        d.addCallback(self.record_time, name)
+        return d
+
     def do_test(self):
         print "doing test"
         rr = self.client_rref
@@ -66,13 +73,47 @@ class SpeedTest:
         def _got(res):
             print "MEMORY USAGE:", res
         d.addCallback(_got)
-        d.addCallback(lambda res: rr.callRemote("upload_speed_test", 1000))
-        d.addCallback(self.record_time, "startup")
-        d.addCallback(lambda res: rr.callRemote("upload_speed_test", int(1e6)))
-        d.addCallback(self.record_time, "1MB.1")
-        d.addCallback(lambda res: rr.callRemote("upload_speed_test", int(1e6)))
-        d.addCallback(self.record_time, "1MB.2")
+        d.addCallback(self.one_test, "startup", 1, 1000) # ignore this one
+        d.addCallback(self.one_test, "1x 200B", 1, 200)
+        d.addCallback(self.one_test, "10x 200B", 10, 200)
+        #d.addCallback(self.one_test, "100x 200B", 100, 200)
+        d.addCallback(self.one_test, "1MB", 1, 1*MB)
+        d.addCallback(self.one_test, "10MB", 1, 10*MB)
+        d.addCallback(self.calculate_speed)
         return d
+
+    def calculate_speed(self, res):
+        perfile = self.times["1x 200B"]
+        # time = A*size+B
+        # we assume that A*200bytes is negligible
+        B = self.times["10x 200B"] / 10
+        print "per-file time: %.3fs" % B
+        A1 = 1*MB / (self.times["1MB"] - B) # in bytes per second
+        print "speed (1MB):", self.number(A1, "Bps")
+        A2 = 10*MB / (self.times["10MB"] - B)
+        print "speed (10MB):", self.number(A2, "Bps")
+
+    def number(self, value, suffix=""):
+        scaling = 1
+        if value < 1:
+            fmt = "%1.2g%s"
+        elif value < 100:
+            fmt = "%.1f%s"
+        elif value < 1000:
+            fmt = "%d%s"
+        elif value < 1e6:
+            fmt = "%.2fk%s"; scaling = 1e3
+        elif value < 1e9:
+            fmt = "%.2fM%s"; scaling = 1e6
+        elif value < 1e12:
+            fmt = "%.2fG%s"; scaling = 1e9
+        elif value < 1e15:
+            fmt = "%.2fT%s"; scaling = 1e12
+        elif value < 1e18:
+            fmt = "%.2fP%s"; scaling = 1e15
+        else:
+            fmt = "huge! %g%s"
+        return fmt % (value / scaling, suffix)
 
     def tearDown(self, res):
         d = self.base_service.stopService()
