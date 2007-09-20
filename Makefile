@@ -107,7 +107,9 @@ endif
 
 check-deps:
 	$(PP) \
-	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, OpenSSL'
+	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, OpenSSL' || \
+	echo "Not all of Tahoe's dependencies are in place.  Please see the README for help on installing dependencies." && \
+	exit 1
 
 .checked-deps:
 	$(MAKE) check-deps
