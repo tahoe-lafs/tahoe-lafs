@@ -24,6 +24,7 @@ except ImportError:
 install_requires=["zfec >= 1.0.3",
                   "foolscap >= 0.1.6",
                   "simplejson >= 1.4",
+                  "zope.interface >= 3.0",
                   ]
 
 # Ubuntu Dapper includes nevow-0.6.0 and twisted-2.2.0, both of which work.
