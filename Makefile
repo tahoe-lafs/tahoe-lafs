@@ -189,6 +189,8 @@ check-memory: .built
 	 $(PYTHON) src/allmydata/test/check_memory.py download-GET
 	$(PP) \
 	 $(PYTHON) src/allmydata/test/check_memory.py download-GET-slow
+	$(PP) \
+	 $(PYTHON) src/allmydata/test/check_memory.py receive
 
 check-memory-once: .built
 	rm -rf _test_memory
