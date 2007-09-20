@@ -83,6 +83,9 @@ class SystemFramework(testutil.PollMixin):
         #log.startLoggingWithObserver(flo.emit, setStdout=False)
         d = eventual.fireEventually()
         d.addCallback(lambda res: self.setUp())
+        d.addCallback(lambda res: self.record_initial_memusage())
+        d.addCallback(lambda res: self.make_nodes())
+        d.addCallback(lambda res: self.wait_for_client_connected())
         d.addCallback(lambda res: self.do_test())
         d.addBoth(self.tearDown)
         def _err(err):
@@ -104,7 +107,6 @@ class SystemFramework(testutil.PollMixin):
         self.statsfile = open(os.path.join(self.basedir, "stats.out"), "a")
         d = self.make_introducer_and_vdrive()
         def _more(res):
-            self.make_nodes()
             return self.start_client()
         d.addCallback(_more)
         def _record_control_furl(control_furl):
@@ -114,14 +116,25 @@ class SystemFramework(testutil.PollMixin):
         d.addCallback(_record_control_furl)
         def _record_control(control_rref):
             self.control_rref = control_rref
-            return control_rref.callRemote("wait_for_client_connections",
-                                           self.numnodes+1)
         d.addCallback(_record_control)
         def _ready(res):
             #print "CLIENT READY"
             pass
         d.addCallback(_ready)
         return d
+
+    def record_initial_memusage(self):
+        print
+        print "Client started (no connections yet)"
+        d = self._print_usage()
+        d.addCallback(self.stash_stats, "init")
+        return d
+
+    def wait_for_client_connected(self):
+        print
+        print "Client connecting to other nodes.."
+        return self.control_rref.callRemote("wait_for_client_connections",
+                                            self.numnodes+1)
 
     def tearDown(self, passthrough):
         # the client node will shut down in a few seconds
@@ -148,12 +161,14 @@ class SystemFramework(testutil.PollMixin):
         iv = introducer_and_vdrive.IntroducerAndVdrive(basedir=iv_basedir)
         self.introducer_and_vdrive = self.add_service(iv)
         d = self.introducer_and_vdrive.when_tub_ready()
+        def _introducer_ready(res):
+            q = self.introducer_and_vdrive
+            self.introducer_furl = q.urls["introducer"]
+            self.vdrive_furl = q.urls["vdrive"]
+        d.addCallback(_introducer_ready)
         return d
 
     def make_nodes(self):
-        q = self.introducer_and_vdrive
-        self.introducer_furl = q.urls["introducer"]
-        self.vdrive_furl = q.urls["vdrive"]
         self.nodes = []
         for i in range(self.numnodes):
             nodedir = os.path.join(self.testdir, "node%d" % i)
