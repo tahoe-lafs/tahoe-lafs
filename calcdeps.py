@@ -8,7 +8,7 @@ import os.path, sys
 #  "file:misc/dependencies/zfec-1.0.2.tar.gz",
 # The file: URL can start with either 'misc' or './misc' to get a relative path.
 
-dependency_tarballs=[ "file:" + os.path.join("misc", "dependencies", fn)
+dependency_tarballs=[ os.path.join("misc", "dependencies", fn)
                       for fn in os.listdir(os.path.join("misc", "dependencies"))
                       if fn.endswith(".tar.gz") or fn.endswith(".zip") ]
 
