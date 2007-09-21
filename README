@@ -77,9 +77,21 @@ apt-get install gcc make python-dev python-twisted python-pyopenssl".
    To install PyOpenSSL on Windows-native, download this:
    http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.5.exe
 
+   or for Python 2.4, this:
+
+   http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.4.exe
+
    To install PyOpenSSL on Windows-cygwin, install the OpenSSL development
    libraries with the cygwin package management tool, then get the pyOpenSSL
    source code, cd into it, and run "python ./setup.py install".
+
+ + the pywin32 package: required only on Windows
+
+   http://sourceforge.net/projects/pywin32/
+
+   (Tested with build 210, and known to not work with build 204.
+   Feedback with details of other builds is greatly appreciated.)
+
 
 In addition, the following Python packages are required, but they will
 normally be automatically installed as a side effect of installing Tahoe.
@@ -129,17 +141,6 @@ normally be automatically installed as a side effect of installing Tahoe.
    later.
 
    Nevow is packaged in a setuptools-compatible way and included in the
-   Python Package Index (PyPI), so it will be automatically installed when
-   you install Tahoe (see INSTALLING).
-
- + the pywin32 package: required only on Windows
-
-   http://sourceforge.net/projects/pywin32/
-
-   (Tested with build 210, and known to not work with build 204.
-   Feedback with details of other builds is greatly appreciated.)
-
-   pywin32 is packaged in a setuptools-compatible way and included in the
    Python Package Index (PyPI), so it will be automatically installed when
    you install Tahoe (see INSTALLING).
 

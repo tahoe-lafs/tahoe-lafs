@@ -10,7 +10,7 @@ import os.path, sys
 
 dependency_tarballs=[ os.path.join("misc", "dependencies", fn)
                       for fn in os.listdir(os.path.join("misc", "dependencies"))
-                      if fn.endswith(".tar.gz") or fn.endswith(".zip") ]
+                      if fn.endswith(".tar.gz") ]
 
 dependency_links=["http://allmydata.org/trac/tahoe/wiki/Dependencies"] + dependency_tarballs
 
@@ -27,9 +27,6 @@ install_requires=["zfec >= 1.0.3",
                   "zope.interface >= 3.0",
                   ]
 
-if sys.platform == 'win32':
-    install_requires.append("pywin32")
-    
 
 # Ubuntu Dapper includes nevow-0.6.0 and twisted-2.2.0, both of which work.
 # However, setuptools doesn't know about them, so our install_requires=

@@ -60,7 +60,7 @@ TRIAL=$(PYTHON) -u "$(TRIALPATH)" --rterrors $(REACTOROPT)
 
 # build-deps wants setuptools to have been built first. It's easiest to
 # accomplish this by depending upon the tahoe compile.
-build-deps: .built
+build-deps: .built check-twisted-dep
 	mkdir -p "$(SUPPORTLIB)"
 	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)." \
          $(PYTHON) misc/dependencies/build-deps-setup.py install \
@@ -103,17 +103,35 @@ endif
 
 # TESTING
 
-.PHONY: check-deps test test-figleaf figleaf-output
+.PHONY: check-deps check-twisted-dep check-pywin32-dep signal-error-deps, signal-error-twisted-dep, signal-error-pywin32-dep, test test-figleaf figleaf-output
 
 
-signal-error:
+signal-error-deps:
 	@echo "ERROR: Not all of Tahoe's dependencies are in place.  Please \
 see the README for help on installing dependencies."
 	exit 1
 
-check-deps:
+signal-error-twisted-dep:
+	@echo "ERROR: Before running \"make build-deps\" you have to ensure that \
+Twisted is installed (including its zope.interface dependency).  Twisted and \
+zope.interface are required for the automatic installation of certain other \
+libraries that Tahoe requires).  Please see the README for details."
+	exit 1
+
+signal-error-pywin32-dep:
+	@echo "ERROR: the pywin32 dependency is not in place.  Please see the README \
+for help on installing dependencies."
+	exit 1
+
+check-deps: check-twisted-dep check-pywin32-dep
 	$(PP) \
-	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, OpenSSL' || $(MAKE) signal-error
+	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, OpenSSL' || $(MAKE) signal-error-deps
+
+check-twisted-dep:
+	$(PYTHON) -c 'import twisted, zope.interface' || $(MAKE) signal-error-twisted-dep
+
+check-pywin32-dep:
+	$(PYTHON) -c 'import win32process' || $(MAKE) signal-error-pywin32-dep
 
 .checked-deps:
 	$(MAKE) check-deps
