@@ -17,7 +17,8 @@ class SpeedTest:
         f.close()
         self.base_service = service.MultiService()
         self.failed = None
-        self.times = {}
+        self.upload_times = {}
+        self.download_times = {}
 
     def run(self):
         print "STARTING"
@@ -57,41 +58,47 @@ class SpeedTest:
         reactor.callLater(delay, d.callback, result)
         return d
 
-    def record_time(self, time, key):
-        print "TIME (%s): %s" % (key, time)
-        self.times[key] = time
+    def record_times(self, times, key):
+        print "TIME (%s): %s up, %s down" % (key, times[0], times[1])
+        self.upload_times[key], self.download_times[key] = times
 
     def one_test(self, res, name, count, size):
-        d = self.client_rref.callRemote("upload_speed_test", count, size)
-        d.addCallback(self.record_time, name)
+        d = self.client_rref.callRemote("speed_test", count, size)
+        d.addCallback(self.record_times, name)
         return d
 
     def do_test(self):
         print "doing test"
         rr = self.client_rref
-        d = rr.callRemote("get_memory_usage")
-        def _got(res):
-            print "MEMORY USAGE:", res
-        d.addCallback(_got)
+        d = defer.succeed(None)
         d.addCallback(self.one_test, "startup", 1, 1000) # ignore this one
         d.addCallback(self.one_test, "1x 200B", 1, 200)
         d.addCallback(self.one_test, "10x 200B", 10, 200)
         #d.addCallback(self.one_test, "100x 200B", 100, 200)
         d.addCallback(self.one_test, "1MB", 1, 1*MB)
         d.addCallback(self.one_test, "10MB", 1, 10*MB)
-        d.addCallback(self.calculate_speed)
+        d.addCallback(self.calculate_speeds)
         return d
 
-    def calculate_speed(self, res):
-        perfile = self.times["1x 200B"]
+    def calculate_speeds(self, res):
         # time = A*size+B
         # we assume that A*200bytes is negligible
-        B = self.times["10x 200B"] / 10
-        print "per-file time: %.3fs" % B
-        A1 = 1*MB / (self.times["1MB"] - B) # in bytes per second
-        print "speed (1MB):", self.number(A1, "Bps")
-        A2 = 10*MB / (self.times["10MB"] - B)
-        print "speed (10MB):", self.number(A2, "Bps")
+
+        # upload
+        B = self.upload_times["10x 200B"] / 10
+        print "upload per-file time: %.3fs" % B
+        A1 = 1*MB / (self.upload_times["1MB"] - B) # in bytes per second
+        print "upload speed (1MB):", self.number(A1, "Bps")
+        A2 = 10*MB / (self.upload_times["10MB"] - B)
+        print "upload speed (10MB):", self.number(A2, "Bps")
+
+        # download
+        B = self.download_times["10x 200B"] / 10
+        print "download per-file time: %.3fs" % B
+        A1 = 1*MB / (self.download_times["1MB"] - B) # in bytes per second
+        print "download speed (1MB):", self.number(A1, "Bps")
+        A2 = 10*MB / (self.download_times["10MB"] - B)
+        print "download speed (10MB):", self.number(A2, "Bps")
 
     def number(self, value, suffix=""):
         scaling = 1

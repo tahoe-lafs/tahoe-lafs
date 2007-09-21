@@ -47,14 +47,36 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
         d.addCallback(lambda res: filename)
         return d
 
-    def remote_upload_speed_test(self, count, size):
+    def remote_speed_test(self, count, size):
         assert size > 8
-        basedir = os.path.join(self.parent.basedir, "_speed_test_data")
         log.msg("speed_test: count=%d, size=%d" % (count, size))
-        fileutil.make_dirs(basedir)
-        for i in range(count):
-            s = size
-            fn = os.path.join(basedir, str(i))
+        st = SpeedTest(self.parent, count, size)
+        return st.run()
+
+    def remote_get_memory_usage(self):
+        return get_memory_usage()
+
+class SpeedTest:
+    def __init__(self, parent, count, size):
+        self.parent = parent
+        self.count = count
+        self.size = size
+        self.uris = {}
+        self.basedir = os.path.join(self.parent.basedir, "_speed_test_data")
+
+    def run(self):
+        self.create_data()
+        d = self.do_upload()
+        d.addCallback(lambda res: self.do_download())
+        d.addBoth(self.do_cleanup)
+        d.addCallback(lambda res: (self.upload_time, self.download_time))
+        return d
+
+    def create_data(self):
+        fileutil.make_dirs(self.basedir)
+        for i in range(self.count):
+            s = self.size
+            fn = os.path.join(self.basedir, str(i))
             if os.path.exists(fn):
                 os.unlink(fn)
             f = open(fn, "w")
@@ -65,28 +87,53 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
                 f.write("\x00" * chunk)
                 s -= chunk
             f.close()
+
+    def do_upload(self):
         uploader = self.parent.getServiceNamed("uploader")
         start = time.time()
         d = defer.succeed(None)
-        def _do_one_file(uri, i):
-            if i >= count:
+        def _record_uri(uri, i):
+            self.uris[i] = uri
+        def _upload_one_file(ignored, i):
+            if i >= self.count:
                 return
-            fn = os.path.join(basedir, str(i))
+            fn = os.path.join(self.basedir, str(i))
             d1 = uploader.upload_filename(fn)
-            d1.addCallback(_do_one_file, i+1)
+            d1.addCallback(_record_uri, i)
+            d1.addCallback(_upload_one_file, i+1)
             return d1
-        d.addCallback(_do_one_file, 0)
-        def _done(ignored):
+        d.addCallback(_upload_one_file, 0)
+        def _upload_done(ignored):
             stop = time.time()
-            return stop - start
-        d.addCallback(_done)
-        def _cleanup(res):
-            for i in range(count):
-                fn = os.path.join(basedir, str(i))
-                os.unlink(fn)
-            return res
-        d.addBoth(_cleanup)
+            self.upload_time = stop - start
+        d.addCallback(_upload_done)
         return d
 
-    def remote_get_memory_usage(self):
-        return get_memory_usage()
+    def do_download(self):
+        downloader = self.parent.getServiceNamed("downloader")
+        start = time.time()
+        d = defer.succeed(None)
+        def _download_one_file(ignored, i):
+            if i >= self.count:
+                return
+            d1 = downloader.download_to_filehandle(self.uris[i], Discard())
+            d1.addCallback(_download_one_file, i+1)
+            return d1
+        d.addCallback(_download_one_file, 0)
+        def _download_done(ignored):
+            stop = time.time()
+            self.download_time = stop - start
+        d.addCallback(_download_done)
+        return d
+
+    def do_cleanup(self, res):
+        for i in range(self.count):
+            fn = os.path.join(self.basedir, str(i))
+            os.unlink(fn)
+        return res
+
+class Discard:
+    def write(self, data):
+        pass
+    def close(self):
+        pass

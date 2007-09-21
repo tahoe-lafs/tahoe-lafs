@@ -1054,8 +1054,11 @@ class RIControlClient(RemoteInterface):
         measuring memory consupmtion in bytes."""
         return DictOf(str, int)
 
-    def upload_speed_test(count=int, size=int):
+    def speed_test(count=int, size=int):
         """Write 'count' tempfiles to disk, all of the given size. Measure
         how long (in seconds) it takes to upload them all to the servers.
+        Then measure how long it takes to download all of them.
+
+        Returns a tuple of (upload_time, download_time).
         """
-        return float
+        return (float, float)
