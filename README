@@ -146,6 +146,11 @@ normally be automatically installed as a side effect of installing Tahoe.
 
 GETTING THE SOURCE CODE:
 
+You need the source code if you are going to install The Debian Way, The
+Setuptools Way, or The Running-In-Place Way (see below).  You do not need the
+source code if you are getting precompiled binaries for Debian or Ubuntu (see
+above), or if you are going to install The easy_install Way (see below).
+
 The code is available via darcs by running the following command:
 
 darcs get http://allmydata.org/source/tahoe/trunk tahoe
