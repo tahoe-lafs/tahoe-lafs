@@ -207,13 +207,19 @@ check-memory-once: .built
 # performance tests against a test network that is also pre-established
 # (probably on a remote machine). Provide it with the path to a local
 # directory where this client node has been created (and populated with the
-# necessary FURLs of the test network). This target will restart that client
-# with the current code and then run the tests.
+# necessary FURLs of the test network). This target will start that client
+# with the current code and then run the tests. Afterwards it will stop the
+# client.
+#
+# The 'sleep 5' is in there to give the new client a chance to connect to its
+# storageservers, since check_speed.py has no good way of doing that itself.
+
 check-speed: .built
 	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
-	$(PYTHON) bin/allmydata-tahoe restart -f $(TESTCLIENTDIR)
-	sleep 1
+	$(PYTHON) bin/allmydata-tahoe start $(TESTCLIENTDIR)
+	sleep 5
 	$(PYTHON) src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
+	$(PYTHON) bin/allmydata-tahoe stop $(TESTCLIENTDIR)
 
 test-darcs-boringfile:
 	$(MAKE)
