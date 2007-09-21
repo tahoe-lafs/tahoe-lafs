@@ -18,6 +18,7 @@ default: build
 
 PYTHON=python
 PATHSEP=$(shell python -c 'import os ; print os.pathsep')
+OSSEP=$(shell python -c 'import os ; print os.sep')
 TRIALPATH=$(shell which trial.py 2>/dev/null)
 ifeq ($(TRIALPATH),)
 TRIALPATH=$(shell which trial 2>/dev/null)
@@ -69,7 +70,7 @@ EGGSPATH = $(shell $(PYTHON) misc/find-dep-eggs.py)
 show-eggspath:
 	@echo $(EGGSPATH)
 
-PP=PYTHONPATH="$(SRCPATH)$(PATHSEP)$(EGGSPATH)$(PATHSEP)$(PYTHONPATH)."
+PP=PYTHONPATH="$(SRCPATH)$(PATHSEP)$(EGGSPATH)$(PATHSEP)$(PYTHONPATH)$(OSSEP)."
 
 .PHONY: make-version build
 make-version:
