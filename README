@@ -237,14 +237,26 @@ TESTING THAT IT IS PROPERLY INSTALLED
 
  'make test' runs the unit test suites.  (This can take a long time on
  slow computers.  There are a lot of tests and some of them do a lot of
- public-key cryptography.)
+ public-key cryptography.)  If all tests pass, then you have all the
+ dependencies installed, either because they are installed into your system
+ or because they are installed into a local subdirectory because you ran
+ "make build-deps" (see "The Running-In-Place Way", above).
+
+ Executing the allmydata-tahoe script from the "bin" subdirectory will work
+ only if Tahoe itself is installed, either because it is installed into the
+ local subdirectory (as per "The Running-In-Place Way") or because it is
+ installed into your system (as per the other three ways of installing).
 
 
 RUNNING:
 
- If you installed one of the debian packages constructed by "make deb-*", or
- installed "The Python Way", then it creates an 'allmydata-tahoe' executable,
- usually in /usr/bin . Else, you can find allmydata-tahoe in ./instdir/bin/ .
+ Run the "allmydata-tahoe" executable.
+
+ If you installed "The Running-In-Place Way", then it is in your source tree,
+ in the "bin" subdirectory thereof.  If you installed in one of the other
+ tree ways, then it has been copied into your operating system's files,
+ perhaps in "/usr/bin" on Unix, or in "C:\Python25\Scripts" on Window.
+
  This tool is used to create, start, and stop nodes.  Each node lives in a
  separate base directory, inside of which you can add files to configure and
  control the node.  Nodes also read and write files within that directory.
