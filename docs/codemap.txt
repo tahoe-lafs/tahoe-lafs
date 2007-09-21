@@ -3,12 +3,9 @@ CODE OVERVIEW
 
 A brief map to where the code lives in this distribution:
 
- src/zfec: the erasure-coding library, turns data into shares and back again.
-           When installed, this provides the 'zfec' package.
-
- src/allmydata: the bulk of the code for this project. When installed, this
-                provides the 'allmydata' package. This includes a few pieces
-                copied from the PyCrypto package, in allmydata/Crypto/* .
+ src/allmydata: the code for this project. When installed, this provides the
+                'allmydata' package. This includes a few pieces copied from 
+                the PyCrypto package, in allmydata/Crypto/* .
 
 Within src/allmydata/ :
 
@@ -29,12 +26,13 @@ Within src/allmydata/ :
 
  storageserver.py: provides storage services to other nodes
 
- codec.py: low-level erasure coding, wraps zfec
+ codec.py: low-level erasure coding, wraps the zfec library
 
  encode.py: handles turning data into shares and blocks, computes hash trees
- upload.py: upload-side peer selection, reading data from upload sources
 
- download.py: download-side peer selection, share retrieval, decoding
+ upload.py: upload server selection, reading data from upload sources
+
+ download.py: download server selection, share retrieval, decoding
 
  dirnode.py: implements the directory nodes. One part runs on the
              global vdrive server, the other runs inside a client
