@@ -109,19 +109,19 @@ endif
 
 
 signal-error-deps:
-	@echo "ERROR: Not all of Tahoe's dependencies are in place.  Please \
+	@echo "ERROR: Not all of Tahoe's dependencies are in place.  Please\
 see the README for help on installing dependencies."
 	exit 1
 
 signal-error-twisted-dep:
-	@echo "ERROR: Before running \"make build-deps\" you have to ensure that \
-Twisted is installed (including its zope.interface dependency).  Twisted and \
-zope.interface are required for the automatic installation of certain other \
+	@echo "ERROR: Before running \"make build-deps\" you have to ensure that\
+Twisted is installed (including its zope.interface dependency).  Twisted and\
+zope.interface are required for the automatic installation of certain other\
 libraries that Tahoe requires).  Please see the README for details."
 	exit 1
 
 signal-error-pywin32-dep:
-	@echo "ERROR: the pywin32 dependency is not in place.  Please see the README \
+	@echo "ERROR: the pywin32 dependency is not in place.  Please see the README\
 for help on installing dependencies."
 	exit 1
 
