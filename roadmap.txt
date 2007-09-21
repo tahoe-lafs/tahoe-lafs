@@ -70,7 +70,7 @@ UI:
 *v1: readonly webish (nevow, URLs are filepaths)
 *v2: read/write webish, mkdir, del (files)
 *v2.5: del (directories)
- v3: PB+CLI tool.
+*v3: CLI tool.
  v3.25: XML-RPC
  v3.5: XUIL?
  v4: FUSE -- http://allmydata.org/trac/tahoe/ticket/36
