@@ -168,27 +168,8 @@ http://allmydata.org/source/tahoe/
 
 INSTALLING:
 
-There are four ways to do it: The Debian Way, The Setuptools Way, The
-easy_install Way, and The Running-In-Place Way.  Choose one:
-
- The Debian Way:
-
-  The Debian Way is to build .deb files which you can then install with
-  "dpkg".
-
-  This requires certain debian packages (build-essential, fakeroot,
-  devscripts, debhelper, cdbs) to be installed first, since they are used to
-  construct the tahoe .deb files. A full list of these required packages can
-  be found in the "Build-Depends" line in the misc/DIST/debian/control in the
-  top-level tahoe directory (replacing the word DIST with etch, dapper, edgy,
-  or feisty as appropriate).
-
-  Get the source code (see above).
-
-  If you're running on a debian system, run 'make deb-etch', 'make deb-sid',
-  'make deb-edgy', or 'make deb-feisty' from within the tahoe top-level
-  directory to construct a debian package named 'allmydata-tahoe' which you
-  can then install with dpkg.
+There are four ways to do it: The Setuptools Way, The easy_install
+Way, The Running-In-Place Way, and The Debian Way.  Choose one:
 
  The Setuptools Way:
 
@@ -231,6 +212,25 @@ easy_install Way, and The Running-In-Place Way.  Choose one:
   install them into a local subdirectory of the Tahoe source distribution by
   executing "make build-deps". (The allmydata-tahoe script will discover them
   and add them to the "sys.path".)
+
+ The Debian Way:
+
+  The Debian Way is to build .deb files which you can then install with
+  "dpkg".
+
+  This requires certain debian packages (build-essential, fakeroot,
+  devscripts, debhelper, cdbs) to be installed first, since they are used to
+  construct the tahoe .deb files. A full list of these required packages can
+  be found in the "Build-Depends" line in the misc/DIST/debian/control in the
+  top-level tahoe directory (replacing the word DIST with etch, dapper, edgy,
+  or feisty as appropriate).
+
+  Get the source code (see above).
+
+  If you're running on a debian system, run 'make deb-etch', 'make deb-sid',
+  'make deb-edgy', or 'make deb-feisty' from within the tahoe top-level
+  directory to construct a debian package named 'allmydata-tahoe' which you
+  can then install with dpkg.
 
 
 TESTING THAT IT IS PROPERLY INSTALLED
