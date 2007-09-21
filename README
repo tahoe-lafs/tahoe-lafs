@@ -192,7 +192,7 @@ easy_install Way, and The Running-In-Place Way.  Choose one:
 
   To install it to a non-standard location, learn about setuptools's
   "--single-version-externally-managed" flag, and visit
-  http://allmydata.org/trac/tahoe/wiki/Installing .
+  http://allmydata.org/trac/tahoe/wiki/SetuptoolsAndGNUStow .
 
  The easy_install Way:
 
