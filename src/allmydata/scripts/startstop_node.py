@@ -25,7 +25,7 @@ class RestartOptions(BasedirMixin, usage.Options):
          "of 'restart'"],
         ]
 
-def do_start(basedir, config, out=sys.stdout, err=sys.stderr):
+def do_start(basedir, out=sys.stdout, err=sys.stderr):
     print >>out, "STARTING", basedir
     if os.path.exists(os.path.join(basedir, "client.tac")):
         tac = "client.tac"
@@ -66,7 +66,7 @@ def do_start(basedir, config, out=sys.stdout, err=sys.stderr):
         print >>err, "%s node probably not started" % type
         return 1
 
-def do_stop(basedir, config, out=sys.stdout, err=sys.stderr):
+def do_stop(basedir, out=sys.stdout, err=sys.stderr):
     print >>out, "STOPPING", basedir
     pidfile = os.path.join(basedir, "twistd.pid")
     if not os.path.exists(pidfile):
@@ -100,19 +100,19 @@ def do_stop(basedir, config, out=sys.stdout, err=sys.stderr):
 def start(config, stdout, stderr):
     rc = 0
     for basedir in config['basedirs']:
-        rc = do_start(basedir, config, stdout, stderr) or rc
+        rc = do_start(basedir, stdout, stderr) or rc
     return rc
 
 def stop(config, stdout, stderr):
     rc = 0
     for basedir in config['basedirs']:
-        rc = do_stop(basedir, config, stdout, stderr) or rc
+        rc = do_stop(basedir, stdout, stderr) or rc
     return rc
 
 def restart(config, stdout, stderr):
     rc = 0
     for basedir in config['basedirs']:
-        rc = do_stop(basedir, config, stdout, stderr) or rc
+        rc = do_stop(basedir, stdout, stderr) or rc
     if rc == 2 and config['force']:
         print >>stderr, "ignoring couldn't-stop"
         rc = 0
@@ -120,7 +120,7 @@ def restart(config, stdout, stderr):
         print >>stderr, "not restarting"
         return rc
     for basedir in config['basedirs']:
-        rc = do_start(basedir, config, stdout, stderr) or rc
+        rc = do_start(basedir, stdout, stderr) or rc
     return rc
 
 
