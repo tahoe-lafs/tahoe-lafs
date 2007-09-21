@@ -32,6 +32,7 @@ class Node(service.MultiService):
         self._tub_ready_observerlist = observer.OneShotObserverList()
         certfile = os.path.join(self.basedir, self.CERTFILE)
         self.tub = Tub(certFile=certfile)
+        os.chmod(certfile, 0600)
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)
         self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
