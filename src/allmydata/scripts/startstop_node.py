@@ -39,10 +39,12 @@ def do_start(basedir, config, out=sys.stdout, err=sys.stderr):
             print >>err, " in fact, it doesn't look like a directory at all!"
         return 1
     twistds = which("twistd")
-    if not twistds:
+    twistd = twistds and twistds[0]
+    if not twistd:
+        twistd = os.path.join(sys.prefix, 'Scripts', 'twistd.py') 
+    if not os.path.exists(twistd):
         print "Can't find twistd (it comes with Twisted).  Aborting."
         sys.exit(1)
-    twistd = twistds[0]
     path, ext = os.path.splitext(twistd)
     if ext.lower() in [".exe", ".bat",]:
         cmd = [twistd,]
