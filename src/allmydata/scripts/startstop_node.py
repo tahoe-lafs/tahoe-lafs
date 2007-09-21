@@ -27,6 +27,9 @@ class RestartOptions(BasedirMixin, usage.Options):
          "instead of complaining that you should have used 'start' instead "
          "of 'restart'"],
         ]
+    optFlags = [
+        ["profile", "p", "whether to run under the Python profiler, putting results in \"profiling_results.prof\""],
+        ]
 
 def do_start(basedir, profile=False, out=sys.stdout, err=sys.stderr):
     print >>out, "STARTING", basedir
@@ -125,7 +128,7 @@ def restart(config, stdout, stderr):
         print >>stderr, "not restarting"
         return rc
     for basedir in config['basedirs']:
-        rc = do_start(basedir, stdout, stderr) or rc
+        rc = do_start(basedir, config['profile'], stdout, stderr) or rc
     return rc
 
 
