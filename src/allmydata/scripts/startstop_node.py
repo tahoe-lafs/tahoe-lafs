@@ -9,6 +9,9 @@ class StartOptions(BasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to start the node in"],
         ]
+    optFlags = [
+        ["profile", "p", "whether to run under the Python profiler, putting results in \"profiling_results.prof\""],
+        ]
 
 class StopOptions(BasedirMixin, usage.Options):
     optParameters = [
@@ -25,7 +28,7 @@ class RestartOptions(BasedirMixin, usage.Options):
          "of 'restart'"],
         ]
 
-def do_start(basedir, out=sys.stdout, err=sys.stderr):
+def do_start(basedir, profile=False, out=sys.stdout, err=sys.stderr):
     print >>out, "STARTING", basedir
     if os.path.exists(os.path.join(basedir, "client.tac")):
         tac = "client.tac"
@@ -53,6 +56,8 @@ def do_start(basedir, out=sys.stdout, err=sys.stderr):
     
     fileutil.make_dirs(os.path.join(basedir, "logs"))
     cmd.extend(["-y", tac, "--logfile", os.path.join("logs", "twistd.log")])
+    if profile:
+        cmd.extend(["--profile=profiling_results.prof", "--savestats",])
     curdir = os.getcwd()
     try:
         os.chdir(basedir)
@@ -100,7 +105,7 @@ def do_stop(basedir, out=sys.stdout, err=sys.stderr):
 def start(config, stdout, stderr):
     rc = 0
     for basedir in config['basedirs']:
-        rc = do_start(basedir, stdout, stderr) or rc
+        rc = do_start(basedir, config['profile'], stdout, stderr) or rc
     return rc
 
 def stop(config, stdout, stderr):
