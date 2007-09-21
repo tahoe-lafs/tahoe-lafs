@@ -255,7 +255,7 @@ this file are ignored.
                                            "suicide_prevention_hotline")
         # now start updating the mtime.
         self.touch_keepalive()
-        ts = internet.TimerService(4.0, self.touch_keepalive)
+        ts = internet.TimerService(1.0, self.touch_keepalive)
         ts.setServiceParent(self.sparent)
 
         pp = ClientWatcher()
