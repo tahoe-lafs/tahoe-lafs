@@ -51,7 +51,6 @@ def do_start(basedir, config, out=sys.stdout, err=sys.stderr):
     
     fileutil.make_dirs(os.path.join(basedir, "logs"))
     cmd.extend(["-y", tac, "--logfile", os.path.join("logs", "twistd.log")])
-    print "os.chdir(%s)" % (basedir,)
     curdir = os.getcwd()
     try:
         os.chdir(basedir)
