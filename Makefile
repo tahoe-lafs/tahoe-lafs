@@ -39,11 +39,13 @@ ifeq ($(PLAT),win32)
  SUPPORT = $(shell cygpath -w $(shell pwd))\support
  SUPPORTLIB := $(SUPPORT)\Lib\site-packages
  SRCPATH := $(shell cygpath -w $(shell pwd))\src
+ CHECK_PYWIN32_DEP := check-pywin32-dep
 else
  PYVER=$(shell $(PYTHON) misc/pyver.py)
  SUPPORT = $(shell pwd)/support
  SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
  SRCPATH := $(shell pwd)/src
+ CHECK_PYWIN32_DEP := 
 endif
 
 ifeq ($(PLAT),cygwin)
@@ -103,7 +105,7 @@ endif
 
 # TESTING
 
-.PHONY: check-deps check-twisted-dep check-pywin32-dep signal-error-deps, signal-error-twisted-dep, signal-error-pywin32-dep, test test-figleaf figleaf-output
+.PHONY: check-deps check-twisted-dep $(CHECK_PYWIN32_DEP) signal-error-deps, signal-error-twisted-dep, signal-error-pywin32-dep, test test-figleaf figleaf-output
 
 
 signal-error-deps:
@@ -123,7 +125,7 @@ signal-error-pywin32-dep:
 for help on installing dependencies."
 	exit 1
 
-check-deps: check-twisted-dep check-pywin32-dep
+check-deps: check-twisted-dep $(CHECK_PYWIN32_DEP)
 	$(PP) \
 	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, OpenSSL' || $(MAKE) signal-error-deps
 
