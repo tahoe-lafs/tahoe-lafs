@@ -26,9 +26,10 @@ Since v0.5.1 we've made the following changes:
 
  * improved logging, thanks to Arno
 
- * Shares now contain leases, which gives us the information to compute which
-   shares are safe to delete, but we haven't yet implemented deletion itself.
-   Eventually, this will enable client quota tracking. (tickets #119, #67)
+ * Shares now contain leases, which gives us the information to
+   compute which shares are safe to delete, but we haven't yet
+   implemented deletion itself.  Eventually, this will enable client
+   quota tracking. (tickets #119, #67)
 
 
 For complete details, see this web page which shows all ticket
@@ -78,8 +79,8 @@ grace period clause.
 
 INSTALLATION
 
-This release of Tahoe works on Linux, Mac OS X, Windows, Cygwin, and
-Solaris.  For installation instructions please see the README [4].
+Tahoe works on Linux, Mac OS X, Windows, Cygwin, and Solaris.  For
+installation instructions please see the README [4].
 
 
 USAGE - web interface
@@ -104,10 +105,11 @@ available there, with download links, and forms to upload new files.
 USAGE - command-line interface
 
 Run "allmydata-tahoe ls [VIRTUAL PATH NAME]" to list the contents of a
-virtual directory.  Run "allmydata-tahoe get [VIRTUAL FILE NAME] [LOCAL FILE
-NAME]" to download a file.  Run "allmydata-tahoe put [LOCAL FILE NAME]
-[VIRTUAL FILE NAME]" to upload a file.  Run "allmydata-tahoe rm [VIRTUAL PATH
-NAME]" to unlink a file or directory in the virtual drive.
+virtual directory.  Run "allmydata-tahoe get [VIRTUAL FILE NAME]
+[LOCAL FILE NAME]" to download a file.  Run "allmydata-tahoe put
+[LOCAL FILE NAME] [VIRTUAL FILE NAME]" to upload a file.  Run
+"allmydata-tahoe rm [VIRTUAL PATH NAME]" to unlink a file or directory
+in the virtual drive.
 
 USAGE - other
 
@@ -208,4 +210,3 @@ Boulder, Colorado and San Francisco, California
 [12] http://twistedmatrix.com/
 [13] http://allmydata.org/source/zfec/zfec/
 [14] http://allmydata.com
-
