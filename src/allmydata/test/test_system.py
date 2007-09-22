@@ -639,13 +639,19 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         output = out.getvalue()
         self.failUnlessEqual(rc, 0)
 
-        # we only upload a single file, so we can assert some things about
-        # its size and shares
-        self.failUnless("size: %d\n" % len(self.data) in output)
-        self.failUnless("num_segments: 1\n" in output)
-        # segment_size is always a multiple of needed_shares
-        self.failUnless("segment_size: 114\n" in output)
-        self.failUnless("total_shares: 10\n" in output)
+        # We've uploaded only two files so we can assert some things
+        # about the size and shares.
+        self.failUnless("size: 112\n" in output or "size: 1500000\n" in output)
+        if "size: 112\n" in output:
+            self.failUnless("num_segments: 1\n" in output)
+            # segment_size is always a multiple of needed_shares
+            self.failUnless("segment_size: 114\n" in output)
+            self.failUnless("total_shares: 10\n" in output)
+        else:
+            self.failUnless("num_segments: 2\n" in output)
+            # segment_size is always a multiple of needed_shares
+            self.failUnless("segment_size: 1048578\n" in output)
+            self.failUnless("total_shares: 10\n" in output)
         # keys which are supposed to be present
         for key in ("size", "num_segments", "segment_size",
                     "needed_shares", "total_shares",
