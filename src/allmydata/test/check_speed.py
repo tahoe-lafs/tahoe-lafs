@@ -77,6 +77,12 @@ class SpeedTest:
         #d.addCallback(self.one_test, "100x 200B", 100, 200)
         d.addCallback(self.one_test, "1MB", 1, 1*MB)
         d.addCallback(self.one_test, "10MB", 1, 10*MB)
+        def _maybe_do_100MB(res):
+            if self.upload_times["10MB"] > 30:
+                print "10MB test took too long, skipping 100MB test"
+                return
+            return self.one_test(None, "100MB", 1, 100*MB)
+        d.addCallback(_maybe_do_100MB)
         d.addCallback(self.calculate_speeds)
         return d
 
@@ -91,6 +97,9 @@ class SpeedTest:
         print "upload speed (1MB):", self.number(A1, "Bps")
         A2 = 10*MB / (self.upload_times["10MB"] - B)
         print "upload speed (10MB):", self.number(A2, "Bps")
+        if "100MB" in self.upload_times:
+            A3 = 100*MB / (self.upload_times["100MB"] - B)
+            print "upload speed (100MB):", self.number(A3, "Bps")
 
         # download
         B = self.download_times["10x 200B"] / 10
@@ -99,6 +108,9 @@ class SpeedTest:
         print "download speed (1MB):", self.number(A1, "Bps")
         A2 = 10*MB / (self.download_times["10MB"] - B)
         print "download speed (10MB):", self.number(A2, "Bps")
+        if "100MB" in self.download_times:
+            A3 = 100*MB / (self.download_times["100MB"] - B)
+            print "download speed (100MB):", self.number(A3, "Bps")
 
     def number(self, value, suffix=""):
         scaling = 1
