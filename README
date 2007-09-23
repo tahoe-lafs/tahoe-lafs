@@ -69,6 +69,9 @@ apt-get install gcc make python-dev python-twisted python-pyopenssl".
    Twisted requires zope.interface, a copy of which is included in the
    Twisted distribution. Note that Twisted does *not* require the entire Zope
    distribution, merely the much smaller zope.interface component.
+   zope.interface is easy_install-able, so if you have Python and
+   easy_install installed then you can install zope.interface by running
+   "easy_install zope.interface".
 
  + Python PyOpenSSL (0.6 or later) (secure transport layer)
 
@@ -115,7 +118,8 @@ normally be automatically installed as a side effect of installing Tahoe.
 
    zfec is packaged in a setuptools-compatible way and included in the Python
    Package Index (PyPI), so it will be automatically installed when you
-   install Tahoe (see INSTALLING).
+   install Tahoe (see INSTALLING).  It can be manually installed by running
+   "easy_install zfec".
 
  + Python foolscap (secure remote object library)
 
@@ -123,7 +127,8 @@ normally be automatically installed as a side effect of installing Tahoe.
 
    foolscape is packaged in a setuptools-compatible way and included in the
    Python Package Index (PyPI), so it will be automatically installed when
-   you install Tahoe (see INSTALLING).
+   you install Tahoe (see INSTALLING).  It can be manually installed by
+   running "easy_install foolscap".
 
  + Python simplejson (JSON parser)
 
@@ -131,7 +136,8 @@ normally be automatically installed as a side effect of installing Tahoe.
 
    simplejson is packaged in a setuptools-compatible way and included in the
    Python Package Index (PyPI), so it will be automatically installed when
-   you install Tahoe (see INSTALLING).
+   you install Tahoe (see INSTALLING).  It can be manually installed by
+   running "easy_install simplejson".
 
  + Python Nevow (0.6.0 or later) (web presentation language)
 
@@ -142,7 +148,8 @@ normally be automatically installed as a side effect of installing Tahoe.
 
    Nevow is packaged in a setuptools-compatible way and included in the
    Python Package Index (PyPI), so it will be automatically installed when
-   you install Tahoe (see INSTALLING).
+   you install Tahoe (see INSTALLING).  It can be manually installed by
+   running "easy_install nevow".
 
 
 GETTING THE SOURCE CODE:
