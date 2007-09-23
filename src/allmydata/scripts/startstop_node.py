@@ -85,7 +85,7 @@ def do_stop(basedir, out=sys.stdout, err=sys.stderr):
 
     timer = 0
     try:
-        os.kill(pid, signal.SIGINT)
+        os.kill(pid, signal.SIGTERM)
     except OSError, oserr:
         if oserr.errno == 3:
             print oserr.strerror
