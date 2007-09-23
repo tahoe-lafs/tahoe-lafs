@@ -3,7 +3,7 @@ NEW VERSION RELEASED -- Allmydata-Tahoe version 0.6
 We are pleased to announce the release of version 0.6 of allmydata.org
 "Tahoe", a secure, decentralized storage grid under a free-software
 licence.  This is the successor to v0.5.1, which was released 
-August 8, 2007 (see [1]).
+August 23, 2007 (see [1]).
 
 Since v0.5.1 we've made the following changes:
 
@@ -17,7 +17,7 @@ Since v0.5.1 we've made the following changes:
    allmydata-tahoe" on the command-line (including on Windows), and it
    will download and install Tahoe. (tickets #82, 93, 130)
 
- * Memory usage during download is now small, even if your node is
+ * Memory usage during download now remains low, even if your node is
    streaming the downloaded content to a slow web browser over
    HTTP. (ticket #129)
 
@@ -32,9 +32,10 @@ Since v0.5.1 we've made the following changes:
    quota tracking. (tickets #119, #67)
 
 
-For complete details, see this web page which shows all ticket
-changes, repository checkins, and wiki changes from August 24 to
-today, September 18: [2].
+We also fixed other bugs and implemented other improvements.  For
+complete details, see this web page which shows all ticket changes,
+repository checkins, and wiki changes from August 24 to today,
+September 24: [2].
 
 Allmydata.org Tahoe v0.6 is incompatible with Allmydata.org Tahoe
 v0.5.1 because of the share format version number and the leases.
@@ -192,18 +193,18 @@ eternally grateful!
 
 Zooko O'Whielacronx and Brian Warner
 on behalf of the allmydata.org Tahoe team
-September 18, 2007
+September 24, 2007
 Boulder, Colorado and San Francisco, California
 
 
 [1]  http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=1154
-[2]  http://allmydata.org/trac/tahoe/timeline?from=2007-09-18&daysback=24&changeset=on&milestone=on&ticket=on&ticket_details=on&wiki=on&update=Update XXX UPDATE TIMESTAMPS BEFORE RELEASE PLEASE --Zooko
+[2]  http://allmydata.org/trac/tahoe/timeline?from=2007-09-24&daysback=30&changeset=on&milestone=on&ticket=on&ticket_details=on&wiki=on&update=Update
 [3]  http://allmydata.org/trac/tahoe/wiki/UseCases
-[4]  http://allmydata.org/trac/tahoe/browser/README?rev=1248 XXX UPDATE PATCH NUMBER BEFORE RELEASE PLEASE --Zooko
+[4]  http://allmydata.org/trac/tahoe/browser/README?rev=1333
 [5]  http://allmydata.org/trac/tahoe/browser/docs/webapi.txt?rev=1151
 [6]  http://allmydata.org/trac/tahoe/browser/roadmap.txt
 [7]  http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
-[8]  http://allmydata.org/trac/tahoe/browser/CREDITS?rev=1122 XXX UPDATE PATCH NUMBER BEFORE RELEASE PLEASE --Zooko
+[8]  http://allmydata.org/trac/tahoe/browser/CREDITS?rev=1270
 [9]  http://allmydata.org/trac/tahoe/wiki/Dev
 [10] http://twistedmatrix.com/trac/wiki/FoolsCap
 [11] http://erights.org/
