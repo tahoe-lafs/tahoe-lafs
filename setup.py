@@ -65,6 +65,11 @@ trove_classifiers=[
     ]
 
 
+try:
+    import os
+    os.system("python misc/make-version.py \"allmydata-tahoe\" \"src/allmydata/_version.py\"")
+except Exception, le:
+    pass
 VERSIONFILE = "src/allmydata/_version.py"
 verstr = "unknown"
 if os.path.exists(VERSIONFILE):
