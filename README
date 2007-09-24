@@ -294,15 +294,15 @@ RUNNING:
  the $HERE/logs/twistd.log file.
 
  To actually use the client, enable the web interface by writing a port
- number (like "8080") into a file named $HERE/webport and then restarting the
+ number (like "8123") into a file named $HERE/webport and then restarting the
  node with 'allmydata-tahoe restart --basedir $HERE'. This will prompt the
  client node to run a webserver on the desired port, through which you can
  view, upload, download, and delete files. This 'webport' file is actually a
  "strports specification", defined in
  http://twistedmatrix.com/documents/current/api/twisted.application.strports.html
  , so you can have it only listen on a local interface by writing
- "tcp:8080:interface=127.0.0.1" to this file, or make it use SSL by writing
- "ssl:8443:privateKey=mykey.pem:certKey=cert.pem" instead.
+ "tcp:8123:interface=127.0.0.1" to this file, or make it use SSL by writing
+ "ssl:8123:privateKey=mykey.pem:certKey=cert.pem" instead.
 
  A client node directory can also be created without installing the code
  first.  Just use 'make create-client', and a new directory named 'CLIENTDIR'
