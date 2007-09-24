@@ -185,8 +185,8 @@ Way, The Running-In-Place Way, and The Debian Way.  Choose one:
   Run 'python setup.py install'. This will compile and install the Tahoe code
   to the standard location for your operating system (on unix, that is
   somewhere inside /usr/lib/). It will also acquire and install the
-  easy_install-able dependencies (zfec, foolscap, simplejson, nevow, and if
-  on Windows pywin32) to the same place.
+  easy_install-able dependencies (zfec, foolscap, simplejson, and nevow) to
+  the same place.
 
   To install it to a non-standard location, learn about setuptools's
   "--single-version-externally-managed" flag, and visit
@@ -201,8 +201,8 @@ Way, The Running-In-Place Way, and The Debian Way.  Choose one:
   'easy_install allmydata-tahoe' from any shell. That will download the most
   recent Tahoe source tarball, unpack it in a temporary directory, install it
   to the standard location, then download and install any easy_install-able
-  dependencies that you need (zfec, foolscap, simplejson, nevow, and if on
-  Windows pywin32).  (This will work only if you already have the other --
+  dependencies that you need (zfec, foolscap, simplejson, and nevow).  (This
+  will work only if you already have the other --
   non-easy_install-able -- dependencies.)
 
  The Running-In-Place Way:
@@ -215,10 +215,10 @@ Way, The Running-In-Place Way, and The Debian Way.  Choose one:
   "sys.path".)
 
   If you do not already have installed the easy_install-able dependencies
-  (zfec, foolscap, simplejson, nevow, and if on Windows pywin32) then you can
-  install them into a local subdirectory of the Tahoe source distribution by
-  executing "make build-deps". (The allmydata-tahoe script will discover them
-  and add them to the "sys.path".)
+  (zfec, foolscap, simplejson, and nevow) then you can install them into a
+  local subdirectory of the Tahoe source distribution by executing "make
+  build-deps". (The allmydata-tahoe script will discover them and add them to
+  the "sys.path".)
 
  The Debian Way:
 
