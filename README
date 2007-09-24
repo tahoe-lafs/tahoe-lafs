@@ -320,6 +320,5 @@ RUNNING:
  multiple IP-address-and-port-number entries into this file, on separate
  lines.
 
- There is a public grid available for testing.  Look at the wiki page
- (http://allmydata.org) for the necessary .furl data.
-
+ There is a public grid available for testing.  See
+ http://allmydata.org/trac/tahoe/wiki/TestGrid for the necessary .furl files.
