@@ -8,7 +8,7 @@ NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 class VDriveOptions(BaseOptions, usage.Options):
     optParameters = [
         ["node-url", "u", None,
-         "URL of the tahoe node to use, a URL like \"http://127.0.0.1:8888\""],
+         "URL of the tahoe node to use, a URL like \"http://127.0.0.1:8123\""],
         ]
 
     def postOptions(self):
