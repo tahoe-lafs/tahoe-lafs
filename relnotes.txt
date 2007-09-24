@@ -207,7 +207,7 @@ Boulder, Colorado and San Francisco, California
 [2]  http://allmydata.org/trac/tahoe/wiki/Performance
 [3]  http://allmydata.org/trac/tahoe/timeline?from=2007-09-24&daysback=30&changeset=on&milestone=on&ticket=on&ticket_details=on&wiki=on&update=Update
 [4]  http://allmydata.org/trac/tahoe/wiki/UseCases
-[5]  http://allmydata.org/trac/tahoe/browser/README?rev=1338
+[5]  http://allmydata.org/trac/tahoe/browser/README?rev=1343
 [6]  http://allmydata.org/trac/tahoe/browser/docs/webapi.txt?rev=1151
 [7]  http://allmydata.org/trac/tahoe/browser/roadmap.txt
 [8]  http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
