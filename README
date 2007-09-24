@@ -315,9 +315,10 @@ RUNNING:
  TCP connections on a port to the computer running your Tahoe node, then you
  can configure the Tahoe node to announce itself as being available on that
  IP address and port.  The way to do this is to create a file named
- $HERE/advertised_ip_addresses, in which you can put IP addresses and port numbers in
- "dotted-quad:port" form, e.g. "209.97.232.113:1345".  You can put multiple
- IP-address-and-port-number entries into this file, on separate lines.
+ $HERE/advertised_ip_addresses, in which you can put IP addresses and port
+ numbers in "dotted-quad:port" form, e.g. "209.97.232.113:1345".  You can put
+ multiple IP-address-and-port-number entries into this file, on separate
+ lines.
 
  There is a public grid available for testing.  Look at the wiki page
  (http://allmydata.org) for the necessary .furl data.
