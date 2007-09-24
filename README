@@ -209,10 +209,10 @@ Way, The Running-In-Place Way, and The Debian Way.  Choose one:
 
   Get the source code (see above).
 
-  You can use Tahoe without installing it. Once you've built Tahoe then you
-  can execute "./bin/allmydata-tahoe". (When the allmydata-tahoe script is in
-  an Tahoe source distribution, it adds the necessary directory to the Python
-  "sys.path".)
+  You can use Tahoe without installing it. Build it by running "make". Once
+  you've built it then you can execute "./bin/allmydata-tahoe". (When the
+  allmydata-tahoe script is in an Tahoe source distribution, it adds the
+  necessary directory to the Python "sys.path".)
 
   If you do not already have installed the easy_install-able dependencies
   (zfec, foolscap, simplejson, and nevow) then you can install them into a
