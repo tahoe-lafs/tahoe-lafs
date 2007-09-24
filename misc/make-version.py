@@ -64,6 +64,12 @@ def write_version_py(verstr, outfname):
 
 def update(pkgname, verfilename):
     rc = -1
+    if not os.path.isdir("_darcs"):
+        if os.path.exists(verfilename):
+            print "No _darcs directory, and %s already exists, so leaving it alone." % (verfilename,)
+            return 0
+        print "No _darcs directory, no %s, so version is unknown." % (verfilename,)
+        return 1
     cmd = ["darcs", "changes", "--from-tag=^%s" % (pkgname,), "--xml-output"]
     try:
         p = Popen(cmd, stdout=PIPE)
