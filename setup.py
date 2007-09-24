@@ -65,9 +65,15 @@ trove_classifiers=[
     ]
 
 
+# Build _version.py before trying to extract a version from it. If we aren't
+# running from a darcs checkout, this will leave any pre-existing _version.py
+# alone.
 try:
-    import os
-    os.system("python misc/make-version.py \"allmydata-tahoe\" \"src/allmydata/_version.py\"")
+    os.system(" ".join([sys.executable,
+                       "misc/make-version.py",
+                       "allmydata-tahoe",
+                       '"src/allmydata/_version.py"', # cygwin vs slashes
+                        ]))
 except Exception, le:
     pass
 VERSIONFILE = "src/allmydata/_version.py"
