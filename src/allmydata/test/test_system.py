@@ -261,7 +261,9 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         self.data = LARGE_DATA
         d = self.set_up_nodes()
         d.addCallback(self.log, "starting publish")
-        d.addCallback(self._do_publish)
+        d.addCallback(self._do_publish1)
+        d.addCallback(self._test_runner)
+        d.addCallback(self._do_publish2)
         # at this point, we have the following global filesystem:
         # /
         # /subdir1
@@ -290,23 +292,26 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return d
     test_vdrive.timeout = 1100
 
-    def _do_publish(self, res):
+    def _do_publish1(self, res):
         ut = upload.Data(self.data)
         c0 = self.clients[0]
         d = c0.getServiceNamed("vdrive").get_public_root()
         d.addCallback(lambda root: root.create_empty_directory("subdir1"))
         def _made_subdir1(subdir1_node):
+            self._subdir1_node = subdir1_node
             d1 = subdir1_node.add_file("mydata567", ut)
             d1.addCallback(self.log, "publish finished")
             def _stash_uri(filenode):
                 self.uri = filenode.get_uri()
             d1.addCallback(_stash_uri)
-            d1.addCallback(lambda res:
-                           subdir1_node.create_empty_directory("subdir2"))
-            d1.addCallback(lambda subdir2:
-                           subdir2.add_file("mydata992", ut))
             return d1
         d.addCallback(_made_subdir1)
+        return d
+
+    def _do_publish2(self, res):
+        ut = upload.Data(self.data)
+        d = self._subdir1_node.create_empty_directory("subdir2")
+        d.addCallback(lambda subdir2: subdir2.add_file("mydata992", ut))
         return d
 
     def _bounce_client0(self, res):
@@ -639,19 +644,13 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         output = out.getvalue()
         self.failUnlessEqual(rc, 0)
 
-        # We've uploaded only two files so we can assert some things
-        # about the size and shares.
-        self.failUnless("size: 112\n" in output or "size: 1500000\n" in output)
-        if "size: 112\n" in output:
-            self.failUnless("num_segments: 1\n" in output)
-            # segment_size is always a multiple of needed_shares
-            self.failUnless("segment_size: 114\n" in output)
-            self.failUnless("total_shares: 10\n" in output)
-        else:
-            self.failUnless("num_segments: 2\n" in output)
-            # segment_size is always a multiple of needed_shares
-            self.failUnless("segment_size: 1048578\n" in output)
-            self.failUnless("total_shares: 10\n" in output)
+        # we only upload a single file, so we can assert some things about
+        # its size and shares.
+        self.failUnless("size: %d\n" % len(self.data) in output)
+        self.failUnless("num_segments: 1\n" in output)
+        # segment_size is always a multiple of needed_shares
+        self.failUnless("segment_size: 114\n" in output)
+        self.failUnless("total_shares: 10\n" in output)
         # keys which are supposed to be present
         for key in ("size", "num_segments", "segment_size",
                     "needed_shares", "total_shares",
