@@ -61,17 +61,21 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
     keys3 = ("plaintext_hash", "plaintext_root_hash",
              "crypttext_hash", "crypttext_root_hash",
              "share_root_hash")
+    display_keys = {"size": "file_size"}
     for k in keys1:
         if k in unpacked:
-            print >>out, "%19s: %s" % (k, unpacked[k])
+            dk = display_keys.get(k, k)
+            print >>out, "%19s: %s" % (dk, unpacked[k])
     print >>out
     for k in keys2:
         if k in unpacked:
-            print >>out, "%19s: %s" % (k, unpacked[k])
+            dk = display_keys.get(k, k)
+            print >>out, "%19s: %s" % (dk, unpacked[k])
     print >>out
     for k in keys3:
         if k in unpacked:
-            print >>out, "%19s: %s" % (k, unpacked[k])
+            dk = display_keys.get(k, k)
+            print >>out, "%19s: %s" % (dk, unpacked[k])
 
     leftover = set(unpacked.keys()) - set(keys1 + keys2 + keys3)
     if leftover:
