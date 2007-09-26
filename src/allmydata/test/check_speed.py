@@ -67,6 +67,8 @@ class SpeedTest:
         d.addCallback(self.record_times, name)
         return d
 
+    # TODO: use RIClient.get_nodeid() to measure the foolscap-level RTT
+
     def do_test(self):
         print "doing test"
         rr = self.client_rref
