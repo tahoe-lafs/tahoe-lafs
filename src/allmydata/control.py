@@ -56,6 +56,24 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
     def remote_get_memory_usage(self):
         return get_memory_usage()
 
+    def remote_measure_peer_response_time(self):
+        results = {}
+        everyone = list(self.parent.introducer_client.get_all_peers())
+        d = self._do_one_ping(None, everyone, results)
+        return d
+    def _do_one_ping(self, res, everyone_left, results):
+        if not everyone_left:
+            return results
+        peerid, connection = everyone_left.pop(0)
+        start = time.time()
+        d = connection.callRemote("get_nodeid")
+        def _done(ignored):
+            stop = time.time()
+            results[peerid] = stop - start
+        d.addCallback(_done)
+        d.addCallback(self._do_one_ping, everyone_left, results)
+        return d
+
 class SpeedTest:
     def __init__(self, parent, count, size):
         self.parent = parent

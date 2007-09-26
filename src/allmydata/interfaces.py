@@ -1062,3 +1062,13 @@ class RIControlClient(RemoteInterface):
         Returns a tuple of (upload_time, download_time).
         """
         return (float, float)
+
+    def measure_peer_response_time():
+        """Send a short message to each connected peer, and measure the time
+        it takes for them to respond to it. This is a rough measure of the
+        application-level round trip time.
+
+        @return: a dictionary mapping peerid to a float (RTT time in seconds)
+        """
+
+        return DictOf(Nodeid, float)

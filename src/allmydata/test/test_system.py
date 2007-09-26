@@ -687,5 +687,6 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(lambda res: rref.callRemote("speed_test", 1, 200))
         if sys.platform == "linux2":
             d.addCallback(lambda res: rref.callRemote("get_memory_usage"))
+        d.addCallback(lambda res: rref.callRemote("measure_peer_response_time"))
         return d
 
