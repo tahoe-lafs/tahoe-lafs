@@ -135,5 +135,7 @@ class SpeedTest:
 class Discard:
     def write(self, data):
         pass
-    def close(self):
-        pass
+    # download_to_filehandle explicitly does not close the filehandle it was
+    # given: that is reserved for the provider of the filehandle. Therefore
+    # the lack of a close() method on this otherwise filehandle-like object
+    # is a part of the test.
