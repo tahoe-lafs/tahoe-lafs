@@ -150,6 +150,8 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
             return self.getServiceNamed(name)
         raise RuntimeError("I am unwilling to give you service %s" % name)
 
+    def remote_get_nodeid(self):
+        return self.nodeid
 
     def get_all_peerids(self):
         if not self.introducer_client:
