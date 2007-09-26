@@ -74,7 +74,12 @@ class SpeedTest:
         d.addCallback(self.one_test, "startup", 1, 1000) # ignore this one
         d.addCallback(self.one_test, "1x 200B", 1, 200)
         d.addCallback(self.one_test, "10x 200B", 10, 200)
-        #d.addCallback(self.one_test, "100x 200B", 100, 200)
+        def _maybe_do_100x_200B(res):
+            if self.upload_times["10x 200B"] < 5:
+                print "10x 200B test went too fast, doing 100x 200B test"
+                return self.one_test(None, "100x 200B", 100, 200)
+            return
+        d.addCallback(_maybe_do_100x_200B)
         d.addCallback(self.one_test, "1MB", 1, 1*MB)
         d.addCallback(self.one_test, "10MB", 1, 10*MB)
         def _maybe_do_100MB(res):
@@ -91,7 +96,10 @@ class SpeedTest:
         # we assume that A*200bytes is negligible
 
         # upload
-        B = self.upload_times["10x 200B"] / 10
+        if "100x 200B" in self.upload_times:
+            B = self.upload_times["100x 200B"] / 100
+        else:
+            B = self.upload_times["10x 200B"] / 10
         print "upload per-file time: %.3fs" % B
         A1 = 1*MB / (self.upload_times["1MB"] - B) # in bytes per second
         print "upload speed (1MB):", self.number(A1, "Bps")
@@ -102,7 +110,10 @@ class SpeedTest:
             print "upload speed (100MB):", self.number(A3, "Bps")
 
         # download
-        B = self.download_times["10x 200B"] / 10
+        if "100x 200B" in self.download_times:
+            B = self.download_times["100x 200B"] / 100
+        else:
+            B = self.download_times["10x 200B"] / 10
         print "download per-file time: %.3fs" % B
         A1 = 1*MB / (self.download_times["1MB"] - B) # in bytes per second
         print "download speed (1MB):", self.number(A1, "Bps")
