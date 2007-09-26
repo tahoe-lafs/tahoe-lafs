@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-import os, shutil, sys, urllib
+import os, shutil, sys, urllib, time, stat
 from cStringIO import StringIO
 from twisted.internet import defer, reactor, protocol, error
 from twisted.application import service, internet
@@ -76,8 +76,9 @@ class SystemFramework(testutil.PollMixin):
         self.failed = False
 
     def run(self):
-        log.startLogging(open(os.path.join(self.testdir, "log"), "w"),
-                         setStdout=False)
+        framelog = os.path.join(self.basedir, "driver.log")
+        log.startLogging(open(framelog, "a"), setStdout=False)
+        log.msg("CHECK_MEMORY(mode=%s) STARTING" % self.mode)
         #logfile = open(os.path.join(self.testdir, "log"), "w")
         #flo = log.FileLogObserver(logfile)
         #log.startLoggingWithObserver(flo.emit, setStdout=False)
@@ -99,6 +100,7 @@ class SystemFramework(testutil.PollMixin):
         d.addBoth(_done)
         reactor.run()
         if self.failed:
+            # raiseException doesn't work for CopiedFailures
             self.failed.raiseException()
 
     def setUp(self):
@@ -204,6 +206,9 @@ class SystemFramework(testutil.PollMixin):
         # other and the introducer_and_vdrive
 
     def touch_keepalive(self):
+        if os.path.exists(self.keepalive_file):
+            age = time.time() - os.stat(self.keepalive_file)[stat.ST_MTIME]
+            log.msg("touching keepalive file, was %ds old" % age)
         f = open(self.keepalive_file, "w")
         f.write("""\
 If the node notices this file at startup, it will poll every 5 seconds and
