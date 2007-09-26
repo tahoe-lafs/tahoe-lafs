@@ -163,6 +163,14 @@ class Run(unittest.TestCase):
         d = self.stall(delay=0.1)
         d.addCallback(lambda res: c1.disownServiceParent())
         def _restart(res):
+            # TODO: pause for slightly over one second, to let
+            # Client._check_hotline poll the file once. That will exercise
+            # another few lines. Then add another test in which we don't
+            # update the file at all, and watch to see the node shutdown. (to
+            # do this, use a modified node which overrides Node.shutdown(),
+            # also change _check_hotline to use it instead of a raw
+            # reactor.stop, also instrument the shutdown event in an
+            # attribute that we can check)
             c2 = client.Client(basedir)
             c2.setServiceParent(self.sparent)
             return c2.disownServiceParent()
