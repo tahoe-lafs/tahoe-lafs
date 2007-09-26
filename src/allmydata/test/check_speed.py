@@ -67,13 +67,28 @@ class SpeedTest:
         d.addCallback(self.record_times, name)
         return d
 
-    # TODO: use RIClient.get_nodeid() to measure the foolscap-level RTT
+    def measure_rtt(self, res):
+        # use RIClient.get_nodeid() to measure the foolscap-level RTT
+        d = self.client_rref.callRemote("measure_peer_response_time")
+        def _got(res):
+            assert len(res) # need at least one peer
+            times = res.values()
+            self.total_rtt = sum(times)
+            self.average_rtt = sum(times) / len(times)
+            self.max_rtt = max(times)
+            print "num-peers: %d" % len(times)
+            print "total-RTT: %f" % self.total_rtt
+            print "average-RTT: %f" % self.average_rtt
+            print "max-RTT: %f" % self.max_rtt
+        d.addCallback(_got)
+        return d
 
     def do_test(self):
         print "doing test"
         rr = self.client_rref
         d = defer.succeed(None)
         d.addCallback(self.one_test, "startup", 1, 1000) # ignore this one
+        d.addCallback(self.measure_rtt)
         d.addCallback(self.one_test, "1x 200B", 1, 200)
         d.addCallback(self.one_test, "10x 200B", 10, 200)
         def _maybe_do_100x_200B(res):
@@ -103,6 +118,8 @@ class SpeedTest:
         else:
             B = self.upload_times["10x 200B"] / 10
         print "upload per-file time: %.3fs" % B
+        print "upload per-file times-avg-RTT: %f" % (B / self.average_rtt)
+        print "upload per-file times-total-RTT: %f" % (B / self.total_rtt)
         A1 = 1*MB / (self.upload_times["1MB"] - B) # in bytes per second
         print "upload speed (1MB):", self.number(A1, "Bps")
         A2 = 10*MB / (self.upload_times["10MB"] - B)
@@ -117,6 +134,8 @@ class SpeedTest:
         else:
             B = self.download_times["10x 200B"] / 10
         print "download per-file time: %.3fs" % B
+        print "download per-file times-avg-RTT: %f" % (B / self.average_rtt)
+        print "download per-file times-total-RTT: %f" % (B / self.total_rtt)
         A1 = 1*MB / (self.download_times["1MB"] - B) # in bytes per second
         print "download speed (1MB):", self.number(A1, "Bps")
         A2 = 10*MB / (self.download_times["10MB"] - B)
