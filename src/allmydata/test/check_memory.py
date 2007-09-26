@@ -142,6 +142,9 @@ class SystemFramework(testutil.PollMixin):
         # the client node will shut down in a few seconds
         #os.remove(os.path.join(self.clientdir, "suicide_prevention_hotline"))
         log.msg("shutting down SystemTest services")
+        if os.path.exists(self.keepalive_file):
+            age = time.time() - os.stat(self.keepalive_file)[stat.ST_MTIME]
+            log.msg("keepalive file at shutdown was %ds old" % age)
         d = defer.succeed(None)
         if self.proc:
             d.addCallback(lambda res: self.kill_client())
