@@ -24,9 +24,14 @@ except ImportError:
 install_requires=["zfec >= 1.0.3",
                   "foolscap >= 0.1.6",
                   "simplejson >= 1.4",
-                  "zope.interface >= 3.0",
                   ]
 
+
+# We also require zope.interface, but some older versions of setuptools such
+# as setuptools v0.6a9 don't handle the "." in its name correctly, and anyway
+# people have to manually install Twisted before using our automatic
+# dependency resolution, and they have to manually install zope.interface in
+# order to install Twisted.
 
 # Ubuntu Dapper includes nevow-0.6.0 and twisted-2.2.0, both of which work.
 # However, setuptools doesn't know about them, so our install_requires=
