@@ -1,4 +1,4 @@
-allmydata-tahoe (0.6.0+) unstable; urgency=low
+allmydata-tahoe (0.6.0-1plus) unstable; urgency=low
 
   * packaging the tahoe distribution.
 
