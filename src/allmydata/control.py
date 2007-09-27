@@ -5,7 +5,7 @@ from twisted.application import service
 from twisted.internet import defer
 from foolscap import Referenceable
 from allmydata.interfaces import RIControlClient
-from allmydata.util import testutil, fileutil
+from allmydata.util import testutil, fileutil, mathutil
 from twisted.python import log
 
 def get_memory_usage():
@@ -57,8 +57,13 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
         return get_memory_usage()
 
     def remote_measure_peer_response_time(self):
+        # I'd like to average together several pings, but I don't want this
+        # phase to take more than 10 seconds. Expect worst-case latency to be
+        # 300ms.
         results = {}
         everyone = list(self.parent.introducer_client.get_all_peers())
+        num_pings = int(mathutil.div_ceil(10, (len(everyone) * 0.3)))
+        everyone = everyone * num_pings
         d = self._do_one_ping(None, everyone, results)
         return d
     def _do_one_ping(self, res, everyone_left, results):
@@ -69,9 +74,19 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
         d = connection.callRemote("get_nodeid")
         def _done(ignored):
             stop = time.time()
-            results[peerid] = stop - start
+            elapsed = stop - start
+            if peerid in results:
+                results[peerid].append(elapsed)
+            else:
+                results[peerid] = [elapsed]
         d.addCallback(_done)
         d.addCallback(self._do_one_ping, everyone_left, results)
+        def _average(res):
+            averaged = {}
+            for peerid,times in results.iteritems():
+                averaged[peerid] = sum(times) / len(times)
+            return averaged
+        d.addCallback(_average)
         return d
 
 class SpeedTest:
