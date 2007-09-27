@@ -7,10 +7,25 @@ DEB_PYTHON_SYSTEM=pycentral
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
 
-PREFIX=$(shell pwd)/debian/allmydata-tahoe/usr
+STAGING_DIR=$(CURDIR)/debian/allmydata-tahoe
 
-build/allmydata-tahoe::
-	python2.4 setup.py install --prefix=$(PREFIX)
+# we overwrite the setuptools-generated /usr/bin/allmydata-tahoe with our
+# package's original version, because the setuptools form (using "entry
+# points") insists upon .egg-info -visible forms of dependent packages to be
+# installed. For a debian package, we rely upon the dependencies that are
+# declared in debian/control .
+#
+# One disadvantage to this approach is that the #! line will not get updated
+# to match the version of python that we're using for this build. Instead, it
+# will retain the original '#!/usr/bin/env python', which has the potential
+# to surprise people.
+
+install/allmydata-tahoe::
+	mkdir -pm755 $(STAGING_DIR)
+	python setup.py install --root=$(STAGING_DIR)
+	cp bin/allmydata-tahoe $(STAGING_DIR)/usr/bin/
+
+	dh_pycentral
 
 clean::
 	-rm -rf build
