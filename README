@@ -88,7 +88,11 @@ apt-get install gcc make python-dev python-twisted python-pyopenssl".
    libraries with the cygwin package management tool, then get the pyOpenSSL
    source code, cd into it, and run "python ./setup.py install".
 
- + the pywin32 package: required only on Windows
+ + OpenSSL (cryptography library)
+
+   http://openssl.org
+  
+ + the pywin32 package; required only on Windows
 
    http://sourceforge.net/projects/pywin32/
 
