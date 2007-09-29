@@ -3,14 +3,14 @@ distributed, fault-tolerant storage grid.  All of the source code is available
 under a Free Software licence.
 
 The basic idea is that the data in this storage grid is spread over all
-participating nodes, using an algorithm that can recover the data even if a
-majority of the nodes are no longer available.
+participating nodes, using an algorithm that can recover the data even if
+some of the nodes are not available.
 
 The interface to the storage grid allows you to store and fetch files, either
 by self-authenticating cryptographic identifier or by filename and path.
 
 See the web site for all kinds of information, news, and community
-contributions, and prebuilt packages for Debian-like systems:
+discussion:
 
 http://allmydata.org
 
