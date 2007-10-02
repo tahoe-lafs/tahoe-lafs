@@ -15,19 +15,6 @@ discussion:
 http://allmydata.org
 
 
-LICENCE:
-
- This program is free software; you can redistribute it and/or modify it
- under the terms of the GNU General Public License as published by the Free
- Software Foundation; either version 2 of the License, or (at your option)
- any later version, with the added permission that, if you become obligated
- to release a derived work under this licence (as per section 2.b), you may
- delay the fulfillment of this obligation for up to 12 months.  If you are
- obligated to release code under section 2.b of this licence, you are
- obligated to release it under these same terms, including the 12-month grace
- period clause.  See the COPYING file for details.
-
-
 GETTING PRECOMPILED BINARIES FOR DEBIAN-LIKE SYSTEMS:
 
 Pre-compiled binaries are available for Debian or Ubuntu.  Please see the
@@ -41,8 +28,13 @@ DEPENDENCIES:
 If you aren't getting a pre-compiled binary, then you'll have to ensure that
 the following packages are installed before you install Tahoe.
 
-Note: All of the following dependencies can probably be installed through
-your standard package management tool if you are running on a modern Unix
+There are two kinds of dependencies, "manual dependencies" and
+"easy_install-able dependencies".  The latter kind are normally automatically
+satisfied for you when you install Tahoe, but if something goes wrong, please
+see the EASY_INSTALLABLE DEPENDENCIES section below.
+
+Note: All of the manual dependencies can probably be installed through your
+standard package management tool if you are running on a modern Unix
 operating system.  For example, on an debian-like system, you can do "sudo
 apt-get install gcc make python-dev python-twisted python-pyopenssl".
 
@@ -69,10 +61,11 @@ apt-get install gcc make python-dev python-twisted python-pyopenssl".
    Twisted requires zope.interface, a copy of which is included in the
    Twisted distribution. Note that Twisted does *not* require the entire Zope
    distribution, merely the much smaller zope.interface component.
-   zope.interface is easy_install-able, so if you have Python and
-   easy_install installed then you can install zope.interface by running
-   "easy_install zope.interface".
 
+ + OpenSSL, including development headers (cryptography library)
+
+   http://openssl.org
+  
  + Python PyOpenSSL (0.6 or later) (secure transport layer)
 
    http://pyopenssl.sourceforge.net
@@ -88,72 +81,10 @@ apt-get install gcc make python-dev python-twisted python-pyopenssl".
    libraries with the cygwin package management tool, then get the pyOpenSSL
    source code, cd into it, and run "python ./setup.py install".
 
- + OpenSSL (cryptography library)
-
-   http://openssl.org
-  
- + the pywin32 package; required only on Windows
+ + the pywin32 package (210 or later); required only on native Windows (not
+   required on cygwin)
 
    http://sourceforge.net/projects/pywin32/
-
-   (Tested with build 210, and known to not work with build 204.
-   Feedback with details of other builds is greatly appreciated.)
-
-
-In addition, the following Python packages are required, but they will
-normally be automatically installed as a side effect of installing Tahoe.
-
- + Python setuptools (build and distribution tool)
-
-   Note: The build process will automatically download and install setuptools
-   if it is not present.  However, if an old, incompatible version of
-   setuptools is present (< v0.6c6 on Cygwin, or < v0.6a9 on other
-   platforms), then the build will fail.
-
-   So if the build fails due to your current version of setuptools being
-   incompatible, you can either upgrade or uninstall your version of
-   setuptools and try again.
-
-   http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
-
- + zfec (erasure coding library)
-
-   http://cheeseshop.python.org/pypi/zfec
-
-   zfec is packaged in a setuptools-compatible way and included in the Python
-   Package Index (PyPI), so it will be automatically installed when you
-   install Tahoe (see INSTALLING).  It can be manually installed by running
-   "easy_install zfec".
-
- + Python foolscap (secure remote object library)
-
-   http://cheeseshop.python.org/pypi/foolscap
-
-   foolscape is packaged in a setuptools-compatible way and included in the
-   Python Package Index (PyPI), so it will be automatically installed when
-   you install Tahoe (see INSTALLING).  It can be manually installed by
-   running "easy_install foolscap".
-
- + Python simplejson (JSON parser)
-
-   http://cheeseshop.python.org/pypi/simplejson
-
-   simplejson is packaged in a setuptools-compatible way and included in the
-   Python Package Index (PyPI), so it will be automatically installed when
-   you install Tahoe (see INSTALLING).  It can be manually installed by
-   running "easy_install simplejson".
-
- + Python Nevow (0.6.0 or later) (web presentation language)
-
-   http://divmod.org/trac/wiki/DivmodNevow
-
-   Note that the current version of Nevow (0.9.18) requires Twisted 2.4.0 or
-   later.
-
-   Nevow is packaged in a setuptools-compatible way and included in the
-   Python Package Index (PyPI), so it will be automatically installed when
-   you install Tahoe (see INSTALLING).  It can be manually installed by
-   running "easy_install nevow".
 
 
 GETTING THE SOURCE CODE:
@@ -179,22 +110,8 @@ http://allmydata.org/source/tahoe/
 
 INSTALLING:
 
-There are four ways to do it: The Setuptools Way, The easy_install
-Way, The Running-In-Place Way, and The Debian Way.  Choose one:
-
- The Setuptools Way:
-
-  Get the source code (see above).
-
-  Run 'python setup.py install'. This will compile and install the Tahoe code
-  to the standard location for your operating system (on unix, that is
-  somewhere inside /usr/lib/). It will also acquire and install the
-  easy_install-able dependencies (zfec, foolscap, simplejson, and nevow) to
-  the same place.
-
-  To install it to a non-standard location, learn about setuptools's
-  "--single-version-externally-managed" flag, and visit
-  http://allmydata.org/trac/tahoe/wiki/SetuptoolsAndGNUStow .
+There are four ways to do it: The easy_install Way, The Setuptools Way, The
+Running-In-Place Way, and The Debian Way.  Choose one:
 
  The easy_install Way:
 
@@ -205,24 +122,40 @@ Way, The Running-In-Place Way, and The Debian Way.  Choose one:
   'easy_install allmydata-tahoe' from any shell. That will download the most
   recent Tahoe source tarball, unpack it in a temporary directory, install it
   to the standard location, then download and install any easy_install-able
-  dependencies that you need (zfec, foolscap, simplejson, and nevow).  (This
-  will work only if you already have the other --
-  non-easy_install-able -- dependencies.)
+  dependencies that you need (setuptools, zfec, foolscap, simplejson, and
+  nevow).  (This will work only if you already have the dependencies listed
+  in the MANUAL DEPENDENCIES section, above.)
 
- The Running-In-Place Way:
+ The Setuptools Way:
 
   Get the source code (see above).
 
-  You can use Tahoe without installing it. Build it by running "make". Once
-  you've built it then you can execute "./bin/allmydata-tahoe". (When the
-  allmydata-tahoe script is in an Tahoe source distribution, it adds the
-  necessary directory to the Python "sys.path".)
+  Run 'python setup.py install'. This will compile and install the Tahoe code
+  to the standard location for your operating system (on unix, that is
+  somewhere inside /usr/lib/). It will also acquire and install the
+  easy_install-able dependencies (setuptools, zfec, foolscap, simplejson, and
+  nevow) to the same place.
 
-  If you do not already have installed the easy_install-able dependencies
-  (zfec, foolscap, simplejson, and nevow) then you can install them into a
-  local subdirectory of the Tahoe source distribution by executing "make
-  build-deps". (The allmydata-tahoe script will discover them and add them to
-  the "sys.path".)
+  (To install it to a non-standard location, see
+  http://allmydata.org/trac/tahoe/wiki/SetuptoolsAndGNUStow .)
+
+ The Running-In-Place Way:
+
+  You can use Tahoe without installing it.  The steps are these:
+
+  1. Get the source code (see above).
+
+  2. Run "make build-deps" to install the easy_install-able dependencies
+     (setuptools, zfec, foolscap, simplejson, and nevow) into a local
+     subdirectory of the Tahoe source distribution.
+
+  3. Build Tahoe by running "make".
+
+  4. Once you've built it then you can execute "./bin/allmydata-tahoe". (When
+     the allmydata-tahoe script is in a Tahoe source distribution, it adds
+     the necessary directory to the Python "sys.path".  It also looks for any
+     dependencies that you installed by "make build-deps" and includes them
+     in the sys.path.)  See the RUNNING section, below.
 
  The Debian Way:
 
@@ -231,7 +164,7 @@ Way, The Running-In-Place Way, and The Debian Way.  Choose one:
 
   This requires certain debian packages (build-essential, fakeroot,
   devscripts, debhelper, cdbs) to be installed first, since they are used to
-  construct the tahoe .deb files. A full list of these required packages can
+  construct the Tahoe .deb files. A full list of these required packages can
   be found in the "Build-Depends" line in the misc/DIST/debian/control in the
   top-level tahoe directory (replacing the word DIST with etch, dapper, edgy,
   or feisty as appropriate).
@@ -246,12 +179,12 @@ Way, The Running-In-Place Way, and The Debian Way.  Choose one:
 
 TESTING THAT IT IS PROPERLY INSTALLED
 
+ 'make check-deps' checks that all of the required Python package
+ dependencies are installed.
+
  'make test' runs the unit test suites.  (This can take a long time on
  slow computers.  There are a lot of tests and some of them do a lot of
- public-key cryptography.)  If all tests pass, then you have all the
- dependencies installed, either because they are installed into your system
- or because they are installed into a local subdirectory because you ran
- "make build-deps" (see "The Running-In-Place Way", above).
+ public-key cryptography.)
 
  Executing the allmydata-tahoe script from the "bin" subdirectory will work
  only if Tahoe itself is installed, either because it is installed into the
@@ -326,3 +259,74 @@ RUNNING:
 
  There is a public grid available for testing.  See
  http://allmydata.org/trac/tahoe/wiki/TestGrid for the necessary .furl files.
+
+
+LICENCE:
+
+ This program is free software; you can redistribute it and/or modify it
+ under the terms of the GNU General Public License as published by the Free
+ Software Foundation; either version 2 of the License, or (at your option)
+ any later version, with the added permission that, if you become obligated
+ to release a derived work under this licence (as per section 2.b), you may
+ delay the fulfillment of this obligation for up to 12 months.  If you are
+ obligated to release code under section 2.b of this licence, you are
+ obligated to release it under these same terms, including the 12-month grace
+ period clause.  See the COPYING file for details.
+
+
+EASY_INSTALLABLE DEPENDENCIES
+
+The following Python packages are required, but normally they are
+automatically installed as a side-effect of installing Tahoe.
+
+ + Python setuptools (build and distribution tool)
+
+   http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
+
+   The Tahoe install process will automatically download and install
+   setuptools if it is not present.  However, if an old, incompatible version
+   of setuptools is present (< v0.6c6 on Cygwin, or < v0.6a9 on other
+   platforms), then the install will fail.
+
+   If the install fails due to your current version of setuptools being
+   incompatible, please either upgrade or uninstall your version of
+   setuptools and re-run the install.
+
+ + zfec (erasure coding library)
+
+   http://cheeseshop.python.org/pypi/zfec
+
+   zfec is packaged in a setuptools-compatible way and included in the Python
+   Package Index (PyPI), so it will be automatically installed when you
+   install Tahoe (see INSTALLING).  It can be manually installed by running
+   "easy_install zfec".
+
+ + Python foolscap (secure remote object library)
+
+   http://cheeseshop.python.org/pypi/foolscap
+
+   foolscape is packaged in a setuptools-compatible way and included in the
+   Python Package Index (PyPI), so it will be automatically installed when
+   you install Tahoe (see INSTALLING).  It can be manually installed by
+   running "easy_install foolscap".
+
+ + Python simplejson (JSON parser)
+
+   http://cheeseshop.python.org/pypi/simplejson
+
+   simplejson is packaged in a setuptools-compatible way and included in the
+   Python Package Index (PyPI), so it will be automatically installed when
+   you install Tahoe (see INSTALLING).  It can be manually installed by
+   running "easy_install simplejson".
+
+ + Python Nevow (0.6.0 or later) (web presentation language)
+
+   http://divmod.org/trac/wiki/DivmodNevow
+
+   Note that the current version of Nevow (0.9.18) requires Twisted 2.4.0 or
+   later.
+
+   Nevow is packaged in a setuptools-compatible way and included in the
+   Python Package Index (PyPI), so it will be automatically installed when
+   you install Tahoe (see INSTALLING).  It can be manually installed by
+   running "easy_install nevow".
