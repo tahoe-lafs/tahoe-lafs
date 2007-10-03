@@ -26,7 +26,7 @@ if 'cygwin' in sys.platform.lower():
     min_version='0.6c6'
 else:
     min_version='0.6a9'
-use_setuptools(min_version=min_version, download_base="file:misc/dependencies/")
+use_setuptools(min_version=min_version, download_base="file:misc/dependencies/", download_delay=0)
 
 from setuptools import Extension, setup
 import re, os.path
