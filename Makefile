@@ -85,7 +85,7 @@ make-version:
 	$(MAKE) build
 	touch .built
 
-build: make-version
+build: 
 	$(PYTHON) ./setup.py build_ext -i
 	chmod +x bin/allmydata-tahoe
 
@@ -94,7 +94,7 @@ build: make-version
 # 'make install PREFIX=/usr/local/stow/tahoe-N.N' will do the same, but to
 # a different location
 
-install: make-version
+install: 
 ifdef PREFIX
 	mkdir -p $(PREFIX)
 	$(PP) $(PYTHON) ./setup.py install \
