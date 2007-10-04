@@ -62,10 +62,6 @@ apt-get install gcc make python-dev python-twisted python-pyopenssl".
    Twisted distribution. Note that Twisted does *not* require the entire Zope
    distribution, merely the much smaller zope.interface component.
 
- + OpenSSL, including development headers (cryptography library)
-
-   http://openssl.org
-  
  + Python PyOpenSSL (0.6 or later) (secure transport layer)
 
    http://pyopenssl.sourceforge.net
@@ -80,6 +76,14 @@ apt-get install gcc make python-dev python-twisted python-pyopenssl".
    To install PyOpenSSL on Windows-cygwin, install the OpenSSL development
    libraries with the cygwin package management tool, then get the pyOpenSSL
    source code, cd into it, and run "python ./setup.py install".
+
+ + OpenSSL, including development headers (cryptography library); not
+   required on native Windows (required on cygwin)
+
+   http://openssl.org
+  
+   The Windows-native pyOpenSSL package comes with OpenSSL, which is why you
+   don't need to install OpenSSL separately on Windows-native.
 
  + the pywin32 package (210 or later); required only on native Windows (not
    required on cygwin)
