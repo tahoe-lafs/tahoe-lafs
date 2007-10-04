@@ -64,7 +64,7 @@ TRIAL=$(PYTHON) -u "$(TRIALPATH)" --rterrors $(REACTOROPT)
 # accomplish this by depending upon the tahoe compile.
 build-deps: .built check-twisted-dep
 	mkdir -p "$(SUPPORTLIB)"
-	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)." \
+	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
          $(PYTHON) misc/dependencies/build-deps-setup.py install \
 	 --prefix="$(SUPPORT)"
 
@@ -72,7 +72,10 @@ EGGSPATH = $(shell $(PYTHON) misc/find-dep-eggs.py)
 show-eggspath:
 	@echo $(EGGSPATH)
 
-PP=PYTHONPATH="$(SRCPATH)$(PATHSEP)$(EGGSPATH)$(PATHSEP)$(PYTHONPATH)$(OSSEP)."
+ifneq ($(PYTHONPATH),)
+	PYTHONPATH := $(PYTHONPATH)$(PATHSEP)
+endif
+PP=PYTHONPATH="$(SRCPATH)$(PATHSEP)$(EGGSPATH)$(PATHSEP)$(PYTHONPATH)"
 
 .PHONY: make-version build
 make-version:
