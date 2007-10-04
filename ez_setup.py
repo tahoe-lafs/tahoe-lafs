@@ -48,7 +48,11 @@ def setuptools_is_new_enough(required_version):
     """Return True if setuptools is already installed and has a version
     number >= required_version."""
     verstr = get_setuptools_version()
-    import pkg_resources
+    try:
+        import pkg_resources
+    except ImportError:
+        # Well then I guess it is definitely not new enough.
+        return False
     try:
         ver = pkg_resources.parse_version(verstr)
         newenough = ver and ver >= pkg_resources.parse_version(required_version)
