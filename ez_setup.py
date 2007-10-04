@@ -202,7 +202,7 @@ def update_md5(filenames):
 
 
 if __name__=='__main__':
-    if '--md5update' in sys.argv[1]:
+    if '--md5update' in sys.argv:
         sys.argv.remove('--md5update')
         update_md5(sys.argv[1:])
     else:
