@@ -7,8 +7,8 @@ import sys, os.path
 where = os.path.realpath(sys.argv[0]).split(os.sep)
 
 # look for Tahoe.home . Two cases:
-#  ...(not BASE)/allmydata-tahoe
-#  .../(BASE)/bin/allmydata-tahoe
+#  ...(not BASE)/tahoe
+#  .../(BASE)/bin/tahoe
 if len(where) >= 2 and where[-2] == "bin":
     base = os.sep.join(where[:-2])
 
