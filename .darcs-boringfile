@@ -42,14 +42,10 @@
 ^dist($|/)
 ^debian($|/)
 
-^misc/(dapper|sid|feisty)/debian/allmydata
+^misc/(dapper|sid|feisty)/debian/allmydata-tahoe($|/)
+^misc/(dapper|sid|feisty)/debian/allmydata-tahoe\.\w+\.debhelper$
+^misc/(dapper|sid|feisty)/debian/allmydata-tahoe\.substvars$
 ^misc/(dapper|sid|feisty)/debian/files$
-^src/foolscap/misc/(dapper|sid|feisty)/debian/python-foolscap($|/)
-^src/foolscap/misc/(dapper|sid|feisty)/debian/python-foolscap\.postinst\.debhelper$
-^src/foolscap/misc/(dapper|sid|feisty)/debian/python-foolscap\.prerm\.debhelper$
-^src/foolscap/misc/(dapper|sid|feisty)/debian/python-foolscap\.substvars$
-^src/foolscap/misc/(dapper|sid|feisty)/debian/files$
-^src/foolscap/python-build-stamp
 
 ^build($|/)
 ^build-stamp$

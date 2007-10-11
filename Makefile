@@ -323,8 +323,8 @@ setup-deb: is-known-debian-arch
 
 deb-ARCH: is-known-debian-arch setup-deb
 	fakeroot debian/rules binary
-	echo
-	echo "The newly built .deb packages are in the parent directory from here."
+	@echo
+	@echo "The newly built .deb packages are in the parent directory from here."
 
 .PHONY: increment-deb-version
 .PHONY: deb-sid-head deb-edgy-head deb-feisty-head
