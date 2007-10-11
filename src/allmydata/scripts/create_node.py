@@ -6,7 +6,7 @@ from allmydata.scripts.common import BasedirMixin, NoDefaultBasedirMixin
 class CreateClientOptions(BasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to create the client in"],
-        ["webport", "p", "tcp:8011:interface=127.0.0.1",
+        ["webport", "p", "tcp:8123:interface=127.0.0.1",
          "which TCP port to run the HTTP interface on. Use 'none' to disable."],
         ]
 
