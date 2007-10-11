@@ -5,7 +5,7 @@ import sys, urllib
 def get(nodeurl, root_uri, vdrive_fname, local_file):
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    url = nodeurl + "uri/%s/" % root_uri.replace("/","!")
+    url = nodeurl + "uri/%s/" % urllib.quote(root_uri.replace("/","!"))
     if vdrive_fname:
         url += vdrive_fname
 

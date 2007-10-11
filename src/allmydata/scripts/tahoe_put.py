@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import re, socket
+import re, socket, urllib
 
 NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
@@ -14,7 +14,7 @@ def put(nodeurl, root_uri, local_fname, vdrive_fname, verbosity):
     host = mo.group(1)
     port = int(mo.group(3))
 
-    url = "/uri/%s/" % root_uri.replace("/","!")
+    url = "/uri/%s/" % urllib.quote(root_uri.replace("/","!"))
     if vdrive_fname:
         url += vdrive_fname
 
