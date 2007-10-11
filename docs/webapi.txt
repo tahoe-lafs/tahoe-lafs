@@ -12,11 +12,11 @@ This document has six sections:
 
 a. connecting to the tahoe node
 
-Writing "8011" into $NODEDIR/webport causes the node to run a webserver on
-port 8011. Writing "tcp:8011:interface=127.0.0.1" into $NODEDIR/webport does
+Writing "8123" into $NODEDIR/webport causes the node to run a webserver on
+port 8123. Writing "tcp:8123:interface=127.0.0.1" into $NODEDIR/webport does
 the same but binds to the loopback interface, ensuring that only the programs
 on the local host can connect. Using
-"ssl:8011:privateKey=mykey.pem:certKey=cert.pem" would run an SSL server. See
+"ssl:8123:privateKey=mykey.pem:certKey=cert.pem" would run an SSL server. See
 twisted.application.strports for more details.
 
 b. file names
@@ -43,15 +43,15 @@ Within the webserver, there is a tree of resources. The top-level "vdrive"
 resource gives access to files and directories in all of the user's virtual
 drives. For example, the URL that corresponds to notes.txt would be:
 
-http://localhost:8011/vdrive/global/Documents/notes.txt
+http://localhost:8123/vdrive/global/Documents/notes.txt
 
 and the URL for tractors.jpg would be:
 
-http://localhost:8011/vdrive/private/Pictures/tractors.jpg
+http://localhost:8123/vdrive/private/Pictures/tractors.jpg
 
 In addition, each directory has a corresponding URL. The Pictures URL is:
 
-http://localhost:8011/vdrive/private/Pictures
+http://localhost:8123/vdrive/private/Pictures
 
 c. URIs
 
@@ -67,12 +67,12 @@ the pathnames in the vdrive.
 
 For example, this identifies a file or directory:
 
-http://localhost:8011/uri/$URI
+http://localhost:8123/uri/$URI
 
 And this identifies a file or directory named "tractors.jpg" in a
 subdirectory "Pictures" of the identified directory:
 
-http://localhost:8011/uri/$URI/Pictures/tractors.jpg
+http://localhost:8123/uri/$URI/Pictures/tractors.jpg
 
 In the following examples, "$URL" is a shorthand for a URL like the ones
 above, either with "vdrive/" and a vdrive name as the top level and a
@@ -87,7 +87,7 @@ in the URI must be replaced by '!' characters. The intent is to remove this
 unpleasant requirement in a future release: please see ticket #102 for
 details. An example of this sort of directory-URI URL is:
 
- http://localhost:8011/uri/URI%3ADIR%3Apb%3A!!xextf3eap44o3wi27mf7ehiur6wvhzr6%40207.7.153.180%3A56677%2C127.0.0.1%3A56677!vdrive%3Agqu1fub33exw9cu63718yzx6gr/
+ http://localhost:8123/uri/URI%3ADIR%3Apb%3A!!xextf3eap44o3wi27mf7ehiur6wvhzr6%40207.7.153.180%3A56677%2C127.0.0.1%3A56677!vdrive%3Agqu1fub33exw9cu63718yzx6gr/
 
 Now, what can we do with these URLs? By varying the HTTP method
 (GET/PUT/POST/DELETE) and by appending a type-indicating query argument, we
@@ -157,11 +157,11 @@ e. downloading a file
   file (e.g. if it ends with the URI of the file instead). This filename is
   also the one used if the 'save=true' argument is set. For example:
 
-   GET http://localhost:8011/uri/$TRACTORS_URI?filename=tractors.jpg
+   GET http://localhost:8123/uri/$TRACTORS_URI?filename=tractors.jpg
 
 f. uploading a file
 
-  PUT http://localhost:8011/uri
+  PUT http://localhost:8123/uri
 
   Upload a file, returning its URI as the HTTP response body. This does not
   make the file visible from the virtual drive -- to do that, see section
@@ -169,7 +169,7 @@ f. uploading a file
 
 g. creating a new directory
 
-  PUT http://localhost:8011/uri?t=mkdir
+  PUT http://localhost:8123/uri?t=mkdir
 
   Create a new empty directory and return its URI as the HTTP response body.
   This does not make the newly created directory visible from the virtual
@@ -184,9 +184,9 @@ h. attaching a file or directory as the child of an extant directory
   $URL is required to indicate a directory as the second-to-last element and
   the desired filename as the last element, for example:
 
-   PUT http://localhost:8011/uri/$URI_OF_SOME_DIR/Pictures/tractors.jpg
-   PUT http://localhost:8011/uri/$URI_OF_SOME_DIR/tractors.jpg
-   PUT http://localhost:8011/vdrive/private/Pictures/tractors.jpg
+   PUT http://localhost:8123/uri/$URI_OF_SOME_DIR/Pictures/tractors.jpg
+   PUT http://localhost:8123/uri/$URI_OF_SOME_DIR/tractors.jpg
+   PUT http://localhost:8123/vdrive/private/Pictures/tractors.jpg
 
   The URI of the child is provided in the body of the HTTP request.
 
@@ -239,7 +239,7 @@ a. uploading a file and attaching it to the vdrive
   modifying an existing file, and a 201 (Created) code when creating a new
   file. (TODO: as of 0.5, the web server only returns 200, never 201).
 
-  To use this, run 'curl -T localfile http://localhost:8011/vdrive/global/newfile'
+  To use this, run 'curl -T localfile http://localhost:8123/vdrive/global/newfile'
 
 3. safety and security issues -- names vs. URIs
 
@@ -286,7 +286,7 @@ request reaches the server". Use URIs if you want "this particular object".
 
 a. uri redirect
 
-  GET http://localhost:8011/uri?uri=$URI
+  GET http://localhost:8123/uri?uri=$URI
 
   This causes a redirect to /uri/$URI, and retains any additional query
   arguments (like filename= or save=). This is for the convenience of web
@@ -401,7 +401,7 @@ PUT $NEWURL?t=upload&localdir=$LOCALPATH
   Note that the "curl" utility can be used to provoke this sort of recursive
   upload, since the -T option will make it use an HTTP 'PUT':
 
-   curl -T /dev/null 'http://localhost:8011/vdrive/global/newdir?t=upload&localdir=/home/user/directory-to-upload'
+   curl -T /dev/null 'http://localhost:8123/vdrive/global/newdir?t=upload&localdir=/home/user/directory-to-upload'
 
   This form is only implemented for testing purposes, because any attacker's
   web server that a local browser visits could serve an IMG tag that causes
@@ -415,7 +415,7 @@ GET $URL?t=manifest
 
 6. XMLRPC (coming soon)
 
-  http://localhost:8011/xmlrpc
+  http://localhost:8123/xmlrpc
 
   This resource provides an XMLRPC server on which all of the previous
   operations can be expressed as function calls taking a "pathname" argument.
