@@ -22,8 +22,8 @@ everyone who wishes to attach a client to that grid
 
 webport (optional): This controls where the client's webserver should listen,
 providing vdrive access as defined in webapi.txt . This file should contain a
-Twisted "strports" specification, such as "8080" or
-"tcp:8080:interface=127.0.0.1".
+Twisted "strports" specification, such as "8123" or
+"tcp:8123:interface=127.0.0.1".
 
 client.port (optional): This controls which port the node listens on. If not
 provided, the node will ask the kernel for any available port, and write it
