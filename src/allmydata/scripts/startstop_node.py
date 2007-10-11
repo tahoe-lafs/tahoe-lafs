@@ -26,8 +26,6 @@ class RestartOptions(BasedirMixin, usage.Options):
         ["force", "f", "if the node is not already running, start it "
          "instead of complaining that you should have used 'start' instead "
          "of 'restart'"],
-        ]
-    optFlags = [
         ["profile", "p", "whether to run under the Python profiler, putting results in \"profiling_results.prof\""],
         ]
 
