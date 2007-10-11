@@ -172,7 +172,7 @@ class RunNode(unittest.TestCase, testutil.PollMixin):
 
         # now we can kill it. TODO: On a slow machine, the node might kill
         # itself before we get a chance too, especially if spawning the
-        # 'allmydata-tahoe stop' command takes a while.
+        # 'tahoe stop' command takes a while.
         def _stop(res):
             open(HOTLINE_FILE, "w").write("")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))

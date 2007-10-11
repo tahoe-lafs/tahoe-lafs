@@ -118,7 +118,7 @@ setup(name='allmydata-tahoe',
       test_suite="allmydata.test",
       install_requires=install_requires,
       dependency_links=dependency_links,
-      entry_points = { 'console_scripts': [ 'allmydata-tahoe = allmydata.scripts.runner:run' ] },
+      entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
       ext_modules=[
           Extension("allmydata.Crypto.Cipher.AES",
                     include_dirs=["src/allmydata/Crypto"],

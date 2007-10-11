@@ -78,6 +78,9 @@ endif
 PP=PYTHONPATH="$(SRCPATH)$(PATHSEP)$(EGGSPATH)$(PATHSEP)$(PYTHONPATH)"
 
 .PHONY: make-version build
+# N.B.: the first argument to make-version.py is used to find darcs tags that
+# represent released versions, so it needs to match whatever release
+# conventions are in use.
 make-version:
 	$(PYTHON) misc/make-version.py "allmydata-tahoe" "src/allmydata/_version.py"
 
@@ -87,7 +90,7 @@ make-version:
 
 build: 
 	$(PYTHON) ./setup.py build_ext -i
-	chmod +x bin/allmydata-tahoe
+	chmod +x bin/tahoe
 
 # 'make install' will do the following:
 #   build+install tahoe (probably to /usr/lib/pythonN.N/site-packages)
@@ -239,10 +242,10 @@ check-memory-once: .built
 
 check-speed: .built
 	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
-	$(PYTHON) bin/allmydata-tahoe start $(TESTCLIENTDIR)
+	$(PYTHON) bin/tahoe start $(TESTCLIENTDIR)
 	sleep 5
 	$(PYTHON) src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
-	$(PYTHON) bin/allmydata-tahoe stop $(TESTCLIENTDIR)
+	$(PYTHON) bin/tahoe stop $(TESTCLIENTDIR)
 
 test-darcs-boringfile:
 	$(MAKE)

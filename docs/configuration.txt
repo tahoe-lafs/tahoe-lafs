@@ -79,8 +79,8 @@ held while they are being received.
 client.tac : this file defines the client, by constructing the actual Client
 instance each time the node is started. It is used by the 'twistd'
 daemonization program (in the "-y" mode), which is run internally by the
-"allmydata-tahoe start" command. This file is created by the "allmydata-tahoe
-create-client" command.
+"tahoe start" command. This file is created by the "tahoe create-client"
+command.
 
 control.furl : this file contains a FURL that provides access to a control
 port on the client node, from which files can be uploaded and downloaded.
