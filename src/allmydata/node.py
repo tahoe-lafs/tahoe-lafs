@@ -176,7 +176,9 @@ class Node(service.MultiService):
             except TypeError, e:
                 msg = "ERROR: output string '%s' contained invalid %% expansion, error: %s, args: %s\n" % (`msg`, e, `args`)
         # TODO: modify the timestamp to include milliseconds
-        log.FileLogObserver.timeFormat="%Y-%m-%d %H:%M:%S.000Z"
+        # TODO: modify it to be in UTC instead of localtime
+        #  (see twisted/python/log.py:FileLogObserver.formatTime line 362)
+        log.FileLogObserver.timeFormat="%Y-%m-%d %H:%M:%S"
         log.callWithContext({"system":logsrc},log.msg,(self.short_nodeid + ": " + humanreadable.hr(msg)))
 
     def _setup_tub(self, local_addresses):
