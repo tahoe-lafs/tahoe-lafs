@@ -6,6 +6,8 @@ from allmydata.scripts.common import BasedirMixin, NoDefaultBasedirMixin
 class CreateClientOptions(BasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to create the client in"],
+        ["webport", "p", "tcp:8011:interface=127.0.0.1",
+         "which TCP port to run the HTTP interface on. Use 'none' to disable."],
         ]
 
 class CreateIntroducerOptions(NoDefaultBasedirMixin, usage.Options):
@@ -50,6 +52,10 @@ def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
     f = open(os.path.join(basedir, "client.tac"), "w")
     f.write(client_tac)
     f.close()
+    if config['webport'].lower() != "none":
+        f = open(os.path.join(basedir, "webport"), "w")
+        f.write(config['webport'] + "\n")
+        f.close()
     print >>out, "client created in %s" % basedir
     print >>out, " please copy introducer.furl and vdrive.furl into the directory"
 
