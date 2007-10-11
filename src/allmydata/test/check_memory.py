@@ -74,6 +74,7 @@ class SystemFramework(testutil.PollMixin):
         self.tub.setServiceParent(self.sparent)
         self.mode = mode
         self.failed = False
+        self.keepalive_file = None
 
     def run(self):
         framelog = os.path.join(self.basedir, "driver.log")
@@ -142,7 +143,7 @@ class SystemFramework(testutil.PollMixin):
         # the client node will shut down in a few seconds
         #os.remove(os.path.join(self.clientdir, "suicide_prevention_hotline"))
         log.msg("shutting down SystemTest services")
-        if os.path.exists(self.keepalive_file):
+        if self.keepalive_file and os.path.exists(self.keepalive_file):
             age = time.time() - os.stat(self.keepalive_file)[stat.ST_MTIME]
             log.msg("keepalive file at shutdown was %ds old" % age)
         d = defer.succeed(None)
