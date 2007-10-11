@@ -7,7 +7,7 @@ from allmydata.scripts.common import BaseOptions
 import debug, create_node, startstop_node, cli
 
 class Options(BaseOptions, usage.Options):
-    synopsis = "Usage:  allmydata <command> [command options]"
+    synopsis = "Usage:  tahoe <command> [command options]"
 
     subCommands = []
     subCommands += create_node.subCommands
