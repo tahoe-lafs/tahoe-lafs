@@ -80,6 +80,15 @@ sequence of slash-separated pathnames following, or with "uri/" as the top
 level, followed by a URI, optionally followed by a sequence of
 slash-separated pathnames.
 
+Note that since tahoe URIs may contain slashes (in particular, dirnode URIs
+contain a FURL, which resembles a regular HTTP URL and starts with pb://),
+when URIs are used in this form, they must be specially quoted. All slashes
+in the URI must be replaced by '!' characters. The intent is to remove this
+unpleasant requirement in a future release: please see ticket #102 for
+details. An example of this sort of directory-URI URL is:
+
+ http://localhost:8011/uri/URI%3ADIR%3Apb%3A!!xextf3eap44o3wi27mf7ehiur6wvhzr6%40207.7.153.180%3A56677%2C127.0.0.1%3A56677!vdrive%3Agqu1fub33exw9cu63718yzx6gr/
+
 Now, what can we do with these URLs? By varying the HTTP method
 (GET/PUT/POST/DELETE) and by appending a type-indicating query argument, we
 control what we want to do with the data and how it should be presented.
