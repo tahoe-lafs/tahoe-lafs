@@ -7,14 +7,56 @@ NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
 class VDriveOptions(BaseOptions, usage.Options):
     optParameters = [
+        ["node-directory", "d", "~/.tahoe",
+         "Look here to find out which Tahoe node should be used for all "
+         "operations. The directory should either contain a full Tahoe node, "
+         "or a file named node.url which points to some other Tahoe node. "
+         "It should also contain a file named my_vdrive.uri which contains "
+         "the root dirnode URI that should be used, and a file named "
+         "global_root.uri which contains the public global root dirnode URI."
+         ],
         ["node-url", "u", None,
-         "URL of the tahoe node to use, a URL like \"http://127.0.0.1:8123\""],
+         "URL of the tahoe node to use, a URL like \"http://127.0.0.1:8123\". "
+         "This overrides the URL found in the --node-directory ."],
+        ["root-uri", "r", "private",
+         "Which dirnode URI should be used as a root directory. The string "
+         "'public' is special, and means we should use the public global root "
+         "as found in the global_root.uri file in the --node-directory . The "
+         "string 'private' is also special, and means we should use the "
+         "private vdrive as found in the my_vdrive.uri file in the "
+         "--node-directory ."],
         ]
 
     def postOptions(self):
-        if not isinstance(self['node-url'], basestring) or not NODEURL_RE.match(self['node-url']):
-            raise usage.UsageError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (self['node-url'],))
-        
+        # compute a node-url from the existing options, put in self['node-url']
+        if self['node-directory']:
+            self['node-directory'] = os.path.expanduser(self['node-directory'])
+        if self['node-url']:
+            if (not isinstance(self['node-url'], basestring)
+                or not NODEURL_RE.match(self['node-url'])):
+                msg = ("--node-url is required to be a string and look like "
+                       "\"http://HOSTNAMEORADDR:PORT\", not: %r" %
+                       (self['node-url'],))
+                raise usage.UsageError(msg)
+        else:
+            node_url_file = os.path.join(self['node-directory'], "node.url")
+            self['node-url'] = open(node_url_file, "r").read().strip()
+
+        # also compute self['root-uri']
+        if self['root-uri'] == "private":
+            uri_file = os.path.join(self['node-directory'], "my_vdrive.uri")
+            self['root-uri'] = open(uri_file, "r").read().strip()
+        elif self['root-uri'] == "public":
+            uri_file = os.path.join(self['node-directory'], "global_root.uri")
+            self['root-uri'] = open(uri_file, "r").read().strip()
+        else:
+            from allmydata import uri
+            parsed = uri.from_string(self['root-uri'])
+            if not uri.IDirnodeURI.providedBy(parsed):
+                raise usage.UsageError("--root-uri must be a dirnode URI, or "
+                                       "'public' or 'private'")
+
+
 class ListOptions(VDriveOptions):
     def parseArgs(self, vdrive_pathname=""):
         self['vdrive_pathname'] = vdrive_pathname
@@ -63,6 +105,7 @@ subCommands = [
 def list(config, stdout, stderr):
     from allmydata.scripts import tahoe_ls
     rc = tahoe_ls.list(config['node-url'],
+                       config['root-uri'],
                        config['vdrive_pathname'])
     return rc
 
@@ -71,6 +114,7 @@ def get(config, stdout, stderr):
     vdrive_filename = config['vdrive_filename']
     local_filename = config['local_filename']
     rc = tahoe_get.get(config['node-url'],
+                       config['root-uri'],
                        vdrive_filename,
                        local_filename)
     if rc == 0:
@@ -93,6 +137,7 @@ def put(config, stdout, stderr):
     else:
         verbosity = 2
     rc = tahoe_put.put(config['node-url'],
+                       config['root-uri'],
                        local_filename,
                        vdrive_filename,
                        verbosity)
@@ -106,8 +151,9 @@ def rm(config, stdout, stderr):
     else:
         verbosity = 2
     rc = tahoe_rm.rm(config['node-url'],
-                       vdrive_pathname,
-                       verbosity)
+                     config['root-uri'],
+                     vdrive_pathname,
+                     verbosity)
     return rc
 
 dispatch = {

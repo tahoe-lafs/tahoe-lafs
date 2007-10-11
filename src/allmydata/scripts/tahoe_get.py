@@ -2,10 +2,10 @@
 
 import sys, urllib
 
-def get(nodeurl, vdrive_fname, local_file):
+def get(nodeurl, root_uri, vdrive_fname, local_file):
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    url = nodeurl + "vdrive/global/"
+    url = nodeurl + "uri/%s/" % root_uri.replace("/","!")
     if vdrive_fname:
         url += vdrive_fname
 
@@ -28,19 +28,23 @@ def main():
     import optparse, re
     parser = optparse.OptionParser()
     parser.add_option("-u", "--nodeurl", dest="nodeurl")
+    parser.add_option("-r", "--root-uri", dest="rooturi")
 
     (options, args) = parser.parse_args()
 
     NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
     if not isinstance(options.nodeurl, basestring) or not NODEURL_RE.match(options.nodeurl):
         raise ValueError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (options.nodeurl,))
+
+    if not options.rooturi:
+        raise ValueError("must provide --root-uri")
     
     vdrive_fname = args[0]
     local_file = None
     if len(args) > 1:
         local_file = args[1]
 
-    get(options.nodeurl, vdrive_fname, local_file)
+    get(options.nodeurl, options.rooturi, vdrive_fname, local_file)
 
 if __name__ == '__main__':
     main()

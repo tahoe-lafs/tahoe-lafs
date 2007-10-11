@@ -4,7 +4,7 @@ import re, socket
 
 NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
-def put(nodeurl, local_fname, vdrive_fname, verbosity):
+def put(nodeurl, root_uri, local_fname, vdrive_fname, verbosity):
     """
     @param verbosity: 0, 1, or 2, meaning quiet, verbose, or very verbose
 
@@ -14,7 +14,7 @@ def put(nodeurl, local_fname, vdrive_fname, verbosity):
     host = mo.group(1)
     port = int(mo.group(3))
 
-    url = "/vdrive/global/"
+    url = "/uri/%s/" % root_uri.replace("/","!")
     if vdrive_fname:
         url += vdrive_fname
 
@@ -76,19 +76,23 @@ def main():
     import optparse, re
     parser = optparse.OptionParser()
     parser.add_option("-u", "--node-url", dest="nodeurl")
+    parser.add_option("-r", "--root-uri", dest="rooturi")
 
     (options, args) = parser.parse_args()
 
     NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
     if not isinstance(options.nodeurl, basestring) or not NODEURL_RE.match(options.nodeurl):
         raise ValueError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (options.nodeurl,))
+
+    if not options.rooturi:
+        raise ValueError("must provide --root-uri")
     
     local_file = args[0]
     vdrive_fname = None
     if len(args) > 1:
         vdrive_fname = args[1]
 
-    return put(options.nodeurl, vdrive_fname, local_file)
+    return put(options.nodeurl, options.rooturi, vdrive_fname, local_file)
 
 if __name__ == '__main__':
     main()
