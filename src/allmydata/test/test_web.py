@@ -395,7 +395,8 @@ class Web(WebMixin, unittest.TestCase):
             self.s.basedir = 'web/test_welcome'
             fileutil.make_dirs("web/test_welcome")
             self.ws.create_start_html("private_uri",
-                                      "web/test_welcome/start.html")
+                                      "web/test_welcome/start.html",
+                                      "web/test_welcome/node.url")
             return self.GET("/")
         d.addCallback(_check)
         def _check2(res):
@@ -467,13 +468,18 @@ class Web(WebMixin, unittest.TestCase):
     def test_start_html(self):
         fileutil.make_dirs("web")
         startfile = "web/start.html"
-        self.ws.create_start_html("private_uri", startfile)
+        nodeurlfile = "web/node.url"
+        self.ws.create_start_html("private_uri", startfile, nodeurlfile)
 
         self.failUnless(os.path.exists(startfile))
         start_html = open(startfile, "r").read()
         self.failUnless(self.webish_url in start_html)
         private_url = self.webish_url + "/uri/private_uri"
         self.failUnless(private_url in start_html)
+
+        self.failUnless(os.path.exists(nodeurlfile))
+        nodeurl = open(nodeurlfile, "r").read().strip()
+        self.failUnless(nodeurl.startswith("http://localhost"))
 
     def test_GET_FILEURL(self):
         d = self.GET("/vdrive/global/foo/bar.txt")

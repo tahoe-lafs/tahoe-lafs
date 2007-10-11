@@ -98,8 +98,9 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         self.add_service(ws)
         vd = self.getServiceNamed("vdrive")
         startfile = os.path.join(self.basedir, "start.html")
+        nodeurl_file = os.path.join(self.basedir, "node.url")
         d = vd.when_private_root_available()
-        d.addCallback(ws.create_start_html, startfile)
+        d.addCallback(ws.create_start_html, startfile, nodeurl_file)
 
 
     def _check_hotline(self, hotline_file):

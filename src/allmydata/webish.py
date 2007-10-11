@@ -1221,7 +1221,7 @@ class WebishServer(service.MultiService):
         # apparently 'ISite' does not exist
         #self.site._client = self.parent
 
-    def create_start_html(self, private_uri, startfile):
+    def create_start_html(self, private_uri, startfile, nodeurl_file):
         f = open(startfile, "w")
         os.chmod(startfile, 0600)
         template = open(util.sibpath(__file__, "web/start.html"), "r").read()
@@ -1240,3 +1240,9 @@ class WebishServer(service.MultiService):
                   }
         f.write(template % fields)
         f.close()
+
+        f = open(nodeurl_file, "w")
+        # this file is world-readable
+        f.write(base_url + "\n")
+        f.close()
+
