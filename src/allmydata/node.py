@@ -175,7 +175,8 @@ class Node(service.MultiService):
                 msg = msg % tuple(map(humanreadable.hr, args))
             except TypeError, e:
                 msg = "ERROR: output string '%s' contained invalid %% expansion, error: %s, args: %s\n" % (`msg`, e, `args`)
-        log.FileLogObserver.timeFormat="%y%m%d-%H:%M:%S"
+        # TODO: modify the timestamp to include milliseconds
+        log.FileLogObserver.timeFormat="%Y-%m-%d %H:%M:%S.000Z"
         log.callWithContext({"system":logsrc},log.msg,(self.short_nodeid + ": " + humanreadable.hr(msg)))
 
     def _setup_tub(self, local_addresses):
