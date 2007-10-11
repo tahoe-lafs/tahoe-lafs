@@ -1,9 +1,9 @@
 
 import os, sys
 from twisted.python import usage
-from allmydata.scripts.common import NoDefaultBasedirMixin
+from allmydata.scripts.common import BasedirMixin, NoDefaultBasedirMixin
 
-class CreateClientOptions(NoDefaultBasedirMixin, usage.Options):
+class CreateClientOptions(BasedirMixin, usage.Options):
     optParameters = [
         ["basedir", "C", None, "which directory to create the client in"],
         ]

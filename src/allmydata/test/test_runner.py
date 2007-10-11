@@ -44,11 +44,6 @@ class CreateNode(unittest.TestCase):
                               ["create-client", "basedir", "extraarg"],
                               run_by_human=False)
 
-        self.failUnlessRaises(usage.UsageError,
-                              runner.runner,
-                              ["create-client"],
-                              run_by_human=False)
-
     def test_introducer(self):
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")

@@ -40,7 +40,7 @@ class BasedirMixin:
             self.basedirs.extend(args)
         else:
             if len(args) == 0 and not self.basedirs:
-                self.basedirs.append(".")
+                self.basedirs.append(os.path.expanduser("~/.tahoe"))
             if len(args) > 0:
                 self.basedirs.append(args[0])
             if len(args) > 1:
@@ -48,7 +48,7 @@ class BasedirMixin:
 
 class NoDefaultBasedirMixin(BasedirMixin):
     def parseArgs(self, *args):
-        # create-client won't default to --basedir=.
+        # create-client won't default to --basedir=~/.tahoe
         self.basedirs = []
         if self['basedir']:
             self.basedirs.append(self['basedir'])
