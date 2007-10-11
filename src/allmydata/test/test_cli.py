@@ -8,6 +8,7 @@ from allmydata import uri
 # them yet.
 
 from allmydata.scripts import cli, tahoe_ls, tahoe_get, tahoe_put, tahoe_rm
+_hush_pyflakes = [tahoe_ls, tahoe_get, tahoe_put, tahoe_rm]
 
 
 class CLI(unittest.TestCase):
