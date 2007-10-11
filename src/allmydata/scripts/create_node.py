@@ -52,7 +52,7 @@ def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
     f = open(os.path.join(basedir, "client.tac"), "w")
     f.write(client_tac)
     f.close()
-    if config['webport'].lower() != "none":
+    if config.get('webport', "none").lower() != "none":
         f = open(os.path.join(basedir, "webport"), "w")
         f.write(config['webport'] + "\n")
         f.close()
