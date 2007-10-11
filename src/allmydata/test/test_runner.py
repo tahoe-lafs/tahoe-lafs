@@ -24,7 +24,7 @@ class CreateNode(unittest.TestCase):
         self.failUnlessEqual(out.getvalue(), "")
         self.failUnlessEqual(rc, 0)
         self.failUnless(os.path.exists(c1))
-        self.failUnless(os.path.exists(os.path.join(c1, "client.tac")))
+        self.failUnless(os.path.exists(os.path.join(c1, "tahoe-client.tac")))
 
         # creating the client a second time should throw an exception
         out,err = StringIO(), StringIO()
@@ -37,7 +37,7 @@ class CreateNode(unittest.TestCase):
         argv = ["--quiet", "create-client", c2]
         runner.runner(argv)
         self.failUnless(os.path.exists(c2))
-        self.failUnless(os.path.exists(os.path.join(c2, "client.tac")))
+        self.failUnless(os.path.exists(os.path.join(c2, "tahoe-client.tac")))
 
         self.failUnlessRaises(usage.UsageError,
                               runner.runner,
@@ -54,7 +54,8 @@ class CreateNode(unittest.TestCase):
         self.failUnlessEqual(out.getvalue(), "")
         self.failUnlessEqual(rc, 0)
         self.failUnless(os.path.exists(c1))
-        self.failUnless(os.path.exists(os.path.join(c1, "introducer.tac")))
+        self.failUnless(os.path.exists(os.path.join(c1,
+                                                    "tahoe-introducer.tac")))
 
         # creating the introducer a second time should throw an exception
         out,err = StringIO(), StringIO()
@@ -67,7 +68,8 @@ class CreateNode(unittest.TestCase):
         argv = ["--quiet", "create-introducer", c2]
         runner.runner(argv)
         self.failUnless(os.path.exists(c2))
-        self.failUnless(os.path.exists(os.path.join(c2, "introducer.tac")))
+        self.failUnless(os.path.exists(os.path.join(c2,
+                                                    "tahoe-introducer.tac")))
 
         self.failUnlessRaises(usage.UsageError,
                               runner.runner,

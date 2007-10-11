@@ -34,8 +34,14 @@ def do_start(basedir, profile=False, out=sys.stdout, err=sys.stderr):
     if os.path.exists(os.path.join(basedir, "client.tac")):
         tac = "client.tac"
         type = "client"
+    elif os.path.exists(os.path.join(basedir, "tahoe-client.tac")):
+        tac = "tahoe-client.tac"
+        type = "client"
     elif os.path.exists(os.path.join(basedir, "introducer.tac")):
         tac = "introducer.tac"
+        type = "introducer"
+    elif os.path.exists(os.path.join(basedir, "tahoe-introducer.tac")):
+        tac = "tahoe-introducer.tac"
         type = "introducer"
     else:
         print >>err, "%s does not look like a node directory" % basedir

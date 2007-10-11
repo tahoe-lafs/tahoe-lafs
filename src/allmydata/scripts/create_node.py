@@ -49,7 +49,7 @@ def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
         # we're willing to use an empty directory
     else:
         os.mkdir(basedir)
-    f = open(os.path.join(basedir, "client.tac"), "w")
+    f = open(os.path.join(basedir, "tahoe-client.tac"), "w")
     f.write(client_tac)
     f.close()
     if config.get('webport', "none").lower() != "none":
@@ -69,7 +69,7 @@ def create_introducer(basedir, config, out=sys.stdout, err=sys.stderr):
         # we're willing to use an empty directory
     else:
         os.mkdir(basedir)
-    f = open(os.path.join(basedir, "introducer.tac"), "w")
+    f = open(os.path.join(basedir, "tahoe-introducer.tac"), "w")
     f.write(introducer_tac)
     f.close()
     print >>out, "introducer created in %s" % basedir
