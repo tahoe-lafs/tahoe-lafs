@@ -1,13 +1,13 @@
 
-import os.path, re
+import os.path, re, time
 from base64 import b32decode, b32encode
 
 import twisted
-from twisted.python import log
+from twisted.python import log, logfile
 from twisted.application import service
 from twisted.internet import defer, reactor
 from foolscap import Tub, eventual
-from allmydata.util import iputil, observer, humanreadable
+from allmydata.util import iputil, observer, humanreadable, fileutil
 from allmydata.util.assertutil import precondition
 
 # Just to get their versions:
@@ -17,6 +17,19 @@ import foolscap
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
 ADDR_RE=re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
+
+
+
+class MyFileLogObserver(log.FileLogObserver):
+    def formatTime(self, when):
+        # we want UTC timestamps that look like:
+        #  2007-10-12 00:26:28.566Z [Client] rnp752lz: 'client running'
+        base = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(when))
+        # now add the milliseconds
+        fraction = when - int(when)
+        suffix = ".%03dZ" % (1000*fraction,)
+        return base + suffix
+
 
 class Node(service.MultiService):
     # this implements common functionality of both Client nodes, Introducer 
@@ -61,6 +74,7 @@ class Node(service.MultiService):
                 m.setServiceParent(self)
                 self.log("AuthorizedKeysManhole listening on %d" % portnum)
 
+        self.setup_logging()
         self.log("Node constructed.  tahoe version: %s, foolscap: %s,"
                  " twisted: %s, zfec: %s"
                  % (allmydata.__version__, foolscap.__version__,
@@ -165,11 +179,30 @@ class Node(service.MultiService):
         self.log("Node.shutdown")
         return self.stopService()
 
+    def setup_logging(self):
+        # we replace the log observer that twistd set up for us, with a form
+        # that uses better timestamps. First, shut down all existing
+        # file-based observers (leaving trial's error-watching observers in
+        # place).
+        for o in log.theLogPublisher.observers:
+            # o might be a FileLogObserver's .emit method
+            if type(o) is type(self.setup_logging): # bound method
+                ob = o.im_self
+                if isinstance(ob, log.FileLogObserver):
+                    log.removeObserver(o)
+        logdir = os.path.abspath(os.path.join(self.basedir, "logs"))
+        fileutil.make_dirs(logdir)
+        lf = logfile.LogFile("twistd.log", logdir)
+        # TODO: twisted >2.5.0 offers maxRotatedFiles=50
+        ob = MyFileLogObserver(lf)
+        log.addObserver(ob.emit)
+        return
+
     def log(self, msg, src="", args=()):
         if src:
             logsrc = src
         else:
-            logsrc=self.logSource
+            logsrc = self.logSource
         if args:
             try:
                 msg = msg % tuple(map(humanreadable.hr, args))
@@ -178,8 +211,10 @@ class Node(service.MultiService):
         # TODO: modify the timestamp to include milliseconds
         # TODO: modify it to be in UTC instead of localtime
         #  (see twisted/python/log.py:FileLogObserver.formatTime line 362)
-        log.FileLogObserver.timeFormat="%Y-%m-%d %H:%M:%S"
-        log.callWithContext({"system":logsrc},log.msg,(self.short_nodeid + ": " + humanreadable.hr(msg)))
+
+        log.callWithContext({"system":logsrc},
+                            log.msg,
+                            (self.short_nodeid + ": " + humanreadable.hr(msg)))
 
     def _setup_tub(self, local_addresses):
         # we can't get a dynamically-assigned portnum until our Tub is
