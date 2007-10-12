@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, urllib
+import urllib
 
 def get(nodeurl, root_uri, vdrive_fname, local_file, stdout, stderr):
     if nodeurl[-1] != "/":
