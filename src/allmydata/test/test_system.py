@@ -741,8 +741,30 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             self.failUnlessEqual(err, "")
         d.addCallback(_check_get)
 
+        def _mv(res):
+            argv = ["mv"] + nodeargs + ["test_put/upload.txt",
+                                        "test_put/moved.txt"]
+            return self._run_cli(argv)
+        d.addCallback(_mv)
+        def _check_mv((out,err)):
+            self.failUnless("OK" in out)
+            self.failUnlessEqual(err, "")
+            vdrive0 = self.clients[0].getServiceNamed("vdrive")
+            d = defer.maybeDeferred(vdrive0.get_node_at_path,
+                                    "~/test_put/upload.txt")
+            d.addBoth(self.shouldFail, KeyError, "test_cli._check_rm",
+                      "unable to find child named 'upload.txt'")
+            d.addCallback(lambda res:
+                          vdrive0.get_node_at_path("~/test_put/moved.txt"))
+            d.addCallback(lambda filenode: filenode.download_to_data())
+            def _check_mv2(res):
+                self.failUnless("I will not write" in res)
+            d.addCallback(_check_mv2)
+            return d
+        d.addCallback(_check_mv)
+
         def _rm(res):
-            argv = ["rm"] + nodeargs + ["test_put/upload.txt"]
+            argv = ["rm"] + nodeargs + ["test_put/moved.txt"]
             return self._run_cli(argv)
         d.addCallback(_rm)
         def _check_rm((out,err)):
@@ -750,9 +772,9 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             self.failUnlessEqual(err, "")
             vdrive0 = self.clients[0].getServiceNamed("vdrive")
             d = defer.maybeDeferred(vdrive0.get_node_at_path,
-                                    "~/test_put/upload.txt")
+                                    "~/test_put/moved.txt")
             d.addBoth(self.shouldFail, KeyError, "test_cli._check_rm",
-                      "unable to find child named 'upload.txt'")
+                      "unable to find child named 'moved.txt'")
             return d
         d.addCallback(_check_rm)
         return d

@@ -94,12 +94,21 @@ class RmOptions(VDriveOptions):
     def getSynopsis(self):
         return "%s rm VE_FILE" % (os.path.basename(sys.argv[0]),)
 
+class MvOptions(VDriveOptions):
+    def parseArgs(self, frompath, topath):
+        self['from'] = frompath
+        self['to'] = topath
+
+    def getSynopsis(self):
+        return "%s mv FROM TO" % (os.path.basename(sys.argv[0]),)
+
 
 subCommands = [
     ["ls", None, ListOptions, "List a directory"],
     ["get", None, GetOptions, "Retrieve a file from the virtual drive."],
     ["put", None, PutOptions, "Upload a file into the virtual drive."],
     ["rm", None, RmOptions, "Unlink a file or directory in the virtual drive."],
+    ["mv", None, MvOptions, "Move a file within the virtual drive."],
     ]
 
 def list(config, stdout, stderr):
@@ -160,10 +169,22 @@ def rm(config, stdout, stderr):
                      stdout, stderr)
     return rc
 
+def mv(config, stdout, stderr):
+    from allmydata.scripts import tahoe_mv
+    frompath = config['from']
+    topath = config['to']
+    rc = tahoe_mv.mv(config['node-url'],
+                     config['root-uri'],
+                     frompath,
+                     topath,
+                     stdout, stderr)
+    return rc
+
 dispatch = {
     "ls": list,
     "get": get,
     "put": put,
     "rm": rm,
+    "mv": mv,
     }
 
