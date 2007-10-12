@@ -62,3 +62,4 @@ class NoDefaultBasedirMixin(BasedirMixin):
         if not self.basedirs:
             raise usage.UsageError("--basedir must be provided")
 
+
