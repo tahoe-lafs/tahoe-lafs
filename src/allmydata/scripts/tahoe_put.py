@@ -4,7 +4,8 @@ import re, socket, urllib
 
 NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
-def put(nodeurl, root_uri, local_fname, vdrive_fname, verbosity):
+def put(nodeurl, root_uri, local_fname, vdrive_fname, verbosity,
+        stdout, stderr):
     """
     @param verbosity: 0, 1, or 2, meaning quiet, verbose, or very verbose
 
@@ -32,7 +33,7 @@ def put(nodeurl, root_uri, local_fname, vdrive_fname, verbosity):
         try:
             sent = so.send(data)
         except Exception, le:
-            print "got socket error: %s" % (le,)
+            print >>stderr, "got socket error: %s" % (le,)
             return -1
 
         if sent == len(data):
@@ -66,10 +67,10 @@ def put(nodeurl, root_uri, local_fname, vdrive_fname, verbosity):
         word = mo.group(2)
 
         if code in (200, 201,):
-            print "%s %s" % (code, word,)
+            print >>stdout, "%s %s" % (code, word,)
             return 0
     
-    print respstr[headerend:]
+    print >>stderr, respstr[headerend:]
     return 1
 
 def main():

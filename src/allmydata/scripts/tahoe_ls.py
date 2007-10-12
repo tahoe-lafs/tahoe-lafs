@@ -3,7 +3,7 @@
 import urllib
 import simplejson
 
-def list(nodeurl, root_uri, vdrive_pathname):
+def list(nodeurl, root_uri, vdrive_pathname, stdout, stderr):
     if nodeurl[-1] != "/":
         nodeurl += "/"
     url = nodeurl + "uri/%s/" % urllib.quote(root_uri.replace("/","!"))
@@ -20,11 +20,11 @@ def list(nodeurl, root_uri, vdrive_pathname):
             child = d['children'][name]
             childtype = child[0]
             if childtype == "dirnode":
-                print "%10s %s/" % ("", name)
+                print >>stdout, "%10s %s/" % ("", name)
             else:
                 assert childtype == "filenode"
                 size = child[1]['size']
-                print "%10s %s" % (size, name)
+                print >>stdout, "%10s %s" % (size, name)
 
 
 

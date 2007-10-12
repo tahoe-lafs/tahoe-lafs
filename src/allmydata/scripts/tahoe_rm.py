@@ -4,7 +4,7 @@ import re, socket, urllib
 
 NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
-def rm(nodeurl, root_uri, vdrive_pathname, verbosity):
+def rm(nodeurl, root_uri, vdrive_pathname, verbosity, stdout, stderr):
     """
     @param verbosity: 0, 1, or 2, meaning quiet, verbose, or very verbose
 
@@ -51,10 +51,10 @@ def rm(nodeurl, root_uri, vdrive_pathname, verbosity):
         word = mo.group(2)
 
         if code == 200:
-            print "%s %s" % (code, word,)
+            print >>stdout, "%s %s" % (code, word,)
             return 0
     
-    print respstr[headerend:]
+    print >>stderr, respstr[headerend:]
     return 1
 
 def main():

@@ -2,7 +2,7 @@
 
 import sys, urllib
 
-def get(nodeurl, root_uri, vdrive_fname, local_file):
+def get(nodeurl, root_uri, vdrive_fname, local_file, stdout, stderr):
     if nodeurl[-1] != "/":
         nodeurl += "/"
     url = nodeurl + "uri/%s/" % urllib.quote(root_uri.replace("/","!"))
@@ -10,16 +10,19 @@ def get(nodeurl, root_uri, vdrive_fname, local_file):
         url += vdrive_fname
 
     if local_file is None or local_file == "-":
-        outf = sys.stdout
+        outf = stdout
+        close_outf = False
     else:
         outf = open(local_file, "wb")
+        close_outf = True
     inf = urllib.urlopen(url)
     while True:
         data = inf.read(4096)
         if not data:
             break
         outf.write(data)
-    outf.close()
+    if close_outf:
+        outf.close()
 
     return 0
 

@@ -4,6 +4,7 @@ import os, sys
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
+from twisted.internet import threads # CLI tests use deferToThread
 from twisted.application import service
 from allmydata import client, uri, download, upload
 from allmydata.introducer_and_vdrive import IntroducerAndVdrive
@@ -289,6 +290,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(self._test_web)
         d.addCallback(self._test_web_start)
         d.addCallback(self._test_control)
+        d.addCallback(self._test_cli)
         return d
     test_vdrive.timeout = 1100
 
@@ -688,5 +690,79 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         if sys.platform == "linux2":
             d.addCallback(lambda res: rref.callRemote("get_memory_usage"))
         d.addCallback(lambda res: rref.callRemote("measure_peer_response_time"))
+        return d
+
+    def _test_cli(self, res):
+        # run various CLI commands (in a thread, since they use blocking
+        # network calls)
+
+        private_uri = self.clients[0].getServiceNamed("vdrive")._private_uri
+        nodeargs = [
+            "--node-url", self.webish_url,
+            "--root-uri", private_uri,
+            ]
+
+        argv = ["ls"] + nodeargs
+        d = self._run_cli(argv)
+        def _check_ls((out,err)):
+            self.failUnless("personal" in out)
+            self.failUnless("s2-ro" in out)
+            self.failUnless("s2-rw" in out)
+            self.failUnlessEqual(err, "")
+        d.addCallback(_check_ls)
+
+        def _put(res):
+            tdir = self.getdir("cli_put")
+            fileutil.make_dirs(tdir)
+            fn = os.path.join(tdir, "upload_me")
+            f = open(fn, "w")
+            f.write("I will not write the same thing over and over.\n" * 100)
+            f.close()
+            argv = ["put"] + nodeargs + [fn, "test_put/upload.txt"]
+            return self._run_cli(argv)
+        d.addCallback(_put)
+        def _check_put((out,err)):
+            self.failUnless("200 OK" in out)
+            self.failUnlessEqual(err, "")
+            vdrive0 = self.clients[0].getServiceNamed("vdrive")
+            d = vdrive0.get_node_at_path("~/test_put/upload.txt")
+            d.addCallback(lambda filenode: filenode.download_to_data())
+            def _check_put2(res):
+                self.failUnless("I will not write" in res)
+            d.addCallback(_check_put2)
+            return d
+        d.addCallback(_check_put)
+        def _get(res):
+            argv = ["get"] + nodeargs + ["test_put/upload.txt"]
+            return self._run_cli(argv)
+        d.addCallback(_get)
+        def _check_get((out,err)):
+            self.failUnless("I will not write" in out)
+            self.failUnlessEqual(err, "")
+        d.addCallback(_check_get)
+
+        def _rm(res):
+            argv = ["rm"] + nodeargs + ["test_put/upload.txt"]
+            return self._run_cli(argv)
+        d.addCallback(_rm)
+        def _check_rm((out,err)):
+            self.failUnless("200 OK" in out)
+            self.failUnlessEqual(err, "")
+            vdrive0 = self.clients[0].getServiceNamed("vdrive")
+            d = defer.maybeDeferred(vdrive0.get_node_at_path,
+                                    "~/test_put/upload.txt")
+            d.addBoth(self.shouldFail, KeyError, "test_cli._check_rm",
+                      "unable to find child named 'upload.txt'")
+            return d
+        d.addCallback(_check_rm)
+        return d
+
+    def _run_cli(self, argv):
+        stdout, stderr = StringIO(), StringIO()
+        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
+                                  stdout=stdout, stderr=stderr)
+        def _done(res):
+            return stdout.getvalue(), stderr.getvalue()
+        d.addCallback(_done)
         return d
 

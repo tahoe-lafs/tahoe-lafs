@@ -106,7 +106,8 @@ def list(config, stdout, stderr):
     from allmydata.scripts import tahoe_ls
     rc = tahoe_ls.list(config['node-url'],
                        config['root-uri'],
-                       config['vdrive_pathname'])
+                       config['vdrive_pathname'],
+                       stdout, stderr)
     return rc
 
 def get(config, stdout, stderr):
@@ -116,7 +117,8 @@ def get(config, stdout, stderr):
     rc = tahoe_get.get(config['node-url'],
                        config['root-uri'],
                        vdrive_filename,
-                       local_filename)
+                       local_filename,
+                       stdout, stderr)
     if rc == 0:
         if local_filename is None or local_filename == "-":
             # be quiet, since the file being written to stdout should be
@@ -140,7 +142,8 @@ def put(config, stdout, stderr):
                        config['root-uri'],
                        local_filename,
                        vdrive_filename,
-                       verbosity)
+                       verbosity,
+                       stdout, stderr)
     return rc
 
 def rm(config, stdout, stderr):
@@ -153,7 +156,8 @@ def rm(config, stdout, stderr):
     rc = tahoe_rm.rm(config['node-url'],
                      config['root-uri'],
                      vdrive_pathname,
-                     verbosity)
+                     verbosity,
+                     stdout, stderr)
     return rc
 
 dispatch = {
