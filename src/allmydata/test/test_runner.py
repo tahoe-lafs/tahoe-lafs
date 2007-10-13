@@ -108,7 +108,7 @@ class RunNode(unittest.TestCase, testutil.PollMixin):
             raise unittest.SkipTest("twistd does not fork under windows")
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
-        argv = ["--quiet", "create-client", "--basedir", c1]
+        argv = ["--quiet", "create-client", "--basedir", c1, "--webport", "0"]
         out,err = StringIO(), StringIO()
         rc = runner.runner(argv, stdout=out, stderr=err)
         self.failUnlessEqual(rc, 0)
