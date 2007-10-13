@@ -16,6 +16,7 @@ class ListAddresses(testutil.SignalMixin, unittest.TestCase):
         def _check(addresses):
             self.failUnless(len(addresses) >= 1) # always have localhost
             self.failUnless("127.0.0.1" in addresses, addresses)
+            self.failIf("0.0.0.0" in addresses, addresses)
         d.addCallbacks(_check)
         return d
     test_list_async.timeout=2
