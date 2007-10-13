@@ -208,12 +208,11 @@ Running-In-Place Way, and The Debian Way.  Choose one:
 
 TESTING THAT IT IS PROPERLY INSTALLED
 
- 'make check-deps' checks that all of the required Python package
- dependencies are installed.
-
- 'make test' runs the unit test suites.  (This can take a long time on
- slow computers.  There are a lot of tests and some of them do a lot of
- public-key cryptography.)
+ If you have gotten the source code, then you can run 'make check-deps'
+ checks that all of the required Python package dependencies are installed.
+ You can run 'make test' runs the unit test suites.  (This can take a long
+ time on slow computers.  There are a lot of tests and some of them do a lot
+ of public-key cryptography.)
 
  Executing the tahoe script from the "bin" subdirectory will work only if
  Tahoe itself is installed, either because it is installed into the local
