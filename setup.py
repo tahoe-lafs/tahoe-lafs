@@ -117,6 +117,7 @@ setup(name='allmydata-tahoe',
       classifiers=trove_classifiers,
       test_suite="allmydata.test",
       install_requires=install_requires,
+      setup_requires=["setuptools_darcs_plugin >= 1.0",],
       dependency_links=dependency_links,
       entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
       ext_modules=[
