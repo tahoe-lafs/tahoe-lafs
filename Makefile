@@ -24,7 +24,7 @@ else
  CHECK_PYWIN32_DEP := 
 endif
 
-TRIALCMD := $(shell PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SRCPATH)" $(PYTHON) misc/find_trial.py)
+TRIALCMD = $(shell PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SRCPATH)" $(PYTHON) misc/find_trial.py)
 
 ifeq ($(PLAT),cygwin)
 REACTOR = poll
