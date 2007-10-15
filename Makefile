@@ -1,19 +1,6 @@
 
 # this Makefile requires GNU make
 
-# If you get an error message like the following:
-
-# error: Setup script exited with error: Python was built with version 7.1 of Visual Studio, and extensions need to be built with the same version of the compiler, but it isn't installed.
-
-# Then that probably means that you aren't using the the right
-# compiler.  In that case, try creating distutils configuration file
-# (as described in http://docs.python.org/inst/config-syntax.html ),
-# specifying which compiler to use.  For example, if you use either
-# the cygwin gcc compiler with mingw support, or the MINGW compiler,
-# then you can add the following lines to your .cfg file:
-# [build]
-# compiler=mingw32
-
 default: build
 
 PYTHON=python
