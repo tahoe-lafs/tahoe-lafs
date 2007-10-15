@@ -216,7 +216,7 @@ RUNNING:
  in the introducer's base directory, just type 'tahoe start'). Inside that
  base directory, there will be a pair of files 'introducer.furl' and
  'vdrive.furl'. Make a copy of these, as they'll be needed on the client
- nodes.
+ nodes.  (If you want to use a publically available test grid, get the introducer.furl and vdrive.furl files from http://allmydata.org/trac/tahoe/wiki/TestGrid instead of running your own introducer.)
 
  To construct a client node, pick a new working directory for it, then run
  'tahoe create-client --basedir $HERE'. Copy the two .furl files from the
