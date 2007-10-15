@@ -85,3 +85,5 @@
 ^\.checked-deps$
 ^\.built$
 
+# if setup.py needs to install setuptools_darcs_plugin, that goes here
+^setuptools_darcs_plugin-.*.egg$
