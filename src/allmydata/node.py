@@ -1,5 +1,5 @@
 
-import new, os.path, re, time
+import datetime, new, os.path, re
 from base64 import b32decode, b32encode
 
 import twisted
@@ -19,16 +19,14 @@ import foolscap
 ADDR_RE=re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
 
 
-
 def formatTimeTahoeStyle(self, when):
     # we want UTC timestamps that look like:
     #  2007-10-12 00:26:28.566Z [Client] rnp752lz: 'client running'
-    base = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(when))
-    # now add the milliseconds
-    fraction = when - int(when)
-    suffix = ".%03dZ" % (1000*fraction,)
-    return base + suffix
-
+    d = datetime.datetime.utcfromtimestamp(when)
+    if d.microsecond:
+        return d.isoformat(" ")[:-3]+"Z"
+    else:
+        return d.isoformat(" ") + ".000Z"
 
 class Node(service.MultiService):
     # this implements common functionality of both Client nodes, Introducer 
