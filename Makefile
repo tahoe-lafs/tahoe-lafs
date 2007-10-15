@@ -6,26 +6,15 @@ default: build
 PYTHON=python
 PATHSEP=$(shell python -c 'import os ; print os.pathsep')
 OSSEP=$(shell python -c 'import os ; print os.sep')
-TRIALPATH=$(shell which trial.py 2>/dev/null)
-ifeq ($(TRIALPATH),)
-TRIALPATH=$(shell which trial 2>/dev/null)
-endif
-ifeq ($(TRIALPATH),)
-TRIALPATH=$(shell $(PYTHON) -c "import os, sys; print repr(os.path.join(sys.prefix, \"Scripts\", \"trial.py\"))")
-endif
-ifeq ($(TRIALPATH),)
-TRIALPATH=$(shell $(PYTHON) -c "import os, sys; print repr(os.path.join(sys.prefix, \"Scripts\", \"trial\"))")
-endif
 
 REACTOR=
 
 PLAT = $(strip $(shell python -c "import sys ; print sys.platform"))
 ifeq ($(PLAT),win32)
  # The platform is Windows with cygwin build tools and the native Python interpreter.
- TRIALPATH := $(shell cygpath -w $(TRIALPATH))
  SUPPORT = $(shell cygpath -w $(shell pwd))\support
  SUPPORTLIB := $(SUPPORT)\Lib\site-packages
- SRCPATH := $(shell cygpath -w $(shell pwd))\src
+ SRCPATH := $(shell cygpath -w $(shell pwd)/src)
  CHECK_PYWIN32_DEP := check-pywin32-dep
 else
  PYVER=$(shell $(PYTHON) misc/pyver.py)
@@ -34,6 +23,8 @@ else
  SRCPATH := $(shell pwd)/src
  CHECK_PYWIN32_DEP := 
 endif
+
+TRIALCMD := $(shell PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SRCPATH)" $(PYTHON) misc/find_trial.py)
 
 ifeq ($(PLAT),cygwin)
 REACTOR = poll
@@ -45,7 +36,7 @@ else
 	REACTOROPT := 
 endif
 
-TRIAL=$(PYTHON) -u "$(TRIALPATH)" --rterrors $(REACTOROPT)
+TRIAL=PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 
 # build-deps wants setuptools to have been built first. It's easiest to
 # accomplish this by depending upon the tahoe compile.
