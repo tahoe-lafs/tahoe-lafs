@@ -25,10 +25,11 @@ port 8123, on the loopback (127.0.0.1) interface.
 
 b. file names
 
-The node provides some small number of "virtual drives". In the 0.5
-release, this number is two: the first is the global shared vdrive, the
-second is the private non-shared vdrive. We will call these "global" and
-"private".
+The node provides some small number of "virtual drives". In the 0.5 release,
+this number is two: the first is the global shared vdrive, the second is the
+private non-shared vdrive. We will call the global one "global", and we will
+refer to the second one by "$PRIVATE_VDRIVE_URI", to show that to use it you
+have to insert the specific URI for that private vdrive.
 
 For the purpose of this document, let us assume that the vdrives currently
 contain the following directories and files:
@@ -37,11 +38,11 @@ global/
 global/Documents/
 global/Documents/notes.txt
 
-private/
-private/Pictures/
-private/Pictures/tractors.jpg
-private/Pictures/family/
-private/Pictures/family/bobby.jpg
+$PRIVATE_VDRIVE_URI/
+$PRIVATE_VDRIVE_URI/Pictures/
+$PRIVATE_VDRIVE_URI/Pictures/tractors.jpg
+$PRIVATE_VDRIVE_URI/Pictures/family/
+$PRIVATE_VDRIVE_URI/Pictures/family/bobby.jpg
 
 Within the webserver, there is a tree of resources. The top-level "vdrive"
 resource gives access to files and directories in all of the user's virtual
@@ -51,11 +52,11 @@ http://localhost:8123/vdrive/global/Documents/notes.txt
 
 and the URL for tractors.jpg would be:
 
-http://localhost:8123/vdrive/private/Pictures/tractors.jpg
+http://localhost:8123/uri/$PRIVATE_VDRIVE_URI/Pictures/tractors.jpg
 
 In addition, each directory has a corresponding URL. The Pictures URL is:
 
-http://localhost:8123/vdrive/private/Pictures
+http://localhost:8123/uri/$PRIVATE_VDRIVE_URI/Pictures
 
 c. URIs
 
@@ -190,7 +191,13 @@ h. attaching a file or directory as the child of an extant directory
 
    PUT http://localhost:8123/uri/$URI_OF_SOME_DIR/Pictures/tractors.jpg
    PUT http://localhost:8123/uri/$URI_OF_SOME_DIR/tractors.jpg
-   PUT http://localhost:8123/vdrive/private/Pictures/tractors.jpg
+   PUT http://localhost:8123/uri/$PRIVATE_VDRIVE_URI/Pictures/tractors.jpg
+
+  (Note that a URI_OF_SOME_DIR and a PRIVATE_VDRIVE_URI are each just
+  separate URIs, and there is nothing special about the latter except that it
+  is useful to put all of the user's top-level files and directories into one
+  place, so we choose to use that particular directory to be the user's main
+  directory.)
 
   The URI of the child is provided in the body of the HTTP request.
 
