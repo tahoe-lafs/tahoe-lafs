@@ -1,0 +1,95 @@
+BUILDING ALLMYDATA.ORG TAHOE ON WINDOWS
+
+There are three ways to do it:
+
+ALL CYGWIN ALL THE TIME 
+
+If you are building on Windows, then the easy way is to install cygwin and
+use cygwin version of Python and the cygwin versions of all dependencies
+(which will happen naturally if you follow the main README file -- note that
+you cannot use Windows-native versions of any of the dependencies -- they all
+have to be cygwin versions).  So if you are taking this approach then you
+don't need to read the rest of this README.win32 file at all.
+
+CYGWIN TOOLS TO BUILD WINDOWS-NATIVE LIBRARIES
+
+The second-easiest way is to install cygwin and use cygwin development tools
+such as bash, GNU make, gcc, etc., but install the Windows-native version of
+Python and the Windows-native versions of all of the dependencies.  If you
+create a distutils config file (as per
+http://docs.python.org/inst/config-syntax.html ) and put "compiler=mingw32"
+in it, then you can follow the rest of the main README file and the
+dependencies will all be automatically built (by the cygwin gcc compiler) as
+Windows-native libraries.  This README.win32 file contains some extra notes
+about how to take this approach.
+
+OTHER BUILD TOOLS
+
+The third-easiest way is to use a Microsoft compiler or some other compiler.
+Our README files do not currently explain how to do that.  You are on your
+own for now, but please feel free to contribute a document which explains how
+to build all these dependencies using your favorite compiler.
+
+
+
+
+Okay, here are some notes about following the "CYGWIN TOOLS TO BUILD
+WINDOWS-NATIVE LIBRARIES" approach:
+
+
+EXTRA MANUAL DEPENDENCIES
+
+In addition to the dependencies listed in the main README file, you also need
+the following:
+
+ + the pywin32 package (210 or later)
+
+   http://sourceforge.net/projects/pywin32/
+
+
+NOTES ABOUT BUILDING OPENSSL
+
+In order to compile the tahoe source you need to have libeay32.dll version
+0.9.8.5 and ssleay32.dll version 0.9.8.5 installed.  On the original machine
+I somehow had those in my system32 directory, but on my fresh install machine
+I did not.  And, installing pyopenssl does not seem to install these dlls
+into system32 for me.
+ 
+So, to get them installed I had to download and compile openssl from the
+openssl.org website.  When I attempted to compile that with using the
+instructions in their install.w32 file:
+ 
+       perl Configure VC-WIN32 ~prefix=c:/some/openssl/dir
+       ms\do_masm
+       nmake ~f ms\ntdll.mak
+ 
+I found that
+ 
+I needed to have perl installed, so I installed that from active perl (though
+the version from the cygwin install works too).  I needed to add my visual
+studio install to my ~path~ environment variable. In my case that was 
+~C:\Program Files\Microsoft Visual Studio\VC98\Bin~I needed to add an
+include environment variable with the path to my include files.  In VS2005,
+there are two directories that have to be added there, so ~include~ = 
+~C:\Program Files\Microsoft Visual Studio 8\VC\include; C:\Program
+Files\Microsoft Visual Studio 8\VC\PlatformSDK\Include~I needed to add a 
+~lib~ environment variable with paths to my .lib files for the linker.  In
+my case that was ~lib~ = ~C:\Program Files\Microsoft Visual Studio
+8\VC\lib; C:\Program Files\Microsoft Visual Studio 8\VC\PlatformSDK\Lib~
+ 
+Once I did this, the openssl code compiles for me and I just needed to copy
+the dlls (libeay32.dll and ssleay32.dll) that were created in the out32dll
+directory of my openssl-0.9.8e source folder into my windows\system32 folder.
+Then Tahoe-0.6.0 compiles and installs fine using the ~python setup.py
+install~ command.
+ 
+
+NOTES ABOUT INSTALLING PYOPENSSL
+
+To install PyOpenSSL on Windows-native, download this:
+
+http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.5.exe
+
+or for Python 2.4, this:
+
+http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.4.exe

@@ -25,25 +25,9 @@ http://allmydata.org/trac/tahoe/wiki/DownloadDebianPackages
 
 BUILDING ON WINDOWS:
 
-If you are building on Windows, then the easy way is to install cygwin and
-use cygwin version of Python and the cygwin versions of all dependencies
-(which will happen naturally if you follow this README -- note that you
-cannot use Windows-native versions of any of the dependencies -- they all
-have to be cygwin versions).
-
-The second-easiest way is to install cygwin and use cygwin development tools
-such as bash, GNU make, gcc, etc., but install the Windows-native version of
-Python and the Windows-native versions of all of the dependencies.  If you
-create a distutils config file (as per
-http://docs.python.org/inst/config-syntax.html ) and put "compiler=mingw32"
-in it, then you can follow the rest of this README and the dependencies will
-all be automatically built (by the cygwin gcc compiler) as Windows-native
-libraries.
-
-The third-easiest way is to use a Microsoft compiler or some other compiler.
-This README does not explain how to do that.  You are on your own for now,
-but please feel free to contribute a document which explains how to build all
-these dependencies using your favorite compiler.
+Please see the README.win32 file for some specific issues, but after you've
+understood those issues then come back here and follow the instructions in
+this README.
 
 
 DEPENDENCIES:
@@ -91,30 +75,14 @@ The Manual Dependencies:
 
    http://pyopenssl.sourceforge.net
 
-   To install PyOpenSSL on Windows-native, download this:
-   http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.5.exe
+   To install PyOpenSSL on cygwin, install the OpenSSL development libraries
+   with the cygwin package management tool, then get the pyOpenSSL source
+   code, cd into it, and run "python ./setup.py install".
 
-   or for Python 2.4, this:
-
-   http://allmydata.org/source/pyOpenSSL-0.6.win32-py2.4.exe
-
-   To install PyOpenSSL on Windows-cygwin, install the OpenSSL development
-   libraries with the cygwin package management tool, then get the pyOpenSSL
-   source code, cd into it, and run "python ./setup.py install".
-
- + OpenSSL, including development headers (cryptography library); not
-   required on native Windows (required on cygwin)
+ + OpenSSL, including development headers (cryptography library)
 
    http://openssl.org
   
-   The Windows-native pyOpenSSL package comes with OpenSSL, which is why you
-   don't need to install OpenSSL separately on Windows-native.
-
- + the pywin32 package (210 or later); required only on native Windows (not
-   required on cygwin)
-
-   http://sourceforge.net/projects/pywin32/
-
 
 GETTING THE SOURCE CODE:
 
