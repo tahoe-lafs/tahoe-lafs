@@ -3,11 +3,11 @@ import datetime, new, os.path, re
 from base64 import b32decode, b32encode
 
 import twisted
-from twisted.python import log, logfile
+from twisted.python import log
 from twisted.application import service
 from twisted.internet import defer, reactor
 from foolscap import Tub, eventual
-from allmydata.util import iputil, observer, humanreadable, fileutil
+from allmydata.util import iputil, observer, humanreadable
 from allmydata.util.assertutil import precondition
 
 # Just to get their versions:
