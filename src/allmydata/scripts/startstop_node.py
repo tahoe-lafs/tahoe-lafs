@@ -2,8 +2,7 @@
 import os, sys, signal, time
 from twisted.python import usage
 from allmydata.scripts.common import BasedirMixin
-from allmydata.util import fileutil
-from twisted.python.procutils import which
+from allmydata.util import fileutil, find_exe
 
 class StartOptions(BasedirMixin, usage.Options):
     optParameters = [
@@ -48,19 +47,12 @@ def do_start(basedir, profile=False, out=sys.stdout, err=sys.stderr):
         if not os.path.isdir(basedir):
             print >>err, " in fact, it doesn't look like a directory at all!"
         return 1
-    twistds = which("twistd")
-    twistd = twistds and twistds[0]
-    if not twistd:
-        twistd = os.path.join(sys.prefix, 'Scripts', 'twistd.py') 
-    if not os.path.exists(twistd):
+    
+    cmd = find_exe.find_exe('twistd')
+    if not cmd:
         print "Can't find twistd (it comes with Twisted).  Aborting."
         sys.exit(1)
-    path, ext = os.path.splitext(twistd)
-    if ext.lower() in [".exe", ".bat",]:
-        cmd = [twistd,]
-    else:
-        cmd = [sys.executable, twistd,]
-    
+
     fileutil.make_dirs(os.path.join(basedir, "logs"))
     cmd.extend(["-y", tac, "--logfile", os.path.join("logs", "twistd.log")])
     if profile:
