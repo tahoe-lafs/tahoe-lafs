@@ -1,5 +1,5 @@
 
-import os.path, re, time
+import new, os.path, re, time
 from base64 import b32decode, b32encode
 
 import twisted
@@ -20,15 +20,14 @@ ADDR_RE=re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9
 
 
 
-class MyFileLogObserver(log.FileLogObserver):
-    def formatTime(self, when):
-        # we want UTC timestamps that look like:
-        #  2007-10-12 00:26:28.566Z [Client] rnp752lz: 'client running'
-        base = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(when))
-        # now add the milliseconds
-        fraction = when - int(when)
-        suffix = ".%03dZ" % (1000*fraction,)
-        return base + suffix
+def formatTimeTahoeStyle(self, when):
+    # we want UTC timestamps that look like:
+    #  2007-10-12 00:26:28.566Z [Client] rnp752lz: 'client running'
+    base = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(when))
+    # now add the milliseconds
+    fraction = when - int(when)
+    suffix = ".%03dZ" % (1000*fraction,)
+    return base + suffix
 
 
 class Node(service.MultiService):
@@ -189,14 +188,9 @@ class Node(service.MultiService):
             if type(o) is type(self.setup_logging): # bound method
                 ob = o.im_self
                 if isinstance(ob, log.FileLogObserver):
-                    log.removeObserver(o)
-        logdir = os.path.abspath(os.path.join(self.basedir, "logs"))
-        fileutil.make_dirs(logdir)
-        lf = logfile.LogFile("twistd.log", logdir)
+                    newmeth = new.instancemethod(formatTimeTahoeStyle, ob, ob.__class__)
+                    ob.formatTime = newmeth
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
-        ob = MyFileLogObserver(lf)
-        log.addObserver(ob.emit)
-        return
 
     def log(self, msg, src="", args=()):
         if src:
@@ -208,9 +202,6 @@ class Node(service.MultiService):
                 msg = msg % tuple(map(humanreadable.hr, args))
             except TypeError, e:
                 msg = "ERROR: output string '%s' contained invalid %% expansion, error: %s, args: %s\n" % (`msg`, e, `args`)
-        # TODO: modify the timestamp to include milliseconds
-        # TODO: modify it to be in UTC instead of localtime
-        #  (see twisted/python/log.py:FileLogObserver.formatTime line 362)
 
         log.callWithContext({"system":logsrc},
                             log.msg,
