@@ -3,7 +3,7 @@ import re
 from zope.interface import implements
 from twisted.python.components import registerAdapter
 from allmydata.util import idlib, hashutil
-from allmydata.interfaces import IURI, IDirnodeURI, IFileURI
+from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IVerifierURI
 
 # the URI shall be an ascii representation of the file. It shall contain
 # enough information to retrieve and validate the contents. It shall be
@@ -86,6 +86,66 @@ class CHKFileURI(_BaseURI):
     def get_size(self):
         return self.size
 
+    def get_verifier(self):
+        return CHKFileVerifierURI(storage_index=self.storage_index,
+                                  uri_extension_hash=self.uri_extension_hash,
+                                  needed_shares=self.needed_shares,
+                                  total_shares=self.total_shares,
+                                  size=self.size)
+
+class CHKFileVerifierURI(_BaseURI):
+    implements(IVerifierURI)
+
+    def __init__(self, **kwargs):
+        # construct me with kwargs, since there are so many of them
+        if not kwargs:
+            return
+        keys = ("storage_index", "uri_extension_hash",
+                "needed_shares", "total_shares", "size")
+        for name in kwargs:
+            if name in keys:
+                value = kwargs[name]
+                setattr(self, name, value)
+            else:
+                raise TypeError("CHKFileVerifierURI does not accept "
+                                "'%s=' argument"
+                                % name)
+
+    def init_from_string(self, uri):
+        assert uri.startswith("URI:CHK-Verifier:"), uri
+        d = {}
+        (header_uri, header_chk,
+         storage_index_s, uri_extension_hash_s,
+         needed_shares_s, total_shares_s, size_s) = uri.split(":")
+        assert header_uri == "URI"
+        assert header_chk == "CHK-Verifier"
+
+        self.storage_index = idlib.a2b(storage_index_s)
+        assert isinstance(self.storage_index, str)
+        assert len(self.storage_index) == 16 # sha256 hash truncated to 128
+
+        self.uri_extension_hash = idlib.a2b(uri_extension_hash_s)
+        assert isinstance(self.uri_extension_hash, str)
+        assert len(self.uri_extension_hash) == 32 # sha56 hash
+
+        self.needed_shares = int(needed_shares_s)
+        self.total_shares = int(total_shares_s)
+        self.size = int(size_s)
+        return self
+
+    def to_string(self):
+        assert isinstance(self.needed_shares, int)
+        assert isinstance(self.total_shares, int)
+        assert isinstance(self.size, (int,long))
+
+        return ("URI:CHK-Verifier:%s:%s:%d:%d:%d" %
+                (idlib.b2a(self.storage_index),
+                 idlib.b2a(self.uri_extension_hash),
+                 self.needed_shares,
+                 self.total_shares,
+                 self.size))
+
+
 class LiteralFileURI(_BaseURI):
     implements(IURI, IFileURI)
 
@@ -108,6 +168,10 @@ class LiteralFileURI(_BaseURI):
         return False
     def get_readonly(self):
         return self
+
+    def get_verifier(self):
+        # LIT files need no verification, all the data is present in the URI
+        return None
 
     def get_size(self):
         return len(self.data)
@@ -151,6 +215,8 @@ class DirnodeURI(_BaseURI):
         return True
     def get_readonly(self):
         return ReadOnlyDirnodeURI(self.furl, self.readkey)
+    def get_verifier(self):
+        return DirnodeVerifierURI(self.furl, self.storage_index)
 
 class ReadOnlyDirnodeURI(_BaseURI):
     implements(IURI, IDirnodeURI)
@@ -191,16 +257,49 @@ class ReadOnlyDirnodeURI(_BaseURI):
         return True
     def get_readonly(self):
         return self
+    def get_verifier(self):
+        return DirnodeVerifierURI(self.furl, self.storage_index)
+
+class DirnodeVerifierURI(_BaseURI):
+    implements(IVerifierURI)
+
+    def __init__(self, furl=None, storage_index=None):
+        if furl is not None or storage_index is not None:
+            assert furl is not None
+            assert storage_index is not None
+            self.furl = furl
+            self.storage_index = storage_index
+
+    def init_from_string(self, uri):
+        # URI:DIR-Verifier:furl:storageindex
+        #  but note that the furl contains colons
+        prefix = "URI:DIR-Verifier:"
+        assert uri.startswith(prefix)
+        uri = uri[len(prefix):]
+        colon = uri.rindex(":")
+        self.furl = uri[:colon]
+        self.storage_index = idlib.a2b(uri[colon+1:])
+        return self
+
+    def to_string(self):
+        return "URI:DIR-Verifier:%s:%s" % (self.furl,
+                                           idlib.b2a(self.storage_index))
+
+
 
 def from_string(s):
     if s.startswith("URI:CHK:"):
         return CHKFileURI().init_from_string(s)
+    elif s.startswith("URI:CHK-Verifier:"):
+        return CHKFileVerifierURI().init_from_string(s)
     elif s.startswith("URI:LIT:"):
         return LiteralFileURI().init_from_string(s)
     elif s.startswith("URI:DIR:"):
         return DirnodeURI().init_from_string(s)
     elif s.startswith("URI:DIR-RO:"):
         return ReadOnlyDirnodeURI().init_from_string(s)
+    elif s.startswith("URI:DIR-Verifier:"):
+        return DirnodeVerifierURI().init_from_string(s)
     else:
         raise TypeError("unknown URI type: %s.." % s[:10])
 
@@ -219,6 +318,12 @@ def from_string_filenode(s):
     return u
 
 registerAdapter(from_string_filenode, str, IFileURI)
+
+def from_string_verifier(s):
+    u = from_string(s)
+    assert IVerifierURI.providedBy(u)
+    return u
+registerAdapter(from_string_verifier, str, IVerifierURI)
 
 
 def pack_extension(data):

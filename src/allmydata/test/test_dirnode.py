@@ -288,11 +288,11 @@ class Test(unittest.TestCase):
         def _check_manifest(manifest):
             manifest = sorted(list(manifest))
             self.failUnlessEqual(len(manifest), 5)
-            expected = [self.rootnode.get_refresh_capability(),
-                        self.bar_node.get_refresh_capability(),
-                        self.file1_node.get_refresh_capability(),
-                        file2_node.get_refresh_capability(),
-                        self.baz_node.get_refresh_capability(),
+            expected = [self.rootnode.get_verifier().to_string(),
+                        self.bar_node.get_verifier().to_string(),
+                        self.file1_node.get_verifier().to_string(),
+                        file2_node.get_verifier().to_string(),
+                        self.baz_node.get_verifier().to_string(),
                         ]
             expected.sort()
             self.failUnlessEqual(manifest, expected)
@@ -387,10 +387,10 @@ class Test(unittest.TestCase):
         def _check_manifest2(manifest):
             manifest = sorted(list(manifest))
             self.failUnlessEqual(len(manifest), 4)
-            expected = [self.rootnode.get_refresh_capability(),
-                        self.bar_node.get_refresh_capability(),
-                        file2_node.get_refresh_capability(),
-                        self.baz_node.get_refresh_capability(),
+            expected = [self.rootnode.get_verifier().to_string(),
+                        self.bar_node.get_verifier().to_string(),
+                        file2_node.get_verifier().to_string(),
+                        self.baz_node.get_verifier().to_string(),
                         ]
             expected.sort()
             self.failUnlessEqual(manifest, expected)

@@ -8,7 +8,7 @@ from twisted.internet import threads # CLI tests use deferToThread
 from twisted.application import service
 from allmydata import client, uri, download, upload
 from allmydata.introducer_and_vdrive import IntroducerAndVdrive
-from allmydata.util import fileutil, testutil
+from allmydata.util import fileutil, testutil, deferredutil
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
 from allmydata.dirnode import NotMutableError
@@ -103,6 +103,9 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return d
 
     def wait_for_connections(self, ignored=None):
+        # TODO: replace this with something that takes a list of peerids and
+        # fires when they've all been heard from, instead of using a count
+        # and a threshold
         for c in self.clients:
             if (not c.introducer_client or
                 len(list(c.get_all_peerids())) != self.numclients):
@@ -291,6 +294,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(self._test_web_start)
         d.addCallback(self._test_control)
         d.addCallback(self._test_cli)
+        d.addCallback(self._test_checker)
         return d
     test_vdrive.timeout = 1100
 
@@ -785,6 +789,23 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                                   stdout=stdout, stderr=stderr)
         def _done(res):
             return stdout.getvalue(), stderr.getvalue()
+        d.addCallback(_done)
+        return d
+
+    def _test_checker(self, res):
+        vdrive0 = self.clients[0].getServiceNamed("vdrive")
+        checker1 = self.clients[1].getServiceNamed("checker")
+        d = vdrive0.get_node_at_path("~")
+        d.addCallback(lambda home: home.build_manifest())
+        def _check_all(manifest):
+            dl = []
+            for si in manifest:
+                dl.append(checker1.check(si))
+            return deferredutil.DeferredListShouldSucceed(dl)
+        d.addCallback(_check_all)
+        def _done(res):
+            for i in res:
+                self.failUnless(i is True or i == 10)
         d.addCallback(_done)
         return d
 

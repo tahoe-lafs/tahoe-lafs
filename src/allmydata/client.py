@@ -14,6 +14,7 @@ from allmydata.Crypto.Util.number import bytes_to_long
 from allmydata.storage import StorageServer
 from allmydata.upload import Uploader
 from allmydata.download import Downloader
+from allmydata.checker import Checker
 from allmydata.control import ControlServer
 from allmydata.introducer import IntroducerClient
 from allmydata.vdrive import VirtualDrive
@@ -39,6 +40,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         self.init_options()
         self.add_service(Uploader())
         self.add_service(Downloader())
+        self.add_service(Checker())
         self.add_service(VirtualDrive())
         webport = self.get_config("webport")
         if webport:

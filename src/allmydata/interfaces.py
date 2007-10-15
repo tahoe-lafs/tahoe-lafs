@@ -311,12 +311,32 @@ class IURI(Interface):
         """Return another IURI instance, which represents a read-only form of
         this one. If is_readonly() is True, this returns self."""
 
+    def get_verifier():
+        """Return an instance that provides IVerifierURI, which can be used
+        to check on the availability of the file or directory, without
+        providing enough capabilities to actually read or modify the
+        contents. This may return None if the file does not need checking or
+        verification (e.g. LIT URIs).
+        """
+
+    def to_string():
+        """Return a string of printable ASCII characters, suitable for
+        passing into init_from_string."""
+
+class IVerifierURI(Interface):
+    def init_from_string(uri):
+        """Accept a string (as created by my to_string() method) and populate
+        this instance with its data. I am not normally called directly,
+        please use the module-level uri.from_string() function to convert
+        arbitrary URI strings into IURI-providing instances."""
+
     def to_string():
         """Return a string of printable ASCII characters, suitable for
         passing into init_from_string."""
 
 class IDirnodeURI(Interface):
     """I am a URI which represents a dirnode."""
+
 
 class IFileURI(Interface):
     """I am a URI which represents a filenode."""
@@ -338,10 +358,12 @@ class IFileNode(Interface):
     def get_size():
         """Return the length (in bytes) of the data this node represents."""
 
-    def get_refresh_capability():
-        """Return a string that represents the 'refresh capability' for this
-        node. The holder of this capability will be able to renew the lease
-        for this node, protecting it from garbage-collection.
+    def get_verifier():
+        """Return an IVerifierURI instance that represents the
+        'verifiy/refresh capability' for this node. The holder of this
+        capability will be able to renew the lease for this node, protecting
+        it from garbage-collection. They will also be able to ask a server if
+        it holds a share for the file or directory.
         """
 
 class IDirectoryNode(Interface):
@@ -374,10 +396,12 @@ class IDirectoryNode(Interface):
         get_immutable_uri() will return the same thing as get_uri().
         """
 
-    def get_refresh_capability():
-        """Return a string that represents the 'refresh capability' for this
-        node. The holder of this capability will be able to renew the lease
-        for this node, protecting it from garbage-collection.
+    def get_verifier():
+        """Return an IVerifierURI instance that represents the
+        'verifiy/refresh capability' for this node. The holder of this
+        capability will be able to renew the lease for this node, protecting
+        it from garbage-collection. They will also be able to ask a server if
+        it holds a share for the file or directory.
         """
 
     def list():
@@ -444,8 +468,8 @@ class IDirectoryNode(Interface):
         Deferred that fires when the operation finishes."""
 
     def build_manifest():
-        """Return a set of refresh-capabilities for all nodes (directories
-        and files) reachable from this one."""
+        """Return a frozenset of verifier-capability strings for all nodes
+        (directories and files) reachable from this one."""
 
 class ICodecEncoder(Interface):
     def set_params(data_size, required_shares, max_shares):

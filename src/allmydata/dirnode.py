@@ -340,22 +340,26 @@ class ImmutableDirectoryNode:
         return d
 
     def build_manifest(self):
-        # given a dirnode, construct a list refresh-capabilities for all the
-        # nodes it references.
+        # given a dirnode, construct a frozenset of verifier-capabilities for
+        # all the nodes it references.
 
         # this is just a tree-walker, except that following each edge
         # requires a Deferred.
 
         manifest = set()
-        manifest.add(self.get_refresh_capability())
+        manifest.add(self.get_verifier())
 
         d = self._build_manifest_from_node(self, manifest)
-        # LIT nodes have no refresh-capability: their data is stored inside
-        # the URI itself, so there is no need to refresh anything. They
-        # indicate this by returning None from their get_refresh_capability
-        # method. We need to remove any such Nones from our set.
-        d.addCallback(lambda res: manifest.discard(None))
-        d.addCallback(lambda res: manifest)
+        def _done(res):
+            # LIT nodes have no verifier-capability: their data is stored
+            # inside the URI itself, so there is no need to refresh anything.
+            # They indicate this by returning None from their get_verifier
+            # method. We need to remove any such Nones from our set. We also
+            # want to convert all these caps into strings.
+            return frozenset([cap.to_string()
+                              for cap in manifest
+                              if cap is not None])
+        d.addCallback(_done)
         return d
 
     def _build_manifest_from_node(self, node, manifest):
@@ -363,17 +367,19 @@ class ImmutableDirectoryNode:
         def _got_list(res):
             dl = []
             for name, child in res.iteritems():
-                manifest.add(child.get_refresh_capability())
-                if IDirectoryNode.providedBy(child) and child not in manifest:
-                    dl.append(self._build_manifest_from_node(child, manifest))
+                verifier = child.get_verifier()
+                if verifier not in manifest:
+                    manifest.add(verifier)
+                    if IDirectoryNode.providedBy(child):
+                        dl.append(self._build_manifest_from_node(child,
+                                                                 manifest))
             if dl:
                 return defer.DeferredList(dl)
         d.addCallback(_got_list)
         return d
 
-    def get_refresh_capability(self):
-        u = IDirnodeURI(self._uri).get_readonly()
-        return "DIR-REFRESH:%s" % idlib.b2a(u.storage_index)
+    def get_verifier(self):
+        return IDirnodeURI(self._uri).get_verifier()
 
     def get_child_at_path(self, path):
         if not path:
@@ -441,11 +447,8 @@ class FileNode:
             return cmp(self.__class__, them.__class__)
         return cmp(self.uri, them.uri)
 
-    def get_refresh_capability(self):
-        u = IFileURI(self.uri)
-        if isinstance(u, uri.CHKFileURI):
-            return "CHK-REFRESH:%s" % idlib.b2a(u.storage_index)
-        return None
+    def get_verifier(self):
+        return IFileURI(self.uri).get_verifier()
 
     def download(self, target):
         downloader = self._client.getServiceNamed("downloader")
