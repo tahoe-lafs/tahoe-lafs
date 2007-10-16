@@ -21,8 +21,8 @@ of shares is chosen to hit our reliability goals (more shares on more
 machines means more reliability), and is limited by overhead (proportional to
 numshares or log(numshares)) and the encoding technology in use (Reed-Solomon
 only permits 256 shares total). It is also constrained by the amount of data
-we want to send to each host. For estimating purposes, think of 100 shares
-out of which we need 25 to reconstruct the file.
+we want to send to each host. For estimating purposes, think of 10 shares
+out of which we need 3 to reconstruct the file.
 
 The encoder starts by cutting the original file into segments. All segments
 except the last are of equal size. The segment size is chosen to constrain
@@ -71,9 +71,9 @@ PiB=1024*TiB
 
 class Encoder(object):
     implements(IEncoder)
-    NEEDED_SHARES = 25
-    SHARES_OF_HAPPINESS = 75
-    TOTAL_SHARES = 100
+    NEEDED_SHARES = 3
+    SHARES_OF_HAPPINESS = 7
+    TOTAL_SHARES = 10
     MAX_SEGMENT_SIZE = 1*MiB
 
     def __init__(self, options={}):
@@ -285,10 +285,10 @@ class Encoder(object):
 
         # memory footprint: we only hold a tiny piece of the plaintext at any
         # given time. We build up a segment's worth of cryptttext, then hand
-        # it to the encoder. Assuming 25-of-100 encoding (4x expansion) and
-        # 2MiB max_segment_size, we get a peak memory footprint of 5*2MiB =
-        # 10MiB. Lowering max_segment_size to, say, 100KiB would drop the
-        # footprint to 500KiB at the expense of more hash-tree overhead.
+        # it to the encoder. Assuming 3-of-10 encoding (3.3x expansion) and
+        # 2MiB max_segment_size, we get a peak memory footprint of 4.3*2MiB =
+        # 8.6MiB. Lowering max_segment_size to, say, 100KiB would drop the
+        # footprint to 430KiB at the expense of more hash-tree overhead.
 
         d = self._gather_data(self.required_shares, input_piece_size,
                               crypttext_segment_hasher)

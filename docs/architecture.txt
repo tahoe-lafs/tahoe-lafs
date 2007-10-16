@@ -270,8 +270,8 @@ Because the shares being downloaded are distributed across a large number of
 peers, the download process will pull from many of them at the same time. The
 current encoding parameters require 3 shares to be retrieved for each
 segment, which means that up to 3 peers will be used simultaneously. For
-larger networks, 25-of-100 encoding is preferred, meaning 25 peers can be
-used simultaneously. This allows the download process to use the sum of the
+larger networks, 8-of-22 encoding could be used, meaning 8 peers can be used
+simultaneously. This allows the download process to use the sum of the
 available peers' upload bandwidths, resulting in downloads that take full
 advantage of the common 8x disparity between download and upload bandwith on
 modern ADSL lines.
@@ -550,10 +550,10 @@ different goals. Each choice results in a number of properties; there are
 many tradeoffs.
 
 First, some terms: the erasure-coding algorithm is described as K-out-of-N
-(for this release, the default values are K=25 and N=100). Each grid will
-have some number of peers; this number will rise and fall over time as peers
-join, drop out, come back, and leave forever. Files are of various sizes,
-some are popular, others are rare. Peers have various capacities, variable
+(for this release, the default values are K=3 and N=10). Each grid will have
+some number of peers; this number will rise and fall over time as peers join,
+drop out, come back, and leave forever. Files are of various sizes, some are
+popular, others are rare. Peers have various capacities, variable
 upload/download bandwidths, and network latency. Most of the mathematical
 models that look at peer failure assume some average (and independent)
 probability 'P' of a given peer being available: this can be high (servers

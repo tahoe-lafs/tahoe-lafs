@@ -682,7 +682,7 @@ class IEncoder(Interface):
         be created.
 
         Encoding parameters can be set in three ways. 1: The Encoder class
-        provides defaults (25/75/100). 2: the Encoder can be constructed with
+        provides defaults (3/7/10). 2: the Encoder can be constructed with
         an 'options' dictionary, in which the
         needed_and_happy_and_total_shares' key can be a (k,d,n) tuple. 3:
         set_params((k,d,n)) can be called.
