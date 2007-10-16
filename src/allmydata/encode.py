@@ -286,8 +286,8 @@ class Encoder(object):
         # memory footprint: we only hold a tiny piece of the plaintext at any
         # given time. We build up a segment's worth of cryptttext, then hand
         # it to the encoder. Assuming 3-of-10 encoding (3.3x expansion) and
-        # 2MiB max_segment_size, we get a peak memory footprint of 4.3*2MiB =
-        # 8.6MiB. Lowering max_segment_size to, say, 100KiB would drop the
+        # 1MiB max_segment_size, we get a peak memory footprint of 4.3*1MiB =
+        # 4.3MiB. Lowering max_segment_size to, say, 100KiB would drop the
         # footprint to 430KiB at the expense of more hash-tree overhead.
 
         d = self._gather_data(self.required_shares, input_piece_size,
