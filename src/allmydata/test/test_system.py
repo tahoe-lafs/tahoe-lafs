@@ -295,6 +295,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(self._test_control)
         d.addCallback(self._test_cli)
         d.addCallback(self._test_checker)
+        d.addCallback(self._test_verifier)
         return d
     test_vdrive.timeout = 1100
 
@@ -806,6 +807,23 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _done(res):
             for i in res:
                 self.failUnless(i is True or i == 10)
+        d.addCallback(_done)
+        return d
+
+    def _test_verifier(self, res):
+        vdrive0 = self.clients[0].getServiceNamed("vdrive")
+        checker1 = self.clients[1].getServiceNamed("checker")
+        d = vdrive0.get_node_at_path("~")
+        d.addCallback(lambda home: home.build_manifest())
+        def _check_all(manifest):
+            dl = []
+            for si in manifest:
+                dl.append(checker1.verify(si))
+            return deferredutil.DeferredListShouldSucceed(dl)
+        d.addCallback(_check_all)
+        def _done(res):
+            for i in res:
+                self.failUnless(i is True)
         d.addCallback(_done)
         return d
 
