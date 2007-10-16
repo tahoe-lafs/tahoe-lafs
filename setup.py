@@ -90,8 +90,8 @@ if os.path.exists(VERSIONFILE):
 
 
 LONG_DESCRIPTION=\
-"""Welcome to the AllMyData "tahoe" project. This project implements a
-secure, distributed, fault-tolerant storage grid.
+"""Welcome to the AllMyData "tahoe" project. This project implements a secure,
+distributed, fault-tolerant storage grid under a Free Software licence.
 
 The basic idea is that the data in this storage grid is spread over all
 participating nodes, using an algorithm that can recover the data even if a
