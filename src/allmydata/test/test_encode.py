@@ -150,7 +150,7 @@ class Encode(unittest.TestCase):
                   expected_block_hashes, expected_share_hashes):
         data = make_data(datalen)
         # force use of multiple segments
-        options = {"max_segment_size": max_segment_size}
+        options = {"max_segment_size": max_segment_size, 'needed_and_happy_and_total_shares': (25, 75, 100)}
         e = encode.Encoder(options)
         u = upload.Data(data)
         eu = upload.EncryptAnUploadable(u)
