@@ -3,7 +3,7 @@ NEW VERSION RELEASED -- Allmydata-Tahoe version 0.6.1
 We are pleased to announce the release of version 0.6.1 of
 allmydata.org "Tahoe", a secure, decentralized storage grid under a
 free-software licence.  This is the successor to v0.6, which was
-released August 23, 2007 (see [1]).  This release focusses on
+released September 24, 2007 (see [1]).  This release focusses on
 packaging, documentation, and usability improvements.
 
 Since v0.6 we've made the following changes:
