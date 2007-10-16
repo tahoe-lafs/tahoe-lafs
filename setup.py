@@ -37,8 +37,8 @@ trove_classifiers=[
     "Development Status :: 3 - Alpha", 
     "Environment :: Console",
     "Environment :: Web Environment",
-    "License :: Free Software (GPL variant)", # Not a real acceptable value.  I guess this means we really need to get our licence DFSG/OSI approved.
-    "License :: Open Source (GPL variant)", # Not a real acceptable value.  I guess this means we really need to get our licence DFSG/OSI approved.
+    # "License :: Free Software (GPL variant)", # Not a real acceptable value.  I guess this means we really need to get our licence DFSG/OSI approved.
+    # "License :: Open Source (GPL variant)", # Not a real acceptable value.  I guess this means we really need to get our licence DFSG/OSI approved.
     "Intended Audience :: Developers", 
     "Intended Audience :: End Users/Desktop",
     "Intended Audience :: System Administrators",
