@@ -267,9 +267,12 @@ deb-edgy:
 # etch uses the feisty control files for now
 deb-etch:
 	$(MAKE) deb-ARCH ARCH=etch TAHOE_ARCH=feisty
+# same with gutsy, the process has been nicely stable for a while now
+deb-gutsy:
+	$(MAKE) deb-ARCH ARCH=gutsy TAHOE_ARCH=feisty
 
 # we know how to handle the following debian architectures
-KNOWN_DEBIAN_ARCHES := sid feisty edgy etch
+KNOWN_DEBIAN_ARCHES := sid feisty edgy etch gutsy
 
 ifeq ($(findstring x-$(ARCH)-x,$(foreach arch,$(KNOWN_DEBIAN_ARCHES),"x-$(arch)-x")),)
 is-known-debian-arch:
@@ -327,5 +330,9 @@ deb-feisty-head:
 	fakeroot debian/rules binary
 deb-etch-head:
 	$(MAKE) setup-deb ARCH=etch TAHOE_ARCH=feisty
+	$(MAKE) increment-deb-version
+	fakeroot debian/rules binary
+deb-gutsy-head:
+	$(MAKE) setup-deb ARCH=gutsy TAHOE_ARCH=feisty
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
