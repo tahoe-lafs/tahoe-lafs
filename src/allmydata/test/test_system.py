@@ -806,7 +806,18 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(_check_all)
         def _done(res):
             for i in res:
-                self.failUnless(i is True or i == 10)
+                if type(i) is bool:
+                    self.failUnless(i is True)
+                else:
+                    (needed, total, found, sharemap) = i
+                    self.failUnlessEqual(needed, 3)
+                    self.failUnlessEqual(total, 10)
+                    self.failUnlessEqual(found, total)
+                    self.failUnlessEqual(len(sharemap.keys()), 10)
+                    peers = set()
+                    for shpeers in sharemap.values():
+                        peers.update(shpeers)
+                    self.failUnlessEqual(len(peers), self.numclients-1)
         d.addCallback(_done)
         return d
 

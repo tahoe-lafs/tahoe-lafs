@@ -14,10 +14,14 @@ from allmydata import uri, download
 from allmydata.util import hashutil, idlib
 
 class SimpleCHKFileChecker:
+    """Return a list of (needed, total, found, sharemap), where sharemap maps
+    share number to a list of (binary) nodeids of the shareholders."""
 
-    def __init__(self, peer_getter):
+    def __init__(self, peer_getter, uri_to_check):
         self.peer_getter = peer_getter
         self.found_shares = set()
+        self.uri_to_check = uri_to_check
+        self.sharemap = {}
 
     '''
     def check_synchronously(self, si):
@@ -30,8 +34,8 @@ class SimpleCHKFileChecker:
         return len(found)
     '''
 
-    def check(self, uri_to_check):
-        d = self._get_all_shareholders(uri_to_check.storage_index)
+    def check(self):
+        d = self._get_all_shareholders(self.uri_to_check.storage_index)
         d.addCallback(self._done)
         return d
 
@@ -41,13 +45,18 @@ class SimpleCHKFileChecker:
             d = connection.callRemote("get_service", "storageserver")
             d.addCallback(lambda ss: ss.callRemote("get_buckets",
                                                    storage_index))
-            d.addCallbacks(self._got_response, self._got_error)
+            d.addCallbacks(self._got_response, self._got_error,
+                           callbackArgs=(peerid,))
             dl.append(d)
         return defer.DeferredList(dl)
 
-    def _got_response(self, buckets):
+    def _got_response(self, buckets, peerid):
         # buckets is a dict: maps shum to an rref of the server who holds it
         self.found_shares.update(buckets.keys())
+        for k in buckets:
+            if k not in self.sharemap:
+                self.sharemap[k] = []
+            self.sharemap[k].append(peerid)
 
     def _got_error(self, f):
         if f.check(KeyError):
@@ -56,7 +65,9 @@ class SimpleCHKFileChecker:
         pass
 
     def _done(self, res):
-        return len(self.found_shares)
+        u = self.uri_to_check
+        return (u.needed_shares, u.total_shares, len(self.found_shares),
+                self.sharemap)
 
 class SimpleDirnodeChecker:
 
@@ -93,8 +104,8 @@ class Checker(service.MultiService):
             return defer.succeed(True)
         elif isinstance(uri_to_check, uri.CHKFileVerifierURI):
             peer_getter = self.parent.get_permuted_peers
-            c = SimpleCHKFileChecker(peer_getter)
-            return c.check(uri_to_check)
+            c = SimpleCHKFileChecker(peer_getter, uri_to_check)
+            return c.check()
         elif isinstance(uri_to_check, uri.DirnodeVerifierURI):
             tub = self.parent.tub
             c = SimpleDirnodeChecker(tub)
