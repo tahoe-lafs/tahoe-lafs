@@ -31,7 +31,8 @@ configinfo = \
 """graph_title Allmydata Tahoe Filecount
 graph_vlabel files
 graph_category tahoe
-graph_info This graph shows the number of files hosted by this node's StorageServer"""
+graph_info This graph shows the number of files hosted by this node's StorageServer
+"""
 
 for nodename, basedir in nodedirs:
     configinfo += "%s.label %s\n" % (nodename, nodename)
@@ -40,7 +41,7 @@ for nodename, basedir in nodedirs:
 
 if len(sys.argv) > 1:
     if sys.argv[1] == "config":
-        print configinfo
+        print configinfo.rstrip()
         sys.exit(0)
 
 for nodename, basedir in nodedirs:

@@ -22,12 +22,13 @@ graph_vlabel dirnodes
 graph_category tahoe
 graph_info This graph shows the number of directory nodes hosted by this vdrive server
 dirnodes.label dirnodes
-dirnodes.draw LINE2"""
+dirnodes.draw LINE2
+"""
 
 
 if len(sys.argv) > 1:
     if sys.argv[1] == "config":
-        print configinfo
+        print configinfo.rstrip()
         sys.exit(0)
 
 dirnodes = len(os.listdir(os.path.join(nodedir, "vdrive")))
