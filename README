@@ -43,7 +43,7 @@ see the EASY_INSTALLABLE DEPENDENCIES section below.
 All of the manual dependencies can probably be installed through your
 standard package management tool if you are running on a modern Unix
 operating system.  For example, on an debian-like system, you can do "sudo
-apt-get install gcc make python-dev python-twisted python-pyopenssl".
+apt-get install build-essential python-dev python-twisted python-pyopenssl".
 
 The Manual Dependencies:
 
