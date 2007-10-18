@@ -44,8 +44,8 @@ if len(sys.argv) > 1:
         sys.exit(0)
 
 for nodename, basedir in nodedirs:
-    files = len(os.listdir(os.path.join(basedir, "storage")))
-    if os.path.exists(os.path.join(basedir, "storage", "incoming")):
+    files = len(os.listdir(os.path.join(basedir, "storage", "shares")))
+    if os.path.exists(os.path.join(basedir, "storage", "shares", "incoming")):
         files -= 1 # the 'incoming' directory doesn't count
     print "%s.value %d" % (nodename, files)
 

@@ -46,11 +46,11 @@ if len(sys.argv) > 1:
 for nodename, basedir in nodedirs:
     files = 0
     shares = 0
-    for f in os.listdir(os.path.join(basedir, "storage")):
+    for f in os.listdir(os.path.join(basedir, "storage", "shares")):
         if f == "incoming":
             continue
         files += 1
-        filedir = os.path.join(basedir, "storage", f)
+        filedir = os.path.join(basedir, "storage", "shares", f)
         shares += len(os.listdir(filedir))
     if files:
         shares_per_file = 1.0 * shares / files
