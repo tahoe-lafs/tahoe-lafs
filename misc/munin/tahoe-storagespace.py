@@ -34,8 +34,8 @@ configinfo = \
 """graph_title Allmydata Tahoe Shareholder Space
 graph_vlabel bytes
 graph_category tahoe
-graph_info This graph shows the space consumed by this node's StorageServer
-"""
+graph_info This graph shows the space consumed by this node's StorageServer"""
+
 for nodename, basedir in nodedirs:
     configinfo += "%s.label %s\n" % (nodename, nodename)
     configinfo += "%s.draw LINE2\n" % (nodename,)
