@@ -31,8 +31,6 @@ own for now, but please feel free to contribute a document which explains how
 to build all these dependencies using your favorite compiler.
 
 
-
-
 Okay, here are some notes about following the "CYGWIN TOOLS TO BUILD
 WINDOWS-NATIVE LIBRARIES" approach:
 
@@ -50,38 +48,21 @@ the following:
 NOTES ABOUT BUILDING OPENSSL
 
 In order to compile the tahoe source you need to have libeay32.dll version
-0.9.8.5 and ssleay32.dll version 0.9.8.5 installed.  On the original machine
-I somehow had those in my system32 directory, but on my fresh install machine
-I did not.  And, installing pyopenssl does not seem to install these dlls
-into system32 for me.
- 
-So, to get them installed I had to download and compile openssl from the
-openssl.org website.  When I attempted to compile that with using the
-instructions in their install.w32 file:
- 
-       perl Configure VC-WIN32 ~prefix=c:/some/openssl/dir
-       ms\do_masm
-       nmake ~f ms\ntdll.mak
- 
-I found that
- 
-I needed to have perl installed, so I installed that from active perl (though
-the version from the cygwin install works too).  I needed to add my visual
-studio install to my ~path~ environment variable. In my case that was 
-~C:\Program Files\Microsoft Visual Studio\VC98\Bin~I needed to add an
-include environment variable with the path to my include files.  In VS2005,
-there are two directories that have to be added there, so ~include~ = 
-~C:\Program Files\Microsoft Visual Studio 8\VC\include; C:\Program
-Files\Microsoft Visual Studio 8\VC\PlatformSDK\Include~I needed to add a 
-~lib~ environment variable with paths to my .lib files for the linker.  In
-my case that was ~lib~ = ~C:\Program Files\Microsoft Visual Studio
-8\VC\lib; C:\Program Files\Microsoft Visual Studio 8\VC\PlatformSDK\Lib~
- 
-Once I did this, the openssl code compiles for me and I just needed to copy
-the dlls (libeay32.dll and ssleay32.dll) that were created in the out32dll
-directory of my openssl-0.9.8e source folder into my windows\system32 folder.
-Then Tahoe-0.6.0 compiles and installs fine using the ~python setup.py
-install~ command.
+0.9.8.5 and ssleay32.dll version 0.9.8.5 or newer installed. If you find that 
+you have the wrong version of either of these dlls, you can download and 
+compile openssl from http://openssl.org. 
+
+You will need to have perl installed to compile openssl. One place where you 
+can find a version of perl is http://www.activestate.com/products/activeperl.
+
+If you want to compile openssl using Visual Studio, you may find adding your 
+Visual Studio bin, include and lib directories to your %PATH% environment 
+variable helpful. For example, if you're compiling with VS2005:
+
+   "C:\Program Files\Microsoft Visual Studio\VC98\Bin;C:\Program Files\
+   Microsoft Visual Studio 8\VC\include;C:\Program Files\Microsoft Visual 
+   Studio 8\VC\PlatformSDK\Include;C:\Program Files\Microsoft Visual Studio 
+   8\VC\lib;C:\Program Files\Microsoft Visual Studio 8\VC\PlatformSDK\Lib"
  
 
 NOTES ABOUT INSTALLING PYOPENSSL
