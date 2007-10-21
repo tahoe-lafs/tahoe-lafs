@@ -25,6 +25,8 @@ def list(nodeurl, root_uri, vdrive_pathname, stdout, stderr):
                 assert childtype == "filenode"
                 size = child[1]['size']
                 print >>stdout, "%10s %s" % (size, name)
+    elif nodetype == "filenode":
+        print >>stdout, "%10s %s" % (d['size'], vdrive_pathname)
 
 
 
