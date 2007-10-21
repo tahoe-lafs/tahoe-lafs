@@ -702,26 +702,76 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         # network calls)
 
         private_uri = self.clients[0].getServiceNamed("vdrive")._private_uri
+        global_uri = self.clients[0].getServiceNamed("vdrive")._global_uri
         nodeargs = [
             "--node-url", self.webish_url,
             "--root-uri", private_uri,
             ]
+        public_nodeargs = [
+            "--node-url", self.webish_url,
+            "--root-uri", global_uri,
+            ]
+        TESTDATA = "I will not write the same thing over and over.\n" * 100
 
-        argv = ["ls"] + nodeargs
-        d = self._run_cli(argv)
-        def _check_ls((out,err)):
+        d = defer.succeed(None)
+
+        def _ls_root(res):
+            argv = ["ls"] + nodeargs
+            return self._run_cli(argv)
+        d.addCallback(_ls_root)
+        def _check_ls_root((out,err)):
             self.failUnless("personal" in out)
             self.failUnless("s2-ro" in out)
             self.failUnless("s2-rw" in out)
             self.failUnlessEqual(err, "")
-        d.addCallback(_check_ls)
+        d.addCallback(_check_ls_root)
+
+        def _ls_subdir(res):
+            argv = ["ls"] + nodeargs + ["personal"]
+            return self._run_cli(argv)
+        d.addCallback(_ls_subdir)
+        def _check_ls_subdir((out,err)):
+            self.failUnless("sekrit data" in out)
+            self.failUnlessEqual(err, "")
+        d.addCallback(_check_ls_subdir)
+
+        def _ls_public_subdir(res):
+            argv = ["ls"] + public_nodeargs + ["subdir1"]
+            return self._run_cli(argv)
+        d.addCallback(_ls_public_subdir)
+        def _check_ls_public_subdir((out,err)):
+            self.failUnless("subdir2" in out)
+            self.failUnless("mydata567" in out)
+            self.failUnlessEqual(err, "")
+        d.addCallback(_check_ls_public_subdir)
+
+        def _ls_file(res):
+            argv = ["ls"] + public_nodeargs + ["subdir1/mydata567"]
+            return self._run_cli(argv)
+        d.addCallback(_ls_file)
+        def _check_ls_file((out,err)):
+            self.failUnlessEqual(out.strip(), "112 subdir1/mydata567")
+            self.failUnlessEqual(err, "")
+        d.addCallback(_check_ls_file)
+
+        # tahoe_ls doesn't currently handle the error correctly: it tries to
+        # JSON-parse a traceback.
+##         def _ls_missing(res):
+##             argv = ["ls"] + nodeargs + ["bogus"]
+##             return self._run_cli(argv)
+##         d.addCallback(_ls_missing)
+##         def _check_ls_missing((out,err)):
+##             print "OUT", out
+##             print "ERR", err
+##             self.failUnlessEqual(err, "")
+##         d.addCallback(_check_ls_missing)
 
         def _put(res):
             tdir = self.getdir("cli_put")
             fileutil.make_dirs(tdir)
             fn = os.path.join(tdir, "upload_me")
             f = open(fn, "w")
-            f.write("I will not write the same thing over and over.\n" * 100)
+            f.write(TESTDATA)
             f.close()
             argv = ["put"] + nodeargs + [fn, "test_put/upload.txt"]
             return self._run_cli(argv)
@@ -733,18 +783,33 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             d = vdrive0.get_node_at_path("~/test_put/upload.txt")
             d.addCallback(lambda filenode: filenode.download_to_data())
             def _check_put2(res):
-                self.failUnless("I will not write" in res)
+                self.failUnlessEqual(res, TESTDATA)
             d.addCallback(_check_put2)
             return d
         d.addCallback(_check_put)
-        def _get(res):
+
+        def _get_to_stdout(res):
             argv = ["get"] + nodeargs + ["test_put/upload.txt"]
             return self._run_cli(argv)
-        d.addCallback(_get)
-        def _check_get((out,err)):
-            self.failUnless("I will not write" in out)
+        d.addCallback(_get_to_stdout)
+        def _check_get_to_stdout((out,err)):
+            self.failUnlessEqual(out, TESTDATA)
             self.failUnlessEqual(err, "")
-        d.addCallback(_check_get)
+        d.addCallback(_check_get_to_stdout)
+
+        get_to_file_target = os.path.join(self.basedir, "get.downfile")
+        def _get_to_file(res):
+            argv = ["get"] + nodeargs + ["test_put/upload.txt",
+                                         get_to_file_target]
+            return self._run_cli(argv)
+        d.addCallback(_get_to_file)
+        def _check_get_to_file((out,err)):
+            data = open(get_to_file_target, "rb").read()
+            self.failUnlessEqual(data, TESTDATA)
+            self.failUnlessEqual(out, "")
+            self.failUnlessEqual(err, "test_put/upload.txt retrieved and written to system/SystemTest/test_vdrive/get.downfile\n")
+        d.addCallback(_check_get_to_file)
+
 
         def _mv(res):
             argv = ["mv"] + nodeargs + ["test_put/upload.txt",
@@ -763,7 +828,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                           vdrive0.get_node_at_path("~/test_put/moved.txt"))
             d.addCallback(lambda filenode: filenode.download_to_data())
             def _check_mv2(res):
-                self.failUnless("I will not write" in res)
+                self.failUnlessEqual(res, TESTDATA)
             d.addCallback(_check_mv2)
             return d
         d.addCallback(_check_mv)
