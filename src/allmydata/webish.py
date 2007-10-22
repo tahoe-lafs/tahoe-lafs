@@ -1152,8 +1152,9 @@ class Root(rend.Page):
 
     def render_global_vdrive(self, ctx, data):
         if IClient(ctx).getServiceNamed("vdrive").have_public_root():
-            return T.p["To view the global shared filestore, ",
-                       T.a(href="vdrive/global")["Click Here!"],
+            return T.p["View ",
+                       T.a(href="vdrive/global")["the global shared filestore"],
+                       "."
                        ]
         return T.p["vdrive.furl not specified (or vdrive server not "
                    "responding), no vdrive available."]

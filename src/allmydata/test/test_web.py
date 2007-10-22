@@ -389,7 +389,7 @@ class Web(WebMixin, unittest.TestCase):
         def _check(res):
             self.failUnless('Welcome To AllMyData' in res)
             self.failUnless('Tahoe' in res)
-            self.failUnless('To view the global shared filestore' in res)
+            self.failUnless('View <a href="vdrive/global">the global shared filestore' in res, res)
             self.failUnless('personal vdrive not available.' in res)
 
             self.s.basedir = 'web/test_welcome'
