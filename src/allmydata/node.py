@@ -1,5 +1,5 @@
 
-import datetime, new, os.path, re
+import datetime, os.path, re, types
 from base64 import b32decode, b32encode
 
 import twisted
@@ -177,16 +177,14 @@ class Node(service.MultiService):
         return self.stopService()
 
     def setup_logging(self):
-        # we replace the log observer that twistd set up for us, with a form
-        # that uses better timestamps. First, shut down all existing
-        # file-based observers (leaving trial's error-watching observers in
-        # place).
+        # we replace the formatTime() method of the log observer that twistd
+        # set up for us, with a method that uses better timestamps.
         for o in log.theLogPublisher.observers:
             # o might be a FileLogObserver's .emit method
             if type(o) is type(self.setup_logging): # bound method
                 ob = o.im_self
                 if isinstance(ob, log.FileLogObserver):
-                    newmeth = new.instancemethod(formatTimeTahoeStyle, ob, ob.__class__)
+                    newmeth = types.UnboundMethodType(formatTimeTahoeStyle, ob, ob.__class__)
                     ob.formatTime = newmeth
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
 
