@@ -93,42 +93,6 @@ class SimpleDirnodeChecker:
         log.err(f)
         return False
 
-class Checker(service.MultiService):
-    """I am a service that helps perform file checks.
-    """
-    name = "checker"
-
-    def check(self, uri_to_check):
-        uri_to_check = IVerifierURI(uri_to_check)
-        if uri_to_check is None:
-            return defer.succeed(True)
-        elif isinstance(uri_to_check, uri.CHKFileVerifierURI):
-            peer_getter = self.parent.get_permuted_peers
-            c = SimpleCHKFileChecker(peer_getter, uri_to_check)
-            return c.check()
-        elif isinstance(uri_to_check, uri.DirnodeVerifierURI):
-            tub = self.parent.tub
-            c = SimpleDirnodeChecker(tub)
-            return c.check(uri_to_check)
-        else:
-            raise ValueError("I don't know how to check '%s'" % (uri_to_check,))
-
-    def verify(self, uri_to_verify):
-        uri_to_verify = IVerifierURI(uri_to_verify)
-        if uri_to_verify is None:
-            return defer.succeed(True)
-        elif isinstance(uri_to_verify, uri.CHKFileVerifierURI):
-            v = SimpleCHKFileVerifier(self.parent, uri_to_verify)
-            return v.start()
-        elif isinstance(uri_to_verify, uri.DirnodeVerifierURI):
-            # for dirnodes, checking and verifying are currently equivalent
-            tub = self.parent.tub
-            c = SimpleDirnodeChecker(tub)
-            return c.check(uri_to_verify)
-        else:
-            raise ValueError("I don't know how to verify '%s'" %
-                             (uri_to_verify,))
-
 class VerifyingOutput:
     def __init__(self, total_length):
         self._crypttext_hasher = hashutil.crypttext_hasher()
@@ -210,3 +174,40 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         d.addCallback(self._download_all_segments)
         d.addCallback(self._done)
         return d
+
+
+class Checker(service.MultiService):
+    """I am a service that helps perform file checks.
+    """
+    name = "checker"
+
+    def check(self, uri_to_check):
+        uri_to_check = IVerifierURI(uri_to_check)
+        if uri_to_check is None:
+            return defer.succeed(True)
+        elif isinstance(uri_to_check, uri.CHKFileVerifierURI):
+            peer_getter = self.parent.get_permuted_peers
+            c = SimpleCHKFileChecker(peer_getter, uri_to_check)
+            return c.check()
+        elif isinstance(uri_to_check, uri.DirnodeVerifierURI):
+            tub = self.parent.tub
+            c = SimpleDirnodeChecker(tub)
+            return c.check(uri_to_check)
+        else:
+            raise ValueError("I don't know how to check '%s'" % (uri_to_check,))
+
+    def verify(self, uri_to_verify):
+        uri_to_verify = IVerifierURI(uri_to_verify)
+        if uri_to_verify is None:
+            return defer.succeed(True)
+        elif isinstance(uri_to_verify, uri.CHKFileVerifierURI):
+            v = SimpleCHKFileVerifier(self.parent, uri_to_verify)
+            return v.start()
+        elif isinstance(uri_to_verify, uri.DirnodeVerifierURI):
+            # for dirnodes, checking and verifying are currently equivalent
+            tub = self.parent.tub
+            c = SimpleDirnodeChecker(tub)
+            return c.check(uri_to_verify)
+        else:
+            raise ValueError("I don't know how to verify '%s'" %
+                             (uri_to_verify,))
