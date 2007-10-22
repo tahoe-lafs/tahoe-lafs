@@ -135,7 +135,7 @@ class Node(service.MultiService):
                 }
 
     def startService(self):
-        # note: this class can only be started and stopped once.
+        # Note: this class can be started and stopped at most once.
         self.log("Node.startService")
         eventual.eventually(self._startService)
 
