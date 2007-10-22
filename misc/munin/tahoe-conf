@@ -1,0 +1,22 @@
+# put a copy of this file in /etc/munin/plugin-conf.d/tahoe-conf to let these
+# plugins know where the node's base directories are. Modify the lines below
+# to match your nodes.
+
+[tahoe-files]
+env.basedir_bs5c1 /home/amduser/tahoe/bs5c1
+env.basedir_bs5c2 /home/amduser/tahoe/bs5c2
+env.basedir_bs5c3 /home/amduser/tahoe/bs5c3
+env.basedir_bs5c4 /home/amduser/tahoe/bs5c4
+
+[tahoe-sharesperfile]
+env.basedir_bs5c1 /home/amduser/tahoe/bs5c1
+env.basedir_bs5c2 /home/amduser/tahoe/bs5c2
+env.basedir_bs5c3 /home/amduser/tahoe/bs5c3
+env.basedir_bs5c4 /home/amduser/tahoe/bs5c4
+
+[tahoe-storagespace]
+env.basedir_bs5c1 /home/amduser/tahoe/bs5c1
+env.basedir_bs5c2 /home/amduser/tahoe/bs5c2
+env.basedir_bs5c3 /home/amduser/tahoe/bs5c3
+env.basedir_bs5c4 /home/amduser/tahoe/bs5c4
+
