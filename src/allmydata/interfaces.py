@@ -1041,7 +1041,9 @@ class IChecker(Interface):
         """
 
     def checker_results_for(uri_to_check):
-        """Accepts an IVerifierURI, and returns a list of checker results.
+        """Accepts an IVerifierURI, and returns a list of previously recorded
+        checker results. This method performs no checking itself: it merely
+        reports the results of checks that have taken place in the past.
 
         Each element of the list is a two-entry tuple: (when, results).
         The 'when' values are timestamps (float seconds since epoch), and the
