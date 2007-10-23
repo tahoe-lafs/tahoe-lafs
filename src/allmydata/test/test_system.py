@@ -1,6 +1,6 @@
 
 from base64 import b32encode
-import os, sys
+import os, sys, time
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
@@ -860,16 +860,20 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
     def _test_checker(self, res):
         vdrive0 = self.clients[0].getServiceNamed("vdrive")
-        checker1 = self.clients[1].getServiceNamed("checker")
         d = vdrive0.get_node_at_path("~")
         d.addCallback(lambda home: home.build_manifest())
-        def _check_all(manifest):
-            dl = []
-            for si in manifest:
-                dl.append(checker1.check(si))
-            return deferredutil.DeferredListShouldSucceed(dl)
-        d.addCallback(_check_all)
-        def _done(res):
+        d.addCallback(self._test_checker_2)
+        return d
+
+    def _test_checker_2(self, manifest):
+        checker1 = self.clients[1].getServiceNamed("checker")
+        dl = []
+        starting_time = time.time()
+        for si in manifest:
+            dl.append(checker1.check(si))
+        d = deferredutil.DeferredListShouldSucceed(dl)
+
+        def _check_checker_results(res):
             for i in res:
                 if type(i) is bool:
                     self.failUnless(i is True)
@@ -883,7 +887,20 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                     for shpeers in sharemap.values():
                         peers.update(shpeers)
                     self.failUnlessEqual(len(peers), self.numclients-1)
-        d.addCallback(_done)
+        d.addCallback(_check_checker_results)
+
+        def _check_stored_results(res):
+            finish_time = time.time()
+            all_results = []
+            for si in manifest:
+                results = checker1.checker_results_for(si)
+                self.failUnlessEqual(len(results), 1)
+                when, those_results = results[0]
+                self.failUnless(isinstance(when, (int, float)))
+                self.failUnless(starting_time <= when <= finish_time)
+                all_results.append(those_results)
+            _check_checker_results(all_results)
+        d.addCallback(_check_stored_results)
         return d
 
     def _test_verifier(self, res):

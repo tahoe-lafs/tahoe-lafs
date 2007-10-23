@@ -992,6 +992,66 @@ class IUploader(Interface):
     def upload_filehandle(filehane):
         """Like upload(), but accepts an open filehandle."""
 
+class IChecker(Interface):
+    def check(uri_to_check):
+        """Accepts an IVerifierURI, and checks upon the health of its target.
+
+        For now, uri_to_check must be an IVerifierURI. In the future we
+        expect to relax that to be anything that can be adapted to
+        IVerifierURI (like read-only or read-write dirnode/filenode URIs).
+
+        This returns a Deferred. For dirnodes, this fires with either True or
+        False (dirnodes are not distributed, so their health is a boolean).
+
+        For filenodes, this fires with a tuple of (needed_shares,
+        total_shares, found_shares, sharemap). The first three are ints. The
+        basic health of the file is found_shares / needed_shares: if less
+        than 1.0, the file is unrecoverable.
+
+        The sharemap has a key for each sharenum. The value is a list of
+        (binary) nodeids who hold that share. If two shares are kept on the
+        same nodeid, they will fail as a pair, and overall reliability is
+        decreased.
+
+        The IChecker instance remembers the results of the check. By default,
+        these results are stashed in RAM (and are forgotten at shutdown). If
+        a file named 'checker_results.db' exists in the node's basedir, it is
+        used as a sqlite database of results, making them persistent across
+        runs. To start using this feature, just 'touch checker_results.db',
+        and the node will initialize it properly the next time it is started.
+        """
+
+    def verify(uri_to_check):
+        """Accepts an IVerifierURI, and verifies the crypttext of the target.
+
+        This is a more-intensive form of checking. For verification, the
+        file's crypttext contents are retrieved, and the associated hash
+        checks are performed. If a storage server is holding a corrupted
+        share, verification will detect the problem, but checking will not.
+        This returns a Deferred that fires with True if the crypttext hashes
+        look good, and will probably raise an exception if anything goes
+        wrong.
+
+        For dirnodes, 'verify' is the same as 'check', so the Deferred will
+        fire with True or False.
+
+        Verification currently only uses a minimal subset of peers, so a lot
+        of share corruption will not be caught by it. We expect to improve
+        this in the future.
+        """
+
+    def checker_results_for(uri_to_check):
+        """Accepts an IVerifierURI, and returns a list of checker results.
+
+        Each element of the list is a two-entry tuple: (when, results).
+        The 'when' values are timestamps (float seconds since epoch), and the
+        results are as defined in the check() method.
+
+        Note: at the moment, this is specified to return synchronously. We
+        might need to back away from this in the future.
+        """
+
+
 class IVirtualDrive(Interface):
     """I am a service that may be available to a client.
 

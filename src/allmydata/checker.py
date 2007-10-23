@@ -6,6 +6,7 @@ This does no verification of the shares whatsoever. If the peer claims to
 have the share, we believe them.
 """
 
+import time, os.path
 from twisted.internet import defer
 from twisted.application import service
 from twisted.python import log
@@ -176,10 +177,41 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         return d
 
 
+class SQLiteCheckerResults:
+    def __init__(self, results_file):
+        pass
+    def add_results(self, uri_to_check, when, results):
+        pass
+    def get_results_for(self, uri_to_check):
+        return []
+
+class InMemoryCheckerResults:
+    def __init__(self):
+        self.results = {} # indexed by uri
+    def add_results(self, uri_to_check, when, results):
+        if uri_to_check not in self.results:
+            self.results[uri_to_check] = []
+        self.results[uri_to_check].append( (when, results) )
+    def get_results_for(self, uri_to_check):
+        return self.results.get(uri_to_check, [])
+
 class Checker(service.MultiService):
     """I am a service that helps perform file checks.
     """
     name = "checker"
+    def __init__(self):
+        service.MultiService.__init__(self)
+        self.results = None
+
+    def startService(self):
+        service.MultiService.startService(self)
+        if self.parent:
+            results_file = os.path.join(self.parent.basedir,
+                                        "checker_results.db")
+            if os.path.exists(results_file):
+                self.results = SQLiteCheckerResults(results_file)
+            else:
+                self.results = InMemoryCheckerResults()
 
     def check(self, uri_to_check):
         uri_to_check = IVerifierURI(uri_to_check)
@@ -188,13 +220,21 @@ class Checker(service.MultiService):
         elif isinstance(uri_to_check, uri.CHKFileVerifierURI):
             peer_getter = self.parent.get_permuted_peers
             c = SimpleCHKFileChecker(peer_getter, uri_to_check)
-            return c.check()
+            d = c.check()
         elif isinstance(uri_to_check, uri.DirnodeVerifierURI):
             tub = self.parent.tub
             c = SimpleDirnodeChecker(tub)
-            return c.check(uri_to_check)
+            d = c.check(uri_to_check)
         else:
             raise ValueError("I don't know how to check '%s'" % (uri_to_check,))
+
+        def _done(res):
+            # TODO: handle exceptions too, record something useful about them
+            if self.results:
+                self.results.add_results(uri_to_check, time.time(), res)
+            return res
+        d.addCallback(_done)
+        return d
 
     def verify(self, uri_to_verify):
         uri_to_verify = IVerifierURI(uri_to_verify)
@@ -211,3 +251,9 @@ class Checker(service.MultiService):
         else:
             raise ValueError("I don't know how to verify '%s'" %
                              (uri_to_verify,))
+
+    def checker_results_for(self, uri_to_check):
+        if self.results:
+            return self.results.get_results_for(IVerifierURI(uri_to_check))
+        return []
+
