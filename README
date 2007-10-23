@@ -216,7 +216,10 @@ RUNNING:
  in the introducer's base directory, just type 'tahoe start'). Inside that
  base directory, there will be a pair of files 'introducer.furl' and
  'vdrive.furl'. Make a copy of these, as they'll be needed on the client
- nodes.  (If you want to use a publically available test grid, get the introducer.furl and vdrive.furl files from http://allmydata.org/trac/tahoe/wiki/TestGrid instead of running your own introducer.)
+ nodes.  (If you want to use a publically available test grid, get the
+ introducer.furl and vdrive.furl files from
+ http://allmydata.org/trac/tahoe/wiki/TestGrid instead of running your own
+ introducer.)
 
  To construct a client node, pick a new working directory for it, then run
  'tahoe create-client --basedir $HERE'. Copy the two .furl files from the
@@ -226,15 +229,16 @@ RUNNING:
  on the grid. You can follow its progress by looking at the
  $HERE/logs/twistd.log file.
 
- To actually use the client, enable the web interface by writing a port
- number (like "8123") into a file named $HERE/webport and then restarting the
- node with 'tahoe restart --basedir $HERE'. This will prompt the client node
- to run a webserver on the desired port, through which you can view, upload,
- download, and delete files. This 'webport' file is actually a "strports
+ create-client will put port specification into a file named $HERE/webport,
+ unless overridden by the --webport option to create-client. The presence of
+ a port specification in the webport file prompts the client node to run a
+ webserver on the desired port, through which you can view, upload, download,
+ and delete files. The contents of the webport file is actually a "strports
  specification", defined in
  http://twistedmatrix.com/documents/current/api/twisted.application.strports.html
  , so you can have it only listen on a local interface by writing
- "tcp:8123:interface=127.0.0.1" to this file, or make it use SSL by writing
+ "tcp:8123:interface=127.0.0.1" to this file (that's what create-client does
+ by default), or make it use SSL by writing
  "ssl:8123:privateKey=mykey.pem:certKey=cert.pem" instead.
 
  A client node directory can also be created without installing the code

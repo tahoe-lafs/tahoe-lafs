@@ -23,7 +23,9 @@ everyone who wishes to attach a client to that grid
 webport (optional): This controls where the client's webserver should listen,
 providing vdrive access as defined in webapi.txt . This file should contain a
 Twisted "strports" specification, such as "8123" or
-"tcp:8123:interface=127.0.0.1".
+"tcp:8123:interface=127.0.0.1".  The 'tahoe create-client' command sets the
+webport to "tcp:8123:interface=127.0.0.1" by default, and is overridable by
+the "--webport" option.
 
 client.port (optional): This controls which port the node listens on. If not
 provided, the node will ask the kernel for any available port, and write it
@@ -45,11 +47,11 @@ specification:
 Lines that do not provide a port number will use the same client.port as the
 automatically-discovered addresses.
 
-authorized_keys.SSHPORT: This enables an SSH-based interactive Python shell,
-which can be used to inspect the internal state of the node, for debugging.
-To cause the node to accept SSH connections on port 8022, symlink
-"authorized_keys.8022" to your ~/.ssh/authorized_keys file, and it will
-accept the same keys as the rest of your account.
+authorized_keys.SSHPORT (optional): This enables an SSH-based interactive
+Python shell, which can be used to inspect the internal state of the node,
+for debugging.  To cause the node to accept SSH connections on port 8022,
+symlink "authorized_keys.8022" to your ~/.ssh/authorized_keys file, and it
+will accept the same keys as the rest of your account.
 
 
 == Node State ==
@@ -85,8 +87,9 @@ command.
 control.furl : this file contains a FURL that provides access to a control
 port on the client node, from which files can be uploaded and downloaded.
 This file is created with permissions that prevent anyone else from reading
-it, to insure that only the owner of the client node can use this feature.
-This port is intended for debugging and testing use.
+it (on operating systems that support such a concept), to insure that only
+the owner of the client node can use this feature.  This port is intended for
+debugging and testing use.
 
 == Introducer/vdrive-server configuration ==
 
