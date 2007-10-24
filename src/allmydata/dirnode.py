@@ -381,6 +381,10 @@ class ImmutableDirectoryNode:
     def get_verifier(self):
         return IDirnodeURI(self._uri).get_verifier()
 
+    def check(self):
+        verifier = self.get_verifier()
+        return self._client.getServiceNamed("checker").check(verifier)
+
     def get_child_at_path(self, path):
         if not path:
             return defer.succeed(self)
@@ -449,6 +453,10 @@ class FileNode:
 
     def get_verifier(self):
         return IFileURI(self.uri).get_verifier()
+
+    def check(self):
+        verifier = self.get_verifier()
+        return self._client.getServiceNamed("checker").check(verifier)
 
     def download(self, target):
         downloader = self._client.getServiceNamed("downloader")

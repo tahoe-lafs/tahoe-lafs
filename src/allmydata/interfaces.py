@@ -366,6 +366,9 @@ class IFileNode(Interface):
         it holds a share for the file or directory.
         """
 
+    def check():
+        """Perform a file check. See IChecker.check for details."""
+
 class IDirectoryNode(Interface):
     def is_mutable():
         """Return True if this directory is mutable, False if it is read-only.
@@ -403,6 +406,9 @@ class IDirectoryNode(Interface):
         it from garbage-collection. They will also be able to ask a server if
         it holds a share for the file or directory.
         """
+
+    def check():
+        """Perform a file check. See IChecker.check for details."""
 
     def list():
         """I return a Deferred that fires with a dictionary mapping child

@@ -166,8 +166,16 @@ class Directory(rend.Page):
         else:
             delete = "-"
             rename = "-"
+
         ctx.fillSlots("delete", delete)
         ctx.fillSlots("rename", rename)
+        check = T.form(action=url.here, method="post")[
+            T.input(type='hidden', name='t', value='check'),
+            T.input(type='hidden', name='name', value=name),
+            T.input(type='hidden', name='when_done', value=url.here),
+            T.input(type='submit', value='check', name="check"),
+            ]
+        ctx.fillSlots("check", check)
 
         # build the base of the uri_link link url
         uri_link = "/uri/" + urllib.quote(target.get_uri().replace("/", "!"))
@@ -218,6 +226,24 @@ class Directory(rend.Page):
             childdata.extend([", ", text_plain_tag])
 
         ctx.fillSlots("data", childdata)
+
+        checker = IClient(ctx).getServiceNamed("checker")
+        checker_results = checker.checker_results_for(target.get_verifier())
+        recent_results = reversed(checker_results[-5:])
+        if IFileNode.providedBy(target):
+            results = ("[" +
+                       ", ".join(["%d/%d" % (found, needed)
+                                  for (when, (needed, total, found, sharemap))
+                                  in recent_results]) +
+                       "]")
+        elif IDirectoryNode.providedBy(target):
+            results = ("[" +
+                       "".join([{True:"+",False:"-"}[res]
+                                for (when, res) in recent_results]) +
+                       "]")
+        else:
+            results = "%d results" % len(checker_results)
+        ctx.fillSlots("checker_results", results)
 
         return ctx.tag
 
@@ -692,6 +718,16 @@ class POSTHandler(rend.Page):
             def _done(newnode):
                 return newnode.get_uri()
             d.addCallback(_done)
+        elif t == "check":
+            d = self._node.get(name)
+            def _got_child(child_node):
+                d2 = child_node.check()
+                def _done(res):
+                    log.msg("checked %s, results %s" % (child_node, res))
+                    return res
+                d2.addCallback(_done)
+                return d2
+            d.addCallback(_got_child)
         else:
             print "BAD t=%s" % t
             return "BAD t=%s" % t
