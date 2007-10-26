@@ -131,10 +131,11 @@ pieces are:
 
   * a sequence number
   * a root hash "R"
-  * the encoding parameters (including k, N, and the file size)
+  * the encoding parameters (including k, N, file size, segment size)
   * a signed copy of [seqnum,R,encoding_params], using the signature key
   * the verification key (not encrypted)
   * the share hash chain (part of a Merkle tree over the share hashes)
+  * the block hash tree (Merkle tree over blocks of share data)
   * the share data itself (erasure-coding of read-key-encrypted file data)
   * the signature key, encrypted with the write key
 
@@ -147,8 +148,8 @@ The access pattern for read is:
  * hash verification key, compare against verification key hash
  * read seqnum, R, encoding parameters, signature
  * verify signature against verification key
- * read share data, hash
- * read share hash chain
+ * read share data, compute block-hash Merkle tree and root "r"
+ * read share hash chain (leading from "r" to "R")
  * validate share hash chain up to the root "R"
  * submit share data to erasure decoding
  * decrypt decoded data with read-key
@@ -162,7 +163,9 @@ The access pattern for write is:
  * hash verification key to form read-key
  * encrypt plaintext from application with read-key
  * erasure-code crypttext to form shares
- * compute Merkle tree of shares, find root "R"
+ * split shares into blocks
+ * compute Merkle tree of blocks, giving root "r" for each share
+ * compute Merkle tree of shares, find root "R" for the file as a whole
  * create share data structures, one per server:
    * use seqnum which is one higher than the old version
    * share hash chain has log(N) hashes, different for each server
@@ -343,17 +346,24 @@ is oblivious to this format.
  5    59       32      offset table:
        91       4        (6) signature
        95       4        (7) share hash chain
-       99       4        (8) share data
-       103      8        (9) encrypted private key
- 6    111      256     verification key (2048 RSA key 'n' value, e=3)
- 7    367      256     signature= RSAenc(sig-key, H(version+seqnum+r+encparm))
- 8    623      (a)     share hash chain
- 9    ??       LEN     share data
-10    ??       256     encrypted private key= AESenc(write-key, RSA 'd' value)
+       99       4        (8) block hash tree
+       103      4        (9) share data
+       107      8        (10) encrypted private key
+ 6    115      256     verification key (2048 RSA key 'n' value, e=3)
+ 7    371      256     signature= RSAenc(sig-key, H(version+seqnum+r+encparm))
+ 8    627      (a)     share hash chain
+ 9    ??       (b)     block hash tree
+10    ??       LEN     share data
+11    ??       256     encrypted private key= AESenc(write-key, RSA 'd' value)
 
 (a) The share hash chain contains ceil(log(N)) hashes, each 32 bytes long.
     This is the set of hashes necessary to validate this share's leaf in the
     share Merkle tree. For N=10, this is 4 hashes, i.e. 128 bytes.
+(b) The block hash tree contains ceil(length/segsize) hashes, each 32 bytes
+    long. This is the set of hashes necessary to validate any given block of
+    share data up to the per-share root "r". Each "r" is a leaf of the share
+    has tree (with root "R"), from which a minimal subset of hashes is put in
+    the share hash chain in (8).
 
 === Recovery ===
 
@@ -434,8 +444,9 @@ RECOVERY:
 
 These are just like the SDMF case, but:
 
- * we use a Merkle hash tree over the blocks, instead of using a single flat
-   hash, to reduce the read-time alacrity
+ * we actually take advantage of the Merkle hash tree over the blocks, by
+   reading a single segment of data at a time (and its necessary hashes), to
+   reduce the read-time alacrity
  * we allow arbitrary writes to the file (i.e. seek() is provided, and
    O_TRUNC is no longer required)
  * we write more code on the client side (in the MutableFileNode class), to
@@ -447,8 +458,10 @@ These are just like the SDMF case, but:
 
 MDMF slots provide fairly efficient in-place edits of very large files (a few
 GB). Appending data is also fairly efficient, although each time a power of 2
-boundary is crossed, the entire file must effectively be re-uploaded, so if
-the filesize is known in advance, that space ought to be pre-allocated.
+boundary is crossed, the entire file must effectively be re-uploaded (because
+the size of the block hash tree changes), so if the filesize is known in
+advance, that space ought to be pre-allocated (by leaving extra space between
+the block hash tree and the actual data).
 
 MDMF1 uses the Merkle tree to enable low-alacrity random-access reads. MDMF2
 adds cache-line reads to allow random-access writes.
