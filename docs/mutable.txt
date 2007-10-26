@@ -97,18 +97,27 @@ encrypted child names to rw-URI/ro-URI pairs.
 
 === SDMF slots overview ===
 
-Each SDMF slot is created with a public/private key pair (known as the
-"verification key" and the "signature key"). The public key is hashed to form
-the "read key" (an AES symmetric key), and the read key is hashed to form the
-Storage Index (a unique string). The private key and public key are
-concatenated together and hashed to form the "write key". The write key is
-then hashed to form the "write enabler master". For each storage server on
-which a share is kept, the write enabler master is concatenated with the
-server's nodeid and hashed, and the result is called the "write enabler" for
-that particular server.
+Each SDMF slot is created with a public/private key pair. The public key is
+known as the "verification key", while the private key is called the
+"signature key". The private key and public key are concatenated and the
+result is hashed to form the "write key" (an AES symmetric key). The write
+key is then hashed to form the "read key". The read key is hashed to form the
+"storage index" (a unique string used as an index to locate stored data).
 
-The read-write URI consists of the write key and the storage index. The
-read-only URI contains just the read key.
+The public key is hashed by itself to form the "verification key hash". The
+private key is encrypted
+
+The write key is hashed a different way to form the "write enabler master".
+For each storage server on which a share is kept, the write enabler master is
+concatenated with the server's nodeid and hashed, and the result is called
+the "write enabler" for that particular server.
+
+The private key is encrypted (using AES in counter mode) by the write key,
+and the resulting crypttext is stored on the servers. so it will be
+retrievable by anyone who knows the write key.
+
+The read-write URI consists of just the write key. The read-only URI contains
+the read key and the verification key hash.
 
 The SDMF slot is allocated by sending a request to the storage server with a
 desired size, the storage index, and the write enabler for that server's
@@ -131,11 +140,13 @@ pieces are:
 
 The access pattern for read is:
  * use storage index to locate 'k' shares with identical 'R' values
+   * either get one share, read 'k' from it, then read k-1 shares
+   * or read, say, 5 shares, discover k, either get more or be finished
+   * or copy k into the URIs
  * read verification key
- * hash verification key, compare against read key
-   * OOPS!!! verification key is in the clear, so read key is too!! FIX!
+ * hash verification key, compare against verification key hash
  * read seqnum, R, encoding parameters, signature
- * verify signature
+ * verify signature against verification key
  * read share data, hash
  * read share hash chain
  * validate share hash chain up to the root "R"
@@ -179,23 +190,24 @@ directory name. Each share is stored in a single file, using the share number
 as the filename.
 
 The container holds space for a container magic number (for versioning), the
-write enabler, the nodeid for which the write enabler was generated (for
-share migration, TBD), a small number of lease structures, the embedded data
-itself, and expansion space for additional lease structures.
+write enabler, the nodeid which accepted the write enabler (used for share
+migration, described below), a small number of lease structures, the embedded
+data itself, and expansion space for additional lease structures.
 
  #   offset    size    name
  1   0         32      magic verstr "tahoe mutable container v1" plus binary
  2   32        32      write enabler's nodeid
  3   64        32      write enabler
  4   72        8       offset of extra leases (after data)
- 5   80        288     four leases:
+ 5   80        416     four leases:
                         0    4   ownerid (0 means "no lease here")
                         4    4   expiration timestamp
                         8   32   renewal token
                         40  32   cancel token
- 6   368       ??      data
+                        72  32   nodeid which accepted the tokens
+ 6   496       ??      data
  7   ??        4       count of extra leases
- 8   ??        n*72    extra leases
+ 8   ??        n*104    extra leases
 
 The "extra leases" field must be copied and rewritten each time the size of
 the enclosed data changes. The hope is that most buckets will have four or
@@ -262,21 +274,40 @@ If a share must be migrated from one server to another, two values become
 invalid: the write enabler (since it was computed for the old server), and
 the lease renew/cancel tokens.
 
-One idea we have is to say that the migration process is obligated to replace
-the write enabler with its hash (but leaving the old "write enabler node id"
-in place, to remind it that this WE isn't its own). When a writer attempts to
-modify a slot with the old write enabler, the server will reject the request
-and include the old WE-nodeid in the rejection message. The writer should
-then realize that the share has been migrated and try again with the hash of
-their old write enabler.
+Suppose that a slot was first created on nodeA, and was thus initialized with
+WE(nodeA) (= H(WEM+nodeA)). Later, for provisioning reasons, the share is
+moved from nodeA to nodeB.
 
-This process doesn't provide any means to fix up the write enabler, though,
-requiring an extra roundtrip for the remainder of the slot's lifetime. It
-might work better to have a call that allows the WE to be replaced, by
-proving that the writer knows H(old-WE-nodeid,old-WE). If we leave the old WE
-in place when migrating, this allows both writer and server to agree upon the
-writer's authority, hopefully without granting the server any new authority
-(or enabling it to trick a writer into revealing one).
+Readers may still be able to find the share in its new home, depending upon
+how many servers are present in the grid, where the new nodeid lands in the
+permuted index for this particular storage index, and how many servers the
+reading client is willing to contact.
+
+When a client attempts to write to this migrated share, it will get a "bad
+write enabler" error, since the WE it computes for nodeB will not match the
+WE(nodeA) that was embedded in the share. When this occurs, the "bad write
+enabler" message must include the old nodeid (e.g. nodeA) that was in the
+share.
+
+The client then computes H(nodeB+H(WEM+nodeA)), which is the same as
+H(nodeB+WE(nodeA)). The client sends this along with the new WE(nodeB), which
+is H(WEM+nodeB). Note that the client only sends WE(nodeB) to nodeB, never to
+anyone else. Also note that the client does not send a value to nodeB that
+would allow the node to impersonate the client to a third node: everything
+sent to nodeB will include something specific to nodeB in it.
+
+The server locally computes H(nodeB+WE(nodeA)), using its own node id and the
+old write enabler from the share. It compares this against the value supplied
+by the client. If they match, this serves as proof that the client was able
+to compute the old write enabler. The server then accepts the client's new
+WE(nodeB) and writes it into the container.
+
+This WE-fixup process requires an extra round trip, and requires the error
+message to include the old nodeid, but does not require any public key
+operations on either client or server.
+
+Migrating the leases will require a similar protocol. This protocol will be
+defined concretely at a later date.
 
 === Code Details ===
 
@@ -440,13 +471,6 @@ provides explicit support for revision identifiers and branching.
 
 == TODO ==
 
-fix gigantic RO-URI security bug, probably by adding a second secret
-
-how about:
- * H(privkey+pubkey) -> writekey -> readkey -> storageindex
- * RW-URI = writekey
- * RO-URI = readkey + H(pubkey)
-
 
 improve allocate-and-write or get-writer-buckets API to allow one-call (or
 maybe two-call) updates. The challenge is in figuring out which shares are on
@@ -455,4 +479,8 @@ which machines.
 (eventually) define behavior when seqnum wraps. At the very least make sure
 it can't cause a security problem. "the slot is worn out" is acceptable.
 
-(eventually) define share-migration WE-update protocol
+(eventually) define share-migration lease update protocol. Including the
+nodeid who accepted the lease is useful, we can use the same protocol as we
+do for updating the write enabler. However we need to know which lease to
+update.. maybe send back a list of all old nodeids that we find, then try all
+of them when we accept the update?
