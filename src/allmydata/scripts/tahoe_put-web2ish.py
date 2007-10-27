@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import re, sys
+import re, sys, urllib
 
 from twisted.web2 import stream
 from twisted.web2.client.http import HTTPClientProtocol, ClientRequest
