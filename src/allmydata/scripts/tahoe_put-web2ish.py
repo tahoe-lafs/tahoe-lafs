@@ -24,7 +24,7 @@ def _put(serverurl, vdrive_fname, local_fname, verbosity):
     
     url = "/vdrive/global/"
     if vdrive_fname:
-        url += vdrive_fname
+        url += urllib.quote(vdrive_fname)
 
     if local_fname is None or local_fname == "-":
         infileobj = sys.stdin

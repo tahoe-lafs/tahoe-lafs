@@ -8,7 +8,7 @@ def list(nodeurl, root_uri, vdrive_pathname, stdout, stderr):
         nodeurl += "/"
     url = nodeurl + "uri/%s/" % urllib.quote(root_uri.replace("/","!"))
     if vdrive_pathname:
-        url += vdrive_pathname
+        url += urllib.quote(vdrive_pathname)
     url += "?t=json"
     data = urllib.urlopen(url).read()
 

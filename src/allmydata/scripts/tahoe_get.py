@@ -7,7 +7,7 @@ def get(nodeurl, root_uri, vdrive_fname, local_file, stdout, stderr):
         nodeurl += "/"
     url = nodeurl + "uri/%s/" % urllib.quote(root_uri.replace("/","!"))
     if vdrive_fname:
-        url += vdrive_fname
+        url += urllib.quote(vdrive_fname)
 
     if local_file is None or local_file == "-":
         outf = stdout

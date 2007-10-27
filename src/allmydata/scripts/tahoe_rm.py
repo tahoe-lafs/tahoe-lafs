@@ -13,7 +13,7 @@ def rm(nodeurl, root_uri, vdrive_pathname, verbosity, stdout, stderr):
         nodeurl += "/"
     url = nodeurl + "uri/%s/" % urllib.quote(root_uri.replace("/","!"))
     if vdrive_pathname:
-        url += vdrive_pathname
+        url += urllib.quote(vdrive_pathname)
 
     resp = do_http("DELETE", url)
 

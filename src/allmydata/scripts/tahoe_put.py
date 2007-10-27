@@ -14,7 +14,7 @@ def put(nodeurl, root_uri, local_fname, vdrive_fname, verbosity,
         nodeurl += "/"
     url = nodeurl + "uri/%s/" % urllib.quote(root_uri.replace("/","!"))
     if vdrive_fname:
-        url += vdrive_fname
+        url += urllib.quote(vdrive_fname)
 
     infileobj = open(local_fname, "rb")
     resp = do_http("PUT", url, infileobj)
