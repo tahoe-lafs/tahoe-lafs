@@ -253,7 +253,7 @@ class Checker(service.MultiService):
                              (uri_to_verify,))
 
     def checker_results_for(self, uri_to_check):
-        if self.results:
+        if uri_to_check and self.results:
             return self.results.get_results_for(IVerifierURI(uri_to_check))
         return []
 
