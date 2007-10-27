@@ -172,6 +172,8 @@ class Directory(rend.Page):
         # build the base of the uri_link link url
         uri_link = "/uri/" + urllib.quote(target.get_uri().replace("/", "!"))
 
+        assert IFileNode.providedBy(target) or IDirectoryNode.providedBy(target), target
+
         if IFileNode.providedBy(target):
             # file
 
@@ -206,8 +208,6 @@ class Directory(rend.Page):
             ctx.fillSlots("type", dirtype)
             ctx.fillSlots("size", "-")
             text_plain_tag = None
-        else:
-            raise RuntimeError("unknown thing %s" % (target,))
 
         childdata = [T.a(href="%s?t=json" % name)["JSON"], ", ",
                      T.a(href="%s?t=uri" % name)["URI"], ", ",
