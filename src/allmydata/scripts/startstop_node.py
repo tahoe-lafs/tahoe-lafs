@@ -79,26 +79,48 @@ def do_stop(basedir, out=sys.stdout, err=sys.stderr):
     pid = open(pidfile, "r").read()
     pid = int(pid)
 
-    timer = 0
+    # kill it hard (SIGKILL), delete the twistd.pid file, then wait for the
+    # process itself to go away. If it hasn't gone away after 5 seconds, warn
+    # the user but keep waiting until they give up.
     try:
-        os.kill(pid, signal.SIGTERM)
+        os.kill(pid, signal.SIGKILL)
     except OSError, oserr:
         if oserr.errno == 3:
             print oserr.strerror
+            # the process didn't exist, so wipe the pid file
+            os.remove(pidfile)
             return 1
         else:
             raise
+    try:
+        os.remove(pidfile)
+    except EnvironmentError:
+        pass
+    start = time.time()
     time.sleep(0.1)
-    while timer < 5:
-        # poll once per second until twistd.pid goes away, up to 5 seconds
+    wait = 5
+    first_time = True
+    while True:
+        # poll once per second until we see the process is no longer running
         try:
             os.kill(pid, 0)
         except OSError:
             print >>out, "process %d is dead" % pid
             return
-        timer += 1
+        wait -= 1
+        if wait < 0:
+            if first_time:
+                print >>err, ("It looks like pid %d is still running "
+                              "after %d seconds" % (pid,
+                                                    (time.time() - start)))
+                print >>err, "I will keep watching it until you interrupt me."
+                wait = 10
+                first_time = False
+            else:
+                print >>err, "pid %d still running after %d seconds" % \
+                      (pid, (time.time() - start))
+                wait = 10
         time.sleep(1)
-    print >>err, "never saw process go away"
     return 1
 
 def start(config, stdout, stderr):
