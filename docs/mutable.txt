@@ -114,7 +114,14 @@ the "write enabler" for that particular server.
 
 The private key is encrypted (using AES in counter mode) by the write key,
 and the resulting crypttext is stored on the servers. so it will be
-retrievable by anyone who knows the write key.
+retrievable by anyone who knows the write key. The write key is not used to
+encrypt anything else, and the private key never changes, so we do not need
+an IV for this purpose.
+
+The actual data is encrypted (using AES in counter mode) with a key derived
+by concatenating the readkey with the IV, the hashing the results and
+truncating to 16 bytes. The IV is randomly generated each time the slot is
+updated, and stored next to the encrypted data.
 
 The read-write URI consists of just the write key. The read-only URI contains
 the read key and the verification key hash.
@@ -344,17 +351,19 @@ is oblivious to this format.
        43       8        segment size
        51       8        data length
  5    59       32      offset table:
-       91       4        (6) signature
-       95       4        (7) share hash chain
-       99       4        (8) block hash tree
-       103      4        (9) share data
-       107      8        (10) encrypted private key
- 6    115      256     verification key (2048 RSA key 'n' value, e=3)
- 7    371      256     signature= RSAenc(sig-key, H(version+seqnum+r+encparm))
- 8    627      (a)     share hash chain
+       91       4        (7) signature
+       95       4        (8) share hash chain
+       99       4        (9) block hash tree
+       103      4        (10) IV
+       107      4        (11) share data
+       111      8        (12) encrypted private key
+ 6    119      256     verification key (2048 RSA key 'n' value, e=3)
+ 7    375      256     signature= RSAenc(sig-key, H(version+seqnum+r+encparm))
+ 8    631      (a)     share hash chain
  9    ??       (b)     block hash tree
-10    ??       LEN     share data
-11    ??       256     encrypted private key= AESenc(write-key, RSA 'd' value)
+10    ??       16      IV (share data is AES(H(readkey+IV)) )
+11    ??       LEN     share data
+12    ??       256     encrypted private key= AESenc(write-key, RSA 'd' value)
 
 (a) The share hash chain contains ceil(log(N)) hashes, each 32 bytes long.
     This is the set of hashes necessary to validate this share's leaf in the
@@ -483,9 +492,6 @@ LDMF1 provides deltas but tries to avoid dealing with multiple heads. LDMF2
 provides explicit support for revision identifiers and branching.
 
 == TODO ==
-
-add IV, use it by hashing the long-term readkey with the IV to generate the
-per-version readkey.
 
 improve allocate-and-write or get-writer-buckets API to allow one-call (or
 maybe two-call) updates. The challenge is in figuring out which shares are on
