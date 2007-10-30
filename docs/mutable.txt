@@ -484,10 +484,12 @@ provides explicit support for revision identifiers and branching.
 
 == TODO ==
 
+add IV, use it by hashing the long-term readkey with the IV to generate the
+per-version readkey.
 
 improve allocate-and-write or get-writer-buckets API to allow one-call (or
 maybe two-call) updates. The challenge is in figuring out which shares are on
-which machines.
+which machines. First cut will have lots of round trips.
 
 (eventually) define behavior when seqnum wraps. At the very least make sure
 it can't cause a security problem. "the slot is worn out" is acceptable.
