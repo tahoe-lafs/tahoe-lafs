@@ -520,3 +520,8 @@ nodeid who accepted the lease is useful, we can use the same protocol as we
 do for updating the write enabler. However we need to know which lease to
 update.. maybe send back a list of all old nodeids that we find, then try all
 of them when we accept the update?
+
+ We now do this in a specially-formatted IndexError exception:
+  "UNABLE to renew non-existent lease. I have leases accepted by " +
+  "nodeids: '12345','abcde','44221' ."
+
