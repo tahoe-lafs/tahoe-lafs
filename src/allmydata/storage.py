@@ -458,7 +458,7 @@ class MutableShareFile(Referenceable):
             except IndexError:
                 return
 
-    def debug_enumerate_leases(self):
+    def debug_get_leases(self):
         f = open(self.home, 'rb')
         leases = list(self._enumerate_leases(f))
         f.close()

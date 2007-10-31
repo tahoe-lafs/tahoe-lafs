@@ -687,6 +687,18 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(s0.remote_read(0, 100), data)
         s0.remote_testv_and_writev(WE, [], [(0,data)], None)
 
+    def compare_leases_without_timestamps(self, a, b):
+        self.failUnlessEqual(len(a), len(b))
+        for i in range(len(a)):
+            (num_a, (ownerid_a, expiration_time_a,
+                   renew_secret_a, cancel_secret_a, nodeid_a)) = a[i]
+            (num_b, (ownerid_b, expiration_time_b,
+                   renew_secret_b, cancel_secret_b, nodeid_b)) = b[i]
+            self.failUnlessEqual( (num_a, ownerid_a, renew_secret_a,
+                                   cancel_secret_a, nodeid_a),
+                                  (num_b, ownerid_b, renew_secret_b,
+                                   cancel_secret_b, nodeid_b) )
+
     def test_leases(self):
         ss = self.create("test_leases")
         secret = 14
@@ -724,7 +736,7 @@ class MutableServer(unittest.TestCase):
         # cancel one of them
         ss.remote_cancel_lease("si1", self.cancel_secret(secret+5))
 
-        all_leases = s0.debug_enumerate_leases()
+        all_leases = s0.debug_get_leases()
         self.failUnlessEqual(len(all_leases), 5)
 
         # and write enough data to expand the container, forcing the server
@@ -735,14 +747,20 @@ class MutableServer(unittest.TestCase):
                                             new_length=200)
 
         # read back the leases, make sure they're still intact.
-        self.failUnlessEqual(all_leases, s0.debug_enumerate_leases())
+        self.compare_leases_without_timestamps(all_leases,
+                                               s0.debug_get_leases())
 
         ss.remote_renew_lease("si1", self.renew_secret(secret))
         ss.remote_renew_lease("si1", self.renew_secret(secret+1))
         ss.remote_renew_lease("si1", self.renew_secret(secret+2))
         ss.remote_renew_lease("si1", self.renew_secret(secret+3))
         ss.remote_renew_lease("si1", self.renew_secret(secret+4))
-
+        self.compare_leases_without_timestamps(all_leases,
+                                               s0.debug_get_leases())
+        # get a new copy of the leases, with the current timestamps. Reading
+        # data and failing to renew/cancel leases should leave the timestamps
+        # alone.
+        all_leases = s0.debug_get_leases()
         # renewing with a bogus token should prompt an error message
 
         # TODO: examine the exception thus raised, make sure the old nodeid
@@ -754,19 +772,23 @@ class MutableServer(unittest.TestCase):
         self.failUnlessRaises(IndexError,
                               ss.remote_cancel_lease, "si1",
                               self.cancel_secret(secret+20))
+        self.failUnlessEqual(all_leases, s0.debug_get_leases())
+        s0.remote_read(0, 200)
+        self.failUnlessEqual(all_leases, s0.debug_get_leases())
 
-        self.failUnlessEqual(all_leases, s0.debug_enumerate_leases())
         answer = s0.remote_testv_and_writev(WE,
                                             [],
                                             [(200, "make me bigger"),],
                                             new_length=None)
-        self.failUnlessEqual(all_leases, s0.debug_enumerate_leases())
+        self.compare_leases_without_timestamps(all_leases,
+                                               s0.debug_get_leases())
 
         answer = s0.remote_testv_and_writev(WE,
                                             [],
                                             [(500, "make me really bigger"),],
                                             new_length=None)
-        self.failUnlessEqual(all_leases, s0.debug_enumerate_leases())
+        self.compare_leases_without_timestamps(all_leases,
+                                               s0.debug_get_leases())
 
         # now cancel them all
         ss.remote_cancel_lease("si1", self.cancel_secret(secret))
@@ -776,7 +798,7 @@ class MutableServer(unittest.TestCase):
         # the slot should still be there
         shares3 = ss.remote_get_mutable_slot("si1")
         self.failUnlessEqual(len(shares3), 3)
-        self.failUnlessEqual(len(s0.debug_enumerate_leases()), 1)
+        self.failUnlessEqual(len(s0.debug_get_leases()), 1)
 
         ss.remote_cancel_lease("si1", self.cancel_secret(secret+4))
         # now the slot should be gone
