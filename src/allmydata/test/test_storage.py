@@ -10,6 +10,7 @@ from allmydata import interfaces
 from allmydata.util import fileutil, hashutil
 from allmydata.storage import BucketWriter, BucketReader, \
      WriteBucketProxy, ReadBucketProxy, StorageServer
+from allmydata.interfaces import BadWriteEnablerError
 
 class Bucket(unittest.TestCase):
     def make_workdir(self, name):
@@ -456,6 +457,7 @@ class MutableServer(unittest.TestCase):
         workdir = self.workdir(name)
         ss = StorageServer(workdir, sizelimit)
         ss.setServiceParent(self.sparent)
+        ss.setNodeID("\x00" * 32)
         return ss
 
     def test_create(self):
@@ -478,26 +480,201 @@ class MutableServer(unittest.TestCase):
         shares = self.allocate(ss, "si1", "we1", set([0,1,2]), 100)
         self.failUnlessEqual(len(shares), 3)
         self.failUnlessEqual(set(shares.keys()), set([0,1,2]))
-        shares2 = ss.get_mutable_slot("si1")
+        shares2 = ss.remote_get_mutable_slot("si1")
         self.failUnlessEqual(len(shares2), 3)
         self.failUnlessEqual(set(shares2.keys()), set([0,1,2]))
-        # the actual RIMutableSlot objects are required to be singtons (one
-        # per SI+shnum), so each get_mutable_slot() call should return the
-        # same RemoteReferences
-        self.failUnlessEqual(set(shares.values()), set(shares2.values()))
 
         s0 = shares[0]
         self.failUnlessEqual(s0.remote_read(0, 10), "")
         self.failUnlessEqual(s0.remote_read(100, 10), "")
         # try writing to one
+        WE = self.write_enabler("we1")
         data = "".join([ ("%d" % i) * 10 for i in range(10) ])
-        answer = s0.remote_testv_and_writev(self.write_enabler("we1"),
+        answer = s0.remote_testv_and_writev(WE,
                                             [],
                                             [(0, data),],
                                             new_length=None)
-        self.failUnlessEqual(answer, [])
+        self.failUnlessEqual(answer, (True, []))
 
         self.failUnlessEqual(s0.remote_read(0, 20), "00000000001111111111")
         self.failUnlessEqual(s0.remote_read(95, 10), "99999")
         self.failUnlessEqual(s0.remote_get_length(), 100)
 
+        self.failUnlessRaises(BadWriteEnablerError,
+                              s0.remote_testv_and_writev,
+                              "bad write enabler",
+                              [], [], None)
+        # this testv should fail
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(0, 12, "eq", "444444444444"),
+                                             (20, 5, "eq", "22222"),
+                                             ],
+                                            [(0, "x"*100)], None)
+        self.failUnlessEqual(answer, (False, ["000000000011",
+                                              "22222"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), data)
+
+        # as should this one
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "lt", "11111"),
+                                             ],
+                                            [(0, "x"*100)], None)
+        self.failUnlessEqual(answer, (False, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), data)
+
+
+    def test_operators(self):
+        # test operators, the data we're comparing is '11111' in all cases.
+        # test both fail+pass, reset data after each one.
+        ss = self.create("test_operators")
+        shares = self.allocate(ss, "si1", "we1", set([0,1,2]), 100)
+        s0 = shares[0]
+        WE = self.write_enabler("we1")
+        data = "".join([ ("%d" % i) * 10 for i in range(10) ])
+        answer = s0.remote_testv_and_writev(WE,
+                                            [],
+                                            [(0, data),],
+                                            new_length=None)
+
+        #  nop
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "nop", "11111"),
+                                             ],
+                                            [(0, "x"*100)], None)
+        self.failUnlessEqual(answer, (True, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), "x"*100)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        #  lt
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "lt", "11110"),
+                                             ],
+                                            [(0, "x"*100)], None)
+        self.failUnlessEqual(answer, (False, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), data)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "lt", "11111"),
+                                             ],
+                                            [(0, "x"*100)], None)
+        self.failUnlessEqual(answer, (False, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), data)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "lt", "11112"),
+                                             ],
+                                            [(0, "y"*100)], None)
+        self.failUnlessEqual(answer, (True, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        #  le
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "le", "11110"),
+                                             ],
+                                            [(0, "x"*100)], None)
+        self.failUnlessEqual(answer, (False, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), data)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "le", "11111"),
+                                             ],
+                                            [(0, "y"*100)], None)
+        self.failUnlessEqual(answer, (True, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "le", "11112"),
+                                             ],
+                                            [(0, "y"*100)], None)
+        self.failUnlessEqual(answer, (True, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        #  eq
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "eq", "11112"),
+                                             ],
+                                            [(0, "x"*100)], None)
+        self.failUnlessEqual(answer, (False, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), data)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "eq", "11111"),
+                                             ],
+                                            [(0, "y"*100)], None)
+        self.failUnlessEqual(answer, (True, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        #  ne
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "ne", "11111"),
+                                             ],
+                                            [(0, "x"*100)], None)
+        self.failUnlessEqual(answer, (False, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), data)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "ne", "11112"),
+                                             ],
+                                            [(0, "y"*100)], None)
+        self.failUnlessEqual(answer, (True, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        #  ge
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "ge", "11110"),
+                                             ],
+                                            [(0, "y"*100)], None)
+        self.failUnlessEqual(answer, (True, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "ge", "11111"),
+                                             ],
+                                            [(0, "y"*100)], None)
+        self.failUnlessEqual(answer, (True, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "ge", "11112"),
+                                             ],
+                                            [(0, "y"*100)], None)
+        self.failUnlessEqual(answer, (False, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), data)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        #  gt
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "gt", "11110"),
+                                             ],
+                                            [(0, "y"*100)], None)
+        self.failUnlessEqual(answer, (True, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "gt", "11111"),
+                                             ],
+                                            [(0, "x"*100)], None)
+        self.failUnlessEqual(answer, (False, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), data)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+        answer = s0.remote_testv_and_writev(WE,
+                                            [(10, 5, "gt", "11112"),
+                                             ],
+                                            [(0, "x"*100)], None)
+        self.failUnlessEqual(answer, (False, ["11111"]))
+        self.failUnlessEqual(s0.remote_read(0, 100), data)
+        s0.remote_testv_and_writev(WE, [], [(0,data)], None)

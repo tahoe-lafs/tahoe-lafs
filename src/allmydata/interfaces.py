@@ -111,7 +111,7 @@ class RIMutableSlot(RemoteInterface):
         The boolean return value is True if the write vector was applied,
         false if not.
 
-        If the write_enabler is wrong, this will raise BadWriterEnablerError.
+        If the write_enabler is wrong, this will raise BadWriteEnablerError.
         To enable share migration, the exception will have the nodeid used
         for the old write enabler embedded in it, in the following string::
 
