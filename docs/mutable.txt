@@ -110,7 +110,10 @@ private key is encrypted
 The write key is hashed a different way to form the "write enabler master".
 For each storage server on which a share is kept, the write enabler master is
 concatenated with the server's nodeid and hashed, and the result is called
-the "write enabler" for that particular server.
+the "write enabler" for that particular server. Note that multiple shares of
+the same slot stored on the same server will all get the same write enabler,
+i.e. the write enabler is associated with the "bucket", rather than the
+individual shares.
 
 The private key is encrypted (using AES in counter mode) by the write key,
 and the resulting crypttext is stored on the servers. so it will be
@@ -208,20 +211,32 @@ data itself, and expansion space for additional lease structures.
  1   0         32      magic verstr "tahoe mutable container v1" plus binary
  2   32        32      write enabler's nodeid
  3   64        32      write enabler
- 4   72        8       offset of extra leases (after data)
- 5   80        416     four leases:
+ 4   72        8       data size (actual share data present) (a)
+ 5   80        8       offset of (8) count of extra leases (after data)
+ 6   88        416     four leases, 104 bytes each
                         0    4   ownerid (0 means "no lease here")
                         4    4   expiration timestamp
                         8   32   renewal token
                         40  32   cancel token
                         72  32   nodeid which accepted the tokens
- 6   496       ??      data
- 7   ??        4       count of extra leases
- 8   ??        n*104    extra leases
+ 7   504       (a)     data
+ 8   ??        4       count of extra leases
+ 9   ??        n*104    extra leases
 
 The "extra leases" field must be copied and rewritten each time the size of
 the enclosed data changes. The hope is that most buckets will have four or
 fewer leases and this extra copying will not usually be necessary.
+
+The (4) "data size" field contains the actual number of bytes of data present
+in field (7), such that a client request to read beyond 504+(a) will result
+in an error. This allows the client to (one day) read relative to the end of
+the file. The container size (that is, (8)-(7)) might be larger, especially
+if extra size was pre-allocated in anticipation of filling the container with
+a lot of data.
+
+The offset in (5) points at the *count* of extra leases, at (8). The actual
+leases (at (9)) begin 4 bytes later. If the container size changes, both (8)
+and (9) must be relocated by copying.
 
 The server will honor any write commands that provide the write token and do
 not exceed the server-wide storage size limitations. Read and write commands
