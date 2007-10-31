@@ -447,7 +447,7 @@ class MutableShareFile(Referenceable):
                 return i
         return None
 
-    def enumerate_leases(self, f):
+    def _enumerate_leases(self, f):
         """Yields (leasenum, (ownerid, expiration_time, renew_secret,
         cancel_secret, accepting_nodeid)) for all leases."""
         for i in range(self._get_num_lease_slots(f)):
@@ -457,6 +457,12 @@ class MutableShareFile(Referenceable):
                     yield (i,data)
             except IndexError:
                 return
+
+    def debug_enumerate_leases(self):
+        f = open(self.home, 'rb')
+        leases = list(self._enumerate_leases(f))
+        f.close()
+        return leases
 
     def add_lease(self, lease_info):
         f = open(self.home, 'rb+')
@@ -471,7 +477,7 @@ class MutableShareFile(Referenceable):
     def renew_lease(self, renew_secret, new_expire_time):
         accepting_nodeids = set()
         f = open(self.home, 'rb+')
-        for (leasenum,(oid,et,rs,cs,anid)) in self.enumerate_leases(f):
+        for (leasenum,(oid,et,rs,cs,anid)) in self._enumerate_leases(f):
             if rs == renew_secret:
                 # yup. See if we need to update the owner time.
                 if new_expire_time > et:
@@ -510,7 +516,7 @@ class MutableShareFile(Referenceable):
         blank = "\x00"*32
         blank_lease = (0, 0, blank, blank, blank)
         f = open(self.home, 'rb+')
-        for (leasenum,(oid,et,rs,cs,anid)) in self.enumerate_leases(f):
+        for (leasenum,(oid,et,rs,cs,anid)) in self._enumerate_leases(f):
             accepting_nodeids.add(anid)
             if cs == cancel_secret:
                 self._write_lease_record(f, leasenum, blank_lease)

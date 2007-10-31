@@ -724,6 +724,9 @@ class MutableServer(unittest.TestCase):
         # cancel one of them
         ss.remote_cancel_lease("si1", self.cancel_secret(secret+5))
 
+        all_leases = s0.debug_enumerate_leases()
+        self.failUnlessEqual(len(all_leases), 5)
+
         # and write enough data to expand the container, forcing the server
         # to move the leases
         answer = s0.remote_testv_and_writev(WE,
@@ -731,8 +734,9 @@ class MutableServer(unittest.TestCase):
                                             [(0, data),],
                                             new_length=200)
 
-        # TODO: read back the leases, make sure they're still intact. We need
-        # a renew_lease() call for this.
+        # read back the leases, make sure they're still intact.
+        self.failUnlessEqual(all_leases, s0.debug_enumerate_leases())
+
         ss.remote_renew_lease("si1", self.renew_secret(secret))
         ss.remote_renew_lease("si1", self.renew_secret(secret+1))
         ss.remote_renew_lease("si1", self.renew_secret(secret+2))
@@ -751,14 +755,29 @@ class MutableServer(unittest.TestCase):
                               ss.remote_cancel_lease, "si1",
                               self.cancel_secret(secret+20))
 
+        self.failUnlessEqual(all_leases, s0.debug_enumerate_leases())
+        answer = s0.remote_testv_and_writev(WE,
+                                            [],
+                                            [(200, "make me bigger"),],
+                                            new_length=None)
+        self.failUnlessEqual(all_leases, s0.debug_enumerate_leases())
+
+        answer = s0.remote_testv_and_writev(WE,
+                                            [],
+                                            [(500, "make me really bigger"),],
+                                            new_length=None)
+        self.failUnlessEqual(all_leases, s0.debug_enumerate_leases())
+
         # now cancel them all
         ss.remote_cancel_lease("si1", self.cancel_secret(secret))
         ss.remote_cancel_lease("si1", self.cancel_secret(secret+1))
         ss.remote_cancel_lease("si1", self.cancel_secret(secret+2))
         ss.remote_cancel_lease("si1", self.cancel_secret(secret+3))
-        # slot should still be there
+        # the slot should still be there
         shares3 = ss.remote_get_mutable_slot("si1")
         self.failUnlessEqual(len(shares3), 3)
+        self.failUnlessEqual(len(s0.debug_enumerate_leases()), 1)
+
         ss.remote_cancel_lease("si1", self.cancel_secret(secret+4))
         # now the slot should be gone
         self.failUnlessEqual(ss.remote_get_mutable_slot("si1"), {})
