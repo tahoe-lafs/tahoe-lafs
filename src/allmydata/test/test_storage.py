@@ -466,10 +466,16 @@ class MutableServer(unittest.TestCase):
     def write_enabler(self, we_tag):
         return hashutil.tagged_hash("we_blah", we_tag)
 
+    def renew_secret(self, tag):
+        return hashutil.tagged_hash("renew_blah", str(tag))
+
+    def cancel_secret(self, tag):
+        return hashutil.tagged_hash("cancel_blah", str(tag))
+
     def allocate(self, ss, storage_index, we_tag, lease_tag, sharenums, size):
         write_enabler = self.write_enabler(we_tag)
-        renew_secret = hashutil.tagged_hash("blah", str(lease_tag))
-        cancel_secret = hashutil.tagged_hash("blah", str(lease_tag))
+        renew_secret = self.renew_secret(lease_tag)
+        cancel_secret = self.cancel_secret(lease_tag)
         return ss.remote_allocate_mutable_slot(storage_index,
                                                write_enabler,
                                                renew_secret, cancel_secret,
@@ -697,6 +703,9 @@ class MutableServer(unittest.TestCase):
         # the lease
         shares2 = self.allocate(ss, "si1", "we1", secret, set([0,1,2]), 100)
 
+        # renew it directly
+        ss.remote_renew_lease("si1", self.renew_secret(secret))
+
         # now allocate them with a bunch of different secrets, to trigger the
         # extended lease code
         shares2 = self.allocate(ss, "si1", "we1", secret+1, set([0,1,2]), 100)
@@ -704,6 +713,8 @@ class MutableServer(unittest.TestCase):
         shares2 = self.allocate(ss, "si1", "we1", secret+3, set([0,1,2]), 100)
         shares2 = self.allocate(ss, "si1", "we1", secret+4, set([0,1,2]), 100)
         shares2 = self.allocate(ss, "si1", "we1", secret+5, set([0,1,2]), 100)
+        # cancel one of them
+        ss.remote_cancel_lease("si1", self.cancel_secret(secret+5))
 
         # and write enough data to expand the container, forcing the server
         # to move the leases
@@ -714,3 +725,21 @@ class MutableServer(unittest.TestCase):
 
         # TODO: read back the leases, make sure they're still intact. We need
         # a renew_lease() call for this.
+        ss.remote_renew_lease("si1", self.renew_secret(secret))
+        ss.remote_renew_lease("si1", self.renew_secret(secret+1))
+        ss.remote_renew_lease("si1", self.renew_secret(secret+2))
+        ss.remote_renew_lease("si1", self.renew_secret(secret+3))
+        ss.remote_renew_lease("si1", self.renew_secret(secret+4))
+
+        # now cancel them all
+        ss.remote_cancel_lease("si1", self.cancel_secret(secret))
+        ss.remote_cancel_lease("si1", self.cancel_secret(secret+1))
+        ss.remote_cancel_lease("si1", self.cancel_secret(secret+2))
+        ss.remote_cancel_lease("si1", self.cancel_secret(secret+3))
+        # slot should still be there
+        shares3 = ss.remote_get_mutable_slot("si1")
+        self.failUnlessEqual(len(shares3), 3)
+        ss.remote_cancel_lease("si1", self.cancel_secret(secret+4))
+        # now the slot should be gone
+        self.failUnlessEqual(ss.remote_get_mutable_slot("si1"), {})
+

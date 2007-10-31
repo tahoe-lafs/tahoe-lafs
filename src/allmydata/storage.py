@@ -520,7 +520,7 @@ class MutableShareFile(Referenceable):
         if modified:
             freed_space = self._pack_leases(f)
             f.close()
-            return (freed_space, remaining)
+            return (remaining, freed_space)
         msg = ("Unable to cancel non-existent lease. I have leases "
                "accepted by nodeids: ")
         msg += ",".join([("'%s'" % idlib.b2a(anid))
@@ -720,7 +720,18 @@ class StorageServer(service.MultiService, Referenceable):
         found_buckets = False
         for shnum, filename in self._get_bucket_shares(storage_index):
             found_buckets = True
-            sf = ShareFile(filename)
+            f = open(filename, 'rb')
+            header = f.read(32)
+            f.close()
+            if header[:32] == MutableShareFile.MAGIC:
+                sf = MutableShareFile(filename)
+                # note: if the share has been migrated, the renew_lease()
+                # call will throw an exception, with information to help the
+                # client update the lease.
+            elif header[:4] == struct.pack(">L", 1):
+                sf = ShareFile(filename)
+            else:
+                pass # non-sharefile
             sf.renew_lease(renew_secret, new_expire_time)
         if not found_buckets:
             raise IndexError("no such lease to renew")
@@ -737,7 +748,18 @@ class StorageServer(service.MultiService, Referenceable):
             # (perhaps we ran out of disk space while adding a lease), the
             # leases on all shares will be identical.
             found_buckets = True
-            sf = ShareFile(filename)
+            f = open(filename, 'rb')
+            header = f.read(32)
+            f.close()
+            if header[:32] == MutableShareFile.MAGIC:
+                sf = MutableShareFile(filename)
+                # note: if the share has been migrated, the renew_lease()
+                # call will throw an exception, with information to help the
+                # client update the lease.
+            elif header[:4] == struct.pack(">L", 1):
+                sf = ShareFile(filename)
+            else:
+                pass # non-sharefile
             # this raises IndexError if the lease wasn't present
             remaining_leases, space_freed = sf.cancel_lease(cancel_secret)
             total_space_freed += space_freed
