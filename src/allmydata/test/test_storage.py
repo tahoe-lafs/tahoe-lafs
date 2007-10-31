@@ -438,3 +438,66 @@ class Server(unittest.TestCase):
         leases = list(ss.get_leases("si3"))
         self.failUnlessEqual(len(leases), 2)
 
+
+
+class MutableServer(unittest.TestCase):
+
+    def setUp(self):
+        self.sparent = service.MultiService()
+        self._secret = itertools.count()
+    def tearDown(self):
+        return self.sparent.stopService()
+
+    def workdir(self, name):
+        basedir = os.path.join("storage", "MutableServer", name)
+        return basedir
+
+    def create(self, name, sizelimit=None):
+        workdir = self.workdir(name)
+        ss = StorageServer(workdir, sizelimit)
+        ss.setServiceParent(self.sparent)
+        return ss
+
+    def test_create(self):
+        ss = self.create("test_create")
+
+    def write_enabler(self, we_tag):
+        return hashutil.tagged_hash("we_blah", we_tag)
+
+    def allocate(self, ss, storage_index, we_tag, sharenums, size):
+        write_enabler = self.write_enabler(we_tag)
+        renew_secret = hashutil.tagged_hash("blah", "%d" % self._secret.next())
+        cancel_secret = hashutil.tagged_hash("blah", "%d" % self._secret.next())
+        return ss.remote_allocate_mutable_slot(storage_index,
+                                               write_enabler,
+                                               renew_secret, cancel_secret,
+                                               sharenums, size)
+
+    def test_allocate(self):
+        ss = self.create("test_allocate")
+        shares = self.allocate(ss, "si1", "we1", set([0,1,2]), 100)
+        self.failUnlessEqual(len(shares), 3)
+        self.failUnlessEqual(set(shares.keys()), set([0,1,2]))
+        shares2 = ss.get_mutable_slot("si1")
+        self.failUnlessEqual(len(shares2), 3)
+        self.failUnlessEqual(set(shares2.keys()), set([0,1,2]))
+        # the actual RIMutableSlot objects are required to be singtons (one
+        # per SI+shnum), so each get_mutable_slot() call should return the
+        # same RemoteReferences
+        self.failUnlessEqual(set(shares.values()), set(shares2.values()))
+
+        s0 = shares[0]
+        self.failUnlessEqual(s0.remote_read(0, 10), "")
+        self.failUnlessEqual(s0.remote_read(100, 10), "")
+        # try writing to one
+        data = "".join([ ("%d" % i) * 10 for i in range(10) ])
+        answer = s0.remote_testv_and_writev(self.write_enabler("we1"),
+                                            [],
+                                            [(0, data),],
+                                            new_length=None)
+        self.failUnlessEqual(answer, [])
+
+        self.failUnlessEqual(s0.remote_read(0, 20), "00000000001111111111")
+        self.failUnlessEqual(s0.remote_read(95, 10), "99999")
+        self.failUnlessEqual(s0.remote_get_length(), 100)
+

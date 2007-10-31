@@ -6,14 +6,12 @@ from twisted.internet import defer
 from foolscap import Referenceable
 from allmydata import uri
 from allmydata.interfaces import RIVirtualDriveServer, \
-     IDirectoryNode, IFileNode, IFileURI, IDirnodeURI, IURI
+     IDirectoryNode, IFileNode, IFileURI, IDirnodeURI, IURI, \
+     BadWriteEnablerError
 from allmydata.util import bencode, idlib, hashutil, fileutil
 from allmydata.Crypto.Cipher import AES
 
 # VirtualDriveServer is the side that hosts directory nodes
-
-class BadWriteEnablerError(Exception):
-    pass
 
 class NoPublicRootError(Exception):
     pass
