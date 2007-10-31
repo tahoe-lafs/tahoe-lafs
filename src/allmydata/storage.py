@@ -397,13 +397,13 @@ class MutableShareFile(Referenceable):
         elif (lease_number-4) < num_extra_leases:
             offset = (extra_lease_offset
                       + 4
-                      + (lease_number-4)*self.LEASE_NUMBER)
+                      + (lease_number-4)*self.LEASE_SIZE)
         else:
             # must add an extra lease record
             self._write_num_extra_leases(f, num_extra_leases+1)
             offset = (extra_lease_offset
                       + 4
-                      + (lease_number-4)*self.LEASE_NUMBER)
+                      + (lease_number-4)*self.LEASE_SIZE)
         f.seek(offset)
         assert f.tell() == offset
         f.write(struct.pack(">LL32s32s32s",
@@ -419,7 +419,7 @@ class MutableShareFile(Referenceable):
         elif (lease_number-4) < num_extra_leases:
             offset = (extra_lease_offset
                       + 4
-                      + (lease_number-4)*self.LEASE_NUMBER)
+                      + (lease_number-4)*self.LEASE_SIZE)
         else:
             raise IndexError("No such lease number %d" % lease_number)
         f.seek(offset)

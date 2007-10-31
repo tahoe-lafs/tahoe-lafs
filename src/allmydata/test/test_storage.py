@@ -466,10 +466,10 @@ class MutableServer(unittest.TestCase):
     def write_enabler(self, we_tag):
         return hashutil.tagged_hash("we_blah", we_tag)
 
-    def allocate(self, ss, storage_index, we_tag, sharenums, size):
+    def allocate(self, ss, storage_index, we_tag, lease_tag, sharenums, size):
         write_enabler = self.write_enabler(we_tag)
-        renew_secret = hashutil.tagged_hash("blah", "%d" % self._secret.next())
-        cancel_secret = hashutil.tagged_hash("blah", "%d" % self._secret.next())
+        renew_secret = hashutil.tagged_hash("blah", str(lease_tag))
+        cancel_secret = hashutil.tagged_hash("blah", str(lease_tag))
         return ss.remote_allocate_mutable_slot(storage_index,
                                                write_enabler,
                                                renew_secret, cancel_secret,
@@ -477,7 +477,8 @@ class MutableServer(unittest.TestCase):
 
     def test_allocate(self):
         ss = self.create("test_allocate")
-        shares = self.allocate(ss, "si1", "we1", set([0,1,2]), 100)
+        shares = self.allocate(ss, "si1", "we1", self._secret.next(),
+                               set([0,1,2]), 100)
         self.failUnlessEqual(len(shares), 3)
         self.failUnlessEqual(set(shares.keys()), set([0,1,2]))
         shares2 = ss.remote_get_mutable_slot("si1")
@@ -527,7 +528,8 @@ class MutableServer(unittest.TestCase):
         # test operators, the data we're comparing is '11111' in all cases.
         # test both fail+pass, reset data after each one.
         ss = self.create("test_operators")
-        shares = self.allocate(ss, "si1", "we1", set([0,1,2]), 100)
+        shares = self.allocate(ss, "si1", "we1", self._secret.next(),
+                               set([0,1,2]), 100)
         s0 = shares[0]
         WE = self.write_enabler("we1")
         data = "".join([ ("%d" % i) * 10 for i in range(10) ])
@@ -678,3 +680,37 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(answer, (False, ["11111"]))
         self.failUnlessEqual(s0.remote_read(0, 100), data)
         s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+
+    def test_leases(self):
+        ss = self.create("test_leases")
+        secret = 14
+        shares = self.allocate(ss, "si1", "we1", secret, set([0,1,2]), 100)
+        s0 = shares[0]
+        WE = self.write_enabler("we1")
+        data = "".join([ ("%d" % i) * 10 for i in range(10) ])
+        answer = s0.remote_testv_and_writev(WE,
+                                            [],
+                                            [(0, data),],
+                                            new_length=None)
+
+        # re-allocate the slots and use the same secrets, that should update
+        # the lease
+        shares2 = self.allocate(ss, "si1", "we1", secret, set([0,1,2]), 100)
+
+        # now allocate them with a bunch of different secrets, to trigger the
+        # extended lease code
+        shares2 = self.allocate(ss, "si1", "we1", secret+1, set([0,1,2]), 100)
+        shares2 = self.allocate(ss, "si1", "we1", secret+2, set([0,1,2]), 100)
+        shares2 = self.allocate(ss, "si1", "we1", secret+3, set([0,1,2]), 100)
+        shares2 = self.allocate(ss, "si1", "we1", secret+4, set([0,1,2]), 100)
+        shares2 = self.allocate(ss, "si1", "we1", secret+5, set([0,1,2]), 100)
+
+        # and write enough data to expand the container, forcing the server
+        # to move the leases
+        answer = s0.remote_testv_and_writev(WE,
+                                            [],
+                                            [(0, data),],
+                                            new_length=200)
+
+        # TODO: read back the leases, make sure they're still intact. We need
+        # a renew_lease() call for this.
