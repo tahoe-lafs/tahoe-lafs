@@ -1,11 +1,12 @@
 
+import time
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import log
 
 from foolscap.eventual import flushEventualQueue
 from twisted.application import service
-from allmydata.node import Node
+from allmydata.node import Node, formatTimeTahoeStyle
 from allmydata.util import testutil
 
 class LoggingMultiService(service.MultiService):
@@ -39,4 +40,19 @@ class TestCase(unittest.TestCase, testutil.SignalMixin):
 
         d.addCallback(_check_addresses)
         return d
+
+    def test_log(self):
+        n = TestNode()
+        n.log("this is a message")
+        n.log("with %d %s %s", args=(2, "interpolated", "parameters"))
+
+    def test_timestamp(self):
+        # this modified logger doesn't seem to get used during the tests,
+        # probably because we don't modify the LogObserver that trial
+        # installs (only the one that twistd installs). So manually exercise
+        # it a little bit.
+        t = formatTimeTahoeStyle("ignored", time.time())
+        self.failUnless("Z" in t)
+        t2 = formatTimeTahoeStyle("ignored", int(time.time()))
+        self.failUnless("Z" in t2)
 
