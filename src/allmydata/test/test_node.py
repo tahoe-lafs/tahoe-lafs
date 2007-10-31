@@ -45,6 +45,7 @@ class TestCase(unittest.TestCase, testutil.SignalMixin):
         n = TestNode()
         n.log("this is a message")
         n.log("with %d %s %s", args=(2, "interpolated", "parameters"))
+        n.log("with bogus %d expansion", args=("not an integer",))
 
     def test_timestamp(self):
         # this modified logger doesn't seem to get used during the tests,
