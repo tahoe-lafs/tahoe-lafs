@@ -23,7 +23,7 @@ class DataTooLargeError(Exception):
 # storage/shares/$STORAGEINDEX/$SHARENUM
 
 # $SHARENUM matches this regex:
-NUM_RE=re.compile("[0-9]*")
+NUM_RE=re.compile("^[0-9]+$")
 
 # each share file (in storage/shares/$SI/$SHNUM) contains lease information
 # and share data. The share data is accessed by RIBucketWriter.write and
@@ -772,7 +772,7 @@ class StorageServer(service.MultiService, Referenceable):
                 os.unlink(filename)
                 total_space_freed += filelen
         if not remaining_files:
-            os.rmdir(storagedir)
+            fileutil.rm_dir(storagedir)
         self.consumed -= total_space_freed
         if not found_buckets:
             raise IndexError("no such lease to cancel")

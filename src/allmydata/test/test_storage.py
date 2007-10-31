@@ -7,7 +7,7 @@ from foolscap import Referenceable
 import time, os.path, stat
 import itertools
 from allmydata import interfaces
-from allmydata.util import fileutil, hashutil
+from allmydata.util import fileutil, hashutil, idlib
 from allmydata.storage import BucketWriter, BucketReader, \
      WriteBucketProxy, ReadBucketProxy, StorageServer
 from allmydata.interfaces import BadWriteEnablerError
@@ -699,6 +699,14 @@ class MutableServer(unittest.TestCase):
                                             [(0, data),],
                                             new_length=None)
 
+        # create a random non-numeric file in the bucket directory, to
+        # exercise the code that's supposed to ignore those.
+        bucket_dir = os.path.join(self.workdir("test_leases"),
+                                  "shares", idlib.b2a("si1"))
+        f = open(os.path.join(bucket_dir, "ignore_me.txt"), "w")
+        f.write("you ought to be ignoring me\n")
+        f.close()
+
         # re-allocate the slots and use the same secrets, that should update
         # the lease
         shares2 = self.allocate(ss, "si1", "we1", secret, set([0,1,2]), 100)
@@ -730,6 +738,18 @@ class MutableServer(unittest.TestCase):
         ss.remote_renew_lease("si1", self.renew_secret(secret+2))
         ss.remote_renew_lease("si1", self.renew_secret(secret+3))
         ss.remote_renew_lease("si1", self.renew_secret(secret+4))
+
+        # renewing with a bogus token should prompt an error message
+
+        # TODO: examine the exception thus raised, make sure the old nodeid
+        # is present, to provide for share migration
+        self.failUnlessRaises(IndexError,
+                              ss.remote_renew_lease, "si1",
+                              self.renew_secret(secret+20))
+        # same for cancelling
+        self.failUnlessRaises(IndexError,
+                              ss.remote_cancel_lease, "si1",
+                              self.cancel_secret(secret+20))
 
         # now cancel them all
         ss.remote_cancel_lease("si1", self.cancel_secret(secret))
