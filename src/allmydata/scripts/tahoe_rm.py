@@ -39,7 +39,7 @@ def main():
 
     if not options.rooturi:
         raise ValueError("must provide --root-uri")
-    
+
     vdrive_pathname = args[0]
 
     return rm(options.nodeurl, options.rooturi, vdrive_pathname, 0)
