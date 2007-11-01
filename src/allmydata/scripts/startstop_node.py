@@ -47,7 +47,7 @@ def do_start(basedir, profile=False, out=sys.stdout, err=sys.stderr):
         if not os.path.isdir(basedir):
             print >>err, " in fact, it doesn't look like a directory at all!"
         return 1
-    
+
     cmd = find_exe.find_exe('twistd')
     if not cmd:
         print "Can't find twistd (it comes with Twisted).  Aborting."
