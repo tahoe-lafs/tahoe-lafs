@@ -49,7 +49,7 @@ class PeerTracker:
                                     num_share_hashes,
                                     EXTENSION_SIZE)
         self.allocated_size = as
-                                                           
+
         self.blocksize = blocksize
         self.num_segments = num_segments
         self.num_share_hashes = num_share_hashes
@@ -84,7 +84,7 @@ class PeerTracker:
                                            canary=Referenceable())
         d.addCallback(self._got_reply)
         return d
-        
+
     def _got_reply(self, (alreadygot, buckets)):
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
         b = {}
