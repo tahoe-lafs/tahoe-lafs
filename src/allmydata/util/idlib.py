@@ -45,7 +45,7 @@ def b2a(os):
 def b2a_or_none(os):
     if os is not None:
         return b2a(os)
-        
+
 def b2a_l(os, lengthinbits):
     """
     @param os the data to be encoded (a string)
