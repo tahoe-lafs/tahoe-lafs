@@ -7,7 +7,7 @@ from foolscap import Referenceable
 from allmydata import uri
 from allmydata.interfaces import RIVirtualDriveServer, \
      IDirectoryNode, IFileNode, IFileURI, IDirnodeURI, IURI, \
-     BadWriteEnablerError
+     BadWriteEnablerError, NotMutableError
 from allmydata.util import bencode, idlib, hashutil, fileutil
 from allmydata.Crypto.Cipher import AES
 
@@ -115,10 +115,6 @@ class VirtualDriveServer(service.MultiService, Referenceable):
 
 # whereas ImmutableDirectoryNodes and their support mechanisms live on the
 # client side
-
-class NotMutableError(Exception):
-    pass
-
 
 def create_directory_node(client, diruri):
     u = IURI(diruri)

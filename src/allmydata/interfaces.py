@@ -1204,6 +1204,9 @@ class NotCapableError(Exception):
 class BadWriteEnablerError(Exception):
     pass
 
+class NotMutableError(Exception):
+    pass
+
 
 class RIControlClient(RemoteInterface):
 
