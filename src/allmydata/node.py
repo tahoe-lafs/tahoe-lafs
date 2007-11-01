@@ -29,7 +29,7 @@ def formatTimeTahoeStyle(self, when):
         return d.isoformat(" ") + ".000Z"
 
 class Node(service.MultiService):
-    # this implements common functionality of both Client nodes, Introducer 
+    # this implements common functionality of both Client nodes, Introducer
     # nodes, and Vdrive nodes
     NODETYPE = "unknown NODETYPE"
     PORTNUMFILE = None
