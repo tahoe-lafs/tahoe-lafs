@@ -231,7 +231,7 @@ class IStorageBucketWriter(Interface):
         """
         @return: a Deferred that fires (with None) when the operation completes
         """
-        
+
     def put_share_hashes(sharehashes=ListOf(TupleOf(int, Hash),
                                             maxLength=2**20)):
         """
