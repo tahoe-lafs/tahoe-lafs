@@ -60,7 +60,7 @@ class FakeBucketWriterProxy:
             assert self.block_hashes is None
             self.block_hashes = blockhashes
         return defer.maybeDeferred(_try)
-        
+
     def put_share_hashes(self, sharehashes):
         def _try():
             assert not self.closed
@@ -218,7 +218,7 @@ class Encode(unittest.TestCase):
     # all tests encode to 100 shares, which means the share hash tree will
     # have 128 leaves, which means that buckets will be given an 8-long share
     # hash chain
-    
+
     # all 3-segment files will have a 4-leaf blockhashtree, and thus expect
     # to get 7 blockhashes. 4-segment files will also get 4-leaf block hash
     # trees and 7 blockhashes. 5-segment files will get 8-leaf block hash
