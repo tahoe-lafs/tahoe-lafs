@@ -4,12 +4,12 @@
 A library for streaming and unstreaming of simple objects, designed
 for speed, compactness, and ease of implementation.
 
-The basic functions are bencode and bdecode. bencode takes an object 
+The basic functions are bencode and bdecode. bencode takes an object
 and returns a string, bdecode takes a string and returns an object.
 bdecode raises a ValueError if you give it an invalid string.
 
-The objects passed in may be nested dicts, lists, ints, floats, strings, 
-and Python boolean and None types. For example, all of the following 
+The objects passed in may be nested dicts, lists, ints, floats, strings,
+and Python boolean and None types. For example, all of the following
 may be bencoded -
 
 {'a': [0, 1], 'b': None}
@@ -20,18 +20,18 @@ may be bencoded -
 
 {'name': 'Cronus', 'spouse': 'Rhea', 'children': ['Hades', 'Poseidon']}
 
-In general bdecode(bencode(spam)) == spam, but tuples and lists are 
-encoded the same, so bdecode(bencode((0, 1))) is [0, 1] rather 
-than (0, 1). Longs and ints are also encoded the same way, so 
+In general bdecode(bencode(spam)) == spam, but tuples and lists are
+encoded the same, so bdecode(bencode((0, 1))) is [0, 1] rather
+than (0, 1). Longs and ints are also encoded the same way, so
 bdecode(bencode(4)) is a long.
 
-Dict keys are required to be basestrings (byte strings or unicode objects), 
-to avoid a mess of potential implementation incompatibilities. bencode is 
-intended to be used for protocols which are going to be re-implemented many 
+Dict keys are required to be basestrings (byte strings or unicode objects),
+to avoid a mess of potential implementation incompatibilities. bencode is
+intended to be used for protocols which are going to be re-implemented many
 times, so it's very conservative in that regard.
 
 Which type is encoded is determined by the first character, 'i', 'n', 'f',
-'d', 'l', 'b', 'u', and any digit. They indicate integer, null, float, 
+'d', 'l', 'b', 'u', and any digit. They indicate integer, null, float,
 dict, list, boolean, unicode string, and string, respectively.
 
 Strings are length-prefixed in base 10, followed by a colon.
@@ -52,7 +52,7 @@ Integers are encoded base 10 and terminated with an 'e' -
 bencode(3) == 'i3e'
 bencode(-20) == 'i-20e'
 
-Floats are encoded in base 10 and terminated with an 'e' - 
+Floats are encoded in base 10 and terminated with an 'e' -
 
 bencode(3.2) == 'f3.2e'
 bencode(-23.4532) == 'f-23.4532e'
@@ -62,9 +62,9 @@ Lists are encoded in list order, terminated by an 'e' -
 bencode(['abc', 'd']) == 'l3:abc1:de'
 bencode([2, 'f']) == 'li2e1:fe'
 
-Dicts are encoded by containing alternating keys and values. 
-The keys are encoded in sorted order, but sort order is not 
-enforced on the decode.  Dicts are terminated by an 'e'. Dict 
+Dicts are encoded by containing alternating keys and values.
+The keys are encoded in sorted order, but sort order is not
+enforced on the decode.  Dicts are terminated by an 'e'. Dict
 keys can be either bytestrings or unicode strings. For example -
 
 bencode({'spam': 'eggs'}) == 'd4:spam4:eggse'
@@ -77,7 +77,7 @@ Truncated strings come first, so in sort order 'a' comes before 'abc'.
 # This file is licensed under the GNU Lesser General Public License v2.1.
 #
 # Originally written by Mojo Nation.
-# Rewritten by Bram Cohen.  
+# Rewritten by Bram Cohen.
 # Further enhanced by Allmydata to support additional Python types (Boolean
 # None, Float, and Unicode strings.)
 
@@ -199,7 +199,7 @@ def decode_unicode_string(s, index):
     ei = ci + int(s[index+1:ci]) + 1
     if ei > len(s):
         raise ValueError('length encoding indicates premature end of string')
-    return (unicode(s[ci+1:ei], 'utf-8'), ei) 
+    return (unicode(s[ci+1:ei], 'utf-8'), ei)
 
 decoders['u'] = decode_unicode_string
 
