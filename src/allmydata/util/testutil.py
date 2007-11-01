@@ -7,7 +7,7 @@ class SignalMixin:
     # outside the usual reactor.run() environment. It is copied from
     # Twisted's twisted.test.test_process
     sigchldHandler = None
-    
+
     def setUpClass(self):
         # make sure SIGCHLD handler is installed, as it should be on
         # reactor.run(). problem is reactor may not have been run when this
@@ -15,7 +15,7 @@ class SignalMixin:
         if hasattr(reactor, "_handleSigchld") and hasattr(signal, "SIGCHLD"):
             self.sigchldHandler = signal.signal(signal.SIGCHLD,
                                                 reactor._handleSigchld)
-    
+
     def tearDownClass(self):
         if self.sigchldHandler:
             signal.signal(signal.SIGCHLD, self.sigchldHandler)
