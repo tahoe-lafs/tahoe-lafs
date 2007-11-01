@@ -21,7 +21,7 @@ def _put(serverurl, vdrive_fname, local_fname, verbosity):
     port = int(mo.group(3))
 
     d = defer.Deferred()
-    
+
     url = "/vdrive/global/"
     if vdrive_fname:
         url += urllib.quote(vdrive_fname)
@@ -31,7 +31,7 @@ def _put(serverurl, vdrive_fname, local_fname, verbosity):
     else:
         infileobj = open(local_fname, "rb")
     instream = stream.FileStream(infileobj)
-    
+
     d2 = protocol.ClientCreator(reactor, HTTPClientProtocol).connectTCP(host, port)
 
     def got_resp(resp):
@@ -63,7 +63,7 @@ def _put(serverurl, vdrive_fname, local_fname, verbosity):
                 outbuf.append("200 (OK); ")
             elif resp.code == 201:
                 outbuf.append("201 (Created); ")
-             
+
             if verbosity == 2:
                 if resp.code == 200:
                     outbuf.append("modified existing mapping of name %s to point to " % (vdrive_fname,))
@@ -71,14 +71,14 @@ def _put(serverurl, vdrive_fname, local_fname, verbosity):
                     outbuf.append("created new mapping of name %s to point to " % (vdrive_fname,))
 
             outbuf.append("URI: %s" % (uri,))
-        
+
             sys.stdout.write(''.join(outbuf))
             sys.stdout.write("\n")
 
             d.callback(resp.code)
 
         stream.readStream(resp.stream, gather_uri).addCallback(output_result)
-                
+
     def send_req(proto):
         proto.submitRequest(ClientRequest('PUT', url, {}, instream)).addCallback(got_resp)
 
@@ -101,7 +101,7 @@ def put(server, vdrive_fname, local_fname, verbosity):
         exitcode[0] = result
         reactor.stop()
         return result
-        
+
     d.addCallbacks(exit, exit)
     reactor.run()
     return exitcode[0]
