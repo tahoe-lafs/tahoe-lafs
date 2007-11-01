@@ -89,7 +89,7 @@ def _put(serverurl, vdrive_fname, local_fname, verbosity):
 def put(server, vdrive_fname, local_fname, verbosity):
     """
     This starts the reactor, does the PUT command, waits for the result, stops
-    the reactor, and returns the exit code. 
+    the reactor, and returns the exit code.
 
     @param verbosity: 0, 1, or 2, meaning quiet, verbose, or very verbose
 
