@@ -15,7 +15,7 @@ def find_exe(exename):
     exes = which(exename)
     exe = exes and exes[0]
     if not exe:
-        exe = os.path.join(sys.prefix, 'scripts', exename + '.py') 
+        exe = os.path.join(sys.prefix, 'scripts', exename + '.py')
     if os.path.exists(exe):
         path, ext = os.path.splitext(exe)
         if ext.lower() in [".exe", ".bat",]:
