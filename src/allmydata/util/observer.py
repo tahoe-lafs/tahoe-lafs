@@ -51,7 +51,7 @@ class OneShotObserverList:
 
 class LazyOneShotObserverList(OneShotObserverList):
     """
-    a variant of OneShotObserverList which does not retain 
+    a variant of OneShotObserverList which does not retain
     the result it handles, but rather retains a callable()
     through which is retrieves the data if and when needed.
     """
@@ -63,7 +63,7 @@ class LazyOneShotObserverList(OneShotObserverList):
 
     def fire(self, result_producer):
         """
-        @param result_producer: a no-arg callable which 
+        @param result_producer: a no-arg callable which
         returns the data which is to be considered the
         'result' for this observer list.  note that this
         function may be called multiple times - once
