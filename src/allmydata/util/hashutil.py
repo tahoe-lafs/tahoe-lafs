@@ -9,7 +9,7 @@ def tagged_hash(tag, val):
     s.update(netstring(tag))
     s.update(val)
     return s.digest()
-            
+
 def tagged_pair_hash(tag, val1, val2):
     s = SHA256.new()
     s.update(netstring(tag))
