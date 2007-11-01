@@ -148,7 +148,7 @@ class SequentialTrier(object):
 
     def when_tried(self):
         return self.o.when_fired()
-    
+
 # k: platform string as provided in the value of _platform_map
 # v: tuple of (path_to_tool, args, regex,)
 _tool_map = {
@@ -161,7 +161,7 @@ _tool_map = {
     }
 def _find_addresses_via_config():
     # originally by Greg Smith, hacked by Zooko to conform to Brian's API
-    
+
     platform = _platform_map.get(sys.platform)
     if not platform:
         raise UnsupportedPlatformError(sys.platform)
@@ -177,7 +177,7 @@ def _find_addresses_via_config():
         return _query(pathtotool, args, regex)
     else:
         return SequentialTrier(pathtotool, args, regex).when_tried()
-        
+
 def _query(path, args, regex):
     d = getProcessOutput(path, args)
     def _parse(output):
@@ -189,7 +189,7 @@ def _query(path, args, regex):
                 addr = m.groupdict()['address']
                 if addr not in addresses:
                     addresses.append(addr)
-    
+
         return addresses
     d.addCallback(_parse)
     return d
