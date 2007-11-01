@@ -219,7 +219,7 @@ class BlockDownloader:
         self.vbucket = vbucket
         self.blocknum = blocknum
         self.parent = parent
-        
+
     def start(self, segnum):
         d = self.vbucket.get_block(segnum)
         d.addCallbacks(self._hold_block, self._got_block_error)
