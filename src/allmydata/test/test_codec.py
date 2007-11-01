@@ -40,7 +40,7 @@ class Tester:
                 self.failUnlessEqual(x, y, "%s: %r != %r....  first share was %r" % (str(i), x, y, data0s[0],))
             self.failUnless(''.join(decoded_shares) == ''.join(data0s), "%s" % ("???",))
             # 0data0sclipped = tuple(data0s)
-            # data0sclipped[-1] = 
+            # data0sclipped[-1] =
             # self.failUnless(tuple(decoded_shares) == tuple(data0s))
 
         def _decode_some(res):
