@@ -45,7 +45,7 @@ def next_power_of_k(n, k):
         return k**(x+1)
     else:
         return k**x
-    
+
 def ave(l):
     return sum(l) / len(l)
 
