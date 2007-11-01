@@ -1,8 +1,8 @@
 # Copyright (c) 2004-2007 Bryce "Zooko" Wilcox-O'Hearn
 # mailto:zooko@zooko.com
 # http://zooko.com/repos/pyutil
-# Permission is hereby granted, free of charge, to any person obtaining a copy 
-# of this work to deal in this work without restriction (including the rights 
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this work to deal in this work without restriction (including the rights
 # to use, modify, distribute, sublicense, and/or sell copies).
 
 """
