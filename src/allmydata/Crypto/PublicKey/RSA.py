@@ -73,7 +73,7 @@ def construct(tuple):
         field = obj.keydata[i]
         setattr(obj, field, tuple[i])
     if len(tuple) >= 5:
-        # Ensure p is smaller than q 
+        # Ensure p is smaller than q
         if obj.p>obj.q:
             (obj.p, obj.q)=(obj.q, obj.p)
 
