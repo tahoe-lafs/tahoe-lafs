@@ -207,3 +207,29 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         d.addCallback(lambda res: None)
         return d
 
+
+    def create_empty_dirnode(self):
+        from allmydata.mutable import NewDirectoryNode
+        n = NewDirectoryNode(self)
+        d = n.create()
+        d.addCallback(lambda res: n)
+        return d
+
+    def create_dirnode_from_uri(self, u):
+        from allmydata.mutable import NewDirectoryNode
+        return NewDirectoryNode(self).init_from_uri(u)
+
+    def create_mutable_file(self, contents=""):
+        from allmydata.mutable import MutableFileNode
+        n = MutableFileNode(self)
+        d = n.create(contents)
+        d.addCallback(lambda res: n)
+        return d
+
+    def create_mutable_file_from_uri(self, u):
+        from allmydata.mutable import MutableFileNode
+        return MutableFileNode(self).init_from_uri(u)
+
+    def create_file_from_uri(self, u):
+        from allmydata.mutable import FileNode
+        return FileNode(u, self)

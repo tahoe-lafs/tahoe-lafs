@@ -115,3 +115,15 @@ def hmac(tag, data):
     h1 = SHA256.new(ikey + data).digest()
     h2 = SHA256.new(okey + h1).digest()
     return h2
+
+def mutable_rwcap_key_hash(iv, writekey):
+    return tagged_pair_hash("allmydata_mutable_rwcap_key_v1", iv, writekey)
+def ssk_writekey_hash(privkey):
+    return tagged_hash("allmydata_mutable_writekey_v1", privkey)
+def ssk_pubkey_fingerprint_hash(pubkey):
+    return tagged_hash("allmydata_mutable_pubkey_v1", pubkey)
+
+def ssk_readkey_hash(writekey):
+    return tagged_hash("allmydata_mutable_readkey_v1", writekey)
+def ssk_storage_index_hash(readkey):
+    return tagged_hash("allmydata_mutable_storage_index_v1", readkey)

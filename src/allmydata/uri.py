@@ -3,7 +3,8 @@ import re
 from zope.interface import implements
 from twisted.python.components import registerAdapter
 from allmydata.util import idlib, hashutil
-from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IVerifierURI
+from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IVerifierURI, \
+     IMutableFileURI
 
 # the URI shall be an ascii representation of the file. It shall contain
 # enough information to retrieve and validate the contents. It shall be
@@ -176,6 +177,186 @@ class LiteralFileURI(_BaseURI):
     def get_size(self):
         return len(self.data)
 
+class WriteableSSKFileURI(_BaseURI):
+    implements(IURI, IMutableFileURI)
+
+    def __init__(self, *args, **kwargs):
+        if not args and not kwargs:
+            return
+        self.populate(*args, **kwargs)
+
+    def populate(self, writekey, fingerprint):
+        self.writekey = writekey
+        self.readkey = hashutil.ssk_readkey_hash(writekey)
+        self.storage_index = hashutil.ssk_storage_index_hash(self.readkey)
+        self.fingerprint = fingerprint
+
+    def init_from_string(self, uri):
+        assert uri.startswith("URI:SSK:"), uri
+        (header_uri, header_ssk, writekey_s, fingerprint_s) = uri.split(":")
+        self.populate(idlib.a2b(writekey_s), idlib.a2b(fingerprint_s))
+        return self
+
+    def to_string(self):
+        assert isinstance(self.writekey, str)
+        assert isinstance(self.fingerprint, str)
+        return "URI:SSK:%s:%s" % (idlib.b2a(self.writekey),
+                                  idlib.b2a(self.fingerprint))
+
+    def is_readonly(self):
+        return False
+    def is_mutable(self):
+        return True
+    def get_readonly(self):
+        return ReadonlySSKFileURI(self.readkey, self.fingerprint)
+    def get_verifier(self):
+        return SSKVerifierURI(self.storage_index, self.fingerprint)
+
+class ReadonlySSKFileURI(_BaseURI):
+    implements(IURI, IMutableFileURI)
+
+    def __init__(self, *args, **kwargs):
+        if not args and not kwargs:
+            return
+        self.populate(*args, **kwargs)
+
+    def populate(self, readkey, fingerprint):
+        self.readkey = readkey
+        self.storage_index = hashutil.ssk_storage_index_hash(self.readkey)
+        self.fingerprint = fingerprint
+
+    def init_from_string(self, uri):
+        assert uri.startswith("URI:SSK-RO:"), uri
+        (header_uri, header_ssk, readkey_s, fingerprint_s) = uri.split(":")
+        self.populate(idlib.a2b(readkey_s), idlib.a2b(fingerprint_s))
+        return self
+
+    def to_string(self):
+        assert isinstance(self.readkey, str)
+        assert isinstance(self.fingerprint, str)
+        return "URI:SSK-RO:%s:%s" % (idlib.b2a(self.readkey),
+                                     idlib.b2a(self.fingerprint))
+
+    def is_readonly(self):
+        return True
+    def is_mutable(self):
+        return True
+    def get_readonly(self):
+        return self
+    def get_verifier(self):
+        return SSKVerifierURI(self.storage_index, self.fingerprint)
+
+class SSKVerifierURI(_BaseURI):
+    implements(IVerifierURI)
+
+    def __init__(self, *args, **kwargs):
+        if not args and not kwargs:
+            return
+        self.populate(*args, **kwargs)
+
+    def populate(self, storage_index, fingerprint):
+        self.storage_index = storage_index
+        self.fingerprint = fingerprint
+
+    def init_from_string(self, uri):
+        assert uri.startswith("URI:SSK-Verifier:"), uri
+        (header_uri, header_ssk,
+         storage_index_s, fingerprint_s) = uri.split(":")
+        self.populate(idlib.a2b(storage_index_s), idlib.a2b(fingerprint_s))
+        return self
+
+    def to_string(self):
+        assert isinstance(self.storage_index, str)
+        assert isinstance(self.fingerprint, str)
+        return "URI:SSK-Verifier:%s:%s" % (idlib.b2a(self.storage_index),
+                                           idlib.b2a(self.fingerprint))
+
+class NewDirectoryURI(_BaseURI):
+    implements(IURI, IDirnodeURI)
+
+    def __init__(self, filenode_uri=None):
+        if filenode_uri:
+            assert not filenode_uri.is_readonly()
+        self._filenode_uri = filenode_uri
+
+    def init_from_string(self, uri):
+        assert uri.startswith("URI:DIR2:")
+        (header_uri, header_dir2, bits) = uri.split(":", 2)
+        fn = WriteableSSKFileURI()
+        fn.init_from_string("URI:SSK:" + bits)
+        self._filenode_uri = fn
+        return self
+
+    def to_string(self):
+        assert isinstance(self._filenode_uri, WriteableSSKFileURI)
+        fn_u = self._filenode_uri.to_string()
+        (header_uri, header_ssk, bits) = fn_u.split(":", 2)
+        return "URI:DIR2:" + bits
+
+    def is_readonly(self):
+        return False
+    def is_mutable(self):
+        return True
+    def get_readonly(self):
+        return ReadonlyNewDirectoryURI(self._filenode_uri.get_readonly())
+    def get_verifier(self):
+        return NewDirectoryURIVerifier(self._filenode_uri.get_verifier())
+
+class ReadonlyNewDirectoryURI(_BaseURI):
+    implements(IURI, IDirnodeURI)
+
+    def __init__(self, filenode_uri=None):
+        if filenode_uri:
+            assert filenode_uri.is_readonly()
+        self._filenode_uri = filenode_uri
+
+    def init_from_string(self, uri):
+        assert uri.startswith("URI:DIR2-RO:")
+        (header_uri, header_dir2, bits) = uri.split(":", 2)
+        fn = ReadonlySSKFileURI()
+        fn.init_from_string("URI:SSK-RO:" + bits)
+        self._filenode_uri = fn
+        return self
+
+    def to_string(self):
+        assert isinstance(self._filenode_uri, ReadonlySSKFileURI)
+        fn_u = self._filenode_uri.to_string()
+        (header_uri, header_ssk, bits) = fn_u.split(":", 2)
+        return "URI:DIR2-RO:" + bits
+
+    def is_readonly(self):
+        return True
+    def is_mutable(self):
+        return True
+    def get_readonly(self):
+        return self
+    def get_verifier(self):
+        return NewDirectoryURIVerifier(self._filenode_uri.get_verifier())
+
+class NewDirectoryURIVerifier(_BaseURI):
+    implements(IVerifierURI)
+
+    def __init__(self, filenode_uri=None):
+        if filenode_uri:
+            filenode_uri = IVerifierURI(filenode_uri)
+        self._filenode_uri = filenode_uri
+
+    def init_from_string(self, uri):
+        assert uri.startswith("URI:DIR2-Verifier:")
+        (header_uri, header_dir2, bits) = uri.split(":", 2)
+        fn = SSKVerifierURI()
+        fn.init_from_string("URI:SSK-Verifier:" + bits)
+        self._filenode_uri = fn
+        return self
+
+    def to_string(self):
+        assert isinstance(self._filenode_uri, SSKVerifierURI)
+        fn_u = self._filenode_uri.to_string()
+        (header_uri, header_ssk, bits) = fn_u.split(":", 2)
+        return "URI:DIR2-Verifier:" + bits
+
+
+
 class DirnodeURI(_BaseURI):
     implements(IURI, IDirnodeURI)
 
@@ -300,8 +481,20 @@ def from_string(s):
         return ReadOnlyDirnodeURI().init_from_string(s)
     elif s.startswith("URI:DIR-Verifier:"):
         return DirnodeVerifierURI().init_from_string(s)
+    elif s.startswith("URI:SSK:"):
+        return WriteableSSKFileURI().init_from_string(s)
+    elif s.startswith("URI:SSK-RO:"):
+        return ReadonlySSKFileURI().init_from_string(s)
+    elif s.startswith("URI:SSK-Verifier:"):
+        return SSKVerifierURI().init_from_string(s)
+    elif s.startswith("URI:DIR2:"):
+        return NewDirectoryURI().init_from_string(s)
+    elif s.startswith("URI:DIR2-RO:"):
+        return ReadonlyNewDirectoryURI().init_from_string(s)
+    elif s.startswith("URI:DIR2-Verifier:"):
+        return NewDirectoryURIVerifier().init_from_string(s)
     else:
-        raise TypeError("unknown URI type: %s.." % s[:10])
+        raise TypeError("unknown URI type: %s.." % s[:12])
 
 registerAdapter(from_string, str, IURI)
 
@@ -318,6 +511,12 @@ def from_string_filenode(s):
     return u
 
 registerAdapter(from_string_filenode, str, IFileURI)
+
+def from_string_mutable_filenode(s):
+    u = from_string(s)
+    assert IMutableFileURI.providedBy(u)
+    return u
+registerAdapter(from_string_mutable_filenode, str, IMutableFileURI)
 
 def from_string_verifier(s):
     u = from_string(s)

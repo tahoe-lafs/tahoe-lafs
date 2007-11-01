@@ -427,6 +427,12 @@ class IFileURI(Interface):
     def get_size():
         """Return the length (in bytes) of the file that I represent."""
 
+class IMutableFileURI(Interface):
+    """I am a URI which represents a mutable filenode."""
+    pass
+class INewDirectoryURI(Interface):
+    pass
+
 
 class IFileNode(Interface):
     def download(target):
@@ -452,6 +458,45 @@ class IFileNode(Interface):
 
     def check():
         """Perform a file check. See IChecker.check for details."""
+
+class IMutableFileNode(Interface):
+    def download_to_data():
+        """Download the file's contents. Return a Deferred that fires with
+        those contents. If there are multiple retrievable versions in the
+        grid (because you failed to avoid simultaneous writes, see
+        docs/mutable.txt), this will return the first version that it can
+        reconstruct, and will silently ignore the others. In the future, a
+        more advanced API will signal and provide access to the multiple
+        heads."""
+    def replace(newdata):
+        """Replace the old contents with the new data. Returns a Deferred
+        that fires (with None) when the operation is complete.
+
+        If the node detects that there are multiple outstanding versions of
+        the file, this will raise ConsistencyError, and may leave the
+        distributed file in an unusual state (the node will try to ensure
+        that at least one version of the file remains retrievable, but it may
+        or may not be the one you just tried to upload). You should respond
+        to this by downloading the current contents of the file and retrying
+        the replace() operation.
+        """
+
+    def get_uri():
+        pass
+    def get_verifier():
+        pass
+    def check():
+        pass
+
+    def get_writekey():
+        """Return this filenode's writekey, or None if the node does not have
+        write-capability. This may be used to assist with data structures
+        that need to make certain data available only to writers, such as the
+        read-write child caps in dirnodes. The recommended process is to have
+        reader-visible data be submitted to the filenode in the clear (where
+        it will be encrypted by the filenode using the readkey), but encrypt
+        writer-visible data using this writekey.
+        """
 
 class IDirectoryNode(Interface):
     def is_mutable():
