@@ -705,7 +705,7 @@ class ICodecEncoder(Interface):
         """
 
     def encode(inshares, desired_share_ids=None):
-        """Encode some data. This may be called multiple times. Each call is 
+        """Encode some data. This may be called multiple times. Each call is
         independent.
 
         inshares is a sequence of length required_shares, containing buffers
@@ -748,9 +748,9 @@ class ICodecEncoder(Interface):
         integer, exactly as passed into 'desired_share_ids' (or
         range(max_shares), if desired_share_ids was not provided).
 
-        The shares and their corresponding shareids are required to be kept 
-        together during storage and retrieval. Specifically, the share data is 
-        useless by itself: the decoder needs to be told which share is which 
+        The shares and their corresponding shareids are required to be kept
+        together during storage and retrieval. Specifically, the share data is
+        useless by itself: the decoder needs to be told which share is which
         by providing it with both the shareid and the actual share data.
 
         This function will allocate an amount of memory roughly equal to::
