@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: MacRoman -*-
+
 """
 A library for streaming and unstreaming of simple objects, designed
 for speed, compactness, and ease of implementation.
@@ -118,7 +118,7 @@ encoders[LongType] = encode_int
 
 def encode_float(data, result):
     result.write('f' + str(data) + 'e')
-    
+
 encoders[FloatType] = encode_float
 
 def encode_bool(data, result):
@@ -162,7 +162,7 @@ def encode_dict(data, result):
     result.write('e')
 
 encoders[DictType] = encode_dict
-    
+
 encoders[NoneType] = lambda data, result: result.write('n')
 
 def bdecode(s):
@@ -200,7 +200,7 @@ def decode_unicode_string(s, index):
     if ei > len(s):
         raise ValueError('length encoding indicates premature end of string')
     return (unicode(s[ci+1:ei], 'utf-8'), ei) 
-    
+
 decoders['u'] = decode_unicode_string
 
 def decode_int(s, index):
@@ -212,7 +212,7 @@ decoders['i'] = decode_int
 def decode_float(s, index):
     ei = s.index('e', index)
     return (float(s[index+1:ei]), ei+1)
-    
+
 decoders['f'] = decode_float
 
 def decode_bool(s, index):
@@ -304,7 +304,7 @@ def test_decode_raw_string():
         assert 0, 'failed'
     except ValueError:
         pass
-    
+
 def test_encode_and_decode_unicode_results_in_unicode_type():
     assert bdecode(bencode(u'\u00bfHabla espa\u00f1ol?')) == u'\u00bfHabla espa\u00f1ol?'
 
@@ -333,7 +333,7 @@ def test_dict_forbids_key_repeat():
 
 def test_empty_dict():
     assert bdecode('de') == {}
-        
+
 def test_dict_allows_unicode_keys():
     assert bdecode(bencode({'a': 1, u'\xa8': 2})) == {'a': 1L, u'\xa8': 2L}
 
@@ -352,7 +352,7 @@ def test_encode_and_decode_long():
 
 def test_encode_and_decode_int():
     assert bdecode(bencode(2)) == 2
-    
+
 def test_encode_and_decode_float():
     assert bdecode(bencode(3.4)) == 3.4
     assert bdecode(bencode(0.0)) == 0.0
