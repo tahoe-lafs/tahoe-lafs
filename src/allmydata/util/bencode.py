@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 """
 A library for streaming and unstreaming of simple objects, designed
@@ -41,7 +42,7 @@ bencode('spam') == '4:spam'
 Unicode string objects are indicated with an initial u, a base 10
 length-prefix, and the remaining bytes in utf-8 encoding.
 
-bencode(u'\u00bfHabla espa\u00f1ol?') == 'ËHabla espaÐol?'
+bencode(u'\u00bfHabla espa\u00f1ol?') == 'Â¿Habla espaÃ±ol?'
 
 Nulls are indicated by a single 'n'.
 
