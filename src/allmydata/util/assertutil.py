@@ -2,7 +2,7 @@
 # mailto:zooko@zooko.com
 # http://zooko.com/
 # Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this work to deal in this work without restriction (including the 
+# copy of this work to deal in this work without restriction (including the
 # rights to use, modify, distribute, sublicense, and/or sell copies)
 
 """
