@@ -7,7 +7,7 @@ from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
      IMutableFileURI, INewDirectoryURI, IURI, IFileNode, NotMutableError
 from allmydata.util import hashutil
 from allmydata.util.hashutil import netstring
-from allmydata.dirnode import IntegrityCheckError
+from allmydata.dirnode import IntegrityCheckError, FileNode
 from allmydata.uri import WriteableSSKFileURI, NewDirectoryURI
 from allmydata.Crypto.Cipher import AES
 
@@ -208,6 +208,8 @@ class NewDirectoryNode:
             entries.append(netstring(entry))
         return "".join(entries)
 
+    def is_readonly(self):
+        return self._node.is_readonly()
     def is_mutable(self):
         return self._node.is_mutable()
 
@@ -222,7 +224,7 @@ class NewDirectoryNode:
 
     def check(self):
         """Perform a file check. See IChecker.check for details."""
-        pass
+        pass # TODO
 
     def list(self):
         """I return a Deferred that fires with a dictionary mapping child
@@ -254,6 +256,19 @@ class NewDirectoryNode:
         path-name elements.
         """
 
+        if not path:
+            return defer.succeed(self)
+        if isinstance(path, (str, unicode)):
+            path = path.split("/")
+        childname = path[0]
+        remaining_path = path[1:]
+        d = self.get(childname)
+        if remaining_path:
+            def _got(node):
+                return node.get_child_at_path(remaining_path)
+            d.addCallback(_got)
+        return d
+
     def set_uri(self, name, child_uri, metadata={}):
         """I add a child (by URI) at the specific name. I return a Deferred
         that fires when the operation finishes. I will replace any existing
@@ -274,7 +289,7 @@ class NewDirectoryNode:
 
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
-        if self._node.is_readonly():
+        if self.is_readonly():
             return defer.fail(NotMutableError())
         d = self._read()
         def _add(children):
@@ -290,24 +305,90 @@ class NewDirectoryNode:
         resulting FileNode to the directory at the given name. I return a
         Deferred that fires (with the IFileNode of the uploaded file) when
         the operation completes."""
+        if self.is_readonly():
+            return defer.fail(NotMutableError())
+        uploader = self._client.getServiceNamed("uploader")
+        d = uploader.upload(uploadable)
+        d.addCallback(lambda uri: self.set_node(name,
+                                                FileNode(uri, self._client)))
+        return d
 
     def delete(self, name):
         """I remove the child at the specific name. I return a Deferred that
         fires when the operation finishes."""
+        if self.is_readonly():
+            return defer.fail(NotMutableError())
+        d = self._read()
+        def _delete(children):
+            del children[name]
+            new_contents = self._pack_contents(children)
+            return self._node.replace(new_contents)
+        d.addCallback(_delete)
+        d.addCallback(lambda res: None)
+        return d
 
     def create_empty_directory(self, name):
         """I create and attach an empty directory at the given name. I return
         a Deferred that fires when the operation finishes."""
+        if self.is_readonly():
+            return defer.fail(NotMutableError())
+        d = self._client.create_empty_dirnode()
+        d.addCallback(lambda child: self.set_node(name, child))
+        return d
 
-    def move_child_to(self, current_child_name, new_parent, new_child_name=None):
+    def move_child_to(self, current_child_name, new_parent,
+                      new_child_name=None):
         """I take one of my children and move them to a new parent. The child
         is referenced by name. On the new parent, the child will live under
         'new_child_name', which defaults to 'current_child_name'. I return a
         Deferred that fires when the operation finishes."""
+        if self.is_readonly() or new_parent.is_readonly():
+            return defer.fail(NotMutableError())
+        if new_child_name is None:
+            new_child_name = current_child_name
+        d = self.get(current_child_name)
+        d.addCallback(lambda child: new_parent.set_node(new_child_name, child))
+        d.addCallback(lambda child: self.delete(current_child_name))
+        return d
 
     def build_manifest(self):
         """Return a frozenset of verifier-capability strings for all nodes
         (directories and files) reachable from this one."""
+
+        # this is just a tree-walker, except that following each edge
+        # requires a Deferred.
+
+        manifest = set()
+        manifest.add(self.get_verifier())
+
+        d = self._build_manifest_from_node(self, manifest)
+        def _done(res):
+            # LIT nodes have no verifier-capability: their data is stored
+            # inside the URI itself, so there is no need to refresh anything.
+            # They indicate this by returning None from their get_verifier
+            # method. We need to remove any such Nones from our set. We also
+            # want to convert all these caps into strings.
+            return frozenset([cap.to_string()
+                              for cap in manifest
+                              if cap is not None])
+        d.addCallback(_done)
+        return d
+
+    def _build_manifest_from_node(self, node, manifest):
+        d = node.list()
+        def _got_list(res):
+            dl = []
+            for name, child in res.iteritems():
+                verifier = child.get_verifier()
+                if verifier not in manifest:
+                    manifest.add(verifier)
+                    if IDirectoryNode.providedBy(child):
+                        dl.append(self._build_manifest_from_node(child,
+                                                                 manifest))
+            if dl:
+                return defer.DeferredList(dl)
+        d.addCallback(_got_list)
+        return d
 
 # use client.create_dirnode() to make one of these
 
