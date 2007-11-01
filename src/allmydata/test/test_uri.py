@@ -25,11 +25,11 @@ class Literal(unittest.TestCase):
         self.failUnlessEqual(u2.get_size(), len(data))
         self.failUnless(u.is_readonly())
         self.failIf(u.is_mutable())
-        
+
     def test_empty(self):
         data = "" # This data is some *very* small data!
         return self._help_test(data)
-    
+
     def test_pack(self):
         data = "This is some small data"
         return self._help_test(data)
