@@ -41,7 +41,7 @@ def main():
 
     if not options.rooturi:
         raise ValueError("must provide --root-uri")
-    
+
     local_file = args[0]
     vdrive_fname = None
     if len(args) > 1:
