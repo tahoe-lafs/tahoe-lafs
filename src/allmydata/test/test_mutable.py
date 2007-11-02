@@ -3,8 +3,8 @@ import itertools
 from twisted.trial import unittest
 from twisted.internet import defer
 
-from allmydata import mutable, uri
-from allmydata.mutable import split_netstring
+from allmydata import mutable, uri, dirnode2
+from allmydata.dirnode2 import split_netstring
 from allmydata.util.hashutil import netstring
 
 class Netstring(unittest.TestCase):
@@ -62,7 +62,7 @@ class FakeFilenode(mutable.MutableFileNode):
     def get_readonly(self):
         return "fake readonly"
 
-class FakeNewDirectoryNode(mutable.NewDirectoryNode):
+class FakeNewDirectoryNode(dirnode2.NewDirectoryNode):
     filenode_class = FakeFilenode
 
 class MyClient:
