@@ -91,6 +91,16 @@ it (on operating systems that support such a concept), to insure that only
 the owner of the client node can use this feature.  This port is intended for
 debugging and testing use.
 
+logport.furl : this file contains a FURL that provides access to a 'log port'
+on the client node, from which operational logs can be retrieved. Do not
+grant logport access to strangers, because occasionally secret information
+may be placed in the logs.
+
+log_gatherer.furl : if present, this file is used to contact a 'log
+gatherer', which will be granted access to the logport. This can be used by
+centralized storage meshes to gather operational logs in a single place.
+
+
 == Introducer/vdrive-server configuration ==
 
 Introducer/vdrive-server nodes use the same 'advertised_ip_addresses' file

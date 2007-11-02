@@ -9,6 +9,7 @@ from twisted.internet import defer, reactor
 from foolscap import Tub, eventual
 from allmydata.util import iputil, observer, humanreadable
 from allmydata.util.assertutil import precondition
+from allmydata.logpublisher import LogPublisher
 
 # Just to get their versions:
 import allmydata
@@ -234,7 +235,14 @@ class Node(service.MultiService):
 
     def tub_ready(self):
         # called when the Tub is available for registerReference
-        pass
+        self.add_service(LogPublisher())
+        log_gatherer_furl = self.get_config("log_gatherer.furl")
+        if log_gatherer_furl:
+            self.tub.connectTo(log_gatherer_furl, self._log_gatherer_connected)
+
+    def _log_gatherer_connected(self, rref):
+        rref.callRemote("logport",
+                        self.nodeid, self.getServiceNamed("log_publisher"))
 
     def when_tub_ready(self):
         return self._tub_ready_observerlist.when_fired()
