@@ -1,4 +1,5 @@
 
+import struct
 from zope.interface import implements
 from twisted.internet import defer
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI
@@ -67,5 +68,63 @@ class MutableFileNode:
 
     def replace(self, newdata):
         return defer.succeed(None)
+
+    def unpack_data(self, data):
+        offsets = {}
+        (version,
+         seqnum,
+         root_hash,
+         k, N, segsize, datalen,
+         offsets['signature'],
+         offsets['share_hash_chain'],
+         offsets['block_hash_tree'],
+         offsets['IV'],
+         offsets['share_data'],
+         offsets['enc_privkey']) = struct.unpack(">BQ32s" + "BBQQ" + "LLLLLQ")
+        assert version == 0
+        signature = data[offsets['signature']:offsets['share_hash_chain']]
+        share_hash_chain = data[offsets['share_hash_chain']:offsets['block_hash_tree']]
+        block_hash_tree = data[offsets['block_hash_tree']:offsets['IV']]
+        IV = data[offsets['IV']:offsets['share_data']]
+        share_data = data[offsets['share_data']:offsets['share_data']+datalen]
+        enc_privkey = data[offsets['enc_privkey']:]
+
+    def pack_data(self):
+        # dummy values to satisfy pyflakes until we wire this all up
+        seqnum, root_hash, k, N, segsize, datalen = 0,0,0,0,0,0
+        (verification_key, signature, share_hash_chain, block_hash_tree,
+         IV, share_data, enc_privkey) = ["0"*16] * 7
+        seqnum += 1
+        newbuf = [struct.pack(">BQ32s" + "BBQQ",
+                              0, # version byte
+                              seqnum,
+                              root_hash,
+                              k, N, segsize, datalen)]
+        post_offset = struct.calcsize(">BQ32s" + "BBQQ" + "LLLLLQ")
+        offsets = {}
+        o1 = offsets['signature'] = post_offset + len(verification_key)
+        o2 = offsets['share_hash_chain'] = o1 + len(signature)
+        o3 = offsets['block_hash_tree'] = o2 + len(share_hash_chain)
+        assert len(IV) == 16
+        o4 = offsets['IV'] = o3 + len(block_hash_tree)
+        o5 = offsets['share_data'] = o4 + len(IV)
+        o6 = offsets['enc_privkey'] = o5 + len(share_data)
+
+        newbuf.append(struct.pack(">LLLLLQ",
+                                  offsets['signature'],
+                                  offsets['share_hash_chain'],
+                                  offsets['block_hash_tree'],
+                                  offsets['IV'],
+                                  offsets['share_data'],
+                                  offsets['enc_privkey']))
+        newbuf.extend([verification_key,
+                       signature,
+                       share_hash_chain,
+                       block_hash_tree,
+                       IV,
+                       share_data,
+                       enc_privkey])
+        return "".join(newbuf)
+
 
 # use client.create_mutable_file() to make one of these
