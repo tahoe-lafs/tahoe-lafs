@@ -4,7 +4,8 @@ from zope.interface import implements
 from twisted.internet import defer
 import simplejson
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
-     IMutableFileURI, INewDirectoryURI, IURI, IFileNode, NotMutableError
+     IMutableFileURI, INewDirectoryURI, IURI, IFileNode, NotMutableError, \
+     IVerifierURI
 from allmydata.util import hashutil
 from allmydata.util.hashutil import netstring
 from allmydata.dirnode import IntegrityCheckError, FileNode
@@ -55,7 +56,7 @@ class MutableFileNode:
         return cmp(self.uri, them.uri)
 
     def get_verifier(self):
-        return IMutableFileURI(self.uri).get_verifier()
+        return IMutableFileURI(self._uri).get_verifier()
 
     def check(self):
         verifier = self.get_verifier()
@@ -162,7 +163,7 @@ class NewDirectoryNode:
             return self._client.create_file_from_uri(u)
         if IMutableFileURI.providedBy(u):
             return self._client.create_mutable_file_from_uri(u)
-        raise TypeError("cannot handle URI")
+        raise TypeError("cannot handle '%s' URI" % (u.__class__,))
 
     def _unpack_contents(self, data):
         # the directory is serialized as a list of netstrings, one per child.
@@ -216,6 +217,9 @@ class NewDirectoryNode:
     def get_uri(self):
         return self._uri.to_string()
 
+    def get_readonly(self):
+        return self._uri.get_readonly().to_string()
+
     def get_immutable_uri(self):
         return self._uri.get_readonly().to_string()
 
@@ -242,7 +246,12 @@ class NewDirectoryNode:
         """I return a Deferred that fires with a specific named child node,
         either an IFileNode or an IDirectoryNode."""
         d = self._read()
-        d.addCallback(lambda children: children[name])
+        d.addCallback(lambda children: children[name][0])
+        return d
+
+    def get_metadata_for(self, name):
+        d = self._read()
+        d.addCallback(lambda children: children[name][1])
         return d
 
     def get_child_at_path(self, path):
@@ -315,25 +324,34 @@ class NewDirectoryNode:
 
     def delete(self, name):
         """I remove the child at the specific name. I return a Deferred that
-        fires when the operation finishes."""
+        fires (with the node just removed) when the operation finishes."""
         if self.is_readonly():
             return defer.fail(NotMutableError())
         d = self._read()
         def _delete(children):
+            old_child, metadata = children[name]
             del children[name]
             new_contents = self._pack_contents(children)
-            return self._node.replace(new_contents)
+            d = self._node.replace(new_contents)
+            def _done(res):
+                return old_child
+            d.addCallback(_done)
+            return d
         d.addCallback(_delete)
-        d.addCallback(lambda res: None)
         return d
 
     def create_empty_directory(self, name):
         """I create and attach an empty directory at the given name. I return
-        a Deferred that fires when the operation finishes."""
+        a Deferred that fires (with the new directory node) when the
+        operation finishes."""
         if self.is_readonly():
             return defer.fail(NotMutableError())
         d = self._client.create_empty_dirnode()
-        d.addCallback(lambda child: self.set_node(name, child))
+        def _created(child):
+            d = self.set_node(name, child)
+            d.addCallback(lambda res: child)
+            return d
+        d.addCallback(_created)
         return d
 
     def move_child_to(self, current_child_name, new_parent,
@@ -368,7 +386,7 @@ class NewDirectoryNode:
             # They indicate this by returning None from their get_verifier
             # method. We need to remove any such Nones from our set. We also
             # want to convert all these caps into strings.
-            return frozenset([cap.to_string()
+            return frozenset([IVerifierURI(cap).to_string()
                               for cap in manifest
                               if cap is not None])
         d.addCallback(_done)
@@ -378,7 +396,7 @@ class NewDirectoryNode:
         d = node.list()
         def _got_list(res):
             dl = []
-            for name, child in res.iteritems():
+            for name, (child, metadata) in res.iteritems():
                 verifier = child.get_verifier()
                 if verifier not in manifest:
                     manifest.add(verifier)

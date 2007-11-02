@@ -4,7 +4,7 @@ from zope.interface import implements
 from twisted.python.components import registerAdapter
 from allmydata.util import idlib, hashutil
 from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IVerifierURI, \
-     IMutableFileURI
+     IMutableFileURI, INewDirectoryURI
 
 # the URI shall be an ascii representation of the file. It shall contain
 # enough information to retrieve and validate the contents. It shall be
@@ -272,7 +272,7 @@ class SSKVerifierURI(_BaseURI):
                                            idlib.b2a(self.fingerprint))
 
 class NewDirectoryURI(_BaseURI):
-    implements(IURI, IDirnodeURI)
+    implements(IURI, IDirnodeURI, INewDirectoryURI)
 
     def __init__(self, filenode_uri=None):
         if filenode_uri:
@@ -292,6 +292,9 @@ class NewDirectoryURI(_BaseURI):
         fn_u = self._filenode_uri.to_string()
         (header_uri, header_ssk, bits) = fn_u.split(":", 2)
         return "URI:DIR2:" + bits
+
+    def get_filenode_uri(self):
+        return self._filenode_uri
 
     def is_readonly(self):
         return False
@@ -324,6 +327,9 @@ class ReadonlyNewDirectoryURI(_BaseURI):
         (header_uri, header_ssk, bits) = fn_u.split(":", 2)
         return "URI:DIR2-RO:" + bits
 
+    def get_filenode_uri(self):
+        return self._filenode_uri
+
     def is_readonly(self):
         return True
     def is_mutable(self):
@@ -354,6 +360,9 @@ class NewDirectoryURIVerifier(_BaseURI):
         fn_u = self._filenode_uri.to_string()
         (header_uri, header_ssk, bits) = fn_u.split(":", 2)
         return "URI:DIR2-Verifier:" + bits
+
+    def get_filenode_uri(self):
+        return self._filenode_uri
 
 
 

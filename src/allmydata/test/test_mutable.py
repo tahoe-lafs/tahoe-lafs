@@ -1,4 +1,5 @@
 
+import itertools
 from twisted.trial import unittest
 from twisted.internet import defer
 
@@ -38,18 +39,23 @@ class Netstring(unittest.TestCase):
         self.failUnlessEqual(bottom, ("hello", "world", "extra stuff"))
 
 class FakeFilenode(mutable.MutableFileNode):
+    counter = itertools.count(1)
+    all_contents = {}
+
     def init_from_uri(self, myuri):
         self._uri = myuri
         self.writekey = myuri.writekey
         return self
     def create(self, initial_contents):
-        self.contents = initial_contents
-        self.init_from_uri(uri.WriteableSSKFileURI("key", "fingerprint"))
+        count = self.counter.next()
+        self.init_from_uri(uri.WriteableSSKFileURI("key%d" % count,
+                                                   "fingerprint%d" % count))
+        self.all_contents[self._uri] = initial_contents
         return defer.succeed(None)
     def download_to_data(self):
-        return defer.succeed(self.contents)
+        return defer.succeed(self.all_contents[self._uri])
     def replace(self, newdata):
-        self.contents = newdata
+        self.all_contents[self._uri] = newdata
         return defer.succeed(None)
     def is_readonly(self):
         return False
@@ -116,6 +122,8 @@ class Dirnode(unittest.TestCase):
         self.client = MyClient()
 
     def test_create(self):
+        self.expected_manifest = []
+
         d = self.client.create_empty_dirnode()
         def _check(n):
             self.failUnless(n.is_mutable())
@@ -126,18 +134,60 @@ class Dirnode(unittest.TestCase):
             self.failUnless(u_ro.startswith("URI:DIR2-RO:"), u_ro)
             u_v = n.get_verifier()
             self.failUnless(u_v.startswith("URI:DIR2-Verifier:"), u_v)
+            self.expected_manifest.append(u_v)
 
             d = n.list()
             d.addCallback(lambda res: self.failUnlessEqual(res, {}))
             d.addCallback(lambda res: n.has_child("missing"))
             d.addCallback(lambda res: self.failIf(res))
             fake_file_uri = uri.WriteableSSKFileURI("a"*16,"b"*32)
+            ffu_v = fake_file_uri.get_verifier().to_string()
+            self.expected_manifest.append(ffu_v)
             d.addCallback(lambda res: n.set_uri("child", fake_file_uri))
             d.addCallback(lambda res: self.failUnlessEqual(res, None))
+
+            d.addCallback(lambda res: n.create_empty_directory("subdir"))
+            def _created(subdir):
+                self.failUnless(isinstance(subdir, FakeNewDirectoryNode))
+                self.subdir = subdir
+                new_v = subdir.get_verifier()
+                self.expected_manifest.append(new_v)
+            d.addCallback(_created)
+
             d.addCallback(lambda res: n.list())
-            def _check_list(children):
-                self.failUnless("child" in children)
-            d.addCallback(_check_list)
+            d.addCallback(lambda children:
+                          self.failUnlessEqual(sorted(children.keys()),
+                                               sorted(["child", "subdir"])))
+
+            d.addCallback(lambda res: n.build_manifest())
+            def _check_manifest(manifest):
+                self.failUnlessEqual(sorted(manifest),
+                                     sorted(self.expected_manifest))
+            d.addCallback(_check_manifest)
+
+            def _add_subsubdir(res):
+                return self.subdir.create_empty_directory("subsubdir")
+            d.addCallback(_add_subsubdir)
+            d.addCallback(lambda res: n.get_child_at_path("subdir/subsubdir"))
+            d.addCallback(lambda subsubdir:
+                          self.failUnless(isinstance(subsubdir,
+                                                     FakeNewDirectoryNode)))
+            d.addCallback(lambda res: n.get_child_at_path(""))
+            d.addCallback(lambda res: self.failUnlessEqual(res.get_uri(),
+                                                           n.get_uri()))
+
+            d.addCallback(lambda res: n.get_metadata_for("child"))
+            d.addCallback(lambda metadata: self.failUnlessEqual(metadata, {}))
+
+            d.addCallback(lambda res: n.delete("subdir"))
+            d.addCallback(lambda old_child:
+                          self.failUnlessEqual(old_child.get_uri(),
+                                               self.subdir.get_uri()))
+
+            d.addCallback(lambda res: n.list())
+            d.addCallback(lambda children:
+                          self.failUnlessEqual(sorted(children.keys()),
+                                               sorted(["child"])))
 
             return d
 
