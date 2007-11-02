@@ -118,6 +118,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
 
     def tub_ready(self):
         self.log("tub_ready")
+        node.Node.tub_ready(self)
 
         # we use separate get_config/write_config here because we want to
         # update the connection hints each time.
