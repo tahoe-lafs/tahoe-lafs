@@ -160,7 +160,11 @@ class Run(unittest.TestCase):
         c1 = client.Client(basedir)
         c1.setServiceParent(self.sparent)
 
-        d = self.stall(delay=0.1)
+        # the cygwin buildslave seems to need more time to let the old
+        # service completely shut down. When delay=0.1, I saw this test fail,
+        # probably due to the logport trying to reclaim the old socket
+        # number.
+        d = self.stall(delay=2.0)
         d.addCallback(lambda res: c1.disownServiceParent())
         def _restart(res):
             # TODO: pause for slightly over one second, to let
