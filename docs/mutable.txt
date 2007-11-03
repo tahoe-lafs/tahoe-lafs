@@ -386,10 +386,14 @@ is oblivious to this format.
        103      4        (10) IV
        107      4        (11) share data
        111      8        (12) encrypted private key
+          TODO: (13) end of file
  6    119      256     verification key (2048 RSA key 'n' value, e=3)
  7    375      256     signature= RSAenc(sig-key, H(version+seqnum+r+encparm))
- 8    631      (a)     share hash chain
- 9    ??       (b)     block hash tree
+ 8    631      (a)     share hash chain, encoded as:
+                        "".join([pack(">H32s", shnum, hash)
+                                 for (shnum,hash) in needed_hashes])
+ 9    ??       (b)     block hash tree, encoded as:
+                        "".join([pack(">32s",hash) for hash in block_hash_tree])
 10    ??       16      IV (share data is AES(H(readkey+IV)) )
 11    ??       LEN     share data
 12    ??       256     encrypted private key= AESenc(write-key, RSA 'd' value)
@@ -539,3 +543,6 @@ of them when we accept the update?
   "UNABLE to renew non-existent lease. I have leases accepted by " +
   "nodeids: '12345','abcde','44221' ."
 
+confirm that a repairer can regenerate shares without the private key. Hmm,
+without the write-enabler they won't be able to write those shares to the
+servers.. although they could add immutable new shares to new servers.
