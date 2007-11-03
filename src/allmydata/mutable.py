@@ -26,7 +26,7 @@ class MutableFileNode:
         self._client = client
         self._pubkey = None # filled in upon first read
         self._privkey = None # filled in if we're mutable
-        self._sharemap = {} # known shares, shnum-to-nodeid
+        self._sharemap = {} # known shares, shnum-to-[nodeids]
 
         self._current_data = None # SDMF: we're allowed to cache the contents
         self._current_roothash = None # ditto
@@ -178,8 +178,7 @@ class Publish:
         d.addCallback(self._generate_shares, old_seqnum+1,
                       privkey, self._encprivkey, pubkey)
 
-        d.addCallback(self._get_peers)
-        d.addCallback(self._map_shares)
+        d.addCallback(self._choose_peers_and_map_shares)
         d.addCallback(self._send_shares)
         d.addCallback(self._wait_for_responses)
         d.addCallback(lambda res: None)
@@ -333,3 +332,23 @@ class Publish:
                            offsets['enc_privkey'],
                            offsets['EOF'])
 
+    def _choose_peers_and_map_shares(self, (seqnum, root_hash, final_shares) ):
+        self._new_seqnum = seqnum
+        self._new_root_hash = root_hash
+        self._new_shares = final_shares
+
+        storage_index = self._node._uri.storage_index
+        peerlist = self._node._client.get_permuted_peers(storage_index,
+                                                         include_myself=False)
+        # we don't include ourselves in the N peers, but we *do* push an
+        # extra copy of share[0] to ourselves so we're more likely to have
+        # the signing key around later. This way, even if all the servers die
+        # and the directory contents are unrecoverable, at least we can still
+        # push out a new copy with brand-new contents.
+
+        new_sharemap = {}
+
+        # build the reverse sharehintmap
+        old_hints = {} # nodeid .. ?
+        for shnum, nodeids in self._node._sharemap:
+            pass
