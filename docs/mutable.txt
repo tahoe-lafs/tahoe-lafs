@@ -370,6 +370,10 @@ steps will be implemented in a separate class in allmydata/mutable.py .
 This SMDF data lives inside a server-side MutableSlot container. The server
 is oblivious to this format.
 
+This data is tightly packed. In particular, the share data is defined to run
+all the way to the beginning of the encrypted private key (the encprivkey
+offset is used both to terminate the share data and to begin the encprivkey).
+
  #    offset   size    name
  1    0        1       version byte, \x00 for this format
  2    1        8       sequence number. 2^64-1 must be handled specially, TBD
@@ -378,25 +382,26 @@ is oblivious to this format.
        41       1        k
        42       1        N
        43       8        segment size
-       51       8        data length
- 5    59       32      offset table:
-       91       4        (7) signature
-       95       4        (8) share hash chain
-       99       4        (9) block hash tree
-       103      4        (10) IV
-       107      4        (11) share data
-       111      8        (12) encrypted private key
-          TODO: (13) end of file
- 6    119      256     verification key (2048 RSA key 'n' value, e=3)
- 7    375      256     signature= RSAenc(sig-key, H(version+seqnum+r+encparm))
- 8    631      (a)     share hash chain, encoded as:
+       51       8        data length (of original plaintext)
+ 5    59       36      offset table:
+       59       4        (7) signature
+       63       4        (8) share hash chain
+       67       4        (9) block hash tree
+       71       4        (10) IV
+       75       4        (11) share data
+       79       8        (12) encrypted private key
+       87       8        (13) EOF
+ 6    95       256     verification key (2048 RSA key 'n' value, e=3)
+ 7    361      256     signature= RSAenc(sig-key, H(version+seqnum+r+encparm))
+ 8    607      (a)     share hash chain, encoded as:
                         "".join([pack(">H32s", shnum, hash)
                                  for (shnum,hash) in needed_hashes])
  9    ??       (b)     block hash tree, encoded as:
                         "".join([pack(">32s",hash) for hash in block_hash_tree])
 10    ??       16      IV (share data is AES(H(readkey+IV)) )
-11    ??       LEN     share data
+11    ??       LEN     share data (no gap between this and encprivkey)
 12    ??       256     encrypted private key= AESenc(write-key, RSA 'd' value)
+13    ??       --      EOF
 
 (a) The share hash chain contains ceil(log(N)) hashes, each 32 bytes long.
     This is the set of hashes necessary to validate this share's leaf in the
