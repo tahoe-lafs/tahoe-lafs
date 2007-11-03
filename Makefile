@@ -225,6 +225,11 @@ check-speed: .built
 	$(PYTHON) src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
 	$(PYTHON) bin/tahoe stop $(TESTCLIENTDIR)
 
+# 'make repl' is a simple-to-type command to get a Python interpreter loop
+# from which you can type 'import allmydata'
+repl:
+	$(PP) python
+
 test-darcs-boringfile:
 	$(MAKE)
 	$(PYTHON) misc/test-darcs-boringfile.py
