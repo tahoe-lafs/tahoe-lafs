@@ -8,6 +8,17 @@ from allmydata.uri import WriteableSSKFileURI
 from allmydata.Crypto.Cipher import AES
 from allmydata import hashtree, codec
 
+
+HEADER_LENGTH = struct.calcsize(">BQ32s BBQQ LLLLLQQ")
+
+class NeedMoreDataError(Exception):
+    def __init__(self, needed_bytes):
+        Exception.__init__(self)
+        self.needed_bytes = needed_bytes
+
+
+# use client.create_mutable_file() to make one of these
+
 class MutableFileNode:
     implements(IMutableFileNode)
 
@@ -79,28 +90,57 @@ class MutableFileNode:
     def replace(self, newdata):
         return defer.succeed(None)
 
-    def unpack_data(self, data):
-        offsets = {}
+class Retrieve:
+
+    def __init__(self, filenode):
+        self._node = filenode
+
+    def _unpack_share(self, data):
+        assert len(data) >= HEADER_LENGTH
+        o = {}
         (version,
          seqnum,
          root_hash,
          k, N, segsize, datalen,
-         offsets['signature'],
-         offsets['share_hash_chain'],
-         offsets['block_hash_tree'],
-         offsets['IV'],
-         offsets['share_data'],
-         offsets['enc_privkey']) = struct.unpack(">BQ32s" + "BBQQ" + "LLLLLQ")
+         o['signature'],
+         o['share_hash_chain'],
+         o['block_hash_tree'],
+         o['IV'],
+         o['share_data'],
+         o['enc_privkey'],
+         o['EOF']) = struct.unpack(">BQ32s" + "BBQQ" + "LLLLLQQ",
+                                         data[:HEADER_LENGTH])
+
         assert version == 0
-        signature = data[offsets['signature']:offsets['share_hash_chain']]
-        share_hash_chain = data[offsets['share_hash_chain']:offsets['block_hash_tree']]
-        block_hash_tree = data[offsets['block_hash_tree']:offsets['IV']]
-        IV = data[offsets['IV']:offsets['share_data']]
-        share_data = data[offsets['share_data']:offsets['share_data']+datalen]
-        enc_privkey = data[offsets['enc_privkey']:]
+        if len(data) < o['EOF']:
+            raise NeedMoreDataError(o['EOF'])
+
+        pubkey = data[HEADER_LENGTH:o['signature']]
+        signature = data[o['signature']:o['share_hash_chain']]
+        share_hash_chain_s = data[o['share_hash_chain']:o['block_hash_tree']]
+        share_hash_format = ">H32s"
+        hsize = struct.calcsize(share_hash_format)
+        assert len(share_hash_chain_s) % hsize == 0, len(share_hash_chain_s)
+        share_hash_chain = []
+        for i in range(0, len(share_hash_chain_s), hsize):
+            chunk = share_hash_chain_s[i:i+hsize]
+            (hid, h) = struct.unpack(share_hash_format, chunk)
+            share_hash_chain.append( (hid, h) )
+        block_hash_tree_s = data[o['block_hash_tree']:o['IV']]
+        assert len(block_hash_tree_s) % 32 == 0, len(block_hash_tree_s)
+        block_hash_tree = []
+        for i in range(0, len(block_hash_tree_s), 32):
+            block_hash_tree.append(block_hash_tree_s[i:i+32])
+
+        IV = data[o['IV']:o['share_data']]
+        share_data = data[o['share_data']:o['enc_privkey']]
+        enc_privkey = data[o['enc_privkey']:o['EOF']]
+
+        return (seqnum, root_hash, k, N, segsize, datalen,
+                pubkey, signature, share_hash_chain, block_hash_tree,
+                IV, share_data, enc_privkey)
 
 
-# use client.create_mutable_file() to make one of these
 
 class Publish:
     """I represent a single act of publishing the mutable file to the grid."""
@@ -237,10 +277,11 @@ class Publish:
             share_data = all_shares[shnum]
             offsets = self._pack_offsets(len(verification_key),
                                          len(signature),
-                                         len(share_hash_chain),
-                                         len(block_hash_tree),
+                                         len(share_hash_chain_s),
+                                         len(block_hash_tree_s),
                                          len(IV),
-                                         len(share_data))
+                                         len(share_data),
+                                         len(encprivkey))
 
             final_shares[shnum] = "".join([prefix,
                                            offsets,
@@ -271,8 +312,8 @@ class Publish:
 
     def _pack_offsets(self, verification_key_length, signature_length,
                       share_hash_chain_length, block_hash_tree_length,
-                      IV_length, share_data_length):
-        post_offset = struct.calcsize(">BQ32s" + "BBQQ" + "LLLLLQ")
+                      IV_length, share_data_length, encprivkey_length):
+        post_offset = HEADER_LENGTH
         offsets = {}
         o1 = offsets['signature'] = post_offset + verification_key_length
         o2 = offsets['share_hash_chain'] = o1 + signature_length
@@ -281,49 +322,14 @@ class Publish:
         o4 = offsets['IV'] = o3 + block_hash_tree_length
         o5 = offsets['share_data'] = o4 + IV_length
         o6 = offsets['enc_privkey'] = o5 + share_data_length
+        o7 = offsets['EOF'] = o6 + encprivkey_length
 
-        return struct.pack(">LLLLLQ",
+        return struct.pack(">LLLLLQQ",
                            offsets['signature'],
                            offsets['share_hash_chain'],
                            offsets['block_hash_tree'],
                            offsets['IV'],
                            offsets['share_data'],
-                           offsets['enc_privkey'])
-
-    def OFF_pack_data(self):
-        # dummy values to satisfy pyflakes until we wire this all up
-        seqnum, root_hash, k, N, segsize, datalen = 0,0,0,0,0,0
-        (verification_key, signature, share_hash_chain, block_hash_tree,
-         IV, share_data, enc_privkey) = ["0"*16] * 7
-        seqnum += 1
-        newbuf = [struct.pack(">BQ32s" + "BBQQ",
-                              0, # version byte
-                              seqnum,
-                              root_hash,
-                              k, N, segsize, datalen)]
-        post_offset = struct.calcsize(">BQ32s" + "BBQQ" + "LLLLLQ")
-        offsets = {}
-        o1 = offsets['signature'] = post_offset + len(verification_key)
-        o2 = offsets['share_hash_chain'] = o1 + len(signature)
-        o3 = offsets['block_hash_tree'] = o2 + len(share_hash_chain)
-        assert len(IV) == 16
-        o4 = offsets['IV'] = o3 + len(block_hash_tree)
-        o5 = offsets['share_data'] = o4 + len(IV)
-        o6 = offsets['enc_privkey'] = o5 + len(share_data)
-
-        newbuf.append(struct.pack(">LLLLLQ",
-                                  offsets['signature'],
-                                  offsets['share_hash_chain'],
-                                  offsets['block_hash_tree'],
-                                  offsets['IV'],
-                                  offsets['share_data'],
-                                  offsets['enc_privkey']))
-        newbuf.extend([verification_key,
-                       signature,
-                       share_hash_chain,
-                       block_hash_tree,
-                       IV,
-                       share_data,
-                       enc_privkey])
-        return "".join(newbuf)
+                           offsets['enc_privkey'],
+                           offsets['EOF'])
 

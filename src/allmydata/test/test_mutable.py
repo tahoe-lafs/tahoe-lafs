@@ -1,5 +1,5 @@
 
-import itertools
+import itertools, struct
 from twisted.trial import unittest
 from twisted.internet import defer
 
@@ -152,6 +152,7 @@ class Publish(unittest.TestCase):
         CONTENTS = "some initial contents"
         fn.create(CONTENTS)
         p = mutable.Publish(fn)
+        r = mutable.Retrieve(fn)
         # make some fake shares
         shares_and_ids = ( ["%07d" % i for i in range(10)], range(10) )
         d = defer.maybeDeferred(p._generate_shares,
@@ -171,7 +172,35 @@ class Publish(unittest.TestCase):
             self.failUnlessEqual(sorted(final_shares.keys()), range(10))
             for i,sh in final_shares.items():
                 self.failUnless(isinstance(sh, str))
-                self.failUnlessEqual(len(sh), 359)
+                self.failUnlessEqual(len(sh), 367)
+                # feed the share through the unpacker as a sanity-check
+                pieces = r._unpack_share(sh)
+                (u_seqnum, u_root_hash, k, N, segsize, datalen,
+                 pubkey, signature, share_hash_chain, block_hash_tree,
+                 IV, share_data, enc_privkey) = pieces
+                self.failUnlessEqual(u_seqnum, 3)
+                self.failUnlessEqual(u_root_hash, root_hash)
+                self.failUnlessEqual(k, 3)
+                self.failUnlessEqual(N, 10)
+                self.failUnlessEqual(segsize, 21)
+                self.failUnlessEqual(datalen, len(CONTENTS))
+                self.failUnlessEqual(pubkey, FakePubKey().serialize())
+                sig_material = struct.pack(">BQ32s BBQQ", 0, seqnum, root_hash,
+                                           k, N, segsize, datalen)
+                self.failUnlessEqual(signature,
+                                     FakePrivKey().sign(sig_material))
+                self.failUnless(isinstance(share_hash_chain, list))
+                self.failUnlessEqual(len(share_hash_chain), 4) # ln2(10)++
+                for i in share_hash_chain:
+                    self.failUnless(isinstance(i, tuple))
+                    self.failUnless(isinstance(i[0], int))
+                    self.failUnless(isinstance(i[1], str))
+                    self.failUnlessEqual(len(i[1]), 32)
+                self.failUnless(isinstance(block_hash_tree, list))
+                self.failUnlessEqual(len(block_hash_tree), 1) # very small tree
+                self.failUnlessEqual(IV, "IV"*8)
+                self.failUnlessEqual(len(share_data), len("%07d" % 1))
+                self.failUnlessEqual(enc_privkey, "encprivkey")
         d.addCallback(_done)
         return d
 
