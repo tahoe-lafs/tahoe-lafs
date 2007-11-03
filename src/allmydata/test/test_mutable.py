@@ -117,6 +117,71 @@ class Filenode(unittest.TestCase):
         d.addCallback(_created)
         return d
 
+class Publish(unittest.TestCase):
+    def test_encrypt(self):
+        c = MyClient()
+        fn = FakeFilenode(c)
+        # .create usually returns a Deferred, but we happen to know it's
+        # synchronous
+        CONTENTS = "some initial contents"
+        fn.create(CONTENTS)
+        p = mutable.Publish(fn)
+        d = defer.maybeDeferred(p._encrypt_and_encode,
+                                CONTENTS, "READKEY", 3, 10)
+        def _done( ((shares, share_ids),
+                    required_shares, total_shares,
+                    segsize, data_length, IV) ):
+            self.failUnlessEqual(len(shares), 10)
+            for sh in shares:
+                self.failUnless(isinstance(sh, str))
+                self.failUnlessEqual(len(sh), 7)
+            self.failUnlessEqual(len(share_ids), 10)
+            self.failUnlessEqual(required_shares, 3)
+            self.failUnlessEqual(total_shares, 10)
+            self.failUnlessEqual(segsize, 21)
+            self.failUnlessEqual(data_length, len(CONTENTS))
+            self.failUnlessEqual(len(IV), 16)
+        d.addCallback(_done)
+        return d
+
+    def test_generate(self):
+        c = MyClient()
+        fn = FakeFilenode(c)
+        # .create usually returns a Deferred, but we happen to know it's
+        # synchronous
+        CONTENTS = "some initial contents"
+        fn.create(CONTENTS)
+        p = mutable.Publish(fn)
+        # make some fake shares
+        shares_and_ids = ( ["%07d" % i for i in range(10)], range(10) )
+        d = defer.maybeDeferred(p._generate_shares,
+                                (shares_and_ids,
+                                 3, 10,
+                                 21, # segsize
+                                 len(CONTENTS),
+                                 "IV"*8),
+                                3, # seqnum
+                                FakePrivKey(), "encprivkey", FakePubKey(),
+                                )
+        def _done( (seqnum, root_hash, final_shares) ):
+            self.failUnlessEqual(seqnum, 3)
+            self.failUnlessEqual(len(root_hash), 32)
+            self.failUnless(isinstance(final_shares, dict))
+            self.failUnlessEqual(len(final_shares), 10)
+            self.failUnlessEqual(sorted(final_shares.keys()), range(10))
+            for i,sh in final_shares.items():
+                self.failUnless(isinstance(sh, str))
+                self.failUnlessEqual(len(sh), 359)
+        d.addCallback(_done)
+        return d
+
+class FakePubKey:
+    def serialize(self):
+        return "PUBKEY"
+class FakePrivKey:
+    def sign(self, data):
+        return "SIGN(%s)" % data
+
 class Dirnode(unittest.TestCase):
     def setUp(self):
         self.client = MyClient()
