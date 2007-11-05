@@ -687,6 +687,21 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(s0.remote_read(0, 100), data)
         s0.remote_testv_and_writev(WE, [], [(0,data)], None)
 
+    def test_readv(self):
+        ss = self.create("test_allocate")
+        shares = self.allocate(ss, "si1", "we1", self._secret.next(),
+                               set([0,1,2]), 100)
+        WE = self.write_enabler("we1")
+        data = [("%d" % i) * 100 for i in range(3)]
+        for i in range(3):
+            rc = shares[i].remote_testv_and_writev(WE, [], [(0, data[i])],
+                                                   new_length=None)
+            self.failUnlessEqual(rc, (True, []))
+        answer = ss.remote_readv_slots("si1", [(0, 10)])
+        self.failUnlessEqual(answer, {0: ["0"*10],
+                                      1: ["1"*10],
+                                      2: ["2"*10]})
+
     def compare_leases_without_timestamps(self, a, b):
         self.failUnlessEqual(len(a), len(b))
         for i in range(len(a)):

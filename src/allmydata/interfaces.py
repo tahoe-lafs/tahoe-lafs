@@ -89,6 +89,7 @@ TestVector = ListOf(TupleOf(int, int, str, str))
 # you should use length==len(specimen) for everything except nop
 DataVector = ListOf(TupleOf(int, ShareData))
 # (offset, data). This limits us to 30 writes of 1MiB each per call
+ReadVector = ListOf(TupleOf(int, int))
 TestResults = ListOf(str)
 # returns data[offset:offset+length] for each element of TestVector
 
@@ -209,6 +210,10 @@ class RIStorageServer(RemoteInterface):
         of the slot mentioned."""
         return DictOf(int, RIMutableSlot, maxKeys=MAX_BUCKETS)
 
+    def readv_slots(storage_index=StorageIndex, readv=ReadVector):
+        """Read a vector from all shares associated with the given storage
+        index. Returns a dictionary with one key per share."""
+        return DictOf(int, DataVector) # shnum -> results
 
 class IStorageBucketWriter(Interface):
     def put_block(segmentnum=int, data=ShareData):

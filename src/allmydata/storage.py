@@ -554,6 +554,14 @@ class MutableShareFile(Referenceable):
         f.close()
         return data
 
+    def readv(self, readv):
+        datav = []
+        f = open(self.home, 'rb')
+        for (offset, length) in readv:
+            datav.append(self._read_share_data(f, offset, length))
+        f.close()
+        return datav
+
     def remote_get_length(self):
         f = open(self.home, 'rb')
         data_length = self._read_data_length(f)
@@ -877,6 +885,24 @@ class StorageServer(service.MultiService, Referenceable):
             filename = os.path.join(bucketdir, sharenum_s)
             slots[sharenum] = MutableShareFile(filename)
         return slots
+
+    def remote_readv_slots(self, storage_index, readv):
+        si_s = idlib.b2a(storage_index)
+        # shares exist if there is a file for them
+        bucketdir = os.path.join(self.sharedir, si_s)
+        if not os.path.isdir(bucketdir):
+            return {}
+        datavs = {}
+        for sharenum_s in os.listdir(bucketdir):
+            try:
+                sharenum = int(sharenum_s)
+            except ValueError:
+                continue
+            filename = os.path.join(bucketdir, sharenum_s)
+            msf = MutableShareFile(filename)
+            datavs[sharenum] = msf.readv(readv)
+        return datavs
+
 
 
 # the code before here runs on the storage server, not the client
