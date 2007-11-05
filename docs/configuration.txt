@@ -53,6 +53,8 @@ for debugging.  To cause the node to accept SSH connections on port 8022,
 symlink "authorized_keys.8022" to your ~/.ssh/authorized_keys file, and it
 will accept the same keys as the rest of your account.
 
+sizelimit: If present, this file limits the storage for share data on
+this client.
 
 == Node State ==
 
