@@ -2,10 +2,15 @@
 import itertools, struct
 from twisted.trial import unittest
 from twisted.internet import defer
-
+from twisted.python import failure
 from allmydata import mutable, uri, dirnode2
 from allmydata.dirnode2 import split_netstring
-from allmydata.util.hashutil import netstring
+from allmydata.util import idlib
+from allmydata.util.hashutil import netstring, tagged_hash
+from allmydata.encode import NotEnoughPeersError
+
+import sha
+from allmydata.Crypto.Util.number import bytes_to_long
 
 class Netstring(unittest.TestCase):
     def test_split(self):
@@ -62,12 +67,21 @@ class FakeFilenode(mutable.MutableFileNode):
     def get_readonly(self):
         return "fake readonly"
 
+class FakePublish(mutable.Publish):
+    def _do_query(self, conn, peerid, peer_storage_servers):
+        assert conn[0] == peerid
+        shares = self._peers[peerid]
+        return defer.succeed(shares)
+
+
 class FakeNewDirectoryNode(dirnode2.NewDirectoryNode):
     filenode_class = FakeFilenode
 
 class MyClient:
-    def __init__(self):
-        pass
+    def __init__(self, num_peers=10):
+        self._num_peers = num_peers
+        self._peerids = [tagged_hash("peerid", "%d" % i)
+                         for i in range(self._num_peers)]
 
     def create_empty_dirnode(self):
         n = FakeNewDirectoryNode(self)
@@ -86,6 +100,18 @@ class MyClient:
     def create_mutable_file_from_uri(self, u):
         return FakeFilenode(self).init_from_uri(u)
 
+    def get_permuted_peers(self, key, include_myself=True):
+        """
+        @return: list of (permuted-peerid, peerid, connection,)
+        """
+        peers_and_connections = [(pid, (pid,)) for pid in self._peerids]
+        results = []
+        for peerid, connection in peers_and_connections:
+            assert isinstance(peerid, str)
+            permuted = bytes_to_long(sha.new(key + peerid).digest())
+            results.append((permuted, peerid, connection))
+        results.sort()
+        return results
 
 class Filenode(unittest.TestCase):
     def setUp(self):
@@ -203,6 +229,98 @@ class Publish(unittest.TestCase):
                 self.failUnlessEqual(enc_privkey, "encprivkey")
         d.addCallback(_done)
         return d
+
+    def setup_for_sharemap(self, num_peers):
+        c = MyClient(num_peers)
+        fn = FakeFilenode(c)
+        # .create usually returns a Deferred, but we happen to know it's
+        # synchronous
+        CONTENTS = "some initial contents"
+        fn.create(CONTENTS)
+        p = FakePublish(fn)
+        #r = mutable.Retrieve(fn)
+        p._peers = {}
+        for peerid in c._peerids:
+            p._peers[peerid] = {}
+        return c, p
+
+    def shouldFail(self, expected_failure, which, call, *args, **kwargs):
+        substring = kwargs.pop("substring", None)
+        d = defer.maybeDeferred(call, *args, **kwargs)
+        def _done(res):
+            if isinstance(res, failure.Failure):
+                res.trap(expected_failure)
+                if substring:
+                    self.failUnless(substring in str(res),
+                                    "substring '%s' not in '%s'"
+                                    % (substring, str(res)))
+            else:
+                self.fail("%s was supposed to raise %s, not get '%s'" %
+                          (which, expected_failure, res))
+        d.addBoth(_done)
+        return d
+
+    def test_sharemap_20newpeers(self):
+        c, p = self.setup_for_sharemap(20)
+
+        new_seqnum = 3
+        new_root_hash = "Rnew"
+        new_shares = None
+        total_shares = 10
+        d = p._query_peers( (new_seqnum, new_root_hash, new_seqnum),
+                            total_shares)
+        def _done(target_map):
+            shares_per_peer = {}
+            for shnum in target_map:
+                for (peerid, old_seqnum, old_R) in target_map[shnum]:
+                    #print "shnum[%d]: send to %s [oldseqnum=%s]" % \
+                    #      (shnum, idlib.b2a(peerid), old_seqnum)
+                    if peerid not in shares_per_peer:
+                        shares_per_peer[peerid] = 1
+                    else:
+                        shares_per_peer[peerid] += 1
+            # verify that we're sending only one share per peer
+            for peerid, count in shares_per_peer.items():
+                self.failUnlessEqual(count, 1)
+        d.addCallback(_done)
+        return d
+
+    def test_sharemap_3newpeers(self):
+        c, p = self.setup_for_sharemap(3)
+
+        new_seqnum = 3
+        new_root_hash = "Rnew"
+        new_shares = None
+        total_shares = 10
+        d = p._query_peers( (new_seqnum, new_root_hash, new_seqnum),
+                            total_shares)
+        def _done(target_map):
+            shares_per_peer = {}
+            for shnum in target_map:
+                for (peerid, old_seqnum, old_R) in target_map[shnum]:
+                    if peerid not in shares_per_peer:
+                        shares_per_peer[peerid] = 1
+                    else:
+                        shares_per_peer[peerid] += 1
+            # verify that we're sending 3 or 4 shares per peer
+            for peerid, count in shares_per_peer.items():
+                self.failUnless(count in (3,4), count)
+        d.addCallback(_done)
+        return d
+
+    def test_sharemap_nopeers(self):
+        c, p = self.setup_for_sharemap(0)
+
+        new_seqnum = 3
+        new_root_hash = "Rnew"
+        new_shares = None
+        total_shares = 10
+        d = self.shouldFail(NotEnoughPeersError, "test_sharemap_nopeers",
+                            p._query_peers,
+                            (new_seqnum, new_root_hash, new_seqnum),
+                            total_shares)
+        return d
+
 
 class FakePubKey:
     def serialize(self):

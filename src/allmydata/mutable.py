@@ -1,5 +1,5 @@
 
-import os, struct
+import os, struct, itertools
 from zope.interface import implements
 from twisted.internet import defer
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI
@@ -7,6 +7,7 @@ from allmydata.util import hashutil, mathutil
 from allmydata.uri import WriteableSSKFileURI
 from allmydata.Crypto.Cipher import AES
 from allmydata import hashtree, codec
+from allmydata.encode import NotEnoughPeersError
 
 
 HEADER_LENGTH = struct.calcsize(">BQ32s BBQQ LLLLLQQ")
@@ -16,6 +17,8 @@ class NeedMoreDataError(Exception):
         Exception.__init__(self)
         self.needed_bytes = needed_bytes
 
+class UncoordinatedWriteError(Exception):
+    pass
 
 # use client.create_mutable_file() to make one of these
 
@@ -90,10 +93,7 @@ class MutableFileNode:
     def replace(self, newdata):
         return defer.succeed(None)
 
-class Retrieve:
-
-    def __init__(self, filenode):
-        self._node = filenode
+class ShareFormattingMixin:
 
     def _unpack_share(self, data):
         assert len(data) >= HEADER_LENGTH
@@ -140,9 +140,19 @@ class Retrieve:
                 pubkey, signature, share_hash_chain, block_hash_tree,
                 IV, share_data, enc_privkey)
 
+class Retrieve(ShareFormattingMixin):
+    def __init__(self, filenode):
+        self._node = filenode
+
+class DictOfSets(dict):
+    def add(self, key, value):
+        if key in self:
+            self[key].add(value)
+        else:
+            self[key] = set([value])
 
 
-class Publish:
+class Publish(ShareFormattingMixin):
     """I represent a single act of publishing the mutable file to the grid."""
 
     def __init__(self, filenode):
@@ -156,6 +166,9 @@ class Publish:
 
         # 1: generate shares (SDMF: files are small, so we can do it in RAM)
         # 2: perform peer selection, get candidate servers
+        #  2a: send queries to n+epsilon servers, to determine current shares
+        #  2b: based upon responses, create target map
+
         # 3: pre-allocate some shares to some servers, based upon any existing
         #    self._node._sharemap
         # 4: send allocate/testv_and_writev messages
@@ -178,7 +191,7 @@ class Publish:
         d.addCallback(self._generate_shares, old_seqnum+1,
                       privkey, self._encprivkey, pubkey)
 
-        d.addCallback(self._choose_peers_and_map_shares)
+        d.addCallback(self._query_peers, total_shares)
         d.addCallback(self._send_shares)
         d.addCallback(self._wait_for_responses)
         d.addCallback(lambda res: None)
@@ -332,7 +345,7 @@ class Publish:
                            offsets['enc_privkey'],
                            offsets['EOF'])
 
-    def _choose_peers_and_map_shares(self, (seqnum, root_hash, final_shares) ):
+    def _query_peers(self, (seqnum, root_hash, final_shares), total_shares):
         self._new_seqnum = seqnum
         self._new_root_hash = root_hash
         self._new_shares = final_shares
@@ -346,9 +359,89 @@ class Publish:
         # and the directory contents are unrecoverable, at least we can still
         # push out a new copy with brand-new contents.
 
-        new_sharemap = {}
+        current_share_peers = DictOfSets()
+        reachable_peers = {}
 
-        # build the reverse sharehintmap
-        old_hints = {} # nodeid .. ?
-        for shnum, nodeids in self._node._sharemap:
-            pass
+        EPSILON = total_shares / 2
+        partial_peerlist = itertools.islice(peerlist, total_shares + EPSILON)
+        peer_storage_servers = {}
+        dl = []
+        for (permutedid, peerid, conn) in partial_peerlist:
+            d = self._do_query(conn, peerid, peer_storage_servers)
+            d.addCallback(self._got_query_results,
+                          peerid, permutedid,
+                          reachable_peers, current_share_peers)
+            dl.append(d)
+        d = defer.DeferredList(dl)
+        d.addCallback(self._got_all_query_results,
+                      total_shares, reachable_peers, seqnum,
+                      current_share_peers, peer_storage_servers)
+        # TODO: add an errback to, probably to ignore that peer
+        return d
+
+    def _do_query(self, conn, peerid, peer_storage_servers):
+        d = conn.callRemote("get_service", "storageserver")
+        def _got_storageserver(ss):
+            peer_storage_servers[peerid] = ss
+            return ss.callRemote("readv_slots", [(0, 2000)])
+        d.addCallback(_got_storageserver)
+        return d
+
+    def _got_query_results(self, datavs, peerid, permutedid,
+                           reachable_peers, current_share_peers):
+        assert isinstance(datavs, dict)
+        reachable_peers[peerid] = permutedid
+        for shnum, datav in datavs.items():
+            assert len(datav) == 1
+            data = datav[0]
+            r = self._unpack_share(data)
+            share = (shnum, r[0], r[1]) # shnum,seqnum,R
+            current_share_peers[shnum].add( (peerid, r[0], r[1]) )
+
+    def _got_all_query_results(self, res,
+                               total_shares, reachable_peers, new_seqnum,
+                               current_share_peers, peer_storage_servers):
+        # now that we know everything about the shares currently out there,
+        # decide where to place the new shares.
+
+        # if an old share X is on a node, put the new share X there too.
+        # TODO: 1: redistribute shares to achieve one-per-peer, by copying
+        #       shares from existing peers to new (less-crowded) ones. The
+        #       old shares must still be updated.
+        # TODO: 2: move those shares instead of copying them, to reduce future
+        #       update work
+
+        shares_needing_homes = range(total_shares)
+        target_map = DictOfSets() # maps shnum to set((peerid,oldseqnum,oldR))
+        shares_per_peer = DictOfSets()
+        for shnum in range(total_shares):
+            for oldplace in current_share_peers.get(shnum, []):
+                (peerid, seqnum, R) = oldplace
+                if seqnum >= new_seqnum:
+                    raise UncoordinatedWriteError()
+                target_map[shnum].add(oldplace)
+                shares_per_peer.add(peerid, shnum)
+                if shnum in shares_needing_homes:
+                    shares_needing_homes.remove(shnum)
+
+        # now choose homes for the remaining shares. We prefer peers with the
+        # fewest target shares, then peers with the lowest permuted index. If
+        # there are no shares already in place, this will assign them
+        # one-per-peer in the normal permuted order.
+        while shares_needing_homes:
+            if not reachable_peers:
+                raise NotEnoughPeersError("ran out of peers during upload")
+            shnum = shares_needing_homes.pop(0)
+            possible_homes = reachable_peers.keys()
+            possible_homes.sort(lambda a,b:
+                                cmp( (len(shares_per_peer.get(a, [])),
+                                      reachable_peers[a]),
+                                     (len(shares_per_peer.get(b, [])),
+                                      reachable_peers[b]) ))
+            target_peerid = possible_homes[0]
+            target_map.add(shnum, (target_peerid, None, None) )
+            shares_per_peer.add(target_peerid, shnum)
+
+        assert not shares_needing_homes
+
+        return target_map
