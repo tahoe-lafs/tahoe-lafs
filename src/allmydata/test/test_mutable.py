@@ -72,6 +72,18 @@ class FakePublish(mutable.Publish):
         shares = self._peers[peerid]
         return defer.succeed(shares)
 
+    def _do_testreadwrite(self, conn, peerid, tw_vectors, read_vector):
+        # always-pass: parrot the test vectors back to them.
+        readv = {}
+        for shnum, (testv, datav, new_length) in tw_vectors.items():
+            for (offset, length, op, specimen) in testv:
+                assert op in ("le", "eq", "ge")
+            readv[shnum] = [ specimen
+                             for (offset, length, op, specimen)
+                             in testv ]
+        answer = (True, readv)
+        return defer.succeed(answer)
+
 
 class FakeNewDirectoryNode(dirnode2.NewDirectoryNode):
     filenode_class = FakeFilenode
@@ -268,7 +280,7 @@ class Publish(unittest.TestCase):
         total_shares = 10
         d = p._query_peers( (new_seqnum, new_root_hash, new_seqnum),
                             total_shares)
-        def _done(target_map):
+        def _done( (target_map, peer_storage_servers) ):
             shares_per_peer = {}
             for shnum in target_map:
                 for (peerid, old_seqnum, old_R) in target_map[shnum]:
@@ -293,7 +305,7 @@ class Publish(unittest.TestCase):
         total_shares = 10
         d = p._query_peers( (new_seqnum, new_root_hash, new_seqnum),
                             total_shares)
-        def _done(target_map):
+        def _done( (target_map, peer_storage_servers) ):
             shares_per_peer = {}
             for shnum in target_map:
                 for (peerid, old_seqnum, old_R) in target_map[shnum]:
@@ -319,6 +331,33 @@ class Publish(unittest.TestCase):
                             (new_seqnum, new_root_hash, new_seqnum),
                             total_shares)
         return d
+
+    def setup_for_write(self, num_peers, total_shares):
+        c, p = self.setup_for_sharemap(num_peers)
+        # make some fake shares
+        CONTENTS = "some initial contents"
+        shares_and_ids = ( ["%07d" % i for i in range(10)], range(10) )
+        d = defer.maybeDeferred(p._generate_shares,
+                                (shares_and_ids,
+                                 3, total_shares,
+                                 21, # segsize
+                                 len(CONTENTS),
+                                 "IV"*8),
+                                3, # seqnum
+                                FakePrivKey(), "encprivkey", FakePubKey(),
+                                )
+        return d, p
+
+    def test_write(self):
+        total_shares = 10
+        d, p = self.setup_for_write(20, total_shares)
+        d.addCallback(p._query_peers, total_shares)
+        d.addCallback(p._send_shares)
+        def _done(surprised):
+            self.failIf(surprised, "surprised!")
+        d.addCallback(_done)
+        return d
+
 
 
 class FakePubKey:
