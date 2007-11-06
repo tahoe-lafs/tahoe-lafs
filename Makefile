@@ -249,6 +249,8 @@ clean:
 	rm -rf support dist
 	rm -rf setuptools*.egg *.pyc
 
+find-trailing-spaces:
+	$(PYTHON) misc/find-trailing-spaces.py -r src
 
 
 # DEBIAN PACKAGING
