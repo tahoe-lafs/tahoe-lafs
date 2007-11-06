@@ -213,7 +213,7 @@ class Publish(unittest.TestCase):
                 self.failUnless(isinstance(sh, str))
                 self.failUnlessEqual(len(sh), 367)
                 # feed the share through the unpacker as a sanity-check
-                pieces = r._unpack_share(sh)
+                pieces = mutable.unpack_share(sh)
                 (u_seqnum, u_root_hash, k, N, segsize, datalen,
                  pubkey, signature, share_hash_chain, block_hash_tree,
                  IV, share_data, enc_privkey) = pieces
@@ -355,7 +355,7 @@ class Publish(unittest.TestCase):
         d, p = self.setup_for_write(20, total_shares)
         d.addCallback(p._query_peers, total_shares)
         d.addCallback(p._send_shares)
-        def _done(surprised):
+        def _done((surprised, dispatch_map)):
             self.failIf(surprised, "surprised!")
         d.addCallback(_done)
         return d
