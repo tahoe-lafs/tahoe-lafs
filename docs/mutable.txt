@@ -378,27 +378,26 @@ offset is used both to terminate the share data and to begin the encprivkey).
  1    0        1       version byte, \x00 for this format
  2    1        8       sequence number. 2^64-1 must be handled specially, TBD
  3    9        32      "R" (root of share hash Merkle tree)
- 4    41       18      encoding parameters:
-       41       1        k
-       42       1        N
-       43       8        segment size
-       51       8        data length (of original plaintext)
- 5    59       36      offset table:
-       59       4        (7) signature
-       63       4        (8) share hash chain
-       67       4        (9) block hash tree
-       71       4        (10) IV
-       75       4        (11) share data
-       79       8        (12) encrypted private key
-       87       8        (13) EOF
- 6    95       256     verification key (2048 RSA key 'n' value, e=3)
- 7    361      256     signature= RSAenc(sig-key, H(version+seqnum+r+encparm))
- 8    607      (a)     share hash chain, encoded as:
+ 4    41       16      IV (share data is AES(H(readkey+IV)) )
+ 5    57       18      encoding parameters:
+       57       1        k
+       58       1        N
+       59       8        segment size
+       67       8        data length (of original plaintext)
+ 6    75       36      offset table:
+       75       4        (8) signature
+       79       4        (9) share hash chain
+       83       4        (10) block hash tree
+       91       4        (11) share data
+       95       8        (12) encrypted private key
+       103      8        (13) EOF
+ 7    111      256     verification key (2048 RSA key 'n' value, e=3)
+ 8    367      256     signature=RSAenc(sigkey, H(version+seqnum+r+IV+encparm))
+ 9    623      (a)     share hash chain, encoded as:
                         "".join([pack(">H32s", shnum, hash)
                                  for (shnum,hash) in needed_hashes])
- 9    ??       (b)     block hash tree, encoded as:
+10    ??       (b)     block hash tree, encoded as:
                         "".join([pack(">32s",hash) for hash in block_hash_tree])
-10    ??       16      IV (share data is AES(H(readkey+IV)) )
 11    ??       LEN     share data (no gap between this and encprivkey)
 12    ??       256     encrypted private key= AESenc(write-key, RSA 'd' value)
 13    ??       --      EOF

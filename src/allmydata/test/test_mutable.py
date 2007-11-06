@@ -167,7 +167,7 @@ class Publish(unittest.TestCase):
         fn.create(CONTENTS)
         p = mutable.Publish(fn)
         d = defer.maybeDeferred(p._encrypt_and_encode,
-                                CONTENTS, "READKEY", 3, 10)
+                                CONTENTS, "READKEY", "IV"*8, 3, 10)
         def _done( ((shares, share_ids),
                     required_shares, total_shares,
                     segsize, data_length, IV) ):
@@ -212,12 +212,12 @@ class Publish(unittest.TestCase):
             self.failUnlessEqual(sorted(final_shares.keys()), range(10))
             for i,sh in final_shares.items():
                 self.failUnless(isinstance(sh, str))
-                self.failUnlessEqual(len(sh), 369)
+                self.failUnlessEqual(len(sh), 381)
                 # feed the share through the unpacker as a sanity-check
                 pieces = mutable.unpack_share(sh)
-                (u_seqnum, u_root_hash, k, N, segsize, datalen,
+                (u_seqnum, u_root_hash, IV, k, N, segsize, datalen,
                  pubkey, signature, share_hash_chain, block_hash_tree,
-                 IV, share_data, enc_privkey) = pieces
+                 share_data, enc_privkey) = pieces
                 self.failUnlessEqual(u_seqnum, 3)
                 self.failUnlessEqual(u_root_hash, root_hash)
                 self.failUnlessEqual(k, 3)
@@ -225,7 +225,8 @@ class Publish(unittest.TestCase):
                 self.failUnlessEqual(segsize, 21)
                 self.failUnlessEqual(datalen, len(CONTENTS))
                 self.failUnlessEqual(pubkey, FakePubKey(0).serialize())
-                sig_material = struct.pack(">BQ32s BBQQ", 0, seqnum, root_hash,
+                sig_material = struct.pack(">BQ32s16s BBQQ",
+                                           0, seqnum, root_hash, IV,
                                            k, N, segsize, datalen)
                 self.failUnlessEqual(signature,
                                      FakePrivKey(0).sign(sig_material))
@@ -355,7 +356,8 @@ class Publish(unittest.TestCase):
         total_shares = 10
         d, p = self.setup_for_write(20, total_shares)
         d.addCallback(p._query_peers, total_shares)
-        d.addCallback(p._send_shares)
+        IV = "IV"*8
+        d.addCallback(p._send_shares, IV)
         def _done((surprised, dispatch_map)):
             self.failIf(surprised, "surprised!")
         d.addCallback(_done)
