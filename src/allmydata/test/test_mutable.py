@@ -47,21 +47,13 @@ class FakeFilenode(mutable.MutableFileNode):
     counter = itertools.count(1)
     all_contents = {}
 
-    def create(self, initial_contents):
+    def _generate_pubprivkeys(self):
         count = self.counter.next()
-        self.init_from_uri(uri.WriteableSSKFileURI("key%d" % count,
-                                                   "fingerprint%d" % count))
+        return FakePubKey(count), FakePrivKey(count)
+    def _publish(self, initial_contents):
         self.all_contents[self._uri] = initial_contents
-        self._privkey = FakePrivKey()
-        self._pubkey = FakePubKey()
-        self._encprivkey = "encrypted private key"
-        privkey_s = self._privkey.serialize()
-        #self._encprivkey = self._encrypt_privkey(self._writekey, privkey_s)
-        pubkey_s = self._pubkey.serialize()
-        self._fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
-        self._current_seqnum = 0
-        self._current_roothash = "\x00"*32
         return defer.succeed(self)
+
     def download_to_data(self):
         return defer.succeed(self.all_contents[self._uri])
     def replace(self, newdata):
@@ -211,7 +203,7 @@ class Publish(unittest.TestCase):
                                  len(CONTENTS),
                                  "IV"*8),
                                 3, # seqnum
-                                FakePrivKey(), "encprivkey", FakePubKey(),
+                                FakePrivKey(0), "encprivkey", FakePubKey(0),
                                 )
         def _done( (seqnum, root_hash, final_shares) ):
             self.failUnlessEqual(seqnum, 3)
@@ -221,7 +213,7 @@ class Publish(unittest.TestCase):
             self.failUnlessEqual(sorted(final_shares.keys()), range(10))
             for i,sh in final_shares.items():
                 self.failUnless(isinstance(sh, str))
-                self.failUnlessEqual(len(sh), 367)
+                self.failUnlessEqual(len(sh), 369)
                 # feed the share through the unpacker as a sanity-check
                 pieces = mutable.unpack_share(sh)
                 (u_seqnum, u_root_hash, k, N, segsize, datalen,
@@ -233,11 +225,11 @@ class Publish(unittest.TestCase):
                 self.failUnlessEqual(N, 10)
                 self.failUnlessEqual(segsize, 21)
                 self.failUnlessEqual(datalen, len(CONTENTS))
-                self.failUnlessEqual(pubkey, FakePubKey().serialize())
+                self.failUnlessEqual(pubkey, FakePubKey(0).serialize())
                 sig_material = struct.pack(">BQ32s BBQQ", 0, seqnum, root_hash,
                                            k, N, segsize, datalen)
                 self.failUnlessEqual(signature,
-                                     FakePrivKey().sign(sig_material))
+                                     FakePrivKey(0).sign(sig_material))
                 self.failUnless(isinstance(share_hash_chain, list))
                 self.failUnlessEqual(len(share_hash_chain), 4) # ln2(10)++
                 for i in share_hash_chain:
@@ -356,7 +348,7 @@ class Publish(unittest.TestCase):
                                  len(CONTENTS),
                                  "IV"*8),
                                 3, # seqnum
-                                FakePrivKey(), "encprivkey", FakePubKey(),
+                                FakePrivKey(0), "encprivkey", FakePubKey(0),
                                 )
         return d, p
 
@@ -384,7 +376,9 @@ class Publish(unittest.TestCase):
 
     def test_publish(self):
         c, fn, p = self.setup_for_publish(20)
-        d = p.publish("new contents of the mutable filenode")
+        # make sure the length of our contents string is not a multiple of k,
+        # to exercise the padding code.
+        d = p.publish("New contents of the mutable filenode.")
         def _done(res):
             # TODO: examine peers and check on their shares
             pass
@@ -393,11 +387,15 @@ class Publish(unittest.TestCase):
 
 
 class FakePubKey:
+    def __init__(self, count):
+        self.count = count
     def serialize(self):
-        return "PUBKEY"
+        return "PUBKEY-%d" % self.count
 class FakePrivKey:
+    def __init__(self, count):
+        self.count = count
     def serialize(self):
-        return "PRIVKEY"
+        return "PRIVKEY-%d" % self.count
     def sign(self, data):
         return "SIGN(%s)" % data
 

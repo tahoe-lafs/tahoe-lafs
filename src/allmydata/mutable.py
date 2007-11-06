@@ -126,6 +126,8 @@ class MutableFileNode:
         self._client = client
         self._pubkey = None # filled in upon first read
         self._privkey = None # filled in if we're mutable
+        self._required_shares = None # ditto
+        self._total_shares = None # ditto
         self._sharemap = {} # known shares, shnum-to-[nodeids]
 
         self._current_data = None # SDMF: we're allowed to cache the contents
@@ -149,17 +151,26 @@ class MutableFileNode:
         the initial contents. Returns a Deferred that fires (with the
         MutableFileNode instance you should use) when it completes.
         """
-        self._privkey = "very private"
-        self._pubkey = "public"
-        self._writekey = hashutil.ssk_writekey_hash(self._privkey)
-        privkey_s = self._privkey.serialize()
-        self._encprivkey = self._encrypt_privkey(self._writekey, privkey_s)
+        self._required_shares = 3
+        self._total_shares = 10
+        self._pubkey, self._privkey = self._generate_pubprivkeys()
         pubkey_s = self._pubkey.serialize()
+        privkey_s = self._privkey.serialize()
+        self._writekey = hashutil.ssk_writekey_hash(privkey_s)
+        self._encprivkey = self._encrypt_privkey(self._writekey, privkey_s)
         self._fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
         self._uri = WriteableSSKFileURI(self._writekey, self._fingerprint)
-        self._current_seqnum = 0
+        self._readkey = self._uri.readkey
+        self._storage_index = self._uri.storage_index
+        self._current_seqnum = 0 # TODO: really we mean "doesn't matter
+        # since nobody knows about us yet"
         self._current_roothash = "\x00"*32
         return self._publish(initial_contents)
+
+    def _generate_pubprivkeys(self):
+        privkey = "very private"
+        pubkey = "public"
+        return pubkey, privkey
 
     def _publish(self, initial_contents):
         # TODO: actually do all that stuff
@@ -196,9 +207,9 @@ class MutableFileNode:
         return self._pubkey
 
     def get_required_shares(self):
-        return 3 # TODO: where should this come from?
+        return self._required_shares
     def get_total_shares(self):
-        return 10 # TODO: same
+        return self._total_shares
 
 
     def get_uri(self):
