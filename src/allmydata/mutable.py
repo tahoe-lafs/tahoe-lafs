@@ -152,11 +152,26 @@ class MutableFileNode:
         self._privkey = "very private"
         self._pubkey = "public"
         self._writekey = hashutil.ssk_writekey_hash(self._privkey)
-        self._fingerprint = hashutil.ssk_pubkey_fingerprint_hash(self._pubkey)
+        privkey_s = self._privkey.serialize()
+        self._encprivkey = self._encrypt_privkey(self._writekey, privkey_s)
+        pubkey_s = self._pubkey.serialize()
+        self._fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
         self._uri = WriteableSSKFileURI(self._writekey, self._fingerprint)
-        d = defer.succeed(None)
+        self._current_seqnum = 0
+        self._current_roothash = "\x00"*32
+        return self._publish(initial_contents)
+
+    def _publish(self, initial_contents):
+        # TODO: actually do all that stuff
+        p = Publish(self)
+        d = p.publish(initial_contents)
+        d.addCallback(lambda res: self)
         return d
 
+    def _encrypt_privkey(self, writekey, privkey):
+        enc = AES.new(key=writekey, mode=AES.MODE_CTR, counterstart="\x00"*16)
+        crypttext = enc.encrypt(privkey)
+        return crypttext
 
     def get_write_enabler(self, nodeid):
         return hashutil.ssk_write_enabler_hash(self._writekey, nodeid)
@@ -168,8 +183,23 @@ class MutableFileNode:
         ccs = self._client.get_cancel_secret()
         fcs = hashutil.file_cancel_secret_hash(ccs, self._storage_index)
         return hashutil.bucket_cancel_secret_hash(fcs, nodeid)
+
     def get_writekey(self):
         return self._writekey
+    def get_readkey(self):
+        return self._readkey
+    def get_privkey(self):
+        return self._privkey
+    def get_encprivkey(self):
+        return self._encprivkey
+    def get_pubkey(self):
+        return self._pubkey
+
+    def get_required_shares(self):
+        return 3 # TODO: where should this come from?
+    def get_total_shares(self):
+        return 10 # TODO: same
+
 
     def get_uri(self):
         return self._uri.to_string()
@@ -242,17 +272,18 @@ class Publish:
         old_roothash = self._node._current_roothash
         old_seqnum = self._node._current_seqnum
 
-        readkey = self._node.readkey
-        required_shares = self._node.required_shares
-        total_shares = self._node.total_shares
-        privkey = self._node.privkey
-        pubkey = self._node.pubkey
+        readkey = self._node.get_readkey()
+        required_shares = self._node.get_required_shares()
+        total_shares = self._node.get_total_shares()
+        privkey = self._node.get_privkey()
+        encprivkey = self._node.get_encprivkey()
+        pubkey = self._node.get_pubkey()
 
         d = defer.succeed(newdata)
         d.addCallback(self._encrypt_and_encode, readkey,
                       required_shares, total_shares)
         d.addCallback(self._generate_shares, old_seqnum+1,
-                      privkey, self._encprivkey, pubkey)
+                      privkey, encprivkey, pubkey)
 
         d.addCallback(self._query_peers, total_shares)
         d.addCallback(self._send_shares)

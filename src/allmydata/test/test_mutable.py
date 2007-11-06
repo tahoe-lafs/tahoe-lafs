@@ -5,6 +5,7 @@ from twisted.internet import defer
 from twisted.python import failure
 from allmydata import mutable, uri, dirnode2
 from allmydata.dirnode2 import split_netstring
+from allmydata.util import hashutil
 from allmydata.util.hashutil import netstring, tagged_hash
 from allmydata.encode import NotEnoughPeersError
 
@@ -51,7 +52,16 @@ class FakeFilenode(mutable.MutableFileNode):
         self.init_from_uri(uri.WriteableSSKFileURI("key%d" % count,
                                                    "fingerprint%d" % count))
         self.all_contents[self._uri] = initial_contents
-        return defer.succeed(None)
+        self._privkey = FakePrivKey()
+        self._pubkey = FakePubKey()
+        self._encprivkey = "encrypted private key"
+        privkey_s = self._privkey.serialize()
+        #self._encprivkey = self._encrypt_privkey(self._writekey, privkey_s)
+        pubkey_s = self._pubkey.serialize()
+        self._fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
+        self._current_seqnum = 0
+        self._current_roothash = "\x00"*32
+        return defer.succeed(self)
     def download_to_data(self):
         return defer.succeed(self.all_contents[self._uri])
     def replace(self, newdata):
@@ -360,12 +370,34 @@ class Publish(unittest.TestCase):
         d.addCallback(_done)
         return d
 
+    def setup_for_publish(self, num_peers):
+        c = MyClient(num_peers)
+        fn = FakeFilenode(c)
+        # .create usually returns a Deferred, but we happen to know it's
+        # synchronous
+        fn.create("")
+        p = FakePublish(fn)
+        p._peers = {}
+        for peerid in c._peerids:
+            p._peers[peerid] = {}
+        return c, fn, p
+
+    def test_publish(self):
+        c, fn, p = self.setup_for_publish(20)
+        d = p.publish("new contents of the mutable filenode")
+        def _done(res):
+            # TODO: examine peers and check on their shares
+            pass
+        d.addCallback(_done)
+        return d
 
 
 class FakePubKey:
     def serialize(self):
         return "PUBKEY"
 class FakePrivKey:
+    def serialize(self):
+        return "PRIVKEY"
     def sign(self, data):
         return "SIGN(%s)" % data
 
