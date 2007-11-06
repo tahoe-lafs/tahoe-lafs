@@ -5,7 +5,6 @@ from twisted.internet import defer
 from twisted.python import failure
 from allmydata import mutable, uri, dirnode2
 from allmydata.dirnode2 import split_netstring
-from allmydata.util import hashutil
 from allmydata.util.hashutil import netstring, tagged_hash
 from allmydata.encode import NotEnoughPeersError
 
