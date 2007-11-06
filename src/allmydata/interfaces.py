@@ -84,48 +84,18 @@ class RIBucketReader(RemoteInterface):
 
 TestVector = ListOf(TupleOf(int, int, str, str))
 # elements are (offset, length, operator, specimen)
-# operator is one of "lt, le, eq, ne, ge, gt, nop"
+# operator is one of "lt, le, eq, ne, ge, gt"
 # nop always passes and is used to fetch data while writing.
 # you should use length==len(specimen) for everything except nop
 DataVector = ListOf(TupleOf(int, ShareData))
 # (offset, data). This limits us to 30 writes of 1MiB each per call
+TestAndWriteVectorsForShares = DictOf(int,
+                                      TupleOf(TestVector,
+                                              DataVector,
+                                              ChoiceOf(None, int))) # new_length
 ReadVector = ListOf(TupleOf(int, int))
-TestResults = ListOf(str)
+ReadData = ListOf(ShareData)
 # returns data[offset:offset+length] for each element of TestVector
-
-class RIMutableSlot(RemoteInterface):
-    def testv_and_writev(write_enabler=Hash,
-                         testv=TestVector,
-                         datav=DataVector,
-                         new_length=ChoiceOf(None, int)):
-        """General-purpose test-and-set operation for mutable slots. Perform
-        the given comparisons. If they all pass, then apply the write vector.
-
-        If new_length is not None, use it to set the size of the container.
-        This can be used to pre-allocate space for a series of upcoming
-        writes, or truncate existing data. If the container is growing,
-        new_length will be applied before datav. If the container is
-        shrinking, it will be applied afterwards.
-
-        Return the old data that was used for the comparisons.
-
-        The boolean return value is True if the write vector was applied,
-        false if not.
-
-        If the write_enabler is wrong, this will raise BadWriteEnablerError.
-        To enable share migration, the exception will have the nodeid used
-        for the old write enabler embedded in it, in the following string::
-
-         The write enabler was recorded by nodeid '%s'.
-
-        """
-        return TupleOf(bool, TestResults)
-
-    def read(offset=int, length=int):
-        return ShareData
-
-    def get_length():
-        return int
 
 class RIStorageServer(RemoteInterface):
     def allocate_buckets(storage_index=StorageIndex,
@@ -170,13 +140,27 @@ class RIStorageServer(RemoteInterface):
         return DictOf(int, RIBucketReader, maxKeys=MAX_BUCKETS)
 
 
-    def allocate_mutable_slot(storage_index=StorageIndex,
-                              write_enabler=Hash,
-                              renew_secret=LeaseRenewSecret,
-                              cancel_secret=LeaseCancelSecret,
-                              sharenums=SetOf(int, maxLength=MAX_BUCKETS),
-                              allocated_size=int):
-        """
+
+    def slot_readv(storage_index=StorageIndex,
+                   shares=ListOf(int), readv=ReadVector):
+        """Read a vector from the numbered shares associated with the given
+        storage index. An empty shares list means to return data from all
+        known shares. Returns a dictionary with one key per share."""
+        return DictOf(int, DataVector) # shnum -> results
+
+    def slot_testv_and_readv_and_writev(storage_index=StorageIndex,
+                                        secrets=TupleOf(Hash, Hash, Hash),
+                                        tw_vectors=TestAndWriteVectorsForShares,
+                                        r_vector=ReadVector,
+                                        ):
+        """General-purpose test-and-set operation for mutable slots. Perform
+        a bunch of comparisons against the existing shares. If they all pass,
+        then apply a bunch of write vectors to those shares. Then use the
+        read vectors to extract data from all the shares and return the data.
+
+        This method is, um, large. The goal is to allow clients to update all
+        the shares associated with a mutable file in a single round trip.
+
         @param storage_index: the index of the bucket to be created or
                               increfed.
         @param write_enabler: a secret that is stored along with the slot.
@@ -188,32 +172,51 @@ class RIStorageServer(RemoteInterface):
                              stored for later comparison by the server. Each
                              server is given a different secret.
         @param cancel_secret: Like renew_secret, but protects bucket decref.
-        @param sharenums: these are the share numbers (probably between 0 and
-                          99) that the sender is proposing to store on this
-                          server.
-        @param allocated_size: all shares will pre-allocate this many bytes.
-                               Use this to a) confirm that you can claim as
-                               much space as you want before you actually
-                               send the data, and b) reduce the disk-IO cost
-                               of doing incremental writes.
 
-        @return: dict mapping sharenum to slot. The return value may include
-                 more sharenums than asked, if some shares already existed.
-                 New leases are added for all
-                 shares.
+        The 'secrets' argument is a tuple of (write_enabler, renew_secret,
+        cancel_secret). The first is required to perform any write. The
+        latter two are used when allocating new shares. To simply acquire a
+        new lease on existing shares, use an empty testv and an empty writev.
+
+        Each share can have a separate test vector (i.e. a list of
+        comparisons to perform). If all vectors for all shares pass, then all
+        writes for all shares are recorded. Each comparison is a 4-tuple of
+        (offset, length, operator, specimen), which effectively does a
+        read(offset, length) and then compares the result against the
+        specimen using the given equality/inequality operator. Reads from the
+        end of the container are truncated, and missing shares behave like
+        empty ones, so to assert that a share doesn't exist (for use when
+        creating a new share), use (0, 1, 'eq', '').
+
+        The write vector will be applied to the given share, expanding it if
+        necessary. A write vector applied to a share number that did not
+        exist previously will cause that share to be created.
+
+        Each write vector is accompanied by a 'new_length' argument. If
+        new_length is not None, use it to set the size of the container. This
+        can be used to pre-allocate space for a series of upcoming writes, or
+        truncate existing data. If the container is growing, new_length will
+        be applied before datav. If the container is shrinking, it will be
+        applied afterwards.
+
+        The read vector is used to extract data from all known shares,
+        *before* any writes have been applied. The same vector is used for
+        all shares. This captures the state that was tested by the test
+        vector.
+
+        This method returns two values: a boolean and a dict. The boolean is
+        True if the write vectors were applied, False if not. The dict is
+        keyed by share number, and each value contains a list of strings, one
+        for each element of the read vector.
+
+        If the write_enabler is wrong, this will raise BadWriteEnablerError.
+        To enable share migration, the exception will have the nodeid used
+        for the old write enabler embedded in it, in the following string::
+
+         The write enabler was recorded by nodeid '%s'.
 
         """
-        return DictOf(int, RIMutableSlot, maxKeys=MAX_BUCKETS)
-
-    def get_mutable_slot(storage_index=StorageIndex):
-        """This returns an empty dictionary if the server has no shares
-        of the slot mentioned."""
-        return DictOf(int, RIMutableSlot, maxKeys=MAX_BUCKETS)
-
-    def readv_slots(storage_index=StorageIndex, readv=ReadVector):
-        """Read a vector from all shares associated with the given storage
-        index. Returns a dictionary with one key per share."""
-        return DictOf(int, DataVector) # shnum -> results
+        return TupleOf(bool, DictOf(int, ReadData))
 
 class IStorageBucketWriter(Interface):
     def put_block(segmentnum=int, data=ShareData):

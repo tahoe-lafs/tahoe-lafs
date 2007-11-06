@@ -8,7 +8,7 @@ from twisted.internet import defer
 from zope.interface import implements
 from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
      RIBucketReader, IStorageBucketWriter, IStorageBucketReader, HASH_SIZE, \
-     BadWriteEnablerError, RIMutableSlot
+     BadWriteEnablerError
 from allmydata.util import fileutil, idlib, mathutil
 from allmydata.util.assertutil import precondition, _assert
 
@@ -240,13 +240,7 @@ class BucketReader(Referenceable):
 assert struct.calcsize("L"), 4
 assert struct.calcsize("Q"), 8
 
-class MutableShareFile(Referenceable):
-    # note: at any given time, there should only be a single instance of this
-    # class per filename. More than one is likely to corrupt the container,
-    # because of state we cache in instance variables. This requires the
-    # StorageServer to use a WeakValueDictionary, indexed by filename. This
-    # could be improved by cacheing less and doing more IO.
-    implements(RIMutableSlot)
+class MutableShareFile:
 
     DATA_LENGTH_OFFSET = struct.calcsize(">32s32s32s")
     EXTRA_LEASE_OFFSET = DATA_LENGTH_OFFSET + 8
@@ -548,12 +542,6 @@ class MutableShareFile(Referenceable):
         assert magic == self.MAGIC
         return (write_enabler, write_enabler_nodeid)
 
-    def remote_read(self, offset, length):
-        f = open(self.home, 'rb')
-        data = self._read_share_data(f, offset, length)
-        f.close()
-        return data
-
     def readv(self, readv):
         datav = []
         f = open(self.home, 'rb')
@@ -562,36 +550,37 @@ class MutableShareFile(Referenceable):
         f.close()
         return datav
 
-    def remote_get_length(self):
-        f = open(self.home, 'rb')
-        data_length = self._read_data_length(f)
-        f.close()
-        return data_length
+#    def remote_get_length(self):
+#        f = open(self.home, 'rb')
+#        data_length = self._read_data_length(f)
+#        f.close()
+#        return data_length
 
-    def remote_testv_and_writev(self, write_enabler, testv, datav, new_length):
+    def check_write_enabler(self, write_enabler):
         f = open(self.home, 'rb+')
         (real_write_enabler, write_enabler_nodeid) = \
                              self._read_write_enabler_and_nodeid(f)
+        f.close()
         if write_enabler != real_write_enabler:
             # accomodate share migration by reporting the nodeid used for the
             # old write enabler.
-            f.close()
             msg = "The write enabler was recorded by nodeid '%s'." % \
                   (idlib.b2a(write_enabler_nodeid),)
             raise BadWriteEnablerError(msg)
 
-        # check testv
-        test_results_v = []
-        test_failed = False
+    def check_testv(self, testv):
+        test_good = True
+        f = open(self.home, 'rb+')
         for (offset, length, operator, specimen) in testv:
             data = self._read_share_data(f, offset, length)
-            test_results_v.append(data)
             if not self.compare(data, operator, specimen):
-                test_failed = True
-        if test_failed:
-            f.close()
-            return (False, test_results_v)
-        # now apply the write vector
+                test_good = False
+                break
+        f.close()
+        return test_good
+
+    def writev(self, datav, new_length):
+        f = open(self.home, 'rb+')
         for (offset, data) in datav:
             self._write_share_data(f, offset, data)
         if new_length is not None:
@@ -599,12 +588,36 @@ class MutableShareFile(Referenceable):
             f.seek(self.DATA_LENGTH_OFFSET)
             f.write(struct.pack(">Q", new_length))
         f.close()
-        return (True, test_results_v)
 
     def compare(self, a, op, b):
-        assert op in ("nop", "lt", "le", "eq", "ne", "ge", "gt")
-        if op == "nop":
-            return True
+        assert op in ("lt", "le", "eq", "ne", "ge", "gt")
+        if op == "lt":
+            return a < b
+        if op == "le":
+            return a <= b
+        if op == "eq":
+            return a == b
+        if op == "ne":
+            return a != b
+        if op == "ge":
+            return a >= b
+        if op == "gt":
+            return a > b
+        # never reached
+
+class EmptyShare:
+
+    def check_testv(self, testv):
+        test_good = True
+        for (offset, length, operator, specimen) in testv:
+            data = ""
+            if not self.compare(data, operator, specimen):
+                test_good = False
+                break
+        return test_good
+
+    def compare(self, a, op, b):
+        assert op in ("lt", "le", "eq", "ne", "ge", "gt")
         if op == "lt":
             return a < b
         if op == "le":
@@ -842,51 +855,83 @@ class StorageServer(service.MultiService, Referenceable):
         except StopIteration:
             return iter([])
 
-    def remote_allocate_mutable_slot(self, storage_index,
-                                     write_enabler,
-                                     renew_secret, cancel_secret,
-                                     sharenums,
-                                     allocated_size):
-        my_nodeid = self.my_nodeid
-        sharenums = set(sharenums)
-        shares = self.remote_get_mutable_slot(storage_index)
-        existing_shnums = set(shares.keys())
+    def remote_slot_testv_and_readv_and_writev(self, storage_index,
+                                               secrets,
+                                               test_and_write_vectors,
+                                               read_vector):
         si_s = idlib.b2a(storage_index)
-        bucketdir = os.path.join(self.sharedir, si_s)
-        fileutil.make_dirs(bucketdir)
-        for shnum in (sharenums - existing_shnums):
-            filename = os.path.join(bucketdir, "%d" % shnum)
-            shares[shnum] = create_mutable_sharefile(filename, my_nodeid,
-                                                     write_enabler)
-
-        # update the lease on everything
-        ownerid = 1 # TODO
-        expire_time = time.time() + 31*24*60*60   # one month
-        anid = my_nodeid
-        lease_info = (ownerid, expire_time, renew_secret, cancel_secret, anid)
-        for share in shares.values():
-            share.add_or_renew_lease(lease_info)
-        return shares
-
-    def remote_get_mutable_slot(self, storage_index):
-        """This returns an empty dictionary if the server has no shares
-        of the slot mentioned."""
-        si_s = idlib.b2a(storage_index)
+        (write_enabler, renew_secret, cancel_secret) = secrets
         # shares exist if there is a file for them
         bucketdir = os.path.join(self.sharedir, si_s)
-        if not os.path.isdir(bucketdir):
-            return {}
-        slots = {}
-        for sharenum_s in os.listdir(bucketdir):
-            try:
-                sharenum = int(sharenum_s)
-            except ValueError:
-                continue
-            filename = os.path.join(bucketdir, sharenum_s)
-            slots[sharenum] = MutableShareFile(filename)
-        return slots
+        shares = {}
+        if os.path.isdir(bucketdir):
+            for sharenum_s in os.listdir(bucketdir):
+                try:
+                    sharenum = int(sharenum_s)
+                except ValueError:
+                    continue
+                filename = os.path.join(bucketdir, sharenum_s)
+                msf = MutableShareFile(filename)
+                msf.check_write_enabler(write_enabler)
+                shares[sharenum] = msf
+        # write_enabler is good for all existing shares.
 
-    def remote_readv_slots(self, storage_index, readv):
+        # Now evaluate test vectors.
+        testv_is_good = True
+        for sharenum in test_and_write_vectors:
+            (testv, datav, new_length) = test_and_write_vectors[sharenum]
+            if sharenum in shares:
+                if not shares[sharenum].check_testv(testv):
+                    testv_is_good = False
+                    break
+            else:
+                # compare the vectors against an empty share, in which all
+                # reads return empty strings.
+                if not EmptyShare().check_testv(testv):
+                    testv_is_good = False
+                    break
+
+        # now gather the read vectors, before we do any writes
+        read_data = {}
+        for sharenum, share in shares.items():
+            read_data[sharenum] = share.readv(read_vector)
+
+        if testv_is_good:
+            # now apply the write vectors
+            for sharenum in test_and_write_vectors:
+                (testv, datav, new_length) = test_and_write_vectors[sharenum]
+                if sharenum not in shares:
+                    # allocate a new share
+                    allocated_size = 2000 # arbitrary, really
+                    share = self._allocate_slot_share(bucketdir, secrets,
+                                                      sharenum,
+                                                      allocated_size,
+                                                      owner_num=0)
+                    shares[sharenum] = share
+                shares[sharenum].writev(datav, new_length)
+            # and update the leases on all shares
+            ownerid = 1 # TODO
+            expire_time = time.time() + 31*24*60*60   # one month
+            my_nodeid = self.my_nodeid
+            anid = my_nodeid
+            lease_info = (ownerid, expire_time, renew_secret, cancel_secret,
+                          anid)
+            for share in shares.values():
+                share.add_or_renew_lease(lease_info)
+
+        # all done
+        return (testv_is_good, read_data)
+
+    def _allocate_slot_share(self, bucketdir, secrets, sharenum,
+                             allocated_size, owner_num=0):
+        (write_enabler, renew_secret, cancel_secret) = secrets
+        my_nodeid = self.my_nodeid
+        fileutil.make_dirs(bucketdir)
+        filename = os.path.join(bucketdir, "%d" % sharenum)
+        share = create_mutable_sharefile(filename, my_nodeid, write_enabler)
+        return share
+
+    def remote_slot_readv(self, storage_index, shares, readv):
         si_s = idlib.b2a(storage_index)
         # shares exist if there is a file for them
         bucketdir = os.path.join(self.sharedir, si_s)
@@ -898,9 +943,10 @@ class StorageServer(service.MultiService, Referenceable):
                 sharenum = int(sharenum_s)
             except ValueError:
                 continue
-            filename = os.path.join(bucketdir, sharenum_s)
-            msf = MutableShareFile(filename)
-            datavs[sharenum] = msf.readv(readv)
+            if sharenum in shares or not shares:
+                filename = os.path.join(bucketdir, sharenum_s)
+                msf = MutableShareFile(filename)
+                datavs[sharenum] = msf.readv(readv)
         return datavs
 
 

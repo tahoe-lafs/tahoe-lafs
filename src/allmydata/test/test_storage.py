@@ -9,7 +9,7 @@ import itertools
 from allmydata import interfaces
 from allmydata.util import fileutil, hashutil, idlib
 from allmydata.storage import BucketWriter, BucketReader, \
-     WriteBucketProxy, ReadBucketProxy, StorageServer
+     WriteBucketProxy, ReadBucketProxy, StorageServer, MutableShareFile
 from allmydata.interfaces import BadWriteEnablerError
 
 class Bucket(unittest.TestCase):
@@ -476,228 +476,275 @@ class MutableServer(unittest.TestCase):
         write_enabler = self.write_enabler(we_tag)
         renew_secret = self.renew_secret(lease_tag)
         cancel_secret = self.cancel_secret(lease_tag)
-        return ss.remote_allocate_mutable_slot(storage_index,
-                                               write_enabler,
-                                               renew_secret, cancel_secret,
-                                               sharenums, size)
+        rstaraw = ss.remote_slot_testv_and_readv_and_writev
+        testandwritev = dict( [ (shnum, ([], [], None) )
+                         for shnum in sharenums ] )
+        readv = []
+        rc = rstaraw(storage_index,
+                     (write_enabler, renew_secret, cancel_secret),
+                     testandwritev,
+                     readv)
+        (did_write, readv_data) = rc
+        self.failUnless(did_write)
+        self.failUnless(isinstance(readv_data, dict))
+        self.failUnlessEqual(len(readv_data), 0)
 
     def test_allocate(self):
         ss = self.create("test_allocate")
-        shares = self.allocate(ss, "si1", "we1", self._secret.next(),
+        self.allocate(ss, "si1", "we1", self._secret.next(),
                                set([0,1,2]), 100)
-        self.failUnlessEqual(len(shares), 3)
-        self.failUnlessEqual(set(shares.keys()), set([0,1,2]))
-        shares2 = ss.remote_get_mutable_slot("si1")
-        self.failUnlessEqual(len(shares2), 3)
-        self.failUnlessEqual(set(shares2.keys()), set([0,1,2]))
 
-        s0 = shares[0]
-        self.failUnlessEqual(s0.remote_read(0, 10), "")
-        self.failUnlessEqual(s0.remote_read(100, 10), "")
+        read = ss.remote_slot_readv
+        self.failUnlessEqual(read("si1", [0], [(0, 10)]),
+                             {0: [""]})
+        self.failUnlessEqual(read("si1", [], [(0, 10)]),
+                             {0: [""], 1: [""], 2: [""]})
+        self.failUnlessEqual(read("si1", [0], [(100, 10)]),
+                             {0: [""]})
+
         # try writing to one
-        WE = self.write_enabler("we1")
+        secrets = ( self.write_enabler("we1"),
+                    self.renew_secret("we1"),
+                    self.cancel_secret("we1") )
         data = "".join([ ("%d" % i) * 10 for i in range(10) ])
-        answer = s0.remote_testv_and_writev(WE,
-                                            [],
-                                            [(0, data),],
-                                            new_length=None)
-        self.failUnlessEqual(answer, (True, []))
+        write = ss.remote_slot_testv_and_readv_and_writev
+        answer = write("si1", secrets,
+                       {0: ([], [(0,data)], None)},
+                       [])
+        self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
 
-        self.failUnlessEqual(s0.remote_read(0, 20), "00000000001111111111")
-        self.failUnlessEqual(s0.remote_read(95, 10), "99999")
-        self.failUnlessEqual(s0.remote_get_length(), 100)
+        self.failUnlessEqual(read("si1", [0], [(0,20)]),
+                             {0: ["00000000001111111111"]})
+        self.failUnlessEqual(read("si1", [0], [(95,10)]),
+                             {0: ["99999"]})
+        #self.failUnlessEqual(s0.remote_get_length(), 100)
 
+        bad_secrets = ("bad write enabler", secrets[1], secrets[2])
         self.failUnlessRaises(BadWriteEnablerError,
-                              s0.remote_testv_and_writev,
-                              "bad write enabler",
-                              [], [], None)
+                              write, "si1", bad_secrets,
+                              {}, [])
+
         # this testv should fail
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(0, 12, "eq", "444444444444"),
-                                             (20, 5, "eq", "22222"),
-                                             ],
-                                            [(0, "x"*100)], None)
-        self.failUnlessEqual(answer, (False, ["000000000011",
-                                              "22222"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), data)
+        answer = write("si1", secrets,
+                       {0: ([(0, 12, "eq", "444444444444"),
+                             (20, 5, "eq", "22222"),
+                             ],
+                            [(0, "x"*100)],
+                            None),
+                        },
+                       [(0,12), (20,5)],
+                       )
+        self.failUnlessEqual(answer, (False,
+                                      {0: ["000000000011", "22222"],
+                                       1: ["", ""],
+                                       2: ["", ""],
+                                       }))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
 
         # as should this one
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "lt", "11111"),
-                                             ],
-                                            [(0, "x"*100)], None)
-        self.failUnlessEqual(answer, (False, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), data)
+        answer = write("si1", secrets,
+                       {0: ([(10, 5, "lt", "11111"),
+                             ],
+                            [(0, "x"*100)],
+                            None),
+                        },
+                       [(10,5)],
+                       )
+        self.failUnlessEqual(answer, (False,
+                                      {0: ["11111"],
+                                       1: [""],
+                                       2: [""]},
+                                      ))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
 
 
     def test_operators(self):
         # test operators, the data we're comparing is '11111' in all cases.
         # test both fail+pass, reset data after each one.
         ss = self.create("test_operators")
-        shares = self.allocate(ss, "si1", "we1", self._secret.next(),
-                               set([0,1,2]), 100)
-        s0 = shares[0]
-        WE = self.write_enabler("we1")
-        data = "".join([ ("%d" % i) * 10 for i in range(10) ])
-        answer = s0.remote_testv_and_writev(WE,
-                                            [],
-                                            [(0, data),],
-                                            new_length=None)
 
-        #  nop
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "nop", "11111"),
-                                             ],
-                                            [(0, "x"*100)], None)
-        self.failUnlessEqual(answer, (True, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), "x"*100)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+        secrets = ( self.write_enabler("we1"),
+                    self.renew_secret("we1"),
+                    self.cancel_secret("we1") )
+        data = "".join([ ("%d" % i) * 10 for i in range(10) ])
+        write = ss.remote_slot_testv_and_readv_and_writev
+        read = ss.remote_slot_readv
+
+        def reset():
+            write("si1", secrets,
+                  {0: ([], [(0,data)], None)},
+                  [])
+
+        reset()
 
         #  lt
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "lt", "11110"),
+        answer = write("si1", secrets, {0: ([(10, 5, "lt", "11110"),
                                              ],
-                                            [(0, "x"*100)], None)
-        self.failUnlessEqual(answer, (False, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), data)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "x"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        self.failUnlessEqual(read("si1", [], [(0,100)]), {0: [data]})
+        reset()
 
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "lt", "11111"),
+        answer = write("si1", secrets, {0: ([(10, 5, "lt", "11111"),
                                              ],
-                                            [(0, "x"*100)], None)
-        self.failUnlessEqual(answer, (False, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), data)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "x"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        reset()
 
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "lt", "11112"),
+        answer = write("si1", secrets, {0: ([(10, 5, "lt", "11112"),
                                              ],
-                                            [(0, "y"*100)], None)
-        self.failUnlessEqual(answer, (True, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "y"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        reset()
 
         #  le
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "le", "11110"),
+        answer = write("si1", secrets, {0: ([(10, 5, "le", "11110"),
                                              ],
-                                            [(0, "x"*100)], None)
-        self.failUnlessEqual(answer, (False, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), data)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "x"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        reset()
 
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "le", "11111"),
+        answer = write("si1", secrets, {0: ([(10, 5, "le", "11111"),
                                              ],
-                                            [(0, "y"*100)], None)
-        self.failUnlessEqual(answer, (True, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "y"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        reset()
 
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "le", "11112"),
+        answer = write("si1", secrets, {0: ([(10, 5, "le", "11112"),
                                              ],
-                                            [(0, "y"*100)], None)
-        self.failUnlessEqual(answer, (True, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "y"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        reset()
 
         #  eq
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "eq", "11112"),
+        answer = write("si1", secrets, {0: ([(10, 5, "eq", "11112"),
                                              ],
-                                            [(0, "x"*100)], None)
-        self.failUnlessEqual(answer, (False, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), data)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "x"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        reset()
 
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "eq", "11111"),
+        answer = write("si1", secrets, {0: ([(10, 5, "eq", "11111"),
                                              ],
-                                            [(0, "y"*100)], None)
-        self.failUnlessEqual(answer, (True, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "y"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        reset()
 
         #  ne
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "ne", "11111"),
+        answer = write("si1", secrets, {0: ([(10, 5, "ne", "11111"),
                                              ],
-                                            [(0, "x"*100)], None)
-        self.failUnlessEqual(answer, (False, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), data)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "x"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        reset()
 
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "ne", "11112"),
+        answer = write("si1", secrets, {0: ([(10, 5, "ne", "11112"),
                                              ],
-                                            [(0, "y"*100)], None)
-        self.failUnlessEqual(answer, (True, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "y"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        reset()
 
         #  ge
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "ge", "11110"),
+        answer = write("si1", secrets, {0: ([(10, 5, "ge", "11110"),
                                              ],
-                                            [(0, "y"*100)], None)
-        self.failUnlessEqual(answer, (True, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "y"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        reset()
 
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "ge", "11111"),
+        answer = write("si1", secrets, {0: ([(10, 5, "ge", "11111"),
                                              ],
-                                            [(0, "y"*100)], None)
-        self.failUnlessEqual(answer, (True, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "y"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        reset()
 
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "ge", "11112"),
+        answer = write("si1", secrets, {0: ([(10, 5, "ge", "11112"),
                                              ],
-                                            [(0, "y"*100)], None)
-        self.failUnlessEqual(answer, (False, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), data)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "y"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        reset()
 
         #  gt
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "gt", "11110"),
+        answer = write("si1", secrets, {0: ([(10, 5, "gt", "11110"),
                                              ],
-                                            [(0, "y"*100)], None)
-        self.failUnlessEqual(answer, (True, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), "y"*100)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "y"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (True, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: ["y"*100]})
+        reset()
 
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "gt", "11111"),
+        answer = write("si1", secrets, {0: ([(10, 5, "gt", "11111"),
                                              ],
-                                            [(0, "x"*100)], None)
-        self.failUnlessEqual(answer, (False, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), data)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "x"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        reset()
 
-        answer = s0.remote_testv_and_writev(WE,
-                                            [(10, 5, "gt", "11112"),
+        answer = write("si1", secrets, {0: ([(10, 5, "gt", "11112"),
                                              ],
-                                            [(0, "x"*100)], None)
-        self.failUnlessEqual(answer, (False, ["11111"]))
-        self.failUnlessEqual(s0.remote_read(0, 100), data)
-        s0.remote_testv_and_writev(WE, [], [(0,data)], None)
+                                            [(0, "x"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        reset()
 
     def test_readv(self):
-        ss = self.create("test_allocate")
-        shares = self.allocate(ss, "si1", "we1", self._secret.next(),
-                               set([0,1,2]), 100)
-        WE = self.write_enabler("we1")
+        ss = self.create("test_readv")
+        secrets = ( self.write_enabler("we1"),
+                    self.renew_secret("we1"),
+                    self.cancel_secret("we1") )
+        data = "".join([ ("%d" % i) * 10 for i in range(10) ])
+        write = ss.remote_slot_testv_and_readv_and_writev
+        read = ss.remote_slot_readv
         data = [("%d" % i) * 100 for i in range(3)]
-        for i in range(3):
-            rc = shares[i].remote_testv_and_writev(WE, [], [(0, data[i])],
-                                                   new_length=None)
-            self.failUnlessEqual(rc, (True, []))
-        answer = ss.remote_readv_slots("si1", [(0, 10)])
+        rc = write("si1", secrets,
+                   {0: ([], [(0,data[0])], None),
+                    1: ([], [(0,data[1])], None),
+                    2: ([], [(0,data[2])], None),
+                    }, [])
+        self.failUnlessEqual(rc, (True, {}))
+
+        answer = read("si1", [], [(0, 10)])
         self.failUnlessEqual(answer, {0: ["0"*10],
                                       1: ["1"*10],
                                       2: ["2"*10]})
@@ -716,15 +763,15 @@ class MutableServer(unittest.TestCase):
 
     def test_leases(self):
         ss = self.create("test_leases")
-        secret = 14
-        shares = self.allocate(ss, "si1", "we1", secret, set([0,1,2]), 100)
-        s0 = shares[0]
-        WE = self.write_enabler("we1")
+        def secrets(n):
+            return ( self.write_enabler("we1"),
+                     self.renew_secret("we1-%d" % n),
+                     self.cancel_secret("we1-%d" % n) )
         data = "".join([ ("%d" % i) * 10 for i in range(10) ])
-        answer = s0.remote_testv_and_writev(WE,
-                                            [],
-                                            [(0, data),],
-                                            new_length=None)
+        write = ss.remote_slot_testv_and_readv_and_writev
+        read = ss.remote_slot_readv
+        rc = write("si1", secrets(0), {0: ([], [(0,data)], None)}, [])
+        self.failUnlessEqual(rc, (True, {}))
 
         # create a random non-numeric file in the bucket directory, to
         # exercise the code that's supposed to ignore those.
@@ -736,40 +783,41 @@ class MutableServer(unittest.TestCase):
 
         # re-allocate the slots and use the same secrets, that should update
         # the lease
-        shares2 = self.allocate(ss, "si1", "we1", secret, set([0,1,2]), 100)
+        write("si1", secrets(0), {0: ([], [(0,data)], None)}, [])
 
         # renew it directly
-        ss.remote_renew_lease("si1", self.renew_secret(secret))
+        ss.remote_renew_lease("si1", secrets(0)[1])
 
         # now allocate them with a bunch of different secrets, to trigger the
         # extended lease code
-        shares2 = self.allocate(ss, "si1", "we1", secret+1, set([0,1,2]), 100)
-        shares2 = self.allocate(ss, "si1", "we1", secret+2, set([0,1,2]), 100)
-        shares2 = self.allocate(ss, "si1", "we1", secret+3, set([0,1,2]), 100)
-        shares2 = self.allocate(ss, "si1", "we1", secret+4, set([0,1,2]), 100)
-        shares2 = self.allocate(ss, "si1", "we1", secret+5, set([0,1,2]), 100)
-        # cancel one of them
-        ss.remote_cancel_lease("si1", self.cancel_secret(secret+5))
+        write("si1", secrets(1), {0: ([], [(0,data)], None)}, [])
+        write("si1", secrets(2), {0: ([], [(0,data)], None)}, [])
+        write("si1", secrets(3), {0: ([], [(0,data)], None)}, [])
+        write("si1", secrets(4), {0: ([], [(0,data)], None)}, [])
+        write("si1", secrets(5), {0: ([], [(0,data)], None)}, [])
 
+        # cancel one of them
+        ss.remote_cancel_lease("si1", secrets(5)[2])
+
+        s0 = MutableShareFile(os.path.join(bucket_dir, "0"))
         all_leases = s0.debug_get_leases()
         self.failUnlessEqual(len(all_leases), 5)
 
         # and write enough data to expand the container, forcing the server
         # to move the leases
-        answer = s0.remote_testv_and_writev(WE,
-                                            [],
-                                            [(0, data),],
-                                            new_length=200)
+        write("si1", secrets(0),
+              {0: ([], [(0,data)], 200), },
+              [])
 
         # read back the leases, make sure they're still intact.
         self.compare_leases_without_timestamps(all_leases,
                                                s0.debug_get_leases())
 
-        ss.remote_renew_lease("si1", self.renew_secret(secret))
-        ss.remote_renew_lease("si1", self.renew_secret(secret+1))
-        ss.remote_renew_lease("si1", self.renew_secret(secret+2))
-        ss.remote_renew_lease("si1", self.renew_secret(secret+3))
-        ss.remote_renew_lease("si1", self.renew_secret(secret+4))
+        ss.remote_renew_lease("si1", secrets(0)[1])
+        ss.remote_renew_lease("si1", secrets(1)[1])
+        ss.remote_renew_lease("si1", secrets(2)[1])
+        ss.remote_renew_lease("si1", secrets(3)[1])
+        ss.remote_renew_lease("si1", secrets(4)[1])
         self.compare_leases_without_timestamps(all_leases,
                                                s0.debug_get_leases())
         # get a new copy of the leases, with the current timestamps. Reading
@@ -782,40 +830,40 @@ class MutableServer(unittest.TestCase):
         # is present, to provide for share migration
         self.failUnlessRaises(IndexError,
                               ss.remote_renew_lease, "si1",
-                              self.renew_secret(secret+20))
+                              secrets(20)[1])
         # same for cancelling
         self.failUnlessRaises(IndexError,
                               ss.remote_cancel_lease, "si1",
-                              self.cancel_secret(secret+20))
-        self.failUnlessEqual(all_leases, s0.debug_get_leases())
-        s0.remote_read(0, 200)
+                              secrets(20)[2])
         self.failUnlessEqual(all_leases, s0.debug_get_leases())
 
-        answer = s0.remote_testv_and_writev(WE,
-                                            [],
-                                            [(200, "make me bigger"),],
-                                            new_length=None)
+        # reading shares should not modify the timestamp
+        read("si1", [], [(0,200)])
+        self.failUnlessEqual(all_leases, s0.debug_get_leases())
+
+        write("si1", secrets(0),
+              {0: ([], [(200, "make me bigger")], None)}, [])
         self.compare_leases_without_timestamps(all_leases,
                                                s0.debug_get_leases())
 
-        answer = s0.remote_testv_and_writev(WE,
-                                            [],
-                                            [(500, "make me really bigger"),],
-                                            new_length=None)
+        write("si1", secrets(0),
+              {0: ([], [(500, "make me really bigger")], None)}, [])
         self.compare_leases_without_timestamps(all_leases,
                                                s0.debug_get_leases())
 
         # now cancel them all
-        ss.remote_cancel_lease("si1", self.cancel_secret(secret))
-        ss.remote_cancel_lease("si1", self.cancel_secret(secret+1))
-        ss.remote_cancel_lease("si1", self.cancel_secret(secret+2))
-        ss.remote_cancel_lease("si1", self.cancel_secret(secret+3))
+        ss.remote_cancel_lease("si1", secrets(0)[2])
+        ss.remote_cancel_lease("si1", secrets(1)[2])
+        ss.remote_cancel_lease("si1", secrets(2)[2])
+        ss.remote_cancel_lease("si1", secrets(3)[2])
+
         # the slot should still be there
-        shares3 = ss.remote_get_mutable_slot("si1")
-        self.failUnlessEqual(len(shares3), 3)
+        remaining_shares = read("si1", [], [(0,10)])
+        self.failUnlessEqual(len(remaining_shares), 1)
         self.failUnlessEqual(len(s0.debug_get_leases()), 1)
 
-        ss.remote_cancel_lease("si1", self.cancel_secret(secret+4))
+        ss.remote_cancel_lease("si1", secrets(4)[2])
         # now the slot should be gone
-        self.failUnlessEqual(ss.remote_get_mutable_slot("si1"), {})
+        no_shares = read("si1", [], [(0,10)])
+        self.failUnlessEqual(no_shares, {})
 
