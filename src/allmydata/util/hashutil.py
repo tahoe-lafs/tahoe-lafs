@@ -120,6 +120,13 @@ def mutable_rwcap_key_hash(iv, writekey):
     return tagged_pair_hash("allmydata_mutable_rwcap_key_v1", iv, writekey)
 def ssk_writekey_hash(privkey):
     return tagged_hash("allmydata_mutable_writekey_v1", privkey)
+def ssk_write_enabler_master_hash(writekey):
+    return tagged_hash("allmydata_mutable_write_enabler_master_v1", writekey)
+def ssk_write_enabler_hash(writekey, nodeid):
+    assert len(nodeid) == 32 # binary!
+    wem = ssk_write_enabler_master_hash(writekey)
+    return tagged_pair_hash("allmydata_mutable_write_enabler_v1", wem, nodeid)
+
 def ssk_pubkey_fingerprint_hash(pubkey):
     return tagged_hash("allmydata_mutable_pubkey_v1", pubkey)
 

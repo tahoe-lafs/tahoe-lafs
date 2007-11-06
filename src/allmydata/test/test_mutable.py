@@ -46,10 +46,6 @@ class FakeFilenode(mutable.MutableFileNode):
     counter = itertools.count(1)
     all_contents = {}
 
-    def init_from_uri(self, myuri):
-        self._uri = myuri
-        self.writekey = myuri.writekey
-        return self
     def create(self, initial_contents):
         count = self.counter.next()
         self.init_from_uri(uri.WriteableSSKFileURI("key%d" % count,
@@ -72,7 +68,8 @@ class FakePublish(mutable.Publish):
         shares = self._peers[peerid]
         return defer.succeed(shares)
 
-    def _do_testreadwrite(self, conn, peerid, tw_vectors, read_vector):
+    def _do_testreadwrite(self, peerid, peer_storage_servers, secrets,
+                          tw_vectors, read_vector):
         # always-pass: parrot the test vectors back to them.
         readv = {}
         for shnum, (testv, datav, new_length) in tw_vectors.items():
@@ -93,6 +90,11 @@ class MyClient:
         self._num_peers = num_peers
         self._peerids = [tagged_hash("peerid", "%d" % i)
                          for i in range(self._num_peers)]
+
+    def get_renewal_secret(self):
+        return "I hereby permit you to renew my files"
+    def get_cancel_secret(self):
+        return "I hereby permit you to cancel my leases"
 
     def create_empty_dirnode(self):
         n = FakeNewDirectoryNode(self)

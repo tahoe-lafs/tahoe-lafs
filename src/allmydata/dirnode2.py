@@ -73,7 +73,7 @@ class NewDirectoryNode:
     def _encrypt_rwcap(self, rwcap):
         assert isinstance(rwcap, str)
         IV = os.urandom(16)
-        key = hashutil.mutable_rwcap_key_hash(IV, self._node.writekey)
+        key = hashutil.mutable_rwcap_key_hash(IV, self._node.get_writekey())
         counterstart = "\x00"*16
         cryptor = AES.new(key=key, mode=AES.MODE_CTR, counterstart=counterstart)
         crypttext = cryptor.encrypt(rwcap)
@@ -85,7 +85,7 @@ class NewDirectoryNode:
         IV = encwrcap[:16]
         crypttext = encwrcap[16:-32]
         mac = encwrcap[-32:]
-        key = hashutil.mutable_rwcap_key_hash(IV, self._node.writekey)
+        key = hashutil.mutable_rwcap_key_hash(IV, self._node.get_writekey())
         if mac != hashutil.hmac(key, IV+crypttext):
             raise IntegrityCheckError("HMAC does not match, crypttext is corrupted")
         counterstart = "\x00"*16

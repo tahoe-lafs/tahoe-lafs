@@ -41,6 +41,9 @@ class MutableFileNode:
         # wants to get our contents, we'll pull from shares and fill those
         # in.
         self._uri = IMutableFileURI(myuri)
+        self._writekey = self._uri.writekey
+        self._readkey = self._uri.readkey
+        self._storage_index = self._uri.storage_index
         return self
 
     def create(self, initial_contents):
@@ -57,6 +60,19 @@ class MutableFileNode:
         d = defer.succeed(None)
         return d
 
+
+    def get_write_enabler(self, nodeid):
+        return hashutil.ssk_write_enabler_hash(self._writekey, nodeid)
+    def get_renewal_secret(self, nodeid):
+        crs = self._client.get_renewal_secret()
+        frs = hashutil.file_renewal_secret_hash(crs, self._storage_index)
+        return hashutil.bucket_renewal_secret_hash(frs, nodeid)
+    def get_cancel_secret(self, nodeid):
+        ccs = self._client.get_cancel_secret()
+        fcs = hashutil.file_cancel_secret_hash(ccs, self._storage_index)
+        return hashutil.bucket_cancel_secret_hash(fcs, nodeid)
+    def get_writekey(self):
+        return self._writekey
 
     def get_uri(self):
         return self._uri.to_string()
@@ -482,8 +498,15 @@ class Publish(ShareFormattingMixin):
         dl = []
         # ok, send the messages!
         self._surprised = False
+
         for peerid, tw_vectors in peer_messages.items():
-            d = self._do_testreadwrite(peerid, peer_storage_servers,
+
+            write_enabler = self._node.get_write_enabler(peerid)
+            renew_secret = self._node.get_renewal_secret(peerid)
+            cancel_secret = self._node.get_cancel_secret(peerid)
+            secrets = (write_enabler, renew_secret, cancel_secret)
+
+            d = self._do_testreadwrite(peerid, peer_storage_servers, secrets,
                                        tw_vectors, read_vector)
             d.addCallback(self._got_write_answer,
                           peerid, expected_old_shares[peerid])
@@ -493,18 +516,14 @@ class Publish(ShareFormattingMixin):
         d.addCallback(lambda res: self._surprised)
         return d
 
-    def _do_testreadwrite(self, peerid, peer_storage_servers,
+    def _do_testreadwrite(self, peerid, peer_storage_servers, secrets,
                           tw_vectors, read_vector):
         conn = peer_storage_servers[peerid]
         storage_index = self._node._uri.storage_index
-        # TOTALLY BOGUS renew/cancel secrets
-        write_enabler = hashutil.tagged_hash("WEFOO", storage_index)
-        renew_secret = hashutil.tagged_hash("renewFOO", storage_index)
-        cancel_secret = hashutil.tagged_hash("cancelFOO", storage_index)
 
         d = conn.callRemote("slot_testv_and_readv_and_writev",
                             storage_index,
-                            (write_enabler, renew_secret, cancel_secret),
+                            secrets,
                             tw_vectors,
                             read_vector)
         return d
