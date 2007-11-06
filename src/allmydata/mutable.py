@@ -159,146 +159,6 @@ def pack_offsets(verification_key_length, signature_length,
                        offsets['enc_privkey'],
                        offsets['EOF'])
 
-# use client.create_mutable_file() to make one of these
-
-class MutableFileNode:
-    implements(IMutableFileNode)
-    publish_class = Publish
-    retrieve_class = Retrieve
-
-    def __init__(self, client):
-        self._client = client
-        self._pubkey = None # filled in upon first read
-        self._privkey = None # filled in if we're mutable
-        self._required_shares = None # ditto
-        self._total_shares = None # ditto
-        self._sharemap = {} # known shares, shnum-to-[nodeids]
-
-        self._current_data = None # SDMF: we're allowed to cache the contents
-        self._current_roothash = None # ditto
-        self._current_seqnum = None # ditto
-
-    def init_from_uri(self, myuri):
-        # we have the URI, but we have not yet retrieved the public
-        # verification key, nor things like 'k' or 'N'. If and when someone
-        # wants to get our contents, we'll pull from shares and fill those
-        # in.
-        self._uri = IMutableFileURI(myuri)
-        self._writekey = self._uri.writekey
-        self._readkey = self._uri.readkey
-        self._storage_index = self._uri.storage_index
-        return self
-
-    def create(self, initial_contents):
-        """Call this when the filenode is first created. This will generate
-        the keys, generate the initial shares, allocate shares, and upload
-        the initial contents. Returns a Deferred that fires (with the
-        MutableFileNode instance you should use) when it completes.
-        """
-        self._required_shares = 3
-        self._total_shares = 10
-        d = defer.maybeDeferred(self._generate_pubprivkeys)
-        def _generated( (pubkey, privkey) ):
-            self._pubkey, self._privkey = pubkey, privkey
-            pubkey_s = self._pubkey.serialize()
-            privkey_s = self._privkey.serialize()
-            self._writekey = hashutil.ssk_writekey_hash(privkey_s)
-            self._encprivkey = self._encrypt_privkey(self._writekey, privkey_s)
-            self._fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
-            self._uri = WriteableSSKFileURI(self._writekey, self._fingerprint)
-            self._readkey = self._uri.readkey
-            self._storage_index = self._uri.storage_index
-            # TODO: seqnum/roothash: really we mean "doesn't matter since
-            # nobody knows about us yet"
-            self._current_seqnum = 0
-            self._current_roothash = "\x00"*32
-            return self._publish(initial_contents)
-        d.addCallback(_generated)
-        return d
-
-    def _generate_pubprivkeys(self):
-        # TODO: wire these up to pycryptopp
-        privkey = "very private"
-        pubkey = "public"
-        return pubkey, privkey
-
-    def _publish(self, initial_contents):
-        p = self.publish_class(self)
-        d = p.publish(initial_contents)
-        d.addCallback(lambda res: self)
-        return d
-
-    def _encrypt_privkey(self, writekey, privkey):
-        enc = AES.new(key=writekey, mode=AES.MODE_CTR, counterstart="\x00"*16)
-        crypttext = enc.encrypt(privkey)
-        return crypttext
-
-    def get_write_enabler(self, nodeid):
-        return hashutil.ssk_write_enabler_hash(self._writekey, nodeid)
-    def get_renewal_secret(self, nodeid):
-        crs = self._client.get_renewal_secret()
-        frs = hashutil.file_renewal_secret_hash(crs, self._storage_index)
-        return hashutil.bucket_renewal_secret_hash(frs, nodeid)
-    def get_cancel_secret(self, nodeid):
-        ccs = self._client.get_cancel_secret()
-        fcs = hashutil.file_cancel_secret_hash(ccs, self._storage_index)
-        return hashutil.bucket_cancel_secret_hash(fcs, nodeid)
-
-    def get_writekey(self):
-        return self._writekey
-    def get_readkey(self):
-        return self._readkey
-    def get_storage_index(self):
-        return self._storage_index
-    def get_privkey(self):
-        return self._privkey
-    def get_encprivkey(self):
-        return self._encprivkey
-    def get_pubkey(self):
-        return self._pubkey
-
-    def get_required_shares(self):
-        return self._required_shares
-    def get_total_shares(self):
-        return self._total_shares
-
-
-    def get_uri(self):
-        return self._uri.to_string()
-
-    def is_mutable(self):
-        return self._uri.is_mutable()
-
-    def __hash__(self):
-        return hash((self.__class__, self.uri))
-    def __cmp__(self, them):
-        if cmp(type(self), type(them)):
-            return cmp(type(self), type(them))
-        if cmp(self.__class__, them.__class__):
-            return cmp(self.__class__, them.__class__)
-        return cmp(self.uri, them.uri)
-
-    def get_verifier(self):
-        return IMutableFileURI(self._uri).get_verifier()
-
-    def check(self):
-        verifier = self.get_verifier()
-        return self._client.getServiceNamed("checker").check(verifier)
-
-    def download(self, target):
-        #downloader = self._client.getServiceNamed("downloader")
-        #return downloader.download(self.uri, target)
-        raise NotImplementedError
-
-    def download_to_data(self):
-        #downloader = self._client.getServiceNamed("downloader")
-        #return downloader.download_to_data(self.uri)
-        return defer.succeed("this isn't going to fool you, is it")
-
-    def replace(self, newdata):
-        return defer.succeed(None)
-
-
 class Retrieve:
     def __init__(self, filenode):
         self._node = filenode
@@ -997,3 +857,142 @@ class Publish:
         # but dispatch_map will help us do it
         raise UncoordinatedWriteError("I was surprised!")
 
+
+# use client.create_mutable_file() to make one of these
+
+class MutableFileNode:
+    implements(IMutableFileNode)
+    publish_class = Publish
+    retrieve_class = Retrieve
+
+    def __init__(self, client):
+        self._client = client
+        self._pubkey = None # filled in upon first read
+        self._privkey = None # filled in if we're mutable
+        self._required_shares = None # ditto
+        self._total_shares = None # ditto
+        self._sharemap = {} # known shares, shnum-to-[nodeids]
+
+        self._current_data = None # SDMF: we're allowed to cache the contents
+        self._current_roothash = None # ditto
+        self._current_seqnum = None # ditto
+
+    def init_from_uri(self, myuri):
+        # we have the URI, but we have not yet retrieved the public
+        # verification key, nor things like 'k' or 'N'. If and when someone
+        # wants to get our contents, we'll pull from shares and fill those
+        # in.
+        self._uri = IMutableFileURI(myuri)
+        self._writekey = self._uri.writekey
+        self._readkey = self._uri.readkey
+        self._storage_index = self._uri.storage_index
+        return self
+
+    def create(self, initial_contents):
+        """Call this when the filenode is first created. This will generate
+        the keys, generate the initial shares, allocate shares, and upload
+        the initial contents. Returns a Deferred that fires (with the
+        MutableFileNode instance you should use) when it completes.
+        """
+        self._required_shares = 3
+        self._total_shares = 10
+        d = defer.maybeDeferred(self._generate_pubprivkeys)
+        def _generated( (pubkey, privkey) ):
+            self._pubkey, self._privkey = pubkey, privkey
+            pubkey_s = self._pubkey.serialize()
+            privkey_s = self._privkey.serialize()
+            self._writekey = hashutil.ssk_writekey_hash(privkey_s)
+            self._encprivkey = self._encrypt_privkey(self._writekey, privkey_s)
+            self._fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
+            self._uri = WriteableSSKFileURI(self._writekey, self._fingerprint)
+            self._readkey = self._uri.readkey
+            self._storage_index = self._uri.storage_index
+            # TODO: seqnum/roothash: really we mean "doesn't matter since
+            # nobody knows about us yet"
+            self._current_seqnum = 0
+            self._current_roothash = "\x00"*32
+            return self._publish(initial_contents)
+        d.addCallback(_generated)
+        return d
+
+    def _generate_pubprivkeys(self):
+        # TODO: wire these up to pycryptopp
+        privkey = "very private"
+        pubkey = "public"
+        return pubkey, privkey
+
+    def _publish(self, initial_contents):
+        p = self.publish_class(self)
+        d = p.publish(initial_contents)
+        d.addCallback(lambda res: self)
+        return d
+
+    def _encrypt_privkey(self, writekey, privkey):
+        enc = AES.new(key=writekey, mode=AES.MODE_CTR, counterstart="\x00"*16)
+        crypttext = enc.encrypt(privkey)
+        return crypttext
+
+    def get_write_enabler(self, nodeid):
+        return hashutil.ssk_write_enabler_hash(self._writekey, nodeid)
+    def get_renewal_secret(self, nodeid):
+        crs = self._client.get_renewal_secret()
+        frs = hashutil.file_renewal_secret_hash(crs, self._storage_index)
+        return hashutil.bucket_renewal_secret_hash(frs, nodeid)
+    def get_cancel_secret(self, nodeid):
+        ccs = self._client.get_cancel_secret()
+        fcs = hashutil.file_cancel_secret_hash(ccs, self._storage_index)
+        return hashutil.bucket_cancel_secret_hash(fcs, nodeid)
+
+    def get_writekey(self):
+        return self._writekey
+    def get_readkey(self):
+        return self._readkey
+    def get_storage_index(self):
+        return self._storage_index
+    def get_privkey(self):
+        return self._privkey
+    def get_encprivkey(self):
+        return self._encprivkey
+    def get_pubkey(self):
+        return self._pubkey
+
+    def get_required_shares(self):
+        return self._required_shares
+    def get_total_shares(self):
+        return self._total_shares
+
+
+    def get_uri(self):
+        return self._uri.to_string()
+
+    def is_mutable(self):
+        return self._uri.is_mutable()
+
+    def __hash__(self):
+        return hash((self.__class__, self.uri))
+    def __cmp__(self, them):
+        if cmp(type(self), type(them)):
+            return cmp(type(self), type(them))
+        if cmp(self.__class__, them.__class__):
+            return cmp(self.__class__, them.__class__)
+        return cmp(self.uri, them.uri)
+
+    def get_verifier(self):
+        return IMutableFileURI(self._uri).get_verifier()
+
+    def check(self):
+        verifier = self.get_verifier()
+        return self._client.getServiceNamed("checker").check(verifier)
+
+    def download(self, target):
+        #downloader = self._client.getServiceNamed("downloader")
+        #return downloader.download(self.uri, target)
+        raise NotImplementedError
+
+    def download_to_data(self):
+        #downloader = self._client.getServiceNamed("downloader")
+        #return downloader.download_to_data(self.uri)
+        return defer.succeed("this isn't going to fool you, is it")
+
+    def replace(self, newdata):
+        return defer.succeed(None)
