@@ -238,6 +238,27 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return d
     test_upload_and_download.timeout = 4800
 
+
+    def test_mutable(self):
+        self.basedir = "system/SystemTest/test_mutable"
+        DATA = "Some data to upload\n" * 200
+        d = self.set_up_nodes()
+
+        def _create_mutable(res):
+            from allmydata.mutable import MutableFileNode
+            #print "CREATING MUTABLE FILENODE"
+            c = self.clients[0]
+            n = MutableFileNode(c)
+            d1 = n.create("initial contents go here")
+            def _done(res):
+                log.msg("DONE: %s" % (res,))
+                #print "DONE", res
+            d1.addBoth(_done)
+            return d1
+        d.addCallback(_create_mutable)
+
+        return d
+
     def flip_bit(self, good):
         return good[:-1] + chr(ord(good[-1]) ^ 0x01)
 
