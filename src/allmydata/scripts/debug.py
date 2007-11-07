@@ -45,6 +45,13 @@ class DumpDirnodeOptions(BasedirMixin, usage.Options):
 def dump_share(config, out=sys.stdout, err=sys.stderr):
     from allmydata import uri, storage
 
+    # check the version, to see if we have a mutable or immutable share
+    f = open(config['filename'], "rb")
+    prefix = f.read(32)
+    f.close()
+    if prefix == storage.MutableShareFile.MAGIC:
+        return dump_mutable_share(config, out, err)
+    # otherwise assume it's immutable
     f = storage.ShareFile(config['filename'])
     # use a ReadBucketProxy to parse the bucket and find the uri extension
     bp = storage.ReadBucketProxy(None)
@@ -95,17 +102,11 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
         print >>out, "%19s: %s" % (k, sizes[k])
 
     # display lease information too
-    now = time.time()
     leases = list(f.iter_leases())
     if leases:
         for i,lease in enumerate(leases):
             (owner_num, renew_secret, cancel_secret, expiration_time) = lease
-            remains = expiration_time - now
-            when = "%ds" % remains
-            if remains > 24*3600:
-                when += " (%d days)" % (remains / (24*3600))
-            elif remains > 3600:
-                when += " (%d hours)" % (remains / 3600)
+            when = format_expiration_time(expiration_time)
             print >>out, "Lease #%d: owner=%d, expire in %s" % (i, owner_num,
                                                                 when)
     else:
@@ -113,6 +114,49 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
 
     print >>out
     return 0
+
+def format_expiration_time(expiration_time):
+    now = time.time()
+    remains = expiration_time - now
+    when = "%ds" % remains
+    if remains > 24*3600:
+        when += " (%d days)" % (remains / (24*3600))
+    elif remains > 3600:
+        when += " (%d hours)" % (remains / 3600)
+    return when
+
+
+def dump_mutable_share(config, out, err):
+    from allmydata import storage
+    from allmydata.util import idlib
+    m = storage.MutableShareFile(config['filename'])
+    f = open(config['filename'], "rb")
+    WE, nodeid = m._read_write_enabler_and_nodeid(f)
+    num_extra_leases = m._read_num_extra_leases(f)
+    data_length = m._read_data_length(f)
+    extra_lease_offset = m._read_extra_lease_offset(f)
+    leases = list(m._enumerate_leases(f))
+    f.close()
+
+    print >>out
+    print >>out, "write_enabler: %s" % idlib.b2a(WE)
+    print >>out, "WE for nodeid: %s" % idlib.nodeid_b2a(nodeid)
+    print >>out, "num_extra_leases: %d" % num_extra_leases
+    print >>out, "data_length: %d" % data_length
+    if leases:
+        for (leasenum, (oid,et,rs,cs,anid)) in leases:
+            print >>out, "Lease #%d:" % leasenum
+            print >>out, " ownerid: %d" % oid
+            when = format_expiration_time(et)
+            print >>out, " expires in %s" % when
+            print >>out, " renew_secret: %s" % idlib.b2a(rs)
+            print >>out, " cancel_secret: %s" % idlib.b2a(cs)
+            print >>out, " secrets are for nodeid: %s" % idlib.nodeid_b2a(anid)
+    else:
+        print >>out, "No leases."
+    print >>out
+    return 0
+
 
 def dump_root_dirnode(config, out=sys.stdout, err=sys.stderr):
     from allmydata import uri
