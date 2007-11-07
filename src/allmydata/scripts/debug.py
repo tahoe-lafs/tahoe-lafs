@@ -137,10 +137,17 @@ def dump_mutable_share(config, out, err):
     extra_lease_offset = m._read_extra_lease_offset(f)
     container_size = extra_lease_offset - m.DATA_OFFSET
     leases = list(m._enumerate_leases(f))
+
+    share_type = "unknown"
+    f.seek(m.DATA_OFFSET)
+    if f.read(1) == "\x00":
+        # this slot contains an SMDF share
+        share_type = "SDMF"
     f.close()
 
     print >>out
     print >>out, "Mutable slot found:"
+    print >>out, " share_type: %s" % share_type
     print >>out, " write_enabler: %s" % idlib.b2a(WE)
     print >>out, " WE for nodeid: %s" % idlib.nodeid_b2a(nodeid)
     print >>out, " num_extra_leases: %d" % num_extra_leases
@@ -159,7 +166,40 @@ def dump_mutable_share(config, out, err):
     else:
         print >>out, "No leases."
     print >>out
+
+    if share_type == "SDMF":
+        dump_SDMF_share(m.DATA_OFFSET, data_length, config, out, err)
+
     return 0
+
+def dump_SDMF_share(offset, length, config, out, err):
+    from allmydata import mutable
+    from allmydata.util import idlib
+
+    f = open(config['filename'], "rb")
+    f.seek(offset)
+    data = f.read(min(length, 2000))
+    f.close()
+
+    pieces = mutable.unpack_share(data)
+
+    (seqnum, root_hash, IV, k, N, segsize, datalen,
+     pubkey, signature, share_hash_chain, block_hash_tree,
+     share_data, enc_privkey) = pieces
+
+    print >>out, " SDMF contents:"
+    print >>out, "  seqnum: %d" % seqnum
+    print >>out, "  root_hash: %s" % idlib.b2a(root_hash)
+    print >>out, "  IV: %s" % idlib.b2a(IV)
+    print >>out, "  required_shares: %d" % k
+    print >>out, "  total_shares: %d" % N
+    print >>out, "  segsize: %d" % segsize
+    print >>out, "  datalen: %d" % datalen
+    share_hash_ids = ",".join([str(hid) for (hid,hash) in share_hash_chain])
+    print >>out, "  share_hash_chain: %s" % share_hash_ids
+    print >>out, "  block_hash_tree: %d nodes" % len(block_hash_tree)
+
+    print >>out
 
 
 def dump_root_dirnode(config, out=sys.stdout, err=sys.stderr):

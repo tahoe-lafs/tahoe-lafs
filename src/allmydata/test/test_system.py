@@ -287,12 +287,23 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             output = out.getvalue()
             self.failUnlessEqual(rc, 0)
             self.failUnless("Mutable slot found:\n" in output)
+            self.failUnless("share_type: SDMF\n" in output)
             peerid = idlib.nodeid_b2a(self.clients[client_num].nodeid)
             self.failUnless(" WE for nodeid: %s\n" % peerid in output)
             self.failUnless(" num_extra_leases: 0\n" in output)
             self.failUnless(" container_size: 381\n" in output)
             self.failUnless(" data_length: 381\n" in output)
             self.failUnless("  secrets are for nodeid: %s\n" % peerid in output)
+            self.failUnless(" SDMF contents:\n" in output)
+            self.failUnless("  seqnum: 1\n" in output)
+            self.failUnless("  required_shares: 3\n" in output)
+            self.failUnless("  total_shares: 10\n" in output)
+            self.failUnless("  segsize: 24\n" in output)
+            self.failUnless("  datalen: 24\n" in output)
+            # the exact share_hash_chain nodes depends upon the sharenum, and
+            # is more of a hassle to compute than I want to deal with now
+            self.failUnless("  share_hash_chain: " in output)
+            self.failUnless("  block_hash_tree: 1 nodes\n" in output)
         d.addCallback(_test_debug)
 
         return d
