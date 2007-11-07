@@ -919,6 +919,9 @@ class MutableFileNode:
         # TODO: wire these up to pycryptopp
         privkey = "very private"
         pubkey = "public"
+        from allmydata.test.test_mutable import FakePrivKey, FakePubKey
+        pubkey = FakePubKey(0)
+        privkey = FakePrivKey(0)
         return pubkey, privkey
 
     def _publish(self, initial_contents):
