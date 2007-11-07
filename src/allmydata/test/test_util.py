@@ -17,6 +17,8 @@ class IDLib(unittest.TestCase):
     def test_a2b(self):
         self.failUnlessEqual(idlib.a2b("ne4y"), "\x12\x34")
         self.failUnlessRaises(AssertionError, idlib.a2b, "b0gus")
+    def test_nodeid_b2a(self):
+        self.failUnlessEqual(idlib.nodeid_b2a("\x00"*20), "a"*32)
 
 class NoArgumentException(Exception):
     def __init__(self):

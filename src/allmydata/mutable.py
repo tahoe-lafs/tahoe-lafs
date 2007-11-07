@@ -27,9 +27,7 @@ class CorruptShareError(Exception):
         self.shnum = shnum
         self.reason = reason
     def __repr__(self):
-        # TODO: in some places we use idlib.b2a, in others (foolscap) we use
-        # stdlib b32encode. Fix this discrepancy.
-        short_peerid = idlib.b2a(self.peerid)[:8]
+        short_peerid = idlib.nodeid_b2a(self.peerid)[:8]
         return "<CorruptShareError peerid=%s shnum[%d]: %s" % (short_peerid,
                                                                self.shnum,
                                                                self.reason)
@@ -932,16 +930,19 @@ class MutableFileNode:
         crypttext = enc.encrypt(privkey)
         return crypttext
 
-    def get_write_enabler(self, nodeid):
-        return hashutil.ssk_write_enabler_hash(self._writekey, nodeid)
-    def get_renewal_secret(self, nodeid):
+    def get_write_enabler(self, peerid):
+        assert len(peerid) == 20
+        return hashutil.ssk_write_enabler_hash(self._writekey, peerid)
+    def get_renewal_secret(self, peerid):
+        assert len(peerid) == 20
         crs = self._client.get_renewal_secret()
         frs = hashutil.file_renewal_secret_hash(crs, self._storage_index)
-        return hashutil.bucket_renewal_secret_hash(frs, nodeid)
-    def get_cancel_secret(self, nodeid):
+        return hashutil.bucket_renewal_secret_hash(frs, peerid)
+    def get_cancel_secret(self, peerid):
+        assert len(peerid) == 20
         ccs = self._client.get_cancel_secret()
         fcs = hashutil.file_cancel_secret_hash(ccs, self._storage_index)
-        return hashutil.bucket_cancel_secret_hash(fcs, nodeid)
+        return hashutil.bucket_cancel_secret_hash(fcs, peerid)
 
     def get_writekey(self):
         return self._writekey

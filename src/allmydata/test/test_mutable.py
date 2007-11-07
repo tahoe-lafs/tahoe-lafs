@@ -103,7 +103,7 @@ class FakeNewDirectoryNode(dirnode2.NewDirectoryNode):
 class MyClient:
     def __init__(self, num_peers=10):
         self._num_peers = num_peers
-        self._peerids = [tagged_hash("peerid", "%d" % i)
+        self._peerids = [tagged_hash("peerid", "%d" % i)[:20]
                          for i in range(self._num_peers)]
 
     def get_renewal_secret(self):

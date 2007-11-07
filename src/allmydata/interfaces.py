@@ -215,6 +215,9 @@ class RIStorageServer(RemoteInterface):
 
          The write enabler was recorded by nodeid '%s'.
 
+        Note that the nodeid here is encoded using the same base32 encoding
+        used by Foolscap and allmydata.util.idlib.nodeid_b2a().
+
         """
         return TupleOf(bool, DictOf(int, ReadData))
 

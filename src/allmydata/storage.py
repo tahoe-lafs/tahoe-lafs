@@ -222,19 +222,19 @@ class BucketReader(Referenceable):
 
 # #   offset    size    name
 # 1   0         32      magic verstr "tahoe mutable container v1" plus binary
-# 2   32        32      write enabler's nodeid
-# 3   64        32      write enabler
-# 4   96        8       data size (actual share data present) (a)
-# 5   104       8       offset of (8) count of extra leases (after data)
-# 6   112       416     four leases, 104 bytes each
+# 2   32        20      write enabler's nodeid
+# 3   52        32      write enabler
+# 4   84        8       data size (actual share data present) (a)
+# 5   92        8       offset of (8) count of extra leases (after data)
+# 6   100       368     four leases, 92 bytes each
 #                        0    4   ownerid (0 means "no lease here")
 #                        4    4   expiration timestamp
 #                        8   32   renewal token
 #                        40  32   cancel token
-#                        72  32   nodeid which accepted the tokens
-# 7   528       (a)     data
+#                        72  20   nodeid which accepted the tokens
+# 7   468       (a)     data
 # 8   ??        4       count of extra leases
-# 9   ??        n*104    extra leases
+# 9   ??        n*92    extra leases
 
 
 assert struct.calcsize("L"), 4
@@ -242,13 +242,13 @@ assert struct.calcsize("Q"), 8
 
 class MutableShareFile:
 
-    DATA_LENGTH_OFFSET = struct.calcsize(">32s32s32s")
+    DATA_LENGTH_OFFSET = struct.calcsize(">32s20s32s")
     EXTRA_LEASE_OFFSET = DATA_LENGTH_OFFSET + 8
-    HEADER_SIZE = struct.calcsize(">32s32s32sQQ") # doesn't include leases
-    LEASE_SIZE = struct.calcsize(">LL32s32s32s")
-    assert LEASE_SIZE == 104
+    HEADER_SIZE = struct.calcsize(">32s20s32sQQ") # doesn't include leases
+    LEASE_SIZE = struct.calcsize(">LL32s32s20s")
+    assert LEASE_SIZE == 92
     DATA_OFFSET = HEADER_SIZE + 4*LEASE_SIZE
-    assert DATA_OFFSET == 528, DATA_OFFSET
+    assert DATA_OFFSET == 468, DATA_OFFSET
     # our sharefiles share with a recognizable string, plus some random
     # binary data to reduce the chance that a regular text file will look
     # like a sharefile.
@@ -266,7 +266,7 @@ class MutableShareFile:
             (magic,
              write_enabler_nodeid, write_enabler,
              data_length, extra_least_offset) = \
-             struct.unpack(">32s32s32sQQ", data)
+             struct.unpack(">32s20s32sQQ", data)
             assert magic == self.MAGIC
 
 
@@ -279,7 +279,7 @@ class MutableShareFile:
         assert extra_lease_offset == self.DATA_OFFSET # true at creation
         num_extra_leases = 0
         f = open(self.home, 'wb')
-        header = struct.pack(">32s32s32sQQ",
+        header = struct.pack(">32s20s32sQQ",
                              self.MAGIC, my_nodeid, write_enabler,
                              data_length, extra_lease_offset,
                              )
@@ -400,7 +400,7 @@ class MutableShareFile:
                       + (lease_number-4)*self.LEASE_SIZE)
         f.seek(offset)
         assert f.tell() == offset
-        f.write(struct.pack(">LL32s32s32s",
+        f.write(struct.pack(">LL32s32s20s",
                             ownerid, int(expiration_time),
                             renew_secret, cancel_secret, nodeid))
 
@@ -419,7 +419,7 @@ class MutableShareFile:
         f.seek(offset)
         assert f.tell() == offset
         data = f.read(self.LEASE_SIZE)
-        lease_info = struct.unpack(">LL32s32s32s", data)
+        lease_info = struct.unpack(">LL32s32s20s", data)
         (ownerid, expiration_time,
          renew_secret, cancel_secret, nodeid) = lease_info
         if ownerid == 0:
@@ -487,7 +487,7 @@ class MutableShareFile:
         # original server to a new one.
         msg = ("Unable to renew non-existent lease. I have leases accepted by"
                " nodeids: ")
-        msg += ",".join([("'%s'" % idlib.b2a(anid))
+        msg += ",".join([("'%s'" % idlib.nodeid_b2a(anid))
                          for anid in accepting_nodeids])
         msg += " ."
         raise IndexError(msg)
@@ -507,8 +507,7 @@ class MutableShareFile:
         accepting_nodeids = set()
         modified = 0
         remaining = 0
-        blank = "\x00"*32
-        blank_lease = (0, 0, blank, blank, blank)
+        blank_lease = (0, 0, "\x00"*32, "\x00"*32, "\x00"*20)
         f = open(self.home, 'rb+')
         for (leasenum,(oid,et,rs,cs,anid)) in self._enumerate_leases(f):
             accepting_nodeids.add(anid)
@@ -523,7 +522,7 @@ class MutableShareFile:
             return (remaining, freed_space)
         msg = ("Unable to cancel non-existent lease. I have leases "
                "accepted by nodeids: ")
-        msg += ",".join([("'%s'" % idlib.b2a(anid))
+        msg += ",".join([("'%s'" % idlib.nodeid_b2a(anid))
                          for anid in accepting_nodeids])
         msg += " ."
         raise IndexError(msg)
@@ -538,7 +537,7 @@ class MutableShareFile:
         (magic,
          write_enabler_nodeid, write_enabler,
          data_length, extra_least_offset) = \
-         struct.unpack(">32s32s32sQQ", data)
+         struct.unpack(">32s20s32sQQ", data)
         assert magic == self.MAGIC
         return (write_enabler, write_enabler_nodeid)
 
@@ -565,7 +564,7 @@ class MutableShareFile:
             # accomodate share migration by reporting the nodeid used for the
             # old write enabler.
             msg = "The write enabler was recorded by nodeid '%s'." % \
-                  (idlib.b2a(write_enabler_nodeid),)
+                  (idlib.nodeid_b2a(write_enabler_nodeid),)
             raise BadWriteEnablerError(msg)
 
     def check_testv(self, testv):
@@ -667,8 +666,7 @@ class StorageServer(service.MultiService, Referenceable):
         if self.parent:
             nodeid = self.parent.nodeid # 20 bytes, binary
             assert len(nodeid) == 20
-            self.setNodeID(nodeid + "\x00"*12) # make it 32 bytes
-            # TODO: review this 20-vs-32 thing, settle on one or the other
+            self.setNodeID(nodeid)
 
     def _clean_incomplete(self):
         fileutil.rm_dir(self.incomingdir)

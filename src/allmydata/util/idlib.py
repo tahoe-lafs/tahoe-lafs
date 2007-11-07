@@ -249,3 +249,7 @@ def a2b_l(cs, lengthinbits):
     precondition(b2a_l(res, lengthinbits) == cs, "cs is required to be the canonical base-32 encoding of some data.", b2a(res), res=res, cs=cs)
     return res
 
+from foolscap import base32
+def nodeid_b2a(nodeid):
+    # we display nodeids using the same base32 alphabet that Foolscap uses
+    return base32.encode(nodeid)

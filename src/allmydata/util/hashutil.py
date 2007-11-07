@@ -80,10 +80,12 @@ def file_cancel_secret_hash(client_cancel_secret, storage_index):
                             client_cancel_secret, storage_index)
 
 def bucket_renewal_secret_hash(file_renewal_secret, peerid):
+    assert len(peerid) == 20, "%s: %r" % (len(peerid), peerid) # binary!
     return tagged_pair_hash("bucket_renewal_secret",
                             file_renewal_secret, peerid)
 
 def bucket_cancel_secret_hash(file_cancel_secret, peerid):
+    assert len(peerid) == 20, "%s: %r" % (len(peerid), peerid) # binary!
     return tagged_pair_hash("bucket_cancel_secret",
                             file_cancel_secret, peerid)
 
@@ -122,10 +124,10 @@ def ssk_writekey_hash(privkey):
     return tagged_hash("allmydata_mutable_writekey_v1", privkey)
 def ssk_write_enabler_master_hash(writekey):
     return tagged_hash("allmydata_mutable_write_enabler_master_v1", writekey)
-def ssk_write_enabler_hash(writekey, nodeid):
-    assert len(nodeid) == 32 # binary!
+def ssk_write_enabler_hash(writekey, peerid):
+    assert len(peerid) == 20, "%s: %r" % (len(peerid), peerid) # binary!
     wem = ssk_write_enabler_master_hash(writekey)
-    return tagged_pair_hash("allmydata_mutable_write_enabler_v1", wem, nodeid)
+    return tagged_pair_hash("allmydata_mutable_write_enabler_v1", wem, peerid)
 
 def ssk_pubkey_fingerprint_hash(pubkey):
     return tagged_hash("allmydata_mutable_pubkey_v1", pubkey)
