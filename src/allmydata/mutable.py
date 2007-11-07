@@ -272,7 +272,8 @@ class Retrieve:
                 peer_storage_servers[peerid] = ss
                 return ss
             d.addCallback(_got_storageserver)
-        d.addCallback(lambda ss: ss.callRemote("readv_slots", [(0, readsize)]))
+        d.addCallback(lambda ss: ss.callRemote("slot_readv", storage_index,
+                                               [], [(0, readsize)]))
         d.addCallback(self._got_results, peerid, readsize)
         d.addErrback(self._query_failed, peerid, (conn, storage_index,
                                                   peer_storage_servers))
@@ -676,7 +677,8 @@ class Publish:
         peer_storage_servers = {}
         dl = []
         for (permutedid, peerid, conn) in partial_peerlist:
-            d = self._do_query(conn, peerid, peer_storage_servers)
+            d = self._do_query(conn, peerid, peer_storage_servers,
+                               storage_index)
             d.addCallback(self._got_query_results,
                           peerid, permutedid,
                           reachable_peers, current_share_peers)
@@ -688,11 +690,11 @@ class Publish:
         # TODO: add an errback to, probably to ignore that peer
         return d
 
-    def _do_query(self, conn, peerid, peer_storage_servers):
+    def _do_query(self, conn, peerid, peer_storage_servers, storage_index):
         d = conn.callRemote("get_service", "storageserver")
         def _got_storageserver(ss):
             peer_storage_servers[peerid] = ss
-            return ss.callRemote("readv_slots", [(0, 2000)])
+            return ss.callRemote("slot_readv", storage_index, [], [(0, 2000)])
         d.addCallback(_got_storageserver)
         return d
 
@@ -770,7 +772,7 @@ class Publish:
 
         for shnum, peers in target_map.items():
             for (peerid, old_seqnum, old_root_hash) in peers:
-                testv = [(0, len(my_checkstring), "ge", my_checkstring)]
+                testv = [(0, len(my_checkstring), "le", my_checkstring)]
                 new_share = self._new_shares[shnum]
                 writev = [(0, new_share)]
                 if peerid not in peer_messages:

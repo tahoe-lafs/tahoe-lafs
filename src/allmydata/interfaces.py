@@ -181,12 +181,15 @@ class RIStorageServer(RemoteInterface):
         Each share can have a separate test vector (i.e. a list of
         comparisons to perform). If all vectors for all shares pass, then all
         writes for all shares are recorded. Each comparison is a 4-tuple of
-        (offset, length, operator, specimen), which effectively does a
-        read(offset, length) and then compares the result against the
-        specimen using the given equality/inequality operator. Reads from the
-        end of the container are truncated, and missing shares behave like
-        empty ones, so to assert that a share doesn't exist (for use when
-        creating a new share), use (0, 1, 'eq', '').
+        (offset, length, operator, specimen), which effectively does a bool(
+        (read(offset, length)) OPERATOR specimen ) and only performs the
+        write if all these evaluate to True. Basic test-and-set uses 'eq'.
+        Write-if-newer uses a seqnum and (offset, length, 'lt', specimen).
+        Write-if-same-or-newer uses 'le'.
+
+        Reads from the end of the container are truncated, and missing shares
+        behave like empty ones, so to assert that a share doesn't exist (for
+        use when creating a new share), use (0, 1, 'eq', '').
 
         The write vector will be applied to the given share, expanding it if
         necessary. A write vector applied to a share number that did not

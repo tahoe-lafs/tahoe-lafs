@@ -64,7 +64,7 @@ class FakeFilenode(mutable.MutableFileNode):
         return "fake readonly"
 
 class FakePublish(mutable.Publish):
-    def _do_query(self, conn, peerid, peer_storage_servers):
+    def _do_query(self, conn, peerid, peer_storage_servers, storage_index):
         assert conn[0] == peerid
         shares = self._peers[peerid]
         return defer.succeed(shares)
