@@ -11,11 +11,12 @@ class BaseOptions:
 
     def opt_version(self):
         from twisted import copyright
-        import allmydata, zfec, foolscap
+        import allmydata, zfec, foolscap, pycryptopp
         print "Twisted version:", copyright.version
         print "Foolscap version:", foolscap.__version__
         print "zfec version:", zfec.__version__
         print "allmydata version:", allmydata.__version__
+        print "pycryptopp version:", pycryptopp.__version__
         sys.exit(0)
 
 
