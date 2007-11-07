@@ -146,7 +146,7 @@ class RIStorageServer(RemoteInterface):
         """Read a vector from the numbered shares associated with the given
         storage index. An empty shares list means to return data from all
         known shares. Returns a dictionary with one key per share."""
-        return DictOf(int, DataVector) # shnum -> results
+        return DictOf(int, ReadData) # shnum -> results
 
     def slot_testv_and_readv_and_writev(storage_index=StorageIndex,
                                         secrets=TupleOf(Hash, Hash, Hash),

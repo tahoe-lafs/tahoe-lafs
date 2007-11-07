@@ -241,7 +241,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
     def test_mutable(self):
         self.basedir = "system/SystemTest/test_mutable"
-        DATA = "Some data to upload\n" * 200
+        DATA = "initial contents go here."  # 25 bytes % 3 != 0
         d = self.set_up_nodes()
 
         def _create_mutable(res):
@@ -249,10 +249,12 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             #print "CREATING MUTABLE FILENODE"
             c = self.clients[0]
             n = MutableFileNode(c)
-            d1 = n.create("initial contents go here.") # 25 bytes % 3 != 0
+            d1 = n.create(DATA)
             def _done(res):
                 log.msg("DONE: %s" % (res,))
-                #print "DONE", res
+                self._mutable_node_1 = res
+                uri = res.get_uri()
+                #print "DONE", uri
             d1.addBoth(_done)
             return d1
         d.addCallback(_create_mutable)
@@ -313,6 +315,41 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 print output
                 raise
         d.addCallback(_test_debug)
+
+        # test retrieval
+
+        # first, let's see if we can use the existing node to retrieve the
+        # contents. This allows it to use the cached pubkey and maybe the
+        # latest-known sharemap.
+
+        d.addCallback(lambda res: self._mutable_node_1.download_to_data())
+        def _check_download_1(res):
+            #print "_check_download_1"
+            self.failUnlessEqual(res, DATA)
+            # now we see if we can retrieve the data from a new node,
+            # constructed using the URI of the original one. We do this test
+            # on the same client that uploaded the data.
+            #print "download1 good, starting download2"
+            uri = self._mutable_node_1.get_uri()
+            newnode = self.clients[0].create_mutable_file_from_uri(uri)
+            return newnode.download_to_data()
+            return d
+        d.addCallback(_check_download_1)
+
+        def _check_download_2(res):
+            #print "_check_download_2"
+            self.failUnlessEqual(res, DATA)
+            # same thing, but with a different client
+            #print "starting download 3"
+            uri = self._mutable_node_1.get_uri()
+            newnode = self.clients[1].create_mutable_file_from_uri(uri)
+            return newnode.download_to_data()
+        d.addCallback(_check_download_2)
+
+        def _check_download_3(res):
+            #print "_check_download_3"
+            self.failUnlessEqual(res, DATA)
+        d.addCallback(_check_download_3)
 
         return d
 
