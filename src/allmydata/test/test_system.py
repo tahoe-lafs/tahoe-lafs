@@ -8,7 +8,7 @@ from twisted.internet import threads # CLI tests use deferToThread
 from twisted.application import service
 from allmydata import client, uri, download, upload
 from allmydata.introducer_and_vdrive import IntroducerAndVdrive
-from allmydata.util import fileutil, testutil, deferredutil
+from allmydata.util import fileutil, testutil, deferredutil, idlib
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
 from allmydata.dirnode import NotMutableError
@@ -256,6 +256,43 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             d1.addBoth(_done)
             return d1
         d.addCallback(_create_mutable)
+
+        def _test_debug(res):
+            # find a share. It is important to run this while there is only
+            # one slot in the grid.
+            for (dirpath, dirnames, filenames) in os.walk(self.basedir):
+                if "storage" not in dirpath:
+                    continue
+                if not filenames:
+                    continue
+                pieces = dirpath.split(os.sep)
+                if pieces[-3] == "storage" and pieces[-2] == "shares":
+                    # we're sitting in .../storage/shares/$SINDEX , and there
+                    # are sharefiles here
+                    assert pieces[-4].startswith("client")
+                    client_num = int(pieces[-4][-1])
+                    filename = os.path.join(dirpath, filenames[0])
+                    break
+            else:
+                self.fail("unable to find any share files in %s"
+                          % self.basedir)
+            log.msg("test_system.SystemTest.test_mutable._test_debug using %s"
+                    % filename)
+            log.msg(" for clients[%d]" % client_num)
+
+            out,err = StringIO(), StringIO()
+            rc = runner.runner(["dump-share",
+                                filename],
+                               stdout=out, stderr=err)
+            output = out.getvalue()
+            self.failUnlessEqual(rc, 0)
+            self.failUnless("Mutable slot found:\n" in output)
+            peerid = idlib.nodeid_b2a(self.clients[client_num].nodeid)
+            self.failUnless(" WE for nodeid: %s\n" % peerid in output)
+            self.failUnless(" num_extra_leases: 0\n" in output)
+            self.failUnless(" data_length: 381\n" in output)
+            self.failUnless("  secrets are for nodeid: %s\n" % peerid in output)
+        d.addCallback(_test_debug)
 
         return d
 

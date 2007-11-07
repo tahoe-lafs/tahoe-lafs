@@ -139,19 +139,20 @@ def dump_mutable_share(config, out, err):
     f.close()
 
     print >>out
-    print >>out, "write_enabler: %s" % idlib.b2a(WE)
-    print >>out, "WE for nodeid: %s" % idlib.nodeid_b2a(nodeid)
-    print >>out, "num_extra_leases: %d" % num_extra_leases
-    print >>out, "data_length: %d" % data_length
+    print >>out, "Mutable slot found:"
+    print >>out, " write_enabler: %s" % idlib.b2a(WE)
+    print >>out, " WE for nodeid: %s" % idlib.nodeid_b2a(nodeid)
+    print >>out, " num_extra_leases: %d" % num_extra_leases
+    print >>out, " data_length: %d" % data_length
     if leases:
         for (leasenum, (oid,et,rs,cs,anid)) in leases:
-            print >>out, "Lease #%d:" % leasenum
-            print >>out, " ownerid: %d" % oid
+            print >>out, " Lease #%d:" % leasenum
+            print >>out, "  ownerid: %d" % oid
             when = format_expiration_time(et)
-            print >>out, " expires in %s" % when
-            print >>out, " renew_secret: %s" % idlib.b2a(rs)
-            print >>out, " cancel_secret: %s" % idlib.b2a(cs)
-            print >>out, " secrets are for nodeid: %s" % idlib.nodeid_b2a(anid)
+            print >>out, "  expires in %s" % when
+            print >>out, "  renew_secret: %s" % idlib.b2a(rs)
+            print >>out, "  cancel_secret: %s" % idlib.b2a(cs)
+            print >>out, "  secrets are for nodeid: %s" % idlib.nodeid_b2a(anid)
     else:
         print >>out, "No leases."
     print >>out
