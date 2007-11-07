@@ -71,6 +71,14 @@ The Manual Dependencies:
    Twisted distribution. Note that Twisted does *not* require the entire Zope
    distribution, merely the much smaller zope.interface component.
 
+ + OpenSSL, including development headers (cryptography library)
+
+   http://openssl.org
+  
+ + Crypto++, including development headers (cryptography library)
+
+   http://cryptopp.com
+
  + Python PyOpenSSL (0.6 or later) (secure transport layer)
 
    http://pyopenssl.sourceforge.net
@@ -79,10 +87,6 @@ The Manual Dependencies:
    with the cygwin package management tool, then get the pyOpenSSL source
    code, cd into it, and run "python ./setup.py install".
 
- + OpenSSL, including development headers (cryptography library)
-
-   http://openssl.org
-  
 
 GETTING THE SOURCE CODE:
 
@@ -119,9 +123,9 @@ Running-In-Place Way, and The Debian Way.  Choose one:
   'easy_install allmydata-tahoe' from any shell. That will download the most
   recent Tahoe source tarball, unpack it in a temporary directory, install it
   to the standard location, then download and install any easy_install-able
-  dependencies that you need (setuptools, zfec, foolscap, simplejson, and
-  nevow).  (This will work only if you already have the dependencies listed
-  in the MANUAL DEPENDENCIES section, above.)
+  dependencies that you need (setuptools, zfec, foolscap, simplejson, nevow,
+  and pycryptopp).  (This will work only if you already have the dependencies
+  listed in the MANUAL DEPENDENCIES section, above.)
 
  The Setuptools Way:
 
@@ -130,8 +134,8 @@ Running-In-Place Way, and The Debian Way.  Choose one:
   Run 'python setup.py install'. This will compile and install the Tahoe code
   to the standard location for your operating system (on unix, that is
   somewhere inside /usr/lib/). It will also acquire and install the
-  easy_install-able dependencies (setuptools, zfec, foolscap, simplejson, and
-  nevow) to the same place.
+  easy_install-able dependencies (setuptools, zfec, foolscap, simplejson,
+  nevow, and pycryptopp) to the same place.
 
   (To install it to a non-standard location, see
   http://allmydata.org/trac/tahoe/wiki/SetuptoolsAndGNUStow .)
@@ -143,8 +147,8 @@ Running-In-Place Way, and The Debian Way.  Choose one:
   1. Get the source code (see above).
 
   2. Run "make build-deps" to install the easy_install-able dependencies
-     (setuptools, zfec, foolscap, simplejson, and nevow) into a local
-     subdirectory of the Tahoe source distribution.
+     (setuptools, zfec, foolscap, simplejson, nevow, and pycryptopp) into a
+     local subdirectory of the Tahoe source distribution.
 
   3. Build Tahoe by running "make".
 
@@ -328,6 +332,15 @@ automatically installed as a side-effect of installing Tahoe.
    later.
 
    Nevow is packaged in a setuptools-compatible way and included in the
+   Python Package Index (PyPI), so it will be automatically installed when
+   you install Tahoe (see INSTALLING).  It can be manually installed by
+   running "easy_install nevow".
+
+ + Python pycryptopp (0.2.1 or later) (Python crypto library)
+
+   http://pypi.python.org/pypi/pycryptopp
+
+   pycryptopp is packaged in a setuptools-compatible way and included in the
    Python Package Index (PyPI), so it will be automatically installed when
    you install Tahoe (see INSTALLING).  It can be manually installed by
    running "easy_install nevow".
