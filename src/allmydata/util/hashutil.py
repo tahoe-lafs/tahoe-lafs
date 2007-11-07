@@ -137,4 +137,4 @@ def ssk_readkey_hash(writekey):
 def ssk_readkey_data_hash(IV, readkey):
     return tagged_pair_hash("allmydata_mutable_readkey_data_v1", IV, readkey)
 def ssk_storage_index_hash(readkey):
-    return tagged_hash("allmydata_mutable_storage_index_v1", readkey)
+    return tagged_hash("allmydata_mutable_storage_index_v1", readkey)[:16]
