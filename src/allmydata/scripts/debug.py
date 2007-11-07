@@ -135,6 +135,7 @@ def dump_mutable_share(config, out, err):
     num_extra_leases = m._read_num_extra_leases(f)
     data_length = m._read_data_length(f)
     extra_lease_offset = m._read_extra_lease_offset(f)
+    container_size = extra_lease_offset - m.DATA_OFFSET
     leases = list(m._enumerate_leases(f))
     f.close()
 
@@ -143,9 +144,11 @@ def dump_mutable_share(config, out, err):
     print >>out, " write_enabler: %s" % idlib.b2a(WE)
     print >>out, " WE for nodeid: %s" % idlib.nodeid_b2a(nodeid)
     print >>out, " num_extra_leases: %d" % num_extra_leases
+    print >>out, " container_size: %d" % container_size
     print >>out, " data_length: %d" % data_length
     if leases:
         for (leasenum, (oid,et,rs,cs,anid)) in leases:
+            print >>out
             print >>out, " Lease #%d:" % leasenum
             print >>out, "  ownerid: %d" % oid
             when = format_expiration_time(et)

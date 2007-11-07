@@ -290,6 +290,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             peerid = idlib.nodeid_b2a(self.clients[client_num].nodeid)
             self.failUnless(" WE for nodeid: %s\n" % peerid in output)
             self.failUnless(" num_extra_leases: 0\n" in output)
+            self.failUnless(" container_size: 381\n" in output)
             self.failUnless(" data_length: 381\n" in output)
             self.failUnless("  secrets are for nodeid: %s\n" % peerid in output)
         d.addCallback(_test_debug)
