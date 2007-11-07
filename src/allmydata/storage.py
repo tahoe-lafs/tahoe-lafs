@@ -656,6 +656,10 @@ class StorageServer(service.MultiService, Referenceable):
         self._active_writers = weakref.WeakKeyDictionary()
         self.measure_size()
 
+    def log(self, msg):
+        #self.parent.log(msg)
+        return
+
     def setNodeID(self, nodeid):
         # somebody must set this before any slots can be created or leases
         # added
@@ -880,12 +884,15 @@ class StorageServer(service.MultiService, Referenceable):
             (testv, datav, new_length) = test_and_write_vectors[sharenum]
             if sharenum in shares:
                 if not shares[sharenum].check_testv(testv):
+                    self.log("testv failed: [%d]: %r" % (sharenum, testv))
                     testv_is_good = False
                     break
             else:
                 # compare the vectors against an empty share, in which all
                 # reads return empty strings.
                 if not EmptyShare().check_testv(testv):
+                    self.log("testv failed (empty): [%d] %r" % (sharenum,
+                                                                testv))
                     testv_is_good = False
                     break
 
