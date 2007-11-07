@@ -82,20 +82,6 @@ class FakePublish(mutable.Publish):
         answer = (True, readv)
         return defer.succeed(answer)
 
-class FakeRetrieve(mutable.Retrieve):
-    def _do_query(self, args):
-        pass
-    def _deserialize_pubkey(self, pubkey_s):
-        return FakePubKey(134)
-
-class LessFakeFilenode(mutable.MutableFileNode):
-    publish_class = FakePublish
-    retrieve_class = FakeRetrieve
-
-    def _generate_pubprivkeys(self):
-        count = self.counter.next()
-        return FakePubKey(count), FakePrivKey(count)
-
 
 class FakeNewDirectoryNode(dirnode2.NewDirectoryNode):
     filenode_class = FakeFilenode
@@ -170,6 +156,7 @@ class Filenode(unittest.TestCase):
             return d
         d.addCallback(_created)
         return d
+
 
 class Publish(unittest.TestCase):
     def test_encrypt(self):
