@@ -391,15 +391,15 @@ offset is used both to terminate the share data and to begin the encprivkey).
        91       4        (11) share data
        95       8        (12) encrypted private key
        103      8        (13) EOF
- 7    111      256     verification key (2048 RSA key 'n' value, e=3)
- 8    367      256     signature=RSAenc(sigkey, H(version+seqnum+r+IV+encparm))
- 9    623      (a)     share hash chain, encoded as:
+ 7    111      292ish  verification key (2048 RSA key)
+ 8    367ish   256ish  signature=RSAenc(sigkey, H(version+seqnum+r+IV+encparm))
+ 9    623ish   (a)     share hash chain, encoded as:
                         "".join([pack(">H32s", shnum, hash)
                                  for (shnum,hash) in needed_hashes])
 10    ??       (b)     block hash tree, encoded as:
                         "".join([pack(">32s",hash) for hash in block_hash_tree])
 11    ??       LEN     share data (no gap between this and encprivkey)
-12    ??       256     encrypted private key= AESenc(write-key, RSA 'd' value)
+12    ??       1216ish encrypted private key= AESenc(write-key, RSA-key)
 13    ??       --      EOF
 
 (a) The share hash chain contains ceil(log(N)) hashes, each 32 bytes long.

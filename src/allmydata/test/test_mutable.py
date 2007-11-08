@@ -2,7 +2,7 @@
 import itertools, struct
 from twisted.trial import unittest
 from twisted.internet import defer
-from twisted.python import failure
+from twisted.python import failure, log
 from allmydata import mutable, uri, dirnode2
 from allmydata.dirnode2 import split_netstring
 from allmydata.util.hashutil import netstring, tagged_hash
@@ -91,6 +91,8 @@ class MyClient:
         self._num_peers = num_peers
         self._peerids = [tagged_hash("peerid", "%d" % i)[:20]
                          for i in range(self._num_peers)]
+    def log(self, msg):
+        log.msg(msg)
 
     def get_renewal_secret(self):
         return "I hereby permit you to renew my files"
@@ -167,11 +169,12 @@ class Publish(unittest.TestCase):
         CONTENTS = "some initial contents"
         fn.create(CONTENTS)
         p = mutable.Publish(fn)
-        d = defer.maybeDeferred(p._encrypt_and_encode,
+        target_info = None
+        d = defer.maybeDeferred(p._encrypt_and_encode, target_info,
                                 CONTENTS, "READKEY", "IV"*8, 3, 10)
         def _done( ((shares, share_ids),
                     required_shares, total_shares,
-                    segsize, data_length, IV) ):
+                    segsize, data_length, target_info2) ):
             self.failUnlessEqual(len(shares), 10)
             for sh in shares:
                 self.failUnless(isinstance(sh, str))
@@ -181,7 +184,7 @@ class Publish(unittest.TestCase):
             self.failUnlessEqual(total_shares, 10)
             self.failUnlessEqual(segsize, 21)
             self.failUnlessEqual(data_length, len(CONTENTS))
-            self.failUnlessEqual(len(IV), 16)
+            self.failUnlessIdentical(target_info, target_info2)
         d.addCallback(_done)
         return d
 
@@ -196,16 +199,19 @@ class Publish(unittest.TestCase):
         r = mutable.Retrieve(fn)
         # make some fake shares
         shares_and_ids = ( ["%07d" % i for i in range(10)], range(10) )
+        target_info = None
+        p._privkey = FakePrivKey(0)
+        p._encprivkey = "encprivkey"
+        p._pubkey = FakePubKey(0)
         d = defer.maybeDeferred(p._generate_shares,
                                 (shares_and_ids,
                                  3, 10,
                                  21, # segsize
                                  len(CONTENTS),
-                                 "IV"*8),
+                                 target_info),
                                 3, # seqnum
-                                FakePrivKey(0), "encprivkey", FakePubKey(0),
-                                )
-        def _done( (seqnum, root_hash, final_shares) ):
+                                "IV"*8)
+        def _done( (seqnum, root_hash, final_shares, target_info2) ):
             self.failUnlessEqual(seqnum, 3)
             self.failUnlessEqual(len(root_hash), 32)
             self.failUnless(isinstance(final_shares, dict))
@@ -243,6 +249,7 @@ class Publish(unittest.TestCase):
                 self.failUnlessEqual(IV, "IV"*8)
                 self.failUnlessEqual(len(share_data), len("%07d" % 1))
                 self.failUnlessEqual(enc_privkey, "encprivkey")
+            self.failUnlessIdentical(target_info, target_info2)
         d.addCallback(_done)
         return d
 
@@ -254,6 +261,7 @@ class Publish(unittest.TestCase):
         CONTENTS = "some initial contents"
         fn.create(CONTENTS)
         p = FakePublish(fn)
+        p._storage_index = "\x00"*32
         #r = mutable.Retrieve(fn)
         p._peers = {}
         for peerid in c._peerids:
@@ -279,13 +287,10 @@ class Publish(unittest.TestCase):
     def test_sharemap_20newpeers(self):
         c, p = self.setup_for_sharemap(20)
 
-        new_seqnum = 3
-        new_root_hash = "Rnew"
-        new_shares = None
         total_shares = 10
-        d = p._query_peers( (new_seqnum, new_root_hash, new_seqnum),
-                            total_shares)
-        def _done( (target_map, peer_storage_servers) ):
+        d = p._query_peers(total_shares)
+        def _done(target_info):
+            (target_map, shares_per_peer, peer_storage_servers) = target_info
             shares_per_peer = {}
             for shnum in target_map:
                 for (peerid, old_seqnum, old_R) in target_map[shnum]:
@@ -304,13 +309,10 @@ class Publish(unittest.TestCase):
     def test_sharemap_3newpeers(self):
         c, p = self.setup_for_sharemap(3)
 
-        new_seqnum = 3
-        new_root_hash = "Rnew"
-        new_shares = None
         total_shares = 10
-        d = p._query_peers( (new_seqnum, new_root_hash, new_seqnum),
-                            total_shares)
-        def _done( (target_map, peer_storage_servers) ):
+        d = p._query_peers(total_shares)
+        def _done(target_info):
+            (target_map, shares_per_peer, peer_storage_servers) = target_info
             shares_per_peer = {}
             for shnum in target_map:
                 for (peerid, old_seqnum, old_R) in target_map[shnum]:
@@ -327,37 +329,30 @@ class Publish(unittest.TestCase):
     def test_sharemap_nopeers(self):
         c, p = self.setup_for_sharemap(0)
 
-        new_seqnum = 3
-        new_root_hash = "Rnew"
-        new_shares = None
         total_shares = 10
         d = self.shouldFail(NotEnoughPeersError, "test_sharemap_nopeers",
-                            p._query_peers,
-                            (new_seqnum, new_root_hash, new_seqnum),
-                            total_shares)
+                            p._query_peers, total_shares)
         return d
-
-    def setup_for_write(self, num_peers, total_shares):
-        c, p = self.setup_for_sharemap(num_peers)
-        # make some fake shares
-        CONTENTS = "some initial contents"
-        shares_and_ids = ( ["%07d" % i for i in range(10)], range(10) )
-        d = defer.maybeDeferred(p._generate_shares,
-                                (shares_and_ids,
-                                 3, total_shares,
-                                 21, # segsize
-                                 len(CONTENTS),
-                                 "IV"*8),
-                                3, # seqnum
-                                FakePrivKey(0), "encprivkey", FakePubKey(0),
-                                )
-        return d, p
 
     def test_write(self):
         total_shares = 10
-        d, p = self.setup_for_write(20, total_shares)
-        d.addCallback(p._query_peers, total_shares)
+        c, p = self.setup_for_sharemap(20)
+        p._privkey = FakePrivKey(0)
+        p._encprivkey = "encprivkey"
+        p._pubkey = FakePubKey(0)
+        # make some fake shares
+        CONTENTS = "some initial contents"
+        shares_and_ids = ( ["%07d" % i for i in range(10)], range(10) )
+        d = defer.maybeDeferred(p._query_peers, total_shares)
         IV = "IV"*8
+        d.addCallback(lambda target_info:
+                      p._generate_shares( (shares_and_ids,
+                                           3, total_shares,
+                                           21, # segsize
+                                           len(CONTENTS),
+                                           target_info),
+                                          3, # seqnum
+                                          IV))
         d.addCallback(p._send_shares, IV)
         def _done((surprised, dispatch_map)):
             self.failIf(surprised, "surprised!")
@@ -387,7 +382,6 @@ class Publish(unittest.TestCase):
         d.addCallback(_done)
         return d
 
-del Publish # gotta run, will fix this in a few hours
 
 class FakePubKey:
     def __init__(self, count):
