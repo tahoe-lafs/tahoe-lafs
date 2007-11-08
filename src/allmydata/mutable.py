@@ -3,7 +3,7 @@ import os, struct
 from itertools import islice
 from zope.interface import implements
 from twisted.internet import defer
-from twisted.python import failure
+from twisted.python import failure, log
 from foolscap.eventual import eventually
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI
 from allmydata.util import hashutil, mathutil, idlib
@@ -172,6 +172,9 @@ class Retrieve:
         #self._node._client.log(msg)
         pass
 
+    def log_err(self, f):
+        log.err(f)
+
     def retrieve(self):
         """Retrieve the filenode's current contents. Returns a Deferred that
         fires with a string when the contents have been retrieved."""
@@ -303,6 +306,10 @@ class Retrieve:
         d.addCallback(self._got_results, peerid, readsize)
         d.addErrback(self._query_failed, peerid, (conn, storage_index,
                                                   peer_storage_servers))
+        # errors that aren't handled by _query_failed (and errors caused by
+        # _query_failed) get logged, but we still want to check for doneness.
+        d.addErrback(log.err)
+        d.addBoth(self._check_for_done)
         return d
 
     def _deserialize_pubkey(self, pubkey_s):
@@ -358,8 +365,6 @@ class Retrieve:
             _ignored = unpack_share(data)
             self._valid_versions[verinfo][1].add(shnum, (peerid, data))
 
-        self._check_for_done()
-
 
     def _query_failed(self, f, peerid, stuff):
         self._queries_outstanding.discard(peerid)
@@ -380,9 +385,10 @@ class Retrieve:
             self.log("WEIRD: bad share for %s: %s" % (short_sid, f))
         else:
             self.log("WEIRD: other error for %s: %s" % (short_sid, f))
-        self._check_for_done()
 
-    def _check_for_done(self):
+    def _check_for_done(self, res):
+        if not self._running:
+            return
         share_prefixes = {}
         versionmap = DictOfSets()
         for verinfo, (prefix, sharemap) in self._valid_versions.items():
