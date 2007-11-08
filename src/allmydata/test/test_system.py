@@ -1,6 +1,6 @@
 
 from base64 import b32encode
-import os, sys, time
+import os, sys, time, re
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
@@ -294,8 +294,16 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 peerid = idlib.nodeid_b2a(self.clients[client_num].nodeid)
                 self.failUnless(" WE for nodeid: %s\n" % peerid in output)
                 self.failUnless(" num_extra_leases: 0\n" in output)
-                self.failUnless(" container_size: 382\n" in output)
-                self.failUnless(" data_length: 382\n" in output)
+                # the pubkey size can vary by a byte, so the container might
+                # be a bit larger on some runs.
+                m = re.search(r'^ container_size: (\d+)$', output, re.M)
+                self.failUnless(m)
+                container_size = int(m.group(1))
+                self.failUnless(2046 <= container_size <= 2049)
+                m = re.search(r'^ data_length: (\d+)$', output, re.M)
+                self.failUnless(m)
+                data_length = int(m.group(1))
+                self.failUnless(2046 <= data_length <= 2049)
                 self.failUnless("  secrets are for nodeid: %s\n" % peerid
                                 in output)
                 self.failUnless(" SDMF contents:\n" in output)

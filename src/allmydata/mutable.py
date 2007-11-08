@@ -11,6 +11,7 @@ from allmydata.uri import WriteableSSKFileURI
 from allmydata.Crypto.Cipher import AES
 from allmydata import hashtree, codec
 from allmydata.encode import NotEnoughPeersError
+from pycryptopp.publickey import rsa
 
 
 class NeedMoreDataError(Exception):
@@ -313,10 +314,8 @@ class Retrieve:
         return d
 
     def _deserialize_pubkey(self, pubkey_s):
-        # TODO
-        from allmydata.test.test_mutable import FakePubKey
-        return FakePubKey(0)
-        return None
+        verifier = rsa.create_verifying_key_from_string(pubkey_s)
+        return verifier
 
     def _got_results(self, datavs, peerid, readsize):
         self._queries_outstanding.discard(peerid)
@@ -957,6 +956,7 @@ class MutableFileNode:
     implements(IMutableFileNode)
     publish_class = Publish
     retrieve_class = Retrieve
+    SIGNATURE_KEY_SIZE = 2048
 
     def __init__(self, client):
         self._client = client
@@ -1010,13 +1010,10 @@ class MutableFileNode:
         return d
 
     def _generate_pubprivkeys(self):
-        # TODO: wire these up to pycryptopp
-        privkey = "very private"
-        pubkey = "public"
-        from allmydata.test.test_mutable import FakePrivKey, FakePubKey
-        pubkey = FakePubKey(0)
-        privkey = FakePrivKey(0)
-        return pubkey, privkey
+        # RSA key generation for a 2048 bit key takes between 0.8 and 3.2 secs
+        signer = rsa.generate(self.SIGNATURE_KEY_SIZE)
+        verifier = signer.get_verifying_key()
+        return verifier, signer
 
     def _publish(self, initial_contents):
         p = self.publish_class(self)
