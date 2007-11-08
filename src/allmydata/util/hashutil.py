@@ -1,17 +1,17 @@
-from allmydata.Crypto.Hash import SHA256
+from pycryptopp.hash.sha256 import SHA256
 import os
 
 def netstring(s):
     return "%d:%s," % (len(s), s,)
 
 def tagged_hash(tag, val):
-    s = SHA256.new()
+    s = SHA256()
     s.update(netstring(tag))
     s.update(val)
     return s.digest()
 
 def tagged_pair_hash(tag, val1, val2):
-    s = SHA256.new()
+    s = SHA256()
     s.update(netstring(tag))
     s.update(netstring(val1))
     s.update(netstring(val2))
@@ -20,7 +20,7 @@ def tagged_pair_hash(tag, val1, val2):
 # specific hash tags that we use
 
 def tagged_hasher(tag):
-    return SHA256.new(netstring(tag))
+    return SHA256(netstring(tag))
 
 def storage_index_chk_hash(data):
     # storage index is truncated to 128 bits (16 bytes). We're only hashing a
@@ -114,8 +114,8 @@ def _xor(a, b):
 def hmac(tag, data):
     ikey = _xor(tag, "\x36")
     okey = _xor(tag, "\x5c")
-    h1 = SHA256.new(ikey + data).digest()
-    h2 = SHA256.new(okey + h1).digest()
+    h1 = SHA256(ikey + data).digest()
+    h2 = SHA256(okey + h1).digest()
     return h2
 
 def mutable_rwcap_key_hash(iv, writekey):
