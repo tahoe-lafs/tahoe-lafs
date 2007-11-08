@@ -181,7 +181,16 @@ def dump_SDMF_share(offset, length, config, out, err):
     data = f.read(min(length, 2000))
     f.close()
 
-    pieces = mutable.unpack_share(data)
+    try:
+        pieces = mutable.unpack_share(data)
+    except mutable.NeedMoreDataError, e:
+        # retry once with the larger size
+        size = e.needed_bytes
+        f = open(config['filename'], "rb")
+        f.seek(offset)
+        data = f.read(min(length, size))
+        f.close()
+        pieces = mutable.unpack_share(data)
 
     (seqnum, root_hash, IV, k, N, segsize, datalen,
      pubkey, signature, share_hash_chain, block_hash_tree,

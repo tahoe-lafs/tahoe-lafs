@@ -18,6 +18,8 @@ class NeedMoreDataError(Exception):
     def __init__(self, needed_bytes):
         Exception.__init__(self)
         self.needed_bytes = needed_bytes
+    def __str__(self):
+        return "<NeedMoreDataError (%d bytes)>" % self.needed_bytes
 
 class UncoordinatedWriteError(Exception):
     pass
@@ -372,7 +374,7 @@ class Retrieve:
             return
         if f.check(NeedMoreDataError):
             # ah, just re-send the query then.
-            self._read_size = max(self._read_size, f.needed_bytes)
+            self._read_size = max(self._read_size, f.value.needed_bytes)
             (conn, storage_index, peer_storage_servers) = stuff
             self._do_query(conn, peerid, storage_index, self._read_size,
                            peer_storage_servers)
