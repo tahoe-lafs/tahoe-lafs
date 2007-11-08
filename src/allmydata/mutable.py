@@ -745,11 +745,13 @@ class Publish:
             (seqnum, root_hash, IV, k, N, segsize, datalen,
              pubkey_s, signature, prefix) = r
 
-            # TODO: consider verifying the signature here. It's expensive.
-            # What can an attacker (in this case the server) accomplish? They
-            # could make us think that there's a newer version of the file
-            # out there, which would cause us to throw
-            # UncoordinatedWriteError (i.e. it's a DoS attack).
+            # self._pubkey is present because we require read-before-replace
+            valid = self._pubkey.verify(prefix, signature)
+            if not valid:
+                self.log("WEIRD: bad signature from %s shnum %d" %
+                         (shnum, idlib.shortnodeid_b2a(peerid)))
+                continue
+
             share = (shnum, seqnum, root_hash)
             current_share_peers.add(shnum, (peerid, seqnum, root_hash) )
 
