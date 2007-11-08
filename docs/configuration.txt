@@ -53,8 +53,14 @@ for debugging.  To cause the node to accept SSH connections on port 8022,
 symlink "authorized_keys.8022" to your ~/.ssh/authorized_keys file, and it
 will accept the same keys as the rest of your account.
 
-sizelimit: If present, this file limits the storage for share data on
-this client.
+sizelimit: If present, this file establishes an upper bound (in bytes) on the
+amount of storage consumed by share data (data that your node holds on behalf
+of clients that are uploading files to the grid). To avoid providing more
+than 100MB of data to other clients, write "100000000" into this file. Note
+that this is a fairly loose bound, and the node may occasionally use slightly
+more storage than this. To enforce a stronger (and possibly more reliable)
+limit, use a symlink to place the 'storage/' directory on a separate
+size-limited filesystem, and/or use per-user OS/filesystem quotas.
 
 == Node State ==
 
