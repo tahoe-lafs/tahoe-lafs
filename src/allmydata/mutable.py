@@ -891,10 +891,16 @@ class Publish:
 
         # now apply FEC
         self.MAX_SEGMENT_SIZE = 1024*1024
+        data_length = len(crypttext)
+        if len(crypttext) < 10:
+            # TODO: FEC doesn't handle short (or empty) strings very well, so
+            # give it something longer and we'll trim the results later. For
+            # some reason I suspect the lower limit is k**2
+            crypttext = crypttext + "\x00"*(10-len(crypttext))
+
         segment_size = min(self.MAX_SEGMENT_SIZE, len(crypttext))
         # this must be a multiple of self.required_shares
-        segment_size = mathutil.next_multiple(segment_size,
-                                                   required_shares)
+        segment_size = mathutil.next_multiple(segment_size, required_shares)
         self.num_segments = mathutil.div_ceil(len(crypttext), segment_size)
         assert self.num_segments == 1 # SDMF restrictions
         fec = codec.CRSEncoder()
@@ -913,7 +919,7 @@ class Publish:
         d.addCallback(lambda shares_and_shareids:
                       (shares_and_shareids,
                        required_shares, total_shares,
-                       segment_size, len(crypttext),
+                       segment_size, data_length,
                        target_info) )
         return d
 
