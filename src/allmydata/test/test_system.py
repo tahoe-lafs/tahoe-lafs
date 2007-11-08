@@ -299,11 +299,11 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 m = re.search(r'^ container_size: (\d+)$', output, re.M)
                 self.failUnless(m)
                 container_size = int(m.group(1))
-                self.failUnless(2045 <= container_size <= 2049, container_size)
+                self.failUnless(2044 <= container_size <= 2049, container_size)
                 m = re.search(r'^ data_length: (\d+)$', output, re.M)
                 self.failUnless(m)
                 data_length = int(m.group(1))
-                self.failUnless(2045 <= data_length <= 2049, data_length)
+                self.failUnless(2044 <= data_length <= 2049, data_length)
                 self.failUnless("  secrets are for nodeid: %s\n" % peerid
                                 in output)
                 self.failUnless(" SDMF contents:\n" in output)
