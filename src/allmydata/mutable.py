@@ -1264,6 +1264,9 @@ class MutableFileNode:
 
     def is_mutable(self):
         return self._uri.is_mutable()
+    def is_readonly(self):
+        # but maybe not you
+        return self._uri.is_readonly()
 
     def __hash__(self):
         return hash((self.__class__, self.uri))

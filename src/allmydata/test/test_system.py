@@ -378,7 +378,25 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _check_download_5(res):
             log.msg("finished replace2")
             self.failUnlessEqual(res, NEWERDATA)
+            # make sure we can create empty files, this usually screws up the
+            # segsize math
+            d1 = self.clients[2].create_mutable_file("")
+            d1.addCallback(lambda newnode: newnode.download_to_data())
+            d1.addCallback(lambda res: self.failUnlessEqual("", res))
+            return d1
         d.addCallback(_check_download_5)
+
+        d.addCallback(lambda res: self.clients[0].create_empty_dirnode())
+        def _created_dirnode(dnode):
+            d1 = dnode.list()
+            d1.addCallback(lambda children: self.failUnlessEqual(children, {}))
+            d1.addCallback(lambda res: dnode.has_child("edgar"))
+            d1.addCallback(lambda answer: self.failUnlessEqual(answer, False))
+            d1.addCallback(lambda res: dnode.set_node("see recursive", dnode))
+            d1.addCallback(lambda res: dnode.has_child("see recursive"))
+            d1.addCallback(lambda answer: self.failUnlessEqual(answer, True))
+            return d1
+        d.addCallback(_created_dirnode)
 
         return d
 
