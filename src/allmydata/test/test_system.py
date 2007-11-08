@@ -248,16 +248,13 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d = self.set_up_nodes()
 
         def _create_mutable(res):
-            from allmydata.mutable import MutableFileNode
-            #print "CREATING MUTABLE FILENODE"
             c = self.clients[0]
-            n = MutableFileNode(c)
-            d1 = n.create(DATA)
+            log.msg("starting create_mutable_file")
+            d1 = c.create_mutable_file(DATA)
             def _done(res):
                 log.msg("DONE: %s" % (res,))
                 self._mutable_node_1 = res
                 uri = res.get_uri()
-                #print "DONE", uri
             d1.addCallback(_done)
             return d1
         d.addCallback(_create_mutable)
@@ -335,57 +332,53 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
         d.addCallback(lambda res: self._mutable_node_1.download_to_data())
         def _check_download_1(res):
-            #print "_check_download_1"
             self.failUnlessEqual(res, DATA)
             # now we see if we can retrieve the data from a new node,
             # constructed using the URI of the original one. We do this test
             # on the same client that uploaded the data.
-            #print "download1 good, starting download2"
             uri = self._mutable_node_1.get_uri()
+            log.msg("starting retrieve1")
             newnode = self.clients[0].create_mutable_file_from_uri(uri)
             return newnode.download_to_data()
-            return d
         d.addCallback(_check_download_1)
 
         def _check_download_2(res):
-            #print "_check_download_2"
             self.failUnlessEqual(res, DATA)
             # same thing, but with a different client
-            #print "starting download 3"
             uri = self._mutable_node_1.get_uri()
             newnode = self.clients[1].create_mutable_file_from_uri(uri)
+            log.msg("starting retrieve2")
             d1 = newnode.download_to_data()
             d1.addCallback(lambda res: (res, newnode))
             return d1
         d.addCallback(_check_download_2)
 
         def _check_download_3((res, newnode)):
-            #print "_check_download_3"
             self.failUnlessEqual(res, DATA)
             # replace the data
-            #print "REPLACING"
+            log.msg("starting replace1")
             d1 = newnode.replace(NEWDATA)
             d1.addCallback(lambda res: newnode.download_to_data())
             return d1
         d.addCallback(_check_download_3)
 
         def _check_download_4(res):
-            print "_check_download_4"
             self.failUnlessEqual(res, NEWDATA)
             # now create an even newer node and replace the data on it. This
             # new node has never been used for download before.
             uri = self._mutable_node_1.get_uri()
             newnode1 = self.clients[2].create_mutable_file_from_uri(uri)
             newnode2 = self.clients[3].create_mutable_file_from_uri(uri)
+            log.msg("starting replace2")
             d1 = newnode1.replace(NEWERDATA)
             d1.addCallback(lambda res: newnode2.download_to_data())
             return d1
-        #d.addCallback(_check_download_4)
+        d.addCallback(_check_download_4)
 
         def _check_download_5(res):
-            print "_check_download_5"
+            log.msg("finished replace2")
             self.failUnlessEqual(res, NEWERDATA)
-        #d.addCallback(_check_download_5)
+        d.addCallback(_check_download_5)
 
         return d
 
