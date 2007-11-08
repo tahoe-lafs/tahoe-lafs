@@ -111,7 +111,7 @@ for help on installing dependencies."
 
 check-deps: check-twisted-dep $(CHECK_PYWIN32_DEP)
 	$(PP) \
-	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, OpenSSL' || $(MAKE) signal-error-deps
+	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, OpenSSL, pycryptopp' || $(MAKE) signal-error-deps
 
 check-twisted-dep:
 	$(PYTHON) -c 'import twisted, zope.interface' || $(MAKE) signal-error-twisted-dep
