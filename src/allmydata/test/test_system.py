@@ -242,6 +242,9 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     def test_mutable(self):
         self.basedir = "system/SystemTest/test_mutable"
         DATA = "initial contents go here."  # 25 bytes % 3 != 0
+        NEWDATA = "new contents yay"
+        NEWERDATA = "this is getting old"
+
         d = self.set_up_nodes()
 
         def _create_mutable(res):
@@ -255,7 +258,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 self._mutable_node_1 = res
                 uri = res.get_uri()
                 #print "DONE", uri
-            d1.addBoth(_done)
+            d1.addCallback(_done)
             return d1
         d.addCallback(_create_mutable)
 
@@ -299,11 +302,11 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 m = re.search(r'^ container_size: (\d+)$', output, re.M)
                 self.failUnless(m)
                 container_size = int(m.group(1))
-                self.failUnless(2046 <= container_size <= 2049)
+                self.failUnless(2046 <= container_size <= 2049, container_size)
                 m = re.search(r'^ data_length: (\d+)$', output, re.M)
                 self.failUnless(m)
                 data_length = int(m.group(1))
-                self.failUnless(2046 <= data_length <= 2049)
+                self.failUnless(2046 <= data_length <= 2049, data_length)
                 self.failUnless("  secrets are for nodeid: %s\n" % peerid
                                 in output)
                 self.failUnless(" SDMF contents:\n" in output)
@@ -351,13 +354,38 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             #print "starting download 3"
             uri = self._mutable_node_1.get_uri()
             newnode = self.clients[1].create_mutable_file_from_uri(uri)
-            return newnode.download_to_data()
+            d1 = newnode.download_to_data()
+            d1.addCallback(lambda res: (res, newnode))
+            return d1
         d.addCallback(_check_download_2)
 
-        def _check_download_3(res):
+        def _check_download_3((res, newnode)):
             #print "_check_download_3"
             self.failUnlessEqual(res, DATA)
+            # replace the data
+            #print "REPLACING"
+            d1 = newnode.replace(NEWDATA)
+            d1.addCallback(lambda res: newnode.download_to_data())
+            return d1
         d.addCallback(_check_download_3)
+
+        def _check_download_4(res):
+            print "_check_download_4"
+            self.failUnlessEqual(res, NEWDATA)
+            # now create an even newer node and replace the data on it. This
+            # new node has never been used for download before.
+            uri = self._mutable_node_1.get_uri()
+            newnode1 = self.clients[2].create_mutable_file_from_uri(uri)
+            newnode2 = self.clients[3].create_mutable_file_from_uri(uri)
+            d1 = newnode1.replace(NEWERDATA)
+            d1.addCallback(lambda res: newnode2.download_to_data())
+            return d1
+        #d.addCallback(_check_download_4)
+
+        def _check_download_5(res):
+            print "_check_download_5"
+            self.failUnlessEqual(res, NEWERDATA)
+        #d.addCallback(_check_download_5)
 
         return d
 

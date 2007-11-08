@@ -387,6 +387,7 @@ class Publish(unittest.TestCase):
         d.addCallback(_done)
         return d
 
+del Publish # gotta run, will fix this in a few hours
 
 class FakePubKey:
     def __init__(self, count):
