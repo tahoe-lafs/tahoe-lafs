@@ -20,16 +20,19 @@
 # Inc., please contact partnerships@allmydata.com and visit
 # http://allmydata.com/.
 
-from ez_setup import use_setuptools
-import sys
-if 'cygwin' in sys.platform.lower():
-    min_version='0.6c6'
+import sys, re, os.path
+try:
+    from ez_setup import use_setuptools
+except ImportError:
+    pass
 else:
-    min_version='0.6a9'
-use_setuptools(min_version=min_version, download_base="file:misc/dependencies/", download_delay=0)
+    if 'cygwin' in sys.platform.lower():
+        min_version='0.6c6'
+    else:
+        min_version='0.6a9'
+    use_setuptools(min_version=min_version, download_base="file:misc/dependencies/", download_delay=0)
 
 from setuptools import Extension, setup
-import re, os.path
 
 from calcdeps import install_requires, dependency_links
 
