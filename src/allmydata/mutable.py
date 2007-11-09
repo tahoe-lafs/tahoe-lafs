@@ -1148,7 +1148,8 @@ class MutableFileNode:
         # wants to get our contents, we'll pull from shares and fill those
         # in.
         self._uri = IMutableFileURI(myuri)
-        self._writekey = self._uri.writekey
+        if not self._uri.is_readonly():
+            self._writekey = self._uri.writekey
         self._readkey = self._uri.readkey
         self._storage_index = self._uri.storage_index
         self._fingerprint = self._uri.fingerprint
@@ -1269,6 +1270,14 @@ class MutableFileNode:
 
     def get_uri(self):
         return self._uri.to_string()
+    def get_size(self):
+        return "?" # TODO: this is likely to cause problems, not being an int
+    def get_readonly(self):
+        if self.is_readonly():
+            return self
+        ro = MutableFileNode(self._client)
+        ro.init_from_uri(self._uri.get_readonly())
+        return ro
 
     def is_mutable(self):
         return self._uri.is_mutable()
@@ -1293,9 +1302,15 @@ class MutableFileNode:
         return self._client.getServiceNamed("checker").check(verifier)
 
     def download(self, target):
-        #downloader = self._client.getServiceNamed("downloader")
-        #return downloader.download(self.uri, target)
-        raise NotImplementedError
+        # fake it. TODO: make this cleaner.
+        d = self.download_to_data()
+        def _done(data):
+            target.open(len(data))
+            target.write(data)
+            target.close()
+            return target.finish()
+        d.addCallback(_done)
+        return d
 
     def download_to_data(self):
         r = Retrieve(self)

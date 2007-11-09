@@ -10,7 +10,8 @@ from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from allmydata.util import fileutil
 import simplejson
-from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode
+from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode, \
+     IMutableFileNode
 from allmydata import upload, download
 from allmydata import provisioning
 from zope.interface import implements, Interface
@@ -180,7 +181,9 @@ class Directory(rend.Page):
         # build the base of the uri_link link url
         uri_link = "/uri/" + urllib.quote(target.get_uri().replace("/", "!"))
 
-        assert IFileNode.providedBy(target) or IDirectoryNode.providedBy(target), target
+        assert (IFileNode.providedBy(target)
+                or IDirectoryNode.providedBy(target)
+                or IMutableFileNode.providedBy(target)), target
 
         if IFileNode.providedBy(target):
             # file
@@ -199,6 +202,27 @@ class Directory(rend.Page):
             ctx.fillSlots("type", "FILE")
 
             ctx.fillSlots("size", target.get_size())
+
+            text_plain_link = uri_link + "?filename=foo.txt"
+            text_plain_tag = T.a(href=text_plain_link)["text/plain"]
+
+        elif IMutableFileNode.providedBy(target):
+            # file
+
+            # add the filename to the uri_link url
+            uri_link += '?%s' % (urllib.urlencode({'filename': name}),)
+
+            # to prevent javascript in displayed .html files from stealing a
+            # secret vdrive URI from the URL, send the browser to a URI-based
+            # page that doesn't know about the vdrive at all
+            #dlurl = urllib.quote(name)
+            dlurl = uri_link
+
+            ctx.fillSlots("filename",
+                          T.a(href=dlurl)[html.escape(name)])
+            ctx.fillSlots("type", "SSK")
+
+            ctx.fillSlots("size", "?")
 
             text_plain_link = uri_link + "?filename=foo.txt"
             text_plain_tag = T.a(href=text_plain_link)["text/plain"]
@@ -274,6 +298,7 @@ class Directory(rend.Page):
             T.input(type="text", name="name"), " ",
             T.input(type="submit", value="Create"),
             ]]
+
         upload = T.form(action=".", method="post",
                         enctype="multipart/form-data")[
             T.fieldset[
@@ -284,7 +309,10 @@ class Directory(rend.Page):
             T.input(type="file", name="file", class_="freeform-input-file"),
             " ",
             T.input(type="submit", value="Upload"),
+            " Mutable?:",
+            T.input(type="checkbox", name="mutable"),
             ]]
+
         mount = T.form(action=".", method="post",
                         enctype="multipart/form-data")[
             T.fieldset[
@@ -367,7 +395,8 @@ class WebDownloadTarget:
 
 class FileDownloader(resource.Resource):
     def __init__(self, filenode, name):
-        IFileNode(filenode)
+        assert (IFileNode.providedBy(filenode)
+                or IMutableFileNode.providedBy(filenode))
         self._filenode = filenode
         self._name = name
 
@@ -456,6 +485,13 @@ class FileURI(FileJSONMetadata):
     def renderNode(self, filenode):
         file_uri = filenode.get_uri()
         return file_uri
+
+class FileReadOnlyURI(FileJSONMetadata):
+    def renderNode(self, filenode):
+        if filenode.is_readonly():
+            return filenode.get_uri()
+        else:
+            return filenode.get_readonly().get_uri()
 
 class DirnodeWalkerMixin:
     """Visit all nodes underneath (and including) the rootnode, one at a
@@ -719,19 +755,41 @@ class POSTHandler(rend.Page):
             def _done(res):
                 return "thing renamed"
             d.addCallback(_done)
+
         elif t == "upload":
-            contents = req.fields["file"]
-            name = name or contents.filename
-            if name is not None:
-                name = name.strip()
-            if not name:
-                raise RuntimeError("set-uri requires a name")
-            uploadable = upload.FileHandle(contents.file)
-            d = self._check_replacement(name)
-            d.addCallback(lambda res: self._node.add_file(name, uploadable))
-            def _done(newnode):
-                return newnode.get_uri()
-            d.addCallback(_done)
+            if "mutable" in req.fields:
+                contents = req.fields["file"]
+                name = name or contents.filename
+                if name is not None:
+                    name = name.strip()
+                if not name:
+                    raise RuntimeError("upload-mutable requires a name")
+                # SDMF: files are small, and we can only upload data.
+                contents.file.seek(0)
+                data = contents.file.read()
+                uploadable = upload.FileHandle(contents.file)
+                d = self._check_replacement(name)
+                d.addCallback(lambda res:
+                              IClient(ctx).create_mutable_file(data))
+                def _uploaded(newnode):
+                    d1 = self._node.set_node(name, newnode)
+                    d1.addCallback(lambda res: newnode.get_uri())
+                    return d1
+                d.addCallback(_uploaded)
+            else:
+                contents = req.fields["file"]
+                name = name or contents.filename
+                if name is not None:
+                    name = name.strip()
+                if not name:
+                    raise RuntimeError("upload requires a name")
+                uploadable = upload.FileHandle(contents.file)
+                d = self._check_replacement(name)
+                d.addCallback(lambda res: self._node.add_file(name, uploadable))
+                def _done(newnode):
+                    return newnode.get_uri()
+                d.addCallback(_done)
+
         elif t == "check":
             d = self._node.get(name)
             def _got_child(child_node):
@@ -1006,7 +1064,8 @@ class VDrive(rend.Page):
             # node itself.
             d = self.get_child_at_path(path)
             def file_or_dir(node):
-                if IFileNode.providedBy(node):
+                if (IFileNode.providedBy(node)
+                    or IMutableFileNode.providedBy(node)):
                     filename = "unknown"
                     if path:
                         filename = path[-1]
@@ -1026,7 +1085,7 @@ class VDrive(rend.Page):
                     elif t == "uri":
                         return FileURI(node), ()
                     elif t == "readonly-uri":
-                        return FileURI(node), ()
+                        return FileReadOnlyURI(node), ()
                     else:
                         raise RuntimeError("bad t=%s" % t)
                 elif IDirectoryNode.providedBy(node):
@@ -1093,8 +1152,7 @@ class URIPUTHandler(rend.Page):
             # "PUT /uri", to create an unlinked file. This is like PUT but
             # without the associated set_uri.
             uploadable = upload.FileHandle(req.content)
-            uploader = IClient(ctx).getServiceNamed("uploader")
-            d = uploader.upload(uploadable)
+            d = IClient(ctx).upload(uploadable)
             # that fires with the URI of the new file
             return d
 
@@ -1103,6 +1161,8 @@ class URIPUTHandler(rend.Page):
             # public vdriveserver to create the dirnode.
             vdrive = IClient(ctx).getServiceNamed("vdrive")
             d = vdrive.create_directory()
+            # TODO: switch to new-style dirnodes and replace this with:
+            #d = IClient(ctx).create_empty_dirnode()
             d.addCallback(lambda dirnode: dirnode.get_uri())
             return d
 

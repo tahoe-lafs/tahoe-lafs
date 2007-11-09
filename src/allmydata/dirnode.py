@@ -433,6 +433,9 @@ class FileNode:
     def get_uri(self):
         return self.uri
 
+    def is_readonly(self):
+        return True
+
     def get_size(self):
         return IFileURI(self.uri).get_size()
 

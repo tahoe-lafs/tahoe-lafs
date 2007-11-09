@@ -29,6 +29,11 @@ class MyClient(service.MultiService):
     def get_all_peerids(self):
         return []
 
+    def upload(self, uploadable):
+        uploader = self.getServiceNamed("uploader")
+        return uploader.upload(uploadable)
+
+
 class MyDownloader(service.Service):
     implements(interfaces.IDownloader)
     name = "downloader"

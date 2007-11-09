@@ -7,6 +7,7 @@ from twisted.internet import defer
 from allmydata.interfaces import IVirtualDrive, IDirnodeURI, IURI
 from allmydata.util import observer
 from allmydata import dirnode
+from allmydata.dirnode2 import INewDirectoryURI
 
 class NoGlobalVirtualDriveError(Exception):
     pass
@@ -133,10 +134,11 @@ class VirtualDrive(service.MultiService):
 
     def get_node(self, node_uri):
         node_uri = IURI(node_uri)
-        if IDirnodeURI.providedBy(node_uri):
+        if (IDirnodeURI.providedBy(node_uri)
+            and not INewDirectoryURI.providedBy(node_uri)):
             return dirnode.create_directory_node(self.parent, node_uri)
         else:
-            return defer.succeed(dirnode.FileNode(node_uri, self.parent))
+            return defer.succeed(self.parent.create_node_from_uri(node_uri))
 
 
     def get_node_at_path(self, path, root=None):
