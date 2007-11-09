@@ -5,11 +5,11 @@ from zope.interface import implements
 from twisted.internet import defer
 import simplejson
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
-     IMutableFileURI, INewDirectoryURI, IURI, IFileNode, NotMutableError, \
+     INewDirectoryURI, IFileNode, NotMutableError, \
      IVerifierURI
 from allmydata.util import hashutil
 from allmydata.util.hashutil import netstring
-from allmydata.dirnode import IntegrityCheckError, FileNode
+from allmydata.dirnode import IntegrityCheckError
 from allmydata.uri import NewDirectoryURI
 from allmydata.Crypto.Cipher import AES
 
@@ -94,14 +94,7 @@ class NewDirectoryNode:
         return plaintext
 
     def _create_node(self, child_uri):
-        u = IURI(child_uri)
-        if INewDirectoryURI.providedBy(u):
-            return self._client.create_dirnode_from_uri(u)
-        if IFileNode.providedBy(u):
-            return self._client.create_file_from_uri(u)
-        if IMutableFileURI.providedBy(u):
-            return self._client.create_mutable_file_from_uri(u)
-        raise TypeError("cannot handle '%s' URI" % (u.__class__,))
+        return self._client.create_node_from_uri(child_uri)
 
     def _unpack_contents(self, data):
         # the directory is serialized as a list of netstrings, one per child.
@@ -254,10 +247,9 @@ class NewDirectoryNode:
         the operation completes."""
         if self.is_readonly():
             return defer.fail(NotMutableError())
-        uploader = self._client.getServiceNamed("uploader")
-        d = uploader.upload(uploadable)
-        d.addCallback(lambda uri: self.set_node(name,
-                                                FileNode(uri, self._client)))
+        d = self._client.upload(uploadable)
+        d.addCallback(self._client.create_node_from_uri)
+        d.addCallback(lambda node: self.set_node(name, node))
         return d
 
     def delete(self, name):

@@ -6,7 +6,7 @@ from twisted.internet import defer
 from twisted.python import failure
 from allmydata import uri, dirnode
 from allmydata.util import hashutil
-from allmydata.interfaces import IDirectoryNode, IDirnodeURI
+from allmydata.interfaces import IDirectoryNode, IDirnodeURI, IURI, IFileURI
 from allmydata.scripts import runner
 from allmydata.dirnode import VirtualDriveServer, \
      BadWriteEnablerError, NoPublicRootError
@@ -117,6 +117,11 @@ class MyTub:
 class MyClient:
     def __init__(self, vds, myfurl):
         self.tub = MyTub(vds, myfurl)
+
+    def create_node_from_uri(self, u):
+        u = IURI(u)
+        assert IFileURI.providedBy(u)
+        return dirnode.FileNode(u, self)
 
 class Test(unittest.TestCase):
     def test_create_directory(self):

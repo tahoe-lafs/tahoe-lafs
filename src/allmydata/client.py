@@ -20,6 +20,12 @@ from allmydata.introducer import IntroducerClient
 from allmydata.vdrive import VirtualDrive
 from allmydata.util import hashutil, idlib, testutil
 
+from allmydata.dirnode import FileNode
+from allmydata.dirnode2 import NewDirectoryNode
+from allmydata.mutable import MutableFileNode
+from allmydata.interfaces import IURI, INewDirectoryURI, IDirnodeURI, \
+     IFileURI, IMutableFileURI
+
 class Client(node.Node, Referenceable, testutil.PollMixin):
     implements(RIClient)
     PORTNUMFILE = "client.port"
@@ -209,28 +215,42 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         return d
 
 
+    # these four methods are the primitives for creating filenodes and
+    # dirnodes. The first takes a URI and produces a filenode or (new-style)
+    # dirnode. The other three create brand-new filenodes/dirnodes.
+
+    def create_node_from_uri(self, u):
+        # this returns synchronously. As a result, it cannot be used to
+        # create old-style dirnodes, since those contain a RemoteReference.
+        # This means that new-style dirnodes cannot contain old-style
+        # dirnodes as children.
+        u = IURI(u)
+        if INewDirectoryURI.providedBy(u):
+            # new-style dirnodes
+            return NewDirectoryNode(self).init_from_uri(u)
+        if IDirnodeURI.providedBy(u):
+            ## handles old-style dirnodes, both mutable and immutable
+            #return dirnode.create_directory_node(self, u)
+            raise RuntimeError("not possible, sorry")
+        if IFileURI.providedBy(u):
+            # CHK
+            return FileNode(u, self)
+        assert IMutableFileURI.providedBy(u)
+        return MutableFileNode(self).init_from_uri(u)
+
     def create_empty_dirnode(self):
-        from allmydata.dirnode2 import NewDirectoryNode
         n = NewDirectoryNode(self)
         d = n.create()
         d.addCallback(lambda res: n)
         return d
 
-    def create_dirnode_from_uri(self, u):
-        from allmydata.dirnode2 import NewDirectoryNode
-        return NewDirectoryNode(self).init_from_uri(u)
-
     def create_mutable_file(self, contents=""):
-        from allmydata.mutable import MutableFileNode
         n = MutableFileNode(self)
         d = n.create(contents)
         d.addCallback(lambda res: n)
         return d
 
-    def create_mutable_file_from_uri(self, u):
-        from allmydata.mutable import MutableFileNode
-        return MutableFileNode(self).init_from_uri(u)
+    def upload(self, uploadable):
+        uploader = self.getServiceNamed("uploader")
+        return uploader.upload(uploadable)
 
-    def create_file_from_uri(self, u):
-        from allmydata.mutable import FileNode
-        return FileNode(u, self)

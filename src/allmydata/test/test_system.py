@@ -338,7 +338,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             # on the same client that uploaded the data.
             uri = self._mutable_node_1.get_uri()
             log.msg("starting retrieve1")
-            newnode = self.clients[0].create_mutable_file_from_uri(uri)
+            newnode = self.clients[0].create_node_from_uri(uri)
             return newnode.download_to_data()
         d.addCallback(_check_download_1)
 
@@ -346,7 +346,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             self.failUnlessEqual(res, DATA)
             # same thing, but with a different client
             uri = self._mutable_node_1.get_uri()
-            newnode = self.clients[1].create_mutable_file_from_uri(uri)
+            newnode = self.clients[1].create_node_from_uri(uri)
             log.msg("starting retrieve2")
             d1 = newnode.download_to_data()
             d1.addCallback(lambda res: (res, newnode))
@@ -367,8 +367,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             # now create an even newer node and replace the data on it. This
             # new node has never been used for download before.
             uri = self._mutable_node_1.get_uri()
-            newnode1 = self.clients[2].create_mutable_file_from_uri(uri)
-            newnode2 = self.clients[3].create_mutable_file_from_uri(uri)
+            newnode1 = self.clients[2].create_node_from_uri(uri)
+            newnode2 = self.clients[3].create_node_from_uri(uri)
             log.msg("starting replace2")
             d1 = newnode1.replace(NEWERDATA)
             d1.addCallback(lambda res: newnode2.download_to_data())

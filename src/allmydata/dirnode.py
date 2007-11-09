@@ -290,7 +290,7 @@ class ImmutableDirectoryNode:
         if IDirnodeURI.providedBy(u):
             return create_directory_node(self._client, u)
         else:
-            return defer.succeed(FileNode(u, self._client))
+            return defer.succeed(self._client.create_node_from_uri(child_uri))
 
     def _split_uri(self, child_uri):
         u = IURI(child_uri)

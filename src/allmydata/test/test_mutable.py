@@ -7,6 +7,8 @@ from allmydata import mutable, uri, dirnode2
 from allmydata.dirnode2 import split_netstring
 from allmydata.util.hashutil import netstring, tagged_hash
 from allmydata.encode import NotEnoughPeersError
+from allmydata.interfaces import IURI, INewDirectoryURI, IDirnodeURI, \
+     IMutableFileURI
 
 import sha
 from allmydata.Crypto.Util.number import bytes_to_long
@@ -113,7 +115,21 @@ class MyClient:
         d = n.create(contents)
         d.addCallback(lambda res: n)
         return d
-    def create_mutable_file_from_uri(self, u):
+
+    def create_node_from_uri(self, u):
+        # this returns synchronously. As a result, it cannot be used to
+        # create old-style dirnodes, since those contain a RemoteReference.
+        # This means that new-style dirnodes cannot contain old-style
+        # dirnodes as children.
+        u = IURI(u)
+        if INewDirectoryURI.providedBy(u):
+            return self.create_dirnode_from_uri(u)
+        if IDirnodeURI.providedBy(u):
+            raise RuntimeError("not possible, sorry")
+        #if IFileURI.providedBy(u):
+        #    # CHK
+        #    return FileNode(u, self)
+        assert IMutableFileURI.providedBy(u)
         return FakeFilenode(self).init_from_uri(u)
 
     def get_permuted_peers(self, key, include_myself=True):
