@@ -332,6 +332,14 @@ c. POST forms
   allowed to contain a slash (a 400 Bad Request error will result).
 
   POST $URL
+  t=upload
+  name=childname  (optional)
+  mutable="on"
+  file=newfile
+  This instructs the node to upload a file into the given directory, using a
+  mutable file (SSK) rather than the usual immutable file (CHK).
+
+  POST $URL
   t=mkdir
   name=childname
 
