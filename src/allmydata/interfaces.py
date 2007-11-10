@@ -473,7 +473,7 @@ class IFileNode(Interface):
     def check():
         """Perform a file check. See IChecker.check for details."""
 
-class IMutableFileNode(Interface):
+class IMutableFileNode(IFileNode):
     def download_to_data():
         """Download the file's contents. Return a Deferred that fires with
         those contents. If there are multiple retrievable versions in the
