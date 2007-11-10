@@ -332,6 +332,25 @@ class Directory(rend.Page):
                 T.div(class_="freeform-form")[mount],
                 ]
 
+    def render_overwrite(self, ctx, data):
+        name, target = data
+        if IMutableFileNode.providedBy(target):
+            overwrite = T.form(action=".", method="post",
+                               enctype="multipart/form-data")[
+                T.fieldset[
+                T.input(type="hidden", name="t", value="overwrite"),
+                T.input(type='hidden', name='name', value=name),
+                T.input(type='hidden', name='when_done', value=url.here),
+                T.legend(class_="freeform-form-label")["Overwrite"],
+                "Choose new file: ",
+                T.input(type="file", name="file", class_="freeform-input-file"),
+                " ",
+                T.input(type="submit", value="Overwrite")
+                ]]
+            return [T.div(class_="freeform-form")[overwrite],]
+        else:
+            return []
+
     def render_results(self, ctx, data):
         req = inevow.IRequest(ctx)
         if "results" in req.args:
@@ -789,6 +808,17 @@ class POSTHandler(rend.Page):
                 def _done(newnode):
                     return newnode.get_uri()
                 d.addCallback(_done)
+
+        elif t == "overwrite":
+            contents = req.fields["file"]
+            # SDMF: files are small, and we can only upload data.
+            contents.file.seek(0)
+            data = contents.file.read()
+            d = self._node.get(name)
+            def _got_child(child_node):
+                child_node.replace(data)
+                return child_node.get_uri()
+            d.addCallback(_got_child)
 
         elif t == "check":
             d = self._node.get(name)
