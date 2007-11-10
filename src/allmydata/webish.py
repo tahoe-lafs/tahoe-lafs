@@ -334,7 +334,7 @@ class Directory(rend.Page):
 
     def render_overwrite(self, ctx, data):
         name, target = data
-        if IMutableFileNode.providedBy(target):
+        if IMutableFileNode.providedBy(target) and not target.is_readonly():
             overwrite = T.form(action=".", method="post",
                                enctype="multipart/form-data")[
                 T.fieldset[
