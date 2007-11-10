@@ -1,7 +1,6 @@
 
 This directory contains pieces of the PyCrypto package. We've copied just the
-parts we need (AES with zooko's fast-CTR-mode patch, SHA256, Util.number, and
-eventually RSA) into the tahoe tree.
+parts we need (AES with zooko's fast-CTR-mode patch, Util.number) into the tahoe tree.
 
 
 PyCrypto is published with the following license:

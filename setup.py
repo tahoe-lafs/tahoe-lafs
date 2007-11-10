@@ -122,14 +122,6 @@ setup(name='allmydata-tahoe',
           Extension("allmydata.Crypto.Cipher.AES",
                     include_dirs=["src/allmydata/Crypto"],
                     sources=["src/allmydata/Crypto/AES.c"]),
-          Extension("allmydata.Crypto.Hash.SHA256",
-                    include_dirs=["src/allmydata/Crypto"],
-                    sources=["src/allmydata/Crypto/SHA256.c"]),
-          # _fastmath requires gmp. Since we're not using rsa yet, hold off
-          # on requiring this. (note that RSA.py doesn't require _fastmath,
-          # but I doubt we'd want to use the pure-python version).
-#          Extension("allmydata.Crypto.PublicKey._fastmath",
-#                    sources=["src/allmydata/Crypto/_fastmath.c"]),
           ],
       zip_safe=False, # We prefer unzipped for easier access.
       )
