@@ -892,27 +892,24 @@ class Publish:
         # now apply FEC
         self.MAX_SEGMENT_SIZE = 1024*1024
         data_length = len(crypttext)
-        if len(crypttext) < 10:
-            # TODO: FEC doesn't handle short (or empty) strings very well, so
-            # give it something longer and we'll trim the results later. For
-            # some reason I suspect the lower limit is k**2
-            crypttext = crypttext + "\x00"*(10-len(crypttext))
 
         segment_size = min(self.MAX_SEGMENT_SIZE, len(crypttext))
         # this must be a multiple of self.required_shares
         segment_size = mathutil.next_multiple(segment_size, required_shares)
-        self.num_segments = mathutil.div_ceil(len(crypttext), segment_size)
-        assert self.num_segments == 1 # SDMF restrictions
+        if segment_size:
+            self.num_segments = mathutil.div_ceil(len(crypttext), segment_size)
+        else:
+            self.num_segments = 0
+        assert self.num_segments in [0, 1,] # SDMF restrictions
         fec = codec.CRSEncoder()
         fec.set_params(segment_size, required_shares, total_shares)
         piece_size = fec.get_block_size()
-        crypttext_pieces = []
-        for offset in range(0, len(crypttext), piece_size):
+        crypttext_pieces = [None] * required_shares
+        for i in range(len(crypttext_pieces)):
+            offset = i * piece_size
             piece = crypttext[offset:offset+piece_size]
-            if len(piece) < piece_size:
-                pad_size = piece_size - len(piece)
-                piece = piece + "\x00"*pad_size
-            crypttext_pieces.append(piece)
+            piece = piece + "\x00"*(piece_size - len(piece)) # padding
+            crypttext_pieces[i] = piece
             assert len(piece) == piece_size
 
         d = fec.encode(crypttext_pieces)
