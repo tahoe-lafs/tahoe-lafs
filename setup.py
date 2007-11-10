@@ -32,7 +32,7 @@ else:
         min_version='0.6a9'
     use_setuptools(min_version=min_version, download_base="file:misc/dependencies/", download_delay=0)
 
-from setuptools import Extension, setup
+from setuptools import Extension, find_packages, setup
 
 from calcdeps import install_requires, dependency_links
 
@@ -109,18 +109,13 @@ setup(name='allmydata-tahoe',
       author_email='tahoe-dev@allmydata.org',
       url='http://allmydata.org/',
       license='GNU GPL v2 or later, plus transitive 12 month grace period; http://allmydata.org/trac/tahoe/browser/COPYING',
-      packages=["allmydata", "allmydata.test", "allmydata.util",
-                "allmydata.scripts",
-                "allmydata.Crypto", "allmydata.Crypto.Cipher",
-                "allmydata.Crypto.Hash", "allmydata.Crypto.Util",
-                #"allmydata.Crypto.PublicKey",
-                ],
-      package_dir={ "allmydata": "src/allmydata",},
-      package_data={ 'allmydata': ['web/*.xhtml', 'web/*.html', 'web/*.css'] },
+      package_dir = {'':'src'},
+      packages=find_packages("src"),
       classifiers=trove_classifiers,
       test_suite="allmydata.test",
       install_requires=install_requires,
-      setup_requires=["setuptools_darcs_plugin >= 1.0",],
+      include_package_data=True,
+      setup_requires=["setuptools_darcs >= 1.0.5",],
       dependency_links=dependency_links,
       entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
       ext_modules=[
