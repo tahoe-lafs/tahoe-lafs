@@ -168,7 +168,9 @@ choose the easy_install way.
 
   2. Run "make build-deps" to install the easy_install-able dependencies
      (setuptools, zfec, foolscap, simplejson, nevow, and pycryptopp) into a
-     local subdirectory of the Tahoe source distribution.
+     local subdirectory of the Tahoe source distribution. (Note that when the
+     dependent libraries are updated, you should use "make clean" before
+     "make build-deps" to make sure you will get the newest versions).
 
   3. Build Tahoe by running "make".
 
