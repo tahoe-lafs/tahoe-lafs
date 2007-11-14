@@ -264,13 +264,12 @@ class Publish(unittest.TestCase):
                                            k, N, segsize, datalen)
                 self.failUnlessEqual(signature,
                                      FakePrivKey(0).sign(sig_material))
-                self.failUnless(isinstance(share_hash_chain, list))
+                self.failUnless(isinstance(share_hash_chain, dict))
                 self.failUnlessEqual(len(share_hash_chain), 4) # ln2(10)++
-                for i in share_hash_chain:
-                    self.failUnless(isinstance(i, tuple))
-                    self.failUnless(isinstance(i[0], int))
-                    self.failUnless(isinstance(i[1], str))
-                    self.failUnlessEqual(len(i[1]), 32)
+                for shnum,share_hash in share_hash_chain.items():
+                    self.failUnless(isinstance(shnum, int))
+                    self.failUnless(isinstance(share_hash, str))
+                    self.failUnlessEqual(len(share_hash), 32)
                 self.failUnless(isinstance(block_hash_tree, list))
                 self.failUnlessEqual(len(block_hash_tree), 1) # very small tree
                 self.failUnlessEqual(IV, "IV"*8)

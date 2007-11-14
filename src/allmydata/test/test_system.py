@@ -6,7 +6,7 @@ from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.internet import threads # CLI tests use deferToThread
 from twisted.application import service
-from allmydata import client, uri, download, upload
+from allmydata import client, uri, download, upload, storage, mutable
 from allmydata.introducer import IntroducerNode
 from allmydata.util import deferredutil, fileutil, idlib, mathutil, testutil
 from allmydata.scripts import runner
@@ -237,6 +237,72 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return d
     test_upload_and_download.timeout = 4800
 
+    def _find_shares(self, basedir):
+        shares = []
+        for (dirpath, dirnames, filenames) in os.walk(basedir):
+            if "storage" not in dirpath:
+                continue
+            if not filenames:
+                continue
+            pieces = dirpath.split(os.sep)
+            if pieces[-3] == "storage" and pieces[-2] == "shares":
+                # we're sitting in .../storage/shares/$SINDEX , and there
+                # are sharefiles here
+                assert pieces[-4].startswith("client")
+                client_num = int(pieces[-4][-1])
+                storage_index_s = pieces[-1]
+                storage_index = idlib.a2b(storage_index_s)
+                for sharename in filenames:
+                    shnum = int(sharename)
+                    filename = os.path.join(dirpath, sharename)
+                    data = (client_num, storage_index, filename, shnum)
+                    shares.append(data)
+        if not shares:
+            self.fail("unable to find any share files in %s" % basedir)
+        return shares
+
+    def _corrupt_mutable_share(self, filename, which):
+        msf = storage.MutableShareFile(filename)
+        datav = msf.readv([ (0, 1000000) ])
+        final_share = datav[0]
+        assert len(final_share) < 1000000 # ought to be truncated
+        pieces = mutable.unpack_share(final_share)
+        (seqnum, root_hash, IV, k, N, segsize, datalen,
+         verification_key, signature, share_hash_chain, block_hash_tree,
+         share_data, enc_privkey) = pieces
+
+        if which == "seqnum":
+            seqnum = seqnum + 15
+        elif which == "R":
+            root_hash = self.flip_bit(root_hash)
+        elif which == "IV":
+            IV = self.flip_bit(IV)
+        elif which == "segsize":
+            segsize = segsize + 15
+        elif which == "pubkey":
+            verification_key = self.flip_bit(verification_key)
+        elif which == "signature":
+            signature = self.flip_bit(signature)
+        elif which == "share_hash_chain":
+            nodenum = share_hash_chain.keys()[0]
+            share_hash_chain[nodenum] = self.flip_bit(share_hash_chain[nodenum])
+        elif which == "block_hash_tree":
+            block_hash_tree[-1] = self.flip_bit(block_hash_tree[-1])
+        elif which == "share_data":
+            share_data = self.flip_bit(share_data)
+        elif which == "encprivkey":
+            enc_privkey = self.flip_bit(enc_privkey)
+
+        prefix = mutable.pack_prefix(seqnum, root_hash, IV, k, N,
+                                     segsize, datalen)
+        final_share = mutable.pack_share(prefix,
+                                         verification_key,
+                                         signature,
+                                         share_hash_chain,
+                                         block_hash_tree,
+                                         share_data,
+                                         enc_privkey)
+        msf.writev( [(0, final_share)], None)
 
     def test_mutable(self):
         self.basedir = "system/SystemTest/test_mutable"
@@ -260,22 +326,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _test_debug(res):
             # find a share. It is important to run this while there is only
             # one slot in the grid.
-            for (dirpath, dirnames, filenames) in os.walk(self.basedir):
-                if "storage" not in dirpath:
-                    continue
-                if not filenames:
-                    continue
-                pieces = dirpath.split(os.sep)
-                if pieces[-3] == "storage" and pieces[-2] == "shares":
-                    # we're sitting in .../storage/shares/$SINDEX , and there
-                    # are sharefiles here
-                    assert pieces[-4].startswith("client")
-                    client_num = int(pieces[-4][-1])
-                    filename = os.path.join(dirpath, filenames[0])
-                    break
-            else:
-                self.fail("unable to find any share files in %s"
-                          % self.basedir)
+            shares = self._find_shares(self.basedir)
+            (client_num, storage_index, filename, shnum) = shares[0]
             log.msg("test_system.SystemTest.test_mutable._test_debug using %s"
                     % filename)
             log.msg(" for clients[%d]" % client_num)
@@ -367,6 +419,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             uri = self._mutable_node_1.get_uri()
             newnode1 = self.clients[2].create_node_from_uri(uri)
             newnode2 = self.clients[3].create_node_from_uri(uri)
+            self._newnode3 = self.clients[3].create_node_from_uri(uri)
             log.msg("starting replace2")
             d1 = newnode1.replace(NEWERDATA, wait_for_numpeers=self.numclients)
             d1.addCallback(lambda res: newnode2.download_to_data())
@@ -376,13 +429,13 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _check_download_5(res):
             log.msg("finished replace2")
             self.failUnlessEqual(res, NEWERDATA)
-            # Make sure we can create empty files -- this can screw up the
-            # segsize math.
-            d1 = self.clients[2].create_mutable_file("", wait_for_numpeers=self.numclients)
+            # make sure we can create empty files, this usually screws up the
+            # segsize math
+            d1 = self.clients[2].create_mutable_file("")
             d1.addCallback(lambda newnode: newnode.download_to_data())
             d1.addCallback(lambda res: self.failUnlessEqual("", res))
             return d1
-        d.addCallback(_check_download_5)
+        d.addCallback(_check_empty_file)
 
         d.addCallback(lambda res: self.clients[0].create_empty_dirnode(wait_for_numpeers=self.numclients))
         def _created_dirnode(dnode):
@@ -394,6 +447,9 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             d1.addCallback(lambda res: dnode.set_node("see recursive", dnode, wait_for_numpeers=self.numclients))
             d1.addCallback(lambda res: dnode.has_child("see recursive"))
             d1.addCallback(lambda answer: self.failUnlessEqual(answer, True))
+            d1.addCallback(lambda res: dnode.build_manifest())
+            d1.addCallback(lambda manifest:
+                           self.failUnlessEqual(len(manifest), 1))
             return d1
         d.addCallback(_created_dirnode)
 

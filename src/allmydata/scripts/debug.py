@@ -179,7 +179,8 @@ def dump_SDMF_share(offset, length, config, out, err):
     print >>out, "  total_shares: %d" % N
     print >>out, "  segsize: %d" % segsize
     print >>out, "  datalen: %d" % datalen
-    share_hash_ids = ",".join([str(hid) for (hid,hash) in share_hash_chain])
+    share_hash_ids = ",".join(sorted([str(hid)
+                                      for hid in share_hash_chain.keys()]))
     print >>out, "  share_hash_chain: %s" % share_hash_ids
     print >>out, "  block_hash_tree: %d nodes" % len(block_hash_tree)
 
