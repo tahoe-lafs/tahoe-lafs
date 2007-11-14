@@ -468,7 +468,8 @@ class Retrieve:
                 # TODO: create an errback-routing mechanism to make sure that
                 # weird coding errors will cause the retrieval to fail rather
                 # than hanging forever. Any otherwise-unhandled exceptions
-                # should follow this path.
+                # should follow this path. A simple way to test this is to
+                # raise BadNameError in _validate_share_and_extract_data .
                 return
 
         # we don't have enough shares yet. Should we send out more queries?
@@ -587,7 +588,7 @@ class Retrieve:
         self.log("_validate_share_and_extract_data[%d]" % shnum)
         assert data[0] == "\x00"
         pieces = unpack_share(data)
-        (seqnum, root_hash, IV, k, N, segsize, datalen,
+        (seqnum, root_hash_copy, IV, k, N, segsize, datalen,
          pubkey, signature, share_hash_chain, block_hash_tree,
          share_data, enc_privkey) = pieces
 
@@ -598,11 +599,15 @@ class Retrieve:
         if list(t) != block_hash_tree:
             raise CorruptShareError(peerid, shnum, "block hash tree failure")
         share_hash_leaf = t[0]
-        # t2 = hashtree.IncompleteHashTree()
-        # TODO: use shnum, share_hash_leaf, share_hash_chain to compare against
-        # root_hash
-        #if False:
-        #    raise CorruptShareError("explanation")
+        t2 = hashtree.IncompleteHashTree(N)
+        # root_hash was checked by the signature
+        t2.set_hashes({0: root_hash})
+        try:
+            t2.set_hashes(hashes=share_hash_chain,
+                          leaves={shnum: share_hash_leaf})
+        except (hashtree.BadHashError, hashtree.NotEnoughHashesError), e:
+            msg = "corrupt hashes: %s" % (e,)
+            raise CorruptShareError(peerid, shnum, msg)
         self.log(" data valid! len=%d" % len(share_data))
         return share_data
 
