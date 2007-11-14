@@ -9,6 +9,13 @@ OSSEP=$(shell python -c 'import os ; print os.sep')
 
 REACTOR=
 
+ifneq ($(INCLUDE_DIRS),)
+INCLUDE_DIRS_ARG = -I$(INCLUDE_DIRS)
+endif
+ifneq ($(LIBRARY_DIRS),)
+LIBRARY_DIRS_ARG = -L$(LIBRARY_DIRS)
+endif
+
 PLAT = $(strip $(shell python -c "import sys ; print sys.platform"))
 ifeq ($(PLAT),win32)
  # The platform is Windows with cygwin build tools and the native Python interpreter.
@@ -67,7 +74,7 @@ make-version:
 	touch .built
 
 build: 
-	$(PYTHON) ./setup.py build_ext -i
+	$(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG)
 	chmod +x bin/tahoe
 
 # 'make install' will do the following:

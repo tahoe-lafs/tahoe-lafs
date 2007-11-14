@@ -52,7 +52,7 @@ The Manual Dependencies:
  + GNU make (build tool)
 
  + Python 2.4 or newer (tested against 2.4, and 2.5.1), including
-   development headers (language)
+   development headers i.e. "Python.h" (language)
 
    http://python.org/
 
