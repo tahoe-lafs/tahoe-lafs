@@ -433,6 +433,7 @@ class Retrieve:
 
     def _check_for_done(self, res):
         if not self._running:
+            self.log("UNUSUAL: _check_for_done but we're not running")
             return
         share_prefixes = {}
         versionmap = DictOfSets()
@@ -478,14 +479,21 @@ class Retrieve:
             # TODO: if our initial guess at k was too low, waiting for these
             # responses before sending new queries will increase our latency,
             # so we could speed things up by sending new requests earlier.
+            self.log("ROUTINE:  %d queries outstanding" %
+                     len(self._queries_outstanding))
             return
 
         # no more queries are outstanding. Can we send out more? First,
         # should we be looking at more peers?
+        self.log("UNUSUAL:  need more peers: "
+                 "N=%s, peerlist=%d peerlist_limit=%d" %
+                 (self._total_shares, len(self._peerlist),
+                  self._peerlist_limit))
         if self._total_shares is not None:
             search_distance = self._total_shares * 2
         else:
             search_distance = 20
+        self.log("UNUSUAL:  search_distance=%d" % search_distance)
         if self._peerlist_limit < search_distance:
             # we might be able to get some more peers from the list
             peers = self._node._client.get_permuted_peers(self._storage_index,
@@ -493,6 +501,8 @@ class Retrieve:
             self._peerlist = [(p[1],p[2])
                               for p in islice(peers, search_distance)]
             self._peerlist_limit = search_distance
+            self.log("UNUSUAL:  added peers, peerlist=%d, peerlist_limit=%d"
+                     % (len(self._peerlist), self._peerlist_limit))
         # are there any peers on the list that we haven't used?
         new_query_peers = []
         for (peerid, conn) in self._peerlist:
@@ -504,6 +514,8 @@ class Retrieve:
                     # k - max(known_version_sharecounts) + some extra
                     break
         if new_query_peers:
+            self.log("UNUSUAL:  sending %d new queries (read %d bytes)" %
+                     (len(new_query_peers), self._read_size))
             for (peerid, conn) in new_query_peers:
                 self._do_query(conn, peerid,
                                self._storage_index, self._read_size,
@@ -512,6 +524,7 @@ class Retrieve:
             return
 
         # we've used up all the peers we're allowed to search. Failure.
+        self.log("WEIRD:  ran out of peers")
         e = NotEnoughPeersError("last failure: %s" % self._last_failure)
         return self._done(failure.Failure(e))
 
