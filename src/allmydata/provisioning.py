@@ -194,7 +194,12 @@ class ProvisioningTool(rend.Page):
                                (30, "30 servers"),
                                (50, "50 servers"),
                                (100, "100 servers"),
+                               (200, "200 servers"),
+                               (300, "300 servers"),
+                               (500, "500 servers"),
                                (1000, "1k servers"),
+                               (2000, "2k servers"),
+                               (5000, "5k servers"),
                                (10e3, "10k servers"),
                                (100e3, "100k servers"),
                                (1e6, "1M servers"),
@@ -206,7 +211,10 @@ class ProvisioningTool(rend.Page):
 
         # availability is measured in dBA = -dBF, where 0dBF is 100% failure,
         # 10dBF is 10% failure, 20dBF is 1% failure, etc
-        server_dBA_choices = [ (20, "99% [20dBA] (14min/day or 3.5days/year)"),
+        server_dBA_choices = [ (10, "90% [10dBA] (2.4hr/day)"),
+                               (13, "95% [13dBA] (1.2hr/day)"),
+                               (20, "99% [20dBA] (14min/day or 3.5days/year)"),
+                               (23, "99.5% [23dBA] (7min/day or 1.75days/year)"),
                                (30, "99.9% [30dBA] (87sec/day or 9hours/year)"),
                                (40, "99.99% [40dBA] (60sec/week or 53min/year)"),
                                (50, "99.999% [50dBA] (5min per year)"),
@@ -585,7 +593,7 @@ class ProvisioningTool(rend.Page):
             else:
                 add_output("Servers",
                            T.div[T.b["Note: too many drives per server, "
-                                     "assuming $300"]])
+                                     "assuming $3000"]])
                 server_cost = 3000
 
             server_capital_cost = (server_cost + drives_per_server * drive_cost)
