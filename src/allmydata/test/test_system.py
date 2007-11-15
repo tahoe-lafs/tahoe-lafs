@@ -311,6 +311,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         NEWERDATA = "this is getting old"
 
         d = self.set_up_nodes()
+
         def _create_mutable(res):
             c = self.clients[0]
             log.msg("starting create_mutable_file")
