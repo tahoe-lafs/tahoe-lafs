@@ -114,7 +114,7 @@ class Node(service.MultiService):
                 # it doesn't work on linux (on which both the hard and
                 # soft limits are set to 1024 by default).
                 resource.setrlimit(resource.RLIMIT_NOFILE, (-1,-1))
-                new[0] = resource.getrlimit(resource.RLIMIT_NOFILE)
+                new = resource.getrlimit(resource.RLIMIT_NOFILE)
                 if new[0] == current[0]:
                     # probably cygwin, which ignores -1. Use a real value.
                     resource.setrlimit(resource.RLIMIT_NOFILE, (3200,-1))
