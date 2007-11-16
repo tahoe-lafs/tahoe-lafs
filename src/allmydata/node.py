@@ -105,14 +105,19 @@ class Node(service.MultiService):
             return
 
         try:
-            # this one works on OS-X (bsd), and gives us 10240, but
-            # it doesn't work on linux (on which both the hard and
-            # soft limits are set to 1024 by default).
-            resource.setrlimit(resource.RLIMIT_NOFILE, (-1,-1))
-            new = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
-            if new == current:
-                # probably cygwin, which ignores -1. Use a real value.
-                resource.setrlimit(resource.RLIMIT_NOFILE, (3200,-1))
+            if current[1] > 0 and current[1] < 1000000:
+                # solaris reports (256, 65536)
+                resource.setrlimit(resource.RLIMIT_NOFILE,
+                                   (current[1], current[1]))
+            else:
+                # this one works on OS-X (bsd), and gives us 10240, but
+                # it doesn't work on linux (on which both the hard and
+                # soft limits are set to 1024 by default).
+                resource.setrlimit(resource.RLIMIT_NOFILE, (-1,-1))
+                new = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
+                if new == current:
+                    # probably cygwin, which ignores -1. Use a real value.
+                    resource.setrlimit(resource.RLIMIT_NOFILE, (3200,-1))
 
         except ValueError:
             self.log("unable to set RLIMIT_NOFILE: current value %s"
