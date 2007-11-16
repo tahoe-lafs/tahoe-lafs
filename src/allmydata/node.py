@@ -95,12 +95,12 @@ class Node(service.MultiService):
         # well leave it alone.
 
         try:
-            current = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
+            current = resource.getrlimit(resource.RLIMIT_NOFILE)
         except AttributeError:
             # we're probably missing RLIMIT_NOFILE, maybe this is windows
             return
 
-        if current >= 1024:
+        if current[0] >= 1024:
             # good enough, leave it alone
             return
 
@@ -114,8 +114,8 @@ class Node(service.MultiService):
                 # it doesn't work on linux (on which both the hard and
                 # soft limits are set to 1024 by default).
                 resource.setrlimit(resource.RLIMIT_NOFILE, (-1,-1))
-                new = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
-                if new == current:
+                new[0] = resource.getrlimit(resource.RLIMIT_NOFILE)
+                if new[0] == current[0]:
                     # probably cygwin, which ignores -1. Use a real value.
                     resource.setrlimit(resource.RLIMIT_NOFILE, (3200,-1))
 
