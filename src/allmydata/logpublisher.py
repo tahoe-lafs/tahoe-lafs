@@ -5,7 +5,6 @@ from twisted.application import service
 from twisted.python import log
 from foolscap import Referenceable, RemoteInterface
 from foolscap.schema import DictOf, Any
-from foolscap.eventual import eventually
 
 class RILogObserver(RemoteInterface):
     def msg(logmsg=DictOf(str, Any())):
