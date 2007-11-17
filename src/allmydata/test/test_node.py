@@ -6,7 +6,7 @@ from twisted.internet import defer
 from twisted.python import log
 
 from foolscap import Tub, Referenceable
-from foolscap.eventual import flushEventualQueue
+from foolscap.eventual import fireEventually, flushEventualQueue
 from twisted.application import service
 import allmydata
 from allmydata.node import Node, formatTimeTahoeStyle
@@ -61,6 +61,7 @@ class TestCase(unittest.TestCase, testutil.SignalMixin):
     def test_logpublisher(self):
         basedir = "test_node/test_logpublisher"
         fileutil.make_dirs(basedir)
+        observer = LogObserver()
         n = TestNode(basedir)
         n.setServiceParent(self.parent)
         d = n.when_tub_ready()
@@ -75,6 +76,23 @@ class TestCase(unittest.TestCase, testutil.SignalMixin):
                 self.failUnlessEqual(versions["allmydata"],
                                      allmydata.__version__)
             d.addCallback(_check)
+            d.addCallback(lambda res:
+                          logport.callRemote("subscribe_to_all", observer))
+            def _emit(subscription):
+                self._subscription = subscription
+                log.msg("message here")
+            d.addCallback(_emit)
+            d.addCallback(fireEventually)
+            d.addCallback(fireEventually)
+            def _check_observer(res):
+                msgs = observer.messages
+                self.failUnlessEqual(len(msgs), 1)
+                #print msgs
+                self.failUnlessEqual(msgs[0]["message"], ("message here",) )
+            d.addCallback(_check_observer)
+            def _done(res):
+                return logport.callRemote("unsubscribe", self._subscription)
+            d.addCallback(_done)
             return d
         d.addCallback(_got_logport)
         return d
@@ -122,3 +140,10 @@ class Gatherer(Referenceable):
     def remote_logport(self, nodeid, logport):
         d = logport.callRemote("get_versions")
         d.addCallback(self.d.callback)
+
+class LogObserver(Referenceable):
+    implements(logpublisher.RILogObserver)
+    def __init__(self):
+        self.messages = []
+    def remote_msg(self, d):
+        self.messages.append(d)
