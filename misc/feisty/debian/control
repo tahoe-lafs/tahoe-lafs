@@ -9,7 +9,7 @@ Standards-Version: 3.7.2
 
 Package: allmydata-tahoe
 Architecture: all
-Depends: ${python:Depends}, python-twisted, python-foolscap, python-pyopenssl, python-nevow, python-simplejson, python-zfec
+Depends: ${python:Depends}, python-twisted, python-foolscap, python-pyopenssl, python-nevow, python-simplejson, python-zfec, python-pycryptopp
 Recommends:
 XB-Python-Version: 2.4,2.5
 Description: A secure distributed filestore
