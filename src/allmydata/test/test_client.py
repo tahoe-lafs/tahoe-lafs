@@ -160,12 +160,16 @@ class Run(unittest.TestCase):
         c1 = client.Client(basedir)
         c1.setServiceParent(self.sparent)
 
+        # delay to let the service start up completely. I'm not entirely sure
+        # this is necessary.
+        d = self.stall(delay=2.0)
+        d.addCallback(lambda res: c1.disownServiceParent())
         # the cygwin buildslave seems to need more time to let the old
         # service completely shut down. When delay=0.1, I saw this test fail,
         # probably due to the logport trying to reclaim the old socket
-        # number.
-        d = self.stall(delay=2.0)
-        d.addCallback(lambda res: c1.disownServiceParent())
+        # number. This suggests that either we're dropping a Deferred
+        # somewhere in the shutdown sequence, or that cygwin is just cranky.
+        d.addCallback(self.stall, delay=2.0)
         def _restart(res):
             # TODO: pause for slightly over one second, to let
             # Client._check_hotline poll the file once. That will exercise
