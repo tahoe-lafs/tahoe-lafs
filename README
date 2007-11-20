@@ -51,7 +51,8 @@ The Manual Dependencies:
 
  + GNU make (build tool)
 
- + Python 2.4 or newer (tested against 2.4, and 2.5.1), including
+ + Python 2.4 or newer (tested against 2.4.4, and 2.5.1 -- note that 2.4.1 is
+   known not to work due to a bug in its base-32 encoder), including
    development headers i.e. "Python.h" (language)
 
    http://python.org/
@@ -116,20 +117,28 @@ http://allmydata.org/source/tahoe/
 INSTALLING:
 
 There are four ways to do it: The easy_install Way, The Setuptools Way, The
-Running-In-Place Way, and The Debian Way.  Choose one:
+Running-In-Place Way, and The Debian Way.  Choose one.  If you're not sure,
+choose the easy_install way.
 
  The easy_install Way:
 
-  You don't need to download the source code first.
+  You don't need to download the source code first.  You do need to have the
+  "easy_install" tool installed first:
 
-  Tahoe is registered with the Python Package Index (PyPI), so the
-  'easy_install' tool can download and install it for you. Just type
+  http://peak.telecommunity.com/DevCenter/EasyInstall#installing-easy-install
+
+  The 'easy_install' tool can download and install tahoe for you. Just type
   'easy_install allmydata-tahoe' from any shell. That will download the most
   recent Tahoe source tarball, unpack it in a temporary directory, install it
   to the standard location, then download and install any easy_install-able
   dependencies that you need (setuptools, zfec, foolscap, simplejson, nevow,
-  and pycryptopp).  (This will work only if you already have the dependencies
-  listed in the MANUAL DEPENDENCIES section, above.)
+  and pycryptopp).  (This will work only if you have already installed the
+  dependencies listed in the MANUAL DEPENDENCIES section, above.)
+
+  The end result will be that the Tahoe code is installed to the standard
+  location for libraries on your operating system (on unix, that is somewhere
+  inside /usr/lib/), and the "tahoe" executable will be installed to the
+  standard location for executables on operating system.
 
  The Setuptools Way:
 
@@ -139,10 +148,17 @@ Running-In-Place Way, and The Debian Way.  Choose one:
   to the standard location for your operating system (on unix, that is
   somewhere inside /usr/lib/). It will also acquire and install the
   easy_install-able dependencies (setuptools, zfec, foolscap, simplejson,
-  nevow, and pycryptopp) to the same place.
+  nevow, and pycryptopp) to the same place.  (This will work only if you have
+  already installed the dependencies listed in the MANUAL DEPENDENCIES
+  section, above.)
 
   (To install it to a non-standard location, see
   http://allmydata.org/trac/tahoe/wiki/SetuptoolsAndGNUStow .)
+
+  The end result will be that the Tahoe code is installed to the standard
+  location for libraries on your operating system (on unix, that is somewhere
+  inside /usr/lib/), and the "tahoe" executable will be installed to the
+  standard location for executables on operating system.
 
  The Running-In-Place Way:
 
