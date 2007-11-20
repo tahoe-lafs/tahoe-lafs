@@ -12,7 +12,6 @@ from allmydata.interfaces import IEncoder, IStorageBucketWriter, \
      IEncryptedUploadable
 
 """
-
 The goal of the encoder is to turn the original file into a series of
 'shares'. Each share is going to a 'shareholder' (nominally each shareholder
 is a different host, but for small grids there may be overlap). The number
