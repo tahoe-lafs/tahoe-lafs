@@ -4,8 +4,10 @@ def foo(): pass # keep the line number constant
 import os
 from twisted.trial import unittest
 
+from twisted.python import failure
+from twisted.python import log as twisted_log
 from allmydata.util import bencode, idlib, humanreadable, mathutil
-from allmydata.util import assertutil, fileutil, testutil
+from allmydata.util import assertutil, fileutil, testutil, log
 
 
 class IDLib(unittest.TestCase):
@@ -390,3 +392,55 @@ class PollMixinTests(unittest.TestCase):
         d = self.pm.poll(check_f=i.next,
                          pollinterval=0.1)
         return self._check(d)
+
+class SampleError(Exception):
+    pass
+
+class Log(unittest.TestCase):
+    def setUp(self):
+        self.catcher = []
+        twisted_log.addObserver(self.catcher.append)
+    def tearDown(self):
+        twisted_log.removeObserver(self.catcher.append)
+
+    def test_log(self):
+        num = log.msg("this is a message")
+        self.failUnless(isinstance(num, int))
+        log.msg("sub message", parent=num)
+        log.msg("numbered message", number=47)
+
+        f = failure.Failure(SampleError())
+        num2 = log.err(f)
+        log.err(f, parent=num2)
+        log.err(f, number=48)
+
+        logs = self.catcher[:]
+        self.flushLoggedErrors(SampleError)
+
+        self.failUnlessEqual(logs[0]['message'], ("this is a message",))
+        self.failUnlessEqual(logs[0]['number'], num)
+        self.failUnlessEqual(logs[0]['parent'], None)
+
+        self.failUnlessEqual(logs[1]['message'], ("sub message",))
+        self.failUnlessEqual(logs[1]['number'], num+1)
+        self.failUnlessEqual(logs[1]['parent'], num)
+
+        self.failUnlessEqual(logs[2]['message'], ("numbered message",))
+        self.failUnlessEqual(logs[2]['number'], 47)
+        self.failUnlessEqual(logs[2]['parent'], None)
+
+        self.failUnlessEqual(logs[3]['message'], ())
+        self.failUnlessEqual(logs[3]['failure'], f)
+        self.failUnlessEqual(logs[3]['number'], num2)
+        self.failUnlessEqual(logs[3]['parent'], None)
+
+        self.failUnlessEqual(logs[4]['message'], ())
+        self.failUnlessEqual(logs[4]['failure'], f)
+        self.failUnlessEqual(logs[4]['number'], num2+1)
+        self.failUnlessEqual(logs[4]['parent'], num2)
+
+        self.failUnlessEqual(logs[5]['message'], ())
+        self.failUnlessEqual(logs[5]['failure'], f)
+        self.failUnlessEqual(logs[5]['number'], 48)
+        self.failUnlessEqual(logs[5]['parent'], None)
+

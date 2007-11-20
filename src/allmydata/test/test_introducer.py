@@ -16,8 +16,8 @@ class MyNode(Referenceable):
     pass
 
 class LoggingMultiService(service.MultiService):
-    def log(self, msg):
-        log.msg(msg)
+    def log(self, msg, **kw):
+        log.msg(msg, **kw)
 
 class TestIntroducerNode(testutil.SignalMixin, unittest.TestCase):
     def test_loadable(self):

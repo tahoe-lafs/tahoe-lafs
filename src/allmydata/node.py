@@ -7,6 +7,7 @@ from twisted.python import log
 from twisted.application import service
 from twisted.internet import defer, reactor
 from foolscap import Tub, eventual
+from allmydata.util import log as tahoe_log
 from allmydata.util import iputil, observer, humanreadable
 from allmydata.util.assertutil import precondition
 from allmydata.logpublisher import LogPublisher
@@ -240,7 +241,7 @@ class Node(service.MultiService):
                     ob.formatTime = newmeth
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
 
-    def log(self, msg, src="", args=()):
+    def log(self, msg, src="", args=(), **kw):
         if src:
             logsrc = src
         else:
@@ -250,10 +251,9 @@ class Node(service.MultiService):
                 msg = msg % tuple(map(humanreadable.hr, args))
             except TypeError, e:
                 msg = "ERROR: output string '%s' contained invalid %% expansion, error: %s, args: %s\n" % (`msg`, e, `args`)
-
-        log.callWithContext({"system":logsrc},
-                            log.msg,
-                            (self.short_nodeid + ": " + humanreadable.hr(msg)))
+        msg = self.short_nodeid + ": " + humanreadable.hr(msg)
+        return log.callWithContext({"system":logsrc},
+                                   tahoe_log.msg, msg, **kw)
 
     def _setup_tub(self, local_addresses):
         # we can't get a dynamically-assigned portnum until our Tub is

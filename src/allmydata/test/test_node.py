@@ -14,7 +14,7 @@ from allmydata.util import testutil, fileutil
 from allmydata import logpublisher
 
 class LoggingMultiService(service.MultiService):
-    def log(self, msg):
+    def log(self, msg, **kw):
         pass
 
 class TestNode(Node):

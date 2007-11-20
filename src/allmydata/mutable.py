@@ -3,10 +3,10 @@ import os, struct
 from itertools import islice
 from zope.interface import implements
 from twisted.internet import defer
-from twisted.python import failure, log
+from twisted.python import failure
 from foolscap.eventual import eventually
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI
-from allmydata.util import hashutil, mathutil, idlib
+from allmydata.util import hashutil, mathutil, idlib, log
 from allmydata.uri import WriteableSSKFileURI
 from allmydata.Crypto.Cipher import AES
 from allmydata import hashtree, codec
@@ -205,13 +205,20 @@ class Retrieve:
         self._storage_index = filenode.get_storage_index()
         self._readkey = filenode.get_readkey()
         self._last_failure = None
+        self._log_number = None
+        self._log_prefix = prefix = idlib.b2a(self._storage_index)[:6]
+        num = self._node._client.log("Retrieve(%s): starting" % prefix)
+        self._log_number = num
 
     def log(self, msg):
-        prefix = idlib.b2a(self._node.get_storage_index())[:6]
-        self._node._client.log("Retrieve(%s): %s" % (prefix, msg))
+        prefix = self._log_prefix
+        num = self._node._client.log("Retrieve(%s): %s" % (prefix, msg),
+                                     parent=self._log_number)
+        return num
 
     def log_err(self, f):
-        log.err(f)
+        num = log.err(f, parent=self._log_number)
+        return num
 
     def retrieve(self):
         """Retrieve the filenode's current contents. Returns a Deferred that
@@ -251,8 +258,6 @@ class Retrieve:
         #    we've run out of servers, fail.
         # 7: if we discover corrupt shares during the reconstruction process,
         #    remove that share from the sharemap.  and start step#6 again.
-
-        self.log("starting retrieval")
 
         initial_query_count = 5
         self._read_size = 2000
@@ -703,13 +708,20 @@ class Publish:
 
     def __init__(self, filenode):
         self._node = filenode
+        self._storage_index = self._node.get_storage_index()
+        self._log_prefix = prefix = idlib.b2a(self._storage_index)[:6]
+        num = self._node._client.log("Publish(%s): starting")
+        self._log_number = num
 
     def log(self, msg):
-        prefix = idlib.b2a(self._node.get_storage_index())[:6]
-        self._node._client.log("Publish(%s): %s" % (prefix, msg))
+        prefix = self._log_prefix
+        num = self._node._client.log("Publish(%s): %s" % (prefix, msg),
+                                     parent=self._log_number)
+        return num
 
     def log_err(self, f):
-        log.err(f)
+        num = log.err(f, parent=self._log_number)
+        return num
 
     def publish(self, newdata, wait_for_numpeers=None):
         """Publish the filenode's current contents.  Returns a Deferred that
@@ -745,9 +757,8 @@ class Publish:
         # 4a: may need to run recovery algorithm
         # 5: when enough responses are back, we're done
 
-        self.log("got enough peers, datalen is %s" % len(newdata))
+        self.log("starting publish, data is %r" % (newdata,))
 
-        self._storage_index = self._node.get_storage_index()
         self._writekey = self._node.get_writekey()
         assert self._writekey, "need write capability to publish"
 
