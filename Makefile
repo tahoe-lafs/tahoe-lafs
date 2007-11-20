@@ -100,31 +100,55 @@ endif
 
 
 signal-error-deps:
+	@echo
+	@echo
 	@echo "ERROR: Not all of Tahoe's dependencies are in place.  Please \
 see the README for help on installing dependencies."
+	@echo
+	@echo
 	exit 1
 
 signal-error-twisted-dep:
+	@echo
+	@echo
 	@echo "ERROR: Before running \"make build-deps\" you have to ensure that \
 Twisted is installed (including its zope.interface dependency).  Twisted and \
 zope.interface are required for the automatic installation of certain other \
 libraries that Tahoe requires).  Please see the README for details."
+	@echo
+	@echo
 	exit 1
 
 signal-error-pywin32-dep:
+	@echo
+	@echo
 	@echo "ERROR: the pywin32 dependency is not in place.  Please see the README \
 for help on installing dependencies."
+	@echo
+	@echo
 	exit 1
 
-check-deps: check-twisted-dep $(CHECK_PYWIN32_DEP)
+signal-error-pyopenssl-dep:
+	@echo
+	@echo
+	@echo "ERROR: the pyOpenSSL dependency is not in place (note that pyOpenSSL required \
+OpenSSL).  Please see the README for help on installing dependencies."
+	@echo
+	@echo
+	exit 1
+
+check-deps: check-twisted-dep $(CHECK_PYWIN32_DEP) check-pyopenssl-dep
 	$(PP) \
-	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, OpenSSL, pycryptopp' || $(MAKE) signal-error-deps
+	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, pycryptopp' || $(MAKE) signal-error-deps
 
 check-twisted-dep:
 	$(PYTHON) -c 'import twisted, zope.interface' || $(MAKE) signal-error-twisted-dep
 
 check-pywin32-dep:
 	$(PYTHON) -c 'import win32process' || $(MAKE) signal-error-pywin32-dep
+
+check-pyopenssl-dep:
+	$(PYTHON) -c 'import OpenSSL' || $(MAKE) signal-error-pyopenssl-dep
 
 .checked-deps:
 	$(MAKE) check-deps
