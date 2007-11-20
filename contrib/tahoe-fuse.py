@@ -2,10 +2,36 @@
 '''
 Tahoe thin-client fuse module.
 
+
+Usage Notes:
+
+This is a proof-of-concept, and not production quality.  It uses the
+FUSE interface, and where bugs or unimplemented features are encountered
+the file system may become confused.
+
+In my experience with ubuntu's linux version 2.6.20-16-generic, and
+python-fuse version 2.5-5build1, the worst behavior is that processes
+which are accessing the fuse filesystem when some bugs occur hang.
+Also, the filesystem is currently single-threaded and blocking, so one
+bug interrupts all filesystem client processes.
+
+The rest of my system seems stable even in these cases (the rest of the
+filesystem and other processes function).
+
+The current design caches EACH FILE ENTIRELY IN MEMORY as long as any
+process has that file open.  Expect horrible memory usage.  (But also, subsequent reads after the first should be fast.  ;-)
+
+
 Goals:
+
 - Delegate to Tahoe webapi as much as possible.
-- Thin as possible.
-- This is a proof-of-concept, not a usable product.
+- Thin rather than clever.  (Even when that means clunky.)
+
+
+Status Quo:
+
+- Reads cache entire file contents, violating the thinness goal.  Can we GET spans of files?
+- Single threaded.
 '''
 
 
