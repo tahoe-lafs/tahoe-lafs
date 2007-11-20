@@ -420,9 +420,15 @@ class CHKUploader:
         self._client = client
         self._wait_for_numpeers = wait_for_numpeers
         self._options = options
+        self._log_number = self._client.log("CHKUploader starting")
 
     def set_params(self, encoding_parameters):
         self._encoding_parameters = encoding_parameters
+
+    def log(self, msg, parent=None):
+        if parent is None:
+            parent = self._log_number
+        return self._client.log(msg, parent=parent)
 
     def start(self, uploadable):
         """Start uploading the file.
@@ -431,7 +437,7 @@ class CHKUploader:
         string)."""
 
         uploadable = IUploadable(uploadable)
-        log.msg("starting upload of %s" % uploadable)
+        self.log("starting upload of %s" % uploadable)
 
         eu = EncryptAnUploadable(uploadable)
         d = self.start_encrypted(eu)
@@ -445,7 +451,7 @@ class CHKUploader:
     def start_encrypted(self, encrypted):
         eu = IEncryptedUploadable(encrypted)
 
-        e = encode.Encoder(self._options)
+        e = encode.Encoder(self._options, self)
         e.set_params(self._encoding_parameters)
         d = e.set_encrypted_uploadable(eu)
         def _wait_for_peers(res):
@@ -467,6 +473,7 @@ class CHKUploader:
     def locate_all_shareholders(self, encoder):
         storage_index = encoder.get_param("storage_index")
         upload_id = idlib.b2a(storage_index)[:6]
+        self.log("using storage index %s" % upload_id)
         peer_selector = self.peer_selector_class(upload_id)
 
         share_size = encoder.get_param("share_size")
@@ -484,7 +491,7 @@ class CHKUploader:
         """
         @param used_peers: a sequence of PeerTracker objects
         """
-        log.msg("_send_shares, used_peers is %s" % (used_peers,))
+        self.log("_send_shares, used_peers is %s" % (used_peers,))
         for peer in used_peers:
             assert isinstance(peer, PeerTracker)
         buckets = {}

@@ -219,17 +219,27 @@ class BlockDownloader:
         self.vbucket = vbucket
         self.blocknum = blocknum
         self.parent = parent
+        self._log_number = self.parent.log("starting block %d" % blocknum)
+
+    def log(self, msg, parent=None):
+        if parent is None:
+            parent = self._log_number
+        return self.parent.log(msg, parent=parent)
 
     def start(self, segnum):
+        lognum = self.log("get_block(segnum=%d)" % segnum)
         d = self.vbucket.get_block(segnum)
-        d.addCallbacks(self._hold_block, self._got_block_error)
+        d.addCallbacks(self._hold_block, self._got_block_error,
+                       callbackArgs=(lognum,), errbackArgs=(lognum,))
         return d
 
-    def _hold_block(self, data):
+    def _hold_block(self, data, lognum):
+        self.log("got block", parent=lognum)
         self.parent.hold_block(self.blocknum, data)
 
-    def _got_block_error(self, f):
-        log.msg("BlockDownloader[%d] got error: %s" % (self.blocknum, f))
+    def _got_block_error(self, f, lognum):
+        self.log("BlockDownloader[%d] got error: %s" % (self.blocknum, f),
+                 parent=lognum)
         self.parent.bucket_failed(self.vbucket)
 
 class SegmentDownloader:
@@ -244,6 +254,13 @@ class SegmentDownloader:
         self.segmentnumber = segmentnumber
         self.needed_blocks = needed_shares
         self.blocks = {} # k: blocknum, v: data
+        self._log_number = self.parent.log("starting segment %d" %
+                                           segmentnumber)
+
+    def log(self, msg, parent=None):
+        if parent is None:
+            parent = self._log_number
+        return self.parent.log(msg, parent=parent)
 
     def start(self):
         return self._download()
