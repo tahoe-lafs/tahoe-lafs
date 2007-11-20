@@ -286,6 +286,9 @@ class Node(service.MultiService):
 
     def tub_ready(self):
         # called when the Tub is available for registerReference
+        self.setup_log_publisher()
+
+    def setup_log_publisher(self):
         self.add_service(LogPublisher())
         log_gatherer_furl = self.get_config("log_gatherer.furl")
         if log_gatherer_furl:

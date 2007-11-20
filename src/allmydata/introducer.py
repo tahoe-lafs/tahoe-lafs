@@ -16,6 +16,24 @@ class IntroducerNode(node.Node):
     DEFAULT_K, DEFAULT_DESIRED, DEFAULT_N = 3, 7, 10
 
     def tub_ready(self):
+        i = Introducer()
+        r = self.add_service(i)
+        self.urls["introducer"] = self.tub.registerReference(r, "introducer")
+        self.log(" introducer is at %s" % self.urls["introducer"])
+        self.write_config("introducer.furl", self.urls["introducer"] + "\n")
+
+        vdrive_dir = os.path.join(self.basedir, self.VDRIVEDIR)
+        vds = self.add_service(VirtualDriveServer(vdrive_dir))
+        vds_furl = self.tub.registerReference(vds, "vdrive")
+        vds.set_furl(vds_furl)
+        self.urls["vdrive"] = vds_furl
+        self.log(" vdrive is at %s" % self.urls["vdrive"])
+        self.write_config("vdrive.furl", self.urls["vdrive"] + "\n")
+
+        encoding_parameters = self._read_encoding_parameters()
+        i.set_encoding_parameters(encoding_parameters)
+
+    def _read_encoding_parameters(self):
         k, desired, n = self.DEFAULT_K, self.DEFAULT_DESIRED, self.DEFAULT_N
         data = self.get_config("encoding_parameters")
         if data is not None:
@@ -85,7 +103,7 @@ class IntroducerClient(service.Service, Referenceable):
         self.introducer_reconnector = self.tub.connectTo(self.introducer_furl,
                                                          self._got_introducer)
         def connect_failed(failure):
-            self.log("\n\nInitial Introducer connection failed: "
+            self.log("\n\nInitial IntroducerAndVdrive connection failed: "
                      "perhaps it's down\n")
             self.log(str(failure))
         d = self.tub.getReference(self.introducer_furl)
