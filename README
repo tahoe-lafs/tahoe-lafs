@@ -61,15 +61,19 @@ The Manual Dependencies:
 
    http://twistedmatrix.com/
 
+   Installing from the Twisted source tarball works on all known supported
+   platforms, including cygwin.
+
    You need the following subpackages, which are included in the default
    Twisted distribution:
 
    * core (the standard Twisted package)
    * web, trial, conch
 
-   Twisted requires zope.interface, a copy of which is included in the
-   Twisted distribution. Note that Twisted does *not* require the entire Zope
-   distribution, merely the much smaller zope.interface component.
+   Twisted requires that you manually install zope.interface, a copy of which
+   is included in the Twisted distribution. Note that Twisted does *not*
+   require the entire Zope distribution, merely the much smaller
+   zope.interface component.
 
  + OpenSSL, including development headers (cryptography library)
 
