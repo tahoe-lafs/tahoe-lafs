@@ -409,13 +409,7 @@ class Log(unittest.TestCase):
         log.msg("sub message", parent=num)
         log.msg("numbered message", number=47)
 
-        f = failure.Failure(SampleError())
-        num2 = log.err(f)
-        log.err(f, parent=num2)
-        log.err(f, number=48)
-
         logs = self.catcher[:]
-        self.flushLoggedErrors(SampleError)
 
         self.failUnlessEqual(logs[0]['message'], ("this is a message",))
         self.failUnlessEqual(logs[0]['number'], num)
@@ -429,18 +423,30 @@ class Log(unittest.TestCase):
         self.failUnlessEqual(logs[2]['number'], 47)
         self.failUnlessEqual(logs[2]['parent'], None)
 
-        self.failUnlessEqual(logs[3]['message'], ())
-        self.failUnlessEqual(logs[3]['failure'], f)
-        self.failUnlessEqual(logs[3]['number'], num2)
-        self.failUnlessEqual(logs[3]['parent'], None)
+    def test_err(self):
+        if not hasattr(self, "flushLoggedErrors"):
+            raise unittest.SkipTest("need newer Twisted to test log.err")
 
-        self.failUnlessEqual(logs[4]['message'], ())
-        self.failUnlessEqual(logs[4]['failure'], f)
-        self.failUnlessEqual(logs[4]['number'], num2+1)
-        self.failUnlessEqual(logs[4]['parent'], num2)
+        f = failure.Failure(SampleError())
+        num2 = log.err(f)
+        log.err(f, parent=num2)
+        log.err(f, number=48)
 
-        self.failUnlessEqual(logs[5]['message'], ())
-        self.failUnlessEqual(logs[5]['failure'], f)
-        self.failUnlessEqual(logs[5]['number'], 48)
-        self.failUnlessEqual(logs[5]['parent'], None)
+        logs = self.catcher[:]
+        self.flushLoggedErrors(SampleError)
+
+        self.failUnlessEqual(logs[0]['message'], ())
+        self.failUnlessEqual(logs[0]['failure'], f)
+        self.failUnlessEqual(logs[0]['number'], num2)
+        self.failUnlessEqual(logs[0]['parent'], None)
+
+        self.failUnlessEqual(logs[1]['message'], ())
+        self.failUnlessEqual(logs[1]['failure'], f)
+        self.failUnlessEqual(logs[1]['number'], num2+1)
+        self.failUnlessEqual(logs[1]['parent'], num2)
+
+        self.failUnlessEqual(logs[2]['message'], ())
+        self.failUnlessEqual(logs[2]['failure'], f)
+        self.failUnlessEqual(logs[2]['number'], 48)
+        self.failUnlessEqual(logs[2]['parent'], None)
 
