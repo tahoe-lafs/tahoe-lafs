@@ -123,7 +123,7 @@ class TahoeFS (fuse.Fuse):
         self.filecontents = {} # {path -> contents}
 
         self._init_url()
-        self._init_bookmarks()
+        self._init_rootdir()
 
     def _init_url(self):
         f = open(os.path.join(self.confdir, 'webport'), 'r')
@@ -137,27 +137,19 @@ class TahoeFS (fuse.Fuse):
         self.url = 'http://localhost:%d' % (port,)
 
     def _init_bookmarks(self):
-        rootdirfn = os.path.join(self.confdir, 'private', 'root-dir.cap')
-        try:
-            f = open(rootdirfn, 'r')
-            uri = f.read().strip()
-            f.close()
-        except EnvironmentError, le:
-            # FIXME: This user-friendly help message may be platform-dependent because it checks the exception description.
-            if le.args[1].find('No such file or directory') != -1:
-                raise SystemExit('%s requires a directory capability in %s, but when it was not found.\nPlease see "The CLI" in "docs/using.html".\n' % (sys.argv[0], rootdirfn))
-            else:
-                raise le
-
-        self.bookmarks = TahoeDir(self.url, uri)
+        f = open(os.path.join(self.confdir, 'fuse-bookmarks.uri'), 'r')
+        uri = f.read().strip()
+        f.close()
+        
+        self.rootdir = TahoeDir(self.url, uri)
 
     def _get_node(self, path):
         assert path.startswith('/')
         if path == '/':
-            return self.bookmarks.resolve_path([])
+            return self.rootdir.resolve_path([])
         else:
             parts = path.split('/')[1:]
-            return self.bookmarks.resolve_path(parts)
+            return self.rootdir.resolve_path(parts)
     
     def _get_contents(self, path):
         node = self._get_node(path)
