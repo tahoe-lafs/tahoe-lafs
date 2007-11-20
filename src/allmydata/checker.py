@@ -141,6 +141,8 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         self._size = u.size
         self._num_needed_shares = u.needed_shares
 
+        self.init_logging()
+
         self._output = VerifyingOutput(self._size)
         self._paused = False
         self._stopped = False
@@ -158,6 +160,18 @@ class SimpleCHKFileVerifier(download.FileDownloader):
                                 "crypttext_hashroot": 0,
                                 "crypttext_hashtree": 0,
                                 }
+
+    def init_logging(self):
+        self._log_prefix = prefix = idlib.b2a(self._storage_index)[:6]
+        num = self._client.log("SimpleCHKFileVerifier(%s): starting" % prefix)
+        self._log_number = num
+
+    def log(self, msg, parent=None):
+        if parent is None:
+            parent = self._log_number
+        return self._client.log("SimpleCHKFileVerifier(%s): %s"
+                                % (self._log_prefix, msg),
+                                parent=parent)
 
 
     def start(self):

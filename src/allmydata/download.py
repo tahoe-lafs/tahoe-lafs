@@ -301,6 +301,8 @@ class FileDownloader:
         self._size = u.size
         self._num_needed_shares = u.needed_shares
 
+        self.init_logging()
+
         if IConsumer.providedBy(downloadable):
             downloadable.registerProducer(self, True)
         self._downloadable = downloadable
@@ -322,6 +324,18 @@ class FileDownloader:
                                 "crypttext_hashtree": 0,
                                 }
 
+    def init_logging(self):
+        self._log_prefix = prefix = idlib.b2a(self._storage_index)[:6]
+        num = self._client.log("FileDownloader(%s): starting" % prefix)
+        self._log_number = num
+
+    def log(self, msg, parent=None):
+        if parent is None:
+            parent = self._log_number
+        return self._client.log("FileDownloader(%s): %s" % (self._log_prefix,
+                                                            msg),
+                                parent=parent)
+
     def pauseProducing(self):
         if self._paused:
             return
@@ -334,11 +348,11 @@ class FileDownloader:
             eventually(p.callback, None)
 
     def stopProducing(self):
-        log.msg("Download.stopProducing")
+        self.log("Download.stopProducing")
         self._stopped = True
 
     def start(self):
-        log.msg("starting download [%s]" % idlib.b2a(self._storage_index)[:6])
+        self.log("starting download")
 
         # first step: who should we download from?
         d = defer.maybeDeferred(self._get_all_shareholders)
@@ -440,7 +454,7 @@ class FileDownloader:
         d.addCallback(lambda res: getattr(bucket, methname)(*args))
         d.addCallback(validatorfunc, bucket)
         def _bad(f):
-            log.msg("%s from vbucket %s failed: %s" % (name, bucket, f)) # WEIRD
+            self.log("WEIRD: %s from vbucket %s failed: %s" % (name, bucket, f))
             if not sources:
                 raise NotEnoughPeersError("ran out of peers, last error was %s"
                                           % (f,))
@@ -588,9 +602,9 @@ class FileDownloader:
         return res
 
     def _download_segment(self, res, segnum):
-        log.msg("downloading seg#%d of %d (%d%%)"
-                % (segnum, self._total_segments,
-                   100.0 * segnum / self._total_segments))
+        self.log("downloading seg#%d of %d (%d%%)"
+                 % (segnum, self._total_segments,
+                    100.0 * segnum / self._total_segments))
         # memory footprint: when the SegmentDownloader finishes pulling down
         # all shares, we have 1*segment_size of usage.
         segmentdler = SegmentDownloader(self, segnum, self._num_needed_shares)
@@ -622,9 +636,9 @@ class FileDownloader:
         return d
 
     def _download_tail_segment(self, res, segnum):
-        log.msg("downloading seg#%d of %d (%d%%)"
-                % (segnum, self._total_segments,
-                   100.0 * segnum / self._total_segments))
+        self.log("downloading seg#%d of %d (%d%%)"
+                 % (segnum, self._total_segments,
+                    100.0 * segnum / self._total_segments))
         segmentdler = SegmentDownloader(self, segnum, self._num_needed_shares)
         d = segmentdler.start()
         # pause before using more memory
@@ -647,7 +661,7 @@ class FileDownloader:
         return d
 
     def _done(self, res):
-        log.msg("download done [%s]" % idlib.b2a(self._storage_index)[:6])
+        self.log("download done")
         self._output.close()
         if self.check_crypttext_hash:
             _assert(self._crypttext_hash == self._output.crypttext_hash,

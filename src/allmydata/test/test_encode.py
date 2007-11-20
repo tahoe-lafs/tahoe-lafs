@@ -14,6 +14,10 @@ class LostPeerError(Exception):
 def flip_bit(good): # flips the last bit
     return good[:-1] + chr(ord(good[-1]) ^ 0x01)
 
+class FakeClient:
+    def log(self, *args, **kwargs):
+        pass
+
 class FakeBucketWriterProxy:
     implements(IStorageBucketWriter, IStorageBucketReader)
     # these are used for both reading and writing
@@ -330,7 +334,7 @@ class Roundtrip(unittest.TestCase):
                            size=file_size)
         URI = u.to_string()
 
-        client = None
+        client = FakeClient()
         target = download.Data()
         fd = download.FileDownloader(client, URI, target)
 
