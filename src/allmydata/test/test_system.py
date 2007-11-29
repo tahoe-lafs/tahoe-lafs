@@ -399,6 +399,9 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(_created_dirnode)
 
         return d
+    # The default 120 second timeout went off when running it under valgrind
+    # on my old Windows laptop, so I'm bumping up the timeout.
+    test_mutable.timeout = 240
 
     def flip_bit(self, good):
         return good[:-1] + chr(ord(good[-1]) ^ 0x01)
