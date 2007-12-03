@@ -111,8 +111,9 @@ class FakeClient:
         self._num_peers = num_peers
         self._peerids = [tagged_hash("peerid", "%d" % i)[:20]
                          for i in range(self._num_peers)]
-    def log(self, msg):
-        log.msg(msg)
+        self.introducer_client = FakeIntroducerClient()
+    def log(self, msg, **kw):
+        return log.msg(msg, **kw)
 
     def get_renewal_secret(self):
         return "I hereby permit you to renew my files"

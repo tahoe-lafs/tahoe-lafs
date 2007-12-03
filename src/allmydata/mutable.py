@@ -757,7 +757,7 @@ class Publish:
         # 4a: may need to run recovery algorithm
         # 5: when enough responses are back, we're done
 
-        self.log("starting publish, data is %r" % (newdata,))
+        self.log("got enough peers, datalen is %s" % len(newdata))
 
         self._writekey = self._node.get_writekey()
         assert self._writekey, "need write capability to publish"
