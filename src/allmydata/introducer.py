@@ -1,26 +1,42 @@
 
-from base64 import b32encode, b32decode
-
 import re
+from base64 import b32encode, b32decode
 from zope.interface import implements
 from twisted.application import service
 from twisted.python import log
 from foolscap import Referenceable
+from allmydata import node
 from allmydata.interfaces import RIIntroducer, RIIntroducerClient
 from allmydata.util import observer
 
-class Introducer(service.MultiService, Referenceable):
+class IntroducerNode(node.Node):
+    PORTNUMFILE = "introducer.port"
+    NODETYPE = "introducer"
+    ENCODING_PARAMETERS_FILE = "encoding_parameters"
+    DEFAULT_K, DEFAULT_DESIRED, DEFAULT_N = 3, 7, 10
+
+    def tub_ready(self):
+        k, desired, n = self.DEFAULT_K, self.DEFAULT_DESIRED, self.DEFAULT_N
+        data = self.get_config("encoding_parameters")
+        if data is not None:
+            k,desired,n = data.split()
+            k = int(k); desired = int(desired); n = int(n)
+        introducerservice = IntroducerService(self.basedir, (k, desired, n))
+        self.add_service(introducerservice)
+        self.introducer_url = self.tub.registerReference(introducerservice, "introducer")
+        self.log(" introducer is at %s" % self.introducer_url)
+        self.write_config("introducer.furl", self.introducer_url + "\n")
+
+class IntroducerService(service.MultiService, Referenceable):
     implements(RIIntroducer)
     name = "introducer"
 
-    def __init__(self):
+    def __init__(self, basedir=".", encoding_parameters=None):
         service.MultiService.__init__(self)
+        self.introducer_url = None
         self.nodes = set()
         self.furls = set()
-        self._encoding_parameters = None
-
-    def set_encoding_parameters(self, parameters):
-        self._encoding_parameters = parameters
+        self._encoding_parameters = encoding_parameters
 
     def remote_hello(self, node, furl):
         log.msg("introducer: new contact at %s, node is %s" % (furl, node))
@@ -38,7 +54,6 @@ class Introducer(service.MultiService, Referenceable):
             othernode.callRemote("new_peers", set([furl]))
         self.nodes.add(node)
 
-
 class IntroducerClient(service.Service, Referenceable):
     implements(RIIntroducerClient)
 
@@ -53,6 +68,17 @@ class IntroducerClient(service.Service, Referenceable):
 
         self.connection_observers = observer.ObserverList()
         self.encoding_parameters = None
+
+        # The N'th element of _observers_of_enough_peers is None if nobody has
+        # asked to be informed when N peers become connected, it is a
+        # OneShotObserverList if someone has asked to be informed, and that
+        # list is fired when N peers next become connected (or immediately if
+        # N peers are already connected when someone asks), and the N'th
+        # element is replaced by None when the number of connected peers falls
+        # below N.  _observers_of_enough_peers is always just long enough to
+        # hold the highest-numbered N that anyone is interested in (i.e.,
+        # there are never trailing Nones in _observers_of_enough_peers).
+        self._observers_of_enough_peers = []
 
     def startService(self):
         service.Service.startService(self)
@@ -100,10 +126,25 @@ class IntroducerClient(service.Service, Referenceable):
             self.log("connected to %s" % b32encode(nodeid).lower()[:8])
             self.connection_observers.notify(nodeid, rref)
             self.connections[nodeid] = rref
+            if len(self._observers_of_enough_peers) > len(self.connections):
+                osol = self._observers_of_enough_peers[len(self.connections)]
+                if osol:
+                    osol.fire(None)
             def _lost():
                 # TODO: notifyOnDisconnect uses eventually(), but connects do
                 # not. Could this cause a problem?
                 del self.connections[nodeid]
+                if len(self._observers_of_enough_peers) > len(self.connections):
+                    self._observers_of_enough_peers[len(self.connections)] = None
+                    while self._observers_of_enough_peers and (not self._observers_of_enough_peers[-1]):
+                        self._observers_of_enough_peers.pop()
+                for numpeers in self._observers_of_enough_peers:
+                    if len(self.connections) == (numpeers-1):
+                        # We know that this observer list must have been
+                        # fired, since we had enough peers before this one was
+                        # lost.
+                        del self._observers_of_enough_peers[numpeers]
+
             rref.notifyOnDisconnect(_lost)
         self.log("connecting to %s" % b32encode(nodeid).lower()[:8])
         self.reconnectors[furl] = self.tub.connectTo(furl, _got_peer)
@@ -133,3 +174,16 @@ class IntroducerClient(service.Service, Referenceable):
 
     def get_all_peers(self):
         return self.connections.iteritems()
+
+    def when_enough_peers(self, numpeers):
+        """
+        I return a deferred that fires the next time that at least numpeers
+        are connected, or fires immediately if numpeers are currently
+        available.
+        """
+        self._observers_of_enough_peers.extend([None]*(numpeers+1-len(self._observers_of_enough_peers)))
+        if not self._observers_of_enough_peers[numpeers]:
+            self._observers_of_enough_peers[numpeers] = observer.OneShotObserverList()
+            if len(self.connections) >= numpeers:
+                self._observers_of_enough_peers[numpeers].fire(self)
+        return self._observers_of_enough_peers[numpeers].when_fired()

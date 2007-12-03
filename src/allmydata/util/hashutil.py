@@ -1,7 +1,11 @@
 from pycryptopp.hash.sha256 import SHA256
 import os
 
+class IntegrityCheckError(Exception):
+    pass
+
 def netstring(s):
+    assert isinstance(s, str), s
     return "%d:%s," % (len(s), s,)
 
 def tagged_hash(tag, val):

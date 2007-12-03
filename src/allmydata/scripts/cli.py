@@ -11,19 +11,16 @@ class VDriveOptions(BaseOptions, usage.Options):
          "Look here to find out which Tahoe node should be used for all "
          "operations. The directory should either contain a full Tahoe node, "
          "or a file named node.url which points to some other Tahoe node. "
-         "It should also contain a file named my_vdrive.uri which contains "
-         "the root dirnode URI that should be used, and a file named "
-         "global_root.uri which contains the public global root dirnode URI."
+         "It should also contain a file named my_private_dir.uri which contains "
+         "the root dirnode URI that should be used."
          ],
         ["node-url", "u", None,
          "URL of the tahoe node to use, a URL like \"http://127.0.0.1:8123\". "
          "This overrides the URL found in the --node-directory ."],
         ["root-uri", "r", "private",
-         "Which dirnode URI should be used as a root directory. The string "
-         "'public' is special, and means we should use the public global root "
-         "as found in the global_root.uri file in the --node-directory . The "
-         "string 'private' is also special, and means we should use the "
-         "private vdrive as found in the my_vdrive.uri file in the "
+         "Which dirnode URI should be used as a root directory.  The "
+         "string 'private' is also, and means we should use the "
+         "private vdrive as found in the my_private_dir.uri file in the "
          "--node-directory ."],
         ]
 
@@ -44,10 +41,7 @@ class VDriveOptions(BaseOptions, usage.Options):
 
         # also compute self['root-uri']
         if self['root-uri'] == "private":
-            uri_file = os.path.join(self['node-directory'], "my_vdrive.uri")
-            self['root-uri'] = open(uri_file, "r").read().strip()
-        elif self['root-uri'] == "public":
-            uri_file = os.path.join(self['node-directory'], "global_root.uri")
+            uri_file = os.path.join(self['node-directory'], "my_private_dir.uri")
             self['root-uri'] = open(uri_file, "r").read().strip()
         else:
             from allmydata import uri

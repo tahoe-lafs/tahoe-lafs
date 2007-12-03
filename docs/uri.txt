@@ -90,6 +90,7 @@ file that contains the string "hello" is "URI:LIT:nbswy3dp".
 
 === Mutable File URIs ===
 
+TODO: update this documentation for v0.7.0 which does have decentralized mutable files and decentralized directories
 The current release does not provide for mutable files, hence all file URIs
 correspond to immutable data. Future releases will probably add mutable
 files, creating a new class of Mutable File URIs. These URIs will contain the
@@ -111,6 +112,7 @@ of directories and files, the "vdrive" layer (which sits on top of the grid
 layer) needs to keep track of "directory nodes", or "dirnodes" for short.
 source:docs/dirnodes.txt describes how these work.
 
+TODO: update this documentation for v0.7.0 which has decentralized mutable files and decentralized directories
 In the current release, each dirnode is stored (in encrypted form) on a
 single "vdrive server". The Foolscap FURL that points at this server is kept
 inside the "dirnode URI", as well as the read-key or write-key used in the

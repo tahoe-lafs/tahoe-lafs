@@ -226,7 +226,7 @@ class Checker(service.MultiService):
             c = SimpleDirnodeChecker(tub)
             d = c.check(uri_to_check)
         else:
-            raise ValueError("I don't know how to check '%s'" % (uri_to_check,))
+            return defer.succeed(True)  # TODO I don't know how to check, but I'm pretending to succeed.
 
         def _done(res):
             # TODO: handle exceptions too, record something useful about them
@@ -249,8 +249,7 @@ class Checker(service.MultiService):
             c = SimpleDirnodeChecker(tub)
             return c.check(uri_to_verify)
         else:
-            raise ValueError("I don't know how to verify '%s'" %
-                             (uri_to_verify,))
+            return defer.succeed(True)  # TODO I don't know how to verify, but I'm pretending to succeed.
 
     def checker_results_for(self, uri_to_check):
         if uri_to_check and self.results:

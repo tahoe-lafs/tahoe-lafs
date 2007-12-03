@@ -30,10 +30,10 @@ c.setServiceParent(application)
 introducer_tac = """
 # -*- python -*-
 
-from allmydata import introducer_and_vdrive
+from allmydata import introducer
 from twisted.application import service
 
-c = introducer_and_vdrive.IntroducerAndVdrive()
+c = introducer.IntroducerNode()
 
 application = service.Application("allmydata_introducer")
 c.setServiceParent(application)
@@ -56,8 +56,11 @@ def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
         f = open(os.path.join(basedir, "webport"), "w")
         f.write(config['webport'] + "\n")
         f.close()
+    # Create an empty my_private_dir.uri file, indicating that the node
+    # should fill it with the URI after creating the directory.
+    open(os.path.join(basedir, "my_private_dir.uri"), "w")
     print >>out, "client created in %s" % basedir
-    print >>out, " please copy introducer.furl and vdrive.furl into the directory"
+    print >>out, " please copy introducer.furl into the directory"
 
 def create_introducer(basedir, config, out=sys.stdout, err=sys.stderr):
     if os.path.exists(basedir):

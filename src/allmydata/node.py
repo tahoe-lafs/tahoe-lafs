@@ -12,9 +12,7 @@ from allmydata.util.assertutil import precondition
 from allmydata.logpublisher import LogPublisher
 
 # Just to get their versions:
-import allmydata
-import zfec
-import foolscap
+import allmydata, foolscap, pycryptopp, zfec
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
 ADDR_RE=re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
@@ -30,8 +28,8 @@ def formatTimeTahoeStyle(self, when):
         return d.isoformat(" ") + ".000Z"
 
 class Node(service.MultiService):
-    # this implements common functionality of both Client nodes, Introducer
-    # nodes, and Vdrive nodes
+    # this implements common functionality of both Client nodes and Introducer
+    # nodes.
     NODETYPE = "unknown NODETYPE"
     PORTNUMFILE = None
     CERTFILE = "node.pem"
@@ -133,11 +131,13 @@ class Node(service.MultiService):
                 'foolscap': foolscap.__version__,
                 'twisted': twisted.__version__,
                 'zfec': zfec.__version__,
+                'pycryptopp': pycryptopp.__version__,
                 }
 
     def startService(self):
         # Note: this class can be started and stopped at most once.
         self.log("Node.startService")
+        # Delay until the reactor is running.
         eventual.eventually(self._startService)
 
     def _startService(self):

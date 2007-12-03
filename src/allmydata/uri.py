@@ -4,7 +4,7 @@ from zope.interface import implements
 from twisted.python.components import registerAdapter
 from allmydata.util import idlib, hashutil
 from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IVerifierURI, \
-     IMutableFileURI, INewDirectoryURI
+     IMutableFileURI, INewDirectoryURI, IReadonlyNewDirectoryURI
 
 # the URI shall be an ascii representation of the file. It shall contain
 # enough information to retrieve and validate the contents. It shall be
@@ -203,6 +203,12 @@ class WriteableSSKFileURI(_BaseURI):
         return "URI:SSK:%s:%s" % (idlib.b2a(self.writekey),
                                   idlib.b2a(self.fingerprint))
 
+    def __repr__(self):
+        return "<%s %s>" % (self.__class__.__name__, self.abbrev())
+
+    def abbrev(self):
+        return idlib.b2a(self.writekey[:5])
+
     def is_readonly(self):
         return False
     def is_mutable(self):
@@ -236,6 +242,12 @@ class ReadonlySSKFileURI(_BaseURI):
         assert isinstance(self.fingerprint, str)
         return "URI:SSK-RO:%s:%s" % (idlib.b2a(self.readkey),
                                      idlib.b2a(self.fingerprint))
+
+    def __repr__(self):
+        return "<%s %s>" % (self.__class__.__name__, self.abbrev())
+
+    def abbrev(self):
+        return idlib.b2a(self.readkey[:5])
 
     def is_readonly(self):
         return True
@@ -271,13 +283,32 @@ class SSKVerifierURI(_BaseURI):
         return "URI:SSK-Verifier:%s:%s" % (idlib.b2a(self.storage_index),
                                            idlib.b2a(self.fingerprint))
 
-class NewDirectoryURI(_BaseURI):
-    implements(IURI, IDirnodeURI, INewDirectoryURI)
+class _NewDirectoryBaseURI(_BaseURI):
+    implements(IURI, IDirnodeURI)
+    def __init__(self, filenode_uri=None):
+        self._filenode_uri = filenode_uri
 
+    def __repr__(self):
+        return "<%s %s>" % (self.__class__.__name__, self.abbrev())
+
+    def abbrev(self):
+        return self._filenode_uri.to_string().split(':')[2][:5]
+
+    def get_filenode_uri(self):
+        return self._filenode_uri
+
+    def is_mutable(self):
+        return True
+
+    def get_verifier(self):
+        return NewDirectoryURIVerifier(self._filenode_uri.get_verifier())
+
+class NewDirectoryURI(_NewDirectoryBaseURI):
+    implements(INewDirectoryURI)
     def __init__(self, filenode_uri=None):
         if filenode_uri:
             assert not filenode_uri.is_readonly()
-        self._filenode_uri = filenode_uri
+        _NewDirectoryBaseURI.__init__(self, filenode_uri)
 
     def init_from_string(self, uri):
         assert uri.startswith("URI:DIR2:")
@@ -293,25 +324,18 @@ class NewDirectoryURI(_BaseURI):
         (header_uri, header_ssk, bits) = fn_u.split(":", 2)
         return "URI:DIR2:" + bits
 
-    def get_filenode_uri(self):
-        return self._filenode_uri
-
     def is_readonly(self):
         return False
-    def is_mutable(self):
-        return True
+
     def get_readonly(self):
         return ReadonlyNewDirectoryURI(self._filenode_uri.get_readonly())
-    def get_verifier(self):
-        return NewDirectoryURIVerifier(self._filenode_uri.get_verifier())
 
-class ReadonlyNewDirectoryURI(_BaseURI):
-    implements(IURI, IDirnodeURI)
-
+class ReadonlyNewDirectoryURI(_NewDirectoryBaseURI):
+    implements(IReadonlyNewDirectoryURI)
     def __init__(self, filenode_uri=None):
         if filenode_uri:
             assert filenode_uri.is_readonly()
-        self._filenode_uri = filenode_uri
+        _NewDirectoryBaseURI.__init__(self, filenode_uri)
 
     def init_from_string(self, uri):
         assert uri.startswith("URI:DIR2-RO:")
@@ -327,17 +351,11 @@ class ReadonlyNewDirectoryURI(_BaseURI):
         (header_uri, header_ssk, bits) = fn_u.split(":", 2)
         return "URI:DIR2-RO:" + bits
 
-    def get_filenode_uri(self):
-        return self._filenode_uri
-
     def is_readonly(self):
         return True
-    def is_mutable(self):
-        return True
+
     def get_readonly(self):
         return self
-    def get_verifier(self):
-        return NewDirectoryURIVerifier(self._filenode_uri.get_verifier())
 
 class NewDirectoryURIVerifier(_BaseURI):
     implements(IVerifierURI)
@@ -513,6 +531,15 @@ def from_string_dirnode(s):
     return u
 
 registerAdapter(from_string_dirnode, str, IDirnodeURI)
+
+def is_string_newdirnode_rw(s):
+    if not s.startswith("URI:DIR2:"):
+        return False
+    try:
+        (header_uri, header_dir2, writekey_s, fingerprint_s) = s.split(":", 2)
+    except ValueError:
+        return False
+    return idlib.could_be_base32_encoded(writekey_s) and idlib.could_be_base32_encoded(fingerprint_s)
 
 def from_string_filenode(s):
     u = from_string(s)

@@ -14,11 +14,11 @@ base directory.
 
 == Client Configuration ==
 
-introducer.furl and vdrive.furl (mandatory): These FURLs tell the client how
-to connect to the introducer/vdrive server. Each Tahoe grid is defined by
-this pair. They are created by the introducer/vdrive-server node and written
-into its base directory when it starts, whereupon they should be published to
-everyone who wishes to attach a client to that grid
+introducer.furl (mandatory): This FURL tells the client how to connect to the
+introducer. Each Tahoe grid is defined by an introducer. The introducer's
+furl is created by the introducer node and written into its base directory
+when it starts, whereupon it should be published to everyone who wishes to
+attach a client to that grid
 
 webport (optional): This controls where the client's webserver should listen,
 providing vdrive access as defined in webapi.txt . This file should contain a
@@ -53,14 +53,27 @@ for debugging.  To cause the node to accept SSH connections on port 8022,
 symlink "authorized_keys.8022" to your ~/.ssh/authorized_keys file, and it
 will accept the same keys as the rest of your account.
 
-sizelimit: If present, this file establishes an upper bound (in bytes) on the
-amount of storage consumed by share data (data that your node holds on behalf
-of clients that are uploading files to the grid). To avoid providing more
-than 100MB of data to other clients, write "100000000" into this file. Note
-that this is a fairly loose bound, and the node may occasionally use slightly
-more storage than this. To enforce a stronger (and possibly more reliable)
-limit, use a symlink to place the 'storage/' directory on a separate
-size-limited filesystem, and/or use per-user OS/filesystem quotas.
+sizelimit (optional): If present, this file establishes an upper bound (in
+bytes) on the amount of storage consumed by share data (data that your node
+holds on behalf of clients that are uploading files to the grid). To avoid
+providing more than 100MB of data to other clients, write "100000000" into
+this file. Note that this is a fairly loose bound, and the node may
+occasionally use slightly more storage than this. To enforce a stronger (and
+possibly more reliable) limit, use a symlink to place the 'storage/'
+directory on a separate size-limited filesystem, and/or use per-user
+OS/filesystem quotas.
+
+my_private_dir.uri (optional): When you create a new tahoe client, this
+file is created with no contents (as an empty file).  When the node starts
+up, it will inspect this file.  If the file doesn't exist then nothing will
+be done.  If the file exists, then the node will try to read the contents of
+the file and parse the contents as a read-write URI to a mutable directory.
+If the file exists but doesn't contain a well-formed read-write URI to a
+mutable directory (which is the case if the file is empty), then the node
+will create a new decentralized mutable directory and write its URI into this
+file.  The start.html page will contain a URL pointing to this directory if
+it exists.
+
 
 == Node State ==
 
@@ -68,17 +81,6 @@ node.pem : This contains an SSL private-key certificate. The node generates
 this the first time it is started, and re-uses it on subsequent runs. This
 certificate allows the node to have a cryptographically-strong identifier
 (the Foolscap "TubID"), and to establish secure connections to other nodes.
-
-global_root.uri: The first time the client contacts the vdrive-server, it
-retrieves the dirnode URI of the global root directory, and writes it into
-this file. On subsequent runs, this URI is used each time the user accesses
-the global vdrive.
-
-my_vdrive.uri: The first time the client contacts the vdrive-server, it will
-create a brand new directory to use as the non-shared private vdrive root,
-and it stores the dirnode URI of this directory in this file. On subsequent
-runs, it will read the URI from this file to provide access to the private
-vdrive.
 
 storage/ : Nodes which host StorageServers will create this directory to hold
 shares of files on behalf of other clients. There will be a directory
@@ -109,10 +111,10 @@ gatherer', which will be granted access to the logport. This can be used by
 centralized storage meshes to gather operational logs in a single place.
 
 
-== Introducer/vdrive-server configuration ==
+== Introducer configuration ==
 
-Introducer/vdrive-server nodes use the same 'advertised_ip_addresses' file
-as client nodes. They also use 'authorized_keys.SSHPORT'.
+Introducer nodes use the same 'advertised_ip_addresses' file as client
+nodes. They also use 'authorized_keys.SSHPORT'.
 
 encoding_parameters (optional): This file sets the encoding parameters that
 will be distributed to all client nodes and used when they encode files
@@ -134,33 +136,21 @@ whitespace, called "needed", "desired", and "total".
 The default value of encoding_parameters is "3 7 10".
 
 
-== Introducer/vdrive-server state ==
+== Introducer state ==
 
-The Introducer / Virtual-Drive Server node maintains some different state
-than regular client nodes. Both of these services are currently hosted inside
-the same node, although keeping the FURLs in separate files will make it
-easier to split these services in the future.
+The Introducer node maintains some different state than regular client
+nodes.
 
 introducer.furl : This is generated the first time the introducer node is
 started, and used again on subsequent runs, to give the introduction service
 a persistent long-term identity. This file should be published and copied
 into new client nodes before they are started for the first time.
 
-vdrive.furl : This is also generated the first time the node is started, and
-re-used on later runs. This FURL provides access to the vdrive service, used
-both to create+access all dirnodes and to learn about the global shared root
-vdrive.
-
 introducer.port : this serves exactly the same purpose as 'client.port', but
 has a different name to make it clear what kind of node is being run.
 
-vdrive/ : this directory is created by the vdrive service to hold the
-encrypted contents of dirnodes on behalf of all clients. It contains one file
-per dirnode, plus a file named 'root' which contains the binary storage index
-of the global shared root vdrive.
-
 introducer.tac : this file is like client.tac but defines an
-introducer/vdrive-server node instead of a client node.
+introducer node instead of a client node.
 
 == Other files ==
 

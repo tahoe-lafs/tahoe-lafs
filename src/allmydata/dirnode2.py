@@ -3,13 +3,14 @@ import os
 
 from zope.interface import implements
 from twisted.internet import defer
+from twisted.python import log
 import simplejson
+from allmydata.mutable import NotMutableError
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
-     INewDirectoryURI, IFileNode, NotMutableError, \
+     INewDirectoryURI, IURI, IFileNode, \
      IVerifierURI
 from allmydata.util import hashutil
 from allmydata.util.hashutil import netstring
-from allmydata.dirnode import IntegrityCheckError
 from allmydata.uri import NewDirectoryURI
 from allmydata.Crypto.Cipher import AES
 
@@ -46,24 +47,29 @@ class NewDirectoryNode:
 
     def __init__(self, client):
         self._client = client
+    def __repr__(self):
+        return "<%s %s %s>" % (self.__class__.__name__, self.is_readonly() and "RO" or "RW", hasattr(self, '_uri') and self._uri.abbrev())
     def init_from_uri(self, myuri):
-        u = INewDirectoryURI(myuri)
-        self._uri = u
+        self._uri = IURI(myuri)
         self._node = self.filenode_class(self._client)
-        self._node.init_from_uri(u.get_filenode_uri())
+        self._node.init_from_uri(self._uri.get_filenode_uri())
         return self
 
-    def create(self):
+    def create(self, wait_for_numpeers=None):
+        """
+        Returns a deferred that eventually fires with self once the directory
+        has been created (distributed across a set of storage servers).
+        """
         # first we create a MutableFileNode with empty_contents, then use its
         # URI to create our own.
         self._node = self.filenode_class(self._client)
         empty_contents = self._pack_contents({})
-        d = self._node.create(empty_contents)
+        d = self._node.create(empty_contents, wait_for_numpeers=wait_for_numpeers)
         d.addCallback(self._filenode_created)
         return d
     def _filenode_created(self, res):
         self._uri = NewDirectoryURI(self._node._uri)
-        return None
+        return self
 
     def _read(self):
         d = self._node.download_to_data()
@@ -87,7 +93,7 @@ class NewDirectoryNode:
         mac = encwrcap[-32:]
         key = hashutil.mutable_rwcap_key_hash(IV, self._node.get_writekey())
         if mac != hashutil.hmac(key, IV+crypttext):
-            raise IntegrityCheckError("HMAC does not match, crypttext is corrupted")
+            raise hashutil.IntegrityCheckError("HMAC does not match, crypttext is corrupted")
         counterstart = "\x00"*16
         cryptor = AES.new(key=key, mode=AES.MODE_CTR, counterstart=counterstart)
         plaintext = cryptor.decrypt(crypttext)
@@ -106,12 +112,12 @@ class NewDirectoryNode:
         # an empty directory is serialized as an empty string
         if data == "":
             return {}
-        mutable = self.is_mutable()
+        writeable = not self.is_readonly()
         children = {}
         while len(data) > 0:
             entry, data = split_netstring(data, 1, True)
             name, rocap, rwcapdata, metadata_s = split_netstring(entry, 4)
-            if mutable:
+            if writeable:
                 rwcap = self._decrypt_rwcapdata(rwcapdata)
                 child = self._create_node(rwcap)
             else:
@@ -129,10 +135,10 @@ class NewDirectoryNode:
             child, metadata = children[name]
             assert (IFileNode.providedBy(child)
                     or IMutableFileNode.providedBy(child)
-                    or IDirectoryNode.providedBy(child))
+                    or IDirectoryNode.providedBy(child)), children
             assert isinstance(metadata, dict)
-            rwcap = child.get_uri() # might be RO if the child is not mutable
-            rocap = child.get_readonly()
+            rwcap = child.get_uri() # might be RO if the child is not writeable
+            rocap = child.get_readonly_uri()
             entry = "".join([netstring(name),
                              netstring(rocap),
                              netstring(self._encrypt_rwcap(rwcap)),
@@ -148,10 +154,7 @@ class NewDirectoryNode:
     def get_uri(self):
         return self._uri.to_string()
 
-    def get_readonly(self):
-        return self._uri.get_readonly().to_string()
-
-    def get_immutable_uri(self):
+    def get_readonly_uri(self):
         return self._uri.get_readonly().to_string()
 
     def get_verifier(self):
@@ -163,7 +166,7 @@ class NewDirectoryNode:
 
     def list(self):
         """I return a Deferred that fires with a dictionary mapping child
-        name to an IFileNode or IDirectoryNode."""
+        name to a tuple of (IFileNode or IDirectoryNode, metadata)."""
         return self._read()
 
     def has_child(self, name):
@@ -173,11 +176,17 @@ class NewDirectoryNode:
         d.addCallback(lambda children: children.has_key(name))
         return d
 
+    def _get(self, children, name):
+        child = children.get(name)
+        if child is None:
+            raise KeyError(name)
+        return child[0]
+
     def get(self, name):
-        """I return a Deferred that fires with a specific named child node,
-        either an IFileNode or an IDirectoryNode."""
+        """I return a Deferred that fires with the named child node,
+        which is either an IFileNode or an IDirectoryNode."""
         d = self._read()
-        d.addCallback(lambda children: children[name][0])
+        d.addCallback(self._get, name)
         return d
 
     def get_metadata_for(self, name):
@@ -209,19 +218,19 @@ class NewDirectoryNode:
             d.addCallback(_got)
         return d
 
-    def set_uri(self, name, child_uri, metadata={}):
+    def set_uri(self, name, child_uri, metadata={}, wait_for_numpeers=None):
         """I add a child (by URI) at the specific name. I return a Deferred
-        that fires when the operation finishes. I will replace any existing
-        child of the same name.
+        that fires with the child node when the operation finishes. I will
+        replace any existing child of the same name.
 
         The child_uri could be for a file, or for a directory (either
         read-write or read-only, using a URI that came from get_uri() ).
 
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
-        return self.set_node(name, self._create_node(child_uri), metadata)
+        return self.set_node(name, self._create_node(child_uri), metadata, wait_for_numpeers=wait_for_numpeers)
 
-    def set_node(self, name, child, metadata={}):
+    def set_node(self, name, child, metadata={}, wait_for_numpeers=None):
         """I add a child at the specific name. I return a Deferred that fires
         when the operation finishes. This Deferred will fire with the child
         node that was just added. I will replace any existing child of the
@@ -235,21 +244,21 @@ class NewDirectoryNode:
         def _add(children):
             children[name] = (child, metadata)
             new_contents = self._pack_contents(children)
-            return self._node.replace(new_contents)
+            return self._node.replace(new_contents, wait_for_numpeers=wait_for_numpeers)
         d.addCallback(_add)
-        d.addCallback(lambda res: None)
+        d.addCallback(lambda res: child)
         return d
 
-    def add_file(self, name, uploadable):
+    def add_file(self, name, uploadable, wait_for_numpeers=None):
         """I upload a file (using the given IUploadable), then attach the
         resulting FileNode to the directory at the given name. I return a
         Deferred that fires (with the IFileNode of the uploaded file) when
         the operation completes."""
         if self.is_readonly():
             return defer.fail(NotMutableError())
-        d = self._client.upload(uploadable)
+        d = self._client.upload(uploadable, wait_for_numpeers=wait_for_numpeers)
         d.addCallback(self._client.create_node_from_uri)
-        d.addCallback(lambda node: self.set_node(name, node))
+        d.addCallback(lambda node: self.set_node(name, node, wait_for_numpeers=wait_for_numpeers))
         return d
 
     def delete(self, name):
@@ -270,22 +279,22 @@ class NewDirectoryNode:
         d.addCallback(_delete)
         return d
 
-    def create_empty_directory(self, name):
+    def create_empty_directory(self, name, wait_for_numpeers=None):
         """I create and attach an empty directory at the given name. I return
         a Deferred that fires (with the new directory node) when the
         operation finishes."""
         if self.is_readonly():
             return defer.fail(NotMutableError())
-        d = self._client.create_empty_dirnode()
+        d = self._client.create_empty_dirnode(wait_for_numpeers=wait_for_numpeers)
         def _created(child):
-            d = self.set_node(name, child)
+            d = self.set_node(name, child, wait_for_numpeers=wait_for_numpeers)
             d.addCallback(lambda res: child)
             return d
         d.addCallback(_created)
         return d
 
     def move_child_to(self, current_child_name, new_parent,
-                      new_child_name=None):
+                      new_child_name=None, wait_for_numpeers=None):
         """I take one of my children and move them to a new parent. The child
         is referenced by name. On the new parent, the child will live under
         'new_child_name', which defaults to 'current_child_name'. I return a
@@ -295,7 +304,10 @@ class NewDirectoryNode:
         if new_child_name is None:
             new_child_name = current_child_name
         d = self.get(current_child_name)
-        d.addCallback(lambda child: new_parent.set_node(new_child_name, child))
+        def sn(child):
+            return new_parent.set_node(new_child_name, child,
+                                wait_for_numpeers=wait_for_numpeers)
+        d.addCallback(sn)
         d.addCallback(lambda child: self.delete(current_child_name))
         return d
 

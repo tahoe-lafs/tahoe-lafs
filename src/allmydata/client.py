@@ -17,14 +17,14 @@ from allmydata.download import Downloader
 from allmydata.checker import Checker
 from allmydata.control import ControlServer
 from allmydata.introducer import IntroducerClient
-from allmydata.vdrive import VirtualDrive
-from allmydata.util import hashutil, idlib, testutil
-
-from allmydata.dirnode import FileNode
+from allmydata.util import hashutil, idlib, testutil, observer
+from allmydata.util.assertutil import precondition
+from allmydata.filenode import FileNode
 from allmydata.dirnode2 import NewDirectoryNode
 from allmydata.mutable import MutableFileNode
-from allmydata.interfaces import IURI, INewDirectoryURI, IDirnodeURI, \
-     IFileURI, IMutableFileURI
+from allmydata.interfaces import IURI, INewDirectoryURI, \
+     IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI
+from allmydata import uri
 
 class Client(node.Node, Referenceable, testutil.PollMixin):
     implements(RIClient)
@@ -32,6 +32,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
     STOREDIR = 'storage'
     NODETYPE = "client"
     SUICIDE_PREVENTION_HOTLINE_FILE = "suicide_prevention_hotline"
+    PRIVATE_DIRECTORY_URI = "my_private_dir.uri"
 
     # we're pretty narrow-minded right now
     OLDEST_SUPPORTED_VERSION = allmydata.__version__
@@ -47,10 +48,9 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         self.add_service(Uploader())
         self.add_service(Downloader())
         self.add_service(Checker())
-        self.add_service(VirtualDrive())
-        webport = self.get_config("webport")
-        if webport:
-            self.init_web(webport) # strports string
+        self.private_directory_uri = None
+        self._private_uri_observers = None
+        self._start_page_observers = None
 
         self.introducer_furl = self.get_config("introducer.furl", required=True)
 
@@ -61,6 +61,27 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
             self.log("hotline file noticed (%ds old), starting timer" % age)
             hotline = TimerService(1.0, self._check_hotline, hotline_file)
             hotline.setServiceParent(self)
+
+        webport = self.get_config("webport")
+        if webport:
+            self.init_web(webport) # strports string
+
+    def _init_start_page(self, privdiruri):
+        ws = self.getServiceNamed("webish")
+        startfile = os.path.join(self.basedir, "start.html")
+        nodeurl_file = os.path.join(self.basedir, "node.url")
+        return ws.create_start_html(privdiruri, startfile, nodeurl_file)
+
+    def init_start_page(self):
+        from twisted.internet import defer
+        defer.setDebugging(True)
+        if not self._start_page_observers:
+            self._start_page_observers = observer.OneShotObserverList()
+            d = self.get_private_uri()
+            d.addCallback(self._init_start_page)
+            d.addCallback(self._start_page_observers.fire)
+            d.addErrback(log.err)
+        return self._start_page_observers.when_fired()
 
     def init_secret(self):
         def make_secret():
@@ -97,19 +118,61 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         if self.get_config("push_to_ourselves") is not None:
             self.push_to_ourselves = True
 
+    def _maybe_create_private_directory(self):
+        """
+        If 'my_private_dir.uri' exists, then I try to read a mutable
+        directory URI from it.  If it exists but doesn't contain a well-formed
+        read-write mutable directory URI, then I create a new mutable
+        directory and write its URI into that file.
+        """
+        privdirfile = os.path.join(self.basedir, self.PRIVATE_DIRECTORY_URI)
+        if os.path.exists(privdirfile):
+            try:
+                theuri = open(privdirfile, "r").read().strip()
+                if not uri.is_string_newdirnode_rw(theuri):
+                    raise EnvironmentError("not a well-formed mutable directory uri")
+            except EnvironmentError, le:
+                d = self.when_tub_ready()
+                def _when_tub_ready(res):
+                    return self.create_empty_dirnode(wait_for_numpeers=1)
+                d.addCallback(_when_tub_ready)
+                def _when_created(newdirnode):
+                    log.msg("created new private directory: %s" % (newdirnode,))
+                    privdiruri = newdirnode.get_uri()
+                    self.private_directory_uri = privdiruri
+                    open(privdirfile, "w+").write(privdiruri)
+                    self._private_uri_observers.fire(privdiruri)
+                d.addCallback(_when_created)
+                d.addErrback(self._private_uri_observers.fire)
+            else:
+                self.private_directory_uri = theuri
+                log.msg("loaded private directory: %s" % (self.private_directory_uri,))
+                self._private_uri_observers.fire(self.private_directory_uri)
+        else:
+            # If there is no such file then this is how the node is configured
+            # to not create a private directory.
+            self._private_uri_observers.fire(None)
+
+    def get_private_uri(self):
+        """
+        Eventually fires with the URI (as a string) to this client's private
+        directory, or with None if this client has been configured not to
+        create one.
+        """
+        if self._private_uri_observers is None:
+            self._private_uri_observers = observer.OneShotObserverList()
+            self._maybe_create_private_directory()
+        return self._private_uri_observers.when_fired()
+
     def init_web(self, webport):
+        self.log("init_web(webport=%s)", args=(webport,))
+
         from allmydata.webish import WebishServer
-        # this must be called after the VirtualDrive is attached
         ws = WebishServer(webport)
         if self.get_config("webport_allow_localfile") is not None:
             ws.allow_local_access(True)
         self.add_service(ws)
-        vd = self.getServiceNamed("vdrive")
-        startfile = os.path.join(self.basedir, "start.html")
-        nodeurl_file = os.path.join(self.basedir, "node.url")
-        d = vd.when_private_root_available()
-        d.addCallback(ws.create_start_html, startfile, nodeurl_file)
-
+        self.init_start_page()
 
     def _check_hotline(self, hotline_file):
         if os.path.exists(hotline_file):
@@ -220,37 +283,33 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
     # dirnode. The other three create brand-new filenodes/dirnodes.
 
     def create_node_from_uri(self, u):
-        # this returns synchronously. As a result, it cannot be used to
-        # create old-style dirnodes, since those contain a RemoteReference.
-        # This means that new-style dirnodes cannot contain old-style
-        # dirnodes as children.
+        # this returns synchronously.
         u = IURI(u)
+        if IReadonlyNewDirectoryURI.providedBy(u):
+            # new-style read-only dirnodes
+            return NewDirectoryNode(self).init_from_uri(u)
         if INewDirectoryURI.providedBy(u):
             # new-style dirnodes
             return NewDirectoryNode(self).init_from_uri(u)
-        if IDirnodeURI.providedBy(u):
-            ## handles old-style dirnodes, both mutable and immutable
-            #return dirnode.create_directory_node(self, u)
-            raise RuntimeError("not possible, sorry")
         if IFileURI.providedBy(u):
             # CHK
             return FileNode(u, self)
-        assert IMutableFileURI.providedBy(u)
+        assert IMutableFileURI.providedBy(u), u
         return MutableFileNode(self).init_from_uri(u)
 
-    def create_empty_dirnode(self):
+    def create_empty_dirnode(self, wait_for_numpeers):
         n = NewDirectoryNode(self)
-        d = n.create()
+        d = n.create(wait_for_numpeers=wait_for_numpeers)
         d.addCallback(lambda res: n)
         return d
 
-    def create_mutable_file(self, contents=""):
+    def create_mutable_file(self, contents="", wait_for_numpeers=None):
         n = MutableFileNode(self)
-        d = n.create(contents)
+        d = n.create(contents, wait_for_numpeers=wait_for_numpeers)
         d.addCallback(lambda res: n)
         return d
 
-    def upload(self, uploadable):
+    def upload(self, uploadable, wait_for_numpeers):
         uploader = self.getServiceNamed("uploader")
-        return uploader.upload(uploadable)
+        return uploader.upload(uploadable, wait_for_numpeers=wait_for_numpeers)
 

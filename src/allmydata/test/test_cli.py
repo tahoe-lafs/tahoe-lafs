@@ -17,9 +17,7 @@ class CLI(unittest.TestCase):
         fileutil.make_dirs("cli/test_options")
         open("cli/test_options/node.url","w").write("http://localhost:8080/\n")
         private_uri = uri.DirnodeURI("furl", "key").to_string()
-        public_uri = uri.DirnodeURI("furl", "publickey").to_string()
-        open("cli/test_options/my_vdrive.uri", "w").write(private_uri + "\n")
-        open("cli/test_options/global_root.uri", "w").write(public_uri + "\n")
+        open("cli/test_options/my_private_dir.uri", "w").write(private_uri + "\n")
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
@@ -41,10 +39,8 @@ class CLI(unittest.TestCase):
         self.failUnlessEqual(o['vdrive_pathname'], "")
 
         o = cli.ListOptions()
-        o.parseOptions(["--node-directory", "cli/test_options",
-                        "--root-uri", "public"])
+        o.parseOptions(["--node-directory", "cli/test_options"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o['root-uri'], public_uri)
         self.failUnlessEqual(o['vdrive_pathname'], "")
 
         o = cli.ListOptions()

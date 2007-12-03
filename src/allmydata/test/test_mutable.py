@@ -47,23 +47,37 @@ class Netstring(unittest.TestCase):
 class FakeFilenode(mutable.MutableFileNode):
     counter = itertools.count(1)
     all_contents = {}
+    all_rw_friends = {}
 
+    def create(self, initial_contents, wait_for_numpeers=None):
+        d = mutable.MutableFileNode.create(self, initial_contents, wait_for_numpeers=None)
+        def _then(res):
+            self.all_contents[self.get_uri()] = initial_contents
+            return res
+        d.addCallback(_then)
+        return d
+    def init_from_uri(self, myuri):
+        mutable.MutableFileNode.init_from_uri(self, myuri)
+        return self
+    def replace(self, newdata, wait_for_numpeers=None):
+        self.all_contents[self.get_uri()] = initial_contents
+        return defer.succeed(self)
     def _generate_pubprivkeys(self):
         count = self.counter.next()
         return FakePubKey(count), FakePrivKey(count)
-    def _publish(self, initial_contents):
-        self.all_contents[self._uri] = initial_contents
+    def _publish(self, initial_contents, wait_for_numpeers):
+        self.all_contents[self.get_uri()] = initial_contents
         return defer.succeed(self)
 
     def download_to_data(self):
-        return defer.succeed(self.all_contents[self._uri])
-    def replace(self, newdata):
-        self.all_contents[self._uri] = newdata
+        if self.is_readonly():
+            assert self.all_rw_friends.has_key(self.get_uri()), (self.get_uri(), id(self.all_rw_friends))
+            return defer.succeed(self.all_contents[self.all_rw_friends[self.get_uri()]])
+        else:
+            return defer.succeed(self.all_contents[self.get_uri()])
+    def replace(self, newdata, wait_for_numpeers=None):
+        self.all_contents[self.get_uri()] = newdata
         return defer.succeed(None)
-    def is_readonly(self):
-        return False
-    def get_readonly(self):
-        return "fake readonly"
 
 class FakePublish(mutable.Publish):
     def _do_query(self, conn, peerid, peer_storage_servers, storage_index):
@@ -88,11 +102,16 @@ class FakePublish(mutable.Publish):
 class FakeNewDirectoryNode(dirnode2.NewDirectoryNode):
     filenode_class = FakeFilenode
 
-class MyClient:
+class FakeIntroducerClient:
+    def when_enough_peers(self, numpeers):
+        return defer.succeed(None)
+
+class FakeClient:
     def __init__(self, num_peers=10):
         self._num_peers = num_peers
         self._peerids = [tagged_hash("peerid", "%d" % i)[:20]
                          for i in range(self._num_peers)]
+        self.introducer_client = FakeIntroducerClient()
     def log(self, msg):
         log.msg(msg)
 
@@ -101,36 +120,28 @@ class MyClient:
     def get_cancel_secret(self):
         return "I hereby permit you to cancel my leases"
 
-    def create_empty_dirnode(self):
+    def create_empty_dirnode(self, wait_for_numpeers):
         n = FakeNewDirectoryNode(self)
-        d = n.create()
+        d = n.create(wait_for_numpeers=wait_for_numpeers)
         d.addCallback(lambda res: n)
         return d
 
     def create_dirnode_from_uri(self, u):
         return FakeNewDirectoryNode(self).init_from_uri(u)
 
-    def create_mutable_file(self, contents=""):
+    def create_mutable_file(self, contents="", wait_for_numpeers=None):
         n = FakeFilenode(self)
-        d = n.create(contents)
+        d = n.create(contents, wait_for_numpeers=wait_for_numpeers)
         d.addCallback(lambda res: n)
         return d
 
     def create_node_from_uri(self, u):
-        # this returns synchronously. As a result, it cannot be used to
-        # create old-style dirnodes, since those contain a RemoteReference.
-        # This means that new-style dirnodes cannot contain old-style
-        # dirnodes as children.
         u = IURI(u)
         if INewDirectoryURI.providedBy(u):
             return self.create_dirnode_from_uri(u)
-        if IDirnodeURI.providedBy(u):
-            raise RuntimeError("not possible, sorry")
-        #if IFileURI.providedBy(u):
-        #    # CHK
-        #    return FileNode(u, self)
         assert IMutableFileURI.providedBy(u)
-        return FakeFilenode(self).init_from_uri(u)
+        res = FakeFilenode(self).init_from_uri(u)
+        return res
 
     def get_permuted_peers(self, key, include_myself=True):
         """
@@ -147,10 +158,10 @@ class MyClient:
 
 class Filenode(unittest.TestCase):
     def setUp(self):
-        self.client = MyClient()
+        self.client = FakeClient()
 
     def test_create(self):
-        d = self.client.create_mutable_file()
+        d = self.client.create_mutable_file(wait_for_numpeers=1)
         def _created(n):
             d = n.replace("contents 1")
             d.addCallback(lambda res: self.failUnlessIdentical(res, None))
@@ -178,12 +189,12 @@ class Filenode(unittest.TestCase):
 
 class Publish(unittest.TestCase):
     def test_encrypt(self):
-        c = MyClient()
+        c = FakeClient()
         fn = FakeFilenode(c)
         # .create usually returns a Deferred, but we happen to know it's
         # synchronous
         CONTENTS = "some initial contents"
-        fn.create(CONTENTS)
+        fn.create(CONTENTS, wait_for_numpeers=1)
         p = mutable.Publish(fn)
         target_info = None
         d = defer.maybeDeferred(p._encrypt_and_encode, target_info,
@@ -205,12 +216,12 @@ class Publish(unittest.TestCase):
         return d
 
     def test_generate(self):
-        c = MyClient()
+        c = FakeClient()
         fn = FakeFilenode(c)
         # .create usually returns a Deferred, but we happen to know it's
         # synchronous
         CONTENTS = "some initial contents"
-        fn.create(CONTENTS)
+        fn.create(CONTENTS, wait_for_numpeers=1)
         p = mutable.Publish(fn)
         r = mutable.Retrieve(fn)
         # make some fake shares
@@ -270,7 +281,7 @@ class Publish(unittest.TestCase):
         return d
 
     def setup_for_sharemap(self, num_peers):
-        c = MyClient(num_peers)
+        c = FakeClient(num_peers)
         fn = FakeFilenode(c)
         # .create usually returns a Deferred, but we happen to know it's
         # synchronous
@@ -376,7 +387,7 @@ class Publish(unittest.TestCase):
         return d
 
     def setup_for_publish(self, num_peers):
-        c = MyClient(num_peers)
+        c = FakeClient(num_peers)
         fn = FakeFilenode(c)
         # .create usually returns a Deferred, but we happen to know it's
         # synchronous
@@ -417,18 +428,18 @@ class FakePrivKey:
 
 class Dirnode(unittest.TestCase):
     def setUp(self):
-        self.client = MyClient()
+        self.client = FakeClient()
 
     def test_create(self):
         self.expected_manifest = []
 
-        d = self.client.create_empty_dirnode()
-        def _check(n):
+        d = self.client.create_empty_dirnode(wait_for_numpeers=1)
+        def _then(n):
             self.failUnless(n.is_mutable())
             u = n.get_uri()
             self.failUnless(u)
             self.failUnless(u.startswith("URI:DIR2:"), u)
-            u_ro = n.get_immutable_uri()
+            u_ro = n.get_readonly_uri()
             self.failUnless(u_ro.startswith("URI:DIR2-RO:"), u_ro)
             u_v = n.get_verifier()
             self.failUnless(u_v.startswith("URI:DIR2-Verifier:"), u_v)
@@ -442,9 +453,8 @@ class Dirnode(unittest.TestCase):
             ffu_v = fake_file_uri.get_verifier().to_string()
             self.expected_manifest.append(ffu_v)
             d.addCallback(lambda res: n.set_uri("child", fake_file_uri))
-            d.addCallback(lambda res: self.failUnlessEqual(res, None))
 
-            d.addCallback(lambda res: n.create_empty_directory("subdir"))
+            d.addCallback(lambda res: n.create_empty_directory("subdir", wait_for_numpeers=1))
             def _created(subdir):
                 self.failUnless(isinstance(subdir, FakeNewDirectoryNode))
                 self.subdir = subdir
@@ -464,7 +474,7 @@ class Dirnode(unittest.TestCase):
             d.addCallback(_check_manifest)
 
             def _add_subsubdir(res):
-                return self.subdir.create_empty_directory("subsubdir")
+                return self.subdir.create_empty_directory("subsubdir", wait_for_numpeers=1)
             d.addCallback(_add_subsubdir)
             d.addCallback(lambda res: n.get_child_at_path("subdir/subsubdir"))
             d.addCallback(lambda subsubdir:
@@ -489,7 +499,7 @@ class Dirnode(unittest.TestCase):
 
             return d
 
-        d.addCallback(_check)
+        d.addCallback(_then)
 
         return d
 

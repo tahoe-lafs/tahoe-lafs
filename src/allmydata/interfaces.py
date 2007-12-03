@@ -315,80 +315,11 @@ class IStorageBucketReader(Interface):
 
 # hm, we need a solution for forward references in schemas
 from foolscap.schema import Any
-RIMutableDirectoryNode_ = Any() # TODO: how can we avoid this?
 
 FileNode_ = Any() # TODO: foolscap needs constraints on copyables
 DirectoryNode_ = Any() # TODO: same
 AnyNode_ = ChoiceOf(FileNode_, DirectoryNode_)
 EncryptedThing = str
-
-class RIVirtualDriveServer(RemoteInterface):
-    def get_public_root_uri():
-        """Obtain the URI for this server's global publically-writable root
-        directory. This returns a read-write directory URI.
-
-        If this vdrive server does not offer a public root, this will
-        raise an exception."""
-        return DirnodeURI
-
-    def create_directory(index=Hash, write_enabler=Hash):
-        """Create a new (empty) directory, unattached to anything else.
-
-        This returns the same index that was passed in.
-        """
-        return Hash
-
-    def get(index=Hash, key=Hash):
-        """Retrieve a named child of the given directory. 'index' specifies
-        which directory is being accessed, and is generally the hash of the
-        read key. 'key' is the hash of the read key and the child name.
-
-        This operation returns a pair of encrypted strings. The first string
-        is meant to be decrypted by the Write Key and provides read-write
-        access to the child. If this directory holds read-only access to the
-        child, this first string will be an empty string. The second string
-        is meant to be decrypted by the Read Key and provides read-only
-        access to the child.
-
-        When the child is a read-write directory, the encrypted URI:DIR-RO
-        will be in the read slot, and the encrypted URI:DIR will be in the
-        write slot. When the child is a read-only directory, the encrypted
-        URI:DIR-RO will be in the read slot and the write slot will be empty.
-        When the child is a CHK file, the encrypted URI:CHK will be in the
-        read slot, and the write slot will be empty.
-
-        This might raise IndexError if there is no child by the desired name.
-        """
-        return (EncryptedThing, EncryptedThing)
-
-    def list(index=Hash):
-        """List the contents of a directory.
-
-        This returns a list of (NAME, WRITE, READ) tuples. Each value is an
-        encrypted string (although the WRITE value may sometimes be an empty
-        string).
-
-        NAME: the child name, encrypted with the Read Key
-        WRITE: the child write URI, encrypted with the Write Key, or an
-               empty string if this child is read-only
-        READ: the child read URI, encrypted with the Read Key
-        """
-        return ListOf((EncryptedThing, EncryptedThing, EncryptedThing),
-                      maxLength=1000,
-                      )
-
-    def set(index=Hash, write_enabler=Hash, key=Hash,
-            name=EncryptedThing, write=EncryptedThing, read=EncryptedThing):
-        """Set a child object. I will replace any existing child of the same
-        name.
-        """
-
-    def delete(index=Hash, write_enabler=Hash, key=Hash):
-        """Delete a specific child.
-
-        This uses the hashed key to locate a specific child, and deletes it.
-        """
-
 
 class IURI(Interface):
     def init_from_string(uri):
@@ -446,21 +377,15 @@ class IMutableFileURI(Interface):
     pass
 class INewDirectoryURI(Interface):
     pass
+class IReadonlyNewDirectoryURI(Interface):
+    pass
 
 
-class IFileNode(Interface):
-    def download(target):
-        """Download the file's contents to a given IDownloadTarget"""
-    def download_to_data():
-        """Download the file's contents. Return a Deferred that fires
-        with those contents."""
-
+class IFilesystemNode(Interface):
     def get_uri():
         """Return the URI that can be used by others to get access to this
-        file.
+        file or directory.
         """
-    def get_size():
-        """Return the length (in bytes) of the data this node represents."""
 
     def get_verifier():
         """Return an IVerifierURI instance that represents the
@@ -473,7 +398,43 @@ class IFileNode(Interface):
     def check():
         """Perform a file check. See IChecker.check for details."""
 
-class IMutableFileNode(IFileNode):
+    def is_mutable():
+        """Return True if this file or directory is mutable, False if it is read-only.
+        """
+
+class IMutableFilesystemNode(IFilesystemNode):
+    def get_uri():
+        """
+        Return the URI that can be used by others to get access to this
+        node. If this node is read-only, the URI will only offer read-only
+        access. If this node is read-write, the URI will offer read-write
+        access.
+
+        If you have read-write access to a node and wish to share merely
+        read-only access with others, use get_readonly_uri().
+        """
+
+    def get_readonly_uri():
+        """Return the directory URI that can be used by others to get
+        read-only access to this directory node. The result is a read-only
+        URI, regardless of whether this dirnode is read-only or read-write.
+
+        If you have merely read-only access to this dirnode,
+        get_readonly_uri() will return the same thing as get_uri().
+        """
+
+class IFileNode(IFilesystemNode):
+    def download(target):
+        """Download the file's contents to a given IDownloadTarget"""
+
+    def download_to_data():
+        """Download the file's contents. Return a Deferred that fires
+        with those contents."""
+
+    def get_size():
+        """Return the length (in bytes) of the data this node represents."""
+
+class IMutableFileNode(IFileNode, IMutableFilesystemNode):
     def download_to_data():
         """Download the file's contents. Return a Deferred that fires with
         those contents. If there are multiple retrievable versions in the
@@ -482,7 +443,8 @@ class IMutableFileNode(IFileNode):
         reconstruct, and will silently ignore the others. In the future, a
         more advanced API will signal and provide access to the multiple
         heads."""
-    def replace(newdata):
+
+    def replace(newdata, wait_for_numpeers=None):
         """Replace the old contents with the new data. Returns a Deferred
         that fires (with None) when the operation is complete.
 
@@ -495,13 +457,6 @@ class IMutableFileNode(IFileNode):
         the replace() operation.
         """
 
-    def get_uri():
-        pass
-    def get_verifier():
-        pass
-    def check():
-        pass
-
     def get_writekey():
         """Return this filenode's writekey, or None if the node does not have
         write-capability. This may be used to assist with data structures
@@ -512,20 +467,9 @@ class IMutableFileNode(IFileNode):
         writer-visible data using this writekey.
         """
 
-class IDirectoryNode(Interface):
-    def is_mutable():
-        """Return True if this directory is mutable, False if it is read-only.
-        """
-
+class IDirectoryNode(IMutableFilesystemNode):
     def get_uri():
-        """Return the directory URI that can be used by others to get access
-        to this directory node. If this node is read-only, the URI will only
-        offer read-only access. If this node is read-write, the URI will
-        offer read-write acess.
-
-        If you have read-write access to a directory and wish to share merely
-        read-only access with others, use get_immutable_uri().
-
+        """
         The dirnode ('1') URI returned by this method can be used in
         set_uri() on a different directory ('2') to 'mount' a reference to
         this directory ('1') under the other ('2'). This URI is just a
@@ -533,25 +477,14 @@ class IDirectoryNode(Interface):
         protocol.
         """
 
-    def get_immutable_uri():
-        """Return the directory URI that can be used by others to get
-        read-only access to this directory node. The result is a read-only
-        URI, regardless of whether this dirnode is read-only or read-write.
-
-        If you have merely read-only access to this dirnode,
-        get_immutable_uri() will return the same thing as get_uri().
+    def get_readonly_uri():
         """
-
-    def get_verifier():
-        """Return an IVerifierURI instance that represents the
-        'verifiy/refresh capability' for this node. The holder of this
-        capability will be able to renew the lease for this node, protecting
-        it from garbage-collection. They will also be able to ask a server if
-        it holds a share for the file or directory.
+        The dirnode ('1') URI returned by this method can be used in
+        set_uri() on a different directory ('2') to 'mount' a reference to
+        this directory ('1') under the other ('2'). This URI is just a
+        string, so it can be passed around through email or other out-of-band
+        protocol.
         """
-
-    def check():
-        """Perform a file check. See IChecker.check for details."""
 
     def list():
         """I return a Deferred that fires with a dictionary mapping child
@@ -1126,7 +1059,7 @@ class IUploadable(Interface):
         closed."""
 
 class IUploader(Interface):
-    def upload(uploadable):
+    def upload(uploadable, wait_for_numpeers=None):
         """Upload the file. 'uploadable' must impement IUploadable. This
         returns a Deferred which fires with the URI of the file."""
 
@@ -1203,69 +1136,11 @@ class IChecker(Interface):
         """
 
 
-class IVirtualDrive(Interface):
-    """I am a service that may be available to a client.
-
-    Within any client program, this service can be retrieved by using
-    client.getService('vdrive').
-    """
-
-    def have_public_root():
-        """Return a Boolean, True if get_public_root() will work."""
-    def get_public_root():
-        """Get the public read-write directory root.
-
-        This returns a Deferred that fires with an IDirectoryNode instance
-        corresponding to the global shared root directory."""
-
-
-    def have_private_root():
-        """Return a Boolean, True if get_public_root() will work."""
-    def get_private_root():
-        """Get the private directory root.
-
-        This returns a Deferred that fires with an IDirectoryNode instance
-        corresponding to this client's private root directory."""
-
-    def get_node_at_path(path):
-        """Transform a path into an IDirectoryNode or IFileNode.
-
-        The path can either be a single string or a list of path-name
-        elements. The former is generated from the latter by using
-        .join('/'). If the first element of this list is '~', the rest will
-        be interpreted relative to the local user's private root directory.
-        Otherwse it will be interpreted relative to the global public root
-        directory. As a result, the following three values of 'path' are
-        equivalent::
-
-         '/dirname/foo.txt'
-         'dirname/foo.txt'
-         ['dirname', 'foo.txt']
-
-        This method returns a Deferred that fires with the node in question,
-        or errbacks with an IndexError if the target node could not be found.
-        """
-
-    def get_node(uri):
-        """Transform a URI (or IURI) into an IDirectoryNode or IFileNode.
-
-        This returns a Deferred that will fire with an instance that provides
-        either IDirectoryNode or IFileNode, as appropriate."""
-
-    def create_directory():
-        """Return a new IDirectoryNode that is empty and not linked by
-        anything."""
-
-
 class NotCapableError(Exception):
     """You have tried to write to a read-only node."""
 
 class BadWriteEnablerError(Exception):
     pass
-
-class NotMutableError(Exception):
-    pass
-
 
 class RIControlClient(RemoteInterface):
 

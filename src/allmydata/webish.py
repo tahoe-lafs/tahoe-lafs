@@ -129,7 +129,7 @@ class Directory(rend.Page):
                 header.append("/")
         header.append("'")
 
-        if not self._dirnode.is_mutable():
+        if self._dirnode.is_readonly():
             header.append(" (readonly)")
         header.append(":")
         return ctx.tag[header]
@@ -145,9 +145,12 @@ class Directory(rend.Page):
         return d
 
     def render_row(self, ctx, data):
-        name, target = data
+        name, (target, metadata) = data
 
-        if self._dirnode.is_mutable():
+        if self._dirnode.is_readonly():
+            delete = "-"
+            rename = "-"
+        else:
             # this creates a button which will cause our child__delete method
             # to be invoked, which deletes the file and then redirects the
             # browser back to this directory
@@ -164,9 +167,6 @@ class Directory(rend.Page):
                 T.input(type='hidden', name='when_done', value=url.here),
                 T.input(type='submit', value='rename', name="rename"),
                 ]
-        else:
-            delete = "-"
-            rename = "-"
 
         ctx.fillSlots("delete", delete)
         ctx.fillSlots("rename", rename)
@@ -192,8 +192,8 @@ class Directory(rend.Page):
             uri_link += '?%s' % (urllib.urlencode({'filename': name}),)
 
             # to prevent javascript in displayed .html files from stealing a
-            # secret vdrive URI from the URL, send the browser to a URI-based
-            # page that doesn't know about the vdrive at all
+            # secret directory URI from the URL, send the browser to a URI-based
+            # page that doesn't know about the directory at all
             #dlurl = urllib.quote(name)
             dlurl = uri_link
 
@@ -213,8 +213,8 @@ class Directory(rend.Page):
             uri_link += '?%s' % (urllib.urlencode({'filename': name}),)
 
             # to prevent javascript in displayed .html files from stealing a
-            # secret vdrive URI from the URL, send the browser to a URI-based
-            # page that doesn't know about the vdrive at all
+            # secret directory URI from the URL, send the browser to a URI-based
+            # page that doesn't know about the directory at all
             #dlurl = urllib.quote(name)
             dlurl = uri_link
 
@@ -233,10 +233,10 @@ class Directory(rend.Page):
             subdir_url = urllib.quote(name)
             ctx.fillSlots("filename",
                           T.a(href=subdir_url)[html.escape(name)])
-            if target.is_mutable():
-                dirtype = "DIR"
-            else:
+            if target.is_readonly():
                 dirtype = "DIR-RO"
+            else:
+                dirtype = "DIR"
             ctx.fillSlots("type", dirtype)
             ctx.fillSlots("size", "-")
             text_plain_tag = None
@@ -286,8 +286,8 @@ class Directory(rend.Page):
         return ctx.tag
 
     def render_forms(self, ctx, data):
-        if not self._dirnode.is_mutable():
-            return T.div["No upload forms: directory is immutable"]
+        if self._dirnode.is_readonly():
+            return T.div["No upload forms: directory is read-only"]
         mkdir = T.form(action=".", method="post",
                        enctype="multipart/form-data")[
             T.fieldset[
@@ -544,9 +544,9 @@ class DirnodeWalkerMixin:
     def _handle_items(self, items, visitor, rootpath):
         if not items:
             return
-        childname, childnode = items[0]
+        childname, (childnode, metadata) = items[0]
         childpath = rootpath + (childname,)
-        d = defer.maybeDeferred(visitor, childpath, childnode)
+        d = defer.maybeDeferred(visitor, childpath, childnode, metadata)
         if IDirectoryNode.providedBy(childnode):
             d.addCallback(lambda res: self.walk(childnode, visitor, childpath))
         d.addCallback(lambda res:
@@ -558,7 +558,7 @@ class LocalDirectoryDownloader(resource.Resource, DirnodeWalkerMixin):
         self._dirnode = dirnode
         self._localdir = localdir
 
-    def _handle(self, path, node):
+    def _handle(self, path, node, metadata):
         localfile = os.path.join(self._localdir, os.sep.join(path))
         if IDirectoryNode.providedBy(node):
             fileutil.make_dirs(localfile)
@@ -587,7 +587,7 @@ class DirectoryJSONMetadata(rend.Page):
         d = node.list()
         def _got(children):
             kids = {}
-            for name, childnode in children.iteritems():
+            for name, (childnode, metadata) in children.iteritems():
                 if IFileNode.providedBy(childnode):
                     kiduri = childnode.get_uri()
                     kiddata = ("filenode",
@@ -595,17 +595,17 @@ class DirectoryJSONMetadata(rend.Page):
                                 'size': childnode.get_size(),
                                 })
                 else:
-                    assert IDirectoryNode.providedBy(childnode)
+                    assert IDirectoryNode.providedBy(childnode), (childnode, children,)
                     kiddata = ("dirnode",
-                               {'ro_uri': childnode.get_immutable_uri(),
+                               {'ro_uri': childnode.get_readonly_uri(),
                                 })
-                    if childnode.is_mutable():
+                    if not childnode.is_readonly():
                         kiddata[1]['rw_uri'] = childnode.get_uri()
                 kids[name] = kiddata
             contents = { 'children': kids,
-                         'ro_uri': node.get_immutable_uri(),
+                         'ro_uri': node.get_readonly_uri(),
                          }
-            if node.is_mutable():
+            if not node.is_readonly():
                 contents['rw_uri'] = node.get_uri()
             data = ("dirnode", contents)
             return simplejson.dumps(data, indent=1)
@@ -618,7 +618,7 @@ class DirectoryURI(DirectoryJSONMetadata):
 
 class DirectoryReadonlyURI(DirectoryJSONMetadata):
     def renderNode(self, node):
-        return node.get_immutable_uri()
+        return node.get_readonly_uri()
 
 class RenameForm(rend.Page):
     addSlash = True
@@ -644,7 +644,7 @@ class RenameForm(rend.Page):
                    "/".join(self._dirpath),
                    "':", ]
 
-        if not self._dirnode.is_mutable():
+        if self._dirnode.is_readonly():
             header.append(" (readonly)")
         return ctx.tag[header]
 
@@ -1056,8 +1056,8 @@ class VDrive(rend.Page):
         method = req.method
         path = segments
 
-        # when we're pointing at a directory (like /vdrive/public/my_pix),
-        # Directory.addSlash causes a redirect to /vdrive/public/my_pix/,
+        # when we're pointing at a directory (like /uri/$DIR_URI/my_pix),
+        # Directory.addSlash causes a redirect to /uri/$DIR_URI/my_pix/,
         # which appears here as ['my_pix', '']. This is supposed to hit the
         # same Directory as ['my_pix'].
         if path and path[-1] == '':
@@ -1187,12 +1187,8 @@ class URIPUTHandler(rend.Page):
             return d
 
         if t == "mkdir":
-            # "PUT /uri?t=mkdir", to create an unlinked directory. We use the
-            # public vdriveserver to create the dirnode.
-            vdrive = IClient(ctx).getServiceNamed("vdrive")
-            d = vdrive.create_directory()
-            # TODO: switch to new-style dirnodes and replace this with:
-            #d = IClient(ctx).create_empty_dirnode()
+            # "PUT /uri?t=mkdir", to create an unlinked directory.
+            d = IClient(ctx).create_empty_dirnode()
             d.addCallback(lambda dirnode: dirnode.get_uri())
             return d
 
@@ -1209,20 +1205,8 @@ class Root(rend.Page):
     def locateChild(self, ctx, segments):
         client = IClient(ctx)
         req = inevow.IRequest(ctx)
-        vdrive = client.getServiceNamed("vdrive")
 
-        if segments[0] == "vdrive":
-            if len(segments) < 2:
-                return rend.NotFound
-            if segments[1] == "global":
-                d = vdrive.get_public_root()
-                name = "public vdrive"
-            else:
-                return rend.NotFound
-            d.addCallback(lambda dirnode: VDrive(dirnode, name))
-            d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
-            return d
-        elif segments[0] == "uri":
+        if segments[0] == "uri":
             if len(segments) == 1 or segments[1] == '':
                 if "uri" in req.args:
                     uri = req.args["uri"][0].replace("/", "!")
@@ -1238,7 +1222,7 @@ class Root(rend.Page):
             if len(segments) < 2:
                 return rend.NotFound
             uri = segments[1].replace("!", "/")
-            d = vdrive.get_node(uri)
+            d = defer.maybeDeferred(client.create_node_from_uri, uri)
             d.addCallback(lambda node: VDrive(node, "from-uri"))
             d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
             def _trap_KeyError(f):
@@ -1247,7 +1231,7 @@ class Root(rend.Page):
             d.addErrback(_trap_KeyError)
             return d
         elif segments[0] == "xmlrpc":
-            pass # TODO
+            raise NotYetImplementedError()
         return rend.Page.locateChild(self, ctx, segments)
 
     child_webform_css = webform.defaultCSS
@@ -1268,10 +1252,6 @@ class Root(rend.Page):
         if IClient(ctx).connected_to_introducer():
             return "yes"
         return "no"
-    def data_connected_to_vdrive(self, ctx, data):
-        if IClient(ctx).getServiceNamed("vdrive").have_public_root():
-            return "yes"
-        return "no"
     def data_num_peers(self, ctx, data):
         #client = inevow.ISite(ctx)._client
         client = IClient(ctx)
@@ -1289,15 +1269,6 @@ class Root(rend.Page):
         (nodeid_a,) = data
         ctx.fillSlots("peerid", nodeid_a)
         return ctx.tag
-
-    def render_global_vdrive(self, ctx, data):
-        if IClient(ctx).getServiceNamed("vdrive").have_public_root():
-            return T.p["View ",
-                       T.a(href="vdrive/global")["the global shared filestore"],
-                       "."
-                       ]
-        return T.p["vdrive.furl not specified (or vdrive server not "
-                   "responding), no vdrive available."]
 
     def render_private_vdrive(self, ctx, data):
         basedir = IClient(ctx).basedir
@@ -1347,6 +1318,7 @@ class WebishServer(service.MultiService):
         s = strports.service(webport, site)
         s.setServiceParent(self)
         self.listener = s # stash it so the tests can query for the portnum
+        self._started = defer.Deferred()
 
     def allow_local_access(self, enable=True):
         self.allow_local.local_access = enable
@@ -1361,8 +1333,17 @@ class WebishServer(service.MultiService):
         # I thought you could do the same with an existing interface, but
         # apparently 'ISite' does not exist
         #self.site._client = self.parent
+        self._started.callback(None)
 
     def create_start_html(self, private_uri, startfile, nodeurl_file):
+        """
+        Returns a deferred that eventually fires once the start.html page has
+        been created.
+        """
+        self._started.addCallback(self._create_start_html, private_uri, startfile, nodeurl_file)
+        return self._started
+
+    def _create_start_html(self, dummy, private_uri, startfile, nodeurl_file):
         f = open(startfile, "w")
         os.chmod(startfile, 0600)
         template = open(util.sibpath(__file__, "web/start.html"), "r").read()
@@ -1376,9 +1357,16 @@ class WebishServer(service.MultiService):
             base_url = "UNKNOWN"  # this will break the href
             # TODO: emit a start.html that explains that we don't know
             # how to create a suitable URL
-        fields = {"private_uri": private_uri.replace("/","!"),
-                  "base_url": base_url,
-                  }
+        if private_uri:
+            private_uri = private_uri.replace("/","!")
+            link_to_private_uri = "View <a href=\"%s/uri/%s\">your personal private non-shared filestore</a>." % (base_url, private_uri)
+            fields = {"link_to_private_uri": link_to_private_uri,
+                      "base_url": base_url,
+                      }
+        else:
+            fields = {"link_to_private_uri": "",
+                      "base_url": base_url,
+                      }
         f.write(template % fields)
         f.close()
 
@@ -1386,4 +1374,3 @@ class WebishServer(service.MultiService):
         # this file is world-readable
         f.write(base_url + "\n")
         f.close()
-

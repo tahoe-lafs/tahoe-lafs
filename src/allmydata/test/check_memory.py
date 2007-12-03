@@ -5,7 +5,7 @@ from cStringIO import StringIO
 from twisted.internet import defer, reactor, protocol, error
 from twisted.application import service, internet
 from twisted.web import client as tw_client
-from allmydata import client, introducer_and_vdrive
+from allmydata import client, introducer
 from allmydata.scripts import create_node
 from allmydata.util import testutil, fileutil
 import foolscap
@@ -108,7 +108,7 @@ class SystemFramework(testutil.PollMixin):
         #print "STARTING"
         self.stats = {}
         self.statsfile = open(os.path.join(self.basedir, "stats.out"), "a")
-        d = self.make_introducer_and_vdrive()
+        d = self.make_introducer()
         def _more(res):
             return self.start_client()
         d.addCallback(_more)
@@ -161,16 +161,15 @@ class SystemFramework(testutil.PollMixin):
         s.setServiceParent(self.sparent)
         return s
 
-    def make_introducer_and_vdrive(self):
-        iv_basedir = os.path.join(self.testdir, "introducer_and_vdrive")
+    def make_introducer(self):
+        iv_basedir = os.path.join(self.testdir, "introducer")
         os.mkdir(iv_basedir)
-        iv = introducer_and_vdrive.IntroducerAndVdrive(basedir=iv_basedir)
-        self.introducer_and_vdrive = self.add_service(iv)
-        d = self.introducer_and_vdrive.when_tub_ready()
+        iv = introducer.IntroducerNode(basedir=iv_basedir)
+        self.introducer = self.add_service(iv)
+        d = self.introducer.when_tub_ready()
         def _introducer_ready(res):
-            q = self.introducer_and_vdrive
-            self.introducer_furl = q.urls["introducer"]
-            self.vdrive_furl = q.urls["vdrive"]
+            q = self.introducer
+            self.introducer_furl = q.introducer_url
         d.addCallback(_introducer_ready)
         return d
 
@@ -181,9 +180,6 @@ class SystemFramework(testutil.PollMixin):
             os.mkdir(nodedir)
             f = open(os.path.join(nodedir, "introducer.furl"), "w")
             f.write(self.introducer_furl)
-            f.close()
-            f = open(os.path.join(nodedir, "vdrive.furl"), "w")
-            f.write(self.vdrive_furl)
             f.close()
             # the only tests for which we want the internal nodes to actually
             # retain shares are the ones where somebody's going to download
@@ -207,7 +203,7 @@ class SystemFramework(testutil.PollMixin):
             c = self.add_service(client.Client(basedir=nodedir))
             self.nodes.append(c)
         # the peers will start running, eventually they will connect to each
-        # other and the introducer_and_vdrive
+        # other and the introducer
 
     def touch_keepalive(self):
         if os.path.exists(self.keepalive_file):
@@ -232,9 +228,6 @@ this file are ignored.
         log.msg("DONE MAKING CLIENT")
         f = open(os.path.join(clientdir, "introducer.furl"), "w")
         f.write(self.introducer_furl + "\n")
-        f.close()
-        f = open(os.path.join(clientdir, "vdrive.furl"), "w")
-        f.write(self.vdrive_furl + "\n")
         f.close()
         f = open(os.path.join(clientdir, "webport"), "w")
         # TODO: ideally we would set webport=0 and then ask the node what
@@ -384,7 +377,7 @@ this file are ignored.
             d.addCallback(_done)
         elif self.mode == "upload-POST":
             data = "a" * size
-            url = "/vdrive/global"
+            url = "/vdrive/private"
             d = self.POST(url, t="upload", file=("%d.data" % size, data))
         elif self.mode in ("receive",
                            "download", "download-GET", "download-GET-slow"):

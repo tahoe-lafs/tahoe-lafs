@@ -131,10 +131,15 @@ class FakeBucketWriter:
         precondition(not self.closed)
         self.closed = True
 
+class FakeIntroducerClient:
+    def when_enough_peers(self, numpeers):
+        return defer.succeed(None)
+
 class FakeClient:
     def __init__(self, mode="good", num_servers=50):
         self.mode = mode
         self.num_servers = num_servers
+        self.introducer_client = FakeIntroducerClient()
     def get_permuted_peers(self, storage_index, include_myself):
         peers = [ ("%20d"%fakeid, "%20d"%fakeid, FakePeer(self.mode),)
                   for fakeid in range(self.num_servers) ]
@@ -268,7 +273,7 @@ class FullServer(unittest.TestCase):
         self.u.parent = self.node
 
     def _should_fail(self, f):
-        self.failUnless(isinstance(f, Failure) and f.check(encode.NotEnoughPeersError))
+        self.failUnless(isinstance(f, Failure) and f.check(encode.NotEnoughPeersError), f)
 
     def test_data_large(self):
         data = DATA

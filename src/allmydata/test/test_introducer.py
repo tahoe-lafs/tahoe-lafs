@@ -1,13 +1,15 @@
 from base64 import b32encode
 
+import os
+
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python import log
 
 from foolscap import Tub, Referenceable
-from foolscap.eventual import flushEventualQueue
+from foolscap.eventual import fireEventually, flushEventualQueue
 from twisted.application import service
-from allmydata.introducer import IntroducerClient, Introducer
+from allmydata.introducer import IntroducerClient, IntroducerService, IntroducerNode
 from allmydata.util import testutil
 
 class MyNode(Referenceable):
@@ -16,6 +18,40 @@ class MyNode(Referenceable):
 class LoggingMultiService(service.MultiService):
     def log(self, msg):
         log.msg(msg)
+
+class TestIntroducerNode(testutil.SignalMixin, unittest.TestCase):
+    def test_loadable(self):
+        basedir = "introducer.IntroducerNode.test_loadable"
+        os.mkdir(basedir)
+        q = IntroducerNode(basedir)
+        d = fireEventually(None)
+        d.addCallback(lambda res: q.startService())
+        d.addCallback(lambda res: q.when_tub_ready())
+        def _check_parameters(res):
+            i = q.getServiceNamed("introducer")
+            self.failUnlessEqual(i._encoding_parameters, (3, 7, 10))
+        d.addCallback(_check_parameters)
+        d.addCallback(lambda res: q.stopService())
+        d.addCallback(flushEventualQueue)
+        return d
+
+    def test_set_parameters(self):
+        basedir = "introducer.IntroducerNode.test_set_parameters"
+        os.mkdir(basedir)
+        f = open(os.path.join(basedir, "encoding_parameters"), "w")
+        f.write("25 75 100")
+        f.close()
+        q = IntroducerNode(basedir)
+        d = fireEventually(None)
+        d.addCallback(lambda res: q.startService())
+        d.addCallback(lambda res: q.when_tub_ready())
+        def _check_parameters(res):
+            i = q.getServiceNamed("introducer")
+            self.failUnlessEqual(i._encoding_parameters, (25, 75, 100))
+        d.addCallback(_check_parameters)
+        d.addCallback(lambda res: q.stopService())
+        d.addCallback(flushEventualQueue)
+        return d
 
 class TestIntroducer(unittest.TestCase, testutil.PollMixin):
     def setUp(self):
@@ -36,7 +72,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
         ic.notify_on_new_connection(_ignore)
 
     def test_listen(self):
-        i = Introducer()
+        i = IntroducerService()
         i.setServiceParent(self.parent)
 
     def test_system(self):
@@ -49,7 +85,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
         portnum = l.getPortnum()
         tub.setLocation("localhost:%d" % portnum)
 
-        i = Introducer()
+        i = IntroducerService()
         i.setServiceParent(self.parent)
         iurl = tub.registerReference(i)
         NUMCLIENTS = 5
@@ -164,7 +200,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
         portnum = l.getPortnum()
         tub.setLocation("localhost:%d" % portnum)
 
-        i = Introducer()
+        i = IntroducerService()
         i.setServiceParent(self.parent)
         iurl = tub.registerReference(i)
 
@@ -197,7 +233,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
         portnum = l.getPortnum()
         tub.setLocation("localhost:%d" % portnum)
 
-        i = Introducer()
+        i = IntroducerService()
         i.setServiceParent(self.parent)
         iurl = tub.registerReference(i)
 

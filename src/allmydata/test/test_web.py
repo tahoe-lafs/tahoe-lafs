@@ -6,10 +6,12 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.web import client, error, http
 from twisted.python import failure, log
-from allmydata import webish, interfaces, dirnode, uri, provisioning
+from allmydata import dirnode2, webish, interfaces, uri, provisioning, filenode
 from allmydata.encode import NotEnoughPeersError
 from allmydata.util import fileutil
 import itertools
+
+import test_mutable
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -29,9 +31,22 @@ class MyClient(service.MultiService):
     def get_all_peerids(self):
         return []
 
-    def upload(self, uploadable):
+    def create_node_from_uri(self, uri):
+        return self.my_nodes[uri]
+        
+    def create_empty_dirnode(self, wait_for_numpeers=None):
+        n = FakeDirectoryNode(self)
+        r = defer.succeed(n.fake_create(wait_for_numpeers=1))
+        self.my_nodes[n.get_uri()] = n
+        nro = FakeDirectoryNode(self)
+        nro.init_from_uri(n.get_readonly_uri())
+        nro._node.all_rw_friends[nro._node.get_uri()] = n._node.get_uri()
+        self.my_nodes[nro.get_uri()] = nro
+        return r
+
+    def upload(self, uploadable, wait_for_numpeers=None):
         uploader = self.getServiceNamed("uploader")
-        return uploader.upload(uploadable)
+        return uploader.upload(uploadable, wait_for_numpeers=wait_for_numpeers)
 
 
 class MyDownloader(service.Service):
@@ -71,7 +86,7 @@ class MyUploader(service.Service):
         self.files = files
         self.nodes = nodes
 
-    def upload(self, uploadable):
+    def upload(self, uploadable, wait_for_numpeers=None):
         d = uploadable.get_size()
         d.addCallback(lambda size: uploadable.read(size))
         d.addCallback(lambda data: "".join(data))
@@ -84,91 +99,44 @@ class MyUploader(service.Service):
         d.addCallback(_got_data)
         return d
 
-class MyDirectoryNode(dirnode.MutableDirectoryNode):
+def syncwrap(meth):
+    """
+    syncwrap invokes a method, assumes that it fired its deferred
+    synchronously, and returns the result.  syncwrap is convenient to use as a
+    decorator in FakeDirectoryNode."""
+    def _syncwrapped_meth(self, *args, **kwargs):
+        l = []
+        d = meth(self, *args, **kwargs)
+        d.addCallback(l.append)
+        assert len(l) == 1, l
+        return l[0]
+    return _syncwrapped_meth
 
-    def __init__(self, nodes, files, client, myuri=None):
-        self._my_nodes = nodes
-        self._my_files = files
-        self._my_client = client
-        if myuri is None:
-            u = uri.DirnodeURI("furl", "idx%s" % str(uri_counter.next()))
-            myuri = u.to_string()
-        self._uri = myuri
-        self._my_nodes[self._uri] = self
-        self.children = {}
-        self._mutable = True
+class FakeDirectoryNode(dirnode2.NewDirectoryNode):
+    filenode_class = test_mutable.FakeFilenode
 
-    def get(self, name):
-        def _try():
-            uri = self.children[name]
-            if uri not in self._my_nodes:
-                raise IndexError("this isn't supposed to happen")
-            return self._my_nodes[uri]
-        return defer.maybeDeferred(_try)
+    @syncwrap
+    def fake_create(self, wait_for_numpeers=None):
+        return self.create(wait_for_numpeers=wait_for_numpeers)
 
-    def set_uri(self, name, child_uri):
-        self.children[name] = child_uri
-        return defer.succeed(None)
+    @syncwrap
+    def fake_has_child(self, name):
+        return self.has_child(name)
 
-    def add_file(self, name, uploadable):
-        d = uploadable.get_size()
-        d.addCallback(lambda size: uploadable.read(size))
-        d.addCallback(lambda data: "".join(data))
-        def _got_data(data):
-            newuri = make_newuri(data)
-            self._my_files[newuri] = data
-            self._my_nodes[newuri] = MyFileNode(newuri, self._my_client)
-            self.children[name] = newuri
-            uploadable.close()
-            return self._my_nodes[newuri]
-        d.addCallback(_got_data)
-        return d
+    @syncwrap
+    def fake_get(self, name):
+        return self.get(name)
 
-    def delete(self, name):
-        def _try():
-            del self.children[name]
-        return defer.maybeDeferred(_try)
+    @syncwrap
+    def fake_list(self):
+        return self.list()
 
-    def create_empty_directory(self, name):
-        node = MyDirectoryNode(self._my_nodes, self._my_files, self._my_client)
-        self.children[name] = node.get_uri()
-        return defer.succeed(node)
+    @syncwrap
+    def fake_set_uri(self, name, uri):
+        return self.set_uri(name, uri)
 
-    def list(self):
-        kids = dict([(name, self._my_nodes[uri])
-                     for name,uri in self.children.iteritems()])
-        return defer.succeed(kids)
-
-class MyFileNode(dirnode.FileNode):
+class MyFileNode(filenode.FileNode):
     pass
-
-
-class MyVirtualDrive(service.Service):
-    name = "vdrive"
-    public_root = None
-    private_root = None
-    def __init__(self, nodes, files):
-        self._my_nodes = nodes
-        self._my_files = files
-    def have_public_root(self):
-        return bool(self.public_root)
-    def have_private_root(self):
-        return bool(self.private_root)
-    def get_public_root(self):
-        return defer.succeed(self.public_root)
-    def get_private_root(self):
-        return defer.succeed(self.private_root)
-
-    def get_node(self, uri):
-        def _try():
-            return self._my_nodes[uri]
-        return defer.maybeDeferred(_try)
-
-    def create_directory(self):
-        # the dirnode adds itself to self.nodes
-        dirnode = MyDirectoryNode(self._my_nodes, self._my_files, self.parent)
-        return defer.succeed(dirnode)
-
 
 class WebMixin(object):
     def setUp(self):
@@ -181,72 +149,75 @@ class WebMixin(object):
         self.webish_url = "http://localhost:%d" % port
 
         self.nodes = {} # maps URI to node
+        self.s.my_nodes = self.nodes
         self.files = {} # maps file URI to contents
-
-        v = MyVirtualDrive(self.nodes, self.files)
-        v.setServiceParent(self.s)
 
         dl = MyDownloader(self.files)
         dl.setServiceParent(self.s)
         ul = MyUploader(self.files, self.nodes)
         ul.setServiceParent(self.s)
 
-        v.public_root = self.makedir()
-        self.public_root = v.public_root
-        v.private_root = self.makedir()
-        foo = self.makedir()
-        self._foo_node = foo
-        self._foo_uri = foo.get_uri()
-        self._foo_readonly_uri = foo.get_immutable_uri()
-        v.public_root.children["foo"] = foo.get_uri()
+        l = [ self.s.create_empty_dirnode() for x in range(6) ]
+        d = defer.DeferredList(l)
+        def _then(res):
+            self.public_root = res[0][1]
+            assert interfaces.IDirectoryNode.providedBy(self.public_root), res
+            self.public_url = "/uri/" + self.public_root.get_uri()
+            self.private_root = res[1][1]
 
+            foo = res[2][1]
+            self._foo_node = foo
+            self._foo_uri = foo.get_uri()
+            self._foo_readonly_uri = foo.get_readonly_uri()
+            self.public_root.set_uri("foo", foo.get_uri()) # ignore the deferred because we know the fake one does this synchronously
 
-        self._bar_txt_uri = self.makefile(0)
-        self.BAR_CONTENTS = self.files[self._bar_txt_uri]
-        foo.children["bar.txt"] = self._bar_txt_uri
-        foo.children["empty"] = self.makedir().get_uri()
-        sub_uri = foo.children["sub"] = self.makedir().get_uri()
-        sub = self.nodes[sub_uri]
+            self._bar_txt_uri = self.makefile(0)
+            self.BAR_CONTENTS = self.files[self._bar_txt_uri]
+            foo.set_uri("bar.txt", self._bar_txt_uri)
+            foo.set_uri("empty", res[3][1].get_uri())
+            sub_uri = res[4][1].get_uri()
+            sub = foo.fake_set_uri("sub", sub_uri)
 
-        blocking_uri = self.make_smallfile(1)
-        foo.children["blockingfile"] = blocking_uri
+            blocking_uri = self.make_smallfile(1)
+            foo.set_uri("blockingfile", blocking_uri)
 
-        baz_file = self.makefile(2)
-        sub.children["baz.txt"] = baz_file
+            baz_file = self.makefile(2)
+            sub.set_uri("baz.txt", baz_file)
 
-        self._bad_file_uri = self.makefile(3)
-        del self.files[self._bad_file_uri]
+            self._bad_file_uri = self.makefile(3)
+            del self.files[self._bad_file_uri]
 
-        rodir = self.makedir()
-        rodir._mutable = False
-        v.public_root.children["readonly"] = rodir.get_uri()
-        rodir.children["nor"] = baz_file
+            rodir = res[5][1]
+            self.public_root.set_uri("reedownlee", rodir.get_readonly_uri())
+            rodir.set_uri("nor", baz_file)
 
-        # public/
-        # public/foo/
-        # public/foo/bar.txt
-        # public/foo/blockingfile
-        # public/foo/empty/
-        # public/foo/sub/
-        # public/foo/sub/baz.txt
-        # public/readonly/
-        # public/readonly/nor
-        self.NEWFILE_CONTENTS = "newfile contents\n"
+            # public/
+            # public/foo/
+            # public/foo/bar.txt
+            # public/foo/blockingfile
+            # public/foo/empty/
+            # public/foo/sub/
+            # public/foo/sub/baz.txt
+            # public/reedownlee/
+            # public/reedownlee/nor
+            self.NEWFILE_CONTENTS = "newfile contents\n"
+        d.addCallback(_then)
+        return d
 
     def makefile(self, number):
         n = str(number)
+
         assert len(n) == 1
         newuri = uri.CHKFileURI(key="K" + n*15,
                                 uri_extension_hash="EH" + n*30,
                                 needed_shares=25,
                                 total_shares=100,
                                 size=123+number).to_string()
-        assert newuri not in self.nodes
         assert newuri not in self.files
         node = MyFileNode(newuri, self.s)
-        self.nodes[newuri] = node
         contents = "contents of file %s\n" % n
         self.files[newuri] = contents
+        self.nodes[newuri] = node
         return newuri
 
     def make_smallfile(self, number):
@@ -254,16 +225,11 @@ class WebMixin(object):
         assert len(n) == 1
         contents = "small data %s\n" % n
         newuri = uri.LiteralFileURI(contents).to_string()
-        assert newuri not in self.nodes
         assert newuri not in self.files
         node = MyFileNode(newuri, self.s)
-        self.nodes[newuri] = node
         self.files[newuri] = contents
+        self.nodes[newuri] = node
         return newuri
-
-    def makedir(self):
-        node = MyDirectoryNode(self.nodes, self.files, self.s)
-        return node
 
     def tearDown(self):
         return self.s.stopService()
@@ -290,12 +256,13 @@ class WebMixin(object):
     def failUnlessIsFooJSON(self, res):
         data = self.worlds_cheapest_json_decoder(res)
         self.failUnless(isinstance(data, list))
-        self.failUnlessEqual(data[0], "dirnode")
+        self.failUnlessEqual(data[0], "dirnode", res)
         self.failUnless(isinstance(data[1], dict))
         self.failUnless("rw_uri" in data[1]) # mutable
         self.failUnlessEqual(data[1]["rw_uri"], self._foo_uri)
         self.failUnlessEqual(data[1]["ro_uri"], self._foo_readonly_uri)
-        kidnames = sorted(data[1]["children"].keys())
+        
+        kidnames = sorted(data[1]["children"])
         self.failUnlessEqual(kidnames,
                              ["bar.txt", "blockingfile", "empty", "sub"])
         kids = data[1]["children"]
@@ -394,7 +361,6 @@ class Web(WebMixin, unittest.TestCase):
         def _check(res):
             self.failUnless('Welcome To AllMyData' in res)
             self.failUnless('Tahoe' in res)
-            self.failUnless('View <a href="vdrive/global">the global shared filestore' in res, res)
             self.failUnless('personal vdrive not available.' in res)
 
             self.s.basedir = 'web/test_welcome'
@@ -487,27 +453,27 @@ class Web(WebMixin, unittest.TestCase):
         self.failUnless(nodeurl.startswith("http://localhost"))
 
     def test_GET_FILEURL(self):
-        d = self.GET("/vdrive/global/foo/bar.txt")
+        d = self.GET(self.public_url + "/foo/bar.txt")
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
     def test_GET_FILEURL_download(self):
-        d = self.GET("/vdrive/global/foo/bar.txt?t=download")
+        d = self.GET(self.public_url + "/foo/bar.txt?t=download")
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
     def test_GET_FILEURL_missing(self):
-        d = self.GET("/vdrive/global/foo/missing")
+        d = self.GET(self.public_url + "/foo/missing")
         d.addBoth(self.should404, "test_GET_FILEURL_missing")
         return d
 
     def test_PUT_NEWFILEURL(self):
-        d = self.PUT("/vdrive/global/foo/new.txt", self.NEWFILE_CONTENTS)
+        d = self.PUT(self.public_url + "/foo/new.txt", self.NEWFILE_CONTENTS)
         def _check(res):
             # TODO: we lose the response code, so we can't check this
             #self.failUnlessEqual(responsecode, 201)
-            self.failUnless("new.txt" in self._foo_node.children)
-            new_uri = self._foo_node.children["new.txt"]
+            self.failUnless(self._foo_node.fake_has_child("new.txt"))
+            new_uri = self._foo_node.fake_get("new.txt").get_uri()
             new_contents = self.files[new_uri]
             self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
             self.failUnlessEqual(res.strip(), new_uri)
@@ -515,20 +481,20 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_PUT_NEWFILEURL_replace(self):
-        d = self.PUT("/vdrive/global/foo/bar.txt", self.NEWFILE_CONTENTS)
+        d = self.PUT(self.public_url + "/foo/bar.txt", self.NEWFILE_CONTENTS)
         def _check(res):
             # TODO: we lose the response code, so we can't check this
             #self.failUnlessEqual(responsecode, 200)
-            self.failUnless("bar.txt" in self._foo_node.children)
-            new_uri = self._foo_node.children["bar.txt"]
-            new_contents = self.files[new_uri]
+            self.failUnless(self._foo_node.fake_has_child("bar.txt"))
+            new_node = self._foo_node.fake_get("bar.txt")
+            new_contents = self.files[new_node.get_uri()]
             self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
-            self.failUnlessEqual(res.strip(), new_uri)
+            self.failUnlessEqual(res.strip(), new_node.get_uri())
         d.addCallback(_check)
         return d
 
     def test_PUT_NEWFILEURL_no_replace(self):
-        d = self.PUT("/vdrive/global/foo/bar.txt?replace=false",
+        d = self.PUT(self.public_url + "/foo/bar.txt?replace=false",
                      self.NEWFILE_CONTENTS)
         d.addBoth(self.shouldFail, error.Error, "PUT_NEWFILEURL_no_replace",
                   "409 Conflict",
@@ -537,22 +503,21 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_PUT_NEWFILEURL_mkdirs(self):
-        d = self.PUT("/vdrive/global/foo/newdir/new.txt", self.NEWFILE_CONTENTS)
+        d = self.PUT(self.public_url + "/foo/newdir/new.txt", self.NEWFILE_CONTENTS)
         def _check(res):
-            self.failIf("new.txt" in self._foo_node.children)
-            self.failUnless("newdir" in self._foo_node.children)
-            newdir_uri = self._foo_node.children["newdir"]
-            newdir_node = self.nodes[newdir_uri]
-            self.failUnless("new.txt" in newdir_node.children)
-            new_uri = newdir_node.children["new.txt"]
-            new_contents = self.files[new_uri]
+            self.failIf(self._foo_node.fake_has_child("new.txt"))
+            self.failUnless(self._foo_node.fake_has_child("newdir"))
+            newdir_node = self._foo_node.fake_get("newdir")
+            self.failUnless(newdir_node.fake_has_child("new.txt"))
+            new_node = newdir_node.fake_get("new.txt")
+            new_contents = self.files[new_node.get_uri()]
             self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
-            self.failUnlessEqual(res.strip(), new_uri)
+            self.failUnlessEqual(res.strip(), new_node.get_uri())
         d.addCallback(_check)
         return d
 
     def test_PUT_NEWFILEURL_blocked(self):
-        d = self.PUT("/vdrive/global/foo/blockingfile/new.txt",
+        d = self.PUT(self.public_url + "/foo/blockingfile/new.txt",
                      self.NEWFILE_CONTENTS)
         d.addBoth(self.shouldFail, error.Error, "PUT_NEWFILEURL_blocked",
                   "400 Bad Request",
@@ -560,19 +525,19 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_DELETE_FILEURL(self):
-        d = self.DELETE("/vdrive/global/foo/bar.txt")
+        d = self.DELETE(self.public_url + "/foo/bar.txt")
         def _check(res):
-            self.failIf("bar.txt" in self._foo_node.children)
+            self.failIf(self._foo_node.fake_has_child("bar.txt"))
         d.addCallback(_check)
         return d
 
     def test_DELETE_FILEURL_missing(self):
-        d = self.DELETE("/vdrive/global/foo/missing")
+        d = self.DELETE(self.public_url + "/foo/missing")
         d.addBoth(self.should404, "test_DELETE_FILEURL_missing")
         return d
 
     def test_DELETE_FILEURL_missing2(self):
-        d = self.DELETE("/vdrive/global/missing/missing")
+        d = self.DELETE(self.public_url + "/missing/missing")
         d.addBoth(self.should404, "test_DELETE_FILEURL_missing2")
         return d
 
@@ -581,12 +546,12 @@ class Web(WebMixin, unittest.TestCase):
         # I can't do "GET /path?json", I have to do "GET /path/t=json"
         # instead. This may make it tricky to emulate the S3 interface
         # completely.
-        d = self.GET("/vdrive/global/foo/bar.txt?t=json")
+        d = self.GET(self.public_url + "/foo/bar.txt?t=json")
         d.addCallback(self.failUnlessIsBarJSON)
         return d
 
     def test_GET_FILEURL_json_missing(self):
-        d = self.GET("/vdrive/global/foo/missing?json")
+        d = self.GET(self.public_url + "/foo/missing?json")
         d.addBoth(self.should404, "test_GET_FILEURL_json_missing")
         return d
 
@@ -596,7 +561,7 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_GET_FILEURL_localfile(self):
         localfile = os.path.abspath("web/GET_FILEURL_localfile")
-        url = "/vdrive/global/foo/bar.txt?t=download&localfile=%s" % localfile
+        url = self.public_url + "/foo/bar.txt?t=download&localfile=%s" % localfile
         fileutil.make_dirs("web")
         d = self.GET(url)
         def _done(res):
@@ -608,7 +573,7 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_GET_FILEURL_localfile_disabled(self):
         localfile = os.path.abspath("web/GET_FILEURL_localfile_disabled")
-        url = "/vdrive/global/foo/bar.txt?t=download&localfile=%s" % localfile
+        url = self.public_url + "/foo/bar.txt?t=download&localfile=%s" % localfile
         fileutil.make_dirs("web")
         self.disable_local_access()
         d = self.GET(url)
@@ -625,7 +590,7 @@ class Web(WebMixin, unittest.TestCase):
         webish.LOCALHOST = "127.0.0.2"
         localfile = os.path.abspath("web/GET_FILEURL_localfile_nonlocal")
         fileutil.make_dirs("web")
-        d = self.GET("/vdrive/global/foo/bar.txt?t=download&localfile=%s"
+        d = self.GET(self.public_url + "/foo/bar.txt?t=download&localfile=%s"
                      % localfile)
         d.addBoth(self.shouldFail, error.Error, "localfile non-local",
                   "403 Forbidden",
@@ -642,7 +607,7 @@ class Web(WebMixin, unittest.TestCase):
     def test_GET_FILEURL_localfile_nonabsolute(self):
         localfile = "web/nonabsolute/path"
         fileutil.make_dirs("web/nonabsolute")
-        d = self.GET("/vdrive/global/foo/bar.txt?t=download&localfile=%s"
+        d = self.GET(self.public_url + "/foo/bar.txt?t=download&localfile=%s"
                      % localfile)
         d.addBoth(self.shouldFail, error.Error, "localfile non-absolute",
                   "403 Forbidden",
@@ -654,24 +619,24 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_PUT_NEWFILEURL_localfile(self):
         localfile = os.path.abspath("web/PUT_NEWFILEURL_localfile")
-        url = "/vdrive/global/foo/new.txt?t=upload&localfile=%s" % localfile
+        url = self.public_url + "/foo/new.txt?t=upload&localfile=%s" % localfile
         fileutil.make_dirs("web")
         f = open(localfile, "wb")
         f.write(self.NEWFILE_CONTENTS)
         f.close()
         d = self.PUT(url, "")
         def _check(res):
-            self.failUnless("new.txt" in self._foo_node.children)
-            new_uri = self._foo_node.children["new.txt"]
-            new_contents = self.files[new_uri]
+            self.failUnless(self._foo_node.fake_has_child("new.txt"))
+            new_node = self._foo_node.fake_get("new.txt")
+            new_contents = self.files[new_node.get_uri()]
             self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
-            self.failUnlessEqual(res.strip(), new_uri)
+            self.failUnlessEqual(res.strip(), new_node.get_uri())
         d.addCallback(_check)
         return d
 
     def test_PUT_NEWFILEURL_localfile_disabled(self):
         localfile = os.path.abspath("web/PUT_NEWFILEURL_localfile_disabled")
-        url = "/vdrive/global/foo/new.txt?t=upload&localfile=%s" % localfile
+        url = self.public_url + "/foo/new.txt?t=upload&localfile=%s" % localfile
         fileutil.make_dirs("web")
         f = open(localfile, "wb")
         f.write(self.NEWFILE_CONTENTS)
@@ -689,28 +654,27 @@ class Web(WebMixin, unittest.TestCase):
         f = open(localfile, "wb")
         f.write(self.NEWFILE_CONTENTS)
         f.close()
-        d = self.PUT("/vdrive/global/foo/newdir/new.txt?t=upload&localfile=%s"
+        d = self.PUT(self.public_url + "/foo/newdir/new.txt?t=upload&localfile=%s"
                      % localfile, "")
         def _check(res):
-            self.failIf("new.txt" in self._foo_node.children)
-            self.failUnless("newdir" in self._foo_node.children)
-            newdir_uri = self._foo_node.children["newdir"]
-            newdir_node = self.nodes[newdir_uri]
-            self.failUnless("new.txt" in newdir_node.children)
-            new_uri = newdir_node.children["new.txt"]
-            new_contents = self.files[new_uri]
+            self.failIf(self._foo_node.fake_has_child("new.txt"))
+            self.failUnless(self._foo_node.fake_has_child("newdir"))
+            newdir_node = self._foo_node.fake_get("newdir")
+            self.failUnless(newdir_node.fake_has_child("new.txt"))
+            new_node = newdir_node.fake_get("new.txt")
+            new_contents = self.files[new_node.get_uri()]
             self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
-            self.failUnlessEqual(res.strip(), new_uri)
+            self.failUnlessEqual(res.strip(), new_node.get_uri())
         d.addCallback(_check)
         return d
 
     def test_GET_FILEURL_uri(self):
-        d = self.GET("/vdrive/global/foo/bar.txt?t=uri")
+        d = self.GET(self.public_url + "/foo/bar.txt?t=uri")
         def _check(res):
             self.failUnlessEqual(res, self._bar_txt_uri)
         d.addCallback(_check)
         d.addCallback(lambda res:
-                      self.GET("/vdrive/global/foo/bar.txt?t=readonly-uri"))
+                      self.GET(self.public_url + "/foo/bar.txt?t=readonly-uri"))
         def _check2(res):
             # for now, for files, uris and readonly-uris are the same
             self.failUnlessEqual(res, self._bar_txt_uri)
@@ -718,13 +682,13 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_GET_FILEURL_uri_missing(self):
-        d = self.GET("/vdrive/global/foo/missing?t=uri")
+        d = self.GET(self.public_url + "/foo/missing?t=uri")
         d.addBoth(self.should404, "test_GET_FILEURL_uri_missing")
         return d
 
     def test_GET_DIRURL(self):
         # the addSlash means we get a redirect here
-        d = self.GET("/vdrive/global/foo", followRedirect=True)
+        d = self.GET(self.public_url + "/foo", followRedirect=True)
         def _check(res):
             # the FILE reference points to a URI, but it should end in bar.txt
             self.failUnless(re.search(r'<td>'
@@ -739,117 +703,114 @@ class Web(WebMixin, unittest.TestCase):
 
         # look at a directory which is readonly
         d.addCallback(lambda res:
-                      self.GET("/vdrive/global/readonly", followRedirect=True))
+                      self.GET(self.public_url + "/reedownlee", followRedirect=True))
         def _check2(res):
-            self.failUnless("(readonly)" in res)
-            self.failIf("Upload a file" in res)
+            self.failUnless("(readonly)" in res, res)
+            self.failIf("Upload a file" in res, res)
         d.addCallback(_check2)
 
         # and at a directory that contains a readonly directory
         d.addCallback(lambda res:
-                      self.GET("/vdrive/global", followRedirect=True))
+                      self.GET(self.public_url, followRedirect=True))
         def _check3(res):
-            self.failUnless(re.search(r'<td><a href="readonly">readonly</a>'
+            self.failUnless(re.search(r'<td><a href="reedownlee">reedownlee</a>'
                                       '</td>\s+<td>DIR-RO</td>', res))
         d.addCallback(_check3)
 
         return d
 
     def test_GET_DIRURL_json(self):
-        d = self.GET("/vdrive/global/foo?t=json")
+        d = self.GET(self.public_url + "/foo?t=json")
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
     def test_GET_DIRURL_manifest(self):
-        d = self.GET("/vdrive/global/foo?t=manifest", followRedirect=True)
+        d = self.GET(self.public_url + "/foo?t=manifest", followRedirect=True)
         def _got(manifest):
             self.failUnless("Refresh Capabilities" in manifest)
         d.addCallback(_got)
         return d
 
     def test_GET_DIRURL_uri(self):
-        d = self.GET("/vdrive/global/foo?t=uri")
+        d = self.GET(self.public_url + "/foo?t=uri")
         def _check(res):
             self.failUnlessEqual(res, self._foo_uri)
         d.addCallback(_check)
         return d
 
     def test_GET_DIRURL_readonly_uri(self):
-        d = self.GET("/vdrive/global/foo?t=readonly-uri")
+        d = self.GET(self.public_url + "/foo?t=readonly-uri")
         def _check(res):
             self.failUnlessEqual(res, self._foo_readonly_uri)
         d.addCallback(_check)
         return d
 
     def test_PUT_NEWDIRURL(self):
-        d = self.PUT("/vdrive/global/foo/newdir?t=mkdir", "")
+        d = self.PUT(self.public_url + "/foo/newdir?t=mkdir", "")
         def _check(res):
-            self.failUnless("newdir" in self._foo_node.children)
-            newdir_uri = self._foo_node.children["newdir"]
-            newdir_node = self.nodes[newdir_uri]
-            self.failIf(newdir_node.children)
+            self.failUnless(self._foo_node.fake_has_child("newdir"))
+            newdir_node = self._foo_node.fake_get("newdir")
+            self.failIf(newdir_node.fake_list())
         d.addCallback(_check)
         return d
 
     def test_PUT_NEWDIRURL_replace(self):
-        d = self.PUT("/vdrive/global/foo/sub?t=mkdir", "")
+        d = self.PUT(self.public_url + "/foo/sub?t=mkdir", "")
         def _check(res):
-            self.failUnless("sub" in self._foo_node.children)
-            newdir_uri = self._foo_node.children["sub"]
-            newdir_node = self.nodes[newdir_uri]
-            self.failIf(newdir_node.children)
+            self.failUnless(self._foo_node.fake_has_child("sub"))
+            newdir_node = self._foo_node.fake_get("sub")
+            self.failIf(newdir_node.fake_list())
         d.addCallback(_check)
         return d
 
     def test_PUT_NEWDIRURL_no_replace(self):
-        d = self.PUT("/vdrive/global/foo/sub?t=mkdir&replace=false", "")
+        d = self.PUT(self.public_url + "/foo/sub?t=mkdir&replace=false", "")
         d.addBoth(self.shouldFail, error.Error, "PUT_NEWDIRURL_no_replace",
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
         def _check(res):
-            self.failUnless("sub" in self._foo_node.children)
-            newdir_uri = self._foo_node.children["sub"]
-            newdir_node = self.nodes[newdir_uri]
-            self.failUnlessEqual(newdir_node.children.keys(), ["baz.txt"])
+            self.failUnless(self._foo_node.fake_has_child("sub"))
+            newdir_node = self._foo_node.fake_get("sub")
+            self.failUnlessEqual(newdir_node.fake_list().keys(), ["baz.txt"])
         d.addCallback(_check)
         return d
 
     def test_PUT_NEWDIRURL_mkdirs(self):
-        d = self.PUT("/vdrive/global/foo/subdir/newdir?t=mkdir", "")
+        d = self.PUT(self.public_url + "/foo/subdir/newdir?t=mkdir", "")
         def _check(res):
-            self.failIf("newdir" in self._foo_node.children)
-            self.failUnless("subdir" in self._foo_node.children)
-            subdir_node = self.nodes[self._foo_node.children["subdir"]]
-            self.failUnless("newdir" in subdir_node.children)
-            newdir_node = self.nodes[subdir_node.children["newdir"]]
-            self.failIf(newdir_node.children)
+            self.failIf(self._foo_node.fake_has_child("newdir"))
+            self.failUnless(self._foo_node.fake_has_child("subdir"))
+            subdir_node = self._foo_node.fake_get("subdir")
+            self.failUnless(subdir_node.fake_has_child("newdir"))
+            newdir_node = subdir_node.fake_get("newdir")
+            self.failIf(newdir_node.fake_list())
         d.addCallback(_check)
         return d
 
     def test_DELETE_DIRURL(self):
-        d = self.DELETE("/vdrive/global/foo")
+        d = self.DELETE(self.public_url + "/foo")
         def _check(res):
-            self.failIf("foo" in self.public_root.children)
+            self.failIf(self.public_root.fake_has_child("foo"))
         d.addCallback(_check)
         return d
 
     def test_DELETE_DIRURL_missing(self):
-        d = self.DELETE("/vdrive/global/foo/missing")
+        d = self.DELETE(self.public_url + "/foo/missing")
         d.addBoth(self.should404, "test_DELETE_DIRURL_missing")
         def _check(res):
-            self.failUnless("foo" in self.public_root.children)
+            self.failUnless(self.public_root.fake_has_child("foo"))
         d.addCallback(_check)
         return d
 
     def test_DELETE_DIRURL_missing2(self):
-        d = self.DELETE("/vdrive/global/missing")
+        d = self.DELETE(self.public_url + "/missing")
         d.addBoth(self.should404, "test_DELETE_DIRURL_missing2")
         return d
 
     def test_walker(self):
         out = []
-        def _visitor(path, node):
+        def _visitor(path, node, metadata):
             out.append((path, node))
             return defer.succeed(None)
         w = webish.DirnodeWalkerMixin()
@@ -863,8 +824,8 @@ class Web(WebMixin, unittest.TestCase):
                                   ('foo', 'empty'),
                                   ('foo', 'sub'),
                                   ('foo','sub','baz.txt'),
-                                  ('readonly',),
-                                  ('readonly', 'nor'),
+                                  ('reedownlee',),
+                                  ('reedownlee', 'nor'),
                                   ])
             subindex = names.index( ('foo', 'sub') )
             bazindex = names.index( ('foo', 'sub', 'baz.txt') )
@@ -880,7 +841,7 @@ class Web(WebMixin, unittest.TestCase):
     def test_GET_DIRURL_localdir(self):
         localdir = os.path.abspath("web/GET_DIRURL_localdir")
         fileutil.make_dirs("web")
-        d = self.GET("/vdrive/global/foo?t=download&localdir=%s" % localdir)
+        d = self.GET(self.public_url + "/foo?t=download&localdir=%s" % localdir)
         def _check(res):
             barfile = os.path.join(localdir, "bar.txt")
             self.failUnless(os.path.exists(barfile))
@@ -897,7 +858,7 @@ class Web(WebMixin, unittest.TestCase):
         localdir = os.path.abspath("web/GET_DIRURL_localdir_disabled")
         fileutil.make_dirs("web")
         self.disable_local_access()
-        d = self.GET("/vdrive/global/foo?t=download&localdir=%s" % localdir)
+        d = self.GET(self.public_url + "/foo?t=download&localdir=%s" % localdir)
         d.addBoth(self.shouldFail, error.Error, "localfile disabled",
                   "403 Forbidden",
                   "local file access is disabled")
@@ -906,7 +867,7 @@ class Web(WebMixin, unittest.TestCase):
     def test_GET_DIRURL_localdir_nonabsolute(self):
         localdir = "web/nonabsolute/dirpath"
         fileutil.make_dirs("web/nonabsolute")
-        d = self.GET("/vdrive/global/foo?t=download&localdir=%s" % localdir)
+        d = self.GET(self.public_url + "/foo?t=download&localdir=%s" % localdir)
         d.addBoth(self.shouldFail, error.Error, "localdir non-absolute",
                   "403 Forbidden",
                   "localfile= or localdir= requires an absolute path")
@@ -924,9 +885,8 @@ class Web(WebMixin, unittest.TestCase):
     def walk_mynodes(self, node, path=()):
         yield path, node
         if interfaces.IDirectoryNode.providedBy(node):
-            for name in sorted(node.children.keys()):
-                child_uri = node.children[name]
-                childnode = self.nodes[child_uri]
+            for name in sorted(node.list()):
+                childnode = node.fake_get(name)
                 childpath = path + (name,)
                 for xpath,xnode in self.walk_mynodes(childnode, childpath):
                     yield xpath, xnode
@@ -947,20 +907,20 @@ class Web(WebMixin, unittest.TestCase):
         self.touch(localdir, "three/bar.txt")
         self.touch(localdir, "zap.zip")
 
-        d = self.PUT("/vdrive/global/newdir?t=upload&localdir=%s"
+        d = self.PUT(self.public_url + "/newdir?t=upload&localdir=%s"
                      % localdir, "")
         def _check(res):
-            self.failUnless("newdir" in self.public_root.children)
-            newnode = self.nodes[self.public_root.children["newdir"]]
-            self.failUnlessEqual(sorted(newnode.children.keys()),
+            self.failUnless(self.public_root.fake_has_child("newdir"))
+            newnode = self.public_root.fake_get("newdir")
+            self.failUnlessEqual(sorted(newnode.fake_list().keys()),
                                  sorted(["one", "two", "three", "zap.zip"]))
-            onenode = self.nodes[newnode.children["one"]]
-            self.failUnlessEqual(sorted(onenode.children.keys()),
+            onenode = newnode.fake_get("one")
+            self.failUnlessEqual(sorted(onenode.fake_list().keys()),
                                  sorted(["sub"]))
-            threenode = self.nodes[newnode.children["three"]]
-            self.failUnlessEqual(sorted(threenode.children.keys()),
+            threenode = newnode.fake_get("three")
+            self.failUnlessEqual(sorted(threenode.fake_list().keys()),
                                  sorted(["foo.txt", "bar.txt"]))
-            barnode = self.nodes[threenode.children["bar.txt"]]
+            barnode = threenode.fake_get("bar.txt")
             contents = self.files[barnode.get_uri()]
             self.failUnlessEqual(contents, "contents of three/bar.txt\n")
         d.addCallback(_check)
@@ -978,7 +938,7 @@ class Web(WebMixin, unittest.TestCase):
         self.touch(localdir, "zap.zip")
 
         self.disable_local_access()
-        d = self.PUT("/vdrive/global/newdir?t=upload&localdir=%s"
+        d = self.PUT(self.public_url + "/newdir?t=upload&localdir=%s"
                      % localdir, "")
         d.addBoth(self.shouldFail, error.Error, "localfile disabled",
                   "403 Forbidden",
@@ -996,101 +956,101 @@ class Web(WebMixin, unittest.TestCase):
         self.touch(localdir, "three/bar.txt")
         self.touch(localdir, "zap.zip")
 
-        d = self.PUT("/vdrive/global/foo/subdir/newdir?t=upload&localdir=%s"
+        d = self.PUT(self.public_url + "/foo/subdir/newdir?t=upload&localdir=%s"
                      % localdir,
                      "")
         def _check(res):
-            self.failUnless("subdir" in self._foo_node.children)
-            subnode = self.nodes[self._foo_node.children["subdir"]]
-            self.failUnless("newdir" in subnode.children)
-            newnode = self.nodes[subnode.children["newdir"]]
-            self.failUnlessEqual(sorted(newnode.children.keys()),
+            self.failUnless(self._foo_node.fake_has_child("subdir"))
+            subnode = self._foo_node.fake_get("subdir")
+            self.failUnless(subnode.fake_has_child("newdir"))
+            newnode = subnode.fake_get("newdir")
+            self.failUnlessEqual(sorted(newnode.fake_list()),
                                  sorted(["one", "two", "three", "zap.zip"]))
-            onenode = self.nodes[newnode.children["one"]]
-            self.failUnlessEqual(sorted(onenode.children.keys()),
+            onenode = newnode.fake_get("one")
+            self.failUnlessEqual(sorted(onenode.fake_list()),
                                  sorted(["sub"]))
-            threenode = self.nodes[newnode.children["three"]]
-            self.failUnlessEqual(sorted(threenode.children.keys()),
+            threenode = newnode.fake_get("three")
+            self.failUnlessEqual(sorted(threenode.fake_list()),
                                  sorted(["foo.txt", "bar.txt"]))
-            barnode = self.nodes[threenode.children["bar.txt"]]
+            barnode = threenode.fake_get("bar.txt")
             contents = self.files[barnode.get_uri()]
             self.failUnlessEqual(contents, "contents of three/bar.txt\n")
         d.addCallback(_check)
         return d
 
     def test_POST_upload(self):
-        d = self.POST("/vdrive/global/foo", t="upload",
+        d = self.POST(self.public_url + "/foo", t="upload",
                       file=("new.txt", self.NEWFILE_CONTENTS))
         def _check(res):
-            self.failUnless("new.txt" in self._foo_node.children)
-            new_uri = self._foo_node.children["new.txt"]
-            new_contents = self.files[new_uri]
+            self.failUnless(self._foo_node.fake_has_child("new.txt"))
+            new_node = self._foo_node.fake_get("new.txt")
+            new_contents = self.files[new_node.get_uri()]
             self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
-            self.failUnlessEqual(res.strip(), new_uri)
+            self.failUnlessEqual(res.strip(), new_node.get_uri())
         d.addCallback(_check)
         return d
 
     def test_POST_upload_replace(self):
-        d = self.POST("/vdrive/global/foo", t="upload",
+        d = self.POST(self.public_url + "/foo", t="upload",
                       file=("bar.txt", self.NEWFILE_CONTENTS))
         def _check(res):
-            self.failUnless("bar.txt" in self._foo_node.children)
-            new_uri = self._foo_node.children["bar.txt"]
-            new_contents = self.files[new_uri]
+            self.failUnless(self._foo_node.fake_has_child("bar.txt"))
+            new_node = self._foo_node.fake_get("bar.txt")
+            new_contents = self.files[new_node.get_uri()]
             self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
-            self.failUnlessEqual(res.strip(), new_uri)
+            self.failUnlessEqual(res.strip(), new_node.get_uri())
         d.addCallback(_check)
         return d
 
     def test_POST_upload_no_replace_queryarg(self):
-        d = self.POST("/vdrive/global/foo?replace=false", t="upload",
+        d = self.POST(self.public_url + "/foo?replace=false", t="upload",
                       file=("bar.txt", self.NEWFILE_CONTENTS))
         d.addBoth(self.shouldFail, error.Error,
                   "POST_upload_no_replace_queryarg",
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
-        d.addCallback(lambda res: self.GET("/vdrive/global/foo/bar.txt"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
     def test_POST_upload_no_replace_field(self):
-        d = self.POST("/vdrive/global/foo", t="upload", replace="false",
+        d = self.POST(self.public_url + "/foo", t="upload", replace="false",
                       file=("bar.txt", self.NEWFILE_CONTENTS))
         d.addBoth(self.shouldFail, error.Error, "POST_upload_no_replace_field",
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
-        d.addCallback(lambda res: self.GET("/vdrive/global/foo/bar.txt"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
     def test_POST_upload_whendone(self):
-        d = self.POST("/vdrive/global/foo", t="upload", when_done="/THERE",
+        d = self.POST(self.public_url + "/foo", t="upload", when_done="/THERE",
                       file=("new.txt", self.NEWFILE_CONTENTS))
         d.addBoth(self.shouldRedirect, "/THERE")
         def _check(res):
-            self.failUnless("new.txt" in self._foo_node.children)
-            new_uri = self._foo_node.children["new.txt"]
-            new_contents = self.files[new_uri]
+            self.failUnless(self._foo_node.fake_has_child("new.txt"))
+            new_node = self._foo_node.fake_get("new.txt")
+            new_contents = self.files[new_node.get_uri()]
             self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
         d.addCallback(_check)
         return d
 
     def test_POST_upload_named(self):
-        d = self.POST("/vdrive/global/foo", t="upload",
+        d = self.POST(self.public_url + "/foo", t="upload",
                       name="new.txt", file=self.NEWFILE_CONTENTS)
         def _check(res):
-            self.failUnless("new.txt" in self._foo_node.children)
-            new_uri = self._foo_node.children["new.txt"]
-            new_contents = self.files[new_uri]
+            self.failUnless(self._foo_node.fake_has_child("new.txt"))
+            new_node = self._foo_node.fake_get("new.txt")
+            new_contents = self.files[new_node.get_uri()]
             self.failUnlessEqual(new_contents, self.NEWFILE_CONTENTS)
-            self.failUnlessEqual(res.strip(), new_uri)
+            self.failUnlessEqual(res.strip(), new_node.get_uri())
         d.addCallback(_check)
         return d
 
     def test_POST_upload_named_badfilename(self):
-        d = self.POST("/vdrive/global/foo", t="upload",
+        d = self.POST(self.public_url + "/foo", t="upload",
                       name="slashes/are/bad.txt", file=self.NEWFILE_CONTENTS)
         d.addBoth(self.shouldFail, error.Error,
                   "test_POST_upload_named_badfilename",
@@ -1099,7 +1059,7 @@ class Web(WebMixin, unittest.TestCase):
                   )
         def _check(res):
             # make sure that nothing was added
-            kids = sorted(self._foo_node.children.keys())
+            kids = sorted(self._foo_node.fake_list())
             self.failUnlessEqual(sorted(["bar.txt", "blockingfile",
                                          "empty", "sub"]),
                                  kids)
@@ -1107,200 +1067,194 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_POST_mkdir(self): # return value?
-        d = self.POST("/vdrive/global/foo", t="mkdir", name="newdir")
+        d = self.POST(self.public_url + "/foo", t="mkdir", name="newdir")
         def _check(res):
-            self.failUnless("newdir" in self._foo_node.children)
-            newdir_uri = self._foo_node.children["newdir"]
-            newdir_node = self.nodes[newdir_uri]
-            self.failIf(newdir_node.children)
+            self.failUnless(self._foo_node.fake_has_child("newdir"))
+            newdir_node = self._foo_node.fake_get("newdir")
+            self.failIf(newdir_node.fake_list())
         d.addCallback(_check)
         return d
 
     def test_POST_mkdir_replace(self): # return value?
-        d = self.POST("/vdrive/global/foo", t="mkdir", name="sub")
+        d = self.POST(self.public_url + "/foo", t="mkdir", name="sub")
         def _check(res):
-            self.failUnless("sub" in self._foo_node.children)
-            newdir_uri = self._foo_node.children["sub"]
-            newdir_node = self.nodes[newdir_uri]
-            self.failIf(newdir_node.children)
+            self.failUnless(self._foo_node.fake_has_child("sub"))
+            newdir_node = self._foo_node.fake_get("sub")
+            self.failIf(newdir_node.fake_list())
         d.addCallback(_check)
         return d
 
     def test_POST_mkdir_no_replace_queryarg(self): # return value?
-        d = self.POST("/vdrive/global/foo?replace=false", t="mkdir", name="sub")
+        d = self.POST(self.public_url + "/foo?replace=false", t="mkdir", name="sub")
         d.addBoth(self.shouldFail, error.Error,
                   "POST_mkdir_no_replace_queryarg",
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
         def _check(res):
-            self.failUnless("sub" in self._foo_node.children)
-            newdir_uri = self._foo_node.children["sub"]
-            newdir_node = self.nodes[newdir_uri]
-            self.failUnlessEqual(newdir_node.children.keys(), ["baz.txt"])
+            self.failUnless(self._foo_node.fake_has_child("sub"))
+            newdir_node = self._foo_node.fake_get("sub")
+            self.failUnlessEqual(newdir_node.fake_list().keys(), ["baz.txt"])
         d.addCallback(_check)
         return d
 
     def test_POST_mkdir_no_replace_field(self): # return value?
-        d = self.POST("/vdrive/global/foo", t="mkdir", name="sub",
+        d = self.POST(self.public_url + "/foo", t="mkdir", name="sub",
                       replace="false")
         d.addBoth(self.shouldFail, error.Error, "POST_mkdir_no_replace_field",
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
         def _check(res):
-            self.failUnless("sub" in self._foo_node.children)
-            newdir_uri = self._foo_node.children["sub"]
-            newdir_node = self.nodes[newdir_uri]
-            self.failUnlessEqual(newdir_node.children.keys(), ["baz.txt"])
+            self.failUnless(self._foo_node.fake_has_child("sub"))
+            newdir_node = self._foo_node.fake_get("sub")
+            self.failUnlessEqual(newdir_node.fake_list().keys(), ["baz.txt"])
         d.addCallback(_check)
         return d
 
     def test_POST_mkdir_whendone_field(self):
-        d = self.POST("/vdrive/global/foo",
+        d = self.POST(self.public_url + "/foo",
                       t="mkdir", name="newdir", when_done="/THERE")
         d.addBoth(self.shouldRedirect, "/THERE")
         def _check(res):
-            self.failUnless("newdir" in self._foo_node.children)
-            newdir_uri = self._foo_node.children["newdir"]
-            newdir_node = self.nodes[newdir_uri]
-            self.failIf(newdir_node.children)
+            self.failUnless(self._foo_node.fake_has_child("newdir"))
+            newdir_node = self._foo_node.fake_get("newdir")
+            self.failIf(newdir_node.fake_list())
         d.addCallback(_check)
         return d
 
     def test_POST_mkdir_whendone_queryarg(self):
-        d = self.POST("/vdrive/global/foo?when_done=/THERE",
+        d = self.POST(self.public_url + "/foo?when_done=/THERE",
                       t="mkdir", name="newdir")
         d.addBoth(self.shouldRedirect, "/THERE")
         def _check(res):
-            self.failUnless("newdir" in self._foo_node.children)
-            newdir_uri = self._foo_node.children["newdir"]
-            newdir_node = self.nodes[newdir_uri]
-            self.failIf(newdir_node.children)
+            self.failUnless(self._foo_node.fake_has_child("newdir"))
+            newdir_node = self._foo_node.fake_get("newdir")
+            self.failIf(newdir_node.fake_list())
         d.addCallback(_check)
         return d
 
     def test_POST_put_uri(self):
         newuri = self.makefile(8)
         contents = self.files[newuri]
-        d = self.POST("/vdrive/global/foo", t="uri", name="new.txt", uri=newuri)
+        d = self.POST(self.public_url + "/foo", t="uri", name="new.txt", uri=newuri)
         def _check(res):
-            self.failUnless("new.txt" in self._foo_node.children)
-            new_uri = self._foo_node.children["new.txt"]
-            new_contents = self.files[new_uri]
+            self.failUnless(self._foo_node.fake_has_child("new.txt"))
+            new_node = self._foo_node.fake_get("new.txt")
+            new_contents = self.files[new_node.get_uri()]
             self.failUnlessEqual(new_contents, contents)
-            self.failUnlessEqual(res.strip(), new_uri)
+            self.failUnlessEqual(res.strip(), new_node.get_uri())
         d.addCallback(_check)
         return d
 
     def test_POST_put_uri_replace(self):
         newuri = self.makefile(8)
         contents = self.files[newuri]
-        d = self.POST("/vdrive/global/foo", t="uri", name="bar.txt", uri=newuri)
+        d = self.POST(self.public_url + "/foo", t="uri", name="bar.txt", uri=newuri)
         def _check(res):
-            self.failUnless("bar.txt" in self._foo_node.children)
-            new_uri = self._foo_node.children["bar.txt"]
-            new_contents = self.files[new_uri]
+            self.failUnless(self._foo_node.fake_has_child("bar.txt"))
+            new_node = self._foo_node.fake_get("bar.txt")
+            new_contents = self.files[new_node.get_uri()]
             self.failUnlessEqual(new_contents, contents)
-            self.failUnlessEqual(res.strip(), new_uri)
+            self.failUnlessEqual(res.strip(), new_node.get_uri())
         d.addCallback(_check)
         return d
 
     def test_POST_put_uri_no_replace_queryarg(self):
         newuri = self.makefile(8)
         contents = self.files[newuri]
-        d = self.POST("/vdrive/global/foo?replace=false", t="uri",
+        d = self.POST(self.public_url + "/foo?replace=false", t="uri",
                       name="bar.txt", uri=newuri)
         d.addBoth(self.shouldFail, error.Error,
                   "POST_put_uri_no_replace_queryarg",
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
-        d.addCallback(lambda res: self.GET("/vdrive/global/foo/bar.txt"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
     def test_POST_put_uri_no_replace_field(self):
         newuri = self.makefile(8)
         contents = self.files[newuri]
-        d = self.POST("/vdrive/global/foo", t="uri", replace="false",
+        d = self.POST(self.public_url + "/foo", t="uri", replace="false",
                       name="bar.txt", uri=newuri)
         d.addBoth(self.shouldFail, error.Error,
                   "POST_put_uri_no_replace_field",
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
-        d.addCallback(lambda res: self.GET("/vdrive/global/foo/bar.txt"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
     def test_POST_delete(self):
-        d = self.POST("/vdrive/global/foo", t="delete", name="bar.txt")
+        d = self.POST(self.public_url + "/foo", t="delete", name="bar.txt")
         def _check(res):
-            self.failIf("bar.txt" in self._foo_node.children)
+            self.failIf(self._foo_node.fake_has_child("bar.txt"))
         d.addCallback(_check)
         return d
 
     def test_POST_rename_file(self):
-        d = self.POST("/vdrive/global/foo", t="rename",
+        d = self.POST(self.public_url + "/foo", t="rename",
                       from_name="bar.txt", to_name='wibble.txt')
         def _check(res):
-            self.failIf("bar.txt" in self._foo_node.children)
-            self.failUnless("wibble.txt" in self._foo_node.children)
+            self.failIf(self._foo_node.fake_has_child("bar.txt"))
+            self.failUnless(self._foo_node.fake_has_child("wibble.txt"))
         d.addCallback(_check)
-        d.addCallback(lambda res: self.GET("/vdrive/global/foo/wibble.txt"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/wibble.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
-        d.addCallback(lambda res: self.GET("/vdrive/global/foo/wibble.txt?t=json"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/wibble.txt?t=json"))
         d.addCallback(self.failUnlessIsBarJSON)
         return d
 
     def test_POST_rename_file_replace(self):
         # rename a file and replace a directory with it
-        d = self.POST("/vdrive/global/foo", t="rename",
+        d = self.POST(self.public_url + "/foo", t="rename",
                       from_name="bar.txt", to_name='empty')
         def _check(res):
-            self.failIf("bar.txt" in self._foo_node.children)
-            self.failUnless("empty" in self._foo_node.children)
+            self.failIf(self._foo_node.fake_has_child("bar.txt"))
+            self.failUnless(self._foo_node.fake_has_child("empty"))
         d.addCallback(_check)
-        d.addCallback(lambda res: self.GET("/vdrive/global/foo/empty"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/empty"))
         d.addCallback(self.failUnlessIsBarDotTxt)
-        d.addCallback(lambda res: self.GET("/vdrive/global/foo/empty?t=json"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/empty?t=json"))
         d.addCallback(self.failUnlessIsBarJSON)
         return d
 
     def test_POST_rename_file_no_replace_queryarg(self):
         # rename a file and replace a directory with it
-        d = self.POST("/vdrive/global/foo?replace=false", t="rename",
+        d = self.POST(self.public_url + "/foo?replace=false", t="rename",
                       from_name="bar.txt", to_name='empty')
         d.addBoth(self.shouldFail, error.Error,
                   "POST_rename_file_no_replace_queryarg",
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
-        d.addCallback(lambda res: self.GET("/vdrive/global/foo/empty?t=json"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/empty?t=json"))
         d.addCallback(self.failUnlessIsEmptyJSON)
         return d
 
     def test_POST_rename_file_no_replace_field(self):
         # rename a file and replace a directory with it
-        d = self.POST("/vdrive/global/foo", t="rename", replace="false",
+        d = self.POST(self.public_url + "/foo", t="rename", replace="false",
                       from_name="bar.txt", to_name='empty')
         d.addBoth(self.shouldFail, error.Error,
                   "POST_rename_file_no_replace_field",
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
-        d.addCallback(lambda res: self.GET("/vdrive/global/foo/empty?t=json"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/empty?t=json"))
         d.addCallback(self.failUnlessIsEmptyJSON)
         return d
 
     def failUnlessIsEmptyJSON(self, res):
         data = self.worlds_cheapest_json_decoder(res)
-        self.failUnlessEqual(data[0], "dirnode")
+        self.failUnlessEqual(data[0], "dirnode", data)
         self.failUnlessEqual(len(data[1]["children"]), 0)
 
     def test_POST_rename_file_slash_fail(self):
-        d = self.POST("/vdrive/global/foo", t="rename",
+        d = self.POST(self.public_url + "/foo", t="rename",
                       from_name="bar.txt", to_name='kirk/spock.txt')
         d.addBoth(self.shouldFail, error.Error,
                   "test_POST_rename_file_slash_fail",
@@ -1308,9 +1262,9 @@ class Web(WebMixin, unittest.TestCase):
                   "to_name= may not contain a slash",
                   )
         def _check1(res):
-            self.failUnless("bar.txt" in self._foo_node.children)
+            self.failUnless(self._foo_node.fake_has_child("bar.txt"))
         d.addCallback(_check1)
-        d.addCallback(lambda res: self.POST("/vdrive/global", t="rename",
+        d.addCallback(lambda res: self.POST(self.public_url, t="rename",
                       from_name="foo/bar.txt", to_name='george.txt'))
         d.addBoth(self.shouldFail, error.Error,
                   "test_POST_rename_file_slash_fail",
@@ -1318,22 +1272,22 @@ class Web(WebMixin, unittest.TestCase):
                   "from_name= may not contain a slash",
                   )
         def _check2(res):
-            self.failUnless("foo" in self.public_root.children)
-            self.failIf("george.txt" in self.public_root.children)
-            self.failUnless("bar.txt" in self._foo_node.children)
+            self.failUnless(self.public_root.fake_has_child("foo"))
+            self.failIf(self.public_root.fake_has_child("george.txt"))
+            self.failUnless(self._foo_node.fake_has_child("bar.txt"))
         d.addCallback(_check2)
-        d.addCallback(lambda res: self.GET("/vdrive/global/foo?t=json"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo?t=json"))
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
     def test_POST_rename_dir(self):
-        d = self.POST("/vdrive/global", t="rename",
+        d = self.POST(self.public_url, t="rename",
                       from_name="foo", to_name='plunk')
         def _check(res):
-            self.failIf("foo" in self.public_root.children)
-            self.failUnless("plunk" in self.public_root.children)
+            self.failIf(self.public_root.fake_has_child("foo"))
+            self.failUnless(self.public_root.fake_has_child("plunk"))
         d.addCallback(_check)
-        d.addCallback(lambda res: self.GET("/vdrive/global/plunk?t=json"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/plunk?t=json"))
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
@@ -1369,10 +1323,10 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_GET_rename_form(self):
-        d = self.GET("/vdrive/global/foo?t=rename-form&name=bar.txt",
+        d = self.GET(self.public_url + "/foo?t=rename-form&name=bar.txt",
                      followRedirect=True) # XXX [ ] todo: figure out why '.../foo' doesn't work
         def _check(res):
-            self.failUnless(re.search(r'name="when_done" value=".*vdrive/global/foo/', res))
+            self.failUnless(re.search(r'name="when_done" value=".*%s/foo/' % (urllib.quote(self.public_url),), res), (r'name="when_done" value=".*%s/foo/' % (urllib.quote(self.public_url),), res,))
             self.failUnless(re.search(r'name="from_name" value="bar\.txt"', res))
         d.addCallback(_check)
         return d
@@ -1411,11 +1365,11 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_PUT_NEWFILEURL_uri(self):
         new_uri = self.makefile(8)
-        d = self.PUT("/vdrive/global/foo/new.txt?t=uri", new_uri)
+        d = self.PUT(self.public_url + "/foo/new.txt?t=uri", new_uri)
         def _check(res):
-            self.failUnless("new.txt" in self._foo_node.children)
-            new_uri = self._foo_node.children["new.txt"]
-            new_contents = self.files[new_uri]
+            self.failUnless(self._foo_node.fake_has_child("new.txt"))
+            new_node = self._foo_node.fake_get("new.txt")
+            new_contents = self.files[new_node.get_uri()]
             self.failUnlessEqual(new_contents, self.files[new_uri])
             self.failUnlessEqual(res.strip(), new_uri)
         d.addCallback(_check)
@@ -1423,11 +1377,11 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_PUT_NEWFILEURL_uri_replace(self):
         new_uri = self.makefile(8)
-        d = self.PUT("/vdrive/global/foo/bar.txt?t=uri", new_uri)
+        d = self.PUT(self.public_url + "/foo/bar.txt?t=uri", new_uri)
         def _check(res):
-            self.failUnless("bar.txt" in self._foo_node.children)
-            new_uri = self._foo_node.children["bar.txt"]
-            new_contents = self.files[new_uri]
+            self.failUnless(self._foo_node.fake_has_child("bar.txt"))
+            new_node = self._foo_node.fake_get("bar.txt")
+            new_contents = self.files[new_node.get_uri()]
             self.failUnlessEqual(new_contents, self.files[new_uri])
             self.failUnlessEqual(res.strip(), new_uri)
         d.addCallback(_check)
@@ -1435,7 +1389,7 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_PUT_NEWFILEURL_uri_no_replace(self):
         new_uri = self.makefile(8)
-        d = self.PUT("/vdrive/global/foo/bar.txt?t=uri&replace=false", new_uri)
+        d = self.PUT(self.public_url + "/foo/bar.txt?t=uri&replace=false", new_uri)
         d.addBoth(self.shouldFail, error.Error, "PUT_NEWFILEURL_uri_no_replace",
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
@@ -1447,7 +1401,6 @@ class Web(WebMixin, unittest.TestCase):
         d = self.PUT("/uri", file_contents)
         def _check(uri):
             self.failUnless(uri in self.files)
-            self.failUnless(uri in self.nodes)
             self.failUnlessEqual(self.files[uri], file_contents)
             return self.GET("/uri/%s" % uri.replace("/","!"))
         d.addCallback(_check)
@@ -1468,7 +1421,7 @@ class Web(WebMixin, unittest.TestCase):
         d = self.PUT("/uri?t=mkdir", "")
         def _check(uri):
             self.failUnless(uri in self.nodes)
-            self.failUnless(isinstance(self.nodes[uri], MyDirectoryNode))
+            self.failUnless(isinstance(self.nodes[uri], FakeDirectoryNode))
             return self.GET("/uri/%s?t=json" % uri.replace("/","!"))
         d.addCallback(_check)
         d.addCallback(self.failUnlessIsEmptyJSON)

@@ -7,11 +7,11 @@ from twisted.internet import defer, reactor
 from twisted.internet import threads # CLI tests use deferToThread
 from twisted.application import service
 from allmydata import client, uri, download, upload
-from allmydata.introducer_and_vdrive import IntroducerAndVdrive
-from allmydata.util import fileutil, testutil, deferredutil, idlib
+from allmydata.introducer import IntroducerNode
+from allmydata.util import deferredutil, fileutil, idlib, mathutil, testutil
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
-from allmydata.dirnode import NotMutableError
+from allmydata.mutable import NotMutableError
 from foolscap.eventual import flushEventualQueue
 from twisted.python import log
 from twisted.python.failure import Failure
@@ -48,30 +48,30 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         s.setServiceParent(self.sparent)
         return s
 
-    def set_up_nodes(self, NUMCLIENTS=5):
+    def set_up_nodes(self, NUMCLIENTS=5, createprivdir=False):
         self.numclients = NUMCLIENTS
-        iv_dir = self.getdir("introducer_and_vdrive")
+        self.createprivdir = createprivdir
+        iv_dir = self.getdir("introducer")
         if not os.path.isdir(iv_dir):
             fileutil.make_dirs(iv_dir)
-        iv = IntroducerAndVdrive(basedir=iv_dir)
-        self.introducer_and_vdrive = self.add_service(iv)
-        d = self.introducer_and_vdrive.when_tub_ready()
+        iv = IntroducerNode(basedir=iv_dir)
+        self.introducer = self.add_service(iv)
+        d = self.introducer.when_tub_ready()
         d.addCallback(self._set_up_nodes_2)
         return d
 
     def _set_up_nodes_2(self, res):
-        q = self.introducer_and_vdrive
-        self.introducer_furl = q.urls["introducer"]
-        self.vdrive_furl = q.urls["vdrive"]
+        q = self.introducer
+        self.introducer_furl = q.introducer_url
         self.clients = []
         for i in range(self.numclients):
             basedir = self.getdir("client%d" % i)
-            if not os.path.isdir(basedir):
-                fileutil.make_dirs(basedir)
+            fileutil.make_dirs(basedir)
             if i == 0:
                 open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
+            if self.createprivdir:
+                open(os.path.join(basedir, "my_private_dir.uri"), "w")
             open(os.path.join(basedir, "introducer.furl"), "w").write(self.introducer_furl)
-            open(os.path.join(basedir, "vdrive.furl"), "w").write(self.vdrive_furl)
             c = self.add_service(client.Client(basedir=basedir))
             self.clients.append(c)
         log.msg("STARTING")
@@ -92,7 +92,6 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         if not os.path.isdir(basedir):
             fileutil.make_dirs(basedir)
         open(os.path.join(basedir, "introducer.furl"), "w").write(self.introducer_furl)
-        open(os.path.join(basedir, "vdrive.furl"), "w").write(self.vdrive_furl)
 
         c = client.Client(basedir=basedir)
         self.clients.append(c)
@@ -119,16 +118,16 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         self.basedir = "system/SystemTest/test_connections"
         d = self.set_up_nodes()
         self.extra_node = None
-        d.addCallback(lambda res: self.add_extra_node(5))
+        d.addCallback(lambda res: self.add_extra_node(self.numclients))
         def _check(extra_node):
             self.extra_node = extra_node
             for c in self.clients:
                 all_peerids = list(c.get_all_peerids())
-                self.failUnlessEqual(len(all_peerids), 6)
+                self.failUnlessEqual(len(all_peerids), self.numclients+1)
                 permuted_peers = list(c.get_permuted_peers("a", True))
-                self.failUnlessEqual(len(permuted_peers), 6)
+                self.failUnlessEqual(len(permuted_peers), self.numclients+1)
                 permuted_other_peers = list(c.get_permuted_peers("a", False))
-                self.failUnlessEqual(len(permuted_other_peers), 5)
+                self.failUnlessEqual(len(permuted_other_peers), self.numclients)
 
         d.addCallback(_check)
         def _shutdown_extra_node(res):
@@ -154,11 +153,11 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _check_connections(res):
             for c in self.clients:
                 all_peerids = list(c.get_all_peerids())
-                self.failUnlessEqual(len(all_peerids), 5)
+                self.failUnlessEqual(len(all_peerids), self.numclients)
                 permuted_peers = list(c.get_permuted_peers("a", True))
-                self.failUnlessEqual(len(permuted_peers), 5)
+                self.failUnlessEqual(len(permuted_peers), self.numclients)
                 permuted_other_peers = list(c.get_permuted_peers("a", False))
-                self.failUnlessEqual(len(permuted_other_peers), 4)
+                self.failUnlessEqual(len(permuted_other_peers), self.numclients-1)
         d.addCallback(_check_connections)
         def _do_upload(res):
             log.msg("UPLOADING")
@@ -246,11 +245,10 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         NEWERDATA = "this is getting old"
 
         d = self.set_up_nodes()
-
         def _create_mutable(res):
             c = self.clients[0]
             log.msg("starting create_mutable_file")
-            d1 = c.create_mutable_file(DATA)
+            d1 = c.create_mutable_file(DATA, wait_for_numpeers=self.numclients)
             def _done(res):
                 log.msg("DONE: %s" % (res,))
                 self._mutable_node_1 = res
@@ -299,18 +297,18 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 m = re.search(r'^ container_size: (\d+)$', output, re.M)
                 self.failUnless(m)
                 container_size = int(m.group(1))
-                self.failUnless(2044 <= container_size <= 2049, container_size)
+                self.failUnless(2037 <= container_size <= 2049, container_size)
                 m = re.search(r'^ data_length: (\d+)$', output, re.M)
                 self.failUnless(m)
                 data_length = int(m.group(1))
-                self.failUnless(2044 <= data_length <= 2049, data_length)
+                self.failUnless(2037 <= data_length <= 2049, data_length)
                 self.failUnless("  secrets are for nodeid: %s\n" % peerid
                                 in output)
                 self.failUnless(" SDMF contents:\n" in output)
                 self.failUnless("  seqnum: 1\n" in output)
                 self.failUnless("  required_shares: 3\n" in output)
                 self.failUnless("  total_shares: 10\n" in output)
-                self.failUnless("  segsize: 27\n" in output)
+                self.failUnless("  segsize: 27\n" in output, (output, filename))
                 self.failUnless("  datalen: 25\n" in output)
                 # the exact share_hash_chain nodes depends upon the sharenum,
                 # and is more of a hassle to compute than I want to deal with
@@ -357,7 +355,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             self.failUnlessEqual(res, DATA)
             # replace the data
             log.msg("starting replace1")
-            d1 = newnode.replace(NEWDATA)
+            d1 = newnode.replace(NEWDATA, wait_for_numpeers=self.numclients)
             d1.addCallback(lambda res: newnode.download_to_data())
             return d1
         d.addCallback(_check_download_3)
@@ -370,7 +368,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             newnode1 = self.clients[2].create_node_from_uri(uri)
             newnode2 = self.clients[3].create_node_from_uri(uri)
             log.msg("starting replace2")
-            d1 = newnode1.replace(NEWERDATA)
+            d1 = newnode1.replace(NEWERDATA, wait_for_numpeers=self.numclients)
             d1.addCallback(lambda res: newnode2.download_to_data())
             return d1
         d.addCallback(_check_download_4)
@@ -378,21 +376,22 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _check_download_5(res):
             log.msg("finished replace2")
             self.failUnlessEqual(res, NEWERDATA)
-            # make sure we can create empty files, this usually screws up the
-            # segsize math
-            d1 = self.clients[2].create_mutable_file("")
+            # Make sure we can create empty files -- this can screw up the
+            # segsize math.
+            d1 = self.clients[2].create_mutable_file("", wait_for_numpeers=self.numclients)
             d1.addCallback(lambda newnode: newnode.download_to_data())
             d1.addCallback(lambda res: self.failUnlessEqual("", res))
             return d1
         d.addCallback(_check_download_5)
 
-        d.addCallback(lambda res: self.clients[0].create_empty_dirnode())
+        d.addCallback(lambda res: self.clients[0].create_empty_dirnode(wait_for_numpeers=self.numclients))
         def _created_dirnode(dnode):
+            log.msg("_created_dirnode(%s)" % (dnode,))
             d1 = dnode.list()
             d1.addCallback(lambda children: self.failUnlessEqual(children, {}))
             d1.addCallback(lambda res: dnode.has_child("edgar"))
             d1.addCallback(lambda answer: self.failUnlessEqual(answer, False))
-            d1.addCallback(lambda res: dnode.set_node("see recursive", dnode))
+            d1.addCallback(lambda res: dnode.set_node("see recursive", dnode, wait_for_numpeers=self.numclients))
             d1.addCallback(lambda res: dnode.has_child("see recursive"))
             d1.addCallback(lambda answer: self.failUnlessEqual(answer, True))
             return d1
@@ -428,17 +427,18 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     def test_vdrive(self):
         self.basedir = "system/SystemTest/test_vdrive"
         self.data = LARGE_DATA
-        d = self.set_up_nodes()
+        d = self.set_up_nodes(createprivdir=True)
         d.addCallback(self.log, "starting publish")
         d.addCallback(self._do_publish1)
         d.addCallback(self._test_runner)
         d.addCallback(self._do_publish2)
-        # at this point, we have the following global filesystem:
-        # /
-        # /subdir1
-        # /subdir1/mydata567
-        # /subdir1/subdir2/
-        # /subdir1/subdir2/mydata992
+        # at this point, we have the following filesystem (where "R" denotes
+        # self._root_directory_uri):
+        # R
+        # R/subdir1
+        # R/subdir1/mydata567
+        # R/subdir1/subdir2/
+        # R/subdir1/subdir2/mydata992
 
         d.addCallback(self._bounce_client0)
         d.addCallback(self.log, "bounced client0")
@@ -449,10 +449,11 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(self.log, "did _check_publish2")
         d.addCallback(self._do_publish_private)
         d.addCallback(self.log, "did _do_publish_private")
-        # now we also have:
-        #  ~client0/personal/sekrit data
-        #  ~client0/s2-rw -> /subdir1/subdir2/
-        #  ~client0/s2-ro -> /subdir1/subdir2/ (read-only)
+        # now we also have (where "P" denotes clients[0]'s automatic private
+        # dir):
+        #  P/personal/sekrit data
+        #  P/s2-rw -> /subdir1/subdir2/
+        #  P/s2-ro -> /subdir1/subdir2/ (read-only)
         d.addCallback(self._check_publish_private)
         d.addCallback(self.log, "did _check_publish_private")
         d.addCallback(self._test_web)
@@ -467,11 +468,16 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     def _do_publish1(self, res):
         ut = upload.Data(self.data)
         c0 = self.clients[0]
-        d = c0.getServiceNamed("vdrive").get_public_root()
-        d.addCallback(lambda root: root.create_empty_directory("subdir1"))
+        d = c0.create_empty_dirnode(wait_for_numpeers=self.numclients)
+        def _made_root(new_dirnode):
+            log.msg("ZZZ %s -> %s" % (hasattr(self, '_root_directory_uri') and self._root_directory_uri, new_dirnode.get_uri(),))
+            self._root_directory_uri = new_dirnode.get_uri()
+            return c0.create_node_from_uri(self._root_directory_uri)
+        d.addCallback(_made_root)
+        d.addCallback(lambda root: root.create_empty_directory("subdir1", wait_for_numpeers=self.numclients))
         def _made_subdir1(subdir1_node):
             self._subdir1_node = subdir1_node
-            d1 = subdir1_node.add_file("mydata567", ut)
+            d1 = subdir1_node.add_file("mydata567", ut, wait_for_numpeers=self.numclients)
             d1.addCallback(self.log, "publish finished")
             def _stash_uri(filenode):
                 self.uri = filenode.get_uri()
@@ -482,8 +488,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
     def _do_publish2(self, res):
         ut = upload.Data(self.data)
-        d = self._subdir1_node.create_empty_directory("subdir2")
-        d.addCallback(lambda subdir2: subdir2.add_file("mydata992", ut))
+        d = self._subdir1_node.create_empty_directory("subdir2", wait_for_numpeers=self.numclients)
+        d.addCallback(lambda subdir2: subdir2.add_file("mydata992", ut, wait_for_numpeers=self.numclients))
         return d
 
     def _bounce_client0(self, res):
@@ -513,7 +519,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return d
 
     def log(self, res, msg):
-        #print "MSG: %s  RES: %s" % (msg, res)
+        # print "MSG: %s  RES: %s" % (msg, res)
         log.msg(msg)
         return res
 
@@ -523,33 +529,33 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return d
 
     def _do_publish_private(self, res):
+        defer.setDebugging(True)
         self.smalldata = "sssh, very secret stuff"
         ut = upload.Data(self.smalldata)
-        vdrive0 = self.clients[0].getServiceNamed("vdrive")
-        d = vdrive0.get_node_at_path("~")
-        d.addCallback(self.log, "GOT ~")
-        def _got_root(rootnode):
-            d1 = rootnode.create_empty_directory("personal")
-            d1.addCallback(self.log, "made ~/personal")
-            d1.addCallback(lambda node: node.add_file("sekrit data", ut))
-            d1.addCallback(self.log, "made ~/personal/sekrit data")
-            d1.addCallback(lambda res:
-                           vdrive0.get_node_at_path(["subdir1", "subdir2"]))
+        d = self.clients[0].get_private_uri()
+        d.addCallback(self.log, "GOT private directory")
+        def _got_root_uri(privuri):
+            assert privuri
+            privnode = self.clients[0].create_node_from_uri(privuri)
+            rootnode = self.clients[0].create_node_from_uri(self._root_directory_uri)
+            d1 = privnode.create_empty_directory("personal", wait_for_numpeers=self.numclients)
+            d1.addCallback(self.log, "made P/personal")
+            d1.addCallback(lambda node: node.add_file("sekrit data", ut, wait_for_numpeers=self.numclients))
+            d1.addCallback(self.log, "made P/personal/sekrit data")
+            d1.addCallback(lambda res: rootnode.get_child_at_path(["subdir1", "subdir2"]))
             def _got_s2(s2node):
-                d2 = rootnode.set_uri("s2-rw", s2node.get_uri())
-                d2.addCallback(lambda node:
-                               rootnode.set_uri("s2-ro",
-                                                s2node.get_immutable_uri()))
+                d2 = privnode.set_uri("s2-rw", s2node.get_uri(), wait_for_numpeers=self.numclients)
+                d2.addCallback(lambda node: privnode.set_uri("s2-ro", s2node.get_readonly_uri(), wait_for_numpeers=self.numclients))
                 return d2
             d1.addCallback(_got_s2)
             return d1
-        d.addCallback(_got_root)
+        d.addCallback(_got_root_uri)
         return d
 
     def _check_publish1(self, res):
         # this one uses the iterative API
         c1 = self.clients[1]
-        d = c1.getServiceNamed("vdrive").get_public_root()
+        d = defer.succeed(c1.create_node_from_uri(self._root_directory_uri))
         d.addCallback(self.log, "check_publish1 got /")
         d.addCallback(lambda root: root.get("subdir1"))
         d.addCallback(lambda subdir1: subdir1.get("mydata567"))
@@ -562,52 +568,57 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
     def _check_publish2(self, res):
         # this one uses the path-based API
-        vdrive1 = self.clients[1].getServiceNamed("vdrive")
-        get_path = vdrive1.get_node_at_path
-        d = get_path("subdir1")
+        rootnode = self.clients[1].create_node_from_uri(self._root_directory_uri)
+        d = rootnode.get_child_at_path("subdir1")
         d.addCallback(lambda dirnode:
                       self.failUnless(IDirectoryNode.providedBy(dirnode)))
-        d.addCallback(lambda res: get_path("/subdir1/mydata567"))
+        d.addCallback(lambda res: rootnode.get_child_at_path("subdir1/mydata567"))
         d.addCallback(lambda filenode: filenode.download_to_data())
         d.addCallback(lambda data: self.failUnlessEqual(data, self.data))
 
-        d.addCallback(lambda res: get_path("subdir1/mydata567"))
+        d.addCallback(lambda res: rootnode.get_child_at_path("subdir1/mydata567"))
         def _got_filenode(filenode):
-            d1 = vdrive1.get_node(filenode.get_uri())
-            d1.addCallback(self.failUnlessEqual, filenode)
-            return d1
+            fnode = self.clients[1].create_node_from_uri(filenode.get_uri())
+            assert fnode == filenode
         d.addCallback(_got_filenode)
         return d
 
     def _check_publish_private(self, res):
         # this one uses the path-based API
-        def get_path(path):
-            vdrive0 = self.clients[0].getServiceNamed("vdrive")
-            return vdrive0.get_node_at_path(path)
-        d = get_path("~/personal")
+        d = self.clients[0].get_private_uri()
+        def _got_private_uri(privateuri):
+            self._private_node = self.clients[0].create_node_from_uri(privateuri)
+        d.addCallback(_got_private_uri)
+
+        d.addCallback(lambda res: self._private_node.get_child_at_path("personal"))
         def _got_personal(personal):
             self._personal_node = personal
             return personal
         d.addCallback(_got_personal)
+
         d.addCallback(lambda dirnode:
-                      self.failUnless(IDirectoryNode.providedBy(dirnode)))
-        d.addCallback(lambda res: get_path("~/personal/sekrit data"))
+                      self.failUnless(IDirectoryNode.providedBy(dirnode), dirnode))
+        def get_path(path):
+            return self._private_node.get_child_at_path(path)
+
+        d.addCallback(lambda res: get_path("personal/sekrit data"))
         d.addCallback(lambda filenode: filenode.download_to_data())
         d.addCallback(lambda data: self.failUnlessEqual(data, self.smalldata))
-        d.addCallback(lambda res: get_path("~/s2-rw"))
+        d.addCallback(lambda res: get_path("s2-rw"))
         d.addCallback(lambda dirnode: self.failUnless(dirnode.is_mutable()))
-        d.addCallback(lambda res: get_path("~/s2-ro"))
+        d.addCallback(lambda res: get_path("s2-ro"))
         def _got_s2ro(dirnode):
-            self.failIf(dirnode.is_mutable())
+            self.failUnless(dirnode.is_mutable(), dirnode)
+            self.failUnless(dirnode.is_readonly(), dirnode)
             d1 = defer.succeed(None)
             d1.addCallback(lambda res: dirnode.list())
             d1.addCallback(self.log, "dirnode.list")
-            d1.addCallback(lambda res: dirnode.create_empty_directory("nope"))
-            d1.addBoth(self.shouldFail, NotMutableError, "mkdir(nope)")
+
+            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mkdir(nope)", None, dirnode.create_empty_directory, "nope"))
+
             d1.addCallback(self.log, "doing add_file(ro)")
             ut = upload.Data("I will disappear, unrecorded and unobserved. The tragedy of my demise is made more poignant by its silence, but this beauty is not for you to ever know.")
-            d1.addCallback(lambda res: dirnode.add_file("hope", ut))
-            d1.addBoth(self.shouldFail, NotMutableError, "add_file(nope)")
+            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "add_file(nope)", None, dirnode.add_file, "hope", ut))
 
             d1.addCallback(self.log, "doing get(ro)")
             d1.addCallback(lambda res: dirnode.get("mydata992"))
@@ -615,55 +626,44 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                            self.failUnless(IFileNode.providedBy(filenode)))
 
             d1.addCallback(self.log, "doing delete(ro)")
-            d1.addCallback(lambda res: dirnode.delete("mydata992"))
-            d1.addBoth(self.shouldFail, NotMutableError, "delete(nope)")
+            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "delete(nope)", None, dirnode.delete, "mydata992"))
 
-            d1.addCallback(lambda res: dirnode.set_uri("hopeless", self.uri))
-            d1.addBoth(self.shouldFail, NotMutableError, "set_uri(nope)")
+            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "set_uri(nope)", None, dirnode.set_uri, "hopeless", self.uri))
 
-            d1.addCallback(lambda res: dirnode.get("missing"))
-            d1.addBoth(self.shouldFail, KeyError, "get(missing)",
-                       "unable to find child named 'missing'")
+            d1.addCallback(lambda res: self.shouldFail2(KeyError, "get(missing)", "'missing'", dirnode.get, "missing"))
 
-            d1.addCallback(self.log, "doing move_child_to(ro)")
             personal = self._personal_node
-            d1.addCallback(lambda res:
-                           dirnode.move_child_to("mydata992",
-                                                 personal, "nope"))
-            d1.addBoth(self.shouldFail, NotMutableError, "mv from readonly")
+            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mv from readonly", None, dirnode.move_child_to, "mydata992", personal, "nope"))
 
             d1.addCallback(self.log, "doing move_child_to(ro)2")
-            d1.addCallback(lambda res:
-                           personal.move_child_to("sekrit data",
-                                                  dirnode, "nope"))
-            d1.addBoth(self.shouldFail, NotMutableError, "mv to readonly")
+            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mv to readonly", None, personal.move_child_to, "sekrit data", dirnode, "nope"))
 
             d1.addCallback(self.log, "finished with _got_s2ro")
             return d1
         d.addCallback(_got_s2ro)
-        d.addCallback(lambda res: get_path("~"))
-        def _got_home(home):
+        def _got_home(dummy):
+            home = self._private_node
             personal = self._personal_node
             d1 = defer.succeed(None)
-            d1.addCallback(self.log, "mv '~/personal/sekrit data' to ~/sekrit")
+            d1.addCallback(self.log, "mv 'P/personal/sekrit data' to P/sekrit")
             d1.addCallback(lambda res:
                            personal.move_child_to("sekrit data",home,"sekrit"))
 
-            d1.addCallback(self.log, "mv ~/sekrit '~/sekrit data'")
+            d1.addCallback(self.log, "mv P/sekrit 'P/sekrit data'")
             d1.addCallback(lambda res:
                            home.move_child_to("sekrit", home, "sekrit data"))
 
-            d1.addCallback(self.log, "mv '~/sekret data' ~/personal/")
+            d1.addCallback(self.log, "mv 'P/sekret data' P/personal/")
             d1.addCallback(lambda res:
                            home.move_child_to("sekrit data", personal))
 
             d1.addCallback(lambda res: home.build_manifest())
             d1.addCallback(self.log, "manifest")
             #  four items:
-            # ~client0/personal/
-            # ~client0/personal/sekrit data
-            # ~client0/s2-rw  (same as ~client/s2-ro)
-            # ~client0/s2-rw/mydata992 (same as ~client/s2-rw/mydata992)
+            # P/personal/
+            # P/personal/sekrit data
+            # P/s2-rw  (same as P/s2-ro)
+            # P/s2-rw/mydata992 (same as P/s2-rw/mydata992)
             d1.addCallback(lambda manifest:
                            self.failUnlessEqual(len(manifest), 4))
             return d1
@@ -681,6 +681,22 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             self.fail("%s was supposed to raise %s, not get '%s'" %
                       (which, expected_failure, res))
 
+    def shouldFail2(self, expected_failure, which, substring, callable, *args, **kwargs):
+        assert substring is None or isinstance(substring, str)
+        d = defer.maybeDeferred(callable, *args, **kwargs)
+        def done(res):
+            if isinstance(res, Failure):
+                res.trap(expected_failure)
+                if substring:
+                    self.failUnless(substring in str(res),
+                                    "substring '%s' not in '%s'"
+                                    % (substring, str(res)))
+            else:
+                self.fail("%s was supposed to raise %s, not get '%s'" %
+                          (which, expected_failure, res))
+        d.addBoth(done)
+        return d
+
     def PUT(self, urlpath, data):
         url = self.webish_url + urlpath
         return getPage(url, method="PUT", postdata=data)
@@ -691,6 +707,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
     def _test_web(self, res):
         base = self.webish_url
+        public = "uri/" + self._root_directory_uri.replace("/", "!")
         d = getPage(base)
         def _got_welcome(page):
             expected = "Connected Peers: <span>%d</span>" % (self.numclients)
@@ -704,8 +721,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                             "in: %s" % page)
         d.addCallback(_got_welcome)
         d.addCallback(self.log, "done with _got_welcome")
-        d.addCallback(lambda res: getPage(base + "vdrive/global"))
-        d.addCallback(lambda res: getPage(base + "vdrive/global/subdir1"))
+        d.addCallback(lambda res: getPage(base + public))
+        d.addCallback(lambda res: getPage(base + public + "/subdir1"))
         def _got_subdir1(page):
             # there ought to be an href for our file
             self.failUnless(("<td>%d</td>" % len(self.data)) in page)
@@ -713,7 +730,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(_got_subdir1)
         d.addCallback(self.log, "done with _got_subdir1")
         d.addCallback(lambda res:
-                      getPage(base + "vdrive/global/subdir1/mydata567"))
+                      getPage(base + public + "/subdir1/mydata567"))
         def _got_data(page):
             self.failUnlessEqual(page, self.data)
         d.addCallback(_got_data)
@@ -733,9 +750,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _get_from_uri2(res):
             return getPage(base + "uri?uri=%s" % (self.uri,))
         d.addCallback(_get_from_uri2)
-        def _got_from_uri2(page):
-            self.failUnlessEqual(page, self.data)
-        d.addCallback(_got_from_uri2)
+        d.addCallback(_got_from_uri)
 
         # download from a bogus URI, make sure we get a reasonable error
         d.addCallback(self.log, "_get_from_bogus_uri")
@@ -749,21 +764,21 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
         # upload a file with PUT
         d.addCallback(self.log, "about to try PUT")
-        d.addCallback(lambda res: self.PUT("vdrive/global/subdir3/new.txt",
+        d.addCallback(lambda res: self.PUT(public + "/subdir3/new.txt",
                                            "new.txt contents"))
-        d.addCallback(lambda res: self.GET("vdrive/global/subdir3/new.txt"))
+        d.addCallback(lambda res: self.GET(public + "/subdir3/new.txt"))
         d.addCallback(self.failUnlessEqual, "new.txt contents")
         # and again with something large enough to use multiple segments,
         # and hopefully trigger pauseProducing too
-        d.addCallback(lambda res: self.PUT("vdrive/global/subdir3/big.txt",
+        d.addCallback(lambda res: self.PUT(public + "/subdir3/big.txt",
                                            "big" * 500000)) # 1.5MB
-        d.addCallback(lambda res: self.GET("vdrive/global/subdir3/big.txt"))
+        d.addCallback(lambda res: self.GET(public + "/subdir3/big.txt"))
         d.addCallback(lambda res: self.failUnlessEqual(len(res), 1500000))
 
         # can we replace files in place?
-        d.addCallback(lambda res: self.PUT("vdrive/global/subdir3/new.txt",
+        d.addCallback(lambda res: self.PUT(public + "/subdir3/new.txt",
                                            "NEWER contents"))
-        d.addCallback(lambda res: self.GET("vdrive/global/subdir3/new.txt"))
+        d.addCallback(lambda res: self.GET(public + "/subdir3/new.txt"))
         d.addCallback(self.failUnlessEqual, "NEWER contents")
 
 
@@ -774,7 +789,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         # TODO: download a URI with a form
         # TODO: create a directory by using a form
         # TODO: upload by using a form on the directory page
-        #    url = base + "global_vdrive/subdir1/freeform_post!!upload"
+        #    url = base + "somedir/subdir1/freeform_post!!upload"
         # TODO: delete a file by using a button on the directory page
 
         return d
@@ -785,9 +800,12 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         self.failUnless(os.path.exists(startfile))
         start_html = open(startfile, "r").read()
         self.failUnless(self.webish_url in start_html)
-        private_uri = self.clients[0].getServiceNamed("vdrive")._private_uri
-        private_url = self.webish_url + "uri/" + private_uri.replace("/","!")
-        self.failUnless(private_url in start_html)
+        d = self.clients[0].get_private_uri()
+        def done(private_uri):
+            private_url = self.webish_url + "uri/" + private_uri.replace("/","!")
+            self.failUnless(private_url in start_html)
+        d.addCallback(done)
+        return d
 
     def _test_runner(self, res):
         # exercise some of the diagnostic tools in runner.py
@@ -803,7 +821,10 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 # we're sitting in .../storage/shares/$SINDEX , and there are
                 # sharefiles here
                 filename = os.path.join(dirpath, filenames[0])
-                break
+                # peek at the magic to see if it is a chk share
+                magic = open(filename, "rb").read(4)
+                if magic == '\x00\x00\x00\x01':
+                    break
         else:
             self.fail("unable to find any uri_extension files in %s"
                       % self.basedir)
@@ -821,7 +842,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         self.failUnless("size: %d\n" % len(self.data) in output)
         self.failUnless("num_segments: 1\n" in output)
         # segment_size is always a multiple of needed_shares
-        self.failUnless("segment_size: 114\n" in output)
+        self.failUnless("segment_size: %d\n" % mathutil.next_multiple(len(self.data), 3) in output)
         self.failUnless("total_shares: 10\n" in output)
         # keys which are supposed to be present
         for key in ("size", "num_segments", "segment_size",
@@ -829,8 +850,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                     "codec_name", "codec_params", "tail_codec_params",
                     "plaintext_hash", "plaintext_root_hash",
                     "crypttext_hash", "crypttext_root_hash",
-                    "share_root_hash",
-                    ):
+                    "share_root_hash",):
             self.failUnless("%s: " % key in output, key)
 
     def _test_control(self, res):
@@ -840,8 +860,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         control_furl_file = os.path.join(c0.basedir, "control.furl")
         control_furl = open(control_furl_file, "r").read().strip()
         # it doesn't really matter which Tub we use to connect to the client,
-        # so let's just use our Introducer's
-        d = self.introducer_and_vdrive.tub.getReference(control_furl)
+        # so let's just use our IntroducerNode's
+        d = self.introducer.tub.getReference(control_furl)
         d.addCallback(self._test_control2, control_furl_file)
         return d
     def _test_control2(self, rref, filename):
@@ -866,15 +886,16 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         # run various CLI commands (in a thread, since they use blocking
         # network calls)
 
-        private_uri = self.clients[0].getServiceNamed("vdrive")._private_uri
-        global_uri = self.clients[0].getServiceNamed("vdrive")._global_uri
+        private_uri = self._private_node.get_uri()
+        some_uri = self._root_directory_uri
+
         nodeargs = [
             "--node-url", self.webish_url,
             "--root-uri", private_uri,
             ]
         public_nodeargs = [
             "--node-url", self.webish_url,
-            "--root-uri", global_uri,
+            "--root-uri", some_uri,
             ]
         TESTDATA = "I will not write the same thing over and over.\n" * 100
 
@@ -944,8 +965,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _check_put((out,err)):
             self.failUnless("200 OK" in out)
             self.failUnlessEqual(err, "")
-            vdrive0 = self.clients[0].getServiceNamed("vdrive")
-            d = vdrive0.get_node_at_path("~/test_put/upload.txt")
+            d = self._private_node.get_child_at_path("test_put/upload.txt")
             d.addCallback(lambda filenode: filenode.download_to_data())
             def _check_put2(res):
                 self.failUnlessEqual(res, TESTDATA)
@@ -984,13 +1004,10 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _check_mv((out,err)):
             self.failUnless("OK" in out)
             self.failUnlessEqual(err, "")
-            vdrive0 = self.clients[0].getServiceNamed("vdrive")
-            d = defer.maybeDeferred(vdrive0.get_node_at_path,
-                                    "~/test_put/upload.txt")
-            d.addBoth(self.shouldFail, KeyError, "test_cli._check_rm",
-                      "unable to find child named 'upload.txt'")
+            d = self.shouldFail2(KeyError, "test_cli._check_rm", "'upload.txt'", self._private_node.get_child_at_path, "test_put/upload.txt")
+
             d.addCallback(lambda res:
-                          vdrive0.get_node_at_path("~/test_put/moved.txt"))
+                          self._private_node.get_child_at_path("test_put/moved.txt"))
             d.addCallback(lambda filenode: filenode.download_to_data())
             def _check_mv2(res):
                 self.failUnlessEqual(res, TESTDATA)
@@ -1005,11 +1022,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _check_rm((out,err)):
             self.failUnless("200 OK" in out)
             self.failUnlessEqual(err, "")
-            vdrive0 = self.clients[0].getServiceNamed("vdrive")
-            d = defer.maybeDeferred(vdrive0.get_node_at_path,
-                                    "~/test_put/moved.txt")
-            d.addBoth(self.shouldFail, KeyError, "test_cli._check_rm",
-                      "unable to find child named 'moved.txt'")
+            d = self.shouldFail2(KeyError, "test_cli._check_rm", "'moved.txt'", self._private_node.get_child_at_path, "test_put/moved.txt")
             return d
         d.addCallback(_check_rm)
         return d
@@ -1024,9 +1037,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return d
 
     def _test_checker(self, res):
-        vdrive0 = self.clients[0].getServiceNamed("vdrive")
-        d = vdrive0.get_node_at_path("~")
-        d.addCallback(lambda home: home.build_manifest())
+        d = self._private_node.build_manifest()
         d.addCallback(self._test_checker_2)
         return d
 
@@ -1059,6 +1070,9 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             all_results = []
             for si in manifest:
                 results = checker1.checker_results_for(si)
+                if not results:
+                    # TODO: implement checker for mutable files and implement tests of that checker
+                    continue
                 self.failUnlessEqual(len(results), 1)
                 when, those_results = results[0]
                 self.failUnless(isinstance(when, (int, float)))
@@ -1069,10 +1083,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return d
 
     def _test_verifier(self, res):
-        vdrive0 = self.clients[0].getServiceNamed("vdrive")
         checker1 = self.clients[1].getServiceNamed("checker")
-        d = vdrive0.get_node_at_path("~")
-        d.addCallback(lambda home: home.build_manifest())
+        d = self._private_node.build_manifest()
         def _check_all(manifest):
             dl = []
             for si in manifest:
@@ -1084,4 +1096,3 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 self.failUnless(i is True)
         d.addCallback(_done)
         return d
-

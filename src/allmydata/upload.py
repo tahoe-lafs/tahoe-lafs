@@ -415,8 +415,10 @@ class EncryptAnUploadable:
 class CHKUploader:
     peer_selector_class = Tahoe2PeerSelector
 
-    def __init__(self, client, options={}):
+    def __init__(self, client, options={}, wait_for_numpeers=None):
+        assert wait_for_numpeers is None or isinstance(wait_for_numpeers, int), wait_for_numpeers
         self._client = client
+        self._wait_for_numpeers = wait_for_numpeers
         self._options = options
 
     def set_params(self, encoding_parameters):
@@ -446,6 +448,16 @@ class CHKUploader:
         e = encode.Encoder(self._options)
         e.set_params(self._encoding_parameters)
         d = e.set_encrypted_uploadable(eu)
+        def _wait_for_peers(res):
+            wait_for_numpeers = self._wait_for_numpeers
+            if wait_for_numpeers is None:
+                # wait_for_numpeers = e.get_param("share_counts")[0] # XXX
+                wait_for_numpeers = 1
+
+            d1 = self._client.introducer_client.when_enough_peers(wait_for_numpeers)
+            d1.addCallback(lambda dummy: res)
+            return d1
+        d.addCallback(_wait_for_peers)
         d.addCallback(self.locate_all_shareholders)
         d.addCallback(self.set_shareholders, e)
         d.addCallback(lambda res: e.start())
@@ -511,7 +523,7 @@ def read_this_many_bytes(uploadable, size, prepend_data=[]):
 
 class LiteralUploader:
 
-    def __init__(self, client, options={}):
+    def __init__(self, client, wait_for_numpeers, options={}):
         self._client = client
         self._options = options
 
@@ -614,7 +626,8 @@ class Uploader(service.MultiService):
     # 'total' is the total number of shares created by encoding. If everybody
     # has room then this is is how many we will upload.
 
-    def upload(self, uploadable, options={}):
+    def upload(self, uploadable, options={}, wait_for_numpeers=None):
+        assert wait_for_numpeers is None or isinstance(wait_for_numpeers, int), wait_for_numpeers
         # this returns the URI
         assert self.parent
         assert self.running
@@ -628,7 +641,7 @@ class Uploader(service.MultiService):
             uploader_class = self.uploader_class
             if size <= self.URI_LIT_SIZE_THRESHOLD:
                 uploader_class = LiteralUploader
-            uploader = uploader_class(self.parent, options)
+            uploader = uploader_class(self.parent, options, wait_for_numpeers)
             uploader.set_params(self.parent.get_encoding_parameters()
                                 or self.DEFAULT_ENCODING_PARAMETERS)
             return uploader.start(uploadable)

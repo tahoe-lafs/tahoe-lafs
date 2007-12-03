@@ -87,15 +87,6 @@ class CreateNode(unittest.TestCase):
                               [],
                               run_by_human=False)
 
-class Diagnostics(unittest.TestCase):
-    def test_dump_root_dirnode_failure(self):
-        s = StringIO()
-        config = {'basedirs': ["missing_basedir"]}
-        rc = debug.dump_root_dirnode(config, s)
-        output = s.getvalue()
-        self.failUnless("unable to read root dirnode file from" in output)
-        self.failIfEqual(rc, 0)
-
 class RunNode(unittest.TestCase, testutil.PollMixin):
     def workdir(self, name):
         basedir = os.path.join("test_runner", "RunNode", name)
