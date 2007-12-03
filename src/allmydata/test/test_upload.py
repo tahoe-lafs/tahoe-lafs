@@ -139,6 +139,9 @@ class FakeClient:
     def __init__(self, mode="good", num_servers=50):
         self.mode = mode
         self.num_servers = num_servers
+        self.introducer_client = FakeIntroducerClient()
+    def log(self, *args, **kwargs):
+        pass
     def get_permuted_peers(self, storage_index, include_myself):
         peers = [ ("%20d"%fakeid, "%20d"%fakeid, FakePeer(self.mode),)
                   for fakeid in range(self.num_servers) ]
