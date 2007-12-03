@@ -716,7 +716,7 @@ class Publish:
         # 4a: may need to run recovery algorithm
         # 5: when enough responses are back, we're done
 
-        self.log("starting publish, data is %r" % (newdata,))
+        self.log("got enough peers, datalen is %s" % len(newdata))
 
         self._storage_index = self._node.get_storage_index()
         self._writekey = self._node.get_writekey()
@@ -813,8 +813,8 @@ class Publish:
 
     def _got_query_results(self, datavs, peerid, permutedid,
                            reachable_peers, current_share_peers):
-        self.log("_got_query_results")
 
+        self.log("_got_query_results from %s" % idlib.shortnodeid_b2a(peerid))
         assert isinstance(datavs, dict)
         reachable_peers[peerid] = permutedid
         for shnum, datav in datavs.items():

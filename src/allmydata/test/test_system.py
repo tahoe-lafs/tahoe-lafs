@@ -429,9 +429,69 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _check_download_5(res):
             log.msg("finished replace2")
             self.failUnlessEqual(res, NEWERDATA)
+        d.addCallback(_check_download_5)
+
+        def _corrupt_shares(res):
+            # run around and flip bits in all but k of the shares, to test
+            # the hash checks
+            shares = self._find_shares(self.basedir)
+            ## sort by share number
+            #shares.sort( lambda a,b: cmp(a[3], b[3]) )
+            where = dict([ (shnum, filename)
+                           for (client_num, storage_index, filename, shnum)
+                           in shares ])
+            assert len(where) == 10 # this test is designed for 3-of-10
+            for shnum, filename in where.items():
+                # shares 7,8,9 are left alone. read will check
+                # (share_hash_chain, block_hash_tree, share_data). New
+                # seqnum+R pairs will trigger a check of (seqnum, R, IV,
+                # segsize, signature).
+                if shnum == 0:
+                    # read: this will trigger "pubkey doesn't match
+                    # fingerprint".
+                    self._corrupt_mutable_share(filename, "pubkey")
+                    self._corrupt_mutable_share(filename, "encprivkey")
+                elif shnum == 1:
+                    # triggers "signature is invalid"
+                    self._corrupt_mutable_share(filename, "seqnum")
+                elif shnum == 2:
+                    # triggers "signature is invalid"
+                    self._corrupt_mutable_share(filename, "R")
+                elif shnum == 3:
+                    # triggers "signature is invalid"
+                    self._corrupt_mutable_share(filename, "segsize")
+                elif shnum == 4:
+                    self._corrupt_mutable_share(filename, "share_hash_chain")
+                elif shnum == 5:
+                    self._corrupt_mutable_share(filename, "block_hash_tree")
+                elif shnum == 6:
+                    self._corrupt_mutable_share(filename, "share_data")
+                # other things to correct: IV, signature
+                # 7,8,9 are left alone
+
+                # note that initial_query_count=5 means that we'll hit the
+                # first 5 servers in effectively random order (based upon
+                # response time), so we won't necessarily ever get a "pubkey
+                # doesn't match fingerprint" error (if we hit shnum>=1 before
+                # shnum=0, we pull the pubkey from there). To get repeatable
+                # specific failures, we need to set initial_query_count=1,
+                # but of course that will change the sequencing behavior of
+                # the retrieval process. TODO: find a reasonable way to make
+                # this a parameter, probably when we expand this test to test
+                # for one failure mode at a time.
+
+                # when we retrieve this, we should get three signature
+                # failures (where we've mangled seqnum, R, and segsize). The
+                # pubkey mangling
+        d.addCallback(_corrupt_shares)
+
+        d.addCallback(lambda res: self._newnode3.download_to_data())
+        d.addCallback(_check_download_5)
+
+        def _check_empty_file(res):
             # make sure we can create empty files, this usually screws up the
             # segsize math
-            d1 = self.clients[2].create_mutable_file("")
+            d1 = self.clients[2].create_mutable_file("", wait_for_numpeers=self.numclients)
             d1.addCallback(lambda newnode: newnode.download_to_data())
             d1.addCallback(lambda res: self.failUnlessEqual("", res))
             return d1
