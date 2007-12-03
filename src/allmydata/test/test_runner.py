@@ -5,7 +5,7 @@ from cStringIO import StringIO
 from twisted.python import usage, runtime
 from twisted.internet import defer
 import os.path
-from allmydata.scripts import runner, debug
+from allmydata.scripts import runner
 from allmydata.util import fileutil, testutil
 
 class CreateNode(unittest.TestCase):

@@ -7,7 +7,7 @@ from allmydata import mutable, uri, dirnode2
 from allmydata.dirnode2 import split_netstring
 from allmydata.util.hashutil import netstring, tagged_hash
 from allmydata.encode import NotEnoughPeersError
-from allmydata.interfaces import IURI, INewDirectoryURI, IDirnodeURI, \
+from allmydata.interfaces import IURI, INewDirectoryURI, \
      IMutableFileURI
 
 import sha
@@ -60,7 +60,7 @@ class FakeFilenode(mutable.MutableFileNode):
         mutable.MutableFileNode.init_from_uri(self, myuri)
         return self
     def replace(self, newdata, wait_for_numpeers=None):
-        self.all_contents[self.get_uri()] = initial_contents
+        self.all_contents[self.get_uri()] = newdata
         return defer.succeed(self)
     def _generate_pubprivkeys(self):
         count = self.counter.next()

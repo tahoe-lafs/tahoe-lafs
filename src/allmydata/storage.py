@@ -4,7 +4,6 @@ from itertools import chain
 from foolscap import Referenceable
 from twisted.application import service
 from twisted.internet import defer
-from twisted.python import log
 
 from zope.interface import implements
 from allmydata.interfaces import RIStorageServer, RIBucketWriter, \

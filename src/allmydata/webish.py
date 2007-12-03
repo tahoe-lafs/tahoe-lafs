@@ -1231,7 +1231,7 @@ class Root(rend.Page):
             d.addErrback(_trap_KeyError)
             return d
         elif segments[0] == "xmlrpc":
-            raise NotYetImplementedError()
+            raise NotImplementedError()
         return rend.Page.locateChild(self, ctx, segments)
 
     child_webform_css = webform.defaultCSS

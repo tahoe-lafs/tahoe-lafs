@@ -18,7 +18,6 @@ from allmydata.checker import Checker
 from allmydata.control import ControlServer
 from allmydata.introducer import IntroducerClient
 from allmydata.util import hashutil, idlib, testutil, observer
-from allmydata.util.assertutil import precondition
 from allmydata.filenode import FileNode
 from allmydata.dirnode2 import NewDirectoryNode
 from allmydata.mutable import MutableFileNode

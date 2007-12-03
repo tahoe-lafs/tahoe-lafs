@@ -3,11 +3,10 @@ import os
 
 from zope.interface import implements
 from twisted.internet import defer
-from twisted.python import log
 import simplejson
 from allmydata.mutable import NotMutableError
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
-     INewDirectoryURI, IURI, IFileNode, \
+     IURI, IFileNode, \
      IVerifierURI
 from allmydata.util import hashutil
 from allmydata.util.hashutil import netstring
