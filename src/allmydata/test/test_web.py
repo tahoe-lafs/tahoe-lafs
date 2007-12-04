@@ -6,7 +6,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.web import client, error, http
 from twisted.python import failure, log
-from allmydata import dirnode2, webish, interfaces, uri, provisioning, filenode
+from allmydata import dirnode, webish, interfaces, uri, provisioning, filenode
 from allmydata.encode import NotEnoughPeersError
 from allmydata.util import fileutil
 import itertools
@@ -112,7 +112,7 @@ def syncwrap(meth):
         return l[0]
     return _syncwrapped_meth
 
-class FakeDirectoryNode(dirnode2.NewDirectoryNode):
+class FakeDirectoryNode(dirnode.NewDirectoryNode):
     filenode_class = test_mutable.FakeFilenode
 
     @syncwrap

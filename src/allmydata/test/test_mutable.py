@@ -3,8 +3,8 @@ import itertools, struct
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import failure, log
-from allmydata import mutable, uri, dirnode2, upload
-from allmydata.dirnode2 import split_netstring
+from allmydata import mutable, uri, dirnode, upload
+from allmydata.dirnode import split_netstring
 from allmydata.util.hashutil import netstring, tagged_hash
 from allmydata.encode import NotEnoughPeersError
 from allmydata.interfaces import IURI, INewDirectoryURI, \
@@ -98,7 +98,7 @@ class FakePublish(mutable.Publish):
         return defer.succeed(answer)
 
 
-class FakeNewDirectoryNode(dirnode2.NewDirectoryNode):
+class FakeNewDirectoryNode(dirnode.NewDirectoryNode):
     filenode_class = FakeFilenode
 
 class FakeIntroducerClient:
