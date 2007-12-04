@@ -646,7 +646,6 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         return d
 
     def _do_publish_private(self, res):
-        defer.setDebugging(True)
         self.smalldata = "sssh, very secret stuff"
         ut = upload.Data(self.smalldata)
         d = self.clients[0].get_private_uri()

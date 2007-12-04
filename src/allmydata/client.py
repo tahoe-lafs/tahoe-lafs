@@ -72,8 +72,6 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         return ws.create_start_html(privdiruri, startfile, nodeurl_file)
 
     def init_start_page(self):
-        from twisted.internet import defer
-        defer.setDebugging(True)
         if not self._start_page_observers:
             self._start_page_observers = observer.OneShotObserverList()
             d = self.get_private_uri()
