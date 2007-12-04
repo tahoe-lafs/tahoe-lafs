@@ -33,7 +33,7 @@ class MyClient(service.MultiService):
 
     def create_node_from_uri(self, uri):
         return self.my_nodes[uri]
-        
+
     def create_empty_dirnode(self, wait_for_numpeers=None):
         n = FakeDirectoryNode(self)
         r = defer.succeed(n.fake_create(wait_for_numpeers=1))
@@ -261,7 +261,7 @@ class WebMixin(object):
         self.failUnless("rw_uri" in data[1]) # mutable
         self.failUnlessEqual(data[1]["rw_uri"], self._foo_uri)
         self.failUnlessEqual(data[1]["ro_uri"], self._foo_readonly_uri)
-        
+
         kidnames = sorted(data[1]["children"])
         self.failUnlessEqual(kidnames,
                              ["bar.txt", "blockingfile", "empty", "sub"])

@@ -3,13 +3,13 @@ import itertools, struct
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import failure, log
-from allmydata import mutable, uri, dirnode2
+from allmydata import mutable, uri, dirnode2, upload
 from allmydata.dirnode2 import split_netstring
 from allmydata.util.hashutil import netstring, tagged_hash
 from allmydata.encode import NotEnoughPeersError
 from allmydata.interfaces import IURI, INewDirectoryURI, \
-     IMutableFileURI
-
+     IMutableFileURI, IFileNode, IUploadable, IFileURI
+from allmydata.filenode import LiteralFileNode
 import sha
 
 class Netstring(unittest.TestCase):
@@ -138,7 +138,13 @@ class FakeClient:
         u = IURI(u)
         if INewDirectoryURI.providedBy(u):
             return self.create_dirnode_from_uri(u)
-        assert IMutableFileURI.providedBy(u)
+        if IFileURI.providedBy(u):
+            if isinstance(u, uri.LiteralFileURI):
+                return LiteralFileNode(u, self)
+            else:
+                # CHK
+                raise RuntimeError("not simulated")
+        assert IMutableFileURI.providedBy(u), u
         res = FakeFilenode(self).init_from_uri(u)
         return res
 
@@ -154,6 +160,18 @@ class FakeClient:
             results.append((permuted, peerid, connection))
         results.sort()
         return results
+
+    def upload(self, uploadable, wait_for_numpeers=None):
+        assert IUploadable.providedBy(uploadable)
+        d = uploadable.get_size()
+        d.addCallback(lambda length: uploadable.read(length))
+        #d.addCallback(self.create_mutable_file)
+        def _got_data(datav):
+            data = "".join(datav)
+            #newnode = FakeFilenode(self)
+            return uri.LiteralFileURI(data)
+        d.addCallback(_got_data)
+        return d
 
 class Filenode(unittest.TestCase):
     def setUp(self):
@@ -491,6 +509,31 @@ class Dirnode(unittest.TestCase):
                                                self.subdir.get_uri()))
 
             d.addCallback(lambda res: n.list())
+            d.addCallback(lambda children:
+                          self.failUnlessEqual(sorted(children.keys()),
+                                               sorted(["child"])))
+
+            uploadable = upload.Data("some data")
+            d.addCallback(lambda res: n.add_file("newfile", uploadable))
+            d.addCallback(lambda newnode:
+                          self.failUnless(IFileNode.providedBy(newnode)))
+            d.addCallback(lambda res: n.list())
+            d.addCallback(lambda children:
+                          self.failUnlessEqual(sorted(children.keys()),
+                                               sorted(["child", "newfile"])))
+
+            d.addCallback(lambda res: n.create_empty_directory("subdir2"))
+            def _created2(subdir2):
+                self.subdir2 = subdir2
+            d.addCallback(_created2)
+
+            d.addCallback(lambda res:
+                          n.move_child_to("child", self.subdir2))
+            d.addCallback(lambda res: n.list())
+            d.addCallback(lambda children:
+                          self.failUnlessEqual(sorted(children.keys()),
+                                               sorted(["newfile", "subdir2"])))
+            d.addCallback(lambda res: self.subdir2.list())
             d.addCallback(lambda children:
                           self.failUnlessEqual(sorted(children.keys()),
                                                sorted(["child"])))
