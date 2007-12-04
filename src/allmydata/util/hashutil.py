@@ -123,9 +123,9 @@ def hmac(tag, data):
     return h2
 
 def mutable_rwcap_key_hash(iv, writekey):
-    return tagged_pair_hash("allmydata_mutable_rwcap_key_v1", iv, writekey)
+    return tagged_pair_hash("allmydata_mutable_rwcap_key_v1", iv, writekey)[:16]
 def ssk_writekey_hash(privkey):
-    return tagged_hash("allmydata_mutable_writekey_v1", privkey)
+    return tagged_hash("allmydata_mutable_writekey_v1", privkey)[:16]
 def ssk_write_enabler_master_hash(writekey):
     return tagged_hash("allmydata_mutable_write_enabler_master_v1", writekey)
 def ssk_write_enabler_hash(writekey, peerid):
@@ -137,8 +137,8 @@ def ssk_pubkey_fingerprint_hash(pubkey):
     return tagged_hash("allmydata_mutable_pubkey_v1", pubkey)
 
 def ssk_readkey_hash(writekey):
-    return tagged_hash("allmydata_mutable_readkey_v1", writekey)
+    return tagged_hash("allmydata_mutable_readkey_v1", writekey)[:16]
 def ssk_readkey_data_hash(IV, readkey):
-    return tagged_pair_hash("allmydata_mutable_readkey_data_v1", IV, readkey)
+    return tagged_pair_hash("allmydata_mutable_readkey_data_v1", IV, readkey)[:16]
 def ssk_storage_index_hash(readkey):
     return tagged_hash("allmydata_mutable_storage_index_v1", readkey)[:16]

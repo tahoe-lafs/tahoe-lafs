@@ -11,7 +11,7 @@ from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
 from allmydata.util import hashutil
 from allmydata.util.hashutil import netstring
 from allmydata.uri import NewDirectoryURI
-from allmydata.Crypto.Cipher import AES
+from pycryptopp.cipher.aes import AES
 
 from allmydata.mutable import MutableFileNode
 
@@ -79,9 +79,8 @@ class NewDirectoryNode:
         assert isinstance(rwcap, str)
         IV = os.urandom(16)
         key = hashutil.mutable_rwcap_key_hash(IV, self._node.get_writekey())
-        counterstart = "\x00"*16
-        cryptor = AES.new(key=key, mode=AES.MODE_CTR, counterstart=counterstart)
-        crypttext = cryptor.encrypt(rwcap)
+        cryptor = AES(key)
+        crypttext = cryptor.process(rwcap)
         mac = hashutil.hmac(key, IV + crypttext)
         assert len(mac) == 32
         return IV + crypttext + mac
@@ -93,9 +92,8 @@ class NewDirectoryNode:
         key = hashutil.mutable_rwcap_key_hash(IV, self._node.get_writekey())
         if mac != hashutil.hmac(key, IV+crypttext):
             raise hashutil.IntegrityCheckError("HMAC does not match, crypttext is corrupted")
-        counterstart = "\x00"*16
-        cryptor = AES.new(key=key, mode=AES.MODE_CTR, counterstart=counterstart)
-        plaintext = cryptor.decrypt(crypttext)
+        cryptor = AES(key)
+        plaintext = cryptor.process(crypttext)
         return plaintext
 
     def _create_node(self, child_uri):

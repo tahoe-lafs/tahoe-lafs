@@ -8,10 +8,10 @@ from foolscap.eventual import eventually
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI
 from allmydata.util import hashutil, mathutil, idlib, log
 from allmydata.uri import WriteableSSKFileURI
-from allmydata.Crypto.Cipher import AES
 from allmydata import hashtree, codec
 from allmydata.encode import NotEnoughPeersError
 from pycryptopp.publickey import rsa
+from pycryptopp.cipher.aes import AES
 
 
 class NotMutableError(Exception):
@@ -400,6 +400,7 @@ class Retrieve:
 
         if not self._pubkey:
             fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
+            assert len(fingerprint) == 32
             if fingerprint != self._node._fingerprint:
                 raise CorruptShareError(peerid, shnum,
                                         "pubkey doesn't match fingerprint")
@@ -682,8 +683,8 @@ class Retrieve:
 
     def _decrypt(self, crypttext, IV, seqnum, root_hash):
         key = hashutil.ssk_readkey_data_hash(IV, self._readkey)
-        decryptor = AES.new(key=key, mode=AES.MODE_CTR, counterstart="\x00"*16)
-        plaintext = decryptor.decrypt(crypttext)
+        decryptor = AES(key)
+        plaintext = decryptor.process(crypttext)
         # it worked, so record the seqnum and root_hash for next time
         self._node._populate_seqnum(seqnum)
         self._node._populate_root_hash(root_hash)
@@ -1016,8 +1017,8 @@ class Publish:
         self.log("_encrypt_and_encode")
 
         key = hashutil.ssk_readkey_data_hash(IV, readkey)
-        enc = AES.new(key=key, mode=AES.MODE_CTR, counterstart="\x00"*16)
-        crypttext = enc.encrypt(newdata)
+        enc = AES(key)
+        crypttext = enc.process(newdata)
         assert len(crypttext) == len(newdata)
 
         # now apply FEC
@@ -1320,13 +1321,13 @@ class MutableFileNode:
         return d
 
     def _encrypt_privkey(self, writekey, privkey):
-        enc = AES.new(key=writekey, mode=AES.MODE_CTR, counterstart="\x00"*16)
-        crypttext = enc.encrypt(privkey)
+        enc = AES(writekey)
+        crypttext = enc.process(privkey)
         return crypttext
 
     def _decrypt_privkey(self, enc_privkey):
-        enc = AES.new(key=self._writekey, mode=AES.MODE_CTR, counterstart="\x00"*16)
-        privkey = enc.decrypt(enc_privkey)
+        enc = AES(self._writekey)
+        privkey = enc.process(enc_privkey)
         return privkey
 
     def _populate(self, stuff):

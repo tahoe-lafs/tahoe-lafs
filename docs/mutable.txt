@@ -99,10 +99,11 @@ encrypted child names to rw-URI/ro-URI pairs.
 
 Each SDMF slot is created with a public/private key pair. The public key is
 known as the "verification key", while the private key is called the
-"signature key". The private key is hashed to form the "write key" (an AES
-symmetric key). The write key is then hashed to form the "read key". The read
-key is hashed to form the "storage index" (a unique string used as an index
-to locate stored data).
+"signature key". The private key is hashed and truncated to 16 bytes to form
+the "write key" (an AES symmetric key). The write key is then hashed and
+truncated to form the "read key". The read key is hashed and truncated to
+form the 16-byte "storage index" (a unique string used as an index to locate
+stored data).
 
 The public key is hashed by itself to form the "verification key hash".
 

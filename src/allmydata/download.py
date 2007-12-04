@@ -10,9 +10,9 @@ from foolscap.eventual import eventually
 from allmydata.util import idlib, mathutil, hashutil
 from allmydata.util.assertutil import _assert
 from allmydata import codec, hashtree, storage, uri
-from allmydata.Crypto.Cipher import AES
 from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI
 from allmydata.encode import NotEnoughPeersError
+from pycryptopp.cipher.aes import AES
 
 class HaveAllPeersError(Exception):
     # we use this to jump out of the loop
@@ -31,8 +31,7 @@ class DownloadStopped(Exception):
 class Output:
     def __init__(self, downloadable, key, total_length):
         self.downloadable = downloadable
-        self._decryptor = AES.new(key=key, mode=AES.MODE_CTR,
-                                  counterstart="\x00"*16)
+        self._decryptor = AES(key)
         self._crypttext_hasher = hashutil.crypttext_hasher()
         self._plaintext_hasher = hashutil.plaintext_hasher()
         self.length = 0
@@ -59,7 +58,7 @@ class Output:
             crypttext_leaves = {self._segment_number: ch.digest()}
             self._crypttext_hash_tree.set_hashes(leaves=crypttext_leaves)
 
-        plaintext = self._decryptor.decrypt(crypttext)
+        plaintext = self._decryptor.process(crypttext)
         del crypttext
 
         # now we're back down to 1*segment_size.

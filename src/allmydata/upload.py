@@ -13,7 +13,7 @@ from allmydata.util.hashutil import file_renewal_secret_hash, \
 from allmydata import encode, storage, hashtree, uri
 from allmydata.util import idlib, mathutil
 from allmydata.interfaces import IUploadable, IUploader, IEncryptedUploadable
-from allmydata.Crypto.Cipher import AES
+from pycryptopp.cipher.aes import AES
 
 from cStringIO import StringIO
 
@@ -329,7 +329,7 @@ class EncryptAnUploadable:
 
         d = self.original.get_encryption_key()
         def _got(key):
-            e = AES.new(key=key, mode=AES.MODE_CTR, counterstart="\x00"*16)
+            e = AES(key)
             self._encryptor = e
 
             storage_index = storage_index_chk_hash(key)
@@ -390,7 +390,7 @@ class EncryptAnUploadable:
                 chunk = data.pop(0)
                 self._plaintext_hasher.update(chunk)
                 self._update_segment_hash(chunk)
-                cryptdata.append(self._encryptor.encrypt(chunk))
+                cryptdata.append(self._encryptor.process(chunk))
                 del chunk
             return cryptdata
         d.addCallback(_got)
