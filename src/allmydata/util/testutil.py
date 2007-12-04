@@ -1,6 +1,16 @@
 import os, signal, time
 
 from twisted.internet import reactor, defer
+from twisted.python import failure
+
+
+def flip_bit(good, which):
+    # flip the low-order bit of good[which]
+    if which == -1:
+        pieces = good[:which], good[-1:], ""
+    else:
+        pieces = good[:which], good[which:which+1], good[which+1:]
+    return pieces[0] + chr(ord(pieces[1]) ^ 0x01) + pieces[2]
 
 class SignalMixin:
     # This class is necessary for any code which wants to use Processes
@@ -35,6 +45,24 @@ class PollMixin:
         d = defer.Deferred()
         d.addCallback(self._poll, check_f, pollinterval)
         reactor.callLater(pollinterval, d.callback, None)
+        return d
+
+class ShouldFailMixin:
+
+    def shouldFail(self, expected_failure, which, substring, callable, *args, **kwargs):
+        assert substring is None or isinstance(substring, str)
+        d = defer.maybeDeferred(callable, *args, **kwargs)
+        def done(res):
+            if isinstance(res, failure.Failure):
+                res.trap(expected_failure)
+                if substring:
+                    self.failUnless(substring in str(res),
+                                    "substring '%s' not in '%s'"
+                                    % (substring, str(res)))
+            else:
+                self.fail("%s was supposed to raise %s, not get '%s'" %
+                          (which, expected_failure, res))
+        d.addBoth(done)
         return d
 
 

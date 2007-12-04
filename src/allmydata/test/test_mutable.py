@@ -3,45 +3,13 @@ import itertools, struct
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import failure, log
-from allmydata import mutable, uri, dirnode, upload
-from allmydata.dirnode import split_netstring
-from allmydata.util.hashutil import netstring, tagged_hash
+from allmydata import mutable, uri, dirnode
+from allmydata.util.hashutil import tagged_hash
 from allmydata.encode import NotEnoughPeersError
 from allmydata.interfaces import IURI, INewDirectoryURI, \
-     IMutableFileURI, IFileNode, IUploadable, IFileURI
+     IMutableFileURI, IUploadable, IFileURI
 from allmydata.filenode import LiteralFileNode
 import sha
-
-class Netstring(unittest.TestCase):
-    def test_split(self):
-        a = netstring("hello") + netstring("world")
-        self.failUnlessEqual(split_netstring(a, 2), ("hello", "world"))
-        self.failUnlessEqual(split_netstring(a, 2, False), ("hello", "world"))
-        self.failUnlessEqual(split_netstring(a, 2, True),
-                             ("hello", "world", ""))
-        self.failUnlessRaises(ValueError, split_netstring, a+" extra", 2)
-        self.failUnlessRaises(ValueError, split_netstring, a+" extra", 2, False)
-
-    def test_extra(self):
-        a = netstring("hello")
-        self.failUnlessEqual(split_netstring(a, 1, True), ("hello", ""))
-        b = netstring("hello") + "extra stuff"
-        self.failUnlessEqual(split_netstring(b, 1, True),
-                             ("hello", "extra stuff"))
-
-    def test_nested(self):
-        a = netstring("hello") + netstring("world") + "extra stuff"
-        b = netstring("a") + netstring("is") + netstring(a) + netstring(".")
-        top = split_netstring(b, 4)
-        self.failUnlessEqual(len(top), 4)
-        self.failUnlessEqual(top[0], "a")
-        self.failUnlessEqual(top[1], "is")
-        self.failUnlessEqual(top[2], a)
-        self.failUnlessEqual(top[3], ".")
-        self.failUnlessRaises(ValueError, split_netstring, a, 2)
-        self.failUnlessRaises(ValueError, split_netstring, a, 2, False)
-        bottom = split_netstring(a, 2, True)
-        self.failUnlessEqual(bottom, ("hello", "world", "extra stuff"))
 
 class FakeFilenode(mutable.MutableFileNode):
     counter = itertools.count(1)
@@ -441,106 +409,3 @@ class FakePrivKey:
         return "PRIVKEY-%d" % self.count
     def sign(self, data):
         return "SIGN(%s)" % data
-
-class Dirnode(unittest.TestCase):
-    def setUp(self):
-        self.client = FakeClient()
-
-    def test_create(self):
-        self.expected_manifest = []
-
-        d = self.client.create_empty_dirnode(wait_for_numpeers=1)
-        def _then(n):
-            self.failUnless(n.is_mutable())
-            u = n.get_uri()
-            self.failUnless(u)
-            self.failUnless(u.startswith("URI:DIR2:"), u)
-            u_ro = n.get_readonly_uri()
-            self.failUnless(u_ro.startswith("URI:DIR2-RO:"), u_ro)
-            u_v = n.get_verifier()
-            self.failUnless(u_v.startswith("URI:DIR2-Verifier:"), u_v)
-            self.expected_manifest.append(u_v)
-
-            d = n.list()
-            d.addCallback(lambda res: self.failUnlessEqual(res, {}))
-            d.addCallback(lambda res: n.has_child("missing"))
-            d.addCallback(lambda res: self.failIf(res))
-            fake_file_uri = uri.WriteableSSKFileURI("a"*16,"b"*32)
-            ffu_v = fake_file_uri.get_verifier().to_string()
-            self.expected_manifest.append(ffu_v)
-            d.addCallback(lambda res: n.set_uri("child", fake_file_uri))
-
-            d.addCallback(lambda res: n.create_empty_directory("subdir", wait_for_numpeers=1))
-            def _created(subdir):
-                self.failUnless(isinstance(subdir, FakeNewDirectoryNode))
-                self.subdir = subdir
-                new_v = subdir.get_verifier()
-                self.expected_manifest.append(new_v)
-            d.addCallback(_created)
-
-            d.addCallback(lambda res: n.list())
-            d.addCallback(lambda children:
-                          self.failUnlessEqual(sorted(children.keys()),
-                                               sorted(["child", "subdir"])))
-
-            d.addCallback(lambda res: n.build_manifest())
-            def _check_manifest(manifest):
-                self.failUnlessEqual(sorted(manifest),
-                                     sorted(self.expected_manifest))
-            d.addCallback(_check_manifest)
-
-            def _add_subsubdir(res):
-                return self.subdir.create_empty_directory("subsubdir", wait_for_numpeers=1)
-            d.addCallback(_add_subsubdir)
-            d.addCallback(lambda res: n.get_child_at_path("subdir/subsubdir"))
-            d.addCallback(lambda subsubdir:
-                          self.failUnless(isinstance(subsubdir,
-                                                     FakeNewDirectoryNode)))
-            d.addCallback(lambda res: n.get_child_at_path(""))
-            d.addCallback(lambda res: self.failUnlessEqual(res.get_uri(),
-                                                           n.get_uri()))
-
-            d.addCallback(lambda res: n.get_metadata_for("child"))
-            d.addCallback(lambda metadata: self.failUnlessEqual(metadata, {}))
-
-            d.addCallback(lambda res: n.delete("subdir"))
-            d.addCallback(lambda old_child:
-                          self.failUnlessEqual(old_child.get_uri(),
-                                               self.subdir.get_uri()))
-
-            d.addCallback(lambda res: n.list())
-            d.addCallback(lambda children:
-                          self.failUnlessEqual(sorted(children.keys()),
-                                               sorted(["child"])))
-
-            uploadable = upload.Data("some data")
-            d.addCallback(lambda res: n.add_file("newfile", uploadable))
-            d.addCallback(lambda newnode:
-                          self.failUnless(IFileNode.providedBy(newnode)))
-            d.addCallback(lambda res: n.list())
-            d.addCallback(lambda children:
-                          self.failUnlessEqual(sorted(children.keys()),
-                                               sorted(["child", "newfile"])))
-
-            d.addCallback(lambda res: n.create_empty_directory("subdir2"))
-            def _created2(subdir2):
-                self.subdir2 = subdir2
-            d.addCallback(_created2)
-
-            d.addCallback(lambda res:
-                          n.move_child_to("child", self.subdir2))
-            d.addCallback(lambda res: n.list())
-            d.addCallback(lambda children:
-                          self.failUnlessEqual(sorted(children.keys()),
-                                               sorted(["newfile", "subdir2"])))
-            d.addCallback(lambda res: self.subdir2.list())
-            d.addCallback(lambda children:
-                          self.failUnlessEqual(sorted(children.keys()),
-                                               sorted(["child"])))
-
-            return d
-
-        d.addCallback(_then)
-
-        return d
-

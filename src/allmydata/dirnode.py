@@ -6,8 +6,7 @@ from twisted.internet import defer
 import simplejson
 from allmydata.mutable import NotMutableError
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
-     IURI, IFileNode, \
-     IVerifierURI
+     IURI, IFileNode, IMutableFileURI, IVerifierURI
 from allmydata.util import hashutil
 from allmydata.util.hashutil import netstring
 from allmydata.uri import NewDirectoryURI
@@ -67,7 +66,7 @@ class NewDirectoryNode:
         d.addCallback(self._filenode_created)
         return d
     def _filenode_created(self, res):
-        self._uri = NewDirectoryURI(self._node._uri)
+        self._uri = NewDirectoryURI(IMutableFileURI(self._node.get_uri()))
         return self
 
     def _read(self):
@@ -159,7 +158,7 @@ class NewDirectoryNode:
 
     def check(self):
         """Perform a file check. See IChecker.check for details."""
-        pass # TODO
+        return defer.succeed(None) # TODO
 
     def list(self):
         """I return a Deferred that fires with a dictionary mapping child

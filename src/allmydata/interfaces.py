@@ -1135,6 +1135,33 @@ class IChecker(Interface):
         might need to back away from this in the future.
         """
 
+class IClient(Interface):
+    def upload(uploadable, wait_for_numpeers):
+        """Upload some data into a CHK, get back the URI string for it.
+        @param uploadable: something that implements IUploadable
+        @param wait_for_numpeers: don't upload anything until we have at least
+                                  this many peers connected
+        @return: a Deferred that fires with the (string) URI for this file.
+        """
+    def create_empty_dirnode(wait_for_numpeers):
+        """Create a new dirnode, empty and unattached.
+        @param wait_for_numpeers: don't create anything until we have at least
+                                  this many peers connected.
+        @return: a Deferred that fires with the new IDirectoryNode instance.
+        """
+    def create_node_from_uri(uri):
+        """Create a new IFilesystemNode instance from the uri, synchronously.
+        @param uri: a string or IURI-providing instance. This could be for a
+                    LiteralFileNode, a CHK file node, a mutable file node, or
+                    a directory node
+        @return: an instance that provides IFilesystemNode (or more usefully one
+                 of its subclasses). File-specifying URIs will result in
+                 IFileNode or IMutableFileNode -providing instances, like
+                 FileNode, LiteralFileNode, or MutableFileNode.
+                 Directory-specifying URIs will result in
+                 IDirectoryNode-providing instances, like NewDirectoryNode.
+        """
+
 
 class NotCapableError(Exception):
     """You have tried to write to a read-only node."""
