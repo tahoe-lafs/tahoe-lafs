@@ -577,6 +577,11 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(self._test_web_start)
         d.addCallback(self._test_control)
         d.addCallback(self._test_cli)
+        # P now has four top-level children:
+        # P/personal/sekrit data
+        # P/s2-ro/
+        # P/s2-rw/
+        # P/test_put/  (empty)
         d.addCallback(self._test_checker)
         d.addCallback(self._test_verifier)
         return d
@@ -1196,7 +1201,36 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 all_results.append(those_results)
             _check_checker_results(all_results)
         d.addCallback(_check_stored_results)
+
+        d.addCallback(self._test_checker_3)
         return d
+
+    def _test_checker_3(self, res):
+        # check one file, through FileNode.check()
+        d = self._private_node.get_child_at_path("personal/sekrit data")
+        d.addCallback(lambda n: n.check())
+        def _checked(results):
+            # 'sekrit data' is small, and fits in a LiteralFileNode, so
+            # checking it is trivial and always returns True
+            self.failUnlessEqual(results, True)
+        d.addCallback(_checked)
+
+        c0 = self.clients[1]
+        n = c0.create_node_from_uri(self._root_directory_uri)
+        d.addCallback(lambda res: n.get_child_at_path("subdir1/mydata567"))
+        d.addCallback(lambda n: n.check())
+        def _checked2(results):
+            # mydata567 is large and lives in a CHK
+            (needed, total, found, sharemap) = results
+            self.failUnlessEqual(needed, 3)
+            self.failUnlessEqual(total, 10)
+            self.failUnlessEqual(found, 10)
+            self.failUnlessEqual(len(sharemap), 10)
+            for shnum in range(10):
+                self.failUnlessEqual(len(sharemap[shnum]), 1)
+        d.addCallback(_checked2)
+        return d
+
 
     def _test_verifier(self, res):
         checker1 = self.clients[1].getServiceNamed("checker")

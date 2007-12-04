@@ -228,10 +228,10 @@ class Checker(service.MultiService):
                 self.results = InMemoryCheckerResults()
 
     def check(self, uri_to_check):
-        uri_to_check = IVerifierURI(uri_to_check)
         if uri_to_check is None:
             return defer.succeed(True)
-        elif isinstance(uri_to_check, uri.CHKFileVerifierURI):
+        uri_to_check = IVerifierURI(uri_to_check)
+        if isinstance(uri_to_check, uri.CHKFileVerifierURI):
             peer_getter = self.parent.get_permuted_peers
             c = SimpleCHKFileChecker(peer_getter, uri_to_check)
             d = c.check()

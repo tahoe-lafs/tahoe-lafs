@@ -141,6 +141,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
                 # end of the string. Flip one of its bits and make sure we
                 # detect the corruption.
                 new_contents = testutil.flip_bit(old_contents, -10)
+                # TODO: also test flipping bits in the other portions
                 filenode.all_contents[si] = new_contents
             d.addCallback(_corrupt)
             def _check2(res):
@@ -299,6 +300,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_then)
 
         return d
+
 
 netstring = hashutil.netstring
 split_netstring = dirnode.split_netstring
