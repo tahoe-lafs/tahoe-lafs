@@ -10,7 +10,6 @@ from twisted.application.internet import TimerService
 from twisted.python import log
 
 import allmydata
-from allmydata.Crypto.Util.number import bytes_to_long
 from allmydata.storage import StorageServer
 from allmydata.upload import Uploader
 from allmydata.download import Downloader
@@ -238,7 +237,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
             if not include_myself and peerid == self.nodeid:
                 self.log("get_permuted_peers: removing myself from the list")
                 continue
-            permuted = bytes_to_long(sha.new(key + peerid).digest())
+            permuted = sha.new(key + peerid).digest()
             results.append((permuted, peerid, connection))
         results.sort()
         return results

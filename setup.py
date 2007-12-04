@@ -118,10 +118,5 @@ setup(name='allmydata-tahoe',
       setup_requires=["setuptools_darcs >= 1.0.5",],
       dependency_links=dependency_links,
       entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
-      ext_modules=[
-          Extension("allmydata.Crypto.Cipher.AES",
-                    include_dirs=["src/allmydata/Crypto"],
-                    sources=["src/allmydata/Crypto/AES.c"]),
-          ],
       zip_safe=False, # We prefer unzipped for easier access.
       )

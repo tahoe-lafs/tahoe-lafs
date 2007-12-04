@@ -11,7 +11,6 @@ from allmydata.interfaces import IURI, INewDirectoryURI, \
      IMutableFileURI
 
 import sha
-from allmydata.Crypto.Util.number import bytes_to_long
 
 class Netstring(unittest.TestCase):
     def test_split(self):
@@ -151,7 +150,7 @@ class FakeClient:
         results = []
         for peerid, connection in peers_and_connections:
             assert isinstance(peerid, str)
-            permuted = bytes_to_long(sha.new(key + peerid).digest())
+            permuted = sha.new(key + peerid).digest()
             results.append((permuted, peerid, connection))
         results.sort()
         return results
