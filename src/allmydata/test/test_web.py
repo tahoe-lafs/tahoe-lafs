@@ -59,42 +59,6 @@ class MyClient(service.MultiService):
         return d
 
 
-def syncwrap(meth):
-    """
-    syncwrap invokes a method, assumes that it fired its deferred
-    synchronously, and returns the result.  syncwrap is convenient to use as a
-    decorator in FakeDirectoryNode."""
-    def _syncwrapped_meth(self, *args, **kwargs):
-        l = []
-        d = meth(self, *args, **kwargs)
-        d.addCallback(l.append)
-        assert len(l) == 1, l
-        return l[0]
-    return _syncwrapped_meth
-
-class FakeDirectoryNode: #(dirnode.NewDirectoryNode):
-    #filenode_class = test_mutable.FakeFilenode
-
-    @syncwrap
-    def fake_create(self, wait_for_numpeers=None):
-        return self.create(wait_for_numpeers=wait_for_numpeers)
-
-    @syncwrap
-    def fake_has_child(self, name):
-        return self.has_child(name)
-
-    @syncwrap
-    def fake_get(self, name):
-        return self.get(name)
-
-    @syncwrap
-    def fake_list(self):
-        return self.list()
-
-    @syncwrap
-    def fake_set_uri(self, name, uri):
-        return self.set_uri(name, uri)
-
 class WebMixin(object):
     def setUp(self):
         self.s = MyClient()
@@ -792,19 +756,13 @@ class Web(WebMixin, unittest.TestCase):
         f.write("contents of %s\n" % filename)
         f.close()
 
-    def walk_mynodes(self, node, path=()):
-        yield path, node
-        if interfaces.IDirectoryNode.providedBy(node):
-            for name in sorted(node.list()):
-                childnode = node.fake_get(name)
-                childpath = path + (name,)
-                for xpath,xnode in self.walk_mynodes(childnode, childpath):
-                    yield xpath, xnode
-
     def dump_root(self):
         print "NODEWALK"
-        for path,node in self.walk_mynodes(self.public_root):
-            print path
+        w = webish.DirnodeWalkerMixin()
+        def visitor(childpath, childnode, metadata):
+            print childpath
+        d = w.walk(self.public_root, visitor)
+        return d
 
     def failUnlessNodeKeysAre(self, node, expected_keys):
         d = node.list()
