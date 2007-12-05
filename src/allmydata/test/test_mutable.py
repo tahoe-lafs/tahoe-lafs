@@ -11,6 +11,9 @@ from allmydata.interfaces import IURI, INewDirectoryURI, \
 from allmydata.filenode import LiteralFileNode
 import sha
 
+#from allmydata.test.common import FakeMutableFileNode
+#FakeFilenode = FakeMutableFileNode
+
 class FakeFilenode(mutable.MutableFileNode):
     counter = itertools.count(1)
     all_contents = {}

@@ -1,62 +1,18 @@
 
-import os
 from zope.interface import implements
 from twisted.trial import unittest
-from twisted.internet import defer
 from allmydata import uri, dirnode, upload
 from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
      INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode
 from allmydata.util import hashutil, testutil
+from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
+     NonGridDirectoryNode, create_chk_filenode
 
 # to test dirnode.py, we want to construct a tree of real DirectoryNodes that
 # contain pointers to fake files. We start with a fake MutableFileNode that
 # stores all of its data in a static table.
 
-def make_chk_file_uri(size):
-    return uri.CHKFileURI(key=os.urandom(16),
-                          uri_extension_hash=os.urandom(32),
-                          needed_shares=3,
-                          total_shares=10,
-                          size=size)
-
-def make_mutable_file_uri():
-    return uri.WriteableSSKFileURI(writekey=os.urandom(16),
-                                   fingerprint=os.urandom(32))
-def make_verifier_uri():
-    return uri.SSKVerifierURI(storage_index=os.urandom(16),
-                              fingerprint=os.urandom(32))
-
-class FakeMutableFileNode:
-    implements(IMutableFileNode)
-    all_contents = {}
-    def __init__(self, client):
-        self.client = client
-        self.my_uri = make_mutable_file_uri()
-        self.storage_index = self.my_uri.storage_index
-    def create(self, initial_contents, wait_for_numpeers=None):
-        self.all_contents[self.storage_index] = initial_contents
-        return defer.succeed(self)
-    def init_from_uri(self, myuri):
-        self.my_uri = IURI(myuri)
-        self.storage_index = self.my_uri.storage_index
-        return self
-    def get_uri(self):
-        return self.my_uri
-    def is_readonly(self):
-        return self.my_uri.is_readonly()
-    def is_mutable(self):
-        return self.my_uri.is_mutable()
-    def download_to_data(self):
-        return defer.succeed(self.all_contents[self.storage_index])
-    def get_writekey(self):
-        return "\x00"*16
-
-    def replace(self, new_contents, wait_for_numpeers=None):
-        self.all_contents[self.storage_index] = new_contents
-        return defer.succeed(None)
-
-class MyDirectoryNode(dirnode.NewDirectoryNode):
-    filenode_class = FakeMutableFileNode
+MyDirectoryNode = NonGridDirectoryNode
 
 class Marker:
     implements(IFileNode, IMutableFileNode) # sure, why not
@@ -81,16 +37,14 @@ class Marker:
 
 class FakeClient:
     implements(IClient)
-    chk_contents = {}
 
     def upload(self, uploadable, wait_for_numpeers):
         d = uploadable.get_size()
         d.addCallback(lambda size: uploadable.read(size))
         def _got_data(datav):
             data = "".join(datav)
-            u = make_chk_file_uri(len(data))
-            self.chk_contents[u] = data
-            return u
+            n = create_chk_filenode(self, data)
+            return n.get_uri()
         d.addCallback(_got_data)
         return d
 

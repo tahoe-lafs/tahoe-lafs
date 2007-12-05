@@ -383,27 +383,6 @@ class IReadonlyNewDirectoryURI(Interface):
 
 class IFilesystemNode(Interface):
     def get_uri():
-        """Return the URI that can be used by others to get access to this
-        file or directory.
-        """
-
-    def get_verifier():
-        """Return an IVerifierURI instance that represents the
-        'verifiy/refresh capability' for this node. The holder of this
-        capability will be able to renew the lease for this node, protecting
-        it from garbage-collection. They will also be able to ask a server if
-        it holds a share for the file or directory.
-        """
-
-    def check():
-        """Perform a file check. See IChecker.check for details."""
-
-    def is_mutable():
-        """Return True if this file or directory is mutable, False if it is read-only.
-        """
-
-class IMutableFilesystemNode(IFilesystemNode):
-    def get_uri():
         """
         Return the URI that can be used by others to get access to this
         node. If this node is read-only, the URI will only offer read-only
@@ -422,6 +401,35 @@ class IMutableFilesystemNode(IFilesystemNode):
         If you have merely read-only access to this dirnode,
         get_readonly_uri() will return the same thing as get_uri().
         """
+
+    def get_verifier():
+        """Return an IVerifierURI instance that represents the
+        'verifiy/refresh capability' for this node. The holder of this
+        capability will be able to renew the lease for this node, protecting
+        it from garbage-collection. They will also be able to ask a server if
+        it holds a share for the file or directory.
+        """
+
+    def check():
+        """Perform a file check. See IChecker.check for details."""
+
+    def is_readonly():
+        """Return True if this reference provides mutable access to the given
+        file or directory (i.e. if you can modify it), or False if not. Note
+        that even if this reference is read-only, someone else may hold a
+        read-write reference to it."""
+
+    def is_mutable():
+        """Return True if this file or directory is mutable (by *somebody*,
+        not necessarily you), False if it is is immutable. Note that a file
+        might be mutable overall, but your reference to it might be
+        read-only. On the other hand, all references to an immutable file
+        will be read-only; there are no read-write references to an immutable
+        file.
+        """
+
+class IMutableFilesystemNode(IFilesystemNode):
+    pass
 
 class IFileNode(IFilesystemNode):
     def download(target):
@@ -488,7 +496,9 @@ class IDirectoryNode(IMutableFilesystemNode):
 
     def list():
         """I return a Deferred that fires with a dictionary mapping child
-        name to an IFileNode or IDirectoryNode."""
+        name to (node, metadata_dict) tuples, in which 'node' is either an
+        IFileNode or IDirectoryNode, and 'metadata_dict' is a dictionary of
+        metadata."""
 
     def has_child(name):
         """I return a Deferred that fires with a boolean, True if there
