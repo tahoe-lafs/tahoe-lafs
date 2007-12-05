@@ -324,6 +324,7 @@ c. POST forms
   t=upload
   name=childname  (optional)
   file=newfile
+
   This instructs the node to upload a file into the given directory. We need
   this because forms are the only way for a web browser to upload a file
   (browsers do not know how to do PUT or DELETE). The file's contents and the
@@ -331,13 +332,29 @@ c. POST forms
   used to upload a single file at a time. To avoid confusion, name= is not
   allowed to contain a slash (a 400 Bad Request error will result).
 
+
   POST $URL
   t=upload
   name=childname  (optional)
-  mutable="on"
+  mutable="true"
   file=newfile
+
   This instructs the node to upload a file into the given directory, using a
-  mutable file (SSK) rather than the usual immutable file (CHK).
+  mutable file (SSK) rather than the usual immutable file (CHK). As a result,
+  further operations to the same $URL will not cause the identity of the file
+  to change.
+
+
+  POST $URL
+  t=overwrite
+  file=newfile
+
+  This is used to replace the existing (mutable) file's contents with new
+  ones. It may only be used when $URL refers to a mutable file, as created by
+  POST $URL?t=upload&mutable=true, or PUT /uri?t=mutable . The name
+  associated with the uploaded file is ignored. TODO: rethink this, it's kind
+  of weird.
+
 
   POST $URL
   t=mkdir
@@ -345,6 +362,7 @@ c. POST forms
 
   This instructs the node to create a new empty directory. The name of the
   new child directory will be included in the form's arguments.
+
 
   POST $URL
   t=uri
@@ -355,12 +373,14 @@ c. POST forms
   like the PUT $URL?t=uri method). The name and URI of the new child
   will be included in the form's arguments.
 
+
   POST $URL
   t=delete
   name=childname
 
   This instructs the node to delete a file from the given directory. The name
   of the child to be deleted will be included in the form's arguments.
+
 
   POST $URL
   t=rename

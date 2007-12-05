@@ -788,13 +788,26 @@ class POSTHandler(rend.Page):
                 data = contents.file.read()
                 uploadable = upload.FileHandle(contents.file)
                 d = self._check_replacement(name)
-                d.addCallback(lambda res:
-                              IClient(ctx).create_mutable_file(data))
-                def _uploaded(newnode):
-                    d1 = self._node.set_node(name, newnode)
-                    d1.addCallback(lambda res: newnode.get_uri())
-                    return d1
-                d.addCallback(_uploaded)
+                d.addCallback(lambda res: self._node.has_child(name))
+                def _checked(present):
+                    if present:
+                        # modify the existing one instead of creating a new
+                        # one
+                        d2 = self._node.get(name)
+                        def _got_newnode(newnode):
+                            d3 = newnode.replace(data)
+                            d3.addCallback(lambda res: newnode.get_uri())
+                            return d3
+                        d2.addCallback(_got_newnode)
+                    else:
+                        d2 = IClient(ctx).create_mutable_file(data)
+                        def _uploaded(newnode):
+                            d1 = self._node.set_node(name, newnode)
+                            d1.addCallback(lambda res: newnode.get_uri())
+                            return d1
+                        d2.addCallback(_uploaded)
+                    return d2
+                d.addCallback(_checked)
             else:
                 contents = req.fields["file"]
                 name = name or contents.filename
@@ -814,7 +827,8 @@ class POSTHandler(rend.Page):
             # SDMF: files are small, and we can only upload data.
             contents.file.seek(0)
             data = contents.file.read()
-            d = self._node.get(name)
+            # TODO: 'name' handling needs review
+            d = defer.succeed(self._node)
             def _got_child(child_node):
                 child_node.replace(data)
                 return child_node.get_uri()

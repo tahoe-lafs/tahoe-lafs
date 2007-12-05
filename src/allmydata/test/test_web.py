@@ -1,5 +1,6 @@
 
 import re, os.path, urllib
+import simplejson
 from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -8,7 +9,7 @@ from twisted.python import failure, log
 from allmydata import webish, interfaces, provisioning
 from allmydata.util import fileutil
 from allmydata.test.common import NonGridDirectoryNode, FakeCHKFileNode, FakeMutableFileNode, create_chk_filenode
-from allmydata.interfaces import IURI, INewDirectoryURI, IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI
+from allmydata.interfaces import IURI, INewDirectoryURI, IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, IMutableFileNode
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -130,15 +131,8 @@ class WebMixin(object):
     def failUnlessIsBarDotTxt(self, res):
         self.failUnlessEqual(res, self.BAR_CONTENTS)
 
-    def worlds_cheapest_json_decoder(self, json):
-        # don't write tests that use 'true' or 'false' as filenames
-        json = re.sub('false', 'False', json)
-        json = re.sub('true', 'True', json)
-        json = re.sub(r'\\/', '/', json)
-        return eval(json)
-
     def failUnlessIsBarJSON(self, res):
-        data = self.worlds_cheapest_json_decoder(res)
+        data = simplejson.loads(res)
         self.failUnless(isinstance(data, list))
         self.failUnlessEqual(data[0], "filenode")
         self.failUnless(isinstance(data[1], dict))
@@ -147,7 +141,7 @@ class WebMixin(object):
         self.failUnlessEqual(data[1]["size"], len(self.BAR_CONTENTS))
 
     def failUnlessIsFooJSON(self, res):
-        data = self.worlds_cheapest_json_decoder(res)
+        data = simplejson.loads(res)
         self.failUnless(isinstance(data, list))
         self.failUnlessEqual(data[0], "dirnode", res)
         self.failUnless(isinstance(data[1], dict))
@@ -894,6 +888,61 @@ class Web(WebMixin, unittest.TestCase):
                                                       self.NEWFILE_CONTENTS))
         return d
 
+    def test_POST_upload_mutable(self):
+        # this creates a mutable file
+        d = self.POST(self.public_url + "/foo", t="upload", mutable="true",
+                      file=("new.txt", self.NEWFILE_CONTENTS))
+        fn = self._foo_node
+        d.addCallback(self.failUnlessURIMatchesChild, fn, "new.txt")
+        d.addCallback(lambda res:
+                      self.failUnlessChildContentsAre(fn, "new.txt",
+                                                      self.NEWFILE_CONTENTS))
+        d.addCallback(lambda res: self._foo_node.get("new.txt"))
+        def _got(newnode):
+            self.failUnless(IMutableFileNode.providedBy(newnode))
+            self.failUnless(newnode.is_mutable())
+            self.failIf(newnode.is_readonly())
+            self._mutable_uri = newnode.get_uri()
+        d.addCallback(_got)
+
+        # now upload it again and make sure that the URI doesn't change
+        NEWER_CONTENTS = self.NEWFILE_CONTENTS + "newer\n"
+        d.addCallback(lambda res:
+                      self.POST(self.public_url + "/foo", t="upload",
+                                mutable="true",
+                                file=("new.txt", NEWER_CONTENTS)))
+        d.addCallback(self.failUnlessURIMatchesChild, fn, "new.txt")
+        d.addCallback(lambda res:
+                      self.failUnlessChildContentsAre(fn, "new.txt",
+                                                      NEWER_CONTENTS))
+        d.addCallback(lambda res: self._foo_node.get("new.txt"))
+        def _got2(newnode):
+            self.failUnless(IMutableFileNode.providedBy(newnode))
+            self.failUnless(newnode.is_mutable())
+            self.failIf(newnode.is_readonly())
+            self.failUnlessEqual(self._mutable_uri, newnode.get_uri())
+        d.addCallback(_got2)
+
+        # also test t=overwrite while we're here
+        EVEN_NEWER_CONTENTS = NEWER_CONTENTS + "even newer\n"
+        d.addCallback(lambda res:
+                      self.POST(self.public_url + "/foo/new.txt",
+                                t="overwrite",
+                                file=("new.txt", EVEN_NEWER_CONTENTS)))
+        d.addCallback(self.failUnlessURIMatchesChild, fn, "new.txt")
+        d.addCallback(lambda res:
+                      self.failUnlessChildContentsAre(fn, "new.txt",
+                                                      EVEN_NEWER_CONTENTS))
+        d.addCallback(lambda res: self._foo_node.get("new.txt"))
+        def _got3(newnode):
+            self.failUnless(IMutableFileNode.providedBy(newnode))
+            self.failUnless(newnode.is_mutable())
+            self.failIf(newnode.is_readonly())
+            self.failUnlessEqual(self._mutable_uri, newnode.get_uri())
+        d.addCallback(_got3)
+
+        return d
+
     def test_POST_upload_replace(self):
         d = self.POST(self.public_url + "/foo", t="upload",
                       file=("bar.txt", self.NEWFILE_CONTENTS))
@@ -1118,7 +1167,7 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def failUnlessIsEmptyJSON(self, res):
-        data = self.worlds_cheapest_json_decoder(res)
+        data = simplejson.loads(res)
         self.failUnlessEqual(data[0], "dirnode", data)
         self.failUnlessEqual(len(data[1]["children"]), 0)
 
