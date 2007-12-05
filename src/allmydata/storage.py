@@ -572,7 +572,7 @@ class MutableShareFile:
         f = open(self.home, 'rb+')
         for (offset, length, operator, specimen) in testv:
             data = self._read_share_data(f, offset, length)
-            if not self.compare(data, operator, specimen):
+            if not testv_compare(data, operator, specimen):
                 test_good = False
                 break
         f.close()
@@ -588,21 +588,21 @@ class MutableShareFile:
             f.write(struct.pack(">Q", new_length))
         f.close()
 
-    def compare(self, a, op, b):
-        assert op in ("lt", "le", "eq", "ne", "ge", "gt")
-        if op == "lt":
-            return a < b
-        if op == "le":
-            return a <= b
-        if op == "eq":
-            return a == b
-        if op == "ne":
-            return a != b
-        if op == "ge":
-            return a >= b
-        if op == "gt":
-            return a > b
-        # never reached
+def testv_compare(a, op, b):
+    assert op in ("lt", "le", "eq", "ne", "ge", "gt")
+    if op == "lt":
+        return a < b
+    if op == "le":
+        return a <= b
+    if op == "eq":
+        return a == b
+    if op == "ne":
+        return a != b
+    if op == "ge":
+        return a >= b
+    if op == "gt":
+        return a > b
+    # never reached
 
 class EmptyShare:
 
@@ -610,26 +610,10 @@ class EmptyShare:
         test_good = True
         for (offset, length, operator, specimen) in testv:
             data = ""
-            if not self.compare(data, operator, specimen):
+            if not testv_compare(data, operator, specimen):
                 test_good = False
                 break
         return test_good
-
-    def compare(self, a, op, b):
-        assert op in ("lt", "le", "eq", "ne", "ge", "gt")
-        if op == "lt":
-            return a < b
-        if op == "le":
-            return a <= b
-        if op == "eq":
-            return a == b
-        if op == "ne":
-            return a != b
-        if op == "ge":
-            return a >= b
-        if op == "gt":
-            return a > b
-        # never reached
 
 def create_mutable_sharefile(filename, my_nodeid, write_enabler):
     ms = MutableShareFile(filename)
