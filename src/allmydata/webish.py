@@ -176,6 +176,7 @@ class Directory(rend.Page):
             T.input(type='hidden', name='when_done', value=url.here),
             T.input(type='submit', value='check', name="check"),
             ]
+        ctx.fillSlots("overwrite", self.build_overwrite(ctx, (name, target)))
         ctx.fillSlots("check", check)
 
         # build the base of the uri_link link url
@@ -331,7 +332,7 @@ class Directory(rend.Page):
                 T.div(class_="freeform-form")[mount],
                 ]
 
-    def render_overwrite(self, ctx, data):
+    def build_overwrite(self, ctx, data):
         name, target = data
         if IMutableFileNode.providedBy(target) and not target.is_readonly():
             overwrite = T.form(action=".", method="post",

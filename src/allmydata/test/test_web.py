@@ -948,8 +948,9 @@ class Web(WebMixin, unittest.TestCase):
                       self.GET(self.public_url + "/foo",
                                followRedirect=True))
         def _check_page(res):
-            # TODO: assert something about the contents
-            pass
+            # TODO: assert more about the contents
+            self.failUnless("Overwrite" in res)
+            self.failUnless("Choose new file:" in res)
         d.addCallback(_check_page)
 
         return d
