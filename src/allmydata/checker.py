@@ -70,30 +70,6 @@ class SimpleCHKFileChecker:
         return (u.needed_shares, u.total_shares, len(self.found_shares),
                 self.sharemap)
 
-class SimpleDirnodeChecker:
-
-    def __init__(self, tub):
-        self.tub = tub
-
-    def check(self, node):
-        si = node.storage_index
-        d = self.tub.getReference(node.furl)
-        d.addCallback(self._get_dirnode, node.storage_index)
-        d.addCallbacks(self._success, self._failed)
-        return d
-
-    def _get_dirnode(self, rref, storage_index):
-        d = rref.callRemote("list", storage_index)
-        return d
-
-    def _success(self, res):
-        return True
-    def _failed(self, f):
-        if f.check(IndexError):
-            return False
-        log.err(f)
-        return False
-
 class VerifyingOutput:
     def __init__(self, total_length):
         self._crypttext_hasher = hashutil.crypttext_hasher()
@@ -235,10 +211,6 @@ class Checker(service.MultiService):
             peer_getter = self.parent.get_permuted_peers
             c = SimpleCHKFileChecker(peer_getter, uri_to_check)
             d = c.check()
-        elif isinstance(uri_to_check, uri.DirnodeVerifierURI):
-            tub = self.parent.tub
-            c = SimpleDirnodeChecker(tub)
-            d = c.check(uri_to_check)
         else:
             return defer.succeed(True)  # TODO I don't know how to check, but I'm pretending to succeed.
 
@@ -257,11 +229,6 @@ class Checker(service.MultiService):
         elif isinstance(uri_to_verify, uri.CHKFileVerifierURI):
             v = SimpleCHKFileVerifier(self.parent, uri_to_verify)
             return v.start()
-        elif isinstance(uri_to_verify, uri.DirnodeVerifierURI):
-            # for dirnodes, checking and verifying are currently equivalent
-            tub = self.parent.tub
-            c = SimpleDirnodeChecker(tub)
-            return c.check(uri_to_verify)
         else:
             return defer.succeed(True)  # TODO I don't know how to verify, but I'm pretending to succeed.
 

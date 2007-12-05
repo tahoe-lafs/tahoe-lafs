@@ -128,48 +128,6 @@ class Extension(unittest.TestCase):
 
         readable = uri.unpack_extension_readable(ext)
 
-class Dirnode(unittest.TestCase):
-    def test_pack(self):
-        furl = "pb://stuff@morestuff:stuff/andstuff"
-        writekey = "\x01" * 16
-
-        u = uri.DirnodeURI(furl, writekey)
-        self.failUnlessEqual(u.furl, furl)
-        self.failUnlessEqual(u.writekey, writekey)
-        self.failIf(u.is_readonly())
-        self.failUnless(u.is_mutable())
-        self.failUnless(IURI.providedBy(u))
-        self.failIf(IFileURI.providedBy(u))
-        self.failUnless(IDirnodeURI.providedBy(u))
-
-        u2 = uri.from_string(u.to_string())
-        self.failUnlessEqual(u2.furl, furl)
-        self.failUnlessEqual(u2.writekey, writekey)
-        self.failIf(u2.is_readonly())
-        self.failUnless(u2.is_mutable())
-        self.failUnless(IURI.providedBy(u2))
-        self.failIf(IFileURI.providedBy(u2))
-        self.failUnless(IDirnodeURI.providedBy(u2))
-
-        u3 = u2.get_readonly()
-        readkey = hashutil.dir_read_key_hash(writekey)
-        self.failUnlessEqual(u3.furl, furl)
-        self.failUnlessEqual(u3.readkey, readkey)
-        self.failUnless(u3.is_readonly())
-        self.failUnless(u3.is_mutable())
-        self.failUnless(IURI.providedBy(u3))
-        self.failIf(IFileURI.providedBy(u3))
-        self.failUnless(IDirnodeURI.providedBy(u3))
-
-        u4 = uri.ReadOnlyDirnodeURI(furl, readkey)
-        self.failUnlessEqual(u4.furl, furl)
-        self.failUnlessEqual(u4.readkey, readkey)
-        self.failUnless(u4.is_readonly())
-        self.failUnless(u4.is_mutable())
-        self.failUnless(IURI.providedBy(u4))
-        self.failIf(IFileURI.providedBy(u4))
-        self.failUnless(IDirnodeURI.providedBy(u4))
-
 class Invalid(unittest.TestCase):
     def test_create_invalid(self):
         not_uri = "I am not a URI"

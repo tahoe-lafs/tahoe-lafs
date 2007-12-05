@@ -384,115 +384,6 @@ class NewDirectoryURIVerifier(_BaseURI):
 
 
 
-class DirnodeURI(_BaseURI):
-    implements(IURI, IDirnodeURI)
-
-    def __init__(self, furl=None, writekey=None):
-        if furl is not None or writekey is not None:
-            assert furl is not None
-            assert writekey is not None
-            self.furl = furl
-            self.writekey = writekey
-            self._derive_values()
-
-    def init_from_string(self, uri):
-        # URI:DIR:furl:key
-        #  but note that the furl contains colons
-        prefix = "URI:DIR:"
-        assert uri.startswith(prefix)
-        uri = uri[len(prefix):]
-        colon = uri.rindex(":")
-        self.furl = uri[:colon]
-        self.writekey = idlib.a2b(uri[colon+1:])
-        self._derive_values()
-        return self
-
-    def _derive_values(self):
-        wk, we, rk, index = \
-            hashutil.generate_dirnode_keys_from_writekey(self.writekey)
-        self.write_enabler = we
-        self.readkey = rk
-        self.storage_index = index
-
-    def to_string(self):
-        return "URI:DIR:%s:%s" % (self.furl, idlib.b2a(self.writekey))
-
-    def is_readonly(self):
-        return False
-    def is_mutable(self):
-        return True
-    def get_readonly(self):
-        return ReadOnlyDirnodeURI(self.furl, self.readkey)
-    def get_verifier(self):
-        return DirnodeVerifierURI(self.furl, self.storage_index)
-
-class ReadOnlyDirnodeURI(_BaseURI):
-    implements(IURI, IDirnodeURI)
-
-    def __init__(self, furl=None, readkey=None):
-        if furl is not None or readkey is not None:
-            assert furl is not None
-            assert readkey is not None
-            self.furl = furl
-            self.readkey = readkey
-            self._derive_values()
-
-    def init_from_string(self, uri):
-        # URI:DIR-RO:furl:key
-        #  but note that the furl contains colons
-        prefix = "URI:DIR-RO:"
-        assert uri.startswith(prefix)
-        uri = uri[len(prefix):]
-        colon = uri.rindex(":")
-        self.furl = uri[:colon]
-        self.readkey = idlib.a2b(uri[colon+1:])
-        self._derive_values()
-        return self
-
-    def _derive_values(self):
-        wk, we, rk, index = \
-            hashutil.generate_dirnode_keys_from_readkey(self.readkey)
-        self.writekey = wk # None
-        self.write_enabler = we # None
-        self.storage_index = index
-
-    def to_string(self):
-        return "URI:DIR-RO:%s:%s" % (self.furl, idlib.b2a(self.readkey))
-
-    def is_readonly(self):
-        return True
-    def is_mutable(self):
-        return True
-    def get_readonly(self):
-        return self
-    def get_verifier(self):
-        return DirnodeVerifierURI(self.furl, self.storage_index)
-
-class DirnodeVerifierURI(_BaseURI):
-    implements(IVerifierURI)
-
-    def __init__(self, furl=None, storage_index=None):
-        if furl is not None or storage_index is not None:
-            assert furl is not None
-            assert storage_index is not None
-            self.furl = furl
-            self.storage_index = storage_index
-
-    def init_from_string(self, uri):
-        # URI:DIR-Verifier:furl:storageindex
-        #  but note that the furl contains colons
-        prefix = "URI:DIR-Verifier:"
-        assert uri.startswith(prefix)
-        uri = uri[len(prefix):]
-        colon = uri.rindex(":")
-        self.furl = uri[:colon]
-        self.storage_index = idlib.a2b(uri[colon+1:])
-        return self
-
-    def to_string(self):
-        return "URI:DIR-Verifier:%s:%s" % (self.furl,
-                                           idlib.b2a(self.storage_index))
-
 
 
 def from_string(s):
@@ -502,12 +393,6 @@ def from_string(s):
         return CHKFileVerifierURI().init_from_string(s)
     elif s.startswith("URI:LIT:"):
         return LiteralFileURI().init_from_string(s)
-    elif s.startswith("URI:DIR:"):
-        return DirnodeURI().init_from_string(s)
-    elif s.startswith("URI:DIR-RO:"):
-        return ReadOnlyDirnodeURI().init_from_string(s)
-    elif s.startswith("URI:DIR-Verifier:"):
-        return DirnodeVerifierURI().init_from_string(s)
     elif s.startswith("URI:SSK:"):
         return WriteableSSKFileURI().init_from_string(s)
     elif s.startswith("URI:SSK-RO:"):
