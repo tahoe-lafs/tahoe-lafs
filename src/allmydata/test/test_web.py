@@ -941,6 +941,17 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnlessEqual(self._mutable_uri, newnode.get_uri())
         d.addCallback(_got3)
 
+        # finally list the directory, since mutable files are displayed
+        # differently
+
+        d.addCallback(lambda res:
+                      self.GET(self.public_url + "/foo",
+                               followRedirect=True))
+        def _check_page(res):
+            # TODO: assert something about the contents
+            pass
+        d.addCallback(_check_page)
+
         return d
 
     def test_POST_upload_replace(self):

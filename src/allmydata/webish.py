@@ -185,28 +185,7 @@ class Directory(rend.Page):
                 or IDirectoryNode.providedBy(target)
                 or IMutableFileNode.providedBy(target)), target
 
-        if IFileNode.providedBy(target):
-            # file
-
-            # add the filename to the uri_link url
-            uri_link += '?%s' % (urllib.urlencode({'filename': name}),)
-
-            # to prevent javascript in displayed .html files from stealing a
-            # secret directory URI from the URL, send the browser to a URI-based
-            # page that doesn't know about the directory at all
-            #dlurl = urllib.quote(name)
-            dlurl = uri_link
-
-            ctx.fillSlots("filename",
-                          T.a(href=dlurl)[html.escape(name)])
-            ctx.fillSlots("type", "FILE")
-
-            ctx.fillSlots("size", target.get_size())
-
-            text_plain_link = uri_link + "?filename=foo.txt"
-            text_plain_tag = T.a(href=text_plain_link)["text/plain"]
-
-        elif IMutableFileNode.providedBy(target):
+        if IMutableFileNode.providedBy(target):
             # file
 
             # add the filename to the uri_link url
@@ -227,6 +206,26 @@ class Directory(rend.Page):
             text_plain_link = uri_link + "?filename=foo.txt"
             text_plain_tag = T.a(href=text_plain_link)["text/plain"]
 
+        elif IFileNode.providedBy(target):
+            # file
+
+            # add the filename to the uri_link url
+            uri_link += '?%s' % (urllib.urlencode({'filename': name}),)
+
+            # to prevent javascript in displayed .html files from stealing a
+            # secret directory URI from the URL, send the browser to a URI-based
+            # page that doesn't know about the directory at all
+            #dlurl = urllib.quote(name)
+            dlurl = uri_link
+
+            ctx.fillSlots("filename",
+                          T.a(href=dlurl)[html.escape(name)])
+            ctx.fillSlots("type", "FILE")
+
+            ctx.fillSlots("size", target.get_size())
+
+            text_plain_link = uri_link + "?filename=foo.txt"
+            text_plain_tag = T.a(href=text_plain_link)["text/plain"]
 
         elif IDirectoryNode.providedBy(target):
             # directory

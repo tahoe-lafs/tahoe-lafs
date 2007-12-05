@@ -92,6 +92,8 @@ class FakeMutableFileNode:
         return defer.succeed(self.all_contents[self.storage_index])
     def get_writekey(self):
         return "\x00"*16
+    def get_size(self):
+        return "?" # TODO: see mutable.MutableFileNode.get_size
 
     def replace(self, new_contents, wait_for_numpeers=None):
         assert not self.is_readonly()
