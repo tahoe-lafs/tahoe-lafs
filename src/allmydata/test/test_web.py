@@ -1342,6 +1342,18 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(self.failUnlessIsEmptyJSON)
         return d
 
+    def test_POST_check(self):
+        d = self.POST(self.public_url + "/foo", t="check", name="bar.txt")
+        def _done(res):
+            # this returns a string form of the results, which are probably
+            # None since we're using fake filenodes.
+            # TODO: verify that the check actually happened, by changing
+            # FakeCHKFileNode to count how many times .check() has been
+            # called.
+            pass
+        d.addCallback(_done)
+        return d
+
     def test_XMLRPC(self):
         raise unittest.SkipTest("The XML-RPC interface is not yet implemented.  Please use the RESTful interface (documented in docs/webapi.txt) for now.")
         pass

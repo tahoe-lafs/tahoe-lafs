@@ -840,7 +840,7 @@ class POSTHandler(rend.Page):
                 d2 = child_node.check()
                 def _done(res):
                     log.msg("checked %s, results %s" % (child_node, res))
-                    return res
+                    return str(res)
                 d2.addCallback(_done)
                 return d2
             d.addCallback(_got_child)

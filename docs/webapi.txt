@@ -392,6 +392,15 @@ c. POST forms
   for 'to_name'. This is unconditional and will replace any child already
   present under 'to_name', akin to 'mv -f' in unix parlance.
 
+
+  POST $URL
+  t=check
+
+  This triggers the FileChecker to determine the current "health" of the
+  given file, by counting how many shares are available. The results will be
+  displayed on the directory page containing this file.
+
+
 5. debugging and testing features
 
 GET $URL?t=download&localfile=$LOCALPATH
