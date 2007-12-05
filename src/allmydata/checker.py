@@ -223,10 +223,10 @@ class Checker(service.MultiService):
         return d
 
     def verify(self, uri_to_verify):
-        uri_to_verify = IVerifierURI(uri_to_verify)
         if uri_to_verify is None:
             return defer.succeed(True)
-        elif isinstance(uri_to_verify, uri.CHKFileVerifierURI):
+        uri_to_verify = IVerifierURI(uri_to_verify)
+        if isinstance(uri_to_verify, uri.CHKFileVerifierURI):
             v = SimpleCHKFileVerifier(self.parent, uri_to_verify)
             return v.start()
         else:

@@ -1164,6 +1164,9 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
     def _test_checker_2(self, manifest):
         checker1 = self.clients[1].getServiceNamed("checker")
+        self.failUnlessEqual(checker1.checker_results_for(None), [])
+        self.failUnlessEqual(checker1.checker_results_for(list(manifest)[0]),
+                             [])
         dl = []
         starting_time = time.time()
         for si in manifest:
@@ -1245,4 +1248,6 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             for i in res:
                 self.failUnless(i is True)
         d.addCallback(_done)
+        d.addCallback(lambda res: checker1.verify(None))
+        d.addCallback(self.failUnlessEqual, True)
         return d
