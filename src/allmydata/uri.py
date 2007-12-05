@@ -101,16 +101,15 @@ class CHKFileVerifierURI(_BaseURI):
         # construct me with kwargs, since there are so many of them
         if not kwargs:
             return
-        keys = ("storage_index", "uri_extension_hash",
-                "needed_shares", "total_shares", "size")
-        for name in kwargs:
-            if name in keys:
-                value = kwargs[name]
-                setattr(self, name, value)
-            else:
-                raise TypeError("CHKFileVerifierURI does not accept "
-                                "'%s=' argument"
-                                % name)
+        self.populate(**kwargs)
+
+    def populate(self, storage_index, uri_extension_hash,
+                 needed_shares, total_shares, size):
+        self.storage_index = storage_index
+        self.uri_extension_hash = uri_extension_hash
+        self.needed_shares = needed_shares
+        self.total_shares = total_shares
+        self.size = size
 
     def init_from_string(self, uri):
         assert uri.startswith("URI:CHK-Verifier:"), uri
@@ -421,7 +420,7 @@ def is_string_newdirnode_rw(s):
     if not s.startswith("URI:DIR2:"):
         return False
     try:
-        (header_uri, header_dir2, writekey_s, fingerprint_s) = s.split(":", 2)
+        (header_uri, header_dir2, writekey_s, fingerprint_s) = s.split(":", 3)
     except ValueError:
         return False
     return idlib.could_be_base32_encoded(writekey_s) and idlib.could_be_base32_encoded(fingerprint_s)

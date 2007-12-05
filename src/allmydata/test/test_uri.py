@@ -26,6 +26,10 @@ class Literal(unittest.TestCase):
         self.failUnless(u.is_readonly())
         self.failIf(u.is_mutable())
 
+        u3 = u.get_readonly()
+        self.failUnlessIdentical(u, u3)
+        self.failUnlessEqual(u.get_verifier(), None)
+
     def test_empty(self):
         data = "" # This data is some *very* small data!
         return self._help_test(data)
@@ -78,6 +82,10 @@ class CHKFile(unittest.TestCase):
         self.failUnlessEqual(u.get_size(), 1234)
         self.failUnless(u.is_readonly())
         self.failIf(u.is_mutable())
+        u_ro = u.get_readonly()
+        self.failUnlessIdentical(u, u_ro)
+        u1a = IFileURI(u.to_string())
+        self.failUnlessEqual(u1a, u)
 
         u2 = uri.from_string(u.to_string())
         self.failUnlessEqual(u2.storage_index, storage_index)
@@ -94,6 +102,18 @@ class CHKFile(unittest.TestCase):
         self.failUnlessEqual(u2.get_size(), 1234)
         self.failUnless(u2.is_readonly())
         self.failIf(u2.is_mutable())
+
+        v = u.get_verifier()
+        self.failUnless(isinstance(v.to_string(), str))
+        v2 = uri.from_string(v.to_string())
+        self.failUnlessEqual(v, v2)
+
+        v3 = uri.CHKFileVerifierURI(storage_index="\x00"*16,
+                                    uri_extension_hash="\x00"*32,
+                                    needed_shares=3,
+                                    total_shares=10,
+                                    size=1234)
+        self.failUnless(isinstance(v3.to_string(), str))
 
     def test_pack_badly(self):
         key = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
@@ -112,6 +132,18 @@ class CHKFile(unittest.TestCase):
 
                               bogus_extra_argument="reject me",
                               )
+        self.failUnlessRaises(TypeError,
+                              uri.CHKFileVerifierURI,
+                              bogus="bogus")
+        self.failUnlessRaises(TypeError,
+                              uri.CHKFileVerifierURI,
+                              storage_index=storage_index,
+                              uri_extension_hash=uri_extension_hash,
+                              needed_shares=3,
+                              total_shares=10,
+                              # leave size= missing
+                              )
+
 
 class Extension(unittest.TestCase):
     def test_pack(self):
@@ -157,6 +189,9 @@ class Mutable(unittest.TestCase):
         self.failUnless(IURI.providedBy(u))
         self.failUnless(IMutableFileURI.providedBy(u))
         self.failIf(IDirnodeURI.providedBy(u))
+        self.failUnless("WriteableSSKFileURI" in str(u))
+        u1a = IMutableFileURI(u.to_string())
+        self.failUnlessEqual(u1a, u)
 
         u2 = uri.from_string(u.to_string())
         self.failUnlessEqual(u2.writekey, writekey)
@@ -186,6 +221,11 @@ class Mutable(unittest.TestCase):
         self.failUnless(IMutableFileURI.providedBy(u4))
         self.failIf(IDirnodeURI.providedBy(u4))
 
+        u4a = uri.from_string(u4.to_string())
+        self.failUnlessEqual(u4a, u4)
+        self.failUnless("ReadonlySSKFileURI" in str(u4a))
+        self.failUnlessIdentical(u4a.get_readonly(), u4a)
+
         u5 = u4.get_verifier()
         self.failUnless(IVerifierURI.providedBy(u5))
         self.failUnlessEqual(u5.storage_index, u.storage_index)
@@ -209,6 +249,12 @@ class NewDirnode(unittest.TestCase):
         self.failUnless(IURI.providedBy(u1))
         self.failIf(IFileURI.providedBy(u1))
         self.failUnless(IDirnodeURI.providedBy(u1))
+        self.failUnless("NewDirectoryURI" in str(u1))
+        u1_filenode = u1.get_filenode_uri()
+        self.failUnless(u1_filenode.is_mutable())
+        self.failIf(u1_filenode.is_readonly())
+        u1a = IDirnodeURI(u1.to_string())
+        self.failUnlessEqual(u1a, u1)
 
         u2 = uri.from_string(u1.to_string())
         self.failUnlessEqual(u1.to_string(), u2.to_string())
@@ -227,6 +273,12 @@ class NewDirnode(unittest.TestCase):
         u3n = u3._filenode_uri
         self.failUnless(u3n.is_readonly())
         self.failUnless(u3n.is_mutable())
+        u3_filenode = u3.get_filenode_uri()
+        self.failUnless(u3_filenode.is_mutable())
+        self.failUnless(u3_filenode.is_readonly())
+
+        u3a = uri.from_string(u3.to_string())
+        self.failUnlessIdentical(u3a, u3a.get_readonly())
 
         u4 = uri.ReadonlyNewDirectoryURI(u2._filenode_uri.get_readonly())
         self.failUnlessEqual(u4.to_string(), u3.to_string())
@@ -235,6 +287,10 @@ class NewDirnode(unittest.TestCase):
         self.failUnless(IURI.providedBy(u4))
         self.failIf(IFileURI.providedBy(u4))
         self.failUnless(IDirnodeURI.providedBy(u4))
+
+        u4_verifier = u4.get_verifier()
+        u4_verifier_filenode = u4_verifier.get_filenode_uri()
+        self.failUnless(isinstance(u4_verifier_filenode, uri.SSKVerifierURI))
 
         verifiers = [u1.get_verifier(), u2.get_verifier(),
                      u3.get_verifier(), u4.get_verifier(),
@@ -247,4 +303,15 @@ class NewDirnode(unittest.TestCase):
             self.failUnlessEqual(v._filenode_uri,
                                  u1.get_verifier()._filenode_uri)
 
+    def test_is_string_newdirnode_rw(self):
+        writekey = "\x01" * 16
+        fingerprint = "\x02" * 16
+
+        n = uri.WriteableSSKFileURI(writekey, fingerprint)
+        u1 = uri.NewDirectoryURI(n)
+
+        self.failUnless(uri.is_string_newdirnode_rw(u1.to_string()))
+
+        self.failIf(uri.is_string_newdirnode_rw("bogus"))
+        self.failIf(uri.is_string_newdirnode_rw("URI:DIR2:bogus"))
 
