@@ -1,5 +1,5 @@
 
-import os, time
+import os, sys, time
 from zope.interface import implements
 from twisted.application import service
 from twisted.internet import defer
@@ -15,12 +15,17 @@ def get_memory_usage():
                   #"VmHWM",
                   "VmData")
     stats = {}
-    for line in open("/proc/self/status", "r").readlines():
-        name, right = line.split(":",2)
-        if name in stat_names:
-            assert right.endswith(" kB\n")
-            right = right[:-4]
-            stats[name] = int(right) * 1024
+    try:
+        for line in open("/proc/self/status", "r").readlines():
+            name, right = line.split(":",2)
+            if name in stat_names:
+                assert right.endswith(" kB\n")
+                right = right[:-4]
+                stats[name] = int(right) * 1024
+    except:
+        # Probably not on (a compatible version of) Linux
+        stats['VmSize'] = 0
+        stats['VmPeak'] = 0
     return stats
 
 def log_memory_usage(where=""):
