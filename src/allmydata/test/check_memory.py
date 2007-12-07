@@ -377,7 +377,7 @@ this file are ignored.
             d.addCallback(_done)
         elif self.mode == "upload-POST":
             data = "a" * size
-            url = "/vdrive/private"
+            url = "/uri"
             d = self.POST(url, t="upload", file=("%d.data" % size, data))
         elif self.mode in ("receive",
                            "download", "download-GET", "download-GET-slow"):
