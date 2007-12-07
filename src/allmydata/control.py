@@ -1,5 +1,5 @@
 
-import os, sys, time
+import os, time
 from zope.interface import implements
 from twisted.application import service
 from twisted.internet import defer
