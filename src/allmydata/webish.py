@@ -1210,6 +1210,33 @@ class URIPUTHandler(rend.Page):
         req.setHeader("content-type", "text/plain")
         return "/uri only accepts PUT and PUT?t=mkdir"
 
+class URIPOSTHandler(rend.Page):
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        assert req.method == "POST"
+
+        t = ""
+        if "t" in req.args:
+            t = req.args["t"][0]
+
+        if t in ("", "upload"):
+            # "POST /uri", to create an unlinked file.
+            fileobj = req.fields["file"].file
+            uploadable = upload.FileHandle(fileobj)
+            d = IClient(ctx).upload(uploadable)
+            # that fires with the URI of the new file
+            return d
+
+        if t == "mkdir":
+            # "PUT /uri?t=mkdir", to create an unlinked directory.
+            d = IClient(ctx).create_empty_dirnode()
+            d.addCallback(lambda dirnode: dirnode.get_uri())
+            return d
+
+        req.setResponseCode(http.BAD_REQUEST)
+        req.setHeader("content-type", "text/plain")
+        return "/uri accepts only PUT, PUT?t=mkdir, POST?t=upload" # XXX check this -- what about POST?t=mkdir?
+
 
 class Root(rend.Page):
 
@@ -1220,32 +1247,44 @@ class Root(rend.Page):
         client = IClient(ctx)
         req = inevow.IRequest(ctx)
 
-        if segments[0] == "uri":
-            if len(segments) == 1 or segments[1] == '':
-                if "uri" in req.args:
-                    uri = req.args["uri"][0].replace("/", "!")
-                    there = url.URL.fromContext(ctx)
-                    there = there.clear("uri")
-                    there = there.child("uri").child(uri)
-                    return there, ()
-            if len(segments) == 1 and req.method == "PUT":
-                # /uri
-                # either "PUT /uri" to create an unlinked file, or
-                # "PUT /uri?t=mkdir" to create an unlinked directory
-                return URIPUTHandler(), ()
-            if len(segments) < 2:
-                return rend.NotFound
-            uri = segments[1].replace("!", "/")
-            d = defer.maybeDeferred(client.create_node_from_uri, uri)
-            d.addCallback(lambda node: VDrive(node, "from-uri"))
-            d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
-            def _trap_KeyError(f):
-                f.trap(KeyError)
-                return rend.FourOhFour(), ()
-            d.addErrback(_trap_KeyError)
-            return d
-        elif segments[0] == "xmlrpc":
-            raise NotImplementedError()
+        segments = list(segments) # XXX HELP I AM YUCKY!
+        while segments and not segments[-1]:
+            segments.pop()
+        if not segments:
+            segments.append('')
+        segments = tuple(segments)
+        if segments:
+            if segments[0] == "uri":
+                if len(segments) == 1 or segments[1] == '':
+                    if "uri" in req.args:
+                        uri = req.args["uri"][0].replace("/", "!")
+                        there = url.URL.fromContext(ctx)
+                        there = there.clear("uri")
+                        there = there.child("uri").child(uri)
+                        return there, ()
+                if len(segments) == 1:
+                    # /uri
+                    if req.method == "PUT":
+                        # either "PUT /uri" to create an unlinked file, or
+                        # "PUT /uri?t=mkdir" to create an unlinked directory
+                        return URIPUTHandler(), ()
+                    elif req.method == "POST":
+                        # "POST /uri?t=upload&file=newfile" to upload an unlinked
+                        # file
+                        return URIPOSTHandler(), ()
+                if len(segments) < 2:
+                    return rend.NotFound
+                uri = segments[1].replace("!", "/")
+                d = defer.maybeDeferred(client.create_node_from_uri, uri)
+                d.addCallback(lambda node: VDrive(node, "from-uri"))
+                d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
+                def _trap_KeyError(f):
+                    f.trap(KeyError)
+                    return rend.FourOhFour(), ()
+                d.addErrback(_trap_KeyError)
+                return d
+            elif segments[0] == "xmlrpc":
+                raise NotImplementedError()
         return rend.Page.locateChild(self, ctx, segments)
 
     child_webform_css = webform.defaultCSS

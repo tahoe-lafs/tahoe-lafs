@@ -14,7 +14,7 @@ from allmydata.interfaces import IURI, INewDirectoryURI, IReadonlyNewDirectoryUR
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
 
-class MyClient(service.MultiService):
+class FakeClient(service.MultiService):
     nodeid = "fake_nodeid"
     basedir = "fake_basedir"
     def get_versions(self):
@@ -62,7 +62,7 @@ class MyClient(service.MultiService):
 
 class WebMixin(object):
     def setUp(self):
-        self.s = MyClient()
+        self.s = FakeClient()
         self.s.startService()
         self.ws = s = webish.WebishServer("0")
         s.allow_local_access(True)
@@ -799,6 +799,9 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    def failUnlessCHKURIHasContents(self, got_uri, contents):
+        self.failUnless(FakeCHKFileNode.all_contents[got_uri] == contents)
+
     def test_PUT_NEWDIRURL_localdir(self):
         localdir = os.path.abspath("web/PUT_NEWDIRURL_localdir")
         # create some files there
@@ -887,6 +890,22 @@ class Web(WebMixin, unittest.TestCase):
                       self.failUnlessChildContentsAre(fn, "new.txt",
                                                       self.NEWFILE_CONTENTS))
         return d
+
+    def test_POST_upload_no_link(self):
+        d = self.POST("/uri/", t="upload",
+                      file=("new.txt", self.NEWFILE_CONTENTS))
+        d.addCallback(self.failUnlessCHKURIHasContents, self.NEWFILE_CONTENTS)
+        return d
+
+    def test_POST_upload_no_link_whendone(self):
+        d = self.POST("/uri/", t="upload", when_done="/", 
+                      file=("new.txt", self.NEWFILE_CONTENTS))
+        d.addBoth(self.shouldRedirect, "/")
+        # XXX Test that resulting welcome page has a "most recent
+        # upload", the URI of which points to the file contents that
+        # you just uploaded.
+        return d
+    test_POST_upload_no_link_whendone.todo = "Not yet implemented."
 
     def test_POST_upload_mutable(self):
         # this creates a mutable file
