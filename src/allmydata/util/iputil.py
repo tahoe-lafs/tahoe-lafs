@@ -12,9 +12,67 @@ from twisted.internet import reactor
 from twisted.internet.protocol import DatagramProtocol
 from twisted.internet.utils import getProcessOutput
 from twisted.python.procutils import which
+from twisted.python import log
 
 # from allmydata.util
 import observer
+
+try:
+    import resource
+    def increase_rlimits():
+        # We'd like to raise our soft resource.RLIMIT_NOFILE, since certain
+        # systems (OS-X, probably solaris) start with a relatively low limit
+        # (256), and some unit tests want to open up more sockets than this.
+        # Most linux systems start with both hard and soft limits at 1024,
+        # which is plenty.
+
+        # unfortunately the values to pass to setrlimit() vary widely from
+        # one system to another. OS-X reports (256, HUGE), but the real hard
+        # limit is 10240, and accepts (-1,-1) to mean raise it to the
+        # maximum. Cygwin reports (256, -1), then ignores a request of
+        # (-1,-1): instead you have to guess at the hard limit (it appears to
+        # be 3200), so using (3200,-1) seems to work. Linux reports a
+        # sensible (1024,1024), then rejects (-1,-1) as trying to raise the
+        # maximum limit, so you could set it to (1024,1024) but you might as
+        # well leave it alone.
+
+        try:
+            current = resource.getrlimit(resource.RLIMIT_NOFILE)
+        except AttributeError:
+            # we're probably missing RLIMIT_NOFILE, maybe this is windows
+            return
+
+        if current[0] >= 1024:
+            # good enough, leave it alone
+            return
+
+        try:
+            if current[1] > 0 and current[1] < 1000000:
+                # solaris reports (256, 65536)
+                resource.setrlimit(resource.RLIMIT_NOFILE,
+                                   (current[1], current[1]))
+            else:
+                # this one works on OS-X (bsd), and gives us 10240, but
+                # it doesn't work on linux (on which both the hard and
+                # soft limits are set to 1024 by default).
+                resource.setrlimit(resource.RLIMIT_NOFILE, (-1,-1))
+                new = resource.getrlimit(resource.RLIMIT_NOFILE)
+                if new[0] == current[0]:
+                    # probably cygwin, which ignores -1. Use a real value.
+                    resource.setrlimit(resource.RLIMIT_NOFILE, (3200,-1))
+
+        except ValueError:
+            log.msg("unable to set RLIMIT_NOFILE: current value %s"
+                     % (resource.getrlimit(resource.RLIMIT_NOFILE),))
+        except:
+            # who knows what. It isn't very important, so log it and continue
+            log.err()
+except ImportError:
+    def increase_rlimits():
+        # TODO: implement this for Windows.  Although I suspect the
+        # solution might be "be running under the iocp reactor and
+        # make this function be a no-op".
+        pass
 
 def get_local_addresses_async(target='A.ROOT-SERVERS.NET'):
     """
