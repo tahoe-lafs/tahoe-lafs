@@ -90,14 +90,6 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
         iurl = tub.registerReference(i)
         NUMCLIENTS = 5
 
-        self.waiting_for_connections = NUMCLIENTS*NUMCLIENTS
-        d = self._done_counting = defer.Deferred()
-        def _count(nodeid, rref):
-            log.msg("NEW CONNECTION! %s %s" % (b32encode(nodeid).lower(), rref))
-            self.waiting_for_connections -= 1
-            if self.waiting_for_connections == 0:
-                self._done_counting.callback("done!")
-
         clients = []
         tubs = {}
         for i in range(NUMCLIENTS):
@@ -112,12 +104,19 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
             n = MyNode()
             node_furl = tub.registerReference(n)
             c = IntroducerClient(tub, iurl, node_furl)
-            c.notify_on_new_connection(_count)
+
             c.setServiceParent(self.parent)
             clients.append(c)
             tubs[c] = tub
 
-        # d will fire once everybody is connected
+        def _wait_for_all_connections(res):
+            dl = [] # list of when_enough_peers() for each peer
+            # will fire once everybody is connected
+            for c in clients:
+                dl.append(c.when_enough_peers(NUMCLIENTS))
+            return defer.DeferredList(dl, fireOnOneErrback=True)
+
+        d = _wait_for_all_connections(None)
 
         def _check1(res):
             log.msg("doing _check1")
@@ -125,11 +124,9 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
                 self.failUnlessEqual(len(c.connections), NUMCLIENTS)
                 self.failUnless(c._connected) # to the introducer
         d.addCallback(_check1)
+        origin_c = clients[0]
         def _disconnect_somebody_else(res):
             # now disconnect somebody's connection to someone else
-            self.waiting_for_connections = 2
-            d2 = self._done_counting = defer.Deferred()
-            origin_c = clients[0]
             # find a target that is not themselves
             for nodeid,rref in origin_c.connections.items():
                 if b32encode(nodeid).lower() != tubs[origin_c].tubID:
@@ -138,19 +135,23 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
             log.msg(" disconnecting %s->%s" % (tubs[origin_c].tubID, victim))
             victim.tracker.broker.transport.loseConnection()
             log.msg(" did disconnect")
-            return d2
         d.addCallback(_disconnect_somebody_else)
+        def _wait_til_he_notices(res):
+            # wait til the origin_c notices the loss
+            log.msg(" waiting until peer notices the disconnection")
+            return origin_c.when_fewer_than_peers(NUMCLIENTS)
+        d.addCallback(_wait_til_he_notices)
+        def _wait_for_reconnection(res):
+            log.msg(" doing _wait_for_reconnection()")
+            return origin_c.when_enough_peers(NUMCLIENTS)
+        d.addCallback(_wait_for_reconnection)
         def _check2(res):
             log.msg("doing _check2")
             for c in clients:
                 self.failUnlessEqual(len(c.connections), NUMCLIENTS)
         d.addCallback(_check2)
         def _disconnect_yourself(res):
-            # now disconnect somebody's connection to themselves. This will
-            # only result in one new connection, since it is a loopback.
-            self.waiting_for_connections = 1
-            d2 = self._done_counting = defer.Deferred()
-            origin_c = clients[0]
+            # now disconnect somebody's connection to themselves.
             # find a target that *is* themselves
             for nodeid,rref in origin_c.connections.items():
                 if b32encode(nodeid).lower() == tubs[origin_c].tubID:
@@ -158,9 +159,10 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
                     break
             log.msg(" disconnecting %s->%s" % (tubs[origin_c].tubID, victim))
             victim.tracker.broker.transport.loseConnection()
-            log.msg(" did disconnect")
-            return d2
+            log.msg(" did disconnect from self")
         d.addCallback(_disconnect_yourself)
+        d.addCallback(_wait_til_he_notices)
+        d.addCallback(_wait_for_all_connections)
         def _check3(res):
             log.msg("doing _check3")
             for c in clients:
@@ -271,4 +273,3 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
         d.addCallback(_check_again)
         return d
     del test_system_this_one_breaks_too
-

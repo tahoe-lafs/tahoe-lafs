@@ -71,14 +71,24 @@ class IntroducerClient(service.Service, Referenceable):
 
         # The N'th element of _observers_of_enough_peers is None if nobody has
         # asked to be informed when N peers become connected, it is a
-        # OneShotObserverList if someone has asked to be informed, and that
-        # list is fired when N peers next become connected (or immediately if
-        # N peers are already connected when someone asks), and the N'th
-        # element is replaced by None when the number of connected peers falls
-        # below N.  _observers_of_enough_peers is always just long enough to
-        # hold the highest-numbered N that anyone is interested in (i.e.,
-        # there are never trailing Nones in _observers_of_enough_peers).
+        # OneShotObserverList if someone has asked to be informed, and that list
+        # is fired when N peers next become connected (or immediately if N peers
+        # are already connected when they asked), and the N'th element is
+        # replaced by None when the number of connected peers falls below N.
+        # _observers_of_enough_peers is always just long enough to hold the
+        # highest-numbered N that anyone is interested in (i.e., there are never
+        # trailing Nones in _observers_of_enough_peers).
         self._observers_of_enough_peers = []
+        # The N'th element of _observers_of_fewer_than_peers is None if nobody
+        # has asked to be informed when we become connected to fewer than N
+        # peers, it is a OneShotObserverList if someone has asked to be
+        # informed, and that list is fired when we become connected to fewer
+        # than N peers (or immediately if we are already connected to fewer than
+        # N peers when they asked).  _observers_of_fewer_than_peers is always
+        # just long enough to hold the highest-numbered N that anyone is
+        # interested in (i.e., there are never trailing Nones in
+        # _observers_of_fewer_than_peers).
+        self._observers_of_fewer_than_peers = []
 
     def startService(self):
         service.Service.startService(self)
@@ -107,6 +117,27 @@ class IntroducerClient(service.Service, Referenceable):
         for reconnector in self.reconnectors.itervalues():
             reconnector.stopConnecting()
 
+    def _notify_observers_of_enough_peers(self, numpeers):
+        if len(self._observers_of_enough_peers) > numpeers:
+            osol = self._observers_of_enough_peers[numpeers]
+            if osol:
+                osol.fire(None)
+
+    def _remove_observers_of_enough_peers(self, numpeers):
+        if len(self._observers_of_enough_peers) > numpeers:
+            self._observers_of_enough_peers[numpeers] = None
+            while self._observers_of_enough_peers and (not self._observers_of_enough_peers[-1]):
+                self._observers_of_enough_peers.pop()
+
+    def _notify_observers_of_fewer_than_peers(self, numpeers):
+        if len(self._observers_of_fewer_than_peers) > numpeers:
+            osol = self._observers_of_fewer_than_peers[numpeers]
+            if osol:
+                osol.fire(None)
+                self._observers_of_fewer_than_peers[numpeers] = None
+                while len(self._observers_of_fewer_than_peers) > numpeers and (not self._observers_of_fewer_than_peers[-1]):
+                    self._observers_of_fewer_than_peers.pop()
+
     def _new_peer(self, furl):
         if furl in self.reconnectors:
             return
@@ -126,24 +157,18 @@ class IntroducerClient(service.Service, Referenceable):
             self.log("connected to %s" % b32encode(nodeid).lower()[:8])
             self.connection_observers.notify(nodeid, rref)
             self.connections[nodeid] = rref
-            if len(self._observers_of_enough_peers) > len(self.connections):
-                osol = self._observers_of_enough_peers[len(self.connections)]
-                if osol:
-                    osol.fire(None)
+            self._notify_observers_of_enough_peers(len(self.connections))
+            self._notify_observers_of_fewer_than_peers(len(self.connections))
             def _lost():
                 # TODO: notifyOnDisconnect uses eventually(), but connects do
                 # not. Could this cause a problem?
+
+                # We know that this observer list must have been fired, since we
+                # had enough peers before this one was lost.
+                self._remove_observers_of_enough_peers(len(self.connections))
+                self._notify_observers_of_fewer_than_peers(len(self.connections)+1)
+
                 del self.connections[nodeid]
-                if len(self._observers_of_enough_peers) > len(self.connections):
-                    self._observers_of_enough_peers[len(self.connections)] = None
-                    while self._observers_of_enough_peers and (not self._observers_of_enough_peers[-1]):
-                        self._observers_of_enough_peers.pop()
-                for numpeers in self._observers_of_enough_peers:
-                    if len(self.connections) == (numpeers-1):
-                        # We know that this observer list must have been
-                        # fired, since we had enough peers before this one was
-                        # lost.
-                        del self._observers_of_enough_peers[numpeers]
 
             rref.notifyOnDisconnect(_lost)
         self.log("connecting to %s" % b32encode(nodeid).lower()[:8])
@@ -177,9 +202,9 @@ class IntroducerClient(service.Service, Referenceable):
 
     def when_enough_peers(self, numpeers):
         """
-        I return a deferred that fires the next time that at least numpeers
-        are connected, or fires immediately if numpeers are currently
-        available.
+        I return a deferred that fires the next time that at least
+        numpeers are connected, or fires immediately if numpeers are
+        currently connected.
         """
         self._observers_of_enough_peers.extend([None]*(numpeers+1-len(self._observers_of_enough_peers)))
         if not self._observers_of_enough_peers[numpeers]:
@@ -187,3 +212,17 @@ class IntroducerClient(service.Service, Referenceable):
             if len(self.connections) >= numpeers:
                 self._observers_of_enough_peers[numpeers].fire(self)
         return self._observers_of_enough_peers[numpeers].when_fired()
+
+    def when_fewer_than_peers(self, numpeers):
+        """
+        I return a deferred that fires the next time that fewer than numpeers
+        are connected, or fires immediately if fewer than numpeers are currently
+        connected.
+        """
+        if len(self.connections) < numpeers:
+            return defer.succeed(None)
+        else:
+            self._observers_of_fewer_than_peers.extend([None]*(numpeers+1-len(self._observers_of_fewer_than_peers)))
+            if not self._observers_of_fewer_than_peers[numpeers]:
+                self._observers_of_fewer_than_peers[numpeers] = observer.OneShotObserverList()
+            return self._observers_of_fewer_than_peers[numpeers].when_fired()
