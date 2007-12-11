@@ -33,7 +33,7 @@ else:
         # breaks inside older setuptools' sandboxing. 0.6c4 is the first
         # version which fixed this problem.
         min_version='0.6c4'
-        use_setuptools(min_version=min_version, download_delay=0,
+        use_setuptools(min_version=min_version,
                        download_base="file:misc/dependencies/",
                        download_delay=0)
 
