@@ -141,10 +141,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
             log.msg(" waiting until peer notices the disconnection")
             return origin_c.when_fewer_than_peers(NUMCLIENTS)
         d.addCallback(_wait_til_he_notices)
-        def _wait_for_reconnection(res):
-            log.msg(" doing _wait_for_reconnection()")
-            return origin_c.when_enough_peers(NUMCLIENTS)
-        d.addCallback(_wait_for_reconnection)
+        d.addCallback(_wait_for_all_connections)
         def _check2(res):
             log.msg("doing _check2")
             for c in clients:
