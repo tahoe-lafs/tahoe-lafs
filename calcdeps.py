@@ -22,7 +22,7 @@ except ImportError:
     pass
 
 install_requires=["zfec >= 1.0.3",
-                  "foolscap >= 0.1.6",
+                  "foolscap >= 0.2.1",
                   "simplejson >= 1.4",
                   "pycryptopp >= 0.2.8",
                   ]
