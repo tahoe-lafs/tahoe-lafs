@@ -3,7 +3,8 @@ import re
 from base64 import b32encode, b32decode
 from zope.interface import implements
 from twisted.application import service
-from twisted.python import defer, log
+from twisted.internet import defer
+from twisted.python import log
 from foolscap import Referenceable
 from allmydata import node
 from allmydata.interfaces import RIIntroducer, RIIntroducerClient
