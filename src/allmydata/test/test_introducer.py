@@ -12,7 +12,7 @@ from twisted.application import service
 from allmydata.introducer import IntroducerClient, IntroducerService, IntroducerNode
 from allmydata.util import testutil
 
-class MyNode(Referenceable):
+class FakeNode(Referenceable):
     pass
 
 class LoggingMultiService(service.MultiService):
@@ -101,7 +101,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
             portnum = l.getPortnum()
             tub.setLocation("localhost:%d" % portnum)
 
-            n = MyNode()
+            n = FakeNode()
             node_furl = tub.registerReference(n)
             c = IntroducerClient(tub, iurl, node_furl)
 
@@ -205,7 +205,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
 
         clients = []
         for i in range(5):
-            n = MyNode()
+            n = FakeNode()
             node_furl = tub.registerReference(n)
             c = IntroducerClient(tub, iurl, node_furl)
             c.setServiceParent(self.parent)
@@ -246,7 +246,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
             portnum = l.getPortnum()
             tub.setLocation("localhost:%d" % portnum)
 
-            n = MyNode()
+            n = FakeNode()
             node_furl = tub.registerReference(n)
             c = IntroducerClient(tub, iurl, node_furl)
             c.setServiceParent(self.parent)

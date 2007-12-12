@@ -9,7 +9,7 @@ from allmydata import client, introducer
 from allmydata.util import version_class, idlib
 from foolscap.eventual import flushEventualQueue
 
-class MyIntroducerClient(introducer.IntroducerClient):
+class FakeIntroducerClient(introducer.IntroducerClient):
     def __init__(self):
         self.connections = {}
 
@@ -99,7 +99,7 @@ class Basic(unittest.TestCase):
         open(os.path.join(basedir, "introducer.furl"), "w").write("")
         open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         c = client.Client(basedir)
-        c.introducer_client = MyIntroducerClient()
+        c.introducer_client = FakeIntroducerClient()
         for k in ["%d" % i for i in range(5)]:
             c.introducer_client.connections[k] = None
         self.failUnlessEqual(permute(c, "one"), ['3','1','0','4','2'])
@@ -108,7 +108,7 @@ class Basic(unittest.TestCase):
         self.failUnlessEqual(permute(c, "one"), [])
 
         c2 = client.Client(basedir)
-        c2.introducer_client = MyIntroducerClient()
+        c2.introducer_client = FakeIntroducerClient()
         for k in ["%d" % i for i in range(5)]:
             c2.introducer_client.connections[k] = None
         self.failUnlessEqual(permute(c2, "one"), ['3','1','0','4','2'])

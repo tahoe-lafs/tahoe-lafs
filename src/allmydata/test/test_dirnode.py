@@ -12,7 +12,7 @@ from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
 # contain pointers to fake files. We start with a fake MutableFileNode that
 # stores all of its data in a static table.
 
-MyDirectoryNode = NonGridDirectoryNode
+FakeDirectoryNode = NonGridDirectoryNode
 
 class Marker:
     implements(IFileNode, IMutableFileNode) # sure, why not
@@ -52,11 +52,11 @@ class FakeClient:
         u = IURI(u)
         if (INewDirectoryURI.providedBy(u)
             or IReadonlyNewDirectoryURI.providedBy(u)):
-            return MyDirectoryNode(self).init_from_uri(u)
+            return FakeDirectoryNode(self).init_from_uri(u)
         return Marker(u.to_string())
 
     def create_empty_dirnode(self, wait_for_numpeers):
-        n = MyDirectoryNode(self)
+        n = FakeDirectoryNode(self)
         d = n.create(wait_for_numpeers)
         d.addCallback(lambda res: n)
         return d
@@ -69,7 +69,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
     def test_basic(self):
         d = self.client.create_empty_dirnode(0)
         def _done(res):
-            self.failUnless(isinstance(res, MyDirectoryNode))
+            self.failUnless(isinstance(res, FakeDirectoryNode))
             rep = str(res)
             self.failUnless("RW" in rep)
         d.addCallback(_done)
@@ -182,7 +182,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
 
             d.addCallback(lambda res: n.create_empty_directory("subdir", wait_for_numpeers=1))
             def _created(subdir):
-                self.failUnless(isinstance(subdir, MyDirectoryNode))
+                self.failUnless(isinstance(subdir, FakeDirectoryNode))
                 self.subdir = subdir
                 new_v = subdir.get_verifier()
                 assert isinstance(new_v, str)
@@ -206,7 +206,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.get_child_at_path("subdir/subsubdir"))
             d.addCallback(lambda subsubdir:
                           self.failUnless(isinstance(subsubdir,
-                                                     MyDirectoryNode)))
+                                                     FakeDirectoryNode)))
             d.addCallback(lambda res: n.get_child_at_path(""))
             d.addCallback(lambda res: self.failUnlessEqual(res.get_uri(),
                                                            n.get_uri()))
