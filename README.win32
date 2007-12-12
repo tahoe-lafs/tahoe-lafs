@@ -2,7 +2,7 @@ BUILDING ALLMYDATA.ORG TAHOE ON WINDOWS
 
 There are three ways to do it:
 
-ALL CYGWIN ALL THE TIME 
+OPTION 1: ALL CYGWIN ALL THE TIME 
 
 If you are building on Windows, then the easy way is to install cygwin and
 use cygwin version of Python and the cygwin versions of all dependencies
@@ -11,7 +11,7 @@ you cannot use Windows-native versions of any of the dependencies -- they all
 have to be cygwin versions).  So if you are taking this approach then you
 don't need to read the rest of this README.win32 file at all.
 
-CYGWIN TOOLS TO BUILD WINDOWS-NATIVE LIBRARIES
+OPTION 2: CYGWIN TOOLS TO BUILD WINDOWS-NATIVE LIBRARIES
 
 The second-easiest way is to install cygwin and use cygwin development tools
 such as bash, GNU make, gcc, etc., but install the Windows-native version of
@@ -23,7 +23,7 @@ dependencies will all be automatically built (by the cygwin gcc compiler) as
 Windows-native libraries.  This README.win32 file contains some extra notes
 about how to take this approach.
 
-OTHER BUILD TOOLS
+OPTION 3: OTHER BUILD TOOLS
 
 The third-easiest way is to use a Microsoft compiler or some other compiler.
 Our README files do not currently explain how to do that.  You are on your
@@ -31,7 +31,7 @@ own for now, but please feel free to contribute a document which explains how
 to build all these dependencies using your favorite compiler.
 
 
-Okay, here are some notes about following the "CYGWIN TOOLS TO BUILD
+Okay, here are some notes about following "OPTION 1: CYGWIN TOOLS TO BUILD
 WINDOWS-NATIVE LIBRARIES" approach:
 
 
