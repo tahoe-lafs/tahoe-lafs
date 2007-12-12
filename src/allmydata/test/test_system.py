@@ -1103,7 +1103,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             self.failUnlessEqual(err, "")
         d.addCallback(_check_get_to_stdout)
 
-        get_to_file_target = os.path.join(self.basedir, "get.downfile")
+        get_to_file_target = self.basedir + "/get.downfile"
         def _get_to_file(res):
             argv = ["get"] + nodeargs + ["test_put/upload.txt",
                                          get_to_file_target]
