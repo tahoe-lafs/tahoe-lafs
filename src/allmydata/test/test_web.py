@@ -444,8 +444,9 @@ class Web(WebMixin, unittest.TestCase):
         return res
 
     def test_GET_FILEURL_localfile(self):
-        localfile = os.path.abspath("web/GET_FILEURL_localfile")
-        url = self.public_url + "/foo/bar.txt?t=download&localfile=%s" % localfile
+        localfile = os.path.abspath("web/GET_FILEURL_local file")
+        url = (self.public_url + "/foo/bar.txt?t=download&localfile=%s" %
+               urllib.quote(localfile))
         fileutil.make_dirs("web")
         d = self.GET(url)
         def _done(res):
@@ -456,8 +457,9 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_GET_FILEURL_localfile_disabled(self):
-        localfile = os.path.abspath("web/GET_FILEURL_localfile_disabled")
-        url = self.public_url + "/foo/bar.txt?t=download&localfile=%s" % localfile
+        localfile = os.path.abspath("web/GET_FILEURL_local file_disabled")
+        url = (self.public_url + "/foo/bar.txt?t=download&localfile=%s" %
+               urllib.quote(localfile))
         fileutil.make_dirs("web")
         self.disable_local_access()
         d = self.GET(url)
@@ -472,10 +474,10 @@ class Web(WebMixin, unittest.TestCase):
         # server's idea of what counts as "local".
         old_LOCALHOST = webish.LOCALHOST
         webish.LOCALHOST = "127.0.0.2"
-        localfile = os.path.abspath("web/GET_FILEURL_localfile_nonlocal")
+        localfile = os.path.abspath("web/GET_FILEURL_local file_nonlocal")
         fileutil.make_dirs("web")
         d = self.GET(self.public_url + "/foo/bar.txt?t=download&localfile=%s"
-                     % localfile)
+                     % urllib.quote(localfile))
         d.addBoth(self.shouldFail, error.Error, "localfile non-local",
                   "403 Forbidden",
                   "localfile= or localdir= requires a local connection")
@@ -492,7 +494,7 @@ class Web(WebMixin, unittest.TestCase):
         localfile = "web/nonabsolute/path"
         fileutil.make_dirs("web/nonabsolute")
         d = self.GET(self.public_url + "/foo/bar.txt?t=download&localfile=%s"
-                     % localfile)
+                     % urllib.quote(localfile))
         d.addBoth(self.shouldFail, error.Error, "localfile non-absolute",
                   "403 Forbidden",
                   "localfile= or localdir= requires an absolute path")
@@ -502,8 +504,9 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_PUT_NEWFILEURL_localfile(self):
-        localfile = os.path.abspath("web/PUT_NEWFILEURL_localfile")
-        url = self.public_url + "/foo/new.txt?t=upload&localfile=%s" % localfile
+        localfile = os.path.abspath("web/PUT_NEWFILEURL_local file")
+        url = (self.public_url + "/foo/new.txt?t=upload&localfile=%s" %
+               urllib.quote(localfile))
         fileutil.make_dirs("web")
         f = open(localfile, "wb")
         f.write(self.NEWFILE_CONTENTS)
@@ -516,8 +519,9 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_PUT_NEWFILEURL_localfile_disabled(self):
-        localfile = os.path.abspath("web/PUT_NEWFILEURL_localfile_disabled")
-        url = self.public_url + "/foo/new.txt?t=upload&localfile=%s" % localfile
+        localfile = os.path.abspath("web/PUT_NEWFILEURL_local file_disabled")
+        url = (self.public_url + "/foo/new.txt?t=upload&localfile=%s" %
+               urllib.quote(localfile))
         fileutil.make_dirs("web")
         f = open(localfile, "wb")
         f.write(self.NEWFILE_CONTENTS)
@@ -530,13 +534,13 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_PUT_NEWFILEURL_localfile_mkdirs(self):
-        localfile = os.path.abspath("web/PUT_NEWFILEURL_localfile_mkdirs")
+        localfile = os.path.abspath("web/PUT_NEWFILEURL_local file_mkdirs")
         fileutil.make_dirs("web")
         f = open(localfile, "wb")
         f.write(self.NEWFILE_CONTENTS)
         f.close()
         d = self.PUT(self.public_url + "/foo/newdir/new.txt?t=upload&localfile=%s"
-                     % localfile, "")
+                     % urllib.quote(localfile), "")
         d.addCallback(self.failUnlessURIMatchesChild,
                       self._foo_node, "newdir/new.txt")
         d.addCallback(lambda res:
@@ -714,9 +718,10 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_GET_DIRURL_localdir(self):
-        localdir = os.path.abspath("web/GET_DIRURL_localdir")
+        localdir = os.path.abspath("web/GET_DIRURL_local dir")
         fileutil.make_dirs("web")
-        d = self.GET(self.public_url + "/foo?t=download&localdir=%s" % localdir)
+        d = self.GET(self.public_url + "/foo?t=download&localdir=%s" %
+                     urllib.quote(localdir))
         def _check(res):
             barfile = os.path.join(localdir, "bar.txt")
             self.failUnless(os.path.exists(barfile))
@@ -730,19 +735,21 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_GET_DIRURL_localdir_disabled(self):
-        localdir = os.path.abspath("web/GET_DIRURL_localdir_disabled")
+        localdir = os.path.abspath("web/GET_DIRURL_local dir_disabled")
         fileutil.make_dirs("web")
         self.disable_local_access()
-        d = self.GET(self.public_url + "/foo?t=download&localdir=%s" % localdir)
+        d = self.GET(self.public_url + "/foo?t=download&localdir=%s" %
+                     urllib.quote(localdir))
         d.addBoth(self.shouldFail, error.Error, "localfile disabled",
                   "403 Forbidden",
                   "local file access is disabled")
         return d
 
     def test_GET_DIRURL_localdir_nonabsolute(self):
-        localdir = "web/nonabsolute/dirpath"
+        localdir = "web/nonabsolute/dir path"
         fileutil.make_dirs("web/nonabsolute")
-        d = self.GET(self.public_url + "/foo?t=download&localdir=%s" % localdir)
+        d = self.GET(self.public_url + "/foo?t=download&localdir=%s" %
+                     urllib.quote(localdir))
         d.addBoth(self.shouldFail, error.Error, "localdir non-absolute",
                   "403 Forbidden",
                   "localfile= or localdir= requires an absolute path")
@@ -810,7 +817,7 @@ class Web(WebMixin, unittest.TestCase):
         self.failUnless(FakeCHKFileNode.all_contents[got_uri] == contents)
 
     def test_PUT_NEWDIRURL_localdir(self):
-        localdir = os.path.abspath("web/PUT_NEWDIRURL_localdir")
+        localdir = os.path.abspath("web/PUT_NEWDIRURL_local dir")
         # create some files there
         fileutil.make_dirs(os.path.join(localdir, "one"))
         fileutil.make_dirs(os.path.join(localdir, "one/sub"))
@@ -821,7 +828,7 @@ class Web(WebMixin, unittest.TestCase):
         self.touch(localdir, "zap.zip")
 
         d = self.PUT(self.public_url + "/newdir?t=upload&localdir=%s"
-                     % localdir, "")
+                     % urllib.quote(localdir), "")
         pr = self.public_root
         d.addCallback(lambda res: self.failUnlessNodeHasChild(pr, "newdir"))
         d.addCallback(lambda res: pr.get("newdir"))
@@ -839,7 +846,7 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_PUT_NEWDIRURL_localdir_disabled(self):
-        localdir = os.path.abspath("web/PUT_NEWDIRURL_localdir_disabled")
+        localdir = os.path.abspath("web/PUT_NEWDIRURL_local dir_disabled")
         # create some files there
         fileutil.make_dirs(os.path.join(localdir, "one"))
         fileutil.make_dirs(os.path.join(localdir, "one/sub"))
@@ -851,14 +858,14 @@ class Web(WebMixin, unittest.TestCase):
 
         self.disable_local_access()
         d = self.PUT(self.public_url + "/newdir?t=upload&localdir=%s"
-                     % localdir, "")
+                     % urllib.quote(localdir), "")
         d.addBoth(self.shouldFail, error.Error, "localfile disabled",
                   "403 Forbidden",
                   "local file access is disabled")
         return d
 
     def test_PUT_NEWDIRURL_localdir_mkdirs(self):
-        localdir = os.path.abspath("web/PUT_NEWDIRURL_localdir_mkdirs")
+        localdir = os.path.abspath("web/PUT_NEWDIRURL_local dir_mkdirs")
         # create some files there
         fileutil.make_dirs(os.path.join(localdir, "one"))
         fileutil.make_dirs(os.path.join(localdir, "one/sub"))
@@ -869,7 +876,7 @@ class Web(WebMixin, unittest.TestCase):
         self.touch(localdir, "zap.zip")
 
         d = self.PUT(self.public_url + "/foo/subdir/newdir?t=upload&localdir=%s"
-                     % localdir,
+                     % urllib.quote(localdir),
                      "")
         fn = self._foo_node
         d.addCallback(lambda res: self.failUnlessNodeHasChild(fn, "subdir"))
