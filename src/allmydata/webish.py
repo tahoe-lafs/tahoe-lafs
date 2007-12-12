@@ -360,12 +360,13 @@ class Directory(rend.Page):
 
 class WebDownloadTarget:
     implements(IDownloadTarget, IConsumer)
-    def __init__(self, req, content_type, content_encoding):
+    def __init__(self, req, content_type, content_encoding, save_to_file):
         self._req = req
         self._content_type = content_type
         self._content_encoding = content_encoding
         self._opened = False
         self._producer = None
+        self._save_to_file = save_to_file
 
     def registerProducer(self, producer, streaming):
         self._req.registerProducer(producer, streaming)
@@ -378,6 +379,12 @@ class WebDownloadTarget:
         if self._content_encoding:
             self._req.setHeader("content-encoding", self._content_encoding)
         self._req.setHeader("content-length", str(size))
+        if self._save_to_file is not None:
+            # tell the browser to save the file rather display it
+            # TODO: quote save_to_file properly
+            self._req.setHeader("content-disposition",
+                                'attachment; filename="%s"'
+                                % self._save_to_file)
 
     def write(self, data):
         self._req.write(data)
@@ -425,8 +432,11 @@ class FileDownloader(resource.Resource):
                              static.File.contentTypes,
                              static.File.contentEncodings,
                              defaultType="text/plain")
-
-        d = self._filenode.download(WebDownloadTarget(req, type, encoding))
+        save_to_file = None
+        if "save" in req.args:
+            save_to_file = self._name
+        wdt = WebDownloadTarget(req, type, encoding, save_to_file)
+        d = self._filenode.download(wdt)
         # exceptions during download are handled by the WebDownloadTarget
         d.addErrback(lambda why: None)
         return server.NOT_DONE_YET

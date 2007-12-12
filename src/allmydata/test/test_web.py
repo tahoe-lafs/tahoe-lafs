@@ -344,6 +344,13 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
+    def test_GET_FILEURL_save(self):
+        d = self.GET(self.public_url + "/foo/bar.txt?save=bar.txt")
+        # TODO: look at the headers, expect a Content-Disposition: attachment
+        # header.
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        return d
+
     def test_GET_FILEURL_download(self):
         d = self.GET(self.public_url + "/foo/bar.txt?t=download")
         d.addCallback(self.failUnlessIsBarDotTxt)
