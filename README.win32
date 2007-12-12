@@ -26,9 +26,10 @@ about how to take this approach.
 OPTION 3: OTHER BUILD TOOLS
 
 The third-easiest way is to use a Microsoft compiler or some other compiler.
-Our README files do not currently explain how to do that.  You are on your
-own for now, but please feel free to contribute a document which explains how
-to build all these dependencies using your favorite compiler.
+Our README files do not currently explain how to do that.  You are on your own
+for now, but please feel free to contribute a document which explains how to
+build all these dependencies using your favorite compiler.XXX MikeB: the
+previous paragraph is false -- please fix it!  --Zooko
 
 
 Okay, here are some notes about following "OPTION 1: CYGWIN TOOLS TO BUILD
