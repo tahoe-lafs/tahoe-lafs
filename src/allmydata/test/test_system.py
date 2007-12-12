@@ -1077,7 +1077,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             tdir = self.getdir("cli_put")
             fileutil.make_dirs(tdir)
             fn = os.path.join(tdir, "upload_me")
-            f = open(fn, "w")
+            f = open(fn, "wb")
             f.write(TESTDATA)
             f.close()
             argv = ["put"] + nodeargs + [fn, "test_put/upload.txt"]
