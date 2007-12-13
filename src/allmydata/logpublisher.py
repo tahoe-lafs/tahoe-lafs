@@ -5,6 +5,7 @@ from twisted.application import service
 from twisted.python import log
 from foolscap import Referenceable, RemoteInterface
 from foolscap.schema import DictOf, Any
+from allmydata import get_package_versions
 
 class RILogObserver(RemoteInterface):
     def msg(logmsg=DictOf(str, Any())):
@@ -67,12 +68,9 @@ class LogPublisher(Referenceable, service.MultiService):
         #f.close()
 
     def remote_get_versions(self):
-        versions = self.parent.get_versions()
-        # our __version__ attributes are actually instances of
-        # allmydata.util.version_class.Version, so convert them into strings
-        # first.
+        # Convert all the version instances to strings.
         return dict([(k,str(v))
-                     for k,v in versions.items()])
+                     for k,v in get_package_versions().iteritems()])
 
     def remote_subscribe_to_all(self, observer):
         s = Subscription()

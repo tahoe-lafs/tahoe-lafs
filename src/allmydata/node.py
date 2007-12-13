@@ -7,13 +7,11 @@ from twisted.python import log
 from twisted.application import service
 from twisted.internet import defer, reactor
 from foolscap import Tub, eventual
+from allmydata import get_package_versions_string
 from allmydata.util import log as tahoe_log
 from allmydata.util import iputil, observer, humanreadable
 from allmydata.util.assertutil import precondition
 from allmydata.logpublisher import LogPublisher
-
-# Just to get their versions:
-import allmydata, foolscap, pycryptopp, zfec
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
 ADDR_RE=re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
@@ -72,10 +70,7 @@ class Node(service.MultiService):
                 self.log("AuthorizedKeysManhole listening on %d" % portnum)
 
         self.setup_logging()
-        self.log("Node constructed.  tahoe version: %s, foolscap: %s,"
-                 " twisted: %s, zfec: %s"
-                 % (allmydata.__version__, foolscap.__version__,
-                    twisted.__version__, zfec.__version__,))
+        self.log("Node constructed. " + get_package_versions_string())
         iputil.increase_rlimits()
 
     def get_config(self, name, mode="r", required=False):
@@ -127,14 +122,6 @@ class Node(service.MultiService):
         except EnvironmentError, e:
             self.log("Unable to write config file '%s'" % fn)
             self.log(e)
-
-    def get_versions(self):
-        return {'allmydata': allmydata.__version__,
-                'foolscap': foolscap.__version__,
-                'twisted': twisted.__version__,
-                'zfec': zfec.__version__,
-                'pycryptopp': pycryptopp.__version__,
-                }
 
     def startService(self):
         # Note: this class can be started and stopped at most once.

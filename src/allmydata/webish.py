@@ -14,6 +14,7 @@ from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode, \
      IMutableFileNode
 from allmydata import upload, download
 from allmydata import provisioning
+from allmydata import get_package_versions_string
 from zope.interface import implements, Interface
 import urllib
 from formless import webform
@@ -1303,9 +1304,7 @@ class Root(rend.Page):
     child_provisioning = provisioning.ProvisioningTool()
 
     def data_version(self, ctx, data):
-        v = IClient(ctx).get_versions()
-        return "tahoe: %s, zfec: %s, foolscap: %s, twisted: %s" % \
-               (v['allmydata'], v['zfec'], v['foolscap'], v['twisted'])
+        return get_package_versions_string()
 
     def data_my_nodeid(self, ctx, data):
         return b32encode(IClient(ctx).nodeid).lower()
