@@ -2,7 +2,6 @@
 import datetime, os.path, re, types
 from base64 import b32decode, b32encode
 
-import twisted
 from twisted.python import log
 from twisted.application import service
 from twisted.internet import defer, reactor
