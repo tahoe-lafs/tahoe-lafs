@@ -1,27 +1,13 @@
 
-import itertools
-from twisted.python import log
+from foolscap.logging import log
+from twisted.python import failure
 
-counter = itertools.count()
+msg = log.msg
 
-def msg(*message, **kw):
-    if 'number' not in kw:
-        number = counter.next()
-        kw['number'] = number
-    else:
-        number = kw['number']
-    if 'parent' not in kw:
-        kw['parent'] = None
-    log.msg(*message, **kw)
-    return number
-
-def err(*args, **kw):
-    if 'number' not in kw:
-        number = counter.next()
-        kw['number'] = number
-    else:
-        number = kw['number']
-    if 'parent' not in kw:
-        kw['parent'] = None
-    log.err(*args, **kw)
-    return number
+def err(f=None, **kwargs):
+    if not f:
+        f = failure.Failure()
+    kwargs['failure'] = f
+    if 'level' not in kwargs:
+        kwargs['level'] = log.UNUSUAL
+    return log.msg("failure", **kwargs)
