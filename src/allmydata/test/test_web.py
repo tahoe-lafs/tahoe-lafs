@@ -1397,8 +1397,3 @@ class Web(WebMixin, unittest.TestCase):
             pass
         d.addCallback(_done)
         return d
-
-    def test_XMLRPC(self):
-        raise unittest.SkipTest("The XML-RPC interface is not yet implemented.  Please use the RESTful interface (documented in docs/webapi.txt) for now.")
-        pass
-
