@@ -159,12 +159,12 @@ check-pyopenssl-dep:
 # too.
 TEST=allmydata
 
-# use 'make test REPORTER=--reporter=bwverbose' from buildbot, to
+# use 'make test TRIALARGS=--reporter=bwverbose' from buildbot, to
 # suppress the ansi color sequences
 
 test: .built .checked-deps
 	$(PP) \
-	 $(TRIAL) $(REPORTER) $(TEST)
+	 $(TRIAL) $(TRIALARGS) $(TEST)
 
 test-figleaf: .built .checked-deps
 	rm -f .figleaf

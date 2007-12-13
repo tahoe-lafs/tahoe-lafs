@@ -39,7 +39,7 @@ try:
         try:
             current = resource.getrlimit(resource.RLIMIT_NOFILE)
         except AttributeError:
-            # we're probably missing RLIMIT_NOFILE, maybe this is windows
+            # we're probably missing RLIMIT_NOFILE
             return
 
         if current[0] >= 1024:

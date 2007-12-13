@@ -114,7 +114,7 @@ class Node:
         self.introducer.delete(fileid)
         return True
 
-class IntroducerAndVdrive:
+class Introducer:
     def __init__(self, simulator):
         self.living_files = {}
         self.utilization = 0 # total size of all active files
@@ -169,7 +169,7 @@ class Simulator:
         self.rrd = RRD("/tmp/utilization.rrd", ds=[ds], rra=[rra], start=self.time)
         self.rrd.create()
 
-        self.introducer = q = IntroducerAndVdrive(self)
+        self.introducer = q = Introducer(self)
         self.all_nodes = [Node(randomid(), q, self)
                           for i in range(self.NUM_NODES)]
         q.all_nodes = self.all_nodes

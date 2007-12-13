@@ -17,16 +17,16 @@ The goal of the encoder is to turn the original file into a series of
 is a different host, but for small grids there may be overlap). The number
 of shares is chosen to hit our reliability goals (more shares on more
 machines means more reliability), and is limited by overhead (proportional to
-numshares or log(numshares)) and the encoding technology in use (Reed-Solomon
-only permits 256 shares total). It is also constrained by the amount of data
+numshares or log(numshares)) and the encoding technology in use (zfec permits
+only 256 shares total). It is also constrained by the amount of data
 we want to send to each host. For estimating purposes, think of 10 shares
 out of which we need 3 to reconstruct the file.
 
 The encoder starts by cutting the original file into segments. All segments
 except the last are of equal size. The segment size is chosen to constrain
 the memory footprint (which will probably vary between 1x and 4x segment
-size) and to constrain the overhead (which will be proportional to either the
-number of segments or log(number of segments)).
+size) and to constrain the overhead (which will be proportional to
+log(number of segments)).
 
 
 Each segment (A,B,C) is read into memory, encrypted, and encoded into
