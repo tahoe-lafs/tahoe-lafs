@@ -10,7 +10,18 @@ from allmydata import get_package_versions_string
 from allmydata.util import log as tahoe_log
 from allmydata.util import iputil, observer, humanreadable
 from allmydata.util.assertutil import precondition
-from allmydata.logpublisher import LogPublisher
+
+# Just to get their versions:
+import allmydata, pycryptopp, zfec
+
+from foolscap.logging.publish import LogPublisher
+# Add our application versions to the data that Foolscap's
+# LogPublisher reports. Our __version__ attributes are actually
+# instances of allmydata.util.version_class.Version, so convert them
+# into strings first.
+LogPublisher.versions['allmydata'] = str(allmydata.__version__)
+LogPublisher.versions['zfec'] = str(zfec.__version__)
+LogPublisher.versions['pycryptopp'] = str(pycryptopp.__version__)
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
 ADDR_RE=re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
@@ -177,6 +188,11 @@ class Node(service.MultiService):
                     ob.formatTime = newmeth
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
 
+        self.tub.setOption("logport-furlfile",
+                           os.path.join(self.basedir, "logport.furl"))
+        self.tub.setOption("log-gatherer-furlfile",
+                           os.path.join(self.basedir, "log_gatherer.furl"))
+
     def log(self, msg, src="", args=(), **kw):
         if src:
             logsrc = src
@@ -222,17 +238,7 @@ class Node(service.MultiService):
 
     def tub_ready(self):
         # called when the Tub is available for registerReference
-        self.setup_log_publisher()
-
-    def setup_log_publisher(self):
-        self.add_service(LogPublisher())
-        log_gatherer_furl = self.get_config("log_gatherer.furl")
-        if log_gatherer_furl:
-            self.tub.connectTo(log_gatherer_furl, self._log_gatherer_connected)
-
-    def _log_gatherer_connected(self, rref):
-        rref.callRemote("logport",
-                        self.nodeid, self.getServiceNamed("log_publisher"))
+        pass
 
     def when_tub_ready(self):
         return self._tub_ready_observerlist.when_fired()

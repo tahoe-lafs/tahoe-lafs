@@ -4,10 +4,8 @@ def foo(): pass # keep the line number constant
 import os
 from twisted.trial import unittest
 
-from twisted.python import failure
-from twisted.python import log as twisted_log
 from allmydata.util import bencode, idlib, humanreadable, mathutil
-from allmydata.util import assertutil, fileutil, testutil, log
+from allmydata.util import assertutil, fileutil, testutil
 
 
 class IDLib(unittest.TestCase):

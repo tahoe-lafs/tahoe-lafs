@@ -1,17 +1,13 @@
 
 import os, time
-from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import log
 
-from foolscap import Tub, Referenceable
-from foolscap.eventual import fireEventually, flushEventualQueue
+from foolscap.eventual import flushEventualQueue
 from twisted.application import service
-import allmydata
 from allmydata.node import Node, formatTimeTahoeStyle
 from allmydata.util import testutil, fileutil
-from allmydata import logpublisher
 
 class LoggingMultiService(service.MultiService):
     def log(self, msg, **kw):
@@ -59,16 +55,3 @@ class TestCase(unittest.TestCase, testutil.SignalMixin):
         self.failUnless("Z" in t)
         t2 = formatTimeTahoeStyle("ignored", int(time.time()))
         self.failUnless("Z" in t2)
-
-class Gatherer(Referenceable):
-    implements(logpublisher.RILogGatherer)
-    def remote_logport(self, nodeid, logport):
-        d = logport.callRemote("get_versions")
-        d.addCallback(self.d.callback)
-
-class LogObserver(Referenceable):
-    implements(logpublisher.RILogObserver)
-    def __init__(self):
-        self.messages = []
-    def remote_msg(self, d):
-        self.messages.append(d)
