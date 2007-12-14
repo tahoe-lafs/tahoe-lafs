@@ -62,8 +62,8 @@ class SpeedTest:
         print "TIME (%s): %s up, %s down" % (key, times[0], times[1])
         self.upload_times[key], self.download_times[key] = times
 
-    def one_test(self, res, name, count, size):
-        d = self.client_rref.callRemote("speed_test", count, size)
+    def one_test(self, res, name, count, size, mutable):
+        d = self.client_rref.callRemote("speed_test", count, size, mutable)
         d.addCallback(self.record_times, name)
         return d
 
@@ -87,24 +87,27 @@ class SpeedTest:
         print "doing test"
         rr = self.client_rref
         d = defer.succeed(None)
-        d.addCallback(self.one_test, "startup", 1, 1000) # ignore this one
+        d.addCallback(self.one_test, "startup", 1, 1000, False) #ignore this one
         d.addCallback(self.measure_rtt)
-        d.addCallback(self.one_test, "1x 200B", 1, 200)
-        d.addCallback(self.one_test, "10x 200B", 10, 200)
+        d.addCallback(self.one_test, "1x 200B", 1, 200, False)
+        d.addCallback(self.one_test, "10x 200B", 10, 200, False)
         def _maybe_do_100x_200B(res):
             if self.upload_times["10x 200B"] < 5:
                 print "10x 200B test went too fast, doing 100x 200B test"
-                return self.one_test(None, "100x 200B", 100, 200)
+                return self.one_test(None, "100x 200B", 100, 200, False)
             return
-        d.addCallback(_maybe_do_100x_200B)
-        d.addCallback(self.one_test, "1MB", 1, 1*MB)
-        d.addCallback(self.one_test, "10MB", 1, 10*MB)
+        #d.addCallback(_maybe_do_100x_200B)
+        d.addCallback(self.one_test, "1MB", 1, 1*MB, False)
+        d.addCallback(self.one_test, "10MB", 1, 10*MB, False)
         def _maybe_do_100MB(res):
             if self.upload_times["10MB"] > 30:
                 print "10MB test took too long, skipping 100MB test"
                 return
-            return self.one_test(None, "100MB", 1, 100*MB)
-        d.addCallback(_maybe_do_100MB)
+            return self.one_test(None, "100MB", 1, 100*MB, False)
+        #d.addCallback(_maybe_do_100MB)
+        d.addCallback(self.one_test, "1x 200B SSK", 1, 200, True)
+        d.addCallback(self.one_test, "10x 200B SSK", 10, 200, True)
+        d.addCallback(self.one_test, "1MB SSK", 1, 1*MB, True)
         d.addCallback(self.calculate_speeds)
         return d
 
@@ -143,6 +146,25 @@ class SpeedTest:
         if "100MB" in self.download_times:
             A3 = 100*MB / (self.download_times["100MB"] - B)
             print "download speed (100MB):", self.number(A3, "Bps")
+
+
+        # upload SSK
+        if "100x 200B SSK" in self.upload_times:
+            B = self.upload_times["100x 200B SSK"] / 100
+        else:
+            B = self.upload_times["10x 200B SSK"] / 10
+        print "upload per-file time SSK: %.3fs" % B
+        A1 = 1*MB / (self.upload_times["1MB SSK"] - B) # in bytes per second
+        print "upload speed SSK (1MB):", self.number(A1, "Bps")
+
+        # download SSK
+        if "100x 200B SSK" in self.download_times:
+            B = self.download_times["100x 200B SSK"] / 100
+        else:
+            B = self.download_times["10x 200B SSK"] / 10
+        print "download per-file time SSK: %.3fs" % B
+        A1 = 1*MB / (self.download_times["1MB SSK"] - B) # in bytes per second
+        print "download speed SSK (1MB):", self.number(A1, "Bps")
 
     def number(self, value, suffix=""):
         scaling = 1

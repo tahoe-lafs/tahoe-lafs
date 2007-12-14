@@ -6,6 +6,7 @@ from twisted.internet import defer
 from foolscap import Referenceable
 from allmydata.interfaces import RIControlClient
 from allmydata.util import testutil, fileutil, mathutil
+from allmydata import upload, download
 from twisted.python import log
 
 def get_memory_usage():
@@ -52,10 +53,11 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
         d.addCallback(lambda res: filename)
         return d
 
-    def remote_speed_test(self, count, size):
+    def remote_speed_test(self, count, size, mutable):
         assert size > 8
-        log.msg("speed_test: count=%d, size=%d" % (count, size))
-        st = SpeedTest(self.parent, count, size)
+        log.msg("speed_test: count=%d, size=%d, mutable=%d" % (count, size,
+                                                               mutable))
+        st = SpeedTest(self.parent, count, size, mutable)
         return st.run()
 
     def remote_get_memory_usage(self):
@@ -95,10 +97,11 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
         return d
 
 class SpeedTest:
-    def __init__(self, parent, count, size):
+    def __init__(self, parent, count, size, mutable):
         self.parent = parent
         self.count = count
         self.size = size
+        self.mutable = mutable
         self.uris = {}
         self.basedir = os.path.join(self.parent.basedir, "_speed_test_data")
 
@@ -127,7 +130,6 @@ class SpeedTest:
             f.close()
 
     def do_upload(self):
-        uploader = self.parent.getServiceNamed("uploader")
         start = time.time()
         d = defer.succeed(None)
         def _record_uri(uri, i):
@@ -136,7 +138,13 @@ class SpeedTest:
             if i >= self.count:
                 return
             fn = os.path.join(self.basedir, str(i))
-            d1 = uploader.upload_filename(fn)
+            if self.mutable:
+                data = open(fn,"rb").read()
+                d1 = self.parent.create_mutable_file(data)
+                d1.addCallback(lambda n: n.get_uri())
+            else:
+                up = upload.FileName(fn)
+                d1 = self.parent.upload(up)
             d1.addCallback(_record_uri, i)
             d1.addCallback(_upload_one_file, i+1)
             return d1
@@ -148,13 +156,13 @@ class SpeedTest:
         return d
 
     def do_download(self):
-        downloader = self.parent.getServiceNamed("downloader")
         start = time.time()
         d = defer.succeed(None)
         def _download_one_file(ignored, i):
             if i >= self.count:
                 return
-            d1 = downloader.download_to_filehandle(self.uris[i], Discard())
+            n = self.parent.create_node_from_uri(self.uris[i])
+            d1 = n.download(download.FileHandle(Discard()))
             d1.addCallback(_download_one_file, i+1)
             return d1
         d.addCallback(_download_one_file, 0)
