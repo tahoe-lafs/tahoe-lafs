@@ -911,7 +911,7 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_POST_upload_no_link_whendone(self):
-        d = self.POST("/uri/", t="upload", when_done="/", 
+        d = self.POST("/uri/", t="upload", when_done="/",
                       file=("new.txt", self.NEWFILE_CONTENTS))
         d.addBoth(self.shouldRedirect, "/")
         # XXX Test that resulting welcome page has a "most recent
