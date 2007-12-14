@@ -997,7 +997,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             expected_data = open(filename, "r").read()
             self.failUnlessEqual(data, expected_data)
         d.addCallback(_check)
-        d.addCallback(lambda res: rref.callRemote("speed_test", 1, 200))
+        d.addCallback(lambda res: rref.callRemote("speed_test", 1, 200, False))
         if sys.platform == "linux2":
             d.addCallback(lambda res: rref.callRemote("get_memory_usage"))
         d.addCallback(lambda res: rref.callRemote("measure_peer_response_time"))
