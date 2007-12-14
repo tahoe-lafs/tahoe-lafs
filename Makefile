@@ -251,6 +251,8 @@ check-memory-once: .built
 
 check-speed: .built
 	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
+	@echo "stopping any leftover client code"
+	-$(PYTHON) bin/tahoe stop $(TESTCLIENTDIR)
 	$(PYTHON) bin/tahoe start $(TESTCLIENTDIR)
 	sleep 5
 	$(PYTHON) src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
