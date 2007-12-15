@@ -181,7 +181,7 @@ class Directory(rend.Page):
         ctx.fillSlots("check", check)
 
         # build the base of the uri_link link url
-        uri_link = "/uri/" + urllib.quote(target.get_uri().replace("/", "!"))
+        uri_link = "/uri/" + urllib.quote(target.get_uri())
 
         assert (IFileNode.providedBy(target)
                 or IDirectoryNode.providedBy(target)
@@ -1269,7 +1269,7 @@ class Root(rend.Page):
             if segments[0] == "uri":
                 if len(segments) == 1 or segments[1] == '':
                     if "uri" in req.args:
-                        uri = req.args["uri"][0].replace("/", "!")
+                        uri = req.args["uri"][0]
                         there = url.URL.fromContext(ctx)
                         there = there.clear("uri")
                         there = there.child("uri").child(uri)
@@ -1286,7 +1286,7 @@ class Root(rend.Page):
                         return URIPOSTHandler(), ()
                 if len(segments) < 2:
                     return rend.NotFound
-                uri = segments[1].replace("!", "/")
+                uri = segments[1]
                 d = defer.maybeDeferred(client.create_node_from_uri, uri)
                 d.addCallback(lambda node: VDrive(node, "from-uri"))
                 d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
@@ -1421,7 +1421,6 @@ class WebishServer(service.MultiService):
             # TODO: emit a start.html that explains that we don't know
             # how to create a suitable URL
         if private_uri:
-            private_uri = private_uri.replace("/","!")
             link_to_private_uri = "View <a href=\"%s/uri/%s\">your personal private non-shared filestore</a>." % (base_url, private_uri)
             fields = {"link_to_private_uri": link_to_private_uri,
                       "base_url": base_url,
