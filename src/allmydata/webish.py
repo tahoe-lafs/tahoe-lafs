@@ -336,7 +336,8 @@ class Directory(rend.Page):
     def build_overwrite(self, ctx, data):
         name, target = data
         if IMutableFileNode.providedBy(target) and not target.is_readonly():
-            overwrite = T.form(action=".", method="post",
+            action="/uri/" + urllib.quote(target.get_uri())
+            overwrite = T.form(action=action, method="post",
                                enctype="multipart/form-data")[
                 T.fieldset[
                 T.input(type="hidden", name="t", value="overwrite"),

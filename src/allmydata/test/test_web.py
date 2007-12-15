@@ -169,7 +169,7 @@ class WebMixin(object):
         url = self.webish_url + urlpath
         return client.getPage(url, method="DELETE")
 
-    def POST(self, urlpath, **fields):
+    def POST(self, urlpath, followRedirect=False, **fields):
         url = self.webish_url + urlpath
         sepbase = "boogabooga"
         sep = "--" + sepbase
@@ -194,7 +194,7 @@ class WebMixin(object):
         headers = {"content-type": "multipart/form-data; boundary=%s" % sepbase,
                    }
         return client.getPage(url, method="POST", postdata=body,
-                              headers=headers, followRedirect=False)
+                              headers=headers, followRedirect=followRedirect)
 
     def shouldFail(self, res, expected_failure, which,
                    substring=None, response_substring=None):
@@ -955,24 +955,6 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnlessEqual(self._mutable_uri, newnode.get_uri())
         d.addCallback(_got2)
 
-        # also test t=overwrite while we're here
-        EVEN_NEWER_CONTENTS = NEWER_CONTENTS + "even newer\n"
-        d.addCallback(lambda res:
-                      self.POST(self.public_url + "/foo/new.txt",
-                                t="overwrite",
-                                file=("new.txt", EVEN_NEWER_CONTENTS)))
-        d.addCallback(self.failUnlessURIMatchesChild, fn, "new.txt")
-        d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(fn, "new.txt",
-                                                      EVEN_NEWER_CONTENTS))
-        d.addCallback(lambda res: self._foo_node.get("new.txt"))
-        def _got3(newnode):
-            self.failUnless(IMutableFileNode.providedBy(newnode))
-            self.failUnless(newnode.is_mutable())
-            self.failIf(newnode.is_readonly())
-            self.failUnlessEqual(self._mutable_uri, newnode.get_uri())
-        d.addCallback(_got3)
-
         # finally list the directory, since mutable files are displayed
         # differently
 
@@ -983,7 +965,34 @@ class Web(WebMixin, unittest.TestCase):
             # TODO: assert more about the contents
             self.failUnless("Overwrite" in res)
             self.failUnless("Choose new file:" in res)
+            return res
         d.addCallback(_check_page)
+
+        # test that clicking on the "overwrite" button works
+        EVEN_NEWER_CONTENTS = NEWER_CONTENTS + "even newer\n"
+        OVERWRITE_FORM_RE=re.compile('<form action="(.*)" method="post" enctype="multipart/form-data"><fieldset><input type="hidden" name="t" value="overwrite" /><input type="hidden" name="name" value="(.*)" /><input type="hidden" name="when_done" value="(.*)" /><legend class="freeform-form-label">Overwrite</legend>Choose new file: <input type="file" class="freeform-input-file" name="file" /> <input type="submit" value="Overwrite" /></fieldset></form>', re.I)
+        def _parse_overwrite_form_and_submit(res):
+            mo = OVERWRITE_FORM_RE.search(res)
+            self.failUnless(mo)
+            formaction=mo.group(1)
+            formname=mo.group(2)
+            formwhendone=mo.group(3)
+
+            if formaction == ".":
+                formaction = self.public_url + "/foo"
+            return self.POST(formaction, t="overwrite", name=formname, when_done=formwhendone, file=("new.txt", EVEN_NEWER_CONTENTS), followRedirect=False)
+        d.addCallback(_parse_overwrite_form_and_submit)
+        d.addBoth(self.shouldRedirect, urllib.quote(self.public_url + "/foo/"))
+        d.addCallback(lambda res:
+                      self.failUnlessChildContentsAre(fn, "new.txt",
+                                                      EVEN_NEWER_CONTENTS))
+        d.addCallback(lambda res: self._foo_node.get("new.txt"))
+        def _got3(newnode):
+            self.failUnless(IMutableFileNode.providedBy(newnode))
+            self.failUnless(newnode.is_mutable())
+            self.failIf(newnode.is_readonly())
+            self.failUnlessEqual(self._mutable_uri, newnode.get_uri())
+        d.addCallback(_got3)
 
         return d
 
