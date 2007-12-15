@@ -691,7 +691,7 @@ class Retrieve:
         return plaintext
 
     def _done(self, contents):
-        self.log("DONE, contents: %r" % contents)
+        self.log("DONE")
         self._running = False
         eventually(self._done_deferred.callback, contents)
 
@@ -733,16 +733,13 @@ class Publish:
         It will wait until at least wait_for_numpeers peers are connected
         before it starts uploading
 
-        If wait_for_numpeers is None, then wait_for_numpeers is set to the
-        number of shares total (M).
+        If wait_for_numpeers is None then it will be set to a default value
+        (currently 1).
         """
+        if wait_for_numpeers is None:
+            wait_for_numpeers = 1
 
         self.log("starting publish")
-
-        if wait_for_numpeers is None:
-            # TODO: perhaps the default should be something like:
-            # wait_for_numpeers = self._node.get_total_shares()
-            wait_for_numpeers = 1
 
         d = self._node._client.introducer_client.when_enough_peers(wait_for_numpeers)
         d.addCallback(lambda dummy: self._after_enough_peers(newdata))
@@ -1127,7 +1124,7 @@ class Publish:
         # time. (Note: in the future, when we remove the _query_peers() step
         # and instead speculate about [or remember] which shares are where,
         # surprises here are *not* indications of UncoordinatedWriteError,
-        # and we'll need to respond to them more gracefully.
+        # and we'll need to respond to them more gracefully.)
 
         target_map, shares_per_peer, peer_storage_servers = target_info
 
