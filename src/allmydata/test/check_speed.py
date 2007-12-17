@@ -12,7 +12,7 @@ class SpeedTest:
     def __init__(self, test_client_dir):
         #self.real_stderr = sys.stderr
         log.startLogging(open("st.log", "a"), setStdout=False)
-        f = open(os.path.join(test_client_dir, "control.furl"), "r")
+        f = open(os.path.join(test_client_dir, "private", "control.furl"), "r")
         self.control_furl = f.read().strip()
         f.close()
         self.base_service = service.MultiService()

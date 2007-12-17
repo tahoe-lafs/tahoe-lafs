@@ -1335,7 +1335,7 @@ class Root(rend.Page):
 
     def render_private_vdrive(self, ctx, data):
         basedir = IClient(ctx).basedir
-        start_html = os.path.abspath(os.path.join(basedir, "start.html"))
+        start_html = os.path.abspath(os.path.join(basedir, "private", "start.html"))
         if os.path.exists(start_html):
             return T.p["To view your personal private non-shared filestore, ",
                        "use this browser to open the following file from ",
@@ -1408,7 +1408,6 @@ class WebishServer(service.MultiService):
 
     def _create_start_html(self, dummy, private_uri, startfile, nodeurl_file):
         f = open(startfile, "w")
-        os.chmod(startfile, 0600)
         template = open(util.sibpath(__file__, "web/start.html"), "r").read()
         # what is our webport?
         s = self.listener

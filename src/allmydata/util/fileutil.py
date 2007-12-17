@@ -96,21 +96,13 @@ class NamedTemporaryDirectory:
         if self.cleanup and hasattr(self, 'name'):
             rm_dir(self.name)
 
-def make_dirs(dirname, mode=0777, strictmode=False):
+def make_dirs(dirname, mode=0777):
     """
-    A threadsafe and idempotent version of os.makedirs().  If the dir already
-    exists, do nothing and return without raising an exception.  If this call
-    creates the dir, return without raising an exception.  If there is an
-    error that prevents creation or if the directory gets deleted after
-    make_dirs() creates it and before make_dirs() checks that it exists, raise
-    an exception.
-
-    @param strictmode if true, then make_dirs() will raise an exception if the
-        directory doesn't have the desired mode.  For example, if the
-        directory already exists, and has a different mode than the one
-        specified by the mode parameter, then if strictmode is true,
-        make_dirs() will raise an exception, else it will ignore the
-        discrepancy.
+    An idempotent version of os.makedirs().  If the dir already exists, do
+    nothing and return without raising an exception.  If this call creates the
+    dir, return without raising an exception.  If there is an error that
+    prevents creation or if the directory gets deleted after make_dirs() creates
+    it and before make_dirs() checks that it exists, raise an exception.
     """
     tx = None
     try:
@@ -122,21 +114,6 @@ def make_dirs(dirname, mode=0777, strictmode=False):
         if tx:
             raise tx
         raise exceptions.IOError, "unknown error prevented creation of directory, or deleted the directory immediately after creation: %s" % dirname # careful not to construct an IOError with a 2-tuple, as that has a special meaning...
-
-    tx = None
-    if hasattr(os, 'chmod'):
-        try:
-            os.chmod(dirname, mode)
-        except OSError, x:
-            tx = x
-
-    if strictmode and hasattr(os, 'stat'):
-        s = os.stat(dirname)
-        resmode = stat.S_IMODE(s.st_mode)
-        if resmode != mode:
-            if tx:
-                raise tx
-            raise exceptions.IOError, "unknown error prevented setting correct mode of directory, or changed mode of the directory immediately after creation.  dirname: %s, mode: %04o, resmode: %04o" % (dirname, mode, resmode,)  # careful not to construct an IOError with a 2-tuple, as that has a special meaning...
 
 def rm_dir(dirname):
     """

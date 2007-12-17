@@ -8,7 +8,7 @@ from twisted.internet import defer, reactor
 from foolscap import Tub, eventual
 from allmydata import get_package_versions_string
 from allmydata.util import log as tahoe_log
-from allmydata.util import iputil, observer, humanreadable
+from allmydata.util import fileutil, iputil, observer, humanreadable
 from allmydata.util.assertutil import precondition
 
 # Just to get their versions:
@@ -36,6 +36,12 @@ def formatTimeTahoeStyle(self, when):
     else:
         return d.isoformat(" ") + ".000Z"
 
+PRIV_README="""
+This directory contains files which contain private data for the Tahoe node,
+such as private keys.  On Unix-like systems, the permissions on this directory
+are set to disallow users other than its owner from reading the contents of
+the files.   See the 'configuration.txt' documentation file for details."""
+
 class Node(service.MultiService):
     # this implements common functionality of both Client nodes and Introducer
     # nodes.
@@ -48,9 +54,10 @@ class Node(service.MultiService):
         service.MultiService.__init__(self)
         self.basedir = os.path.abspath(basedir)
         self._tub_ready_observerlist = observer.OneShotObserverList()
-        certfile = os.path.join(self.basedir, self.CERTFILE)
+        fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
+        open(os.path.join(self.basedir, "private", "README"), "w").write(PRIV_README)
+        certfile = os.path.join(self.basedir, "private", self.CERTFILE)
         self.tub = Tub(certFile=certfile)
-        os.chmod(certfile, 0600)
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)
         self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
@@ -83,41 +90,49 @@ class Node(service.MultiService):
         self.log("Node constructed. " + get_package_versions_string())
         iputil.increase_rlimits()
 
-    def get_config(self, name, mode="r", required=False):
+    def get_config(self, name, required=False):
         """Get the (string) contents of a config file, or None if the file
         did not exist. If required=True, raise an exception rather than
         returning None. Any leading or trailing whitespace will be stripped
         from the data."""
         fn = os.path.join(self.basedir, name)
         try:
-            return open(fn, mode).read().strip()
+            return open(fn, "r").read().strip()
         except EnvironmentError:
             if not required:
                 return None
             raise
 
-    def get_or_create_config(self, name, default_fn, mode="w", filemode=None):
-        """Try to get the (string) contents of a config file, and return it.
-        Any leading or trailing whitespace will be stripped from the data.
+    def write_private_config(self, name, value):
+        """Write the (string) contents of a private config file (which is a
+        config file that resides within the subdirectory named 'private'), and
+        return it. Any leading or trailing whitespace will be stripped from
+        the data.
+        """
+        privname = os.path.join(self.basedir, "private", name)
+        open(privname, "w").write(value.strip())
 
-        If the file does not exist, try to create it using default_fn, and
-        then return the value that was written. If 'default_fn' is a string,
+    def get_or_create_private_config(self, name, default):
+        """Try to get the (string) contents of a private config file (which
+        is a config file that resides within the subdirectory named
+        'private'), and return it. Any leading or trailing whitespace will be
+        stripped from the data.
+
+        If the file does not exist, try to create it using default, and
+        then return the value that was written. If 'default' is a string,
         use it as a default value. If not, treat it as a 0-argument callable
         which is expected to return a string.
         """
-        value = self.get_config(name)
+        privname = os.path.join("private", name)
+        value = self.get_config(privname)
         if value is None:
-            if isinstance(default_fn, (str, unicode)):
-                value = default_fn
+            if isinstance(default, (str, unicode)):
+                value = default
             else:
-                value = default_fn()
-            fn = os.path.join(self.basedir, name)
+                value = default()
+            fn = os.path.join(self.basedir, privname)
             try:
-                f = open(fn, mode)
-                f.write(value)
-                f.close()
-                if filemode is not None:
-                    os.chmod(fn, filemode)
+                open(fn, "w").write(value)
             except EnvironmentError, e:
                 self.log("Unable to write config file '%s'" % fn)
                 self.log(e)

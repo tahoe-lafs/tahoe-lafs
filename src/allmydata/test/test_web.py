@@ -251,15 +251,16 @@ class Web(WebMixin, unittest.TestCase):
 
             self.s.basedir = 'web/test_welcome'
             fileutil.make_dirs("web/test_welcome")
+            fileutil.make_dirs("web/test_welcome/private")
             self.ws.create_start_html("private_uri",
-                                      "web/test_welcome/start.html",
+                                      "web/test_welcome/private/start.html",
                                       "web/test_welcome/node.url")
             return self.GET("/")
         d.addCallback(_check)
         def _check2(res):
             self.failUnless('To view your personal private non-shared' in res)
             self.failUnless('from your local filesystem:' in res)
-            self.failUnless(os.path.abspath('web/test_welcome/start.html')
+            self.failUnless(os.path.abspath('web/test_welcome/private/start.html')
                             in res)
         d.addCallback(_check2)
         return d
@@ -324,7 +325,8 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_start_html(self):
         fileutil.make_dirs("web")
-        startfile = "web/start.html"
+        fileutil.make_dirs("web/private")
+        startfile = "web/private/start.html"
         nodeurlfile = "web/node.url"
         self.ws.create_start_html("private_uri", startfile, nodeurlfile)
 

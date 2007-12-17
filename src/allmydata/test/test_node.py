@@ -1,5 +1,5 @@
 
-import os, time
+import os, stat, sys, time
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import log
@@ -55,3 +55,23 @@ class TestCase(unittest.TestCase, testutil.SignalMixin):
         self.failUnless("Z" in t)
         t2 = formatTimeTahoeStyle("ignored", int(time.time()))
         self.failUnless("Z" in t2)
+
+    def test_secrets_dir(self):
+        basedir = "test_node/test_secrets_dir"
+        fileutil.make_dirs(basedir)
+        n = TestNode(basedir)
+        self.failUnless(os.path.exists(os.path.join(basedir, "private")))
+
+    def test_secrets_dir_protected(self):
+        if "win32" in sys.platform.lower() or "cygwin" in sys.platform.lower():
+            # We don't know how to test that unprivileged users can't read this
+            # thing.  (Also we don't know exactly how to set the permissions so
+            # that unprivileged users can't read this thing.)
+            raise unittest.SkipTest("We don't know how to set permissions on Windows.")
+        basedir = "test_node/test_secrets_dir_protected"
+        fileutil.make_dirs(basedir)
+        n = TestNode(basedir)
+        privdir = os.path.join(basedir, "private")
+        st = os.stat(privdir)
+        bits = stat.S_IMODE(st[stat.ST_MODE])
+        self.failUnless(bits & 0001 == 0, bits)

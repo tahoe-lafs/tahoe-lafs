@@ -270,7 +270,7 @@ this file are ignored.
 
         # now we wait for the client to get started. we're looking for the
         # control.furl file to appear.
-        furl_file = os.path.join(clientdir, "control.furl")
+        furl_file = os.path.join(clientdir, "private", "control.furl")
         def _check():
             if pp.ended and pp.ended.value.status != 0:
                 # the twistd process ends normally (with rc=0) if the child

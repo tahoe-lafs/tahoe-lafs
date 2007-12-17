@@ -66,7 +66,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
 
     def _init_start_page(self, privdiruri):
         ws = self.getServiceNamed("webish")
-        startfile = os.path.join(self.basedir, "start.html")
+        startfile = os.path.join(self.basedir, "private", "start.html")
         nodeurl_file = os.path.join(self.basedir, "node.url")
         return ws.create_start_html(privdiruri, startfile, nodeurl_file)
 
@@ -82,8 +82,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
     def init_secret(self):
         def make_secret():
             return idlib.b2a(os.urandom(16)) + "\n"
-        secret_s = self.get_or_create_config("secret", make_secret,
-                                             filemode=0600)
+        secret_s = self.get_or_create_private_config("secret", make_secret)
         self._secret = idlib.a2b(secret_s)
 
     def init_storage(self):
@@ -206,10 +205,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         c = ControlServer()
         c.setServiceParent(self)
         control_url = self.tub.registerReference(c)
-        control_furl_file = os.path.join(self.basedir, "control.furl")
-        open(control_furl_file, "w").write(control_url + "\n")
-        os.chmod(control_furl_file, 0600)
-
+        self.write_private_config("control.furl", control_url + "\n")
 
     def remote_get_versions(self):
         return str(allmydata.__version__), str(self.OLDEST_SUPPORTED_VERSION)
