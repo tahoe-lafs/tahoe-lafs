@@ -179,7 +179,7 @@ class Server(unittest.TestCase):
 
     def setUp(self):
         self.sparent = service.MultiService()
-        self._secret = itertools.count()
+        self._lease_secret = itertools.count()
     def tearDown(self):
         return self.sparent.stopService()
 
@@ -197,8 +197,8 @@ class Server(unittest.TestCase):
         ss = self.create("test_create")
 
     def allocate(self, ss, storage_index, sharenums, size):
-        renew_secret = hashutil.tagged_hash("blah", "%d" % self._secret.next())
-        cancel_secret = hashutil.tagged_hash("blah", "%d" % self._secret.next())
+        renew_secret = hashutil.tagged_hash("blah", "%d" % self._lease_secret.next())
+        cancel_secret = hashutil.tagged_hash("blah", "%d" % self._lease_secret.next())
         return ss.remote_allocate_buckets(storage_index,
                                           renew_secret, cancel_secret,
                                           sharenums, size, Referenceable())
@@ -340,8 +340,8 @@ class Server(unittest.TestCase):
         sharenums = range(5)
         size = 100
 
-        rs0,cs0 = (hashutil.tagged_hash("blah", "%d" % self._secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._secret.next()))
+        rs0,cs0 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
+                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
         already,writers = ss.remote_allocate_buckets("si0", rs0, cs0,
                                                      sharenums, size, canary)
         self.failUnlessEqual(len(already), 0)
@@ -353,16 +353,16 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(leases), 1)
         self.failUnlessEqual(set([l[1] for l in leases]), set([rs0]))
 
-        rs1,cs1 = (hashutil.tagged_hash("blah", "%d" % self._secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._secret.next()))
+        rs1,cs1 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
+                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
         already,writers = ss.remote_allocate_buckets("si1", rs1, cs1,
                                                      sharenums, size, canary)
         for wb in writers.values():
             wb.remote_close()
 
         # take out a second lease on si1
-        rs2,cs2 = (hashutil.tagged_hash("blah", "%d" % self._secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._secret.next()))
+        rs2,cs2 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
+                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
         already,writers = ss.remote_allocate_buckets("si1", rs2, cs2,
                                                      sharenums, size, canary)
         self.failUnlessEqual(len(already), 5)
@@ -421,10 +421,10 @@ class Server(unittest.TestCase):
 
 
         # test overlapping uploads
-        rs3,cs3 = (hashutil.tagged_hash("blah", "%d" % self._secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._secret.next()))
-        rs4,cs4 = (hashutil.tagged_hash("blah", "%d" % self._secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._secret.next()))
+        rs3,cs3 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
+                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
+        rs4,cs4 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
+                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
         already,writers = ss.remote_allocate_buckets("si3", rs3, cs3,
                                                      sharenums, size, canary)
         self.failUnlessEqual(len(already), 0)
@@ -445,7 +445,7 @@ class MutableServer(unittest.TestCase):
 
     def setUp(self):
         self.sparent = service.MultiService()
-        self._secret = itertools.count()
+        self._lease_secret = itertools.count()
     def tearDown(self):
         return self.sparent.stopService()
 
@@ -491,7 +491,7 @@ class MutableServer(unittest.TestCase):
 
     def test_allocate(self):
         ss = self.create("test_allocate")
-        self.allocate(ss, "si1", "we1", self._secret.next(),
+        self.allocate(ss, "si1", "we1", self._lease_secret.next(),
                                set([0,1,2]), 100)
 
         read = ss.remote_slot_readv

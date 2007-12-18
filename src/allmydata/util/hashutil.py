@@ -1,6 +1,12 @@
 from pycryptopp.hash.sha256 import SHA256
 import os
 
+# Various crypto values are this size: hash outputs (from SHA-256),
+# randomly-generated secrets such as the lease secret, and symmetric encryption
+# keys.  In the near future we will add DSA private keys, and salts of various
+# kinds.
+CRYPTO_VAL_SIZE=32
+
 class IntegrityCheckError(Exception):
     pass
 

@@ -40,7 +40,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         self.logSource="Client"
         self.my_furl = None
         self.introducer_client = None
-        self.init_secret()
+        self.init_lease_secret()
         self.init_storage()
         self.init_options()
         self.add_service(Uploader())
@@ -79,11 +79,11 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
             d.addErrback(log.err)
         return self._start_page_observers.when_fired()
 
-    def init_secret(self):
+    def init_lease_secret(self):
         def make_secret():
-            return idlib.b2a(os.urandom(16)) + "\n"
+            return idlib.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
         secret_s = self.get_or_create_private_config("secret", make_secret)
-        self._secret = idlib.a2b(secret_s)
+        self._lease_secret = idlib.a2b(secret_s)
 
     def init_storage(self):
         storedir = os.path.join(self.basedir, self.STOREDIR)
@@ -252,10 +252,10 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         return False
 
     def get_renewal_secret(self):
-        return hashutil.my_renewal_secret_hash(self._secret)
+        return hashutil.my_renewal_secret_hash(self._lease_secret)
 
     def get_cancel_secret(self):
-        return hashutil.my_cancel_secret_hash(self._secret)
+        return hashutil.my_cancel_secret_hash(self._lease_secret)
 
     def debug_wait_for_client_connections(self, num_clients):
         """Return a Deferred that fires (with None) when we have connections
