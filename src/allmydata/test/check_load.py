@@ -37,6 +37,46 @@ a mean of 10kB and a max of 100MB, so filesize=min(int(1.0/random(.0002)),1e8)
 import os, sys, httplib, binascii
 import urllib, simplejson, random, time, urlparse
 
+if sys.argv[1] == "--stats":
+    statsfiles = sys.argv[2:]
+    # gather stats every 10 seconds, do a moving-window average of the last
+    # 60 seconds
+    DELAY = 10
+    MAXSAMPLES = 6
+    totals = []
+    last_stats = {}
+    while True:
+        stats = {}
+        for sf in statsfiles:
+            for line in open(sf, "r").readlines():
+                name, value = line.split(":")
+                value = int(value.strip())
+                if name not in stats:
+                    stats[name] = 0
+                stats[name] += float(value)
+        if last_stats:
+            delta = dict( [ (name,stats[name]-last_stats[name])
+                            for name in stats ] )
+            print "THIS SAMPLE:"
+            for name in sorted(delta.keys()):
+                avg = float(delta[name]) / float(DELAY)
+                print "%20s: %0.2f per second" % (name, avg)
+            totals.append(delta)
+            while len(totals) > MAXSAMPLES:
+                totals.pop(0)
+
+            # now compute average
+            print
+            print "MOVING WINDOW AVERAGE:"
+            for name in sorted(delta.keys()):
+                avg = sum([ s[name] for s in totals]) / (DELAY*len(totals))
+                print "%20s %0.2f per second" % (name, avg)
+
+        last_stats = stats
+        print
+        print
+        time.sleep(DELAY)
+
 stats_out = sys.argv[1]
 
 server_urls = []
@@ -50,6 +90,12 @@ readfreq, writefreq = (
     [int(x) for x in open("operation-mix", "r").read().strip().split("/")])
 
 
+files_uploaded = 0
+files_downloaded = 0
+bytes_uploaded = 0
+bytes_downloaded = 0
+directories_read = 0
+directories_written = 0
 
 def listdir(nodeurl, root, vdrive_pathname):
     if nodeurl[-1] != "/":
@@ -67,6 +113,8 @@ def listdir(nodeurl, root, vdrive_pathname):
         raise
     nodetype, d = parsed
     assert nodetype == "dirnode"
+    global directories_read
+    directories_read += 1
     return d['children']
 
 
@@ -89,10 +137,13 @@ def read_and_discard(nodeurl, root, pathname):
     if pathname:
         url += urllib.quote(pathname)
     f = urllib.urlopen(url)
+    global bytes_downloaded
     while True:
         data = f.read(4096)
         if not data:
             break
+        bytes_downloaded += len(data)
+
 
 directories = [
     "dreamland/disengaging/hucksters",
@@ -168,10 +219,12 @@ def generate_and_put(nodeurl, root, vdrive_fname, size):
     c.putheader("Connection", "close")
     c.putheader("Content-Length", "%d" % size)
     c.endheaders()
+    global bytes_uploaded
     while size:
         chunksize = min(size, 4096)
         size -= chunksize
         c.send("\x00" * chunksize)
+        bytes_uploaded += chunksize
     return c.getresponse()
 
 
@@ -179,7 +232,7 @@ current_writedir = ""
 
 while True:
     time.sleep(delay)
-    if random.uniform(0, readfreq+writefreq) > readfreq:
+    if random.uniform(0, readfreq+writefreq) < readfreq:
         op = "read"
     else:
         op = "write"
@@ -189,6 +242,7 @@ while True:
         pathname = choose_random_descendant(server, root)
         print "  reading", pathname
         read_and_discard(server, root, pathname)
+        files_downloaded += 1
     elif op == "write":
         if random.uniform(0, 100) < 10:
             current_writedir = create_random_directory()
@@ -201,4 +255,15 @@ while True:
         size = choose_size()
         print "   size", size
         generate_and_put(server, root, pathname, size)
+        files_uploaded += 1
+
+    f = open(stats_out+".tmp", "w")
+    f.write("files-uploaded: %d\n" % files_uploaded)
+    f.write("files-downloaded: %d\n" % files_downloaded)
+    f.write("bytes-uploaded: %d\n" % bytes_uploaded)
+    f.write("bytes-downloaded: %d\n" % bytes_downloaded)
+    f.write("directories-read: %d\n" % directories_read)
+    f.write("directories-written: %d\n" % directories_written)
+    f.close()
+    os.rename(stats_out+".tmp", stats_out)
 
