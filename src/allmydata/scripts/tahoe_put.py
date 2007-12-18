@@ -12,7 +12,7 @@ def put(nodeurl, root_uri, local_fname, vdrive_fname, verbosity,
     """
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    url = nodeurl + "uri/%s/" % urllib.quote(root_uri.replace("/","!"))
+    url = nodeurl + "uri/%s/" % urllib.quote(root_uri)
     if vdrive_fname:
         url += urllib.quote(vdrive_fname)
 

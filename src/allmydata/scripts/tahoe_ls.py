@@ -6,7 +6,7 @@ import simplejson
 def list(nodeurl, root_uri, vdrive_pathname, stdout, stderr):
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    url = nodeurl + "uri/%s/" % urllib.quote(root_uri.replace("/","!"))
+    url = nodeurl + "uri/%s/" % urllib.quote(root_uri)
     if vdrive_pathname:
         url += urllib.quote(vdrive_pathname)
     url += "?t=json"

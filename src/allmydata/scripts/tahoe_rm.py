@@ -11,7 +11,7 @@ def rm(nodeurl, root_uri, vdrive_pathname, verbosity, stdout, stderr):
     """
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    url = nodeurl + "uri/%s/" % urllib.quote(root_uri.replace("/","!"))
+    url = nodeurl + "uri/%s/" % urllib.quote(root_uri)
     if vdrive_pathname:
         url += urllib.quote(vdrive_pathname)
 

@@ -10,7 +10,7 @@ def mv(nodeurl, root_uri, frompath, topath, stdout, stderr):
     topath = urllib.quote(topath)
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    url = nodeurl + "uri/%s/" % urllib.quote(root_uri.replace("/","!"))
+    url = nodeurl + "uri/%s/" % urllib.quote(root_uri)
     data = urllib.urlopen(url + frompath + "?t=json").read()
 
     nodetype, attrs = simplejson.loads(data)
