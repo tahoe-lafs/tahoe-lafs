@@ -120,7 +120,11 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         read-write mutable directory URI, then I create a new mutable
         directory and write its URI into that file.
         """
-        privdirfile = os.path.join(self.basedir, self.MY_PRIVATE_DIR_FILE)
+        # TODO: change this to use Node.get_or_create_private_config(). That
+        # will probably require passing a validation function in, or
+        # something.
+        privdirfile = os.path.join(self.basedir, "private",
+                                   self.MY_PRIVATE_DIR_FILE)
         if os.path.exists(privdirfile):
             try:
                 theuri = open(privdirfile, "r").read().strip()
