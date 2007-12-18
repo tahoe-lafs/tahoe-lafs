@@ -1336,7 +1336,8 @@ class Root(rend.Page):
     def render_private_vdrive(self, ctx, data):
         basedir = IClient(ctx).basedir
         start_html = os.path.abspath(os.path.join(basedir, "private", "start.html"))
-        if os.path.exists(start_html):
+        basedir = IClient(ctx).basedir
+        if os.path.exists(start_html) and os.path.exists(os.path.join(basedir, "private", "my_private_dir.cap")):
             return T.p["To view your personal private non-shared filestore, ",
                        "use this browser to open the following file from ",
                        "your local filesystem:",
