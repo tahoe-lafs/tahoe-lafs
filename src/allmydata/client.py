@@ -30,7 +30,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
     STOREDIR = 'storage'
     NODETYPE = "client"
     SUICIDE_PREVENTION_HOTLINE_FILE = "suicide_prevention_hotline"
-    PRIVATE_DIRECTORY_URI = "my_private_dir.uri"
+    MY_PRIVATE_DIR_FILE = "my_private_dir.cap"
 
     # we're pretty narrow-minded right now
     OLDEST_SUPPORTED_VERSION = allmydata.__version__
@@ -115,12 +115,12 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
 
     def _maybe_create_private_directory(self):
         """
-        If 'my_private_dir.uri' exists, then I try to read a mutable
+        If 'my_private_dir.cap' exists, then I try to read a mutable
         directory URI from it.  If it exists but doesn't contain a well-formed
         read-write mutable directory URI, then I create a new mutable
         directory and write its URI into that file.
         """
-        privdirfile = os.path.join(self.basedir, self.PRIVATE_DIRECTORY_URI)
+        privdirfile = os.path.join(self.basedir, self.MY_PRIVATE_DIR_FILE)
         if os.path.exists(privdirfile):
             try:
                 theuri = open(privdirfile, "r").read().strip()

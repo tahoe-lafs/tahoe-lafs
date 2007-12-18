@@ -11,7 +11,7 @@ class VDriveOptions(BaseOptions, usage.Options):
          "Look here to find out which Tahoe node should be used for all "
          "operations. The directory should either contain a full Tahoe node, "
          "or a file named node.url which points to some other Tahoe node. "
-         "It should also contain a file named my_private_dir.uri which contains "
+         "It should also contain a file named my_private_dir.cap which contains "
          "the root dirnode URI that should be used."
          ],
         ["node-url", "u", None,
@@ -20,7 +20,7 @@ class VDriveOptions(BaseOptions, usage.Options):
         ["root-uri", "r", "private",
          "Which dirnode URI should be used as a root directory.  The "
          "string 'private' is also, and means we should use the "
-         "private vdrive as found in the my_private_dir.uri file in the "
+         "private vdrive as found in the my_private_dir.cap file in the "
          "--node-directory ."],
         ]
 
@@ -41,7 +41,7 @@ class VDriveOptions(BaseOptions, usage.Options):
 
         # also compute self['root-uri']
         if self['root-uri'] == "private":
-            uri_file = os.path.join(self['node-directory'], "my_private_dir.uri")
+            uri_file = os.path.join(self['node-directory'], "my_private_dir.cap")
             self['root-uri'] = open(uri_file, "r").read().strip()
         else:
             from allmydata import uri

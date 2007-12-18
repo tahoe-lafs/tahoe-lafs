@@ -56,9 +56,9 @@ def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
         f = open(os.path.join(basedir, "webport"), "w")
         f.write(config['webport'] + "\n")
         f.close()
-    # Create an empty my_private_dir.uri file, indicating that the node
+    # Create an empty my_private_dir.cap file, indicating that the node
     # should fill it with the URI after creating the directory.
-    open(os.path.join(basedir, "my_private_dir.uri"), "w")
+    open(os.path.join(basedir, "my_private_dir.cap"), "w")
     print >>out, "client created in %s" % basedir
     print >>out, " please copy introducer.furl into the directory"
 

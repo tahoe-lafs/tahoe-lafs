@@ -70,7 +70,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             if i == 0:
                 open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
             if self.createprivdir:
-                open(os.path.join(basedir, "my_private_dir.uri"), "w")
+                open(os.path.join(basedir, "my_private_dir.cap"), "w")
             open(os.path.join(basedir, "introducer.furl"), "w").write(self.introducer_furl)
             c = self.add_service(client.Client(basedir=basedir))
             self.clients.append(c)

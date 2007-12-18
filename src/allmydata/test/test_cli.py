@@ -20,7 +20,7 @@ class CLI(unittest.TestCase):
         filenode_uri = uri.WriteableSSKFileURI(writekey="\x00"*16,
                                                fingerprint="\x00"*32)
         private_uri = uri.NewDirectoryURI(filenode_uri).to_string()
-        open("cli/test_options/my_private_dir.uri", "w").write(private_uri + "\n")
+        open("cli/test_options/my_private_dir.cap", "w").write(private_uri + "\n")
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
