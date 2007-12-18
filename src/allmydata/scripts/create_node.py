@@ -58,6 +58,8 @@ def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
         f.close()
     # Create an empty my_private_dir.cap file, indicating that the node
     # should fill it with the URI after creating the directory.
+    from allmydata.util import fileutil
+    fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
     open(os.path.join(basedir, "private", "my_private_dir.cap"), "w")
     print >>out, "client created in %s" % basedir
     print >>out, " please copy introducer.furl into the directory"
