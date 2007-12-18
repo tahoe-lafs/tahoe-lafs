@@ -135,7 +135,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
                     log.msg("created new private directory: %s" % (newdirnode,))
                     privdiruri = newdirnode.get_uri()
                     self.private_directory_uri = privdiruri
-                    open(privdirfile, "w+").write(privdiruri)
+                    open(privdirfile, "w").write(privdiruri + "\n")
                     self._private_uri_observers.fire(privdiruri)
                 d.addCallback(_when_created)
                 d.addErrback(self._private_uri_observers.fire)
