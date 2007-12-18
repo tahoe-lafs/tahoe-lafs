@@ -13,7 +13,31 @@ Nodeid = StringConstraint(maxLength=20,
 FURL = StringConstraint(1000)
 StorageIndex = StringConstraint(16)
 URI = StringConstraint(300) # kind of arbitrary
-DirnodeURI = StringConstraint(300, regexp=r'^URI:DIR(-RO)?:pb://[a-z0-9]+@[^/]+/[^:]+:[a-z0-9]+$')
+
+ZBASE32CHAR = "[ybndrfg8ejkmcpqxot1uwisza345h769]" # excludes l, 0, 2, and v
+ZBASE32CHAR_3bits = "[yoearcwh]"
+ZBASE32CHAR_1bits = "[yo]"
+ZBASE32STR_128bits = "%s{25}%s" % (ZBASE32CHAR, ZBASE32CHAR_3bits)
+ZBASE32STR_256bits = "%s{51}%s" % (ZBASE32CHAR, ZBASE32CHAR_1bits)
+COLON="(:|%3A)"
+
+# Writeable SSK bits
+WSSKBITS= "%s%s%s" % (ZBASE32STR_128bits, COLON, ZBASE32STR_256bits)
+
+# URIs (soon to be renamed "caps") are always allowed to come with a leading
+# "http://127.0.0.1:8123/uri/" that will be ignored.
+OPTIONALHTTPLEAD=r'(https?://(127.0.0.1|localhost):8123/uri/)?'
+
+# Writeable SSK URI
+WSSKURI="^%sURI%sSSK%s%s$" % (OPTIONALHTTPLEAD, COLON, COLON, WSSKBITS)
+
+WriteableSSKFileURI = StringConstraint(300, regexp=WSSKURI)
+
+# NewDirectory Read-Write URI
+NDRWURI="^%sURI%sDIR2%s%s/?$" % (OPTIONALHTTPLEAD, COLON, COLON, WSSKBITS)
+
+DirnodeURI = StringConstraint(300,  regexp=NDRWURI)
+
 MAX_BUCKETS = 200  # per peer
 
 # MAX_SEGMENT_SIZE in encode.py is 1 MiB (this constraint allows k = 1)

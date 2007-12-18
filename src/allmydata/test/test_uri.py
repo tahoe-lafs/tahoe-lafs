@@ -168,7 +168,7 @@ class Invalid(unittest.TestCase):
 
 class Constraint(unittest.TestCase):
     def test_constraint(self):
-       good = 'URI:DIR:pb://xextf3eap44o3wi27mf7ehiur6wvhzr6@207.7.153.180:56677,127.0.0.1:56677/vdrive:qj51rfpnukhjmo7cm9awe5ks5e'
+       good="http://127.0.0.1:8123/uri/URI%3ADIR2%3Aqo8ayna47cpw3rx3kho3mu7q4h%3Abk9qbgx76gh6eyj5ps8p6buz8fffw1ofc37e9w9d6ncsfpuz7icy/"
        DirnodeURI.checkObject(good, False)
        bad = good + '==='
        self.failUnlessRaises(Violation, DirnodeURI.checkObject, bad, False)
@@ -305,12 +305,12 @@ class NewDirnode(unittest.TestCase):
 
     def test_is_string_newdirnode_rw(self):
         writekey = "\x01" * 16
-        fingerprint = "\x02" * 16
+        fingerprint = "\x02" * 32
 
         n = uri.WriteableSSKFileURI(writekey, fingerprint)
         u1 = uri.NewDirectoryURI(n)
 
-        self.failUnless(uri.is_string_newdirnode_rw(u1.to_string()))
+        self.failUnless(uri.is_string_newdirnode_rw(u1.to_string()), u1.to_string())
 
         self.failIf(uri.is_string_newdirnode_rw("bogus"))
         self.failIf(uri.is_string_newdirnode_rw("URI:DIR2:bogus"))

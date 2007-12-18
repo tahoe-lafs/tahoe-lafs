@@ -4,7 +4,8 @@ from zope.interface import implements
 from twisted.python.components import registerAdapter
 from allmydata.util import idlib, hashutil
 from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IVerifierURI, \
-     IMutableFileURI, INewDirectoryURI, IReadonlyNewDirectoryURI
+     IMutableFileURI, INewDirectoryURI, IReadonlyNewDirectoryURI, DirnodeURI
+import foolscap
 
 # the URI shall be an ascii representation of the file. It shall contain
 # enough information to retrieve and validate the contents. It shall be
@@ -417,13 +418,11 @@ def from_string_dirnode(s):
 registerAdapter(from_string_dirnode, str, IDirnodeURI)
 
 def is_string_newdirnode_rw(s):
-    if not s.startswith("URI:DIR2:"):
-        return False
     try:
-        (header_uri, header_dir2, writekey_s, fingerprint_s) = s.split(":", 3)
-    except ValueError:
+        DirnodeURI.checkObject(s, inbound=False)
+        return True
+    except foolscap.tokens.Violation, v:
         return False
-    return idlib.could_be_base32_encoded(writekey_s) and idlib.could_be_base32_encoded(fingerprint_s)
 
 def from_string_filenode(s):
     u = from_string(s)
