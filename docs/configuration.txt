@@ -63,7 +63,7 @@ possibly more reliable) limit, use a symlink to place the 'storage/'
 directory on a separate size-limited filesystem, and/or use per-user
 OS/filesystem quotas.
 
-my_private_dir.uri (optional): When you create a new tahoe client, this
+my_private_dir.cap (optional): When you create a new tahoe client, this
 file is created with no contents (as an empty file).  When the node starts
 up, it will inspect this file.  If the file doesn't exist then nothing will
 be done.  If the file exists, then the node will try to read the contents of

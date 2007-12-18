@@ -258,10 +258,11 @@ class Web(WebMixin, unittest.TestCase):
             return self.GET("/")
         d.addCallback(_check)
         def _check2(res):
-            self.failUnless('To view your personal private non-shared' in res)
-            self.failUnless('from your local filesystem:' in res)
-            self.failUnless(os.path.abspath('web/test_welcome/private/start.html')
-                            in res)
+            # We shouldn't link to the start.html page since we don't have a 
+            # private directory cap.
+            self.failIf('To view your personal private non-shared' in res)
+            self.failIf('from your local filesystem:' in res)
+            self.failIf(os.path.abspath('web/test_welcome/private/start.html') in res)
         d.addCallback(_check2)
         return d
 
