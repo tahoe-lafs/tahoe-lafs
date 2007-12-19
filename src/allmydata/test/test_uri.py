@@ -2,8 +2,8 @@
 from twisted.trial import unittest
 from allmydata import uri
 from allmydata.util import hashutil
-from allmydata.interfaces import IURI, IFileURI, IDirnodeURI, DirnodeURI, \
-     IMutableFileURI, IVerifierURI
+from allmydata.interfaces import IURI, IFileURI, IDirnodeURI, IMutableFileURI, \
+    IVerifierURI
 from foolscap.schema import Violation
 
 class Literal(unittest.TestCase):
@@ -169,11 +169,11 @@ class Invalid(unittest.TestCase):
 class Constraint(unittest.TestCase):
     def test_constraint(self):
        good="http://127.0.0.1:8123/uri/URI%3ADIR2%3Aqo8ayna47cpw3rx3kho3mu7q4h%3Abk9qbgx76gh6eyj5ps8p6buz8fffw1ofc37e9w9d6ncsfpuz7icy/"
-       DirnodeURI.checkObject(good, False)
+       self.failUnless(uri.DirnodeURI_RE.search(good))
        bad = good + '==='
-       self.failUnlessRaises(Violation, DirnodeURI.checkObject, bad, False)
+       self.failIf(uri.DirnodeURI_RE.search(bad))
        fileURI = 'URI:CHK:f3mf6az85wpcai8ma4qayfmxuc:nnw518w5hu3t5oohwtp7ah9n81z9rfg6c1ywk33ia3m64o67nsgo:3:10:345834'
-       self.failUnlessRaises(Violation, DirnodeURI.checkObject, fileURI, False)
+       self.failIf(uri.DirnodeURI_RE.search(fileURI))
 
 
 class Mutable(unittest.TestCase):

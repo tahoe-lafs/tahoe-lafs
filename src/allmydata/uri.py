@@ -4,12 +4,32 @@ from zope.interface import implements
 from twisted.python.components import registerAdapter
 from allmydata.util import idlib, hashutil
 from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IVerifierURI, \
-     IMutableFileURI, INewDirectoryURI, IReadonlyNewDirectoryURI, DirnodeURI
+     IMutableFileURI, INewDirectoryURI, IReadonlyNewDirectoryURI
 import foolscap
 
 # the URI shall be an ascii representation of the file. It shall contain
 # enough information to retrieve and validate the contents. It shall be
 # expressed in a limited character set (namely [TODO]).
+
+ZBASE32CHAR = "[ybndrfg8ejkmcpqxot1uwisza345h769]" # excludes l, 0, 2, and v
+ZBASE32CHAR_3bits = "[yoearcwh]"
+ZBASE32CHAR_1bits = "[yo]"
+ZBASE32STR_128bits = "%s{25}%s" % (ZBASE32CHAR, ZBASE32CHAR_3bits)
+ZBASE32STR_256bits = "%s{51}%s" % (ZBASE32CHAR, ZBASE32CHAR_1bits)
+COLON="(:|%3A)"
+
+# Writeable SSK bits
+WSSKBITS= "%s%s%s" % (ZBASE32STR_128bits, COLON, ZBASE32STR_256bits)
+
+# URIs (soon to be renamed "caps") are always allowed to come with a leading
+# "http://127.0.0.1:8123/uri/" that will be ignored.
+OPTIONALHTTPLEAD=r'(https?://(127.0.0.1|localhost):8123/uri/)?'
+
+# Writeable SSK URI
+WriteableSSKFileURI_RE=re.compile("^%sURI%sSSK%s%s$" % (OPTIONALHTTPLEAD, COLON, COLON, WSSKBITS))
+
+# NewDirectory Read-Write URI
+DirnodeURI_RE=re.compile("^%sURI%sDIR2%s%s/?$" % (OPTIONALHTTPLEAD, COLON, COLON, WSSKBITS))
 
 
 class _BaseURI:
@@ -418,11 +438,7 @@ def from_string_dirnode(s):
 registerAdapter(from_string_dirnode, str, IDirnodeURI)
 
 def is_string_newdirnode_rw(s):
-    try:
-        DirnodeURI.checkObject(s, inbound=False)
-        return True
-    except foolscap.tokens.Violation, v:
-        return False
+    return DirnodeURI_RE.search(s)
 
 def from_string_filenode(s):
     u = from_string(s)
