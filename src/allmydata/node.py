@@ -204,9 +204,13 @@ class Node(service.MultiService):
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
 
         self.tub.setOption("logport-furlfile",
-                           os.path.join(self.basedir, "logport.furl"))
+                           os.path.join(self.basedir, "private","logport.furl"))
         self.tub.setOption("log-gatherer-furlfile",
                            os.path.join(self.basedir, "log_gatherer.furl"))
+        # provoke foolscap into registering the logport when it can, so that
+        # the 'logport.furl' file will be available for people to use
+        # 'flogtool tail'.
+        self.when_tub_ready().addCallback(lambda res: self.tub.getLogPortFURL())
 
     def log(self, msg, src="", args=(), **kw):
         if src:
