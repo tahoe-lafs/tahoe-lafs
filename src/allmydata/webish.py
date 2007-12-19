@@ -12,7 +12,8 @@ from allmydata.util import fileutil
 import simplejson
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode, \
      IMutableFileNode
-from allmydata import upload, download
+from allmydata import download
+from allmydata.upload import FileHandle, FileName
 from allmydata import provisioning
 from allmydata import get_package_versions_string
 from zope.interface import implements, Interface
@@ -727,9 +728,7 @@ class POSTHandler(rend.Page):
                 raise RuntimeError("mkdir requires a name")
             d = self._check_replacement(name)
             d.addCallback(lambda res: self._node.create_empty_directory(name))
-            def _done(res):
-                return "directory created"
-            d.addCallback(_done)
+            d.addCallback(lambda res: "directory created")
         elif t == "uri":
             if not name:
                 raise RuntimeError("set-uri requires a name")
@@ -739,9 +738,7 @@ class POSTHandler(rend.Page):
                 newuri = req.fields["uri"].value.strip()
             d = self._check_replacement(name)
             d.addCallback(lambda res: self._node.set_uri(name, newuri))
-            def _done(res):
-                return newuri
-            d.addCallback(_done)
+            d.addCallback(lambda res: newuri)
         elif t == "delete":
             if name is None:
                 # apparently an <input type="hidden" name="name" value="">
@@ -754,9 +751,7 @@ class POSTHandler(rend.Page):
                 # buttons ourselves.
                 name = ''
             d = self._node.delete(name)
-            def _done(res):
-                return "thing deleted"
-            d.addCallback(_done)
+            d.addCallback(lambda res: "thing deleted")
         elif t == "rename":
             from_name = 'from_name' in req.fields and req.fields["from_name"].value
             if from_name is not None:
@@ -783,9 +778,7 @@ class POSTHandler(rend.Page):
             def rm_src(junk):
                 return self._node.delete(from_name)
             d.addCallback(rm_src)
-            def _done(res):
-                return "thing renamed"
-            d.addCallback(_done)
+            d.addCallback(lambda res: "thing renamed")
 
         elif t == "upload":
             if "mutable" in req.fields:
@@ -798,7 +791,7 @@ class POSTHandler(rend.Page):
                 # SDMF: files are small, and we can only upload data.
                 contents.file.seek(0)
                 data = contents.file.read()
-                uploadable = upload.FileHandle(contents.file)
+                uploadable = FileHandle(contents.file)
                 d = self._check_replacement(name)
                 d.addCallback(lambda res: self._node.has_child(name))
                 def _checked(present):
@@ -827,7 +820,7 @@ class POSTHandler(rend.Page):
                     name = name.strip()
                 if not name:
                     raise RuntimeError("upload requires a name")
-                uploadable = upload.FileHandle(contents.file)
+                uploadable = FileHandle(contents.file)
                 d = self._check_replacement(name)
                 d.addCallback(lambda res: self._node.add_file(name, uploadable))
                 def _done(newnode):
@@ -841,21 +834,21 @@ class POSTHandler(rend.Page):
             data = contents.file.read()
             # TODO: 'name' handling needs review
             d = defer.succeed(self._node)
-            def _got_child(child_node):
+            def _got_child_overwrite(child_node):
                 child_node.replace(data)
                 return child_node.get_uri()
-            d.addCallback(_got_child)
+            d.addCallback(_got_child_overwrite)
 
         elif t == "check":
             d = self._node.get(name)
-            def _got_child(child_node):
+            def _got_child_check(child_node):
                 d2 = child_node.check()
                 def _done(res):
                     log.msg("checked %s, results %s" % (child_node, res))
                     return str(res)
                 d2.addCallback(_done)
                 return d2
-            d.addCallback(_got_child)
+            d.addCallback(_got_child_check)
         else:
             print "BAD t=%s" % t
             return "BAD t=%s" % t
@@ -979,7 +972,7 @@ class PUTHandler(rend.Page):
         return d
 
     def _upload_file(self, node, contents, name):
-        uploadable = upload.FileHandle(contents)
+        uploadable = FileHandle(contents)
         d = node.add_file(name, uploadable)
         def _done(filenode):
             log.msg("webish upload complete")
@@ -988,7 +981,7 @@ class PUTHandler(rend.Page):
         return d
 
     def _upload_localfile(self, node, localfile, name):
-        uploadable = upload.FileName(localfile)
+        uploadable = FileName(localfile)
         d = node.add_file(name, uploadable)
         d.addCallback(lambda filenode: filenode.get_uri())
         return d
@@ -1172,17 +1165,17 @@ class VDrive(rend.Page):
             # the node must exist, and our operation will be performed on the
             # node itself.
             d = self.get_child_at_path(path)
-            def _got(node):
+            def _got_POST(node):
                 return POSTHandler(node, replace), ()
-            d.addCallback(_got)
+            d.addCallback(_got_POST)
         elif method == "DELETE":
             # the node must exist, and our operation will be performed on its
             # parent node.
             assert path # you can't delete the root
             d = self.get_child_at_path(path[:-1])
-            def _got(node):
+            def _got_DELETE(node):
                 return DELETEHandler(node, path[-1]), ()
-            d.addCallback(_got)
+            d.addCallback(_got_DELETE)
         elif method in ("PUT",):
             # the node may or may not exist, and our operation may involve
             # all the ancestors of the node.
@@ -1207,7 +1200,7 @@ class URIPUTHandler(rend.Page):
         if t == "":
             # "PUT /uri", to create an unlinked file. This is like PUT but
             # without the associated set_uri.
-            uploadable = upload.FileHandle(req.content)
+            uploadable = FileHandle(req.content)
             d = IClient(ctx).upload(uploadable)
             # that fires with the URI of the new file
             return d
@@ -1234,7 +1227,7 @@ class URIPOSTHandler(rend.Page):
         if t in ("", "upload"):
             # "POST /uri", to create an unlinked file.
             fileobj = req.fields["file"].file
-            uploadable = upload.FileHandle(fileobj)
+            uploadable = FileHandle(fileobj)
             d = IClient(ctx).upload(uploadable)
             # that fires with the URI of the new file
             return d

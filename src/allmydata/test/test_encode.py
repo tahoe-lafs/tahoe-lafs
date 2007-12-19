@@ -248,10 +248,6 @@ class Encode(unittest.TestCase):
         # 4 segments: 25,25,25,25
         return self.do_encode(25, 100, 100, 4, 7, 8)
 
-    def test_send_101(self):
-        # encode a 101 byte file (in 5 segments: 25,25,25,25,1) to 100 shares
-        return self.do_encode(25, self.make_data(101), 100, 5, 15, 8)
-
     def test_send_124(self):
         # 5 segments: 25, 25, 25, 25, 24
         return self.do_encode(25, 124, 100, 5, 15, 8)
