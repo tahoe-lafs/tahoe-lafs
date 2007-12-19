@@ -714,10 +714,12 @@ class Publish:
         num = self._node._client.log("Publish(%s): starting" % prefix)
         self._log_number = num
 
-    def log(self, msg):
+    def log(self, msg, parent=None):
         prefix = self._log_prefix
+        if parent is None:
+            parent = self._log_number
         num = self._node._client.log("Publish(%s): %s" % (prefix, msg),
-                                     parent=self._log_number)
+                                     parent=parent)
         return num
 
     def log_err(self, f):
