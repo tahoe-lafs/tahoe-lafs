@@ -5,7 +5,6 @@ from twisted.python.components import registerAdapter
 from allmydata.util import idlib, hashutil
 from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IVerifierURI, \
      IMutableFileURI, INewDirectoryURI, IReadonlyNewDirectoryURI
-import foolscap
 
 # the URI shall be an ascii representation of the file. It shall contain
 # enough information to retrieve and validate the contents. It shall be

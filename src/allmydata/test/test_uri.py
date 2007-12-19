@@ -4,7 +4,6 @@ from allmydata import uri
 from allmydata.util import hashutil
 from allmydata.interfaces import IURI, IFileURI, IDirnodeURI, IMutableFileURI, \
     IVerifierURI
-from foolscap.schema import Violation
 
 class Literal(unittest.TestCase):
     def _help_test(self, data):
