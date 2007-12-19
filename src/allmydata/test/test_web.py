@@ -606,6 +606,35 @@ class Web(WebMixin, unittest.TestCase):
 
         return d
 
+    def test_GET_DIRURL_large(self):
+        # Nevow has a problem showing more than about 192 children of a
+        # directory: it uses defer.success() and d.addCallback in a way that
+        # can make the stack grow very quickly. See ticket #237 for details.
+        # To work around this, I think we'll need to put a 'return
+        # defer.fireEventually' in our render_ method. This test is intended
+        # to trigger the bug (and eventually verify that our workaround
+        # actually works), but it isn't yet failing for me.
+
+        d = self.s.create_empty_dirnode()
+        COUNT = 400
+        def _created(dirnode):
+            entries = [ (str(i), self._foo_uri) for i in range(COUNT) ]
+            d2 = dirnode.set_uris(entries)
+            d2.addCallback(lambda res: dirnode)
+            return d2
+        d.addCallback(_created)
+
+        def _check(dirnode):
+            large_url = "/uri/" + dirnode.get_uri() + "/"
+            return self.GET(large_url)
+        d.addCallback(_check)
+
+        def _done(res):
+            self.failUnless('<a href="%d">%d</a>' % (COUNT-1, COUNT-1) in res)
+            self.failIf("maximum recursion depth exceeded" in res)
+        d.addCallback(_done)
+        return d
+
     def test_GET_DIRURL_json(self):
         d = self.GET(self.public_url + "/foo?t=json")
         d.addCallback(self.failUnlessIsFooJSON)

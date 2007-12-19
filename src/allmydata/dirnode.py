@@ -6,7 +6,7 @@ from twisted.internet import defer
 import simplejson
 from allmydata.mutable import NotMutableError
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
-     IURI, IFileNode, IMutableFileURI, IVerifierURI
+     IURI, IFileNode, IMutableFileURI, IVerifierURI, IFilesystemNode
 from allmydata.util import hashutil
 from allmydata.util.hashutil import netstring
 from allmydata.uri import NewDirectoryURI
@@ -131,7 +131,7 @@ class NewDirectoryNode:
             child, metadata = children[name]
             assert (IFileNode.providedBy(child)
                     or IMutableFileNode.providedBy(child)
-                    or IDirectoryNode.providedBy(child)), children
+                    or IDirectoryNode.providedBy(child)), (name,child)
             assert isinstance(metadata, dict)
             rwcap = child.get_uri() # might be RO if the child is not writeable
             rocap = child.get_readonly_uri()
@@ -224,7 +224,20 @@ class NewDirectoryNode:
 
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
-        return self.set_node(name, self._create_node(child_uri), metadata, wait_for_numpeers=wait_for_numpeers)
+        return self.set_node(name, self._create_node(child_uri), metadata,
+                             wait_for_numpeers)
+
+    def set_uris(self, entries, wait_for_numpeers=None):
+        node_entries = []
+        for e in entries:
+            if len(e) == 2:
+                name, child_uri = e
+                metadata = {}
+            else:
+                assert len(e) == 3
+                name, child_uri, metadata = e
+            node_entries.append( (name,self._create_node(child_uri),metadata) )
+        return self.set_nodes(node_entries, wait_for_numpeers)
 
     def set_node(self, name, child, metadata={}, wait_for_numpeers=None):
         """I add a child at the specific name. I return a Deferred that fires
@@ -234,16 +247,30 @@ class NewDirectoryNode:
 
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
+        assert IFilesystemNode.providedBy(child), child
+        d = self.set_nodes( [(name, child, metadata)], wait_for_numpeers)
+        d.addCallback(lambda res: child)
+        return d
+
+    def set_nodes(self, entries, wait_for_numpeers=None):
         if self.is_readonly():
             return defer.fail(NotMutableError())
         d = self._read()
         def _add(children):
-            children[name] = (child, metadata)
+            for e in entries:
+                if len(e) == 2:
+                    name, child = e
+                    metadata = {}
+                else:
+                    assert len(e) == 3
+                    name, child, metadata = e
+                children[name] = (child, metadata)
             new_contents = self._pack_contents(children)
             return self._node.replace(new_contents, wait_for_numpeers=wait_for_numpeers)
         d.addCallback(_add)
-        d.addCallback(lambda res: child)
+        d.addCallback(lambda res: None)
         return d
+
 
     def add_file(self, name, uploadable, wait_for_numpeers=None):
         """I upload a file (using the given IUploadable), then attach the
