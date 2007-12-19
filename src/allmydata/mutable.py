@@ -825,7 +825,12 @@ class Publish:
         self._encprivkey_shares = []
 
         EPSILON = total_shares / 2
-        partial_peerlist = islice(peerlist, total_shares + EPSILON)
+        #partial_peerlist = islice(peerlist, total_shares + EPSILON)
+        partial_peerlist = peerlist[:total_shares+EPSILON]
+
+        # make sure our local server is in the list
+        partial_peerlist = self._add_ourselves(partial_peerlist, peerlist)
+
         peer_storage_servers = {}
         dl = []
         for (permutedid, peerid, conn) in partial_peerlist:
@@ -840,9 +845,29 @@ class Publish:
                       total_shares, reachable_peers,
                       current_share_peers, peer_storage_servers)
         # TODO: add an errback to, probably to ignore that peer
+        # TODO: if we can't get a privkey from these servers, consider
+        # looking farther afield. Make sure we include ourselves in the
+        # initial list, because of the 0.7.0 behavior that causes us to
+        # create our initial directory before we've connected to anyone
+        # but ourselves.
         return d
 
+    def _add_ourselves(self, partial_peerlist, peerlist):
+        my_peerid = self._node._client.nodeid
+        for (permutedid, peerid, conn) in partial_peerlist:
+            if peerid == my_peerid:
+                # we're already in there
+                return partial_peerlist
+        for (permutedid, peerid, conn) in peerlist:
+            if peerid == self._node._client.nodeid:
+                # found it
+                partial_peerlist.append( (permutedid, peerid, conn) )
+                return partial_peerlist
+        self.log("WEIRD: we aren't in our own peerlist??")
+        return partial_peerlist
+
     def _do_query(self, conn, peerid, peer_storage_servers, storage_index):
+        self.log("querying %s" % idlib.shortnodeid_b2a(peerid))
         d = conn.callRemote("get_service", "storageserver")
         def _got_storageserver(ss):
             peer_storage_servers[peerid] = ss

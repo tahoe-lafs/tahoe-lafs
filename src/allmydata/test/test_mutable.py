@@ -79,6 +79,8 @@ class FakeClient:
         self._peerids = [tagged_hash("peerid", "%d" % i)[:20]
                          for i in range(self._num_peers)]
         self.introducer_client = FakeIntroducerClient()
+        self.nodeid = "fakenodeid"
+
     def log(self, msg, **kw):
         return log.msg(msg, **kw)
 
