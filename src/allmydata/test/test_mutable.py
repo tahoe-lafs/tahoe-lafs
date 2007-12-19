@@ -29,9 +29,6 @@ class FakeFilenode(mutable.MutableFileNode):
     def init_from_uri(self, myuri):
         mutable.MutableFileNode.init_from_uri(self, myuri)
         return self
-    def replace(self, newdata, wait_for_numpeers=None):
-        self.all_contents[self.get_uri()] = newdata
-        return defer.succeed(self)
     def _generate_pubprivkeys(self):
         count = self.counter.next()
         return FakePubKey(count), FakePrivKey(count)
