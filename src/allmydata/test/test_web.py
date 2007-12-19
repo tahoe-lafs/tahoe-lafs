@@ -1073,14 +1073,12 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(self.failUnlessNodeKeysAre, [])
         return d
 
-    def test_POST_mkdir_no_parentdir(self):
-        d = self.POST("/uri/", t="mkdir")
+    def test_POST_mkdir_no_parentdir_noredirect(self):
+        d = self.POST("/uri/?t=mkdir")
         def _after_mkdir(res):
             self.failUnless(uri.is_string_newdirnode_rw(res))
-            # XXX TODO more
         d.addCallback(_after_mkdir)
         return d
-    test_POST_mkdir_no_parentdir.skip = "not yet implemented"
 
     def test_POST_mkdir_replace(self): # return value?
         d = self.POST(self.public_url + "/foo", t="mkdir", name="sub")
