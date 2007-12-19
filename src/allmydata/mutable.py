@@ -711,7 +711,7 @@ class Publish:
         self._node = filenode
         self._storage_index = self._node.get_storage_index()
         self._log_prefix = prefix = idlib.b2a(self._storage_index)[:6]
-        num = self._node._client.log("Publish(%s): starting")
+        num = self._node._client.log("Publish(%s): starting", prefix)
         self._log_number = num
 
     def log(self, msg):
@@ -852,11 +852,14 @@ class Publish:
     def _got_query_results(self, datavs, peerid, permutedid,
                            reachable_peers, current_share_peers):
 
-        self.log("_got_query_results from %s" % idlib.shortnodeid_b2a(peerid))
+        lp = self.log("_got_query_results from %s" %
+                      idlib.shortnodeid_b2a(peerid))
         assert isinstance(datavs, dict)
         reachable_peers[peerid] = permutedid
+        if not datavs:
+            self.log("peer has no shares", parent=lp)
         for shnum, datav in datavs.items():
-            self.log(" peer has shnum %d" % shnum)
+            self.log("peer has shnum %d" % shnum, parent=lp)
             assert len(datav) == 1
             data = datav[0]
             # We want (seqnum, root_hash, IV) from all servers to know what
@@ -876,7 +879,8 @@ class Publish:
             valid = self._pubkey.verify(prefix, signature)
             if not valid:
                 self.log("WEIRD: bad signature from %s shnum %d" %
-                         (shnum, idlib.shortnodeid_b2a(peerid)))
+                         (shnum, idlib.shortnodeid_b2a(peerid)),
+                         parent=lp)
                 continue
 
             share = (shnum, seqnum, root_hash)
