@@ -711,7 +711,7 @@ class Publish:
         self._node = filenode
         self._storage_index = self._node.get_storage_index()
         self._log_prefix = prefix = idlib.b2a(self._storage_index)[:6]
-        num = self._node._client.log("Publish(%s): starting", prefix)
+        num = self._node._client.log("Publish(%s): starting" % prefix)
         self._log_number = num
 
     def log(self, msg):
