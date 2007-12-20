@@ -829,7 +829,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
     def _test_web(self, res):
         base = self.webish_url
-        public = "uri/" + self._root_directory_uri.replace("/", "!")
+        public = "uri/" + self._root_directory_uri
         d = getPage(base)
         def _got_welcome(page):
             expected = "Connected Peers: <span>%d</span>" % (self.numclients)
@@ -924,7 +924,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         self.failUnless(self.webish_url in start_html)
         d = self.clients[0].get_private_uri()
         def done(private_uri):
-            private_url = self.webish_url + "uri/" + private_uri.replace("/","!")
+            private_url = self.webish_url + "uri/" + private_uri
             self.failUnless(private_url in start_html)
         d.addCallback(done)
         return d

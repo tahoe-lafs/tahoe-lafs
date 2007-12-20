@@ -254,7 +254,7 @@ class TahoeNode (object):
     def __init__(self, baseurl, uri):
         self.burl = baseurl
         self.uri = uri
-        self.fullurl = '%s/uri/%s' % (self.burl, self.uri.replace('/', '!'))
+        self.fullurl = '%s/uri/%s' % (self.burl, self.uri)
         self.inode = TahoeNode.NextInode
         TahoeNode.NextInode += 1
 

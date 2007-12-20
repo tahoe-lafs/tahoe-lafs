@@ -1318,7 +1318,7 @@ class Web(WebMixin, unittest.TestCase):
         return res
 
     def test_GET_URI_URL(self):
-        base = "/uri/%s" % self._bar_txt_uri.replace("/","!")
+        base = "/uri/%s" % self._bar_txt_uri
         d = self.GET(base)
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(base+"?filename=bar.txt"))
@@ -1328,13 +1328,13 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_GET_URI_URL_dir(self):
-        base = "/uri/%s?t=json" % self._foo_uri.replace("/","!")
+        base = "/uri/%s?t=json" % self._foo_uri
         d = self.GET(base)
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
     def test_GET_URI_URL_missing(self):
-        base = "/uri/%s" % self._bad_file_uri.replace("/","!")
+        base = "/uri/%s" % self._bad_file_uri
         d = self.GET(base)
         d.addBoth(self.shouldHTTPError, "test_GET_URI_URL_missing",
                   http.GONE, response_substring="NotEnoughPeersError")
@@ -1378,7 +1378,7 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnless(uri in FakeCHKFileNode.all_contents)
             self.failUnlessEqual(FakeCHKFileNode.all_contents[uri],
                                  file_contents)
-            return self.GET("/uri/%s" % uri.replace("/","!"))
+            return self.GET("/uri/%s" % uri)
         d.addCallback(_check)
         def _check2(res):
             self.failUnlessEqual(res, file_contents)
@@ -1399,7 +1399,7 @@ class Web(WebMixin, unittest.TestCase):
             n = self.s.create_node_from_uri(uri.strip())
             d2 = self.failUnlessNodeKeysAre(n, [])
             d2.addCallback(lambda res:
-                           self.GET("/uri/%s?t=json" % uri.replace("/","!")))
+                           self.GET("/uri/%s?t=json" % uri))
             return d2
         d.addCallback(_check)
         d.addCallback(self.failUnlessIsEmptyJSON)
