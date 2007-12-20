@@ -1002,8 +1002,8 @@ class Web(WebMixin, unittest.TestCase):
 
         # test that clicking on the "overwrite" button works
         EVEN_NEWER_CONTENTS = NEWER_CONTENTS + "even newer\n"
-        OVERWRITE_FORM_RE=re.compile('<form action="(.*)" method="post" enctype="multipart/form-data"><fieldset><input type="hidden" name="t" value="overwrite" /><input type="hidden" name="name" value="(.*)" /><input type="hidden" name="when_done" value="(.*)" /><legend class="freeform-form-label">Overwrite</legend>Choose new file: <input type="file" class="freeform-input-file" name="file" /> <input type="submit" value="Overwrite" /></fieldset></form>', re.I)
         def _parse_overwrite_form_and_submit(res):
+            OVERWRITE_FORM_RE=re.compile('<form action="([^"]*)" method="post" .*<input type="hidden" name="t" value="overwrite" /><input type="hidden" name="name" value="([^"]*)" /><input type="hidden" name="when_done" value="([^"]*)" />', re.I)
             mo = OVERWRITE_FORM_RE.search(res)
             self.failUnless(mo)
             formaction=mo.group(1)
