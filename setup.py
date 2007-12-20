@@ -34,7 +34,7 @@ else:
         # version which fixed this problem.
         min_version='0.6c4'
     use_setuptools(min_version=min_version,
-                   download_base="file:misc/dependencies/",
+                   download_base="file:%s" % os.path.join('misc', 'dependencies'),
                    download_delay=0)
 
 from setuptools import Extension, find_packages, setup
