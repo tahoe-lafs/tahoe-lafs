@@ -30,6 +30,9 @@ class ILocalAccess(Interface):
         """Return True if t=upload&localdir= is allowed, giving anyone who
         can talk to the webserver control over the local (disk) filesystem."""
 
+def boolean_of_arg(arg):
+    assert arg.lower() in ("true", "t", "1", "false", "f", "0")
+    return arg.lower() in ("true", "t", "1")
 
 # we must override twisted.web.http.Request.requestReceived with a version
 # that doesn't use cgi.parse_multipart() . Since we actually use Nevow, we
@@ -720,7 +723,7 @@ class POSTHandler(rend.Page):
             when_done = req.fields["when_done"].value
 
         if "replace" in req.fields:
-            if req.fields["replace"].value.lower() in ("false", "0"):
+            if not boolean_of_arg(req.fields["replace"].value):
                 self._replace = False
 
         if t == "mkdir":
@@ -1105,7 +1108,7 @@ class VDrive(rend.Page):
 
         replace = True
         if "replace" in req.args:
-            if req.args["replace"][0].lower() in ("false", "0"):
+            if not boolean_of_arg(req.args["replace"][0]):
                 replace = False
 
         if method == "GET":
@@ -1209,6 +1212,7 @@ class URIPUTHandler(rend.Page):
             # "PUT /uri?t=mkdir", to create an unlinked directory.
             d = IClient(ctx).create_empty_dirnode()
             d.addCallback(lambda dirnode: dirnode.get_uri())
+            # XXX add redirect_to_result
             return d
 
         req.setResponseCode(http.BAD_REQUEST)
@@ -1235,7 +1239,16 @@ class URIPOSTHandler(rend.Page):
         if t == "mkdir":
             # "PUT /uri?t=mkdir", to create an unlinked directory.
             d = IClient(ctx).create_empty_dirnode()
-            d.addCallback(lambda dirnode: dirnode.get_uri())
+            redirect = req.args.has_key("redirect_to_result") and boolean_of_arg(req.args["redirect_to_result"][0])
+            if redirect:
+                def _then_redir(res):
+                    req.setResponseCode(303)
+                    req.setHeader('location', res.get_uri())
+                    req.finish()
+                    return ''
+                d.addCallback(_then_redir)
+            else:
+                d.addCallback(lambda dirnode: dirnode.get_uri())
             return d
 
         req.setResponseCode(http.BAD_REQUEST)
@@ -1275,7 +1288,7 @@ class Root(rend.Page):
                         return URIPUTHandler(), ()
                     elif req.method == "POST":
                         # "POST /uri?t=upload&file=newfile" to upload an unlinked
-                        # file
+                        # file or "POST /uri?t=mkdir" to create a new directory
                         return URIPOSTHandler(), ()
                 if len(segments) < 2:
                     return rend.NotFound

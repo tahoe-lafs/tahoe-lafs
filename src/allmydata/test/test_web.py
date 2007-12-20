@@ -1109,6 +1109,11 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_after_mkdir)
         return d
 
+    def test_POST_mkdir_no_parentdir_redirect(self):
+        d = self.POST("/uri/?t=mkdir&redirect_to_result=true")
+        d.addBoth(self.shouldRedirect, None, statuscode='303')
+        return d
+
     def test_POST_mkdir_replace(self): # return value?
         d = self.POST(self.public_url + "/foo", t="mkdir", name="sub")
         d.addCallback(lambda res: self._foo_node.get("sub"))
@@ -1301,15 +1306,21 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
-    def shouldRedirect(self, res, target):
+    def shouldRedirect(self, res, target=None, statuscode=None):
+        """ If target is not None then the redirection has to go to target.  If
+        statuscode is not None then the redirection has to be accomplished with
+        that HTTP status code."""
         if not isinstance(res, failure.Failure):
-            self.fail("we were expecting to get redirected to %s, not get an"
-                      " actual page: %s" % (target, res))
+            self.fail("we were expecting to get redirected %s, not get an"
+                      " actual page: %s" % ((target is None) and "somewhere" or ("to " + target), res))
         res.trap(error.PageRedirect)
-        # the PageRedirect does not seem to capture the uri= query arg
-        # properly, so we can't check for it.
-        realtarget = self.webish_url + target
-        self.failUnlessEqual(res.value.location, realtarget)
+        if statuscode is not None:
+            self.failUnlessEqual(res.value.status, statuscode)
+        if target is not None:
+            # the PageRedirect does not seem to capture the uri= query arg
+            # properly, so we can't check for it.
+            realtarget = self.webish_url + target
+            self.failUnlessEqual(res.value.location, realtarget)
 
     def test_GET_URI_form(self):
         base = "/uri?uri=%s" % self._bar_txt_uri
@@ -1422,7 +1433,7 @@ class Web(WebMixin, unittest.TestCase):
                   "/uri only accepts PUT and PUT?t=mkdir")
         return d
 
-    def test_PUT_NEWDIR_URI(self):
+    def test_PUT_mkdir(self):
         d = self.PUT("/uri?t=mkdir", "")
         def _check(uri):
             n = self.s.create_node_from_uri(uri.strip())
