@@ -1114,6 +1114,25 @@ class Web(WebMixin, unittest.TestCase):
         d.addBoth(self.shouldRedirect, None, statuscode='303')
         return d
 
+    def test_welcome_page_mkdir_button(self):
+        # Fetch the welcome page.
+        d = self.GET("/")
+        def _after_get_welcome_page(res):
+            MKDIR_BUTTON_RE=re.compile('<form action="([^"]*)" method="post".*<input type="hidden" name="t" value="([^"]*)" /><input type="hidden" name="([^"]*)" value="([^"]*)" /><input type="submit" value="create" />', re.I)
+            mo = MKDIR_BUTTON_RE.search(res)
+            formaction = mo.group(1)
+            formt = mo.group(2)
+            formaname = mo.group(3)
+            formavalue = mo.group(4)
+            return (formaction, formt, formaname, formavalue)
+        d.addCallback(_after_get_welcome_page)
+        def _after_parse_form(res):
+            (formaction, formt, formaname, formavalue) = res
+            return self.POST("/%s?t=%s&%s=%s" % (formaction, formt, formaname, formavalue))
+        d.addCallback(_after_parse_form)
+        d.addBoth(self.shouldRedirect, None, statuscode='303')
+        return d
+
     def test_POST_mkdir_replace(self): # return value?
         d = self.POST(self.public_url + "/foo", t="mkdir", name="sub")
         d.addCallback(lambda res: self._foo_node.get("sub"))

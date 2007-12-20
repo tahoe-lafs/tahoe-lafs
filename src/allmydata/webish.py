@@ -1237,7 +1237,7 @@ class URIPOSTHandler(rend.Page):
             return d
 
         if t == "mkdir":
-            # "PUT /uri?t=mkdir", to create an unlinked directory.
+            # "POST /uri?t=mkdir", to create an unlinked directory.
             d = IClient(ctx).create_empty_dirnode()
             redirect = req.args.has_key("redirect_to_result") and boolean_of_arg(req.args["redirect_to_result"][0])
             if redirect:
@@ -1352,17 +1352,28 @@ class Root(rend.Page):
         return T.p["personal vdrive not available."]
 
     # this is a form where users can download files by URI
-
     def render_download_form(self, ctx, data):
         form = T.form(action="uri", method="get",
                       enctype="multipart/form-data")[
             T.fieldset[
-            T.legend(class_="freeform-form-label")["Download a file"],
+            T.legend(class_="freeform-form-label")["download a file"],
             "URI of file to download: ",
             T.input(type="text", name="uri"), " ",
             "Filename to download as: ",
             T.input(type="text", name="filename"), " ",
-            T.input(type="submit", value="Download"),
+            T.input(type="submit", value="download"),
+            ]]
+        return T.div[form]
+
+    # this is a form where users can create new directories
+    def render_mkdir_form(self, ctx, data):
+        form = T.form(action="uri", method="post",
+                      enctype="multipart/form-data")[
+            T.fieldset[
+            T.legend(class_="freeform-form-label")["create a directory"],
+            T.input(type="hidden", name="t", value="mkdir"),
+            T.input(type="hidden", name="redirect_to_result", value="true"),
+            T.input(type="submit", value="create"),
             ]]
         return T.div[form]
 
