@@ -12,6 +12,7 @@ from allmydata.util.hashutil import file_renewal_secret_hash, \
      storage_index_chk_hash, plaintext_segment_hasher, key_hasher
 from allmydata import encode, storage, hashtree, uri
 from allmydata.util import idlib, mathutil
+from allmydata.util.assertutil import precondition
 from allmydata.interfaces import IUploadable, IUploader, IEncryptedUploadable
 from pycryptopp.cipher.aes import AES
 
@@ -38,6 +39,8 @@ class PeerTracker:
                  sharesize, blocksize, num_segments, num_share_hashes,
                  storage_index,
                  bucket_renewal_secret, bucket_cancel_secret):
+        precondition(isinstance(peerid, str), peerid)
+        precondition(len(peerid) == 20, peerid)
         self.peerid = peerid
         self.permutedid = permutedid
         self.connection = connection # to an RIClient
@@ -61,7 +64,7 @@ class PeerTracker:
 
     def __repr__(self):
         return ("<PeerTracker for peer %s and SI %s>"
-                % (idlib.b2a(self.peerid)[:4],
+                % (idlib.shortnodeid_b2a(self.peerid),
                    idlib.b2a(self.storage_index)[:6]))
 
     def query(self, sharenums):
