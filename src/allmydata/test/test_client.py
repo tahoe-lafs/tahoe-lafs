@@ -6,7 +6,7 @@ from twisted.internet import reactor, defer
 
 import allmydata
 from allmydata import client, introducer
-from allmydata.util import version_class, idlib
+from allmydata.util import idlib
 from foolscap.eventual import flushEventualQueue
 
 class FakeIntroducerClient(introducer.IntroducerClient):
@@ -120,7 +120,7 @@ class Basic(unittest.TestCase):
         open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         c = client.Client(basedir)
         mine, oldest = c.remote_get_versions()
-        self.failUnlessEqual(version_class.Version(mine), allmydata.__version__)
+        self.failUnlessEqual(mine, allmydata.__version__)
 
 def flush_but_dont_ignore(res):
     d = flushEventualQueue()

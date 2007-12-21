@@ -20,7 +20,7 @@
 # Inc., please contact partnerships@allmydata.com and visit
 # http://allmydata.com/.
 
-import sys, re, os.path
+import sys, re, os
 try:
     from ez_setup import use_setuptools
 except ImportError:
@@ -78,25 +78,24 @@ trove_classifiers=[
 # running from a darcs checkout, this will leave any pre-existing _version.py
 # alone.
 try:
-    os.system(" ".join([sys.executable,
-                       "misc/make-version.py",
-                       "allmydata-tahoe",
-                       '"src/allmydata/_version.py"', # cygwin vs slashes
-                        ]))
+    (cin, cout, cerr,) = os.popen3("darcsver --quiet allmydata-tahoe src/allmydata/_version.py")
+    print cout.read()
 except Exception, le:
     pass
 VERSIONFILE = "src/allmydata/_version.py"
 verstr = "unknown"
-if os.path.exists(VERSIONFILE):
-    VSRE = re.compile("^verstr = ['\"]([^'\"]*)['\"]", re.M)
+VSRE = re.compile("^verstr = ['\"]([^'\"]*)['\"]", re.M)
+try:
     verstrline = open(VERSIONFILE, "rt").read()
+except EnvironmentError:
+    pass # Okay, there is no version file.
+else:
     mo = VSRE.search(verstrline)
     if mo:
         verstr = mo.group(1)
     else:
-        print "unable to find version in src/allmydata/_version.py"
-        raise RuntimeError("if _version.py exists, it must be well-formed")
-
+        print "unable to find version in %s" % (VERSIONFILE,)
+        raise RuntimeError("if %s.py exists, it is required to be well-formed" % (VERSIONFILE,))
 
 LONG_DESCRIPTION=\
 """Welcome to the AllMyData "tahoe" project. This project implements a secure,
@@ -125,4 +124,5 @@ setup(name='allmydata-tahoe',
       dependency_links=dependency_links,
       entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
       zip_safe=False, # We prefer unzipped for easier access.
+      extras_require={'autoversioning':'pyutil >= 1.3.8'},
       )

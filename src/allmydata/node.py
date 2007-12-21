@@ -15,10 +15,9 @@ from allmydata.util.assertutil import precondition
 import allmydata, pycryptopp, zfec
 
 from foolscap.logging.publish import LogPublisher
-# Add our application versions to the data that Foolscap's
-# LogPublisher reports. Our __version__ attributes are actually
-# instances of allmydata.util.version_class.Version, so convert them
-# into strings first.
+# Add our application versions to the data that Foolscap's LogPublisher
+# reports. Our __version__ attributes are actually instances of a "Version"
+# class, so convert them into strings first.
 LogPublisher.versions['allmydata'] = str(allmydata.__version__)
 LogPublisher.versions['zfec'] = str(zfec.__version__)
 LogPublisher.versions['pycryptopp'] = str(pycryptopp.__version__)
