@@ -21,6 +21,9 @@
 # http://allmydata.com/.
 
 import sys, re, os
+
+miscdeps=os.path.join('misc', 'dependencies')
+
 try:
     from ez_setup import use_setuptools
 except ImportError:
@@ -36,7 +39,7 @@ else:
     download_base = "file:"+os.path.join('misc', 'dependencies')+os.path.sep
     use_setuptools(min_version=min_version,
                    download_base=download_base,
-                   download_delay=0)
+                   download_delay=0, to_dir=miscdeps)
 
 from setuptools import Extension, find_packages, setup
 
@@ -105,7 +108,6 @@ The basic idea is that the data in this storage grid is spread over all
 participating nodes, using an algorithm that can recover the data even if a
 majority of the nodes are no longer available."""
 
-
 setup(name='allmydata-tahoe',
       version=verstr,
       description='secure, distributed storage grid',
@@ -120,9 +122,8 @@ setup(name='allmydata-tahoe',
       test_suite="allmydata.test",
       install_requires=install_requires,
       include_package_data=True,
-      setup_requires=["setuptools_darcs >= 1.0.5",],
+      setup_requires=['setuptools_darcs >= 1.0.5', 'pyutil >= 1.3.8'], # pyutil is for darcsver
       dependency_links=dependency_links,
       entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
       zip_safe=False, # We prefer unzipped for easier access.
-      extras_require={'autoversioning':'pyutil >= 1.3.8'},
       )
