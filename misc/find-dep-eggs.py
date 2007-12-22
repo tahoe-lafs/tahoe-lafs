@@ -14,4 +14,10 @@ if os.path.exists(support_lib):
         if fn.endswith(".egg"):
             path.append(os.path.abspath(os.path.join(support_lib, fn)))
 
+# We also need to include .egg's in the CWD, because those are placed there by
+# libraries that we've installed if *they* require them.
+for fn in os.listdir("."):
+    if fn.endswith(".egg"):
+        path.append(os.path.abspath(os.path.join(support_lib, fn)))
+
 print os.pathsep.join(path)
