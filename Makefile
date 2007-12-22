@@ -45,9 +45,7 @@ endif
 
 TRIAL=PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 
-# build-deps wants setuptools to have been built first. It's easiest to
-# accomplish this by depending upon the tahoe compile.
-build-deps: .built check-twisted-dep
+build-deps: check-manual-deps
 	mkdir -p "$(SUPPORTLIB)"
 	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
          $(PYTHON) misc/dependencies/build-deps-setup.py install \
@@ -141,7 +139,7 @@ OpenSSL).  Please see the README for help on installing dependencies."
 	@echo
 	exit 1
 
-check-deps: check-twisted-dep $(CHECK_PYWIN32_DEP) check-pyopenssl-dep
+check-deps: check-manual-deps
 	$(PP) \
 	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, pycryptopp' || $(MAKE) signal-error-deps
 
@@ -153,6 +151,8 @@ check-pywin32-dep:
 
 check-pyopenssl-dep:
 	$(PYTHON) -c 'import OpenSSL' || $(MAKE) signal-error-pyopenssl-dep
+
+check-manual-deps: check-twisted-dep $(CHECK_PYWIN32_DEP) check-pyopenssl-dep
 
 .checked-deps:
 	$(MAKE) check-deps
