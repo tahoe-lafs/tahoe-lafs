@@ -322,10 +322,10 @@ ifeq ($(findstring x-$(ARCH)-x,$(foreach arch,$(KNOWN_DEBIAN_ARCHES),"x-$(arch)-
 is-known-debian-arch:
 	@echo "ARCH must be set when using setup-deb or deb-ARCH"
 	@echo "I know how to handle:" $(KNOWN_DEBIAN_ARCHES)
-	/bin/false
+	false
 else
 is-known-debian-arch:
-	/bin/true
+	true
 endif
 
 ifndef TAHOE_ARCH
