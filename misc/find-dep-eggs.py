@@ -18,6 +18,6 @@ if os.path.exists(support_lib):
 # libraries that we've installed if *they* require them.
 for fn in os.listdir("."):
     if fn.endswith(".egg"):
-        path.append(os.path.abspath(os.path.join(support_lib, fn)))
+        path.append(os.path.abspath(os.path.join(os.get_cwd(), fn)))
 
 print os.pathsep.join(path)
