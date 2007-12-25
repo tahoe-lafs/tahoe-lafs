@@ -9,7 +9,7 @@ dependency_links=[os.path.join(miscdeps, t) for t in os.listdir(miscdeps) if t.e
 dependency_links.append("http://allmydata.org/trac/tahoe/wiki/Dependencies")
 
 install_requires=["zfec >= 1.0.3",
-                  "foolscap >= 0.2.2",
+                  "foolscap >= 0.2.3",
                   "simplejson >= 1.4",
                   "pycryptopp >= 0.2.8",
                   ]
