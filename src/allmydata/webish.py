@@ -1270,7 +1270,8 @@ class URIPOSTHandler(rend.Page):
 
         req.setResponseCode(http.BAD_REQUEST)
         req.setHeader("content-type", "text/plain")
-        return "/uri accepts only PUT, PUT?t=mkdir, POST?t=upload" # XXX check this -- what about POST?t=mkdir?
+        err = "/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, and POST?t=mkdir"
+        return err
 
 
 class Root(rend.Page):

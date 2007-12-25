@@ -212,6 +212,23 @@ class WebMixin(object):
             self.fail("%s was supposed to raise %s, not get '%s'" %
                       (which, expected_failure, res))
 
+    def shouldFail2(self, expected_failure, which, substring,
+                    callable, *args, **kwargs):
+        assert substring is None or isinstance(substring, str)
+        d = defer.maybeDeferred(callable, *args, **kwargs)
+        def done(res):
+            if isinstance(res, Failure):
+                res.trap(expected_failure)
+                if substring:
+                    self.failUnless(substring in str(res),
+                                    "substring '%s' not in '%s'"
+                                    % (substring, str(res)))
+            else:
+                self.fail("%s was supposed to raise %s, not get '%s'" %
+                          (which, expected_failure, res))
+        d.addBoth(done)
+        return d
+
     def should404(self, res, which):
         if isinstance(res, failure.Failure):
             res.trap(error.Error)
@@ -237,6 +254,17 @@ class WebMixin(object):
         else:
             self.fail("%s was supposed to Error(%s), not get '%s'" %
                       (which, code, res))
+
+    def shouldHTTPError2(self, which,
+                         code=None, substring=None, response_substring=None,
+                         callable=None, *args, **kwargs):
+        assert substring is None or isinstance(substring, str)
+        assert callable
+        d = defer.maybeDeferred(callable, *args, **kwargs)
+        d.addBoth(self.shouldHTTPError, which,
+                  code, substring, response_substring)
+        return d
+
 
 class Web(WebMixin, unittest.TestCase):
     def test_create(self):
@@ -1116,6 +1144,13 @@ class Web(WebMixin, unittest.TestCase):
             target = urllib.unquote(target)
             self.failUnless(target.startswith("uri/URI:DIR2:"), target)
         d.addCallback(_check_target)
+        return d
+
+    def test_POST_noparent_bad(self):
+        d = self.shouldHTTPError2("POST /uri?t=bogus", 400, "Bad Request",
+                                  "/uri accepts only PUT, PUT?t=mkdir, "
+                                  "POST?t=upload, and POST?t=mkdir",
+                                  self.POST, "/uri?t=bogus")
         return d
 
     def test_welcome_page_mkdir_button(self):
