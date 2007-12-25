@@ -206,10 +206,7 @@ class Node(service.MultiService):
                            os.path.join(self.basedir, "private","logport.furl"))
         self.tub.setOption("log-gatherer-furlfile",
                            os.path.join(self.basedir, "log_gatherer.furl"))
-        # provoke foolscap into registering the logport when it can, so that
-        # the 'logport.furl' file will be available for people to use
-        # 'flogtool tail'.
-        self.when_tub_ready().addCallback(lambda res: self.tub.getLogPortFURL())
+        self.tub.setOption("bridge-twisted-logs", True)
 
     def log(self, msg, src="", args=(), **kw):
         if src:
