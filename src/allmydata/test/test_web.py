@@ -217,7 +217,7 @@ class WebMixin(object):
         assert substring is None or isinstance(substring, str)
         d = defer.maybeDeferred(callable, *args, **kwargs)
         def done(res):
-            if isinstance(res, Failure):
+            if isinstance(res, failure.Failure):
                 res.trap(expected_failure)
                 if substring:
                     self.failUnless(substring in str(res),
