@@ -61,6 +61,7 @@ def get_arg(req, argname, default=None, multiple=False):
 
 parse_qs = http.parse_qs
 class MyRequest(appserver.NevowRequest):
+    fields = None
     def requestReceived(self, command, path, version):
         """Called by channel when all data has been received.
 
@@ -377,10 +378,7 @@ class Directory(rend.Page):
 
     def render_results(self, ctx, data):
         req = inevow.IRequest(ctx)
-        if "results" in req.args:
-            return req.args["results"]
-        else:
-            return ""
+        return get_arg(req, "results", "")
 
 class WebDownloadTarget:
     implements(IDownloadTarget, IConsumer)
@@ -457,7 +455,9 @@ class FileDownloader(resource.Resource):
                              static.File.contentEncodings,
                              defaultType="text/plain")
         save_to_file = None
-        if "save" in req.args:
+        if get_arg(req, "save", False):
+            # TODO: make the API specification clear: should "save=" or
+            # "save=false" count?
             save_to_file = self._name
         wdt = WebDownloadTarget(req, type, encoding, save_to_file)
         d = self._filenode.download(wdt)
@@ -687,10 +687,7 @@ class RenameForm(rend.Page):
 
     def render_get_name(self, ctx, data):
         req = inevow.IRequest(ctx)
-        if 'name' in req.args:
-            name = req.args['name'][0]
-        else:
-            name = ''
+        name = get_arg(req, "name", "")
         ctx.tag.attributes['value'] = name
         return ctx.tag
 
@@ -715,16 +712,10 @@ class POSTHandler(rend.Page):
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
 
-        if "t" in req.args:
-            t = req.args["t"][0]
-        else:
-            t = req.fields["t"].value
+        t = get_arg(req, "t")
+        assert t is not None
 
-        name = None
-        if "name" in req.args:
-            name = req.args["name"][0]
-        elif "name" in req.fields:
-            name = req.fields["name"].value
+        name = get_arg(req, "name", None)
         if name and "/" in name:
             req.setResponseCode(http.BAD_REQUEST)
             req.setHeader("content-type", "text/plain")
@@ -734,15 +725,9 @@ class POSTHandler(rend.Page):
         # we allow the user to delete an empty-named file, but not to create
         # them, since that's an easy and confusing mistake to make
 
-        when_done = None
-        if "when_done" in req.args:
-            when_done = req.args["when_done"][0]
-        if "when_done" in req.fields:
-            when_done = req.fields["when_done"].value
-
-        if "replace" in req.fields:
-            if not boolean_of_arg(req.fields["replace"].value):
-                self._replace = False
+        when_done = get_arg(req, "when_done", None)
+        if not boolean_of_arg(get_arg(req, "replace", "true")):
+            self._replace = False
 
         if t == "mkdir":
             if not name:
@@ -753,10 +738,8 @@ class POSTHandler(rend.Page):
         elif t == "uri":
             if not name:
                 raise RuntimeError("set-uri requires a name")
-            if "uri" in req.args:
-                newuri = req.args["uri"][0].strip()
-            else:
-                newuri = req.fields["uri"].value.strip()
+            newuri = get_arg(req, "uri")
+            assert newuri is not None
             d = self._check_replacement(name)
             d.addCallback(lambda res: self._node.set_uri(name, newuri))
             d.addCallback(lambda res: newuri)
@@ -1103,18 +1086,13 @@ class VDrive(rend.Page):
         if path and path[-1] == '':
             path = path[:-1]
 
-        t = ""
-        if "t" in req.args:
-            t = req.args["t"][0]
-
-        localfile = None
-        if "localfile" in req.args:
-            localfile = req.args["localfile"][0]
+        t = get_arg(req, "t", "")
+        localfile = get_arg(req, "localfile", None)
+        if localfile is not None:
             if localfile != os.path.abspath(localfile):
                 return NeedAbsolutePathError(), ()
-        localdir = None
-        if "localdir" in req.args:
-            localdir = req.args["localdir"][0]
+        localdir = get_arg(req, "localdir", None)
+        if localdir is not None:
             if localdir != os.path.abspath(localdir):
                 return NeedAbsolutePathError(), ()
         if localfile or localdir:
@@ -1124,10 +1102,7 @@ class VDrive(rend.Page):
                 return NeedLocalhostError(), ()
         # TODO: think about clobbering/revealing config files and node secrets
 
-        replace = True
-        if "replace" in req.args:
-            if not boolean_of_arg(req.args["replace"][0]):
-                replace = False
+        replace = boolean_of_arg(get_arg(req, "replace", "true"))
 
         if method == "GET":
             # the node must exist, and our operation will be performed on the
@@ -1139,8 +1114,7 @@ class VDrive(rend.Page):
                     filename = "unknown"
                     if path:
                         filename = path[-1]
-                    if "filename" in req.args:
-                        filename = req.args["filename"][0]
+                    filename = get_arg(req, "filename", filename)
                     if t == "download":
                         if localfile:
                             # write contents to a local file
@@ -1214,9 +1188,7 @@ class URIPUTHandler(rend.Page):
         req = inevow.IRequest(ctx)
         assert req.method == "PUT"
 
-        t = ""
-        if "t" in req.args:
-            t = req.args["t"][0]
+        t = get_arg(req, "t", "")
 
         if t == "":
             # "PUT /uri", to create an unlinked file. This is like PUT but
@@ -1292,8 +1264,8 @@ class Root(rend.Page):
         if segments:
             if segments[0] == "uri":
                 if len(segments) == 1 or segments[1] == '':
-                    if "uri" in req.args:
-                        uri = req.args["uri"][0]
+                    uri = get_arg(req, "uri", None)
+                    if uri is not None:
                         there = url.URL.fromContext(ctx)
                         there = there.clear("uri")
                         there = there.child("uri").child(uri)
