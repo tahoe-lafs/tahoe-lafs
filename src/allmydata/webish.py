@@ -34,6 +34,24 @@ def boolean_of_arg(arg):
     assert arg.lower() in ("true", "t", "1", "false", "f", "0")
     return arg.lower() in ("true", "t", "1")
 
+def get_arg(req, argname, default=None, multiple=False):
+    """Extract an argument from either the query args (req.args) or the form
+    body fields (req.fields). If multiple=False, this returns a single value
+    (or the default, which defaults to None), and the query args take
+    precedence. If multiple=True, this returns a tuple of arguments (possibly
+    empty), starting with all those in the query args.
+    """
+    results = []
+    if argname in req.args:
+        results.extend(req.args[argname])
+    if req.fields and argname in req.fields:
+        results.append(req.fields[argname].value)
+    if multiple:
+        return tuple(results)
+    if results:
+        return results[0]
+    return default
+
 # we must override twisted.web.http.Request.requestReceived with a version
 # that doesn't use cgi.parse_multipart() . Since we actually use Nevow, we
 # override the nevow-specific subclass, nevow.appserver.NevowRequest . This
@@ -1224,9 +1242,7 @@ class URIPOSTHandler(rend.Page):
         req = inevow.IRequest(ctx)
         assert req.method == "POST"
 
-        t = ""
-        if "t" in req.args:
-            t = req.args["t"][0]
+        t = get_arg(req, "t", "").strip()
 
         if t in ("", "upload"):
             # "POST /uri", to create an unlinked file.
@@ -1239,11 +1255,12 @@ class URIPOSTHandler(rend.Page):
         if t == "mkdir":
             # "POST /uri?t=mkdir", to create an unlinked directory.
             d = IClient(ctx).create_empty_dirnode()
-            redirect = req.args.has_key("redirect_to_result") and boolean_of_arg(req.args["redirect_to_result"][0])
-            if redirect:
+            redirect = get_arg(req, "redirect_to_result", "false")
+            if boolean_of_arg(redirect):
                 def _then_redir(res):
-                    req.setResponseCode(303)
-                    req.setHeader('location', res.get_uri())
+                    new_url = "uri/" + urllib.quote(res.get_uri())
+                    req.setResponseCode(http.SEE_OTHER) # 303
+                    req.setHeader('location', new_url)
                     req.finish()
                     return ''
                 d.addCallback(_then_redir)
