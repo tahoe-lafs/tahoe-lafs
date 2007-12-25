@@ -1103,15 +1103,19 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_POST_mkdir_no_parentdir_noredirect(self):
-        d = self.POST("/uri/?t=mkdir")
+        d = self.POST("/uri?t=mkdir")
         def _after_mkdir(res):
             self.failUnless(uri.is_string_newdirnode_rw(res))
         d.addCallback(_after_mkdir)
         return d
 
     def test_POST_mkdir_no_parentdir_redirect(self):
-        d = self.POST("/uri/?t=mkdir&redirect_to_result=true")
+        d = self.POST("/uri?t=mkdir&redirect_to_result=true")
         d.addBoth(self.shouldRedirect, None, statuscode='303')
+        def _check_target(target):
+            target = urllib.unquote(target)
+            self.failUnless(target.startswith("uri/URI:DIR2:"), target)
+        d.addCallback(_check_target)
         return d
 
     def test_welcome_page_mkdir_button(self):
@@ -1340,6 +1344,7 @@ class Web(WebMixin, unittest.TestCase):
             # properly, so we can't check for it.
             realtarget = self.webish_url + target
             self.failUnlessEqual(res.value.location, realtarget)
+        return res.value.location
 
     def test_GET_URI_form(self):
         base = "/uri?uri=%s" % self._bar_txt_uri
