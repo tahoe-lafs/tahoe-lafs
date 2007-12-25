@@ -548,6 +548,14 @@ class Web(WebMixin, unittest.TestCase):
                                                       self.NEWFILE_CONTENTS))
         return d
 
+    def test_PUT_NEWFILEURL_localfile_missingarg(self):
+        url = self.public_url + "/foo/new.txt?t=upload"
+        d = self.shouldHTTPError2("test_PUT_NEWFILEURL_localfile_missing",
+                                  400, "Bad Request",
+                                  "t=upload requires localfile= or localdir=",
+                                  self.PUT, url, "")
+        return d
+
     def test_PUT_NEWFILEURL_localfile_disabled(self):
         localfile = os.path.abspath("web/PUT_NEWFILEURL_local file_disabled")
         url = (self.public_url + "/foo/new.txt?t=upload&localfile=%s" %
@@ -596,6 +604,13 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check2)
         return d
 
+    def test_GET_FILEURL_badtype(self):
+        d = self.shouldHTTPError2("GET t=bogus", 400, "Bad Request",
+                                  "bad t=bogus",
+                                  self.GET,
+                                  self.public_url + "/foo/bar.txt?t=bogus")
+        return d
+
     def test_GET_FILEURL_uri_missing(self):
         d = self.GET(self.public_url + "/foo/missing?t=uri")
         d.addBoth(self.should404, "test_GET_FILEURL_uri_missing")
@@ -632,6 +647,14 @@ class Web(WebMixin, unittest.TestCase):
                                       '</td>\s+<td>DIR-RO</td>', res))
         d.addCallback(_check3)
 
+        return d
+
+    def test_GET_DIRURL_badtype(self):
+        d = self.shouldHTTPError2("test_GET_DIRURL_badtype",
+                                  400, "Bad Request",
+                                  "bad t=bogus",
+                                  self.GET,
+                                  self.public_url + "/foo?t=bogus")
         return d
 
     def test_GET_DIRURL_large(self):
@@ -817,6 +840,14 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    def test_GET_DIRURL_localdir_nolocaldir(self):
+        d = self.shouldHTTPError2("GET_DIRURL_localdir_nolocaldir",
+                                  400, "Bad Request",
+                                  "t=download requires localdir=",
+                                  self.GET,
+                                  self.public_url + "/foo?t=download")
+        return d
+
     def touch(self, localdir, filename):
         path = os.path.join(localdir, filename)
         f = open(path, "wb")
@@ -954,6 +985,18 @@ class Web(WebMixin, unittest.TestCase):
                                            "contents of three/bar.txt\n"))
         return d
 
+    def test_PUT_NEWDIRURL_localdir_missing(self):
+        raise unittest.SkipTest("fix PUTHandler._upload_localdir to return "
+                                "an error instead of silently passing")
+        localdir = os.path.abspath("web/PUT_NEWDIRURL_localdir_missing")
+        # we do *not* create it, to trigger an error
+        url = (self.public_url + "/foo/subdir/newdir?t=upload&localdir=%s"
+               % urllib.quote(localdir))
+        d = self.shouldHTTPError2("test_PUT_NEWDIRURL_localdir_missing",
+                                  400, "Bad Request", "random",
+                                  self.PUT, url, "")
+        return d
+
     def test_POST_upload(self):
         d = self.POST(self.public_url + "/foo", t="upload",
                       file=("new.txt", self.NEWFILE_CONTENTS))
@@ -1064,6 +1107,14 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(fn, "bar.txt",
                                                       self.NEWFILE_CONTENTS))
+        return d
+
+    def test_POST_upload_no_replace_ok(self):
+        d = self.POST(self.public_url + "/foo?replace=false", t="upload",
+                      file=("new.txt", self.NEWFILE_CONTENTS))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/new.txt"))
+        d.addCallback(lambda res: self.failUnlessEqual(res,
+                                                       self.NEWFILE_CONTENTS))
         return d
 
     def test_POST_upload_no_replace_queryarg(self):
@@ -1514,4 +1565,16 @@ class Web(WebMixin, unittest.TestCase):
             # called.
             pass
         d.addCallback(_done)
+        return d
+
+    def test_bad_method(self):
+        url = self.webish_url + self.public_url + "/foo/bar.txt"
+        d = self.shouldHTTPError2("test_bad_method", 404, "Not Found", None,
+                                  client.getPage, url, method="BOGUS")
+        return d
+
+    def test_short_url(self):
+        url = self.webish_url + "/uri"
+        d = self.shouldHTTPError2("test_short_url", 404, "Not Found", None,
+                                  client.getPage, url, method="DELETE")
         return d

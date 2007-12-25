@@ -906,6 +906,11 @@ class PUTHandler(rend.Page):
         localfile = self._localfile
         localdir = self._localdir
 
+        if t == "upload" and not (localfile or localdir):
+            req.setResponseCode(http.BAD_REQUEST)
+            req.setHeader("content-type", "text/plain")
+            return "t=upload requires localfile= or localdir="
+
         # we must traverse the path, creating new directories as necessary
         d = self._get_or_create_directories(self._node, self._path[:-1])
         name = self._path[-1]
@@ -913,12 +918,11 @@ class PUTHandler(rend.Page):
         if t == "upload":
             if localfile:
                 d.addCallback(self._upload_localfile, localfile, name)
-            elif localdir:
+            else:
+                # localdir
                 # take the last step
                 d.addCallback(self._get_or_create_directories, self._path[-1:])
                 d.addCallback(self._upload_localdir, localdir)
-            else:
-                raise RuntimeError("t=upload requires localfile= or localdir=")
         elif t == "uri":
             d.addCallback(self._attach_uri, req.content, name)
         elif t == "mkdir":
@@ -1063,6 +1067,19 @@ class Manifest(rend.Page):
         ctx.fillSlots("refresh_capability", refresh_cap)
         return ctx.tag
 
+class ChildError:
+    implements(inevow.IResource)
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        req.setResponseCode(http.BAD_REQUEST)
+        req.setHeader("content-type", "text/plain")
+        return self.text
+
+def child_error(text):
+    ce = ChildError()
+    ce.text = text
+    return ce, ()
+
 class VDrive(rend.Page):
 
     def __init__(self, node, name):
@@ -1078,13 +1095,6 @@ class VDrive(rend.Page):
         req = inevow.IRequest(ctx)
         method = req.method
         path = segments
-
-        # when we're pointing at a directory (like /uri/$DIR_URI/my_pix),
-        # Directory.addSlash causes a redirect to /uri/$DIR_URI/my_pix/,
-        # which appears here as ['my_pix', '']. This is supposed to hit the
-        # same Directory as ['my_pix'].
-        if path and path[-1] == '':
-            path = path[:-1]
 
         t = get_arg(req, "t", "")
         localfile = get_arg(req, "localfile", None)
@@ -1131,13 +1141,13 @@ class VDrive(rend.Page):
                     elif t == "readonly-uri":
                         return FileReadOnlyURI(node), ()
                     else:
-                        raise RuntimeError("bad t=%s" % t)
+                        return child_error("bad t=%s" % t)
                 elif IDirectoryNode.providedBy(node):
                     if t == "download":
                         if localdir:
                             # recursive download to a local directory
                             return LocalDirectoryDownloader(node, localdir), ()
-                        raise RuntimeError("t=download requires localdir=")
+                        return child_error("t=download requires localdir=")
                     elif t == "":
                         # send an HTML representation of the directory
                         return Directory(self.name, node, path), ()
@@ -1152,9 +1162,9 @@ class VDrive(rend.Page):
                     elif t == 'rename-form':
                         return RenameForm(self.name, node, path), ()
                     else:
-                        raise RuntimeError("bad t=%s" % t)
+                        return child_error("bad t=%s" % t)
                 else:
-                    raise RuntimeError("unknown node type")
+                    return child_error("unknown node type")
             d.addCallback(file_or_dir)
         elif method == "POST":
             # the node must exist, and our operation will be performed on the
@@ -1177,10 +1187,6 @@ class VDrive(rend.Page):
             return PUTHandler(self.node, path, t, localfile, localdir, replace), ()
         else:
             return rend.NotFound
-        def _trap_KeyError(f):
-            f.trap(KeyError)
-            return rend.FourOhFour(), ()
-        d.addErrback(_trap_KeyError)
         return d
 
 class URIPUTHandler(rend.Page):
