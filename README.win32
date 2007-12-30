@@ -4,42 +4,45 @@ There are three ways to do it:
 
 OPTION 1: ALL CYGWIN ALL THE TIME 
 
-If you are building on Windows, then the easy way is to install cygwin and
-use cygwin version of Python and the cygwin versions of all dependencies
-(which will happen naturally if you follow the main README file -- note that
-you cannot use Windows-native versions of any of the dependencies -- they all
-have to be cygwin versions).  So if you are taking this approach then you
-don't need to read the rest of this README.win32 file at all.
+If you are building on Windows, then the easy way is to install cygwin
+and use the cygwin version of Python and the cygwin versions of all
+dependencies (which will happen naturally if you follow the main
+README file -- note that you cannot use Windows-native versions of any
+of the dependencies -- they all have to be the cygwin versions).  So
+if you are taking this approach then you don't need to read the rest
+of this README.win32 file at all.
 
 OPTION 2: CYGWIN TOOLS TO BUILD WINDOWS-NATIVE LIBRARIES
 
-The second-easiest way is to install cygwin and use cygwin development tools
-such as bash, GNU make, gcc, etc., but install the Windows-native version of
-Python and the Windows-native versions of all of the dependencies.  If you
-create a distutils config file (as per
-http://docs.python.org/inst/config-syntax.html ) and put "compiler=mingw32"
-in it, then you can follow the rest of the main README file and the
-dependencies will all be automatically built (by the cygwin gcc compiler) as
-Windows-native libraries.  This README.win32 file contains some extra notes
-about how to take this approach.
+The second-easiest way is to install cygwin and use cygwin development
+tools such as bash, GNU make, gcc, etc., but install the
+Windows-native version of Python and the Windows-native versions of
+all of the dependencies.  If you create a distutils config file (as
+per http://docs.python.org/inst/config-syntax.html ) and put "[build]"
+then "compiler=mingw32" in it, then you can follow the rest of the
+main README file and the dependencies will all be automatically built
+(by the cygwin gcc compiler) as Windows-native libraries.  This
+README.win32 file contains some extra notes about how to take this
+approach.
 
 OPTION 3: OTHER BUILD TOOLS
 
-The third-easiest way is to use a Microsoft compiler or some other compiler.
-Our README files do not currently explain how to do that.  You are on your own
-for now, but please feel free to contribute a document which explains how to
-build all these dependencies using your favorite compiler.XXX MikeB: the
-previous paragraph is false -- please fix it!  --Zooko
+The third-easiest way is to use a Microsoft compiler or some other
+compiler.  Our README files do not currently explain how to do that.
+You are on your own for now, but please feel free to contribute a
+document which explains how to build all these dependencies using your
+favorite compiler.XXX MikeB: the previous paragraph is false -- please
+fix it!  --Zooko
 
 
-Okay, here are some notes about following "OPTION 1: CYGWIN TOOLS TO BUILD
+Okay, here are some notes about following "OPTION 2: CYGWIN TOOLS TO BUILD
 WINDOWS-NATIVE LIBRARIES" approach:
 
 
 EXTRA MANUAL DEPENDENCIES
 
-In addition to the dependencies listed in the main README file, you also need
-the following:
+In addition to the dependencies listed in the main README file, you
+also need the following:
 
  + the pywin32 package (210 or later)
 
