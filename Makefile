@@ -45,7 +45,7 @@ endif
 
 TRIAL=PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 
-build-deps: check-manual-deps
+build-deps: check-deps
 	mkdir -p "$(SUPPORTLIB)"
 	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
          $(PYTHON) misc/dependencies/build-deps-setup.py install \
@@ -98,7 +98,7 @@ endif
 
 # TESTING
 
-.PHONY: check-deps check-twisted-dep $(CHECK_PYWIN32_DEP) signal-error-deps, signal-error-twisted-dep, signal-error-pywin32-dep, test test-figleaf figleaf-output
+.PHONY: check-all-deps check-twisted-dep $(CHECK_PYWIN32_DEP) signal-error-deps, signal-error-twisted-dep, signal-error-pywin32-dep, test test-figleaf figleaf-output
 
 
 signal-error-deps:
@@ -139,7 +139,7 @@ OpenSSL).  Please see the README for help on installing dependencies."
 	@echo
 	exit 1
 
-check-deps: check-manual-deps
+check-all-deps: check-deps
 	$(PP) \
 	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, pycryptopp' || $(MAKE) signal-error-deps
 
@@ -152,10 +152,10 @@ check-pywin32-dep:
 check-pyopenssl-dep:
 	$(PYTHON) -c 'import OpenSSL' || $(MAKE) signal-error-pyopenssl-dep
 
-check-manual-deps: check-twisted-dep $(CHECK_PYWIN32_DEP) check-pyopenssl-dep
+check-deps: check-twisted-dep $(CHECK_PYWIN32_DEP) check-pyopenssl-dep
 
 .checked-deps:
-	$(MAKE) check-deps
+	$(MAKE) check-all-deps
 	touch .checked-deps
 
 # you can use 'make test TEST=allmydata.test.test_introducer' to run just

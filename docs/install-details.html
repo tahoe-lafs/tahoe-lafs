@@ -1,0 +1,98 @@
+
+The code is retrievable using the <a href="http://darcs.net">darcs</a>
+revision control tool by running the following command:
+
+<pre>
+darcs get http://allmydata.org/source/tahoe/trunk tahoe
+</pre>
+
+This will create a directory named <pre>tahoe</pre> in the current working
+directory and put a copy of the latest source code into it.  Later, if
+you want to get any new changes, then cd into that directory and run
+the command <pre>darcs pull</pre>.
+
+
+<table>
+<tt>operating system</tt><td>location of <pre>tahoe</pre> executable</td>
+<tt>linux</tt><td><pre>/usr/bin</pre></td>
+<tt>cygwin</tt><td><pre>/usr/bin</pre></td>
+<tt>Windows</tt><td><pre>C:\Python25\Scripts</pre></td>
+<tt>Mac OS X</tt><td><pre>/Frameworks/Python/Versions/2.5/binpre>(XXX double-check this)</td>
+<tt>Solaris</tt><td><pre>/usr/bin</pre>(XXX double-check this)</td>
+</table>
+
+EASY_INSTALLABLE DEPENDENCIES
+
+The following Python packages are required, but normally they are
+automatically installed as a side-effect of installing Tahoe.
+
+ + Python setuptools (build and distribution tool)
+
+   http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
+
+   The Tahoe install process will automatically download and install
+   setuptools if it is not present.  However, if an old, incompatible version
+   of setuptools is present (< v0.6c6 on Cygwin, or < v0.6a9 on other
+   platforms), then the install will fail.
+
+   If the install fails due to your current version of setuptools being
+   incompatible, please either upgrade or uninstall your version of
+   setuptools and re-run the install.
+
+ + zfec (erasure coding library)
+
+   http://cheeseshop.python.org/pypi/zfec
+
+   zfec is packaged in a setuptools-compatible way and included in the Python
+   Package Index (PyPI), so it will be automatically installed when you
+   install Tahoe (see INSTALLING).  It can be manually installed by running
+   "easy_install zfec".
+
+ + Python foolscap (secure remote object library)
+
+   http://cheeseshop.python.org/pypi/foolscap
+
+   foolscape is packaged in a setuptools-compatible way and included in the
+   Python Package Index (PyPI), so it will be automatically installed when
+   you install Tahoe (see INSTALLING).  It can be manually installed by
+   running "easy_install foolscap".
+
+ + Python simplejson (JSON parser)
+
+   http://cheeseshop.python.org/pypi/simplejson
+
+   simplejson is packaged in a setuptools-compatible way and included in the
+   Python Package Index (PyPI), so it will be automatically installed when
+   you install Tahoe (see INSTALLING).  It can be manually installed by
+   running "easy_install simplejson".
+
+ + Python Nevow (0.6.0 or later) (web presentation language)
+
+   http://divmod.org/trac/wiki/DivmodNevow
+
+   Note that the current version of Nevow (0.9.18) requires Twisted 2.4.0 or
+   later.
+
+   Nevow is packaged in a setuptools-compatible way and included in the
+   Python Package Index (PyPI), so it will be automatically installed when
+   you install Tahoe (see INSTALLING).  It can be manually installed by
+   running "easy_install nevow".
+
+ + Python pycryptopp (0.2.1 or later) (Python crypto library)
+
+   http://pypi.python.org/pypi/pycryptopp
+
+   pycryptopp is packaged in a setuptools-compatible way and included in the
+   Python Package Index (PyPI), so it will be automatically installed when
+   you install Tahoe (see INSTALLING).  It can be manually installed by
+   running "easy_install nevow".
+
+If you are behind a firewall and you can configure your firewall to
+forward TCP connections on a port to the computer running your Tahoe
+node, then you can configure the Tahoe node to announce itself as
+being available on that IP address and port.  The way to do this is to
+create a file named $HERE/advertised_ip_addresses, in which you can
+put IP addresses and port numbers in "dotted-quad:port" form,
+e.g. "209.97.232.113:1345".  You can put multiple
+IP-address-and-port-number entries into this file, on separate lines.
+

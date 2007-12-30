@@ -1,33 +1,14 @@
-Welcome to the Allmydata-Tahoe project.  This project implements a secure,
-distributed, fault-tolerant storage grid.  All of the source code is available 
-under a Free Software licence.
+Welcome to the Tahoe project, a secure, decentralized, fault-tolerant
+filesystem.  All of the source code is available under a Free
+Software, Open Source licence.
 
-The basic idea is that the data in this storage grid is spread over all
-participating nodes, using an algorithm that can recover the data even if
-some of the nodes are not available.
+This filesystem is encrypted and spread over multiple peers in such a
+way that it remains available even when some of the peers are
+unavailable, malfunctioning, or malicious.
 
-The interface to the storage grid allows you to store and fetch files, either
-by self-authenticating cryptographic identifier or by filename and path.
-
-See the web site for all kinds of information, news, and community
-discussion:
+See the web site for information, news, and discussion:
 
 http://allmydata.org
-
-
-GETTING PRECOMPILED BINARIES FOR DEBIAN-LIKE SYSTEMS:
-
-Pre-compiled binaries are available for Debian or Ubuntu.  Please see the
-following web page for instructions:
-
-http://allmydata.org/trac/tahoe/wiki/DownloadDebianPackages
-
-
-BUILDING ON WINDOWS:
-
-Please see the README.win32 file for some specific issues, but after you've
-understood those issues then come back here and follow the instructions in
-this README.
 
 
 DEPENDENCIES:
