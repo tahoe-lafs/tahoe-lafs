@@ -1,71 +1,69 @@
-This is the default procedure to install from source.  It has been
-verified to work on Windows, Cygwin, Mac, Linux, and Solaris.  It's
-likely to work on other platforms.  For more details and for
-alternative installation procedures, please
-see <a href="install-details.html">install-details.html</a>.
+<!DOCtype HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+  <head>
+    <title>installing Tahoe</title>
+    <link rev="made" class="mailto" href="mailto:zooko[at]zooko[dot]com">
+    <meta name="description" content="Zooko introduction">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="keywords" content="tahoe secure decentralized filesystem installation">
+  </head>
+
+  <body>
+    <h1>INSTALLING TAHOE</h1>
+
+    <p>This is the default procedure to install from source.  It has been verified to work on Windows, Cygwin, Mac, Linux, and Solaris.  It's likely to work on other platforms.  For more details and for alternative installation procedures, please see <a href="install-details.html">install-details.html</a>.
+
+      <h2>DEPENDENCIES</h2>
+
+    <p>Prior to installing Tahoe the following must be installed:
+
+      <ol>
+	<li><a href="http://gcc.gnu.org/">gcc</a> including g++ (programming language)
+	  <p>If you are building for Windows or for Cygwin (which are two different platforns), the Cygwin version of gcc will work (it can be used to build executable for either of those platforms).</p>
+	</li>
+
+	<li><a href="http://gnu.org/software/make/">GNU make</a> (build tool)</li>
+
+	<li><a href="http://python.org">Python</a> including development headers i.e. "Python.h" (programming language)</li>
+
+	<li><a href="http://zope.org/Products/ZopeInterface">zope.interface</a> (programming language extension)
+	  <p>Note that Tahoe does <em>not</em> require the entire Zope package, merely the much smaller zope.interface component.</p>
+	</li>
+
+	<li><a href="http://twistedmatrix.com">Twisted</a> (network and operating system integration library)
+	  <p>Installing Twisted from the Twisted "sumo" source tarball works on all supported platforms.</p>
+	</li>
+
+	<li><a href="http://openssl.org">OpenSSL</a>, including development headers (cryptography library)</li>
+
+	<li><a href="http://pyopenssl.sourceforge.net">PyOpenSSL</a> (secure transport layer)</li>
+
+	<li><a href="http://cryptopp.com">Crypto++</a>, including development headers (cryptography library)</li>
+
+	<li><a href="http://sourceforge.net/projects/pywin32/">pywin32</a>
+	  <p>This one is required only if you are installing on Windows native.  (It is not required if you are installing on Linux, Mac, Solaris, Cygwin, or any other platform.)</li>
+      </ol>
 
 
-DEPENDENCIES:
+      <h2>GET THE SOURCE CODE</h2>
 
-Prior to installing Tahoe the following must be installed:
-
-1. gcc including g++ (programming language)
-
-   If you are building for Windows or for Cygwin, the Cygwin version
-   of gcc will work.
-
-2. GNU make (build tool) 
-
-3. <a href="http://python.org">Python</a> including development
-   headers i.e. "Python.h" (programming language)
-
-4. zope.interface (programming language extension)
-
-   Note that Tahoe does <em>not</em> require the entire Zope package,
-   merely the much smaller zope.interface component.
-
-5. <a href="http://twistedmatrix.com">Twisted</a> (network and
-   operating system integration library)
-
-   Installing Twisted from the Twisted "sumo" source tarball works on
-   all supported platforms.
-
-6. <a href="http://openssl.org">OpenSSL</a>, including development
-   headers (cryptography library)
-
-7. <a href="http://pyopenssl.sourceforge.net">PyOpenSSL</a> (secure
-   transport layer)
-
-8. <a href="http://cryptopp.com">Crypto++</a>, including development
-   headers (cryptography library)
-
-9. required only for Windows-native (not required for
-   Cygwin): <a href="http://sourceforge.net/projects/pywin32/">pywin32</a>
+    <p>Tarballs of the source code are available at:
+      <pre><a href="http://allmydata.org/source/tahoe/">http://allmydata.org/source/tahoe/</a></pre></p>
 
 
-GET THE SOURCE CODE:
+      <h2>INSTALL</h2>
 
-Tarballs of the source code are available at:
+    <p>Unpack the tarball and cd into the top-level directory.</p>
 
-http://allmydata.org/source/tahoe/
+    <p>Run <cite>make check-deps</cite> which verifies that all of the dependencies listed above are installed.</p>
 
+    <p>Run <cite>make</cite> to build Tahoe and some included libraries and install the <cite>tahoe</cite> executable into a subdirectory of the current directory named <cite>bin</cite>.</p>
 
-INSTALL:
+    <p>Run <cite>make test</cite> to verify that it built correctly and passes all tests.</p>
 
-Unpack the tarball and cd into the top-level directory.
+    <h2>RUN</h2>
 
-Run <pre>make check-deps</pre> which verifies that all of the
-dependencies listed above are installed.
+    <p>Now you have the Tahoe source code installed and are ready to use it to form a decentralized filesystem. See <a href="running.html">running.html</a> for instructions.</p>
 
-Run <pre>make</pre> to build Tahoe and some included libraries and
-install the <pre>tahoe</pre> executable into a subdirectory of the
-current directory named <pre>bin</pre>.
-
-Run <pre>make test</pre> to verify that it built correctly and passes
-all tests.
-
-
-Now you have the Tahoe source code installed and are ready to use it
-to form a decentralized
-filesystem. See <a href="running.html">running.html</a> for
-instructions.
+  </body>
+</html>
