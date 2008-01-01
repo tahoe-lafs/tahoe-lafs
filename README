@@ -265,7 +265,7 @@ RUNNING:
  lines.
 
  There is a public grid available for testing. The necessary .furl files are
- in docs/testnet/*.furl . More information is available on
+ in docs/testgrid/*.furl . More information is available on
  http://allmydata.org/trac/tahoe/wiki/TestGrid .
 
 
