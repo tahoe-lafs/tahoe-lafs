@@ -75,7 +75,7 @@
 # if ez_setup.py needs to build setuptools, that goes here
 ^setuptools-.*.egg$
 # creating a tahoe egg puts files here
-^allmydata_tahoe.egg-info
+allmydata_tahoe.egg-info$
 # the 'build-deps' commands results in this directory:
 ^tahoe_deps.egg-info
 
@@ -85,6 +85,8 @@
 ^\.checked-deps$
 ^\.built$
 
-# if setup.py needs to install setuptools_darcs_plugin, that goes here
+# if setup.py needs to install plugins from eggs to satisfy setup_requires:
 ^setuptools_darcs_plugin-.*.egg$
 ^setuptools_darcs.*.egg$
+^darcsver.*.egg$
+
