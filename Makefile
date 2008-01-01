@@ -45,7 +45,7 @@ endif
 
 TRIAL=PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 
-build-deps: check-deps
+build-auto-deps: check-deps
 	mkdir -p "$(SUPPORTLIB)"
 	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
          $(PYTHON) misc/dependencies/build-deps-setup.py install \
@@ -72,7 +72,7 @@ make-version:
 	$(MAKE) build
 	touch .built
 
-simple-build: build-deps build
+simple-build: build-auto-deps build
 
 build: 
 	$(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG)
@@ -112,7 +112,7 @@ see the README for help on installing dependencies."
 signal-error-twisted-dep:
 	@echo
 	@echo
-	@echo "ERROR: Before running \"make build-deps\" you have to ensure that \
+	@echo "ERROR: Before running \"make build-auto-deps\" you have to ensure that \
 Twisted is installed (including its zope.interface dependency).  Twisted and \
 zope.interface are required for the automatic installation of certain other \
 libraries that Tahoe requires).  Please see the README for details."

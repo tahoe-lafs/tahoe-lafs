@@ -29,10 +29,10 @@ except ImportError:
 
 # Ubuntu Dapper includes nevow-0.6.0 and twisted-2.2.0, both of which work.
 # However, setuptools doesn't know about them, so our install_requires=
-# dependency upon nevow causes our 'build-deps' step to try and build the
+# dependency upon nevow causes our 'build-auto-deps' step to try and build the
 # latest version (nevow-0.9.18), which *doesn't* work with twisted-2.2.0 . To
 # work around this, remove nevow from our dependency list if we detect that
-# we've got nevow-0.6.0 installed. This will allow build-deps (and everything
+# we've got nevow-0.6.0 installed. This will allow build-auto-deps (and everything
 # else) to work on dapper systems that have the python-nevow package
 # installed, and shouldn't hurt any other systems. Dapper systems *without*
 # python-nevow will try to build it (and will fail unless they also have a
