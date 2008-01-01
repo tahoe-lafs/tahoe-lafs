@@ -62,14 +62,11 @@ PP=PYTHONPATH="$(SRCPATH)$(PATHSEP)$(PYTHONPATH)$(PATHSEP)$(EGGSPATH)"
 
 .PHONY: make-version build
 
-# The 'darcsver' executable comes in the 'pyutil' package:
-# http://pypi.python.org/pypi/pyutil It is necessary only if you want to
+# The 'darcsver' setup.py command comes in the 'darcsver' package:
+# http://pypi.python.org/pypi/darcsver It is necessary only if you want to
 # automatically produce a new _version.py file from the current darcs history.
-# N.B.: the first argument to darcsver is used to find darcs tags that represent
-# released versions, so it needs to match whatever release conventions are in
-# use.
 make-version:
-	darcsver "allmydata-tahoe" "src/allmydata/_version.py"
+	$(PYTHON) ./setup.py darcsver
 
 .built:
 	$(MAKE) build

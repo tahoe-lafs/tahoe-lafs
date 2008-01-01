@@ -77,14 +77,6 @@ trove_classifiers=[
     ]
 
 
-# Build _version.py before trying to extract a version from it. If we aren't
-# running from a darcs checkout, this will leave any pre-existing _version.py
-# alone.
-try:
-    (cin, cout, cerr,) = os.popen3("darcsver --quiet allmydata-tahoe src/allmydata/_version.py")
-    print cout.read()
-except Exception, le:
-    pass
 VERSIONFILE = "src/allmydata/_version.py"
 verstr = "unknown"
 VSRE = re.compile("^verstr = ['\"]([^'\"]*)['\"]", re.M)
@@ -108,6 +100,21 @@ The basic idea is that the data in this storage grid is spread over all
 participating nodes, using an algorithm that can recover the data even if a
 majority of the nodes are no longer available."""
 
+setup_requires = []
+
+# darcsver is needed only if you want "./setup.py darcsver" to write a new
+# version stamp in src/allmydata/_version.py, with a version number derived from
+# darcs history.
+# http://pypi.python.org/pypi/darcsver
+setup_requires.append('darcsver >= 1.0.0')
+
+# setuptools_darcs is required only if you want to use "./setup.py sdist",
+# "./setup.py bdist", and the other "dist" commands -- it is necessary for them
+# to produce complete distributions, which need to include all files that are
+# under darcs revision control.
+# http://pypi.python.org/pypi/setuptools_darcs
+setup_requires.append('setuptools_darcs >= 1.0.5')
+
 setup(name='allmydata-tahoe',
       version=verstr,
       description='secure, distributed storage grid',
@@ -122,7 +129,7 @@ setup(name='allmydata-tahoe',
       test_suite="allmydata.test",
       install_requires=install_requires,
       include_package_data=True,
-      setup_requires=['setuptools_darcs >= 1.0.5', 'pyutil >= 1.3.8'], # pyutil is for darcsver
+      setup_requires=setup_requires,
       dependency_links=dependency_links,
       entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
       zip_safe=False, # We prefer unzipped for easier access.
