@@ -30,6 +30,13 @@ if len(where) >= 2 and where[-2] == "bin":
                 if fn.endswith(".egg"):
                     support_eggs.append(os.path.join(supportdir, fn))
 
+        # We also need to include .egg's in the base dir, because if there is an
+        # .egg there then "make build-deps" will take that as satisfying its
+        # requirements.
+        for fn in os.listdir(base):
+            if fn.endswith(".egg"):
+                support_eggs.append(os.path.abspath(os.path.join(base, fn)))
+
         sys.path.extend(support_eggs)
 
         # also update PYTHONPATH so that child processes (like twistd) will
