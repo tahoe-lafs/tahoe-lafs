@@ -281,7 +281,7 @@ clean:
 	rm -f `find src/allmydata -name '*.so' -or -name '*.pyc'`
 	rm -rf tahoe_deps.egg-info allmydata_tahoe.egg-info
 	rm -rf support dist
-	rm -rf setuptools*.egg *.pyc
+	rm -rf setuptools*.egg *.pyc darcsver*.egg
 
 find-trailing-spaces:
 	$(PYTHON) misc/find-trailing-spaces.py -r src
