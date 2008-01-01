@@ -1,7 +1,7 @@
 
 # this Makefile requires GNU make
 
-default: build
+default: simple-build
 
 PYTHON=python
 PATHSEP=$(shell python -c 'import os ; print os.pathsep')
@@ -71,6 +71,8 @@ make-version:
 .built:
 	$(MAKE) build
 	touch .built
+
+simple-build: build-deps build
 
 build: 
 	$(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG)
