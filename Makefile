@@ -51,6 +51,11 @@ build-auto-deps: check-deps
          $(PYTHON) misc/dependencies/build-deps-setup.py install \
 	 --prefix="$(SUPPORT)"
 
+# The following target is here because I don't know how to tell the buildmaster
+# to start instructing his slaves to "build-auto-deps" instead of instructing
+# them to "build-deps".  --Z
+build-deps: build-auto-deps
+
 EGGSPATH = $(shell $(PYTHON) misc/find-dep-eggs.py)
 show-eggspath:
 	@echo $(EGGSPATH)
