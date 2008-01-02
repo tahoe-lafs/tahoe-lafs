@@ -300,7 +300,7 @@ automatically installed as a side-effect of installing Tahoe.
    incompatible, please either upgrade or uninstall your version of
    setuptools and re-run the install.
 
- + zfec (erasure coding library)
+ + zfec (1.0.3 or later) (erasure coding library)
 
    http://cheeseshop.python.org/pypi/zfec
 
@@ -309,7 +309,7 @@ automatically installed as a side-effect of installing Tahoe.
    install Tahoe (see INSTALLING).  It can be manually installed by running
    "easy_install zfec".
 
- + Python foolscap (secure remote object library)
+ + Python foolscap (0.2.3 or later) (secure remote object library)
 
    http://cheeseshop.python.org/pypi/foolscap
 
@@ -318,7 +318,7 @@ automatically installed as a side-effect of installing Tahoe.
    you install Tahoe (see INSTALLING).  It can be manually installed by
    running "easy_install foolscap".
 
- + Python simplejson (JSON parser)
+ + Python simplejson (1.4 or later) (JSON parser)
 
    http://cheeseshop.python.org/pypi/simplejson
 
@@ -339,11 +339,11 @@ automatically installed as a side-effect of installing Tahoe.
    you install Tahoe (see INSTALLING).  It can be manually installed by
    running "easy_install nevow".
 
- + Python pycryptopp (0.2.1 or later) (Python crypto library)
+ + Python pycryptopp (0.2.8 or later) (Python crypto library)
 
    http://pypi.python.org/pypi/pycryptopp
 
    pycryptopp is packaged in a setuptools-compatible way and included in the
    Python Package Index (PyPI), so it will be automatically installed when
    you install Tahoe (see INSTALLING).  It can be manually installed by
-   running "easy_install nevow".
+   running "easy_install pycryptopp".
