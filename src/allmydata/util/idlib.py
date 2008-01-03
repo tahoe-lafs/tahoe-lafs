@@ -161,9 +161,9 @@ s8 = init_s8()
 # string tells whether the final character is reasonable.
 def init_s5():
     s5 = []
-    add_check_array(chars, s5)
-    for lenmod5 in (1, 2, 3, 4,):
-        add_check_array(get_trailing_chars_without_lsbs(4-lenmod5), s5)
+    add_check_array(get_trailing_chars_without_lsbs(0), s5)
+    for lenmod5 in [1,2,3,4]:
+        add_check_array(get_trailing_chars_without_lsbs(5-lenmod5), s5)
     return tuple(s5)
 s5 = init_s5()
 
