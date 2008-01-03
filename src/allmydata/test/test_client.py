@@ -120,7 +120,10 @@ class Basic(unittest.TestCase):
         open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         c = client.Client(basedir)
         mine, oldest = c.remote_get_versions()
-        self.failUnlessEqual(mine, allmydata.__version__)
+        self.failUnlessEqual(mine, str(allmydata.__version__))
+        self.failIfEqual(str(allmydata.__version__), "unknown")
+        self.failUnless("." in str(allmydata.__version__),
+                        "non-numeric version in '%s'" % allmydata.__version__)
 
 def flush_but_dont_ignore(res):
     d = flushEventualQueue()
