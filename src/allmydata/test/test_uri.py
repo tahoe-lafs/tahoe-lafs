@@ -45,8 +45,8 @@ class Compare(unittest.TestCase):
     def test_compare(self):
         lit1 = uri.LiteralFileURI("some data")
         fileURI = 'URI:CHK:f3mf6az85wpcai8ma4qayfmxuc:nnw518w5hu3t5oohwtp7ah9n81z9rfg6c1ywk33ia3m64o67nsgo:3:10:345834'
-        chk1 = uri.CHKFileURI().init_from_string(fileURI)
-        chk2 = uri.CHKFileURI().init_from_string(fileURI)
+        chk1 = uri.CHKFileURI.init_from_string(fileURI)
+        chk2 = uri.CHKFileURI.init_from_string(fileURI)
         self.failIfEqual(lit1, chk1)
         self.failUnlessEqual(chk1, chk2)
         self.failIfEqual(chk1, "not actually a URI")
@@ -168,12 +168,13 @@ class Invalid(unittest.TestCase):
 class Constraint(unittest.TestCase):
     def test_constraint(self):
        good="http://127.0.0.1:8123/uri/URI%3ADIR2%3Aqo8ayna47cpw3rx3kho3mu7q4h%3Abk9qbgx76gh6eyj5ps8p6buz8fffw1ofc37e9w9d6ncsfpuz7icy/"
-       self.failUnless(uri.DirnodeURI_RE.search(good))
+       uri.NewDirectoryURI.init_from_human_encoding(good)
+       self.failUnlessRaises(AssertionError, uri.NewDirectoryURI.init_from_string, good)
        bad = good + '==='
-       self.failIf(uri.DirnodeURI_RE.search(bad))
+       self.failUnlessRaises(AssertionError, uri.NewDirectoryURI.init_from_human_encoding, bad)
+       self.failUnlessRaises(AssertionError, uri.NewDirectoryURI.init_from_string, bad)
        fileURI = 'URI:CHK:f3mf6az85wpcai8ma4qayfmxuc:nnw518w5hu3t5oohwtp7ah9n81z9rfg6c1ywk33ia3m64o67nsgo:3:10:345834'
-       self.failIf(uri.DirnodeURI_RE.search(fileURI))
-
+       uri.CHKFileURI.init_from_string(fileURI)
 
 class Mutable(unittest.TestCase):
     def test_pack(self):
@@ -239,7 +240,7 @@ class Mutable(unittest.TestCase):
 class NewDirnode(unittest.TestCase):
     def test_pack(self):
         writekey = "\x01" * 16
-        fingerprint = "\x02" * 16
+        fingerprint = "\x02" * 32
 
         n = uri.WriteableSSKFileURI(writekey, fingerprint)
         u1 = uri.NewDirectoryURI(n)
@@ -301,16 +302,3 @@ class NewDirnode(unittest.TestCase):
             self.failUnless(IVerifierURI.providedBy(v))
             self.failUnlessEqual(v._filenode_uri,
                                  u1.get_verifier()._filenode_uri)
-
-    def test_is_string_newdirnode_rw(self):
-        writekey = "\x01" * 16
-        fingerprint = "\x02" * 32
-
-        n = uri.WriteableSSKFileURI(writekey, fingerprint)
-        u1 = uri.NewDirectoryURI(n)
-
-        self.failUnless(uri.is_string_newdirnode_rw(u1.to_string()), u1.to_string())
-
-        self.failIf(uri.is_string_newdirnode_rw("bogus"))
-        self.failIf(uri.is_string_newdirnode_rw("URI:DIR2:bogus"))
-

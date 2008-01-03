@@ -1184,7 +1184,7 @@ class Web(WebMixin, unittest.TestCase):
     def test_POST_mkdir_no_parentdir_noredirect(self):
         d = self.POST("/uri?t=mkdir")
         def _after_mkdir(res):
-            self.failUnless(uri.is_string_newdirnode_rw(res))
+            uri.NewDirectoryURI.init_from_string(res)
         d.addCallback(_after_mkdir)
         return d
 

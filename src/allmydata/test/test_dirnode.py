@@ -20,7 +20,7 @@ class Marker:
         if not isinstance(nodeuri, str):
             nodeuri = nodeuri.to_string()
         self.nodeuri = nodeuri
-        si = hashutil.tagged_hash("tag1", nodeuri)
+        si = hashutil.tagged_hash("tag1", nodeuri)[:16]
         fp = hashutil.tagged_hash("tag2", nodeuri)
         self.verifieruri = uri.SSKVerifierURI(storage_index=si,
                                               fingerprint=fp).to_string()

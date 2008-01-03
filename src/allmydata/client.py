@@ -128,7 +128,9 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         if os.path.exists(privdirfile):
             try:
                 theuri = open(privdirfile, "r").read().strip()
-                if not uri.is_string_newdirnode_rw(theuri):
+                try:
+                    uri.NewDirectoryURI.init_from_human_encoding(theuri)
+                except:
                     raise EnvironmentError("not a well-formed mutable directory uri")
             except EnvironmentError, le:
                 d = self.when_tub_ready()
