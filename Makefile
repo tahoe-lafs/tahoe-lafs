@@ -73,13 +73,36 @@ PP=PYTHONPATH="$(SRCPATH)$(PATHSEP)$(PYTHONPATH)$(PATHSEP)$(EGGSPATH)"
 make-version:
 	$(PYTHON) ./setup.py darcsver
 
+# We want src/allmydata/_version.py to be up-to-date, but it's a fairly
+# expensive operation (about 6 seconds on a just-before-0.7.0 tree, probably
+# because of the 332 patches since the last tag), and we've removed the need
+# for an explicit 'build' step by removing the C code from src/allmydata and
+# by running everything in place. It would be neat to do:
+#
+#src/allmydata/_version.py: _darcs/patches
+#	$(MAKE) make-version
+#build: src/allmydata/_version.py
+#	...
+#
+# since that would update the embedded version string each time new darcs
+# patches were pulled, but 1) this would break non-darcs trees (i.e. building
+# from an exported tarball), and 2) without an obligatory 'build' step this
+# rule wouldn't be run frequently enought anyways.
+#
+# So instead, I'll just make sure that we update the version at least once
+# when we first start using the tree, and again whenever an explicit 'make'
+# is run, since when things are confused, the first thing a developer does is
+# a 'make clean; make all'. We do this by putting an explicit call to
+# make-version in the 'build' target.
+
 .built:
 	$(MAKE) build
 	touch .built
 
 simple-build: build-auto-deps build
 
-build: 
+build:
+	$(MAKE) make-version
 	$(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG)
 	chmod +x bin/tahoe
 
