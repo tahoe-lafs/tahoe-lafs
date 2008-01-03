@@ -3,6 +3,7 @@ import os
 from twisted.trial import unittest
 from twisted.application import service
 from twisted.internet import reactor, defer
+from twisted.python import log
 
 import allmydata
 from allmydata import client, introducer
@@ -124,6 +125,9 @@ class Basic(unittest.TestCase):
         self.failIfEqual(str(allmydata.__version__), "unknown")
         self.failUnless("." in str(allmydata.__version__),
                         "non-numeric version in '%s'" % allmydata.__version__)
+        all_versions = allmydata.get_package_versions_string()
+        self.failUnless("allmydata" in all_versions)
+        log.msg("tahoe versions: %s" % all_versions)
 
 def flush_but_dont_ignore(res):
     d = flushEventualQueue()
