@@ -34,6 +34,17 @@ def get_trailing_chars_without_lsbs(N):
     d = {}
     return ''.join(_get_trailing_chars_without_lsbs(N, d=d))
 
+ZBASE32CHAR = '['+get_trailing_chars_without_lsbs(0)+']'
+ZBASE32CHAR_4bits = '['+get_trailing_chars_without_lsbs(1)+']'
+ZBASE32CHAR_3bits = '['+get_trailing_chars_without_lsbs(2)+']'
+ZBASE32CHAR_2bits = '['+get_trailing_chars_without_lsbs(3)+']'
+ZBASE32CHAR_1bits = '['+get_trailing_chars_without_lsbs(4)+']'
+ZBASE32STR_1byte = ZBASE32CHAR+ZBASE32CHAR_3bits
+ZBASE32STR_2bytes = ZBASE32CHAR+'{3}'+ZBASE32CHAR_1bits
+ZBASE32STR_3bytes = ZBASE32CHAR+'{4}'+ZBASE32CHAR_4bits
+ZBASE32STR_4bytes = ZBASE32CHAR+'{6}'+ZBASE32CHAR_2bits
+ZBASE32STR_anybytes = '((?:%s{8})*' % (ZBASE32CHAR,) + "(?:|%s|%s|%s|%s))" % (ZBASE32STR_1byte, ZBASE32STR_2bytes, ZBASE32STR_3bytes, ZBASE32STR_4bytes)
+
 def b2a(os):
     """
     @param os the data to be encoded (a string)
