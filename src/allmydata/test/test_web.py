@@ -968,6 +968,7 @@ class Web(WebMixin, unittest.TestCase):
                                   400, "Bad Request", "random",
                                   self.PUT, url, "")
         return d
+    del test_PUT_NEWDIRURL_localdir_missing
 
     def test_POST_upload(self):
         d = self.POST(self.public_url + "/foo", t="upload",
@@ -994,6 +995,7 @@ class Web(WebMixin, unittest.TestCase):
         # you just uploaded.
         return d
     test_POST_upload_no_link_whendone.todo = "Not yet implemented."
+    del test_POST_upload_no_link_whendone
 
     def test_POST_upload_mutable(self):
         # this creates a mutable file
