@@ -327,7 +327,7 @@ class _NewDirectoryBaseURI(_BaseURI):
     @classmethod
     def init_from_human_encoding(cls, uri):
         mo = cls.BASE_HUMAN_RE.search(uri)
-        assert mo, uri
+        assert mo, (uri, cls)
         bits = uri[mo.end():]
         while bits and bits[-1] == '/':
             bits = bits[:-1]

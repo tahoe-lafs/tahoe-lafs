@@ -39,15 +39,35 @@ class VDriveOptions(BaseOptions, usage.Options):
             node_url_file = os.path.join(self['node-directory'], "node.url")
             self['node-url'] = open(node_url_file, "r").read().strip()
 
-        # also compute self['dir-uri']
-        if self['dir-uri'] == "root":
-            uri_file = os.path.join(self['node-directory'], "root_dir.cap")
-            self['dir-uri'] = open(uri_file, "r").read().strip()
+        rootdircap = None
+        if self['dir-uri'] == 'root':
+            uri_file = os.path.join(self['node-directory'], 'private', "root_dir.cap")
+            try:
+                rootdircap = open(uri_file, "r").read().strip()
+            except EnvironmentError, le:
+                raise usage.UsageError("\n"
+                                       "If --dir-uri is absent or is 'root', then the node directory's 'private'\n"
+                                       "subdirectory is required to contain a file named 'root_dir.cap' which must\n"
+                                       "contain a dir cap, but when we tried to open that file we got:\n"
+                                       "'%s'." % (le,))
+        else:
+            rootdircap = self['dir-uri']
         from allmydata import uri
-        parsed = uri.NewDirectoryURI.init_from_human_encoding(self['dir-uri'])
-        if not uri.IDirnodeURI.providedBy(parsed):
-            raise usage.UsageError("--dir-uri must be a dir URI, or 'root'")
+        try:
+            parsed = uri.NewDirectoryURI.init_from_human_encoding(rootdircap)
+        except:
+            try:
+                parsed = uri.ReadonlyNewDirectoryURI.init_from_human_encoding(rootdircap)
+            except:
+                if self['dir-uri'] == 'root':
+                    raise usage.UsageError("\n"
+                                           "If --dir-uri is absent or is 'root', then the node directory's 'private'\n"
+                                           "subdirectory's 'root_dir.cap' is required to contain a dir cap, but we found\n"
+                                           "'%s'." % (rootdircap,))
+                else:
+                    raise usage.UsageError("--dir-uri must be a dir cap (or \"root\"), but we got '%s'." % (self['dir-uri'],))
 
+        self['dir-uri'] = parsed.to_string()
 
 class ListOptions(VDriveOptions):
     def parseArgs(self, vdrive_pathname=""):
