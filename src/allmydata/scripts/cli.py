@@ -18,7 +18,7 @@ class VDriveOptions(BaseOptions, usage.Options):
          "URL of the tahoe node to use, a URL like \"http://127.0.0.1:8123\". "
          "This overrides the URL found in the --node-directory ."],
         ["dir-uri", "r", "root",
-         "Which dirnode URI should be used as a root directory.  The " 
+         "Which dirnode URI should be used as a root directory.  The "
          "string 'root' is special, and means we should use the "
          "directory found in the 'root_dir.cap' file in the 'private' "
          "subdirectory of the --node-directory ."],

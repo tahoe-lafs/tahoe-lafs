@@ -591,7 +591,6 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         c0 = self.clients[0]
         d = c0.create_empty_dirnode(wait_for_numpeers=self.numclients)
         def _made_root(new_dirnode):
-            log.msg("ZZZ %s -> %s" % (hasattr(self, '_root_directory_uri') and self._root_directory_uri, new_dirnode.get_uri(),))
             self._root_directory_uri = new_dirnode.get_uri()
             return c0.create_node_from_uri(self._root_directory_uri)
         d.addCallback(_made_root)

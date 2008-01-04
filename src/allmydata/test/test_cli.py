@@ -16,7 +16,6 @@ class CLI(unittest.TestCase):
         fileutil.rm_dir("cli/test_options")
         fileutil.make_dirs("cli/test_options")
         open("cli/test_options/node.url","w").write("http://localhost:8080/\n")
-        #private_uri = uri.DirnodeURI("furl", "key").to_string()
         filenode_uri = uri.WriteableSSKFileURI(writekey="\x00"*16,
                                                fingerprint="\x00"*32)
         private_uri = uri.NewDirectoryURI(filenode_uri).to_string()
