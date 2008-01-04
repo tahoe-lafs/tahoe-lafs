@@ -3,10 +3,10 @@
 import urllib
 import simplejson
 
-def list(nodeurl, root_uri, vdrive_pathname, stdout, stderr):
+def list(nodeurl, dir_uri, vdrive_pathname, stdout, stderr):
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    url = nodeurl + "uri/%s/" % urllib.quote(root_uri)
+    url = nodeurl + "uri/%s/" % urllib.quote(dir_uri)
     if vdrive_pathname:
         url += urllib.quote(vdrive_pathname)
     url += "?t=json"
@@ -34,7 +34,7 @@ def main():
     import optparse, re
     parser = optparse.OptionParser()
     parser.add_option("-u", "--node-url", dest="nodeurl")
-    parser.add_option("-r", "--root-uri", dest="rooturi")
+    parser.add_option("-r", "--dir-uri", dest="rooturi")
 
     (options, args) = parser.parse_args()
 
@@ -43,7 +43,7 @@ def main():
         raise ValueError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (options.nodeurl,))
 
     if not options.rooturi:
-        raise ValueError("must provide --root-uri")
+        raise ValueError("must provide --dir-uri")
 
     vdrive_pathname = ""
     if args:

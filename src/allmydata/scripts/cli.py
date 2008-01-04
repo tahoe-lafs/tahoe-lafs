@@ -11,17 +11,17 @@ class VDriveOptions(BaseOptions, usage.Options):
          "Look here to find out which Tahoe node should be used for all "
          "operations. The directory should either contain a full Tahoe node, "
          "or a file named node.url which points to some other Tahoe node. "
-         "It should also contain a file named my_private_dir.cap which contains "
+         "It should also contain a file named root_dir.cap which contains "
          "the root dirnode URI that should be used."
          ],
         ["node-url", "u", None,
          "URL of the tahoe node to use, a URL like \"http://127.0.0.1:8123\". "
          "This overrides the URL found in the --node-directory ."],
-        ["root-uri", "r", "private",
-         "Which dirnode URI should be used as a root directory.  The "
-         "string 'private' is also, and means we should use the "
-         "private vdrive as found in the my_private_dir.cap file in the "
-         "--node-directory ."],
+        ["dir-uri", "r", "root",
+         "Which dirnode URI should be used as a root directory.  The " 
+         "string 'root' is special, and means we should use the "
+         "directory found in the 'root_dir.cap' file in the 'private' "
+         "subdirectory of the --node-directory ."],
         ]
 
     def postOptions(self):
@@ -39,16 +39,14 @@ class VDriveOptions(BaseOptions, usage.Options):
             node_url_file = os.path.join(self['node-directory'], "node.url")
             self['node-url'] = open(node_url_file, "r").read().strip()
 
-        # also compute self['root-uri']
-        if self['root-uri'] == "private":
-            uri_file = os.path.join(self['node-directory'], "my_private_dir.cap")
-            self['root-uri'] = open(uri_file, "r").read().strip()
-        else:
-            from allmydata import uri
-            parsed = uri.from_string(self['root-uri'])
-            if not uri.IDirnodeURI.providedBy(parsed):
-                raise usage.UsageError("--root-uri must be a dirnode URI, or "
-                                       "'public' or 'private'")
+        # also compute self['dir-uri']
+        if self['dir-uri'] == "root":
+            uri_file = os.path.join(self['node-directory'], "root_dir.cap")
+            self['dir-uri'] = open(uri_file, "r").read().strip()
+        from allmydata import uri
+        parsed = uri.NewDirectoryURI.init_from_human_encoding(self['dir-uri'])
+        if not uri.IDirnodeURI.providedBy(parsed):
+            raise usage.UsageError("--dir-uri must be a dir URI, or 'root'")
 
 
 class ListOptions(VDriveOptions):
@@ -108,7 +106,7 @@ subCommands = [
 def list(config, stdout, stderr):
     from allmydata.scripts import tahoe_ls
     rc = tahoe_ls.list(config['node-url'],
-                       config['root-uri'],
+                       config['dir-uri'],
                        config['vdrive_pathname'],
                        stdout, stderr)
     return rc
@@ -118,7 +116,7 @@ def get(config, stdout, stderr):
     vdrive_filename = config['vdrive_filename']
     local_filename = config['local_filename']
     rc = tahoe_get.get(config['node-url'],
-                       config['root-uri'],
+                       config['dir-uri'],
                        vdrive_filename,
                        local_filename,
                        stdout, stderr)
@@ -142,7 +140,7 @@ def put(config, stdout, stderr):
     else:
         verbosity = 2
     rc = tahoe_put.put(config['node-url'],
-                       config['root-uri'],
+                       config['dir-uri'],
                        local_filename,
                        vdrive_filename,
                        verbosity,
@@ -157,7 +155,7 @@ def rm(config, stdout, stderr):
     else:
         verbosity = 2
     rc = tahoe_rm.rm(config['node-url'],
-                     config['root-uri'],
+                     config['dir-uri'],
                      vdrive_pathname,
                      verbosity,
                      stdout, stderr)
@@ -168,7 +166,7 @@ def mv(config, stdout, stderr):
     frompath = config['from']
     topath = config['to']
     rc = tahoe_mv.mv(config['node-url'],
-                     config['root-uri'],
+                     config['dir-uri'],
                      frompath,
                      topath,
                      stdout, stderr)

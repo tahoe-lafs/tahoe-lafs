@@ -5,12 +5,12 @@ import urllib
 import simplejson
 from allmydata.scripts.common_http import do_http
 
-def mv(nodeurl, root_uri, frompath, topath, stdout, stderr):
+def mv(nodeurl, dir_uri, frompath, topath, stdout, stderr):
     frompath = urllib.quote(frompath)
     topath = urllib.quote(topath)
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    url = nodeurl + "uri/%s/" % urllib.quote(root_uri)
+    url = nodeurl + "uri/%s/" % urllib.quote(dir_uri)
     data = urllib.urlopen(url + frompath + "?t=json").read()
 
     nodetype, attrs = simplejson.loads(data)

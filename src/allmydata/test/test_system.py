@@ -71,7 +71,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
             if self.createprivdir:
                 fileutil.make_dirs(os.path.join(basedir, "private"))
-                open(os.path.join(basedir, "private", "my_private_dir.cap"), "w")
+                open(os.path.join(basedir, "private", "root_dir.cap"), "w")
             open(os.path.join(basedir, "introducer.furl"), "w").write(self.introducer_furl)
             c = self.add_service(client.Client(basedir=basedir))
             self.clients.append(c)
@@ -567,15 +567,13 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(self.log, "did _check_publish2")
         d.addCallback(self._do_publish_private)
         d.addCallback(self.log, "did _do_publish_private")
-        # now we also have (where "P" denotes clients[0]'s automatic private
-        # dir):
+        # now we also have (where "P" denotes a new dir):
         #  P/personal/sekrit data
         #  P/s2-rw -> /subdir1/subdir2/
         #  P/s2-ro -> /subdir1/subdir2/ (read-only)
         d.addCallback(self._check_publish_private)
         d.addCallback(self.log, "did _check_publish_private")
         d.addCallback(self._test_web)
-        d.addCallback(self._test_web_start)
         d.addCallback(self._test_control)
         d.addCallback(self._test_cli)
         # P now has four top-level children:
@@ -654,11 +652,9 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     def _do_publish_private(self, res):
         self.smalldata = "sssh, very secret stuff"
         ut = upload.Data(self.smalldata)
-        d = self.clients[0].get_private_uri()
+        d = self.clients[0].create_empty_dirnode(wait_for_numpeers=self.numclients)
         d.addCallback(self.log, "GOT private directory")
-        def _got_root_uri(privuri):
-            assert privuri
-            privnode = self.clients[0].create_node_from_uri(privuri)
+        def _got_new_dir(privnode):
             rootnode = self.clients[0].create_node_from_uri(self._root_directory_uri)
             d1 = privnode.create_empty_directory("personal", wait_for_numpeers=self.numclients)
             d1.addCallback(self.log, "made P/personal")
@@ -670,8 +666,9 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 d2.addCallback(lambda node: privnode.set_uri("s2-ro", s2node.get_readonly_uri(), wait_for_numpeers=self.numclients))
                 return d2
             d1.addCallback(_got_s2)
+            d1.addCallback(lambda res: privnode)
             return d1
-        d.addCallback(_got_root_uri)
+        d.addCallback(_got_new_dir)
         return d
 
     def _check_publish1(self, res):
@@ -705,14 +702,11 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(_got_filenode)
         return d
 
-    def _check_publish_private(self, res):
+    def _check_publish_private(self, resnode):
         # this one uses the path-based API
-        d = self.clients[0].get_private_uri()
-        def _got_private_uri(privateuri):
-            self._private_node = self.clients[0].create_node_from_uri(privateuri)
-        d.addCallback(_got_private_uri)
+        self._private_node = resnode
 
-        d.addCallback(lambda res: self._private_node.get_child_at_path("personal"))
+        d = self._private_node.get_child_at_path("personal")
         def _got_personal(personal):
             self._personal_node = personal
             return personal
@@ -916,19 +910,6 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
         return d
 
-    def _test_web_start(self, res):
-        basedir = self.clients[0].basedir
-        startfile = os.path.join(basedir, "private", "start.html")
-        self.failUnless(os.path.exists(startfile))
-        start_html = open(startfile, "r").read()
-        self.failUnless(self.webish_url in start_html)
-        d = self.clients[0].get_private_uri()
-        def done(private_uri):
-            private_url = self.webish_url + "uri/" + private_uri
-            self.failUnless(private_url in start_html)
-        d.addCallback(done)
-        return d
-
     def _test_runner(self, res):
         # exercise some of the diagnostic tools in runner.py
 
@@ -1013,11 +994,11 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
         nodeargs = [
             "--node-url", self.webish_url,
-            "--root-uri", private_uri,
+            "--dir-uri", private_uri,
             ]
         public_nodeargs = [
             "--node-url", self.webish_url,
-            "--root-uri", some_uri,
+            "--dir-uri", some_uri,
             ]
         TESTDATA = "I will not write the same thing over and over.\n" * 100
 

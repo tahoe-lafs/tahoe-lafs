@@ -1,7 +1,7 @@
 
 from base64 import b32encode
 import os.path
-from twisted.application import service, strports, internet
+from twisted.application import service, strports
 from twisted.web import static, resource, server, html, http
 from twisted.python import util, log
 from twisted.internet import defer
@@ -1335,18 +1335,6 @@ class Root(rend.Page):
         ctx.fillSlots("peerid", nodeid_a)
         return ctx.tag
 
-    def render_private_vdrive(self, ctx, data):
-        basedir = IClient(ctx).basedir
-        start_html = os.path.abspath(os.path.join(basedir, "private", "start.html"))
-        basedir = IClient(ctx).basedir
-        if os.path.exists(start_html) and os.path.exists(os.path.join(basedir, "private", "my_private_dir.cap")):
-            return T.p["To view your personal private non-shared filestore, ",
-                       "use this browser to open the following file from ",
-                       "your local filesystem:",
-                       T.pre[start_html],
-                       ]
-        return T.p["personal vdrive not available."]
-
     # this is a form where users can download files by URI
     def render_download_form(self, ctx, data):
         form = T.form(action="uri", method="get",
@@ -1411,41 +1399,3 @@ class WebishServer(service.MultiService):
         # apparently 'ISite' does not exist
         #self.site._client = self.parent
         self._started.callback(None)
-
-    def create_start_html(self, private_uri, startfile, nodeurl_file):
-        """
-        Returns a deferred that eventually fires once the start.html page has
-        been created.
-        """
-        self._started.addCallback(self._create_start_html, private_uri, startfile, nodeurl_file)
-        return self._started
-
-    def _create_start_html(self, dummy, private_uri, startfile, nodeurl_file):
-        f = open(startfile, "w")
-        template = open(util.sibpath(__file__, "web/start.html"), "r").read()
-        # what is our webport?
-        s = self.listener
-        if isinstance(s, internet.TCPServer):
-            base_url = "http://localhost:%d" % s._port.getHost().port
-        elif isinstance(s, internet.SSLServer):
-            base_url = "https://localhost:%d" % s._port.getHost().port
-        else:
-            base_url = "UNKNOWN"  # this will break the href
-            # TODO: emit a start.html that explains that we don't know
-            # how to create a suitable URL
-        if private_uri:
-            link_to_private_uri = "View <a href=\"%s/uri/%s\">your personal private non-shared filestore</a>." % (base_url, private_uri)
-            fields = {"link_to_private_uri": link_to_private_uri,
-                      "base_url": base_url,
-                      }
-        else:
-            fields = {"link_to_private_uri": "",
-                      "base_url": base_url,
-                      }
-        f.write(template % fields)
-        f.close()
-
-        f = open(nodeurl_file, "w")
-        # this file is world-readable
-        f.write(base_url + "\n")
-        f.close()

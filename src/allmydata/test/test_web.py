@@ -275,23 +275,12 @@ class Web(WebMixin, unittest.TestCase):
         def _check(res):
             self.failUnless('Welcome To AllMyData' in res)
             self.failUnless('Tahoe' in res)
-            self.failUnless('personal vdrive not available.' in res)
 
             self.s.basedir = 'web/test_welcome'
             fileutil.make_dirs("web/test_welcome")
             fileutil.make_dirs("web/test_welcome/private")
-            self.ws.create_start_html("private_uri",
-                                      "web/test_welcome/private/start.html",
-                                      "web/test_welcome/node.url")
             return self.GET("/")
         d.addCallback(_check)
-        def _check2(res):
-            # We shouldn't link to the start.html page since we don't have a 
-            # private directory cap.
-            self.failIf('To view your personal private non-shared' in res)
-            self.failIf('from your local filesystem:' in res)
-            self.failIf(os.path.abspath('web/test_welcome/private/start.html') in res)
-        d.addCallback(_check2)
         return d
 
     def test_provisioning_math(self):
@@ -351,23 +340,6 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnless("Share space consumed:" in res)
         d.addCallback(_check4)
         return d
-
-    def test_start_html(self):
-        fileutil.make_dirs("web")
-        fileutil.make_dirs("web/private")
-        startfile = "web/private/start.html"
-        nodeurlfile = "web/node.url"
-        self.ws.create_start_html("private_uri", startfile, nodeurlfile)
-
-        self.failUnless(os.path.exists(startfile))
-        start_html = open(startfile, "r").read()
-        self.failUnless(self.webish_url in start_html)
-        private_url = self.webish_url + "/uri/private_uri"
-        self.failUnless(private_url in start_html)
-
-        self.failUnless(os.path.exists(nodeurlfile))
-        nodeurl = open(nodeurlfile, "r").read().strip()
-        self.failUnless(nodeurl.startswith("http://localhost"))
 
     def test_GET_FILEURL(self):
         d = self.GET(self.public_url + "/foo/bar.txt")

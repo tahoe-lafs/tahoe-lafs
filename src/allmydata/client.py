@@ -16,13 +16,12 @@ from allmydata.download import Downloader
 from allmydata.checker import Checker
 from allmydata.control import ControlServer
 from allmydata.introducer import IntroducerClient
-from allmydata.util import hashutil, idlib, testutil, observer
+from allmydata.util import hashutil, idlib, testutil
 from allmydata.filenode import FileNode
 from allmydata.dirnode import NewDirectoryNode
 from allmydata.mutable import MutableFileNode
 from allmydata.interfaces import IURI, INewDirectoryURI, \
      IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI
-from allmydata import uri
 
 class Client(node.Node, Referenceable, testutil.PollMixin):
     implements(RIClient)
@@ -30,7 +29,6 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
     STOREDIR = 'storage'
     NODETYPE = "client"
     SUICIDE_PREVENTION_HOTLINE_FILE = "suicide_prevention_hotline"
-    MY_PRIVATE_DIR_FILE = "my_private_dir.cap"
 
     # we're pretty narrow-minded right now
     OLDEST_SUPPORTED_VERSION = allmydata.__version__
@@ -46,9 +44,6 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         self.add_service(Uploader())
         self.add_service(Downloader())
         self.add_service(Checker())
-        self.private_directory_uri = None
-        self._private_uri_observers = None
-        self._start_page_observers = None
 
         self.introducer_furl = self.get_config("introducer.furl", required=True)
 
@@ -63,21 +58,6 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         webport = self.get_config("webport")
         if webport:
             self.init_web(webport) # strports string
-
-    def _init_start_page(self, privdiruri):
-        ws = self.getServiceNamed("webish")
-        startfile = os.path.join(self.basedir, "private", "start.html")
-        nodeurl_file = os.path.join(self.basedir, "node.url")
-        return ws.create_start_html(privdiruri, startfile, nodeurl_file)
-
-    def init_start_page(self):
-        if not self._start_page_observers:
-            self._start_page_observers = observer.OneShotObserverList()
-            d = self.get_private_uri()
-            d.addCallback(self._init_start_page)
-            d.addCallback(self._start_page_observers.fire)
-            d.addErrback(log.err)
-        return self._start_page_observers.when_fired()
 
     def init_lease_secret(self):
         def make_secret():
@@ -113,58 +93,6 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         if self.get_config("push_to_ourselves") is not None:
             self.push_to_ourselves = True
 
-    def _maybe_create_private_directory(self):
-        """
-        If 'my_private_dir.cap' exists, then I try to read a mutable
-        directory URI from it.  If it exists but doesn't contain a well-formed
-        read-write mutable directory URI, then I create a new mutable
-        directory and write its URI into that file.
-        """
-        # TODO: change this to use Node.get_or_create_private_config(). That
-        # will probably require passing a validation function in, or
-        # something.
-        privdirfile = os.path.join(self.basedir, "private",
-                                   self.MY_PRIVATE_DIR_FILE)
-        if os.path.exists(privdirfile):
-            try:
-                theuri = open(privdirfile, "r").read().strip()
-                try:
-                    uri.NewDirectoryURI.init_from_human_encoding(theuri)
-                except:
-                    raise EnvironmentError("not a well-formed mutable directory uri")
-            except EnvironmentError, le:
-                d = self.when_tub_ready()
-                def _when_tub_ready(res):
-                    return self.create_empty_dirnode(wait_for_numpeers=1)
-                d.addCallback(_when_tub_ready)
-                def _when_created(newdirnode):
-                    log.msg("created new private directory: %s" % (newdirnode,))
-                    privdiruri = newdirnode.get_uri()
-                    self.private_directory_uri = privdiruri
-                    open(privdirfile, "w").write(privdiruri + "\n")
-                    self._private_uri_observers.fire(privdiruri)
-                d.addCallback(_when_created)
-                d.addErrback(self._private_uri_observers.fire)
-            else:
-                self.private_directory_uri = theuri
-                log.msg("loaded private directory: %s" % (self.private_directory_uri,))
-                self._private_uri_observers.fire(self.private_directory_uri)
-        else:
-            # If there is no such file then this is how the node is configured
-            # to not create a private directory.
-            self._private_uri_observers.fire(None)
-
-    def get_private_uri(self):
-        """
-        Eventually fires with the URI (as a string) to this client's private
-        directory, or with None if this client has been configured not to
-        create one.
-        """
-        if self._private_uri_observers is None:
-            self._private_uri_observers = observer.OneShotObserverList()
-            self._maybe_create_private_directory()
-        return self._private_uri_observers.when_fired()
-
     def init_web(self, webport):
         self.log("init_web(webport=%s)", args=(webport,))
 
@@ -173,7 +101,6 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         if self.get_config("webport_allow_localfile") is not None:
             ws.allow_local_access(True)
         self.add_service(ws)
-        self.init_start_page()
 
     def _check_hotline(self, hotline_file):
         if os.path.exists(hotline_file):
