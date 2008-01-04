@@ -48,9 +48,9 @@ Directory/Filesystem Maintenance:
 *v1: vdrive-based tree of MutableDirectoryNodes, persisted to vdrive's disk
      no accounts
 *v2: single-host dirnodes, one tree per user, plus one global mutable space
- v3: maintain file manifest, delete on remove
- v3.5: distributed storage for dirnodes
- v4: figure out accounts, users, quotas, snapshots, versioning, etc
+*v3: distributed storage for dirnodes
+ v4: maintain file manifest, delete on remove
+ v5: figure out accounts, users, quotas, snapshots, versioning, etc
 
 Checker/Repairer:
 *v1: none
@@ -71,9 +71,8 @@ UI:
 *v2: read/write webish, mkdir, del (files)
 *v2.5: del (directories)
 *v3: CLI tool.
- v3.25: XML-RPC
- v3.5: XUIL?
- v4: FUSE -- http://allmydata.org/trac/tahoe/ticket/36
+ v4: FUSE (linux) -- http://allmydata.org/trac/tahoe/ticket/36
+ v5: WebDAV
 
 Operations/Deployment/Doc/Free Software/Community:
  - move this file into the wiki ?
