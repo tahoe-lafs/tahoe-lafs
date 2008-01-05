@@ -114,6 +114,11 @@ class MvOptions(VDriveOptions):
     def getSynopsis(self):
         return "%s mv FROM TO" % (os.path.basename(sys.argv[0]),)
 
+class WebopenOptions(VDriveOptions):
+    def parseArgs(self, vdrive_pathname=""):
+        self['vdrive_pathname'] = vdrive_pathname
+
+    longdesc = """Opens a webbrowser to the contents of some portion of the virtual drive."""
 
 subCommands = [
     ["ls", None, ListOptions, "List a directory"],
@@ -121,6 +126,7 @@ subCommands = [
     ["put", None, PutOptions, "Upload a file into the virtual drive."],
     ["rm", None, RmOptions, "Unlink a file or directory in the virtual drive."],
     ["mv", None, MvOptions, "Move a file within the virtual drive."],
+    ["webopen", None, WebopenOptions, "Open a webbrowser to the root_dir"],
     ]
 
 def list(config, stdout, stderr):
@@ -192,11 +198,23 @@ def mv(config, stdout, stderr):
                      stdout, stderr)
     return rc
 
+def webopen(config, stdout, stderr):
+    import urllib, webbrowser
+    nodeurl = config['node-url']
+    if nodeurl[-1] != "/":
+        nodeurl += "/"
+    url = nodeurl + "uri/%s/" % urllib.quote(config['dir-uri'])
+    if config['vdrive_pathname']:
+        url += urllib.quote(config['vdrive_pathname'])
+    webbrowser.open(url)
+    return 0
+
 dispatch = {
     "ls": list,
     "get": get,
     "put": put,
     "rm": rm,
     "mv": mv,
+    "webopen": webopen,
     }
 
