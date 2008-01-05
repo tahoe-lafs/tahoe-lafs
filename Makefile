@@ -81,8 +81,6 @@ make-version:
 #
 #src/allmydata/_version.py: _darcs/patches
 #	$(MAKE) make-version
-#build: src/allmydata/_version.py
-#	...
 #
 # since that would update the embedded version string each time new darcs
 # patches were pulled, but 1) this would break non-darcs trees (i.e. building
@@ -90,10 +88,13 @@ make-version:
 # rule wouldn't be run frequently enought anyways.
 #
 # So instead, I'll just make sure that we update the version at least once
-# when we first start using the tree, and again whenever an explicit 'make'
-# is run, since when things are confused, the first thing a developer does is
-# a 'make clean; make all'. We do this by putting an explicit call to
-# make-version in the 'build' target.
+# when we first start using the tree, and again whenever an explicit
+# 'make-version' is run, since then at least the developer has some means to
+# update things. It would be nice if 'make clean' deleted any
+# automatically-generated _version.py too, so that 'make clean; make all'
+# could be useable as a "what the heck is going on, get me back to a clean
+# state', but we need 'make clean' to work on non-darcs trees without
+# destroying useful information.
 
 .built:
 	$(MAKE) build
@@ -101,8 +102,10 @@ make-version:
 
 simple-build: build-auto-deps build
 
-build:
+src/allmydata/_version.py:
 	$(MAKE) make-version
+
+build: src/allmydata/_version.py
 	$(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG)
 	chmod +x bin/tahoe
 
@@ -111,7 +114,7 @@ build:
 # 'make install PREFIX=/usr/local/stow/tahoe-N.N' will do the same, but to
 # a different location
 
-install: 
+install: src/allmydata/_version.py
 ifdef PREFIX
 	mkdir -p $(PREFIX)
 	$(PP) $(PYTHON) ./setup.py install \
