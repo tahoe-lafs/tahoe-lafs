@@ -1,27 +1,2 @@
-Welcome to the Tahoe project, a secure, decentralized, fault-tolerant
-filesystem.  All of the source code is available under a Free
-Software, Open Source licence.
-
-This filesystem is encrypted and spread over multiple peers in such a
-way that it remains available even when some of the peers are
-unavailable, malfunctioning, or malicious.
-
-See the web site for information, news, and discussion:
-
-http://allmydata.org
-
-
-INSTALLING
-
-See doc/install.html .
-
-
-LICENCE
-
-You may use this package under the GNU General Public License, version 2 or, at
-your option, any later version.  You may use this package under the Transitive
-Grace Period Public Licence, version 1.0.  (You may choose to use this package
-under the terms of either licence, at your option.)  See the file COPYING.GPL
-for the terms of the GNU General Public License, version 2.  See the file
-COPYING.TGPPL for the terms of the Transitive Grace Period Public Licence,
-version 1.0.
+Please see docs/about.html for an introduction, docs/install.html for install
+instructions, docs/running.html for usage instructions.
