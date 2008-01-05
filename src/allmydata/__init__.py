@@ -20,14 +20,20 @@ hush_pyflakes = __version__
 del hush_pyflakes
 
 def get_package_versions():
-    import OpenSSL, allmydata, foolscap, nevow, pycryptopp, setuptools, simplejson, twisted, zfec
+    import OpenSSL, allmydata, foolscap, nevow, pycryptopp, simplejson, twisted, zfec
+    setuptools_version = "unavailable"
+    try:
+        import setuptools
+        setuptools_version = setuptools.__version__
+    except ImportError:
+        pass
     return {
         'pyopenssl': OpenSSL.__version__,
         'allmydata': allmydata.__version__,
         'foolscap': foolscap.__version__,
         'nevow': nevow.__version__,
         'pycryptopp': pycryptopp.__version__,
-        'setuptools': setuptools.__version__,
+        'setuptools': setuptools_version,
         'simplejson': simplejson.__version__,
         'twisted': twisted.__version__,
         'zfec': zfec.__version__,
