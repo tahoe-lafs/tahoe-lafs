@@ -1,3 +1,15 @@
+<!DOCtype HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+  <head>
+    <title>Tahoe Install Details</title>
+    <link rev="made" class="mailto" href="mailto:zooko[at]zooko[dot]com">
+    <meta name="description" content="how to install Tahoe">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="keywords" content="tahoe secure decentralized filesystem installation">
+  </head>
+<body>
+
+<pre>
 DEPENDENCIES:
 
 If you aren't getting a pre-compiled binary, then you'll have to ensure that
@@ -258,19 +270,23 @@ RUNNING:
  There is a public grid available for testing. The necessary .furl files are
  in docs/testgrid/*.furl . More information is available on
  http://allmydata.org/trac/tahoe/wiki/TestGrid .
+</pre>
 
-
+<p>
 The code is retrievable using the <a href="http://darcs.net">darcs</a>
 revision control tool by running the following command:
+</p>
 
 <pre>
 darcs get http://allmydata.org/source/tahoe/trunk tahoe
 </pre>
 
+<p>
 This will create a directory named <pre>tahoe</pre> in the current working
 directory and put a copy of the latest source code into it.  Later, if
 you want to get any new changes, then cd into that directory and run
 the command <pre>darcs pull</pre>.
+</p>
 
 
 <table>
@@ -282,6 +298,7 @@ the command <pre>darcs pull</pre>.
 <tt>Solaris</tt><td><pre>/usr/bin</pre>(XXX double-check this)</td>
 </table>
 
+<pre>
 EASY_INSTALLABLE DEPENDENCIES
 
 The following Python packages are required, but normally they are
@@ -293,7 +310,7 @@ automatically installed as a side-effect of installing Tahoe.
 
    The Tahoe install process will automatically download and install
    setuptools if it is not present.  However, if an old, incompatible version
-   of setuptools is present (< v0.6c6 on Cygwin, or < v0.6a9 on other
+   of setuptools is present (&lt; v0.6c6 on Cygwin, or &lt; v0.6a9 on other
    platforms), then the install will fail.
 
    If the install fails due to your current version of setuptools being
@@ -356,4 +373,6 @@ create a file named $HERE/advertised_ip_addresses, in which you can
 put IP addresses and port numbers in "dotted-quad:port" form,
 e.g. "209.97.232.113:1345".  You can put multiple
 IP-address-and-port-number entries into this file, on separate lines.
-
+</pre>
+</body>
+</html>
