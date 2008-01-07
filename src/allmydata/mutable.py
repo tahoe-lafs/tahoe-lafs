@@ -924,10 +924,18 @@ class Publish:
             # this share won't help us. oh well.
             offset = e.encprivkey_offset
             length = e.encprivkey_length
-            self.log("shnum %d on peerid %s: share was too short "
-                     "to get the encprivkey, but [%d:%d] ought to hold it" %
-                     (shnum, idlib.shortnodeid_b2a(peerid),
+            self.log("shnum %d on peerid %s: share was too short (%dB) "
+                     "to get the encprivkey; [%d:%d] ought to hold it" %
+                     (shnum, idlib.shortnodeid_b2a(peerid), len(data),
                       offset, offset+length))
+            # NOTE: if uncoordinated writes are taking place, someone might
+            # change the share (and most probably move the encprivkey) before
+            # we get a chance to do one of these reads and fetch it. This
+            # will cause us to see a NotEnoughPeersError(unable to fetch
+            # privkey) instead of an UncoordinatedWriteError . This is a
+            # nuisance, but it will go away when we move to DSA-based mutable
+            # files (since the privkey will be small enough to fit in the
+            # write cap).
 
             self._encprivkey_shares.append( (peerid, shnum, offset, length) )
             return
