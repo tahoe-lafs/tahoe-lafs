@@ -25,6 +25,13 @@ main README file and the dependencies will all be automatically built
 README.win32 file contains some extra notes about how to take this
 approach.
 
+Note that in this case, any library dependencies you install must be
+built without linking against the cygwin.dll library.  You can cause
+cygwin to build native libraries without linking against cygwin.dll
+by passing the '-mno-cygwin' flag to the compiler.  For example, to
+build cryptopp this way you can use the command
+    CXX='g++ -mno-cygwin' make
+
 OPTION 3: OTHER BUILD TOOLS
 
 The third-easiest way is to use a Microsoft compiler or some other
