@@ -47,7 +47,8 @@ TRIAL=PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 
 build-auto-deps: check-deps
 	mkdir -p "$(SUPPORTLIB)"
-	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
+	echo PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" $(PYTHON) misc/dependencies/build-deps-setup.py install --prefix="$(SUPPORT)"
+	@-PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
          $(PYTHON) misc/dependencies/build-deps-setup.py install \
 	 --prefix="$(SUPPORT)" || \
 	echo "Build of Tahoe's bundled, automatically built dependent libraries failed -- please see docs/install.html for instructions."
@@ -107,7 +108,8 @@ src/allmydata/_version.py:
 	$(MAKE) make-version
 
 build: src/allmydata/_version.py
-	$(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG) || \
+	echo $(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG)
+	@$(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG) || \
 		echo "Build of Allmydata-Tahoe failed -- please see docs/install.html for instructions."
 	chmod +x bin/tahoe
 
