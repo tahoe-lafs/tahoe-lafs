@@ -14,10 +14,18 @@ Goals:
 
 import sys, stat, os, errno, urllib
 
-import simplejson
+try:
+    import simplejson
+except ImportError, e:
+    raise SystemExit('Could not import simplejson, which is bundled with Tahoe.  Please update your PYTHONPATH environment variable to include the tahoe "support/lib/python<VERSION>/site-packages" directory.')
+    
+
+try:
+    import fuse
+except ImportError, e:
+    raise SystemExit('Could not import fuse, the pythonic fuse bindings.  This dependency of tahoe-fuse.py is *not* bundled with tahoe.  Please install it.  On debian/ubuntu systems run: sudo apt-get install python-fuse')
 
 # FIXME: Currently uses the old, silly path-based (non-stateful) interface:
-import fuse
 fuse.fuse_python_api = (0, 1) # Use the silly path-based api for now.
 
 
@@ -28,8 +36,7 @@ MagicDevNumber = 42
 
 def main(args = sys.argv[1:]):
     if not args:
-        sys.stderr.write("%s requires one argument which is the mountpoint." % (sys.argv[0],))
-        sys.exit(-1)
+        raise SystemExit("Usage: %s MOUNTPOINT\n\nThe argument MOUNTPOINT is an empty directory where you want to mount a tahoe filesystem.\n" % (sys.argv[0],))
     fs = TahoeFS(os.path.expanduser(TahoeConfigDir))
     fs.main()
 
@@ -110,8 +117,11 @@ class TahoeFS (fuse.Fuse):
             uri = f.read().strip()
             f.close()
         except EnvironmentError, le:
-            sys.stderr("%s requires a directory capability in %s, but when it tried to read it, it got: %s" % (sys.argv[0], rootdirfn, le))
-            raise le
+            # FIXME: This user-friendly help message may be platform-dependent because it checks the exception description.
+            if le.args[1].find('No such file or directory') != -1:
+                raise SystemExit('%s requires a directory capability in %s, but when it was not found.\nPlease see "The CLI" in "docs/using.html".\n' % (sys.argv[0], rootdirfn))
+            else:
+                raise le
 
         self.bookmarks = TahoeDir(self.url, uri)
 
@@ -254,7 +264,8 @@ class TahoeNode (object):
     @staticmethod
     def make(baseurl, uri):
         typefield = uri.split(':', 2)[1]
-        if typefield.startswith('DIR'):
+        # FIXME: is this check correct?
+        if uri.find('URI:DIR2') != -1:
             return TahoeDir(baseurl, uri)
         else:
             return TahoeFile(baseurl, uri)
@@ -327,7 +338,7 @@ class TahoeFile (TahoeNode):
 
 class TahoeDir (TahoeNode):
     def __init__(self, baseurl, uri):
-        assert uri.split(':', 2)[1] in ('DIR', 'DIR-RO'), `uri`
+        #assert uri.split(':', 2)[1] in ('DIR2', 'DIR2-RO'), `uri`
         TahoeNode.__init__(self, baseurl, uri)
 
         self.mode = stat.S_IFDIR | 0500 # Read only directory.
