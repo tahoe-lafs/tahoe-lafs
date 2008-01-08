@@ -20,27 +20,14 @@ furl is created by the introducer node and written into its base directory
 when it starts, whereupon it should be published to everyone who wishes to
 attach a client to that grid
 
-webport (optional): This controls where the client's webserver should
-listen, providing filesystem access as defined in webapi.txt . This
-file contains a Twisted "strports" specification XXX hyperlink,
-such as "8123" or "tcp:8123:interface=127.0.0.1".  The 'tahoe
-create-client' command sets the webport to
-"tcp:8123:interface=127.0.0.1" by default, and is overridable by the
-"--webport" option.
-
-XXX <pre>tahoe create-client</pre> will put a port specification into a file named
-XXX $HERE/webport, unless overridden by the --webport option to
-XXX create-client.  The presence of a port specification in the webport
-XXX file prompts the client node to run a webserver on the desired port,
-XXX through which you can view, upload, download, and delete files.  The
-XXX contents of the webport file is actually a "strports specification",
-XXX defined in
-XXX http://twistedmatrix.com/documents/current/api/twisted.application.strports.html
-XXX , so you can have it only listen on a local interface by writing
-XXX "tcp:8123:interface=127.0.0.1" to this file (that's what create-client
-XXX does by default), or make it use SSL by writing
-XXX "ssl:8123:privateKey=mykey.pem:certKey=cert.pem" instead.
-
+webport (optional): This controls where the client's webserver should listen,
+providing filesystem access as defined in webapi.txt . This file contains a
+Twisted "strports" specification (as defined in
+http://twistedmatrix.com/documents/current/api/twisted.application.strports.html
+) such as "8123" or "tcp:8123:interface=127.0.0.1".  The 'tahoe create-client'
+command sets the webport to "tcp:8123:interface=127.0.0.1" by default, and is
+overridable by the "--webport" option.  You can make it use SSL by writing
+"ssl:8123:privateKey=mykey.pem:certKey=cert.pem" instead.
 
 client.port (optional): This controls which port the node listens on. If not
 provided, the node will ask the kernel for any available port, and write it
@@ -78,23 +65,24 @@ possibly more reliable) limit, use a symlink to place the 'storage/'
 directory on a separate size-limited filesystem, and/or use per-user
 OS/filesystem quotas.
 
-root_dir.cap (optional): The command-line tools will read a directory cap out of
+private/root_dir.cap (optional): The command-line tools will read a directory cap out of
 this file and use it, if you don't specify a '--dir-cap' option or if you
 specify '--dir-cap=root'.
 
 
 == Node State ==
 
-node.pem : This contains an SSL private-key certificate. The node generates
-this the first time it is started, and re-uses it on subsequent runs. This
-certificate allows the node to have a cryptographically-strong identifier
-(the Foolscap "TubID"), and to establish secure connections to other nodes.
+private/node.pem : This contains an SSL private-key certificate. The node
+generates this the first time it is started, and re-uses it on subsequent
+runs. This certificate allows the node to have a cryptographically-strong
+identifier (the Foolscap "TubID"), and to establish secure connections to other
+nodes.
 
 storage/ : Nodes which host StorageServers will create this directory to hold
-shares of files on behalf of other clients. There will be a directory
-underneath it for each StorageIndex for which this node is holding shares.
-There is also an "incoming" directory where partially-completed shares are
-held while they are being received.
+shares of files on behalf of other clients. There will be a directory underneath
+it for each StorageIndex for which this node is holding shares.  There is also
+an "incoming" directory where partially-completed shares are held while they are
+being received.
 
 client.tac : this file defines the client, by constructing the actual Client
 instance each time the node is started. It is used by the 'twistd'
@@ -102,17 +90,17 @@ daemonization program (in the "-y" mode), which is run internally by the
 "tahoe start" command. This file is created by the "tahoe create-client"
 command.
 
-control.furl : this file contains a FURL that provides access to a control
-port on the client node, from which files can be uploaded and downloaded.
-This file is created with permissions that prevent anyone else from reading
-it (on operating systems that support such a concept), to insure that only
-the owner of the client node can use this feature.  This port is intended for
-debugging and testing use.
+private/control.furl : this file contains a FURL that provides access to a
+control port on the client node, from which files can be uploaded and
+downloaded.  This file is created with permissions that prevent anyone else from
+reading it (on operating systems that support such a concept), to insure that
+only the owner of the client node can use this feature.  This port is intended
+for debugging and testing use.
 
-logport.furl : this file contains a FURL that provides access to a 'log port'
-on the client node, from which operational logs can be retrieved. Do not
-grant logport access to strangers, because occasionally secret information
-may be placed in the logs.
+private/logport.furl : this file contains a FURL that provides access to a 'log
+port' on the client node, from which operational logs can be retrieved. Do not
+grant logport access to strangers, because occasionally secret information may
+be placed in the logs.
 
 log_gatherer.furl : if present, this file is used to contact a 'log
 gatherer', which will be granted access to the logport. This can be used by
