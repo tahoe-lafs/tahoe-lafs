@@ -1372,7 +1372,7 @@ class LocalAccess:
 class WebishServer(service.MultiService):
     name = "webish"
 
-    def __init__(self, webport, nodeurl_path):
+    def __init__(self, webport, nodeurl_path=None):
         service.MultiService.__init__(self)
         self.webport = webport
         self.root = Root()
