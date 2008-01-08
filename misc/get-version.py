@@ -2,11 +2,11 @@
 
 """Determine the version number of the current tree.
 
-This should be run *after* make-version.py . It will emit a single line of
-text to stdout, either of the form '0.2.0' if this is a release tree (i.e. no
-patches have been added since the last release tag), or '0.2.0-34' (if 34
-patches have been added since the last release tag). If the tree does not
-have a well-formed version number, this will emit 'unknown'.
+This should be run after 'setup.py darcsver'. It will emit a single line of text
+to stdout, either of the form '0.2.0' if this is a release tree (i.e. no patches
+have been added since the last release tag), or '0.2.0-34' (if 34 patches have
+been added since the last release tag). If the tree does not have a well-formed
+version number, this will emit 'unknown'.
 
 The version string thus calculated should exactly match the version string
 determined by setup.py (when it creates eggs and source tarballs) and also
