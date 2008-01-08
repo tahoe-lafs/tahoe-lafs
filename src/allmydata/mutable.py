@@ -210,10 +210,10 @@ class Retrieve:
         num = self._node._client.log("Retrieve(%s): starting" % prefix)
         self._log_number = num
 
-    def log(self, msg):
+    def log(self, msg, **kwargs):
         prefix = self._log_prefix
         num = self._node._client.log("Retrieve(%s): %s" % (prefix, msg),
-                                     parent=self._log_number)
+                                     parent=self._log_number, **kwargs)
         return num
 
     def log_err(self, f):
@@ -383,7 +383,7 @@ class Retrieve:
             except CorruptShareError, e:
                 # log it and give the other shares a chance to be processed
                 f = failure.Failure()
-                self.log("WEIRD: bad share: %s %s" % (f, f.value))
+                self.log("bad share: %s %s" % (f, f.value), level=log.WEIRD)
                 self._bad_peerids.add(peerid)
                 self._last_failure = f
                 pass
@@ -446,7 +446,7 @@ class Retrieve:
         self._used_peers.add(peerid)
         self._last_failure = f
         self._bad_peerids.add(peerid)
-        self.log("WEIRD: error during query: %s %s" % (f, f.value))
+        self.log("error during query: %s %s" % (f, f.value), level=log.WEIRD)
 
     def _check_for_done(self, res):
         if not self._running:
@@ -476,7 +476,8 @@ class Retrieve:
                 def _problem(f):
                     self._last_failure = f
                     if f.check(CorruptShareError):
-                        self.log("WEIRD: saw corrupt share, rescheduling")
+                        self.log("saw corrupt share, rescheduling",
+                                 level=log.WEIRD)
                         # _attempt_decode is responsible for removing the bad
                         # share, so we can just try again
                         eventually(self._check_for_done, None)
@@ -502,15 +503,14 @@ class Retrieve:
 
         # no more queries are outstanding. Can we send out more? First,
         # should we be looking at more peers?
-        self.log("UNUSUAL:  need more peers: "
-                 "N=%s, peerlist=%d peerlist_limit=%d" %
+        self.log("need more peers: N=%s, peerlist=%d peerlist_limit=%d" %
                  (self._total_shares, len(self._peerlist),
-                  self._peerlist_limit))
+                  self._peerlist_limit), level=log.UNUSUAL)
         if self._total_shares is not None:
             search_distance = self._total_shares * 2
         else:
             search_distance = 20
-        self.log("UNUSUAL:  search_distance=%d" % search_distance)
+        self.log("search_distance=%d" % search_distance, level=log.UNUSUAL)
         if self._peerlist_limit < search_distance:
             # we might be able to get some more peers from the list
             peers = self._node._client.get_permuted_peers(self._storage_index,
@@ -518,8 +518,9 @@ class Retrieve:
             self._peerlist = [(p[1],p[2])
                               for p in islice(peers, search_distance)]
             self._peerlist_limit = search_distance
-            self.log("UNUSUAL:  added peers, peerlist=%d, peerlist_limit=%d"
-                     % (len(self._peerlist), self._peerlist_limit))
+            self.log("added peers, peerlist=%d, peerlist_limit=%d"
+                     % (len(self._peerlist), self._peerlist_limit),
+                     level=log.UNUSUAL)
         # are there any peers on the list that we haven't used?
         new_query_peers = []
         for (peerid, conn) in self._peerlist:
@@ -531,8 +532,8 @@ class Retrieve:
                     # k - max(known_version_sharecounts) + some extra
                     break
         if new_query_peers:
-            self.log("UNUSUAL:  sending %d new queries (read %d bytes)" %
-                     (len(new_query_peers), self._read_size))
+            self.log("sending %d new queries (read %d bytes)" %
+                     (len(new_query_peers), self._read_size), level=log.UNUSUAL)
             for (peerid, conn) in new_query_peers:
                 self._do_query(conn, peerid,
                                self._storage_index, self._read_size,
@@ -541,7 +542,7 @@ class Retrieve:
             return
 
         # we've used up all the peers we're allowed to search. Failure.
-        self.log("WEIRD:  ran out of peers")
+        self.log("ran out of peers", level=log.WEIRD)
         e = NotEnoughPeersError("last failure: %s" % self._last_failure)
         return self._done(failure.Failure(e))
 
@@ -587,7 +588,7 @@ class Retrieve:
                         sharedata = validator(peerid, root_hash, shnum, data)
                         assert isinstance(sharedata, str)
                     except CorruptShareError, e:
-                        self.log("WEIRD: share was corrupt: %s" % e)
+                        self.log("share was corrupt: %s" % e, level=log.WEIRD)
                         sharemap[shnum].discard(shareinfo)
                         if not sharemap[shnum]:
                             # remove the key so the test in _check_for_done
@@ -714,12 +715,12 @@ class Publish:
         num = self._node._client.log("Publish(%s): starting" % prefix)
         self._log_number = num
 
-    def log(self, msg, parent=None):
+    def log(self, msg, parent=None, **kwargs):
         prefix = self._log_prefix
         if parent is None:
             parent = self._log_number
         num = self._node._client.log("Publish(%s): %s" % (prefix, msg),
-                                     parent=parent)
+                                     parent=parent, **kwargs)
         return num
 
     def log_err(self, f):
@@ -863,7 +864,7 @@ class Publish:
                 # found it
                 partial_peerlist.append( (permutedid, peerid, conn) )
                 return partial_peerlist
-        self.log("WEIRD: we aren't in our own peerlist??")
+        self.log("we aren't in our own peerlist??", level=log.WEIRD)
         return partial_peerlist
 
     def _do_query(self, conn, peerid, peer_storage_servers, storage_index):
@@ -905,9 +906,9 @@ class Publish:
             # self._pubkey is present because we require read-before-replace
             valid = self._pubkey.verify(prefix, signature)
             if not valid:
-                self.log("WEIRD: bad signature from %s shnum %d" %
+                self.log("bad signature from %s shnum %d" %
                          (shnum, idlib.shortnodeid_b2a(peerid)),
-                         parent=lp)
+                         parent=lp, level=log.WEIRD)
                 continue
 
             share = (shnum, seqnum, root_hash)
@@ -950,8 +951,8 @@ class Publish:
         alleged_privkey_s = self._node._decrypt_privkey(enc_privkey)
         alleged_writekey = hashutil.ssk_writekey_hash(alleged_privkey_s)
         if alleged_writekey != self._writekey:
-            self.log("WEIRD: invalid privkey from %s shnum %d" %
-                     (idlib.nodeid_b2a(peerid)[:8], shnum))
+            self.log("invalid privkey from %s shnum %d" %
+                     (idlib.nodeid_b2a(peerid)[:8], shnum), level=log.WEIRD)
             return
 
         # it's good
