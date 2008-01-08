@@ -1,7 +1,7 @@
 
 from base64 import b32encode
 import os.path
-from twisted.application import service, strports
+from twisted.application import service, strports, internet
 from twisted.web import static, resource, server, html, http
 from twisted.python import util, log
 from twisted.internet import defer
@@ -1372,7 +1372,7 @@ class LocalAccess:
 class WebishServer(service.MultiService):
     name = "webish"
 
-    def __init__(self, webport):
+    def __init__(self, webport, nodeurl_path):
         service.MultiService.__init__(self)
         self.webport = webport
         self.root = Root()
@@ -1384,6 +1384,8 @@ class WebishServer(service.MultiService):
         s.setServiceParent(self)
         self.listener = s # stash it so the tests can query for the portnum
         self._started = defer.Deferred()
+        if nodeurl_path:
+            self._started.addCallback(self._write_nodeurl_file, nodeurl_path)
 
     def allow_local_access(self, enable=True):
         self.allow_local.local_access = enable
@@ -1399,3 +1401,19 @@ class WebishServer(service.MultiService):
         # apparently 'ISite' does not exist
         #self.site._client = self.parent
         self._started.callback(None)
+
+    def _write_nodeurl_file(self, junk, nodeurl_path):
+        # what is our webport?
+        s = self.listener
+        if isinstance(s, internet.TCPServer):
+            base_url = "http://localhost:%d" % s._port.getHost().port
+        elif isinstance(s, internet.SSLServer):
+            base_url = "https://localhost:%d" % s._port.getHost().port
+        else:
+            base_url = None
+        if base_url:
+            f = open(nodeurl_path, 'wb')
+            # this file is world-readable
+            f.write(base_url + "\n")
+            f.close()
+

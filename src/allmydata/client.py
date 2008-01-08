@@ -97,7 +97,8 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         self.log("init_web(webport=%s)", args=(webport,))
 
         from allmydata.webish import WebishServer
-        ws = WebishServer(webport)
+        nodeurl_path = os.path.join(self.basedir, "node.url")
+        ws = WebishServer(webport, nodeurl_path)
         if self.get_config("webport_allow_localfile") is not None:
             ws.allow_local_access(True)
         self.add_service(ws)
