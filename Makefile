@@ -49,7 +49,8 @@ build-auto-deps: check-deps
 	mkdir -p "$(SUPPORTLIB)"
 	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
          $(PYTHON) misc/dependencies/build-deps-setup.py install \
-	 --prefix="$(SUPPORT)"
+	 --prefix="$(SUPPORT)" || \
+	echo "Build of Tahoe's bundled, automatically built dependent libraries failed -- please see docs/install.html for instructions."
 
 # The following target is here because I don't know how to tell the buildmaster
 # to start instructing his slaves to "build-auto-deps" instead of instructing
@@ -106,7 +107,8 @@ src/allmydata/_version.py:
 	$(MAKE) make-version
 
 build: src/allmydata/_version.py
-	$(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG)
+	$(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG) || \
+		echo "Build of Allmydata-Tahoe failed -- please see docs/install.html for instructions."
 	chmod +x bin/tahoe
 
 # 'make install' will do the following:
