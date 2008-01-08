@@ -29,7 +29,7 @@ def main():
     import optparse, re
     parser = optparse.OptionParser()
     parser.add_option("-u", "--node-url", dest="nodeurl")
-    parser.add_option("-r", "--dir-uri", dest="rooturi")
+    parser.add_option("-r", "--dir-cap", dest="rooturi")
 
     (options, args) = parser.parse_args()
 
@@ -38,7 +38,7 @@ def main():
         raise ValueError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (options.nodeurl,))
 
     if not options.rooturi:
-        raise ValueError("must provide --dir-uri")
+        raise ValueError("must provide --dir-cap")
 
     vdrive_pathname = args[0]
 

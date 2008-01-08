@@ -993,11 +993,11 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
         nodeargs = [
             "--node-url", self.webish_url,
-            "--dir-uri", private_uri,
+            "--dir-cap", private_uri,
             ]
         public_nodeargs = [
             "--node-url", self.webish_url,
-            "--dir-uri", some_uri,
+            "--dir-cap", some_uri,
             ]
         TESTDATA = "I will not write the same thing over and over.\n" * 100
 

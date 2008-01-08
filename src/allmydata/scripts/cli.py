@@ -17,7 +17,7 @@ class VDriveOptions(BaseOptions, usage.Options):
         ["node-url", "u", None,
          "URL of the tahoe node to use, a URL like \"http://127.0.0.1:8123\". "
          "This overrides the URL found in the --node-directory ."],
-        ["dir-uri", "r", "root",
+        ["dir-cap", "r", "root",
          "Which dirnode URI should be used as a root directory.  The "
          "string 'root' is special, and means we should use the "
          "directory found in the 'root_dir.cap' file in the 'private' "
@@ -40,18 +40,18 @@ class VDriveOptions(BaseOptions, usage.Options):
             self['node-url'] = open(node_url_file, "r").read().strip()
 
         rootdircap = None
-        if self['dir-uri'] == 'root':
+        if self['dir-cap'] == 'root':
             uri_file = os.path.join(self['node-directory'], 'private', "root_dir.cap")
             try:
                 rootdircap = open(uri_file, "r").read().strip()
             except EnvironmentError, le:
                 raise usage.UsageError("\n"
-                                       "If --dir-uri is absent or is 'root', then the node directory's 'private'\n"
+                                       "If --dir-cap is absent or is 'root', then the node directory's 'private'\n"
                                        "subdirectory is required to contain a file named 'root_dir.cap' which must\n"
                                        "contain a dir cap, but when we tried to open that file we got:\n"
                                        "'%s'." % (le,))
         else:
-            rootdircap = self['dir-uri']
+            rootdircap = self['dir-cap']
         from allmydata import uri
         try:
             parsed = uri.NewDirectoryURI.init_from_human_encoding(rootdircap)
@@ -59,15 +59,15 @@ class VDriveOptions(BaseOptions, usage.Options):
             try:
                 parsed = uri.ReadonlyNewDirectoryURI.init_from_human_encoding(rootdircap)
             except:
-                if self['dir-uri'] == 'root':
+                if self['dir-cap'] == 'root':
                     raise usage.UsageError("\n"
-                                           "If --dir-uri is absent or is 'root', then the node directory's 'private'\n"
+                                           "If --dir-cap is absent or is 'root', then the node directory's 'private'\n"
                                            "subdirectory's 'root_dir.cap' is required to contain a dir cap, but we found\n"
                                            "'%s'." % (rootdircap,))
                 else:
-                    raise usage.UsageError("--dir-uri must be a dir cap (or \"root\"), but we got '%s'." % (self['dir-uri'],))
+                    raise usage.UsageError("--dir-cap must be a dir cap (or \"root\"), but we got '%s'." % (self['dir-cap'],))
 
-        self['dir-uri'] = parsed.to_string()
+        self['dir-cap'] = parsed.to_string()
 
 class ListOptions(VDriveOptions):
     def parseArgs(self, vdrive_pathname=""):
@@ -132,7 +132,7 @@ subCommands = [
 def list(config, stdout, stderr):
     from allmydata.scripts import tahoe_ls
     rc = tahoe_ls.list(config['node-url'],
-                       config['dir-uri'],
+                       config['dir-cap'],
                        config['vdrive_pathname'],
                        stdout, stderr)
     return rc
@@ -142,7 +142,7 @@ def get(config, stdout, stderr):
     vdrive_filename = config['vdrive_filename']
     local_filename = config['local_filename']
     rc = tahoe_get.get(config['node-url'],
-                       config['dir-uri'],
+                       config['dir-cap'],
                        vdrive_filename,
                        local_filename,
                        stdout, stderr)
@@ -166,7 +166,7 @@ def put(config, stdout, stderr):
     else:
         verbosity = 2
     rc = tahoe_put.put(config['node-url'],
-                       config['dir-uri'],
+                       config['dir-cap'],
                        local_filename,
                        vdrive_filename,
                        verbosity,
@@ -181,7 +181,7 @@ def rm(config, stdout, stderr):
     else:
         verbosity = 2
     rc = tahoe_rm.rm(config['node-url'],
-                     config['dir-uri'],
+                     config['dir-cap'],
                      vdrive_pathname,
                      verbosity,
                      stdout, stderr)
@@ -192,7 +192,7 @@ def mv(config, stdout, stderr):
     frompath = config['from']
     topath = config['to']
     rc = tahoe_mv.mv(config['node-url'],
-                     config['dir-uri'],
+                     config['dir-cap'],
                      frompath,
                      topath,
                      stdout, stderr)
@@ -203,7 +203,7 @@ def webopen(config, stdout, stderr):
     nodeurl = config['node-url']
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    url = nodeurl + "uri/%s/" % urllib.quote(config['dir-uri'])
+    url = nodeurl + "uri/%s/" % urllib.quote(config['dir-cap'])
     if config['vdrive_pathname']:
         url += urllib.quote(config['vdrive_pathname'])
     webbrowser.open(url)

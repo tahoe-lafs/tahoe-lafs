@@ -24,21 +24,21 @@ class CLI(unittest.TestCase):
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o['dir-uri'], private_uri)
+        self.failUnlessEqual(o['dir-cap'], private_uri)
         self.failUnlessEqual(o['vdrive_pathname'], "")
 
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options",
                         "--node-url", "http://example.org:8111/"])
         self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
-        self.failUnlessEqual(o['dir-uri'], private_uri)
+        self.failUnlessEqual(o['dir-cap'], private_uri)
         self.failUnlessEqual(o['vdrive_pathname'], "")
 
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options",
-                        "--dir-uri", "root"])
+                        "--dir-cap", "root"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o['dir-uri'], private_uri)
+        self.failUnlessEqual(o['dir-cap'], private_uri)
         self.failUnlessEqual(o['vdrive_pathname'], "")
 
         o = cli.ListOptions()
@@ -51,14 +51,14 @@ class CLI(unittest.TestCase):
                                                      fingerprint="\x11"*32)
         other_uri = uri.NewDirectoryURI(other_filenode_uri).to_string()
         o.parseOptions(["--node-directory", "cli/test_options",
-                        "--dir-uri", other_uri])
+                        "--dir-cap", other_uri])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o['dir-uri'], other_uri)
+        self.failUnlessEqual(o['dir-cap'], other_uri)
         self.failUnlessEqual(o['vdrive_pathname'], "")
 
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options",
-                        "--dir-uri", other_uri, "subdir"])
+                        "--dir-cap", other_uri, "subdir"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o['dir-uri'], other_uri)
+        self.failUnlessEqual(o['dir-cap'], other_uri)
         self.failUnlessEqual(o['vdrive_pathname'], "subdir")

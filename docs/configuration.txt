@@ -79,8 +79,8 @@ directory on a separate size-limited filesystem, and/or use per-user
 OS/filesystem quotas.
 
 root_dir.cap (optional): The command-line tools will read a directory cap out of
-this file and use it, if you don't specify a '--dir-uri' option or if you
-specify '--dir-uri=root'.
+this file and use it, if you don't specify a '--dir-cap' option or if you
+specify '--dir-cap=root'.
 
 
 == Node State ==
