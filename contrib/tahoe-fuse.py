@@ -27,6 +27,9 @@ MagicDevNumber = 42
 
 
 def main(args = sys.argv[1:]):
+    if not args:
+        sys.stderr.write("%s requires one argument which is the mountpoint." % (sys.argv[0],))
+        sys.exit(-1)
     fs = TahoeFS(os.path.expanduser(TahoeConfigDir))
     fs.main()
 
@@ -101,10 +104,15 @@ class TahoeFS (fuse.Fuse):
         self.url = 'http://localhost:%d' % (port,)
 
     def _init_bookmarks(self):
-        f = open(os.path.join(self.confdir, 'fuse-bookmarks.uri'), 'r')
-        uri = f.read().strip()
-        f.close()
-        
+        rootdirfn = os.path.join(self.confdir, 'private', 'root-dir.cap')
+        try:
+            f = open(rootdirfn, 'r')
+            uri = f.read().strip()
+            f.close()
+        except EnvironmentError, le:
+            sys.stderr("%s requires a directory capability in %s, but when it tried to read it, it got: %s" % (sys.argv[0], rootdirfn, le))
+            raise le
+
         self.bookmarks = TahoeDir(self.url, uri)
 
     def _get_node(self, path):
