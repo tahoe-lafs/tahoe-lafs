@@ -6,19 +6,7 @@
 # 
 # This file is part of tahoe.
 # 
-# This program is free software; you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by the Free
-# Software Foundation; either version 2 of the License, or (at your option)
-# any later version, with the added permission that, if you become obligated
-# to release a derived work under this licence (as per section 2.b), you may
-# delay the fulfillment of this obligation for up to 12 months.  If you are
-# obligated to release code under section 2.b of this licence, you are
-# obligated to release it under these same terms, including the 12-month grace
-# period clause.  See the COPYING file for details.
-#
-# If you would like to inquire about a commercial relationship with Allmydata,
-# Inc., please contact partnerships@allmydata.com and visit
-# http://allmydata.com/.
+# See the docs/about.html file for licensing information.
 
 import sys, re, os
 
@@ -49,8 +37,9 @@ trove_classifiers=[
     "Development Status :: 3 - Alpha", 
     "Environment :: Console",
     "Environment :: Web Environment",
-    # "License :: Free Software (GPL variant)", # Not a real acceptable value.  I guess this means we really need to get our licence DFSG/OSI approved.
-    # "License :: Open Source (GPL variant)", # Not a real acceptable value.  I guess this means we really need to get our licence DFSG/OSI approved.
+    "License :: OSI Approved :: GNU General Public License (GPL)", 
+    "License :: DFSG approved",
+    "License :: Other/Proprietary License",
     "Intended Audience :: Developers", 
     "Intended Audience :: End Users/Desktop",
     "Intended Audience :: System Administrators",
@@ -122,7 +111,7 @@ setup(name='allmydata-tahoe',
       author='Allmydata, Inc.',
       author_email='tahoe-dev@allmydata.org',
       url='http://allmydata.org/',
-      license='GNU GPL v2 or later, plus transitive 12 month grace period; http://allmydata.org/trac/tahoe/browser/COPYING',
+      license='GNU GPL',
       package_dir = {'':'src'},
       packages=find_packages("src"),
       classifiers=trove_classifiers,
