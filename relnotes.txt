@@ -1,189 +1,94 @@
-NEW VERSION RELEASED -- Allmydata-Tahoe version 0.6.1
+ANNOUNCING: Allmydata-Tahoe version 0.7
 
-We are pleased to announce the release of version 0.6.1 of
-allmydata.org "Tahoe", a secure, decentralized storage grid under a
-free-software licence.  This is the successor to v0.6, which was
-released September 24, 2007 (see [1]).  This release focusses on
-packaging, documentation, and usability improvements.
+We are pleased to announce the release of version 0.7 of allmydata.org
+"Tahoe".
 
-Since v0.6 we've made the following changes:
+Tahoe is a secure, decentralized, fault-tolerant filesystem.  All of
+the source code is available under a Free Software, Open Source
+licence (or two).
 
- * Make the command-line tool it automatically stash its state in a
-   directory ("~/.tahoe" by default), and make it automatically get
-   the capability to access your private vdrive from the state
-   directory. (ticket #120)
+This filesystem is encrypted and distributed over multiple peers in
+such a way that it continues to work correctlly even when some of the
+peers are unavailable, malfunctioning, or malicious.
 
- * Add the "tahoe mv" command. (ticket #162)
+This is the successor to Allmydata-Tahoe v0.6.1, which was released
+October 15, 2007 [1].
 
- * Rewrite the README and add README.win32 to make it clearer which
-   steps are required to build from source. (ticket #148)
+This release adds decentralized, encrypted directories and mutable
+files, making it the first release of Tahoe in which no part of the
+filesystem is centralized.  It also adds a FUSE interface, allowing
+you to access a distributed Tahoe grid as if it were a normal local
+filesystem.
 
- * Establish port 8123 as the default web port on localhost so that
-   people can share full URLs that start with
-   "http://localhost:8123/".
-
- * Update webapi.txt [2] to reflect the security fix from ticket #98.
-
- * Add more automated performance measurements and graphs on the
-   Performance page [3].
-
- * Rename the command-line tool from "allmydata-tahoe" to "tahoe".
-   (ticket #155)
-
-We also improved numerous small issues in packaging, documentation,
-usability, testing, and source code maintenance.  For complete
-details, see this web page which shows all the changes we made between
-the last release and this one: [4].
-
-Allmydata.org Tahoe v0.6.1 is compatible with Allmydata.org Tahoe
-v0.6.
+This is also the first release to be offered under a novel open source
+licence which allows people to redistributed proprietary derivatives
+of Tahoe for a limited time.
 
 
 WHAT IS IT GOOD FOR?
 
-With Tahoe, you can store your files in a distributed way across a set
-of computers, such that if some of the computers fail, you can
-retrieve your data from the remaining computers.  You can also
-securely share your files with other users.
+With Tahoe, you can distribute your filesystem across a set of
+computers, such that if some of the computers fail or turn out to be
+malicious, the filesystem continues to work from the remaining
+computers.  You can also share your files with other users, using a
+strongly encrypted, capability-based access control scheme.
 
-This release is targeted at hackers and users who are willing to use a
-text-oriented web user interface, or a command-line user interface.
-(Or a RESTful API.  Just telnet to localhost and type HTTP requests to
-get started.)
+This release is targeted at hackers and smart users who are willing to
+use a web user interface, a command-line user interface, or a FUSE
+interface.  (Or a RESTful API.  Just telnet to localhost and type HTTP
+requests to get started.)
 
 Because this software is new, it is not yet recommended for storage of
-highly confidential data nor for important data which is not otherwise
-backed up. Given that caveat, this software works and there are no
-major known security flaws which would compromise confidentiality or
-data integrity.  (For a current description of all known security
-issues and an overview of Tahoe's security properties, please see the
-Security web page: [5].)
+highly confidential data nor for valuable data which is not otherwise
+backed up. However, it works well in practice, it comes with extensive
+unit tests, and there are no known security flaws which would
+compromise confidentiality or data integrity.  (For a current
+description of all known security issues and an overview of Tahoe's
+security properties, please see the Security web page: [2].)
 
-This release of Tahoe is suitable for the "friendnet" use case [6].
-It is easy to set up a private grid which is securely shared among a
-specific, limited set of friends.  Files uploaded to this shared grid
-will be available to all friends, even when some of the computers are
-unavailable.  It is also easy to encrypt individual files and
-directories so that only designated recipients can read them.
+This release of Tahoe is suitable for the "friendnet" use case [3] --
+it is easy to create a filesystem spread over the computers of you
+and your friends so that you can share files and disk space with one
+another.
 
 
 LICENCE
 
-Tahoe is offered under the GNU General Public License (v2 or later),
-with the added permission that, if you become obligated to release a
-derived work under this licence (as per section 2.b), you may delay
-the fulfillment of this obligation for up to 12 months.  If you are
-obligated to release code under section 2.b of this licence, you are
-obligated to release it under these same terms, including the 12-month
-grace period clause.
+You may use this package under the GNU General Public License, version
+2 or, at your option, any later version.  See the file "COPYING.GPL"
+for the terms of the GNU General Public License, version 2.
+
+You may use this package under the Transitive Grace Period Public
+Licence, version 1.0.  The Transitive Grace Period Public Licence says
+that you may distribute proprietary derived works of Tahoe without
+releasing the source code of that derived work for up to twelve
+months, after which time you are obligated to release the source code
+of the derived work under the Transitive Grace Period Public Licence.
+See the file "COPYING.TGPPL.html" for the terms of the Transitive
+Grace Period Public Licence, version 1.0.
+
+(You may choose to use this package under the terms of either licence,
+at your option.)
 
 
 INSTALLATION
 
 Tahoe works on Linux, Mac OS X, Windows, Cygwin, and Solaris.  For
-installation instructions please see the README [7].
-
-
-USAGE - web interface
-
-Once installed, create a "client node".  Instruct this client node to
-connect to a specific "introducer node" by means of config files in
-the client node's working directory.  To join a grid, copy in the
-.furl files for that grid.  To create a private grid, run your own
-introducer, and copy its .furl files.  See the README for step-by-step
-instructions.
-
-Each client node can run a local webserver (enabled by writing the
-desired port number into a file called 'webport').  The welcome page
-of this webserver shows the node's status, including which introducer
-is being used and which other nodes are connected.
-
-Links from the welcome page lead to other pages that give access to a
-virtual filesystem, in which each directory is represented by a
-separate page.  Each directory page shows a list of the files
-available there, with download links, and forms to upload new files.
-
-USAGE - command-line interface
-
-Run "tahoe ls [VIRTUAL PATH NAME]" to list the contents of a virtual
-directory.  Run "tahoe get [VIRTUAL FILE NAME] [LOCAL FILE NAME]" to
-download a file.  Run "tahoe put [LOCAL FILE NAME] [VIRTUAL FILE
-NAME]" to upload a file.  Run "tahoe rm [VIRTUAL PATH NAME]" to unlink
-a file or directory in the virtual drive.  Run "tahoe --help" to learn
-about more commands.
-
-USAGE - other
-
-You can control the filesystem through the RESTful web API [2].  Other
-ways to access the filesystem are planned: please see the 
-roadmap.txt [8] for some plans.
+installation instructions please see "doc/install.html" [4].
 
 
 HACKING AND COMMUNITY
 
-Please join the mailing list [9] to discuss the ideas behind Tahoe and
-extensions of and uses of Tahoe.  Patches that extend and improve
-Tahoe are gratefully accepted -- roadmap.txt [8] shows the next
-improvements that we plan to make and CREDITS [10] lists the names of
-people who've contributed to the project.  The wiki Dev page [11]
-collects various hacking resources including revision history
-browsing, automated test results, automated performance tests, graphs
-of how many people are using the public test grid for how many files,
-and more.
-
-
-NETWORK ARCHITECTURE
-
-Each peer maintains a connection to each other peer.  A single
-distinct server called an "introducer" is used to discover other peers
-with which to connect.
-
-To store a file, the file is encrypted and erasure coded, and each
-resulting share is uploaded to a different peer.  The secure hash of
-the encrypted file and the encryption key are packed into a URI,
-knowledge of which is necessary and sufficient to recover the file.
-
-To fetch a file, starting with the URI, a subset of shares is
-downloaded from peers, the file is reconstructed from the shares, and
-then decrypted.
-
-A single distinct server called a "vdrive server" maintains a global
-mapping from pathnames/filenames to URIs.
-
-We are aware of certain limitations on decentralization and
-scalability inherent in this version.  In particular, the
-completely-connected property of the grid and the requirement of a
-single distinct introducer and vdrive server limits the possible size
-of the grid.  We have plans to loosen these limitations (see
-roadmap.txt).  Currently it should be noted that the grid already
-depends as little as possible on the accessibility and correctness of
-the introduction server and the vdrive server.  Also note that the
-choice of which servers to use is easily configured -- you can set up
-a private grid for you and your friends as easily as connecting to our
-public test grid.
-
-
-SOFTWARE ARCHITECTURE
-
-Tahoe is a "from the ground-up" rewrite, inspired by Allmydata's
-existing consumer backup service as well as by its ancestor Mojo
-Nation.  It is primarily written in the Python programming language.
-
-Tahoe is based on the Foolscap library [12] which provides a remote
-object protocol inspired by the capability-secure "E" programming
-language [13].  Foolscap allows us to express the intended behavior of
-the distributed grid directly in object-oriented terms while relying
-on a well-engineered, secure transport layer.
-
-The network layer is provided by the Twisted library [14].
-Computationally intensive operations are performed in native compiled
-code, such as the "zfec" library for fast erasure coding (also
-available separately: [15]).
+Please join us on the mailing list [5] to discuss uses of Tahoe.
+Patches that extend and improve Tahoe are gratefully accepted --
+roadmap.txt [6] shows the next improvements that we plan to make and
+CREDITS [7] lists the names of people who've contributed to the
+project.  The wiki Dev page [8] contains resources for hackers.
 
 
 SPONSORSHIP
 
-Tahoe is sponsored by Allmydata, Inc. [16], a provider of consumer
+Tahoe is sponsored by Allmydata, Inc. [9], a provider of consumer
 backup services.  Allmydata, Inc. contributes hardware, software,
 ideas, bug reports, suggestions, demands, and money (employing several
 allmydata.org Tahoe hackers and allowing them to spend part of their
@@ -193,23 +98,16 @@ eternally grateful!
 
 Zooko O'Whielacronx
 on behalf of the allmydata.org team
-October 15, 2007
-Boulder, Colorado
+January 7, 2008
+San Francisco, California
 
 
-[1]  http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=1346
-[2]  http://allmydata.org/trac/tahoe/browser/docs/webapi.txt?rev=1428
-[3]  http://allmydata.org/trac/tahoe/wiki/Performance
-[4]  http://allmydata.org/trac/tahoe/timeline?from=2007-10-15&daysback=21&changeset=on&milestone=on&ticket=on&ticket_details=on&wiki=on
-[5]  http://allmydata.org/trac/tahoe/wiki/Security
-[6]  http://allmydata.org/trac/tahoe/wiki/UseCases
-[7]  http://allmydata.org/trac/tahoe/browser/README?rev=1424
-[8]  http://allmydata.org/trac/tahoe/browser/roadmap.txt
-[9]  http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
-[10] http://allmydata.org/trac/tahoe/browser/CREDITS?rev=1424
-[11] http://allmydata.org/trac/tahoe/wiki/Dev
-[12] http://foolscap.lothar.com/trac
-[13] http://erights.org/
-[14] http://twistedmatrix.com/
-[15] http://pypi.python.org/pypi/zfec
-[16] http://allmydata.com
+[1] http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=1346
+[2] http://allmydata.org/trac/tahoe/wiki/Security
+[3] http://allmydata.org/trac/tahoe/wiki/UseCases
+[4] http://allmydata.org/source/tahoe/trunk/docs/install.html
+[5] http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
+[6] http://allmydata.org/trac/tahoe/browser/roadmap.txt
+[7] http://allmydata.org/trac/tahoe/browser/CREDITS?rev=1424
+[8] http://allmydata.org/trac/tahoe/wiki/Dev
+[9] http://allmydata.com
