@@ -1,3 +1,9 @@
+NOTE: this file starts by explaining old-style (no longer used) centralized
+directories, but it also has useful discussion of security, efficiency, and
+usage, so I'm not removing it from the source code distribution just yet.
+Hopefully its contents which are still relevant will be reworked into a new
+document.
+
 
 = Tahoe Directory Nodes =
 
