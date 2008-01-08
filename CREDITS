@@ -29,7 +29,7 @@ D: code
 
 N: Nathan Wilcox
 E: nejucomo@gmail.com
-D: unit tests, attack example, documentation
+D: unit tests, attack example, documentation, FUSE interface
 
 N: Mike Booker
 D: documentation (README.win32)
