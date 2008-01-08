@@ -990,9 +990,10 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
         private_uri = self._private_node.get_uri()
         some_uri = self._root_directory_uri
+        client0_basedir = self.getdir("client0")
 
         nodeargs = [
-            "--node-url", self.webish_url,
+            "--node-directory", client0_basedir,
             "--dir-cap", private_uri,
             ]
         public_nodeargs = [
