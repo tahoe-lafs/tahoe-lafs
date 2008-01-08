@@ -32,6 +32,10 @@ by passing the '-mno-cygwin' flag to the compiler.  For example, to
 build cryptopp this way you can use the command
     CXX='g++ -mno-cygwin' make
 
+Note that cryptopp's cryptest.exe tool may fail to build.  To build
+that you might need to add the ISMINGW option to cryptopp's make e.g.
+    CXX='g++ -mno-cygwin' make ISMINGW=1
+
 OPTION 3: OTHER BUILD TOOLS
 
 The third-easiest way is to use a Microsoft compiler or some other
