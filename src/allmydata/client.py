@@ -41,7 +41,8 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         self.init_lease_secret()
         self.init_storage()
         self.init_options()
-        self.add_service(Uploader())
+        helper_furl = self.get_config("helper.furl")
+        self.add_service(Uploader(helper_furl))
         self.add_service(Downloader())
         self.add_service(Checker())
 
