@@ -96,7 +96,7 @@ class SpeedTest:
                 print "10x 200B test went too fast, doing 100x 200B test"
                 return self.one_test(None, "100x 200B", 100, 200, False)
             return
-        #d.addCallback(_maybe_do_100x_200B)
+        d.addCallback(_maybe_do_100x_200B)
         d.addCallback(self.one_test, "1MB", 1, 1*MB, False)
         d.addCallback(self.one_test, "10MB", 1, 10*MB, False)
         def _maybe_do_100MB(res):
@@ -104,7 +104,7 @@ class SpeedTest:
                 print "10MB test took too long, skipping 100MB test"
                 return
             return self.one_test(None, "100MB", 1, 100*MB, False)
-        #d.addCallback(_maybe_do_100MB)
+        d.addCallback(_maybe_do_100MB)
         d.addCallback(self.one_test, "1x 200B SSK", 1, 200, True)
         d.addCallback(self.one_test, "10x 200B SSK", 10, 200, True)
         d.addCallback(self.one_test, "1MB SSK", 1, 1*MB, True)
