@@ -6,21 +6,32 @@ from twisted.python import usage
 from allmydata.scripts.common import BaseOptions
 import debug, create_node, startstop_node, cli
 
+_general_commands = create_node.subCommands + debug.subCommands + cli.subCommands
+
 class Options(BaseOptions, usage.Options):
     synopsis = "Usage:  tahoe <command> [command options]"
 
     subCommands = []
-    subCommands += create_node.subCommands
+    subCommands += _general_commands
     subCommands += startstop_node.subCommands
-    subCommands += debug.subCommands
-    subCommands += cli.subCommands
 
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
             raise usage.UsageError("must specify a command")
 
-def runner(argv, run_by_human=True, stdout=sys.stdout, stderr=sys.stderr):
-    config = Options()
+class OptionsNoNodeControl(Options):
+    synopsis = "Usage:  tahoe <command> [command options]"
+
+    subCommands = []
+    subCommands += _general_commands
+
+
+def runner(argv, run_by_human=True, stdout=sys.stdout, stderr=sys.stderr,
+                 install_node_control=True):
+    if install_node_control:
+        config = Options()
+    else:
+        config = OptionsNoNodeControl()
     try:
         config.parseOptions(argv)
     except usage.error, e:
@@ -54,6 +65,6 @@ def runner(argv, run_by_human=True, stdout=sys.stdout, stderr=sys.stderr):
 
     return rc
 
-def run():
+def run(install_node_control=True):
     rc = runner(sys.argv[1:])
     sys.exit(rc)
