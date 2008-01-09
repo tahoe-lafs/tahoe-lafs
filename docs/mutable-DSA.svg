@@ -17,8 +17,8 @@
    sodipodi:docname="mutable-DSA.svg"
    inkscape:output_extension="org.inkscape.output.svg.inkscape"
    inkscape:export-filename="/home/warner/trees/tahoe-mutable2/docs/mutable-DSA.png"
-   inkscape:export-xdpi="45.481445"
-   inkscape:export-ydpi="45.481445">
+   inkscape:export-xdpi="75"
+   inkscape:export-ydpi="75">
   <defs
      id="defs4">
     <marker
@@ -69,7 +69,7 @@
      gridtolerance="10000"
      guidetolerance="10"
      objecttolerance="10"
-     inkscape:pageopacity="0.0"
+     inkscape:pageopacity="1"
      inkscape:pageshadow="2"
      inkscape:zoom="1.0816863"
      inkscape:cx="380.71238"
@@ -78,8 +78,8 @@
      inkscape:current-layer="layer1"
      inkscape:window-width="909"
      inkscape:window-height="818"
-     inkscape:window-x="31"
-     inkscape:window-y="97" />
+     inkscape:window-x="30"
+     inkscape:window-y="80" />
   <metadata
      id="metadata7">
     <rdf:RDF>
