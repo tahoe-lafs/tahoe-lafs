@@ -145,8 +145,8 @@ class Tahoe(win32serviceutil.ServiceFramework):
 
             # run the node itself
             c = client.Client(basedir)
-            reactor.callLater(c.startService) # after reactor startup
-            reactor.run(dont_bind_signals=True) # does a reactor.run()
+            reactor.callLater(0, c.startService) # after reactor startup
+            reactor.run(installSignalHandlers=False)
 
             logmsg("main thread shutdown")
         except:
