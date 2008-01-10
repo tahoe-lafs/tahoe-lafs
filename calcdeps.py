@@ -16,34 +16,6 @@ install_requires=["zfec >= 1.3.0",
                   "zope.interface >= 3.1.0",
                   ]
 
-nevow_version = None
-try:
-    import nevow
-    nevow_version = nevow.__version__
-except ImportError:
-    pass
-
-# We also require zope.interface, but some older versions of setuptools such
-# as setuptools v0.6a9 don't handle the "." in its name correctly, and anyway
-# people have to manually install Twisted before using our automatic
-# dependency resolution, and they have to manually install zope.interface in
-# order to install Twisted.
-
-# Ubuntu Dapper includes nevow-0.6.0 and twisted-2.2.0, both of which work.
-# However, setuptools doesn't know about them, so our install_requires=
-# dependency upon nevow causes our 'build-auto-deps' step to try and build the
-# latest version (nevow-0.9.18), which *doesn't* work with twisted-2.2.0 . To
-# work around this, remove nevow from our dependency list if we detect that
-# we've got nevow-0.6.0 installed. This will allow build-auto-deps (and everything
-# else) to work on dapper systems that have the python-nevow package
-# installed, and shouldn't hurt any other systems. Dapper systems *without*
-# python-nevow will try to build it (and will fail unless they also have a
-# newer version of Twisted installed).
-
-if nevow_version != "0.6.0":
-    install_requires.append("nevow >= 0.6.0")
-
-
 if __name__ == '__main__':
     print "install_requires:"
     for ir in install_requires:
