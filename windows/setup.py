@@ -1,6 +1,8 @@
 from distutils.core import setup
 import py2exe
 
+import glob
+
 setup_args = {
     'name': 'Tahoe',
     'description': 'Allmydata Tahoe distributated storage',
@@ -16,6 +18,7 @@ setup_args = {
     'data_files': [
         ('.', [
         ],),
+        ('web', glob.glob('../src/allmydata/web/*')),
     ],
     'zipfile' : 'library.zip',
     'options': {
