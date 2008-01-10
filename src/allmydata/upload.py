@@ -1,10 +1,11 @@
 
 import os
 from zope.interface import implements
-from twisted.python import log, failure
+from twisted.python import failure
 from twisted.internet import defer
 from twisted.application import service
 from foolscap import Referenceable
+from foolscap.logging import log
 
 from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
@@ -514,6 +515,7 @@ class CHKUploader:
                            )
         return u.to_string()
 
+
 def read_this_many_bytes(uploadable, size, prepend_data=[]):
     if size == 0:
         return defer.succeed([])
@@ -581,10 +583,15 @@ class AssistedUploader:
     def __init__(self, helper, options={}):
         self._helper = helper
         self._options = options
-        self._log_number = self._client.log("AssistedUploader starting")
+        self._log_number = log.msg("AssistedUploader starting")
+
+    def log(self, msg, parent=None, **kwargs):
+        if parent is None:
+            parent = self._log_number
+        return log.msg(msg, parent=parent, **kwargs)
 
     def set_params(self, encoding_parameters):
-        pass
+        self._needed_shares, happy, self._total_shares = encoding_parameters
 
     def start(self, uploadable):
         u = IUploadable(uploadable)
@@ -617,7 +624,7 @@ class AssistedUploader:
         d = self._helper.callRemote("upload", self._storage_index)
         d.addCallback(self._contacted_helper)
         return d
-    def _contacted_helper(self, upload_results, upload_helper):
+    def _contacted_helper(self, (upload_results, upload_helper)):
         if upload_helper:
             # we need to upload the file
             reu = RemoteEncryptedUploabable(self._encuploadable)
@@ -751,7 +758,7 @@ class Uploader(service.MultiService):
                 uploader = LiteralUploader(self.parent, options,
                                            wait_for_numpeers)
             elif self._helper:
-                uploader = AssistedUploader(self.parent, options)
+                uploader = AssistedUploader(self._helper, options)
             else:
                 uploader = self.uploader_class(self.parent, options,
                                                wait_for_numpeers)
