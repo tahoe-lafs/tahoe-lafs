@@ -413,3 +413,9 @@ deb-gutsy-head:
 	$(MAKE) setup-deb ARCH=gutsy TAHOE_ARCH=feisty
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
+
+# These targets provide for windows native builds
+
+windows-exe:
+	PYTHON=$(PYTHON) $(PP) $(MAKE) -C windows
+
