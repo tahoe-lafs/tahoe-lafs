@@ -1,6 +1,6 @@
 
 from foolscap import RemoteInterface
-from foolscap.schema import DictOf, ChoiceOf
+from foolscap.schema import DictOf, ChoiceOf, ListOf
 from allmydata.interfaces import StorageIndex, Hash
 
 UploadResults = DictOf(str, str)

@@ -995,17 +995,21 @@ class IEncryptedUploadable(Interface):
         instead of plaintext. set_segment_size() must be called before the
         first call to read_encrypted()."""
 
-    def get_plaintext_segment_hashtree_nodes(num_segments):
-        """Get the nodes of a merkle hash tree over the plaintext segments.
+    def get_plaintext_hashtree_leaves(first, last, num_segments):
+        """Get the leaf nodes of a merkle hash tree over the plaintext
+        segments, i.e. get the tagged hashes of the given segments.
 
-        This returns a Deferred which fires with a sequence of hashes. Each
-        hash is a node of a merkle hash tree, generally obtained from::
+        This returns a Deferred which fires with a sequence of hashes, using:
 
-         tuple(HashTree(segment_hashes))
+         tuple(segment_hashes[first:last])
 
         'num_segments' is used to assert that the number of segments that the
         IEncryptedUploadable handled matches the number of segments that the
         encoder was expecting.
+
+        This method must not be called until the final byte has been read
+        from read_encrypted(). Once this method is called, read_encrypted()
+        can never be called again.
         """
 
     def get_plaintext_hash():

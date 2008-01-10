@@ -461,12 +461,14 @@ class Encoder(object):
         d = u.get_plaintext_hash()
         def _got(plaintext_hash):
             self.uri_extension_data["plaintext_hash"] = plaintext_hash
-            return u.get_plaintext_segment_hashtree_nodes(self.num_segments)
+            return u.get_plaintext_hashtree_leaves(0, self.num_segments,
+                                                   self.num_segments)
         d.addCallback(_got)
-        def _got_hashtree_nodes(t):
-            self.uri_extension_data["plaintext_root_hash"] = t[0]
-            self._plaintext_hashtree_nodes = t
-        d.addCallback(_got_hashtree_nodes)
+        def _got_hashtree_leaves(leaves):
+            ht = list(HashTree(list(leaves)))
+            self.uri_extension_data["plaintext_root_hash"] = ht[0]
+            self._plaintext_hashtree_nodes = ht
+        d.addCallback(_got_hashtree_leaves)
         return d
 
     def send_plaintext_hash_tree_to_all_shareholders(self):

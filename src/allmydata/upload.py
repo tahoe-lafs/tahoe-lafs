@@ -14,6 +14,7 @@ from allmydata import encode, storage, hashtree, uri
 from allmydata.util import idlib, mathutil
 from allmydata.util.assertutil import precondition
 from allmydata.interfaces import IUploadable, IUploader, IEncryptedUploadable
+from allmydata.offloaded import RIEncryptedUploadable
 from pycryptopp.cipher.aes import AES
 
 from cStringIO import StringIO
@@ -399,7 +400,7 @@ class EncryptAnUploadable:
         d.addCallback(_got)
         return d
 
-    def get_plaintext_segment_hashtree_nodes(self, num_segments):
+    def get_plaintext_hashtree_leaves(self, first, last, num_segments):
         if len(self._plaintext_segment_hashes) < num_segments:
             # close out the last one
             assert len(self._plaintext_segment_hashes) == num_segments-1
@@ -407,8 +408,7 @@ class EncryptAnUploadable:
             self._plaintext_segment_hashes.append(p.digest())
             del self._plaintext_segment_hasher
         assert len(self._plaintext_segment_hashes) == num_segments
-        ht = hashtree.HashTree(self._plaintext_segment_hashes)
-        return defer.succeed(list(ht))
+        return defer.succeed(tuple(self._plaintext_segment_hashes[first:last]))
 
     def get_plaintext_hash(self):
         h = self._plaintext_hasher.digest()
@@ -551,7 +551,32 @@ class LiteralUploader:
     def close(self):
         pass
 
-class AssistedUploader(FileUploader):
+class RemoteEncryptedUploabable(Referenceable):
+    implements(RIEncryptedUploadable)
+
+    def __init__(self, encrypted_uploadable):
+        self._eu = IEncryptedUploadable(encrypted_uploadable)
+        self._offset = 0
+
+    def remote_get_size(self):
+        return self._eu.get_size()
+    def remote_set_segment_size(self, segment_size):
+        self._eu.set_segment_size(segment_size)
+    def remote_read_encrypted(self, offset, length):
+        assert offset == self._offset # we don't yet implement seek
+        d = self._eu.read_encrypted(length)
+        def _read(data):
+            self._offset += len(data)
+            return data
+        d.addCallback(_read)
+        return d
+    def remote_get_plaintext_hashtree_leaves(self, first, last):
+        return self._eu.get_plaintext_hashtree_leaves(first, last)
+    def remote_get_plaintext_hash(self):
+        return self._eu.get_plaintext_hash()
+
+
+class AssistedUploader:
 
     def __init__(self, helper, options={}):
         self._helper = helper
@@ -562,8 +587,8 @@ class AssistedUploader(FileUploader):
         pass
 
     def start(self, uploadable):
-        uploadable = IUploadable(uploadable)
-        eu = IEncryptedUploadable(EncryptAnUploadable(uploadable))
+        u = IUploadable(uploadable)
+        eu = IEncryptedUploadable(EncryptAnUploadable(u))
         self._encuploadable = eu
         d = eu.get_size()
         d.addCallback(self._got_size)
@@ -699,6 +724,7 @@ class Uploader(service.MultiService):
     def __init__(self, helper_furl=None):
         self._helper_furl = helper_furl
         self._helper = None
+        service.MultiService.__init__(self)
 
     def startService(self):
         service.MultiService.startService(self)
