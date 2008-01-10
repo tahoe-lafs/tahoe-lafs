@@ -244,7 +244,7 @@ endif
 	 $(PYTHON) misc/figleaf2el.py .figleaf src
 
 pyflakes:
-	$(PYTHON) -OOu `which pyflakes` src/allmydata
+	$(PYTHON) -OOu `which pyflakes` src/allmydata |sort |uniq
 
 count-lines:
 	@echo -n "files: "
