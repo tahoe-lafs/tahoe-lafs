@@ -120,6 +120,9 @@ class WebopenOptions(VDriveOptions):
 
     longdesc = """Opens a webbrowser to the contents of some portion of the virtual drive."""
 
+class ReplOptions(usage.Options):
+    pass
+
 subCommands = [
     ["ls", None, ListOptions, "List a directory"],
     ["get", None, GetOptions, "Retrieve a file from the virtual drive."],
@@ -127,6 +130,7 @@ subCommands = [
     ["rm", None, RmOptions, "Unlink a file or directory in the virtual drive."],
     ["mv", None, MvOptions, "Move a file within the virtual drive."],
     ["webopen", None, WebopenOptions, "Open a webbrowser to the root_dir"],
+    ["repl", None, ReplOptions, "Open a python interpreter"],
     ]
 
 def list(config, stdout, stderr):
@@ -209,6 +213,10 @@ def webopen(config, stdout, stderr):
     webbrowser.open(url)
     return 0
 
+def repl(config, stdout, stderr):
+    import code
+    return code.interact()
+
 dispatch = {
     "ls": list,
     "get": get,
@@ -216,5 +224,6 @@ dispatch = {
     "rm": rm,
     "mv": mv,
     "webopen": webopen,
+    "repl": repl,
     }
 
