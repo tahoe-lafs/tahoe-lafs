@@ -458,16 +458,6 @@ class CHKUploader:
         e = encode.Encoder(self._options, self)
         e.set_params(self._encoding_parameters)
         d = e.set_encrypted_uploadable(eu)
-        def _wait_for_peers(res):
-            wait_for_numpeers = self._wait_for_numpeers
-            if wait_for_numpeers is None:
-                # wait_for_numpeers = e.get_param("share_counts")[0] # XXX
-                wait_for_numpeers = 1
-
-            d1 = self._client.introducer_client.when_enough_peers(wait_for_numpeers)
-            d1.addCallback(lambda dummy: res)
-            return d1
-        d.addCallback(_wait_for_peers)
         d.addCallback(self.locate_all_shareholders)
         d.addCallback(self.set_shareholders, e)
         d.addCallback(lambda res: e.start())
