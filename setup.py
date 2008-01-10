@@ -17,13 +17,11 @@ try:
 except ImportError:
     pass
 else:
-    if 'cygwin' in sys.platform.lower():
-        min_version='0.6c6'
-    else:
-        # foolscap uses a module-level os.urandom() during import, which
-        # breaks inside older setuptools' sandboxing. 0.6c4 is the first
-        # version which fixed this problem.
-        min_version='0.6c4'
+    # foolscap uses a module-level os.urandom() during import, which breaks
+    # inside older setuptools' sandboxing. 0.6c4 is the first version which
+    # fixed this problem.  On cygwin there was a different problem -- a
+    # permissions error -- that was fixed in 0.6c6.
+    min_version='0.6c6'
     download_base = "file:"+os.path.join('misc', 'dependencies')+os.path.sep
     use_setuptools(min_version=min_version,
                    download_base=download_base,
