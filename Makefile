@@ -50,8 +50,7 @@ build-auto-deps: check-deps
 	echo PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" $(PYTHON) misc/dependencies/build-deps-setup.py install --prefix="$(SUPPORT)"
 	@-PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
          $(PYTHON) misc/dependencies/build-deps-setup.py install \
-	 --prefix="$(SUPPORT)" || \
-	echo "Build of Tahoe's bundled, automatically built dependent libraries failed -- please see docs/install.html for instructions."
+	 --prefix="$(SUPPORT)"
 
 # The following target is here because I don't know how to tell the buildmaster
 # to start instructing his slaves to "build-auto-deps" instead of instructing
