@@ -28,6 +28,11 @@ class RestartOptions(BasedirMixin, usage.Options):
         ["profile", "p", "whether to run under the Python profiler, putting results in \"profiling_results.prof\""],
         ]
 
+class RunOptions(usage.Options):
+    optParameters = [
+        ["basedir", "C", None, "which directory to run the node in, CWD by default"],
+        ]
+
 def do_start(basedir, profile=False, out=sys.stdout, err=sys.stderr):
     print >>out, "STARTING", basedir
     if os.path.exists(os.path.join(basedir, "client.tac")):
@@ -149,15 +154,42 @@ def restart(config, stdout, stderr):
         rc = do_start(basedir, config['profile'], stdout, stderr) or rc
     return rc
 
+def run(config, stdout, stderr):
+    from twisted.internet import reactor
+    from twisted.python import log, logfile
+    from allmydata import client
+
+    basedir = config['basedir']
+    if basedir is None:
+        basedir = '.'
+    else:
+        os.chdir(basedir)
+
+    # set up twisted logging. this will become part of the node rsn.
+    logdir = os.path.join(basedir, 'logs')
+    if not os.path.exists(logdir):
+        os.makedirs(logdir)
+    lf = logfile.LogFile('tahoesvc.log', logdir)
+    log.startLogging(lf)
+
+    # run the node itself
+    c = client.Client(basedir)
+    reactor.callLater(c.startService) # after reactor startup
+    reactor.run()
+
+    return 0
+
 
 subCommands = [
     ["start", None, StartOptions, "Start a node (of any type)."],
     ["stop", None, StopOptions, "Stop a node."],
     ["restart", None, RestartOptions, "Restart a node."],
+    ["run", None, RunOptions, "Run a node synchronously."],
 ]
 
 dispatch = {
     "start": start,
     "stop": stop,
     "restart": restart,
+    "run": run,
     }
