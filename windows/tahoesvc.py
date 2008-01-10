@@ -129,6 +129,9 @@ class Tahoe(win32serviceutil.ServiceFramework):
         try:
             logmsg("main thread startup")
 
+            import depends # import dependencies so that py2exe finds them
+            _junk = depends # appease pyflakes
+
             from twisted.internet import reactor
             from twisted.python import log, logfile
             from allmydata import client
