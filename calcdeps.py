@@ -8,10 +8,12 @@ dependency_links=[os.path.join(miscdeps, t) for t in os.listdir(miscdeps) if t.e
 # tahoe source when that source was built.
 dependency_links.append("http://allmydata.org/trac/tahoe/wiki/Dependencies")
 
-install_requires=["zfec >= 1.0.3",
+install_requires=["zfec >= 1.3.0",
                   "foolscap >= 0.2.3",
-                  "simplejson >= 1.4",
-                  "pycryptopp >= 0.2.8",
+                  "simplejson >= 1.7.3",
+                  "pycryptopp >= 0.2.9",
+                  "nevow >= 0.6.0",
+                  "zope.interface >= 3.1.0",
                   ]
 
 nevow_version = None
