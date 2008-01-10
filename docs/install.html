@@ -19,30 +19,28 @@
     <h1>
     <h1>How To Install Tahoe</h1>
 
-    <p>This is the default procedure to install from source.  It has been verified to work on Windows (but see extra notes in <a href="../README.win32">README.win32</a>), Cygwin (see extra notes in <a href="../README.win32">README.win32</a>), Mac, Linux, and Solaris.  It's likely to work on other platforms.  For more details and for alternative installation procedures, please see <a href="install-details.html">install-details.html</a>.
+    <p>This is the default procedure to install from source.  It has been verified to work on Windows, Cygwin, Mac, Linux, and Solaris.  It's likely to work on other platforms.  If you encounter problems following this procedure, or for more details such as platform-specific instructions, please see <a href="install-details.html">install-details.html</a>.
 
       <h2>Satisfy the Dependencies</h2>
 
     <p>Prior to installing Tahoe the following must be installed:
 
       <ol>
-	<li><a href="http://gcc.gnu.org/">g++</a> -- the Cygwin version of gcc/g++ works for Cygwin and for Windows</li>
+	<li><a href="http://gcc.gnu.org/">g++</a> &gt;= v3.3 -- the Cygwin version of gcc/g++ works for Cygwin and for Windows</li>
 
 	<li><a href="http://gnu.org/software/make/">GNU make</a></li>
 
-	<li><a href="http://python.org">Python</a> including development headers i.e. "Python.h"</li>
+	<li><a href="http://python.org">Python</a> &gt;= v2.4.2 including development headers i.e. "Python.h"</li>
 
-	<li><a href="http://zope.org/Products/ZopeInterface">zope.interface</a> -- <em>not</em> the entire Zope package, merely the much smaller zope.interface component</li>
+	<li><a href="http://zope.org/Products/ZopeInterface">zope.interface</a> &gt;= v3.1.0-- <em>not</em> the entire <cite>Zope</cite> package, merely the much smaller <cite>zope.interface</cite> component</li>
 
-	<li><a href="http://twistedmatrix.com">Twisted</a> -- from the Twisted "sumo" source tarball</li>
+	<li><a href="http://twistedmatrix.com">Twisted</a> &gt;= v2.4.0 -- from the Twisted "sumo" source tarball</li>
 
-	<li><a href="http://openssl.org">OpenSSL</a>, including development headers</li>
+	<li><a href="http://openssl.org">OpenSSL</a> &gt;= v0.9.7, including development headers</li>
 
-	<li><a href="http://pyopenssl.sourceforge.net">PyOpenSSL</a></li>
+	<li><a href="http://pyopenssl.sourceforge.net">PyOpenSSL</a> == v0.6</li>
 
-	<li><a href="http://cryptopp.com">Crypto++</a>, including development headers</li>
-
-	<li><a href="http://sourceforge.net/projects/pywin32/">pywin32</a> -- required only for Windows (and not for Cygwin)</li>
+	<li><a href="http://cryptopp.com">Crypto++</a> &gt;= v5.2.1, including development headers</li>
       </ol>
 
 
