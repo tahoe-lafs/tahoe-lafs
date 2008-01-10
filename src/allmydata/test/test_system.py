@@ -73,6 +73,10 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 fileutil.make_dirs(os.path.join(basedir, "private"))
                 open(os.path.join(basedir, "private", "root_dir.cap"), "w")
             open(os.path.join(basedir, "introducer.furl"), "w").write(self.introducer_furl)
+
+        # this starts all the clients
+        for i in range(self.numclients):
+            basedir = self.getdir("client%d" % i)
             c = self.add_service(client.Client(basedir=basedir))
             self.clients.append(c)
         log.msg("STARTING")
