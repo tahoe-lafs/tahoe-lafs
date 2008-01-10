@@ -302,72 +302,56 @@ the command <pre>darcs pull</pre>.
 </table>
 
 <pre>
-EASY_INSTALLABLE DEPENDENCIES
-
-The following Python packages are required, but normally they are
-automatically installed as a side-effect of installing Tahoe.
-
- + Python setuptools (build and distribution tool)
+ + Python setuptools (build and distribution tool) >= v0.6c6
 
    http://peak.telecommunity.com/DevCenter/EasyInstall#installation-instructions
 
-   The Tahoe install process will automatically download and install
-   setuptools if it is not present.  However, if an old, incompatible version
-   of setuptools is present (&lt; v0.6c6 on Cygwin, or &lt; v0.6a9 on other
-   platforms), then the install will fail.
+   The Tahoe install process will automatically use its own bundled copy
+   setuptools if a sufficiently new version of setuptools is not installed on
+   the system.  Unlike It will not install it into the system -- this is a build
+   dependency, not an install dependency.
 
-   If the install fails due to your current version of setuptools being
-   incompatible, please either upgrade or uninstall your version of
-   setuptools and re-run the install.
 
- + zfec (erasure coding library)
+EASY_INSTALLABLE DEPENDENCIES
+
+The following Python packages are required, but they are bundled with Tahoe (in
+the <cite>misc/dependencies</cite> directory), and are built by <cite>make
+build-auto-deps</cite>.  If you install Tahoe using The Setuptools Way or The
+easy_install Way then these packages will automatically be installed along with
+Tahoe.
+
+ + zfec (erasure coding library) >= v1.3.0
 
    http://cheeseshop.python.org/pypi/zfec
 
-   zfec is packaged in a setuptools-compatible way and included in the Python
-   Package Index (PyPI), so it will be automatically installed when you
-   install Tahoe (see INSTALLING).  It can be manually installed by running
-   "easy_install zfec".
-
- + Python foolscap (secure remote object library)
+ + foolscap (secure remote object library) >= v0.2.3
 
    http://cheeseshop.python.org/pypi/foolscap
 
-   foolscape is packaged in a setuptools-compatible way and included in the
-   Python Package Index (PyPI), so it will be automatically installed when
-   you install Tahoe (see INSTALLING).  It can be manually installed by
-   running "easy_install foolscap".
-
- + Python simplejson (JSON parser)
+ + simplejson (JSON parser) >= v1.7.3
 
    http://cheeseshop.python.org/pypi/simplejson
 
-   simplejson is packaged in a setuptools-compatible way and included in the
-   Python Package Index (PyPI), so it will be automatically installed when
-   you install Tahoe (see INSTALLING).  It can be manually installed by
-   running "easy_install simplejson".
-
- + Python Nevow (0.6.0 or later) (web presentation language)
+ + nevow (web presentation language) >= v0.6.0
 
    http://divmod.org/trac/wiki/DivmodNevow
 
-   Note that the current version of Nevow (0.9.18) requires Twisted 2.4.0 or
-   later.
+   Note that Nevow >= 0.9.18 requires Twisted >= 2.4.0.
 
-   Nevow is packaged in a setuptools-compatible way and included in the
-   Python Package Index (PyPI), so it will be automatically installed when
-   you install Tahoe (see INSTALLING).  It can be manually installed by
-   running "easy_install nevow".
-
- + Python pycryptopp (0.2.1 or later) (Python crypto library)
+ + pycryptopp (Python crypto library) >= v0.2.9
 
    http://pypi.python.org/pypi/pycryptopp
 
-   pycryptopp is packaged in a setuptools-compatible way and included in the
-   Python Package Index (PyPI), so it will be automatically installed when
-   you install Tahoe (see INSTALLING).  It can be manually installed by
-   running "easy_install nevow".
+ + zope.interface (programming language extensions) >= v3.1.0
 
+   http://pypi.python.org/pypi/pycryptopp
+
+   Tahoe does <em>not</em> require the entire <cite>Zope</cite> package, merely
+   the much smaller <cite>zope.interface</cite> component.
+
+
+
+xxx
 If you are behind a firewall and you can configure your firewall to
 forward TCP connections on a port to the computer running your Tahoe
 node, then you can configure the Tahoe node to announce itself as
