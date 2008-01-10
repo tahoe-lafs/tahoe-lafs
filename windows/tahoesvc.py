@@ -105,7 +105,6 @@ class Tahoe(win32serviceutil.ServiceFramework):
 
                 logmsg("wake up")
 
-                reactor.callFromThread(self.app.shutdown)
                 reactor.callFromThread(reactor.stop)
 
                 time.sleep(2) # give the node/reactor a chance to cleanup
