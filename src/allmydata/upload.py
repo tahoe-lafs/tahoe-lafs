@@ -14,8 +14,8 @@ from allmydata.util.hashutil import file_renewal_secret_hash, \
 from allmydata import encode, storage, hashtree, uri
 from allmydata.util import idlib, mathutil
 from allmydata.util.assertutil import precondition
-from allmydata.interfaces import IUploadable, IUploader, IEncryptedUploadable
-from allmydata.offloaded import RIEncryptedUploadable
+from allmydata.interfaces import IUploadable, IUploader, \
+     IEncryptedUploadable, RIEncryptedUploadable
 from pycryptopp.cipher.aes import AES
 
 from cStringIO import StringIO
@@ -429,10 +429,10 @@ class CHKUploader:
     def set_params(self, encoding_parameters):
         self._encoding_parameters = encoding_parameters
 
-    def log(self, msg, parent=None):
+    def log(self, msg, parent=None, **kwargs):
         if parent is None:
             parent = self._log_number
-        return self._client.log(msg, parent=parent)
+        return self._client.log(msg, parent=parent, **kwargs)
 
     def start(self, uploadable):
         """Start uploading the file.

@@ -6,9 +6,11 @@ from foolscap import Tub, eventual
 from foolscap.logging import log
 
 from allmydata import upload, offloaded
+from allmydata.util import hashutil
 
 class FakeCHKUploadHelper(offloaded.CHKUploadHelper):
-    pass
+    def remote_upload(self, reader):
+        return {'uri_extension_hash': hashutil.uri_extension_hash("")}
 
 class FakeHelper(offloaded.Helper):
     chk_upload_helper_class = FakeCHKUploadHelper
