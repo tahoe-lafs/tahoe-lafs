@@ -3,12 +3,12 @@ from base64 import b32encode
 import os.path
 from twisted.application import service, strports, internet
 from twisted.web import static, resource, server, html, http
-from twisted.python import util, log
+from twisted.python import log
 from twisted.internet import defer
 from twisted.internet.interfaces import IConsumer
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
-from allmydata.util import fileutil
+from allmydata.util import fileutil, sibpath
 import simplejson
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode, \
      IMutableFileNode
@@ -21,7 +21,7 @@ import urllib
 from formless import webform
 
 def getxmlfile(name):
-    return loaders.xmlfile(util.sibpath(__file__, "web/%s" % name))
+    return loaders.xmlfile(sibpath.sibpath(__file__, "web/%s" % name))
 
 class IClient(Interface):
     pass
@@ -1302,7 +1302,7 @@ class Root(rend.Page):
         return rend.Page.locateChild(self, ctx, segments)
 
     child_webform_css = webform.defaultCSS
-    child_tahoe_css = nevow_File(util.sibpath(__file__, "web/tahoe.css"))
+    child_tahoe_css = nevow_File(sibpath.sibpath(__file__, "web/tahoe.css"))
 
     child_provisioning = provisioning.ProvisioningTool()
 
