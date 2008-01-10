@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python
 
 # N.B.: this expects to run from the top of the source tree
 
