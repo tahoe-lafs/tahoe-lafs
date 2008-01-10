@@ -6,7 +6,6 @@ import sys, os
 
 miscdeps=os.path.join('misc', 'dependencies')
 
-from ez_setup import use_setuptools
 try:
     from ez_setup import use_setuptools
 except ImportError:
