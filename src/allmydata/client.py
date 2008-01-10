@@ -14,6 +14,7 @@ from allmydata.storage import StorageServer
 from allmydata.upload import Uploader
 from allmydata.download import Downloader
 from allmydata.checker import Checker
+from allmydata.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer import IntroducerClient
 from allmydata.util import hashutil, idlib, testutil
@@ -45,6 +46,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         self.add_service(Uploader(helper_furl))
         self.add_service(Downloader())
         self.add_service(Checker())
+        # ControlServer and Helper are attached after Tub startup
 
         self.introducer_furl = self.get_config("introducer.furl", required=True)
 
@@ -135,12 +137,27 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         ic.setServiceParent(self)
 
         self.register_control()
+        self.register_helper()
 
     def register_control(self):
         c = ControlServer()
         c.setServiceParent(self)
         control_url = self.tub.registerReference(c)
         self.write_private_config("control.furl", control_url + "\n")
+
+    def register_helper(self):
+        run_helper = self.get_config("run_helper")
+        if not run_helper:
+            return
+        h = Helper(os.path.join(self.basedir, "helper"))
+        h.setServiceParent(self)
+        helper_furl = self.tub.registerReference(h)
+        # TODO: this is confusing. BASEDIR/private/helper.furl is created by
+        # the helper. BASEDIR/helper.furl is consumed by the client who wants
+        # to use the helper. I like having the filename be the same, since
+        # that makes 'cp' work smoothly, but the difference between config
+        # inputs and generated outputs is hard to see.
+        self.write_private_config("helper.furl", helper_furl + "\n")
 
     def remote_get_versions(self):
         return str(allmydata.__version__), str(self.OLDEST_SUPPORTED_VERSION)
