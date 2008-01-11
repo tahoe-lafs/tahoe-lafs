@@ -275,6 +275,7 @@ class Publish(unittest.TestCase):
         fn.create(CONTENTS)
         p = FakePublish(fn)
         p._storage_index = "\x00"*32
+        p._new_seqnum = 3
         #r = mutable.Retrieve(fn)
         p._peers = {}
         for peerid in c._peerids:
