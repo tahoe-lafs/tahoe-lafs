@@ -23,7 +23,7 @@ logmsg('service loaded')
 # Now with some bootstrap util functions in place, let's try and init things:
 try:
     logmsg('loading base dir')
-    import registry
+    from allmydata.windows import registry
     basedir = registry.get_base_dir_path()
     logmsg("got base dir (%s)" % (basedir,))
     if not basedir:
