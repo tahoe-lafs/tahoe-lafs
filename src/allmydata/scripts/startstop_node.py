@@ -174,7 +174,7 @@ def run(config, stdout, stderr):
 
     # run the node itself
     c = client.Client(basedir)
-    reactor.callLater(c.startService) # after reactor startup
+    reactor.callLater(0, c.startService) # after reactor startup
     reactor.run()
 
     return 0
