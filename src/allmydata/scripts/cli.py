@@ -27,7 +27,11 @@ class VDriveOptions(BaseOptions, usage.Options):
     def postOptions(self):
         # compute a node-url from the existing options, put in self['node-url']
         if self['node-directory']:
-            self['node-directory'] = os.path.expanduser(self['node-directory'])
+            if sys.platform == 'win32' and self['node-directory'] == '~/.tahoe':
+                from allmydata.windows import registry
+                self['node-directory'] = registry.get_base_dir_path()
+            else:
+                self['node-directory'] = os.path.expanduser(self['node-directory'])
         if self['node-url']:
             if (not isinstance(self['node-url'], basestring)
                 or not NODEURL_RE.match(self['node-url'])):

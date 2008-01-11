@@ -36,7 +36,11 @@ class BasedirMixin:
             self.basedirs.extend(args)
         else:
             if len(args) == 0 and not self.basedirs:
-                self.basedirs.append(os.path.expanduser("~/.tahoe"))
+                if sys.platform == 'win32':
+                    from allmydata.windows import registry
+                    self.basedirs.append(registry.get_base_dir_path())
+                else:
+                    self.basedirs.append(os.path.expanduser("~/.tahoe"))
             if len(args) > 0:
                 self.basedirs.append(args[0])
             if len(args) > 1:
