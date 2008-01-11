@@ -611,16 +611,19 @@ class AssistedUploader:
         self._storage_index = storage_index
 
     def _contact_helper(self, res):
-        d = self._helper.callRemote("upload", self._storage_index)
+        self.log("contacting helper..")
+        d = self._helper.callRemote("upload_chk", self._storage_index)
         d.addCallback(self._contacted_helper)
         return d
     def _contacted_helper(self, (upload_results, upload_helper)):
         if upload_helper:
+            self.log("helper says we need to upload")
             # we need to upload the file
             reu = RemoteEncryptedUploabable(self._encuploadable)
             d = upload_helper.callRemote("upload", reu)
             # this Deferred will fire with the upload results
             return d
+        self.log("helper says file is already uploaded")
         return upload_results
 
     def _build_readcap(self, upload_results):

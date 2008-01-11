@@ -8,12 +8,20 @@ from foolscap.logging import log
 from allmydata import upload, offloaded
 from allmydata.util import hashutil
 
-class FakeCHKUploadHelper(offloaded.CHKUploadHelper):
-    def remote_upload(self, reader):
-        return {'uri_extension_hash': hashutil.uri_extension_hash("")}
+class CHKUploadHelper_fake(offloaded.CHKUploadHelper):
+    def start_encrypted(self, eu):
+        needed_shares, happy, total_shares = self._encoding_parameters
+        d = eu.get_size()
+        def _got_size(size):
+            return (hashutil.uri_extension_hash(""),
+                    needed_shares, total_shares, size)
+        d.addCallback(_got_size)
+        return d
 
-class FakeHelper(offloaded.Helper):
-    chk_upload_helper_class = FakeCHKUploadHelper
+class CHKUploadHelper_already_uploaded(offloaded.CHKUploadHelper):
+    def start(self):
+        res = {'uri_extension_hash': hashutil.uri_extension_hash("")}
+        return (res, None)
 
 class FakeClient(service.MultiService):
     def log(self, msg, **kwargs):
@@ -42,8 +50,8 @@ class AssistedUpload(unittest.TestCase):
         # bogus host/port
         t.setLocation("bogus:1234")
 
-
-        h = FakeHelper(".")
+        self.helper = h = offloaded.Helper(".")
+        h.chk_upload_helper_class = CHKUploadHelper_fake
         h.setServiceParent(self.s)
         self.helper_furl = t.registerReference(h)
 
@@ -55,6 +63,29 @@ class AssistedUpload(unittest.TestCase):
 
 
     def test_one(self):
+        u = upload.Uploader(self.helper_furl)
+        u.setServiceParent(self.s)
+
+        # wait a few turns
+        d = eventual.fireEventually()
+        d.addCallback(eventual.fireEventually)
+        d.addCallback(eventual.fireEventually)
+
+        def _ready(res):
+            assert u._helper
+
+            DATA = "I need help\n" * 1000
+            return u.upload_data(DATA)
+        d.addCallback(_ready)
+        def _uploaded(uri):
+            assert "CHK" in uri
+        d.addCallback(_uploaded)
+
+        return d
+
+
+    def test_already_uploaded(self):
+        self.helper.chk_upload_helper_class = CHKUploadHelper_already_uploaded
         u = upload.Uploader(self.helper_furl)
         u.setServiceParent(self.s)
 

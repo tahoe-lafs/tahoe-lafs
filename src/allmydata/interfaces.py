@@ -1278,7 +1278,7 @@ class RIEncryptedUploadable(RemoteInterface):
         return Hash
 
 
-class RIUploadHelper(RemoteInterface):
+class RICHKUploadHelper(RemoteInterface):
     __remote_name__ = "RIUploadHelper.tahoe.allmydata.com"
 
     def upload(reader=RIEncryptedUploadable):
@@ -1288,7 +1288,7 @@ class RIUploadHelper(RemoteInterface):
 class RIHelper(RemoteInterface):
     __remote_name__ = "RIHelper.tahoe.allmydata.com"
 
-    def upload(si=StorageIndex):
+    def upload_chk(si=StorageIndex):
         """See if a file with a given storage index needs uploading. The
         helper will ask the appropriate storage servers to see if the file
         has already been uploaded. If so, the helper will return a set of
@@ -1297,10 +1297,10 @@ class RIHelper(RemoteInterface):
 
         If the file has not yet been uploaded (or if it was only partially
         uploaded), the helper will return an empty upload-results dictionary
-        and also an RIUploadHelper object that will take care of the upload
-        process. The client should call upload() on this object and pass it a
-        reference to an RIEncryptedUploadable object that will provide
-        ciphertext. When the upload is finished, the upload() method will
-        finish and return the upload results.
+        and also an RICHKUploadHelper object that will take care of the
+        upload process. The client should call upload() on this object and
+        pass it a reference to an RIEncryptedUploadable object that will
+        provide ciphertext. When the upload is finished, the upload() method
+        will finish and return the upload results.
         """
-        return (UploadResults, ChoiceOf(RIUploadHelper, None))
+        return (UploadResults, ChoiceOf(RICHKUploadHelper, None))

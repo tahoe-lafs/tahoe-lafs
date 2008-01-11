@@ -13,7 +13,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
     peer selection, encoding, and share pushing. I read ciphertext from the
     remote AssistedUploader.
     """
-    implements(interfaces.RIUploadHelper)
+    implements(interfaces.RICHKUploadHelper)
 
     def __init__(self, storage_index, helper):
         self._finished = False
@@ -30,7 +30,8 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
     def start(self):
         # determine if we need to upload the file. If so, return ({},self) .
         # If not, return (UploadResults,None) .
-        return ({'uri_extension_hash': hashutil.uri_extension_hash("")},self)
+        #return ({'uri_extension_hash': hashutil.uri_extension_hash("")},self)
+        return ({}, self)
 
     def remote_upload(self, reader):
         # reader is an RIEncryptedUploadable. I am specified to return an
@@ -39,6 +40,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         eu = CiphertextReader(reader, self._storage_index)
         d = self.start_encrypted(eu)
         def _done(res):
+            self.finished(self._storage_index)
             (uri_extension_hash, needed_shares, total_shares, size) = res
             return {'uri_extension_hash': uri_extension_hash}
         d.addCallback(_done)
@@ -78,8 +80,10 @@ class CiphertextReader:
 class Helper(Referenceable, service.MultiService):
     implements(interfaces.RIHelper)
     # this is the non-distributed version. When we need to have multiple
-    # helpers, this object will query the farm to see if anyone has the
-    # storage_index of interest, and send the request off to them.
+    # helpers, this object will become the HelperCoordinator, and will query
+    # the farm of Helpers to see if anyone has the storage_index of interest,
+    # and send the request off to them. If nobody has it, we'll choose a
+    # helper at random.
 
     chk_upload_helper_class = CHKUploadHelper
 
@@ -93,7 +97,7 @@ class Helper(Referenceable, service.MultiService):
             kwargs['facility'] = "helper"
         return self.parent.log(msg, **kwargs)
 
-    def remote_upload(self, storage_index):
+    def remote_upload_chk(self, storage_index):
         # TODO: look on disk
         if storage_index in self._active_uploads:
             uh = self._active_uploads[storage_index]
