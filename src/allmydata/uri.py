@@ -434,6 +434,13 @@ def from_string(s):
 
 registerAdapter(from_string, str, IURI)
 
+def is_uri(s):
+    try:
+        uri = from_string(s)
+        return True
+    except (TypeError, AssertionError):
+        return False
+
 def from_string_dirnode(s):
     u = from_string(s)
     assert IDirnodeURI.providedBy(u)
