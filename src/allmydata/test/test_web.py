@@ -657,6 +657,7 @@ class Web(WebMixin, unittest.TestCase):
             self.failIf("maximum recursion depth exceeded" in res)
         d.addCallback(_done)
         return d
+    test_GET_DIRURL_large.timeout= 240 # this hits 120-sec timeout on overloaded vm buildslaves
 
     def test_GET_DIRURL_json(self):
         d = self.GET(self.public_url + "/foo?t=json")
