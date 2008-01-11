@@ -151,13 +151,13 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
             return
         h = Helper(os.path.join(self.basedir, "helper"))
         h.setServiceParent(self)
-        helper_furl = self.tub.registerReference(h)
         # TODO: this is confusing. BASEDIR/private/helper.furl is created by
         # the helper. BASEDIR/helper.furl is consumed by the client who wants
         # to use the helper. I like having the filename be the same, since
         # that makes 'cp' work smoothly, but the difference between config
         # inputs and generated outputs is hard to see.
-        self.write_private_config("helper.furl", helper_furl + "\n")
+        helper_furlfile = os.path.join(self.basedir, "private", "helper.furl")
+        self.tub.registerReference(h, furlFile=helper_furlfile)
 
     def remote_get_versions(self):
         return str(allmydata.__version__), str(self.OLDEST_SUPPORTED_VERSION)

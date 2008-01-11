@@ -55,6 +55,7 @@ class CiphertextReader:
     def __init__(self, remote_reader, storage_index):
         self.rr = remote_reader
         self.storage_index = storage_index
+        self._offset = 0
 
     def get_size(self):
         return self.rr.callRemote("get_size")
@@ -65,7 +66,12 @@ class CiphertextReader:
     def set_serialized_encoding_parameters(self, params):
         pass # ??
     def read_encrypted(self, length):
-        return self.rr.callRemote("read_encrypted", length)
+        d = self.rr.callRemote("read_encrypted", self._offset, length)
+        def _done(strings):
+            self._offset += sum([len(data) for data in strings])
+            return strings
+        d.addCallback(_done)
+        return d
     def get_plaintext_hashtree_leaves(self, first, last, num_segments):
         return self.rr.callRemote("get_plaintext_hashtree_leaves",
                                   first, last, num_segments)

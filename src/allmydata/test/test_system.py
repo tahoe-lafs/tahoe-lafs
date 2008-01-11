@@ -64,23 +64,40 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         q = self.introducer
         self.introducer_furl = q.introducer_url
         self.clients = []
+        basedirs = []
         for i in range(self.numclients):
             basedir = self.getdir("client%d" % i)
+            basedirs.append(basedir)
             fileutil.make_dirs(basedir)
             if i == 0:
+                # client[0] runs a webserver and a helper
                 open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
+                open(os.path.join(basedir, "run_helper"), "w").write("yes\n")
             if self.createprivdir:
                 fileutil.make_dirs(os.path.join(basedir, "private"))
                 open(os.path.join(basedir, "private", "root_dir.cap"), "w")
             open(os.path.join(basedir, "introducer.furl"), "w").write(self.introducer_furl)
 
-        # this starts all the clients
-        for i in range(self.numclients):
-            basedir = self.getdir("client%d" % i)
-            c = self.add_service(client.Client(basedir=basedir))
-            self.clients.append(c)
-        log.msg("STARTING")
-        d = self.wait_for_connections()
+        # start client[0], wait for it's tub to be ready (at which point it
+        # will have registered the helper furl).
+        c = self.add_service(client.Client(basedir=basedirs[0]))
+        self.clients.append(c)
+        d = c.when_tub_ready()
+        def _ready(res):
+            f = open(os.path.join(basedirs[0],"private","helper.furl"), "r")
+            helper_furl = f.read()
+            f.close()
+            f = open(os.path.join(basedirs[3],"helper.furl"), "w")
+            f.write(helper_furl)
+            f.close()
+
+            # this starts the rest of the clients
+            for i in range(1, self.numclients):
+                c = self.add_service(client.Client(basedir=basedirs[i]))
+                self.clients.append(c)
+            log.msg("STARTING")
+            return self.wait_for_connections()
+        d.addCallback(_ready)
         def _connected(res):
             log.msg("CONNECTED")
             # now find out where the web port was
@@ -239,6 +256,20 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             d1.addBoth(_baduri_should_fail)
             return d1
         d.addCallback(_download_nonexistent_uri)
+
+        def _upload_with_helper(res):
+            DATA = "Data that needs help to upload" * 1000
+            u = upload.Data(DATA)
+            d = self.clients[3].upload(u)
+            def _uploaded(uri):
+                return self.downloader.download_to_data(uri)
+            d.addCallback(_uploaded)
+            def _check(newdata):
+                self.failUnlessEqual(newdata, DATA)
+            d.addCallback(_check)
+            return d
+        d.addCallback(_upload_with_helper)
+
         return d
     test_upload_and_download.timeout = 4800
 

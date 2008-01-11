@@ -555,15 +555,18 @@ class RemoteEncryptedUploabable(Referenceable):
     def remote_set_segment_size(self, segment_size):
         self._eu.set_segment_size(segment_size)
     def remote_read_encrypted(self, offset, length):
-        assert offset == self._offset # we don't yet implement seek
+        # we don't yet implement seek
+        assert offset == self._offset, "%d != %d" % (offset, self._offset)
         d = self._eu.read_encrypted(length)
-        def _read(data):
-            self._offset += len(data)
-            return data
+        def _read(strings):
+            self._offset += sum([len(data) for data in strings])
+            return strings
         d.addCallback(_read)
         return d
-    def remote_get_plaintext_hashtree_leaves(self, first, last):
-        return self._eu.get_plaintext_hashtree_leaves(first, last)
+    def remote_get_plaintext_hashtree_leaves(self, first, last, num_segments):
+        d = self._eu.get_plaintext_hashtree_leaves(first, last, num_segments)
+        d.addCallback(list)
+        return d
     def remote_get_plaintext_hash(self):
         return self._eu.get_plaintext_hash()
 

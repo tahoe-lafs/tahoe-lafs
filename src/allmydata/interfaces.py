@@ -1269,9 +1269,9 @@ class RIEncryptedUploadable(RemoteInterface):
         return None
 
     def read_encrypted(offset=long, length=long):
-        return str
+        return ListOf(str)
 
-    def get_plaintext_hashtree_leaves(first=int, last=int):
+    def get_plaintext_hashtree_leaves(first=int, last=int, num_segments=int):
         return ListOf(Hash)
 
     def get_plaintext_hash():

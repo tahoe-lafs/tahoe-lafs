@@ -105,4 +105,3 @@ class AssistedUpload(unittest.TestCase):
         d.addCallback(_uploaded)
 
         return d
-
