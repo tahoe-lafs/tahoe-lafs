@@ -3,7 +3,6 @@ from zope.interface import implements
 from twisted.application import service
 from twisted.internet import defer
 from foolscap import Referenceable
-from allmydata.util import hashutil
 from allmydata import upload, interfaces
 
 
