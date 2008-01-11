@@ -47,11 +47,11 @@ TRIAL=PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 
 build-auto-deps: check-deps
 	mkdir -p "$(SUPPORTLIB)"
-	@echo PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" $(PYTHON) misc/dependencies/setup.py easy_install --prefix="$(SUPPORT)" --always-unzip misc/dependencies
-	@-PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
-         $(PYTHON) misc/dependencies/setup.py easy_install \
-	 --prefix="$(SUPPORT)" --always-unzip misc/dependencies || \
-	echo "Build of Tahoe's bundled, automatically built dependent libraries failed -- please see docs/install.html for instructions."
+	@echo PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
+		$(PYTHON) misc/dependencies/build-deps-setup.py easy_install --prefix="$(SUPPORT)" --always-unzip misc/dependencies
+	@PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
+		$(PYTHON) misc/dependencies/build-deps-setup.py easy_install --prefix="$(SUPPORT)" --always-unzip misc/dependencies || \
+		( echo "Build of Tahoe's bundled, automatically built dependent libraries failed -- please see docs/install.html for instructions." && false )
 
 # The following target is here because I don't know how to tell the buildmaster
 # to start instructing his slaves to "build-auto-deps" instead of instructing
@@ -108,10 +108,9 @@ src/allmydata/_version.py:
 	$(MAKE) make-version
 
 build: src/allmydata/_version.py
-	@echo $(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG)
-	@$(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG) || \
-		echo "Build of Allmydata-Tahoe failed -- please see docs/install.html for instructions."
-	chmod +x bin/tahoe
+	@echo $(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG) && chmod +x bin/tahoe
+	@( $(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG) && chmod +x bin/tahoe ) || \
+		( echo "Build of Allmydata-Tahoe failed -- please see docs/install.html for instructions." && false )
 
 # 'make install' will do the following:
 #   build+install tahoe (probably to /usr/lib/pythonN.N/site-packages)
@@ -236,7 +235,7 @@ upload-figleaf:
 else
 upload-figleaf:
 	echo "this target is meant to be run with UPLOAD_TARGET=host:/path/"
-	/bin/false
+	false
 endif
 
 .figleaf.el: .figleaf
