@@ -90,3 +90,7 @@ allmydata_tahoe.egg-info$
 ^setuptools_darcs.*.egg$
 ^darcsver.*.egg$
 
+^misc/dependencies/build($|/)
+^misc/dependencies/temp($|/)
+^misc/dependencies/tahoe_deps\.egg-info($|/)
+
