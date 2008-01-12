@@ -421,3 +421,5 @@ deb-gutsy-head:
 windows-exe:
 	PYTHON=$(PYTHON) $(PP) $(MAKE) -C windows
 
+windows-installer: windows-exe
+	$(MAKE) -C windows installer
