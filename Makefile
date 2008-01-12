@@ -48,9 +48,9 @@ TRIAL=PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 build-auto-deps: check-deps
 	mkdir -p "$(SUPPORTLIB)"
 	@echo PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
-		$(PYTHON) misc/dependencies/setup.py-deps-setup.py install --prefix="$(SUPPORT)"
+		$(PYTHON) misc/dependencies/setup.py install --prefix="$(SUPPORT)"
 	@PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
-		$(PYTHON) misc/dependencies/setup.py-deps-setup.py install --prefix="$(SUPPORT)" || \
+		$(PYTHON) misc/dependencies/setup.py install --prefix="$(SUPPORT)" || \
 		( echo "Build of Tahoe's bundled, automatically built dependent libraries failed -- please see docs/install.html for instructions." && false )
 
 # The following target is here because I don't know how to tell the buildmaster
