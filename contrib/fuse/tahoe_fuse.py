@@ -2,25 +2,7 @@
 '''
 Tahoe thin-client fuse module.
 
-
-Usage Notes:
-
-This is a proof-of-concept, and not production quality.  It uses the
-FUSE interface, and where bugs or unimplemented features are encountered
-the file system may become confused.
-
-In my experience with ubuntu's linux version 2.6.20-16-generic, and
-python-fuse version 2.5-5build1, the worst behavior is that processes
-which are accessing the fuse filesystem when some bugs occur hang.
-Also, the filesystem is currently single-threaded and blocking, so one
-bug interrupts all filesystem client processes.
-
-The rest of my system seems stable even in these cases (the rest of the
-filesystem and other processes function).
-
-The current design caches EACH FILE ENTIRELY IN MEMORY as long as any
-process has that file open.  Expect horrible memory usage.  (But also, subsequent reads after the first should be fast.  ;-)
-
+See the accompanying README for configuration/usage details.
 
 Goals:
 
@@ -28,10 +10,23 @@ Goals:
 - Thin rather than clever.  (Even when that means clunky.)
 
 
-Status Quo:
+Warts:
 
 - Reads cache entire file contents, violating the thinness goal.  Can we GET spans of files?
 - Single threaded.
+
+
+Road-map:
+
+1. Add unit tests where possible with little code modification.
+2. Make unit tests pass for a variety of python-fuse module versions.
+3. Modify the design to make possible unit test coverage of larger portions of code.
+
+In parallel:
+*. Make system tests which launch a client, mount a fuse interface, and excercise the whole stack.
+
+Feature Wishlist:
+- Research pkg_resources; see if it can replace the try-import-except-import-error pattern.
 '''
 
 
