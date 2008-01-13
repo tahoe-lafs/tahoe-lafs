@@ -25,7 +25,8 @@ Road-map:
 In parallel:
 *. Make system tests which launch a client, mount a fuse interface, and excercise the whole stack.
 
-Feature Wishlist:
+Wishlist:
+- Reuse allmydata.uri to check/canonicalize uris.
 - Research pkg_resources; see if it can replace the try-import-except-import-error pattern.
 '''
 
