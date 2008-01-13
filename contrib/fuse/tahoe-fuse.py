@@ -58,6 +58,7 @@ fuse.fuse_python_api = (0, 1) # Use the silly path-based api for now.
 ### Config:
 TahoeConfigDir = '~/.tahoe'
 MagicDevNumber = 42
+UnknownSize = -1
 
 
 def main(args = sys.argv[1:]):
@@ -136,12 +137,21 @@ class TahoeFS (fuse.Fuse):
         port = int(port)
         self.url = 'http://localhost:%d' % (port,)
 
-    def _init_bookmarks(self):
-        f = open(os.path.join(self.confdir, 'fuse-bookmarks.uri'), 'r')
-        uri = f.read().strip()
-        f.close()
-        
-        self.rootdir = TahoeDir(self.url, uri)
+    def _init_rootdir(self):
+        # For now we just use the same default as the CLI:
+        rootdirfn = os.path.join(self.confdir, 'private', 'root_dir.cap')
+        try:
+            f = open(rootdirfn, 'r')
+            cap = f.read().strip()
+            f.close()
+        except EnvironmentError, le:
+            # FIXME: This user-friendly help message may be platform-dependent because it checks the exception description.
+            if le.args[1].find('No such file or directory') != -1:
+                raise SystemExit('%s requires a directory capability in %s, but it was not found.\nPlease see "The CLI" in "docs/using.html".\n' % (sys.argv[0], rootdirfn))
+            else:
+                raise le
+
+        self.rootdir = TahoeDir(self.url, canonicalize_cap(cap))
 
     def _get_node(self, path):
         assert path.startswith('/')
@@ -335,7 +345,7 @@ class TahoeNode (object):
 
 class TahoeFile (TahoeNode):
     def __init__(self, baseurl, uri):
-        assert uri.split(':', 2)[1] in ('CHK', 'LIT'), `uri`
+        #assert uri.split(':', 2)[1] in ('CHK', 'LIT'), `uri` # fails as of 0.7.0
         TahoeNode.__init__(self, baseurl, uri)
 
     # nonfuse:
@@ -346,7 +356,12 @@ class TahoeFile (TahoeNode):
         return 1
     
     def get_size(self):
-        return self.get_metadata()[1]['size']
+        rawsize = self.get_metadata()[1]['size']
+        if type(rawsize) is not int: # FIXME: What about sizes which do not fit in python int?
+            assert rawsize == u'?', `rawsize`
+            return UnknownSize
+        else:
+            return rawsize
     
     def resolve_path(self, path):
         assert type(path) is list
@@ -356,7 +371,6 @@ class TahoeFile (TahoeNode):
 
 class TahoeDir (TahoeNode):
     def __init__(self, baseurl, uri):
-        #assert uri.split(':', 2)[1] in ('DIR2', 'DIR2-RO'), `uri`
         TahoeNode.__init__(self, baseurl, uri)
 
         self.mode = stat.S_IFDIR | 0500 # Read only directory.
@@ -408,6 +422,11 @@ class TahoeDir (TahoeNode):
         return c
         
         
+def canonicalize_cap(cap):
+    i = cap.find('URI:')
+    assert i != -1, 'A cap must contain "URI:...", but this does not: ' + cap
+    return cap[i:]
+    
 
 if __name__ == '__main__':
     main()

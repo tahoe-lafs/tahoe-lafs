@@ -1,0 +1,90 @@
+
+Welcome to the tahoe fuse interface prototype!
+
+
+Dependencies:
+
+In addition to a working tahoe installation, this interface depends
+on the python-fuse interface.  This package is available on Ubuntu
+systems as "python-fuse".  It is only known to work with ubuntu
+package version "2.5-5build1".  The latest ubuntu package (version
+"1:0.2-pre3-3") appears to not work currently.
+
+Unfortunately this package appears poorly maintained (notice the wildy
+different version strings and changing API semantics), so if you know
+of a good replacement pythonic fuse interface, please let tahoe-dev know
+about it!
+
+
+Configuration:
+
+Currently tahoe-fuse.py uses the same ~/.tahoe/private/root_dir.cap
+file (which is also the CLI default).  This is not configurable yet.
+Place a directory cap in this file.  (Hint: If you can run "tahoe ls"
+and see a directory listing, this file is properly configured.)
+
+
+Commandline:
+
+The usage is "tahoe-fuse.py <mountpoint>".  The mount point needs to
+be an existing directory which should be empty.  (If it's not empty
+the contents will be safe, but unavailable while the tahoe-fuse.py
+process is mounted there.)
+
+
+Usage:
+
+To use the interface, use other programs to poke around the
+mountpoint.  You should be able to see the same contents as you would
+by using the CLI or WUI for the same directory cap.
+
+
+Runtime Behavior Notes:
+
+Read-only:
+Only reading a tahoe grid is supported, which is reflected in
+the permission modes.  With Tahoe 0.7.0, write access should be easier
+to implement, but is not yet present.
+
+In-Memory File Caching:
+Currently requesting a particular file for read causes the entire file to
+be retrieved into tahoe-fuse.py memory before the read operation returns!
+This caching is reused for subsequent reads.  Beware large files.
+When transitioning to a finer-grained fuse api, this caching should be
+replaced with straight-forward calls to the wapi.  In my opinion, the
+Tahoe node should do all the caching tricks, so that extensions such as
+tahoe-fuse.py can be simple and thin.
+
+Backgrounding Behavior:
+When using the 2.5-5build1 ubuntu package, and no other arguments
+besides a mountpoint to tahoe-fuse.py, the process should remain in
+the foreground and print debug information.   Other python-fuse
+versions appear to alter this behavior and may fork the process to
+the background and obscure the log output.  Bonus points to whomever
+discovers the fate of these poor log messages in this case.
+
+"Investigative Logging":
+This prototype is designed to aide in further fuse development, so
+currently *every* fuse interface call figures out the process from
+which the file system request originates, then it figures out that
+processes commandline (this uses the /proc file system).  This is handy
+for interactive inspection of what kinds of behavior invokes which
+file system operations, but may not work for you.  To disable this
+inspection, edit the source and comment out all of the "@debugcall"
+[FIXME: double check python ref name] method decorators by inserting a
+'#' so it looks like "#@debugcall" (without quotes).
+
+Not-to-spec:
+The current version was not implemented according to any spec and
+makes quite a few dubious "guesses" for what data to pass the fuse
+interface.  You may see bizarre values, which may potentialy confuse
+any processes visiting the files under the mount point.
+
+Serial, blocking operations:
+Most fuse operations result in one or more http calls to the WAPI.
+These are serial and blocking (at least for the tested python-fuse
+version 2.5-5build1), so access to this file system is quite
+inefficient.
+
+
+Good luck!
