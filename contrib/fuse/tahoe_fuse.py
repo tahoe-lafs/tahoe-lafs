@@ -38,13 +38,24 @@ import sys, stat, os, errno, urllib
 try:
     import simplejson
 except ImportError, e:
-    raise SystemExit('Could not import simplejson, which is bundled with Tahoe.  Please update your PYTHONPATH environment variable to include the tahoe "support/lib/python<VERSION>/site-packages" directory.')
+    raise SystemExit('''\
+Could not import simplejson, which is bundled with Tahoe.  Please
+update your PYTHONPATH environment variable to include the tahoe
+"support/lib/python<VERSION>/site-packages" directory.
+''')
     
 
 try:
     import fuse
 except ImportError, e:
-    raise SystemExit('Could not import fuse, the pythonic fuse bindings.  This dependency of tahoe-fuse.py is *not* bundled with tahoe.  Please install it.  On debian/ubuntu systems run: sudo apt-get install python-fuse')
+    raise SystemExit('''\
+Could not import fuse, the pythonic fuse bindings.  This dependency
+of tahoe-fuse.py is *not* bundled with tahoe.  Please install it.
+On debian/ubuntu systems run: sudo apt-get install python-fuse
+''')
+
+# FIXME: Check for non-working fuse versions here.
+# FIXME: Make this work for all common python-fuse versions.
 
 # FIXME: Currently uses the old, silly path-based (non-stateful) interface:
 fuse.fuse_python_api = (0, 1) # Use the silly path-based api for now.
