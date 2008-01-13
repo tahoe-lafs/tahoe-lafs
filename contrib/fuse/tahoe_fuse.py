@@ -429,6 +429,7 @@ class TahoeDir (TahoeNode):
         
         
 def canonicalize_cap(cap):
+    cap = urllib.unquote(cap)
     i = cap.find('URI:')
     assert i != -1, 'A cap must contain "URI:...", but this does not: ' + cap
     return cap[i:]
