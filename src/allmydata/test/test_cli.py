@@ -1,6 +1,7 @@
 
 from twisted.trial import unittest
 from cStringIO import StringIO
+import urllib
 
 from allmydata.util import fileutil, hashutil
 from allmydata import uri
@@ -100,6 +101,15 @@ class CLI(unittest.TestCase):
 
         output = self._dump_cap(u.get_verifier().to_string())
         self.failIf("key: " in output)
+        self.failUnless("UEB hash: hd7rwri6djiapo6itg5hcxa7ze5im7z9qwcdu8oka6qinahsbiuo" in output)
+        self.failUnless("size: 1234" in output)
+        self.failUnless("k/N: 25/100" in output)
+        self.failUnless("storage index: p3w849k9whqhw6b9fkf4xjs5xc" in output)
+
+        prefixed_u = "http://127.0.0.1/uri/%s" % urllib.quote(u.to_string())
+        output = self._dump_cap(prefixed_u)
+        self.failUnless("CHK File:" in output)
+        self.failUnless("key: yyyoryarywdyqnyjbefoadeqbh" in output)
         self.failUnless("UEB hash: hd7rwri6djiapo6itg5hcxa7ze5im7z9qwcdu8oka6qinahsbiuo" in output)
         self.failUnless("size: 1234" in output)
         self.failUnless("k/N: 25/100" in output)

@@ -201,9 +201,9 @@ def dump_cap(config, out=sys.stdout, err=sys.stderr):
     from allmydata import uri
     from allmydata.util.idlib import a2b
     from base64 import b32decode
+    import urlparse, urllib
 
     cap = config.cap
-    u = uri.from_string(cap)
     nodeid = None
     if config['nodeid']:
         nodeid = b32decode(config['nodeid'].upper())
@@ -216,6 +216,13 @@ def dump_cap(config, out=sys.stdout, err=sys.stderr):
             secret = a2b(open(secretfile, "r").read().strip())
         except EnvironmentError:
             pass
+
+    if cap.startswith("http"):
+        scheme, netloc, path, params, query, fragment = urlparse.urlparse(cap)
+        assert path.startswith("/uri/")
+        cap = urllib.unquote(path[len("/uri/"):])
+
+    u = uri.from_string(cap)
 
     print >>out
     dump_uri_instance(u, nodeid, secret, out, err)
