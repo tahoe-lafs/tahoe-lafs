@@ -1,7 +1,7 @@
 
 # do not import any allmydata modules at this level. Do that from inside
 # individual functions instead.
-import sys, struct, time
+import sys, struct, time, os
 from twisted.python import usage
 
 class DumpOptions(usage.Options):
@@ -187,11 +187,135 @@ def dump_SDMF_share(offset, length, config, out, err):
     print >>out
 
 
+
+class DumpCapOptions(usage.Options):
+    optParameters = [
+        ["nodeid", "n", None, "storage server nodeid (ascii), to construct WE and secrets."],
+        ["client-secret", "c", None, "client's base secret (ascii), to construct secrets"],
+        ["client-dir", "d", None, "client's base directory, from which a -c secret will be read"],
+        ]
+    def parseArgs(self, cap):
+        self.cap = cap
+
+def dump_cap(config, out=sys.stdout, err=sys.stderr):
+    from allmydata import uri
+    from allmydata.util.idlib import a2b
+    from base64 import b32decode
+
+    cap = config.cap
+    u = uri.from_string(cap)
+    nodeid = None
+    if config['nodeid']:
+        nodeid = b32decode(config['nodeid'].upper())
+    secret = None
+    if config['client-secret']:
+        secret = a2b(config['client-secret'])
+    elif config['client-dir']:
+        secretfile = os.path.join(config['client-dir'], "private", "secret")
+        try:
+            secret = a2b(open(secretfile, "r").read().strip())
+        except EnvironmentError:
+            pass
+
+    print >>out
+    dump_uri_instance(u, nodeid, secret, out, err)
+
+def _dump_secrets(storage_index, secret, nodeid, out):
+    from allmydata.util import hashutil
+    from allmydata.util.idlib import b2a
+
+    if secret:
+        crs = hashutil.my_renewal_secret_hash(secret)
+        print >>out, " client renewal secret:", b2a(crs)
+        frs = hashutil.file_renewal_secret_hash(crs, storage_index)
+        print >>out, " file renewal secret:", b2a(frs)
+        if nodeid:
+            renew = hashutil.bucket_renewal_secret_hash(frs, nodeid)
+            print >>out, " lease renewal secret:", b2a(renew)
+        ccs = hashutil.my_cancel_secret_hash(secret)
+        print >>out, " client cancel secret:", b2a(ccs)
+        fcs = hashutil.file_cancel_secret_hash(ccs, storage_index)
+        print >>out, " file cancel secret:", b2a(fcs)
+        if nodeid:
+            cancel = hashutil.bucket_cancel_secret_hash(fcs, nodeid)
+            print >>out, " lease cancel secret:", b2a(cancel)
+
+def dump_uri_instance(u, nodeid, secret, out, err, show_header=True):
+    from allmydata import uri
+    from allmydata.util.idlib import b2a
+    from allmydata.util import hashutil
+
+    if isinstance(u, uri.CHKFileURI):
+        if show_header:
+            print >>out, "CHK File:"
+        print >>out, " key:", b2a(u.key)
+        print >>out, " UEB hash:", b2a(u.uri_extension_hash)
+        print >>out, " size:", u.size
+        print >>out, " k/N: %d/%d" % (u.needed_shares, u.total_shares)
+        print >>out, " storage index:", b2a(u.storage_index)
+        _dump_secrets(u.storage_index, secret, nodeid, out)
+    elif isinstance(u, uri.CHKFileVerifierURI):
+        if show_header:
+            print >>out, "CHK Verifier URI:"
+        print >>out, " UEB hash:", b2a(u.uri_extension_hash)
+        print >>out, " size:", u.size
+        print >>out, " k/N: %d/%d" % (u.needed_shares, u.total_shares)
+        print >>out, " storage index:", b2a(u.storage_index)
+
+    elif isinstance(u, uri.LiteralFileURI):
+        if show_header:
+            print >>out, "Literal File URI:"
+        print >>out, " data:", u.data
+
+    elif isinstance(u, uri.WriteableSSKFileURI):
+        if show_header:
+            print >>out, "SSK Writeable URI:"
+        print >>out, " writekey:", b2a(u.writekey)
+        print >>out, " readkey:", b2a(u.readkey)
+        print >>out, " storage index:", b2a(u.storage_index)
+        print >>out, " fingerprint:", b2a(u.fingerprint)
+        print >>out
+        if nodeid:
+            we = hashutil.ssk_write_enabler_hash(u.writekey, nodeid)
+            print >>out, " write_enabler:", b2a(we)
+            print >>out
+        _dump_secrets(u.storage_index, secret, nodeid, out)
+
+    elif isinstance(u, uri.ReadonlySSKFileURI):
+        if show_header:
+            print >>out, "SSK Read-only URI:"
+        print >>out, " readkey:", b2a(u.readkey)
+        print >>out, " storage index:", b2a(u.storage_index)
+        print >>out, " fingerprint:", b2a(u.fingerprint)
+    elif isinstance(u, uri.SSKVerifierURI):
+        if show_header:
+            print >>out, "SSK Verifier URI:"
+        print >>out, " storage index:", b2a(u.storage_index)
+        print >>out, " fingerprint:", b2a(u.fingerprint)
+
+    elif isinstance(u, uri.NewDirectoryURI):
+        if show_header:
+            print >>out, "Directory Writeable URI:"
+        dump_uri_instance(u._filenode_uri, nodeid, secret, out, err, False)
+    elif isinstance(u, uri.ReadonlyNewDirectoryURI):
+        if show_header:
+            print >>out, "Directory Read-only URI:"
+        dump_uri_instance(u._filenode_uri, nodeid, secret, out, err, False)
+    elif isinstance(u, uri.NewDirectoryURIVerifier):
+        if show_header:
+            print >>out, "Directory Verifier URI:"
+        dump_uri_instance(u._filenode_uri, nodeid, secret, out, err, False)
+    else:
+        print >>out, "unknown cap type"
+
+
 subCommands = [
     ["dump-share", None, DumpOptions,
      "Unpack and display the contents of a share (uri_extension and leases)."],
+    ["dump-cap", None, DumpCapOptions, "Unpack a read-cap or write-cap"]
     ]
 
 dispatch = {
     "dump-share": dump_share,
+    "dump-cap": dump_cap,
     }
