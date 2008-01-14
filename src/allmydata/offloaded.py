@@ -21,7 +21,6 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         self._log_number = self._helper.log("CHKUploadHelper starting")
 
         self._client = helper.parent
-        self._wait_for_numpeers = None
         self._options = {}
 
         self.set_params( (3,7,10) ) # GACK

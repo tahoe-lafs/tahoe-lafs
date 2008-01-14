@@ -419,10 +419,8 @@ class EncryptAnUploadable:
 class CHKUploader:
     peer_selector_class = Tahoe2PeerSelector
 
-    def __init__(self, client, options={}, wait_for_numpeers=None):
-        assert wait_for_numpeers is None or isinstance(wait_for_numpeers, int), wait_for_numpeers
+    def __init__(self, client, options={}):
         self._client = client
-        self._wait_for_numpeers = wait_for_numpeers
         self._options = options
         self._log_number = self._client.log("CHKUploader starting")
 
@@ -525,7 +523,7 @@ def read_this_many_bytes(uploadable, size, prepend_data=[]):
 
 class LiteralUploader:
 
-    def __init__(self, client, wait_for_numpeers, options={}):
+    def __init__(self, client, options={}):
         self._client = client
         self._options = options
 
@@ -738,8 +736,7 @@ class Uploader(service.MultiService):
     def _got_helper(self, helper):
         self._helper = helper
 
-    def upload(self, uploadable, options={}, wait_for_numpeers=None):
-        assert wait_for_numpeers is None or isinstance(wait_for_numpeers, int), wait_for_numpeers
+    def upload(self, uploadable, options={}):
         # this returns the URI
         assert self.parent
         assert self.running
@@ -751,13 +748,11 @@ class Uploader(service.MultiService):
         d = uploadable.get_size()
         def _got_size(size):
             if size <= self.URI_LIT_SIZE_THRESHOLD:
-                uploader = LiteralUploader(self.parent, options,
-                                           wait_for_numpeers)
+                uploader = LiteralUploader(self.parent, options)
             elif self._helper:
                 uploader = AssistedUploader(self._helper, options)
             else:
-                uploader = self.uploader_class(self.parent, options,
-                                               wait_for_numpeers)
+                uploader = self.uploader_class(self.parent, options)
             uploader.set_params(self.parent.get_encoding_parameters()
                                 or self.DEFAULT_ENCODING_PARAMETERS)
             return uploader.start(uploadable)

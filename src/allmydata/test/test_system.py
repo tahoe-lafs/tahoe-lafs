@@ -351,7 +351,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _create_mutable(res):
             c = self.clients[0]
             log.msg("starting create_mutable_file")
-            d1 = c.create_mutable_file(DATA, wait_for_numpeers=self.numclients)
+            d1 = c.create_mutable_file(DATA)
             def _done(res):
                 log.msg("DONE: %s" % (res,))
                 self._mutable_node_1 = res
@@ -444,7 +444,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             self.failUnlessEqual(res, DATA)
             # replace the data
             log.msg("starting replace1")
-            d1 = newnode.replace(NEWDATA, wait_for_numpeers=self.numclients)
+            d1 = newnode.replace(NEWDATA)
             d1.addCallback(lambda res: newnode.download_to_data())
             return d1
         d.addCallback(_check_download_3)
@@ -458,7 +458,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             newnode2 = self.clients[3].create_node_from_uri(uri)
             self._newnode3 = self.clients[3].create_node_from_uri(uri)
             log.msg("starting replace2")
-            d1 = newnode1.replace(NEWERDATA, wait_for_numpeers=self.numclients)
+            d1 = newnode1.replace(NEWERDATA)
             d1.addCallback(lambda res: newnode2.download_to_data())
             return d1
         d.addCallback(_check_download_4)
@@ -528,20 +528,20 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         def _check_empty_file(res):
             # make sure we can create empty files, this usually screws up the
             # segsize math
-            d1 = self.clients[2].create_mutable_file("", wait_for_numpeers=self.numclients)
+            d1 = self.clients[2].create_mutable_file("")
             d1.addCallback(lambda newnode: newnode.download_to_data())
             d1.addCallback(lambda res: self.failUnlessEqual("", res))
             return d1
         d.addCallback(_check_empty_file)
 
-        d.addCallback(lambda res: self.clients[0].create_empty_dirnode(wait_for_numpeers=self.numclients))
+        d.addCallback(lambda res: self.clients[0].create_empty_dirnode())
         def _created_dirnode(dnode):
             log.msg("_created_dirnode(%s)" % (dnode,))
             d1 = dnode.list()
             d1.addCallback(lambda children: self.failUnlessEqual(children, {}))
             d1.addCallback(lambda res: dnode.has_child("edgar"))
             d1.addCallback(lambda answer: self.failUnlessEqual(answer, False))
-            d1.addCallback(lambda res: dnode.set_node("see recursive", dnode, wait_for_numpeers=self.numclients))
+            d1.addCallback(lambda res: dnode.set_node("see recursive", dnode))
             d1.addCallback(lambda res: dnode.has_child("see recursive"))
             d1.addCallback(lambda answer: self.failUnlessEqual(answer, True))
             d1.addCallback(lambda res: dnode.build_manifest())
@@ -624,15 +624,15 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     def _do_publish1(self, res):
         ut = upload.Data(self.data)
         c0 = self.clients[0]
-        d = c0.create_empty_dirnode(wait_for_numpeers=self.numclients)
+        d = c0.create_empty_dirnode()
         def _made_root(new_dirnode):
             self._root_directory_uri = new_dirnode.get_uri()
             return c0.create_node_from_uri(self._root_directory_uri)
         d.addCallback(_made_root)
-        d.addCallback(lambda root: root.create_empty_directory("subdir1", wait_for_numpeers=self.numclients))
+        d.addCallback(lambda root: root.create_empty_directory("subdir1"))
         def _made_subdir1(subdir1_node):
             self._subdir1_node = subdir1_node
-            d1 = subdir1_node.add_file("mydata567", ut, wait_for_numpeers=self.numclients)
+            d1 = subdir1_node.add_file("mydata567", ut)
             d1.addCallback(self.log, "publish finished")
             def _stash_uri(filenode):
                 self.uri = filenode.get_uri()
@@ -643,8 +643,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
     def _do_publish2(self, res):
         ut = upload.Data(self.data)
-        d = self._subdir1_node.create_empty_directory("subdir2", wait_for_numpeers=self.numclients)
-        d.addCallback(lambda subdir2: subdir2.add_file("mydata992", ut, wait_for_numpeers=self.numclients))
+        d = self._subdir1_node.create_empty_directory("subdir2")
+        d.addCallback(lambda subdir2: subdir2.add_file("mydata992", ut))
         return d
 
     def _bounce_client0(self, res):
@@ -686,18 +686,18 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     def _do_publish_private(self, res):
         self.smalldata = "sssh, very secret stuff"
         ut = upload.Data(self.smalldata)
-        d = self.clients[0].create_empty_dirnode(wait_for_numpeers=self.numclients)
+        d = self.clients[0].create_empty_dirnode()
         d.addCallback(self.log, "GOT private directory")
         def _got_new_dir(privnode):
             rootnode = self.clients[0].create_node_from_uri(self._root_directory_uri)
-            d1 = privnode.create_empty_directory("personal", wait_for_numpeers=self.numclients)
+            d1 = privnode.create_empty_directory("personal")
             d1.addCallback(self.log, "made P/personal")
-            d1.addCallback(lambda node: node.add_file("sekrit data", ut, wait_for_numpeers=self.numclients))
+            d1.addCallback(lambda node: node.add_file("sekrit data", ut))
             d1.addCallback(self.log, "made P/personal/sekrit data")
             d1.addCallback(lambda res: rootnode.get_child_at_path(["subdir1", "subdir2"]))
             def _got_s2(s2node):
-                d2 = privnode.set_uri("s2-rw", s2node.get_uri(), wait_for_numpeers=self.numclients)
-                d2.addCallback(lambda node: privnode.set_uri("s2-ro", s2node.get_readonly_uri(), wait_for_numpeers=self.numclients))
+                d2 = privnode.set_uri("s2-rw", s2node.get_uri())
+                d2.addCallback(lambda node: privnode.set_uri("s2-ro", s2node.get_readonly_uri()))
                 return d2
             d1.addCallback(_got_s2)
             d1.addCallback(lambda res: privnode)

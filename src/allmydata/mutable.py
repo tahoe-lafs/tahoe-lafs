@@ -728,28 +728,13 @@ class Publish:
         num = log.err(*args, **kwargs)
         return num
 
-    def publish(self, newdata, wait_for_numpeers=None):
+    def publish(self, newdata):
         """Publish the filenode's current contents.  Returns a Deferred that
         fires (with None) when the publish has done as much work as it's ever
         going to do, or errbacks with ConsistencyError if it detects a
         simultaneous write.
-
-        It will wait until at least wait_for_numpeers peers are connected
-        before it starts uploading
-
-        If wait_for_numpeers is None then it will be set to a default value
-        (currently 1).
         """
-        if wait_for_numpeers is None:
-            wait_for_numpeers = 1
 
-        self.log("starting publish")
-
-        d = self._node._client.introducer_client.when_enough_peers(wait_for_numpeers)
-        d.addCallback(lambda dummy: self._after_enough_peers(newdata))
-        return d
-
-    def _after_enough_peers(self, newdata):
         # 1: generate shares (SDMF: files are small, so we can do it in RAM)
         # 2: perform peer selection, get candidate servers
         #  2a: send queries to n+epsilon servers, to determine current shares
@@ -759,7 +744,7 @@ class Publish:
         # 4a: may need to run recovery algorithm
         # 5: when enough responses are back, we're done
 
-        self.log("got enough peers, datalen is %s" % len(newdata))
+        self.log("starting publish, datalen is %s" % len(newdata))
 
         self._writekey = self._node.get_writekey()
         assert self._writekey, "need write capability to publish"
@@ -1355,7 +1340,7 @@ class MutableFileNode:
         self._encprivkey = None
         return self
 
-    def create(self, initial_contents, wait_for_numpeers=None):
+    def create(self, initial_contents):
         """Call this when the filenode is first created. This will generate
         the keys, generate the initial shares, wait until at least numpeers
         are connected, allocate shares, and upload the initial
@@ -1379,7 +1364,7 @@ class MutableFileNode:
             # nobody knows about us yet"
             self._current_seqnum = 0
             self._current_roothash = "\x00"*32
-            return self._publish(initial_contents, wait_for_numpeers=wait_for_numpeers)
+            return self._publish(initial_contents)
         d.addCallback(_generated)
         return d
 
@@ -1389,9 +1374,9 @@ class MutableFileNode:
         verifier = signer.get_verifying_key()
         return verifier, signer
 
-    def _publish(self, initial_contents, wait_for_numpeers):
+    def _publish(self, initial_contents):
         p = self.publish_class(self)
-        d = p.publish(initial_contents, wait_for_numpeers=wait_for_numpeers)
+        d = p.publish(initial_contents)
         d.addCallback(lambda res: self)
         return d
 
@@ -1511,8 +1496,8 @@ class MutableFileNode:
         r = Retrieve(self)
         return r.retrieve()
 
-    def replace(self, newdata, wait_for_numpeers=None):
+    def replace(self, newdata):
         r = Retrieve(self)
         d = r.retrieve()
-        d.addCallback(lambda res: self._publish(newdata, wait_for_numpeers=wait_for_numpeers))
+        d.addCallback(lambda res: self._publish(newdata))
         return d

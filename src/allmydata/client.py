@@ -241,19 +241,19 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         assert IMutableFileURI.providedBy(u), u
         return MutableFileNode(self).init_from_uri(u)
 
-    def create_empty_dirnode(self, wait_for_numpeers=None):
+    def create_empty_dirnode(self):
         n = NewDirectoryNode(self)
-        d = n.create(wait_for_numpeers=wait_for_numpeers)
+        d = n.create()
         d.addCallback(lambda res: n)
         return d
 
-    def create_mutable_file(self, contents="", wait_for_numpeers=None):
+    def create_mutable_file(self, contents=""):
         n = MutableFileNode(self)
-        d = n.create(contents, wait_for_numpeers=wait_for_numpeers)
+        d = n.create(contents)
         d.addCallback(lambda res: n)
         return d
 
-    def upload(self, uploadable, wait_for_numpeers=None):
+    def upload(self, uploadable):
         uploader = self.getServiceNamed("uploader")
-        return uploader.upload(uploadable, wait_for_numpeers=wait_for_numpeers)
+        return uploader.upload(uploadable)
 

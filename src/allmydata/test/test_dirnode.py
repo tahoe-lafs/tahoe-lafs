@@ -38,7 +38,7 @@ class Marker:
 class FakeClient:
     implements(IClient)
 
-    def upload(self, uploadable, wait_for_numpeers):
+    def upload(self, uploadable):
         d = uploadable.get_size()
         d.addCallback(lambda size: uploadable.read(size))
         def _got_data(datav):
@@ -55,9 +55,9 @@ class FakeClient:
             return FakeDirectoryNode(self).init_from_uri(u)
         return Marker(u.to_string())
 
-    def create_empty_dirnode(self, wait_for_numpeers):
+    def create_empty_dirnode(self):
         n = FakeDirectoryNode(self)
-        d = n.create(wait_for_numpeers)
+        d = n.create()
         d.addCallback(lambda res: n)
         return d
 
@@ -67,7 +67,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
         self.client = FakeClient()
 
     def test_basic(self):
-        d = self.client.create_empty_dirnode(0)
+        d = self.client.create_empty_dirnode()
         def _done(res):
             self.failUnless(isinstance(res, FakeDirectoryNode))
             rep = str(res)
@@ -76,7 +76,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
     def test_corrupt(self):
-        d = self.client.create_empty_dirnode(0)
+        d = self.client.create_empty_dirnode()
         def _created(dn):
             u = make_mutable_file_uri()
             d = dn.set_uri("child", u)
@@ -108,7 +108,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
     def test_check(self):
-        d = self.client.create_empty_dirnode(0)
+        d = self.client.create_empty_dirnode()
         d.addCallback(lambda dn: dn.check())
         def _done(res):
             pass
@@ -120,7 +120,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
         filenode = self.client.create_node_from_uri(fileuri)
         uploadable = upload.Data("some data")
 
-        d = self.client.create_empty_dirnode(0)
+        d = self.client.create_empty_dirnode()
         def _created(rw_dn):
             d2 = rw_dn.set_uri("child", fileuri)
             d2.addCallback(lambda res: rw_dn)
@@ -157,7 +157,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
     def test_create(self):
         self.expected_manifest = []
 
-        d = self.client.create_empty_dirnode(wait_for_numpeers=1)
+        d = self.client.create_empty_dirnode()
         def _then(n):
             self.failUnless(n.is_mutable())
             u = n.get_uri()
@@ -180,7 +180,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
             self.expected_manifest.append(ffu_v)
             d.addCallback(lambda res: n.set_uri("child", fake_file_uri))
 
-            d.addCallback(lambda res: n.create_empty_directory("subdir", wait_for_numpeers=1))
+            d.addCallback(lambda res: n.create_empty_directory("subdir"))
             def _created(subdir):
                 self.failUnless(isinstance(subdir, FakeDirectoryNode))
                 self.subdir = subdir
@@ -201,7 +201,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(_check_manifest)
 
             def _add_subsubdir(res):
-                return self.subdir.create_empty_directory("subsubdir", wait_for_numpeers=1)
+                return self.subdir.create_empty_directory("subsubdir")
             d.addCallback(_add_subsubdir)
             d.addCallback(lambda res: n.get_child_at_path("subdir/subsubdir"))
             d.addCallback(lambda subsubdir:

@@ -131,15 +131,10 @@ class FakeBucketWriter:
         precondition(not self.closed)
         self.closed = True
 
-class FakeIntroducerClient:
-    def when_enough_peers(self, numpeers):
-        return defer.succeed(None)
-
 class FakeClient:
     def __init__(self, mode="good", num_servers=50):
         self.mode = mode
         self.num_servers = num_servers
-        self.introducer_client = FakeIntroducerClient()
     def log(self, *args, **kwargs):
         pass
     def get_permuted_peers(self, storage_index, include_myself):

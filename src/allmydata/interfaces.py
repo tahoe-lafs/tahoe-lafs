@@ -452,7 +452,7 @@ class IMutableFileNode(IFileNode, IMutableFilesystemNode):
         more advanced API will signal and provide access to the multiple
         heads."""
 
-    def replace(newdata, wait_for_numpeers=None):
+    def replace(newdata):
         """Replace the old contents with the new data. Returns a Deferred
         that fires (with None) when the operation is complete.
 
@@ -1087,7 +1087,7 @@ class IUploadable(Interface):
         closed."""
 
 class IUploader(Interface):
-    def upload(uploadable, wait_for_numpeers=None):
+    def upload(uploadable):
         """Upload the file. 'uploadable' must impement IUploadable. This
         returns a Deferred which fires with the URI of the file."""
 
@@ -1164,27 +1164,21 @@ class IChecker(Interface):
         """
 
 class IClient(Interface):
-    def upload(uploadable, wait_for_numpeers=None):
+    def upload(uploadable):
         """Upload some data into a CHK, get back the URI string for it.
         @param uploadable: something that implements IUploadable
-        @param wait_for_numpeers: don't upload anything until we have at least
-                                  this many peers connected
         @return: a Deferred that fires with the (string) URI for this file.
         """
 
-    def create_mutable_file(contents="", wait_for_numpeers=None):
+    def create_mutable_file(contents=""):
         """Create a new mutable file with contents, get back the URI string.
         @param contents: the initial contents to place in the file.
-        @param wait_for_numpeers: don't upload anything until we have at least
-                                  this many peers connected
         @return: a Deferred that fires with tne (string) SSK URI for the new
                  file.
         """
 
-    def create_empty_dirnode(wait_for_numpeers=None):
+    def create_empty_dirnode():
         """Create a new dirnode, empty and unattached.
-        @param wait_for_numpeers: don't create anything until we have at least
-                                  this many peers connected.
         @return: a Deferred that fires with the new IDirectoryNode instance.
         """
 

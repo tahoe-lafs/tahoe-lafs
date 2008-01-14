@@ -38,17 +38,17 @@ class FakeClient(service.MultiService):
         assert IMutableFileURI.providedBy(u), u
         return FakeMutableFileNode(self).init_from_uri(u)
 
-    def create_empty_dirnode(self, wait_for_numpeers=None):
+    def create_empty_dirnode(self):
         n = NonGridDirectoryNode(self)
-        d = n.create(wait_for_numpeers)
+        d = n.create()
         d.addCallback(lambda res: n)
         return d
 
-    def create_mutable_file(self, contents="", wait_for_numpeers=None):
+    def create_mutable_file(self, contents=""):
         n = FakeMutableFileNode(self)
         return n.create(contents)
 
-    def upload(self, uploadable, wait_for_numpeers=None):
+    def upload(self, uploadable):
         d = uploadable.get_size()
         d.addCallback(lambda size: uploadable.read(size))
         def _got_data(datav):

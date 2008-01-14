@@ -53,7 +53,7 @@ class NewDirectoryNode:
         self._node.init_from_uri(self._uri.get_filenode_uri())
         return self
 
-    def create(self, wait_for_numpeers=None):
+    def create(self):
         """
         Returns a deferred that eventually fires with self once the directory
         has been created (distributed across a set of storage servers).
@@ -62,7 +62,7 @@ class NewDirectoryNode:
         # URI to create our own.
         self._node = self.filenode_class(self._client)
         empty_contents = self._pack_contents({})
-        d = self._node.create(empty_contents, wait_for_numpeers=wait_for_numpeers)
+        d = self._node.create(empty_contents)
         d.addCallback(self._filenode_created)
         return d
     def _filenode_created(self, res):
@@ -214,7 +214,7 @@ class NewDirectoryNode:
             d.addCallback(_got)
         return d
 
-    def set_uri(self, name, child_uri, metadata={}, wait_for_numpeers=None):
+    def set_uri(self, name, child_uri, metadata={}):
         """I add a child (by URI) at the specific name. I return a Deferred
         that fires with the child node when the operation finishes. I will
         replace any existing child of the same name.
@@ -224,10 +224,9 @@ class NewDirectoryNode:
 
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
-        return self.set_node(name, self._create_node(child_uri), metadata,
-                             wait_for_numpeers)
+        return self.set_node(name, self._create_node(child_uri), metadata)
 
-    def set_uris(self, entries, wait_for_numpeers=None):
+    def set_uris(self, entries):
         node_entries = []
         for e in entries:
             if len(e) == 2:
@@ -237,9 +236,9 @@ class NewDirectoryNode:
                 assert len(e) == 3
                 name, child_uri, metadata = e
             node_entries.append( (name,self._create_node(child_uri),metadata) )
-        return self.set_nodes(node_entries, wait_for_numpeers)
+        return self.set_nodes(node_entries)
 
-    def set_node(self, name, child, metadata={}, wait_for_numpeers=None):
+    def set_node(self, name, child, metadata={}):
         """I add a child at the specific name. I return a Deferred that fires
         when the operation finishes. This Deferred will fire with the child
         node that was just added. I will replace any existing child of the
@@ -248,11 +247,11 @@ class NewDirectoryNode:
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
         assert IFilesystemNode.providedBy(child), child
-        d = self.set_nodes( [(name, child, metadata)], wait_for_numpeers)
+        d = self.set_nodes( [(name, child, metadata)])
         d.addCallback(lambda res: child)
         return d
 
-    def set_nodes(self, entries, wait_for_numpeers=None):
+    def set_nodes(self, entries):
         if self.is_readonly():
             return defer.fail(NotMutableError())
         d = self._read()
@@ -266,22 +265,22 @@ class NewDirectoryNode:
                     name, child, metadata = e
                 children[name] = (child, metadata)
             new_contents = self._pack_contents(children)
-            return self._node.replace(new_contents, wait_for_numpeers=wait_for_numpeers)
+            return self._node.replace(new_contents)
         d.addCallback(_add)
         d.addCallback(lambda res: None)
         return d
 
 
-    def add_file(self, name, uploadable, wait_for_numpeers=None):
+    def add_file(self, name, uploadable):
         """I upload a file (using the given IUploadable), then attach the
         resulting FileNode to the directory at the given name. I return a
         Deferred that fires (with the IFileNode of the uploaded file) when
         the operation completes."""
         if self.is_readonly():
             return defer.fail(NotMutableError())
-        d = self._client.upload(uploadable, wait_for_numpeers=wait_for_numpeers)
+        d = self._client.upload(uploadable)
         d.addCallback(self._client.create_node_from_uri)
-        d.addCallback(lambda node: self.set_node(name, node, wait_for_numpeers=wait_for_numpeers))
+        d.addCallback(lambda node: self.set_node(name, node))
         return d
 
     def delete(self, name):
@@ -302,22 +301,22 @@ class NewDirectoryNode:
         d.addCallback(_delete)
         return d
 
-    def create_empty_directory(self, name, wait_for_numpeers=None):
+    def create_empty_directory(self, name):
         """I create and attach an empty directory at the given name. I return
         a Deferred that fires (with the new directory node) when the
         operation finishes."""
         if self.is_readonly():
             return defer.fail(NotMutableError())
-        d = self._client.create_empty_dirnode(wait_for_numpeers=wait_for_numpeers)
+        d = self._client.create_empty_dirnode()
         def _created(child):
-            d = self.set_node(name, child, wait_for_numpeers=wait_for_numpeers)
+            d = self.set_node(name, child)
             d.addCallback(lambda res: child)
             return d
         d.addCallback(_created)
         return d
 
     def move_child_to(self, current_child_name, new_parent,
-                      new_child_name=None, wait_for_numpeers=None):
+                      new_child_name=None):
         """I take one of my children and move them to a new parent. The child
         is referenced by name. On the new parent, the child will live under
         'new_child_name', which defaults to 'current_child_name'. I return a
@@ -328,8 +327,7 @@ class NewDirectoryNode:
             new_child_name = current_child_name
         d = self.get(current_child_name)
         def sn(child):
-            return new_parent.set_node(new_child_name, child,
-                                wait_for_numpeers=wait_for_numpeers)
+            return new_parent.set_node(new_child_name, child)
         d.addCallback(sn)
         d.addCallback(lambda child: self.delete(current_child_name))
         return d

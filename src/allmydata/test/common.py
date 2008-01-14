@@ -75,7 +75,7 @@ class FakeMutableFileNode:
         self.client = client
         self.my_uri = make_mutable_file_uri()
         self.storage_index = self.my_uri.storage_index
-    def create(self, initial_contents, wait_for_numpeers=None):
+    def create(self, initial_contents):
         self.all_contents[self.storage_index] = initial_contents
         return defer.succeed(self)
     def init_from_uri(self, myuri):
@@ -97,7 +97,7 @@ class FakeMutableFileNode:
     def get_size(self):
         return "?" # TODO: see mutable.MutableFileNode.get_size
 
-    def replace(self, new_contents, wait_for_numpeers=None):
+    def replace(self, new_contents):
         assert not self.is_readonly()
         self.all_contents[self.storage_index] = new_contents
         return defer.succeed(None)
