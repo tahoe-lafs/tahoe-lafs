@@ -9,7 +9,7 @@ from zope.interface import implements
 from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
      RIBucketReader, IStorageBucketWriter, IStorageBucketReader, HASH_SIZE, \
      BadWriteEnablerError
-from allmydata.util import fileutil, idlib, mathutil
+from allmydata.util import fileutil, idlib, mathutil, log
 from allmydata.util.assertutil import precondition, _assert
 
 class DataTooLargeError(Exception):
@@ -257,7 +257,7 @@ class MutableShareFile:
     MAX_SIZE = 2*1000*1000*1000 # 2GB, kind of arbitrary
     # TODO: decide upon a policy for max share size
 
-    def __init__(self, filename):
+    def __init__(self, filename, parent=None):
         self.home = filename
         if os.path.exists(self.home):
             # we don't cache anything, just check the magic
@@ -268,7 +268,10 @@ class MutableShareFile:
              data_length, extra_least_offset) = \
              struct.unpack(">32s20s32sQQ", data)
             assert magic == self.MAGIC
+        self.parent = parent # for logging
 
+    def log(self, *args, **kwargs):
+        return self.parent.log(*args, **kwargs)
 
     def create(self, my_nodeid, write_enabler):
         assert not os.path.exists(self.home)
@@ -555,7 +558,7 @@ class MutableShareFile:
 #        f.close()
 #        return data_length
 
-    def check_write_enabler(self, write_enabler):
+    def check_write_enabler(self, write_enabler, si_s):
         f = open(self.home, 'rb+')
         (real_write_enabler, write_enabler_nodeid) = \
                              self._read_write_enabler_and_nodeid(f)
@@ -563,6 +566,11 @@ class MutableShareFile:
         if write_enabler != real_write_enabler:
             # accomodate share migration by reporting the nodeid used for the
             # old write enabler.
+            self.log(format="bad write enabler on SI %(si)s,"
+                     " recorded by nodeid %(nodeid)s",
+                     facility="tahoe.storage",
+                     level=log.WEIRD,
+                     si=si_s, nodeid=idlib.nodeid_b2a(write_enabler_nodeid))
             msg = "The write enabler was recorded by nodeid '%s'." % \
                   (idlib.nodeid_b2a(write_enabler_nodeid),)
             raise BadWriteEnablerError(msg)
@@ -615,11 +623,11 @@ class EmptyShare:
                 break
         return test_good
 
-def create_mutable_sharefile(filename, my_nodeid, write_enabler):
-    ms = MutableShareFile(filename)
+def create_mutable_sharefile(filename, my_nodeid, write_enabler, parent):
+    ms = MutableShareFile(filename, parent)
     ms.create(my_nodeid, write_enabler)
     del ms
-    return MutableShareFile(filename)
+    return MutableShareFile(filename, parent)
 
 
 class StorageServer(service.MultiService, Referenceable):
@@ -640,8 +648,9 @@ class StorageServer(service.MultiService, Referenceable):
         self._active_writers = weakref.WeakKeyDictionary()
         self.measure_size()
 
-    def log(self, msg):
-        #self.parent.log(msg)
+    def log(self, *args, **kwargs):
+        if self.parent:
+            return self.parent.log(*args, **kwargs)
         return
 
     def setNodeID(self, nodeid):
@@ -737,7 +746,7 @@ class StorageServer(service.MultiService, Referenceable):
             header = f.read(32)
             f.close()
             if header[:32] == MutableShareFile.MAGIC:
-                sf = MutableShareFile(filename)
+                sf = MutableShareFile(filename, self)
                 # note: if the share has been migrated, the renew_lease()
                 # call will throw an exception, with information to help the
                 # client update the lease.
@@ -765,7 +774,7 @@ class StorageServer(service.MultiService, Referenceable):
             header = f.read(32)
             f.close()
             if header[:32] == MutableShareFile.MAGIC:
-                sf = MutableShareFile(filename)
+                sf = MutableShareFile(filename, self)
                 # note: if the share has been migrated, the renew_lease()
                 # call will throw an exception, with information to help the
                 # client update the lease.
@@ -857,8 +866,8 @@ class StorageServer(service.MultiService, Referenceable):
                 except ValueError:
                     continue
                 filename = os.path.join(bucketdir, sharenum_s)
-                msf = MutableShareFile(filename)
-                msf.check_write_enabler(write_enabler)
+                msf = MutableShareFile(filename, self)
+                msf.check_write_enabler(write_enabler, si_s)
                 shares[sharenum] = msf
         # write_enabler is good for all existing shares.
 
@@ -917,7 +926,8 @@ class StorageServer(service.MultiService, Referenceable):
         my_nodeid = self.my_nodeid
         fileutil.make_dirs(bucketdir)
         filename = os.path.join(bucketdir, "%d" % sharenum)
-        share = create_mutable_sharefile(filename, my_nodeid, write_enabler)
+        share = create_mutable_sharefile(filename, my_nodeid, write_enabler,
+                                         self)
         return share
 
     def remote_slot_readv(self, storage_index, shares, readv):
@@ -934,7 +944,7 @@ class StorageServer(service.MultiService, Referenceable):
                 continue
             if sharenum in shares or not shares:
                 filename = os.path.join(bucketdir, sharenum_s)
-                msf = MutableShareFile(filename)
+                msf = MutableShareFile(filename, self)
                 datavs[sharenum] = msf.readv(readv)
         return datavs
 

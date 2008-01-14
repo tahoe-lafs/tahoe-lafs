@@ -3,9 +3,11 @@ import os
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
+from twisted.application import service
 from allmydata import uri, dirnode
 from allmydata.interfaces import IURI, IMutableFileNode, IFileNode
 from allmydata.encode import NotEnoughPeersError
+from allmydata.util import log
 
 class FakeCHKFileNode:
     """I provide IFileNode, but all of my data is stored in a class-level
@@ -115,3 +117,7 @@ class NonGridDirectoryNode(dirnode.NewDirectoryNode):
     look inside the dirnodes and check their contents.
     """
     filenode_class = FakeMutableFileNode
+
+class LoggingServiceParent(service.MultiService):
+    def log(self, *args, **kwargs):
+        return log.msg(*args, **kwargs)

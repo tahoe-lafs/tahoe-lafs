@@ -1,7 +1,6 @@
 
 from twisted.trial import unittest
 
-from twisted.application import service
 from twisted.internet import defer
 from foolscap import Referenceable
 import time, os.path, stat
@@ -11,6 +10,7 @@ from allmydata.util import fileutil, hashutil, idlib
 from allmydata.storage import BucketWriter, BucketReader, \
      WriteBucketProxy, ReadBucketProxy, StorageServer, MutableShareFile
 from allmydata.interfaces import BadWriteEnablerError
+from allmydata.test.common import LoggingServiceParent
 
 class Bucket(unittest.TestCase):
     def make_workdir(self, name):
@@ -178,7 +178,7 @@ class BucketProxy(unittest.TestCase):
 class Server(unittest.TestCase):
 
     def setUp(self):
-        self.sparent = service.MultiService()
+        self.sparent = LoggingServiceParent()
         self._lease_secret = itertools.count()
     def tearDown(self):
         return self.sparent.stopService()
@@ -444,7 +444,7 @@ class Server(unittest.TestCase):
 class MutableServer(unittest.TestCase):
 
     def setUp(self):
-        self.sparent = service.MultiService()
+        self.sparent = LoggingServiceParent()
         self._lease_secret = itertools.count()
     def tearDown(self):
         return self.sparent.stopService()
