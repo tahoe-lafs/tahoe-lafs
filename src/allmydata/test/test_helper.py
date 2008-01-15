@@ -24,8 +24,8 @@ class CHKUploadHelper_already_uploaded(offloaded.CHKUploadHelper):
         return (res, None)
 
 class FakeClient(service.MultiService):
-    def log(self, msg, **kwargs):
-        return log.msg(msg, **kwargs)
+    def log(self, *args, **kwargs):
+        return log.msg(*args, **kwargs)
     def get_push_to_ourselves(self):
         return True
     def get_encoding_parameters(self):

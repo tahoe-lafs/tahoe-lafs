@@ -208,7 +208,10 @@ class Node(service.MultiService):
                            os.path.join(self.basedir, "log_gatherer.furl"))
         self.tub.setOption("bridge-twisted-logs", True)
 
-    def log(self, msg, src="", args=(), **kw):
+    def log(self, *args, **kwargs):
+        return tahoe_log.msg(*args, **kwargs)
+
+    def old_log(self, msg, src="", args=(), **kw):
         if src:
             logsrc = src
         else:
