@@ -2,7 +2,6 @@
 from twisted.trial import unittest
 
 from twisted.internet import defer
-from foolscap import Referenceable
 import time, os.path, stat
 import itertools
 from allmydata import interfaces
