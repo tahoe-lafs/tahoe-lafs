@@ -417,9 +417,18 @@ deb-gutsy-head:
 	fakeroot debian/rules binary
 
 # These targets provide for windows native builds
+INNOSETUP := $(shell cygpath -au "$(PROGRAMFILES)/Inno Setup 5/Compil32.exe")
 
-windows-exe:
-	PYTHON=$(PYTHON) $(PP) $(MAKE) -C windows
+.PHONY: hatch-eggs windows-exe windows-installer
+
+hatch-eggs:
+	$(PP) $(PYTHON) misc/hatch-eggs.py
+
+windows-exe: hatch-eggs
+	#PYTHON=$(PYTHON) $(PP) $(MAKE) -C windows
+	cd windows && $(PP) $(PYTHON) setup.py py2exe
 
 windows-installer: windows-exe
-	$(MAKE) -C windows installer
+	$(PP) $(PYTHON) misc/sub-ver.py windows/installer.tmpl >windows/installer.iss
+	cd windows && "$(INNOSETUP)" /cc installer.iss
+
