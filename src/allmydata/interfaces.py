@@ -78,6 +78,11 @@ class RIBucketWriter(RemoteInterface):
         """
         return None
 
+    def abort():
+        """Abandon all the data that has been written.
+        """
+        return None
+
 class RIBucketReader(RemoteInterface):
     def read(offset=int, length=int):
         return ShareData

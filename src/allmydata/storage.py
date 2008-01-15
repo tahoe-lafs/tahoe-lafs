@@ -164,11 +164,13 @@ class ShareFile:
 class BucketWriter(Referenceable):
     implements(RIBucketWriter)
 
-    def __init__(self, ss, incominghome, finalhome, size, lease_info):
+    def __init__(self, ss, incominghome, finalhome, size, lease_info, canary):
         self.ss = ss
         self.incominghome = incominghome
         self.finalhome = finalhome
         self._size = size
+        self._canary = canary
+        self._disconnect_marker = canary.notifyOnDisconnect(self._disconnected)
         self.closed = False
         self.throw_out_all_data = False
         # touch the file, so later callers will see that we're working on it.
@@ -196,6 +198,7 @@ class BucketWriter(Referenceable):
         fileutil.rename(self.incominghome, self.finalhome)
         self._sharefile = None
         self.closed = True
+        self._canary.dontNotifyOnDisconnect(self._disconnect_marker)
 
         filelen = os.stat(self.finalhome)[stat.ST_SIZE]
         self.ss.bucket_writer_closed(self, filelen)
@@ -205,6 +208,28 @@ class BucketWriter(Referenceable):
         parentdir = os.path.split(self.incominghome)[0]
         if not os.listdir(parentdir):
             os.rmdir(parentdir)
+
+    def _disconnected(self):
+        if not self.closed:
+            self._abort()
+
+    def remote_abort(self):
+        log.msg("storage: aborting sharefile %s" % self.incominghome,
+                facility="tahoe.storage", level=log.UNUSUAL)
+        if not self.closed:
+            self._canary.dontNotifyOnDisconnect(self._disconnect_marker)
+        self._abort()
+
+    def _abort(self):
+        if self.closed:
+            return
+        os.remove(self.incominghome)
+        # if we were the last share to be moved, remove the incoming/
+        # directory that was our parent
+        parentdir = os.path.split(self.incominghome)[0]
+        if not os.listdir(parentdir):
+            os.rmdir(parentdir)
+
 
 
 class BucketReader(Referenceable):
@@ -721,7 +746,7 @@ class StorageServer(service.MultiService, Referenceable):
                 # ok! we need to create the new share file.
                 fileutil.make_dirs(os.path.join(self.incomingdir, si_s))
                 bw = BucketWriter(self, incominghome, finalhome,
-                                  space_per_bucket, lease_info)
+                                  space_per_bucket, lease_info, canary)
                 if self.no_storage:
                     bw.throw_out_all_data = True
                 bucketwriters[shnum] = bw
@@ -1109,6 +1134,9 @@ class WriteBucketProxy:
 
     def close(self):
         return self._rref.callRemote("close")
+
+    def abort(self):
+        return self._rref.callRemote("abort")
 
 class ReadBucketProxy:
     implements(IStorageBucketReader)

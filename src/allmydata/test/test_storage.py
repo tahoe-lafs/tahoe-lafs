@@ -12,6 +12,12 @@ from allmydata.storage import BucketWriter, BucketReader, \
 from allmydata.interfaces import BadWriteEnablerError
 from allmydata.test.common import LoggingServiceParent
 
+class FakeCanary:
+    def notifyOnDisconnect(self, *args, **kwargs):
+        pass
+    def dontNotifyOnDisconnect(self, marker):
+        pass
+
 class Bucket(unittest.TestCase):
     def make_workdir(self, name):
         basedir = os.path.join("storage", "Bucket", name)
@@ -33,7 +39,8 @@ class Bucket(unittest.TestCase):
 
     def test_create(self):
         incoming, final = self.make_workdir("test_create")
-        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(),
+                          FakeCanary())
         bw.remote_write(0, "a"*25)
         bw.remote_write(25, "b"*25)
         bw.remote_write(50, "c"*25)
@@ -42,7 +49,8 @@ class Bucket(unittest.TestCase):
 
     def test_readwrite(self):
         incoming, final = self.make_workdir("test_readwrite")
-        bw = BucketWriter(self, incoming, final, 200, self.make_lease())
+        bw = BucketWriter(self, incoming, final, 200, self.make_lease(),
+                          FakeCanary())
         bw.remote_write(0, "a"*25)
         bw.remote_write(25, "b"*25)
         bw.remote_write(50, "c"*7) # last block may be short
@@ -69,7 +77,8 @@ class BucketProxy(unittest.TestCase):
         final = os.path.join(basedir, "bucket")
         fileutil.make_dirs(basedir)
         fileutil.make_dirs(os.path.join(basedir, "tmp"))
-        bw = BucketWriter(self, incoming, final, size, self.make_lease())
+        bw = BucketWriter(self, incoming, final, size, self.make_lease(),
+                          FakeCanary())
         rb = RemoteBucket()
         rb.target = bw
         return bw, rb, final
@@ -201,7 +210,7 @@ class Server(unittest.TestCase):
         cancel_secret = hashutil.tagged_hash("blah", "%d" % self._lease_secret.next())
         return ss.remote_allocate_buckets(storage_index,
                                           renew_secret, cancel_secret,
-                                          sharenums, size, Referenceable())
+                                          sharenums, size, FakeCanary())
 
     def test_remove_incoming(self):
         ss = self.create("test_remove_incoming")
@@ -219,7 +228,7 @@ class Server(unittest.TestCase):
 
         self.failUnlessEqual(ss.remote_get_buckets("vid"), {})
 
-        canary = Referenceable()
+        canary = FakeCanary()
         already,writers = self.allocate(ss, "vid", [0,1,2], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
@@ -253,7 +262,7 @@ class Server(unittest.TestCase):
 
     def test_sizelimits(self):
         ss = self.create("test_sizelimits", 5000)
-        canary = Referenceable()
+        canary = FakeCanary()
         # a newly created and filled share incurs this much overhead, beyond
         # the size we request.
         OVERHEAD = 3*4
@@ -336,7 +345,7 @@ class Server(unittest.TestCase):
 
     def test_leases(self):
         ss = self.create("test_leases")
-        canary = Referenceable()
+        canary = FakeCanary()
         sharenums = range(5)
         size = 100
 

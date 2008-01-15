@@ -90,6 +90,7 @@ class Encoder(object):
         self._parent = parent
         if self._parent:
             self._log_number = self._parent.log("creating Encoder %s" % self)
+        self._aborted = False
 
     def __repr__(self):
         if hasattr(self, "_storage_index"):
@@ -263,6 +264,15 @@ class Encoder(object):
         d.addCallbacks(lambda res: self.done(), self.err)
         return d
 
+    def abort(self):
+        self.log("aborting upload")
+        assert self._codec, "don't call abort before start"
+        self._aborted = True
+        # the next segment read (in _gather_data inside _encode_segment) will
+        # raise UploadAborted(), which will bypass the rest of the upload
+        # chain. If we've sent the final segment's shares, it's too late to
+        # abort. TODO: allow abort any time up to close_all_shareholders.
+
     def _turn_barrier(self, res):
         # putting this method in a Deferred chain imposes a guaranteed
         # reactor turn between the pre- and post- portions of that chain.
@@ -341,11 +351,16 @@ class Encoder(object):
         with the combination of any 'previous_chunks' and the new chunks
         which were gathered."""
 
+        if self._aborted:
+            raise UploadAborted()
+
         if not num_chunks:
             return defer.succeed(previous_chunks)
 
         d = self._uploadable.read_encrypted(input_chunk_size)
         def _got(data):
+            if self._aborted:
+                raise UploadAborted()
             encrypted_pieces = []
             length = 0
             while data:
@@ -595,6 +610,19 @@ class Encoder(object):
 
     def err(self, f):
         self.log("UNUSUAL: %s: upload failed: %s" % (self, f))
-        if f.check(defer.FirstError):
-            return f.value.subFailure
-        return f
+        # we need to abort any remaining shareholders, so they'll delete the
+        # partial share, allowing someone else to upload it again.
+        self.log("aborting shareholders")
+        dl = []
+        for shareid in list(self.landlords.keys()):
+            d = self.landlords[shareid].abort()
+            d.addErrback(self._remove_shareholder, shareid, "abort")
+            dl.append(d)
+        d = self._gather_responses(dl)
+        def _done(res):
+            self.log("shareholders aborted")
+            if f.check(defer.FirstError):
+                return f.value.subFailure
+            return f
+        d.addCallback(_done)
+        return d

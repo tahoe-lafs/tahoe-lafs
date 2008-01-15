@@ -436,6 +436,7 @@ class CHKUploader:
         self._client = client
         self._options = options
         self._log_number = self._client.log("CHKUploader starting")
+        self._encoder = None
 
     def set_params(self, encoding_parameters):
         self._encoding_parameters = encoding_parameters
@@ -465,10 +466,19 @@ class CHKUploader:
         d.addCallback(_uploaded)
         return d
 
+    def abort(self):
+        """Call this is the upload must be abandoned before it completes.
+        This will tell the shareholders to delete their partial shares. I
+        return a Deferred that fires when these messages have been acked."""
+        if not self._encoder:
+            # how did you call abort() before calling start() ?
+            return defer.succeed(None)
+        return self._encoder.abort()
+
     def start_encrypted(self, encrypted):
         eu = IEncryptedUploadable(encrypted)
 
-        e = encode.Encoder(self._options, self)
+        self._encoder = e = encode.Encoder(self._options, self)
         e.set_params(self._encoding_parameters)
         d = e.set_encrypted_uploadable(eu)
         d.addCallback(self.locate_all_shareholders)
@@ -562,6 +572,9 @@ class RemoteEncryptedUploabable(Referenceable):
     def __init__(self, encrypted_uploadable):
         self._eu = IEncryptedUploadable(encrypted_uploadable)
         self._offset = 0
+        self._bytes_read = 0
+        self._cutoff = None # set by debug options
+        self._cutoff_cb = None
 
     def remote_get_size(self):
         return self._eu.get_size()
@@ -570,9 +583,13 @@ class RemoteEncryptedUploabable(Referenceable):
     def remote_read_encrypted(self, offset, length):
         # we don't yet implement seek
         assert offset == self._offset, "%d != %d" % (offset, self._offset)
+        if self._cutoff is not None and offset+length > self._cutoff:
+            self._cutoff_cb()
         d = self._eu.read_encrypted(length)
         def _read(strings):
-            self._offset += sum([len(data) for data in strings])
+            size = sum([len(data) for data in strings])
+            self._bytes_read += size
+            self._offset += size
             return strings
         d.addCallback(_read)
         return d
@@ -636,6 +653,17 @@ class AssistedUploader:
             self.log("helper says we need to upload")
             # we need to upload the file
             reu = RemoteEncryptedUploabable(self._encuploadable)
+            if "debug_stash_RemoteEncryptedUploadable" in self._options:
+                self._options["RemoteEncryptedUploabable"] = reu
+            if "debug_interrupt" in self._options:
+                reu._cutoff = self._options["debug_interrupt"]
+                def _cutoff():
+                    # simulate the loss of the connection to the helper
+                    self.log("debug_interrupt killing connection to helper",
+                             level=log.WEIRD)
+                    upload_helper.tracker.broker.transport.loseConnection()
+                    return
+                reu._cutoff_cb = _cutoff
             d = upload_helper.callRemote("upload", reu)
             # this Deferred will fire with the upload results
             return d

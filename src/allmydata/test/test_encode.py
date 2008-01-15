@@ -84,6 +84,9 @@ class FakeBucketWriterProxy:
             self.closed = True
         return defer.maybeDeferred(_try)
 
+    def abort(self):
+        return defer.succeed(None)
+
     def get_block(self, blocknum):
         def _try():
             assert isinstance(blocknum, (int, long))
@@ -621,7 +624,7 @@ class Roundtrip(unittest.TestCase):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(encode.NotEnoughPeersError))
+            self.failUnless(res.check(encode.NotEnoughPeersError), res)
         d.addBoth(_done)
         return d
 
