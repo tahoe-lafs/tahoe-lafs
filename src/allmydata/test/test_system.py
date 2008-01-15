@@ -13,7 +13,7 @@ from allmydata.util import deferredutil, fileutil, idlib, mathutil, testutil
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
 from allmydata.mutable import NotMutableError
-from foolscap.eventual import fireEventually, flushEventualQueue
+from foolscap.eventual import flushEventualQueue
 from foolscap import DeadReferenceError
 from twisted.python import log
 from twisted.python.failure import Failure
