@@ -311,8 +311,9 @@ class EncryptAnUploadable:
     IEncryptedUploadable."""
     implements(IEncryptedUploadable)
 
-    def __init__(self, original):
+    def __init__(self, original, options={}):
         self.original = original
+        self._options = options
         self._encryptor = None
         self._plaintext_hasher = plaintext_hasher()
         self._plaintext_segment_hasher = None
@@ -586,7 +587,7 @@ class AssistedUploader:
 
     def start(self, uploadable):
         u = IUploadable(uploadable)
-        eu = IEncryptedUploadable(EncryptAnUploadable(u))
+        eu = IEncryptedUploadable(EncryptAnUploadable(u, self._options))
         self._encuploadable = eu
         d = eu.get_size()
         d.addCallback(self._got_size)

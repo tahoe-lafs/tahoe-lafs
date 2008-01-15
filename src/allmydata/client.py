@@ -253,7 +253,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         d.addCallback(lambda res: n)
         return d
 
-    def upload(self, uploadable):
+    def upload(self, uploadable, options={}):
         uploader = self.getServiceNamed("uploader")
-        return uploader.upload(uploadable)
+        return uploader.upload(uploadable, options)
 
