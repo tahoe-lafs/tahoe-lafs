@@ -135,9 +135,11 @@ try:
         win32file.SetFileAttributes(path, win32con.FILE_ATTRIBUTE_NORMAL)
 except ImportError:
     import stat
-    def make_readonly(path):
+    def _make_readonly(path):
         os.chmod(path, stat.S_IREAD)
         os.chmod(os.path.dirname(path), stat.S_IREAD)
-    def make_accessible(path):
+    def _make_accessible(path):
         os.chmod(os.path.dirname(path), stat.S_IWRITE | stat.S_IEXEC | stat.S_IREAD)
         os.chmod(path, stat.S_IWRITE | stat.S_IEXEC | stat.S_IREAD)
+    make_readonly = _make_readonly
+    make_accessible = _make_accessible
