@@ -29,6 +29,14 @@ manifestVersion="1.0">
 </assembly>
 """
 
+packages = ['encodings']
+
+try:
+    import _xmlplus
+except ImportError:
+    pass
+else:
+    packages.append('_xmlplus')
 
 setup_args = {
     'name': 'Tahoe',
@@ -60,10 +68,7 @@ setup_args = {
             ],
             "includes": [
             ],
-            "packages": [
-                "encodings",
-                "_xmlplus",
-            ],
+            "packages": packages,
             #"optimize" : 2,
         },
     },
