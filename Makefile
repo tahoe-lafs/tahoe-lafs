@@ -23,6 +23,7 @@ ifeq ($(PLAT),win32)
  SUPPORTLIB := $(SUPPORT)\Lib\site-packages
  SRCPATH := $(shell cygpath -w $(shell pwd)/src)
  CHECK_PYWIN32_DEP := check-pywin32-dep
+ INNOSETUP := $(shell cygpath -au "$(PROGRAMFILES)/Inno Setup 5/Compil32.exe")
 else
  PYVER=$(shell $(PYTHON) misc/pyver.py)
  SUPPORT = $(shell pwd)/support
@@ -417,8 +418,6 @@ deb-gutsy-head:
 	fakeroot debian/rules binary
 
 # These targets provide for windows native builds
-INNOSETUP := $(shell cygpath -au "$(PROGRAMFILES)/Inno Setup 5/Compil32.exe")
-
 .PHONY: hatch-eggs windows-exe windows-installer
 
 hatch-eggs:
