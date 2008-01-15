@@ -5,7 +5,7 @@ from twisted.internet import defer
 from foolscap import eventual
 from allmydata import uri
 from allmydata.hashtree import HashTree
-from allmydata.util import mathutil, hashutil, idlib
+from allmydata.util import mathutil, hashutil, idlib, log
 from allmydata.util.assertutil import _assert
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder, IStorageBucketWriter, \
@@ -89,19 +89,19 @@ class Encoder(object):
         self._codec = None
         self._parent = parent
         if self._parent:
-            self._log_number = self._parent.log("starting Encoder %s" % self)
+            self._log_number = self._parent.log("creating Encoder %s" % self)
 
     def __repr__(self):
         if hasattr(self, "_storage_index"):
             return "<Encoder for %s>" % idlib.b2a(self._storage_index)[:6]
         return "<Encoder for unknown storage index>"
 
-    def log(self, msg, parent=None):
+    def log(self, *args, **kwargs):
         if not self._parent:
             return
-        if parent is None:
-            parent = self._log_number
-        return self._parent.log(msg, parent=parent)
+        if "parent" not in kwargs:
+            kwargs["parent"] = self._log_number
+        return self._parent.log(*args, **kwargs)
 
     def set_size(self, size):
         assert not self._codec
@@ -214,7 +214,8 @@ class Encoder(object):
         self.landlords = landlords.copy()
 
     def start(self):
-        self.log("starting")
+        if self._parent:
+            self._log_number = self._parent.log("%s starting" % (self,))
         #paddedsize = self._size + mathutil.pad_size(self._size, self.needed_shares)
         if not self._codec:
             self._setup_codec()
@@ -413,10 +414,10 @@ class Encoder(object):
             return defer.succeed(None)
         sh = self.landlords[shareid]
         lognum2 = self.log("put_block to %s" % self.landlords[shareid],
-                           parent=lognum)
+                           parent=lognum, level=log.NOISY)
         d = sh.put_block(segment_num, subshare)
         def _done(res):
-            self.log("put_block done", parent=lognum2)
+            self.log("put_block done", parent=lognum2, level=log.NOISY)
             return res
         d.addCallback(_done)
         d.addErrback(self._remove_shareholder, shareid,

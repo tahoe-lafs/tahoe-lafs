@@ -105,12 +105,13 @@ class PeerTracker:
 
 class Tahoe2PeerSelector:
 
-    def __init__(self, upload_id):
+    def __init__(self, upload_id, logparent=None):
         self.upload_id = upload_id
         self.query_count, self.good_query_count, self.bad_query_count = 0,0,0
         self.error_count = 0
         self.num_peers_contacted = 0
         self.last_failure_msg = None
+        self._log_parent = log.msg("%s starting" % self, parent=logparent)
 
     def __repr__(self):
         return "<Tahoe2PeerSelector for upload %s>" % self.upload_id
@@ -131,6 +132,7 @@ class Tahoe2PeerSelector:
         # self.uncontacted_peers = list() # peers we haven't asked yet
         self.contacted_peers = [] # peers worth asking again
         self.contacted_peers2 = [] # peers that we have asked again
+        self._started_second_pass = False
         self.use_peers = set() # PeerTrackers that have shares assigned to them
         self.preexisting_shares = {} # sharenum -> PeerTracker holding the share
 
@@ -183,7 +185,8 @@ class Tahoe2PeerSelector:
                     self.query_count, self.num_peers_contacted,
                     self.good_query_count, self.bad_query_count,
                     self.error_count))
-            log.msg("peer selection successful for %s: %s" % (self, msg))
+            log.msg("peer selection successful for %s: %s" % (self, msg),
+                    parent=self._log_parent)
             return self.use_peers
 
         if self.uncontacted_peers:
@@ -200,6 +203,10 @@ class Tahoe2PeerSelector:
             return d
         elif self.contacted_peers:
             # ask a peer that we've already asked.
+            if not self._started_second_pass:
+                log.msg("starting second pass", parent=self._log_parent,
+                        level=log.NOISY)
+                self._started_second_pass = True
             num_shares = mathutil.div_ceil(len(self.homeless_shares),
                                            len(self.contacted_peers))
             peer = self.contacted_peers.pop(0)
@@ -232,7 +239,7 @@ class Tahoe2PeerSelector:
                 msg = "peer selection failed for %s: %s" % (self, msg)
                 if self.last_failure_msg:
                     msg += " (%s)" % (self.last_failure_msg,)
-                log.msg(msg)
+                log.msg(msg, level=log.UNUSUAL, parent=self._log_parent)
                 raise encode.NotEnoughPeersError(msg)
             else:
                 # we placed enough to be happy, so we're done
@@ -242,7 +249,8 @@ class Tahoe2PeerSelector:
         if isinstance(res, failure.Failure):
             # This is unusual, and probably indicates a bug or a network
             # problem.
-            log.msg("%s got error during peer selection: %s" % (peer, res))
+            log.msg("%s got error during peer selection: %s" % (peer, res),
+                    level=log.UNUSUAL, parent=self._log_parent)
             self.error_count += 1
             self.homeless_shares = list(shares_to_ask) + self.homeless_shares
             if (self.uncontacted_peers
@@ -260,6 +268,10 @@ class Tahoe2PeerSelector:
                 self.last_failure_msg = msg
         else:
             (alreadygot, allocated) = res
+            log.msg("response from peer %s: alreadygot=%s, allocated=%s"
+                    % (idlib.shortnodeid_b2a(peer.peerid),
+                       tuple(sorted(alreadygot)), tuple(sorted(allocated))),
+                    level=log.NOISY, parent=self._log_parent)
             progress = False
             for s in alreadygot:
                 self.preexisting_shares[s] = peer
@@ -428,10 +440,12 @@ class CHKUploader:
     def set_params(self, encoding_parameters):
         self._encoding_parameters = encoding_parameters
 
-    def log(self, msg, parent=None, **kwargs):
-        if parent is None:
-            parent = self._log_number
-        return self._client.log(msg, parent=parent, **kwargs)
+    def log(self, *args, **kwargs):
+        if "parent" not in kwargs:
+            kwargs["parent"] = self._log_number
+        if "facility" not in kwargs:
+            kwargs["facility"] = "tahoe.upload"
+        return self._client.log(*args, **kwargs)
 
     def start(self, uploadable):
         """Start uploading the file.
@@ -467,7 +481,7 @@ class CHKUploader:
         storage_index = encoder.get_param("storage_index")
         upload_id = idlib.b2a(storage_index)[:6]
         self.log("using storage index %s" % upload_id)
-        peer_selector = self.peer_selector_class(upload_id)
+        peer_selector = self.peer_selector_class(upload_id, self._log_number)
 
         share_size = encoder.get_param("share_size")
         block_size = encoder.get_param("block_size")
