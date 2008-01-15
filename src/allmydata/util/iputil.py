@@ -68,11 +68,15 @@ try:
             # who knows what. It isn't very important, so log it and continue
             log.err()
 except ImportError:
-    def increase_rlimits():
+    def _increase_rlimits():
         # TODO: implement this for Windows.  Although I suspect the
         # solution might be "be running under the iocp reactor and
         # make this function be a no-op".
         pass
+    # pyflakes complains about two 'def FOO' statements in the same time,
+    # since one might be shadowing the other. This hack appeases pyflakes.
+    increase_rlimits = _increase_rlimits
+
 
 def get_local_addresses_async(target='A.ROOT-SERVERS.NET'):
     """
