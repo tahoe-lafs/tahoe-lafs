@@ -639,7 +639,7 @@ class Web(WebMixin, unittest.TestCase):
         # actually works), but it isn't yet failing for me.
 
         d = self.s.create_empty_dirnode()
-        COUNT = 400
+        COUNT = 200
         def _created(dirnode):
             entries = [ (str(i), self._foo_uri) for i in range(COUNT) ]
             d2 = dirnode.set_uris(entries)
