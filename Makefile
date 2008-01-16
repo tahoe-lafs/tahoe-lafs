@@ -424,7 +424,6 @@ hatch-eggs:
 	$(PP) $(PYTHON) misc/hatch-eggs.py
 
 windows-exe: hatch-eggs
-	#PYTHON=$(PYTHON) $(PP) $(MAKE) -C windows
 	cd windows && $(PP) $(PYTHON) setup.py py2exe
 
 windows-installer: windows-exe

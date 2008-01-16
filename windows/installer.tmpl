@@ -1,6 +1,6 @@
 [Setup]
 AppName=Allmydata Tahoe
-AppVerName=Allmydata Tahoe %(major)d.%(minor)d
+AppVerName=Allmydata Tahoe %(major)d.%(minor)d.%(point)d-%(nano)d
 AppVersion=%(major)d.%(minor)d.%(point)d-%(nano)d
 VersionInfoVersion=%(major)d.%(minor)d.%(point)d.%(nano)d
 AppPublisher=Allmydata Inc.
@@ -18,12 +18,12 @@ SetupIconFile=../installer.ico
 UninstallDisplayIcon=../amdicon.ico
 ; license file needs to be build/all dir
 ;LicenseFile=../license.txt
-OutputBaseFilename=Allmydata_Tahoe_Setup_v%(major)d_%(minor)d_%(point)d
+OutputBaseFilename=Allmydata_Tahoe_Setup_v%(major)d_%(minor)d_%(point)d_%(nano)d
 
 [Files]
 ; contents of 'binaries' dir. (consolidated build target)
 Source: "*.*"; DestDir: "{app}\Install"; Flags: restartreplace replacesameversion uninsrestartdelete
-Source: ".\web\*.*"; DestDir: "{app}\web"; Flags: recursesubdirs
+Source: ".\web\*.*"; DestDir: "{app}\Install\web"; Flags: recursesubdirs
 
 [Dirs]
 Name: "{app}\noderoot"
@@ -44,7 +44,7 @@ Filename: "{app}\Install\confwiz.exe"; Flags: hidewizard
 ; Performed before the uninstaller runs to undo things
 Filename: "{sys}\net.exe"; Parameters: "stop Tahoe"; Flags: runhidden
 Filename: "{app}\Install\tahoesvc.exe"; Parameters: "-remove"; Flags: runhidden
-;Filename: "http://www.allmydata.com/redirect/uninstallsurvey.php?build=%(build)%"; Flags: shellexec
+;Filename: "http://www.allmydata.com/redirect/uninstallsurvey.php?build=%(build)s"; Flags: shellexec
 
 [Registry]
 Root: HKLM; Subkey: "Software\Allmydata"; Flags: uninsdeletekeyifempty
