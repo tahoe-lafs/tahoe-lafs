@@ -10,6 +10,8 @@ from allmydata.interfaces import IFileURI
 from allmydata.util.assertutil import precondition
 from foolscap import eventual
 
+MiB = 1024*1024
+
 class Uploadable(unittest.TestCase):
     def shouldEqual(self, data, expected):
         self.failUnless(isinstance(data, list))
@@ -132,6 +134,11 @@ class FakeBucketWriter:
         self.closed = True
 
 class FakeClient:
+    DEFAULT_ENCODING_PARAMETERS = {"k":25,
+                                   "happy": 75,
+                                   "n": 100,
+                                   "max_segment_size": 1*MiB,
+                                   }
     def __init__(self, mode="good", num_servers=50):
         self.mode = mode
         self.num_servers = num_servers
@@ -145,7 +152,7 @@ class FakeClient:
     def get_push_to_ourselves(self):
         return None
     def get_encoding_parameters(self):
-        return None
+        return self.DEFAULT_ENCODING_PARAMETERS
 
     def get_renewal_secret(self):
         return ""
@@ -170,6 +177,14 @@ class GoodServer(unittest.TestCase):
         self.u = upload.Uploader()
         self.u.running = True
         self.u.parent = self.node
+
+    def set_encoding_parameters(self, k, happy, n, max_segsize=1*MiB):
+        p = {"k": k,
+             "happy": happy,
+             "n": n,
+             "max_segment_size": max_segsize,
+             }
+        self.node.DEFAULT_ENCODING_PARAMETERS = p
 
     def _check_small(self, newuri, size):
         u = IFileURI(newuri)
@@ -210,7 +225,8 @@ class GoodServer(unittest.TestCase):
         data = self.get_data(SIZE_LARGE)
         segsize = int(SIZE_LARGE / 2.5)
         # we want 3 segments, since that's not a power of two
-        d = self.u.upload_data(data, {"max_segment_size": segsize})
+        self.set_encoding_parameters(25, 75, 100, segsize)
+        d = self.u.upload_data(data)
         d.addCallback(self._check_large, SIZE_LARGE)
         return d
 
@@ -298,13 +314,21 @@ class PeerSelection(unittest.TestCase):
         self.failUnlessEqual(len(u.key), 16)
         self.failUnlessEqual(u.size, size)
 
+    def set_encoding_parameters(self, k, happy, n, max_segsize=1*MiB):
+        p = {"k": k,
+             "happy": happy,
+             "n": n,
+             "max_segment_size": max_segsize,
+             }
+        self.node.DEFAULT_ENCODING_PARAMETERS = p
+
     def test_one_each(self):
         # if we have 50 shares, and there are 50 peers, and they all accept a
         # share, we should get exactly one share per peer
 
         self.make_client()
         data = self.get_data(SIZE_LARGE)
-        self.u.DEFAULT_ENCODING_PARAMETERS = (25, 30, 50)
+        self.set_encoding_parameters(25, 30, 50)
         d = self.u.upload_data(data)
         d.addCallback(self._check_large, SIZE_LARGE)
         def _check(res):
@@ -321,7 +345,7 @@ class PeerSelection(unittest.TestCase):
 
         self.make_client()
         data = self.get_data(SIZE_LARGE)
-        self.u.DEFAULT_ENCODING_PARAMETERS = (50, 75, 100)
+        self.set_encoding_parameters(50, 75, 100)
         d = self.u.upload_data(data)
         d.addCallback(self._check_large, SIZE_LARGE)
         def _check(res):
@@ -338,7 +362,7 @@ class PeerSelection(unittest.TestCase):
 
         self.make_client()
         data = self.get_data(SIZE_LARGE)
-        self.u.DEFAULT_ENCODING_PARAMETERS = (24, 41, 51)
+        self.set_encoding_parameters(24, 41, 51)
         d = self.u.upload_data(data)
         d.addCallback(self._check_large, SIZE_LARGE)
         def _check(res):
@@ -365,7 +389,7 @@ class PeerSelection(unittest.TestCase):
 
         self.make_client()
         data = self.get_data(SIZE_LARGE)
-        self.u.DEFAULT_ENCODING_PARAMETERS = (100, 150, 200)
+        self.set_encoding_parameters(100, 150, 200)
         d = self.u.upload_data(data)
         d.addCallback(self._check_large, SIZE_LARGE)
         def _check(res):
@@ -382,7 +406,7 @@ class PeerSelection(unittest.TestCase):
 
         self.make_client(3)
         data = self.get_data(SIZE_LARGE)
-        self.u.DEFAULT_ENCODING_PARAMETERS = (3, 5, 10)
+        self.set_encoding_parameters(3, 5, 10)
         d = self.u.upload_data(data)
         d.addCallback(self._check_large, SIZE_LARGE)
         def _check(res):

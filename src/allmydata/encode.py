@@ -72,22 +72,9 @@ PiB=1024*TiB
 
 class Encoder(object):
     implements(IEncoder)
-    NEEDED_SHARES = 3
-    SHARES_OF_HAPPINESS = 7
-    TOTAL_SHARES = 10
-    MAX_SEGMENT_SIZE = 1*MiB
 
-    def __init__(self, options={}, parent=None):
+    def __init__(self, parent=None):
         object.__init__(self)
-        self.MAX_SEGMENT_SIZE = options.get("max_segment_size",
-                                            self.MAX_SEGMENT_SIZE)
-        k,happy,n = options.get("needed_and_happy_and_total_shares",
-                                (self.NEEDED_SHARES,
-                                 self.SHARES_OF_HAPPINESS,
-                                 self.TOTAL_SHARES))
-        self.NEEDED_SHARES = k
-        self.SHARES_OF_HAPPINESS = happy
-        self.TOTAL_SHARES = n
         self.uri_extension_data = {}
         self._codec = None
         self._parent = parent
@@ -107,31 +94,33 @@ class Encoder(object):
             kwargs["parent"] = self._log_number
         return self._parent.log(*args, **kwargs)
 
-    def set_size(self, size):
+    def set_encrypted_uploadable(self, uploadable):
+        eu = self._uploadable = IEncryptedUploadable(uploadable)
+        d = eu.get_size()
+        def _got_size(size):
+            self.file_size = size
+        d.addCallback(_got_size)
+        d.addCallback(lambda res: eu.get_all_encoding_parameters())
+        d.addCallback(self._got_all_encoding_parameters)
+        d.addCallback(lambda res: eu.get_storage_index())
+        def _done(storage_index):
+            self._storage_index = storage_index
+            return self
+        d.addCallback(_done)
+        return d
+
+    def _got_all_encoding_parameters(self, params):
         assert not self._codec
-        self.file_size = size
-
-    def set_params(self, encoding_parameters):
-        assert not self._codec
-        k,d,n = encoding_parameters
-        self.NEEDED_SHARES = k
-        self.SHARES_OF_HAPPINESS = d
-        self.TOTAL_SHARES = n
-        self.log("set_params: %d,%d,%d" % (k, d, n))
-
-    def _setup_codec(self):
-        self.num_shares = self.TOTAL_SHARES
-        self.required_shares = self.NEEDED_SHARES
-        self.shares_of_happiness = self.SHARES_OF_HAPPINESS
-
-        self.segment_size = min(self.MAX_SEGMENT_SIZE, self.file_size)
-        # this must be a multiple of self.required_shares
-        self.segment_size = mathutil.next_multiple(self.segment_size,
-                                                   self.required_shares)
-
-        # now set up the codec
+        k, happy, n, segsize = params
+        self.required_shares = k
+        self.shares_of_happiness = happy
+        self.num_shares = n
+        self.segment_size = segsize
+        self.log("got encoding parameters: %d/%d/%d %d" % (k,happy,n, segsize))
+        self.log("now setting up codec")
 
         assert self.segment_size % self.required_shares == 0
+
         self.num_segments = mathutil.div_ceil(self.file_size,
                                               self.segment_size)
 
@@ -176,22 +165,8 @@ class Encoder(object):
     def _compute_overhead(self):
         return 0
 
-    def set_encrypted_uploadable(self, uploadable):
-        u = self._uploadable = IEncryptedUploadable(uploadable)
-        d = u.get_size()
-        d.addCallback(self.set_size)
-        d.addCallback(lambda res: self.get_param("serialized_params"))
-        d.addCallback(u.set_serialized_encoding_parameters)
-        d.addCallback(lambda res: u.get_storage_index())
-        def _done(storage_index):
-            self._storage_index = storage_index
-            return self
-        d.addCallback(_done)
-        return d
-
     def get_param(self, name):
-        if not self._codec:
-            self._setup_codec()
+        assert self._codec
 
         if name == "storage_index":
             return self._storage_index
@@ -221,9 +196,7 @@ class Encoder(object):
         if self._parent:
             self._log_number = self._parent.log("%s starting" % (self,))
         #paddedsize = self._size + mathutil.pad_size(self._size, self.needed_shares)
-        if not self._codec:
-            self._setup_codec()
-
+        assert self._codec
         self._crypttext_hasher = hashutil.crypttext_hasher()
         self._crypttext_hashes = []
         self.segment_num = 0
@@ -234,8 +207,6 @@ class Encoder(object):
         self.share_root_hashes = [None] * self.num_shares
 
         d = eventual.fireEventually()
-        d.addCallback(lambda res:
-                      self._uploadable.set_segment_size(self.segment_size))
 
         for l in self.landlords.values():
             d.addCallback(lambda res, l=l: l.start())

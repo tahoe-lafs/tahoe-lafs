@@ -7,7 +7,7 @@ from allmydata import node
 
 from twisted.internet import reactor
 from twisted.application.internet import TimerService
-from twisted.python import log
+from foolscap.logging import log
 
 import allmydata
 from allmydata.storage import StorageServer
@@ -24,6 +24,12 @@ from allmydata.mutable import MutableFileNode
 from allmydata.interfaces import IURI, INewDirectoryURI, \
      IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI
 
+KiB=1024
+MiB=1024*KiB
+GiB=1024*MiB
+TiB=1024*GiB
+PiB=1024*TiB
+
 class Client(node.Node, Referenceable, testutil.PollMixin):
     implements(RIClient)
     PORTNUMFILE = "client.port"
@@ -33,6 +39,17 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
 
     # we're pretty narrow-minded right now
     OLDEST_SUPPORTED_VERSION = allmydata.__version__
+
+    # this is a tuple of (needed, desired, total, max_segment_size). 'needed'
+    # is the number of shares required to reconstruct a file. 'desired' means
+    # that we will abort an upload unless we can allocate space for at least
+    # this many. 'total' is the total number of shares created by encoding.
+    # If everybody has room then this is is how many we will upload.
+    DEFAULT_ENCODING_PARAMETERS = {"k":25,
+                                   "happy": 75,
+                                   "n": 100,
+                                   "max_segment_size": 1*MiB,
+                                   }
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
@@ -195,8 +212,20 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
 
     def get_encoding_parameters(self):
         if not self.introducer_client:
-            return None
-        return self.introducer_client.encoding_parameters
+            return self.DEFAULT_ENCODING_PARAMETERS
+        p = self.introducer_client.encoding_parameters # a tuple
+        # TODO: make the 0.7.1 introducer publish a dict instead of a tuple
+        params = {"k": p[0],
+                  "happy": p[1],
+                  "n": p[2],
+                  }
+        if len(p) == 3:
+            # TODO: compatibility with 0.7.0 Introducer that doesn't specify
+            # segment_size
+            self.log("Introducer didn't provide max_segment_size, using 1MiB",
+                     level=log.UNUSUAL)
+            params["max_segment_size"] = 1*MiB
+        return params
 
     def connected_to_introducer(self):
         if self.introducer_client:
@@ -253,7 +282,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         d.addCallback(lambda res: n)
         return d
 
-    def upload(self, uploadable, options={}):
+    def upload(self, uploadable):
         uploader = self.getServiceNamed("uploader")
-        return uploader.upload(uploadable, options)
+        return uploader.upload(uploadable)
 

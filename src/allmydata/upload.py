@@ -21,6 +21,12 @@ from pycryptopp.cipher.aes import AES
 from cStringIO import StringIO
 
 
+KiB=1024
+MiB=1024*KiB
+GiB=1024*MiB
+TiB=1024*GiB
+PiB=1024*TiB
+
 class HaveAllPeersError(Exception):
     # we use this to jump out of the loop
     pass
@@ -323,27 +329,65 @@ class EncryptAnUploadable:
     IEncryptedUploadable."""
     implements(IEncryptedUploadable)
 
-    def __init__(self, original, options={}):
+    def __init__(self, original, default_encoding_parameters):
         self.original = original
-        self._options = options
+        assert isinstance(default_encoding_parameters, dict)
+        self._default_encoding_parameters = default_encoding_parameters
         self._encryptor = None
         self._plaintext_hasher = plaintext_hasher()
         self._plaintext_segment_hasher = None
         self._plaintext_segment_hashes = []
-        self._params = None
+        self._encoding_parameters = None
+        self._file_size = None
 
     def get_size(self):
-        return self.original.get_size()
+        if self._file_size is not None:
+            return defer.succeed(self._file_size)
+        d = self.original.get_size()
+        def _got_size(size):
+            self._file_size = size
+            return size
+        d.addCallback(_got_size)
+        return d
 
-    def set_serialized_encoding_parameters(self, params):
-        self._params = params
+    def get_all_encoding_parameters(self):
+        if self._encoding_parameters is not None:
+            return defer.succeed(self._encoding_parameters)
+        d1 = self.get_size()
+        d2 = self.original.get_maximum_segment_size()
+        d3 = self.original.get_encoding_parameters()
+        d = defer.DeferredList([d1, d2, d3],
+                               fireOnOneErrback=True, consumeErrors=True)
+        def _got_pieces(res):
+            file_size = res[0][1]
+            max_segsize = res[1][1]
+            params = res[2][1]
+
+            defaults = self._default_encoding_parameters
+            if max_segsize is None:
+                max_segsize = defaults["max_segment_size"]
+
+            if params is None:
+                k = defaults["k"]
+                happy = defaults["happy"]
+                n = defaults["n"]
+            else:
+                precondition(isinstance(params, tuple), params)
+                (k, happy, n) = params
+
+            # for small files, shrink the segment size to avoid wasting space
+            segsize = min(max_segsize, file_size)
+            # this must be a multiple of 'required_shares'==k
+            segsize = mathutil.next_multiple(segsize, k)
+            self._segment_size = segsize # used by segment hashers
+            self._encoding_parameters = (k, happy, n, segsize)
+            return self._encoding_parameters
+        d.addCallback(_got_pieces)
+        return d
 
     def _get_encryptor(self):
         if self._encryptor:
             return defer.succeed(self._encryptor)
-
-        if self._params is not None:
-            self.original.set_serialized_encoding_parameters(self._params)
 
         d = self.original.get_encryption_key()
         def _got(key):
@@ -365,9 +409,6 @@ class EncryptAnUploadable:
         d = self._get_encryptor()
         d.addCallback(lambda res: self._storage_index)
         return d
-
-    def set_segment_size(self, segsize):
-        self._segment_size = segsize
 
     def _get_segment_hasher(self):
         p = self._plaintext_segment_hasher
@@ -396,8 +437,13 @@ class EncryptAnUploadable:
             offset += this_segment
 
     def read_encrypted(self, length):
-        d = self._get_encryptor()
-        d.addCallback(lambda res: self.original.read(length))
+        # make sure our parameters have been set up first
+        d = self.get_all_encoding_parameters()
+        d.addCallback(lambda ignored: self._get_encryptor())
+        # then fetch the plaintext
+        d.addCallback(lambda ignored: self.original.read(length))
+        # and encrypt it..
+        # through the fields we go, hashing all the way, sHA! sHA! sHA!
         def _got(data):
             assert isinstance(data, (tuple, list)), type(data)
             data = list(data)
@@ -432,14 +478,12 @@ class EncryptAnUploadable:
 class CHKUploader:
     peer_selector_class = Tahoe2PeerSelector
 
-    def __init__(self, client, options={}):
+    def __init__(self, client, default_encoding_parameters):
         self._client = client
-        self._options = options
+        assert isinstance(default_encoding_parameters, dict)
+        self._default_encoding_parameters = default_encoding_parameters
         self._log_number = self._client.log("CHKUploader starting")
         self._encoder = None
-
-    def set_params(self, encoding_parameters):
-        self._encoding_parameters = encoding_parameters
 
     def log(self, *args, **kwargs):
         if "parent" not in kwargs:
@@ -457,7 +501,7 @@ class CHKUploader:
         uploadable = IUploadable(uploadable)
         self.log("starting upload of %s" % uploadable)
 
-        eu = EncryptAnUploadable(uploadable)
+        eu = EncryptAnUploadable(uploadable, self._default_encoding_parameters)
         d = self.start_encrypted(eu)
         def _uploaded(res):
             d1 = uploadable.get_encryption_key()
@@ -478,8 +522,7 @@ class CHKUploader:
     def start_encrypted(self, encrypted):
         eu = IEncryptedUploadable(encrypted)
 
-        self._encoder = e = encode.Encoder(self._options, self)
-        e.set_params(self._encoding_parameters)
+        self._encoder = e = encode.Encoder(self)
         d = e.set_encrypted_uploadable(eu)
         d.addCallback(self.locate_all_shareholders)
         d.addCallback(self.set_shareholders, e)
@@ -497,7 +540,7 @@ class CHKUploader:
         block_size = encoder.get_param("block_size")
         num_segments = encoder.get_param("num_segments")
         k,desired,n = encoder.get_param("share_counts")
-        push_to_ourselves = self._options.get("push_to_ourselves", False)
+        push_to_ourselves = self._client.get_push_to_ourselves()
 
         gs = peer_selector.get_shareholders
         d = gs(self._client, storage_index, share_size, block_size,
@@ -548,9 +591,8 @@ def read_this_many_bytes(uploadable, size, prepend_data=[]):
 
 class LiteralUploader:
 
-    def __init__(self, client, options={}):
+    def __init__(self, client):
         self._client = client
-        self._options = options
 
     def set_params(self, encoding_parameters):
         pass
@@ -566,7 +608,7 @@ class LiteralUploader:
     def close(self):
         pass
 
-class RemoteEncryptedUploabable(Referenceable):
+class RemoteEncryptedUploadable(Referenceable):
     implements(RIEncryptedUploadable)
 
     def __init__(self, encrypted_uploadable):
@@ -578,8 +620,9 @@ class RemoteEncryptedUploabable(Referenceable):
 
     def remote_get_size(self):
         return self._eu.get_size()
-    def remote_set_segment_size(self, segment_size):
-        self._eu.set_segment_size(segment_size)
+    def remote_get_all_encoding_parameters(self):
+        return self._eu.get_all_encoding_parameters()
+
     def remote_read_encrypted(self, offset, length):
         # we don't yet implement seek
         assert offset == self._offset, "%d != %d" % (offset, self._offset)
@@ -603,9 +646,10 @@ class RemoteEncryptedUploabable(Referenceable):
 
 class AssistedUploader:
 
-    def __init__(self, helper, options={}):
+    def __init__(self, helper, default_encoding_parameters):
         self._helper = helper
-        self._options = options
+        assert isinstance(default_encoding_parameters, dict)
+        self._default_encoding_parameters = default_encoding_parameters
         self._log_number = log.msg("AssistedUploader starting")
 
     def log(self, msg, parent=None, **kwargs):
@@ -613,15 +657,14 @@ class AssistedUploader:
             parent = self._log_number
         return log.msg(msg, parent=parent, **kwargs)
 
-    def set_params(self, encoding_parameters):
-        self._needed_shares, happy, self._total_shares = encoding_parameters
-
     def start(self, uploadable):
         u = IUploadable(uploadable)
-        eu = IEncryptedUploadable(EncryptAnUploadable(u, self._options))
+        eu = EncryptAnUploadable(u, self._default_encoding_parameters)
         self._encuploadable = eu
         d = eu.get_size()
         d.addCallback(self._got_size)
+        d.addCallback(lambda res: eu.get_all_encoding_parameters())
+        d.addCallback(self._got_all_encoding_parameters)
         # when we get the encryption key, that will also compute the storage
         # index, so this only takes one pass.
         # TODO: I'm not sure it's cool to switch back and forth between
@@ -636,6 +679,12 @@ class AssistedUploader:
 
     def _got_size(self, size):
         self._size = size
+
+    def _got_all_encoding_parameters(self, params):
+        k, happy, n, segment_size = params
+        # stash these for URI generation later
+        self._needed_shares = k
+        self._total_shares = n
 
     def _got_encryption_key(self, key):
         self._key = key
@@ -652,10 +701,10 @@ class AssistedUploader:
         if upload_helper:
             self.log("helper says we need to upload")
             # we need to upload the file
-            reu = RemoteEncryptedUploabable(self._encuploadable)
-            if "debug_stash_RemoteEncryptedUploadable" in self._options:
-                self._options["RemoteEncryptedUploabable"] = reu
-            if "debug_interrupt" in self._options:
+            reu = RemoteEncryptedUploadable(self._encuploadable)
+            if False: #"debug_stash_RemoteEncryptedUploadable" in self._options:
+                self._options["RemoteEncryptedUploadable"] = reu
+            if False: #"debug_interrupt" in self._options:
                 reu._cutoff = self._options["debug_interrupt"]
                 def _cutoff():
                     # simulate the loss of the connection to the helper
@@ -680,16 +729,17 @@ class AssistedUploader:
                            )
         return u.to_string()
 
+class NoParameterPreferencesMixin:
+    def get_maximum_segment_size(self):
+        return defer.succeed(None)
+    def get_encoding_parameters(self):
+        return defer.succeed(None)
 
 class ConvergentUploadMixin:
     # to use this, the class it is mixed in to must have a seekable
     # filehandle named self._filehandle
     _params = None
     _key = None
-
-    def set_serialized_encoding_parameters(self, params):
-        self._params = params
-        # ignored for now
 
     def get_encryption_key(self):
         if self._key is None:
@@ -711,16 +761,13 @@ class ConvergentUploadMixin:
 class NonConvergentUploadMixin:
     _key = None
 
-    def set_serialized_encoding_parameters(self, params):
-        pass
-
     def get_encryption_key(self):
         if self._key is None:
             self._key = os.urandom(16)
         return defer.succeed(self._key)
 
 
-class FileHandle(ConvergentUploadMixin):
+class FileHandle(ConvergentUploadMixin, NoParameterPreferencesMixin):
     implements(IUploadable)
 
     def __init__(self, filehandle):
@@ -758,13 +805,6 @@ class Uploader(service.MultiService):
     uploader_class = CHKUploader
     URI_LIT_SIZE_THRESHOLD = 55
 
-    DEFAULT_ENCODING_PARAMETERS = (25, 75, 100)
-    # this is a tuple of (needed, desired, total). 'needed' is the number of
-    # shares required to reconstruct a file. 'desired' means that we will
-    # abort an upload unless we can allocate space for at least this many.
-    # 'total' is the total number of shares created by encoding. If everybody
-    # has room then this is is how many we will upload.
-
     def __init__(self, helper_furl=None):
         self._helper_furl = helper_furl
         self._helper = None
@@ -779,25 +819,23 @@ class Uploader(service.MultiService):
     def _got_helper(self, helper):
         self._helper = helper
 
-    def upload(self, uploadable, options={}):
+    def upload(self, uploadable):
         # this returns the URI
         assert self.parent
         assert self.running
-        push_to_ourselves = self.parent.get_push_to_ourselves()
-        if push_to_ourselves is not None:
-            options["push_to_ourselves"] = push_to_ourselves
 
         uploadable = IUploadable(uploadable)
         d = uploadable.get_size()
         def _got_size(size):
+            default_params = self.parent.get_encoding_parameters()
+            precondition(isinstance(default_params, dict), default_params)
+            precondition("max_segment_size" in default_params, default_params)
             if size <= self.URI_LIT_SIZE_THRESHOLD:
-                uploader = LiteralUploader(self.parent, options)
+                uploader = LiteralUploader(self.parent)
             elif self._helper:
-                uploader = AssistedUploader(self._helper, options)
+                uploader = AssistedUploader(self._helper, default_params)
             else:
-                uploader = self.uploader_class(self.parent, options)
-            uploader.set_params(self.parent.get_encoding_parameters()
-                                or self.DEFAULT_ENCODING_PARAMETERS)
+                uploader = self.uploader_class(self.parent, default_params)
             return uploader.start(uploadable)
         d.addCallback(_got_size)
         def _done(res):
@@ -807,9 +845,9 @@ class Uploader(service.MultiService):
         return d
 
     # utility functions
-    def upload_data(self, data, options={}):
-        return self.upload(Data(data), options)
-    def upload_filename(self, filename, options={}):
-        return self.upload(FileName(filename), options)
-    def upload_filehandle(self, filehandle, options={}):
-        return self.upload(FileHandle(filehandle), options)
+    def upload_data(self, data):
+        return self.upload(Data(data))
+    def upload_filename(self, filename):
+        return self.upload(FileName(filename))
+    def upload_filehandle(self, filehandle):
+        return self.upload(FileHandle(filehandle))

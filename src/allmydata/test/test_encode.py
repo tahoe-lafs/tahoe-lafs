@@ -157,10 +157,11 @@ class Encode(unittest.TestCase):
                   expected_block_hashes, expected_share_hashes):
         data = make_data(datalen)
         # force use of multiple segments
-        options = {"max_segment_size": max_segment_size, 'needed_and_happy_and_total_shares': (25, 75, 100)}
-        e = encode.Encoder(options)
+        e = encode.Encoder()
         u = upload.Data(data)
-        eu = upload.EncryptAnUploadable(u)
+        params = {"k": 25, "happy": 75, "n": 100,
+                  "max_segment_size": max_segment_size}
+        eu = upload.EncryptAnUploadable(u, params)
         d = e.set_encrypted_uploadable(eu)
 
         all_shareholders = []
@@ -285,15 +286,16 @@ class Roundtrip(unittest.TestCase):
 
     def send(self, k_and_happy_and_n, AVAILABLE_SHARES, max_segment_size,
              bucket_modes, data):
+        k, happy, n = k_and_happy_and_n
         NUM_SHARES = k_and_happy_and_n[2]
         if AVAILABLE_SHARES is None:
             AVAILABLE_SHARES = NUM_SHARES
-        # force use of multiple segments
-        options = {"max_segment_size": max_segment_size,
-                   "needed_and_happy_and_total_shares": k_and_happy_and_n}
-        e = encode.Encoder(options)
+        e = encode.Encoder()
         u = upload.Data(data)
-        eu = upload.EncryptAnUploadable(u)
+        # force use of multiple segments by using a low max_segment_size
+        params = {"k": k, "happy": happy, "n": n,
+                  "max_segment_size": max_segment_size}
+        eu = upload.EncryptAnUploadable(u, params)
         d = e.set_encrypted_uploadable(eu)
 
         shareholders = {}

@@ -8,13 +8,19 @@ from foolscap.logging import log
 from allmydata import upload, offloaded
 from allmydata.util import hashutil
 
+MiB = 1024*1024
+
 class CHKUploadHelper_fake(offloaded.CHKUploadHelper):
     def start_encrypted(self, eu):
-        needed_shares, happy, total_shares = self._encoding_parameters
         d = eu.get_size()
         def _got_size(size):
-            return (hashutil.uri_extension_hash(""),
-                    needed_shares, total_shares, size)
+            d2 = eu.get_all_encoding_parameters()
+            def _got_parms(parms):
+                needed_shares, happy, total_shares, segsize = parms
+                return (hashutil.uri_extension_hash(""),
+                        needed_shares, total_shares, size)
+            d2.addCallback(_got_parms)
+            return d2
         d.addCallback(_got_size)
         return d
 
@@ -24,12 +30,17 @@ class CHKUploadHelper_already_uploaded(offloaded.CHKUploadHelper):
         return (res, None)
 
 class FakeClient(service.MultiService):
+    DEFAULT_ENCODING_PARAMETERS = {"k":25,
+                                   "happy": 75,
+                                   "n": 100,
+                                   "max_segment_size": 1*MiB,
+                                   }
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
     def get_push_to_ourselves(self):
         return True
     def get_encoding_parameters(self):
-        return None
+        return self.DEFAULT_ENCODING_PARAMETERS
 
 def flush_but_dont_ignore(res):
     d = eventual.flushEventualQueue()
