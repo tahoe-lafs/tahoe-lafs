@@ -170,8 +170,11 @@ class Node(service.MultiService):
         def _die(failure):
             self.log('_startService() failed')
             log.err(failure)
+            print "Node._startService failed, aborting"
+            print failure
             #reactor.stop() # for unknown reasons, reactor.stop() isn't working.  [ ] TODO
             self.log('calling os.abort()')
+            print "calling os.abort()"
             os.abort()
         d.addErrback(_die)
 
