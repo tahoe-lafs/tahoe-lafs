@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 
 import urllib
 from allmydata.scripts.common_http import do_http
@@ -24,25 +23,3 @@ def rm(nodeurl, dir_uri, vdrive_pathname, verbosity, stdout, stderr):
     print >>stderr, "error, got %s %s" % (resp.status, resp.reason)
     print >>stderr, resp.read()
     return 1
-
-def main():
-    import optparse, re
-    parser = optparse.OptionParser()
-    parser.add_option("-u", "--node-url", dest="nodeurl")
-    parser.add_option("-r", "--dir-cap", dest="rooturi")
-
-    (options, args) = parser.parse_args()
-
-    NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
-    if not isinstance(options.nodeurl, basestring) or not NODEURL_RE.match(options.nodeurl):
-        raise ValueError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (options.nodeurl,))
-
-    if not options.rooturi:
-        raise ValueError("must provide --dir-cap")
-
-    vdrive_pathname = args[0]
-
-    return rm(options.nodeurl, options.rooturi, vdrive_pathname, 0)
-
-if __name__ == '__main__':
-    main()

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 
 import urllib
 
@@ -25,29 +24,3 @@ def get(nodeurl, dir_uri, vdrive_fname, local_file, stdout, stderr):
         outf.close()
 
     return 0
-
-
-def main():
-    import optparse, re
-    parser = optparse.OptionParser()
-    parser.add_option("-u", "--nodeurl", dest="nodeurl")
-    parser.add_option("-r", "--dir-cap", dest="rooturi")
-
-    (options, args) = parser.parse_args()
-
-    NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
-    if not isinstance(options.nodeurl, basestring) or not NODEURL_RE.match(options.nodeurl):
-        raise ValueError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (options.nodeurl,))
-
-    if not options.rooturi:
-        raise ValueError("must provide --dir-cap")
-
-    vdrive_fname = args[0]
-    local_file = None
-    if len(args) > 1:
-        local_file = args[1]
-
-    get(options.nodeurl, options.rooturi, vdrive_fname, local_file)
-
-if __name__ == '__main__':
-    main()

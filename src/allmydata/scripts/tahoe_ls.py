@@ -1,4 +1,3 @@
-#! /usr/bin/python
 
 import urllib
 import simplejson
@@ -27,29 +26,3 @@ def list(nodeurl, dir_uri, vdrive_pathname, stdout, stderr):
                 print >>stdout, "%10s %s" % (size, name)
     elif nodetype == "filenode":
         print >>stdout, "%10s %s" % (d['size'], vdrive_pathname)
-
-
-
-def main():
-    import optparse, re
-    parser = optparse.OptionParser()
-    parser.add_option("-u", "--node-url", dest="nodeurl")
-    parser.add_option("-r", "--dir-cap", dest="rooturi")
-
-    (options, args) = parser.parse_args()
-
-    NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
-    if not isinstance(options.nodeurl, basestring) or not NODEURL_RE.match(options.nodeurl):
-        raise ValueError("--node-url is required to be a string and look like \"http://HOSTNAMEORADDR:PORT\", not: %r" % (options.nodeurl,))
-
-    if not options.rooturi:
-        raise ValueError("must provide --dir-cap")
-
-    vdrive_pathname = ""
-    if args:
-        vdrive_pathname = args[0]
-
-    list(options.nodeurl, options.rooturi, vdrive_pathname)
-
-if __name__ == '__main__':
-    main()
