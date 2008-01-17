@@ -498,6 +498,9 @@ class EncryptAnUploadable:
         h = self._plaintext_hasher.digest()
         return defer.succeed(h)
 
+    def close(self):
+        return self.original.close()
+
 
 class CHKUploader:
     peer_selector_class = Tahoe2PeerSelector
@@ -687,6 +690,8 @@ class RemoteEncryptedUploadable(Referenceable):
         return d
     def remote_get_plaintext_hash(self):
         return self._eu.get_plaintext_hash()
+    def remote_close(self):
+        return self._eu.close()
 
 
 class AssistedUploader:

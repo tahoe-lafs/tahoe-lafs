@@ -295,7 +295,8 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
     def get_plaintext_hash(self):
         return self.call("get_plaintext_hash")
     def close(self):
-        # ??
+        self.f.close()
+        # ??. I'm not sure if it makes sense to forward the close message.
         return self.call("close")
 
 

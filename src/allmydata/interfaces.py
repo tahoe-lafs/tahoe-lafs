@@ -1282,6 +1282,9 @@ class RIEncryptedUploadable(RemoteInterface):
     def get_plaintext_hash():
         return Hash
 
+    def close():
+        return None
+
 
 class RICHKUploadHelper(RemoteInterface):
     __remote_name__ = "RIUploadHelper.tahoe.allmydata.com"

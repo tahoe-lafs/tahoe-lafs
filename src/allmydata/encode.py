@@ -448,12 +448,10 @@ class Encoder(object):
     def finish_hashing(self):
         crypttext_hash = self._crypttext_hasher.digest()
         self.uri_extension_data["crypttext_hash"] = crypttext_hash
-        u = self._uploadable
-        d = u.get_plaintext_hash()
+        d = self._uploadable.get_plaintext_hash()
         def _got(plaintext_hash):
             self.uri_extension_data["plaintext_hash"] = plaintext_hash
-            return u.get_plaintext_hashtree_leaves(0, self.num_segments,
-                                                   self.num_segments)
+            return self._uploadable.get_plaintext_hashtree_leaves(0, self.num_segments, self.num_segments)
         d.addCallback(_got)
         def _got_hashtree_leaves(leaves):
             self.log("Encoder: got plaintext_hashtree_leaves: %s" %
@@ -462,6 +460,8 @@ class Encoder(object):
             self.uri_extension_data["plaintext_root_hash"] = ht[0]
             self._plaintext_hashtree_nodes = ht
         d.addCallback(_got_hashtree_leaves)
+
+        d.addCallback(lambda res: self._uploadable.close())
         return d
 
     def send_plaintext_hash_tree_to_all_shareholders(self):
