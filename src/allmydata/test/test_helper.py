@@ -1,4 +1,5 @@
 
+import os
 from twisted.trial import unittest
 from twisted.application import service
 
@@ -6,7 +7,7 @@ from foolscap import Tub, eventual
 from foolscap.logging import log
 
 from allmydata import upload, offloaded
-from allmydata.util import hashutil
+from allmydata.util import hashutil, fileutil
 
 MiB = 1024*1024
 
@@ -61,10 +62,12 @@ class AssistedUpload(unittest.TestCase):
         # bogus host/port
         t.setLocation("bogus:1234")
 
-        self.helper = h = offloaded.Helper(".")
+    def setUpHelper(self, basedir):
+        fileutil.make_dirs(basedir)
+        self.helper = h = offloaded.Helper(basedir)
         h.chk_upload_helper_class = CHKUploadHelper_fake
         h.setServiceParent(self.s)
-        self.helper_furl = t.registerReference(h)
+        self.helper_furl = self.tub.registerReference(h)
 
     def tearDown(self):
         d = self.s.stopService()
@@ -74,6 +77,8 @@ class AssistedUpload(unittest.TestCase):
 
 
     def test_one(self):
+        self.basedir = "helper/AssistedUpload/test_one"
+        self.setUpHelper(self.basedir)
         u = upload.Uploader(self.helper_furl)
         u.setServiceParent(self.s)
 
@@ -92,10 +97,19 @@ class AssistedUpload(unittest.TestCase):
             assert "CHK" in uri
         d.addCallback(_uploaded)
 
+        def _check_empty(res):
+            files = os.listdir(os.path.join(self.basedir, "CHK_encoding"))
+            self.failUnlessEqual(files, [])
+            files = os.listdir(os.path.join(self.basedir, "CHK_incoming"))
+            self.failUnlessEqual(files, [])
+        d.addCallback(_check_empty)
+
         return d
 
 
     def test_already_uploaded(self):
+        self.basedir = "helper/AssistedUpload/test_already_uploaded"
+        self.setUpHelper(self.basedir)
         self.helper.chk_upload_helper_class = CHKUploadHelper_already_uploaded
         u = upload.Uploader(self.helper_furl)
         u.setServiceParent(self.s)
@@ -114,5 +128,12 @@ class AssistedUpload(unittest.TestCase):
         def _uploaded(uri):
             assert "CHK" in uri
         d.addCallback(_uploaded)
+
+        def _check_empty(res):
+            files = os.listdir(os.path.join(self.basedir, "CHK_encoding"))
+            self.failUnlessEqual(files, [])
+            files = os.listdir(os.path.join(self.basedir, "CHK_incoming"))
+            self.failUnlessEqual(files, [])
+        d.addCallback(_check_empty)
 
         return d
