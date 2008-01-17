@@ -787,10 +787,12 @@ class AssistedUploader:
         return u.to_string()
 
 class NoParameterPreferencesMixin:
+    max_segment_size = None
+    encoding_parameters = None
     def get_maximum_segment_size(self):
-        return defer.succeed(None)
+        return defer.succeed(self.max_segment_size)
     def get_encoding_parameters(self):
-        return defer.succeed(None)
+        return defer.succeed(self.encoding_parameters)
 
 class ConvergentUploadMixin:
     # to use this, the class it is mixed in to must have a seekable
