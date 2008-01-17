@@ -239,21 +239,6 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         d.addCallback(_got_data)
         return d
 
-    def call(self, *args, **kwargs):
-        if not self._readers:
-            raise NotEnoughWritersError("ran out of assisted uploaders")
-        rr = self._readers[0]
-        d = rr.callRemote(*args, **kwargs)
-        def _err(f):
-            if rr in self._readers:
-                self._readers.remove(rr)
-            self._upload_helper.log("call to assisted uploader %s failed" % rr,
-                                    failure=f, level=log.UNUSUAL)
-            # we can try again with someone else who's left
-            return self.call(*args, **kwargs)
-        d.addErrback(_err)
-        return d
-
     def _done(self, res):
         self._f.close()
         self._f = None
@@ -310,42 +295,6 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
         # ??
         return self.call("close")
 
-
-class CiphertextReader:
-    implements(interfaces.IEncryptedUploadable)
-
-    def __init__(self, storage_index, upload_helper):
-        self._readers = []
-        self.storage_index = storage_index
-        self._offset = 0
-        self._upload_helper = upload_helper
-
-    def add_reader(self, reader):
-        # for now, we stick to the first uploader
-        self._readers.append(reader)
-
-    def get_size(self):
-        return self.call("get_size")
-    def get_all_encoding_parameters(self):
-        return self.call("get_all_encoding_parameters")
-    def get_storage_index(self):
-        return defer.succeed(self.storage_index)
-
-    def read_encrypted(self, length):
-        d = self.call("read_encrypted", self._offset, length)
-        def _done(strings):
-            self._offset += sum([len(data) for data in strings])
-            return strings
-        d.addCallback(_done)
-        return d
-    def get_plaintext_hashtree_leaves(self, first, last, num_segments):
-        return self.call("get_plaintext_hashtree_leaves", first, last,
-                         num_segments)
-    def get_plaintext_hash(self):
-        return self.call("get_plaintext_hash")
-    def close(self):
-        # ??
-        return self.call("close")
 
 
 class Helper(Referenceable, service.MultiService):
