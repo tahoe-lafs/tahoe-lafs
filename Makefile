@@ -418,7 +418,7 @@ deb-gutsy-head:
 	fakeroot debian/rules binary
 
 # These targets provide for windows native builds
-.PHONY: hatch-eggs windows-exe windows-installer
+.PHONY: hatch-eggs windows-exe windows-installer windows-installer-upload
 
 hatch-eggs:
 	$(PP) $(PYTHON) misc/hatch-eggs.py
@@ -429,4 +429,9 @@ windows-exe: hatch-eggs
 windows-installer: windows-exe
 	$(PP) $(PYTHON) misc/sub-ver.py windows/installer.tmpl >windows/installer.iss
 	cd windows && "$(INNOSETUP)" /cc installer.iss
+
+windows-installer-upload:
+	chmod -R o+rx windows/dist/installer
+	rsync -av -e /usr/bin/ssh windows/dist/installer/ amduser@dev:/home/amduser/public_html/dist/tahoe/windows/
+
 
