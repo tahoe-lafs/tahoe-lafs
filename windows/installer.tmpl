@@ -24,6 +24,7 @@ OutputBaseFilename=Allmydata_Tahoe_Setup_v%(major)d_%(minor)d_%(point)d_%(nano)d
 ; contents of 'binaries' dir. (consolidated build target)
 Source: "*.*"; DestDir: "{app}\Install"; Flags: restartreplace replacesameversion uninsrestartdelete
 Source: ".\web\*.*"; DestDir: "{app}\Install\web"; Flags: recursesubdirs
+Source: ".\winfuse\*.*"; DestDir: "{app}\Install\winfuse"; Flags: recursesubdirs
 
 [Dirs]
 Name: "{app}\noderoot"
@@ -35,14 +36,17 @@ Name: "{group}\Allmydata Help"; Filename: "http://www.allmydata.com/help.php"
 
 [Run]
 ; Things performed before the final page of the installer
-Filename: "{app}\Install\tahoesvc.exe"; Parameters: "-install"; Flags: runhidden
-Filename: "{app}\Install\tahoe.exe"; Parameters: "create-client ""{app}\noderoot"""; Description: "Set the node into debug logging mode"; Flags: runhidden
+Filename: "{app}\Install\tahoesvc.exe"; Parameters: "-install -auto"; Flags: runhidden
+Filename: "{app}\Install\tahoe.exe"; Parameters: "create-client ""{app}\noderoot"""; Flags: runhidden
+Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: """{app}\Install\winfuse\WinFUSE.exe"""; Flags: runhidden
 Filename: "{app}\Install\confwiz.exe"; Flags: hidewizard
 ;Filename: "{app}\Install\ReadMe.txt"; Description: "View the ReadMe file"; Flags: unchecked postinstall nowait shellexec skipifdoesntexist
 
 [UninstallRun]
 ; Performed before the uninstaller runs to undo things
+Filename: "{sys}\net.exe"; Parameters: "stop ""Allmydata Tahoe SMB"""; Flags: runhidden
 Filename: "{sys}\net.exe"; Parameters: "stop Tahoe"; Flags: runhidden
+Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: "/uninstall ""{app}\Install\winfuse\WinFUSE.exe"""; Flags: runhidden
 Filename: "{app}\Install\tahoesvc.exe"; Parameters: "-remove"; Flags: runhidden
 ;Filename: "http://www.allmydata.com/redirect/uninstallsurvey.php?build=%(build)s"; Flags: shellexec
 

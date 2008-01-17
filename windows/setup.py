@@ -59,6 +59,7 @@ setup_args = {
         ('.', [
         ],),
         ('web', glob.glob('../src/allmydata/web/*')),
+        ('winfuse', glob.glob('./winfuse/*')),
     ],
     'zipfile' : 'library.zip',
     'options': {

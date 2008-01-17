@@ -1,7 +1,8 @@
 
 BACKEND_URL = 'https://www-test.allmydata.com/native_client2.php'
 REGISTER_PAGE = 'https://www-test.allmydata.com/register'
-WINSVC_NAME = 'Tahoe'
+TAHOESVC_NAME = 'Tahoe'
+WINFUSESVC_NAME = 'Allmydata Tahoe SMB'
 
 import os
 import sys
@@ -173,16 +174,20 @@ class LoginPanel(wx.Panel):
 
         # start service etc.
         if sys.platform == 'win32':
-            try:
-                import win32service
-                import win32serviceutil as wsu
-                if wsu.QueryServiceStatus(WINSVC_NAME)[1] != win32service.SERVICE_RUNNING:
-                    wsu.StartService(WINSVC_NAME)
-            except:
-                DisplayTraceback('Failed to start windows service')
+            self.start_windows_service(TAHOESVC_NAME)
+            self.start_windows_service(WINFUSESVC_NAME)
 
         # exit
         self.parent.parent.Close()
+
+    def start_windows_service(self, svc_name):
+        try:
+            import win32service
+            import win32serviceutil as wsu
+            if wsu.QueryServiceStatus(svc_name)[1] != win32service.SERVICE_RUNNING:
+                wsu.StartService(svc_name)
+        except:
+            DisplayTraceback('Failed to start windows service "%s"' % (svc_name,))
 
 class RegisterPanel(wx.Panel):
     def __init__(self, parent):
