@@ -1,13 +1,12 @@
 
 import os, random
 from zope.interface import implements
-from twisted.python import log
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer, IConsumer
 from twisted.application import service
 from foolscap.eventual import eventually
 
-from allmydata.util import idlib, mathutil, hashutil
+from allmydata.util import idlib, mathutil, hashutil, log
 from allmydata.util.assertutil import _assert
 from allmydata import codec, hashtree, storage, uri
 from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI
@@ -29,7 +28,7 @@ class DownloadStopped(Exception):
     pass
 
 class Output:
-    def __init__(self, downloadable, key, total_length):
+    def __init__(self, downloadable, key, total_length, log_parent):
         self.downloadable = downloadable
         self._decryptor = AES(key)
         self._crypttext_hasher = hashutil.crypttext_hasher()
@@ -40,6 +39,14 @@ class Output:
         self._plaintext_hash_tree = None
         self._crypttext_hash_tree = None
         self._opened = False
+        self._log_parent = log_parent
+
+    def log(self, *args, **kwargs):
+        if "parent" not in kwargs:
+            kwargs["parent"] = self._log_parent
+        if "facility" not in kwargs:
+            kwargs["facility"] = "download.output"
+        return log.msg(*args, **kwargs)
 
     def setup_hashtrees(self, plaintext_hashtree, crypttext_hashtree):
         self._plaintext_hash_tree = plaintext_hashtree
@@ -56,6 +63,10 @@ class Output:
             ch = hashutil.crypttext_segment_hasher()
             ch.update(crypttext)
             crypttext_leaves = {self._segment_number: ch.digest()}
+            self.log(format="crypttext leaf hash (%(bytes)sB) [%(segnum)d] is %(hash)s",
+                     bytes=len(crypttext),
+                     segnum=self._segment_number, hash=idlib.b2a(ch.digest()),
+                     level=log.NOISY)
             self._crypttext_hash_tree.set_hashes(leaves=crypttext_leaves)
 
         plaintext = self._decryptor.process(crypttext)
@@ -68,6 +79,10 @@ class Output:
             ph = hashutil.plaintext_segment_hasher()
             ph.update(plaintext)
             plaintext_leaves = {self._segment_number: ph.digest()}
+            self.log(format="plaintext leaf hash (%(bytes)sB) [%(segnum)d] is %(hash)s",
+                     bytes=len(plaintext),
+                     segnum=self._segment_number, hash=idlib.b2a(ph.digest()),
+                     level=log.NOISY)
             self._plaintext_hash_tree.set_hashes(leaves=plaintext_leaves)
 
         self._segment_number += 1
@@ -79,12 +94,14 @@ class Output:
         self.downloadable.write(plaintext)
 
     def fail(self, why):
-        log.msg("UNUSUAL: download failed: %s" % why)
+        # this is really unusual, and deserves maximum forensics
+        self.log("download failed!", failure=why, level=log.SCARY)
         self.downloadable.fail(why)
 
     def close(self):
         self.crypttext_hash = self._crypttext_hasher.digest()
         self.plaintext_hash = self._plaintext_hasher.digest()
+        self.log("download finished, closing IDownloadable", level=log.NOISY)
         self.downloadable.close()
 
     def finish(self):
@@ -322,7 +339,7 @@ class FileDownloader:
         if IConsumer.providedBy(downloadable):
             downloadable.registerProducer(self, True)
         self._downloadable = downloadable
-        self._output = Output(downloadable, u.key, self._size)
+        self._output = Output(downloadable, u.key, self._size, self._log_number)
         self._paused = False
         self._stopped = False
 
@@ -342,15 +359,16 @@ class FileDownloader:
 
     def init_logging(self):
         self._log_prefix = prefix = idlib.b2a(self._storage_index)[:6]
-        num = self._client.log("FileDownloader(%s): starting" % prefix)
+        num = self._client.log(format="FileDownloader(%(si)s): starting",
+                               si=idlib.b2a(self._storage_index))
         self._log_number = num
 
-    def log(self, msg, parent=None):
-        if parent is None:
-            parent = self._log_number
-        return self._client.log("FileDownloader(%s): %s" % (self._log_prefix,
-                                                            msg),
-                                parent=parent)
+    def log(self, *args, **kwargs):
+        if "parent" not in kwargs:
+            kwargs["parent"] = self._log_number
+        if "facility" not in kwargs:
+            kwargs["facility"] = "tahoe.download"
+        return log.msg(*args, **kwargs)
 
     def pauseProducing(self):
         if self._paused:

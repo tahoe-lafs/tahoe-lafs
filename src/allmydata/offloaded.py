@@ -32,7 +32,8 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
                          parent=log_number)
 
         self._client = helper.parent
-        self._fetcher = CHKCiphertextFetcher(self, incoming_file, encoding_file)
+        self._fetcher = CHKCiphertextFetcher(self, incoming_file, encoding_file,
+                                             self._log_number)
         self._reader = LocalCiphertextReader(self, storage_index, encoding_file)
         self._finished_observers = observer.OneShotObserverList()
 
@@ -102,16 +103,18 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
 
 class AskUntilSuccessMixin:
     # create me with a _reader array
+    _last_failure = None
 
     def add_reader(self, reader):
         self._readers.append(reader)
 
     def call(self, *args, **kwargs):
         if not self._readers:
-            raise NotEnoughWritersError("ran out of assisted uploaders")
+            raise NotEnoughWritersError("ran out of assisted uploaders, last failure was %s" % self._last_failure)
         rr = self._readers[0]
         d = rr.callRemote(*args, **kwargs)
         def _err(f):
+            self._last_failure = f
             if rr in self._readers:
                 self._readers.remove(rr)
             self._upload_helper.log("call to assisted uploader %s failed" % rr,
@@ -135,14 +138,22 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
     the ciphertext to 'encoded_file'.
     """
 
-    def __init__(self, helper, incoming_file, encoded_file):
+    def __init__(self, helper, incoming_file, encoded_file, logparent):
         self._upload_helper = helper
         self._incoming_file = incoming_file
         self._encoding_file = encoded_file
+        self._log_parent = logparent
         self._done_observers = observer.OneShotObserverList()
         self._readers = []
         self._started = False
         self._f = None
+
+    def log(self, *args, **kwargs):
+        if "facility" not in kwargs:
+            kwargs["facility"] = "tahoe.helper.chkupload.fetch"
+        if "parent" not in kwargs:
+            kwargs["parent"] = self._log_parent
+        return log.msg(*args, **kwargs)
 
     def add_reader(self, reader):
         AskUntilSuccessMixin.add_reader(self, reader)
@@ -161,12 +172,14 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         d.addErrback(self._failed)
 
     def _got_size(self, size):
+        self.log("total size is %d bytes" % size, level=log.NOISY)
         self._expected_size = size
 
     def _start_reading(self, res):
         # then find out how much crypttext we have on disk
         if os.path.exists(self._incoming_file):
             self._have = os.stat(self._incoming_file)[stat.ST_SIZE]
+            self.log("we already have %d bytes" % self._have, level=log.NOISY)
         else:
             self._have = 0
         self._f = open(self._incoming_file, "wb")
@@ -200,10 +213,12 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         d = defer.maybeDeferred(self._fetch)
         def _done(finished):
             if finished:
+                self.log("finished reading ciphertext", level=log.NOISY)
                 fire_when_done.callback(None)
             else:
                 self._loop(fire_when_done)
         def _err(f):
+            self.log("ciphertext read failed", failure=f, level=log.UNUSUAL)
             fire_when_done.errback(f)
         d.addCallbacks(_done, _err)
         return None
@@ -213,6 +228,8 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         fetch_size = min(needed, self.CHUNK_SIZE)
         if fetch_size == 0:
             return True # all done
+        self.log("fetching %d-%d" % (self._have, self._have+fetch_size),
+                 level=log.NOISY)
         d = self.call("read_encrypted", self._have, fetch_size)
         def _got_data(ciphertext_v):
             for data in ciphertext_v:
@@ -241,6 +258,9 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         self._f.close()
         self._f = None
         self._readers = []
+        self.log(format="done fetching ciphertext, size=%(size)d",
+                 size=os.stat(self._incoming_file)[stat.ST_SIZE],
+                 level=log.NOISY)
         os.rename(self._incoming_file, self._encoding_file)
         self._done_observers.fire(None)
 

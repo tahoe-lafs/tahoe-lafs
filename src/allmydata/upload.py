@@ -340,6 +340,11 @@ class EncryptAnUploadable:
         self._encoding_parameters = None
         self._file_size = None
 
+    def log(self, *args, **kwargs):
+        if "facility" not in kwargs:
+            kwargs["facility"] = "upload.encryption"
+        return log.msg(*args, **kwargs)
+
     def get_size(self):
         if self._file_size is not None:
             return defer.succeed(self._file_size)
@@ -381,6 +386,8 @@ class EncryptAnUploadable:
             segsize = mathutil.next_multiple(segsize, k)
             self._segment_size = segsize # used by segment hashers
             self._encoding_parameters = (k, happy, n, segsize)
+            self.log("my encoding parameters: %s" %
+                     (self._encoding_parameters,), level=log.NOISY)
             return self._encoding_parameters
         d.addCallback(_got_pieces)
         return d
@@ -433,6 +440,14 @@ class EncryptAnUploadable:
                 # we've filled this segment
                 self._plaintext_segment_hashes.append(p.digest())
                 self._plaintext_segment_hasher = None
+                self.log("closed hash [%d]: %dB" %
+                         (len(self._plaintext_segment_hashes)-1,
+                          self._plaintext_segment_hashed_bytes),
+                         level=log.NOISY)
+                self.log(format="plaintext leaf hash [%(segnum)d] is %(hash)s",
+                         segnum=len(self._plaintext_segment_hashes)-1,
+                         hash=idlib.b2a(p.digest()),
+                         level=log.NOISY)
 
             offset += this_segment
 
@@ -452,6 +467,8 @@ class EncryptAnUploadable:
             # memory: each chunk is destroyed as soon as we're done with it.
             while data:
                 chunk = data.pop(0)
+                log.msg(" read_encrypted handling %dB-sized chunk" % len(chunk),
+                        level=log.NOISY)
                 self._plaintext_hasher.update(chunk)
                 self._update_segment_hash(chunk)
                 cryptdata.append(self._encryptor.process(chunk))
@@ -467,6 +484,13 @@ class EncryptAnUploadable:
             p, segment_left = self._get_segment_hasher()
             self._plaintext_segment_hashes.append(p.digest())
             del self._plaintext_segment_hasher
+            self.log("closing plaintext leaf hasher, hashed %d bytes" %
+                     self._plaintext_segment_hashed_bytes,
+                     level=log.NOISY)
+            self.log(format="plaintext leaf hash [%(segnum)d] is %(hash)s",
+                     segnum=len(self._plaintext_segment_hashes)-1,
+                     hash=idlib.b2a(p.digest()),
+                     level=log.NOISY)
         assert len(self._plaintext_segment_hashes) == num_segments
         return defer.succeed(tuple(self._plaintext_segment_hashes[first:last]))
 
@@ -522,7 +546,7 @@ class CHKUploader:
     def start_encrypted(self, encrypted):
         eu = IEncryptedUploadable(encrypted)
 
-        self._encoder = e = encode.Encoder(self)
+        self._encoder = e = encode.Encoder(self._log_number)
         d = e.set_encrypted_uploadable(eu)
         d.addCallback(self.locate_all_shareholders)
         d.addCallback(self.set_shareholders, e)
@@ -637,6 +661,9 @@ class RemoteEncryptedUploadable(Referenceable):
         d.addCallback(_read)
         return d
     def remote_get_plaintext_hashtree_leaves(self, first, last, num_segments):
+        log.msg("remote_get_plaintext_hashtree_leaves: %d-%d of %d" %
+                (first, last-1, num_segments),
+                level=log.NOISY)
         d = self._eu.get_plaintext_hashtree_leaves(first, last, num_segments)
         d.addCallback(list)
         return d

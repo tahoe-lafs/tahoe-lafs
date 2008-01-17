@@ -6,7 +6,7 @@ from foolscap import eventual
 from allmydata import uri
 from allmydata.hashtree import HashTree
 from allmydata.util import mathutil, hashutil, idlib, log
-from allmydata.util.assertutil import _assert
+from allmydata.util.assertutil import _assert, precondition
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder, IStorageBucketWriter, \
      IEncryptedUploadable
@@ -73,13 +73,14 @@ PiB=1024*TiB
 class Encoder(object):
     implements(IEncoder)
 
-    def __init__(self, parent=None):
+    def __init__(self, log_parent=None):
         object.__init__(self)
         self.uri_extension_data = {}
         self._codec = None
-        self._parent = parent
-        if self._parent:
-            self._log_number = self._parent.log("creating Encoder %s" % self)
+        precondition(log_parent is None or isinstance(log_parent, int),
+                     log_parent)
+        self._log_number = log.msg("creating Encoder %s" % self,
+                                   facility="tahoe.encoder", parent=log_parent)
         self._aborted = False
 
     def __repr__(self):
@@ -88,16 +89,17 @@ class Encoder(object):
         return "<Encoder for unknown storage index>"
 
     def log(self, *args, **kwargs):
-        if not self._parent:
-            return
         if "parent" not in kwargs:
             kwargs["parent"] = self._log_number
-        return self._parent.log(*args, **kwargs)
+        if "facility" not in kwargs:
+            kwargs["facility"] = "tahoe.encoder"
+        return log.msg(*args, **kwargs)
 
     def set_encrypted_uploadable(self, uploadable):
         eu = self._uploadable = IEncryptedUploadable(uploadable)
         d = eu.get_size()
         def _got_size(size):
+            self.log(format="file size: %(size)d", size=size)
             self.file_size = size
         d.addCallback(_got_size)
         d.addCallback(lambda res: eu.get_all_encoding_parameters())
@@ -193,8 +195,7 @@ class Encoder(object):
         self.landlords = landlords.copy()
 
     def start(self):
-        if self._parent:
-            self._log_number = self._parent.log("%s starting" % (self,))
+        self.log("%s starting" % (self,))
         #paddedsize = self._size + mathutil.pad_size(self._size, self.needed_shares)
         assert self._codec
         self._crypttext_hasher = hashutil.crypttext_hasher()
@@ -455,6 +456,8 @@ class Encoder(object):
                                                    self.num_segments)
         d.addCallback(_got)
         def _got_hashtree_leaves(leaves):
+            self.log("Encoder: got plaintext_hashtree_leaves: %s" %
+                     (",".join([idlib.b2a(h) for h in leaves]),))
             ht = list(HashTree(list(leaves)))
             self.uri_extension_data["plaintext_root_hash"] = ht[0]
             self._plaintext_hashtree_nodes = ht
