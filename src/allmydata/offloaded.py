@@ -182,7 +182,9 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
             self.log("we already have %d bytes" % self._have, level=log.NOISY)
         else:
             self._have = 0
-        self._f = open(self._incoming_file, "wb")
+            self.log("we do not have any ciphertext yet", level=log.NOISY)
+        self.log("starting ciphertext fetch", level=log.NOISY)
+        self._f = open(self._incoming_file, "ab")
 
         # now loop to pull the data from the readers
         d = defer.Deferred()
