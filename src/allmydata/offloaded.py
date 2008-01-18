@@ -92,6 +92,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
     def _finished(self, res):
         (uri_extension_hash, needed_shares, total_shares, size) = res
         upload_results = {'uri_extension_hash': uri_extension_hash}
+        self._reader.close()
         os.unlink(self._encoding_file)
         self._finished_observers.fire(upload_results)
         self._helper.upload_finished(self._storage_index)
