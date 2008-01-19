@@ -34,7 +34,7 @@ Wishlist:
 #import bindann
 #bindann.install_exception_handler()
 
-import sys, stat, os, errno, urllib
+import sys, stat, os, errno, urllib, time
 
 try:
     import simplejson
@@ -75,18 +75,30 @@ def main(args = sys.argv[1:]):
     fs.main()
 
 
-### Utilities just for debug:
+### Utilities for debug:
+_logfile = None
+def log(msg, *args):
+    global _logfile
+    if _logfile is None:
+        confdir = os.path.expanduser(TahoeConfigDir)
+        path = os.path.join(confdir, 'logs', 'tahoe_fuse.log')
+        _logfile = open(path, 'a')
+        _logfile.write('Log opened at: %s\n' % (time.strftime('%Y-%m-%d %H:%M:%S'),))
+    _logfile.write((msg % args) + '\n')
+    _logfile.flush()
+    
+    
 def debugdeco(m):
     def dbmeth(self, *a, **kw):
         pid = self.GetContext()['pid']
-        print '[%d %r]\n%s%r%r' % (pid, get_cmdline(pid), m.__name__, a, kw)
+        log('[%d %r]\n%s%r%r', pid, get_cmdline(pid), m.__name__, a, kw)
         try:
             r = m(self, *a, **kw)
             if (type(r) is int) and (r < 0):
-                print '-> -%s\n' % (errno.errorcode[-r],)
+                log('-> -%s\n', errno.errorcode[-r],)
             else:
                 repstr = repr(r)[:256]
-                print '-> %s\n' % (repstr,)
+                log('-> %s\n', repstr)
             return r
         except:
             sys.excepthook(*sys.exc_info())
@@ -121,6 +133,7 @@ class ErrnoExc (Exception):
 ### Heart of the Matter:
 class TahoeFS (fuse.Fuse):
     def __init__(self, confdir):
+        log('Initializing with confdir = %r', confdir)
         fuse.Fuse.__init__(self)
         self.confdir = confdir
         
@@ -235,7 +248,7 @@ class TahoeFS (fuse.Fuse):
                 if flag & IgnoredFlags:
                     continue
                 elif mode & flag:
-                    print 'Flag not supported:', fname
+                    log('Flag not supported: %s', fname)
                     raise ErrnoExc(errno.ENOSYS)
 
         self._get_contents(path)
@@ -346,7 +359,7 @@ class TahoeNode (object):
         
     def open(self, postfix=''):
         url = self.fullurl + postfix
-        print '*** Fetching:', `url`
+        log('*** Fetching: %r', url)
         return urllib.urlopen(url)
 
 
