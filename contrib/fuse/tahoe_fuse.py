@@ -384,7 +384,6 @@ class TahoeFile (TahoeNode):
             return rawsize
     
     def resolve_path(self, path):
-        assert type(path) is list
         assert path == []
         return self
     
