@@ -6,6 +6,13 @@ Note: The API design of the python-fuse library makes unit testing much
 of tahoe-fuse.py tricky business.
 '''
 
+# FIXME: This framework might be replaceable with twisted.trial,
+# especially the "layer" design, which is a bit cumbersome when
+# using recursion to manage multiple clients.
+
+# FIXME: Identify all race conditions (hint: starting clients, versus
+# using the grid fs).
+
 import sys, os, shutil, unittest, subprocess
 import tempfile, re, time, signal, random, httplib
 
@@ -222,6 +229,9 @@ class SystemTest (object):
         self.mount_fuse_layer()
         
     def mount_fuse_layer(self):
+        # FIXME - tahoe_fuse.py: This probably currently fails because
+        # tahoe_fuse looks in ~/.tahoe.
+        
         print 'Mounting fuse interface.'
         self.mountpoint = tempfile.mkdtemp(prefix='tahoe_fuse_mp_')
         try:
