@@ -6,7 +6,7 @@ Note: The API design of the python-fuse library makes unit testing much
 of tahoe-fuse.py tricky business.
 '''
 
-import sys, os, shutil, unittest, subprocess, tempfile, re, time
+import sys, os, shutil, unittest, subprocess, tempfile, re, time, signal
 
 import tahoe_fuse
 
@@ -48,6 +48,7 @@ class SystemTest (object):
         self.cliexec = None
         self.introbase = None
         self.clientbase = None
+        self.mountpoint = None
 
     ## Top-level flow control:
     # These "*_layer" methods call eachother in a linear fashion, using
@@ -181,8 +182,25 @@ class SystemTest (object):
                 print 'Ignoring cleanup exception: %r' % (e,)
         
     def mount_fuse_layer(self):
-        # XXX not implemented.
-        pass
+        print 'Mounting fuse interface.'
+        self.mountpoint = tempfile.mkdtemp(prefix='tahoe_fuse_mp_')
+        try:
+            thispath = os.path.abspath(sys.argv[0])
+            thisdir = os.path.dirname(thispath)
+            fusescript = os.path.join(thisdir, 'tahoe_fuse.py')
+            try:
+                proc = subprocess.Popen([fusescript, self.mountpoint, '-f'])
+                # FIXME: Verify the mount somehow?
+                # FIXME: Now do tests!
+            finally:
+                if proc.poll() is None:
+                    print 'Killing fuse interface.'
+                    os.kill(proc.pid, signal.SIGTERM)
+                    print 'Waiting for the fuse interface to exit.'
+                    proc.wait()
+        finally:
+            self.cleanup_dir(self.mountpoint)
+            
         
 
     # Utilities:
