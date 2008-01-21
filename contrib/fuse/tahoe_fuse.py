@@ -68,10 +68,20 @@ MagicDevNumber = 42
 UnknownSize = -1
 
 
-def main(args = sys.argv[1:]):
-    if not args:
-        raise SystemExit("Usage: %s MOUNTPOINT\n\nThe argument MOUNTPOINT is an empty directory where you want to mount a tahoe filesystem.\n" % (sys.argv[0],))
-    fs = TahoeFS(os.path.expanduser(TahoeConfigDir))
+def main():
+    basedir = os.path.expanduser(TahoeConfigDir)
+
+    for i, arg in enumerate(sys.argv):
+        if arg == '--basedir':
+            try:
+                basedir = sys.argv[i+1]
+                sys.argv[i:i+2] = []
+            except IndexError:
+                sys.argv = [sys.argv[0], '--help']
+                
+    print 'DEBUG:', sys.argv
+            
+    fs = TahoeFS(basedir)
     fs.main()
 
 

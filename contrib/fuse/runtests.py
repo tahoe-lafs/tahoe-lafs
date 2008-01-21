@@ -229,17 +229,19 @@ class SystemTest (object):
         self.mount_fuse_layer()
         
     def mount_fuse_layer(self):
-        # FIXME - tahoe_fuse.py: This probably currently fails because
-        # tahoe_fuse looks in ~/.tahoe.
-        
         print 'Mounting fuse interface.'
+        client = self.get_interface_client()
+
         self.mountpoint = tempfile.mkdtemp(prefix='tahoe_fuse_mp_')
         try:
             thispath = os.path.abspath(sys.argv[0])
             thisdir = os.path.dirname(thispath)
             fusescript = os.path.join(thisdir, 'tahoe_fuse.py')
             try:
-                proc = subprocess.Popen([fusescript, self.mountpoint, '-f'])
+                proc = subprocess.Popen([fusescript,
+                                         self.mountpoint,
+                                         '-f',
+                                         '--basedir', client.base])
                 # FIXME: Verify the mount somehow?
 
                 self.run_test_layer()
