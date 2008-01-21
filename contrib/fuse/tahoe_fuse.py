@@ -88,7 +88,7 @@ def log(msg, *args):
     _logfile.flush()
     
     
-def debugdeco(m):
+def trace_calls(m):
     def dbmeth(self, *a, **kw):
         pid = self.GetContext()['pid']
         log('[%d %r]\n%s%r%r', pid, get_cmdline(pid), m.__name__, a, kw)
@@ -114,17 +114,17 @@ def get_cmdline(pid):
     return args[:-1]
 
 
-class ErrnoExc (Exception):
+class SystemError (Exception):
     def __init__(self, eno):
         self.eno = eno
         Exception.__init__(self, errno.errorcode[eno])
 
     @staticmethod
-    def wrapped(meth):
+    def wrap_returns(meth):
         def wrapper(*args, **kw):
             try:
                 return meth(*args, **kw)
-            except ErrnoExc, e:
+            except SystemError, e:
                 return -e.eno
         wrapper.__name__ = meth.__name__
         return wrapper
@@ -187,14 +187,14 @@ class TahoeFS (fuse.Fuse):
         self.filecontents[path] = contents
         return contents
     
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def getattr(self, path):
         node = self._get_node(path)
         return node.getattr()
                 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def getdir(self, path):
         """
         return: [(name, typeflag), ... ]
@@ -202,43 +202,43 @@ class TahoeFS (fuse.Fuse):
         node = self._get_node(path)
         return node.getdir()
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def mythread(self):
         return -errno.ENOSYS
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def chmod(self, path, mode):
         return -errno.ENOSYS
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def chown(self, path, uid, gid):
         return -errno.ENOSYS
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def fsync(self, path, isFsyncFile):
         return -errno.ENOSYS
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def link(self, target, link):
         return -errno.ENOSYS
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def mkdir(self, path, mode):
         return -errno.ENOSYS
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def mknod(self, path, mode, dev_ignored):
         return -errno.ENOSYS
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def open(self, path, mode):
         IgnoredFlags = os.O_RDONLY | os.O_NONBLOCK | os.O_SYNC | os.O_LARGEFILE 
         # Note: IgnoredFlags are all ignored!
@@ -249,59 +249,59 @@ class TahoeFS (fuse.Fuse):
                     continue
                 elif mode & flag:
                     log('Flag not supported: %s', fname)
-                    raise ErrnoExc(errno.ENOSYS)
+                    raise SystemError(errno.ENOSYS)
 
         self._get_contents(path)
         return 0
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def read(self, path, length, offset):
         return self._get_contents(path)[offset:length]
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def release(self, path):
         del self.filecontents[path]
         return 0
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def readlink(self, path):
         return -errno.ENOSYS
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def rename(self, oldpath, newpath):
         return -errno.ENOSYS
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def rmdir(self, path):
         return -errno.ENOSYS
 
-    #@debugdeco
-    @ErrnoExc.wrapped
+    #@trace_calls
+    @SystemError.wrap_returns
     def statfs(self):
         return -errno.ENOSYS
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def symlink ( self, targetPath, linkPath ):
         return -errno.ENOSYS
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def truncate(self, path, size):
         return -errno.ENOSYS
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def unlink(self, path):
         return -errno.ENOSYS
 
-    @debugdeco
-    @ErrnoExc.wrapped
+    @trace_calls
+    @SystemError.wrap_returns
     def utime(self, path, times):
         return -errno.ENOSYS
 
