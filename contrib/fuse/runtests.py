@@ -6,7 +6,8 @@ Note: The API design of the python-fuse library makes unit testing much
 of tahoe-fuse.py tricky business.
 '''
 
-import sys, os, shutil, unittest, subprocess, tempfile, re, time, signal
+import sys, os, shutil, unittest, subprocess
+import tempfile, re, time, signal, random, httplib
 
 import tahoe_fuse
 
@@ -48,6 +49,7 @@ class SystemTest (object):
         self.cliexec = None
         self.introbase = None
         self.clientbase = None
+        self.clientport = None
         self.mountpoint = None
 
     ## Top-level flow control:
@@ -138,28 +140,19 @@ class SystemTest (object):
     def configure_client_layer(self):
         print 'Configuring client.'
 
+        self.clientport = random.randrange(1024, 2**15)
+
+        f = open(os.path.join(self.clientbase, 'webport'), 'w')
+        f.write('tcp:%d:interface=127.0.0.1\n' % self.clientport)
+        f.close()
+
         introfurl = os.path.join(self.introbase, 'introducer.furl')
 
         # FIXME: Is there a better way to handle this race condition?
-        timeout = 10.0 # Timeout seconds.
-        pollinterval = 0.2
-        totalattempts = int(timeout / pollinterval)
+        self.polling_operation(lambda : os.path.isfile(introfurl))
+        shutil.copy(introfurl, self.clientbase)
 
-        for attempts in range(totalattempts):
-            if os.path.isfile(introfurl):
-                tmpl = '(It took around %.2f seconds before introducer.furl was created.)'
-                print tmpl % ((attempts + 1) * pollinterval,)
-                shutil.copy(introfurl, self.clientbase)
-
-                self.launch_client_layer()
-                return # skip the timeout failure.
-
-            else:
-                time.sleep(pollinterval)
-
-        tmpl = 'Timeout after waiting for creation of introducer.furl.\n'
-        tmpl += 'Waited %.2f seconds (%d polls).'
-        raise self.SetupFailure(tmpl, timeout, totalattempts)
+        self.launch_client_layer()
 
     def launch_client_layer(self):
         print 'Launching client.'
@@ -170,7 +163,7 @@ class SystemTest (object):
             pat = r'^STARTING (.*?)\nclient node probably started\s*$'
             self.check_tahoe_output(output, pat, self.clientbase)
 
-            self.mount_fuse_layer()
+            self.create_test_dirnode_layer()
             
         finally:
             print 'Stopping client node.'
@@ -180,6 +173,30 @@ class SystemTest (object):
                 print 'Failed to stop client node.  Output:'
                 print output
                 print 'Ignoring cleanup exception: %r' % (e,)
+        
+    def create_test_dirnode_layer(self):
+        print 'Creating test dirnode.'
+        targeturl = 'http://127.0.0.1:%d/uri?t=mkdir' % (self.clientport,)
+
+        def make_dirnode():
+            conn = httplib.HTTPConnection('127.0.0.1', self.clientport)
+            conn.request('PUT', '/uri?t=mkdir')
+            resp = conn.getresponse()
+            if resp.status == '200':
+                return resp.read().strip()
+            else:
+                # FIXME: This output can be excessive!
+                print 'HTTP %s reponse while attempting to make node.' % resp.status
+                print resp.read()
+                return False # make another polling attempt...
+            
+        cap = self.polling_operation(make_dirnode)
+
+        f = open(os.path.join(self.clientbase, 'private', 'root_dir.cap'), 'w')
+        f.write(cap)
+        f.close()
+
+        self.mount_fuse_layer()
         
     def mount_fuse_layer(self):
         print 'Mounting fuse interface.'
@@ -191,7 +208,9 @@ class SystemTest (object):
             try:
                 proc = subprocess.Popen([fusescript, self.mountpoint, '-f'])
                 # FIXME: Verify the mount somehow?
-                # FIXME: Now do tests!
+
+                self.run_test_layer()
+                
             finally:
                 if proc.poll() is None:
                     print 'Killing fuse interface.'
@@ -201,6 +220,8 @@ class SystemTest (object):
         finally:
             self.cleanup_dir(self.mountpoint)
             
+    def run_test_layer(self):
+        raise NotImplementedError()
         
 
     # Utilities:
@@ -240,6 +261,45 @@ class SystemTest (object):
         except Exception, e:
             print 'Exception removing test directory: %r' % (path,)
             print 'Ignoring cleanup exception: %r' % (e,)
+
+    def polling_operation(self, operation, timeout = 10.0, pollinterval = 0.2):
+        totaltime = timeout # Fudging for edge-case SetupFailure description...
+        
+        totalattempts = int(timeout / pollinterval)
+
+        starttime = time.time()
+        for attempt in range(totalattempts):
+            opstart = time.time()
+
+            try:
+                result = operation()
+            except KeyboardInterrupt, e:
+                raise
+            except Exception, e:
+                result = False
+
+            totaltime = time.time() - starttime
+
+            if result is not False:
+                tmpl = '(Polling for this condition took over %.2f seconds.)'
+                print tmpl % (totaltime,)
+                return result
+
+            elif totaltime > timeout:
+                break
+            
+            else:
+                opdelay = time.time() - opstart
+                realinterval = max(0., pollinterval - opdelay)
+                
+                #tmpl = '(Poll attempt %d failed after %.2f seconds, sleeping %.2f seconds.)'
+                #print tmpl % (attempt+1, opdelay, realinterval)
+                time.sleep(realinterval)
+
+        tmpl = 'Timeout after waiting for creation of introducer.furl.\n'
+        tmpl += 'Waited %.2f seconds (%d polls).'
+        raise self.SetupFailure(tmpl, totaltime, attempt+1)
+
 
     # SystemTest Exceptions:
     class Failure (Exception):
