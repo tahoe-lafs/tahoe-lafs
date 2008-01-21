@@ -6,7 +6,7 @@ Note: The API design of the python-fuse library makes unit testing much
 of tahoe-fuse.py tricky business.
 '''
 
-import sys, os, shutil, unittest, subprocess, tempfile, re
+import sys, os, shutil, unittest, subprocess, tempfile, re, time
 
 import tahoe_fuse
 
@@ -132,7 +132,7 @@ class SystemTest (object):
             pat += r' please copy introducer.furl into the directory\s*$'
             self.check_tahoe_output(output, pat, self.clientbase)
 
-            self.launch_client_layer()
+            self.configure_client_layer()
             
         finally:
             print 'Removing client directory.'
@@ -142,6 +142,32 @@ class SystemTest (object):
                 print 'Exception removing test client directory: %r' % (self.clientbase,)
                 print 'Ignoring cleanup exception: %r' % (e,)
     
+    def configure_client_layer(self):
+        print 'Configuring client.'
+
+        introfurl = os.path.join(self.introbase, 'introducer.furl')
+
+        # FIXME: Is there a better way to handle this race condition?
+        timeout = 10.0 # Timeout seconds.
+        pollinterval = 0.2
+        totalattempts = int(timeout / pollinterval)
+
+        for attempts in range(totalattempts):
+            if os.path.isfile(introfurl):
+                tmpl = '(It took around %.2f seconds before introducer.furl was created.)'
+                print tmpl % ((attempts + 1) * pollinterval,)
+                shutil.copy(introfurl, self.clientbase)
+
+                self.launch_client_layer()
+                return # skip the timeout failure.
+
+            else:
+                time.sleep(pollinterval)
+
+        tmpl = 'Timeout after waiting for creation of introducer.furl.\n'
+        tmpl += 'Waited %.2f seconds (%d polls).'
+        raise self.SetupFailure(tmpl, timeout, totalattempts)
+
     def launch_client_layer(self):
         print 'Launching client.'
         # NOTE: We assume if tahoe exist with non-zero status, no separate
