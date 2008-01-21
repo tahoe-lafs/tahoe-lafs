@@ -212,11 +212,11 @@ class SystemTest (object):
             conn = httplib.HTTPConnection('127.0.0.1', client.port)
             conn.request('PUT', '/uri?t=mkdir')
             resp = conn.getresponse()
-            if resp.status == '200':
+            if resp.status == 200:
                 return resp.read().strip()
             else:
                 # FIXME: This output can be excessive!
-                print 'HTTP %s reponse while attempting to make node.' % resp.status
+                print 'HTTP %r reponse while attempting to make node.' % (resp.status,)
                 print resp.read()
                 return False # make another polling attempt...
             
