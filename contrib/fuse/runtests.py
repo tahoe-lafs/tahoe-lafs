@@ -314,7 +314,7 @@ class SystemTest (object):
             totaltime = time.time() - starttime
 
             if result is not False:
-                tmpl = '(Polling for this condition took over %.2f seconds.)'
+                tmpl = '(Polling took over %.2f seconds.)'
                 print tmpl % (totaltime,)
                 return result
 
