@@ -96,11 +96,7 @@ class SystemTest (object):
             
         finally:
             print 'Removing introducer directory.'
-            try:
-                shutil.rmtree(self.introbase)
-            except Exception, e:
-                print 'Exception removing test client directory: %r' % (self.introbase,)
-                print 'Ignoring cleanup exception: %r' % (e,)
+            self.cleanup_dir(self.introbase)
     
     def launch_introducer_layer(self):
         print 'Launching introducer.'
@@ -136,11 +132,7 @@ class SystemTest (object):
             
         finally:
             print 'Removing client directory.'
-            try:
-                shutil.rmtree(self.clientbase)
-            except Exception, e:
-                print 'Exception removing test client directory: %r' % (self.clientbase,)
-                print 'Ignoring cleanup exception: %r' % (e,)
+            self.cleanup_dir(self.clientbase)
     
     def configure_client_layer(self):
         print 'Configuring client.'
@@ -224,6 +216,12 @@ class SystemTest (object):
             tmpl += 'Actual directory: %r\n'
             raise self.SetupFailure(tmpl, expdir, m.group(1))
 
+    def cleanup_dir(self, path):
+        try:
+            shutil.rmtree(path)
+        except Exception, e:
+            print 'Exception removing test directory: %r' % (path,)
+            print 'Ignoring cleanup exception: %r' % (e,)
 
     # SystemTest Exceptions:
     class Failure (Exception):
