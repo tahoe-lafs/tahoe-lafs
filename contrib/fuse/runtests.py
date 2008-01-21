@@ -48,9 +48,15 @@ class SystemTest (object):
     def __init__(self):
         self.cliexec = None
         self.introbase = None
-        self.clientbase = None
-        self.clientport = None
         self.mountpoint = None
+
+        # We keep track of multiple clients for a full-fledged grid in
+        # clientsinfo (see SystemTest.ClientInfo).
+
+        # self.clientsinfo[0] is the client to which we attach fuse and
+        # make webapi calls (see SystemTest.get_interface_client).
+        
+        self.clientsinfo = []
 
     ## Top-level flow control:
     # These "*_layer" methods call eachother in a linear fashion, using
@@ -110,7 +116,7 @@ class SystemTest (object):
             pat = r'^STARTING (.*?)\nintroducer node probably started\s*$'
             self.check_tahoe_output(output, pat, self.introbase)
 
-            self.create_client_layer()
+            self.create_clients_layer()
             
         finally:
             print 'Stopping introducer node.'
@@ -121,54 +127,69 @@ class SystemTest (object):
                 print output
                 print 'Ignoring cleanup exception: %r' % (e,)
         
-    def create_client_layer(self):
-        print 'Creating client.'
-        self.clientbase = tempfile.mkdtemp(prefix='tahoe_fuse_test_',
-                                           suffix='_client')
+    TotalClientsNeeded = 3
+    def create_clients_layer(self, clientnum = 0):
+        if clientnum == self.TotalClientsNeeded:
+            self.launch_clients_layer()
+            return
+
+        tmpl = 'Creating client %d of %d.'
+        print tmpl % (clientnum + 1,
+                      self.TotalClientsNeeded)
+
+        assert len(self.clientsinfo) == clientnum, `clientnum`
+
+        client = self.ClientInfo(clientnum)
+        self.clientsinfo.append(client)
+
         try:
-            output = self.run_tahoe('create-client', '--basedir', self.clientbase)
+            output = self.run_tahoe('create-client', '--basedir', client.base)
             pat = r'^client created in (.*?)\n'
             pat += r' please copy introducer.furl into the directory\s*$'
-            self.check_tahoe_output(output, pat, self.clientbase)
+            self.check_tahoe_output(output, pat, client.base)
 
-            self.configure_client_layer()
+            client.port = random.randrange(1024, 2**15)
+
+            f = open(os.path.join(client.base, 'webport'), 'w')
+            f.write('tcp:%d:interface=127.0.0.1\n' % client.port)
+            f.close()
+
+            introfurl = os.path.join(self.introbase, 'introducer.furl')
+
+            # FIXME: Is there a better way to handle this race condition?
+            self.polling_operation(lambda : os.path.isfile(introfurl))
+            shutil.copy(introfurl, client.base)
+
+            self.create_clients_layer(clientnum+1)
             
         finally:
-            print 'Removing client directory.'
-            self.cleanup_dir(self.clientbase)
+            print 'Removing client %d base directory.' % (clientnum+1,)
+            self.cleanup_dir(client.base)
     
-    def configure_client_layer(self):
-        print 'Configuring client.'
+    def launch_clients_layer(self, clientnum = 0):
+        if clientnum == self.TotalClientsNeeded:
+            self.create_test_dirnode_layer()
+            return
 
-        self.clientport = random.randrange(1024, 2**15)
+        tmpl = 'Launching client %d of %d.'
+        print tmpl % (clientnum + 1,
+                      self.TotalClientsNeeded)
 
-        f = open(os.path.join(self.clientbase, 'webport'), 'w')
-        f.write('tcp:%d:interface=127.0.0.1\n' % self.clientport)
-        f.close()
+        client = self.clientsinfo[clientnum]
 
-        introfurl = os.path.join(self.introbase, 'introducer.furl')
-
-        # FIXME: Is there a better way to handle this race condition?
-        self.polling_operation(lambda : os.path.isfile(introfurl))
-        shutil.copy(introfurl, self.clientbase)
-
-        self.launch_client_layer()
-
-    def launch_client_layer(self):
-        print 'Launching client.'
         # NOTE: We assume if tahoe exist with non-zero status, no separate
         # tahoe child process is still running.
-        output = self.run_tahoe('start', '--basedir', self.clientbase)
+        output = self.run_tahoe('start', '--basedir', client.base)
         try:
             pat = r'^STARTING (.*?)\nclient node probably started\s*$'
-            self.check_tahoe_output(output, pat, self.clientbase)
+            self.check_tahoe_output(output, pat, client.base)
 
-            self.create_test_dirnode_layer()
-            
+            self.launch_clients_layer(clientnum+1)
+
         finally:
-            print 'Stopping client node.'
+            print 'Stopping client node %d.' % (clientnum+1,)
             try:
-                output = self.run_tahoe('stop', '--basedir', self.clientbase)
+                output = self.run_tahoe('stop', '--basedir', client.base)
             except Exception, e:
                 print 'Failed to stop client node.  Output:'
                 print output
@@ -176,10 +197,12 @@ class SystemTest (object):
         
     def create_test_dirnode_layer(self):
         print 'Creating test dirnode.'
-        targeturl = 'http://127.0.0.1:%d/uri?t=mkdir' % (self.clientport,)
+        client = self.get_interface_client()
+
+        targeturl = 'http://127.0.0.1:%d/uri?t=mkdir' % (client.port,)
 
         def make_dirnode():
-            conn = httplib.HTTPConnection('127.0.0.1', self.clientport)
+            conn = httplib.HTTPConnection('127.0.0.1', client.port)
             conn.request('PUT', '/uri?t=mkdir')
             resp = conn.getresponse()
             if resp.status == '200':
@@ -192,7 +215,7 @@ class SystemTest (object):
             
         cap = self.polling_operation(make_dirnode)
 
-        f = open(os.path.join(self.clientbase, 'private', 'root_dir.cap'), 'w')
+        f = open(os.path.join(client.base, 'private', 'root_dir.cap'), 'w')
         f.write(cap)
         f.close()
 
@@ -300,7 +323,17 @@ class SystemTest (object):
         tmpl += 'Waited %.2f seconds (%d polls).'
         raise self.SetupFailure(tmpl, totaltime, attempt+1)
 
+    def get_interface_client(self):
+        return self.clientsinfo[0]
 
+    # ClientInfo:
+    class ClientInfo (object):
+        def __init__(self, clientnum):
+            self.num = clientnum
+            self.base = tempfile.mkdtemp(prefix='tahoe_fuse_test_client',
+                                         suffix='_%d' % clientnum)
+            self.port = None
+            
     # SystemTest Exceptions:
     class Failure (Exception):
         pass
