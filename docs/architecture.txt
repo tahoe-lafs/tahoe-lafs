@@ -7,18 +7,19 @@ The high-level view of this system consists of three layers: the grid, the
 virtual drive, and the application that sits on top.
 
 The lowest layer is the "grid", basically a DHT (Distributed Hash Table)
-which maps URIs to data. The URIs are relatively short ascii strings
-(currently about 140 bytes), and each is used as a reference to an immutable
-arbitrary-length sequence of data bytes. This data is encrypted and
-distributed around the grid across a large number of nodes, such that a
-statistically unlikely number of nodes would have to be unavailable for the
-data to become unavailable.
+which maps capabilities to data. The capabilities are relatively short ascii
+strings, and each is used as a reference to an arbitrary-length sequence of
+data bytes. This data is encrypted and distributed around the grid across a
+large number of nodes, such that a large fraction of the nodes would have to
+be unavailable for the data to become unavailable.
 
-The middle layer is the virtual drive: a tree-shaped data structure in which
-the intermediate nodes are directories and the leaf nodes are files. Each
-file contains both the URI of the file's data and all the necessary metadata
-(MIME type, filename, ctime/mtime, etc) required to present the file to a
-user in a meaningful way (displaying it in a web browser, or on a desktop).
+The middle layer is the virtual drive: a directed-acyclic-graph-shaped data
+structure in which the intermediate nodes are directories and the leaf nodes
+are files. The leaf nodes contain only the file data -- they don't contain
+any metadata about the file except for the length.  The edges that lead to
+leaf nodes have metadata attached to them about the file that they point to.
+Therefore, the same file may have different metadata associated with it if it
+is dereferenced through different edges.
 
 The top layer is where the applications that use this virtual drive operate.
 Allmydata uses this for a backup service, in which the application copies the
@@ -26,14 +27,10 @@ files to be backed up from the local disk into the virtual drive on a
 periodic basis. By providing read-only access to the same virtual drive
 later, a user can recover older versions of their files. Other sorts of
 applications can run on top of the virtual drive, of course -- anything that
-has a use for a secure, robust, distributed filestore.
-
-Note: some of the text below describes design targets rather than actual code
-present in the current release. Please take a look at roadmap.txt to get an
-idea of how much of this has been implemented so far.
+has a use for a secure, decentralized, fault-tolerant filesystem.
 
 
-THE BIG GRID OF PEERS
+THE BIG GRID OF STORAGE SERVERS
 
 Underlying the grid is a large collection of peer nodes. These are processes
 running on a wide variety of computers, all of which know about each other in
@@ -42,29 +39,23 @@ Foolscap, an encrypted+authenticated remote message passing library (using
 TLS connections and self-authenticating identifiers called "FURLs").
 
 Each peer offers certain services to the others. The primary service is the
-StorageServer, which offers to hold data for a limited period of time (a
-"lease"). Each StorageServer has a quota, and it will reject lease requests
-that would cause it to consume more space than it wants to provide. When a
-lease expires, the data is deleted. Peers might renew their leases.
+StorageServer, which offers to hold data. Each StorageServer has a quota, and
+it will reject storage requests that would cause it to consume more space
+than it wants to provide.
 
 This storage is used to hold "shares", which are encoded pieces of files in
 the grid. There are many shares for each file, typically between 10 and 100
 (the exact number depends upon the tradeoffs made between reliability,
 overhead, and storage space consumed). The files are indexed by a
-"StorageIndex", which is derived from the encryption key, which may be
-randomly generated or it may be derived from the contents of the file. Leases
-are indexed by StorageIndex, and a single StorageServer may hold multiple
-shares for the corresponding file. Multiple peers can hold leases on the same
-file, in which case the shares will be kept alive until the last lease
-expires. The typical lease is expected to be for one month: enough time for
-interested parties to renew it, but not so long that abandoned data consumes
-unreasonable space. Peers are expected to "delete" (drop leases) on data that
-they know they no longer want: lease expiration is meant as a safety measure.
+"StorageIndex", which is derived from the encryption key, which is derived
+from the contents of the file. Leases are indexed by StorageIndex, and a
+single StorageServer may hold multiple shares for the corresponding
+file. Multiple peers can hold leases on the same file.
 
-In this release, peers learn about each other through the "introducer". Each
-peer connects to this central introducer at startup, and receives a list of
-all other peers from it. Each peer then connects to all other peers, creating
-a fully-connected topology. Future versions will reduce the number of
+Peers learn about each other through the "introducer". Each peer connects to
+this central introducer at startup, and receives a list of all other peers
+from it. Each peer then connects to all other peers, creating a
+fully-connected topology. Future versions will reduce the number of
 connections considerably, to enable the grid to scale to larger sizes: the
 design target is one million nodes. In addition, future versions will offer
 relay and NAT-traversal services to allow nodes without full internet
@@ -78,53 +69,53 @@ fully-connected mesh topology.
 FILE ENCODING
 
 When a file is to be added to the grid, it is first encrypted using a key
-that is derived from the hash of the file itself (if convergence is desired)
-or randomly generated (if not). The encrypted file is then broken up into
-segments so it can be processed in small pieces (to minimize the memory
-footprint of both encode and decode operations, and to increase the so-called
-"alacrity": how quickly can the download operation provide validated data to
-the user, basically the lag between hitting "play" and the movie actually
-starting). Each segment is erasure coded, which creates encoded blocks such
-that only a subset of them are required to reconstruct the segment. These
-blocks are then combined into "shares", such that a subset of the shares can
-be used to reconstruct the whole file. The shares are then deposited in
-StorageServers in other peers.
+that is derived from the hash of the file itself. The encrypted file is then
+broken up into segments so it can be processed in small pieces (to minimize
+the memory footprint of both encode and decode operations, and to increase
+the so-called "alacrity": how quickly can the download operation provide
+validated data to the user, basically the lag between hitting "play" and the
+movie actually starting). Each segment is erasure coded, which creates
+encoded blocks such that only a subset of them are required to reconstruct
+the segment. These blocks are then combined into "shares", such that a subset
+of the shares can be used to reconstruct the whole file. The shares are then
+deposited in StorageServers in other peers.
 
 A tagged hash of the encryption key is used to form the "storage index",
 which is used for both server selection (described below) and to index shares
 within the StorageServers on the selected peers.
 
 A variety of hashes are computed while the shares are being produced, to
-validate the plaintext, the crypttext, and the shares themselves. Merkle hash
-trees are also produced to enable validation of individual segments of
-plaintext or crypttext without requiring the download/decoding of the whole
-file. These hashes go into the "URI Extension Block", which will be stored
-with each share.
+validate the plaintext, the ciphertext, and the shares themselves. Merkle
+hash trees are also produced to enable validation of individual segments of
+plaintext or ciphertext without requiring the download/decoding of the whole
+file. These hashes go into the "Capability Extension Block", which will be
+stored with each share.
 
-The URI contains the encryption key, the hash of the URI Extension Block, and
-any encoding parameters necessary to perform the eventual decoding process.
-For convenience, it also contains the size of the file being stored.
+The capability contains the encryption key, the hash of the Capability
+Extension Block, and any encoding parameters necessary to perform the
+eventual decoding process.  For convenience, it also contains the size of the
+file being stored.
 
 
-On the download side, the node that wishes to turn a URI into a sequence of
-bytes will obtain the necessary shares from remote nodes, break them into
-blocks, use erasure-decoding to turn them into segments of crypttext, use the
-decryption key to convert that into plaintext, then emit the plaintext bytes
-to the output target (which could be a file on disk, or it could be streamed
-directly to a web browser or media player).
+On the download side, the node that wishes to turn a capability into a
+sequence of bytes will obtain the necessary shares from remote nodes, break
+them into blocks, use erasure-decoding to turn them into segments of
+ciphertext, use the decryption key to convert that into plaintext, then emit
+the plaintext bytes to the output target (which could be a file on disk, or
+it could be streamed directly to a web browser or media player).
 
-All hashes use SHA256, and a different tag is used for each purpose.
+All hashes use SHA-256, and a different tag is used for each purpose.
 Netstrings are used where necessary to insure these tags cannot be confused
 with the data to be hashed. All encryption uses AES in CTR mode. The erasure
-coding is performed with zfec (a python wrapper around Rizzo's FEC library).
+coding is performed with zfec.
 
 A Merkle Hash Tree is used to validate the encoded blocks before they are fed
 into the decode process, and a transverse tree is used to validate the shares
 as they are retrieved. A third merkle tree is constructed over the plaintext
-segments, and a fourth is constructed over the crypttext segments.  All
+segments, and a fourth is constructed over the ciphertext segments.  All
 necessary hashes are stored with the shares, and the hash tree roots are put
-in the URI extension block. The final hash of the extension block goes into
-the URI itself.
+in the Capability Extension Block. The final hash of the extension block goes
+into the capability itself.
 
 Note that the number of shares created is fixed at the time the file is
 uploaded: it is not possible to create additional shares later. The use of a
@@ -133,45 +124,35 @@ if they don't intend to upload some of them, otherwise the hashroot cannot be
 calculated correctly.
 
 
-URIs
+Capabilities
 
-Each URI represents a specific set of bytes. Think of it like a hash
-function: you feed in a bunch of bytes, and you get out a URI. If convergence
-is enabled, the URI is deterministically derived from the input data:
-changing even one bit of the input data will result in a drastically
-different URI. If convergence is not enabled, the encoding process will
-generate a different URI each time the file is uploaded.
+Capabilities to immutable files represent a specific set of bytes.  Think of
+it like a hash function: you feed in a bunch of bytes, and you get out a
+capability, which is deterministically derived from the input data: changing
+even one bit of the input data will result in a completely different
+capability.
 
-The URI provides both "location" and "identification": you can use it to
-locate/retrieve a set of bytes that are possibly the same as the original
-file, and then you can use it to validate ("identify") that these potential
-bytes are indeed the ones that you were looking for.
+Read-only capabilities to mutable files represent the ability to get a set of
+bytes representing a version of the file.  Each read-only capability is
+unique.  In fact, each mutable file has a unique public/private key pair
+created when the mutable file is created, and the read-only capability to
+that file includes a secure hash of the public key.
 
-URIs refer to an immutable set of bytes. If you modify a file and upload the
-new version to the grid, you will get a different URI. URIs do not represent
-filenames at all, just the data that a filename might point to at some given
-point in time. This is why the "grid" layer is insufficient to provide a
-virtual drive: an actual filesystem requires human-meaningful names and
-mutability, while URIs provide neither. URIs sit on the "global+secure" edge
-of Zooko's Triangle[1]. They are self-authenticating, meaning that nobody can
-trick you into using the wrong data.
+Read-write capabilities to mutable files represent the ability to read the
+file (just like a read-only capability) and also to write a new version of
+the file, overwriting any extant version.  Read-write capabilities are unique
+-- each one includes the secure hash of the private key associated with that
+mutable file.
 
-The URI should be considered as a "read capability" for the corresponding
-data: anyone who knows the full URI has the ability to read the given data.
-There is a subset of the URI (which leaves out the encryption key and fileid)
-which is called the "verification capability": it allows the holder to
-retrieve and validate the crypttext, but not the plaintext. Once the
-crypttext is available, the erasure-coded shares can be regenerated. This
-will allow a file-repair process to maintain and improve the robustness of
-files without being able to read their contents.
+The capability provides both "location" and "identification": you can use it
+to retrieve a set of bytes, and then you can use it to validate ("identify")
+that these potential bytes are indeed the ones that you were looking for.
 
-The lease mechanism will also involve a "delete" capability, by which a peer
-which uploaded a file can indicate that they don't want it anymore. It is not
-truly a delete capability because other peers might be holding leases on the
-same data, and it should not be deleted until the lease count (i.e. reference
-count) goes to zero, so perhaps "cancel-the-lease capability" is more
-accurate. The plan is to store this capability next to the URI in the virtual
-drive structure.
+The "grid" layer is insufficient to provide a virtual drive: an actual
+filesystem requires human-meaningful names.  Capabilities sit on the
+"global+secure" edge of Zooko's Triangle[1]. They are self-authenticating,
+meaning that nobody can trick you into using a file that doesn't match the
+capability you used to refer to that file.
 
 
 SERVER SELECTION
@@ -292,31 +273,31 @@ VDRIVE and DIRNODES: THE VIRTUAL DRIVE LAYER
 
 The "virtual drive" layer is responsible for mapping human-meaningful
 pathnames (directories and filenames) to pieces of data. The actual bytes
-inside these files are referenced by URI, but the "vdrive" is where the
-directory names, file names, and metadata are kept.
+inside these files are referenced by capability, but the "vdrive" is where
+the directory names, file names, and metadata are kept.
 
 In the current release, the virtual drive is a graph of "dirnodes". Each
 dirnode represents a single directory, and thus contains a table of named
 children. These children are either other dirnodes or actual files. All
-children are referenced by their URI. Each client creates a "private vdrive"
-dirnode at startup. The clients also receive access to a "global vdrive"
-dirnode from the central introducer/vdrive server, which is shared between
-all clients and serves as an easy demonstration of having multiple writers
-for a single dirnode.
+children are referenced by their capability. Each client creates a "private
+vdrive" dirnode at startup. The clients also receive access to a "global
+vdrive" dirnode from the central introducer/vdrive server, which is shared
+between all clients and serves as an easy demonstration of having multiple
+writers for a single dirnode.
 
-The dirnode itself has two forms of URI: one is read-write and the other is
-read-only. The table of children inside the dirnode has a read-write and
-read-only URI for each child. If you have a read-only URI for a given
-dirnode, you will not be able to access the read-write URI of the children.
-This results in "transitively read-only" dirnode access.
+The dirnode itself has two forms of capability: one is read-write and the
+other is read-only. The table of children inside the dirnode has a read-write
+and read-only capability for each child. If you have a read-only capability
+for a given dirnode, you will not be able to access the read-write capability
+of the children.  This results in "transitively read-only" dirnode access.
 
-By having two different URIs, you can choose which you want to share with
-someone else. If you create a new directory and share the read-write URI for
-it with a friend, then you will both be able to modify its contents. If
-instead you give them the read-only URI, then they will *not* be able to
-modify the contents. Any URI that you receive can be attached to any dirnode
-that you can modify, so very powerful shared+published directory structures
-can be built from these components.
+By having two different capabilities, you can choose which you want to share
+with someone else. If you create a new directory and share the read-write
+capability for it with a friend, then you will both be able to modify its
+contents. If instead you give them the read-only capability, then they will
+*not* be able to modify the contents. Any capability that you receive can be
+attached to any dirnode that you can modify, so very powerful
+shared+published directory structures can be built from these components.
 
 This structure enable individual users to have their own personal space, with
 links to spaces that are shared with specific other users, and other spaces
@@ -432,7 +413,7 @@ of a robust distributed filesystem is to survive these setbacks.
 To work against this slow, continually loss of shares, a File Checker is used
 to periodically count the number of shares still available for any given
 file. A more extensive form of checking known as the File Verifier can
-download the crypttext of the target file and perform integrity checks (using
+download the ciphertext of the target file and perform integrity checks (using
 strong hashes) to make sure the data is stil intact. When the file is found
 to have decayed below some threshold, the File Repairer can be used to
 regenerate and re-upload the missing shares. These processes are conceptually
@@ -440,14 +421,14 @@ distinct (the repairer is only run if the checker/verifier decides it is
 necessary), but in practice they will be closely related, and may run in the
 same process.
 
-The repairer process does not get the full URI of the file to be maintained:
-it merely gets the "repairer capability" subset, which does not include the
-decryption key. The File Verifier uses that data to find out which peers
-ought to hold shares for this file, and to see if those peers are still
-around and willing to provide the data. If the file is not healthy enough,
-the File Repairer is invoked to download the crypttext, regenerate any
-missing shares, and upload them to new peers. The goal of the File Repairer
-is to finish up with a full set of 100 shares.
+The repairer process does not get the full capability of the file to be
+maintained: it merely gets the "repairer capability" subset, which does not
+include the decryption key. The File Verifier uses that data to find out
+which peers ought to hold shares for this file, and to see if those peers are
+still around and willing to provide the data. If the file is not healthy
+enough, the File Repairer is invoked to download the ciphertext, regenerate
+any missing shares, and upload them to new peers. The goal of the File
+Repairer is to finish up with a full set of 100 shares.
 
 There are a number of engineering issues to be resolved here. The bandwidth,
 disk IO, and CPU time consumed by the verification/repair process must be
@@ -485,13 +466,13 @@ but can accomplish none of the following three attacks:
     mutability rights
 
 Data validity and consistency (the promise that the downloaded data will
-match the originally uploaded data) is provided by the hashes embedded the
-URI. Data confidentiality (the promise that the data is only readable by
-people with the URI) is provided by the encryption key embedded in the URI.
-Data availability (the hope that data which has been uploaded in the past
-will be downloadable in the future) is provided by the grid, which
-distributes failures in a way that reduces the correlation between individual
-node failure and overall file recovery failure.
+match the originally uploaded data) is provided by the hashes embedded in the
+capability. Data confidentiality (the promise that the data is only readable
+by people with the capability) is provided by the encryption key embedded in
+the capability.  Data availability (the hope that data which has been
+uploaded in the past will be downloadable in the future) is provided by the
+grid, which distributes failures in a way that reduces the correlation
+between individual node failure and overall file recovery failure.
 
 Many of these security properties depend upon the usual cryptographic
 assumptions: the resistance of AES and RSA to attack, the resistance of
@@ -523,18 +504,12 @@ storage consumption. This is known as "non-convergent" encoding.
 
 The capability-based security model is used throughout this project. dirnode
 operations are expressed in terms of distinct read and write capabilities.
-The URI of a file is the read-capability: knowing the URI is equivalent to
-the ability to read the corresponding data. The capability to validate and
-repair a file is a subset of the read-capability. When distributed dirnodes
-are implemented (with SSK slots), the capability to read an SSK slot will be
-a subset of the capability to modify it. These capabilities may be expressly
-delegated (irrevocably) by simply transferring the relevant secrets. Special
-forms of SSK slots can be used to make revocable delegations of particular
-directories. Dirnode references contain Foolscap "FURLs", which are also
-capabilities and provide access to an instance of code running on a central
-server: these can be delegated just as easily as any other capability, and
-can be made revocable by delegating access to a forwarder instead of the
-actual target.
+Knowing the read-capability of a file is equivalent to the ability to read
+the corresponding data. The capability to validate the correctness of a file
+is strictly weaker than the read-capability (possession of read-capability
+automatically grants you possession of validate-capability, but not vice
+versa). These capabilities may be expressly delegated (irrevocably) by simply
+transferring the relevant secrets. 
 
 The application layer can provide whatever security/access model is desired,
 but we expect the first few to also follow capability discipline: rather than
@@ -577,8 +552,8 @@ will take out all of them at once. The "Sybil Attack" is where a single
 attacker convinces you that they are actually multiple servers, so that you
 think you are using a large number of independent peers, but in fact you have
 a single point of failure (where the attacker turns off all their machines at
-once). Large grids, with lots of truly-independent peers, will enable the use
-of lower expansion factors to achieve the same reliability, but increase
+once). Large grids, with lots of truly-independent peers, will enable the
+use of lower expansion factors to achieve the same reliability, but increase
 overhead because each peer needs to know something about every other, and the
 rate at which peers come and go will be higher (requiring network maintenance
 traffic). Also, the File Repairer work will increase with larger grids,
