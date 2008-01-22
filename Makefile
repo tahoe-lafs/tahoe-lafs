@@ -405,12 +405,9 @@ deb-gutsy-head:
 	fakeroot debian/rules binary
 
 # These targets provide for windows native builds
-.PHONY: hatch-eggs windows-exe windows-installer windows-installer-upload
+.PHONY: windows-exe windows-installer windows-installer-upload
 
-hatch-eggs:
-	$(PP) $(PYTHON) misc/hatch-eggs.py
-
-windows-exe: hatch-eggs
+windows-exe: .built
 	cd windows && $(PP) $(PYTHON) setup.py py2exe
 
 windows-installer: windows-exe
