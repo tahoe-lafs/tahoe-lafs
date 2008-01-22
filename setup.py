@@ -8,28 +8,20 @@
 # 
 # See the docs/about.html file for licensing information.
 
-import sys, re, os
-
-miscdeps=os.path.join('misc', 'dependencies')
+import os, re, sys
 
 try:
     from ez_setup import use_setuptools
 except ImportError:
     pass
 else:
+    # On cygwin there was a permissions error that was fixed in 0.6c6.  (Also
     # foolscap uses a module-level os.urandom() during import, which breaks
     # inside older setuptools' sandboxing. 0.6c4 is the first version which
-    # fixed this problem.  On cygwin there was a different problem -- a
-    # permissions error -- that was fixed in 0.6c6.
-    min_version='0.6c6'
-    download_base = "file:"+os.path.join('misc', 'dependencies')+os.path.sep
-    use_setuptools(min_version=min_version,
-                   download_base=download_base,
-                   download_delay=0, to_dir=miscdeps)
+    # fixed this problem.)
+    use_setuptools(min_version='0.6c6')
 
 from setuptools import Extension, find_packages, setup
-
-from calcdeps import install_requires, dependency_links
 
 trove_classifiers=[
     "Development Status :: 3 - Alpha", 
@@ -66,13 +58,13 @@ trove_classifiers=[
 
 VERSIONFILE = "src/allmydata/_version.py"
 verstr = "unknown"
-VSRE = re.compile("^verstr = ['\"]([^'\"]*)['\"]", re.M)
 try:
     verstrline = open(VERSIONFILE, "rt").read()
 except EnvironmentError:
     pass # Okay, there is no version file.
 else:
-    mo = VSRE.search(verstrline)
+    VSRE = r"^verstr = ['\"]([^'\"]*)['\"]"
+    mo = re.search(VSRE, verstrline, re.M)
     if mo:
         verstr = mo.group(1)
     else:
@@ -80,12 +72,21 @@ else:
         raise RuntimeError("if %s.py exists, it is required to be well-formed" % (VERSIONFILE,))
 
 LONG_DESCRIPTION=\
-"""Welcome to the AllMyData "tahoe" project. This project implements a secure,
-distributed, fault-tolerant storage grid under a Free Software licence.
+"""Welcome to the Tahoe project, a secure, decentralized, fault-tolerant 
+filesystem.  All of the source code is available under a Free Software, Open 
+Source licence.
 
-The basic idea is that the data in this storage grid is spread over all
-participating nodes, using an algorithm that can recover the data even if a
-majority of the nodes are no longer available."""
+This filesystem is encrypted and spread over multiple peers in such a way that 
+it remains available even when some of the peers are unavailable, 
+malfunctioning, or malicious."""
+
+miscdeps=os.path.join(os.getcwd(), 'misc', 'dependencies')
+dependency_links=[os.path.join(miscdeps, t) for t in os.listdir(miscdeps) if t.endswith(".tar")]
+
+# By adding a web page to the dependency_links we are able to put new packages
+# up there and have them be automatically discovered by existing copies of the
+# tahoe source when that source was built.
+dependency_links.append("http://allmydata.org/trac/tahoe/wiki/Dependencies")
 
 setup_requires = []
 
@@ -95,12 +96,20 @@ setup_requires = []
 # http://pypi.python.org/pypi/darcsver
 setup_requires.append('darcsver >= 1.0.0')
 
-# setuptools_darcs is required only if you want to use "./setup.py sdist",
-# "./setup.py bdist", and the other "dist" commands -- it is necessary for them
-# to produce complete distributions, which need to include all files that are
-# under darcs revision control.
+# setuptools_darcs is required to produce complete distributions (such as with
+# "sdist" or "bdist_egg"), unless there is a PKG-INFO file present which shows
+# that this is itself a source distribution.
 # http://pypi.python.org/pypi/setuptools_darcs
-setup_requires.append('setuptools_darcs >= 1.0.5')
+if not os.path.exists('PKG-INFO'):
+    setup_requires.append('setuptools_darcs >= 1.0.5')
+
+install_requires=["zfec >= 1.3.0",
+                  "foolscap >= 0.2.3",
+                  "simplejson >= 1.7.3",
+                  "pycryptopp >= 0.2.9",
+                  "nevow >= 0.6.0",
+                  "zope.interface >= 3.1.0",
+                  ]
 
 setup(name='allmydata-tahoe',
       version=verstr,

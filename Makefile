@@ -1,7 +1,7 @@
 
 # this Makefile requires GNU make
 
-default: simple-build
+default: build
 
 PYTHON=python
 PATHSEP=$(shell python -c 'import os ; print os.pathsep')
@@ -46,18 +46,11 @@ endif
 
 TRIAL=PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 
-build-auto-deps: check-deps
-	mkdir -p "$(SUPPORTLIB)"
-	@echo PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
-		$(PYTHON) misc/dependencies/setup.py install --prefix="$(SUPPORT)"
-	@PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
-		$(PYTHON) misc/dependencies/setup.py install --prefix="$(SUPPORT)" || \
-		( echo "Build of Tahoe's bundled, automatically built dependent libraries failed -- please see docs/install.html for instructions." && false )
-
 # The following target is here because I don't know how to tell the buildmaster
-# to start instructing his slaves to "build-auto-deps" instead of instructing
-# them to "build-deps".  --Z
-build-deps: build-auto-deps
+# to start instructing his slaves to "build" instead of instructing them to
+# "build-deps".  --Z
+build-deps:
+	echo "This is done automatically (by delegating to setuptools) now."
 
 EGGSPATH = $(shell $(PYTHON) misc/find-dep-eggs.py)
 show-eggspath:
@@ -103,15 +96,13 @@ make-version:
 	$(MAKE) build
 	touch .built
 
-simple-build: build-auto-deps build
-
 src/allmydata/_version.py:
 	$(MAKE) make-version
 
 build: src/allmydata/_version.py
-	@echo $(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG) && chmod +x bin/tahoe
-	@( $(PYTHON) ./setup.py build_ext -i $(INCLUDE_DIRS_ARG) $(LIBRARY_DIRS_ARG) && chmod +x bin/tahoe ) || \
-		( echo "Build of Allmydata-Tahoe failed -- please see docs/install.html for instructions." && false )
+	mkdir -p "$(SUPPORTLIB)"
+	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
+		$(PYTHON) ./setup.py develop install --prefix="$(SUPPORT)"
 
 # 'make install' will do the following:
 #   build+install tahoe (probably to /usr/lib/pythonN.N/site-packages)
