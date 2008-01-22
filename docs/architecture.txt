@@ -577,8 +577,8 @@ will take out all of them at once. The "Sybil Attack" is where a single
 attacker convinces you that they are actually multiple servers, so that you
 think you are using a large number of independent peers, but in fact you have
 a single point of failure (where the attacker turns off all their machines at
-once). Large grids, with lots of truly-independent peers, will enable the
-use of lower expansion factors to achieve the same reliability, but increase
+once). Large grids, with lots of truly-independent peers, will enable the use
+of lower expansion factors to achieve the same reliability, but increase
 overhead because each peer needs to know something about every other, and the
 rate at which peers come and go will be higher (requiring network maintenance
 traffic). Also, the File Repairer work will increase with larger grids,
