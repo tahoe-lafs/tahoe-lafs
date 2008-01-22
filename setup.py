@@ -2,7 +2,7 @@
 
 # Allmydata Tahoe -- secure, distributed storage grid
 # 
-# Copyright (C) 2007 Allmydata, Inc.
+# Copyright (C) 2008 Allmydata, Inc.
 # 
 # This file is part of tahoe.
 # 
@@ -24,7 +24,7 @@ else:
 from setuptools import Extension, find_packages, setup
 
 trove_classifiers=[
-    "Development Status :: 3 - Alpha", 
+    "Development Status :: 4 - Beta", 
     "Environment :: Console",
     "Environment :: Web Environment",
     "License :: OSI Approved :: GNU General Public License (GPL)", 
@@ -113,7 +113,7 @@ install_requires=["zfec >= 1.3.0",
 
 setup(name='allmydata-tahoe',
       version=verstr,
-      description='secure, distributed storage grid',
+      description='secure, decentralized, fault-tolerant filesystem',
       long_description=LONG_DESCRIPTION,
       author='Allmydata, Inc.',
       author_email='tahoe-dev@allmydata.org',

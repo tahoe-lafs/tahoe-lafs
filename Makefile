@@ -129,8 +129,8 @@ endif
 signal-error-deps:
 	@echo
 	@echo
-	@echo "ERROR: Not all of Tahoe's dependencies are in place.  Please \
-see the README for help on installing dependencies."
+	@echo "ERROR: Not all of Tahoe's dependencies are in place.  Please see\
+docs/install.html for help on installing dependencies."
 	@echo
 	@echo
 	exit 1
@@ -138,10 +138,7 @@ see the README for help on installing dependencies."
 signal-error-twisted-dep:
 	@echo
 	@echo
-	@echo "ERROR: Before running \"make build-auto-deps\" you have to ensure that \
-Twisted is installed (including its zope.interface dependency).  Twisted and \
-zope.interface are required for the automatic installation of certain other \
-libraries that Tahoe requires).  Please see the README for details."
+	@echo "ERROR: Twisted is not installed.  Please see docs/install.html for details."
 	@echo
 	@echo
 	exit 1
@@ -149,8 +146,8 @@ libraries that Tahoe requires).  Please see the README for details."
 signal-error-pywin32-dep:
 	@echo
 	@echo
-	@echo "ERROR: the pywin32 dependency is not in place.  Please see the README \
-for help on installing dependencies."
+	@echo "ERROR: the pywin32 dependency is not in place.  Please see docs/install.html for\
+help on installing dependencies."
 	@echo
 	@echo
 	exit 1
@@ -158,8 +155,7 @@ for help on installing dependencies."
 signal-error-pyopenssl-dep:
 	@echo
 	@echo
-	@echo "ERROR: the pyOpenSSL dependency is not in place (note that pyOpenSSL required \
-OpenSSL).  Please see the README for help on installing dependencies."
+	@echo "ERROR: the pyOpenSSL dependency is not in place (note that pyOpenSSL required OpenSSL).  Please see docs/install.html for help on installing dependencies."
 	@echo
 	@echo
 	exit 1
