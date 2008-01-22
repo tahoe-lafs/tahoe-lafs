@@ -15,12 +15,11 @@ This file can also be run as a script to install or upgrade setuptools.
 """
 import os, sys
 DEFAULT_VERSION = "0.6c7"
-DEFAULT_URL     = "http://pypi.python.org/packages/%s/s/setuptools/" % sys.version[:3]
+DEFAULT_DIR     = "misc/dependencies/"
+DEFAULT_URL     = "file:"+DEFAULT_DIR
 
 md5_data = {
-    'setuptools-0.6c7-py2.3.egg': '209fdf9adc3a615e5115b725658e13e2',
-    'setuptools-0.6c7-py2.4.egg': '5a8f954807d46a0fb67cf1f26c55a82e',
-    'setuptools-0.6c7-py2.5.egg': '45d2ad28f9750e7434111fde831e8372',
+    'setuptools-0.6c7.egg': 'ab87e88b800ad71d5235826b37acdbb1',
 }
 
 def _validate_md5(egg_name, data):
@@ -97,19 +96,22 @@ def setuptools_is_new_enough(required_version):
                 return True
 
 def use_setuptools(
-    version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir,
-    min_version=None, download_delay=15
-):
+    version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=DEFAULT_DIR,
+    min_version=None, download_delay=0
+    ):
     """Automatically find/download setuptools and make it available on sys.path
 
-    `version` should be a valid setuptools version number that is available
-    as an egg for download under the `download_base` URL (which should end with
-    a '/').  `to_dir` is the directory where setuptools will be downloaded, if
-    it is not already available.  If `download_delay` is specified, it should
-    be the number of seconds that will be paused before initiating a download,
-    should one be required.  If an older version of setuptools is installed,
-    this routine will print a message to ``sys.stderr`` and raise SystemExit in
-    an attempt to abort the calling script.
+    `version` should be a valid setuptools version number that is available as
+    an egg for download under the `download_base` URL (which should end with a
+    '/').  `to_dir` is the directory where setuptools will be downloaded, if it
+    is not already available.  If `download_delay` is specified, it is the
+    number of seconds that will be paused before initiating a download, should
+    one be required.  If an older version of setuptools is installed but hasn't
+    been imported yet, this routine will go ahead and install the required
+    version and then use it.  If an older version of setuptools has already been
+    imported then we can't upgrade to the new one, so this routine will print a
+    message to ``sys.stderr`` and raise SystemExit in an attempt to abort the
+    calling script.
     """
     if min_version is None:
         min_version = version
@@ -120,7 +122,7 @@ def use_setuptools(
 
 def download_setuptools(
     version=DEFAULT_VERSION, min_version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir,
-    delay = 15
+    delay = 0
 ):
     """Download setuptools from a specified location and return its filename
 
@@ -130,7 +132,7 @@ def download_setuptools(
     `delay` is the number of seconds to pause before an actual download attempt.
     """
     import urllib2, shutil
-    egg_name = "setuptools-%s-py%s.egg" % (version,sys.version[:3])
+    egg_name = "setuptools-%s.egg" % (version,)
     url = download_base + egg_name
     saveto = os.path.join(to_dir, egg_name)
     src = dst = None
