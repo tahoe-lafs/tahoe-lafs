@@ -6,8 +6,11 @@ from nevow.flat import flatmdom, flatstan, twist
 from formless import webform, processors, annotate, iformless
 from decimal import Decimal
 
+import allmydata.web
+
 # junk to appease pyflakes's outrage at py2exe's needs
 junk = [
     accessors, appserver, static, rend, url, util, query, i18n, flat, guard, stan, testutil,
     context, flatmdom, flatstan, twist, webform, processors, annotate, iformless, Decimal,
+    allmydata,
     ]
