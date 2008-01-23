@@ -1,4 +1,4 @@
-install_requires=["zfec >= 1.3.0",
+install_requires=["zfec >= 1.1.0",
                   "foolscap >= 0.2.3",
                   "simplejson >= 1.7.3",
                   "pycryptopp >= 0.2.9",
