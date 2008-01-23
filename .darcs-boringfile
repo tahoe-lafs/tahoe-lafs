@@ -54,18 +54,10 @@
 ^coverage-html($|/)
 ^twisted/plugins/dropin\.cache$
 ^\.figleaf\.el$
-^instdir($|/)
-^src/zfec/build($|/)
 ^_test_memory($|/)
 
 # _version.py is generated at build time, and never checked in
 ^src/allmydata/_version\.py$
-
-^src/foolscap/build($|/)
-^src/zfec/zfec.egg-info($|/)
-^src/simplejson/build($|/)
-^src/simplejson/dist($|/)
-^src/simplejson/simplejson\.egg-info($|/)
 
 # this file is maintained by the buildbot
 ^\.buildbot-sourcedata$
@@ -76,21 +68,14 @@
 ^setuptools-.*.egg$
 # creating a tahoe egg puts files here
 allmydata_tahoe.egg-info$
-# the 'build-deps' commands results in this directory:
-^tahoe_deps.egg-info
-
-# generated crypto extension modules
-^src/allmydata/Crypto/[^/]*/.*\.so$
 
 ^\.checked-deps$
 ^\.built$
 
 # if setup.py needs to install plugins from eggs to satisfy setup_requires:
-^setuptools_darcs_plugin-.*.egg$
 ^setuptools_darcs.*.egg$
 ^darcsver.*.egg$
 
 ^misc/dependencies/build($|/)
 ^misc/dependencies/temp($|/)
-^misc/dependencies/tahoe_deps\.egg-info($|/)
 
