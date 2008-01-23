@@ -5,6 +5,9 @@ install_requires=["zfec >= 1.1.0",
                   "nevow >= 0.6.0",
                   "zope.interface >= 3.1.0",
                   ]
+import sys
+if hasattr(sys, 'frozen'):
+    install_requires=[]
 
 def require_auto_deps():
     try:
