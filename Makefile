@@ -160,9 +160,11 @@ signal-error-pyopenssl-dep:
 	@echo
 	exit 1
 
-check-all-deps: check-deps
+check-auto-deps:
 	$(PP) \
-	 $(PYTHON) -c 'import allmydata, zfec, foolscap, simplejson, nevow, pycryptopp' || $(MAKE) signal-error-deps
+	 $(PYTHON) -c 'import _auto_deps ; _auto_deps.require_auto_deps()' || $(MAKE) signal-error-deps
+
+check-all-deps: check-deps check-auto-deps
 
 check-twisted-dep:
 	$(PYTHON) -c 'import twisted, zope.interface' || $(MAKE) signal-error-twisted-dep

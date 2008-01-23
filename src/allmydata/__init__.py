@@ -20,17 +20,15 @@ hush_pyflakes = __version__
 del hush_pyflakes
 
 try:
-    import pkg_resources
+    import _auto_deps
 except ImportError:
-    # nevermind
+    # Never mind -- even if we can't use pkg_resources to check the required
+    # version numbers and to select the right one in the case that more than one
+    # version is available, we can still barrel on and if "import thingie" gives
+    # us a thingie that works, we're okay.
     pass
 else:
-    pkg_resources.require("zfec >= 1.3.0")
-    pkg_resources.require("foolscap >= 0.2.3")
-    pkg_resources.require("simplejson >= 1.7.3")
-    pkg_resources.require("pycryptopp >= 0.2.9")
-    pkg_resources.require("nevow >= 0.6.0")
-    pkg_resources.require("zope.interface >= 3.1.0")
+    _auto_deps.require_auto_deps()
 
 def get_package_versions():
     import OpenSSL, allmydata, foolscap, nevow, pycryptopp, simplejson, twisted, zfec

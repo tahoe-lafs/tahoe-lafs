@@ -23,6 +23,16 @@ else:
 
 from setuptools import Extension, find_packages, setup
 
+# Make the dependency-version-requirement, which is used by the Makefile at
+# build-time, also available to the app at runtime:
+import shutil
+try:
+    shutil.copyfile("_auto_deps.py", os.path.join("src", "allmydata", "_auto_deps.py"))
+except EnvironmentError:
+    # Nevermind then -- perhaps it is already in place and in any case we can do
+    # without it.
+    pass
+
 trove_classifiers=[
     "Development Status :: 4 - Beta", 
     "Environment :: Console",
@@ -103,13 +113,7 @@ setup_requires.append('darcsver >= 1.0.0')
 if not os.path.exists('PKG-INFO'):
     setup_requires.append('setuptools_darcs >= 1.1.0')
 
-install_requires=["zfec >= 1.3.0",
-                  "foolscap >= 0.2.3",
-                  "simplejson >= 1.7.3",
-                  "pycryptopp >= 0.2.9",
-                  "nevow >= 0.6.0",
-                  "zope.interface >= 3.1.0",
-                  ]
+import _auto_deps
 
 setup(name='allmydata-tahoe',
       version=verstr,
@@ -123,7 +127,7 @@ setup(name='allmydata-tahoe',
       packages=find_packages("src"),
       classifiers=trove_classifiers,
       test_suite="allmydata.test",
-      install_requires=install_requires,
+      install_requires=_auto_deps.install_requires,
       include_package_data=True,
       setup_requires=setup_requires,
       dependency_links=dependency_links,
