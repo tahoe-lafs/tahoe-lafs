@@ -19,7 +19,7 @@ diskimage:
 upload:
 	mkdir $(VERSION)
 	mv Allmydata-$(VERSION).dmg $(VERSION)/
-	chmod go+rx $(VERSION)/
+	chmod -R go+rx $(VERSION)/
 	rsync -av $(VERSION) amduser@svn.allmydata.com:/home/amduser/public_html/dist/tahoe/mac/
 
 cleanup:
