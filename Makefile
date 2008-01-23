@@ -103,6 +103,7 @@ build: src/allmydata/_version.py
 	mkdir -p "$(SUPPORTLIB)"
 	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
 		$(PYTHON) ./setup.py develop install --prefix="$(SUPPORT)"
+	chmod +x bin/tahoe
 
 # 'make install' will do the following:
 #   build+install tahoe (probably to /usr/lib/pythonN.N/site-packages)
