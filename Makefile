@@ -32,8 +32,6 @@ else
  CHECK_PYWIN32_DEP := 
 endif
 
-TRIALCMD = $(shell PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SRCPATH)" $(PYTHON) misc/find_trial.py)
-
 ifeq ($(PLAT),cygwin)
 REACTOR = poll
 endif
@@ -43,8 +41,6 @@ ifneq ($(REACTOR),)
 else
 	REACTOROPT := 
 endif
-
-TRIAL=PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 
 # The following target is here because I don't know how to tell the buildmaster
 # to start instructing his slaves to "build" instead of instructing them to
@@ -60,6 +56,9 @@ ifneq ($(PYTHONPATH),)
 	PYTHONPATH := $(PYTHONPATH)$(PATHSEP)
 endif
 PP=PYTHONPATH="$(SRCPATH)$(PATHSEP)$(PYTHONPATH)$(PATHSEP)$(EGGSPATH)"
+
+TRIALCMD = $(shell $(PP) $(PYTHON) misc/find_trial.py)
+TRIAL=PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 
 .PHONY: make-version build
 

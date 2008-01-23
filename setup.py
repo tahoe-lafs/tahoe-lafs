@@ -101,7 +101,7 @@ setup_requires.append('darcsver >= 1.0.0')
 # that this is itself a source distribution.
 # http://pypi.python.org/pypi/setuptools_darcs
 if not os.path.exists('PKG-INFO'):
-    setup_requires.append('setuptools_darcs >= 1.0.5')
+    setup_requires.append('setuptools_darcs >= 1.1.0')
 
 install_requires=["zfec >= 1.3.0",
                   "foolscap >= 0.2.3",

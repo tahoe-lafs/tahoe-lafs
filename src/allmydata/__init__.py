@@ -19,6 +19,19 @@ except ImportError:
 hush_pyflakes = __version__
 del hush_pyflakes
 
+try:
+    import pkg_resources
+except ImportError:
+    # nevermind
+    pass
+else:
+    pkg_resources.require("zfec >= 1.3.0")
+    pkg_resources.require("foolscap >= 0.2.3")
+    pkg_resources.require("simplejson >= 1.7.3")
+    pkg_resources.require("pycryptopp >= 0.2.9")
+    pkg_resources.require("nevow >= 0.6.0")
+    pkg_resources.require("zope.interface >= 3.1.0")
+
 def get_package_versions():
     import OpenSSL, allmydata, foolscap, nevow, pycryptopp, simplejson, twisted, zfec
     setuptools_version = "unavailable"
