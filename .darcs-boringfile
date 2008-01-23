@@ -58,6 +58,8 @@
 
 # _version.py is generated at build time, and never checked in
 ^src/allmydata/_version\.py$
+# src/allmydata/_auto_deps.py is copied into place at build time, and never checked in
+^src/allmydata/_auto_deps\.py$
 
 # this file is maintained by the buildbot
 ^\.buildbot-sourcedata$
