@@ -420,4 +420,19 @@ windows-installer-upload:
 	chmod -R o+rx windows/dist/installer
 	rsync -av -e /usr/bin/ssh windows/dist/installer/ amduser@dev:/home/amduser/public_html/dist/tahoe/windows/
 
+# These targets provide for mac native builds
+.PHONY: mac-exe mac-upload mac-cleanup mac-dbg
+
+mac-exe: .built
+	$(MAKE) -C mac clean
+	VERSION=$(VER) $(PP) $(MAKE) -C mac build
+
+mac-dist:
+	VERSION=$(VER) $(MAKE) -C mac diskimage upload
+
+mac-cleanup:
+	VERSION=$(VER) $(MAKE) -C mac cleanup
+
+mac-dbg:
+	cd mac && $(PP) $(PYTHON)w allmydata_tahoe.py
 
