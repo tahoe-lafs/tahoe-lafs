@@ -8,7 +8,7 @@ from twisted.internet import defer
 from twisted.internet.interfaces import IConsumer
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
-from allmydata.util import fileutil, sibpath
+from allmydata.util import fileutil
 import simplejson
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode, \
      IMutableFileNode
@@ -20,8 +20,10 @@ from zope.interface import implements, Interface
 import urllib
 from formless import webform
 
+from nevow.util import resource_filename
+
 def getxmlfile(name):
-    return loaders.xmlfile(sibpath.sibpath(__file__, "web/%s" % name))
+    return loaders.xmlfile(resource_filename('allmydata.web', '%s' % name))
 
 class IClient(Interface):
     pass
@@ -1302,7 +1304,7 @@ class Root(rend.Page):
         return rend.Page.locateChild(self, ctx, segments)
 
     child_webform_css = webform.defaultCSS
-    child_tahoe_css = nevow_File(sibpath.sibpath(__file__, "web/tahoe.css"))
+    child_tahoe_css = nevow_File(resource_filename('allmydata.web', 'tahoe.css'))
 
     child_provisioning = provisioning.ProvisioningTool()
 
