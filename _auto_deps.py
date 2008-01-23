@@ -3,7 +3,7 @@ install_requires=["zfec >= 1.1.0",
                   "simplejson >= 1.7.1",
                   "pycryptopp >= 0.2.8",
                   "nevow >= 0.6.0",
-                  "zope.interface >= 3.1.0",
+                  "zope.interface",
                   ]
 import sys
 if hasattr(sys, 'frozen'):
@@ -20,7 +20,8 @@ def require_auto_deps():
         for requirement in install_requires:
             pkg_resources.require(requirement)
     for requirement in install_requires:
-        name, cmpop, verstr = requirement.split()
+        reqparts = requirement.split()
+        name = reqparts[0]
         __import__(name)
 
 if __name__ == "__main__":
