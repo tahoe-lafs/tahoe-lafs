@@ -295,10 +295,10 @@ test-darcs-boringfile:
 	$(PYTHON) misc/test-darcs-boringfile.py
 
 test-clean:
-	find . |grep -vEe"allfiles.tmp|src/allmydata/_version.py|src/allmydata_tahoe.egg-info" |sort >allfiles.tmp.old
+	find . |grep -vEe"allfiles.tmp|src/allmydata/_(version|auto_deps).py|src/allmydata_tahoe.egg-info" |sort >allfiles.tmp.old
 	$(MAKE)
 	$(MAKE) clean
-	find . |grep -vEe"allfiles.tmp|src/allmydata/_version.py|src/allmydata_tahoe.egg-info" |sort >allfiles.tmp.new
+	find . |grep -vEe"allfiles.tmp|src/allmydata/_(version|auto_deps).py|src/allmydata_tahoe.egg-info" |sort >allfiles.tmp.new
 	diff allfiles.tmp.old allfiles.tmp.new
 
 clean:
