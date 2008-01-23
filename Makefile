@@ -49,8 +49,6 @@ build-deps:
 	echo "This is done automatically (by delegating to setuptools) now."
 
 EGGSPATH = $(shell $(PYTHON) misc/find-dep-eggs.py)
-show-eggspath:
-	@echo $(EGGSPATH)
 
 ifneq ($(PYTHONPATH),)
 	PYTHONPATH := $(PYTHONPATH)$(PATHSEP)
@@ -61,6 +59,9 @@ TRIALCMD = $(shell $(PP) $(PYTHON) misc/find_trial.py)
 TRIAL=PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 
 .PHONY: make-version build
+
+show-eggspath:
+	echo $(EGGSPATH)
 
 # The 'darcsver' setup.py command comes in the 'darcsver' package:
 # http://pypi.python.org/pypi/darcsver It is necessary only if you want to
