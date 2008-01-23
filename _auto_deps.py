@@ -1,7 +1,7 @@
 install_requires=["zfec >= 1.1.0",
                   "foolscap >= 0.2.3",
                   "simplejson >= 1.7.1",
-                  "pycryptopp >= 0.2.9",
+                  "pycryptopp >= 0.2.8",
                   "nevow >= 0.6.0",
                   "zope.interface >= 3.1.0",
                   ]
