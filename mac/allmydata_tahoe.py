@@ -5,10 +5,21 @@ _junk = depends # appease pyflakes
 
 import sys
 import os
+import stat
+import traceback
+
+TRY_TO_INSTALL_TAHOE_SCRIPT = True
+TAHOE_SCRIPT = '''#!/bin/bash
+if [ "x${@}x" == "xx" ]
+then
+    %(exe)s --help
+else
+    %(exe)s "${@}"
+fi
+'''
 
 def run_default_node():
     import operator
-    import os
 
     basedir = os.path.expanduser('~/.tahoe')
     if not os.path.isdir(basedir):
@@ -69,6 +80,40 @@ def run_default_node():
             webbrowser.open(url)
         else:
             print 'files missing, not opening initial webish root page'
+
+    def maybe_install_tahoe_script():
+        path_candidates = ['/usr/local/bin', '~/bin', '~/Library/bin']
+        env_path = map(os.path.expanduser, os.environ['PATH'].split(':'))
+        if not sys.executable.endswith('/python'):
+            print 'not installing tahoe script: unexpected sys.exe "%s"' % (sys.executable,)
+            return
+        for path_candidate in map(os.path.expanduser, path_candidates):
+            if path_candidate not in env_path:
+                print path_candidate, 'not in', env_path
+                continue
+            tahoe_path = path_candidate + '/tahoe'
+            try:
+                if os.path.exists(tahoe_path):
+                    print 'not installing "%s": it already exists' % (tahoe_path,)
+                    return
+                print 'trying to install "%s"' % (tahoe_path,)
+                bin_path = (sys.executable[:-6] + 'Allmydata Tahoe').replace(' ', '\\ ')
+                script = TAHOE_SCRIPT % { 'exe': bin_path }
+                f = file(tahoe_path, 'wb')
+                f.write(script)
+                f.close()
+                mode = stat.S_IRUSR|stat.S_IXUSR|stat.S_IRGRP|stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH
+                os.chmod(tahoe_path, mode)
+                print 'installed "%s"' % (tahoe_path,)
+                return
+            except:
+                print 'unable to write %s' % (tahoe_path,)
+                traceback.print_exc()
+        else:
+            print 'no remaining candidate paths for installation of tahoe script'
+
+    if TRY_TO_INSTALL_TAHOE_SCRIPT:
+        maybe_install_tahoe_script()
 
     # run the node itself
     os.chdir(basedir)
