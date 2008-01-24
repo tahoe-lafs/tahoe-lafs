@@ -2,6 +2,7 @@
 import os
 from twisted.trial import unittest
 from twisted.python.failure import Failure
+from twisted.python import log
 from twisted.internet import defer
 from cStringIO import StringIO
 
@@ -132,6 +133,9 @@ class FakeBucketWriter:
     def remote_close(self):
         precondition(not self.closed)
         self.closed = True
+
+    def remote_abort(self):
+        log.err("uh oh, I was asked to abort")
 
 class FakeClient:
     DEFAULT_ENCODING_PARAMETERS = {"k":25,
