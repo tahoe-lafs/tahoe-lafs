@@ -22,8 +22,8 @@ logmsg('service loaded')
 #
 # Now with some bootstrap util functions in place, let's try and init things:
 try:
-    import pkgreshook # override the pkg_resources zip provider for py2exe deployment
-    pkgreshook.install() # this is done before nevow is imported
+    from allmydata.util import pkgresutil # override pkg_resources zip provider for py2exe deployment
+    pkgresutil.install() # this is done before nevow is imported
 
     logmsg('loading base dir')
     from allmydata.windows import registry
