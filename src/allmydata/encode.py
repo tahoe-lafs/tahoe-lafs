@@ -553,12 +553,19 @@ class Encoder(object):
         return d
 
     def send_uri_extension_to_all_shareholders(self):
-        self.log("sending uri_extension")
+        lp = self.log("sending uri_extension")
         for k in ('crypttext_root_hash', 'crypttext_hash',
                   'plaintext_root_hash', 'plaintext_hash',
                   ):
             assert k in self.uri_extension_data
         uri_extension = uri.pack_extension(self.uri_extension_data)
+        ed = {}
+        for k,v in self.uri_extension_data.items():
+            if k.endswith("hash"):
+                ed[k] = idlib.b2a(v)
+            else:
+                ed[k] = v
+        self.log("uri_extension_data is %s" % (ed,), level=log.NOISY, parent=lp)
         self.uri_extension_hash = hashutil.uri_extension_hash(uri_extension)
         dl = []
         for shareid in self.landlords.keys():
