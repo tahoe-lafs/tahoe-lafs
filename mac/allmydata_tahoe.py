@@ -87,15 +87,17 @@ def run_default_node():
         if not sys.executable.endswith('/python'):
             print 'not installing tahoe script: unexpected sys.exe "%s"' % (sys.executable,)
             return
+        for path_candidate in map(os.path.expanduser, env_path):
+            tahoe_path = path_candidate + '/tahoe'
+            if os.path.exists(tahoe_path):
+                print 'not installing "tahoe": it already exists at "%s"' % (tahoe_path,)
+                return
         for path_candidate in map(os.path.expanduser, path_candidates):
             if path_candidate not in env_path:
                 print path_candidate, 'not in', env_path
                 continue
             tahoe_path = path_candidate + '/tahoe'
             try:
-                if os.path.exists(tahoe_path):
-                    print 'not installing "%s": it already exists' % (tahoe_path,)
-                    return
                 print 'trying to install "%s"' % (tahoe_path,)
                 bin_path = (sys.executable[:-6] + 'Allmydata Tahoe').replace(' ', '\\ ')
                 script = TAHOE_SCRIPT % { 'exe': bin_path }
