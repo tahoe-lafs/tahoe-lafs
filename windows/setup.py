@@ -65,7 +65,6 @@ setup_args = {
     'options': {
         "py2exe": {
             "excludes": [
-                "pkg_resources",
             ],
             "includes": [
             ],
