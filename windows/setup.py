@@ -58,7 +58,7 @@ setup_args = {
     'data_files': [
         ('.', [
         ],),
-        ('web', glob.glob('../src/allmydata/web/*')),
+        ('pkg_resources/allmydata/web', glob.glob('../src/allmydata/web/*')),
         ('winfuse', glob.glob('./winfuse/*')),
     ],
     'zipfile' : 'library.zip',

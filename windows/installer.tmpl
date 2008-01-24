@@ -23,7 +23,7 @@ OutputBaseFilename=Allmydata_Tahoe_Setup_v%(major)d_%(minor)d_%(point)d_%(nano)d
 [Files]
 ; contents of 'binaries' dir. (consolidated build target)
 Source: "*.*"; DestDir: "{app}\Install"; Flags: restartreplace replacesameversion uninsrestartdelete
-Source: ".\web\*.*"; DestDir: "{app}\Install\web"; Flags: recursesubdirs
+Source: ".\pkg_resources\*.*"; DestDir: "{app}\Install\pkg_resources"; Flags: recursesubdirs
 Source: ".\winfuse\*.*"; DestDir: "{app}\Install\winfuse"; Flags: recursesubdirs
 
 [Dirs]
