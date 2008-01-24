@@ -36,9 +36,9 @@ def install():
                     #print 'returning %s' % (ret,)
                     return ret
                 except NotImplementedError:
-                    print 'get_resource_filename(%s,%s): not found' % (self._module_name, resource_name)
-                    import traceback
-                    traceback.print_exc()
+                    #print 'get_resource_filename(%s,%s): not found' % (self._module_name, resource_name)
+                    #import traceback
+                    #traceback.print_exc()
                     return ''
 
     pkg_resources.register_loader_type(zipimport.zipimporter, Provider)
