@@ -332,7 +332,7 @@ class Encoder(object):
         if not num_chunks:
             return defer.succeed(previous_chunks)
 
-        d = self._uploadable.read_encrypted(input_chunk_size)
+        d = self._uploadable.read_encrypted(input_chunk_size, False)
         def _got(data):
             if self._aborted:
                 raise UploadAborted()

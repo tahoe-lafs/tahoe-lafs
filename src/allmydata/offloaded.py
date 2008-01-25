@@ -232,7 +232,10 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         fetch_size = min(needed, self.CHUNK_SIZE)
         if fetch_size == 0:
             return True # all done
-        self.log("fetching %d-%d" % (self._have, self._have+fetch_size),
+        self.log(format="fetching %(start)d-%(end)d of %(total)d",
+                 start=self._have,
+                 end=self._have+fetch_size,
+                 total=self._expected_size,
                  level=log.NOISY)
         d = self.call("read_encrypted", self._have, fetch_size)
         def _got_data(ciphertext_v):
@@ -286,7 +289,8 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
     def get_storage_index(self):
         return defer.succeed(self._storage_index)
 
-    def read_encrypted(self, length):
+    def read_encrypted(self, length, hash_only):
+        assert hash_only is False
         d = defer.maybeDeferred(self.f.read, length)
         d.addCallback(lambda data: [data])
         return d

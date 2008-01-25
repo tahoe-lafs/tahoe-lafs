@@ -988,9 +988,12 @@ class IEncryptedUploadable(Interface):
         """Return a Deferred that fires with a 16-byte storage index.
         """
 
-    def read_encrypted(length):
+    def read_encrypted(length, hash_only):
         """This behaves just like IUploadable.read(), but returns crypttext
-        instead of plaintext."""
+        instead of plaintext. If hash_only is True, then this discards the
+        data (and returns an empty list); this improves efficiency when
+        resuming an interrupted upload (where we need to compute the
+        plaintext hashes, but don't need the redundant encrypted data)."""
 
     def get_plaintext_hashtree_leaves(first, last, num_segments):
         """Get the leaf nodes of a merkle hash tree over the plaintext

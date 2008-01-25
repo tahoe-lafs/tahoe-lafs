@@ -328,9 +328,10 @@ class EncryptAnUploadable:
     """This is a wrapper that takes an IUploadable and provides
     IEncryptedUploadable."""
     implements(IEncryptedUploadable)
+    CHUNKSIZE = 50*1000
 
     def __init__(self, original, default_encoding_parameters):
-        self.original = original
+        self.original = IUploadable(original)
         assert isinstance(default_encoding_parameters, dict)
         self._default_encoding_parameters = default_encoding_parameters
         self._encryptor = None
@@ -451,31 +452,49 @@ class EncryptAnUploadable:
 
             offset += this_segment
 
-    def read_encrypted(self, length):
+    def read_encrypted(self, length, hash_only):
         # make sure our parameters have been set up first
         d = self.get_all_encoding_parameters()
         d.addCallback(lambda ignored: self._get_encryptor())
         # then fetch the plaintext
-        d.addCallback(lambda ignored: self.original.read(length))
-        # and encrypt it..
-        # through the fields we go, hashing all the way, sHA! sHA! sHA!
-        def _got(data):
-            assert isinstance(data, (tuple, list)), type(data)
-            data = list(data)
-            cryptdata = []
-            # we use data.pop(0) instead of 'for chunk in data' to save
-            # memory: each chunk is destroyed as soon as we're done with it.
-            while data:
-                chunk = data.pop(0)
-                log.msg(" read_encrypted handling %dB-sized chunk" % len(chunk),
-                        level=log.NOISY)
-                self._plaintext_hasher.update(chunk)
-                self._update_segment_hash(chunk)
-                cryptdata.append(self._encryptor.process(chunk))
-                del chunk
-            return cryptdata
-        d.addCallback(_got)
+        remaining = length
+        ciphertext = []
+        while remaining:
+            # tolerate large length= values without consuming a lot of RAM
+            chunksize = min(remaining, self.CHUNKSIZE)
+            remaining -= chunksize
+            d.addCallback(lambda ignored: self.original.read(chunksize))
+            # and encrypt it..
+            # o/' over the fields we go, hashing all the way, sHA! sHA! sHA! o/'
+            d.addCallback(self._hash_and_encrypt_plaintext, hash_only)
+            d.addCallback(ciphertext.extend)
+        d.addCallback(lambda res: ciphertext)
         return d
+
+    def _hash_and_encrypt_plaintext(self, data, hash_only):
+        assert isinstance(data, (tuple, list)), type(data)
+        data = list(data)
+        cryptdata = []
+        # we use data.pop(0) instead of 'for chunk in data' to save
+        # memory: each chunk is destroyed as soon as we're done with it.
+        while data:
+            chunk = data.pop(0)
+            log.msg(" read_encrypted handling %dB-sized chunk" % len(chunk),
+                    level=log.NOISY)
+            self._plaintext_hasher.update(chunk)
+            self._update_segment_hash(chunk)
+            # TODO: we have to encrypt the data (even if hash_only==True)
+            # because pycryptopp's AES-CTR implementation doesn't offer a
+            # way to change the counter value. Once pycryptopp acquires
+            # this ability, change this to simply update the counter
+            # before each call to (hash_only==False) _encryptor.process()
+            ciphertext = self._encryptor.process(chunk)
+            if not hash_only:
+                log.msg("  skipping encryption")
+                cryptdata.append(ciphertext)
+            del ciphertext
+            del chunk
+        return cryptdata
 
     def get_plaintext_hashtree_leaves(self, first, last, num_segments):
         if len(self._plaintext_segment_hashes) < num_segments:
@@ -650,6 +669,18 @@ class RemoteEncryptedUploadable(Referenceable):
     def remote_get_all_encoding_parameters(self):
         return self._eu.get_all_encoding_parameters()
 
+    def _read_encrypted(self, length, hash_only):
+        d = self._eu.read_encrypted(length, hash_only)
+        def _read(strings):
+            if hash_only:
+                self._offset += length
+            else:
+                size = sum([len(data) for data in strings])
+                self._offset += size
+            return strings
+        d.addCallback(_read)
+        return d
+
     def remote_read_encrypted(self, offset, length):
         # we don't support seek backwards, but we allow skipping forwards
         precondition(offset >= 0, offset)
@@ -662,25 +693,25 @@ class RemoteEncryptedUploadable(Referenceable):
             skip = offset - self._offset
             log.msg("remote_read_encrypted skipping ahead to %d, skip=%d" %
                     (self._offset, skip), level=log.UNUSUAL, parent=lp)
-            d = self.remote_read_encrypted(self._offset, skip)
-            def _ignore(strings):
-                size = sum([len(data) for data in strings])
-                self._bytes_sent -= size
-                return self.remote_read_encrypted(offset, length)
-            d.addCallback(_ignore)
-            return d
+            d = self._read_encrypted(skip, hash_only=True)
+        else:
+            d = defer.succeed(None)
 
-        assert offset == self._offset, "%d != %d" % (offset, self._offset)
-        if self._cutoff is not None and offset+length > self._cutoff:
-            self._cutoff_cb()
-        d = self._eu.read_encrypted(length)
+        def _at_correct_offset(res):
+            assert offset == self._offset, "%d != %d" % (offset, self._offset)
+            if self._cutoff is not None and offset+length > self._cutoff:
+                self._cutoff_cb()
+
+            return self._read_encrypted(length, hash_only=False)
+        d.addCallback(_at_correct_offset)
+
         def _read(strings):
             size = sum([len(data) for data in strings])
             self._bytes_sent += size
-            self._offset += size
             return strings
         d.addCallback(_read)
         return d
+
     def remote_get_plaintext_hashtree_leaves(self, first, last, num_segments):
         log.msg("remote_get_plaintext_hashtree_leaves: %d-%d of %d" %
                 (first, last-1, num_segments),
