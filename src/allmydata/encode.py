@@ -352,7 +352,11 @@ class Encoder(object):
                     encrypted_pieces.append('\x00' * pad_size)
             else:
                 # non-tail segments should be the full segment size
-                assert length == input_chunk_size
+                log.msg("non-tail segment should be full segment size: %d!=%d"
+                        % (length, input_chunk_size), level=log.BAD)
+                precondition(length == input_chunk_size,
+                             "length=%d != input_chunk_size=%d" %
+                             (length, input_chunk_size))
 
             encrypted_piece = "".join(encrypted_pieces)
             return previous_chunks + [encrypted_piece]
