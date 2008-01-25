@@ -1,6 +1,6 @@
 
 BACKEND_URL = 'https://www-test.allmydata.com/native_client.php'
-#REGISTER_PAGE = 'https://www-test.allmydata.com/register'
+ACCOUNT_PAGE = 'https://www-test.allmydata.com/account'
 TAHOESVC_NAME = 'Tahoe'
 WINFUSESVC_NAME = 'Allmydata Tahoe SMB'
 
@@ -265,7 +265,6 @@ class RegisterButtonPanel(wx.Panel):
         self.SetAutoLayout(True)
 
     def on_reg_button(self, event):
-        #webbrowser.open(REGISTER_PAGE)
         self.app.swap_to_register_frame()
 
 class RegisterPanel(wx.Panel):
