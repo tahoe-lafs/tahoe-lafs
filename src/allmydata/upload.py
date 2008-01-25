@@ -5,6 +5,7 @@ from twisted.python import failure
 from twisted.internet import defer
 from twisted.application import service
 from foolscap import Referenceable
+from foolscap import eventual
 from foolscap.logging import log
 
 from allmydata.util.hashutil import file_renewal_secret_hash, \
@@ -452,24 +453,52 @@ class EncryptAnUploadable:
 
             offset += this_segment
 
+
     def read_encrypted(self, length, hash_only):
         # make sure our parameters have been set up first
         d = self.get_all_encoding_parameters()
         d.addCallback(lambda ignored: self._get_encryptor())
-        # then fetch the plaintext
-        remaining = length
+        # then fetch and encrypt the plaintext. The unusual structure here
+        # (passing a Deferred *into* a function) is needed to avoid
+        # overflowing the stack: Deferreds don't optimize out tail recursion.
+        # We also pass in a list, to which _read_encrypted will append
+        # ciphertext.
         ciphertext = []
-        while remaining:
-            # tolerate large length= values without consuming a lot of RAM
-            chunksize = min(remaining, self.CHUNKSIZE)
-            remaining -= chunksize
-            d.addCallback(lambda ignored: self.original.read(chunksize))
+        d2 = defer.Deferred()
+        d.addCallback(lambda ignored:
+                      self._read_encrypted(length, ciphertext, hash_only, d2))
+        d.addCallback(lambda ignored: d2)
+        return d
+
+    def _read_encrypted(self, remaining, ciphertext, hash_only, fire_when_done):
+        if not remaining:
+            fire_when_done.callback(ciphertext)
+            return None
+        # tolerate large length= values without consuming a lot of RAM by
+        # reading just a chunk (say 50kB) at a time. This only really matters
+        # when hash_only==True (i.e. resuming an interrupted upload), since
+        # that's the case where we will be skipping over a lot of data.
+        size = min(remaining, self.CHUNKSIZE)
+        remaining = remaining - size
+        # read a chunk of plaintext..
+        d = defer.maybeDeferred(self.original.read, size)
+        # N.B.: if read() is synchronous, then since everything else is
+        # actually synchronous too, we'd blow the stack unless we stall for a
+        # tick. Once you accept a Deferred from IUploadable.read(), you must
+        # be prepared to have it fire immediately too.
+        d.addCallback(eventual.fireEventually)
+        def _good(plaintext):
             # and encrypt it..
             # o/' over the fields we go, hashing all the way, sHA! sHA! sHA! o/'
-            d.addCallback(self._hash_and_encrypt_plaintext, hash_only)
-            d.addCallback(ciphertext.extend)
-        d.addCallback(lambda res: ciphertext)
-        return d
+            ct = self._hash_and_encrypt_plaintext(plaintext, hash_only)
+            ciphertext.extend(ct)
+            self._read_encrypted(remaining, ciphertext, hash_only,
+                                 fire_when_done)
+        def _err(why):
+            fire_when_done.errback(why)
+        d.addCallback(_good)
+        d.addErrback(_err)
+        return None
 
     def _hash_and_encrypt_plaintext(self, data, hash_only):
         assert isinstance(data, (tuple, list)), type(data)
@@ -495,6 +524,7 @@ class EncryptAnUploadable:
             del ciphertext
             del chunk
         return cryptdata
+
 
     def get_plaintext_hashtree_leaves(self, first, last, num_segments):
         if len(self._plaintext_segment_hashes) < num_segments:
