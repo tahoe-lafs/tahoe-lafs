@@ -429,7 +429,10 @@ mac-exe: .built
 	VERSION=$(VER) $(PP) $(MAKE) -C mac build
 
 mac-dist:
-	VERSION=$(VER) $(MAKE) -C mac diskimage upload
+	VERSION=$(VER) $(MAKE) -C mac diskimage
+
+mac-upload:
+	VERSION=$(VER) $(MAKE) -C mac upload
 
 mac-cleanup:
 	VERSION=$(VER) $(MAKE) -C mac cleanup
