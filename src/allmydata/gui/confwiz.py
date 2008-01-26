@@ -5,6 +5,7 @@ TAHOESVC_NAME = 'Tahoe'
 WINFUSESVC_NAME = 'Allmydata Tahoe SMB'
 
 import os
+import re
 import sys
 #import time
 import traceback
@@ -59,6 +60,15 @@ def create_account(url, user, passwd, subscribe):
 def get_introducer_furl(url):
     return post(url, { 'action': 'getintroducerfurl' })
 
+def get_config(url, user, passwd):
+    args = {
+        'action': 'get_config',
+        'email': unicode_to_utf8(user),
+        'passwd': unicode_to_utf8(passwd),
+        }
+    config = post(url, args)
+    return config
+
 def write_config_file(filename, contents):
     if sys.platform == 'win32':
         from allmydata.windows import registry
@@ -73,6 +83,32 @@ def write_config_file(filename, contents):
     iff.write(contents)
     iff.close()
 
+def configure(user, passwd):
+    _config_re = re.compile('^([^:]*): (.*)$')
+    config = get_config(BACKEND_URL, user, passwd)
+    config_dict = {}
+    for line in config.split('\n'):
+        if line:
+            m = _config_re.match(line)
+            if m:
+                fname, contents = m.groups()
+                config_dict[fname] = contents
+    for fname, contents in config_dict.items():
+        write_config_file(fname, contents+'\n')
+
+def start_windows_service(svc_name):
+    try:
+        import win32service
+        import win32serviceutil as wsu
+        if wsu.QueryServiceStatus(svc_name)[1] != win32service.SERVICE_RUNNING:
+            wsu.StartService(svc_name)
+    except:
+        DisplayTraceback('Failed to start windows service "%s"' % (svc_name,))
+
+def maybe_start_services():
+    if sys.platform == 'win32':
+        start_windows_service(TAHOESVC_NAME)
+        start_windows_service(WINFUSESVC_NAME)
 
 def DisplayTraceback(message):
     xc = traceback.format_exception(*sys.exc_info())
@@ -225,26 +261,11 @@ class LoginPanel(wx.Panel):
             self.Layout()
             return
 
-        # fetch the introducer furl
-        ifurl = get_introducer_furl(BACKEND_URL)
-        write_config_file('introducer.furl', ifurl+'\n')
-
-        # start service etc.
-        if sys.platform == 'win32':
-            self.start_windows_service(TAHOESVC_NAME)
-            self.start_windows_service(WINFUSESVC_NAME)
+        configure(user, passwd)
+        maybe_start_services()
 
         # exit
         self.parent.parent.Close()
-
-    def start_windows_service(self, svc_name):
-        try:
-            import win32service
-            import win32serviceutil as wsu
-            if wsu.QueryServiceStatus(svc_name)[1] != win32service.SERVICE_RUNNING:
-                wsu.StartService(svc_name)
-        except:
-            DisplayTraceback('Failed to start windows service "%s"' % (svc_name,))
 
 class RegisterButtonPanel(wx.Panel):
     def __init__(self, parent, app):
@@ -374,27 +395,11 @@ class RegisterPanel(wx.Panel):
             self.Layout()
             return
 
-        # fetch the introducer furl
-        #print 'calling get_introducer_furl', time.asctime()
-        ifurl = get_introducer_furl(BACKEND_URL)
-        write_config_file('introducer.furl', ifurl+'\n')
-
-        # start service etc.
-        if sys.platform == 'win32':
-            self.start_windows_service(TAHOESVC_NAME)
-            self.start_windows_service(WINFUSESVC_NAME)
+        configure(user, passwd)
+        maybe_start_services()
 
         # exit
         self.parent.parent.Close()
-
-    def start_windows_service(self, svc_name):
-        try:
-            import win32service
-            import win32serviceutil as wsu
-            if wsu.QueryServiceStatus(svc_name)[1] != win32service.SERVICE_RUNNING:
-                wsu.StartService(svc_name)
-        except:
-            DisplayTraceback('Failed to start windows service "%s"' % (svc_name,))
 
 
 def main():
