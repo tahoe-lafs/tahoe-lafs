@@ -239,7 +239,7 @@ class Encoder(object):
         return d
 
     def abort(self):
-        self.log("aborting upload")
+        self.log("aborting upload", level=log.UNUSUAL)
         assert self._codec, "don't call abort before start"
         self._aborted = True
         # the next segment read (in _gather_data inside _encode_segment) will
@@ -387,7 +387,7 @@ class Encoder(object):
         _assert(set(self.landlords.keys()).issubset(set(shareids)),
                 shareids=shareids, landlords=self.landlords)
         dl = []
-        lognum = self.log("send_segment(%d)" % segnum)
+        lognum = self.log("send_segment(%d)" % segnum, level=log.NOISY)
         for i in range(len(shares)):
             subshare = shares[i]
             shareid = shareids[i]
@@ -408,7 +408,8 @@ class Encoder(object):
                       self.segment_size*(segnum+1),
                       self.segment_size*self.num_segments,
                       100 * (segnum+1) / self.num_segments,
-                      ))
+                      ),
+                     level=log.OPERATIONAL)
             return res
         dl.addCallback(_logit)
         return dl
@@ -429,13 +430,15 @@ class Encoder(object):
         return d
 
     def _remove_shareholder(self, why, shareid, where):
-        ln = self.log("UNUSUAL: error while sending %s to shareholder=%d: %s" %
-                      (where, shareid, why))
+        ln = self.log(format="error while sending %(method)s to shareholder=%(shnum)d",
+                      method=where, shnum=shareid,
+                      level=log.UNUSUAL, failure=why)
         if shareid in self.landlords:
             del self.landlords[shareid]
         else:
             # even more UNUSUAL
-            self.log("WEIRD: they weren't in our list of landlords", parent=ln)
+            self.log("they weren't in our list of landlords", parent=ln,
+                     level=log.WEIRD)
         if len(self.landlords) < self.shares_of_happiness:
             msg = "lost too many shareholders during upload: %s" % why
             raise NotEnoughPeersError(msg)
@@ -469,7 +472,8 @@ class Encoder(object):
         d.addCallback(_got)
         def _got_hashtree_leaves(leaves):
             self.log("Encoder: got plaintext_hashtree_leaves: %s" %
-                     (",".join([idlib.b2a(h) for h in leaves]),))
+                     (",".join([idlib.b2a(h) for h in leaves]),),
+                     level=log.NOISY)
             ht = list(HashTree(list(leaves)))
             self.uri_extension_data["plaintext_root_hash"] = ht[0]
             self._plaintext_hashtree_nodes = ht
@@ -479,7 +483,7 @@ class Encoder(object):
         return d
 
     def send_plaintext_hash_tree_to_all_shareholders(self):
-        self.log("sending plaintext hash tree")
+        self.log("sending plaintext hash tree", level=log.NOISY)
         dl = []
         for shareid in self.landlords.keys():
             d = self.send_plaintext_hash_tree(shareid,
@@ -496,7 +500,7 @@ class Encoder(object):
         return d
 
     def send_crypttext_hash_tree_to_all_shareholders(self):
-        self.log("sending crypttext hash tree")
+        self.log("sending crypttext hash tree", level=log.NOISY)
         t = HashTree(self._crypttext_hashes)
         all_hashes = list(t)
         self.uri_extension_data["crypttext_root_hash"] = t[0]
@@ -514,7 +518,7 @@ class Encoder(object):
         return d
 
     def send_all_subshare_hash_trees(self):
-        self.log("sending subshare hash trees")
+        self.log("sending subshare hash trees", level=log.NOISY)
         dl = []
         for shareid,hashes in enumerate(self.subshare_hashes):
             # hashes is a list of the hashes of all subshares that were sent
@@ -541,7 +545,7 @@ class Encoder(object):
         # validate their share. This includes the share hash itself, but does
         # not include the top-level hash root (which is stored securely in
         # the URI instead).
-        self.log("sending all share hash trees")
+        self.log("sending all share hash trees", level=log.NOISY)
         dl = []
         for h in self.share_root_hashes:
             assert h
@@ -567,7 +571,7 @@ class Encoder(object):
         return d
 
     def send_uri_extension_to_all_shareholders(self):
-        lp = self.log("sending uri_extension")
+        lp = self.log("sending uri_extension", level=log.NOISY)
         for k in ('crypttext_root_hash', 'crypttext_hash',
                   'plaintext_root_hash', 'plaintext_hash',
                   ):
@@ -593,7 +597,7 @@ class Encoder(object):
         return d
 
     def close_all_shareholders(self):
-        self.log("closing shareholders")
+        self.log("closing shareholders", level=log.NOISY)
         dl = []
         for shareid in self.landlords:
             d = self.landlords[shareid].close()
@@ -602,7 +606,7 @@ class Encoder(object):
         return self._gather_responses(dl)
 
     def done(self):
-        self.log("upload done")
+        self.log("upload done", level=log.OPERATIONAL)
         return (self.uri_extension_hash, self.required_shares,
                 self.num_shares, self.file_size)
 
@@ -610,7 +614,7 @@ class Encoder(object):
         self.log("upload failed", failure=f, level=log.UNUSUAL)
         # we need to abort any remaining shareholders, so they'll delete the
         # partial share, allowing someone else to upload it again.
-        self.log("aborting shareholders")
+        self.log("aborting shareholders", level=log.UNUSUAL)
         dl = []
         for shareid in list(self.landlords.keys()):
             d = self.landlords[shareid].abort()
@@ -618,7 +622,7 @@ class Encoder(object):
             dl.append(d)
         d = self._gather_responses(dl)
         def _done(res):
-            self.log("shareholders aborted")
+            self.log("shareholders aborted", level=log.UNUSUAL)
             if f.check(defer.FirstError):
                 return f.value.subFailure
             return f
