@@ -41,18 +41,14 @@ configurable number of shares for each file, 12 by default.  Normally,
 each share is stored on a separate server, but a single server can
 hold multiple shares for a single file.
 
-Peers learn about each other through the "introducer". Each peer connects to
-this central introducer at startup, and receives a list of all other peers
-from it. Each peer then connects to all other peers, creating a
-fully-connected topology. Future versions will reduce the number of
-connections considerably, to enable the grid to scale to larger sizes: the
-design target is one million nodes. In addition, future versions will offer
-relay and NAT-traversal services to allow nodes without full internet
-connectivity to participate. In the current release, nodes behind NAT boxes
-will connect to all nodes that they can open connections to, but they cannot
-open connections to other nodes behind NAT boxes.  Therefore, the more nodes
-there are behind NAT boxes the less the topology resembles the intended
-fully-connected mesh topology.
+Peers learn about each other through an "introducer". Each peer
+connects to a central introducer at startup, and receives a list of
+all other peers from it. Each peer then connects to all other peers,
+creating a fully-connected topology.  In the current release, nodes
+behind NAT boxes will connect to all nodes that they can open
+connections to, but they cannot open connections to other nodes behind
+NAT boxes.  Therefore, the more nodes there are behind NAT boxes the
+less the topology resembles the intended fully-connected topology.
 
 
 FILE ENCODING
