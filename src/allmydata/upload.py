@@ -944,6 +944,10 @@ class Uploader(service.MultiService):
     def _got_helper(self, helper):
         self._helper = helper
 
+    def get_helper_info(self):
+        # return a tuple of (helper_furl_or_None, connected_bool)
+        return (self._helper_furl, bool(self._helper))
+
     def upload(self, uploadable):
         # this returns the URI
         assert self.parent

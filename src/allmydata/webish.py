@@ -1319,6 +1319,18 @@ class Root(rend.Page):
         if IClient(ctx).connected_to_introducer():
             return "yes"
         return "no"
+
+    def data_helper_furl(self, ctx, data):
+        uploader = IClient(ctx).getServiceNamed("uploader")
+        furl, connected = uploader.get_helper_info()
+        return furl
+    def data_connected_to_helper(self, ctx, data):
+        uploader = IClient(ctx).getServiceNamed("uploader")
+        furl, connected = uploader.get_helper_info()
+        if connected:
+            return "yes"
+        return "no"
+
     def data_num_peers(self, ctx, data):
         #client = inevow.ISite(ctx)._client
         client = IClient(ctx)
