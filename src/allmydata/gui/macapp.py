@@ -221,7 +221,7 @@ class MacGuiApp(wx.App):
     def __init__(self, app):
         wx.App.__init__(self)
         self.app = app
-    
+
     def OnInit(self):
         try:
             self.frame = SplashFrame()
