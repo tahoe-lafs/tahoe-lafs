@@ -959,14 +959,13 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_PUT_NEWDIRURL_localdir_missing(self):
-        raise unittest.SkipTest("fix PUTHandler._upload_localdir to return "
-                                "an error instead of silently passing")
         localdir = os.path.abspath("web/PUT_NEWDIRURL_localdir_missing")
         # we do *not* create it, to trigger an error
         url = (self.public_url + "/foo/subdir/newdir?t=upload&localdir=%s"
                % urllib.quote(localdir))
         d = self.shouldHTTPError2("test_PUT_NEWDIRURL_localdir_missing",
-                                  400, "Bad Request", "random",
+                                  400, "Bad Request",
+                                  "%s doesn't exist!" % localdir,
                                   self.PUT, url, "")
         return d
 

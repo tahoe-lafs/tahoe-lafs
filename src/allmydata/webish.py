@@ -472,6 +472,8 @@ class BlockingFileError(Exception):
     the way"""
 class NoReplacementError(Exception):
     """There was already a child by that name, and you asked me to not replace it"""
+class NoLocalDirectoryError(Exception):
+    """The localdir= directory didn't exist"""
 
 LOCALHOST = "127.0.0.1"
 
@@ -931,18 +933,19 @@ class PUTHandler(rend.Page):
             d.addCallback(self._mkdir, name)
         else:
             d.addCallback(self._upload_file, req.content, name)
-        def _check_blocking(f):
-            f.trap(BlockingFileError)
-            req.setResponseCode(http.BAD_REQUEST)
-            req.setHeader("content-type", "text/plain")
-            return str(f.value)
-        d.addErrback(_check_blocking)
-        def _check_replacement(f):
-            f.trap(NoReplacementError)
-            req.setResponseCode(http.CONFLICT)
-            req.setHeader("content-type", "text/plain")
-            return str(f.value)
-        d.addErrback(_check_replacement)
+
+        def _transform_error(f):
+            errors = {BlockingFileError: http.BAD_REQUEST,
+                      NoReplacementError: http.CONFLICT,
+                      NoLocalDirectoryError: http.BAD_REQUEST,
+                      }
+            for k,v in errors.items():
+                if f.check(k):
+                    req.setResponseCode(v)
+                    req.setHeader("content-type", "text/plain")
+                    return str(f.value)
+            return f
+        d.addErrback(_transform_error)
         return d
 
     def _get_or_create_directories(self, node, path):
@@ -1011,6 +1014,7 @@ class PUTHandler(rend.Page):
         msg = "No files to upload! %s is empty" % localdir
         if not os.path.exists(localdir):
             msg = "%s doesn't exist!" % localdir
+            raise NoLocalDirectoryError(msg)
         for root, dirs, files in os.walk(localdir):
             if root == localdir:
                 path = ()
