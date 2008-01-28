@@ -209,8 +209,7 @@ class Encoder(object):
 
         d = eventual.fireEventually()
 
-        for l in self.landlords.values():
-            d.addCallback(lambda res, l=l: l.start())
+        d.addCallback(lambda res: self.start_all_shareholders())
 
         for i in range(self.num_segments-1):
             # note to self: this form doesn't work, because lambda only
@@ -257,6 +256,16 @@ class Encoder(object):
         # normally expect.
 
         return eventual.fireEventually(res)
+
+
+    def start_all_shareholders(self):
+        self.log("starting shareholders", level=log.NOISY)
+        dl = []
+        for shareid in self.landlords:
+            d = self.landlords[shareid].start()
+            d.addErrback(self._remove_shareholder, shareid, "start")
+            dl.append(d)
+        return self._gather_responses(dl)
 
     def _encode_segment(self, segnum):
         codec = self._codec

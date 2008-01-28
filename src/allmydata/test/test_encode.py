@@ -3,6 +3,7 @@ from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python.failure import Failure
+from foolscap import eventual
 from allmydata import encode, upload, download, hashtree, uri
 from allmydata.util import hashutil
 from allmydata.util.assertutil import _assert
@@ -33,9 +34,15 @@ class FakeBucketWriterProxy:
     def startIfNecessary(self):
         return defer.succeed(self)
     def start(self):
+        if self.mode == "lost-early":
+            f = Failure(LostPeerError("I went away early"))
+            return eventual.fireEventually(f)
         return defer.succeed(self)
 
     def put_block(self, segmentnum, data):
+        if self.mode == "lost-early":
+            f = Failure(LostPeerError("I went away early"))
+            return eventual.fireEventually(f)
         def _try():
             assert not self.closed
             assert segmentnum not in self.blocks
@@ -616,6 +623,15 @@ class Roundtrip(unittest.TestCase):
         # still have 'shares_of_happiness' peers left.
         modemap = dict([(i, "good") for i in range(9)] +
                        [(i, "lost") for i in range(9, 10)])
+        return self.send_and_recover((4,8,10), bucket_modes=modemap)
+
+    def test_lost_one_shareholder_early(self):
+        # we have enough shareholders when we choose peers, but just before
+        # we send the 'start' message, we lose one of them. The upload should
+        # still succeed, as long as we still have 'shares_of_happiness' peers
+        # left.
+        modemap = dict([(i, "good") for i in range(9)] +
+                       [(i, "lost-early") for i in range(9, 10)])
         return self.send_and_recover((4,8,10), bucket_modes=modemap)
 
     def test_lost_many_shareholders(self):
