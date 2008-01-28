@@ -148,11 +148,11 @@ class LoginFrame(wx.Frame):
         title = 'Allmydata Tahoe Config Wizard'
         wx.Frame.__init__(self, None, -1, title)
         self.app = app
-        self.SetSizeHints(500, 360, 600, 800)
         self.SetIcon(amdicon.getIcon())
         self.Bind(wx.EVT_CLOSE, self.close)
 
         background = wx.Panel(self, -1)
+        background.SetSizeHints(500, 360, 600, 800)
         background.parent = self
         self.login_panel = LoginPanel(background)
         self.reg_btn_panel = RegisterButtonPanel(background, app)
@@ -178,11 +178,11 @@ class RegisterFrame(wx.Frame):
         title = 'Allmydata Tahoe Config Wizard'
         wx.Frame.__init__(self, None, -1, title)
         self.app = app
-        self.SetSizeHints(500, 360, 600, 800)
         self.SetIcon(amdicon.getIcon())
         self.Bind(wx.EVT_CLOSE, self.close)
 
         background = wx.Panel(self, -1)
+        background.SetSizeHints(500, 360, 600, 800)
         background.parent = self
         self.register_panel = RegisterPanel(background)
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -325,6 +325,7 @@ class RegisterPanel(wx.Panel):
         login_sizer.Add(self.create_account_button, 0, wx.ALIGN_RIGHT | wx.ALL, 2)
         self.sizer.Add(login_sizer, 1, wx.EXPAND | wx.ALL, 2)
         self.sizer.Add(self.warning_label, 0, wx.CENTER | wx.ALL, 2)
+        self.sizer.Add(wx.Size(2,2), 0, wx.EXPAND | wx.ALL, 4)
         self.sizer.Add(self.subscribe_box, 0, wx.CENTER | wx.ALL, 2)
         self.SetSizer(self.sizer)
         self.SetAutoLayout(True)
