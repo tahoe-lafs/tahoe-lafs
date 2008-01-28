@@ -148,7 +148,7 @@ class LoginFrame(wx.Frame):
         title = 'Allmydata Tahoe Config Wizard'
         wx.Frame.__init__(self, None, -1, title)
         self.app = app
-        self.SetSizeHints(100, 100, 600, 800)
+        self.SetSizeHints(500, 360, 600, 800)
         self.SetIcon(amdicon.getIcon())
         self.Bind(wx.EVT_CLOSE, self.close)
 
@@ -158,7 +158,9 @@ class LoginFrame(wx.Frame):
         self.reg_btn_panel = RegisterButtonPanel(background, app)
         sizer = wx.BoxSizer(wx.VERTICAL)
         background_sizer = wx.BoxSizer(wx.VERTICAL)
-        background_sizer.Add(self.login_panel, 1, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 26)
+        background_sizer.Add(wx.Size(2,2), 10, wx.EXPAND | wx.ALL, 26)
+        background_sizer.Add(self.login_panel, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 26)
+        background_sizer.Add(wx.Size(2,2), 10, wx.EXPAND | wx.ALL, 26)
         background_sizer.Add(self.reg_btn_panel, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 26)
         background.SetSizer(background_sizer)
         sizer.Add(background, 0, wx.EXPAND | wx.ALL, 0)
@@ -176,7 +178,7 @@ class RegisterFrame(wx.Frame):
         title = 'Allmydata Tahoe Config Wizard'
         wx.Frame.__init__(self, None, -1, title)
         self.app = app
-        self.SetSizeHints(100, 100, 600, 800)
+        self.SetSizeHints(500, 360, 600, 800)
         self.SetIcon(amdicon.getIcon())
         self.Bind(wx.EVT_CLOSE, self.close)
 
@@ -185,7 +187,9 @@ class RegisterFrame(wx.Frame):
         self.register_panel = RegisterPanel(background)
         sizer = wx.BoxSizer(wx.VERTICAL)
         background_sizer = wx.BoxSizer(wx.VERTICAL)
+        background_sizer.Add(wx.Size(2,2), 10, wx.EXPAND | wx.ALL, 26)
         background_sizer.Add(self.register_panel, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 26)
+        background_sizer.Add(wx.Size(2,2), 10, wx.EXPAND | wx.ALL, 26)
         background.SetSizer(background_sizer)
         sizer.Add(background, 0, wx.EXPAND | wx.ALL, 0)
         self.SetSizer(sizer)
