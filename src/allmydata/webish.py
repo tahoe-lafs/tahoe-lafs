@@ -1321,11 +1321,17 @@ class Root(rend.Page):
         return "no"
 
     def data_helper_furl(self, ctx, data):
-        uploader = IClient(ctx).getServiceNamed("uploader")
+        try:
+            uploader = IClient(ctx).getServiceNamed("uploader")
+        except KeyError:
+            return None
         furl, connected = uploader.get_helper_info()
         return furl
     def data_connected_to_helper(self, ctx, data):
-        uploader = IClient(ctx).getServiceNamed("uploader")
+        try:
+            uploader = IClient(ctx).getServiceNamed("uploader")
+        except KeyError:
+            return "no" # we don't even have an Uploader
         furl, connected = uploader.get_helper_info()
         if connected:
             return "yes"
