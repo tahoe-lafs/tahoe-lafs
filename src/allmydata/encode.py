@@ -352,8 +352,9 @@ class Encoder(object):
                     encrypted_pieces.append('\x00' * pad_size)
             else:
                 # non-tail segments should be the full segment size
-                log.msg("non-tail segment should be full segment size: %d!=%d"
-                        % (length, input_chunk_size), level=log.BAD)
+                if length != input_chunk_size:
+                    log.msg("non-tail segment should be full segment size: %d!=%d"
+                            % (length, input_chunk_size), level=log.BAD)
                 precondition(length == input_chunk_size,
                              "length=%d != input_chunk_size=%d" %
                              (length, input_chunk_size))
@@ -597,7 +598,7 @@ class Encoder(object):
                 self.num_shares, self.file_size)
 
     def err(self, f):
-        self.log("UNUSUAL: %s: upload failed: %s" % (self, f))
+        self.log("upload failed", failure=f, level=log.UNUSUAL)
         # we need to abort any remaining shareholders, so they'll delete the
         # partial share, allowing someone else to upload it again.
         self.log("aborting shareholders")
