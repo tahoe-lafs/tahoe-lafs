@@ -4,6 +4,7 @@ from zope.interface import implements
 from twisted.application import service
 from twisted.internet import defer
 from foolscap import Referenceable
+from foolscap.eventual import eventually
 from allmydata import upload, interfaces
 from allmydata.util import idlib, log, observer, fileutil
 
@@ -53,11 +54,10 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         # If not, return (UploadResults,None) .
         self.log("deciding whether to upload the file or not", level=log.NOISY)
         if os.path.exists(self._encoding_file):
-            # we have the whole file, and we're currently encoding it. The
-            # caller will get to see the results when we're done. TODO: how
-            # should they get upload progress in this case?
-            self.log("encoding in progress", level=log.UNUSUAL)
-            return self._finished_observers.when_fired()
+            # we have the whole file, and we might be encoding it (or the
+            # encode/upload might have failed, and we need to restart it).
+            self.log("ciphertext already in place", level=log.UNUSUAL)
+            return ({}, self)
         if os.path.exists(self._incoming_file):
             # we have some of the file, but not all of it (otherwise we'd be
             # encoding). The caller might be useful.
@@ -75,11 +75,6 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
     def remote_upload(self, reader):
         # reader is an RIEncryptedUploadable. I am specified to return an
         # UploadResults dictionary.
-
-        if os.path.exists(self._encoding_file):
-            # we've already started encoding, so we have no use for the
-            # reader. Notify them when we're done.
-            return self._finished_observers.when_fired()
 
         # let our fetcher pull ciphertext from the reader.
         self._fetcher.add_reader(reader)
@@ -159,12 +154,17 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
 
     def add_reader(self, reader):
         AskUntilSuccessMixin.add_reader(self, reader)
-        self._start()
+        eventually(self._start)
 
     def _start(self):
         if self._started:
             return
         self._started = True
+
+        if os.path.exists(self._encoding_file):
+            self.log("ciphertext already present, bypassing fetch",
+                     level=log.UNUSUAL)
+            return self._done2()
 
         # first, find out how large the file is going to be
         d = self.call("get_size")
@@ -249,11 +249,14 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
     def _done(self, res):
         self._f.close()
         self._f = None
-        self._readers = []
         self.log(format="done fetching ciphertext, size=%(size)d",
                  size=os.stat(self._incoming_file)[stat.ST_SIZE],
                  level=log.NOISY)
         os.rename(self._incoming_file, self._encoding_file)
+        return self._done2()
+
+    def _done2(self):
+        self._readers = []
         self._done_observers.fire(None)
 
     def _failed(self, f):

@@ -7,7 +7,8 @@ from foolscap import Tub, eventual
 from foolscap.logging import log
 
 from allmydata import upload, offloaded
-from allmydata.util import hashutil, fileutil
+from allmydata.util import hashutil, fileutil, idlib
+from pycryptopp.cipher.aes import AES
 
 MiB = 1024*1024
 
@@ -106,6 +107,48 @@ class AssistedUpload(unittest.TestCase):
 
         return d
 
+    def test_previous_upload_failed(self):
+        self.basedir = "helper/AssistedUpload/test_previous_upload_failed"
+        self.setUpHelper(self.basedir)
+        DATA = "I need help\n" * 1000
+
+        # we want to make sure that an upload which fails (leaving the
+        # ciphertext in the CHK_encoding/ directory) does not prevent a later
+        # attempt to upload that file from working. We simulate this by
+        # populating the directory manually.
+        key = hashutil.key_hash(DATA)[:16]
+        encryptor = AES(key)
+        SI = hashutil.storage_index_chk_hash(key)
+        SI_s = idlib.b2a(SI)
+        encfile = os.path.join(self.basedir, "CHK_encoding", SI_s)
+        f = open(encfile, "wb")
+        f.write(encryptor.process(DATA))
+        f.close()
+
+        u = upload.Uploader(self.helper_furl)
+        u.setServiceParent(self.s)
+
+        # wait a few turns
+        d = eventual.fireEventually()
+        d.addCallback(eventual.fireEventually)
+        d.addCallback(eventual.fireEventually)
+
+        def _ready(res):
+            assert u._helper
+            return u.upload_data(DATA)
+        d.addCallback(_ready)
+        def _uploaded(uri):
+            assert "CHK" in uri
+        d.addCallback(_uploaded)
+
+        def _check_empty(res):
+            files = os.listdir(os.path.join(self.basedir, "CHK_encoding"))
+            self.failUnlessEqual(files, [])
+            files = os.listdir(os.path.join(self.basedir, "CHK_incoming"))
+            self.failUnlessEqual(files, [])
+        d.addCallback(_check_empty)
+
+        return d
 
     def test_already_uploaded(self):
         self.basedir = "helper/AssistedUpload/test_already_uploaded"
