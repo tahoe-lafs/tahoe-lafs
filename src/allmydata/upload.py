@@ -518,8 +518,9 @@ class EncryptAnUploadable:
             # this ability, change this to simply update the counter
             # before each call to (hash_only==False) _encryptor.process()
             ciphertext = self._encryptor.process(chunk)
-            if not hash_only:
+            if hash_only:
                 log.msg("  skipping encryption")
+            else:
                 cryptdata.append(ciphertext)
             del ciphertext
             del chunk
