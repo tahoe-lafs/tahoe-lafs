@@ -1007,18 +1007,19 @@ section starts. Each offset is measured from the beginning of the file.
 def allocated_size(data_size, num_segments, num_share_hashes,
                    uri_extension_size):
     wbp = WriteBucketProxy(None, data_size, 0, num_segments, num_share_hashes,
-                           uri_extension_size)
+                           uri_extension_size, None)
     uri_extension_starts_at = wbp._offsets['uri_extension']
     return uri_extension_starts_at + 4 + uri_extension_size
 
 class WriteBucketProxy:
     implements(IStorageBucketWriter)
     def __init__(self, rref, data_size, segment_size, num_segments,
-                 num_share_hashes, uri_extension_size):
+                 num_share_hashes, uri_extension_size, nodeid):
         self._rref = rref
         self._data_size = data_size
         self._segment_size = segment_size
         self._num_segments = num_segments
+        self._nodeid = nodeid
 
         effective_segments = mathutil.next_power_of_k(num_segments,2)
         self._segment_hash_size = (2*effective_segments - 1) * HASH_SIZE
@@ -1055,6 +1056,13 @@ class WriteBucketProxy:
                                   )
         assert len(offset_data) == 0x24
         self._offset_data = offset_data
+
+    def __repr__(self):
+        if self._nodeid:
+            nodeid_s = idlib.nodeid_b2a(self._nodeid)
+        else:
+            nodeid_s = "[None]"
+        return "<allmydata.storage.WriteBucketProxy for node %s>" % nodeid_s
 
     def start(self):
         return self._write(0, self._offset_data)

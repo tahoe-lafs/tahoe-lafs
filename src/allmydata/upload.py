@@ -105,7 +105,8 @@ class PeerTracker:
                                           self.blocksize,
                                           self.num_segments,
                                           self.num_share_hashes,
-                                          EXTENSION_SIZE)
+                                          EXTENSION_SIZE,
+                                          self.peerid)
             b[sharenum] = bp
         self.buckets.update(b)
         return (alreadygot, set(b.keys()))
