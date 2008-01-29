@@ -15,6 +15,7 @@ of tahoe-fuse.py tricky business.
 
 import sys, os, shutil, unittest, subprocess
 import tempfile, re, time, signal, random, httplib
+import traceback
 
 import tahoe_fuse
 
@@ -255,9 +256,27 @@ class SystemTest (object):
         finally:
             self.cleanup_dir(self.mountpoint)
             
-    def run_test_layer(self):
-        raise NotImplementedError()
-        
+    def run_test_layer(self, mountpoint):
+        total = failures = 0
+        for name in dir(self):
+            if name.startswith('test_'):
+                total += 1
+                print '\n*** Running test #%d: %s' % (total, name)
+                try:
+                    method = getattr(self, name)
+                    method(mountpoint)
+                    print 'Test succeeded.'
+                except:
+                    print 'Test failed (details follow):'
+                    traceback.print_exc()
+                    failures += 1
+
+        print '\n*** Testing complete: %d failured out of %d.' % (failures, total)           
+
+    # Tests:
+    def test_foo(self, mountpoint):
+        raise NotImplementedError('No tests yet...')
+    
 
     # Utilities:
     def run_tahoe(self, *args):
