@@ -251,12 +251,15 @@ class SystemTest (object):
                     method = getattr(self, name)
                     method(mountpoint)
                     print 'Test succeeded.'
-                except:
-                    print 'Test failed (details follow):'
-                    traceback.print_exc()
+                except self.TestFailure, f:
+                    print f
                     failures += 1
+                except:
+                    print 'Error in test code...  Cleaning up.'
+                    raise
 
-        print '\n*** Testing complete: %d failured out of %d.' % (failures, total)           
+        print '\n*** Testing complete: %d failed out of %d.' % (failures, total)           
+
 
     # Tests:
     def test_00_empty_directory_listing(self, mountpoint):
