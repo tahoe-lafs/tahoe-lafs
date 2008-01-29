@@ -18,7 +18,17 @@ def require_auto_deps():
         pass
     else:
         for requirement in install_requires:
-            pkg_resources.require(requirement)
+            try:
+                pkg_resources.require(requirement)
+            except pkg_resources.DistributionNotFound:
+                # there is no .egg-info present for this requirement, which
+                # either means that it isn't installed, or it is installed in
+                # a way that setuptools can't find it (but regular python
+                # might). The __import__ below will pass the second case,
+                # which is good enough for us. There are several
+                # distributions which provide our dependencies just fine, but
+                # they don't ship .egg-info files.
+                pass
     for requirement in install_requires:
         reqparts = requirement.split()
         name = reqparts[0]
