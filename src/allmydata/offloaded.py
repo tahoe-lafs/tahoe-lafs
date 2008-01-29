@@ -164,7 +164,16 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         if os.path.exists(self._encoding_file):
             self.log("ciphertext already present, bypassing fetch",
                      level=log.UNUSUAL)
-            return self._done2()
+            # we'll still need the plaintext hashes (when
+            # LocalCiphertextReader.get_plaintext_hashtree_leaves() is
+            # called), and currently the easiest way to get them is to ask
+            # the sender for the last byte of ciphertext. That will provoke
+            # them into reading and hashing (but not sending) everything
+            # else.
+            have = os.stat(self._encoding_file)[stat.ST_SIZE]
+            d = self.call("read_encrypted", have-1, 1)
+            d.addCallback(lambda ignored: self._done2())
+            return
 
         # first, find out how large the file is going to be
         d = self.call("get_size")
@@ -256,6 +265,7 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         return self._done2()
 
     def _done2(self):
+        self.log("done2", level=log.NOISY)
         self._readers = []
         self._done_observers.fire(None)
 
