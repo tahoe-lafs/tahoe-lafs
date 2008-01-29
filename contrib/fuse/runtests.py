@@ -243,7 +243,7 @@ class SystemTest (object):
             
     def run_test_layer(self, mountpoint):
         total = failures = 0
-        for name in dir(self):
+        for name in sorted(dir(self)):
             if name.startswith('test_'):
                 total += 1
                 print '\n*** Running test #%d: %s' % (total, name)
@@ -259,8 +259,10 @@ class SystemTest (object):
         print '\n*** Testing complete: %d failured out of %d.' % (failures, total)           
 
     # Tests:
-    def test_foo(self, mountpoint):
-        raise NotImplementedError('No tests yet...')
+    def test_00_empty_directory_listing(self, mountpoint):
+        listing = os.listdir(mountpoint)
+        if listing:
+            raise self.TestFailure('Expected empty directory, found: %r' % (listing,))
     
 
     # Utilities:
@@ -342,16 +344,19 @@ class SystemTest (object):
         tmpl += 'Waited %.2f seconds (%d polls).'
         raise self.SetupFailure(tmpl, totaltime, attempt+1)
 
+
     # SystemTest Exceptions:
     class Failure (Exception):
-        pass
+        def __init__(self, tmpl, *args):
+            msg = self.Prefix + (tmpl % args)
+            Exception.__init__(self, msg)
     
     class SetupFailure (Failure):
-        def __init__(self, tmpl, *args):
-            msg = 'SystemTest.SetupFailure - The test framework encountered an error:\n'
-            msg += tmpl % args
-            SystemTest.Failure.__init__(self, msg)
+        Prefix = 'Setup Failure - The test framework encountered an error:\n'
 
+    class TestFailure (Failure):
+        Prefix = 'TestFailure: '
+            
 
 ### Unit Tests:
 class TestUtilFunctions (unittest.TestCase):
