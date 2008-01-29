@@ -54,32 +54,38 @@ def run_system_test():
 ### System Testing:
 class SystemTest (object):
     def __init__(self):
-        self.cliexec = None
-        self.introbase = None
-        self.mountpoint = None
-
-        # We keep track of multiple clients for a full-fledged grid in
-        # clientsinfo (see SystemTest.ClientInfo).
-
-        # self.clientsinfo[0] is the client to which we attach fuse and
-        # make webapi calls (see SystemTest.get_interface_client).
+        # These members represent configuration:
+        self.fullcleanup = False # FIXME: Make this a commandline option.
         
-        self.clientsinfo = []
+        # These members represent test state:
+        self.cliexec = None
+        self.testroot = None
+
+        # This test state is specific to the first client:
+        self.port = None
+        self.clientbase = None
 
     ## Top-level flow control:
     # These "*_layer" methods call eachother in a linear fashion, using
     # exception unwinding to do cleanup properly.  Each "layer" invokes
     # a deeper layer, and each layer does its own cleanup upon exit.
     
-    def run(self):
-        print 'Running System Test.'
+    def run(self, fullcleanup = False):
+        '''
+        If full_cleanup, delete all temporary state.
+        Else:  If there is an error do not delete basedirs.
+
+        Set to False if you wish to analyze a failure.
+        '''
+        self.fullcleanup = fullcleanup
+        print '\n*** Setting up system test.'
         try:
             self.init_cli_layer()
         except self.SetupFailure, sfail:
             print
             print sfail
 
-        print 'System Test complete.'
+        print '\n*** System Test complete.'
 
     def init_cli_layer(self):
         '''This layer finds the appropriate tahoe executable.'''
@@ -97,120 +103,99 @@ class SystemTest (object):
         version = self.run_tahoe('--version')
         print 'Using %r with version:\n%s' % (self.cliexec, version.rstrip())
 
-        self.create_introducer_layer()
-        
-    def create_introducer_layer(self):
-        print 'Creating introducer.'
-        self.introbase = tempfile.mkdtemp(prefix='tahoe_fuse_test_',
-                                          suffix='_introducer')
+        self.create_testroot_layer()
+
+    def create_testroot_layer(self):
+        print 'Creating test base directory.'
+        self.testroot = tempfile.mkdtemp(prefix='tahoe_fuse_test_')
         try:
-            output = self.run_tahoe('create-introducer', '--basedir', self.introbase)
-
-            pat = r'^introducer created in (.*?)\n\s*$'
-            self.check_tahoe_output(output, pat, self.introbase)
-
             self.launch_introducer_layer()
-            
         finally:
-            print 'Removing introducer directory.'
-            self.cleanup_dir(self.introbase)
-    
+            if self.fullcleanup:
+                print 'Cleaning up test root directory.'
+                try:
+                    shutil.rmtree(self.testroot)
+                except Exception, e:
+                    print 'Exception removing test root directory: %r' % (self.testroot, )
+                    print 'Ignoring cleanup exception: %r' % (e,)
+            else:
+                print 'Leaving test root directory: %r' % (self.testroot, )
+
+        
     def launch_introducer_layer(self):
         print 'Launching introducer.'
-        # NOTE: We assume if tahoe exist with non-zero status, no separate
+        introbase = os.path.join(self.testroot, 'introducer')
+
+        # NOTE: We assume if tahoe exits with non-zero status, no separate
         # tahoe child process is still running.
-        output = self.run_tahoe('start', '--basedir', self.introbase)
+        createoutput = self.run_tahoe('create-introducer', '--basedir', introbase)
+
+        pat = r'^introducer created in (.*?)\n\s*$'
+        self.check_tahoe_output(createoutput, pat, introbase)
+
+        startoutput = self.run_tahoe('start', '--basedir', introbase)
         try:
             pat = r'^STARTING (.*?)\nintroducer node probably started\s*$'
-            self.check_tahoe_output(output, pat, self.introbase)
+            self.check_tahoe_output(startoutput, pat, introbase)
 
-            self.create_clients_layer()
+            self.launch_clients_layer(introbase)
             
         finally:
             print 'Stopping introducer node.'
-            try:
-                output = self.run_tahoe('stop', '--basedir', self.introbase)
-            except Exception, e:
-                print 'Failed to stop introducer node.  Output:'
-                print output
-                print 'Ignoring cleanup exception: %r' % (e,)
+            self.stop_node(introbase)
         
     TotalClientsNeeded = 3
-    def create_clients_layer(self, clientnum = 0):
-        if clientnum == self.TotalClientsNeeded:
-            self.launch_clients_layer()
-            return
-
-        tmpl = 'Creating client %d of %d.'
-        print tmpl % (clientnum + 1,
-                      self.TotalClientsNeeded)
-
-        assert len(self.clientsinfo) == clientnum, `clientnum`
-
-        client = self.ClientInfo(clientnum)
-        self.clientsinfo.append(client)
-
-        try:
-            output = self.run_tahoe('create-client', '--basedir', client.base)
-            pat = r'^client created in (.*?)\n'
-            pat += r' please copy introducer.furl into the directory\s*$'
-            self.check_tahoe_output(output, pat, client.base)
-
-            client.port = random.randrange(1024, 2**15)
-
-            f = open(os.path.join(client.base, 'webport'), 'w')
-            f.write('tcp:%d:interface=127.0.0.1\n' % client.port)
-            f.close()
-
-            introfurl = os.path.join(self.introbase, 'introducer.furl')
-
-            # FIXME: Is there a better way to handle this race condition?
-            self.polling_operation(lambda : os.path.isfile(introfurl))
-            shutil.copy(introfurl, client.base)
-
-            self.create_clients_layer(clientnum+1)
-            
-        finally:
-            print 'Removing client %d base directory.' % (clientnum+1,)
-            self.cleanup_dir(client.base)
-    
-    def launch_clients_layer(self, clientnum = 0):
-        if clientnum == self.TotalClientsNeeded:
+    def launch_clients_layer(self, introbase, clientnum = 1):
+        if clientnum > self.TotalClientsNeeded:
             self.create_test_dirnode_layer()
             return
 
         tmpl = 'Launching client %d of %d.'
-        print tmpl % (clientnum + 1,
+        print tmpl % (clientnum,
                       self.TotalClientsNeeded)
 
-        client = self.clientsinfo[clientnum]
+        base = os.path.join(self.testroot, 'client_%d' % (clientnum,))
+
+        output = self.run_tahoe('create-client', '--basedir', base)
+        pat = r'^client created in (.*?)\n'
+        pat += r' please copy introducer.furl into the directory\s*$'
+        self.check_tahoe_output(output, pat, base)
+
+        if clientnum == 1:
+            # The first client is special:
+            self.clientbase = base
+            self.port = random.randrange(1024, 2**15)
+
+            f = open(os.path.join(base, 'webport'), 'w')
+            f.write('tcp:%d:interface=127.0.0.1\n' % self.port)
+            f.close()
+
+        introfurl = os.path.join(introbase, 'introducer.furl')
+
+        # FIXME: Is there a better way to handle this race condition?
+        self.polling_operation(lambda : os.path.isfile(introfurl))
+        shutil.copy(introfurl, base)
 
         # NOTE: We assume if tahoe exist with non-zero status, no separate
         # tahoe child process is still running.
-        output = self.run_tahoe('start', '--basedir', client.base)
+        startoutput = self.run_tahoe('start', '--basedir', base)
         try:
             pat = r'^STARTING (.*?)\nclient node probably started\s*$'
-            self.check_tahoe_output(output, pat, client.base)
+            self.check_tahoe_output(startoutput, pat, base)
 
-            self.launch_clients_layer(clientnum+1)
+            self.launch_clients_layer(introbase, clientnum+1)
 
         finally:
-            print 'Stopping client node %d.' % (clientnum+1,)
-            try:
-                output = self.run_tahoe('stop', '--basedir', client.base)
-            except Exception, e:
-                print 'Failed to stop client node.  Output:'
-                print output
-                print 'Ignoring cleanup exception: %r' % (e,)
+            print 'Stopping client node %d.' % (clientnum,)
+            self.stop_node(base)
         
     def create_test_dirnode_layer(self):
         print 'Creating test dirnode.'
-        client = self.get_interface_client()
 
-        targeturl = 'http://127.0.0.1:%d/uri?t=mkdir' % (client.port,)
+        targeturl = 'http://127.0.0.1:%d/uri?t=mkdir' % (self.port,)
 
         def make_dirnode():
-            conn = httplib.HTTPConnection('127.0.0.1', client.port)
+            conn = httplib.HTTPConnection('127.0.0.1', self.port)
             conn.request('PUT', '/uri?t=mkdir')
             resp = conn.getresponse()
             if resp.status == 200:
@@ -223,7 +208,7 @@ class SystemTest (object):
             
         cap = self.polling_operation(make_dirnode)
 
-        f = open(os.path.join(client.base, 'private', 'root_dir.cap'), 'w')
+        f = open(os.path.join(self.clientbase, 'private', 'root_dir.cap'), 'w')
         f.write(cap)
         f.close()
 
@@ -231,30 +216,28 @@ class SystemTest (object):
         
     def mount_fuse_layer(self):
         print 'Mounting fuse interface.'
-        client = self.get_interface_client()
 
-        self.mountpoint = tempfile.mkdtemp(prefix='tahoe_fuse_mp_')
+        mp = os.path.join(self.testroot, 'mointpoint')
+        thispath = os.path.abspath(sys.argv[0])
+        thisdir = os.path.dirname(thispath)
+        fusescript = os.path.join(thisdir, 'tahoe_fuse.py')
         try:
-            thispath = os.path.abspath(sys.argv[0])
-            thisdir = os.path.dirname(thispath)
-            fusescript = os.path.join(thisdir, 'tahoe_fuse.py')
-            try:
-                proc = subprocess.Popen([fusescript,
-                                         self.mountpoint,
-                                         '-f',
-                                         '--basedir', client.base])
-                # FIXME: Verify the mount somehow?
+            proc = subprocess.Popen([fusescript,
+                                     mp,
+                                     '-f',
+                                     '--basedir', self.clientbase])
+            # FIXME: Verify the mount somehow?
 
-                self.run_test_layer()
+            self.run_test_layer(mp)
                 
-            finally:
-                if proc.poll() is None:
-                    print 'Killing fuse interface.'
-                    os.kill(proc.pid, signal.SIGTERM)
-                    print 'Waiting for the fuse interface to exit.'
-                    proc.wait()
         finally:
-            self.cleanup_dir(self.mountpoint)
+            print '\n*** Cleaning up system test'
+
+            if proc.poll() is None:
+                print 'Killing fuse interface.'
+                os.kill(proc.pid, signal.SIGTERM)
+                print 'Waiting for the fuse interface to exit.'
+                proc.wait()
             
     def run_test_layer(self, mountpoint):
         total = failures = 0
@@ -309,12 +292,15 @@ class SystemTest (object):
             tmpl += 'Actual directory: %r\n'
             raise self.SetupFailure(tmpl, expdir, m.group(1))
 
-    def cleanup_dir(self, path):
+    def stop_node(self, basedir):
         try:
-            shutil.rmtree(path)
+            self.run_tahoe('stop', '--basedir', basedir)
         except Exception, e:
-            print 'Exception removing test directory: %r' % (path,)
-            print 'Ignoring cleanup exception: %r' % (e,)
+            print 'Failed to stop tahoe node.'
+            print 'Ignoring cleanup exception:'
+            # Indent the exception description:
+            desc = str(e).rstrip()
+            print '  ' + desc.replace('\n', '\n  ')
 
     def polling_operation(self, operation, timeout = 10.0, pollinterval = 0.2):
         totaltime = timeout # Fudging for edge-case SetupFailure description...
@@ -335,8 +321,8 @@ class SystemTest (object):
             totaltime = time.time() - starttime
 
             if result is not False:
-                tmpl = '(Polling took over %.2f seconds.)'
-                print tmpl % (totaltime,)
+                #tmpl = '(Polling took over %.2f seconds.)'
+                #print tmpl % (totaltime,)
                 return result
 
             elif totaltime > timeout:
@@ -354,24 +340,13 @@ class SystemTest (object):
         tmpl += 'Waited %.2f seconds (%d polls).'
         raise self.SetupFailure(tmpl, totaltime, attempt+1)
 
-    def get_interface_client(self):
-        return self.clientsinfo[0]
-
-    # ClientInfo:
-    class ClientInfo (object):
-        def __init__(self, clientnum):
-            self.num = clientnum
-            self.base = tempfile.mkdtemp(prefix='tahoe_fuse_test_client',
-                                         suffix='_%d' % clientnum)
-            self.port = None
-            
     # SystemTest Exceptions:
     class Failure (Exception):
         pass
     
     class SetupFailure (Failure):
         def __init__(self, tmpl, *args):
-            msg = 'SystemTest.SetupFailure - A test environment could not be created:\n'
+            msg = 'SystemTest.SetupFailure - The test framework encountered an error:\n'
             msg += tmpl % args
             SystemTest.Failure.__init__(self, msg)
 
