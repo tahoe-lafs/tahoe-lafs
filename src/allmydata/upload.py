@@ -723,8 +723,8 @@ class RemoteEncryptedUploadable(Referenceable):
         if offset > self._offset:
             # read the data from disk anyways, to build up the hash tree
             skip = offset - self._offset
-            log.msg("remote_read_encrypted skipping ahead to %d, skip=%d" %
-                    (self._offset, skip), level=log.UNUSUAL, parent=lp)
+            log.msg("remote_read_encrypted skipping ahead from %d to %d, skip=%d" %
+                    (self._offset, offset, skip), level=log.UNUSUAL, parent=lp)
             d = self._read_encrypted(skip, hash_only=True)
         else:
             d = defer.succeed(None)
