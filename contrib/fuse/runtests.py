@@ -217,7 +217,9 @@ class SystemTest (object):
     def mount_fuse_layer(self):
         print 'Mounting fuse interface.'
 
-        mp = os.path.join(self.testroot, 'mointpoint')
+        mp = os.path.join(self.testroot, 'mountpoint')
+        os.mkdir(mp)
+
         thispath = os.path.abspath(sys.argv[0])
         thisdir = os.path.dirname(thispath)
         fusescript = os.path.join(thisdir, 'tahoe_fuse.py')
