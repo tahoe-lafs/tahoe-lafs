@@ -268,8 +268,7 @@ class Directory(rend.Page):
 
         childdata = [T.a(href="%s?t=json" % name)["JSON"], ", ",
                      T.a(href="%s?t=uri" % name)["URI"], ", ",
-                     T.a(href="%s?t=readonly-uri" % name)["readonly-URI"], ", ",
-                     T.a(href=uri_link)["URI-link"],
+                     T.a(href="%s?t=readonly-uri" % name)["readonly-URI"],
                      ]
         if text_plain_tag:
             childdata.extend([", ", text_plain_tag])
