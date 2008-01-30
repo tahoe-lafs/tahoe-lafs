@@ -1,9 +1,3 @@
-NOTE: this file starts by explaining old-style (no longer used) centralized
-directories, but it also has useful discussion of security, efficiency, and
-usage, so I'm not removing it from the source code distribution just yet.
-Hopefully its contents which are still relevant will be reworked into a new
-document.
-
 
 = Tahoe Directory Nodes =
 
@@ -21,18 +15,22 @@ This document examines the middle layer, the "filesystem".
 
 == DHT Primitives ==
 
-In the lowest layer (DHT), we've defined two operations thus far, both of
-which refer to "CHK URIs", which reference immutable data:
+In the lowest layer (DHT), there are two operations that reference immutable
+data (which we refer to as "CHK URIs" or "CHK read-capabilities" or "CHK
+read-caps"). One puts data into the grid (but only if it doesn't exist
+already), the other retrieves it:
 
  chk_uri = put(data)
  data = get(chk_uri)
 
-We anticipate creating mutable slots in the DHT layer at some point, which
-will add some new operations to this layer:
+We also have three operations which reference mutable data (which we refer to
+as "mutable slots", or "mutable write-caps and read-caps", or sometimes "SSK
+slots"). One creates a slot with some initial contents, a second replaces the
+contents of a pre-existing slot, and the third retrieves the contents:
 
- slotname = create_slot()
- set(slotname, data)
- data = get(slotname)
+ mutable_uri = create(initial_data)
+ replace(mutable_uri, new_data)
+ data = get(mutable_uri)
 
 == Filesystem Goals ==
 
@@ -56,8 +54,8 @@ particular order:
 
  1: functional. Code which does not work doesn't count.
  2: easy to document, explain, and understand
- 3: private: it should not be possible for others to see the contents of a
-             directory
+ 3: confidential: it should not be possible for others to see the contents of
+                  a directory
  4: integrity: it should not be possible for others to modify the contents
                of a directory
  5: available: directories should survive host failure, just like files do
@@ -67,102 +65,97 @@ particular order:
  9: monotonicity: everybody looking at a directory should see the same
                   sequence of updates
 
-We do not meet all of these goals. For the current release, we favored #1,
-#2, and #7 above the rest, which led us to the following design. In a later
-section, we discuss some alternate designs and potential changes to the
-existing code that can help us achieve the other goals.
+Some of these goals are mutually exclusive. For example, availability and
+consistency are opposing, so it is not possible to achieve #5 and #8 at the
+same time. Moreover, it takes a more complex architecture to get close to the
+available-and-consistent ideal, so #2/#6 is in opposition to #5/#8.
 
-In tahoe-0.4.0, each "dirnode" is stored as a file on a single "vdrive
-server". The name of this file is an unguessable string. The contents are an
-encrypted representation of the directory's name-to-child mapping. Foolscap
-is used to provide remote access to this file. A collection of "directory
-URIs" are used to hold all the parameters necessary to access, read, and
-write this dirnode.
+Tahoe-0.7.0 introduced distributed mutable files, which use public key
+cryptography for integrity, and erasure coding for availability. These
+achieve roughly the same properties as immutable CHK files, but their
+contents can be replaced without changing their identity. Dirnodes are then
+just a special way of interpreting the contents of a specific mutable file.
+Earlier releases used a "vdrive server": this server was abolished in the
+0.7.0 release.
+
+For details of how mutable files work, please see "mutable.txt" in this
+directory.
+
+For the current 0.7.0 release, we achieve most of our desired properties. The
+integrity and availability of dirnodes is equivalent to that of regular
+(immutable) files, with the exception that there are more simultaneous-update
+failure modes for mutable slots. Delegation is quite strong: you can give
+read-write or read-only access to any subtree, and the data format used for
+dirnodes is such that read-only access is transitive: i.e. if you grant Bob
+read-only access to a parent directory, then Bob will get read-only access
+(and *not* read-write access) to its children.
+
+Relative to the previous "vdrive-server" based scheme, the current
+distributed dirnode approach gives better availability, but cannot guarantee
+updateness quite as well, and requires far more network traffic for each
+retrieval and update. Mutable files are somewhat less available than
+immutable files, simply because of the increased number of combinations
+(shares of an immutable file are either present or not, whereas there are
+multiple versions of each mutable file, and you might have some shares of
+version 1 and other shares of version 2). In extreme cases of simultaneous
+update, mutable files might suffer from non-monotonicity.
+
 
 == Dirnode secret values ==
 
-Each dirnode begins life as a "writekey", a randomly-generated AES key. This
-key is hashed (using a tagged hash, see src/allmydata/util/hashutil.py for
-details) to form the "readkey". The readkey is hashed to form the "storage
-index". The writekey is hashed with a different tag to form the "write
-enabler".
-
-Clients who have read-write access to the dirnode know the writekey, and can
-derive all the other secrets from it. Clients with merely read-only access to
-the dirnode know the readkey (and can derive the storage index), but do not
-know the writekey or the write enabler. The vdrive server knows only the
-storage index and the write enabler.
-
-== Dirnode capability URIs ==
+As mentioned before, dirnodes are simply a special way to interpret the
+contents of a mutable file, so the secret keys and capability strings
+described in "mutable.txt" are all the same. Each dirnode contains an RSA
+public/private keypair, and the holder of the "write capability" will be able
+to retrieve the private key (as well as the AES encryption key used for the
+data itself). The holder of the "read capability" will be able to obtain the
+public key and the AES data key, but not the RSA private key needed to modify
+the data.
 
 The "write capability" for a dirnode grants read-write access to its
-contents. This is expressed on concrete form as the "dirnode write URI": a
-printable string which contains the following pieces of information:
-
- furl of the vdrive server hosting this dirnode
- writekey
-
-The "read capability" grants read-only access to a dirnode, and its "dirnode
-read URI" contains:
-
- furl of the vdrive server hosting this dirnode
- readkey
+contents. This is expressed on concrete form as the "dirnode write cap": a
+printable string which contains the necessary secrets to grant this access.
+Likewise, the "read capability" grants read-only access to a dirnode, and can
+be represented by a "dirnode read cap" string.
 
 For example,
-URI:DIR:pb://xextf3eap44o3wi27mf7ehiur6wvhzr6@207.7.153.180:56677,127.0.0.1:56677/vdrive:shrrn75qq3x7uxfzk326ncahd4======
+URI:DIR2:swdi8ge1s7qko45d3ckkyw1aac%3Aar8r5j99a4mezdojejmsfp4fj1zeky9gjigyrid4urxdimego68o
 is a write-capability URI, while
-URI:DIR-RO:pb://xextf3eap44o3wi27mf7ehiur6wvhzr6@207.7.153.180:56677,127.0.0.1:56677/vdrive:4c2legsthoe52qywuaturgwdrm======
+URI:DIR2-RO:buxjqykt637u61nnmjg7s8zkny:ar8r5j99a4mezdojejmsfp4fj1zeky9gjigyrid4urxdimego68o
 is a read-capability URI, both for the same dirnode.
 
 
 == Dirnode storage format ==
 
-Each dirnode is stored in a single file, saved on the vdrive server, using
-the (base32-encoded) storage index as a filename. The contents of this file
-are a serialized dictionary which maps H_name (explained below) to a tuple
-with three values: (E_name, E_write, E_read). The vdrive server is made
-available as a Foolscap "Referenceable" object, with the following
-operations:
+Each dirnode is stored in a single mutable file, distributed in the Tahoe
+grid. The contents of this file are a serialized list of netstrings, one per
+child. Each child is a list of four netstrings: (name, rocap, rwcap,
+metadata). (remember that the contents of the mutable file are encrypted by
+the read-cap, so this section describes the plaintext contents of the mutable
+file, *after* it has been decrypted by the read-cap).
 
- create_dirnode(index, write_enabler) -> None
- list(index) -> list of (E_name, E_write, E_read) tuples
- get(index, H_name) -> (E_write, E_read)
- set(index, write_enabler, H_name, E_name, E_write, E_read)
- delete(index, write_enabler, H_name)
+The name is simple a UTF-8 -encoded child name. The 'rocap' is a read-only
+capability URI to that child, either an immutable (CHK) file, a mutable file,
+or a directory. The 'rwcap' is a read-write capability URI for that child,
+encrypted with the dirnode's write-cap: this enables the "transitive
+readonlyness" property, described further below. The 'metadata' is a
+JSON-encoded dictionary of type,value metadata pairs. Some metadata keys are
+pre-defined, the rest are left up to the application.
 
-For any given entry of this dictionary, the following values are obtained by
-hashing or encryption:
+Each rwcap is stored as IV + ciphertext + MAC. The IV is a 16-byte random
+value. The ciphertext is obtained by using AES in CTR mode on the rwcap URI
+string, using a key that is formed from a tagged hash of the IV and the
+dirnode's writekey. The MAC is a 32-byte SHA-256 -based HMAC (using that same
+AES key) over the (IV+ciphertext) pair.
 
-  H_name is the hash of the readkey and the child's name.
-  E_name is the child's name, encrypted with the readkey
-  E_write is the child's write-URI, encrypted with the writekey
-  E_read is the child's read-URI, encrypted with the readkey
-
-All encryption uses AES in CTR mode, in which the high-order 10 or 12 bytes
-of the 16-byte key are used as an IV (randomly chosen each time the data is
-changed), and the remaining bytes are used as the CTR-mode offset. An
-HMAC-SHA256 is computed for each encrypted value and stored alongside. The
-stored E_name/E_write/E_read values are thus the concatenation of IV,
-encrypted data, and HMAC.
-
-When a new dirnode is created, it records the write_enabler. All operations
-that modify an existing dirnode (set and delete) require the write_enabler be
-presented.
-
-This approach insures that clients who do not have the read or write keys
-(including the vdrive server, which knows the storage index but not the keys)
-will be unable to see any of the contents of the dirnode. Clients who have
-the readkey but not the writekey will not be allowed to modify the dirnode.
-The H_name value allows clients to perform lookups of specific keys rather
-than requiring them to download the whole dirnode for each operation.
-
-By putting both read-only and read-write child access capabilities in each
-entry, encrypted by different keys, this approach provides transitive
-read-only-ness: if a client has only a readkey for the parent dirnode, they
-will only get readkeys (and not writekeys) for any children, including other
-directories. When we create mutable slots in the mesh and we start having
-read-write file URIs, we can use the same approach to insure that read-only
-access to a directory means read-only access to the files as well.
+If Bob has read-only access to the 'bar' directory, and he adds it as a child
+to the 'foo' directory, then he will put the read-only cap for 'bar' in both
+the rwcap and rocap slots (encrypting the rwcap contents as described above).
+If he has full read-write access to 'bar', then he will put the read-write
+cap in the 'rwcap' slot, and the read-only cap in the 'rocap' slot. Since
+other users who have read-only access to 'foo' will be unable to decrypt its
+rwcap slot, this limits those users to read-only access to 'bar' as well,
+thus providing the transitive readonlyness that we desire.
 
 
 == Design Goals, redux ==
@@ -171,11 +164,13 @@ How well does this design meet the goals?
 
  #1 functional: YES: the code works and has extensive unit tests
  #2 documentable: YES: this document is the existence proof
- #3 private: MOSTLY: see the discussion below
- #4 integrity: MOSTLY: the vdrive server can rollback individual slots
- #5 availability: BARELY: if the vdrive server is offline, the dirnode will
-                          be unuseable. If the vdrive server fails,
-                          the dirnode will be lost forever.
+ #3 confidential: YES: see below
+ #4 integrity: MOSTLY: a coalition of storage servers can rollback individual
+                       mutable files, but not a single one. No server can
+                       substitute fake data as genuine.
+ #5 availability: YES: as long as 'k' storage servers are present and have
+                       the same version of the mutable file, the dirnode will
+                       be available.
  #6 efficient: MOSTLY:
       network: single dirnode lookup is very efficient, since clients can
                fetch specific keys rather than being required to get or set
@@ -198,98 +193,71 @@ How well does this design meet the goals?
      
 
 
-=== Privacy leaks in the vdrive server ===
+=== Confidentiality leaks in the vdrive server ===
 
-Dirnodes are very private against other clients: traffic between the client
-and the vdrive server is protected by the Foolscap SSL connection, so they
-can observe very little. Storage index values are hashes of secrets and thus
-unguessable, and they are not made public, so other clients cannot snoop
-through encrypted dirnodes that they have not been told about.
+Dirnode (and the mutable files upon which they are based) are very private
+against other clients: traffic between the client and the storage servers is
+protected by the Foolscap SSL connection, so they can observe very little.
+Storage index values are hashes of secrets and thus unguessable, and they are
+not made public, so other clients cannot snoop through encrypted dirnodes
+that they have not been told about.
 
-On the other hand, the vdrive server gets to see the access patterns of each
-client who is using dirnodes hosted there. The childnames and URIs are
-encrypted and not visible to anyone (including the vdrive server), but the
-vdrive server is in a good position to infer a lot of data about the
-directory structure. It knows the length of all childnames, and from the
-length of the child URIs themselves it can tell whether children are file
-URIs vs. directory URIs vs read-only directory URIs. By watching a client's
-access patterns it can deduce the connection between (encrypted) child 1 and
-target directory 2 (i.e. if the client does a 'get' of the first child, then
-immediately does an operation on directory 2, it can assume the two are
-related. From this the vdrive server can build a graph with the same shape as
-the filesystem, even though the nodes and edges will be unlabled.
-
-By providing CHK-level storage services as well (or colluding with a server
-who is), the vdrive server can infer the storage index of file nodes that are
-downloaded shortly after their childname is looked up.
+Storage servers can observe access patterns and see ciphertext, but they
+cannot see the plaintext (of child names, metadata, or URIs). If an attacker
+operates a significant number of storage servers, they can infer the shape of
+the directory structure by assuming that directories are usually accessed
+from root to leaf in rapid succession. Since filenames are usually much
+shorter than read-caps and write-caps, the attacker can use the length of the
+ciphertext to guess the number of children of each node, and might be able to
+guess the length of the child names (or at least their sum). From this, the
+attacker may be able to build up a graph with the same shape as the plaintext
+filesystem, but with unlabeled edges and unknown file contents.
 
 
 === Integrity failures in the vdrive server ===
 
-The HMAC prevents the vdrive server from modifying the child names or child
-URI values without detection: changing a few bytes will cause an HMAC failure
-that the client can detect. This means the vdrive server can make the dirnode
+The mutable file's integrity mechanism (RSA signature on the hash of the file
+contents) prevents the storage server from modifying the dirnode's contents
+without detection. Therefore the storage servers can make the dirnode
 unavailable, but not corrupt it.
 
-However, the vdrive server can perform a rollback attack: either replacing an
-individual entry in the encrypted table with an old version, or replacing the
-entire table. Despite not knowing what the child names or URIs are, the
-vdrive server can undo changes made by authorized clients. It could also
-perform selective rollback, showing different clients different versions of
-the filesystem. To solve this problem either requires mutable data (like a
-sequence number or hash) to be stored in the URI which points to this dirnode
-(rendering them non-constant, and losing most of their value), or requires
-spreading the dirnode out over multiple non-colluding servers (which might
-improve availability but makes updateness and monotonicity harder).
+A sufficient number of colluding storage servers can perform a rollback
+attack: replace all shares of the whole mutable file with an earlier version.
+When retrieving the contents of a mutable file, the client queries more than
+one server and uses the highest available version number. This insures that
+one or two misbehaving storage servers cannot cause this rollback on their
+own.
 
-
-=== Improving the availability of dirnodes ===
-
-Clearly it is somewhat disappointing to have a sexy distributed filestore at
-the bottom layer and then have a single-point-of-failure vdrive server on top
-of it. However, this approach meets many of the design goals and is extremely
-simple to explain and implement. There are many avenues to improve the
-reliability and availability of dirnodes. (note that reliability and
-availability can be separate goals).
-
-A simple way to improve the reliability of dirnodes would be to make the
-vdrive server be responsible for saving the dirnode contents in a fashion
-that will survive the failure of its local disk, for example by simply
-rsync'ing all the dirnodes off to a separate machine on a periodic basis, and
-pulling them back in the case of disk failure.
-
-To improve availability, we must allow clients to access their dirnodes even
-if the vdrive server is offline. The first step here is to create multiple
-vdrive servers, putting a list of furls into the DIR:URI, with instructions
-to update all of them during write, and accept the first answer that comes
-back during read. This introduces issues of updateness and monotonicity: if a
-dirnode is changed while one of the vdrive servers is offline, the servers
-will diverge, and subsequent clients will see different contents depending
-upon which server they ask.
-
-A more comforting way to improve both reliability and availability is to
-spread the dirnodes out over the mesh in the same way that CHK files work.
-The general name for this approach is the "SSK directory slot", a structure
-for keeping a mutable slot on multiple hosts, setting and retrieving its
-contents at various times, and reconciling differences by comparing sequence
-numbers. The "slot name" is the hash of a public key, which is also used to
-sign updates, such that the SSK storage hosts will only accept updates from
-those in possession of the corresponding private key. This approach (although
-not yet implemented) will provide fairly good reliability and availability
-properties, at the expense of complexity and updateness/monotonicity. It can
-also improve integrity, since an attacker would have to corrupt multiple
-storage servers to successfully perform a rollback attack.
-
-Reducing centralization can improve reliability, as long as the overall
-reliability of the mesh is greater than the reliability of the original
-centralized services.
 
 === Improving the efficiency of dirnodes ===
 
-By storing each child of a dirnode in a separate element of the dictionary,
-we provide efficient directory traversal and clean+simple dirnode delegation
-behavior. This comes at the cost of efficiency for other operations,
-specifically things that operation on multiple dirnodes at once.
+The current mutable-file -based dirnode scheme suffers from certain
+inefficiencies. A very large directory (with thousands or millions of
+children) will take a significant time to extract any single entry, because
+the whole file must be downloaded first, then parsed and searched to find the
+desired child entry. Likewise, modifying a single child will require the
+whole file to be re-uploaded.
+
+The current design assumes (and in some cases, requires) that dirnodes remain
+small. The mutable files on which dirnodes are based are currently using
+"SDMF" ("Small Distributed Mutable File") design rules, which state that the
+size of the data shall remain below one megabyte. More advanced forms of
+mutable files (MDMF and LDMF) are in the design phase to allow efficient
+manipulation of larger mutable files. This would reduce the work needed to
+modify a single entry in a large directory.
+
+Judicious caching may help improve the reading-large-directory case. Some
+form of mutable index at the beginning of the dirnode might help as well. The
+MDMF design rules allow for efficient random-access reads from the middle of
+the file, which would give the index something useful to point at.
+
+The current SDMF design generates a new RSA public/private keypair for each
+directory. This takes considerable time and CPU effort, generally one or two
+seconds per directory. We have designed (but not yet built) a DSA-based
+mutable file scheme which will use shared parameters to reduce the
+directory-creation effort to a bare minimum (picking a random number instead
+of generating two random primes).
+
 
 When a backup program is run for the first time, it needs to copy a large
 amount of data from a pre-existing filesystem into reliable storage. This
@@ -305,11 +273,11 @@ whole block of data (and presumeably cache it for a while to avoid lots of
 re-fetches), and modification operations would need to replace the whole
 thing at once. This "realm" approach would have the added benefit of
 combining more data into a single encrypted bundle (perhaps hiding the shape
-of the graph from the vdrive server better), and would reduce round-trips
-when performing deep directory traversals (assuming the realm was already
-cached). It would also prevent fine-grained rollback attacks from working:
-the vdrive server could change the entire dirnode to look like an earlier
-state, but it could not independently roll back individual edges.
+of the graph from a determined attacker), and would reduce round-trips when
+performing deep directory traversals (assuming the realm was already cached).
+It would also prevent fine-grained rollback attacks from working: a coalition
+of storage servers could change the entire realm to look like an earlier
+state, but it could not independently roll back individual directories.
 
 The drawbacks of this aggregation would be that small accesses (adding a
 single child, looking up a single child) would require pulling or pushing a
@@ -324,7 +292,10 @@ all-or-nothing access control, the act of delegating any directory from the
 middle of the realm would require the realm first be split into the upper
 piece that isn't being shared and the lower piece that is. This splitting
 would have to be done in response to what is essentially a read operation,
-which is not traditionally supposed to be a high-effort action.
+which is not traditionally supposed to be a high-effort action. On the other
+hand, it may be possible to aggregate the ciphertext, but use distinct
+encryption keys for each component directory, to get the benefits of both
+schemes at once.
 
 
 === Dirnode expiration and leases ===
@@ -333,16 +304,16 @@ Dirnodes are created any time a client wishes to add a new directory. How
 long do they live? What's to keep them from sticking around forever, taking
 up space that nobody can reach any longer?
 
-Our plan is to define the vdrive servers to keep dirnodes alive with
-"leases". Clients which know and care about specific dirnodes can ask to keep
-them alive for a while, by renewing a lease on them (with a typical period of
-one month). Clients are expected to assist in the deletion of dirnodes by
-canceling their leases as soon as they are done with them. This means that
-when a client deletes a directory, it should also cancel its lease on that
-directory. When the lease count on a dirnode goes to zero, the vdrive server
-can delete the related storage. Multiple clients may all have leases on the
-same dirnode: the server may delete the dirnode only after all of the leases
-have gone away.
+Mutable files are created with limited-time "leases", which keep the shares
+alive until the last lease has expired or been cancelled. Clients which know
+and care about specific dirnodes can ask to keep them alive for a while, by
+renewing a lease on them (with a typical period of one month). Clients are
+expected to assist in the deletion of dirnodes by canceling their leases as
+soon as they are done with them. This means that when a client deletes a
+directory, it should also cancel its lease on that directory. When the lease
+count on a given share goes to zero, the storage server can delete the
+related storage. Multiple clients may all have leases on the same dirnode:
+the server may delete the shares only after all of the leases have gone away.
 
 We expect that clients will periodically create a "manifest": a list of
 so-called "refresh capabilities" for all of the dirnodes and files that they
@@ -362,13 +333,9 @@ to be deleted.
 == Starting Points: root dirnodes ==
 
 Any client can record the URI of a directory node in some external form (say,
-in a local file) and use it as the starting point of later traversal. The
-current vdrive servers are configured to create a "root" dirnode at startup
-and publish its URI to the world: this forms the basis of the "global shared
-vdrive" used in the demonstration application. In addition, client code is
-currently designed to create a new (unattached) dirnode at startup and record
-its URI: this forms the root of the "per-user private vdrive" presented as
-the "~" directory.
+in a local file) and use it as the starting point of later traversal. Each
+Tahoe user is expected to create a new (unattached) dirnode when they first
+start using the grid, and record its URI for later use.
 
 == Mounting and Sharing Directories ==
 
