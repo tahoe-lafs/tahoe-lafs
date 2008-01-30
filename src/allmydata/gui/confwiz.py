@@ -19,6 +19,7 @@ from allmydata import uri
 
 import amdicon
 
+import foolscap
 
 class AuthError(Exception):
     pass
@@ -57,6 +58,24 @@ def create_account(url, user, passwd, subscribe):
     result_code = post(url, args)
     return result_code
 
+def record_install(url, user, passwd, nodeid):
+    args = {
+        'action': 'record_install',
+        'email': unicode_to_utf8(user),
+        'passwd': unicode_to_utf8(passwd),
+        'nodeid': nodeid,
+        }
+    result_code = post(url, args)
+    return result_code
+
+def record_uninstall(url, nodeid):
+    args = {
+        'action': 'record_uninstall',
+        'nodeid': nodeid,
+        }
+    result_code = post(url, args)
+    return result_code
+
 def get_introducer_furl(url):
     return post(url, { 'action': 'getintroducerfurl' })
 
@@ -69,12 +88,15 @@ def get_config(url, user, passwd):
     config = post(url, args)
     return config
 
-def write_config_file(filename, contents):
+def get_basedir():
     if sys.platform == 'win32':
         from allmydata.windows import registry
-        basedir = registry.get_base_dir_path()
+        return registry.get_base_dir_path()
     else:
-        basedir = os.path.expanduser('~/.tahoe')
+        return os.path.expanduser('~/.tahoe')
+
+def write_config_file(filename, contents):
+    basedir = get_basedir()
     path = os.path.join(basedir, filename)
     dirname = os.path.dirname(path)
     if not os.path.exists(dirname):
@@ -82,6 +104,12 @@ def write_config_file(filename, contents):
     iff = file(path, 'wb')
     iff.write(contents)
     iff.close()
+
+def get_nodeid():
+    CERTFILE = "node.pem"
+    certfile = os.path.join(get_basedir(), "private", CERTFILE)
+    tub = foolscap.Tub(certFile=certfile)
+    return tub.getTubID()
 
 def configure(user, passwd):
     _config_re = re.compile('^([^:]*): (.*)$')
@@ -265,6 +293,11 @@ class LoginPanel(wx.Panel):
             self.Layout()
             return
 
+        nodeid = get_nodeid()
+        ret = record_install(BACKEND_URL, user, passwd, nodeid)
+        if ret != 'ok':
+            wx.MessageBox('Error "%s" recording this system (%s)' % (ret, nodeid), 'Error')
+
         configure(user, passwd)
         maybe_start_services()
 
@@ -400,17 +433,31 @@ class RegisterPanel(wx.Panel):
             self.Layout()
             return
 
+        nodeid = get_nodeid()
+        ret = record_install(BACKEND_URL, user, passwd, nodeid)
+        if ret != 'ok':
+            wx.MessageBox('Error "%s" recording this system (%s)' % (ret, nodeid), 'Error')
+
         configure(user, passwd)
         maybe_start_services()
 
         # exit
         self.parent.parent.Close()
 
+def do_uninstall():
+    nodeid = get_nodeid()
+    ret = record_uninstall(BACKEND_URL, nodeid)
+    print ret
+    if ret != 'ok':
+        print 'Error "%s" recording uninstall of this system (%s)' % (ret, nodeid)
 
-def main():
-    app = ConfWizApp()
-    app.MainLoop()
+def main(argv):
+    if '--uninstall' in argv:
+        do_uninstall()
+    else:
+        app = ConfWizApp()
+        app.MainLoop()
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv)
