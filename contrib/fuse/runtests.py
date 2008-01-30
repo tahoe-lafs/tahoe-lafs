@@ -1,10 +1,16 @@
 #! /usr/bin/env python
 '''
-Unit tests for tahoe-fuse.
-
-Note: The API design of the python-fuse library makes unit testing much
-of tahoe-fuse.py tricky business.
+Unit and system tests for tahoe-fuse.
 '''
+
+# Note: It's always a SetupFailure, not a TestFailure if a webapi
+# operation fails, because this does not indicate a fuse interface
+# failure.
+
+# TODO: Test mismatches between tahoe and fuse/posix.  What about nodes
+# with crazy names ('\0', unicode, '/', '..')?  Huuuuge files?
+# Huuuuge directories...  As tahoe approaches production quality, it'd
+# be nice if the fuse interface did so also by hardening against such cases.
 
 # FIXME: This framework might be replaceable with twisted.trial,
 # especially the "layer" design, which is a bit cumbersome when
