@@ -191,21 +191,7 @@ class SystemTest (object):
     def create_test_dirnode_layer(self):
         print 'Creating test dirnode.'
 
-        targeturl = 'http://127.0.0.1:%d/uri?t=mkdir' % (self.port,)
-
-        def make_dirnode():
-            conn = httplib.HTTPConnection('127.0.0.1', self.port)
-            conn.request('PUT', '/uri?t=mkdir')
-            resp = conn.getresponse()
-            if resp.status == 200:
-                return resp.read().strip()
-            else:
-                # FIXME: This output can be excessive!
-                print 'HTTP %r reponse while attempting to make node.' % (resp.status,)
-                print resp.read()
-                return False # make another polling attempt...
-            
-        cap = self.polling_operation(make_dirnode)
+        cap = self.create_dirnode()
 
         f = open(os.path.join(self.clientbase, 'private', 'root_dir.cap'), 'w')
         f.write(cap)
@@ -309,6 +295,37 @@ class SystemTest (object):
             # Indent the exception description:
             desc = str(e).rstrip()
             print '  ' + desc.replace('\n', '\n  ')
+
+    def webapi_call(self, method, path, body=None, **options):
+        if options:
+            path = path + '?' + ('&'.join(['%s=%s' % kv for kv in options.items()]))
+            
+        conn = httplib.HTTPConnection('127.0.0.1', self.port)
+        conn.request(method, path, body = body)
+        resp = conn.getresponse()
+
+        if resp.status != 200:
+            tmpl = 'A webapi operation failed.\n'
+            tmpl += 'Request: %r %r\n'
+            tmpl += 'Body:\n%s\n'
+            tmpl += 'Response:\nStatus %r\nBody:\n%s'
+            raise self.SetupFailure(tmpl,
+                                    method, path,
+                                    body or '',
+                                    resp.status, body)
+
+        return resp.read()
+        
+    def create_dirnode(self):
+        return self.webapi_call('PUT', '/uri', t='mkdir').strip()
+
+    def attach_node(self, dircap, childcap, childname):
+        body = self.webapi_call('PUT',
+                                '/uri/%s/%s' % (dircap, childname),
+                                body = childcap,
+                                t = 'uri',
+                                replace = 'false')
+        assert body.strip() == childcap, `status, dircap, childcap, childname`
 
     def polling_operation(self, operation, timeout = 10.0, pollinterval = 0.2):
         totaltime = timeout # Fudging for edge-case SetupFailure description...
