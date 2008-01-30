@@ -84,14 +84,14 @@ class SystemTest (object):
         Set to False if you wish to analyze a failure.
         '''
         self.fullcleanup = fullcleanup
-        print '\n*** Setting up system test.'
+        print '\n*** Setting up system tests.'
         try:
-            self.init_cli_layer()
+            failures, total = self.init_cli_layer()
+            print '\n*** System Tests complete: %d failed out of %d.' % (failures, total)           
         except self.SetupFailure, sfail:
             print
             print sfail
-
-        print '\n*** System Test complete.'
+            print '\n*** System Tests were not successfully completed.' 
 
     def init_cli_layer(self):
         '''This layer finds the appropriate tahoe executable.'''
@@ -109,13 +109,13 @@ class SystemTest (object):
         version = self.run_tahoe('--version')
         print 'Using %r with version:\n%s' % (self.cliexec, version.rstrip())
 
-        self.create_testroot_layer()
+        return self.create_testroot_layer()
 
     def create_testroot_layer(self):
         print 'Creating test base directory.'
         self.testroot = tempfile.mkdtemp(prefix='tahoe_fuse_test_')
         try:
-            self.launch_introducer_layer()
+            return self.launch_introducer_layer()
         finally:
             if self.fullcleanup:
                 print 'Cleaning up test root directory.'
@@ -142,7 +142,7 @@ class SystemTest (object):
         try:
             self.check_tahoe_output(startoutput, ExpectedStartOutput, introbase)
 
-            self.launch_clients_layer(introbase)
+            return self.launch_clients_layer(introbase)
             
         finally:
             print 'Stopping introducer node.'
@@ -151,8 +151,7 @@ class SystemTest (object):
     TotalClientsNeeded = 3
     def launch_clients_layer(self, introbase, clientnum = 1):
         if clientnum > self.TotalClientsNeeded:
-            self.create_test_dirnode_layer()
-            return
+            return self.create_test_dirnode_layer()
 
         tmpl = 'Launching client %d of %d.'
         print tmpl % (clientnum,
@@ -184,7 +183,7 @@ class SystemTest (object):
         try:
             self.check_tahoe_output(startoutput, ExpectedStartOutput, base)
 
-            self.launch_clients_layer(introbase, clientnum+1)
+            return self.launch_clients_layer(introbase, clientnum+1)
 
         finally:
             print 'Stopping client node %d.' % (clientnum,)
@@ -213,7 +212,7 @@ class SystemTest (object):
         f.write(cap)
         f.close()
 
-        self.mount_fuse_layer()
+        return self.mount_fuse_layer(cap)
         
     def mount_fuse_layer(self):
         print 'Mounting fuse interface.'
@@ -231,7 +230,11 @@ class SystemTest (object):
                                      '--basedir', self.clientbase])
             # FIXME: Verify the mount somehow?
 
-            self.run_test_layer(mp)
+            # The mount is verified by the test_layer, but we sleep to
+            # avoid race conditions against the first few tests.
+            time.sleep(fusepause)
+
+            return self.run_test_layer(fusebasecap, mp)
                 
         finally:
             print '\n*** Cleaning up system test'
@@ -259,7 +262,7 @@ class SystemTest (object):
                     print 'Error in test code...  Cleaning up.'
                     raise
 
-        print '\n*** Testing complete: %d failed out of %d.' % (failures, total)           
+        return (failures, total)
 
 
     # Tests:
