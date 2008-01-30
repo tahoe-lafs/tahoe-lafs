@@ -94,6 +94,8 @@ d. examining files or directories
 
   GET $URL?t=json
 
+  out: json metadata
+
   This returns machine-parseable information about the indicated file or
   directory in the HTTP response body. The JSON always contains a list, and
   the first element of the list is always a flag that indicates whether the
@@ -132,6 +134,10 @@ e. downloading a file
 
   GET $URL
 
+  out: file contents or dir metadata
+  options:
+        save=<boolean> - If true add header "Content-Disposition: attachment"
+
   If the indicated object is a file, then this simply retrieves the contents
   of the file. The file's contents are provided in the body of the HTTP
   response.
@@ -160,6 +166,9 @@ f. uploading a file
 
   PUT http://localhost:8123/uri
 
+  in: file contents
+  out: file write cap
+
   Upload a file, returning its URI as the HTTP response body. This does not
   make the file visible from the virtual drive -- to do that, see section
   1.h. below, or the convenience method in section 2.a..
@@ -167,6 +176,9 @@ f. uploading a file
 g. creating a new directory
 
   PUT http://localhost:8123/uri?t=mkdir
+
+  in: (nothing)
+  out: directory write cap
 
   Create a new empty directory and return its URI as the HTTP response body.
   This does not make the newly created directory visible from the virtual
@@ -176,6 +188,11 @@ g. creating a new directory
 h. attaching a file or directory as the child of an extant directory
 
   PUT $URL?t=uri
+
+  in: child cap
+  out: the same child cap
+  options:
+        replace=<boolean> - If true, overwrite existing contents.
 
   This attaches a child (either a file or a directory) to the given directory
   $URL is required to indicate a directory as the second-to-last element and
@@ -191,7 +208,8 @@ h. attaching a file or directory as the child of an extant directory
   place, so we choose to use that particular directory to be the user's main
   directory.)
 
-  The URI of the child is provided in the body of the HTTP request.
+  The URI of the child is provided in the body of the HTTP request,
+  and this same URI is returned in the response body.
 
   There is an optional "?replace=" param whose value can be "true", "t", "1",
   "false", "f", or "0" (case-insensitive), and which defaults to "true". If
@@ -229,6 +247,13 @@ i. removing a name from a directory
 a. uploading a file and attaching it to the vdrive
 
   PUT $URI
+
+  in: file contents
+  out: file write cap
+
+  statuses:
+  200 - File updated.  [FIXME: Is this true yet?]
+  201 - File created.  [FIXME: Is this true yet?]
 
   Upload a file and link it into the the vdrive at the location specified by
   $URI. The last item in the $URI must be a filename, and the second-to-last
