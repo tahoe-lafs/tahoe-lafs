@@ -173,7 +173,6 @@ class SystemTest (object):
 
         introfurl = os.path.join(introbase, 'introducer.furl')
 
-        # FIXME: Is there a better way to handle this race condition?
         self.polling_operation(lambda : os.path.isfile(introfurl))
         shutil.copy(introfurl, base)
 
@@ -228,7 +227,6 @@ class SystemTest (object):
                                      mp,
                                      '-f',
                                      '--basedir', self.clientbase])
-            # FIXME: Verify the mount somehow?
 
             # The mount is verified by the test_layer, but we sleep to
             # avoid race conditions against the first few tests.
