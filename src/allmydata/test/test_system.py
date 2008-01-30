@@ -178,7 +178,15 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
     # reinstate this test until it does.
     del test_connections
 
-    def test_upload_and_download(self):
+    def test_upload_and_download_random_key(self):
+        return self._test_upload_and_download(False)
+    test_upload_and_download_random_key.timeout = 4800
+
+    def test_upload_and_download_content_hash_key(self):
+        return self._test_upload_and_download(True)
+    test_upload_and_download_content_hash_key.timeout = 4800
+
+    def _test_upload_and_download(self, contenthashkey):
         self.basedir = "system/SystemTest/test_upload_and_download"
         # we use 4000 bytes of data, which will result in about 400k written
         # to disk among all our simulated nodes
@@ -203,7 +211,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             # tail segment is not the same length as the others. This actualy
             # gets rounded up to 1025 to be a multiple of the number of
             # required shares (since we use 25 out of 100 FEC).
-            up = upload.Data(DATA)
+            up = upload.Data(DATA, contenthashkey=contenthashkey)
             up.max_segment_size = 1024
             d1 = u.upload(up)
             return d1
@@ -216,12 +224,12 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(_upload_done)
 
         def _upload_again(res):
-            # upload again. This ought to be short-circuited, however with
-            # the way we currently generate URIs (i.e. because they include
-            # the roothash), we have to do all of the encoding work, and only
-            # get to save on the upload part.
+            # Upload again. If contenthashkey then this ought to be
+            # short-circuited, however with the way we currently generate URIs
+            # (i.e. because they include the roothash), we have to do all of the
+            # encoding work, and only get to save on the upload part.
             log.msg("UPLOADING AGAIN")
-            up = upload.Data(DATA)
+            up = upload.Data(DATA, contenthashkey=contenthashkey)
             up.max_segment_size = 1024
             d1 = self.uploader.upload(up)
         d.addCallback(_upload_again)
@@ -283,7 +291,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
         def _upload_with_helper(res):
             DATA = "Data that needs help to upload" * 1000
-            u = upload.Data(DATA)
+            u = upload.Data(DATA, contenthashkey=contenthashkey)
             d = self.extra_node.upload(u)
             def _uploaded(uri):
                 return self.downloader.download_to_data(uri)
@@ -296,8 +304,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
         def _upload_resumable(res):
             DATA = "Data that needs help to upload and gets interrupted" * 1000
-            u1 = upload.Data(DATA)
-            u2 = upload.Data(DATA)
+            u1 = upload.Data(DATA, contenthashkey=contenthashkey)
+            u2 = upload.Data(DATA, contenthashkey=contenthashkey)
 
             # tell the upload to drop the connection after about 5kB
             u1.debug_interrupt = 5000
@@ -370,10 +378,25 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 log.msg("Second upload complete", level=log.NOISY,
                         facility="tahoe.test.test_system")
                 reu = u2.debug_RemoteEncryptedUploadable
-                # make sure we didn't read the whole file the second time
-                # around
-                self.failUnless(reu._bytes_sent < len(DATA),
+
+                # We currently don't support resumption of upload if the data is
+                # encrypted with a random key.  (Because that would require us
+                # to store the key locally and re-use it on the next upload of
+                # this file, which isn't a bad thing to do, but we currently
+                # don't do it.)
+                if contenthashkey:
+                    # Make sure we did not have to read the whole file the
+                    # second time around .
+                    self.failUnless(reu._bytes_sent < len(DATA),
                                 "resumption didn't save us any work:"
+                                " read %d bytes out of %d total" %
+                                (reu._bytes_sent, len(DATA)))
+                else:
+                    # Make sure we did have to read the whole file the second
+                    # time around -- because the one that we partially uploaded
+                    # earlier was encrypted with a different random key.
+                    self.failIf(reu._bytes_sent < len(DATA),
+                                "resumption saved us some work even though we were using random keys:"
                                 " read %d bytes out of %d total" %
                                 (reu._bytes_sent, len(DATA)))
                 return self.downloader.download_to_data(uri)
@@ -381,19 +404,19 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
             def _check(newdata):
                 self.failUnlessEqual(newdata, DATA)
-                # also check that the helper has removed the temp file from
-                # its directories
-                basedir = os.path.join(self.getdir("client0"), "helper")
-                files = os.listdir(os.path.join(basedir, "CHK_encoding"))
-                self.failUnlessEqual(files, [])
-                files = os.listdir(os.path.join(basedir, "CHK_incoming"))
-                self.failUnlessEqual(files, [])
+                # If using a content hash key, then also check that the helper
+                # has removed the temp file from its directories.
+                if contenthashkey:
+                    basedir = os.path.join(self.getdir("client0"), "helper")
+                    files = os.listdir(os.path.join(basedir, "CHK_encoding"))
+                    self.failUnlessEqual(files, [])
+                    files = os.listdir(os.path.join(basedir, "CHK_incoming"))
+                    self.failUnlessEqual(files, [])
             d.addCallback(_check)
             return d
         d.addCallback(_upload_resumable)
 
         return d
-    test_upload_and_download.timeout = 4800
 
     def _find_shares(self, basedir):
         shares = []

@@ -21,9 +21,15 @@ class Uploadable(unittest.TestCase):
         s = "".join(data)
         self.failUnlessEqual(s, expected)
 
-    def test_filehandle(self):
+    def test_filehandle_random_key(self):
+        return self._test_filehandle(True)
+
+    def test_filehandle_content_hash_key(self):
+        return self._test_filehandle(False)
+
+    def _test_filehandle(self, randomkey):
         s = StringIO("a"*41)
-        u = upload.FileHandle(s)
+        u = upload.FileHandle(s, randomkey)
         d = u.get_size()
         d.addCallback(self.failUnlessEqual, 41)
         d.addCallback(lambda res: u.read(1))

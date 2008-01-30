@@ -863,13 +863,15 @@ class NoParameterPreferencesMixin:
     def get_encoding_parameters(self):
         return defer.succeed(self.encoding_parameters)
 
-class ConvergentUploadMixin:
-    # to use this, the class it is mixed in to must have a seekable
-    # filehandle named self._filehandle
-    _params = None
-    _key = None
+class FileHandle(NoParameterPreferencesMixin):
+    implements(IUploadable)
 
-    def get_encryption_key(self):
+    def __init__(self, filehandle, contenthashkey=True):
+        self._filehandle = filehandle
+        self._key = None
+        self._contenthashkey = contenthashkey
+
+    def _get_encryption_key_content_hash(self):
         if self._key is None:
             f = self._filehandle
             enckey_hasher = key_hasher()
@@ -886,20 +888,16 @@ class ConvergentUploadMixin:
 
         return defer.succeed(self._key)
 
-class NonConvergentUploadMixin:
-    _key = None
-
-    def get_encryption_key(self):
+    def _get_encryption_key_random(self):
         if self._key is None:
             self._key = os.urandom(16)
         return defer.succeed(self._key)
 
-
-class FileHandle(ConvergentUploadMixin, NoParameterPreferencesMixin):
-    implements(IUploadable)
-
-    def __init__(self, filehandle):
-        self._filehandle = filehandle
+    def get_encryption_key(self):
+        if self._contenthashkey:
+            return self._get_encryption_key_content_hash()
+        else:
+            return self._get_encryption_key_random()
 
     def get_size(self):
         self._filehandle.seek(0,2)
@@ -915,15 +913,15 @@ class FileHandle(ConvergentUploadMixin, NoParameterPreferencesMixin):
         pass
 
 class FileName(FileHandle):
-    def __init__(self, filename):
-        FileHandle.__init__(self, open(filename, "rb"))
+    def __init__(self, filename, contenthashkey=True):
+        FileHandle.__init__(self, open(filename, "rb"), contenthashkey=contenthashkey)
     def close(self):
         FileHandle.close(self)
         self._filehandle.close()
 
 class Data(FileHandle):
-    def __init__(self, data):
-        FileHandle.__init__(self, StringIO(data))
+    def __init__(self, data, contenthashkey=False):
+        FileHandle.__init__(self, StringIO(data), contenthashkey=contenthashkey)
 
 class Uploader(service.MultiService):
     """I am a service that allows file uploading.
@@ -977,9 +975,9 @@ class Uploader(service.MultiService):
         return d
 
     # utility functions
-    def upload_data(self, data):
-        return self.upload(Data(data))
-    def upload_filename(self, filename):
-        return self.upload(FileName(filename))
-    def upload_filehandle(self, filehandle):
-        return self.upload(FileHandle(filehandle))
+    def upload_data(self, data, contenthashkey=True):
+        return self.upload(Data(data, contenthashkey=contenthashkey))
+    def upload_filename(self, filename, contenthashkey=True):
+        return self.upload(FileName(filename, contenthashkey=contenthashkey))
+    def upload_filehandle(self, filehandle, contenthashkey=True):
+        return self.upload(FileHandle(filehandle, contenthashkey=contenthashkey))
