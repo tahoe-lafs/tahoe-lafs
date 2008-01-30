@@ -260,8 +260,43 @@ class SystemTest (object):
     def test_empty_directory_listing(self, testcap, testdir):
         listing = os.listdir(testdir)
         if listing:
-            raise self.TestFailure('Expected empty directory, found: %r' % (listing,))
+            raise self.TestFailure('Expected empty directory, found: %r', listing)
     
+    def test_directory_listing(self, testcap, testdir):
+        names = []
+        filesizes = {}
+
+        for i in range(3):
+            fname = 'file_%d' % (i,)
+            names.append(fname)
+            body = 'Hello World #%d!' % (i,)
+            filesizes[fname] = len(body)
+            
+            cap = self.webapi_call('PUT', '/uri', body)
+            self.attach_node(testcap, cap, fname)
+
+
+            dname = 'dir_%d' % (i,)
+            names.append(dname)
+
+            cap = self.create_dirnode()
+            self.attach_node(testcap, cap, dname)
+
+        names.sort()
+            
+        listing = os.listdir(testdir)
+        listing.sort()
+        if listing != names:
+            tmpl = 'Expected directory list containing %r but fuse gave %r'
+            raise self.TestFailure(tmpl, names, listing)
+
+        for file, size in filesizes.items():
+            st = os.stat(os.path.join(testdir, file))
+            if st.st_size != size:
+                tmpl = 'Expected %r size of %r but fuse returned %r'
+                raise self.TestFailure(tmpl, file, size, st.st_size)
+    
+            
     # Utilities:
     def run_tahoe(self, *args):
         realargs = ('tahoe',) + args
