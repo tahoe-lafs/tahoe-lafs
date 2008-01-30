@@ -845,6 +845,7 @@ class AssistedUploader:
         return upload_results
 
     def _build_readcap(self, upload_results):
+        self.log("upload finished, building readcap")
         ur = upload_results
         u = uri.CHKFileURI(key=self._key,
                            uri_extension_hash=ur['uri_extension_hash'],
