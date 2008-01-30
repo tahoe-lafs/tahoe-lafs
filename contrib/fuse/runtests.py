@@ -275,7 +275,6 @@ class SystemTest (object):
             cap = self.webapi_call('PUT', '/uri', body)
             self.attach_node(testcap, cap, fname)
 
-
             dname = 'dir_%d' % (i,)
             names.append(dname)
 
@@ -296,6 +295,24 @@ class SystemTest (object):
                 tmpl = 'Expected %r size of %r but fuse returned %r'
                 raise self.TestFailure(tmpl, file, size, st.st_size)
     
+    def test_file_contents(self, testcap, testdir):
+        name = 'hw.txt'
+        body = 'Hello World!'
+            
+        cap = self.webapi_call('PUT', '/uri', body)
+        self.attach_node(testcap, cap, name)
+
+        path = os.path.join(testdir, name)
+        try:
+            found = open(path, 'r').read()
+        except Exception, err:
+            tmpl = 'Could not read file contents of %r: %r'
+            raise self.TestFailure(tmpl, path, err)
+
+        if found != body:
+            tmpl = 'Expected file contents %r but found %r'
+            raise self.TestFailure(tmpl, body, found)
+        
             
     # Utilities:
     def run_tahoe(self, *args):
