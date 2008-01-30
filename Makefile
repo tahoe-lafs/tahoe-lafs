@@ -94,7 +94,6 @@ make-version:
 
 .built:
 	$(MAKE) build
-	touch .built
 
 src/allmydata/_version.py:
 	$(MAKE) make-version
@@ -104,6 +103,7 @@ build: src/allmydata/_version.py
 	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
 		$(PYTHON) ./setup.py develop install --prefix="$(SUPPORT)"
 	chmod +x bin/tahoe
+	touch .built
 
 # 'make install' will do the following:
 #   build+install tahoe (probably to /usr/lib/pythonN.N/site-packages)
