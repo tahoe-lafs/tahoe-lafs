@@ -63,6 +63,11 @@ class SpeedTest:
         self.upload_times[key], self.download_times[key] = times
 
     def one_test(self, res, name, count, size, mutable):
+        # values for 'mutable':
+        #   False (upload a different CHK file for each 'count')
+        #   "create" (upload different contents into a new SSK file)
+        #   "upload" (upload different contents into the same SSK file. The
+        #             time consumed does not include the creation of the file)
         d = self.client_rref.callRemote("speed_test", count, size, mutable)
         d.addCallback(self.record_times, name)
         return d
@@ -89,6 +94,8 @@ class SpeedTest:
         d = defer.succeed(None)
         d.addCallback(self.one_test, "startup", 1, 1000, False) #ignore this one
         d.addCallback(self.measure_rtt)
+
+        # immutable files
         d.addCallback(self.one_test, "1x 200B", 1, 200, False)
         d.addCallback(self.one_test, "10x 200B", 10, 200, False)
         def _maybe_do_100x_200B(res):
@@ -105,9 +112,19 @@ class SpeedTest:
                 return
             return self.one_test(None, "100MB", 1, 100*MB, False)
         d.addCallback(_maybe_do_100MB)
-        d.addCallback(self.one_test, "1x 200B SSK", 1, 200, True)
-        d.addCallback(self.one_test, "10x 200B SSK", 10, 200, True)
-        d.addCallback(self.one_test, "1MB SSK", 1, 1*MB, True)
+
+        # mutable file creation
+        d.addCallback(self.one_test, "10x 200B SSK creation", 10, 200, "create")
+
+        # mutable file upload/download
+        d.addCallback(self.one_test, "10x 200B SSK", 10, 200, "upload")
+        def _maybe_do_100x_200B_SSK(res):
+            if self.upload_times["10x 200B SSK"] < 5:
+                print "10x 200B SSK test went too fast, doing 100x 200B SSK"
+                return self.one_test(None, "100x 200B SSK", 100, 200, "upload")
+            return
+        d.addCallback(_maybe_do_100x_200B_SSK)
+        d.addCallback(self.one_test, "1MB SSK", 1, 1*MB, "upload")
         d.addCallback(self.calculate_speeds)
         return d
 
@@ -147,6 +164,9 @@ class SpeedTest:
             A3 = 100*MB / (self.download_times["100MB"] - B)
             print "download speed (100MB):", self.number(A3, "Bps")
 
+        # SSK creation
+        B = self.upload_times["10x 200B SSK creation"] / 10
+        print "create per-file time SSK: %.3fs" % B
 
         # upload SSK
         if "100x 200B SSK" in self.upload_times:

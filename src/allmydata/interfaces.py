@@ -1245,11 +1245,13 @@ class RIControlClient(RemoteInterface):
         measuring memory consupmtion in bytes."""
         return DictOf(str, int)
 
-    def speed_test(count=int, size=int, mutable=bool):
+    def speed_test(count=int, size=int, mutable=Any()):
         """Write 'count' tempfiles to disk, all of the given size. Measure
         how long (in seconds) it takes to upload them all to the servers.
         Then measure how long it takes to download all of them. If 'mutable'
-        is True, use mutable files instead of immutable ones.
+        is 'create', time creation of mutable files. If 'mutable' is
+        'upload', then time access to the same mutable file instead of
+        creating one.
 
         Returns a tuple of (upload_time, download_time).
         """

@@ -55,7 +55,7 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
 
     def remote_speed_test(self, count, size, mutable):
         assert size > 8
-        log.msg("speed_test: count=%d, size=%d, mutable=%d" % (count, size,
+        log.msg("speed_test: count=%d, size=%d, mutable=%s" % (count, size,
                                                                mutable))
         st = SpeedTest(self.parent, count, size, mutable)
         return st.run()
@@ -101,7 +101,7 @@ class SpeedTest:
         self.parent = parent
         self.count = count
         self.size = size
-        self.mutable = mutable
+        self.mutable_mode = mutable
         self.uris = {}
         self.basedir = os.path.join(self.parent.basedir, "_speed_test_data")
 
@@ -130,18 +130,33 @@ class SpeedTest:
             f.close()
 
     def do_upload(self):
-        start = time.time()
         d = defer.succeed(None)
+        def _create_slot(res):
+            d1 = self.parent.create_mutable_file("")
+            def _created(n):
+                self._n = n
+            d1.addCallback(_created)
+            return d1
+        if self.mutable_mode == "upload":
+            d.addCallback(_create_slot)
+        def _start(res):
+            self._start = time.time()
+        d.addCallback(_start)
+
         def _record_uri(uri, i):
             self.uris[i] = uri
         def _upload_one_file(ignored, i):
             if i >= self.count:
                 return
             fn = os.path.join(self.basedir, str(i))
-            if self.mutable:
+            if self.mutable_mode == "create":
                 data = open(fn,"rb").read()
                 d1 = self.parent.create_mutable_file(data)
                 d1.addCallback(lambda n: n.get_uri())
+            elif self.mutable_mode == "upload":
+                data = open(fn,"rb").read()
+                d1 = self._n.replace(data)
+                d1.addCallback(lambda res: self._n.get_uri())
             else:
                 up = upload.FileName(fn)
                 d1 = self.parent.upload(up)
@@ -151,7 +166,7 @@ class SpeedTest:
         d.addCallback(_upload_one_file, 0)
         def _upload_done(ignored):
             stop = time.time()
-            self.upload_time = stop - start
+            self.upload_time = stop - self._start
         d.addCallback(_upload_done)
         return d
 
