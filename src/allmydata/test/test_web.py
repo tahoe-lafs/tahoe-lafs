@@ -599,7 +599,8 @@ class Web(WebMixin, unittest.TestCase):
                                       '\s+<td>FILE</td>'
                                       '\s+<td>%d</td>' % len(self.BAR_CONTENTS)
                                       , res))
-            self.failUnless(re.search(r'<td><a href="sub">sub</a></td>'
+            # the DIR reference just points to a URI
+            self.failUnless(re.search(r'<td><a href="/uri/URI%3ADIR2%3A[^"]+">sub</a></td>'
                                       '\s+<td>DIR</td>', res))
         d.addCallback(_check)
 
@@ -615,7 +616,7 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.GET(self.public_url, followRedirect=True))
         def _check3(res):
-            self.failUnless(re.search(r'<td><a href="reedownlee">reedownlee</a>'
+            self.failUnless(re.search(r'<td><a href="/uri/URI%3ADIR2-RO%3A[^"]+">reedownlee</a>'
                                       '</td>\s+<td>DIR-RO</td>', res))
         d.addCallback(_check3)
 
@@ -653,7 +654,8 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check)
 
         def _done(res):
-            self.failUnless('<a href="%d">%d</a>' % (COUNT-1, COUNT-1) in res)
+            m = r'<a href="/uri/URI%3ADIR2%3A[^"]+">' + ("%d" % (COUNT-1)) + r'</a>'
+            self.failUnless(re.search(m, res))
             self.failIf("maximum recursion depth exceeded" in res)
         d.addCallback(_done)
         return d

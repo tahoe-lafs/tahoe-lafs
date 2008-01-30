@@ -256,9 +256,8 @@ class Directory(rend.Page):
 
         elif IDirectoryNode.providedBy(target):
             # directory
-            subdir_url = urllib.quote(name)
             ctx.fillSlots("filename",
-                          T.a(href=subdir_url)[html.escape(name)])
+                          T.a(href=uri_link)[html.escape(name)])
             if target.is_readonly():
                 dirtype = "DIR-RO"
             else:
@@ -1296,7 +1295,7 @@ class Root(rend.Page):
                     return rend.NotFound
                 uri = segments[1]
                 d = defer.maybeDeferred(client.create_node_from_uri, uri)
-                d.addCallback(lambda node: VDrive(node, "from-uri"))
+                d.addCallback(lambda node: VDrive(node, uri))
                 d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
                 def _trap_KeyError(f):
                     f.trap(KeyError)
