@@ -199,7 +199,7 @@ class SystemTest (object):
 
         return self.mount_fuse_layer(cap)
         
-    def mount_fuse_layer(self):
+    def mount_fuse_layer(self, fusebasecap, fusepause=2.0):
         print 'Mounting fuse interface.'
 
         mp = os.path.join(self.testroot, 'mountpoint')
@@ -229,15 +229,18 @@ class SystemTest (object):
                 print 'Waiting for the fuse interface to exit.'
                 proc.wait()
             
-    def run_test_layer(self, mountpoint):
+    def run_test_layer(self, fbcap, mountpoint):
         total = failures = 0
         for name in sorted(dir(self)):
             if name.startswith('test_'):
                 total += 1
                 print '\n*** Running test #%d: %s' % (total, name)
                 try:
+                    testcap = self.create_dirnode()
+                    self.attach_node(fbcap, testcap, name)
+                    
                     method = getattr(self, name)
-                    method(mountpoint)
+                    method(testcap, testdir = os.path.join(mountpoint, name))
                     print 'Test succeeded.'
                 except self.TestFailure, f:
                     print f
@@ -250,8 +253,12 @@ class SystemTest (object):
 
 
     # Tests:
-    def test_00_empty_directory_listing(self, mountpoint):
-        listing = os.listdir(mountpoint)
+    def test_directory_existence(self, testcap, testdir):
+        if not os.path.isdir(testdir):
+            raise self.TestFailure('Attached test directory not found: %r', testdir)
+            
+    def test_empty_directory_listing(self, testcap, testdir):
+        listing = os.listdir(testdir)
         if listing:
             raise self.TestFailure('Expected empty directory, found: %r' % (listing,))
     
