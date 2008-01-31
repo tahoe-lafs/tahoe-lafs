@@ -1,0 +1,12 @@
+[tahoe_storage_allocated]
+env.statsfile /home/robk/trees/tahoe/stats_gatherer/stats.pickle
+[tahoe_storage_consumed]
+env.statsfile /home/robk/trees/tahoe/stats_gatherer/stats.pickle
+[tahoe_runtime_load_avg]
+env.statsfile /home/robk/trees/tahoe/stats_gatherer/stats.pickle
+[tahoe_runtime_load_peak]
+env.statsfile /home/robk/trees/tahoe/stats_gatherer/stats.pickle
+[tahoe_storage_bytes_added]
+env.statsfile /home/robk/trees/tahoe/stats_gatherer/stats.pickle
+[tahoe_storage_bytes_freed]
+env.statsfile /home/robk/trees/tahoe/stats_gatherer/stats.pickle

@@ -659,7 +659,7 @@ class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer)
     name = 'storageserver'
 
-    def __init__(self, storedir, sizelimit=None, no_storage=False):
+    def __init__(self, storedir, sizelimit=None, no_storage=False, stats_provider=None):
         service.MultiService.__init__(self)
         self.storedir = storedir
         sharedir = os.path.join(storedir, "shares")
@@ -667,6 +667,9 @@ class StorageServer(service.MultiService, Referenceable):
         self.sharedir = sharedir
         self.sizelimit = sizelimit
         self.no_storage = no_storage
+        self.stats_provider = stats_provider
+        if self.stats_provider:
+            self.stats_provider.register_producer(self)
         self.incomingdir = os.path.join(sharedir, 'incoming')
         self._clean_incomplete()
         fileutil.make_dirs(self.incomingdir)
@@ -692,6 +695,11 @@ class StorageServer(service.MultiService, Referenceable):
 
     def _clean_incomplete(self):
         fileutil.rm_dir(self.incomingdir)
+
+    def get_stats(self):
+        return { 'storage_server.consumed': self.consumed,
+                 'storage_server.allocated': self.allocated_size(),
+               }
 
     def measure_size(self):
         self.consumed = fileutil.du(self.sharedir)
@@ -821,11 +829,15 @@ class StorageServer(service.MultiService, Referenceable):
         if not remaining_files:
             fileutil.rm_dir(storagedir)
         self.consumed -= total_space_freed
+        if self.stats_provider:
+            self.stats_provider.count('storage_server.bytes_freed', total_space_freed)
         if not found_buckets:
             raise IndexError("no such lease to cancel")
 
     def bucket_writer_closed(self, bw, consumed_size):
         self.consumed += consumed_size
+        if self.stats_provider:
+            self.stats_provider.count('storage_server.bytes_added', consumed_size)
         del self._active_writers[bw]
 
     def _get_bucket_shares(self, storage_index):

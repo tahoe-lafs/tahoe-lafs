@@ -21,6 +21,7 @@ from allmydata.util import hashutil, idlib, testutil
 from allmydata.filenode import FileNode
 from allmydata.dirnode import NewDirectoryNode
 from allmydata.mutable import MutableFileNode
+from allmydata.stats import StatsProvider
 from allmydata.interfaces import IURI, INewDirectoryURI, \
      IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI
 
@@ -56,6 +57,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         self.logSource="Client"
         self.my_furl = None
         self.introducer_client = None
+        self.init_stats_provider()
         self.init_lease_secret()
         self.init_storage()
         self.init_options()
@@ -78,6 +80,15 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         webport = self.get_config("webport")
         if webport:
             self.init_web(webport) # strports string
+
+    def init_stats_provider(self):
+        gatherer_furl = self.get_config('stats_gatherer.furl')
+        if gatherer_furl:
+            nickname = self.get_config('nickname')
+            self.stats_provider = StatsProvider(self.tub, nickname, gatherer_furl)
+            self.add_service(self.stats_provider)
+        else:
+            self.stats_provider = None
 
     def init_lease_secret(self):
         def make_secret():
@@ -106,7 +117,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
                               }[suffix]
                 sizelimit = int(number) * multiplier
         no_storage = self.get_config("debug_no_storage") is not None
-        self.add_service(StorageServer(storedir, sizelimit, no_storage))
+        self.add_service(StorageServer(storedir, sizelimit, no_storage, self.stats_provider))
 
     def init_options(self):
         self.push_to_ourselves = None

@@ -1309,3 +1309,35 @@ class RIHelper(RemoteInterface):
         will finish and return the upload results.
         """
         return (UploadResults, ChoiceOf(RICHKUploadHelper, None))
+
+
+class RIStatsProvider(RemoteInterface):
+    __remote_name__ = "RIStatsProvider.tahoe.allmydata.com"
+    """
+    Provides access to statistics and monitoring information.
+    """
+
+    def get_stats():
+        """
+        returns a dictionary containing 'counters' and 'stats', each a dictionary
+        with string counter/stat name keys, and numeric values.  counters are
+        monotonically increasing measures of work done, and stats are instantaneous
+        measures (potentially time averaged internally)
+        """
+        return DictOf(str, DictOf(str, ChoiceOf(float, int, long)))
+
+class RIStatsGatherer(RemoteInterface):
+    __remote_name__ = "RIStatsGatherer.tahoe.allmydata.com"
+    """
+    Provides a monitoring service for centralised collection of stats
+    """
+
+    def provide(provider=RIStatsProvider, nickname=str):
+        """
+        @param provider: a stats collector instance which should be polled
+                         periodically by the gatherer to collect stats.
+        @param nickname: a name useful to identify the provided client
+        """
+        return None
+
+
