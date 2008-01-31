@@ -315,6 +315,12 @@ clean:
 find-trailing-spaces:
 	$(PYTHON) misc/find-trailing-spaces.py -r src
 
+# TARBALL GENERATION
+.PHONY: tarballs
+tarballs:
+	$(PYTHON) setup.py sdist
+	chmod +x misc/make-tarballs.sh
+	V=$(VER) ./misc/make-tarballs.sh
 
 # DEBIAN PACKAGING
 
