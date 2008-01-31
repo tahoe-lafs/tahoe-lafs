@@ -1,6 +1,5 @@
 
 from foolscap.logging import log
-from twisted.python import failure
 
 NOISY = log.NOISY # 10
 OPERATIONAL = log.OPERATIONAL # 20
@@ -14,10 +13,8 @@ BAD = log.BAD # 40
 
 msg = log.msg
 
-def err(f=None, **kwargs):
-    if not f:
-        f = failure.Failure()
-    kwargs['failure'] = f
+def err(*args, **kwargs):
+    # this should probably be in foolscap
     if 'level' not in kwargs:
         kwargs['level'] = log.UNUSUAL
-    return log.msg("failure", **kwargs)
+    return log.err(*args, **kwargs)
