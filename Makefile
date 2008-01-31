@@ -318,9 +318,8 @@ find-trailing-spaces:
 # TARBALL GENERATION
 .PHONY: tarballs
 tarballs:
-	$(PYTHON) setup.py sdist
-	chmod +x misc/make-tarballs.sh
-	V=$(VER) ./misc/make-tarballs.sh
+	$(MAKE) make-version
+	$(PYTHON) setup.py sdist --formats=bztar,gztar,zip
 
 # DEBIAN PACKAGING
 
