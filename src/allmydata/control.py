@@ -44,7 +44,8 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
 
     def remote_upload_from_file_to_uri(self, filename):
         uploader = self.parent.getServiceNamed("uploader")
-        d = uploader.upload_filename(filename)
+        u = upload.FileName(filename)
+        d = uploader.upload(u)
         return d
 
     def remote_download_from_uri_to_file(self, uri, filename):

@@ -181,6 +181,16 @@ SIZE_ZERO = 0
 SIZE_SMALL = 16
 SIZE_LARGE = len(DATA)
 
+def upload_data(uploader, data):
+    u = upload.Data(data)
+    return uploader.upload(u)
+def upload_filename(uploader, filename):
+    u = upload.FileName(filename)
+    return uploader.upload(u)
+def upload_filehandle(uploader, fh):
+    u = upload.FileHandle(fh)
+    return uploader.upload(u)
+
 class GoodServer(unittest.TestCase):
     def setUp(self):
         self.node = FakeClient(mode="good")
@@ -215,19 +225,19 @@ class GoodServer(unittest.TestCase):
 
     def test_data_zero(self):
         data = self.get_data(SIZE_ZERO)
-        d = self.u.upload_data(data)
+        d = upload_data(self.u, data)
         d.addCallback(self._check_small, SIZE_ZERO)
         return d
 
     def test_data_small(self):
         data = self.get_data(SIZE_SMALL)
-        d = self.u.upload_data(data)
+        d = upload_data(self.u, data)
         d.addCallback(self._check_small, SIZE_SMALL)
         return d
 
     def test_data_large(self):
         data = self.get_data(SIZE_LARGE)
-        d = self.u.upload_data(data)
+        d = upload_data(self.u, data)
         d.addCallback(self._check_large, SIZE_LARGE)
         return d
 
@@ -236,25 +246,25 @@ class GoodServer(unittest.TestCase):
         segsize = int(SIZE_LARGE / 2.5)
         # we want 3 segments, since that's not a power of two
         self.set_encoding_parameters(25, 75, 100, segsize)
-        d = self.u.upload_data(data)
+        d = upload_data(self.u, data)
         d.addCallback(self._check_large, SIZE_LARGE)
         return d
 
     def test_filehandle_zero(self):
         data = self.get_data(SIZE_ZERO)
-        d = self.u.upload_filehandle(StringIO(data))
+        d = upload_filehandle(self.u, StringIO(data))
         d.addCallback(self._check_small, SIZE_ZERO)
         return d
 
     def test_filehandle_small(self):
         data = self.get_data(SIZE_SMALL)
-        d = self.u.upload_filehandle(StringIO(data))
+        d = upload_filehandle(self.u, StringIO(data))
         d.addCallback(self._check_small, SIZE_SMALL)
         return d
 
     def test_filehandle_large(self):
         data = self.get_data(SIZE_LARGE)
-        d = self.u.upload_filehandle(StringIO(data))
+        d = upload_filehandle(self.u, StringIO(data))
         d.addCallback(self._check_large, SIZE_LARGE)
         return d
 
@@ -264,7 +274,7 @@ class GoodServer(unittest.TestCase):
         data = self.get_data(SIZE_ZERO)
         f.write(data)
         f.close()
-        d = self.u.upload_filename(fn)
+        d = upload_filename(self.u, fn)
         d.addCallback(self._check_small, SIZE_ZERO)
         return d
 
@@ -274,7 +284,7 @@ class GoodServer(unittest.TestCase):
         data = self.get_data(SIZE_SMALL)
         f.write(data)
         f.close()
-        d = self.u.upload_filename(fn)
+        d = upload_filename(self.u, fn)
         d.addCallback(self._check_small, SIZE_SMALL)
         return d
 
@@ -284,7 +294,7 @@ class GoodServer(unittest.TestCase):
         data = self.get_data(SIZE_LARGE)
         f.write(data)
         f.close()
-        d = self.u.upload_filename(fn)
+        d = upload_filename(self.u, fn)
         d.addCallback(self._check_large, SIZE_LARGE)
         return d
 
@@ -300,7 +310,7 @@ class FullServer(unittest.TestCase):
 
     def test_data_large(self):
         data = DATA
-        d = self.u.upload_data(data)
+        d = upload_data(self.u, data)
         d.addBoth(self._should_fail)
         return d
 
@@ -339,7 +349,7 @@ class PeerSelection(unittest.TestCase):
         self.make_client()
         data = self.get_data(SIZE_LARGE)
         self.set_encoding_parameters(25, 30, 50)
-        d = self.u.upload_data(data)
+        d = upload_data(self.u, data)
         d.addCallback(self._check_large, SIZE_LARGE)
         def _check(res):
             for p in self.node.last_peers:
@@ -356,7 +366,7 @@ class PeerSelection(unittest.TestCase):
         self.make_client()
         data = self.get_data(SIZE_LARGE)
         self.set_encoding_parameters(50, 75, 100)
-        d = self.u.upload_data(data)
+        d = upload_data(self.u, data)
         d.addCallback(self._check_large, SIZE_LARGE)
         def _check(res):
             for p in self.node.last_peers:
@@ -373,7 +383,7 @@ class PeerSelection(unittest.TestCase):
         self.make_client()
         data = self.get_data(SIZE_LARGE)
         self.set_encoding_parameters(24, 41, 51)
-        d = self.u.upload_data(data)
+        d = upload_data(self.u, data)
         d.addCallback(self._check_large, SIZE_LARGE)
         def _check(res):
             got_one = []
@@ -400,7 +410,7 @@ class PeerSelection(unittest.TestCase):
         self.make_client()
         data = self.get_data(SIZE_LARGE)
         self.set_encoding_parameters(100, 150, 200)
-        d = self.u.upload_data(data)
+        d = upload_data(self.u, data)
         d.addCallback(self._check_large, SIZE_LARGE)
         def _check(res):
             for p in self.node.last_peers:
@@ -417,7 +427,7 @@ class PeerSelection(unittest.TestCase):
         self.make_client(3)
         data = self.get_data(SIZE_LARGE)
         self.set_encoding_parameters(3, 5, 10)
-        d = self.u.upload_data(data)
+        d = upload_data(self.u, data)
         d.addCallback(self._check_large, SIZE_LARGE)
         def _check(res):
             counts = {}

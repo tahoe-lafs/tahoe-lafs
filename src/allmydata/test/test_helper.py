@@ -53,6 +53,10 @@ def flush_but_dont_ignore(res):
     d.addCallback(_done)
     return d
 
+def upload_data(uploader, data):
+    u = upload.Data(data)
+    return uploader.upload(u)
+
 class AssistedUpload(unittest.TestCase):
     def setUp(self):
         self.s = FakeClient()
@@ -94,7 +98,7 @@ class AssistedUpload(unittest.TestCase):
             assert u._helper
 
             DATA = "I need help\n" * 1000
-            return u.upload_data(DATA)
+            return upload_data(u, DATA)
         d.addCallback(_ready)
         def _uploaded(uri):
             assert "CHK" in uri
@@ -137,7 +141,7 @@ class AssistedUpload(unittest.TestCase):
 
         def _ready(res):
             assert u._helper
-            return u.upload_data(DATA)
+            return upload_data(u, DATA)
         d.addCallback(_ready)
         def _uploaded(uri):
             assert "CHK" in uri
@@ -168,7 +172,7 @@ class AssistedUpload(unittest.TestCase):
             assert u._helper
 
             DATA = "I need help\n" * 1000
-            return u.upload_data(DATA)
+            return upload_data(u, DATA)
         d.addCallback(_ready)
         def _uploaded(uri):
             assert "CHK" in uri

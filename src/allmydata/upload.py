@@ -973,11 +973,3 @@ class Uploader(service.MultiService):
             return res
         d.addBoth(_done)
         return d
-
-    # utility functions
-    def upload_data(self, data, contenthashkey=True):
-        return self.upload(Data(data, contenthashkey=contenthashkey))
-    def upload_filename(self, filename, contenthashkey=True):
-        return self.upload(FileName(filename, contenthashkey=contenthashkey))
-    def upload_filehandle(self, filehandle, contenthashkey=True):
-        return self.upload(FileHandle(filehandle, contenthashkey=contenthashkey))
