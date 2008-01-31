@@ -289,18 +289,34 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             extra_node.getServiceNamed("storageserver").sizelimit = 0
         d.addCallback(_added)
 
+        HELPER_DATA = "Data that needs help to upload" * 1000
         def _upload_with_helper(res):
-            DATA = "Data that needs help to upload" * 1000
-            u = upload.Data(DATA, contenthashkey=contenthashkey)
+            u = upload.Data(HELPER_DATA, contenthashkey=contenthashkey)
             d = self.extra_node.upload(u)
             def _uploaded(uri):
                 return self.downloader.download_to_data(uri)
             d.addCallback(_uploaded)
             def _check(newdata):
-                self.failUnlessEqual(newdata, DATA)
+                self.failUnlessEqual(newdata, HELPER_DATA)
             d.addCallback(_check)
             return d
         d.addCallback(_upload_with_helper)
+
+        def _upload_duplicate_with_helper(res):
+            u = upload.Data(HELPER_DATA, contenthashkey=contenthashkey)
+            u.debug_stash_RemoteEncryptedUploadable = True
+            d = self.extra_node.upload(u)
+            def _uploaded(uri):
+                return self.downloader.download_to_data(uri)
+            d.addCallback(_uploaded)
+            def _check(newdata):
+                self.failUnlessEqual(newdata, HELPER_DATA)
+                self.failIf(hasattr(u, "debug_RemoteEncryptedUploadable"),
+                            "uploadable started uploading, should have been avoided")
+            d.addCallback(_check)
+            return d
+        if contenthashkey:
+            d.addCallback(_upload_duplicate_with_helper)
 
         def _upload_resumable(res):
             DATA = "Data that needs help to upload and gets interrupted" * 1000

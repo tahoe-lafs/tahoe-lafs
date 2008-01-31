@@ -43,6 +43,8 @@ class FakeClient(service.MultiService):
         return True
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS
+    def get_permuted_peers(self, storage_index):
+        return []
 
 def flush_but_dont_ignore(res):
     d = eventual.flushEventualQueue()
