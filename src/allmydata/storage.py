@@ -17,10 +17,14 @@ class DataTooLargeError(Exception):
 
 # storage/
 # storage/shares/incoming
-#   incoming/ holds temp dirs named $STORAGEINDEX/$SHARENUM which will be
-#   moved to storage/shares/$STORAGEINDEX/$SHARENUM upon success
-# storage/shares/$STORAGEINDEX
-# storage/shares/$STORAGEINDEX/$SHARENUM
+#   incoming/ holds temp dirs named $START/$STORAGEINDEX/$SHARENUM which will
+#   be moved to storage/shares/$START/$STORAGEINDEX/$SHARENUM upon success
+# storage/shares/$START/$STORAGEINDEX
+# storage/shares/$START/$STORAGEINDEX/$SHARENUM
+
+# Where "$START" denotes the first 14 bits worth of $STORAGEINDEX (that's 3
+# base-32 chars, but the last one has only 4 bits in it -- i.e. only 16 possible
+# chars in the last position).
 
 # $SHARENUM matches this regex:
 NUM_RE=re.compile("^[0-9]+$")
@@ -41,6 +45,9 @@ NUM_RE=re.compile("^[0-9]+$")
 #   B+0x24: cancel secret, 32 bytes (SHA256)
 #   B+0x44: expiration time, 4 bytes big-endian seconds-since-epoch
 #   B+0x48: next lease, or end of record
+
+def storage_index_to_dir(storageindex):
+    return os.path.join(idlib.b2a_l(storageindex[:2], 14), idlib.b2a(storageindex))
 
 class ShareFile:
     LEASE_SIZE = struct.calcsize(">L32s32sL")
@@ -174,12 +181,13 @@ class BucketWriter(Referenceable):
         self.closed = False
         self.throw_out_all_data = False
         # touch the file, so later callers will see that we're working on it.
+        assert not os.path.exists(incominghome)
+        fileutil.make_dirs(os.path.dirname(incominghome))
         # Also construct the metadata.
-        assert not os.path.exists(self.incominghome)
-        f = open(self.incominghome, 'wb')
+        f = open(incominghome, 'wb')
         f.write(struct.pack(">LLL", 1, size, 0))
         f.close()
-        self._sharefile = ShareFile(self.incominghome)
+        self._sharefile = ShareFile(incominghome)
         # also, add our lease to the file now, so that other ones can be
         # added by simultaneous uploaders
         self._sharefile.add_lease(lease_info)
@@ -195,19 +203,21 @@ class BucketWriter(Referenceable):
 
     def remote_close(self):
         precondition(not self.closed)
+
+        fileutil.make_dirs(os.path.dirname(self.finalhome))
         fileutil.rename(self.incominghome, self.finalhome)
+        try:
+            os.rmdir(os.path.dirname(self.incominghome))
+            os.rmdir(os.path.dirname(os.path.dirname(self.incominghome)))
+            os.rmdir(os.path.dirname(os.path.dirname(os.path.dirname(self.incominghome))))
+        except EnvironmentError:
+            pass
         self._sharefile = None
         self.closed = True
         self._canary.dontNotifyOnDisconnect(self._disconnect_marker)
 
         filelen = os.stat(self.finalhome)[stat.ST_SIZE]
         self.ss.bucket_writer_closed(self, filelen)
-
-        # if we were the last share to be moved, remove the incoming/
-        # directory that was our parent
-        parentdir = os.path.split(self.incominghome)[0]
-        if not os.listdir(parentdir):
-            os.rmdir(parentdir)
 
     def _disconnected(self):
         if not self.closed:
@@ -235,8 +245,8 @@ class BucketWriter(Referenceable):
 class BucketReader(Referenceable):
     implements(RIBucketReader)
 
-    def __init__(self, home):
-        self._share_file = ShareFile(home)
+    def __init__(self, sharefname):
+        self._share_file = ShareFile(sharefname)
 
     def remote_read(self, offset, length):
         return self._share_file.read_share_data(offset, length)
@@ -719,7 +729,7 @@ class StorageServer(service.MultiService, Referenceable):
         # to a particular owner.
         alreadygot = set()
         bucketwriters = {} # k: shnum, v: BucketWriter
-        si_s = idlib.b2a(storage_index)
+        si_s = storage_index_to_dir(storage_index)
 
         # in this implementation, the lease information (including secrets)
         # goes into the share files themselves. It could also be put into a
@@ -752,7 +762,6 @@ class StorageServer(service.MultiService, Referenceable):
                 pass
             elif no_limits or remaining_space >= space_per_bucket:
                 # ok! we need to create the new share file.
-                fileutil.make_dirs(os.path.join(self.incomingdir, si_s))
                 bw = BucketWriter(self, incominghome, finalhome,
                                   space_per_bucket, lease_info, canary)
                 if self.no_storage:
@@ -792,7 +801,7 @@ class StorageServer(service.MultiService, Referenceable):
             raise IndexError("no such lease to renew")
 
     def remote_cancel_lease(self, storage_index, cancel_secret):
-        storagedir = os.path.join(self.sharedir, idlib.b2a(storage_index))
+        storagedir = os.path.join(self.sharedir, storage_index_to_dir(storage_index))
 
         remaining_files = 0
         total_space_freed = 0
@@ -844,7 +853,7 @@ class StorageServer(service.MultiService, Referenceable):
         """Return a list of (shnum, pathname) tuples for files that hold
         shares for this storage_index. In each tuple, 'shnum' will always be
         the integer form of the last component of 'pathname'."""
-        storagedir = os.path.join(self.sharedir, idlib.b2a(storage_index))
+        storagedir = os.path.join(self.sharedir, storage_index_to_dir(storage_index))
         try:
             for f in os.listdir(storagedir):
                 if NUM_RE.match(f):
@@ -855,7 +864,7 @@ class StorageServer(service.MultiService, Referenceable):
             pass
 
     def _get_incoming_shares(self, storage_index):
-        incomingdir = os.path.join(self.incomingdir, idlib.b2a(storage_index))
+        incomingdir = os.path.join(self.incomingdir, storage_index_to_dir(storage_index))
         try:
             for f in os.listdir(incomingdir):
                 if NUM_RE.match(f):
@@ -891,7 +900,7 @@ class StorageServer(service.MultiService, Referenceable):
                                                secrets,
                                                test_and_write_vectors,
                                                read_vector):
-        si_s = idlib.b2a(storage_index)
+        si_s = storage_index_to_dir(storage_index)
         (write_enabler, renew_secret, cancel_secret) = secrets
         # shares exist if there is a file for them
         bucketdir = os.path.join(self.sharedir, si_s)
@@ -968,7 +977,7 @@ class StorageServer(service.MultiService, Referenceable):
         return share
 
     def remote_slot_readv(self, storage_index, shares, readv):
-        si_s = idlib.b2a(storage_index)
+        si_s = storage_index_to_dir(storage_index)
         # shares exist if there is a file for them
         bucketdir = os.path.join(self.sharedir, si_s)
         if not os.path.isdir(bucketdir):

@@ -372,7 +372,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                 for i in range(self.numclients):
                     incdir = os.path.join(self.getdir("client%d" % i),
                                           "storage", "shares", "incoming")
-                    self.failUnlessEqual(os.listdir(incdir), [])
+                    self.failIf(os.path.exists(incdir) and os.listdir(incdir))
             d.addCallback(_disconnected)
 
             def _wait_for_reconnect(res):
@@ -442,11 +442,11 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             if not filenames:
                 continue
             pieces = dirpath.split(os.sep)
-            if pieces[-3] == "storage" and pieces[-2] == "shares":
-                # we're sitting in .../storage/shares/$SINDEX , and there
+            if pieces[-4] == "storage" and pieces[-3] == "shares":
+                # we're sitting in .../storage/shares/$START/$SINDEX , and there
                 # are sharefiles here
-                assert pieces[-4].startswith("client")
-                client_num = int(pieces[-4][-1])
+                assert pieces[-5].startswith("client")
+                client_num = int(pieces[-5][-1])
                 storage_index_s = pieces[-1]
                 storage_index = idlib.a2b(storage_index_s)
                 for sharename in filenames:
@@ -1115,9 +1115,9 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             if not filenames:
                 continue
             pieces = dirpath.split(os.sep)
-            if pieces[-3] == "storage" and pieces[-2] == "shares":
-                # we're sitting in .../storage/shares/$SINDEX , and there are
-                # sharefiles here
+            if pieces[-4] == "storage" and pieces[-3] == "shares":
+                # we're sitting in .../storage/shares/$START/$SINDEX , and there
+                # are sharefiles here
                 filename = os.path.join(dirpath, filenames[0])
                 # peek at the magic to see if it is a chk share
                 magic = open(filename, "rb").read(4)

@@ -7,7 +7,8 @@ import itertools
 from allmydata import interfaces
 from allmydata.util import fileutil, hashutil, idlib
 from allmydata.storage import BucketWriter, BucketReader, \
-     WriteBucketProxy, ReadBucketProxy, StorageServer, MutableShareFile
+     WriteBucketProxy, ReadBucketProxy, StorageServer, MutableShareFile, \
+     storage_index_to_dir
 from allmydata.interfaces import BadWriteEnablerError
 from allmydata.test.common import LoggingServiceParent
 
@@ -56,7 +57,7 @@ class Bucket(unittest.TestCase):
         bw.remote_close()
 
         # now read from it
-        br = BucketReader(final)
+        br = BucketReader(bw.finalhome)
         self.failUnlessEqual(br.remote_read(0, 25), "a"*25)
         self.failUnlessEqual(br.remote_read(25, 25), "b"*25)
         self.failUnlessEqual(br.remote_read(50, 7), "c"*7)
@@ -93,7 +94,7 @@ class BucketProxy(unittest.TestCase):
         pass
 
     def test_create(self):
-        bw, rb, final = self.make_bucket("test_create", 500)
+        bw, rb, sharefname = self.make_bucket("test_create", 500)
         bp = WriteBucketProxy(rb,
                               data_size=300,
                               segment_size=10,
@@ -123,7 +124,7 @@ class BucketProxy(unittest.TestCase):
                         for i in (1,9,13)]
         uri_extension = "s" + "E"*498 + "e"
 
-        bw, rb, final = self.make_bucket("test_readwrite", 1414)
+        bw, rb, sharefname = self.make_bucket("test_readwrite", 1414)
         bp = WriteBucketProxy(rb,
                               data_size=95,
                               segment_size=25,
@@ -146,7 +147,7 @@ class BucketProxy(unittest.TestCase):
 
         # now read everything back
         def _start_reading(res):
-            br = BucketReader(final)
+            br = BucketReader(sharefname)
             rb = RemoteBucket()
             rb.target = br
             rbp = ReadBucketProxy(rb)
@@ -212,16 +213,40 @@ class Server(unittest.TestCase):
                                           renew_secret, cancel_secret,
                                           sharenums, size, FakeCanary())
 
+    def test_dont_overfill_dirs(self):
+        """
+        This test asserts that if you add a second share whose storage index
+        share lots of leading bits with an extant share (but isn't the exact
+        same storage index), this won't add an entry to the share directory.
+        """
+        ss = self.create("test_dont_overfill_dirs")
+        already, writers = self.allocate(ss, "storageindex", [0], 10)
+        for i, wb in writers.items():
+            wb.remote_write(0, "%10d" % i)
+            wb.remote_close()
+        storedir = os.path.join(self.workdir("test_dont_overfill_dirs"),
+                                "shares")
+        children_of_storedir = set(os.listdir(storedir))
+
+        # Now store another one under another storageindex that has leading
+        # chars the same as the first storageindex.
+        already, writers = self.allocate(ss, "storageindey", [0], 10)
+        for i, wb in writers.items():
+            wb.remote_write(0, "%10d" % i)
+            wb.remote_close()
+        storedir = os.path.join(self.workdir("test_dont_overfill_dirs"),
+                                "shares")
+        new_children_of_storedir = set(os.listdir(storedir))
+        self.failUnlessEqual(children_of_storedir, new_children_of_storedir)
+
     def test_remove_incoming(self):
         ss = self.create("test_remove_incoming")
         already, writers = self.allocate(ss, "vid", range(3), 10)
         for i,wb in writers.items():
             wb.remote_write(0, "%10d" % i)
             wb.remote_close()
-        incomingdir = os.path.join(self.workdir("test_remove_incoming"),
-                                   "shares", "incoming")
-        leftover_dirs = os.listdir(incomingdir)
-        self.failUnlessEqual(leftover_dirs, [])
+        incomingdir = os.path.dirname(os.path.dirname(os.path.dirname(wb.incominghome)))
+        self.failIf(os.path.exists(incomingdir))
 
     def test_allocate(self):
         ss = self.create("test_allocate")
@@ -785,7 +810,7 @@ class MutableServer(unittest.TestCase):
         # create a random non-numeric file in the bucket directory, to
         # exercise the code that's supposed to ignore those.
         bucket_dir = os.path.join(self.workdir("test_leases"),
-                                  "shares", idlib.b2a("si1"))
+                                  "shares", storage_index_to_dir("si1"))
         f = open(os.path.join(bucket_dir, "ignore_me.txt"), "w")
         f.write("you ought to be ignoring me\n")
         f.close()
