@@ -1107,14 +1107,6 @@ class IUploader(Interface):
 
     def upload_ssk(write_capability, new_version, uploadable):
         """TODO: how should this work?"""
-    def upload_data(data):
-        """Like upload(), but accepts a string."""
-
-    def upload_filename(filename):
-        """Like upload(), but accepts an absolute pathname."""
-
-    def upload_filehandle(filehane):
-        """Like upload(), but accepts an open filehandle."""
 
 class IChecker(Interface):
     def check(uri_to_check):

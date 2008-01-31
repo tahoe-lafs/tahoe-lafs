@@ -5,7 +5,7 @@ from cStringIO import StringIO
 from twisted.internet import defer, reactor, protocol, error
 from twisted.application import service, internet
 from twisted.web import client as tw_client
-from allmydata import client, introducer
+from allmydata import client, introducer, upload
 from allmydata.scripts import create_node
 from allmydata.util import testutil, fileutil
 import foolscap
@@ -393,7 +393,7 @@ this file are ignored.
             files[name] = self.create_data(name, size)
             u = self.nodes[0].getServiceNamed("uploader")
             d = self.nodes[0].debug_wait_for_client_connections(self.numnodes+1)
-            d.addCallback(lambda res: u.upload_filename(files[name]))
+            d.addCallback(lambda res: u.upload(upload.FileName(files[name])))
         else:
             raise RuntimeError("unknown mode=%s" % self.mode)
         def _complete(uri):
