@@ -920,7 +920,7 @@ class FileName(FileHandle):
         self._filehandle.close()
 
 class Data(FileHandle):
-    def __init__(self, data, contenthashkey=False):
+    def __init__(self, data, contenthashkey=True):
         FileHandle.__init__(self, StringIO(data), contenthashkey=contenthashkey)
 
 class Uploader(service.MultiService):
