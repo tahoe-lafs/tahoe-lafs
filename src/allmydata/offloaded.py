@@ -463,11 +463,13 @@ class Helper(Referenceable, service.MultiService):
         d = self._check_for_chk_already_in_grid(storage_index, lp)
         def _checked(upload_results):
             if upload_results:
+                self.log("file already found in grid", parent=lp)
                 return (upload_results, None)
 
             # the file is not present in the grid, by which we mean there are
             # less than 'N' shares available.
-            self.log("unable to find file in the grid", level=log.NOISY)
+            self.log("unable to find file in the grid", parent=lp,
+                     level=log.NOISY)
             # We need an upload helper. Check our active uploads again in
             # case there was a race.
             if storage_index in self._active_uploads:
@@ -481,6 +483,11 @@ class Helper(Referenceable, service.MultiService):
                 self._active_uploads[storage_index] = uh
             return uh.start()
         d.addCallback(_checked)
+        def _err(f):
+            self.log("error while checking for chk-already-in-grid",
+                     failure=f, level=log.WEIRD, parent=lp)
+            return f
+        d.addErrback(_err)
         return d
 
     def _check_for_chk_already_in_grid(self, storage_index, lp):
