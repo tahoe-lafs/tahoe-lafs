@@ -554,9 +554,10 @@ class MutableServer(unittest.TestCase):
         #self.failUnlessEqual(s0.remote_get_length(), 100)
 
         bad_secrets = ("bad write enabler", secrets[1], secrets[2])
-        self.failUnlessRaises(BadWriteEnablerError,
-                              write, "si1", bad_secrets,
-                              {}, [])
+        f = self.failUnlessRaises(BadWriteEnablerError,
+                                  write, "si1", bad_secrets,
+                                  {}, [])
+        self.failUnless("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'." in f, f)
 
         # this testv should fail
         answer = write("si1", secrets,

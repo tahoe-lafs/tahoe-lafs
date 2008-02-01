@@ -729,7 +729,7 @@ class StorageServer(service.MultiService, Referenceable):
         # to a particular owner.
         alreadygot = set()
         bucketwriters = {} # k: shnum, v: BucketWriter
-        si_s = storage_index_to_dir(storage_index)
+        si_dir = storage_index_to_dir(storage_index)
 
         # in this implementation, the lease information (including secrets)
         # goes into the share files themselves. It could also be put into a
@@ -755,8 +755,8 @@ class StorageServer(service.MultiService, Referenceable):
             sf.add_or_renew_lease(lease_info)
 
         for shnum in sharenums:
-            incominghome = os.path.join(self.incomingdir, si_s, "%d" % shnum)
-            finalhome = os.path.join(self.sharedir, si_s, "%d" % shnum)
+            incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)
+            finalhome = os.path.join(self.sharedir, si_dir, "%d" % shnum)
             if os.path.exists(incominghome) or os.path.exists(finalhome):
                 # great! we already have it. easy.
                 pass
@@ -775,7 +775,7 @@ class StorageServer(service.MultiService, Referenceable):
                 pass
 
         if bucketwriters:
-            fileutil.make_dirs(os.path.join(self.sharedir, si_s))
+            fileutil.make_dirs(os.path.join(self.sharedir, si_dir))
 
         return alreadygot, bucketwriters
 
@@ -900,10 +900,11 @@ class StorageServer(service.MultiService, Referenceable):
                                                secrets,
                                                test_and_write_vectors,
                                                read_vector):
-        si_s = storage_index_to_dir(storage_index)
+        si_s = idlib.b2a(storage_index)
+        si_dir = storage_index_to_dir(storage_index)
         (write_enabler, renew_secret, cancel_secret) = secrets
         # shares exist if there is a file for them
-        bucketdir = os.path.join(self.sharedir, si_s)
+        bucketdir = os.path.join(self.sharedir, si_dir)
         shares = {}
         if os.path.isdir(bucketdir):
             for sharenum_s in os.listdir(bucketdir):
@@ -977,9 +978,12 @@ class StorageServer(service.MultiService, Referenceable):
         return share
 
     def remote_slot_readv(self, storage_index, shares, readv):
-        si_s = storage_index_to_dir(storage_index)
+        si_s = idlib.b2a(storage_index)
+        lp = log.msg("storage: slot_readv %s %s" % (si_s, shares),
+                     facility="tahoe.storage", level=log.OPERATIONAL)
+        si_dir = storage_index_to_dir(storage_index)
         # shares exist if there is a file for them
-        bucketdir = os.path.join(self.sharedir, si_s)
+        bucketdir = os.path.join(self.sharedir, si_dir)
         if not os.path.isdir(bucketdir):
             return {}
         datavs = {}
@@ -992,6 +996,8 @@ class StorageServer(service.MultiService, Referenceable):
                 filename = os.path.join(bucketdir, sharenum_s)
                 msf = MutableShareFile(filename, self)
                 datavs[sharenum] = msf.readv(readv)
+        log.msg("returning shares %s" % (datavs.keys(),),
+                facility="tahoe.storage", level=log.NOISY, parent=lp)
         return datavs
 
 
