@@ -124,7 +124,7 @@ def main(argv):
 
     def output_nodes(output_section):
         for tubid, nodestats in stats.items():
-            name = smash_name("%s_%s" % (nodestats['nickname'], tubid[:8]))
+            name = smash_name("%s_%s" % (nodestats['nickname'], tubid[:4]))
             #value = nodestats['stats'][plugin_conf['category']].get(plugin_conf['statid'])
             category = plugin_conf['category']
             statid = plugin_conf['statid']
