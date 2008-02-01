@@ -4,6 +4,9 @@ import os
 import pickle
 import re
 import sys
+import time
+
+STAT_VALIDITY = 300 # 5min limit on reporting stats
 
 PLUGINS = {
     'tahoe_storage_consumed':
@@ -122,8 +125,11 @@ def main(argv):
 
     stats = open_stats(stats_file)
 
+    now = time.time()
     def output_nodes(output_section):
         for tubid, nodestats in stats.items():
+            if (now - nodestats.get('timestamp', 0)) > STAT_VALIDITY:
+                continue
             name = smash_name("%s_%s" % (nodestats['nickname'], tubid[:4]))
             #value = nodestats['stats'][plugin_conf['category']].get(plugin_conf['statid'])
             category = plugin_conf['category']
