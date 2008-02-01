@@ -120,6 +120,10 @@ class StatsGatherer(foolscap.Referenceable, service.MultiService):
 
     def remote_provide(self, provider, nickname):
         tubid = self.get_tubid(provider)
+        if tubid == '<unauth>':
+            print "WARNING: failed to get tubid for %s (%s)" % (provider, nickname)
+            # don't add to clients to poll (polluting data) don't care about disconnect
+            return
         self.clients[tubid] = provider
         self.nicknames[tubid] = nickname
         provider.notifyOnDisconnect(self.lost_client, tubid)
