@@ -11,7 +11,7 @@ from foolscap.logging import log
 from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
      bucket_cancel_secret_hash, plaintext_hasher, \
-     storage_index_chk_hash, plaintext_segment_hasher, key_hasher
+     storage_index_hash, plaintext_segment_hasher, key_hasher
 from allmydata import encode, storage, hashtree, uri
 from allmydata.util import idlib, mathutil
 from allmydata.util.assertutil import precondition
@@ -404,7 +404,7 @@ class EncryptAnUploadable:
             e = AES(key)
             self._encryptor = e
 
-            storage_index = storage_index_chk_hash(key)
+            storage_index = storage_index_hash(key)
             assert isinstance(storage_index, str)
             # There's no point to having the SI be longer than the key, so we
             # specify that it is truncated to the same 128 bits as the AES key.

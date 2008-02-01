@@ -32,10 +32,15 @@ def tagged_pair_hash(tag, val1, val2):
 def tagged_hasher(tag):
     return SHA256(netstring(tag))
 
-def storage_index_chk_hash(data):
+def storage_index_hash(key):
     # storage index is truncated to 128 bits (16 bytes). We're only hashing a
     # 16-byte value to get it, so there's no point in using a larger value.
-    return tagged_hash("allmydata_CHK_storage_index_v1", data)[:16]
+    # TODO: remove the word "CHK" from this tag since we use this same tagged
+    # hash for random-keyed immutable files, mutable files, content-hash-keyed
+    # immutabie files.  Or, define two other tagged hashes, one for each kind.
+    # (Either way is fine -- we can never have collisions of storage indexes
+    # anyway, since we can't have collisions of keys.)
+    return tagged_hash("allmydata_CHK_storage_index_v1", key)[:16]
 
 def block_hash(data):
     return tagged_hash("allmydata_encoded_subshare_v1", data)

@@ -124,7 +124,7 @@ class AssistedUpload(unittest.TestCase):
         # populating the directory manually.
         key = hashutil.key_hash(DATA)[:16]
         encryptor = AES(key)
-        SI = hashutil.storage_index_chk_hash(key)
+        SI = hashutil.storage_index_hash(key)
         SI_s = idlib.b2a(SI)
         encfile = os.path.join(self.basedir, "CHK_encoding", SI_s)
         f = open(encfile, "wb")

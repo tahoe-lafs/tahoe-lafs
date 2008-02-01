@@ -50,9 +50,9 @@ class CHKFileURI(_BaseURI):
         self.needed_shares = needed_shares
         self.total_shares = total_shares
         self.size = size
-        self.storage_index = hashutil.storage_index_chk_hash(self.key)
+        self.storage_index = hashutil.storage_index_hash(self.key)
         assert len(self.storage_index) == 16
-        self.storage_index = hashutil.storage_index_chk_hash(key)
+        self.storage_index = hashutil.storage_index_hash(key)
         assert len(self.storage_index) == 16 # sha256 hash truncated to 128
 
     @classmethod
