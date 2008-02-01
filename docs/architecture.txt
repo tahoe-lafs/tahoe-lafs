@@ -30,9 +30,9 @@ applications, too.
 
 THE GRID OF STORAGE SERVERS
 
-Underlying the grid is a collection of peer nodes -- processes running
-on computers.  They establish TCP connections to each other using
-Foolscap, a secure remote message passing library.
+The grid is composed of a collection of peer nodes -- processes running on
+computers.  They establish TCP connections to each other using Foolscap, a
+secure remote message passing library.
 
 Each peer offers certain services to the others. The primary service
 is that of the storage server, which holds data in the form of
@@ -53,33 +53,35 @@ less the topology resembles the intended fully-connected topology.
 
 FILE ENCODING
 
-When a file is to be added to the grid, it is first encrypted using a key
-that is derived from the hash of the file itself. The encrypted file is then
-broken up into segments so it can be processed in small pieces (to minimize
-the memory footprint of both encode and decode operations, and to increase
-the so-called "alacrity": how quickly can the download operation provide
-validated data to the user, basically the lag between hitting "play" and the
-movie actually starting). Each segment is erasure coded, which creates
-encoded blocks such that only a subset of them are required to reconstruct
-the segment. These blocks are then combined into "shares", such that a subset
-of the shares can be used to reconstruct the whole file. The shares are then
-deposited in StorageServers in other peers.
+When a peer stores a file on the grid, it first encrypts the file,
+using a key that is optionally derived from the hash of the file
+itself.  It then segments the encrypted file into small pieces, in
+order to reduce the memory footprint, and to decrease the lag between
+initiating a download and receiving the first part of the file, for
+example the lag between hitting "play" and a movie actually starting.
 
-A tagged hash of the encryption key is used to form the "storage index",
-which is used for both server selection (described below) and to index shares
-within the StorageServers on the selected peers.
+The peer then erasure-codes each segment, producing blocks such that
+only a subset of the blocks (by default 3 out of 12 of the blocks) are
+needed to reconstruct the segment.  The peer uploads each block to a
+storage server.  It sends one block from each segment to a given
+server, creating a "share" stored on that server.  Only a subset of
+the shares (3 out of 12) are needed to reconstruct the file.
 
-A variety of hashes are computed while the shares are being produced, to
-validate the plaintext, the ciphertext, and the shares themselves. Merkle
-hash trees are also produced to enable validation of individual segments of
-plaintext or ciphertext without requiring the download/decoding of the whole
-file. These hashes go into the "Capability Extension Block", which will be
-stored with each share.
+A tagged hash of the encryption key is used to form the "storage
+index", which is used for both server selection (described below) and
+to index shares within the StorageServers on the selected peers.
+
+A variety of hashes are computed while the shares are being produced,
+to validate the plaintext, the ciphertext, and the shares
+themselves. Merkle hash trees are also produced to enable validation
+of individual segments of plaintext or ciphertext without requiring
+the download/decoding of the whole file. These hashes go into the
+"Capability Extension Block", which will be stored with each share.
 
 The capability contains the encryption key, the hash of the Capability
 Extension Block, and any encoding parameters necessary to perform the
-eventual decoding process.  For convenience, it also contains the size of the
-file being stored.
+eventual decoding process.  For convenience, it also contains the size
+of the file being stored.
 
 
 On the download side, the node that wishes to turn a capability into a
