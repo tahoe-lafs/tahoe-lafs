@@ -316,10 +316,14 @@ find-trailing-spaces:
 	$(PYTHON) misc/find-trailing-spaces.py -r src
 
 # TARBALL GENERATION
-.PHONY: tarballs
+.PHONY: tarballs upload-tarballs
 tarballs:
 	$(MAKE) make-version
 	$(PYTHON) setup.py sdist --formats=bztar,gztar,zip
+upload-tarballs:
+	for f in dist/allmydata-tahoe-*; do \
+	 xfer-client --furlfile ~/.tahoe-tarball-upload.furl $$f; \
+	done
 
 # DEBIAN PACKAGING
 
