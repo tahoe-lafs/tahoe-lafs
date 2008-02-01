@@ -5,7 +5,7 @@ from twisted.internet import defer
 import time, os.path, stat
 import itertools
 from allmydata import interfaces
-from allmydata.util import fileutil, hashutil, idlib
+from allmydata.util import fileutil, hashutil
 from allmydata.storage import BucketWriter, BucketReader, \
      WriteBucketProxy, ReadBucketProxy, StorageServer, MutableShareFile, \
      storage_index_to_dir
