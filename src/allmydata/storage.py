@@ -8,7 +8,7 @@ from twisted.internet import defer
 from zope.interface import implements
 from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
      RIBucketReader, IStorageBucketWriter, IStorageBucketReader, HASH_SIZE, \
-     BadWriteEnablerError
+     BadWriteEnablerError, IStatsProducer
 from allmydata.util import fileutil, idlib, mathutil, log
 from allmydata.util.assertutil import precondition, _assert
 
@@ -666,7 +666,7 @@ def create_mutable_sharefile(filename, my_nodeid, write_enabler, parent):
 
 
 class StorageServer(service.MultiService, Referenceable):
-    implements(RIStorageServer)
+    implements(RIStorageServer, IStatsProducer)
     name = 'storageserver'
 
     def __init__(self, storedir, sizelimit=None, no_storage=False, stats_provider=None):

@@ -84,8 +84,7 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
     def init_stats_provider(self):
         gatherer_furl = self.get_config('stats_gatherer.furl')
         if gatherer_furl:
-            nickname = self.get_config('nickname')
-            self.stats_provider = StatsProvider(self.tub, nickname, gatherer_furl)
+            self.stats_provider = StatsProvider(self, gatherer_furl)
             self.add_service(self.stats_provider)
         else:
             self.stats_provider = None

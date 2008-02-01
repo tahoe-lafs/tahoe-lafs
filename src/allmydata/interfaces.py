@@ -1341,3 +1341,10 @@ class RIStatsGatherer(RemoteInterface):
         return None
 
 
+class IStatsProducer(Interface):
+    def get_stats():
+        """
+        returns a dictionary, with str keys representing the names of stats
+        to be monitored, and numeric values.
+        """
+

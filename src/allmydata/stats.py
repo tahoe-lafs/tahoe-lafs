@@ -14,9 +14,11 @@ import foolscap
 from foolscap.logging.gatherer import get_local_ip_for
 
 from allmydata.util import log
-from allmydata.interfaces import RIStatsProvider, RIStatsGatherer
+from allmydata.interfaces import RIStatsProvider, RIStatsGatherer, IStatsProducer
 
 class LoadMonitor(service.MultiService):
+    implements(IStatsProducer)
+
     loop_interval = 1
     num_samples = 60
 
@@ -65,8 +67,9 @@ class LoadMonitor(service.MultiService):
 class StatsProvider(foolscap.Referenceable, service.MultiService):
     implements(RIStatsProvider)
 
-    def __init__(self, tub, nickname, gatherer_furl):
+    def __init__(self, node, gatherer_furl):
         service.MultiService.__init__(self)
+        self.node = node
         self.gatherer_furl = gatherer_furl
 
         self.counters = {}
@@ -76,15 +79,20 @@ class StatsProvider(foolscap.Referenceable, service.MultiService):
         self.load_monitor.setServiceParent(self)
         self.register_producer(self.load_monitor)
 
-        if tub:
-            tub.connectTo(gatherer_furl, self._connected_to_gatherer, nickname)
+    def startService(self):
+        if self.node:
+            d = self.node.when_tub_ready()
+            def connect(junk):
+                nickname = self.node.get_config('nickname')
+                self.node.tub.connectTo(self.gatherer_furl, self._connected, nickname)
+            d.addCallback(connect)
 
     def count(self, name, delta):
         val = self.counters.setdefault(name, 0)
         self.counters[name] = val + delta
 
     def register_producer(self, stats_producer):
-        self.stats_producers.append(stats_producer)
+        self.stats_producers.append(IStatsProducer(stats_producer))
 
     def remote_get_stats(self):
         stats = {}
@@ -92,7 +100,7 @@ class StatsProvider(foolscap.Referenceable, service.MultiService):
             stats.update(sp.get_stats())
         return { 'counters': self.counters, 'stats': stats }
 
-    def _connected_to_gatherer(self, gatherer, nickname):
+    def _connected(self, gatherer, nickname):
         gatherer.callRemote('provide', self, nickname or '')
 
 class StatsGatherer(foolscap.Referenceable, service.MultiService):
