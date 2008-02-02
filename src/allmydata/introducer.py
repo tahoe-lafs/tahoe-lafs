@@ -44,15 +44,17 @@ class IntroducerService(service.MultiService, Referenceable):
         def _remove():
             log.msg(" introducer: removing %s %s" % (node, furl))
             self.nodes.remove(node)
-            self.furls.remove(furl)
+            if furl is not None:
+                self.furls.remove(furl)
         node.notifyOnDisconnect(_remove)
-        self.furls.add(furl)
+        if furl is not None:
+            self.furls.add(furl)
+            for othernode in self.nodes:
+                othernode.callRemote("new_peers", set([furl]))
         node.callRemote("new_peers", self.furls)
         if self._encoding_parameters is not None:
             node.callRemote("set_encoding_parameters",
                             self._encoding_parameters)
-        for othernode in self.nodes:
-            othernode.callRemote("new_peers", set([furl]))
         self.nodes.add(node)
 
 class IntroducerClient(service.Service, Referenceable):
@@ -176,7 +178,11 @@ class IntroducerClient(service.Service, Referenceable):
         self.reconnectors[furl] = self.tub.connectTo(furl, _got_peer)
 
     def _got_introducer(self, introducer):
-        self.log("introducing ourselves: %s, %s" % (self, self.my_furl[6:13]))
+        if self.my_furl:
+            my_furl_s = self.my_furl[6:13]
+        else:
+            my_furl_s = "<none>"
+        self.log("introducing ourselves: %s, %s" % (self, my_furl_s))
         self._connected = True
         d = introducer.callRemote("hello",
                                   node=self,

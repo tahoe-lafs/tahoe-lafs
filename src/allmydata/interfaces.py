@@ -44,7 +44,7 @@ class RIIntroducerClient(RemoteInterface):
         return None
 
 class RIIntroducer(RemoteInterface):
-    def hello(node=RIIntroducerClient, furl=FURL):
+    def hello(node=RIIntroducerClient, furl=ChoiceOf(FURL, None)):
         return None
 
 class RIClient(RemoteInterface):

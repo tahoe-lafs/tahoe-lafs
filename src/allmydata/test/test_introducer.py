@@ -89,10 +89,13 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
         i.setServiceParent(self.parent)
         iurl = tub.registerReference(i)
         NUMCLIENTS = 5
+        # we have 5 clients who publish themselves, and an extra one which
+        # does not. When the connections are fully established, all six nodes
+        # should have 5 connections each.
 
         clients = []
         tubs = {}
-        for i in range(NUMCLIENTS):
+        for i in range(NUMCLIENTS+1):
             tub = Tub()
             #tub.setOption("logLocalFailures", True)
             #tub.setOption("logRemoteFailures", True)
@@ -102,7 +105,11 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
             tub.setLocation("localhost:%d" % portnum)
 
             n = FakeNode()
-            node_furl = tub.registerReference(n)
+            log.msg("creating client %d: %s" % (i, tub.getShortTubID()))
+            if i < NUMCLIENTS:
+                node_furl = tub.registerReference(n)
+            else:
+                node_furl = None
             c = IntroducerClient(tub, iurl, node_furl)
 
             c.setServiceParent(self.parent)
