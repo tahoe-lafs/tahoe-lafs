@@ -126,9 +126,9 @@ def main(argv):
     stats = open_stats(stats_file)
 
     now = time.time()
-    def output_nodes(output_section):
+    def output_nodes(output_section, check_time):
         for tubid, nodestats in stats.items():
-            if (now - nodestats.get('timestamp', 0)) > STAT_VALIDITY:
+            if check_time and (now - nodestats.get('timestamp', 0)) > STAT_VALIDITY:
                 continue
             name = smash_name("%s_%s" % (nodestats['nickname'], tubid[:4]))
             #value = nodestats['stats'][plugin_conf['category']].get(plugin_conf['statid'])
@@ -142,10 +142,10 @@ def main(argv):
     if len(argv) > 1:
         if sys.argv[1] == 'config':
             print plugin_conf['configheader']
-            output_nodes('graph_config')
+            output_nodes('graph_config', False)
             sys.exit(0)
 
-    output_nodes('graph_render')
+    output_nodes('graph_render', True)
 
 if __name__ == '__main__':
     main(sys.argv)
