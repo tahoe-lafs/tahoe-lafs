@@ -148,18 +148,17 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         self.log("tub_ready")
         node.Node.tub_ready(self)
 
-        # we use separate get_config/write_config here because we want to
-        # update the connection hints each time.
-        my_old_name = None
-        my_old_furl = self.get_config("myself.furl")
-        if my_old_furl is not None:
-            sturdy = SturdyRef(my_old_furl)
-            my_old_name = sturdy.name
+        furl_file = os.path.join(self.basedir, "myself.furl")
+        self.my_furl = self.tub.registerReference(self, furlFile=furl_file)
 
-        self.my_furl = self.tub.registerReference(self, my_old_name)
-        self.write_config("myself.furl", self.my_furl + "\n")
+        # should we publish ourselves as a server?
+        provide_storage = (self.get_config("no_storage") is None)
+        if provide_storage:
+            my_furl = self.my_furl
+        else:
+            my_furl = None
 
-        ic = IntroducerClient(self.tub, self.introducer_furl, self.my_furl)
+        ic = IntroducerClient(self.tub, self.introducer_furl, my_furl)
         self.introducer_client = ic
         ic.setServiceParent(self)
 
