@@ -26,21 +26,21 @@ class LoadMonitor(service.MultiService):
         service.MultiService.__init__(self)
         self.provider = provider
         self.warn_if_delay_exceeds = warn_if_delay_exceeds
-        self.running = False
+        self.started = False
         self.last = None
         self.stats = deque()
 
     def startService(self):
-        if not self.running:
-            self.running = True
+        if not self.started:
+            self.started = True
             reactor.callLater(self.loop_interval, self.loop)
         service.MultiService.startService(self)
 
     def stopService(self):
-        self.running = False
+        self.started = False
 
     def loop(self):
-        if not self.running:
+        if not self.started:
             return
         now = time.time()
         if self.last is not None:
@@ -86,6 +86,7 @@ class StatsProvider(foolscap.Referenceable, service.MultiService):
                 nickname = self.node.get_config('nickname')
                 self.node.tub.connectTo(self.gatherer_furl, self._connected, nickname)
             d.addCallback(connect)
+        service.MultiService.startService(self)
 
     def count(self, name, delta):
         val = self.counters.setdefault(name, 0)
