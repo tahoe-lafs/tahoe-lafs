@@ -1,6 +1,6 @@
 
 import os, sha, stat, time, re
-from foolscap import Referenceable, SturdyRef
+from foolscap import Referenceable
 from zope.interface import implements
 from allmydata.interfaces import RIClient
 from allmydata import node
