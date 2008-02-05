@@ -31,6 +31,7 @@ Name: "{app}\noderoot"
 
 [Icons]
 ; Program files entries
+Name: "{group}\Allmydata"; Filename: "{app}\Install\winfuse\TahoeTray.exe"
 Name: "{group}\Tahoe root dir (web)"; Filename: "{app}\Install\tahoe.exe"; Parameters: "webopen"
 Name: "{group}\Allmydata Help"; Filename: "http://www.allmydata.com/help.php"
 
@@ -41,6 +42,7 @@ Filename: "{app}\Install\tahoe.exe"; Parameters: "create-client ""{app}\noderoot
 Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: """{app}\Install\winfuse\WinFUSE.exe"""; Flags: runhidden
 Filename: "{app}\Install\confwiz.exe"; Flags: hidewizard
 ;Filename: "{app}\Install\ReadMe.txt"; Description: "View the ReadMe file"; Flags: unchecked postinstall nowait shellexec skipifdoesntexist
+Filename: "{app}\Install\winfuse\TahoeTray.exe"; Description: "Run Allmydata Tahoe"; Flags: postinstall nowait
 
 [UninstallRun]
 ; Performed before the uninstaller runs to undo things
