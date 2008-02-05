@@ -80,9 +80,9 @@ possibly more reliable) limit, use a symlink to place the 'storage/'
 directory on a separate size-limited filesystem, and/or use per-user
 OS/filesystem quotas.
 
-private/root_dir.cap (optional): The command-line tools will read a directory cap out of
-this file and use it, if you don't specify a '--dir-cap' option or if you
-specify '--dir-cap=root'.
+private/root_dir.cap (optional): The command-line tools will read a directory
+cap out of this file and use it, if you don't specify a '--dir-cap' option or
+if you specify '--dir-cap=root'.
 
 
 == Node State ==
@@ -90,14 +90,14 @@ specify '--dir-cap=root'.
 private/node.pem : This contains an SSL private-key certificate. The node
 generates this the first time it is started, and re-uses it on subsequent
 runs. This certificate allows the node to have a cryptographically-strong
-identifier (the Foolscap "TubID"), and to establish secure connections to other
-nodes.
+identifier (the Foolscap "TubID"), and to establish secure connections to
+other nodes.
 
 storage/ : Nodes which host StorageServers will create this directory to hold
-shares of files on behalf of other clients. There will be a directory underneath
-it for each StorageIndex for which this node is holding shares.  There is also
-an "incoming" directory where partially-completed shares are held while they are
-being received.
+shares of files on behalf of other clients. There will be a directory
+underneath it for each StorageIndex for which this node is holding shares.
+There is also an "incoming" directory where partially-completed shares are
+held while they are being received.
 
 client.tac : this file defines the client, by constructing the actual Client
 instance each time the node is started. It is used by the 'twistd'
@@ -107,15 +107,15 @@ command.
 
 private/control.furl : this file contains a FURL that provides access to a
 control port on the client node, from which files can be uploaded and
-downloaded.  This file is created with permissions that prevent anyone else from
-reading it (on operating systems that support such a concept), to insure that
-only the owner of the client node can use this feature.  This port is intended
-for debugging and testing use.
+downloaded. This file is created with permissions that prevent anyone else
+from reading it (on operating systems that support such a concept), to insure
+that only the owner of the client node can use this feature. This port is
+intended for debugging and testing use.
 
-private/logport.furl : this file contains a FURL that provides access to a 'log
-port' on the client node, from which operational logs can be retrieved. Do not
-grant logport access to strangers, because occasionally secret information may
-be placed in the logs.
+private/logport.furl : this file contains a FURL that provides access to a
+'log port' on the client node, from which operational logs can be retrieved.
+Do not grant logport access to strangers, because occasionally secret
+information may be placed in the logs.
 
 log_gatherer.furl : if present, this file is used to contact a 'log
 gatherer', which will be granted access to the logport. This can be used by
