@@ -20,6 +20,10 @@ furl is created by the introducer node and written into its base directory
 when it starts, whereupon it should be published to everyone who wishes to
 attach a client to that grid
 
+nickname (optional): The contents of this file will be displayed in
+management tools as this node's "nickname". If the file doesn't exist, the
+nickname will be set to "<unspecified>".
+
 webport (optional): This controls where the client's webserver should listen,
 providing filesystem access as defined in webapi.txt . This file contains a
 Twisted "strports" specification (as defined in
@@ -54,6 +58,17 @@ Python shell, which can be used to inspect the internal state of the node,
 for debugging.  To cause the node to accept SSH connections on port 8022,
 symlink "authorized_keys.8022" to your ~/.ssh/authorized_keys file, and it
 will accept the same keys as the rest of your account.
+
+no_storage (optional): If this file is present (the contents do not matter),
+the node will not run a storage server, meaning that no shares will be stored
+on this node. Use this for clients who do not wish to provide storage
+service.
+
+readonly_storage (optional): If this file is present (the contents do not
+matter), the node will run a storage server but will not accept any shares,
+making it effectively read-only. Use this for storage servers which are being
+decommissioned: the storage/ directory could be mounted read-only, while
+shares are moved to other servers.
 
 sizelimit (optional): If present, this file establishes an upper bound (in
 bytes) on the amount of storage consumed by share data (data that your node
