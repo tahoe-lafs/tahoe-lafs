@@ -1,5 +1,5 @@
 install_requires=["zfec >= 1.1.0",
-                  "foolscap >= 0.2.3",
+                  "foolscap >= 0.2.4",
                   "simplejson >= 1.4",
                   "pycryptopp >= 0.2.8",
                   "nevow >= 0.6.0",
