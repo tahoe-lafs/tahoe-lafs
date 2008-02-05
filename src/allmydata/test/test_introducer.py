@@ -122,7 +122,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
                 if len(c.get_all_connections()) < NUMCLIENTS:
                     return False
             return True
-        d = self.poll(_wait_for_all_connections, timeout=5)
+        d = self.poll(_wait_for_all_connections)
 
         def _check1(res):
             log.msg("doing _check1")
@@ -148,12 +148,12 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
             # noticing the loss
             def _compare():
                 return current_counter != origin_c.counter
-            return self.poll(_compare, timeout=5)
+            return self.poll(_compare)
 
         d.addCallback(_disconnect_somebody_else)
 
         # and wait for them to reconnect
-        d.addCallback(lambda res: self.poll(_wait_for_all_connections, timeout=5))
+        d.addCallback(lambda res: self.poll(_wait_for_all_connections))
         def _check2(res):
             log.msg("doing _check2")
             for c in clients:
@@ -171,10 +171,10 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
 
             def _compare():
                 return current_counter != origin_c.counter
-            return self.poll(_compare, timeout=5)
+            return self.poll(_compare)
         d.addCallback(_disconnect_yourself)
 
-        d.addCallback(lambda res: self.poll(_wait_for_all_connections, timeout=5))
+        d.addCallback(lambda res: self.poll(_wait_for_all_connections))
         def _check3(res):
             log.msg("doing _check3")
             for c in clients:
@@ -194,7 +194,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
                 if c.connected_to_introducer():
                     return False
             return True
-        d.addCallback(lambda res: self.poll(_wait_for_introducer_loss, timeout=5))
+        d.addCallback(lambda res: self.poll(_wait_for_introducer_loss))
 
         def _check4(res):
             log.msg("doing _check4")
