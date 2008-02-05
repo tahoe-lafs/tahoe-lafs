@@ -374,19 +374,25 @@ class PollMixinTests(unittest.TestCase):
     def setUp(self):
         self.pm = testutil.PollMixin()
 
-    def _check(self, d):
-        def fail_unless_arg_is_true(arg):
-            self.failUnless(arg is True, repr(arg))
-        d.addCallback(fail_unless_arg_is_true)
-        return d
-
     def test_PollMixin_True(self):
         d = self.pm.poll(check_f=lambda : True,
                          pollinterval=0.1)
-        return self._check(d)
+        return d
 
     def test_PollMixin_False_then_True(self):
         i = iter([False, True])
         d = self.pm.poll(check_f=i.next,
                          pollinterval=0.1)
-        return self._check(d)
+        return d
+
+    def test_timeout(self):
+        d = self.pm.poll(check_f=lambda: False,
+                         pollinterval=0.01,
+                         timeout=1)
+        def _suc(res):
+            self.fail("poll should have failed, not returned %s" % (res,))
+        def _err(f):
+            f.trap(testutil.TimeoutError)
+            return None # success
+        d.addCallbacks(_suc, _err)
+        return d
