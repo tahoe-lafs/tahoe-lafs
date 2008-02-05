@@ -303,7 +303,6 @@ class Retrieve:
         n = self._node
         full_peerlist = n._client.get_permuted_peers("storage",
                                                      self._storage_index)
-        # TODO: include_myself=True
 
         # _peerlist is a list of (peerid,conn) tuples for peers that are
         # worth talking too. This starts with the first numqueries in the
@@ -503,7 +502,6 @@ class Retrieve:
             # we might be able to get some more peers from the list
             peers = self._node._client.get_permuted_peers("storage",
                                                           self._storage_index)
-            # TODO: include_myself=True
             self._peerlist = [p for p in islice(peers, search_distance)]
             self._peerlist_limit = search_distance
             self.log("added peers, peerlist=%d, peerlist_limit=%d"
@@ -778,20 +776,22 @@ class Publish:
 
         storage_index = self._storage_index
 
-        # we need to include ourselves in the list for two reasons. The most
-        # important is so that any shares which already exist on our own
-        # server get updated. The second is to ensure that we leave a share
-        # on our own server, so we're more likely to have the signing key
-        # around later. This way, even if all the servers die and the
-        # directory contents are unrecoverable, at least we can still push
-        # out a new copy with brand-new contents. TODO: it would be nice if
-        # the share we use for ourselves didn't count against the N total..
-        # maybe use N+1 if we find ourselves in the permuted list?
+        # In 0.7.0, we went through extra work to make sure that we include
+        # ourselves in the peerlist, mainly to match Retrieve (which did the
+        # same thing. With the post-0.7.0 Introducer refactoring, we got rid
+        # of the include-myself flags, and standardized on the
+        # uploading/downloading node not being special.
+
+        # One nice feature of the old approach was that by putting a share on
+        # the local storage server, we're more likely to be able to retrieve
+        # a copy of the encrypted private key (even if all the old servers
+        # have gone away), so we can regenerate new shares even if we can't
+        # retrieve the old contents. This need will eventually go away when
+        # we switch to DSA-based mutable files (which store the private key
+        # in the URI).
 
         peerlist = self._node._client.get_permuted_peers("storage",
                                                          storage_index)
-        # make sure our local server is in the list
-        # TODO: include_myself_at_beginning=True
 
         current_share_peers = DictOfSets()
         reachable_peers = {}
@@ -818,11 +818,13 @@ class Publish:
                       total_shares, reachable_peers,
                       current_share_peers)
         # TODO: add an errback to, probably to ignore that peer
+
         # TODO: if we can't get a privkey from these servers, consider
-        # looking farther afield. Make sure we include ourselves in the
-        # initial list, because of the 0.7.0 behavior that causes us to
-        # create our initial directory before we've connected to anyone
-        # but ourselves.
+        # looking farther afield. Be aware of the old 0.7.0 behavior that
+        # causes us to create our initial directory before we've connected to
+        # anyone but ourselves.. those old directories may not be
+        # retrieveable if our own server is no longer in the early part of
+        # the permuted peerlist.
         return d
 
     def _do_query(self, ss, peerid, storage_index):

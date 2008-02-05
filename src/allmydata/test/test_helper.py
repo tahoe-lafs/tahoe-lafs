@@ -39,8 +39,6 @@ class FakeClient(service.MultiService):
                                    }
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
-    def get_push_to_ourselves(self):
-        return True
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS
     def get_permuted_peers(self, service_name, storage_index):

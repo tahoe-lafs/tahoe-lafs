@@ -144,8 +144,6 @@ class FakeClient:
                   for fakeid in range(self.num_servers) ]
         self.last_peers = [p[1] for p in peers]
         return peers
-    def get_push_to_ourselves(self):
-        return None
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS
 

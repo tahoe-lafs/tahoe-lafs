@@ -146,9 +146,7 @@ class Client(node.Node, testutil.PollMixin):
 
 
     def init_options(self):
-        self.push_to_ourselves = None
-        if self.get_config("push_to_ourselves") is not None:
-            self.push_to_ourselves = True
+        pass
 
     def init_web(self, webport):
         self.log("init_web(webport=%s)", args=(webport,))
@@ -212,9 +210,6 @@ class Client(node.Node, testutil.PollMixin):
         assert isinstance(service_name, str)
         assert isinstance(key, str)
         return self.introducer_client.get_permuted_peers(service_name, key)
-
-    def get_push_to_ourselves(self):
-        return self.push_to_ourselves
 
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS

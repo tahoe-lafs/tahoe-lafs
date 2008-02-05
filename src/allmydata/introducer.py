@@ -314,37 +314,17 @@ class IntroducerClient(service.Service, Referenceable):
 
     def get_permuted_peers(self, service_name, key):
         """Return an ordered list of (peerid, rref) tuples."""
-        # TODO: flags like add-myself-at-beginning and remove-myself? maybe
-        # not.
 
         results = []
         for (c_peerid, c_service_name, rref) in self._connections:
             assert isinstance(c_peerid, str)
             if c_service_name != service_name:
                 continue
-            #if not include_myself and peerid == self.nodeid:
-            #    self.log("get_permuted_peers: removing myself from the list")
-            #    continue
             permuted = sha.new(key + c_peerid).digest()
             results.append((permuted, c_peerid, rref))
 
         results.sort(lambda a,b: cmp(a[0], b[0]))
         return [ (r[1], r[2]) for r in results ]
-
-    def _TODO__add_ourselves(self, partial_peerlist, peerlist):
-        # moved here from mutable.Publish
-        my_peerid = self._node._client.nodeid
-        for (permutedid, peerid, conn) in partial_peerlist:
-            if peerid == my_peerid:
-                # we're already in there
-                return partial_peerlist
-        for (permutedid, peerid, conn) in peerlist:
-            if peerid == self._node._client.nodeid:
-                # found it
-                partial_peerlist.append( (permutedid, peerid, conn) )
-                return partial_peerlist
-        self.log("we aren't in our own peerlist??", level=log.WEIRD)
-        return partial_peerlist
 
 
 

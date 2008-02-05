@@ -54,7 +54,6 @@ class PeerTracker:
         self._storageserver = storage_server # to an RIStorageServer
         self.buckets = {} # k: shareid, v: IRemoteBucketWriter
         self.sharesize = sharesize
-        #print "PeerTracker", peerid, sharesize
         as = storage.allocated_size(sharesize,
                                     num_segments,
                                     num_share_hashes,
@@ -75,7 +74,6 @@ class PeerTracker:
                    idlib.b2a(self.storage_index)[:6]))
 
     def query(self, sharenums):
-        #print " query", self.peerid, len(sharenums)
         d = self._storageserver.callRemote("allocate_buckets",
                                            self.storage_index,
                                            self.renew_secret,
@@ -115,8 +113,7 @@ class Tahoe2PeerSelector:
 
     def get_shareholders(self, client,
                          storage_index, share_size, block_size,
-                         num_segments, total_shares, shares_of_happiness,
-                         push_to_ourselves):
+                         num_segments, total_shares, shares_of_happiness):
         """
         @return: a set of PeerTracker instances that have agreed to hold some
                  shares for us
@@ -134,7 +131,6 @@ class Tahoe2PeerSelector:
         self.preexisting_shares = {} # sharenum -> PeerTracker holding the share
 
         peers = client.get_permuted_peers("storage", storage_index)
-        # TODO: push_to_ourselves
         if not peers:
             raise encode.NotEnoughPeersError("client gave us zero peers")
 
@@ -608,11 +604,10 @@ class CHKUploader:
         block_size = encoder.get_param("block_size")
         num_segments = encoder.get_param("num_segments")
         k,desired,n = encoder.get_param("share_counts")
-        push_to_ourselves = self._client.get_push_to_ourselves()
 
-        gs = peer_selector.get_shareholders
-        d = gs(self._client, storage_index, share_size, block_size,
-               num_segments, n, desired, push_to_ourselves)
+        d = peer_selector.get_shareholders(self._client, storage_index,
+                                           share_size, block_size,
+                                           num_segments, n, desired)
         return d
 
     def set_shareholders(self, used_peers, encoder):

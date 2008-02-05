@@ -242,17 +242,15 @@ this file are ignored.
             pass
         else:
             # don't accept any shares
-            f = open(os.path.join(clientdir, "sizelimit"), "w")
-            f.write("0\n")
+            f = open(os.path.join(clientdir, "readonly_storage"), "w")
+            f.write("true\n")
             f.close()
             ## also, if we do receive any shares, throw them away
             #f = open(os.path.join(clientdir, "debug_no_storage"), "w")
             #f.write("no_storage\n")
             #f.close()
         if self.mode == "upload-self":
-            f = open(os.path.join(clientdir, "push_to_ourselves"), "w")
-            f.write("push_to_ourselves\n")
-            f.close()
+            pass
         self.keepalive_file = os.path.join(clientdir,
                                            "suicide_prevention_hotline")
         # now start updating the mtime.
