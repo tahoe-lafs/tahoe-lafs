@@ -50,10 +50,8 @@ class CHKCheckerAndUEBFetcher:
 
     def _get_all_shareholders(self, storage_index):
         dl = []
-        for (pmpeerid, peerid, connection) in self._peer_getter(storage_index):
-            d = connection.callRemote("get_service", "storageserver")
-            d.addCallback(lambda ss: ss.callRemote("get_buckets",
-                                                   storage_index))
+        for (peerid, ss) in self._peer_getter("storage", storage_index):
+            d = ss.callRemote("get_buckets", storage_index)
             d.addCallbacks(self._got_response, self._got_error,
                            callbackArgs=(peerid,))
             dl.append(d)

@@ -1,9 +1,9 @@
-from base64 import b32encode
+from base64 import b32decode
 
 import os
 
 from twisted.trial import unittest
-from twisted.internet import defer, reactor
+from twisted.internet import defer
 from twisted.python import log
 
 from foolscap import Tub, Referenceable
@@ -66,10 +66,8 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
 
 
     def test_create(self):
-        ic = IntroducerClient(None, "introducer", "myfurl")
-        def _ignore(nodeid, rref):
-            pass
-        ic.notify_on_new_connection(_ignore)
+        ic = IntroducerClient(None, "introducer.furl", "my_nickname",
+                              "my_version", "oldest_version")
 
     def test_listen(self):
         i = IntroducerService()
@@ -87,7 +85,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
 
         i = IntroducerService()
         i.setServiceParent(self.parent)
-        iurl = tub.registerReference(i)
+        introducer_furl = tub.registerReference(i)
         NUMCLIENTS = 5
         # we have 5 clients who publish themselves, and an extra one which
         # does not. When the connections are fully established, all six nodes
@@ -106,71 +104,82 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
 
             n = FakeNode()
             log.msg("creating client %d: %s" % (i, tub.getShortTubID()))
+            c = IntroducerClient(tub, introducer_furl,
+                                 "nickname-%d" % i, "version", "oldest")
             if i < NUMCLIENTS:
                 node_furl = tub.registerReference(n)
-            else:
-                node_furl = None
-            c = IntroducerClient(tub, iurl, node_furl)
+                c.publish(node_furl, "storage", "ri_name")
+            # the last one does not publish anything
+
+            c.subscribe_to("storage")
 
             c.setServiceParent(self.parent)
             clients.append(c)
             tubs[c] = tub
 
-        def _wait_for_all_connections(res):
-            dl = [] # list of when_enough_peers() for each peer
-            # will fire once everybody is connected
+        def _wait_for_all_connections():
             for c in clients:
-                dl.append(c.when_enough_peers(NUMCLIENTS))
-            return defer.DeferredList(dl, fireOnOneErrback=True)
-
-        d = _wait_for_all_connections(None)
+                if len(c.get_all_connections()) < NUMCLIENTS:
+                    return False
+            return True
+        d = self.poll(_wait_for_all_connections, timeout=5)
 
         def _check1(res):
             log.msg("doing _check1")
             for c in clients:
-                self.failUnlessEqual(len(c.connections), NUMCLIENTS)
-                self.failUnless(c._connected) # to the introducer
+                self.failUnless(c.connected_to_introducer())
+                self.failUnlessEqual(len(c.get_all_connections()), NUMCLIENTS)
+                self.failUnlessEqual(len(c.get_all_peerids()), NUMCLIENTS)
+                self.failUnlessEqual(len(c.get_all_connections_for("storage")),
+                                     NUMCLIENTS)
         d.addCallback(_check1)
+
         origin_c = clients[0]
         def _disconnect_somebody_else(res):
             # now disconnect somebody's connection to someone else
-            # find a target that is not themselves
-            for nodeid,rref in origin_c.connections.items():
-                if b32encode(nodeid).lower() != tubs[origin_c].tubID:
-                    victim = rref
-                    break
-            log.msg(" disconnecting %s->%s" % (tubs[origin_c].tubID, victim))
-            victim.tracker.broker.transport.loseConnection()
+            current_counter = origin_c.counter
+            victim_nodeid = b32decode(tubs[clients[1]].tubID.upper())
+            log.msg(" disconnecting %s->%s" % (tubs[origin_c].tubID,
+                                               victim_nodeid))
+            origin_c.debug_disconnect_from_peerid(victim_nodeid)
             log.msg(" did disconnect")
+
+            # then wait until something changes, which ought to be them
+            # noticing the loss
+            def _compare():
+                return current_counter != origin_c.counter
+            return self.poll(_compare, timeout=5)
+
         d.addCallback(_disconnect_somebody_else)
-        def _wait_til_he_notices(res):
-            # wait til the origin_c notices the loss
-            log.msg(" waiting until peer notices the disconnection")
-            return origin_c.when_fewer_than_peers(NUMCLIENTS)
-        d.addCallback(_wait_til_he_notices)
-        d.addCallback(_wait_for_all_connections)
+
+        # and wait for them to reconnect
+        d.addCallback(lambda res: self.poll(_wait_for_all_connections, timeout=5))
         def _check2(res):
             log.msg("doing _check2")
             for c in clients:
-                self.failUnlessEqual(len(c.connections), NUMCLIENTS)
+                self.failUnlessEqual(len(c.get_all_connections()), NUMCLIENTS)
         d.addCallback(_check2)
+
         def _disconnect_yourself(res):
             # now disconnect somebody's connection to themselves.
-            # find a target that *is* themselves
-            for nodeid,rref in origin_c.connections.items():
-                if b32encode(nodeid).lower() == tubs[origin_c].tubID:
-                    victim = rref
-                    break
-            log.msg(" disconnecting %s->%s" % (tubs[origin_c].tubID, victim))
-            victim.tracker.broker.transport.loseConnection()
+            current_counter = origin_c.counter
+            victim_nodeid = b32decode(tubs[clients[0]].tubID.upper())
+            log.msg(" disconnecting %s->%s" % (tubs[origin_c].tubID,
+                                               victim_nodeid))
+            origin_c.debug_disconnect_from_peerid(victim_nodeid)
             log.msg(" did disconnect from self")
+
+            def _compare():
+                return current_counter != origin_c.counter
+            return self.poll(_compare, timeout=5)
         d.addCallback(_disconnect_yourself)
-        d.addCallback(_wait_til_he_notices)
-        d.addCallback(_wait_for_all_connections)
+
+        d.addCallback(lambda res: self.poll(_wait_for_all_connections, timeout=5))
         def _check3(res):
             log.msg("doing _check3")
             for c in clients:
-                self.failUnlessEqual(len(c.connections), NUMCLIENTS)
+                self.failUnlessEqual(len(c.get_all_connections_for("storage")),
+                                     NUMCLIENTS)
         d.addCallback(_check3)
         def _shutdown_introducer(res):
             # now shut down the introducer. We do this by shutting down the
@@ -180,100 +189,19 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
             log.msg("shutting down the introducer")
             return self.central_tub.disownServiceParent()
         d.addCallback(_shutdown_introducer)
-        d.addCallback(self.stall, 2)
+        def _wait_for_introducer_loss():
+            for c in clients:
+                if c.connected_to_introducer():
+                    return False
+            return True
+        d.addCallback(lambda res: self.poll(_wait_for_introducer_loss, timeout=5))
+
         def _check4(res):
             log.msg("doing _check4")
             for c in clients:
-                self.failUnlessEqual(len(c.connections), NUMCLIENTS)
-                self.failIf(c._connected)
+                self.failUnlessEqual(len(c.get_all_connections_for("storage")),
+                                     NUMCLIENTS)
+                self.failIf(c.connected_to_introducer())
         d.addCallback(_check4)
         return d
-    test_system.timeout = 2400
 
-    def stall(self, res, timeout):
-        d = defer.Deferred()
-        reactor.callLater(timeout, d.callback, res)
-        return d
-
-    def test_system_this_one_breaks(self):
-        # this uses a single Tub, which has a strong effect on the
-        # failingness
-        tub = Tub()
-        tub.setOption("logLocalFailures", True)
-        tub.setOption("logRemoteFailures", True)
-        tub.setServiceParent(self.parent)
-        l = tub.listenOn("tcp:0")
-        portnum = l.getPortnum()
-        tub.setLocation("localhost:%d" % portnum)
-
-        i = IntroducerService()
-        i.setServiceParent(self.parent)
-        iurl = tub.registerReference(i)
-
-        clients = []
-        for i in range(5):
-            n = FakeNode()
-            node_furl = tub.registerReference(n)
-            c = IntroducerClient(tub, iurl, node_furl)
-            c.setServiceParent(self.parent)
-            clients.append(c)
-
-        # time passes..
-        d = defer.Deferred()
-        def _check(res):
-            log.msg("doing _check")
-            self.failUnlessEqual(len(clients[0].connections), 5)
-        d.addCallback(_check)
-        reactor.callLater(2, d.callback, None)
-        return d
-    del test_system_this_one_breaks
-
-
-    def test_system_this_one_breaks_too(self):
-        # this one shuts down so quickly that it fails in a different way
-        self.central_tub = tub = Tub()
-        tub.setOption("logLocalFailures", True)
-        tub.setOption("logRemoteFailures", True)
-        tub.setServiceParent(self.parent)
-        l = tub.listenOn("tcp:0")
-        portnum = l.getPortnum()
-        tub.setLocation("localhost:%d" % portnum)
-
-        i = IntroducerService()
-        i.setServiceParent(self.parent)
-        iurl = tub.registerReference(i)
-
-        clients = []
-        for i in range(5):
-            tub = Tub()
-            tub.setOption("logLocalFailures", True)
-            tub.setOption("logRemoteFailures", True)
-            tub.setServiceParent(self.parent)
-            l = tub.listenOn("tcp:0")
-            portnum = l.getPortnum()
-            tub.setLocation("localhost:%d" % portnum)
-
-            n = FakeNode()
-            node_furl = tub.registerReference(n)
-            c = IntroducerClient(tub, iurl, node_furl)
-            c.setServiceParent(self.parent)
-            clients.append(c)
-
-        # time passes..
-        d = defer.Deferred()
-        reactor.callLater(0.01, d.callback, None)
-        def _check(res):
-            log.msg("doing _check")
-            self.fail("BOOM")
-            for c in clients:
-                self.failUnlessEqual(len(c.connections), 5)
-            c.connections.values()[0].tracker.broker.transport.loseConnection()
-            return self.stall(None, 2)
-        d.addCallback(_check)
-        def _check_again(res):
-            log.msg("doing _check_again")
-            for c in clients:
-                self.failUnlessEqual(len(c.connections), 5)
-        d.addCallback(_check_again)
-        return d
-    del test_system_this_one_breaks_too

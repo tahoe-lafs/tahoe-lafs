@@ -412,17 +412,14 @@ class FileDownloader:
 
     def _get_all_shareholders(self):
         dl = []
-        for (permutedpeerid, peerid, connection) in self._client.get_permuted_peers(self._storage_index):
-            d = connection.callRemote("get_service", "storageserver")
-            d.addCallback(lambda ss: ss.callRemote("get_buckets",
-                                                   self._storage_index))
-            d.addCallbacks(self._got_response, self._got_error,
-                           callbackArgs=(connection,))
+        for (peerid,ss) in self._client.get_permuted_peers("storage",
+                                                           self._storage_index):
+            d = ss.callRemote("get_buckets", self._storage_index)
+            d.addCallbacks(self._got_response, self._got_error)
             dl.append(d)
         return defer.DeferredList(dl)
 
-    def _got_response(self, buckets, connection):
-        _assert(isinstance(buckets, dict), buckets) # soon foolscap will check this for us with its DictOf schema constraint
+    def _got_response(self, buckets):
         for sharenum, bucket in buckets.iteritems():
             b = storage.ReadBucketProxy(bucket)
             self.add_share_bucket(sharenum, b)

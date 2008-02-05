@@ -3,7 +3,6 @@ import os
 from twisted.trial import unittest
 from twisted.python.failure import Failure
 from twisted.python import log
-from twisted.internet import defer
 from cStringIO import StringIO
 
 from allmydata import upload, encode, uri
@@ -68,20 +67,6 @@ class Uploadable(unittest.TestCase):
         d.addCallback(self.shouldEqual, "a"*40)
         d.addCallback(lambda res: u.close())
         return d
-
-class FakePeer:
-    def __init__(self, mode="good"):
-        self.ss = FakeStorageServer(mode)
-
-    def callRemote(self, methname, *args, **kwargs):
-        def _call():
-            meth = getattr(self, methname)
-            return meth(*args, **kwargs)
-        return defer.maybeDeferred(_call)
-
-    def get_service(self, sname):
-        assert sname == "storageserver"
-        return self.ss
 
 class FakeStorageServer:
     def __init__(self, mode):
@@ -155,9 +140,9 @@ class FakeClient:
     def log(self, *args, **kwargs):
         pass
     def get_permuted_peers(self, storage_index, include_myself):
-        peers = [ ("%20d"%fakeid, "%20d"%fakeid, FakePeer(self.mode),)
+        peers = [ ("%20d"%fakeid, FakeStorageServer(self.mode),)
                   for fakeid in range(self.num_servers) ]
-        self.last_peers = [p[2] for p in peers]
+        self.last_peers = [p[1] for p in peers]
         return peers
     def get_push_to_ourselves(self):
         return None
@@ -353,9 +338,9 @@ class PeerSelection(unittest.TestCase):
         d.addCallback(self._check_large, SIZE_LARGE)
         def _check(res):
             for p in self.node.last_peers:
-                allocated = p.ss.allocated
+                allocated = p.allocated
                 self.failUnlessEqual(len(allocated), 1)
-                self.failUnlessEqual(p.ss.queries, 1)
+                self.failUnlessEqual(p.queries, 1)
         d.addCallback(_check)
         return d
 
@@ -370,9 +355,9 @@ class PeerSelection(unittest.TestCase):
         d.addCallback(self._check_large, SIZE_LARGE)
         def _check(res):
             for p in self.node.last_peers:
-                allocated = p.ss.allocated
+                allocated = p.allocated
                 self.failUnlessEqual(len(allocated), 2)
-                self.failUnlessEqual(p.ss.queries, 2)
+                self.failUnlessEqual(p.queries, 2)
         d.addCallback(_check)
         return d
 
@@ -389,13 +374,13 @@ class PeerSelection(unittest.TestCase):
             got_one = []
             got_two = []
             for p in self.node.last_peers:
-                allocated = p.ss.allocated
+                allocated = p.allocated
                 self.failUnless(len(allocated) in (1,2), len(allocated))
                 if len(allocated) == 1:
-                    self.failUnlessEqual(p.ss.queries, 1)
+                    self.failUnlessEqual(p.queries, 1)
                     got_one.append(p)
                 else:
-                    self.failUnlessEqual(p.ss.queries, 2)
+                    self.failUnlessEqual(p.queries, 2)
                     got_two.append(p)
             self.failUnlessEqual(len(got_one), 49)
             self.failUnlessEqual(len(got_two), 1)
@@ -414,9 +399,9 @@ class PeerSelection(unittest.TestCase):
         d.addCallback(self._check_large, SIZE_LARGE)
         def _check(res):
             for p in self.node.last_peers:
-                allocated = p.ss.allocated
+                allocated = p.allocated
                 self.failUnlessEqual(len(allocated), 4)
-                self.failUnlessEqual(p.ss.queries, 2)
+                self.failUnlessEqual(p.queries, 2)
         d.addCallback(_check)
         return d
 
@@ -432,7 +417,7 @@ class PeerSelection(unittest.TestCase):
         def _check(res):
             counts = {}
             for p in self.node.last_peers:
-                allocated = p.ss.allocated
+                allocated = p.allocated
                 counts[len(allocated)] = counts.get(len(allocated), 0) + 1
             histogram = [counts.get(i, 0) for i in range(5)]
             self.failUnlessEqual(histogram, [0,0,0,2,1])

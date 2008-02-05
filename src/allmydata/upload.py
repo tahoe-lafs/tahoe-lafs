@@ -44,18 +44,17 @@ class TooFullError(Exception):
 EXTENSION_SIZE = 1000
 
 class PeerTracker:
-    def __init__(self, peerid, permutedid, connection,
+    def __init__(self, peerid, storage_server,
                  sharesize, blocksize, num_segments, num_share_hashes,
                  storage_index,
                  bucket_renewal_secret, bucket_cancel_secret):
         precondition(isinstance(peerid, str), peerid)
         precondition(len(peerid) == 20, peerid)
         self.peerid = peerid
-        self.permutedid = permutedid
-        self.connection = connection # to an RIClient
+        self._storageserver = storage_server # to an RIStorageServer
         self.buckets = {} # k: shareid, v: IRemoteBucketWriter
         self.sharesize = sharesize
-        #print "PeerTracker", peerid, permutedid, sharesize
+        #print "PeerTracker", peerid, sharesize
         as = storage.allocated_size(sharesize,
                                     num_segments,
                                     num_share_hashes,
@@ -66,7 +65,6 @@ class PeerTracker:
         self.num_segments = num_segments
         self.num_share_hashes = num_share_hashes
         self.storage_index = storage_index
-        self._storageserver = None
 
         self.renew_secret = bucket_renewal_secret
         self.cancel_secret = bucket_cancel_secret
@@ -77,15 +75,6 @@ class PeerTracker:
                    idlib.b2a(self.storage_index)[:6]))
 
     def query(self, sharenums):
-        if not self._storageserver:
-            d = self.connection.callRemote("get_service", "storageserver")
-            d.addCallback(self._got_storageserver)
-            d.addCallback(lambda res: self._query(sharenums))
-            return d
-        return self._query(sharenums)
-    def _got_storageserver(self, storageserver):
-        self._storageserver = storageserver
-    def _query(self, sharenums):
         #print " query", self.peerid, len(sharenums)
         d = self._storageserver.callRemote("allocate_buckets",
                                            self.storage_index,
@@ -144,7 +133,8 @@ class Tahoe2PeerSelector:
         self.use_peers = set() # PeerTrackers that have shares assigned to them
         self.preexisting_shares = {} # sharenum -> PeerTracker holding the share
 
-        peers = client.get_permuted_peers(storage_index, push_to_ourselves)
+        peers = client.get_permuted_peers("storage", storage_index)
+        # TODO: push_to_ourselves
         if not peers:
             raise encode.NotEnoughPeersError("client gave us zero peers")
 
@@ -167,7 +157,7 @@ class Tahoe2PeerSelector:
         file_cancel_secret = file_cancel_secret_hash(client_cancel_secret,
                                                      storage_index)
 
-        trackers = [ PeerTracker(peerid, permutedid, conn,
+        trackers = [ PeerTracker(peerid, conn,
                                  share_size, block_size,
                                  num_segments, num_share_hashes,
                                  storage_index,
@@ -176,7 +166,7 @@ class Tahoe2PeerSelector:
                                  bucket_cancel_secret_hash(file_cancel_secret,
                                                            peerid),
                                  )
-                     for permutedid, peerid, conn in peers ]
+                     for (peerid, conn) in peers ]
         self.uncontacted_peers = trackers
 
         d = defer.maybeDeferred(self._loop)

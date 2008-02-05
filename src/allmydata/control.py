@@ -69,7 +69,8 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
         # phase to take more than 10 seconds. Expect worst-case latency to be
         # 300ms.
         results = {}
-        everyone = list(self.parent.introducer_client.get_all_peers())
+        conns = self.parent.introducer_client.get_all_connections_for("storage")
+        everyone = [(peerid,rref) for (peerid, service_name, rref) in conns]
         num_pings = int(mathutil.div_ceil(10, (len(everyone) * 0.3)))
         everyone = everyone * num_pings
         d = self._do_one_ping(None, everyone, results)
@@ -79,7 +80,7 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
             return results
         peerid, connection = everyone_left.pop(0)
         start = time.time()
-        d = connection.callRemote("get_nodeid")
+        d = connection.callRemote("get_versions")
         def _done(ignored):
             stop = time.time()
             elapsed = stop - start

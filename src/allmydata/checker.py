@@ -30,7 +30,7 @@ class SimpleCHKFileChecker:
         # messages (or if we used promises).
         found = set()
         for (pmpeerid, peerid, connection) in self.peer_getter(storage_index):
-            buckets = connection.get_service("storageserver").get_buckets(si)
+            buckets = connection.get_buckets(si)
             found.update(buckets.keys())
         return len(found)
     '''
@@ -42,10 +42,8 @@ class SimpleCHKFileChecker:
 
     def _get_all_shareholders(self, storage_index):
         dl = []
-        for (pmpeerid, peerid, connection) in self.peer_getter(storage_index):
-            d = connection.callRemote("get_service", "storageserver")
-            d.addCallback(lambda ss: ss.callRemote("get_buckets",
-                                                   storage_index))
+        for (peerid, ss) in self.peer_getter("storage", storage_index):
+            d = ss.callRemote("get_buckets", storage_index)
             d.addCallbacks(self._got_response, self._got_error,
                            callbackArgs=(peerid,))
             dl.append(d)

@@ -32,7 +32,7 @@ This is some data to publish to the virtual drive, which needs to be large
 enough to not fit inside a LIT uri.
 """
 
-class SystemTest(testutil.SignalMixin, unittest.TestCase):
+class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
 
     def setUp(self):
         self.sparent = service.MultiService()
@@ -135,18 +135,20 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(lambda res: c)
         return d
 
+    def _check_connections(self):
+        for c in self.clients:
+            ic = c.introducer_client
+            if not ic.connected_to_introducer():
+                return False
+            if len(ic.get_all_peerids()) != self.numclients:
+                return False
+        return True
+
     def wait_for_connections(self, ignored=None):
         # TODO: replace this with something that takes a list of peerids and
         # fires when they've all been heard from, instead of using a count
         # and a threshold
-        for c in self.clients:
-            if (not c.introducer_client or
-                len(list(c.get_all_peerids())) != self.numclients):
-                d = defer.Deferred()
-                d.addCallback(self.wait_for_connections)
-                reactor.callLater(0.05, d.callback, None)
-                return d
-        return defer.succeed(None)
+        return self.poll(self._check_connections, timeout=200)
 
     def test_connections(self):
         self.basedir = "system/SystemTest/test_connections"
@@ -158,10 +160,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             for c in self.clients:
                 all_peerids = list(c.get_all_peerids())
                 self.failUnlessEqual(len(all_peerids), self.numclients+1)
-                permuted_peers = list(c.get_permuted_peers("a", True))
+                permuted_peers = list(c.get_permuted_peers("storage", "a"))
                 self.failUnlessEqual(len(permuted_peers), self.numclients+1)
-                permuted_other_peers = list(c.get_permuted_peers("a", False))
-                self.failUnlessEqual(len(permuted_other_peers), self.numclients)
 
         d.addCallback(_check)
         def _shutdown_extra_node(res):
@@ -196,10 +196,8 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
             for c in self.clients:
                 all_peerids = list(c.get_all_peerids())
                 self.failUnlessEqual(len(all_peerids), self.numclients)
-                permuted_peers = list(c.get_permuted_peers("a", True))
+                permuted_peers = list(c.get_permuted_peers("storage", "a"))
                 self.failUnlessEqual(len(permuted_peers), self.numclients)
-                permuted_other_peers = list(c.get_permuted_peers("a", False))
-                self.failUnlessEqual(len(permuted_other_peers), self.numclients-1)
         d.addCallback(_check_connections)
         def _do_upload(res):
             log.msg("UPLOADING")
@@ -266,8 +264,12 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
 
         def _download_nonexistent_uri(res):
             baduri = self.mangle_uri(self.uri)
+            log.msg("about to download non-existent URI", level=log.UNUSUAL,
+                    facility="tahoe.tests")
             d1 = self.downloader.download_to_data(baduri)
             def _baduri_should_fail(res):
+                log.msg("finished downloading non-existend URI",
+                        level=log.UNUSUAL, facility="tahoe.tests")
                 self.failUnless(isinstance(res, Failure))
                 self.failUnless(res.check(download.NotEnoughPeersError),
                                 "expected NotEnoughPeersError, got %s" % res)
@@ -834,9 +836,9 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(self.log, "GOT WEB LISTENER")
         return d
 
-    def log(self, res, msg):
+    def log(self, res, msg, **kwargs):
         # print "MSG: %s  RES: %s" % (msg, res)
-        log.msg(msg)
+        log.msg(msg, **kwargs)
         return res
 
     def stall(self, res, delay=1.0):
@@ -1064,7 +1066,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(_got_from_uri)
 
         # download from a bogus URI, make sure we get a reasonable error
-        d.addCallback(self.log, "_get_from_bogus_uri")
+        d.addCallback(self.log, "_get_from_bogus_uri", level=log.UNUSUAL)
         def _get_from_bogus_uri(res):
             d1 = getPage(base + "uri/%s?filename=%s"
                          % (self.mangle_uri(self.uri), "mydata567"))
@@ -1072,6 +1074,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                        "410")
             return d1
         d.addCallback(_get_from_bogus_uri)
+        d.addCallback(self.log, "_got_from_bogus_uri", level=log.UNUSUAL)
 
         # upload a file with PUT
         d.addCallback(self.log, "about to try PUT")
@@ -1364,7 +1367,7 @@ class SystemTest(testutil.SignalMixin, unittest.TestCase):
                     peers = set()
                     for shpeers in sharemap.values():
                         peers.update(shpeers)
-                    self.failUnlessEqual(len(peers), self.numclients-1)
+                    self.failUnlessEqual(len(peers), self.numclients)
         d.addCallback(_check_checker_results)
 
         def _check_stored_results(res):

@@ -12,10 +12,12 @@ from foolscap.eventual import flushEventualQueue
 
 class FakeIntroducerClient(introducer.IntroducerClient):
     def __init__(self):
-        self.connections = {}
-
-def permute(c, key):
-    return [ y for x, y, z in c.get_permuted_peers(key) ]
+        self._connections = set()
+    def add_peer(self, nodeid):
+        entry = (nodeid, "storage", "rref")
+        self._connections.add(entry)
+    def remove_all_peers(self):
+        self._connections.clear()
 
 class Basic(unittest.TestCase):
     def test_loadable(self):
@@ -94,6 +96,10 @@ class Basic(unittest.TestCase):
         self.failUnlessEqual(c.getServiceNamed("storageserver").sizelimit,
                              None)
 
+    def _permute(self, c, key):
+        return [ peerid
+                 for (peerid,rref) in c.get_permuted_peers("storage", key) ]
+
     def test_permute(self):
         basedir = "test_client.Basic.test_permute"
         os.mkdir(basedir)
@@ -102,17 +108,18 @@ class Basic(unittest.TestCase):
         c = client.Client(basedir)
         c.introducer_client = FakeIntroducerClient()
         for k in ["%d" % i for i in range(5)]:
-            c.introducer_client.connections[k] = None
-        self.failUnlessEqual(permute(c, "one"), ['3','1','0','4','2'])
-        self.failUnlessEqual(permute(c, "two"), ['0','4','2','1','3'])
-        c.introducer_client.connections.clear()
-        self.failUnlessEqual(permute(c, "one"), [])
+            c.introducer_client.add_peer(k)
+
+        self.failUnlessEqual(self._permute(c, "one"), ['3','1','0','4','2'])
+        self.failUnlessEqual(self._permute(c, "two"), ['0','4','2','1','3'])
+        c.introducer_client.remove_all_peers()
+        self.failUnlessEqual(self._permute(c, "one"), [])
 
         c2 = client.Client(basedir)
         c2.introducer_client = FakeIntroducerClient()
         for k in ["%d" % i for i in range(5)]:
-            c2.introducer_client.connections[k] = None
-        self.failUnlessEqual(permute(c2, "one"), ['3','1','0','4','2'])
+            c2.introducer_client.add_peer(k)
+        self.failUnlessEqual(self._permute(c2, "one"), ['3','1','0','4','2'])
 
     def test_versions(self):
         basedir = "test_client.Basic.test_versions"
@@ -120,7 +127,8 @@ class Basic(unittest.TestCase):
         open(os.path.join(basedir, "introducer.furl"), "w").write("")
         open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         c = client.Client(basedir)
-        mine, oldest = c.remote_get_versions()
+        ss = c.getServiceNamed("storageserver")
+        mine, oldest = ss.remote_get_versions()
         self.failUnlessEqual(mine, str(allmydata.__version__))
         self.failIfEqual(str(allmydata.__version__), "unknown")
         self.failUnless("." in str(allmydata.__version__),

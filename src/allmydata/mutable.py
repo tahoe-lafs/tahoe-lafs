@@ -301,16 +301,17 @@ class Retrieve:
 
     def _choose_initial_peers(self, numqueries):
         n = self._node
-        full_peerlist = n._client.get_permuted_peers(self._storage_index,
-                                                     include_myself=True)
+        full_peerlist = n._client.get_permuted_peers("storage",
+                                                     self._storage_index)
+        # TODO: include_myself=True
+
         # _peerlist is a list of (peerid,conn) tuples for peers that are
         # worth talking too. This starts with the first numqueries in the
         # permuted list. If that's not enough to get us a recoverable
         # version, we expand this to include the first 2*total_shares peerids
         # (assuming we learn what total_shares is from one of the first
         # numqueries peers)
-        self._peerlist = [(p[1],p[2])
-                          for p in islice(full_peerlist, numqueries)]
+        self._peerlist = [p for p in islice(full_peerlist, numqueries)]
         # _peerlist_limit is the query limit we used to build this list. If
         # we later increase this limit, it may be useful to re-scan the
         # permuted list.
@@ -323,33 +324,20 @@ class Retrieve:
         self._queries_outstanding = set()
         self._used_peers = set()
         self._sharemap = DictOfSets() # shnum -> [(peerid, seqnum, R)..]
-        self._peer_storage_servers = {}
         dl = []
-        for (peerid, conn) in peerlist:
+        for (peerid, ss) in peerlist:
             self._queries_outstanding.add(peerid)
-            self._do_query(conn, peerid, self._storage_index, self._read_size,
-                           self._peer_storage_servers)
+            self._do_query(ss, peerid, self._storage_index, self._read_size)
 
         # control flow beyond this point: state machine. Receiving responses
         # from queries is the input. We might send out more queries, or we
         # might produce a result.
         return None
 
-    def _do_query(self, conn, peerid, storage_index, readsize,
-                  peer_storage_servers):
+    def _do_query(self, ss, peerid, storage_index, readsize):
         self._queries_outstanding.add(peerid)
-        if peerid in peer_storage_servers:
-            d = defer.succeed(peer_storage_servers[peerid])
-        else:
-            d = conn.callRemote("get_service", "storageserver")
-            def _got_storageserver(ss):
-                peer_storage_servers[peerid] = ss
-                return ss
-            d.addCallback(_got_storageserver)
-        d.addCallback(lambda ss: ss.callRemote("slot_readv", storage_index,
-                                               [], [(0, readsize)]))
-        d.addCallback(self._got_results, peerid, readsize,
-                      (conn, storage_index, peer_storage_servers))
+        d = ss.callRemote("slot_readv", storage_index, [], [(0, readsize)])
+        d.addCallback(self._got_results, peerid, readsize, (ss, storage_index))
         d.addErrback(self._query_failed, peerid)
         # errors that aren't handled by _query_failed (and errors caused by
         # _query_failed) get logged, but we still want to check for doneness.
@@ -377,9 +365,8 @@ class Retrieve:
                 # TODO: for MDMF, sanity-check self._read_size: don't let one
                 # server cause us to try to read gigabytes of data from all
                 # other servers.
-                (conn, storage_index, peer_storage_servers) = stuff
-                self._do_query(conn, peerid, storage_index, self._read_size,
-                               peer_storage_servers)
+                (ss, storage_index) = stuff
+                self._do_query(ss, peerid, storage_index, self._read_size)
                 return
             except CorruptShareError, e:
                 # log it and give the other shares a chance to be processed
@@ -514,19 +501,19 @@ class Retrieve:
         self.log("search_distance=%d" % search_distance, level=log.UNUSUAL)
         if self._peerlist_limit < search_distance:
             # we might be able to get some more peers from the list
-            peers = self._node._client.get_permuted_peers(self._storage_index,
-                                                          include_myself=True)
-            self._peerlist = [(p[1],p[2])
-                              for p in islice(peers, search_distance)]
+            peers = self._node._client.get_permuted_peers("storage",
+                                                          self._storage_index)
+            # TODO: include_myself=True
+            self._peerlist = [p for p in islice(peers, search_distance)]
             self._peerlist_limit = search_distance
             self.log("added peers, peerlist=%d, peerlist_limit=%d"
                      % (len(self._peerlist), self._peerlist_limit),
                      level=log.UNUSUAL)
         # are there any peers on the list that we haven't used?
         new_query_peers = []
-        for (peerid, conn) in self._peerlist:
+        for (peerid, ss) in self._peerlist:
             if peerid not in self._used_peers:
-                new_query_peers.append( (peerid, conn) )
+                new_query_peers.append( (peerid, ss) )
                 if len(new_query_peers) > 5:
                     # only query in batches of 5. TODO: this is pretty
                     # arbitrary, really I want this to be something like
@@ -535,10 +522,8 @@ class Retrieve:
         if new_query_peers:
             self.log("sending %d new queries (read %d bytes)" %
                      (len(new_query_peers), self._read_size), level=log.UNUSUAL)
-            for (peerid, conn) in new_query_peers:
-                self._do_query(conn, peerid,
-                               self._storage_index, self._read_size,
-                               self._peer_storage_servers)
+            for (peerid, ss) in new_query_peers:
+                self._do_query(ss, peerid, self._storage_index, self._read_size)
             # we'll retrigger when those queries come back
             return
 
@@ -803,26 +788,27 @@ class Publish:
         # the share we use for ourselves didn't count against the N total..
         # maybe use N+1 if we find ourselves in the permuted list?
 
-        peerlist = self._node._client.get_permuted_peers(storage_index,
-                                                         include_myself=True)
+        peerlist = self._node._client.get_permuted_peers("storage",
+                                                         storage_index)
+        # make sure our local server is in the list
+        # TODO: include_myself_at_beginning=True
 
         current_share_peers = DictOfSets()
         reachable_peers = {}
-        # list of (peerid, offset, length) where the encprivkey might be found
+        # list of (peerid, shnum, offset, length) where the encprivkey might
+        # be found
         self._encprivkey_shares = []
 
         EPSILON = total_shares / 2
         #partial_peerlist = islice(peerlist, total_shares + EPSILON)
         partial_peerlist = peerlist[:total_shares+EPSILON]
 
-        # make sure our local server is in the list
-        partial_peerlist = self._add_ourselves(partial_peerlist, peerlist)
+        self._storage_servers = {}
 
-        peer_storage_servers = {}
         dl = []
-        for (permutedid, peerid, conn) in partial_peerlist:
-            d = self._do_query(conn, peerid, peer_storage_servers,
-                               storage_index)
+        for permutedid, (peerid, ss) in enumerate(partial_peerlist):
+            self._storage_servers[peerid] = ss
+            d = self._do_query(ss, peerid, storage_index)
             d.addCallback(self._got_query_results,
                           peerid, permutedid,
                           reachable_peers, current_share_peers)
@@ -830,7 +816,7 @@ class Publish:
         d = defer.DeferredList(dl)
         d.addCallback(self._got_all_query_results,
                       total_shares, reachable_peers,
-                      current_share_peers, peer_storage_servers)
+                      current_share_peers)
         # TODO: add an errback to, probably to ignore that peer
         # TODO: if we can't get a privkey from these servers, consider
         # looking farther afield. Make sure we include ourselves in the
@@ -839,28 +825,10 @@ class Publish:
         # but ourselves.
         return d
 
-    def _add_ourselves(self, partial_peerlist, peerlist):
-        my_peerid = self._node._client.nodeid
-        for (permutedid, peerid, conn) in partial_peerlist:
-            if peerid == my_peerid:
-                # we're already in there
-                return partial_peerlist
-        for (permutedid, peerid, conn) in peerlist:
-            if peerid == self._node._client.nodeid:
-                # found it
-                partial_peerlist.append( (permutedid, peerid, conn) )
-                return partial_peerlist
-        self.log("we aren't in our own peerlist??", level=log.WEIRD)
-        return partial_peerlist
-
-    def _do_query(self, conn, peerid, peer_storage_servers, storage_index):
+    def _do_query(self, ss, peerid, storage_index):
         self.log("querying %s" % idlib.shortnodeid_b2a(peerid))
-        d = conn.callRemote("get_service", "storageserver")
-        def _got_storageserver(ss):
-            peer_storage_servers[peerid] = ss
-            return ss.callRemote("slot_readv",
-                                 storage_index, [], [(0, self._read_size)])
-        d.addCallback(_got_storageserver)
+        d = ss.callRemote("slot_readv",
+                          storage_index, [], [(0, self._read_size)])
         return d
 
     def _got_query_results(self, datavs, peerid, permutedid,
@@ -927,7 +895,7 @@ class Publish:
             # files (since the privkey will be small enough to fit in the
             # write cap).
 
-            self._encprivkey_shares.append( (peerid, shnum, offset, length) )
+            self._encprivkey_shares.append( (peerid, shnum, offset, length))
             return
 
         (seqnum, root_hash, IV, k, N, segsize, datalen,
@@ -954,7 +922,7 @@ class Publish:
 
     def _got_all_query_results(self, res,
                                total_shares, reachable_peers,
-                               current_share_peers, peer_storage_servers):
+                               current_share_peers):
         self.log("_got_all_query_results")
         # now that we know everything about the shares currently out there,
         # decide where to place the new shares.
@@ -1019,7 +987,7 @@ class Publish:
 
         assert not shares_needing_homes
 
-        target_info = (target_map, shares_per_peer, peer_storage_servers)
+        target_info = (target_map, shares_per_peer)
         return target_info
 
     def _obtain_privkey(self, target_info):
@@ -1032,16 +1000,16 @@ class Publish:
         # peers one at a time until we get a copy. Only bother asking peers
         # who've admitted to holding a share.
 
-        target_map, shares_per_peer, peer_storage_servers = target_info
+        target_map, shares_per_peer = target_info
         # pull shares from self._encprivkey_shares
         if not self._encprivkey_shares:
             raise NotEnoughPeersError("Unable to find a copy of the privkey")
 
         (peerid, shnum, offset, length) = self._encprivkey_shares.pop(0)
+        ss = self._storage_servers[peerid]
         self.log("trying to obtain privkey from %s shnum %d" %
                  (idlib.shortnodeid_b2a(peerid), shnum))
-        d = self._do_privkey_query(peer_storage_servers[peerid], peerid,
-                                   shnum, offset, length)
+        d = self._do_privkey_query(ss, peerid, shnum, offset, length)
         d.addErrback(self.log_err)
         d.addCallback(lambda res: self._obtain_privkey(target_info))
         return d
@@ -1174,7 +1142,7 @@ class Publish:
         # surprises here are *not* indications of UncoordinatedWriteError,
         # and we'll need to respond to them more gracefully.)
 
-        target_map, shares_per_peer, peer_storage_servers = target_info
+        target_map, shares_per_peer = target_info
 
         my_checkstring = pack_checkstring(seqnum, root_hash, IV)
         peer_messages = {}
@@ -1206,7 +1174,7 @@ class Publish:
             cancel_secret = self._node.get_cancel_secret(peerid)
             secrets = (write_enabler, renew_secret, cancel_secret)
 
-            d = self._do_testreadwrite(peerid, peer_storage_servers, secrets,
+            d = self._do_testreadwrite(peerid, secrets,
                                        tw_vectors, read_vector)
             d.addCallback(self._got_write_answer, tw_vectors, my_checkstring,
                           peerid, expected_old_shares[peerid], dispatch_map)
@@ -1216,16 +1184,16 @@ class Publish:
         d.addCallback(lambda res: (self._surprised, dispatch_map))
         return d
 
-    def _do_testreadwrite(self, peerid, peer_storage_servers, secrets,
+    def _do_testreadwrite(self, peerid, secrets,
                           tw_vectors, read_vector):
-        conn = peer_storage_servers[peerid]
         storage_index = self._node._uri.storage_index
+        ss = self._storage_servers[peerid]
 
-        d = conn.callRemote("slot_testv_and_readv_and_writev",
-                            storage_index,
-                            secrets,
-                            tw_vectors,
-                            read_vector)
+        d = ss.callRemote("slot_testv_and_readv_and_writev",
+                          storage_index,
+                          secrets,
+                          tw_vectors,
+                          read_vector)
         return d
 
     def _got_write_answer(self, answer, tw_vectors, my_checkstring,

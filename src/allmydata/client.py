@@ -1,8 +1,6 @@
 
-import os, sha, stat, time, re
-from foolscap import Referenceable
-from zope.interface import implements
-from allmydata.interfaces import RIClient
+import os, stat, time, re
+from allmydata.interfaces import RIStorageServer
 from allmydata import node
 
 from twisted.internet import reactor
@@ -31,8 +29,7 @@ GiB=1024*MiB
 TiB=1024*GiB
 PiB=1024*TiB
 
-class Client(node.Node, Referenceable, testutil.PollMixin):
-    implements(RIClient)
+class Client(node.Node, testutil.PollMixin):
     PORTNUMFILE = "client.port"
     STOREDIR = 'storage'
     NODETYPE = "client"
@@ -46,17 +43,19 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
     # that we will abort an upload unless we can allocate space for at least
     # this many. 'total' is the total number of shares created by encoding.
     # If everybody has room then this is is how many we will upload.
-    DEFAULT_ENCODING_PARAMETERS = {"k":25,
-                                   "happy": 75,
-                                   "n": 100,
+    DEFAULT_ENCODING_PARAMETERS = {"k": 3,
+                                   "happy": 7,
+                                   "n": 10,
                                    "max_segment_size": 1*MiB,
                                    }
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
         self.logSource="Client"
-        self.my_furl = None
-        self.introducer_client = None
+        self.nickname = self.get_config("nickname")
+        if self.nickname is None:
+            self.nickname = "<unspecified>"
+        self.init_introducer_client()
         self.init_stats_provider()
         self.init_lease_secret()
         self.init_storage()
@@ -66,8 +65,6 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         self.add_service(Downloader())
         self.add_service(Checker())
         # ControlServer and Helper are attached after Tub startup
-
-        self.introducer_furl = self.get_config("introducer.furl", required=True)
 
         hotline_file = os.path.join(self.basedir,
                                     self.SUICIDE_PREVENTION_HOTLINE_FILE)
@@ -80,6 +77,17 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         webport = self.get_config("webport")
         if webport:
             self.init_web(webport) # strports string
+
+    def init_introducer_client(self):
+        self.introducer_furl = self.get_config("introducer.furl", required=True)
+        ic = IntroducerClient(self.tub, self.introducer_furl,
+                              self.nickname,
+                              str(allmydata.__version__),
+                              str(self.OLDEST_SUPPORTED_VERSION))
+        self.introducer_client = ic
+        ic.setServiceParent(self)
+        # nodes that want to upload and download will need storage servers
+        ic.subscribe_to("storage")
 
     def init_stats_provider(self):
         gatherer_furl = self.get_config('stats_gatherer.furl')
@@ -96,6 +104,12 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         self._lease_secret = idlib.a2b(secret_s)
 
     def init_storage(self):
+        # should we run a storage server (and publish it for others to use)?
+        provide_storage = (self.get_config("no_storage") is None)
+        if not provide_storage:
+            return
+        readonly_storage = (self.get_config("readonly_storage") is not None)
+
         storedir = os.path.join(self.basedir, self.STOREDIR)
         sizelimit = None
 
@@ -115,8 +129,21 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
                               "G": 1000 * 1000 * 1000,
                               }[suffix]
                 sizelimit = int(number) * multiplier
-        no_storage = self.get_config("debug_no_storage") is not None
-        self.add_service(StorageServer(storedir, sizelimit, no_storage, self.stats_provider))
+        discard_storage = self.get_config("debug_discard_storage") is not None
+        ss = StorageServer(storedir, sizelimit,
+                           discard_storage, readonly_storage,
+                           self.stats_provider)
+        self.add_service(ss)
+        d = self.when_tub_ready()
+        # we can't do registerReference until the Tub is ready
+        def _publish(res):
+            furl_file = os.path.join(self.basedir, "private", "storage.furl")
+            furl = self.tub.registerReference(ss, furlFile=furl_file)
+            ri_name = RIStorageServer.__remote_name__
+            self.introducer_client.publish(furl, "storage", ri_name)
+        d.addCallback(_publish)
+        d.addErrback(log.err, facility="tahoe.storage", level=log.BAD)
+
 
     def init_options(self):
         self.push_to_ourselves = None
@@ -148,20 +175,10 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         self.log("tub_ready")
         node.Node.tub_ready(self)
 
-        furl_file = os.path.join(self.basedir, "myself.furl")
-        self.my_furl = self.tub.registerReference(self, furlFile=furl_file)
-
-        # should we publish ourselves as a server?
-        provide_storage = (self.get_config("no_storage") is None)
-        if provide_storage:
-            my_furl = self.my_furl
-        else:
-            my_furl = None
-
-        ic = IntroducerClient(self.tub, self.introducer_furl, my_furl)
-        self.introducer_client = ic
-        ic.setServiceParent(self)
-
+        # TODO: replace register_control() with an init_control() that
+        # internally uses self.when_tub_ready() to stall registerReference.
+        # Do the same for register_helper(). That will remove the need for
+        # this tub_ready() method.
         self.register_control()
         self.register_helper()
 
@@ -185,43 +202,22 @@ class Client(node.Node, Referenceable, testutil.PollMixin):
         helper_furlfile = os.path.join(self.basedir, "private", "helper.furl")
         self.tub.registerReference(h, furlFile=helper_furlfile)
 
-    def remote_get_versions(self):
-        return str(allmydata.__version__), str(self.OLDEST_SUPPORTED_VERSION)
-
-    def remote_get_service(self, name):
-        if name in ("storageserver",):
-            return self.getServiceNamed(name)
-        raise RuntimeError("I am unwilling to give you service %s" % name)
-
-    def remote_get_nodeid(self):
-        return self.nodeid
-
     def get_all_peerids(self):
-        if not self.introducer_client:
-            return []
         return self.introducer_client.get_all_peerids()
 
-    def get_permuted_peers(self, key, include_myself=True):
+    def get_permuted_peers(self, service_name, key):
         """
-        @return: list of (permuted-peerid, peerid, connection,)
+        @return: list of (peerid, connection,)
         """
-        results = []
-        for peerid, connection in self.introducer_client.get_all_peers():
-            assert isinstance(peerid, str)
-            if not include_myself and peerid == self.nodeid:
-                self.log("get_permuted_peers: removing myself from the list")
-                continue
-            permuted = sha.new(key + peerid).digest()
-            results.append((permuted, peerid, connection))
-        results.sort()
-        return results
+        assert isinstance(service_name, str)
+        assert isinstance(key, str)
+        return self.introducer_client.get_permuted_peers(service_name, key)
 
     def get_push_to_ourselves(self):
         return self.push_to_ourselves
 
     def get_encoding_parameters(self):
-        if not self.introducer_client:
-            return self.DEFAULT_ENCODING_PARAMETERS
+        return self.DEFAULT_ENCODING_PARAMETERS
         p = self.introducer_client.encoding_parameters # a tuple
         # TODO: make the 0.7.1 introducer publish a dict instead of a tuple
         params = {"k": p[0],

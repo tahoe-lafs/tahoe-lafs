@@ -11,6 +11,7 @@ from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
      BadWriteEnablerError, IStatsProducer
 from allmydata.util import fileutil, idlib, mathutil, log
 from allmydata.util.assertutil import precondition, _assert
+import allmydata # for __version__
 
 class DataTooLargeError(Exception):
     pass
@@ -669,14 +670,20 @@ class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer, IStatsProducer)
     name = 'storageserver'
 
-    def __init__(self, storedir, sizelimit=None, no_storage=False, stats_provider=None):
+    # we're pretty narrow-minded right now
+    OLDEST_SUPPORTED_VERSION = allmydata.__version__
+
+    def __init__(self, storedir, sizelimit=None,
+                 discard_storage=False, readonly_storage=False,
+                 stats_provider=None):
         service.MultiService.__init__(self)
         self.storedir = storedir
         sharedir = os.path.join(storedir, "shares")
         fileutil.make_dirs(sharedir)
         self.sharedir = sharedir
         self.sizelimit = sizelimit
-        self.no_storage = no_storage
+        self.no_storage = discard_storage
+        self.readonly_storage = readonly_storage
         self.stats_provider = stats_provider
         if self.stats_provider:
             self.stats_provider.register_producer(self)
@@ -684,12 +691,17 @@ class StorageServer(service.MultiService, Referenceable):
         self._clean_incomplete()
         fileutil.make_dirs(self.incomingdir)
         self._active_writers = weakref.WeakKeyDictionary()
+        lp = log.msg("StorageServer created, now measuring space..",
+                     facility="tahoe.storage")
         self.measure_size()
+        log.msg(format="space measurement done, consumed=%(consumed)d bytes",
+                consumed=self.consumed,
+                parent=lp, facility="tahoe.storage")
 
     def log(self, *args, **kwargs):
-        if self.parent:
-            return self.parent.log(*args, **kwargs)
-        return
+        if "facility" not in kwargs:
+            kwargs["facility"] = "tahoe.storage"
+        return log.msg(*args, **kwargs)
 
     def setNodeID(self, nodeid):
         # somebody must set this before any slots can be created or leases
@@ -719,6 +731,9 @@ class StorageServer(service.MultiService, Referenceable):
         for bw in self._active_writers:
             space += bw.allocated_size()
         return space
+
+    def remote_get_versions(self):
+        return (str(allmydata.__version__), str(self.OLDEST_SUPPORTED_VERSION))
 
     def remote_allocate_buckets(self, storage_index,
                                 renew_secret, cancel_secret,
@@ -753,6 +768,10 @@ class StorageServer(service.MultiService, Referenceable):
             alreadygot.add(shnum)
             sf = ShareFile(fn)
             sf.add_or_renew_lease(lease_info)
+
+        if self.readonly_storage:
+            # we won't accept new shares
+            return alreadygot, bucketwriters
 
         for shnum in sharenums:
             incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)

@@ -47,12 +47,12 @@ class FakeFilenode(mutable.MutableFileNode):
         return defer.succeed(None)
 
 class FakePublish(mutable.Publish):
-    def _do_query(self, conn, peerid, peer_storage_servers, storage_index):
-        assert conn[0] == peerid
+    def _do_query(self, ss, peerid, storage_index):
+        assert ss[0] == peerid
         shares = self._peers[peerid]
         return defer.succeed(shares)
 
-    def _do_testreadwrite(self, peerid, peer_storage_servers, secrets,
+    def _do_testreadwrite(self, peerid, secrets,
                           tw_vectors, read_vector):
         # always-pass: parrot the test vectors back to them.
         readv = {}
@@ -113,9 +113,10 @@ class FakeClient:
         res = FakeFilenode(self).init_from_uri(u)
         return res
 
-    def get_permuted_peers(self, key, include_myself=True):
+    def get_permuted_peers(self, service_name, key):
+        # TODO: include_myself=True
         """
-        @return: list of (permuted-peerid, peerid, connection,)
+        @return: list of (peerid, connection,)
         """
         peers_and_connections = [(pid, (pid,)) for pid in self._peerids]
         results = []
@@ -124,6 +125,7 @@ class FakeClient:
             permuted = sha.new(key + peerid).digest()
             results.append((permuted, peerid, connection))
         results.sort()
+        results = [ (r[1],r[2]) for r in results]
         return results
 
     def upload(self, uploadable):
@@ -299,7 +301,7 @@ class Publish(unittest.TestCase):
         total_shares = 10
         d = p._query_peers(total_shares)
         def _done(target_info):
-            (target_map, shares_per_peer, peer_storage_servers) = target_info
+            (target_map, shares_per_peer) = target_info
             shares_per_peer = {}
             for shnum in target_map:
                 for (peerid, old_seqnum, old_R) in target_map[shnum]:
@@ -321,7 +323,7 @@ class Publish(unittest.TestCase):
         total_shares = 10
         d = p._query_peers(total_shares)
         def _done(target_info):
-            (target_map, shares_per_peer, peer_storage_servers) = target_info
+            (target_map, shares_per_peer) = target_info
             shares_per_peer = {}
             for shnum in target_map:
                 for (peerid, old_seqnum, old_R) in target_map[shnum]:
