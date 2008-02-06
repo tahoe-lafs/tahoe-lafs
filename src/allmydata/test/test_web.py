@@ -13,6 +13,14 @@ from allmydata.interfaces import IURI, INewDirectoryURI, IReadonlyNewDirectoryUR
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
 
+class FakeIntroducerClient:
+    def get_all_connectors(self):
+        return {}
+    def get_all_connections_for(self, service_name):
+        return frozenset()
+    def get_all_peerids(self):
+        return frozenset()
+
 class FakeClient(service.MultiService):
     nodeid = "fake_nodeid"
     basedir = "fake_basedir"
@@ -23,10 +31,9 @@ class FakeClient(service.MultiService):
                 'zfec': "fake",
                 }
     introducer_furl = "None"
+    introducer_client = FakeIntroducerClient()
     def connected_to_introducer(self):
         return False
-    def get_all_peerids(self):
-        return []
 
     def create_node_from_uri(self, uri):
         u = IURI(uri)

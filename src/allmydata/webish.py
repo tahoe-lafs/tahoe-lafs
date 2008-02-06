@@ -1,14 +1,13 @@
 
-from base64 import b32encode
-import os.path
+import time, os.path
 from twisted.application import service, strports, internet
 from twisted.web import static, resource, server, html, http
 from twisted.python import log
-from twisted.internet import defer
+from twisted.internet import defer, address
 from twisted.internet.interfaces import IConsumer
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
-from allmydata.util import fileutil
+from allmydata.util import fileutil, idlib
 import simplejson
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode, \
      IMutableFileNode
@@ -1314,7 +1313,7 @@ class Root(rend.Page):
         return get_package_versions_string()
 
     def data_my_nodeid(self, ctx, data):
-        return b32encode(IClient(ctx).nodeid).lower()
+        return idlib.nodeid_b2a(IClient(ctx).nodeid)
     def data_introducer_furl(self, ctx, data):
         return IClient(ctx).introducer_furl
     def data_connected_to_introducer(self, ctx, data):
@@ -1339,22 +1338,50 @@ class Root(rend.Page):
             return "yes"
         return "no"
 
-    def data_num_peers(self, ctx, data):
-        #client = inevow.ISite(ctx)._client
-        client = IClient(ctx)
-        return len(list(client.get_all_peerids()))
+    def data_known_storage_servers(self, ctx, data):
+        ic = IClient(ctx).introducer_client
+        servers = [c
+                   for c in ic.get_all_connectors().values()
+                   if c.service_name == "storage"]
+        return len(servers)
 
-    def data_peers(self, ctx, data):
-        d = []
-        client = IClient(ctx)
-        for nodeid in sorted(client.get_all_peerids()):
-            row = (b32encode(nodeid).lower(),)
-            d.append(row)
-        return d
+    def data_connected_storage_servers(self, ctx, data):
+        ic = IClient(ctx).introducer_client
+        return len(ic.get_all_connections_for("storage"))
 
-    def render_row(self, ctx, data):
-        (nodeid_a,) = data
-        ctx.fillSlots("peerid", nodeid_a)
+    def data_services(self, ctx, data):
+        ic = IClient(ctx).introducer_client
+        c = [ (service_name, nodeid, rsc)
+              for (nodeid, service_name), rsc
+              in ic.get_all_connectors().items() ]
+        c.sort()
+        return c
+
+    def render_service_row(self, ctx, data):
+        (service_name, nodeid, rsc) = data
+        ctx.fillSlots("peerid", idlib.nodeid_b2a(nodeid))
+        if rsc.rref:
+            rhost = rsc.remote_host
+            if nodeid == IClient(ctx).nodeid:
+                rhost_s = "(loopback)"
+            elif isinstance(rhost, address.IPv4Address):
+                rhost_s = "%s:%d" % (rhost.host, rhost.port)
+            else:
+                rhost_s = str(rhost)
+            connected = "Yes: to " + rhost_s
+            since = rsc.last_connect_time
+        else:
+            connected = "No"
+            since = rsc.last_loss_time
+
+        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
+        ctx.fillSlots("connected", connected)
+        ctx.fillSlots("since", time.strftime(TIME_FORMAT, time.localtime(since)))
+        ctx.fillSlots("announced", time.strftime(TIME_FORMAT,
+                                                 time.localtime(rsc.announcement_time)))
+        ctx.fillSlots("version", rsc.version)
+        ctx.fillSlots("service_name", rsc.service_name)
+
         return ctx.tag
 
     # this is a form where users can download files by URI

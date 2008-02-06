@@ -113,7 +113,7 @@ class RemoteServiceConnector:
         self._nodeid_s = idlib.shortnodeid_b2a(self._nodeid)
 
         self._index = (self._nodeid, service_name)
-        self._service_name = service_name
+        self.service_name = service_name
 
         self.log("attempting to connect to %s" % self._nodeid_s)
         self.announcement_time = time.time()
@@ -121,8 +121,8 @@ class RemoteServiceConnector:
         self.rref = None
         self.remote_host = None
         self.last_connect_time = None
-        self.version = None
-        self.oldest_supported = None
+        self.version = ver
+        self.oldest_supported = oldest
 
     def log(self, *args, **kwargs):
         return self._ic.log(*args, **kwargs)
@@ -138,12 +138,12 @@ class RemoteServiceConnector:
 
     def _got_service(self, rref):
         self.last_connect_time = time.time()
-        self.remote_host = str(rref.tracker.broker.transport.getPeer())
+        self.remote_host = rref.tracker.broker.transport.getPeer()
 
         self.rref = rref
         self.log("connected to %s" % self._nodeid_s)
 
-        self._ic.add_connection(self._nodeid, self._service_name, rref)
+        self._ic.add_connection(self._nodeid, self.service_name, rref)
 
         rref.notifyOnDisconnect(self._lost, rref)
 
@@ -152,7 +152,7 @@ class RemoteServiceConnector:
         self.last_loss_time = time.time()
         self.rref = None
         self.remote_host = None
-        self._ic.remove_connection(self._nodeid, self._service_name, rref)
+        self._ic.remove_connection(self._nodeid, self.service_name, rref)
 
 
 

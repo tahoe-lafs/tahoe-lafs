@@ -1023,10 +1023,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         public = "uri/" + self._root_directory_uri
         d = getPage(base)
         def _got_welcome(page):
-            expected = "Connected Peers: <span>%d</span>" % (self.numclients)
+            expected = "Connected Storage Servers: <span>%d</span>" % (self.numclients)
             self.failUnless(expected in page,
-                            "I didn't see the right 'connected peers' message "
-                            "in: %s" % page
+                            "I didn't see the right 'connected storage servers'"
+                            " message in: %s" % page
                             )
             expected = "My nodeid: <span>%s</span>" % (b32encode(self.clients[0].nodeid).lower(),)
             self.failUnless(expected in page,
