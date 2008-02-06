@@ -34,15 +34,15 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
     seek = offsets['uri_extension']
     length = struct.unpack(">L", f.read_share_data(seek, 4))[0]
     seek += 4
-    data = f.read_share_data(seek, length)
+    UEB_data = f.read_share_data(seek, length)
 
-    unpacked = uri.unpack_extension_readable(data)
+    unpacked = uri.unpack_extension_readable(UEB_data)
     keys1 = ("size", "num_segments", "segment_size",
              "needed_shares", "total_shares")
     keys2 = ("codec_name", "codec_params", "tail_codec_params")
     keys3 = ("plaintext_hash", "plaintext_root_hash",
              "crypttext_hash", "crypttext_root_hash",
-             "share_root_hash")
+             "share_root_hash", "UEB_hash")
     display_keys = {"size": "file_size"}
     for k in keys1:
         if k in unpacked:
@@ -70,7 +70,7 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
     sizes['data'] = bp._data_size
     sizes['validation'] = (offsets['uri_extension'] -
                            offsets['plaintext_hash_tree'])
-    sizes['uri-extension'] = len(data)
+    sizes['uri-extension'] = len(UEB_data)
     print >>out
     print >>out, "Size of data within the share:"
     for k in sorted(sizes):

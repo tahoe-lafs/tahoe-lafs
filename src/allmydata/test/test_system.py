@@ -1155,7 +1155,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                     "codec_name", "codec_params", "tail_codec_params",
                     "plaintext_hash", "plaintext_root_hash",
                     "crypttext_hash", "crypttext_root_hash",
-                    "share_root_hash",):
+                    "share_root_hash", "UEB_hash"):
             self.failUnless("%s: " % key in output, key)
 
     def _test_control(self, res):

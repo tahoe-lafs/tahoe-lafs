@@ -508,6 +508,7 @@ def unpack_extension(data):
 
 def unpack_extension_readable(data):
     unpacked = unpack_extension(data)
+    unpacked["UEB_hash"] = hashutil.uri_extension_hash(data)
     for k in sorted(unpacked.keys()):
         if 'hash' in k:
             unpacked[k] = idlib.b2a(unpacked[k])
