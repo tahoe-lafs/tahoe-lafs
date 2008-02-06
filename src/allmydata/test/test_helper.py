@@ -98,7 +98,8 @@ class AssistedUpload(unittest.TestCase):
             DATA = "I need help\n" * 1000
             return upload_data(u, DATA)
         d.addCallback(_ready)
-        def _uploaded(uri):
+        def _uploaded(results):
+            uri = results.uri
             assert "CHK" in uri
         d.addCallback(_uploaded)
 
@@ -141,7 +142,8 @@ class AssistedUpload(unittest.TestCase):
             assert u._helper
             return upload_data(u, DATA)
         d.addCallback(_ready)
-        def _uploaded(uri):
+        def _uploaded(results):
+            uri = results.uri
             assert "CHK" in uri
         d.addCallback(_uploaded)
 
@@ -172,7 +174,8 @@ class AssistedUpload(unittest.TestCase):
             DATA = "I need help\n" * 1000
             return upload_data(u, DATA)
         d.addCallback(_ready)
-        def _uploaded(uri):
+        def _uploaded(results):
+            uri = results.uri
             assert "CHK" in uri
         d.addCallback(_uploaded)
 

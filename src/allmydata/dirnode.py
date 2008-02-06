@@ -279,6 +279,7 @@ class NewDirectoryNode:
         if self.is_readonly():
             return defer.fail(NotMutableError())
         d = self._client.upload(uploadable)
+        d.addCallback(lambda results: results.uri)
         d.addCallback(self._client.create_node_from_uri)
         d.addCallback(lambda node: self.set_node(name, node))
         return d

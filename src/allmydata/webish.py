@@ -797,7 +797,7 @@ class POSTHandler(rend.Page):
                 # SDMF: files are small, and we can only upload data.
                 contents.file.seek(0)
                 data = contents.file.read()
-                uploadable = FileHandle(contents.file)
+                #uploadable = FileHandle(contents.file)
                 d = self._check_replacement(name)
                 d.addCallback(lambda res: self._node.has_child(name))
                 def _checked(present):
@@ -1205,6 +1205,7 @@ class URIPUTHandler(rend.Page):
             # without the associated set_uri.
             uploadable = FileHandle(req.content)
             d = IClient(ctx).upload(uploadable)
+            d.addCallback(lambda results: results.uri)
             # that fires with the URI of the new file
             return d
 
@@ -1231,6 +1232,7 @@ class URIPOSTHandler(rend.Page):
             fileobj = req.fields["file"].file
             uploadable = FileHandle(fileobj)
             d = IClient(ctx).upload(uploadable)
+            d.addCallback(lambda results: results.uri)
             # that fires with the URI of the new file
             return d
 

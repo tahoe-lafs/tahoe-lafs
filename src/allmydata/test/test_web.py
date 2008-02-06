@@ -5,7 +5,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.web import client, error, http
 from twisted.python import failure, log
-from allmydata import interfaces, provisioning, uri, webish
+from allmydata import interfaces, provisioning, uri, webish, upload
 from allmydata.util import fileutil
 from allmydata.test.common import NonGridDirectoryNode, FakeCHKFileNode, FakeMutableFileNode, create_chk_filenode
 from allmydata.interfaces import IURI, INewDirectoryURI, IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, IMutableFileNode
@@ -61,7 +61,9 @@ class FakeClient(service.MultiService):
         def _got_data(datav):
             data = "".join(datav)
             n = create_chk_filenode(self, data)
-            return n.get_uri()
+            results = upload.UploadResults()
+            results.uri = n.get_uri()
+            return results
         d.addCallback(_got_data)
         return d
 

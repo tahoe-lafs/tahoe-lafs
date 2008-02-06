@@ -214,7 +214,8 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             d1 = u.upload(up)
             return d1
         d.addCallback(_do_upload)
-        def _upload_done(uri):
+        def _upload_done(results):
+            uri = results.uri
             log.msg("upload finished: uri is %s" % (uri,))
             self.uri = uri
             dl = self.clients[1].getServiceNamed("downloader")
@@ -295,7 +296,8 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         def _upload_with_helper(res):
             u = upload.Data(HELPER_DATA, contenthashkey=contenthashkey)
             d = self.extra_node.upload(u)
-            def _uploaded(uri):
+            def _uploaded(results):
+                uri = results.uri
                 return self.downloader.download_to_data(uri)
             d.addCallback(_uploaded)
             def _check(newdata):
@@ -308,7 +310,8 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             u = upload.Data(HELPER_DATA, contenthashkey=contenthashkey)
             u.debug_stash_RemoteEncryptedUploadable = True
             d = self.extra_node.upload(u)
-            def _uploaded(uri):
+            def _uploaded(results):
+                uri = results.uri
                 return self.downloader.download_to_data(uri)
             d.addCallback(_uploaded)
             def _check(newdata):
@@ -392,7 +395,8 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                 return self.extra_node.upload(u2)
             d.addCallbacks(_upload_again)
 
-            def _uploaded(uri):
+            def _uploaded(results):
+                uri = results.uri
                 log.msg("Second upload complete", level=log.NOISY,
                         facility="tahoe.test.test_system")
                 reu = u2.debug_RemoteEncryptedUploadable

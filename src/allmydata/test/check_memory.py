@@ -392,6 +392,7 @@ this file are ignored.
             u = self.nodes[0].getServiceNamed("uploader")
             d = self.nodes[0].debug_wait_for_client_connections(self.numnodes+1)
             d.addCallback(lambda res: u.upload(upload.FileName(files[name])))
+            d.addCallback(lambda results: results.uri)
         else:
             raise RuntimeError("unknown mode=%s" % self.mode)
         def _complete(uri):

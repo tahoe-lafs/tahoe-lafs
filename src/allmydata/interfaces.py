@@ -1207,10 +1207,19 @@ class IUploadable(Interface):
         """The upload is finished, and whatever filehandle was in use may be
         closed."""
 
+class IUploadResults(Interface):
+    """I am returned by upload() methods. I contain a number of public
+    attributes which can be read to determine the results of the upload::
+
+     .uri : the CHK read-cap for the file
+
+    """
+
 class IUploader(Interface):
     def upload(uploadable):
         """Upload the file. 'uploadable' must impement IUploadable. This
-        returns a Deferred which fires with the URI of the file."""
+        returns a Deferred which fires with an UploadResults instance, from
+        which the URI of the file can be obtained as results.uri ."""
 
     def upload_ssk(write_capability, new_version, uploadable):
         """TODO: how should this work?"""
@@ -1278,9 +1287,10 @@ class IChecker(Interface):
 
 class IClient(Interface):
     def upload(uploadable):
-        """Upload some data into a CHK, get back the URI string for it.
+        """Upload some data into a CHK, get back the UploadResults for it.
         @param uploadable: something that implements IUploadable
-        @return: a Deferred that fires with the (string) URI for this file.
+        @return: a Deferred that fires with the UploadResults instance.
+                 To get the URI for this file, use results.uri .
         """
 
     def create_mutable_file(contents=""):

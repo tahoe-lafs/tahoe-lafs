@@ -15,7 +15,7 @@ from allmydata.util.hashutil import file_renewal_secret_hash, \
 from allmydata import encode, storage, hashtree, uri
 from allmydata.util import idlib, mathutil
 from allmydata.util.assertutil import precondition
-from allmydata.interfaces import IUploadable, IUploader, \
+from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      IEncryptedUploadable, RIEncryptedUploadable
 from pycryptopp.cipher.aes import AES
 
@@ -35,6 +35,9 @@ class HaveAllPeersError(Exception):
 # this wants to live in storage, not here
 class TooFullError(Exception):
     pass
+
+class UploadResults:
+    implements(IUploadResults)
 
 # our current uri_extension is 846 bytes for small files, a few bytes
 # more for larger ones (since the filesize is encoded in decimal in a
@@ -632,7 +635,9 @@ class CHKUploader:
                            total_shares=total_shares,
                            size=size,
                            )
-        return u.to_string()
+        results = UploadResults()
+        results.uri = u.to_string()
+        return results
 
 
 def read_this_many_bytes(uploadable, size, prepend_data=[]):
@@ -666,7 +671,13 @@ class LiteralUploader:
         d.addCallback(lambda size: read_this_many_bytes(uploadable, size))
         d.addCallback(lambda data: uri.LiteralFileURI("".join(data)))
         d.addCallback(lambda u: u.to_string())
+        d.addCallback(self._build_results)
         return d
+
+    def _build_results(self, uri):
+        results = UploadResults()
+        results.uri = uri
+        return results
 
     def close(self):
         pass
@@ -838,7 +849,9 @@ class AssistedUploader:
                            total_shares=self._total_shares,
                            size=self._size,
                            )
-        return u.to_string()
+        results = UploadResults()
+        results.uri = u.to_string()
+        return results
 
 class NoParameterPreferencesMixin:
     max_segment_size = None

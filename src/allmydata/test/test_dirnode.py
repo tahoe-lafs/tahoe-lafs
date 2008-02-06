@@ -44,7 +44,9 @@ class FakeClient:
         def _got_data(datav):
             data = "".join(datav)
             n = create_chk_filenode(self, data)
-            return n.get_uri()
+            results = upload.UploadResults()
+            results.uri = n.get_uri()
+            return results
         d.addCallback(_got_data)
         return d
 
