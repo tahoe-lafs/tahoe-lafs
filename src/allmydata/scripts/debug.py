@@ -21,7 +21,7 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
     from allmydata import uri, storage
 
     # check the version, to see if we have a mutable or immutable share
-    print >>out, "%19s: %s" % ("share filename", config['filename'])
+    print >>out, "share filename: %s" % config['filename']
 
     f = open(config['filename'], "rb")
     prefix = f.read(32)
@@ -49,24 +49,24 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
     for k in keys1:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print >>out, "%19s: %s" % (dk, unpacked[k])
+            print >>out, "%20s: %s" % (dk, unpacked[k])
     print >>out
     for k in keys2:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print >>out, "%19s: %s" % (dk, unpacked[k])
+            print >>out, "%20s: %s" % (dk, unpacked[k])
     print >>out
     for k in keys3:
         if k in unpacked:
             dk = display_keys.get(k, k)
-            print >>out, "%19s: %s" % (dk, unpacked[k])
+            print >>out, "%20s: %s" % (dk, unpacked[k])
 
     leftover = set(unpacked.keys()) - set(keys1 + keys2 + keys3)
     if leftover:
         print >>out
         print >>out, "LEFTOVER:"
         for k in sorted(leftover):
-            print >>out, "%s: %s" % (k, unpacked[k])
+            print >>out, "%20s: %s" % (k, unpacked[k])
 
     sizes = {}
     sizes['data'] = bp._data_size
@@ -74,9 +74,9 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
                            offsets['plaintext_hash_tree'])
     sizes['uri-extension'] = len(UEB_data)
     print >>out
-    print >>out, "Size of data within the share:"
+    print >>out, " Size of data within the share:"
     for k in sorted(sizes):
-        print >>out, "%19s: %s" % (k, sizes[k])
+        print >>out, "%20s: %s" % (k, sizes[k])
 
     # display lease information too
     leases = list(f.iter_leases())
@@ -84,10 +84,10 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
         for i,lease in enumerate(leases):
             (owner_num, renew_secret, cancel_secret, expiration_time) = lease
             when = format_expiration_time(expiration_time)
-            print >>out, "Lease #%d: owner=%d, expire in %s" % (i, owner_num,
-                                                                when)
+            print >>out, " Lease #%d: owner=%d, expire in %s" % (i, owner_num,
+                                                                 when)
     else:
-        print >>out, "No leases."
+        print >>out, " No leases."
 
     print >>out
     return 0
