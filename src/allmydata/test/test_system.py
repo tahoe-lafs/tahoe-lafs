@@ -380,20 +380,18 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                     self.failIf(os.path.exists(incdir) and os.listdir(incdir))
             d.addCallback(_disconnected)
 
-            def _wait_for_reconnect(res):
-                # then we need to give the reconnector a chance to
-                # reestablish the connection to the helper.
-                d.addCallback(lambda res:
-                              log.msg("wait_for_connections", level=log.NOISY,
-                                      facility="tahoe.test.test_system"))
-                d.addCallback(lambda res: self.wait_for_connections())
-            d.addCallback(_wait_for_reconnect)
+            # then we need to give the reconnector a chance to
+            # reestablish the connection to the helper.
+            d.addCallback(lambda res:
+                          log.msg("wait_for_connections", level=log.NOISY,
+                                  facility="tahoe.test.test_system"))
+            d.addCallback(lambda res: self.wait_for_connections())
 
-            def _upload_again(res):
-                log.msg("uploading again", level=log.NOISY,
-                        facility="tahoe.test.test_system")
-                return self.extra_node.upload(u2)
-            d.addCallbacks(_upload_again)
+
+            d.addCallback(lambda res:
+                          log.msg("uploading again", level=log.NOISY,
+                                  facility="tahoe.test.test_system"))
+            d.addCallback(lambda res: self.extra_node.upload(u2))
 
             def _uploaded(results):
                 uri = results.uri
