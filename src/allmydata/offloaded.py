@@ -196,6 +196,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         r.uri_extension_hash = uri_extension_hash
         f_times = self._fetcher.get_times()
         r.timings["cumulative_fetch"] = f_times["cumulative_fetch"]
+        r.ciphertext_fetched = self._fetcher.get_ciphertext_fetched()
         r.timings["total_fetch"] = f_times["total"]
         self._reader.close()
         os.unlink(self._encoding_file)
@@ -258,6 +259,7 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
             "cumulative_fetch": 0.0,
             "total": 0.0,
             }
+        self._ciphertext_fetched = 0
 
     def log(self, *args, **kwargs):
         if "facility" not in kwargs:
@@ -370,6 +372,7 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
             for data in ciphertext_v:
                 self._f.write(data)
                 self._have += len(data)
+                self._ciphertext_fetched += len(data)
             return False # not done
         d.addCallback(_got_data)
         return d
@@ -400,6 +403,9 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
 
     def get_times(self):
         return self._times
+
+    def get_ciphertext_fetched(self):
+        return self._ciphertext_fetched
 
 
 class LocalCiphertextReader(AskUntilSuccessMixin):

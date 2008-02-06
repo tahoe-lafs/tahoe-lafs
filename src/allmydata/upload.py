@@ -42,6 +42,7 @@ class UploadResults(Copyable, RemoteCopy):
     copytype = typeToCopy
 
     file_size = None
+    ciphertext_fetched = None # how much the helper fetched
     uri = None
     sharemap = None # dict of shnum to placement string
     servermap = None # dict of peerid to set(shnums)

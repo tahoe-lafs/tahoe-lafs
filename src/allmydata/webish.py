@@ -1343,6 +1343,15 @@ class UnlinkedPOSTCHKUploader(rend.Page):
     def data_time_storage_index(self, ctx, data):
         return self._get_time("storage_index")
 
+    def data_time_contacting_helper(self, ctx, data):
+        return self._get_time("contacting_helper")
+
+    def data_time_cumulative_fetch(self, ctx, data):
+        return self._get_time("cumulative_fetch")
+
+    def data_time_helper_total(self, ctx, data):
+        return self._get_time("helper_total")
+
     def data_time_peer_selection(self, ctx, data):
         return self._get_time("peer_selection")
 
@@ -1384,6 +1393,21 @@ class UnlinkedPOSTCHKUploader(rend.Page):
     def data_rate_push(self, ctx, data):
         return self._get_rate("cumulative_sending")
 
+    def data_rate_ciphertext_fetch(self, ctx, data):
+        d = self.upload_results()
+        def _convert(r):
+            fetch_size = r.ciphertext_fetched
+            if fetch_size is None:
+                return None
+            time = r.timings.get("cumulative_fetch")
+            if time is None:
+                return None
+            try:
+                return 1.0 * fetch_size / time
+            except ZeroDivisionError:
+                return None
+        d.addCallback(_convert)
+        return d
 
 class UnlinkedPOSTSSKUploader(rend.Page):
     def renderHTTP(self, ctx):
