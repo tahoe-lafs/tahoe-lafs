@@ -1191,7 +1191,7 @@ class Web(WebMixin, unittest.TestCase):
         # Fetch the welcome page.
         d = self.GET("/")
         def _after_get_welcome_page(res):
-            MKDIR_BUTTON_RE=re.compile('<form action="([^"]*)" method="post".*<input type="hidden" name="t" value="([^"]*)" /><input type="hidden" name="([^"]*)" value="([^"]*)" /><input type="submit" value="create" />', re.I)
+            MKDIR_BUTTON_RE=re.compile('<form action="([^"]*)" method="post".*<input type="hidden" name="t" value="([^"]*)" /><input type="hidden" name="([^"]*)" value="([^"]*)" /><input type="submit" value="Create Directory!" />', re.I)
             mo = MKDIR_BUTTON_RE.search(res)
             formaction = mo.group(1)
             formt = mo.group(2)

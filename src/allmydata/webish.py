@@ -1398,29 +1398,55 @@ class Root(rend.Page):
 
         return ctx.tag
 
-    # this is a form where users can download files by URI
     def render_download_form(self, ctx, data):
+        # this is a form where users can download files by URI
         form = T.form(action="uri", method="get",
                       enctype="multipart/form-data")[
             T.fieldset[
-            T.legend(class_="freeform-form-label")["download a file"],
-            "URI of file to download: ",
+            T.legend(class_="freeform-form-label")["Download a file"],
+            "URI to download: ",
             T.input(type="text", name="uri"), " ",
             "Filename to download as: ",
             T.input(type="text", name="filename"), " ",
-            T.input(type="submit", value="download"),
+            T.input(type="submit", value="Download!"),
             ]]
         return T.div[form]
 
-    # this is a form where users can create new directories
-    def render_mkdir_form(self, ctx, data):
+    def render_view_form(self, ctx, data):
+        # this is a form where users can download files by URI, or jump to a
+        # named directory
+        form = T.form(action="uri", method="get",
+                      enctype="multipart/form-data")[
+            T.fieldset[
+            T.legend(class_="freeform-form-label")["View a file or directory"],
+            "URI to view: ",
+            T.input(type="text", name="uri"), " ",
+            T.input(type="submit", value="View!"),
+            ]]
+        return T.div[form]
+
+    def render_upload_form(self, ctx, data):
+        # this is a form where users can upload unlinked files
         form = T.form(action="uri", method="post",
                       enctype="multipart/form-data")[
             T.fieldset[
-            T.legend(class_="freeform-form-label")["create a directory"],
+            T.legend(class_="freeform-form-label")["Upload a file"],
+            "Choose a file: ",
+            T.input(type="file", name="file", class_="freeform-input-file"),
+            T.input(type="hidden", name="t", value="upload"),
+            T.input(type="submit", value="Upload!"),
+            ]]
+        return T.div[form]
+
+    def render_mkdir_form(self, ctx, data):
+        # this is a form where users can create new directories
+        form = T.form(action="uri", method="post",
+                      enctype="multipart/form-data")[
+            T.fieldset[
+            T.legend(class_="freeform-form-label")["Create a directory"],
             T.input(type="hidden", name="t", value="mkdir"),
             T.input(type="hidden", name="redirect_to_result", value="true"),
-            T.input(type="submit", value="create"),
+            T.input(type="submit", value="Create Directory!"),
             ]]
         return T.div[form]
 

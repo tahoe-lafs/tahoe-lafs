@@ -166,12 +166,19 @@ f. uploading a file
 
   PUT http://localhost:8123/uri
 
-  in: file contents
-  out: file write cap
+   in: file contents
+   out: file write cap
 
-  Upload a file, returning its URI as the HTTP response body. This does not
-  make the file visible from the virtual drive -- to do that, see section
-  1.h. below, or the convenience method in section 2.a..
+   Upload a file, using the data from the HTTP request body, and returning
+   the resulting URI as the HTTP response body. This does not make the file
+   visible from the virtual drive -- to do that, see section 1.h. below, or
+   the convenience method in section 2.a..
+
+  POST http://localhost:8123/uri?t=upload
+
+   This action also uploads a file without attaching it to a virtual drive
+   directory, but can be used from an HTML form. The response is the file
+   write cap.
 
 g. creating a new directory
 
@@ -347,7 +354,8 @@ c. POST forms
   (browsers do not know how to do PUT or DELETE). The file's contents and the
   new child name will be included in the form's arguments. This can only be
   used to upload a single file at a time. To avoid confusion, name= is not
-  allowed to contain a slash (a 400 Bad Request error will result).
+  allowed to contain a slash (a 400 Bad Request error will result). The
+  response is the file read-cap (URI) of the resulting file.
 
 
   POST $URL
@@ -359,7 +367,8 @@ c. POST forms
   This instructs the node to upload a file into the given directory, using a
   mutable file (SSK) rather than the usual immutable file (CHK). As a result,
   further operations to the same $URL will not cause the identity of the file
-  to change.
+  to change. The response is the file write-cap (URI) of the resulting
+  mutable file.
 
 
   POST $URL
