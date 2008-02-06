@@ -161,7 +161,6 @@ class Node(service.MultiService):
         d = defer.succeed(None)
         d.addCallback(lambda res: iputil.get_local_addresses_async())
         d.addCallback(self._setup_tub)
-        d.addCallback(lambda res: self.tub_ready())
         def _ready(res):
             self.log("%s running" % self.NODETYPE)
             self._tub_ready_observerlist.fire(self)
@@ -256,10 +255,6 @@ class Node(service.MultiService):
         self.log("Tub location set to %s" % location)
         self.tub.setLocation(location)
         return self.tub
-
-    def tub_ready(self):
-        # called when the Tub is available for registerReference
-        pass
 
     def when_tub_ready(self):
         return self._tub_ready_observerlist.when_fired()

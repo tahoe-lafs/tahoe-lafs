@@ -15,7 +15,11 @@ class IntroducerNode(node.Node):
     ENCODING_PARAMETERS_FILE = "encoding_parameters"
     DEFAULT_K, DEFAULT_DESIRED, DEFAULT_N = 3, 7, 10
 
-    def tub_ready(self):
+    def __init__(self, basedir="."):
+        node.Node.__init__(self, basedir)
+        self.init_introducer()
+
+    def init_introducer(self):
         k, desired, n = self.DEFAULT_K, self.DEFAULT_DESIRED, self.DEFAULT_N
         data = self.get_config("encoding_parameters")
         if data is not None:
@@ -23,9 +27,15 @@ class IntroducerNode(node.Node):
             k = int(k); desired = int(desired); n = int(n)
         introducerservice = IntroducerService(self.basedir, (k, desired, n))
         self.add_service(introducerservice)
-        self.introducer_url = self.tub.registerReference(introducerservice, "introducer")
-        self.log(" introducer is at %s" % self.introducer_url)
-        self.write_config("introducer.furl", self.introducer_url + "\n")
+
+        d = self.when_tub_ready()
+        def _publish(res):
+            self.introducer_url = self.tub.registerReference(introducerservice,
+                                                             "introducer")
+            self.log(" introducer is at %s" % self.introducer_url)
+            self.write_config("introducer.furl", self.introducer_url + "\n")
+        d.addCallback(_publish)
+        d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
 
 class IntroducerService(service.MultiService, Referenceable):
     implements(RIIntroducerPublisherAndSubscriberService)

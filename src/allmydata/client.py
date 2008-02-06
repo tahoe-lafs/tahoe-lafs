@@ -59,7 +59,10 @@ class Client(node.Node, testutil.PollMixin):
         self.init_stats_provider()
         self.init_lease_secret()
         self.init_storage()
-        self.init_options()
+        self.init_control()
+        run_helper = self.get_config("run_helper")
+        if run_helper:
+            self.init_helper()
         helper_furl = self.get_config("helper.furl")
         self.add_service(Uploader(helper_furl))
         self.add_service(Downloader())
@@ -142,11 +145,33 @@ class Client(node.Node, testutil.PollMixin):
             ri_name = RIStorageServer.__remote_name__
             self.introducer_client.publish(furl, "storage", ri_name)
         d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.storage", level=log.BAD)
+        d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
 
+    def init_control(self):
+        d = self.when_tub_ready()
+        def _publish(res):
+            c = ControlServer()
+            c.setServiceParent(self)
+            control_url = self.tub.registerReference(c)
+            self.write_private_config("control.furl", control_url + "\n")
+        d.addCallback(_publish)
+        d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
 
-    def init_options(self):
-        pass
+    def init_helper(self):
+        d = self.when_tub_ready()
+        def _publish(self):
+            h = Helper(os.path.join(self.basedir, "helper"))
+            h.setServiceParent(self)
+            # TODO: this is confusing. BASEDIR/private/helper.furl is created
+            # by the helper. BASEDIR/helper.furl is consumed by the client
+            # who wants to use the helper. I like having the filename be the
+            # same, since that makes 'cp' work smoothly, but the difference
+            # between config inputs and generated outputs is hard to see.
+            helper_furlfile = os.path.join(self.basedir,
+                                           "private", "helper.furl")
+            self.tub.registerReference(h, furlFile=helper_furlfile)
+        d.addCallback(_publish)
+        d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
 
     def init_web(self, webport):
         self.log("init_web(webport=%s)", args=(webport,))
@@ -168,37 +193,6 @@ class Client(node.Node, testutil.PollMixin):
         else:
             self.log("hotline file missing, shutting down")
         reactor.stop()
-
-    def tub_ready(self):
-        self.log("tub_ready")
-        node.Node.tub_ready(self)
-
-        # TODO: replace register_control() with an init_control() that
-        # internally uses self.when_tub_ready() to stall registerReference.
-        # Do the same for register_helper(). That will remove the need for
-        # this tub_ready() method.
-        self.register_control()
-        self.register_helper()
-
-    def register_control(self):
-        c = ControlServer()
-        c.setServiceParent(self)
-        control_url = self.tub.registerReference(c)
-        self.write_private_config("control.furl", control_url + "\n")
-
-    def register_helper(self):
-        run_helper = self.get_config("run_helper")
-        if not run_helper:
-            return
-        h = Helper(os.path.join(self.basedir, "helper"))
-        h.setServiceParent(self)
-        # TODO: this is confusing. BASEDIR/private/helper.furl is created by
-        # the helper. BASEDIR/helper.furl is consumed by the client who wants
-        # to use the helper. I like having the filename be the same, since
-        # that makes 'cp' work smoothly, but the difference between config
-        # inputs and generated outputs is hard to see.
-        helper_furlfile = os.path.join(self.basedir, "private", "helper.furl")
-        self.tub.registerReference(h, furlFile=helper_furlfile)
 
     def get_all_peerids(self):
         return self.introducer_client.get_all_peerids()
