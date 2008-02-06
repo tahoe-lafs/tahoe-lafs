@@ -1314,9 +1314,17 @@ class Root(rend.Page):
         return get_package_versions_string()
     def data_import_path(self, ctx, data):
         return str(allmydata)
-
     def data_my_nodeid(self, ctx, data):
         return idlib.nodeid_b2a(IClient(ctx).nodeid)
+    def data_storage(self, ctx, data):
+        client = IClient(ctx)
+        try:
+            ss = client.getServiceNamed("storage")
+        except KeyError:
+            return "Not running"
+        allocated = ss.allocated_size()
+        return "about %d bytes allocated" % allocated
+
     def data_introducer_furl(self, ctx, data):
         return IClient(ctx).introducer_furl
     def data_connected_to_introducer(self, ctx, data):
