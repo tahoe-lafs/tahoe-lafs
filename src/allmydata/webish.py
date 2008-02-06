@@ -11,6 +11,7 @@ from allmydata.util import fileutil, idlib
 import simplejson
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode, \
      IMutableFileNode
+import allmydata # to display import path
 from allmydata import download
 from allmydata.upload import FileHandle, FileName
 from allmydata import provisioning
@@ -1311,6 +1312,8 @@ class Root(rend.Page):
 
     def data_version(self, ctx, data):
         return get_package_versions_string()
+    def data_import_path(self, ctx, data):
+        return str(allmydata)
 
     def data_my_nodeid(self, ctx, data):
         return idlib.nodeid_b2a(IClient(ctx).nodeid)
