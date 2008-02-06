@@ -3,9 +3,11 @@ def foo(): pass # keep the line number constant
 
 import os
 from twisted.trial import unittest
+from twisted.internet import defer
+from twisted.python import failure
 
 from allmydata.util import bencode, idlib, humanreadable, mathutil
-from allmydata.util import assertutil, fileutil, testutil
+from allmydata.util import assertutil, fileutil, testutil, deferredutil
 
 
 class IDLib(unittest.TestCase):
@@ -396,3 +398,32 @@ class PollMixinTests(unittest.TestCase):
             return None # success
         d.addCallbacks(_suc, _err)
         return d
+
+class DeferredUtilTests(unittest.TestCase):
+    def test_success(self):
+        d1, d2 = defer.Deferred(), defer.Deferred()
+        good = []
+        bad = []
+        dlss = deferredutil.DeferredListShouldSucceed([d1,d2])
+        dlss.addCallbacks(good.append, bad.append)
+        d1.callback(1)
+        d2.callback(2)
+        self.failUnlessEqual(good, [[1,2]])
+        self.failUnlessEqual(bad, [])
+
+    def test_failure(self):
+        d1, d2 = defer.Deferred(), defer.Deferred()
+        good = []
+        bad = []
+        dlss = deferredutil.DeferredListShouldSucceed([d1,d2])
+        dlss.addCallbacks(good.append, bad.append)
+        d1.addErrback(lambda _ignore: None)
+        d2.addErrback(lambda _ignore: None)
+        d1.callback(1)
+        d2.errback(RuntimeError())
+        self.failUnlessEqual(good, [])
+        self.failUnlessEqual(len(bad), 1)
+        f = bad[0]
+        self.failUnless(isinstance(f, failure.Failure))
+        self.failUnless(f.check(RuntimeError))
+
