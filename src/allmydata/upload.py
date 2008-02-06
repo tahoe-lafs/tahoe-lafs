@@ -4,7 +4,7 @@ from zope.interface import implements
 from twisted.python import failure
 from twisted.internet import defer
 from twisted.application import service
-from foolscap import Referenceable
+from foolscap import Referenceable, Copyable, RemoteCopy
 from foolscap import eventual
 from foolscap.logging import log
 
@@ -36,14 +36,17 @@ class HaveAllPeersError(Exception):
 class TooFullError(Exception):
     pass
 
-class UploadResults:
+class UploadResults(Copyable, RemoteCopy):
     implements(IUploadResults)
+    typeToCopy = "allmydata.upload.UploadResults.tahoe.allmydata.com"
+    copytype = typeToCopy
+
+    file_size = None
     uri = None
     sharemap = None # dict of shnum to placement string
     servermap = None # dict of peerid to set(shnums)
     def __init__(self):
         self.timings = {} # dict of name to number of seconds
-        self.rates = {} # dict of name to rates (in bytes per second)
 
 # our current uri_extension is 846 bytes for small files, a few bytes
 # more for larger ones (since the filesize is encoded in decimal in a
@@ -597,15 +600,19 @@ class CHKUploader:
     def start_encrypted(self, encrypted):
         eu = IEncryptedUploadable(encrypted)
 
+        started = time.time()
         self._encoder = e = encode.Encoder(self._log_number)
         d = e.set_encrypted_uploadable(eu)
-        d.addCallback(self.locate_all_shareholders)
+        d.addCallback(self.locate_all_shareholders, started)
         d.addCallback(self.set_shareholders, e)
         d.addCallback(lambda res: e.start())
+        d.addCallback(self._encrypted_done)
         # this fires with the uri_extension_hash and other data
         return d
 
-    def locate_all_shareholders(self, encoder):
+    def locate_all_shareholders(self, encoder, started):
+        peer_selection_started = now = time.time()
+        self._storage_index_elapsed = now - started
         storage_index = encoder.get_param("storage_index")
         upload_id = idlib.b2a(storage_index)[:6]
         self.log("using storage index %s" % upload_id)
@@ -621,7 +628,7 @@ class CHKUploader:
                                            share_size, block_size,
                                            num_segments, n, desired)
         def _done(res):
-            self._peer_selection_finished = time.time()
+            self._peer_selection_elapsed = time.time() - peer_selection_started
             return res
         d.addCallback(_done)
         return d
@@ -642,6 +649,26 @@ class CHKUploader:
         assert len(buckets) == sum([len(peer.buckets) for peer in used_peers])
         encoder.set_shareholders(buckets)
 
+    def _encrypted_done(self, res):
+        r = self._results
+        r.sharemap = {}
+        r.servermap = {}
+        for shnum in self._encoder.get_shares_placed():
+            peer_tracker = self._sharemap[shnum]
+            peerid = peer_tracker.peerid
+            peerid_s = idlib.shortnodeid_b2a(peerid)
+            r.sharemap[shnum] = "Placed on [%s]" % peerid_s
+            if peerid not in r.servermap:
+                r.servermap[peerid] = set()
+            r.servermap[peerid].add(shnum)
+        now = time.time()
+        r.file_size = self._encoder.file_size
+        r.timings["total"] = now - self._started
+        r.timings["storage_index"] = self._storage_index_elapsed
+        r.timings["peer_selection"] = self._peer_selection_elapsed
+        r.timings.update(self._encoder.get_times())
+        return res
+
     def _compute_uri(self, (uri_extension_hash,
                             needed_shares, total_shares, size),
                      key):
@@ -653,24 +680,6 @@ class CHKUploader:
                            )
         r = self._results
         r.uri = u.to_string()
-        r.sharemap = {}
-        r.servermap = {}
-        for shnum in self._encoder.get_shares_placed():
-            peer_tracker = self._sharemap[shnum]
-            peerid = peer_tracker.peerid
-            peerid_s = idlib.shortnodeid_b2a(peerid)
-            r.sharemap[shnum] = "Placed on [%s]" % peerid_s
-            if peerid not in r.servermap:
-                r.servermap[peerid] = set()
-            r.servermap[peerid].add(shnum)
-        peer_selection_time = (self._peer_selection_finished
-                               - self._peer_selection_started)
-        now = time.time()
-        r.timings["total"] = now - self._started
-        r.rates["total"] = 1.0 * self._encoder.file_size / r.timings["total"]
-        r.timings["peer_selection"] = peer_selection_time
-        r.timings.update(self._encoder.get_times())
-        r.rates.update(self._encoder.get_rates())
         return r
 
 
@@ -703,7 +712,10 @@ class LiteralUploader:
     def start(self, uploadable):
         uploadable = IUploadable(uploadable)
         d = uploadable.get_size()
-        d.addCallback(lambda size: read_this_many_bytes(uploadable, size))
+        def _got_size(size):
+            self._results.file_size = size
+            return read_this_many_bytes(uploadable, size)
+        d.addCallback(_got_size)
         d.addCallback(lambda data: uri.LiteralFileURI("".join(data)))
         d.addCallback(lambda u: u.to_string())
         d.addCallback(self._build_results)
@@ -794,7 +806,6 @@ class AssistedUploader:
         assert isinstance(default_encoding_parameters, dict)
         self._default_encoding_parameters = default_encoding_parameters
         self._log_number = log.msg("AssistedUploader starting")
-        self._results = UploadResults()
 
     def log(self, msg, parent=None, **kwargs):
         if parent is None:
@@ -838,16 +849,16 @@ class AssistedUploader:
         self._storage_index = storage_index
 
     def _contact_helper(self, res):
-        now = self._time_contacting_helper = time.time()
-        self._results.timings["local_hashing"] = now - self._started
+        now = self._time_contacting_helper_start = time.time()
+        self._storage_index_elapsed = now - self._started
         self.log("contacting helper..")
         d = self._helper.callRemote("upload_chk", self._storage_index)
         d.addCallback(self._contacted_helper)
         return d
     def _contacted_helper(self, (upload_results, upload_helper)):
         now = time.time()
-        elapsed = now - self._time_contacting_helper
-        self._results.timings["contacting_helper"] = elapsed
+        elapsed = now - self._time_contacting_helper_start
+        self._elapsed_time_contacting_helper = elapsed
         if upload_helper:
             self.log("helper says we need to upload")
             # we need to upload the file
@@ -883,18 +894,21 @@ class AssistedUploader:
 
     def _build_readcap(self, upload_results):
         self.log("upload finished, building readcap")
-        ur = upload_results
+        r = upload_results
         u = uri.CHKFileURI(key=self._key,
-                           uri_extension_hash=ur['uri_extension_hash'],
+                           uri_extension_hash=r.uri_extension_hash,
                            needed_shares=self._needed_shares,
                            total_shares=self._total_shares,
                            size=self._size,
                            )
-        r = self._results
         r.uri = u.to_string()
         now = time.time()
+        r.file_size = self._size
+        r.timings["storage_index"] = self._storage_index_elapsed
+        r.timings["contacting_helper"] = self._elapsed_time_contacting_helper
+        if "total" in r.timings:
+            r.timings["helper_total"] = r.timings["total"]
         r.timings["total"] = now - self._started
-        r.rates["total"] = 1.0 * self._size / r.timings["total"]
         return r
 
 class NoParameterPreferencesMixin:

@@ -1376,7 +1376,7 @@ class RIControlClient(RemoteInterface):
 
         return DictOf(Nodeid, float)
 
-UploadResults = DictOf(str, str)
+UploadResults = Any() #DictOf(str, str)
 
 class RIEncryptedUploadable(RemoteInterface):
     __remote_name__ = "RIEncryptedUploadable.tahoe.allmydata.com"

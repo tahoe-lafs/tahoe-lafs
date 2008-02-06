@@ -669,10 +669,3 @@ class Encoder(object):
     def get_times(self):
         # return a dictionary of encode+push timings
         return self._times
-    def get_rates(self):
-        # return a dictionary of encode+push speeds
-        rates = {
-            "encode": self.file_size / self._times["cumulative_encoding"],
-            "push": self.file_size / self._times["cumulative_sending"],
-            }
-        return rates

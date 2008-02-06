@@ -28,7 +28,8 @@ class CHKUploadHelper_fake(offloaded.CHKUploadHelper):
 
 class CHKUploadHelper_already_uploaded(offloaded.CHKUploadHelper):
     def start(self):
-        res = {'uri_extension_hash': hashutil.uri_extension_hash("")}
+        res = upload.UploadResults()
+        res.uri_extension_hash = hashutil.uri_extension_hash("")
         return (res, None)
 
 class FakeClient(service.MultiService):

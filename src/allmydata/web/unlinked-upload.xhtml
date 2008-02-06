@@ -18,9 +18,12 @@
   <li>Servermap: <span n:render="servermap" /></li>
   <li>Timings:</li>
   <ul>
+    <li>File Size: <span n:render="string" n:data="file_size" /> bytes</li>
     <li>Total: <span n:render="time" n:data="time_total" />
      (<span n:render="rate" n:data="rate_total" />)</li>
     <ul>
+      <li>Storage Index: <span n:render="time" n:data="time_storage_index" />
+     (<span n:render="rate" n:data="rate_storage_index" />)</li>
       <li>Peer Selection: <span n:render="time" n:data="time_peer_selection" /></li>
       <li>Encode And Push: <span n:render="time" n:data="time_total_encode_and_push" /></li>
       <ul>

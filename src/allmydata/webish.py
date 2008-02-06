@@ -1303,6 +1303,11 @@ class UnlinkedPOSTCHKUploader(rend.Page):
         d.addCallback(_render)
         return d
 
+    def data_file_size(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.file_size)
+        return d
+
     def render_time(self, ctx, data):
         # 1.23s, 790ms, 132us
         if data is None:
@@ -1327,50 +1332,57 @@ class UnlinkedPOSTCHKUploader(rend.Page):
             return "%.1fkBps" % (r/1000)
         return "%dBps" % r
 
-    def data_time_total(self, ctx, data):
+    def _get_time(self, name):
         d = self.upload_results()
-        d.addCallback(lambda res: res.timings.get("total"))
+        d.addCallback(lambda res: res.timings.get(name))
         return d
+
+    def data_time_total(self, ctx, data):
+        return self._get_time("total")
+
+    def data_time_storage_index(self, ctx, data):
+        return self._get_time("storage_index")
 
     def data_time_peer_selection(self, ctx, data):
-        d = self.upload_results()
-        d.addCallback(lambda res: res.timings.get("peer_selection"))
-        return d
+        return self._get_time("peer_selection")
 
     def data_time_total_encode_and_push(self, ctx, data):
-        d = self.upload_results()
-        d.addCallback(lambda res: res.timings.get("total_encode_and_push"))
-        return d
+        return self._get_time("total_encode_and_push")
 
     def data_time_cumulative_encoding(self, ctx, data):
-        d = self.upload_results()
-        d.addCallback(lambda res: res.timings.get("cumulative_encoding"))
-        return d
+        return self._get_time("cumulative_encoding")
 
     def data_time_cumulative_sending(self, ctx, data):
-        d = self.upload_results()
-        d.addCallback(lambda res: res.timings.get("cumulative_sending"))
-        return d
+        return self._get_time("cumulative_sending")
 
     def data_time_hashes_and_close(self, ctx, data):
+        return self._get_time("hashes_and_close")
+
+    def _get_rate(self, name):
         d = self.upload_results()
-        d.addCallback(lambda res: res.timings.get("hashes_and_close"))
+        def _convert(r):
+            file_size = r.file_size
+            time = r.timings.get(name)
+            if time is None:
+                return None
+            try:
+                return 1.0 * file_size / time
+            except ZeroDivisionError:
+                return None
+        d.addCallback(_convert)
         return d
 
     def data_rate_total(self, ctx, data):
-        d = self.upload_results()
-        d.addCallback(lambda res: res.rates.get("total"))
-        return d
+        return self._get_rate("total")
+
+    def data_rate_storage_index(self, ctx, data):
+        return self._get_rate("storage_index")
 
     def data_rate_encode(self, ctx, data):
-        d = self.upload_results()
-        d.addCallback(lambda res: res.rates.get("encode"))
-        return d
+        return self._get_rate("cumulative_encoding")
 
     def data_rate_push(self, ctx, data):
-        d = self.upload_results()
-        d.addCallback(lambda res: res.rates.get("push"))
-        return d
+        return self._get_rate("cumulative_sending")
 
 
 class UnlinkedPOSTSSKUploader(rend.Page):
