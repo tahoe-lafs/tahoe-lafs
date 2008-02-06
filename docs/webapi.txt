@@ -179,7 +179,9 @@ f. uploading a file
    This action also uploads a file without attaching it to a virtual drive
    directory, but can be used from an HTML form. The response is an HTML page
    that describes the results of the upload, including the resulting URI (but
-   also including information about which peers were used, etc).
+   also including information about which peers were used, etc). If a
+   when_done=URL argument is provided, the reponse is a redirect to the given
+   URL instead of the upload-results page.
 
   POST http://localhost:8123/uri?t=upload&mutable=true
 

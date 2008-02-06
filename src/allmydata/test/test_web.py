@@ -1011,11 +1011,7 @@ class Web(WebMixin, unittest.TestCase):
         d = self.POST("/uri", t="upload", when_done="/",
                       file=("new.txt", self.NEWFILE_CONTENTS))
         d.addBoth(self.shouldRedirect, "/")
-        # XXX Test that resulting welcome page has a "most recent
-        # upload", the URI of which points to the file contents that
-        # you just uploaded.
         return d
-    test_POST_upload_no_link_whendone.todo = "Not yet implemented."
 
     def test_POST_upload_no_link_mutable(self):
         d = self.POST("/uri", t="upload", mutable="true",

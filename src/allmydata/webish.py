@@ -1256,6 +1256,17 @@ class UnlinkedPOSTCHKUploader(rend.Page):
         d = client.upload(uploadable)
         d.addBoth(self._done.fire)
 
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        when_done = get_arg(req, "when_done", None)
+        if when_done:
+            # if when_done= is provided, return a redirect instead of our
+            # usual upload-results page
+            d = self._done.when_fired()
+            d.addCallback(lambda res: url.URL.fromString(when_done))
+            return d
+        return rend.Page.renderHTTP(self, ctx)
+
     def upload_results(self):
         return self._done.when_fired()
 
