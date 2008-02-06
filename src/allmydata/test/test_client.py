@@ -53,8 +53,7 @@ class Basic(unittest.TestCase):
         open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         open(os.path.join(basedir, "sizelimit"), "w").write("1000")
         c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storageserver").sizelimit,
-                             1000)
+        self.failUnlessEqual(c.getServiceNamed("storage").sizelimit, 1000)
 
     def test_sizelimit_2(self):
         basedir = "client.Basic.test_sizelimit_2"
@@ -63,8 +62,7 @@ class Basic(unittest.TestCase):
         open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         open(os.path.join(basedir, "sizelimit"), "w").write("10K")
         c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storageserver").sizelimit,
-                             10*1000)
+        self.failUnlessEqual(c.getServiceNamed("storage").sizelimit, 10*1000)
 
     def test_sizelimit_3(self):
         basedir = "client.Basic.test_sizelimit_3"
@@ -73,7 +71,7 @@ class Basic(unittest.TestCase):
         open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         open(os.path.join(basedir, "sizelimit"), "w").write("5mB")
         c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storageserver").sizelimit,
+        self.failUnlessEqual(c.getServiceNamed("storage").sizelimit,
                              5*1000*1000)
 
     def test_sizelimit_4(self):
@@ -83,7 +81,7 @@ class Basic(unittest.TestCase):
         open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         open(os.path.join(basedir, "sizelimit"), "w").write("78Gb")
         c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storageserver").sizelimit,
+        self.failUnlessEqual(c.getServiceNamed("storage").sizelimit,
                              78*1000*1000*1000)
 
     def test_sizelimit_bad(self):
@@ -93,8 +91,7 @@ class Basic(unittest.TestCase):
         open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         open(os.path.join(basedir, "sizelimit"), "w").write("bogus")
         c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storageserver").sizelimit,
-                             None)
+        self.failUnlessEqual(c.getServiceNamed("storage").sizelimit, None)
 
     def _permute(self, c, key):
         return [ peerid
@@ -127,7 +124,7 @@ class Basic(unittest.TestCase):
         open(os.path.join(basedir, "introducer.furl"), "w").write("")
         open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         c = client.Client(basedir)
-        ss = c.getServiceNamed("storageserver")
+        ss = c.getServiceNamed("storage")
         mine, oldest = ss.remote_get_versions()
         self.failUnlessEqual(mine, str(allmydata.__version__))
         self.failIfEqual(str(allmydata.__version__), "unknown")

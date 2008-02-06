@@ -668,7 +668,7 @@ def create_mutable_sharefile(filename, my_nodeid, write_enabler, parent):
 
 class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer, IStatsProducer)
-    name = 'storageserver'
+    name = 'storage'
 
     # we're pretty narrow-minded right now
     OLDEST_SUPPORTED_VERSION = allmydata.__version__
