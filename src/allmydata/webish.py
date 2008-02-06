@@ -1359,7 +1359,8 @@ class Root(rend.Page):
 
     def render_service_row(self, ctx, data):
         (service_name, nodeid, rsc) = data
-        ctx.fillSlots("peerid", idlib.nodeid_b2a(nodeid))
+        ctx.fillSlots("peerid", "%s %s" % (idlib.nodeid_b2a(nodeid),
+                                           rsc.nickname))
         if rsc.rref:
             rhost = rsc.remote_host
             if nodeid == IClient(ctx).nodeid:
@@ -1381,7 +1382,6 @@ class Root(rend.Page):
                                                  time.localtime(rsc.announcement_time)))
         ctx.fillSlots("version", rsc.version)
         ctx.fillSlots("service_name", rsc.service_name)
-        ctx.fillSlots("nickname", rsc.nickname)
 
         return ctx.tag
 
