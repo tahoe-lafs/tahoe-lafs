@@ -1203,10 +1203,19 @@ class URIPUTHandler(rend.Page):
         if t == "":
             # "PUT /uri", to create an unlinked file. This is like PUT but
             # without the associated set_uri.
-            uploadable = FileHandle(req.content)
-            d = IClient(ctx).upload(uploadable)
-            d.addCallback(lambda results: results.uri)
-            # that fires with the URI of the new file
+            mutable = bool(get_arg(req, "mutable", "").strip())
+            if mutable:
+                # SDMF: files are small, and we can only upload data
+                contents = req.content
+                contents.seek(0)
+                data = contents.read()
+                d = IClient(ctx).create_mutable_file(data)
+                d.addCallback(lambda n: n.get_uri())
+            else:
+                uploadable = FileHandle(req.content)
+                d = IClient(ctx).upload(uploadable)
+                d.addCallback(lambda results: results.uri)
+                # that fires with the URI of the new file
             return d
 
         if t == "mkdir":

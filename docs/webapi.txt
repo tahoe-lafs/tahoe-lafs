@@ -178,13 +178,19 @@ f. uploading a file
 
    This action also uploads a file without attaching it to a virtual drive
    directory, but can be used from an HTML form. The response is the file
-   write cap.
+   read cap.
 
   POST http://localhost:8123/uri?t=upload&mutable=true
 
    This action also uploads a file without attaching it to a virtual drive
    directory, but creates a mutable file (SSK) instead of an immutable one.
    The response contains the new URI that was created.
+
+  PUT http://localhost:8123/uri?mutable=true
+
+   This second form also accepts data from the HTTP request body, but creates
+   a mutable file (SSK) instead of an immutable one (CHK). The response
+   contains the new URI that was created.
 
 
 g. creating a new directory

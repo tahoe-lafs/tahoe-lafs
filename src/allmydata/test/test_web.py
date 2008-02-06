@@ -1013,6 +1013,7 @@ class Web(WebMixin, unittest.TestCase):
             uri = uri.strip()
             u = IURI(uri)
             self.failUnless(IMutableFileURI.providedBy(u))
+            self.failUnless(u.storage_index in FakeMutableFileNode.all_contents)
             n = self.s.create_node_from_uri(uri)
             return n.download_to_data()
         d.addCallback(_check)
@@ -1539,6 +1540,33 @@ class Web(WebMixin, unittest.TestCase):
                   "PUT_NEWFILE_URI_only_PUT",
                   "400 Bad Request",
                   "/uri only accepts PUT and PUT?t=mkdir")
+        return d
+
+    def test_PUT_NEWFILE_URI_mutable(self):
+        file_contents = "New file contents here\n"
+        d = self.PUT("/uri?mutable=true", file_contents)
+        def _check(uri):
+            uri = uri.strip()
+            u = IURI(uri)
+            self.failUnless(IMutableFileURI.providedBy(u))
+            self.failUnless(u.storage_index in FakeMutableFileNode.all_contents)
+            n = self.s.create_node_from_uri(uri)
+            return n.download_to_data()
+        d.addCallback(_check)
+        def _check2(data):
+            self.failUnlessEqual(data, file_contents)
+        d.addCallback(_check2)
+        return d
+
+        def _check(uri):
+            self.failUnless(uri in FakeCHKFileNode.all_contents)
+            self.failUnlessEqual(FakeCHKFileNode.all_contents[uri],
+                                 file_contents)
+            return self.GET("/uri/%s" % uri)
+        d.addCallback(_check)
+        def _check2(res):
+            self.failUnlessEqual(res, file_contents)
+        d.addCallback(_check2)
         return d
 
     def test_PUT_mkdir(self):
