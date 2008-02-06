@@ -1357,6 +1357,9 @@ class UnlinkedPOSTCHKUploader(rend.Page):
     def data_time_contacting_helper(self, ctx, data):
         return self._get_time("contacting_helper")
 
+    def data_time_existence_check(self, ctx, data):
+        return self._get_time("existence_check")
+
     def data_time_cumulative_fetch(self, ctx, data):
         return self._get_time("cumulative_fetch")
 
@@ -1403,6 +1406,25 @@ class UnlinkedPOSTCHKUploader(rend.Page):
 
     def data_rate_push(self, ctx, data):
         return self._get_rate("cumulative_sending")
+
+    def data_rate_encode_and_push(self, ctx, data):
+        d = self.upload_results()
+        def _convert(r):
+            file_size = r.file_size
+            if file_size is None:
+                return None
+            time1 = r.timings.get("cumulative_encoding")
+            if time1 is None:
+                return None
+            time2 = r.timings.get("cumulative_sending")
+            if time2 is None:
+                return None
+            try:
+                return 1.0 * file_size / (time1+time2)
+            except ZeroDivisionError:
+                return None
+        d.addCallback(_convert)
+        return d
 
     def data_rate_ciphertext_fetch(self, ctx, data):
         d = self.upload_results()
