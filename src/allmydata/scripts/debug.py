@@ -21,6 +21,8 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
     from allmydata import uri, storage
 
     # check the version, to see if we have a mutable or immutable share
+    print >>out, "%19s: %s" % ("share filename", config['filename'])
+
     f = open(config['filename'], "rb")
     prefix = f.read(32)
     f.close()
@@ -315,14 +317,44 @@ def dump_uri_instance(u, nodeid, secret, out, err, show_header=True):
     else:
         print >>out, "unknown cap type"
 
+class FindSharesOptions(usage.Options):
+    def parseArgs(self, storage_index_s, *nodedirs):
+        self.si_s = storage_index_s
+        self.nodedirs = nodedirs
+
+def find_shares(config, out=sys.stdout, err=sys.stderr):
+    """Given a storage index and a list of node directories, emit a list of
+    all matching shares to stdout, one per line. For example:
+
+     find-shares.py 44kai1tui348689nrw8fjegc8c ~/testnet/node-*
+
+    gives:
+
+    /home/warner/testnet/node-1/storage/shares/44k/44kai1tui348689nrw8fjegc8c/5
+    /home/warner/testnet/node-1/storage/shares/44k/44kai1tui348689nrw8fjegc8c/9
+    /home/warner/testnet/node-2/storage/shares/44k/44kai1tui348689nrw8fjegc8c/2
+    """
+    from allmydata import storage
+    from allmydata.util import idlib
+
+    sharedir = storage.storage_index_to_dir(idlib.a2b(config.si_s))
+    for d in config.nodedirs:
+        d = os.path.join(os.path.expanduser(d), "storage/shares", sharedir)
+        if os.path.exists(d):
+            for shnum in os.listdir(d):
+                print >>out, os.path.join(d, shnum)
+
+    return 0
 
 subCommands = [
     ["dump-share", None, DumpOptions,
      "Unpack and display the contents of a share (uri_extension and leases)."],
-    ["dump-cap", None, DumpCapOptions, "Unpack a read-cap or write-cap"]
+    ["dump-cap", None, DumpCapOptions, "Unpack a read-cap or write-cap"],
+    ["find-shares", None, FindSharesOptions, "Locate sharefiles in node dirs"],
     ]
 
 dispatch = {
     "dump-share": dump_share,
     "dump-cap": dump_cap,
+    "find-shares": find_shares,
     }

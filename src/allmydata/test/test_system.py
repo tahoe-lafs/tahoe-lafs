@@ -1144,6 +1144,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
 
         # we only upload a single file, so we can assert some things about
         # its size and shares.
+        self.failUnless(("share filename: %s" % filename) in output)
         self.failUnless("size: %d\n" % len(self.data) in output)
         self.failUnless("num_segments: 1\n" in output)
         # segment_size is always a multiple of needed_shares
@@ -1157,6 +1158,19 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                     "crypttext_hash", "crypttext_root_hash",
                     "share_root_hash", "UEB_hash"):
             self.failUnless("%s: " % key in output, key)
+
+        # now use its storage index to find the other shares using the
+        # 'find-shares' tool
+        sharedir, shnum = os.path.split(filename)
+        storagedir, storage_index_s = os.path.split(sharedir)
+        out,err = StringIO(), StringIO()
+        nodedirs = [self.getdir("client%d" % i) for i in range(self.numclients)]
+        cmd = ["find-shares", storage_index_s] + nodedirs
+        rc = runner.runner(cmd, stdout=out, stderr=err)
+        self.failUnlessEqual(rc, 0)
+        out.seek(0)
+        sharefiles = [sfn.strip() for sfn in out.readlines()]
+        self.failUnlessEqual(len(sharefiles), 10)
 
     def _test_control(self, res):
         # exercise the remote-control-the-client foolscap interfaces in
