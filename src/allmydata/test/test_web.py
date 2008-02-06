@@ -993,6 +993,17 @@ class Web(WebMixin, unittest.TestCase):
     def test_POST_upload_no_link(self):
         d = self.POST("/uri", t="upload",
                       file=("new.txt", self.NEWFILE_CONTENTS))
+        def _check_upload_results(page):
+            # this should be a page which describes the results of the upload
+            # that just finished.
+            self.failUnless("Upload Results:" in page)
+            self.failUnless("URI:" in page)
+            uri_re = re.compile("URI: <tt><span>(.*)</span>")
+            mo = uri_re.search(page)
+            self.failUnless(mo, page)
+            new_uri = mo.group(1)
+            return new_uri
+        d.addCallback(_check_upload_results)
         d.addCallback(self.failUnlessCHKURIHasContents, self.NEWFILE_CONTENTS)
         return d
 
