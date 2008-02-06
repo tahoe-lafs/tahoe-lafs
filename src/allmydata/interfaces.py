@@ -486,7 +486,6 @@ class IFileURI(Interface):
 
 class IMutableFileURI(Interface):
     """I am a URI which represents a mutable filenode."""
-    pass
 class INewDirectoryURI(Interface):
     pass
 class IReadonlyNewDirectoryURI(Interface):
