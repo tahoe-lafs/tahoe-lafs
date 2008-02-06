@@ -14,6 +14,24 @@
 <ul>
   <li>URI: <tt><span n:render="string" n:data="uri" /></tt></li>
   <li>Download link: <span n:render="download_link" /></li>
+  <li>Sharemap: <span n:render="sharemap" /></li>
+  <li>Servermap: <span n:render="servermap" /></li>
+  <li>Timings:</li>
+  <ul>
+    <li>Total: <span n:render="time" n:data="time_total" />
+     (<span n:render="rate" n:data="rate_total" />)</li>
+    <ul>
+      <li>Peer Selection: <span n:render="time" n:data="time_peer_selection" /></li>
+      <li>Encode And Push: <span n:render="time" n:data="time_total_encode_and_push" /></li>
+      <ul>
+        <li>Cumulative Encoding: <span n:render="time" n:data="time_cumulative_encoding" />
+        (<span n:render="rate" n:data="rate_encode" />)</li>
+        <li>Cumulative Pushing: <span n:render="time" n:data="time_cumulative_sending" />
+        (<span n:render="rate" n:data="rate_push" />)</li>
+        <li>Send Hashes And Close: <span n:render="time" n:data="time_hashes_and_close" /></li>
+      </ul>
+    </ul>
+  </ul>
 </ul>
 
 <div>Return to the <a href="/">Welcome Page</a></div>

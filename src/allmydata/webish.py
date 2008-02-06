@@ -1275,6 +1275,104 @@ class UnlinkedPOSTCHKUploader(rend.Page):
                       ["/uri/" + res.uri])
         return d
 
+    def render_sharemap(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.sharemap)
+        def _render(sharemap):
+            if sharemap is None:
+                return "None"
+            l = T.ul()
+            for shnum in sorted(sharemap.keys()):
+                l[T.li["%d -> %s" % (shnum, sharemap[shnum])]]
+            return l
+        d.addCallback(_render)
+        return d
+
+    def render_servermap(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.servermap)
+        def _render(servermap):
+            if servermap is None:
+                return "None"
+            l = T.ul()
+            for peerid in sorted(servermap.keys()):
+                peerid_s = idlib.shortnodeid_b2a(peerid)
+                shares_s = ",".join([str(shnum) for shnum in servermap[peerid]])
+                l[T.li["[%s] got shares: %s" % (peerid_s, shares_s)]]
+            return l
+        d.addCallback(_render)
+        return d
+
+    def render_time(self, ctx, data):
+        # 1.23s, 790ms, 132us
+        if data is None:
+            return ""
+        s = float(data)
+        if s >= 1.0:
+            return "%.2fs" % s
+        if s >= 0.01:
+            return "%dms" % (1000*s)
+        if s >= 0.001:
+            return "%.1fms" % (1000*s)
+        return "%dus" % (1000000*s)
+
+    def render_rate(self, ctx, data):
+        # 21.8kBps, 554.4kBps 4.37MBps
+        if data is None:
+            return ""
+        r = float(data)
+        if r > 1000000:
+            return "%1.2fMBps" % (r/1000000)
+        if r > 1000:
+            return "%.1fkBps" % (r/1000)
+        return "%dBps" % r
+
+    def data_time_total(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.timings.get("total"))
+        return d
+
+    def data_time_peer_selection(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.timings.get("peer_selection"))
+        return d
+
+    def data_time_total_encode_and_push(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.timings.get("total_encode_and_push"))
+        return d
+
+    def data_time_cumulative_encoding(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.timings.get("cumulative_encoding"))
+        return d
+
+    def data_time_cumulative_sending(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.timings.get("cumulative_sending"))
+        return d
+
+    def data_time_hashes_and_close(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.timings.get("hashes_and_close"))
+        return d
+
+    def data_rate_total(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.rates.get("total"))
+        return d
+
+    def data_rate_encode(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.rates.get("encode"))
+        return d
+
+    def data_rate_push(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.rates.get("push"))
+        return d
+
+
 class UnlinkedPOSTSSKUploader(rend.Page):
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)

@@ -1,5 +1,6 @@
 # -*- test-case-name: allmydata.test.test_encode -*-
 
+import time
 from zope.interface import implements
 from twisted.internet import defer
 from foolscap import eventual
@@ -207,6 +208,14 @@ class Encoder(object):
         # that we sent to that landlord.
         self.share_root_hashes = [None] * self.num_shares
 
+        self._times = {
+            "cumulative_encoding": 0.0,
+            "cumulative_sending": 0.0,
+            "hashes_and_close": 0.0,
+            "total_encode_and_push": 0.0,
+            }
+        self._start_total_timestamp = time.time()
+
         d = eventual.fireEventually()
 
         d.addCallback(lambda res: self.start_all_shareholders())
@@ -269,6 +278,7 @@ class Encoder(object):
 
     def _encode_segment(self, segnum):
         codec = self._codec
+        start = time.time()
 
         # the ICodecEncoder API wants to receive a total of self.segment_size
         # bytes on each encode() call, broken up into a number of
@@ -297,17 +307,23 @@ class Encoder(object):
 
         d = self._gather_data(self.required_shares, input_piece_size,
                               crypttext_segment_hasher)
-        def _done(chunks):
+        def _done_gathering(chunks):
             for c in chunks:
                 assert len(c) == input_piece_size
             self._crypttext_hashes.append(crypttext_segment_hasher.digest())
             # during this call, we hit 5*segsize memory
             return codec.encode(chunks)
+        d.addCallback(_done_gathering)
+        def _done(res):
+            elapsed = time.time() - start
+            self._times["cumulative_encoding"] += elapsed
+            return res
         d.addCallback(_done)
         return d
 
     def _encode_tail_segment(self, segnum):
 
+        start = time.time()
         codec = self._tail_codec
         input_piece_size = codec.get_block_size()
 
@@ -316,13 +332,18 @@ class Encoder(object):
         d = self._gather_data(self.required_shares, input_piece_size,
                               crypttext_segment_hasher,
                               allow_short=True)
-        def _done(chunks):
+        def _done_gathering(chunks):
             for c in chunks:
                 # a short trailing chunk will have been padded by
                 # _gather_data
                 assert len(c) == input_piece_size
             self._crypttext_hashes.append(crypttext_segment_hasher.digest())
             return codec.encode(chunks)
+        d.addCallback(_done_gathering)
+        def _done(res):
+            elapsed = time.time() - start
+            self._times["cumulative_encoding"] += elapsed
+            return res
         d.addCallback(_done)
         return d
 
@@ -386,6 +407,7 @@ class Encoder(object):
         # *doesn't* have a share, that's an error.
         _assert(set(self.landlords.keys()).issubset(set(shareids)),
                 shareids=shareids, landlords=self.landlords)
+        start = time.time()
         dl = []
         lognum = self.log("send_segment(%d)" % segnum, level=log.NOISY)
         for i in range(len(shares)):
@@ -410,6 +432,8 @@ class Encoder(object):
                       100 * (segnum+1) / self.num_segments,
                       ),
                      level=log.OPERATIONAL)
+            elapsed = time.time() - start
+            self._times["cumulative_sending"] += elapsed
             return res
         dl.addCallback(_logit)
         return dl
@@ -463,6 +487,7 @@ class Encoder(object):
         return d
 
     def finish_hashing(self):
+        self._start_hashing_and_close_timestamp = time.time()
         crypttext_hash = self._crypttext_hasher.digest()
         self.uri_extension_data["crypttext_hash"] = crypttext_hash
         d = self._uploadable.get_plaintext_hash()
@@ -607,6 +632,14 @@ class Encoder(object):
 
     def done(self):
         self.log("upload done", level=log.OPERATIONAL)
+        now = time.time()
+        h_and_c_elapsed = now - self._start_hashing_and_close_timestamp
+        self._times["hashes_and_close"] = h_and_c_elapsed
+        total_elapsed = now - self._start_total_timestamp
+        self._times["total_encode_and_push"] = total_elapsed
+
+        # update our sharemap
+        self._shares_placed = set(self.landlords.keys())
         return (self.uri_extension_hash, self.required_shares,
                 self.num_shares, self.file_size)
 
@@ -628,3 +661,18 @@ class Encoder(object):
             return f
         d.addCallback(_done)
         return d
+
+    def get_shares_placed(self):
+        # return a set of share numbers that were successfully placed.
+        return self._shares_placed
+
+    def get_times(self):
+        # return a dictionary of encode+push timings
+        return self._times
+    def get_rates(self):
+        # return a dictionary of encode+push speeds
+        rates = {
+            "encode": self.file_size / self._times["cumulative_encoding"],
+            "push": self.file_size / self._times["cumulative_sending"],
+            }
+        return rates
