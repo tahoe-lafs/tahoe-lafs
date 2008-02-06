@@ -1009,12 +1009,12 @@ class Web(WebMixin, unittest.TestCase):
     def test_POST_upload_no_link_mutable(self):
         d = self.POST("/uri", t="upload", mutable="true",
                       file=("new.txt", self.NEWFILE_CONTENTS))
-        def _check(uri):
-            uri = uri.strip()
-            u = IURI(uri)
+        def _check(new_uri):
+            new_uri = new_uri.strip()
+            u = IURI(new_uri)
             self.failUnless(IMutableFileURI.providedBy(u))
             self.failUnless(u.storage_index in FakeMutableFileNode.all_contents)
-            n = self.s.create_node_from_uri(uri)
+            n = self.s.create_node_from_uri(new_uri)
             return n.download_to_data()
         d.addCallback(_check)
         def _check2(data):
@@ -1545,17 +1545,17 @@ class Web(WebMixin, unittest.TestCase):
     def test_PUT_NEWFILE_URI_mutable(self):
         file_contents = "New file contents here\n"
         d = self.PUT("/uri?mutable=true", file_contents)
-        def _check(uri):
+        def _check_mutable(uri):
             uri = uri.strip()
             u = IURI(uri)
             self.failUnless(IMutableFileURI.providedBy(u))
             self.failUnless(u.storage_index in FakeMutableFileNode.all_contents)
             n = self.s.create_node_from_uri(uri)
             return n.download_to_data()
-        d.addCallback(_check)
-        def _check2(data):
+        d.addCallback(_check_mutable)
+        def _check2_mutable(data):
             self.failUnlessEqual(data, file_contents)
-        d.addCallback(_check2)
+        d.addCallback(_check2_mutable)
         return d
 
         def _check(uri):
