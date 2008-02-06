@@ -502,6 +502,18 @@ class LocalAccessDisabledError:
         req.setHeader("content-type", "text/plain")
         return "local file access is disabled"
 
+class WebError:
+    implements(inevow.IResource)
+    def __init__(self, response_code, errmsg):
+        self._response_code = response_code
+        self._errmsg = errmsg
+
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        req.setResponseCode(self._response_code)
+        req.setHeader("content-type", "text/plain")
+        return self._errmsg
+
 
 class LocalFileDownloader(resource.Resource):
     def __init__(self, filenode, local_filename):
@@ -1193,87 +1205,88 @@ class VDrive(rend.Page):
             return rend.NotFound
         return d
 
-class URIPUTHandler(rend.Page):
+class UnlinkedPUTCHKUploader(rend.Page):
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
         assert req.method == "PUT"
+        # "PUT /uri", to create an unlinked file. This is like PUT but
+        # without the associated set_uri.
 
-        t = get_arg(req, "t", "")
+        uploadable = FileHandle(req.content)
+        d = IClient(ctx).upload(uploadable)
+        d.addCallback(lambda results: results.uri)
+        # that fires with the URI of the new file
+        return d
 
-        if t == "":
-            # "PUT /uri", to create an unlinked file. This is like PUT but
-            # without the associated set_uri.
-            mutable = bool(get_arg(req, "mutable", "").strip())
-            if mutable:
-                # SDMF: files are small, and we can only upload data
-                contents = req.content
-                contents.seek(0)
-                data = contents.read()
-                d = IClient(ctx).create_mutable_file(data)
-                d.addCallback(lambda n: n.get_uri())
-            else:
-                uploadable = FileHandle(req.content)
-                d = IClient(ctx).upload(uploadable)
-                d.addCallback(lambda results: results.uri)
-                # that fires with the URI of the new file
-            return d
+class UnlinkedPUTSSKUploader(rend.Page):
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        assert req.method == "PUT"
+        # SDMF: files are small, and we can only upload data
+        contents = req.content
+        contents.seek(0)
+        data = contents.read()
+        d = IClient(ctx).create_mutable_file(data)
+        d.addCallback(lambda n: n.get_uri())
+        return d
 
-        if t == "mkdir":
-            # "PUT /uri?t=mkdir", to create an unlinked directory.
-            d = IClient(ctx).create_empty_dirnode()
-            d.addCallback(lambda dirnode: dirnode.get_uri())
-            # XXX add redirect_to_result
-            return d
+class UnlinkedPUTCreateDirectory(rend.Page):
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        assert req.method == "PUT"
+        # "PUT /uri?t=mkdir", to create an unlinked directory.
+        d = IClient(ctx).create_empty_dirnode()
+        d.addCallback(lambda dirnode: dirnode.get_uri())
+        # XXX add redirect_to_result
+        return d
 
-        req.setResponseCode(http.BAD_REQUEST)
-        req.setHeader("content-type", "text/plain")
-        return "/uri only accepts PUT and PUT?t=mkdir"
 
-class URIPOSTHandler(rend.Page):
+class UnlinkedPOSTCHKUploader(rend.Page):
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
         assert req.method == "POST"
 
-        t = get_arg(req, "t", "").strip()
+        # "POST /uri", to create an unlinked file.
+        fileobj = req.fields["file"].file
+        uploadable = FileHandle(fileobj)
+        d = IClient(ctx).upload(uploadable)
+        d.addCallback(lambda results: results.uri)
+        # that fires with the URI of the new file
+        return d
 
-        if t in ("", "upload"):
-            # "POST /uri", to create an unlinked file.
-            mutable = bool(get_arg(req, "mutable", "").strip())
-            if mutable:
-                # SDMF: files are small, and we can only upload data
-                contents = req.fields["file"]
-                contents.file.seek(0)
-                data = contents.file.read()
-                d = IClient(ctx).create_mutable_file(data)
-                d.addCallback(lambda n: n.get_uri())
-            else:
-                fileobj = req.fields["file"].file
-                uploadable = FileHandle(fileobj)
-                d = IClient(ctx).upload(uploadable)
-                d.addCallback(lambda results: results.uri)
-                # that fires with the URI of the new file
-            return d
+class UnlinkedPOSTSSKUploader(rend.Page):
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        assert req.method == "POST"
 
-        if t == "mkdir":
-            # "POST /uri?t=mkdir", to create an unlinked directory.
-            d = IClient(ctx).create_empty_dirnode()
-            redirect = get_arg(req, "redirect_to_result", "false")
-            if boolean_of_arg(redirect):
-                def _then_redir(res):
-                    new_url = "uri/" + urllib.quote(res.get_uri())
-                    req.setResponseCode(http.SEE_OTHER) # 303
-                    req.setHeader('location', new_url)
-                    req.finish()
-                    return ''
-                d.addCallback(_then_redir)
-            else:
-                d.addCallback(lambda dirnode: dirnode.get_uri())
-            return d
+        # "POST /uri", to create an unlinked file.
+        # SDMF: files are small, and we can only upload data
+        contents = req.fields["file"]
+        contents.file.seek(0)
+        data = contents.file.read()
+        d = IClient(ctx).create_mutable_file(data)
+        d.addCallback(lambda n: n.get_uri())
+        return d
 
-        req.setResponseCode(http.BAD_REQUEST)
-        req.setHeader("content-type", "text/plain")
-        err = "/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, and POST?t=mkdir"
-        return err
+class UnlinkedPOSTCreateDirectory(rend.Page):
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        assert req.method == "POST"
+
+        # "POST /uri?t=mkdir", to create an unlinked directory.
+        d = IClient(ctx).create_empty_dirnode()
+        redirect = get_arg(req, "redirect_to_result", "false")
+        if boolean_of_arg(redirect):
+            def _then_redir(res):
+                new_url = "uri/" + urllib.quote(res.get_uri())
+                req.setResponseCode(http.SEE_OTHER) # 303
+                req.setHeader('location', new_url)
+                req.finish()
+                return ''
+            d.addCallback(_then_redir)
+        else:
+            d.addCallback(lambda dirnode: dirnode.get_uri())
+        return d
 
 
 class Root(rend.Page):
@@ -1305,11 +1318,33 @@ class Root(rend.Page):
                     if req.method == "PUT":
                         # either "PUT /uri" to create an unlinked file, or
                         # "PUT /uri?t=mkdir" to create an unlinked directory
-                        return URIPUTHandler(), ()
+                        t = get_arg(req, "t", "").strip()
+                        if t == "":
+                            mutable = bool(get_arg(req, "mutable", "").strip())
+                            if mutable:
+                                return UnlinkedPUTSSKUploader(), ()
+                            else:
+                                return UnlinkedPUTCHKUploader(), ()
+                        if t == "mkdir":
+                            return UnlinkedPUTCreateDirectory(), ()
+                        errmsg = "/uri only accepts PUT and PUT?t=mkdir"
+                        return WebError(http.BAD_REQUEST, errmsg), ()
+
                     elif req.method == "POST":
-                        # "POST /uri?t=upload&file=newfile" to upload an unlinked
-                        # file or "POST /uri?t=mkdir" to create a new directory
-                        return URIPOSTHandler(), ()
+                        # "POST /uri?t=upload&file=newfile" to upload an
+                        # unlinked file or "POST /uri?t=mkdir" to create a
+                        # new directory
+                        t = get_arg(req, "t", "").strip()
+                        if t in ("", "upload"):
+                            mutable = bool(get_arg(req, "mutable", "").strip())
+                            if mutable:
+                                return UnlinkedPOSTSSKUploader(), ()
+                            else:
+                                return UnlinkedPOSTCHKUploader(), ()
+                        if t == "mkdir":
+                            return UnlinkedPOSTCreateDirectory(), ()
+                        errmsg = "/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, and POST?t=mkdir"
+                        return WebError(http.BAD_REQUEST, errmsg), ()
                 if len(segments) < 2:
                     return rend.NotFound
                 uri = segments[1]
