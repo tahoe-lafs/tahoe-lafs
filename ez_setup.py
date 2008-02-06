@@ -19,7 +19,7 @@ DEFAULT_DIR     = "misc/dependencies/"
 DEFAULT_URL     = "file:"+DEFAULT_DIR
 
 md5_data = {
-    'setuptools-0.6c7.egg': 'ab87e88b800ad71d5235826b37acdbb1',
+    'setuptools-0.6c7.egg': 'bd04f1074b86a1b35618cb2b96b38ffa',
 }
 
 def _validate_md5(egg_name, data):
