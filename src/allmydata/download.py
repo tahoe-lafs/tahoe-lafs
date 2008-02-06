@@ -159,6 +159,7 @@ class ValidatedBucket:
 
     def _got_data(self, res, blocknum):
         sharehashes, blockhashes, blockdata = res
+        blockhash = None # to make logging it safe
 
         try:
             if not self._share_hash:
@@ -197,7 +198,7 @@ class ValidatedBucket:
                 received from the remote peer were bad.""")
             log.msg(" have self._share_hash: %s" % bool(self._share_hash))
             log.msg(" block length: %d" % len(blockdata))
-            log.msg(" block hash: %s" % idlib.b2a_or_none(blockhash)) # not safe
+            log.msg(" block hash: %s" % idlib.b2a_or_none(blockhash))
             if len(blockdata) < 100:
                 log.msg(" block data: %r" % (blockdata,))
             else:
