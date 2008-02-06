@@ -5,17 +5,10 @@ import sys, struct, time, os
 from twisted.python import usage
 
 class DumpOptions(usage.Options):
-    optParameters = [
-        ["filename", "f", None, "which file to dump"],
-        ]
+    """tahoe dump-share SHARE_FILENAME"""
 
-    def parseArgs(self, filename=None):
-        if filename:
-            self['filename'] = filename
-
-    def postOptions(self):
-        if not self['filename']:
-            raise usage.UsageError("<filename> parameter is required")
+    def parseArgs(self, filename):
+        self['filename'] = filename
 
 def dump_share(config, out=sys.stdout, err=sys.stderr):
     from allmydata import uri, storage
