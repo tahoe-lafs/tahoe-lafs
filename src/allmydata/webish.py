@@ -1229,11 +1229,20 @@ class URIPOSTHandler(rend.Page):
 
         if t in ("", "upload"):
             # "POST /uri", to create an unlinked file.
-            fileobj = req.fields["file"].file
-            uploadable = FileHandle(fileobj)
-            d = IClient(ctx).upload(uploadable)
-            d.addCallback(lambda results: results.uri)
-            # that fires with the URI of the new file
+            mutable = bool(get_arg(req, "mutable", "").strip())
+            if mutable:
+                # SDMF: files are small, and we can only upload data
+                contents = req.fields["file"]
+                contents.file.seek(0)
+                data = contents.file.read()
+                d = IClient(ctx).create_mutable_file(data)
+                d.addCallback(lambda n: n.get_uri())
+            else:
+                fileobj = req.fields["file"].file
+                uploadable = FileHandle(fileobj)
+                d = IClient(ctx).upload(uploadable)
+                d.addCallback(lambda results: results.uri)
+                # that fires with the URI of the new file
             return d
 
         if t == "mkdir":
@@ -1434,6 +1443,7 @@ class Root(rend.Page):
             "Choose a file: ",
             T.input(type="file", name="file", class_="freeform-input-file"),
             T.input(type="hidden", name="t", value="upload"),
+            " Mutable?:", T.input(type="checkbox", name="mutable"),
             T.input(type="submit", value="Upload!"),
             ]]
         return T.div[form]

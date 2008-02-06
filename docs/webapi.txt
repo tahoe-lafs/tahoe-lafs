@@ -180,6 +180,13 @@ f. uploading a file
    directory, but can be used from an HTML form. The response is the file
    write cap.
 
+  POST http://localhost:8123/uri?t=upload&mutable=true
+
+   This action also uploads a file without attaching it to a virtual drive
+   directory, but creates a mutable file (SSK) instead of an immutable one.
+   The response contains the new URI that was created.
+
+
 g. creating a new directory
 
   PUT http://localhost:8123/uri?t=mkdir

@@ -1006,6 +1006,21 @@ class Web(WebMixin, unittest.TestCase):
         return d
     test_POST_upload_no_link_whendone.todo = "Not yet implemented."
 
+    def test_POST_upload_no_link_mutable(self):
+        d = self.POST("/uri", t="upload", mutable="true",
+                      file=("new.txt", self.NEWFILE_CONTENTS))
+        def _check(uri):
+            uri = uri.strip()
+            u = IURI(uri)
+            self.failUnless(IMutableFileURI.providedBy(u))
+            n = self.s.create_node_from_uri(uri)
+            return n.download_to_data()
+        d.addCallback(_check)
+        def _check2(data):
+            self.failUnlessEqual(data, self.NEWFILE_CONTENTS)
+        d.addCallback(_check2)
+        return d
+
     def test_POST_upload_mutable(self):
         # this creates a mutable file
         d = self.POST(self.public_url + "/foo", t="upload", mutable="true",
