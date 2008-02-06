@@ -1381,6 +1381,7 @@ class Root(rend.Page):
                                                  time.localtime(rsc.announcement_time)))
         ctx.fillSlots("version", rsc.version)
         ctx.fillSlots("service_name", rsc.service_name)
+        ctx.fillSlots("nickname", rsc.nickname)
 
         return ctx.tag
 

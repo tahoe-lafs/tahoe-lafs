@@ -93,8 +93,9 @@ class RemoteServiceConnector:
     @ivar last_connect_time: when we last established a connection
     @ivar last_loss_time: when we last lost a connection
 
-    @ivar version: the peer's version, from the most recent connection
+    @ivar version: the peer's version, from the most recent announcement
     @ivar oldest_supported: the peer's oldest supported version, same
+    @ivar nickname: the peer's self-reported nickname, same
 
     @ivar rref: the RemoteReference, if connected, otherwise None
     @ivar remote_host: the IAddress, if connected, otherwise None
@@ -123,6 +124,7 @@ class RemoteServiceConnector:
         self.last_connect_time = None
         self.version = ver
         self.oldest_supported = oldest
+        self.nickname = nickname
 
     def log(self, *args, **kwargs):
         return self._ic.log(*args, **kwargs)

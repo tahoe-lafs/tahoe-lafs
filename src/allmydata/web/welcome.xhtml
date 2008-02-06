@@ -32,6 +32,7 @@ tool</a> may also be useful.</div>
 <table n:render="sequence" n:data="services" border="1">
   <tr n:pattern="header">
     <td>PeerID</td>
+    <td>Nickname</td>
     <td>Connected?</td>
     <td>Since</td>
     <td>Announced</td>
@@ -40,6 +41,7 @@ tool</a> may also be useful.</div>
   </tr>
   <tr n:pattern="item" n:render="service_row">
     <td><tt><n:slot name="peerid"/></tt></td>
+    <td><tt><n:slot name="nickname"/></tt></td>
     <td><tt><n:slot name="connected"/></tt></td>
     <td><tt><n:slot name="since"/></tt></td>
     <td><tt><n:slot name="announced"/></tt></td>
