@@ -12,6 +12,8 @@ from pycryptopp.cipher.aes import AES
 
 MiB = 1024*1024
 
+DATA = "I need help\n" * 1000
+
 class CHKUploadHelper_fake(offloaded.CHKUploadHelper):
     def start_encrypted(self, eu):
         d = eu.get_size()
@@ -19,6 +21,12 @@ class CHKUploadHelper_fake(offloaded.CHKUploadHelper):
             d2 = eu.get_all_encoding_parameters()
             def _got_parms(parms):
                 needed_shares, happy, total_shares, segsize = parms
+                ueb_data = {"needed_shares": needed_shares,
+                            "total_shares": total_shares,
+                            "segment_size": segsize,
+                            "size": size,
+                            }
+                self._results.uri_extension_data = ueb_data
                 return (hashutil.uri_extension_hash(""),
                         needed_shares, total_shares, size)
             d2.addCallback(_got_parms)
@@ -30,6 +38,18 @@ class CHKUploadHelper_already_uploaded(offloaded.CHKUploadHelper):
     def start(self):
         res = upload.UploadResults()
         res.uri_extension_hash = hashutil.uri_extension_hash("")
+
+        # we're pretending that the file they're trying to upload was already
+        # present in the grid. We return some information about the file, so
+        # the client can decide if they like the way it looks. The parameters
+        # used here are chosen to match the defaults.
+        PARAMS = FakeClient.DEFAULT_ENCODING_PARAMETERS
+        ueb_data = {"needed_shares": PARAMS["k"],
+                    "total_shares": PARAMS["n"],
+                    "segment_size": min(PARAMS["max_segment_size"], len(DATA)),
+                    "size": len(DATA),
+                    }
+        res.uri_extension_data = ueb_data
         return (res, None)
 
 class FakeClient(service.MultiService):
@@ -96,7 +116,6 @@ class AssistedUpload(unittest.TestCase):
         def _ready(res):
             assert u._helper
 
-            DATA = "I need help\n" * 1000
             return upload_data(u, DATA)
         d.addCallback(_ready)
         def _uploaded(results):
@@ -116,7 +135,6 @@ class AssistedUpload(unittest.TestCase):
     def test_previous_upload_failed(self):
         self.basedir = "helper/AssistedUpload/test_previous_upload_failed"
         self.setUpHelper(self.basedir)
-        DATA = "I need help\n" * 1000
 
         # we want to make sure that an upload which fails (leaving the
         # ciphertext in the CHK_encoding/ directory) does not prevent a later
@@ -172,7 +190,6 @@ class AssistedUpload(unittest.TestCase):
         def _ready(res):
             assert u._helper
 
-            DATA = "I need help\n" * 1000
             return upload_data(u, DATA)
         d.addCallback(_ready)
         def _uploaded(results):

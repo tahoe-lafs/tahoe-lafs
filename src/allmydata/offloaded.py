@@ -194,7 +194,6 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         (uri_extension_hash, needed_shares, total_shares, size) = res
         r = self._results
         r.uri_extension_hash = uri_extension_hash
-        r.uri_extension_data = self._encoder.get_uri_extension_data()
         f_times = self._fetcher.get_times()
         r.timings["cumulative_fetch"] = f_times["cumulative_fetch"]
         r.ciphertext_fetched = self._fetcher.get_ciphertext_fetched()

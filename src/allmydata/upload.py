@@ -668,6 +668,7 @@ class CHKUploader:
         r.timings["storage_index"] = self._storage_index_elapsed
         r.timings["peer_selection"] = self._peer_selection_elapsed
         r.timings.update(self._encoder.get_times())
+        r.uri_extension_data = self._encoder.get_uri_extension_data()
         return res
 
     def _compute_uri(self, (uri_extension_hash,
