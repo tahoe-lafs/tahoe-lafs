@@ -93,7 +93,7 @@ class CLI(unittest.TestCase):
         self.failUnless("UEB hash: hd7rwri6djiapo6itg5hcxa7ze5im7z9qwcdu8oka6qinahsbiuo" in output)
         self.failUnless("size: 1234" in output)
         self.failUnless("k/N: 25/100" in output)
-        self.failUnless("storage index: p3w849k9whqhw6b9fkf4xjs5xc" in output)
+        self.failUnless("storage index: kckbjgwsckzrj5srjdniw9h3ke" in output)
 
         output = self._dump_cap("--client-secret", "p3w849k9whqhw6b9fkf4xjs5xc",
                                 u.to_string())
@@ -104,7 +104,7 @@ class CLI(unittest.TestCase):
         self.failUnless("UEB hash: hd7rwri6djiapo6itg5hcxa7ze5im7z9qwcdu8oka6qinahsbiuo" in output)
         self.failUnless("size: 1234" in output)
         self.failUnless("k/N: 25/100" in output)
-        self.failUnless("storage index: p3w849k9whqhw6b9fkf4xjs5xc" in output)
+        self.failUnless("storage index: kckbjgwsckzrj5srjdniw9h3ke" in output)
 
         prefixed_u = "http://127.0.0.1/uri/%s" % urllib.quote(u.to_string())
         output = self._dump_cap(prefixed_u)
@@ -113,7 +113,7 @@ class CLI(unittest.TestCase):
         self.failUnless("UEB hash: hd7rwri6djiapo6itg5hcxa7ze5im7z9qwcdu8oka6qinahsbiuo" in output)
         self.failUnless("size: 1234" in output)
         self.failUnless("k/N: 25/100" in output)
-        self.failUnless("storage index: p3w849k9whqhw6b9fkf4xjs5xc" in output)
+        self.failUnless("storage index: kckbjgwsckzrj5srjdniw9h3ke" in output)
 
     def test_dump_cap_lit(self):
         u = uri.LiteralFileURI("this is some data")
