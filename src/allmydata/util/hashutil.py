@@ -66,12 +66,10 @@ def tagged_hasher(tag):
 def storage_index_hash(key):
     # storage index is truncated to 128 bits (16 bytes). We're only hashing a
     # 16-byte value to get it, so there's no point in using a larger value.
-    # TODO: remove the word "CHK" from this tag since we use this same tagged
-    # hash for random-keyed immutable files, mutable files, content-hash-keyed
-    # immutabie files.  Or, define two other tagged hashes, one for each kind.
-    # (Either way is fine -- we can never have collisions of storage indexes
-    # anyway, since we can't have collisions of keys.)
-    return tagged_hash("allmydata_CHK_storage_index_v1", key)[:16]
+    # We use this same tagged hash to go from encryption key to storage index
+    # for random-keyed immutable files and content-hash-keyed immutabie
+    # files. Mutable files use ssk_storage_index_hash().
+    return tagged_hash_256d("allmydata_immutable_storage_index_v2", key, 16)
 
 def block_hash(data):
     return tagged_hash("allmydata_encoded_subshare_v1", data)
@@ -103,10 +101,16 @@ def plaintext_segment_hash(data):
 def plaintext_segment_hasher():
     return tagged_hasher("allmydata_plaintext_segment_v1")
 
-def key_hash(data):
-    return tagged_hash("allmydata_encryption_key_v1", data)
-def key_hasher():
-    return tagged_hasher("allmydata_encryption_key_v1")
+def content_hash_key_hash(k, n, segsize, data):
+    # this is defined to return a 16-byte AES key. We use SHA-256d here..
+    # we'd like to use it everywhere, but we're only switching algorithms
+    # when we can hide the compatibility breaks in other necessary changes.
+    param_tag = netstring("%d,%d,%d" % (k, n, segsize))
+    h = tagged_hash_256d("allmydata_encryption_key_v2+" + param_tag, data, 16)
+    return h
+def content_hash_key_hasher(k, n, segsize):
+    param_tag = netstring("%d,%d,%d" % (k, n, segsize))
+    return tagged_hasher_256d("allmydata_encryption_key_v2+" + param_tag, 16)
 
 KEYLEN = 16
 def random_key():

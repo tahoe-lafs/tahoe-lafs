@@ -443,3 +443,10 @@ class HashUtilTests(unittest.TestCase):
         self.failUnlessEqual(len(h1), 16)
         self.failUnlessEqual(len(h2), 16)
         self.failUnlessEqual(h1, h2)
+
+    def test_chk(self):
+        h1 = hashutil.content_hash_key_hash(3, 10, 1000, "data")
+        h2 = hashutil.content_hash_key_hasher(3, 10, 1000)
+        h2.update("data")
+        h2 = h2.digest()
+        self.failUnlessEqual(h1, h2)

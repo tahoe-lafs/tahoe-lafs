@@ -7,7 +7,7 @@ from foolscap import Tub, eventual
 from foolscap.logging import log
 
 from allmydata import upload, offloaded
-from allmydata.util import hashutil, fileutil, idlib
+from allmydata.util import hashutil, fileutil, idlib, mathutil
 from pycryptopp.cipher.aes import AES
 
 MiB = 1024*1024
@@ -139,8 +139,18 @@ class AssistedUpload(unittest.TestCase):
         # we want to make sure that an upload which fails (leaving the
         # ciphertext in the CHK_encoding/ directory) does not prevent a later
         # attempt to upload that file from working. We simulate this by
-        # populating the directory manually.
-        key = hashutil.key_hash(DATA)[:16]
+        # populating the directory manually. The hardest part is guessing the
+        # storage index.
+
+        k = FakeClient.DEFAULT_ENCODING_PARAMETERS["k"]
+        n = FakeClient.DEFAULT_ENCODING_PARAMETERS["n"]
+        max_segsize = FakeClient.DEFAULT_ENCODING_PARAMETERS["max_segment_size"]
+        segsize = min(max_segsize, len(DATA))
+        # this must be a multiple of 'required_shares'==k
+        segsize = mathutil.next_multiple(segsize, k)
+
+        key = hashutil.content_hash_key_hash(k, n, segsize, DATA)
+        assert len(key) == 16
         encryptor = AES(key)
         SI = hashutil.storage_index_hash(key)
         SI_s = idlib.b2a(SI)

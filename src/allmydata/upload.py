@@ -11,7 +11,7 @@ from foolscap.logging import log
 from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
      bucket_cancel_secret_hash, plaintext_hasher, \
-     storage_index_hash, plaintext_segment_hasher, key_hasher
+     storage_index_hash, plaintext_segment_hasher, content_hash_key_hasher
 from allmydata import encode, storage, hashtree, uri
 from allmydata.util import idlib, mathutil
 from allmydata.util.assertutil import precondition
@@ -945,10 +945,14 @@ class FileHandle(BaseUploadable):
         self._contenthashkey = contenthashkey
 
     def _get_encryption_key_content_hash(self):
-        if self._key is None:
+        if self._key is not None:
+            return defer.succeed(self._key)
+
+        d = self.get_all_encoding_parameters()
+        def _got(params):
+            k, happy, n, segsize = params
             f = self._filehandle
-            enckey_hasher = key_hasher()
-            #enckey_hasher.update(encoding_parameters) # TODO
+            enckey_hasher = content_hash_key_hasher(k, n, segsize)
             f.seek(0)
             BLOCKSIZE = 64*1024
             while True:
@@ -957,9 +961,11 @@ class FileHandle(BaseUploadable):
                     break
                 enckey_hasher.update(data)
             f.seek(0)
-            self._key = enckey_hasher.digest()[:16]
-
-        return defer.succeed(self._key)
+            self._key = enckey_hasher.digest()
+            assert len(self._key) == 16
+            return self._key
+        d.addCallback(_got)
+        return d
 
     def _get_encryption_key_random(self):
         if self._key is None:
