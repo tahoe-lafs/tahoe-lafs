@@ -669,3 +669,6 @@ class Encoder(object):
     def get_times(self):
         # return a dictionary of encode+push timings
         return self._times
+
+    def get_uri_extension_data(self):
+        return self.uri_extension_data

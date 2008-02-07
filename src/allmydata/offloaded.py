@@ -194,6 +194,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         (uri_extension_hash, needed_shares, total_shares, size) = res
         r = self._results
         r.uri_extension_hash = uri_extension_hash
+        r.uri_extension_data = self._encoder.get_uri_extension_data()
         f_times = self._fetcher.get_times()
         r.timings["cumulative_fetch"] = f_times["cumulative_fetch"]
         r.ciphertext_fetched = self._fetcher.get_ciphertext_fetched()
@@ -529,6 +530,12 @@ class Helper(Referenceable, service.MultiService):
                 (sharemap, ueb_data, ueb_hash) = res
                 self.log("found file in grid", level=log.NOISY, parent=lp)
                 results.uri_extension_hash = ueb_hash
+                results.sharemap = {}
+                for shnum, peerids in sharemap.items():
+                    peers_s = ",".join(["[%s]" % idlib.shortnodeid_b2a(peerid)
+                                        for peerid in peerids])
+                    results.sharemap[shnum] = "Found on " + peers_s
+                results.uri_extension_data = ueb_data
                 return True
             return False
         d.addCallback(_checked)

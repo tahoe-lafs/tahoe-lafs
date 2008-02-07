@@ -842,6 +842,7 @@ class AssistedUploader:
         # stash these for URI generation later
         self._needed_shares = k
         self._total_shares = n
+        self._segment_size = segment_size
 
     def _got_encryption_key(self, key):
         self._key = key
@@ -896,6 +897,10 @@ class AssistedUploader:
     def _build_readcap(self, upload_results):
         self.log("upload finished, building readcap")
         r = upload_results
+        assert r.uri_extension_data["needed_shares"] == self._needed_shares
+        assert r.uri_extension_data["total_shares"] == self._total_shares
+        assert r.uri_extension_data["segment_size"] == self._segment_size
+        assert r.uri_extension_data["size"] == self._size
         u = uri.CHKFileURI(key=self._key,
                            uri_extension_hash=r.uri_extension_hash,
                            needed_shares=self._needed_shares,
