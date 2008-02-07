@@ -8,6 +8,8 @@ from cStringIO import StringIO
 from allmydata import upload, encode, uri
 from allmydata.interfaces import IFileURI
 from allmydata.util.assertutil import precondition
+from allmydata.util.deferredutil import DeferredListShouldSucceed
+from allmydata.util import idlib
 from foolscap import eventual
 
 MiB = 1024*1024
@@ -438,6 +440,44 @@ class PeerSelection(unittest.TestCase):
             histogram = [counts.get(i, 0) for i in range(5)]
             self.failUnlessEqual(histogram, [0,0,0,2,1])
         d.addCallback(_check)
+        return d
+
+class StorageIndex(unittest.TestCase):
+    def test_params_must_matter(self):
+        DATA = "I am some data"
+        u = upload.Data(DATA)
+        eu = upload.EncryptAnUploadable(u)
+        d1 = eu.get_storage_index()
+
+        # CHK means the same data should encrypt the same way
+        u = upload.Data(DATA)
+        eu = upload.EncryptAnUploadable(u)
+        d1a = eu.get_storage_index()
+
+        # but if we change the encoding parameters, it should be different
+        u = upload.Data(DATA)
+        u.encoding_param_k = u.default_encoding_param_k + 1
+        eu = upload.EncryptAnUploadable(u)
+        d2 = eu.get_storage_index()
+
+        # and if we use a random key, it should be different than the CHK
+        u = upload.Data(DATA, contenthashkey=False)
+        eu = upload.EncryptAnUploadable(u)
+        d3 = eu.get_storage_index()
+        # and different from another instance
+        u = upload.Data(DATA, contenthashkey=False)
+        eu = upload.EncryptAnUploadable(u)
+        d4 = eu.get_storage_index()
+
+        d = DeferredListShouldSucceed([d1,d1a,d2,d3,d4])
+        def _done(res):
+            si1, si1a, si2, si3, si4 = res
+            self.failUnlessEqual(si1, si1a)
+            self.failIfEqual(si1, si2)
+            self.failIfEqual(si1, si3)
+            self.failIfEqual(si1, si4)
+            self.failIfEqual(si3, si4)
+        d.addCallback(_done)
         return d
 
 
