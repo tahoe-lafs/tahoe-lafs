@@ -1085,6 +1085,9 @@ class IEncryptedUploadable(Interface):
         segment_size is larger than filesize, the difference must be stored
         as padding).
 
+        This usually passes through to the IUploadable method of the same
+        name.
+
         The encoder strictly obeys the values returned by this method. To
         make an upload use non-default encoding parameters, you must arrange
         to control the values that this method returns.
@@ -1132,34 +1135,46 @@ class IEncryptedUploadable(Interface):
         """Just like IUploadable.close()."""
 
 class IUploadable(Interface):
+    def set_default_encoding_parameters(params):
+        """Set the default encoding parameters, which must be a dict mapping
+        strings to ints. The meaningful keys are 'k', 'happy', 'n', and
+        'max_segment_size'. These might have an influence on the final
+        encoding parameters returned by get_all_encoding_parameters(), if the
+        Uploadable doesn't have more specific preferences.
+
+        This call is optional: if it is not used, the Uploadable will use
+        some built-in defaults. If used, this method must be called before
+        any other IUploadable methods to have any effect.
+        """
+
     def get_size():
         """Return a Deferred that will fire with the length of the data to be
         uploaded, in bytes. This will be called before the data is actually
         used, to compute encoding parameters.
         """
 
-    def get_maximum_segment_size():
-        """Return a Deferred that fires with None or an integer. None
-        indicates that the Uploadable doesn't care about segment size, and
-        the IEncryptedUploadable wrapper will use a default of probably 1MB.
-        If provided, the integer will be used as the maximum segment size.
-        Larger values reduce hash overhead, smaller values reduce memory
-        footprint and cause data to be delivered in smaller pieces (which may
-        provide a smoother and more predictable download experience).
+    def get_all_encoding_parameters():
+        """Return a Deferred that fires with a tuple of
+        (k,happy,n,segment_size). The segment_size will be used as-is, and
+        must match the following constraints: it must be a multiple of k, and
+        it shouldn't be unreasonably larger than the file size (if
+        segment_size is larger than filesize, the difference must be stored
+        as padding).
 
-        There are other constraints on the segment size (see
-        IEncryptedUploadable.get_encoding_parameters), so the final segment
-        size may be smaller than the one returned by this method.
-        """
+        The relative values of k and n allow some IUploadables to request
+        better redundancy than others (in exchange for consuming more space
+        in the grid).
 
-    def get_encoding_parameters():
-        """Return a Deferred that either fires with None or with a tuple of
-        (k,happy,n). None indicates that the Uploadable doesn't care how it
-        is encoded, causing the Uploader to use default k/happy/n (either
-        hard-coded or provided by the Introducer).
+        Larger values of segment_size reduce hash overhead, while smaller
+        values reduce memory footprint and cause data to be delivered in
+        smaller pieces (which may provide a smoother and more predictable
+        download experience).
 
-        This allows some IUploadables to request better redundancy than
-        others.
+        The encoder strictly obeys the values returned by this method. To
+        make an upload use non-default encoding parameters, you must arrange
+        to control the values that this method returns. One way to influence
+        them may be to call set_encoding_parameters() before calling
+        get_all_encoding_parameters().
         """
 
     def get_encryption_key():

@@ -166,9 +166,11 @@ class Encode(unittest.TestCase):
         # force use of multiple segments
         e = encode.Encoder()
         u = upload.Data(data)
-        params = {"k": 25, "happy": 75, "n": 100,
-                  "max_segment_size": max_segment_size}
-        eu = upload.EncryptAnUploadable(u, params)
+        u.max_segment_size = max_segment_size
+        u.encoding_param_k = 25
+        u.encoding_param_happy = 75
+        u.encoding_param_n = 100
+        eu = upload.EncryptAnUploadable(u)
         d = e.set_encrypted_uploadable(eu)
 
         all_shareholders = []
@@ -300,9 +302,11 @@ class Roundtrip(unittest.TestCase):
         e = encode.Encoder()
         u = upload.Data(data)
         # force use of multiple segments by using a low max_segment_size
-        params = {"k": k, "happy": happy, "n": n,
-                  "max_segment_size": max_segment_size}
-        eu = upload.EncryptAnUploadable(u, params)
+        u.max_segment_size = max_segment_size
+        u.encoding_param_k = k
+        u.encoding_param_happy = happy
+        u.encoding_param_n = n
+        eu = upload.EncryptAnUploadable(u)
         d = e.set_encrypted_uploadable(eu)
 
         shareholders = {}
