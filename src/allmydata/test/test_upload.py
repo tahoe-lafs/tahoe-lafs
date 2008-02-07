@@ -9,7 +9,6 @@ from allmydata import upload, encode, uri
 from allmydata.interfaces import IFileURI
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
-from allmydata.util import idlib
 from foolscap import eventual
 
 MiB = 1024*1024
