@@ -6,7 +6,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import failure
 
-from allmydata.util import bencode, idlib, humanreadable, mathutil
+from allmydata.util import bencode, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, testutil, deferredutil
 
 
@@ -427,3 +427,19 @@ class DeferredUtilTests(unittest.TestCase):
         self.failUnless(isinstance(f, failure.Failure))
         self.failUnless(f.check(RuntimeError))
 
+class HashUtilTests(unittest.TestCase):
+    def test_sha256d(self):
+        h1 = hashutil.tagged_hash_256d("tag1", "value")
+        h2 = hashutil.tagged_hasher_256d("tag1")
+        h2.update("value")
+        h2 = h2.digest()
+        self.failUnlessEqual(h1, h2)
+
+    def test_sha256d_truncated(self):
+        h1 = hashutil.tagged_hash_256d("tag1", "value", 16)
+        h2 = hashutil.tagged_hasher_256d("tag1", 16)
+        h2.update("value")
+        h2 = h2.digest()
+        self.failUnlessEqual(len(h1), 16)
+        self.failUnlessEqual(len(h2), 16)
+        self.failUnlessEqual(h1, h2)

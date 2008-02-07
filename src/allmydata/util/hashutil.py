@@ -20,6 +20,37 @@ def tagged_hash(tag, val):
     s.update(val)
     return s.digest()
 
+def tagged_hash_256d(tag, val, truncate_to=None):
+    # use SHA-256d, as defined by Ferguson and Schneier: hash the output
+    # again to prevent length-extension attacks
+    s = SHA256()
+    s.update(netstring(tag))
+    s.update(val)
+    h = s.digest()
+    h2 = SHA256(h).digest()
+    if truncate_to:
+        h2 = h2[:truncate_to]
+    return h2
+
+class SHA256d_Hasher:
+    def __init__(self, truncate_to=None):
+        self.h = SHA256()
+        self.truncate_to = truncate_to
+    def update(self, data):
+        self.h.update(data)
+    def digest(self):
+        h1 = self.h.digest()
+        del self.h
+        h2 = SHA256(h1).digest()
+        if self.truncate_to:
+            h2 = h2[:self.truncate_to]
+        return h2
+
+def tagged_hasher_256d(tag, truncate_to=None):
+    hasher = SHA256d_Hasher(truncate_to)
+    hasher.update(netstring(tag))
+    return hasher
+
 def tagged_pair_hash(tag, val1, val2):
     s = SHA256()
     s.update(netstring(tag))
