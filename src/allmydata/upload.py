@@ -329,7 +329,7 @@ class EncryptAnUploadable:
     """This is a wrapper that takes an IUploadable and provides
     IEncryptedUploadable."""
     implements(IEncryptedUploadable)
-    CHUNKSIZE = 50*1000
+    CHUNKSIZE = 50*1024
 
     def __init__(self, original):
         self.original = IUploadable(original)
