@@ -200,13 +200,36 @@ g. creating a new directory
 
   PUT http://localhost:8123/uri?t=mkdir
 
-  in: (nothing)
-  out: directory write cap
+   in: (nothing)
+   out: directory write cap
 
-  Create a new empty directory and return its URI as the HTTP response body.
-  This does not make the newly created directory visible from the virtual
-  drive, but you can use section 1.h. to attach it, or the convenience method
-  in section 2.XXX.
+   Create a new empty directory and return its URI as the HTTP response body.
+   This does not make the newly created directory visible from the virtual
+   drive, but you can use section 1.h. to attach it, or the convenience method
+   in section 2.XXX.
+
+ POST http://localhost:8123/uri?t=mkdir
+
+   in: (nothing)
+   out: directory write cap
+
+   Just like the equivalent PUT form, but this can be called from an HTML
+   form.
+
+ POST http://localhost:8123/uri?t=mkdir&redirect_to_result=true
+
+   in: (nothing)
+   out: redirects to the /uri/$NEWDIRURI page
+
+   This also creates an unlinked directory, but instead of returning the URI
+   as a string, this form will return an HTTP Redirect that takes you to the
+   new directory's HTML page, just as if you had directed your browser to
+   /uri/$NEWDIRURI . If you bookmark this page, you'll be able to get back to
+   the directory again in the future.
+
+   This method is the recommended way to create a new root directory. There
+   is a "Create Directory" button on the Welcome page to invoke this action.
+
 
 h. attaching a file or directory as the child of an extant directory
 
