@@ -707,8 +707,6 @@ class RemoteEncryptedUploadable(Referenceable):
         self._eu = IEncryptedUploadable(encrypted_uploadable)
         self._offset = 0
         self._bytes_sent = 0
-        self._cutoff = None # set by debug options
-        self._cutoff_cb = None
 
     def remote_get_size(self):
         return self._eu.get_size()
@@ -745,9 +743,6 @@ class RemoteEncryptedUploadable(Referenceable):
 
         def _at_correct_offset(res):
             assert offset == self._offset, "%d != %d" % (offset, self._offset)
-            if self._cutoff is not None and offset+length > self._cutoff:
-                self._cutoff_cb()
-
             return self._read_encrypted(length, hash_only=False)
         d.addCallback(_at_correct_offset)
 
@@ -836,19 +831,6 @@ class AssistedUploader:
             self.log("helper says we need to upload")
             # we need to upload the file
             reu = RemoteEncryptedUploadable(self._encuploadable)
-
-            # we have unit tests which want to interrupt the upload so they
-            # can exercise resumability. They indicate this by adding debug_
-            # attributes to the Uploadable.
-            if hasattr(self._encuploadable.original, "debug_interrupt"):
-                reu._cutoff = self._encuploadable.original.debug_interrupt
-                def _cutoff():
-                    # simulate the loss of the connection to the helper
-                    self.log("debug_interrupt killing connection to helper",
-                             level=log.WEIRD)
-                    upload_helper.tracker.broker.transport.loseConnection()
-                    return
-                reu._cutoff_cb = _cutoff
             d = upload_helper.callRemote("upload", reu)
             # this Deferred will fire with the upload results
             return d

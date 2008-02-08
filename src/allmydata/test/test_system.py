@@ -34,8 +34,15 @@ enough to not fit inside a LIT uri.
 
 class CountingDataUploadable(upload.Data):
     bytes_read = 0
+    interrupt_after = None
+    interrupt_after_d = None
+
     def read(self, length):
         self.bytes_read += length
+        if self.interrupt_after is not None:
+            if self.bytes_read > self.interrupt_after:
+                self.interrupt_after = None
+                self.interrupt_after_d.callback(self)
         return upload.Data.read(self, length)
 
 
@@ -115,6 +122,17 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             port = l._port.getHost().port
             self.webish_url = "http://localhost:%d/" % port
         d.addCallback(_connected)
+        return d
+
+    def bounce_client(self, num):
+        c = self.clients[num]
+        d = c.disownServiceParent()
+        def _stopped(res):
+            new_c = client.Client(basedir=self.getdir("client%d" % num))
+            self.clients[num] = new_c
+            self.add_service(new_c)
+            return new_c.when_tub_ready()
+        d.addCallback(_stopped)
         return d
 
     def add_extra_node(self, client_num, helper_furl=None,
@@ -335,8 +353,12 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             u1 = CountingDataUploadable(DATA, contenthashkey=contenthashkey)
             u2 = CountingDataUploadable(DATA, contenthashkey=contenthashkey)
 
-            # tell the upload to drop the connection after about 5kB
-            u1.debug_interrupt = 5000
+            # we interrupt the connection after about 5kB by shutting down
+            # the helper, then restartingit.
+            u1.interrupt_after = 5000
+            u1.interrupt_after_d = defer.Deferred()
+            u1.interrupt_after_d.addCallback(lambda res:
+                                             self.bounce_client(0))
 
             # sneak into the helper and reduce its chunk size, so that our
             # debug_interrupt will sever the connection on about the fifth
@@ -372,7 +394,8 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                 # could use fireEventually() to stall. Since we don't have
                 # the right introduction hooks, the best we can do is use a
                 # fixed delay. TODO: this is fragile.
-                return self.stall(None, 2.0)
+                u1.interrupt_after_d.addCallback(self.stall, 2.0)
+                return u1.interrupt_after_d
             d.addCallbacks(_should_not_finish, _interrupted)
 
             def _disconnected(res):
