@@ -223,10 +223,10 @@ unavailable, but not corrupt it.
 
 A sufficient number of colluding storage servers can perform a rollback
 attack: replace all shares of the whole mutable file with an earlier version.
-When retrieving the contents of a mutable file, the client queries more than
-one server and uses the highest available version number. This insures that
-one or two misbehaving storage servers cannot cause this rollback on their
-own.
+TODO: To prevent this, when retrieving the contents of a mutable file, the
+client should query more servers than necessary and use the highest available
+version number. This insures that one or two misbehaving storage servers
+cannot cause this rollback on their own.
 
 
 === Improving the efficiency of dirnodes ===
