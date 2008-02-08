@@ -1023,6 +1023,9 @@ class Uploader(service.MultiService):
 
     def _got_helper(self, helper):
         self._helper = helper
+        helper.notifyOnDisconnect(self._lost_helper)
+    def _lost_helper(self):
+        self._helper = None
 
     def get_helper_info(self):
         # return a tuple of (helper_furl_or_None, connected_bool)
