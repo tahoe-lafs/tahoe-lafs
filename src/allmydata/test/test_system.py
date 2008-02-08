@@ -32,6 +32,13 @@ This is some data to publish to the virtual drive, which needs to be large
 enough to not fit inside a LIT uri.
 """
 
+class CountingDataUploadable(upload.Data):
+    bytes_read = 0
+    def read(self, length):
+        self.bytes_read += length
+        return upload.Data.read(self, length)
+
+
 class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
 
     def setUp(self):
@@ -325,13 +332,12 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
 
         def _upload_resumable(res):
             DATA = "Data that needs help to upload and gets interrupted" * 1000
-            u1 = upload.Data(DATA, contenthashkey=contenthashkey)
-            u2 = upload.Data(DATA, contenthashkey=contenthashkey)
+            u1 = CountingDataUploadable(DATA, contenthashkey=contenthashkey)
+            u2 = CountingDataUploadable(DATA, contenthashkey=contenthashkey)
 
             # tell the upload to drop the connection after about 5kB
             u1.debug_interrupt = 5000
-            u1.debug_stash_RemoteEncryptedUploadable = True
-            u2.debug_stash_RemoteEncryptedUploadable = True
+
             # sneak into the helper and reduce its chunk size, so that our
             # debug_interrupt will sever the connection on about the fifth
             # chunk fetched. This makes sure that we've started to write the
@@ -348,12 +354,13 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                           " with result %s" % (res,))
             def _interrupted(f):
                 f.trap(ConnectionLost, ConnectionDone, DeadReferenceError)
-                reu = u1.debug_RemoteEncryptedUploadable
+
                 # make sure we actually interrupted it before finishing the
                 # file
-                self.failUnless(reu._bytes_sent < len(DATA),
-                                "read %d out of %d total" % (reu._bytes_sent,
+                self.failUnless(u1.bytes_read < len(DATA),
+                                "read %d out of %d total" % (u1.bytes_read,
                                                              len(DATA)))
+
                 log.msg("waiting for reconnect", level=log.NOISY,
                         facility="tahoe.test.test_system")
                 # now, we need to give the nodes a chance to notice that this
@@ -397,7 +404,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                 uri = results.uri
                 log.msg("Second upload complete", level=log.NOISY,
                         facility="tahoe.test.test_system")
-                reu = u2.debug_RemoteEncryptedUploadable
+
+                # this is really bytes received rather than sent, but it's
+                # convenient and basically measures the same thing
+                bytes_sent = results.ciphertext_fetched
 
                 # We currently don't support resumption of upload if the data is
                 # encrypted with a random key.  (Because that would require us
@@ -407,18 +417,18 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                 if contenthashkey:
                     # Make sure we did not have to read the whole file the
                     # second time around .
-                    self.failUnless(reu._bytes_sent < len(DATA),
+                    self.failUnless(bytes_sent < len(DATA),
                                 "resumption didn't save us any work:"
                                 " read %d bytes out of %d total" %
-                                (reu._bytes_sent, len(DATA)))
+                                (bytes_sent, len(DATA)))
                 else:
                     # Make sure we did have to read the whole file the second
                     # time around -- because the one that we partially uploaded
                     # earlier was encrypted with a different random key.
-                    self.failIf(reu._bytes_sent < len(DATA),
+                    self.failIf(bytes_sent < len(DATA),
                                 "resumption saved us some work even though we were using random keys:"
                                 " read %d bytes out of %d total" %
-                                (reu._bytes_sent, len(DATA)))
+                                (bytes_sent, len(DATA)))
                 return self.downloader.download_to_data(uri)
             d.addCallback(_uploaded)
 

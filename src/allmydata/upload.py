@@ -840,16 +840,6 @@ class AssistedUploader:
             # we have unit tests which want to interrupt the upload so they
             # can exercise resumability. They indicate this by adding debug_
             # attributes to the Uploadable.
-            if hasattr(self._encuploadable.original,
-                       "debug_stash_RemoteEncryptedUploadable"):
-                # we communicate back to them the same way. This may look
-                # weird, but, well, ok, it is. However, it is better than the
-                # barrage of options={} dictionaries that were flying around
-                # before. We could also do this by setting attributes on the
-                # class, but that doesn't make it easy to undo when we're
-                # done. TODO: find a cleaner way, maybe just a small options=
-                # dict somewhere.
-                self._encuploadable.original.debug_RemoteEncryptedUploadable = reu
             if hasattr(self._encuploadable.original, "debug_interrupt"):
                 reu._cutoff = self._encuploadable.original.debug_interrupt
                 def _cutoff():
