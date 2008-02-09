@@ -1,4 +1,5 @@
 
+import time
 from zope.interface import implements
 from twisted.trial import unittest
 from allmydata import uri, dirnode, upload
@@ -81,7 +82,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.client.create_empty_dirnode()
         def _created(dn):
             u = make_mutable_file_uri()
-            d = dn.set_uri("child", u)
+            d = dn.set_uri("child", u, {})
             d.addCallback(lambda res: dn.list())
             def _check1(children):
                 self.failUnless("child" in children)
@@ -180,7 +181,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
             ffu_v = m.get_verifier()
             assert isinstance(ffu_v, str)
             self.expected_manifest.append(ffu_v)
-            d.addCallback(lambda res: n.set_uri("child", fake_file_uri))
+            d.addCallback(lambda res: n.set_uri("child", fake_file_uri, {}))
 
             d.addCallback(lambda res: n.create_empty_directory("subdir"))
             def _created(subdir):
@@ -215,6 +216,34 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
 
             d.addCallback(lambda res: n.get_metadata_for("child"))
             d.addCallback(lambda metadata: self.failUnlessEqual(metadata, {}))
+
+            d.addCallback(lambda res:
+                          n.set_metadata_for("child",
+                                             {"tags": "web2.0-compatible"}))
+            d.addCallback(lambda n1: n1.get_metadata_for("child"))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(metadata,
+                                               {"tags": "web2.0-compatible"}))
+
+            def _start(res):
+                self._start_timestamp = time.time()
+            d.addCallback(_start)
+            d.addCallback(lambda res: n.add_file("timestamps",
+                                                 upload.Data("stamp me")))
+            def _stop(res):
+                self._stop_timestamp = time.time()
+            d.addCallback(_stop)
+
+            d.addCallback(lambda res: n.get_metadata_for("timestamps"))
+            def _check_timestamp(metadata):
+                self.failUnless("ctime" in metadata)
+                self.failUnless("mtime" in metadata)
+                self.failUnless(metadata["ctime"] >= self._start_timestamp)
+                self.failUnless(metadata["ctime"] <= self._stop_timestamp)
+                self.failUnless(metadata["mtime"] >= self._start_timestamp)
+                self.failUnless(metadata["mtime"] <= self._stop_timestamp)
+                return n.delete("timestamps")
+            d.addCallback(_check_timestamp)
 
             d.addCallback(lambda res: n.delete("subdir"))
             d.addCallback(lambda old_child:

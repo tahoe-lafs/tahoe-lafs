@@ -619,6 +619,19 @@ class IDirectoryNode(IMutableFilesystemNode):
         """I return a Deferred that fires with a specific named child node,
         either an IFileNode or an IDirectoryNode."""
 
+    def get_metadata_for(name):
+        """I return a Deferred that fires with the metadata dictionary for a
+        specific named child node. This metadata is stored in the *edge*, not
+        in the child, so it is attached to the parent dirnode rather than the
+        child dir-or-file-node."""
+
+    def set_metadata_for(name, metadata):
+        """I replace any existing metadata for the named child with the new
+        metadata. This metadata is stored in the *edge*, not in the child, so
+        it is attached to the parent dirnode rather than the child
+        dir-or-file-node. I return a Deferred (that fires with this dirnode)
+        when the operation is complete."""
+
     def get_child_at_path(path):
         """Transform a child path into an IDirectoryNode or IFileNode.
 
@@ -630,7 +643,7 @@ class IDirectoryNode(IMutableFilesystemNode):
         path-name elements.
         """
 
-    def set_uri(name, child_uri):
+    def set_uri(name, child_uri, metadata=None):
         """I add a child (by URI) at the specific name. I return a Deferred
         that fires when the operation finishes. I will replace any existing
         child of the same name.
@@ -638,37 +651,53 @@ class IDirectoryNode(IMutableFilesystemNode):
         The child_uri could be for a file, or for a directory (either
         read-write or read-only, using a URI that came from get_uri() ).
 
+        If metadata= is provided, I will use it as the metadata for the named
+        edge. This will replace any existing metadata. If metadata= is left
+        as the default value of None, I will set ['mtime'] to the current
+        time, and I will set ['ctime'] to the current time if there was not
+        already a child by this name present. This roughly matches the
+        ctime/mtime semantics of traditional filesystems.
+
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
 
     def set_uris(entries):
-        """Add multiple (name, child_uri) pairs to a directory node. Returns
-        a Deferred that fires (with None) when the operation finishes. This
-        is equivalent to calling set_uri() multiple times, but is much more
-        efficient.
+        """Add multiple (name, child_uri) pairs (or (name, child_uri,
+        metadata) triples) to a directory node. Returns a Deferred that fires
+        (with None) when the operation finishes. This is equivalent to
+        calling set_uri() multiple times, but is much more efficient.
         """
 
-    def set_node(name, child):
+    def set_node(name, child, metadata=None):
         """I add a child at the specific name. I return a Deferred that fires
         when the operation finishes. This Deferred will fire with the child
         node that was just added. I will replace any existing child of the
         same name.
 
+        If metadata= is provided, I will use it as the metadata for the named
+        edge. This will replace any existing metadata. If metadata= is left
+        as the default value of None, I will set ['mtime'] to the current
+        time, and I will set ['ctime'] to the current time if there was not
+        already a child by this name present. This roughly matches the
+        ctime/mtime semantics of traditional filesystems.
+
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
 
     def set_nodes(entries):
-        """Add multiple (name, child_node) pairs to a directory node. Returns
-        a Deferred that fires (with None) when the operation finishes. This
-        is equivalent to calling set_node() multiple times, but is much more
-        efficient."""
+        """Add multiple (name, child_node) pairs (or (name, child_node,
+        metadata) triples) to a directory node. Returns a Deferred that fires
+        (with None) when the operation finishes. This is equivalent to
+        calling set_node() multiple times, but is much more efficient."""
 
 
-    def add_file(name, uploadable):
+    def add_file(name, uploadable, metadata=None):
         """I upload a file (using the given IUploadable), then attach the
-        resulting FileNode to the directory at the given name. I return a
-        Deferred that fires (with the IFileNode of the uploaded file) when
-        the operation completes."""
+        resulting FileNode to the directory at the given name. I set metadata
+        the same way as set_uri and set_node.
+
+        I return a Deferred that fires (with the IFileNode of the uploaded
+        file) when the operation completes."""
 
     def delete(name):
         """I remove the child at the specific name. I return a Deferred that
@@ -681,8 +710,9 @@ class IDirectoryNode(IMutableFilesystemNode):
     def move_child_to(current_child_name, new_parent, new_child_name=None):
         """I take one of my children and move them to a new parent. The child
         is referenced by name. On the new parent, the child will live under
-        'new_child_name', which defaults to 'current_child_name'. I return a
-        Deferred that fires when the operation finishes."""
+        'new_child_name', which defaults to 'current_child_name'. TODO: what
+        should we do about metadata? I return a Deferred that fires when the
+        operation finishes."""
 
     def build_manifest():
         """Return a frozenset of verifier-capability strings for all nodes

@@ -1,5 +1,5 @@
 
-import os
+import os, time
 
 from zope.interface import implements
 from twisted.internet import defer
@@ -190,6 +190,19 @@ class NewDirectoryNode:
         d.addCallback(lambda children: children[name][1])
         return d
 
+    def set_metadata_for(self, name, metadata):
+        if self.is_readonly():
+            return defer.fail(NotMutableError())
+        assert isinstance(metadata, dict)
+        d = self._read()
+        def _update(children):
+            children[name] = (children[name][0], metadata)
+            new_contents = self._pack_contents(children)
+            return self._node.replace(new_contents)
+        d.addCallback(_update)
+        d.addCallback(lambda res: self)
+        return d
+
     def get_child_at_path(self, path):
         """Transform a child path into an IDirectoryNode or IFileNode.
 
@@ -214,7 +227,7 @@ class NewDirectoryNode:
             d.addCallback(_got)
         return d
 
-    def set_uri(self, name, child_uri, metadata={}):
+    def set_uri(self, name, child_uri, metadata=None):
         """I add a child (by URI) at the specific name. I return a Deferred
         that fires with the child node when the operation finishes. I will
         replace any existing child of the same name.
@@ -231,14 +244,14 @@ class NewDirectoryNode:
         for e in entries:
             if len(e) == 2:
                 name, child_uri = e
-                metadata = {}
+                metadata = None
             else:
                 assert len(e) == 3
                 name, child_uri, metadata = e
             node_entries.append( (name,self._create_node(child_uri),metadata) )
         return self.set_nodes(node_entries)
 
-    def set_node(self, name, child, metadata={}):
+    def set_node(self, name, child, metadata=None):
         """I add a child at the specific name. I return a Deferred that fires
         when the operation finishes. This Deferred will fire with the child
         node that was just added. I will replace any existing child of the
@@ -256,13 +269,27 @@ class NewDirectoryNode:
             return defer.fail(NotMutableError())
         d = self._read()
         def _add(children):
+            now = time.time()
             for e in entries:
                 if len(e) == 2:
                     name, child = e
-                    metadata = {}
+                    new_metadata = None
                 else:
                     assert len(e) == 3
-                    name, child, metadata = e
+                    name, child, new_metadata = e
+                if name in children:
+                    metadata = children[name][1].copy()
+                else:
+                    metadata = {"ctime": now,
+                                "mtime": now}
+                if new_metadata is None:
+                    # update timestamps
+                    if "ctime" not in metadata:
+                        metadata["ctime"] = now
+                    metadata["mtime"] = now
+                else:
+                    # just replace it
+                    metadata = new_metadata.copy()
                 children[name] = (child, metadata)
             new_contents = self._pack_contents(children)
             return self._node.replace(new_contents)
