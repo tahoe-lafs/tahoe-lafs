@@ -127,12 +127,25 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
     def bounce_client(self, num):
         c = self.clients[num]
         d = c.disownServiceParent()
+        # I think windows requires a moment to let the connection really stop
+        # and the port number made available for re-use. TODO: examine the
+        # behavior, see if this is really the problem, see if we can do
+        # better than blindly waiting for a second.
+        d.addCallback(self.stall, 1.0)
         def _stopped(res):
             new_c = client.Client(basedir=self.getdir("client%d" % num))
             self.clients[num] = new_c
             self.add_service(new_c)
             return new_c.when_tub_ready()
         d.addCallback(_stopped)
+        d.addCallback(lambda res: self.wait_for_connections())
+        def _maybe_get_webport(res):
+            if num == 0:
+                # now find out where the web port was
+                l = self.clients[0].getServiceNamed("webish").listener
+                port = l._port.getHost().port
+                self.webish_url = "http://localhost:%d/" % port
+        d.addCallback(_maybe_get_webport)
         return d
 
     def add_extra_node(self, client_num, helper_furl=None,
@@ -791,7 +804,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         # R/subdir1/subdir2/
         # R/subdir1/subdir2/mydata992
 
-        d.addCallback(self._bounce_client0)
+        d.addCallback(lambda res: self.bounce_client(0))
         d.addCallback(self.log, "bounced client0")
 
         d.addCallback(self._check_publish1)
@@ -843,32 +856,6 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         ut = upload.Data(self.data)
         d = self._subdir1_node.create_empty_directory("subdir2")
         d.addCallback(lambda subdir2: subdir2.add_file("mydata992", ut))
-        return d
-
-    def _bounce_client0(self, res):
-        old_client0 = self.clients[0]
-        d = old_client0.disownServiceParent()
-        assert isinstance(d, defer.Deferred)
-        d.addCallback(self.log, "STOPPED")
-        # I think windows requires a moment to let the connection really stop
-        # and the port number made available for re-use. TODO: examine the
-        # behavior, see if this is really the problem, see if we can do
-        # better than blindly waiting for a second.
-        d.addCallback(self.stall, 1.0)
-        def _stopped(res):
-            new_client0 = client.Client(basedir=self.getdir("client0"))
-            self.add_service(new_client0)
-            self.clients[0] = new_client0
-            return self.wait_for_connections()
-        d.addCallback(_stopped)
-        d.addCallback(self.log, "CONNECTED")
-        def _connected(res):
-            # now find out where the web port was
-            l = self.clients[0].getServiceNamed("webish").listener
-            port = l._port.getHost().port
-            self.webish_url = "http://localhost:%d/" % port
-        d.addCallback(_connected)
-        d.addCallback(self.log, "GOT WEB LISTENER")
         return d
 
     def log(self, res, msg, **kwargs):
