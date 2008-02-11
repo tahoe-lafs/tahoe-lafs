@@ -8,6 +8,7 @@ from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
 from allmydata.util import hashutil, testutil
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
      NonGridDirectoryNode, create_chk_filenode
+from twisted.internet import defer, reactor
 
 # to test dirnode.py, we want to construct a tree of real DirectoryNodes that
 # contain pointers to fake files. We start with a fake MutableFileNode that
@@ -157,8 +158,16 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_listed)
         return d
 
+    def failUnlessGreaterThan(self, a, b):
+        self.failUnless(a > b, "%s should be > %s" % (a, b))
+
     def failUnlessGreaterOrEqualThan(self, a, b):
         self.failUnless(a >= b, "%s should be >= %s" % (a, b))
+
+    def stall(self, res, delay=1.0):
+        d = defer.Deferred()
+        reactor.callLater(delay, d.callback, res)
+        return d
 
     def test_create(self):
         self.expected_manifest = []
@@ -331,7 +340,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(_stop)
 
             d.addCallback(lambda res: n.get_metadata_for("timestamps"))
-            def _check_timestamp(metadata):
+            def _check_timestamp1(metadata):
                 self.failUnless("ctime" in metadata)
                 self.failUnless("mtime" in metadata)
                 self.failUnlessGreaterOrEqualThan(metadata["ctime"],
@@ -342,8 +351,32 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
                                                   self._start_timestamp)
                 self.failUnlessGreaterOrEqualThan(self._stop_timestamp,
                                                   metadata["mtime"])
+                # Our current timestamp rules say that replacing an existing
+                # child should preserve the 'ctime' but update the mtime
+                self._old_ctime = metadata["ctime"]
+                self._old_mtime = metadata["mtime"]
+            d.addCallback(_check_timestamp1)
+            d.addCallback(self.stall, 2.0) # accomodate low-res timestamps
+            d.addCallback(lambda res: n.set_node("timestamps", n))
+            d.addCallback(lambda res: n.get_metadata_for("timestamps"))
+            def _check_timestamp2(metadata):
+                self.failUnlessEqual(metadata["ctime"], self._old_ctime,
+                                     "%s != %s" % (metadata["ctime"],
+                                                   self._old_ctime))
+                self.failUnlessGreaterThan(metadata["mtime"], self._old_mtime)
                 return n.delete("timestamps")
-            d.addCallback(_check_timestamp)
+            d.addCallback(_check_timestamp2)
+
+            # also make sure we can add/update timestamps on a
+            # previously-existing child that didn't have any, since there are
+            # a lot of 0.7.0-generated edges around out there
+            d.addCallback(lambda res: n.set_node("no_timestamps", n, {}))
+            d.addCallback(lambda res: n.set_node("no_timestamps", n))
+            d.addCallback(lambda res: n.get_metadata_for("no_timestamps"))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(sorted(metadata.keys()),
+                                               ["ctime", "mtime"]))
+            d.addCallback(lambda res: n.delete("no_timestamps"))
 
             d.addCallback(lambda res: n.delete("subdir"))
             d.addCallback(lambda old_child:
