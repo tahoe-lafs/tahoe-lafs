@@ -157,6 +157,9 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_listed)
         return d
 
+    def failUnlessGreaterOrEqualThan(self, a, b):
+        self.failUnless(a >= b, "%s should be >= %s" % (a, b))
+
     def test_create(self):
         self.expected_manifest = []
 
@@ -238,10 +241,14 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
             def _check_timestamp(metadata):
                 self.failUnless("ctime" in metadata)
                 self.failUnless("mtime" in metadata)
-                self.failUnless(metadata["ctime"] >= self._start_timestamp)
-                self.failUnless(metadata["ctime"] <= self._stop_timestamp)
-                self.failUnless(metadata["mtime"] >= self._start_timestamp)
-                self.failUnless(metadata["mtime"] <= self._stop_timestamp)
+                self.failUnlessGreaterOrEqualThan(metadata["ctime"],
+                                                  self._start_timestamp)
+                self.failUnlessGreaterOrEqualThan(self._stop_timestamp,
+                                                  metadata["ctime"])
+                self.failUnlessGreaterOrEqualThan(metadata["mtime"],
+                                                  self._start_timestamp)
+                self.failUnlessGreaterOrEqualThan(self._stop_timestamp,
+                                                  metadata["mtime"])
                 return n.delete("timestamps")
             d.addCallback(_check_timestamp)
 
