@@ -205,6 +205,21 @@ class Directory(rend.Page):
         ctx.fillSlots("overwrite", self.build_overwrite(ctx, (name, target)))
         ctx.fillSlots("check", check)
 
+        times = []
+        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
+        if "ctime" in metadata:
+            ctime = time.strftime(TIME_FORMAT,
+                                  time.localtime(metadata["ctime"]))
+            times.append("c: " + ctime)
+        if "mtime" in metadata:
+            mtime = time.strftime(TIME_FORMAT,
+                                  time.localtime(metadata["mtime"]))
+            if times:
+                times.append(T.br())
+                times.append("m: " + mtime)
+        ctx.fillSlots("times", times)
+
+
         # build the base of the uri_link link url
         uri_link = "/uri/" + urllib.quote(target.get_uri())
 
