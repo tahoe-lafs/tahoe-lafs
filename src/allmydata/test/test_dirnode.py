@@ -184,7 +184,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
             ffu_v = m.get_verifier()
             assert isinstance(ffu_v, str)
             self.expected_manifest.append(ffu_v)
-            d.addCallback(lambda res: n.set_uri("child", fake_file_uri, {}))
+            d.addCallback(lambda res: n.set_uri("child", fake_file_uri))
 
             d.addCallback(lambda res: n.create_empty_directory("subdir"))
             def _created(subdir):
@@ -218,15 +218,108 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
                                                            n.get_uri()))
 
             d.addCallback(lambda res: n.get_metadata_for("child"))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(sorted(metadata.keys()),
+                                               ["ctime", "mtime"]))
+
+            # set_uri + metadata
+            # it should be possible to add a child without any metadata
+            d.addCallback(lambda res: n.set_uri("c2", fake_file_uri, {}))
+            d.addCallback(lambda res: n.get_metadata_for("c2"))
             d.addCallback(lambda metadata: self.failUnlessEqual(metadata, {}))
+
+            # if we don't set any defaults, the child should get timestamps
+            d.addCallback(lambda res: n.set_uri("c3", fake_file_uri))
+            d.addCallback(lambda res: n.get_metadata_for("c3"))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(sorted(metadata.keys()),
+                                               ["ctime", "mtime"]))
+
+            # or we can add specific metadata at set_uri() time, which
+            # overrides the timestamps
+            d.addCallback(lambda res: n.set_uri("c4", fake_file_uri,
+                                                {"key": "value"}))
+            d.addCallback(lambda res: n.get_metadata_for("c4"))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(metadata, {"key": "value"}))
+
+            d.addCallback(lambda res: n.delete("c2"))
+            d.addCallback(lambda res: n.delete("c3"))
+            d.addCallback(lambda res: n.delete("c4"))
+
+            # set_node + metadata
+            # it should be possible to add a child without any metadata
+            d.addCallback(lambda res: n.set_node("d2", n, {}))
+            d.addCallback(lambda res: n.get_metadata_for("d2"))
+            d.addCallback(lambda metadata: self.failUnlessEqual(metadata, {}))
+
+            # if we don't set any defaults, the child should get timestamps
+            d.addCallback(lambda res: n.set_node("d3", n))
+            d.addCallback(lambda res: n.get_metadata_for("d3"))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(sorted(metadata.keys()),
+                                               ["ctime", "mtime"]))
+
+            # or we can add specific metadata at set_node() time, which
+            # overrides the timestamps
+            d.addCallback(lambda res: n.set_node("d4", n,
+                                                {"key": "value"}))
+            d.addCallback(lambda res: n.get_metadata_for("d4"))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(metadata, {"key": "value"}))
+
+            d.addCallback(lambda res: n.delete("d2"))
+            d.addCallback(lambda res: n.delete("d3"))
+            d.addCallback(lambda res: n.delete("d4"))
+
+            # metadata through set_uris()
+            d.addCallback(lambda res: n.set_uris([ ("e1", fake_file_uri),
+                                                   ("e2", fake_file_uri, {}),
+                                                   ("e3", fake_file_uri,
+                                                    {"key": "value"}),
+                                                   ]))
+            d.addCallback(lambda res: n.get_metadata_for("e1"))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(sorted(metadata.keys()),
+                                               ["ctime", "mtime"]))
+            d.addCallback(lambda res: n.get_metadata_for("e2"))
+            d.addCallback(lambda metadata: self.failUnlessEqual(metadata, {}))
+            d.addCallback(lambda res: n.get_metadata_for("e3"))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(metadata, {"key": "value"}))
+
+            d.addCallback(lambda res: n.delete("e1"))
+            d.addCallback(lambda res: n.delete("e2"))
+            d.addCallback(lambda res: n.delete("e3"))
+
+            # metadata through set_nodes()
+            d.addCallback(lambda res: n.set_nodes([ ("f1", n),
+                                                    ("f2", n, {}),
+                                                    ("f3", n,
+                                                     {"key": "value"}),
+                                                    ]))
+            d.addCallback(lambda res: n.get_metadata_for("f1"))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(sorted(metadata.keys()),
+                                               ["ctime", "mtime"]))
+            d.addCallback(lambda res: n.get_metadata_for("f2"))
+            d.addCallback(lambda metadata: self.failUnlessEqual(metadata, {}))
+            d.addCallback(lambda res: n.get_metadata_for("f3"))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(metadata, {"key": "value"}))
+
+            d.addCallback(lambda res: n.delete("f1"))
+            d.addCallback(lambda res: n.delete("f2"))
+            d.addCallback(lambda res: n.delete("f3"))
+
 
             d.addCallback(lambda res:
                           n.set_metadata_for("child",
-                                             {"tags": "web2.0-compatible"}))
+                                             {"tags": ["web2.0-compatible"]}))
             d.addCallback(lambda n1: n1.get_metadata_for("child"))
             d.addCallback(lambda metadata:
                           self.failUnlessEqual(metadata,
-                                               {"tags": "web2.0-compatible"}))
+                                               {"tags": ["web2.0-compatible"]}))
 
             def _start(res):
                 self._start_timestamp = time.time()
@@ -270,6 +363,21 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda children:
                           self.failUnlessEqual(sorted(children.keys()),
                                                sorted(["child", "newfile"])))
+            d.addCallback(lambda res: n.get_metadata_for("newfile"))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(sorted(metadata.keys()),
+                                               ["ctime", "mtime"]))
+
+            uploadable = upload.Data("some data")
+            d.addCallback(lambda res: n.add_file("newfile-metadata",
+                                                 uploadable,
+                                                 {"key": "value"}))
+            d.addCallback(lambda newnode:
+                          self.failUnless(IFileNode.providedBy(newnode)))
+            d.addCallback(lambda res: n.get_metadata_for("newfile-metadata"))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(metadata, {"key": "value"}))
+            d.addCallback(lambda res: n.delete("newfile-metadata"))
 
             d.addCallback(lambda res: n.create_empty_directory("subdir2"))
             def _created2(subdir2):

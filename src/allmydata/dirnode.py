@@ -298,7 +298,7 @@ class NewDirectoryNode:
         return d
 
 
-    def add_file(self, name, uploadable):
+    def add_file(self, name, uploadable, metadata=None):
         """I upload a file (using the given IUploadable), then attach the
         resulting FileNode to the directory at the given name. I return a
         Deferred that fires (with the IFileNode of the uploaded file) when
@@ -308,7 +308,7 @@ class NewDirectoryNode:
         d = self._client.upload(uploadable)
         d.addCallback(lambda results: results.uri)
         d.addCallback(self._client.create_node_from_uri)
-        d.addCallback(lambda node: self.set_node(name, node))
+        d.addCallback(lambda node: self.set_node(name, node, metadata))
         return d
 
     def delete(self, name):
