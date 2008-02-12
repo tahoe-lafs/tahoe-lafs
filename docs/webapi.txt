@@ -94,7 +94,7 @@ d. examining files or directories
 
   GET $URL?t=json
 
-  out: json metadata
+  out: json description of $URL
 
   This returns machine-parseable information about the indicated file or
   directory in the HTTP response body. The JSON always contains a list, and
@@ -104,28 +104,49 @@ d. examining files or directories
   If it is a file, then the information includes file size and URI, like
   this:
 
-   [ 'filenode', { 'ro_uri': file_uri,
-                   'size': bytes } ]
+   GET $FILEURL?t=json :
+
+    [ 'filenode', { 'ro_uri': file_uri,
+                    'size': bytes,
+                    'metadata': {'ctime': 1202777696.7564139,
+                                 'mtime': 1202777696.7564139,
+                                 },
+                    } ]
 
   If it is a directory, then it includes information about the children of
-  this directory, as a mapping from child name to a set of metadata about the
+  this directory, as a mapping from child name to a set of data about the
   child (the same data that would appear in a corresponding GET?t=json of the
-  child itself). Like this:
+  child itself). The child entries also include metadata about each child,
+  including creation- and modification- timestamps. The output looks like
+  this:
 
-   [ 'dirnode', { 'rw_uri': read_write_uri,
-                  'ro_uri': read_only_uri,
-                  'children': children } ]
+   GET $DIRURL?t=json :
 
-  In the above example, 'children' is a dictionary in which the keys are
-  child names and the values depend upon whether the child is a file or a
-  directory:
+    [ 'dirnode', { 'rw_uri': read_write_uri,
+                   'ro_uri': read_only_uri,
+                   'children': [
+                     'foo.txt': [ 'filenode', { 'ro_uri': uri,
+                                                'size': bytes,
+                                                'metadata': {
+                                                  'ctime': 1202777696.7564139,
+                                                  'mtime': 1202777696.7564139,
+                                                 },
+                                               } ],
+                     'subdir':  [ 'dirnode', { 'rw_uri': rwuri,
+                                               'ro_uri': rouri,
+                                                'metadata': {
+                                                  'ctime': 1202778102.7589991,
+                                                  'mtime': 1202778111.2160511,
+                                                 },
+                                              } ],
+                    ] } ]
 
-   'foo.txt': [ 'filenode', { 'ro_uri': uri, 'size': bytes } ]
-   'subdir':  [ 'dirnode', { 'rw_uri': rwuri, 'ro_uri': rouri } ]
-
-  note that the value is the same as the JSON representation of the child
-  object (except that directories do not recurse -- the "children" entry of
-  the child is omitted).
+  In the above example, note how 'children' is a dictionary in which the keys
+  are child names and the values depend upon whether the child is a file or a
+  directory. The value is mostly the same as the JSON representation of the
+  child object (except that directories do not recurse -- the "children"
+  entry of the child is omitted, and the directory view includes the metadata
+  that is stored on the directory edge).
 
   Then the rw_uri field will be present in the information about a directory
   if and only if you have read-write access to that directory,

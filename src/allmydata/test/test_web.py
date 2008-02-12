@@ -96,6 +96,7 @@ class WebMixin(object):
 
             self.BAR_CONTENTS, n, self._bar_txt_uri = self.makefile(0)
             foo.set_uri("bar.txt", self._bar_txt_uri)
+
             foo.set_uri("empty", res[3][1].get_uri())
             sub_uri = res[4][1].get_uri()
             foo.set_uri("sub", sub_uri)
@@ -125,7 +126,12 @@ class WebMixin(object):
             # public/reedownlee/
             # public/reedownlee/nor
             self.NEWFILE_CONTENTS = "newfile contents\n"
+
+            return foo.get_metadata_for("bar.txt")
         d.addCallback(_then)
+        def _got_metadata(metadata):
+            self._bar_txt_metadata = metadata
+        d.addCallback(_got_metadata)
         return d
 
     def makefile(self, number):
@@ -162,9 +168,14 @@ class WebMixin(object):
                              ["bar.txt", "blockingfile", "empty", "sub"])
         kids = data[1]["children"]
         self.failUnlessEqual(kids["sub"][0], "dirnode")
+        self.failUnless("metadata" in kids["sub"][1])
+        self.failUnless("ctime" in kids["sub"][1]["metadata"])
+        self.failUnless("mtime" in kids["sub"][1]["metadata"])
         self.failUnlessEqual(kids["bar.txt"][0], "filenode")
         self.failUnlessEqual(kids["bar.txt"][1]["size"], len(self.BAR_CONTENTS))
         self.failUnlessEqual(kids["bar.txt"][1]["ro_uri"], self._bar_txt_uri)
+        self.failUnlessEqual(kids["bar.txt"][1]["metadata"]["ctime"],
+                             self._bar_txt_metadata["ctime"])
 
     def GET(self, urlpath, followRedirect=False):
         url = self.webish_url + urlpath

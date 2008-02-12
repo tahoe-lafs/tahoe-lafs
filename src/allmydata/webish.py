@@ -656,11 +656,13 @@ class DirectoryJSONMetadata(rend.Page):
                     kiddata = ("filenode",
                                {'ro_uri': kiduri,
                                 'size': childnode.get_size(),
+                                'metadata': metadata,
                                 })
                 else:
                     assert IDirectoryNode.providedBy(childnode), (childnode, children,)
                     kiddata = ("dirnode",
                                {'ro_uri': childnode.get_readonly_uri(),
+                                'metadata': metadata,
                                 })
                     if not childnode.is_readonly():
                         kiddata[1]['rw_uri'] = childnode.get_uri()
