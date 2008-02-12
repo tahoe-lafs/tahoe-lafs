@@ -1104,6 +1104,13 @@ class IDownloader(Interface):
         when the download is finished, or errbacks if something went wrong."""
 
 class IEncryptedUploadable(Interface):
+    def set_upload_status(upload_status):
+        """Provide an IUploadStatus object that should be filled with status
+        information. The IEncryptedUploadable is responsible for setting
+        key-determination progress ('chk'), size, storage_index, and
+        ciphertext-fetch progress. It may delegate some of this
+        responsibility to others, in particular to the IUploadable."""
+
     def get_size():
         """This behaves just like IUploadable.get_size()."""
 
@@ -1165,6 +1172,11 @@ class IEncryptedUploadable(Interface):
         """Just like IUploadable.close()."""
 
 class IUploadable(Interface):
+    def set_upload_status(upload_status):
+        """Provide an IUploadStatus object that should be filled with status
+        information. The IUploadable is responsible for setting
+        key-determination progress ('chk')."""
+
     def set_default_encoding_parameters(params):
         """Set the default encoding parameters, which must be a dict mapping
         strings to ints. The meaningful keys are 'k', 'happy', 'n', and
@@ -1361,6 +1373,32 @@ class IClient(Interface):
                  Directory-specifying URIs will result in
                  IDirectoryNode-providing instances, like NewDirectoryNode.
         """
+
+class IUploadStatus(Interface):
+    def get_storage_index():
+        """Return a string with the (binary) storage index in use on this
+        upload. Returns None if the storage index has not yet been
+        calculated."""
+    def get_size():
+        """Return an integer with the number of bytes that will eventually
+        be uploaded for this file. Returns None if the size is not yet known.
+        """
+    def using_helper():
+        """Return True if this upload is using a Helper, False if not."""
+    def get_status():
+        """Return a string describing the current state of the upload
+        process."""
+    def get_progress():
+        """Returns a tuple of floats, (chk, ciphertext, encode_and_push),
+        each from 0.0 to 1.0 . 'chk' describes how much progress has been
+        made towards hashing the file to determine a CHK encryption key: if
+        non-convergent encryption is in use, this will be trivial, otherwise
+        the whole file must be hashed. 'ciphertext' describes how much of the
+        ciphertext has been pushed to the helper, and is '1.0' for non-helper
+        uploads. 'encode_and_push' describes how much of the encode-and-push
+        process has finished: for helper uploads this is dependent upon the
+        helper providing progress reports. It might be reasonable to add all
+        three numbers and report the sum to the user."""
 
 
 class NotCapableError(Exception):

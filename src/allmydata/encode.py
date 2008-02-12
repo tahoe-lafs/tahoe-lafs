@@ -10,7 +10,7 @@ from allmydata.util import mathutil, hashutil, idlib, log
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder, IStorageBucketWriter, \
-     IEncryptedUploadable
+     IEncryptedUploadable, IUploadStatus
 
 """
 The goal of the encoder is to turn the original file into a series of
@@ -74,10 +74,13 @@ PiB=1024*TiB
 class Encoder(object):
     implements(IEncoder)
 
-    def __init__(self, log_parent=None):
+    def __init__(self, log_parent=None, upload_status=None):
         object.__init__(self)
         self.uri_extension_data = {}
         self._codec = None
+        self._status = None
+        if upload_status:
+            self._status = IUploadStatus(upload_status)
         precondition(log_parent is None or isinstance(log_parent, int),
                      log_parent)
         self._log_number = log.msg("creating Encoder %s" % self,
@@ -247,6 +250,18 @@ class Encoder(object):
         d.addCallbacks(lambda res: self.done(), self.err)
         return d
 
+    def set_status(self, status):
+        if self._status:
+            self._status.set_status(status)
+
+    def set_encode_and_push_progress(self, sent_segments=None, extra=0.0):
+        if self._status:
+            # we treat the final hash+close as an extra segment
+            if sent_segments is None:
+                sent_segments = self.num_segments
+            progress = float(sent_segments + extra) / (self.num_segments + 1)
+            self._status.set_progress(2, progress)
+
     def abort(self):
         self.log("aborting upload", level=log.UNUSUAL)
         assert self._codec, "don't call abort before start"
@@ -269,6 +284,7 @@ class Encoder(object):
 
     def start_all_shareholders(self):
         self.log("starting shareholders", level=log.NOISY)
+        self.set_status("Starting shareholders")
         dl = []
         for shareid in self.landlords:
             d = self.landlords[shareid].start()
@@ -409,6 +425,9 @@ class Encoder(object):
                 shareids=shareids, landlords=self.landlords)
         start = time.time()
         dl = []
+        self.set_status("Sending segment %d of %d" % (segnum+1,
+                                                      self.num_segments))
+        self.set_encode_and_push_progress(segnum)
         lognum = self.log("send_segment(%d)" % segnum, level=log.NOISY)
         for i in range(len(shares)):
             subshare = shares[i]
@@ -488,6 +507,8 @@ class Encoder(object):
 
     def finish_hashing(self):
         self._start_hashing_and_close_timestamp = time.time()
+        self.set_status("Finishing hashes")
+        self.set_encode_and_push_progress(extra=0.0)
         crypttext_hash = self._crypttext_hasher.digest()
         self.uri_extension_data["crypttext_hash"] = crypttext_hash
         d = self._uploadable.get_plaintext_hash()
@@ -509,6 +530,8 @@ class Encoder(object):
 
     def send_plaintext_hash_tree_to_all_shareholders(self):
         self.log("sending plaintext hash tree", level=log.NOISY)
+        self.set_status("Sending Plaintext Hash Tree")
+        self.set_encode_and_push_progress(extra=0.2)
         dl = []
         for shareid in self.landlords.keys():
             d = self.send_plaintext_hash_tree(shareid,
@@ -526,6 +549,8 @@ class Encoder(object):
 
     def send_crypttext_hash_tree_to_all_shareholders(self):
         self.log("sending crypttext hash tree", level=log.NOISY)
+        self.set_status("Sending Crypttext Hash Tree")
+        self.set_encode_and_push_progress(extra=0.3)
         t = HashTree(self._crypttext_hashes)
         all_hashes = list(t)
         self.uri_extension_data["crypttext_root_hash"] = t[0]
@@ -544,6 +569,8 @@ class Encoder(object):
 
     def send_all_subshare_hash_trees(self):
         self.log("sending subshare hash trees", level=log.NOISY)
+        self.set_status("Sending Subshare Hash Trees")
+        self.set_encode_and_push_progress(extra=0.4)
         dl = []
         for shareid,hashes in enumerate(self.subshare_hashes):
             # hashes is a list of the hashes of all subshares that were sent
@@ -571,6 +598,8 @@ class Encoder(object):
         # not include the top-level hash root (which is stored securely in
         # the URI instead).
         self.log("sending all share hash trees", level=log.NOISY)
+        self.set_status("Sending Share Hash Trees")
+        self.set_encode_and_push_progress(extra=0.6)
         dl = []
         for h in self.share_root_hashes:
             assert h
@@ -597,6 +626,8 @@ class Encoder(object):
 
     def send_uri_extension_to_all_shareholders(self):
         lp = self.log("sending uri_extension", level=log.NOISY)
+        self.set_status("Sending URI Extensions")
+        self.set_encode_and_push_progress(extra=0.8)
         for k in ('crypttext_root_hash', 'crypttext_hash',
                   'plaintext_root_hash', 'plaintext_hash',
                   ):
@@ -623,6 +654,8 @@ class Encoder(object):
 
     def close_all_shareholders(self):
         self.log("closing shareholders", level=log.NOISY)
+        self.set_status("Closing Shareholders")
+        self.set_encode_and_push_progress(extra=0.9)
         dl = []
         for shareid in self.landlords:
             d = self.landlords[shareid].close()
@@ -632,6 +665,8 @@ class Encoder(object):
 
     def done(self):
         self.log("upload done", level=log.OPERATIONAL)
+        self.set_status("Done")
+        self.set_encode_and_push_progress(extra=1.0) # done
         now = time.time()
         h_and_c_elapsed = now - self._start_hashing_and_close_timestamp
         self._times["hashes_and_close"] = h_and_c_elapsed
@@ -645,6 +680,7 @@ class Encoder(object):
 
     def err(self, f):
         self.log("upload failed", failure=f, level=log.UNUSUAL)
+        self.set_status("Failed")
         # we need to abort any remaining shareholders, so they'll delete the
         # partial share, allowing someone else to upload it again.
         self.log("aborting shareholders", level=log.UNUSUAL)

@@ -139,6 +139,8 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         upload_id = idlib.b2a(storage_index)[:6]
         self._log_number = log_number
         self._results = results
+        self._upload_status = upload.UploadStatus()
+        self._upload_status.set_helper(False)
         self._helper.log("CHKUploadHelper starting for SI %s" % upload_id,
                          parent=log_number)
 
@@ -416,6 +418,10 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
         self._upload_helper = upload_helper
         self._storage_index = storage_index
         self._encoding_file = encoding_file
+        self._status = None
+
+    def set_upload_status(self, upload_status):
+        self._status = interfaces.IUploadStatus(upload_status)
 
     def start(self):
         self._size = os.stat(self._encoding_file)[stat.ST_SIZE]

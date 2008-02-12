@@ -1,5 +1,5 @@
 
-import os, time
+import os, time, weakref
 from zope.interface import implements
 from twisted.python import failure
 from twisted.internet import defer
@@ -16,7 +16,7 @@ from allmydata import encode, storage, hashtree, uri
 from allmydata.util import idlib, mathutil
 from allmydata.util.assertutil import precondition
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
-     IEncryptedUploadable, RIEncryptedUploadable
+     IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus
 from pycryptopp.cipher.aes import AES
 
 from cStringIO import StringIO
@@ -113,12 +113,13 @@ class PeerTracker:
 
 class Tahoe2PeerSelector:
 
-    def __init__(self, upload_id, logparent=None):
+    def __init__(self, upload_id, logparent=None, upload_status=None):
         self.upload_id = upload_id
         self.query_count, self.good_query_count, self.bad_query_count = 0,0,0
         self.error_count = 0
         self.num_peers_contacted = 0
         self.last_failure_msg = None
+        self._status = IUploadStatus(upload_status)
         self._log_parent = log.msg("%s starting" % self, parent=logparent)
 
     def __repr__(self):
@@ -131,6 +132,9 @@ class Tahoe2PeerSelector:
         @return: a set of PeerTracker instances that have agreed to hold some
                  shares for us
         """
+
+        if self._status:
+            self._status.set_status("Contacting Peers..")
 
         self.total_shares = total_shares
         self.shares_of_happiness = shares_of_happiness
@@ -204,6 +208,11 @@ class Tahoe2PeerSelector:
             shares_to_ask = set([self.homeless_shares.pop(0)])
             self.query_count += 1
             self.num_peers_contacted += 1
+            if self._status:
+                self._status.set_status("Contacting Peers [%s] (first query),"
+                                        " %d shares left.."
+                                        % (idlib.shortnodeid_b2a(peer.peerid),
+                                           len(self.homeless_shares)))
             d = peer.query(shares_to_ask)
             d.addBoth(self._got_response, peer, shares_to_ask,
                       self.contacted_peers)
@@ -220,6 +229,11 @@ class Tahoe2PeerSelector:
             shares_to_ask = set(self.homeless_shares[:num_shares])
             self.homeless_shares[:num_shares] = []
             self.query_count += 1
+            if self._status:
+                self._status.set_status("Contacting Peers [%s] (second query),"
+                                        " %d shares left.."
+                                        % (idlib.shortnodeid_b2a(peer.peerid),
+                                           len(self.homeless_shares)))
             d = peer.query(shares_to_ask)
             d.addBoth(self._got_response, peer, shares_to_ask,
                       self.contacted_peers2)
@@ -250,6 +264,8 @@ class Tahoe2PeerSelector:
                 raise encode.NotEnoughPeersError(msg)
             else:
                 # we placed enough to be happy, so we're done
+                if self._status:
+                    self._status.set_status("Placed all shares")
                 return self.use_peers
 
     def _got_response(self, res, peer, shares_to_ask, put_peer_here):
@@ -339,6 +355,12 @@ class EncryptAnUploadable:
         self._plaintext_segment_hashes = []
         self._encoding_parameters = None
         self._file_size = None
+        self._ciphertext_bytes_read = 0
+        self._status = None
+
+    def set_upload_status(self, upload_status):
+        self._status = IUploadStatus(upload_status)
+        self.original.set_upload_status(upload_status)
 
     def log(self, *args, **kwargs):
         if "facility" not in kwargs:
@@ -351,6 +373,8 @@ class EncryptAnUploadable:
         d = self.original.get_size()
         def _got_size(size):
             self._file_size = size
+            if self._status:
+                self._status.set_size(size)
             return size
         d.addCallback(_got_size)
         return d
@@ -384,7 +408,8 @@ class EncryptAnUploadable:
             # specify that it is truncated to the same 128 bits as the AES key.
             assert len(storage_index) == 16  # SHA-256 truncated to 128b
             self._storage_index = storage_index
-
+            if self._status:
+                self._status.set_storage_index(storage_index)
             return e
         d.addCallback(_got)
         return d
@@ -432,6 +457,8 @@ class EncryptAnUploadable:
     def read_encrypted(self, length, hash_only):
         # make sure our parameters have been set up first
         d = self.get_all_encoding_parameters()
+        # and size
+        d.addCallback(lambda ignored: self.get_size())
         d.addCallback(lambda ignored: self._get_encryptor())
         # then fetch and encrypt the plaintext. The unusual structure here
         # (passing a Deferred *into* a function) is needed to avoid
@@ -481,10 +508,12 @@ class EncryptAnUploadable:
         cryptdata = []
         # we use data.pop(0) instead of 'for chunk in data' to save
         # memory: each chunk is destroyed as soon as we're done with it.
+        bytes_processed = 0
         while data:
             chunk = data.pop(0)
             log.msg(" read_encrypted handling %dB-sized chunk" % len(chunk),
                     level=log.NOISY)
+            bytes_processed += len(chunk)
             self._plaintext_hasher.update(chunk)
             self._update_segment_hash(chunk)
             # TODO: we have to encrypt the data (even if hash_only==True)
@@ -499,6 +528,10 @@ class EncryptAnUploadable:
                 cryptdata.append(ciphertext)
             del ciphertext
             del chunk
+        self._ciphertext_bytes_read += bytes_processed
+        if self._status:
+            progress = float(self._ciphertext_bytes_read) / self._file_size
+            self._status.set_progress(1, progress)
         return cryptdata
 
 
@@ -526,6 +559,38 @@ class EncryptAnUploadable:
     def close(self):
         return self.original.close()
 
+class UploadStatus:
+    implements(IUploadStatus)
+
+    def __init__(self):
+        self.storage_index = None
+        self.size = None
+        self.helper = False
+        self.status = "Not started"
+        self.progress = [0.0, 0.0, 0.0]
+
+    def get_storage_index(self):
+        return self.storage_index
+    def get_size(self):
+        return self.size
+    def using_helper(self):
+        return self.helper
+    def get_status(self):
+        return self.status
+    def get_progress(self):
+        return tuple(self.progress)
+
+    def set_storage_index(self, si):
+        self.storage_index = si
+    def set_size(self, size):
+        self.size = size
+    def set_helper(self, helper):
+        self.helper = helper
+    def set_status(self, status):
+        self.status = status
+    def set_progress(self, which, value):
+        # [0]: chk, [1]: ciphertext, [2]: encode+push
+        self.progress[which] = value
 
 class CHKUploader:
     peer_selector_class = Tahoe2PeerSelector
@@ -535,6 +600,9 @@ class CHKUploader:
         self._log_number = self._client.log("CHKUploader starting")
         self._encoder = None
         self._results = UploadResults()
+        self._storage_index = None
+        self._upload_status = UploadStatus()
+        self._upload_status.set_helper(False)
 
     def log(self, *args, **kwargs):
         if "parent" not in kwargs:
@@ -554,6 +622,7 @@ class CHKUploader:
         self.log("starting upload of %s" % uploadable)
 
         eu = EncryptAnUploadable(uploadable)
+        eu.set_upload_status(self._upload_status)
         d = self.start_encrypted(eu)
         def _uploaded(res):
             d1 = uploadable.get_encryption_key()
@@ -575,7 +644,8 @@ class CHKUploader:
         eu = IEncryptedUploadable(encrypted)
 
         started = time.time()
-        self._encoder = e = encode.Encoder(self._log_number)
+        self._encoder = e = encode.Encoder(self._log_number,
+                                           self._upload_status)
         d = e.set_encrypted_uploadable(eu)
         d.addCallback(self.locate_all_shareholders, started)
         d.addCallback(self.set_shareholders, e)
@@ -588,9 +658,11 @@ class CHKUploader:
         peer_selection_started = now = time.time()
         self._storage_index_elapsed = now - started
         storage_index = encoder.get_param("storage_index")
+        self._storage_index = storage_index
         upload_id = idlib.b2a(storage_index)[:6]
         self.log("using storage index %s" % upload_id)
-        peer_selector = self.peer_selector_class(upload_id, self._log_number)
+        peer_selector = self.peer_selector_class(upload_id, self._log_number,
+                                                 self._upload_status)
 
         share_size = encoder.get_param("share_size")
         block_size = encoder.get_param("block_size")
@@ -657,6 +729,8 @@ class CHKUploader:
         r.uri = u.to_string()
         return r
 
+    def get_upload_status(self):
+        return self._upload_status
 
 def read_this_many_bytes(uploadable, size, prepend_data=[]):
     if size == 0:
@@ -680,11 +754,17 @@ class LiteralUploader:
     def __init__(self, client):
         self._client = client
         self._results = UploadResults()
+        self._status = s = UploadStatus()
+        s.set_storage_index(None)
+        s.set_helper(False)
+        s.set_progress(0, 1.0)
 
     def start(self, uploadable):
         uploadable = IUploadable(uploadable)
         d = uploadable.get_size()
         def _got_size(size):
+            self._size = size
+            self._status.set_size(size)
             self._results.file_size = size
             return read_this_many_bytes(uploadable, size)
         d.addCallback(_got_size)
@@ -695,21 +775,41 @@ class LiteralUploader:
 
     def _build_results(self, uri):
         self._results.uri = uri
+        self._status.set_status("Done")
+        self._status.set_progress(1, 1.0)
+        self._status.set_progress(2, 1.0)
         return self._results
 
     def close(self):
         pass
 
+    def get_upload_status(self):
+        return self._status
+
 class RemoteEncryptedUploadable(Referenceable):
     implements(RIEncryptedUploadable)
 
-    def __init__(self, encrypted_uploadable):
+    def __init__(self, encrypted_uploadable, upload_status):
         self._eu = IEncryptedUploadable(encrypted_uploadable)
         self._offset = 0
         self._bytes_sent = 0
+        self._status = IUploadStatus(upload_status)
+        # we are responsible for updating the status string while we run, and
+        # for setting the ciphertext-fetch progress.
+        self._size = None
+
+    def get_size(self):
+        if self._size is not None:
+            return defer.succeed(self._size)
+        d = self._eu.get_size()
+        def _got_size(size):
+            self._size = size
+            return size
+        d.addCallback(_got_size)
+        return d
 
     def remote_get_size(self):
-        return self._eu.get_size()
+        return self.get_size()
     def remote_get_all_encoding_parameters(self):
         return self._eu.get_all_encoding_parameters()
 
@@ -771,6 +871,9 @@ class AssistedUploader:
     def __init__(self, helper):
         self._helper = helper
         self._log_number = log.msg("AssistedUploader starting")
+        self._storage_index = None
+        self._upload_status = s = UploadStatus()
+        s.set_helper(True)
 
     def log(self, msg, parent=None, **kwargs):
         if parent is None:
@@ -781,6 +884,7 @@ class AssistedUploader:
         self._started = time.time()
         u = IUploadable(uploadable)
         eu = EncryptAnUploadable(u)
+        eu.set_upload_status(self._upload_status)
         self._encuploadable = eu
         d = eu.get_size()
         d.addCallback(self._got_size)
@@ -800,6 +904,7 @@ class AssistedUploader:
 
     def _got_size(self, size):
         self._size = size
+        self._upload_status.set_size(size)
 
     def _got_all_encoding_parameters(self, params):
         k, happy, n, segment_size = params
@@ -819,6 +924,7 @@ class AssistedUploader:
         now = self._time_contacting_helper_start = time.time()
         self._storage_index_elapsed = now - self._started
         self.log("contacting helper..")
+        self._upload_status.set_status("Contacting Helper")
         d = self._helper.callRemote("upload_chk", self._storage_index)
         d.addCallback(self._contacted_helper)
         return d
@@ -829,16 +935,23 @@ class AssistedUploader:
         self._elapsed_time_contacting_helper = elapsed
         if upload_helper:
             self.log("helper says we need to upload")
+            self._upload_status.set_status("Uploading Ciphertext")
             # we need to upload the file
-            reu = RemoteEncryptedUploadable(self._encuploadable)
-            d = upload_helper.callRemote("upload", reu)
+            reu = RemoteEncryptedUploadable(self._encuploadable,
+                                            self._upload_status)
+            # let it pre-compute the size for progress purposes
+            d = reu.get_size()
+            d.addCallback(lambda ignored:
+                          upload_helper.callRemote("upload", reu))
             # this Deferred will fire with the upload results
             return d
         self.log("helper says file is already uploaded")
+        self._upload_status.set_progress(1, 1.0)
         return upload_results
 
     def _build_readcap(self, upload_results):
         self.log("upload finished, building readcap")
+        self._upload_status.set_status("Building Readcap")
         r = upload_results
         assert r.uri_extension_data["needed_shares"] == self._needed_shares
         assert r.uri_extension_data["total_shares"] == self._total_shares
@@ -858,7 +971,11 @@ class AssistedUploader:
         if "total" in r.timings:
             r.timings["helper_total"] = r.timings["total"]
         r.timings["total"] = now - self._started
+        self._upload_status.set_status("Done")
         return r
+
+    def get_upload_status(self):
+        return self._upload_status
 
 class BaseUploadable:
     default_max_segment_size = 1*MiB # overridden by max_segment_size
@@ -872,6 +989,10 @@ class BaseUploadable:
     encoding_param_n = None
 
     _all_encoding_parameters = None
+    _status = None
+
+    def set_upload_status(self, upload_status):
+        self._status = IUploadStatus(upload_status)
 
     def set_default_encoding_parameters(self, default_params):
         assert isinstance(default_params, dict)
@@ -915,25 +1036,38 @@ class FileHandle(BaseUploadable):
         self._filehandle = filehandle
         self._key = None
         self._contenthashkey = contenthashkey
+        self._size = None
 
     def _get_encryption_key_content_hash(self):
         if self._key is not None:
             return defer.succeed(self._key)
 
-        d = self.get_all_encoding_parameters()
+        d = self.get_size()
+        # that sets self._size as a side-effect
+        d.addCallback(lambda size: self.get_all_encoding_parameters())
         def _got(params):
             k, happy, n, segsize = params
             f = self._filehandle
             enckey_hasher = content_hash_key_hasher(k, n, segsize)
             f.seek(0)
             BLOCKSIZE = 64*1024
+            bytes_read = 0
             while True:
                 data = f.read(BLOCKSIZE)
                 if not data:
                     break
                 enckey_hasher.update(data)
+                # TODO: setting progress in a non-yielding loop is kind of
+                # pointless, but I'm anticipating (perhaps prematurely) the
+                # day when we use a slowjob or twisted's CooperatorService to
+                # make this yield time to other jobs.
+                bytes_read += len(data)
+                if self._status:
+                    self._status.set_progress(0, float(bytes_read)/self._size)
             f.seek(0)
             self._key = enckey_hasher.digest()
+            if self._status:
+                self._status.set_progress(0, 1.0)
             assert len(self._key) == 16
             return self._key
         d.addCallback(_got)
@@ -951,8 +1085,11 @@ class FileHandle(BaseUploadable):
             return self._get_encryption_key_random()
 
     def get_size(self):
+        if self._size is not None:
+            return defer.succeed(self._size)
         self._filehandle.seek(0,2)
         size = self._filehandle.tell()
+        self._size = size
         self._filehandle.seek(0)
         return defer.succeed(size)
 
@@ -985,6 +1122,7 @@ class Uploader(service.MultiService):
     def __init__(self, helper_furl=None):
         self._helper_furl = helper_furl
         self._helper = None
+        self._all_uploads = weakref.WeakKeyDictionary()
         service.MultiService.__init__(self)
 
     def startService(self):
@@ -1021,6 +1159,7 @@ class Uploader(service.MultiService):
                 uploader = AssistedUploader(self._helper)
             else:
                 uploader = self.uploader_class(self.parent)
+            self._all_uploads[uploader.get_upload_status()] = None
             return uploader.start(uploadable)
         d.addCallback(_got_size)
         def _done(res):
