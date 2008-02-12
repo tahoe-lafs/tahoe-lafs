@@ -159,10 +159,10 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
     def failUnlessGreaterThan(self, a, b):
-        self.failUnless(a > b, "%s should be > %s" % (a, b))
+        self.failUnless(a > b, "%r should be > %r" % (a, b))
 
     def failUnlessGreaterOrEqualThan(self, a, b):
-        self.failUnless(a >= b, "%s should be >= %s" % (a, b))
+        self.failUnless(a >= b, "%r should be >= %r" % (a, b))
 
     def stall(self, res, delay=1.0):
         d = defer.Deferred()
