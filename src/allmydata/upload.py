@@ -1167,3 +1167,6 @@ class Uploader(service.MultiService):
             return res
         d.addBoth(_done)
         return d
+
+    def list_uploads(self):
+        return self._all_uploads.keys()

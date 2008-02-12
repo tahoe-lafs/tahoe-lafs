@@ -280,3 +280,10 @@ class Client(node.Node, testutil.PollMixin):
         uploader = self.getServiceNamed("uploader")
         return uploader.upload(uploadable)
 
+    def list_uploads(self):
+        uploader = self.getServiceNamed("uploader")
+        return uploader.list_uploads()
+
+    def list_downloads(self):
+        downloader = self.getServiceNamed("downloader")
+        return downloader.list_downloads()

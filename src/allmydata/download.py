@@ -871,3 +871,5 @@ class Downloader(service.MultiService):
         return self.download(uri, FileHandle(filehandle))
 
 
+    def list_downloads(self):
+        return self._all_downloads.keys()

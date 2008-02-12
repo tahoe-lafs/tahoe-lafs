@@ -1374,6 +1374,14 @@ class IClient(Interface):
                  IDirectoryNode-providing instances, like NewDirectoryNode.
         """
 
+class IClientStatus(Interface):
+    def list_uploads():
+        """Return a list of IUploadStatus objects, one for each
+        upload which is currently running."""
+    def list_downloads():
+        """Return a list of IDownloadStatus objects, one for each
+        download which is currently running."""
+
 class IUploadStatus(Interface):
     def get_storage_index():
         """Return a string with the (binary) storage index in use on this
