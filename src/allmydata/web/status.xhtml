@@ -1,0 +1,59 @@
+<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+  <head>
+    <title>AllMyData - Tahoe - Current Uploads/Downloads</title>
+    <!-- <link href="http://www.allmydata.com/common/css/styles.css"
+          rel="stylesheet" type="text/css"/> -->
+    <link href="/webform_css" rel="stylesheet" type="text/css"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  </head>
+  <body>
+
+<h1>Current Uploads and Downloads</h1>
+
+
+<h2>Current Uploads:</h2>
+<table n:render="sequence" n:data="uploads" border="1">
+  <tr n:pattern="header">
+    <td>Storage Index</td>
+    <td>Helper?</td>
+    <td>Total Size</td>
+    <td>Progress (Hash)</td>
+    <td>Progress (Ciphertext)</td>
+    <td>Progress (Encode+Push)</td>
+    <td>Status</td>
+  </tr>
+  <tr n:pattern="item" n:render="row_upload">
+    <td><n:slot name="si"/></td>
+    <td><n:slot name="helper"/></td>
+    <td><n:slot name="total_size"/></td>
+    <td><n:slot name="progress_hash"/></td>
+    <td><n:slot name="progress_ciphertext"/></td>
+    <td><n:slot name="progress_encode"/></td>
+    <td><n:slot name="status"/></td>
+  </tr>
+  <tr n:pattern="empty"><td>No current uploads!</td></tr>
+</table>
+
+<h2>Current Downloads:</h2>
+<table n:render="sequence" n:data="downloads" border="1">
+  <tr n:pattern="header">
+    <td>Storage Index</td>
+    <td>Helper?</td>
+    <td>Total Size</td>
+    <td>Progress</td>
+    <td>Status</td>
+  </tr>
+  <tr n:pattern="item" n:render="row_download">
+    <td><n:slot name="si"/></td>
+    <td><n:slot name="helper"/></td>
+    <td><n:slot name="total_size"/></td>
+    <td><n:slot name="progress"/></td>
+    <td><n:slot name="status"/></td>
+  </tr>
+  <tr n:pattern="empty"><td>No current uploads!</td></tr>
+</table>
+
+<div>Return to the <a href="/">Welcome Page</a></div>
+
+  </body>
+</html>

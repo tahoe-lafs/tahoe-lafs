@@ -1493,6 +1493,45 @@ class UnlinkedPOSTCreateDirectory(rend.Page):
             d.addCallback(lambda dirnode: dirnode.get_uri())
         return d
 
+class Status(rend.Page):
+    docFactory = getxmlfile("status.xhtml")
+
+    def data_uploads(self, ctx, data):
+        return IClient(ctx).list_uploads()
+
+    def data_downloads(self, ctx, data):
+        return IClient(ctx).list_downloads()
+
+    def _render_common(self, ctx, data):
+        s = data
+        si_s = idlib.b2a_or_none(s.get_storage_index())
+        if si_s is None:
+            si_s = "(None)"
+        ctx.fillSlots("si", si_s)
+        ctx.fillSlots("helper", {True: "Yes",
+                                 False: "No"}[s.using_helper()])
+        size = s.get_size()
+        if size is None:
+            size = "(unknown)"
+        ctx.fillSlots("total_size", size)
+        ctx.fillSlots("status", s.get_status())
+
+    def render_row_upload(self, ctx, data):
+        self._render_common(ctx, data)
+        (chk, ciphertext, encandpush) = data.get_progress()
+        # TODO: make an ascii-art bar
+        ctx.fillSlots("progress_hash", "%.1f%%" % (100.0 * chk))
+        ctx.fillSlots("progress_ciphertext", "%.1f%%" % (100.0 * ciphertext))
+        ctx.fillSlots("progress_encode", "%.1f%%" % (100.0 * encandpush))
+        return ctx.tag
+
+    def render_row_download(self, ctx, data):
+        self._render_common(ctx, data)
+        progress = data.get_progress()
+        # TODO: make an ascii-art bar
+        ctx.fillSlots("progress", "%.1f%%" % (100.0 * progress))
+        return ctx.tag
+
 
 class Root(rend.Page):
 
@@ -1569,6 +1608,7 @@ class Root(rend.Page):
     child_tahoe_css = nevow_File(resource_filename('allmydata.web', 'tahoe.css'))
 
     child_provisioning = provisioning.ProvisioningTool()
+    child_status = Status()
 
     def data_version(self, ctx, data):
         return get_package_versions_string()
