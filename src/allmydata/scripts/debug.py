@@ -345,8 +345,8 @@ class CatalogSharesOptions(usage.Options):
     Run this as 'catalog-shares NODEDIRS..', and it will emit a line to stdout
     for each share it finds:
 
-      CHK $SI $k/$N $filesize $UEB_hash $abspath_sharefile
-      SDMF $SI $k/$N $seqnum/$roothash $abspath_sharefile
+      CHK $SI $k/$N $filesize $UEB_hash $expiration $abspath_sharefile
+      SDMF $SI $k/$N $seqnum/$roothash $expiration $abspath_sharefile
       UNKNOWN $abspath_sharefile
 
     It may be useful to build up a catalog of shares from many storage servers
@@ -357,7 +357,7 @@ class CatalogSharesOptions(usage.Options):
     def parseArgs(self, *nodedirs):
         self.nodedirs = nodedirs
 
-def describe_share(abs_sharefile, si_s, shnum_s, out, err):
+def describe_share(abs_sharefile, si_s, shnum_s, now, out, err):
     from allmydata import uri, storage, mutable
     from allmydata.util import idlib
     import struct
@@ -374,6 +374,11 @@ def describe_share(abs_sharefile, si_s, shnum_s, out, err):
         extra_lease_offset = m._read_extra_lease_offset(f)
         container_size = extra_lease_offset - m.DATA_OFFSET
         leases = list(m._enumerate_leases(f))
+        expiration_time = min( [expiration_time
+                                for (leasenum,
+                                     (ownerid, expiration_time, rs, cs, nodeid))
+                                in leases] )
+        expiration = max(0, expiration_time - now)
 
         share_type = "unknown"
         f.seek(m.DATA_OFFSET)
@@ -397,9 +402,10 @@ def describe_share(abs_sharefile, si_s, shnum_s, out, err):
              pubkey, signature, share_hash_chain, block_hash_tree,
              share_data, enc_privkey) = pieces
 
-            print >>out, "SDMF %s %d/%d #%d:%s %s" % (si_s, k, N, seqnum,
-                                                      idlib.b2a(root_hash),
-                                                      abs_sharefile)
+            print >>out, "SDMF %s %d/%d #%d:%s %d %s" % (si_s, k, N, seqnum,
+                                                         idlib.b2a(root_hash),
+                                                         expiration,
+                                                         abs_sharefile)
         else:
             print >>out, "UNKNOWN mutable %s" % (abs_sharefile,)
 
@@ -414,6 +420,10 @@ def describe_share(abs_sharefile, si_s, shnum_s, out, err):
         length = struct.unpack(">L", sf.read_share_data(seek, 4))[0]
         seek += 4
         UEB_data = sf.read_share_data(seek, length)
+        expiration_time = min( [expiration_time
+                                for (ownerid, rs, cs, expiration_time)
+                                in sf.iter_leases()] )
+        expiration = max(0, expiration_time - now)
 
         unpacked = uri.unpack_extension_readable(UEB_data)
         k = unpacked["needed_shares"]
@@ -421,8 +431,9 @@ def describe_share(abs_sharefile, si_s, shnum_s, out, err):
         filesize = unpacked["size"]
         ueb_hash = unpacked["UEB_hash"]
 
-        print >>out, "CHK %s %d/%d %d %s %s" % (si_s, k, N, filesize, ueb_hash,
-                                                abs_sharefile)
+        print >>out, "CHK %s %d/%d %d %s %d %s" % (si_s, k, N, filesize,
+                                                   ueb_hash, expiration,
+                                                   abs_sharefile)
 
     else:
         print >>out, "UNKNOWN really-unknown %s" % (abs_sharefile,)
@@ -431,6 +442,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, out, err):
 
 
 def catalog_shares(config, out=sys.stdout, err=sys.stderr):
+    now = time.time()
     for d in config.nodedirs:
         d = os.path.join(os.path.expanduser(d), "storage/shares")
         if os.path.exists(d):
@@ -440,8 +452,10 @@ def catalog_shares(config, out=sys.stdout, err=sys.stderr):
                     si_dir = os.path.join(abbrevdir, si_s)
                     for shnum_s in os.listdir(si_dir):
                         abs_sharefile = os.path.join(si_dir, shnum_s)
+                        abs_sharefile = os.path.abspath(abs_sharefile)
                         assert os.path.isfile(abs_sharefile)
-                        describe_share(abs_sharefile, si_s, shnum_s, out, err)
+                        describe_share(abs_sharefile, si_s, shnum_s, now,
+                                       out, err)
     return 0
 
 
