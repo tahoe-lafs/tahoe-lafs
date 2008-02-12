@@ -1400,6 +1400,25 @@ class IUploadStatus(Interface):
         helper providing progress reports. It might be reasonable to add all
         three numbers and report the sum to the user."""
 
+class IDownloadStatus(Interface):
+    def get_storage_index():
+        """Return a string with the (binary) storage index in use on this
+        download. This may be None if there is no storage index (i.e. LIT
+        files)."""
+    def get_size():
+        """Return an integer with the number of bytes that will eventually be
+        retrieved for this file. Returns None if the size is not yet known.
+        """
+    def using_helper():
+        """Return True if this download is using a Helper, False if not."""
+    def get_status():
+        """Return a string describing the current state of the download
+        process."""
+    def get_progress():
+        """Returns a float (from 0.0 to 1.0) describing the amount of the
+        download that has completed. This value will remain at 0.0 until the
+        first byte of plaintext is pushed to the download target."""
+
 
 class NotCapableError(Exception):
     """You have tried to write to a read-only node."""
