@@ -1190,6 +1190,20 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         sharefiles = [sfn.strip() for sfn in out.readlines()]
         self.failUnlessEqual(len(sharefiles), 10)
 
+        # also exercise the 'catalog-shares' tool
+        out,err = StringIO(), StringIO()
+        nodedirs = [self.getdir("client%d" % i) for i in range(self.numclients)]
+        cmd = ["catalog-shares"] + nodedirs
+        rc = runner.runner(cmd, stdout=out, stderr=err)
+        self.failUnlessEqual(rc, 0)
+        out.seek(0)
+        descriptions = [sfn.strip() for sfn in out.readlines()]
+        self.failUnlessEqual(len(descriptions), 30)
+        matching = [line
+                    for line in descriptions
+                    if line.startswith("CHK %s " % storage_index_s)]
+        self.failUnlessEqual(len(matching), 10)
+
     def _test_control(self, res):
         # exercise the remote-control-the-client foolscap interfaces in
         # allmydata.control (mostly used for performance tests)

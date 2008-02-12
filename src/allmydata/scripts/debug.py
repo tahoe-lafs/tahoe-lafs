@@ -339,15 +339,124 @@ def find_shares(config, out=sys.stdout, err=sys.stderr):
 
     return 0
 
+
+class CatalogSharesOptions(usage.Options):
+    """
+    Run this as 'catalog-shares NODEDIRS..', and it will emit a line to stdout
+    for each share it finds:
+
+      CHK $SI $k/$N $filesize $UEB_hash $abspath_sharefile
+      SDMF $SI $k/$N $seqnum/$roothash $abspath_sharefile
+      UNKNOWN $abspath_sharefile
+
+    It may be useful to build up a catalog of shares from many storage servers
+    and then sort the results. If you see shares with the same SI but different
+    parameters/filesize/UEB_hash, then something is wrong.
+
+    """
+    def parseArgs(self, *nodedirs):
+        self.nodedirs = nodedirs
+
+def describe_share(abs_sharefile, si_s, shnum_s, out, err):
+    from allmydata import uri, storage, mutable
+    from allmydata.util import idlib
+    import struct
+
+    f = open(abs_sharefile, "rb")
+    prefix = f.read(32)
+
+    if prefix == storage.MutableShareFile.MAGIC:
+        # mutable share
+        m = storage.MutableShareFile(abs_sharefile)
+        WE, nodeid = m._read_write_enabler_and_nodeid(f)
+        num_extra_leases = m._read_num_extra_leases(f)
+        data_length = m._read_data_length(f)
+        extra_lease_offset = m._read_extra_lease_offset(f)
+        container_size = extra_lease_offset - m.DATA_OFFSET
+        leases = list(m._enumerate_leases(f))
+
+        share_type = "unknown"
+        f.seek(m.DATA_OFFSET)
+        if f.read(1) == "\x00":
+            # this slot contains an SMDF share
+            share_type = "SDMF"
+
+        if share_type == "SDMF":
+            f.seek(m.DATA_OFFSET)
+            data = f.read(min(data_length, 2000))
+
+            try:
+                pieces = mutable.unpack_share(data)
+            except mutable.NeedMoreDataError, e:
+                # retry once with the larger size
+                size = e.needed_bytes
+                f.seek(m.DATA_OFFSET)
+                data = f.read(min(data_length, size))
+                pieces = mutable.unpack_share(data)
+            (seqnum, root_hash, IV, k, N, segsize, datalen,
+             pubkey, signature, share_hash_chain, block_hash_tree,
+             share_data, enc_privkey) = pieces
+
+            print >>out, "SDMF %s %d/%d #%d:%s %s" % (si_s, k, N, seqnum,
+                                                      idlib.b2a(root_hash),
+                                                      abs_sharefile)
+        else:
+            print >>out, "UNKNOWN mutable %s" % (abs_sharefile,)
+
+    elif struct.unpack(">L", prefix[:4]) == (1,):
+        # immutable
+
+        sf = storage.ShareFile(abs_sharefile)
+        # use a ReadBucketProxy to parse the bucket and find the uri extension
+        bp = storage.ReadBucketProxy(None)
+        offsets = bp._parse_offsets(sf.read_share_data(0, 0x24))
+        seek = offsets['uri_extension']
+        length = struct.unpack(">L", sf.read_share_data(seek, 4))[0]
+        seek += 4
+        UEB_data = sf.read_share_data(seek, length)
+
+        unpacked = uri.unpack_extension_readable(UEB_data)
+        k = unpacked["needed_shares"]
+        N = unpacked["total_shares"]
+        filesize = unpacked["size"]
+        ueb_hash = unpacked["UEB_hash"]
+
+        print >>out, "CHK %s %d/%d %d %s %s" % (si_s, k, N, filesize, ueb_hash,
+                                                abs_sharefile)
+
+    else:
+        print >>out, "UNKNOWN really-unknown %s" % (abs_sharefile,)
+
+    f.close()
+
+
+def catalog_shares(config, out=sys.stdout, err=sys.stderr):
+    for d in config.nodedirs:
+        d = os.path.join(os.path.expanduser(d), "storage/shares")
+        if os.path.exists(d):
+            for abbrevdir in os.listdir(d):
+                abbrevdir = os.path.join(d, abbrevdir)
+                for si_s in os.listdir(abbrevdir):
+                    si_dir = os.path.join(abbrevdir, si_s)
+                    for shnum_s in os.listdir(si_dir):
+                        abs_sharefile = os.path.join(si_dir, shnum_s)
+                        assert os.path.isfile(abs_sharefile)
+                        describe_share(abs_sharefile, si_s, shnum_s, out, err)
+    return 0
+
+
+
 subCommands = [
     ["dump-share", None, DumpOptions,
      "Unpack and display the contents of a share (uri_extension and leases)."],
     ["dump-cap", None, DumpCapOptions, "Unpack a read-cap or write-cap"],
     ["find-shares", None, FindSharesOptions, "Locate sharefiles in node dirs"],
+    ["catalog-shares", None, CatalogSharesOptions, "Describe shares in node dirs"],
     ]
 
 dispatch = {
     "dump-share": dump_share,
     "dump-cap": dump_cap,
     "find-shares": find_shares,
+    "catalog-shares": catalog_shares,
     }
