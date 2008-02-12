@@ -333,8 +333,15 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
             def _start(res):
                 self._start_timestamp = time.time()
             d.addCallback(_start)
+            # simplejson-1.7.1 (as shipped on Ubuntu 'gutsy') rounds all
+            # floats to hundredeths (it uses str(num) instead of repr(num)).
+            # simplejson-1.7.3 does not have this bug. To prevent this bug
+            # from causing the test to fail, stall for more than a few
+            # hundrededths of a second.
+            d.addCallback(self.stall, 0.1)
             d.addCallback(lambda res: n.add_file("timestamps",
                                                  upload.Data("stamp me")))
+            d.addCallback(self.stall, 0.1)
             def _stop(res):
                 self._stop_timestamp = time.time()
             d.addCallback(_stop)
