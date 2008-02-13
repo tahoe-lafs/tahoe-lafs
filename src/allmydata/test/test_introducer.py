@@ -27,28 +27,6 @@ class TestIntroducerNode(testutil.SignalMixin, unittest.TestCase):
         d = fireEventually(None)
         d.addCallback(lambda res: q.startService())
         d.addCallback(lambda res: q.when_tub_ready())
-        def _check_parameters(res):
-            i = q.getServiceNamed("introducer")
-            self.failUnlessEqual(i._encoding_parameters, (3, 7, 10))
-        d.addCallback(_check_parameters)
-        d.addCallback(lambda res: q.stopService())
-        d.addCallback(flushEventualQueue)
-        return d
-
-    def test_set_parameters(self):
-        basedir = "introducer.IntroducerNode.test_set_parameters"
-        os.mkdir(basedir)
-        f = open(os.path.join(basedir, "encoding_parameters"), "w")
-        f.write("25 75 100")
-        f.close()
-        q = IntroducerNode(basedir)
-        d = fireEventually(None)
-        d.addCallback(lambda res: q.startService())
-        d.addCallback(lambda res: q.when_tub_ready())
-        def _check_parameters(res):
-            i = q.getServiceNamed("introducer")
-            self.failUnlessEqual(i._encoding_parameters, (25, 75, 100))
-        d.addCallback(_check_parameters)
         d.addCallback(lambda res: q.stopService())
         d.addCallback(flushEventualQueue)
         return d

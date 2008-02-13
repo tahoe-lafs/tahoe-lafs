@@ -12,20 +12,13 @@ from allmydata.util import log, idlib
 class IntroducerNode(node.Node):
     PORTNUMFILE = "introducer.port"
     NODETYPE = "introducer"
-    ENCODING_PARAMETERS_FILE = "encoding_parameters"
-    DEFAULT_K, DEFAULT_DESIRED, DEFAULT_N = 3, 7, 10
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
         self.init_introducer()
 
     def init_introducer(self):
-        k, desired, n = self.DEFAULT_K, self.DEFAULT_DESIRED, self.DEFAULT_N
-        data = self.get_config("encoding_parameters")
-        if data is not None:
-            k,desired,n = data.split()
-            k = int(k); desired = int(desired); n = int(n)
-        introducerservice = IntroducerService(self.basedir, (k, desired, n))
+        introducerservice = IntroducerService(self.basedir)
         self.add_service(introducerservice)
 
         d = self.when_tub_ready()
@@ -41,12 +34,11 @@ class IntroducerService(service.MultiService, Referenceable):
     implements(RIIntroducerPublisherAndSubscriberService)
     name = "introducer"
 
-    def __init__(self, basedir=".", encoding_parameters=None):
+    def __init__(self, basedir="."):
         service.MultiService.__init__(self)
         self.introducer_url = None
         self._announcements = set()
         self._subscribers = {}
-        self._encoding_parameters = encoding_parameters
 
     def log(self, *args, **kwargs):
         if "facility" not in kwargs:
@@ -85,11 +77,6 @@ class IntroducerService(service.MultiService, Referenceable):
                                if a[1] == service_name ] )
         d = subscriber.callRemote("announce", announcements)
         d.addErrback(log.err, facility="tahoe.introducer", level=log.UNUSUAL)
-
-        def UNKNOWN(): # TODO
-            if self._encoding_parameters is not None:
-                node.callRemote("set_encoding_parameters",
-                                self._encoding_parameters)
 
 
 

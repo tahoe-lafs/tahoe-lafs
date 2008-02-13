@@ -127,24 +127,7 @@ centralized storage meshes to gather operational logs in a single place.
 Introducer nodes use the same 'advertised_ip_addresses' file as client
 nodes. They also use 'authorized_keys.SSHPORT'.
 
-encoding_parameters (optional): This file sets the encoding parameters that
-will be distributed to all client nodes and used when they encode files
-(unless locally overridden). It should contain three numbers, separated by
-whitespace, called "needed", "desired", and "total".
-
- "needed": this is the number of shares that will be needed to reconstruct
-           the file. Each share that is pushed to a StorageServer will be
-           the size of the original file divided by this number.
- "desired": the encoding/upload process will be happy if it can push
-            this many shares to StorageServers. If it cannot, it will
-            report failure.
- "total": this is the total number of shares that will be produced. The
-          expansion factor (i.e. the amount of space consumed on the whole
-          grid divided by the size of the file) will be total/needed. It does
-          not make a lot of sense to have "total" be much larger than the
-          maximum number of storage nodes you expect to ever have.
-
-The default value of encoding_parameters is "3 7 10".
+There are no additional configuration parameters for the introducer.
 
 
 == Introducer state ==
