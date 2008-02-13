@@ -9,7 +9,7 @@
 # from the Python Standard Library
 import string
 
-from allmydata.util.mathutil import div_ceil, log_ceil, log_floor
+from allmydata.util.mathutil import log_ceil, log_floor
 
 chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 

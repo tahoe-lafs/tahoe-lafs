@@ -37,9 +37,6 @@ class T(unittest.TestCase):
     def test_ende_0x0100(self):
         return self._test_ende('\x01\x00')
 
-    def test_ende_0x010000(self):
-        return self._test_ende('\x01\x00\x00')
-
     def test_ende_0x000000(self):
         return self._test_ende('\x00\x00\x00')
 
@@ -70,7 +67,7 @@ class T(unittest.TestCase):
             assert bs == bs2l
 
 def suite():
-    suite = unittest.makeSuite(base62TestCase, 'test')
+    suite = unittest.makeSuite(T, 'test')
     return suite
 
 if __name__ == "__main__":

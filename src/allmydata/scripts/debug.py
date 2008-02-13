@@ -328,7 +328,6 @@ def find_shares(config, out=sys.stdout, err=sys.stderr):
     /home/warner/testnet/node-2/storage/shares/44k/44kai1tui348689nrw8fjegc8c/2
     """
     from allmydata import storage
-    from allmydata.util import idlib
 
     sharedir = storage.storage_index_to_dir(storage.si_a2b(config.si_s))
     for d in config.nodedirs:

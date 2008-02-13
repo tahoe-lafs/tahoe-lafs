@@ -7,7 +7,7 @@ from foolscap import Tub, eventual
 from foolscap.logging import log
 
 from allmydata import offloaded, storage, upload
-from allmydata.util import hashutil, fileutil, idlib, mathutil
+from allmydata.util import hashutil, fileutil, mathutil
 from pycryptopp.cipher.aes import AES
 
 MiB = 1024*1024
