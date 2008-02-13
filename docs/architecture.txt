@@ -30,7 +30,7 @@ applications, too.
 
 THE GRID OF STORAGE SERVERS
 
-The grid is composed of a collection of peer nodes -- processes running on
+The grid is composed of peer nodes -- processes running on
 computers.  They establish TCP connections to each other using Foolscap, a
 secure remote message passing library.
 
@@ -47,8 +47,8 @@ all other peers from it. Each peer then connects to all other peers,
 creating a fully-connected topology.  In the current release, nodes
 behind NAT boxes will connect to all nodes that they can open
 connections to, but they cannot open connections to other nodes behind
-NAT boxes.  Therefore, the more nodes there are behind NAT boxes the
-less the topology resembles the intended fully-connected topology.
+NAT boxes.  Therefore, the more nodes behind NAT boxes, the less the
+topology resembles the intended fully-connected topology.
 
 
 FILE ENCODING
@@ -57,15 +57,15 @@ When a peer stores a file on the grid, it first encrypts the file,
 using a key that is optionally derived from the hash of the file
 itself.  It then segments the encrypted file into small pieces, in
 order to reduce the memory footprint, and to decrease the lag between
-initiating a download and receiving the first part of the file, for
+initiating a download and receiving the first part of the file; for
 example the lag between hitting "play" and a movie actually starting.
 
 The peer then erasure-codes each segment, producing blocks such that
-only a subset of the blocks (by default 3 out of 12 of the blocks) are
-needed to reconstruct the segment.  The peer uploads each block to a
-storage server.  It sends one block from each segment to a given
-server, creating a "share" stored on that server.  Only a subset of
-the shares (3 out of 12) are needed to reconstruct the file.
+only a subset of them are needed to reconstruct the segment (by
+default 3 out of 12 of the blocks).  It sends one block from each
+segment to a given server.  The set of blocks on a given server
+constitutes a "share".  Only a subset of the shares (3 out of 12) are
+needed to reconstruct the file.
 
 A tagged hash of the encryption key is used to form the "storage
 index", which is used for both server selection (described below) and
