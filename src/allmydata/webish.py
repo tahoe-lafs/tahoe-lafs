@@ -2,12 +2,11 @@
 import time, os.path
 from twisted.application import service, strports, internet
 from twisted.web import static, resource, server, html, http
-from twisted.python import log
 from twisted.internet import defer, address
 from twisted.internet.interfaces import IConsumer
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
-from allmydata.util import fileutil, idlib, observer
+from allmydata.util import fileutil, idlib, observer, log
 import simplejson
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode, \
      IMutableFileNode
@@ -123,6 +122,48 @@ class MyRequest(appserver.NevowRequest):
 ##                  raise
 
         self.process()
+
+    def _escape(self, s):
+        # pain in the ass. Return a string like python repr, but always
+        # escaped as if surrounding quotes were "".
+        r = repr(s)
+        if r[0] == "'":
+            return r[1:-1].replace('"', '\\"').replace("\\'", "'")
+        return r[1:-1]
+
+    def _logger(self):
+        # we build up a log string that hides most of the cap, to preserve
+        # user privacy. We retain the query args so we can identify things
+        # like t=json. Then we send it to the flog. We make no attempt to
+        # match apache formatting. TODO: when we move to DSA dirnodes and
+        # shorter caps, consider exposing a few characters of the cap, or
+        # maybe a few characters of its hash.
+        x = self.uri.split("?", 1)
+        if len(x) == 1:
+            # no query args
+            path = self.uri
+            queryargs = ""
+        else:
+            path, queryargs = x
+            # there is a form handler which redirects POST /uri?uri=FOO into
+            # GET /uri/FOO so folks can paste in non-HTTP-prefixed uris. Make
+            # sure we censor these too.
+            if queryargs.startswith("uri="):
+                queryargs = "[uri=CENSORED]"
+            queryargs = "?" + queryargs
+        if path.startswith("/uri"):
+            path = "/uri/[CENSORED].."
+        uri = path + queryargs
+
+        log.msg(format="web: %(clientip)s %(method)s %(uri)s %(code)s %(length)s",
+                clientip=self.getClientIP(),
+                method=self.method,
+                uri=uri,
+                code=self.code,
+                length=(self.sentLength or "-"),
+                facility="tahoe.webish",
+                level=log.OPERATIONAL,
+                )
 
 class Directory(rend.Page):
     addSlash = True
