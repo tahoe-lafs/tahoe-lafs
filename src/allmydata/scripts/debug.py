@@ -345,7 +345,7 @@ class CatalogSharesOptions(usage.Options):
     for each share it finds:
 
       CHK $SI $k/$N $filesize $UEB_hash $expiration $abspath_sharefile
-      SDMF $SI $k/$N $seqnum/$roothash $expiration $abspath_sharefile
+      SDMF $SI $k/$N $filesize $seqnum/$roothash $expiration $abspath_sharefile
       UNKNOWN $abspath_sharefile
 
     It may be useful to build up a catalog of shares from many storage servers
@@ -401,10 +401,10 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out, err):
              pubkey, signature, share_hash_chain, block_hash_tree,
              share_data, enc_privkey) = pieces
 
-            print >>out, "SDMF %s %d/%d #%d:%s %d %s" % (si_s, k, N, seqnum,
-                                                         idlib.b2a(root_hash),
-                                                         expiration,
-                                                         abs_sharefile)
+            print >>out, "SDMF %s %d/%d %d #%d:%s %d %s" % \
+                  (si_s, k, N, datalen,
+                   seqnum, idlib.b2a(root_hash),
+                   expiration, abs_sharefile)
         else:
             print >>out, "UNKNOWN mutable %s" % (abs_sharefile,)
 

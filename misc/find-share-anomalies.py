@@ -19,7 +19,7 @@ for catalog in sys.argv[1:]:
             chk_encodings[si][0].add( (si, kN) )
             chk_encodings[si][1].add( line )
         if pieces[0] == "SDMF":
-            ftype, si, kN, ver, expiration, filename = pieces
+            ftype, si, kN, size, ver, expiration, filename = pieces
             if si not in sdmf_encodings:
                 sdmf_encodings[si] = (set(), set())
             sdmf_encodings[si][0].add( (si, kN) )
