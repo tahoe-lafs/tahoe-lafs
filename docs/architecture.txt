@@ -37,7 +37,7 @@ secure remote message passing library.
 Each peer offers certain services to the others. The primary service
 is that of the storage server, which holds data in the form of
 "shares".  Shares are encoded pieces of files.  There are a
-configurable number of shares for each file, 12 by default.  Normally,
+configurable number of shares for each file, 10 by default.  Normally,
 each share is stored on a separate server, but a single server can
 hold multiple shares for a single file.
 
@@ -62,9 +62,9 @@ example the lag between hitting "play" and a movie actually starting.
 
 The peer then erasure-codes each segment, producing blocks such that
 only a subset of them are needed to reconstruct the segment (by
-default 3 out of 12 of the blocks).  It sends one block from each
+default 3 out of 10 of the blocks).  It sends one block from each
 segment to a given server.  The set of blocks on a given server
-constitutes a "share".  Only a subset of the shares (3 out of 12) are
+constitutes a "share".  Only a subset of the shares (3 out of 10) are
 needed to reconstruct the file.
 
 A tagged hash of the encryption key is used to form the "storage
