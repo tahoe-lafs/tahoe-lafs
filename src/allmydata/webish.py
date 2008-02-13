@@ -920,7 +920,8 @@ class POSTHandler(rend.Page):
             def _got_child_check(child_node):
                 d2 = child_node.check()
                 def _done(res):
-                    log.msg("checked %s, results %s" % (child_node, res))
+                    log.msg("checked %s, results %s" % (child_node, res),
+                            facility="tahoe.webish", level=log.NOISY)
                     return str(res)
                 d2.addCallback(_done)
                 return d2
@@ -1056,7 +1057,8 @@ class PUTHandler(rend.Page):
         uploadable = FileHandle(contents)
         d = node.add_file(name, uploadable)
         def _done(filenode):
-            log.msg("webish upload complete")
+            log.msg("webish upload complete",
+                    facility="tahoe.webish", level=log.NOISY)
             return filenode.get_uri()
         d.addCallback(_done)
         return d
