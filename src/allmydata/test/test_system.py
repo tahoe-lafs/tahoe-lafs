@@ -1117,6 +1117,8 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         d.addCallback(lambda res: self.GET(public + "/subdir3/new.txt"))
         d.addCallback(self.failUnlessEqual, "NEWER contents")
 
+        # check that the status page exists
+        d.addCallback(lambda res: self.GET("status"))
 
         # TODO: mangle the second segment of a file, to test errors that
         # occur after we've already sent some good data, which uses a

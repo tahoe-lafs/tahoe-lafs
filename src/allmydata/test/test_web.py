@@ -5,7 +5,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.web import client, error, http
 from twisted.python import failure, log
-from allmydata import interfaces, provisioning, uri, webish, upload
+from allmydata import interfaces, provisioning, uri, webish, upload, download
 from allmydata.util import fileutil
 from allmydata.test.common import NonGridDirectoryNode, FakeCHKFileNode, FakeMutableFileNode, create_chk_filenode
 from allmydata.interfaces import IURI, INewDirectoryURI, IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, IMutableFileNode
@@ -66,6 +66,11 @@ class FakeClient(service.MultiService):
             return results
         d.addCallback(_got_data)
         return d
+
+    def list_uploads(self):
+        return [upload.UploadStatus()]
+    def list_downloads(self):
+        return [download.DownloadStatus()]
 
 
 class WebMixin(object):
@@ -359,6 +364,13 @@ class Web(WebMixin, unittest.TestCase):
         def _check4(res):
             self.failUnless("Share space consumed:" in res)
         d.addCallback(_check4)
+        return d
+
+    def test_status(self):
+        d = self.GET("/status")
+        def _check(res):
+            self.failUnless('Current Uploads and Downloads' in res)
+        d.addCallback(_check)
         return d
 
     def test_GET_FILEURL(self):
