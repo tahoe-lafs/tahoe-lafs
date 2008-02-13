@@ -18,6 +18,7 @@ from allmydata import get_package_versions_string
 from zope.interface import implements, Interface
 import urllib
 from formless import webform
+from foolscap.eventual import fireEventually
 
 from nevow.util import resource_filename
 
@@ -209,6 +210,25 @@ class Directory(rend.Page):
     def data_children(self, ctx, data):
         d = self._dirnode.list()
         d.addCallback(lambda dict: sorted(dict.items()))
+        def _stall_some(items):
+            # Deferreds don't optimize out tail recursion, and the way
+            # Nevow's flattener handles Deferreds doesn't take this into
+            # account. As a result, large lists of Deferreds that fire in the
+            # same turn (i.e. the output of defer.succeed) will cause a stack
+            # overflow. To work around this, we insert a turn break after
+            # every 100 items, using foolscap's fireEventually(). This gives
+            # the stack a chance to be popped. It would also work to put
+            # every item in its own turn, but that'd be a lot more
+            # inefficient. This addresses ticket #237, for which I was never
+            # able to create a failing unit test.
+            output = []
+            for i,item in enumerate(items):
+                if i % 100 == 0:
+                    output.append(fireEventually(item))
+                else:
+                    output.append(item)
+            return output
+        d.addCallback(_stall_some)
         return d
 
     def render_row(self, ctx, data):
