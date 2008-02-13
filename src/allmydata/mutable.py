@@ -410,12 +410,32 @@ class Retrieve:
             self._valid_versions[verinfo] = (prefix, DictOfSets())
 
             # and make a note of the other parameters we've just learned
+            # NOTE: Retrieve needs to be refactored to put k,N in the verinfo
+            # along with seqnum/etc, to make sure we don't co-mingle shares
+            # from differently-encoded versions of the same file.
             if self._required_shares is None:
                 self._required_shares = k
                 self._node._populate_required_shares(k)
             if self._total_shares is None:
                 self._total_shares = N
                 self._node._populate_total_shares(N)
+
+        # reject shares that don't match our narrow-minded ideas of what
+        # encoding we're going to use. This addresses the immediate needs of
+        # ticket #312, by turning the data corruption into unavailability. To
+        # get back the availability (i.e. make sure that one weird-encoding
+        # share that happens to come back first doesn't make us ignore the
+        # rest of the shares), we need to implement the refactoring mentioned
+        # above.
+        if k != self._required_shares:
+            raise CorruptShareError(peerid, shnum,
+                                    "share has k=%d, we want k=%d" %
+                                    (k, self._required_shares))
+
+        if N != self._total_shares:
+            raise CorruptShareError(peerid, shnum,
+                                    "share has N=%d, we want N=%d" %
+                                    (N, self._total_shares))
 
         # we've already seen this pair, and checked the signature so we
         # know it's a valid candidate. Accumulate the share info, if
