@@ -11,8 +11,8 @@ from twisted.internet import defer
 from twisted.application import service
 from twisted.python import log
 from allmydata.interfaces import IVerifierURI
-from allmydata import uri, download
-from allmydata.util import hashutil, idlib
+from allmydata import uri, download, storage
+from allmydata.util import hashutil
 
 class SimpleCHKFileChecker:
     """Return a list of (needed, total, found, sharemap), where sharemap maps
@@ -136,7 +136,7 @@ class SimpleCHKFileVerifier(download.FileDownloader):
                                 }
 
     def init_logging(self):
-        self._log_prefix = prefix = idlib.b2a(self._storage_index)[:6]
+        self._log_prefix = prefix = storage.si_b2a(self._storage_index)[:5]
         num = self._client.log("SimpleCHKFileVerifier(%s): starting" % prefix)
         self._log_number = num
 
@@ -149,7 +149,7 @@ class SimpleCHKFileVerifier(download.FileDownloader):
 
 
     def start(self):
-        log.msg("starting download [%s]" % idlib.b2a(self._storage_index)[:6])
+        log.msg("starting download [%s]" % storage.si_b2a(self._storage_index)[:5])
 
         # first step: who should we download from?
         d = defer.maybeDeferred(self._get_all_shareholders)

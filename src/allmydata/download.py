@@ -365,9 +365,9 @@ class FileDownloader:
                                 }
 
     def init_logging(self):
-        self._log_prefix = prefix = idlib.b2a(self._storage_index)[:6]
+        self._log_prefix = prefix = storage.si_b2a(self._storage_index)[:5]
         num = self._client.log(format="FileDownloader(%(si)s): starting",
-                               si=idlib.b2a(self._storage_index))
+                               si=storage.si_b2a(self._storage_index))
         self._log_number = num
 
     def log(self, *args, **kwargs):

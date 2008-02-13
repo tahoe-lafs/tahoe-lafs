@@ -6,7 +6,7 @@ from twisted.application import service
 from foolscap import Tub, eventual
 from foolscap.logging import log
 
-from allmydata import upload, offloaded
+from allmydata import offloaded, storage, upload
 from allmydata.util import hashutil, fileutil, idlib, mathutil
 from pycryptopp.cipher.aes import AES
 
@@ -153,7 +153,7 @@ class AssistedUpload(unittest.TestCase):
         assert len(key) == 16
         encryptor = AES(key)
         SI = hashutil.storage_index_hash(key)
-        SI_s = idlib.b2a(SI)
+        SI_s = storage.si_b2a(SI)
         encfile = os.path.join(self.basedir, "CHK_encoding", SI_s)
         f = open(encfile, "wb")
         f.write(encryptor.process(DATA))

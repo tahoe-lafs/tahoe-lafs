@@ -8,7 +8,7 @@ from foolscap.eventual import eventually
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI
 from allmydata.util import hashutil, mathutil, idlib, log
 from allmydata.uri import WriteableSSKFileURI
-from allmydata import hashtree, codec
+from allmydata import hashtree, codec, storage
 from allmydata.encode import NotEnoughPeersError
 from pycryptopp.publickey import rsa
 from pycryptopp.cipher.aes import AES
@@ -207,7 +207,7 @@ class Retrieve:
         self._readkey = filenode.get_readkey()
         self._last_failure = None
         self._log_number = None
-        self._log_prefix = prefix = idlib.b2a(self._storage_index)[:6]
+        self._log_prefix = prefix = storage.si_b2a(self._storage_index)[:5]
         num = self._node._client.log("Retrieve(%s): starting" % prefix)
         self._log_number = num
 
@@ -695,7 +695,7 @@ class Publish:
     def __init__(self, filenode):
         self._node = filenode
         self._storage_index = self._node.get_storage_index()
-        self._log_prefix = prefix = idlib.b2a(self._storage_index)[:6]
+        self._log_prefix = prefix = storage.si_b2a(self._storage_index)[:5]
         num = self._node._client.log("Publish(%s): starting" % prefix)
         self._log_number = num
 
@@ -974,7 +974,7 @@ class Publish:
         # one-per-peer in the normal permuted order.
         while shares_needing_homes:
             if not reachable_peers:
-                prefix = idlib.b2a(self._node.get_storage_index())[:6]
+                prefix = storage.si_b2a(self._node.get_storage_index())[:5]
                 raise NotEnoughPeersError("ran out of peers during upload of (%s); shares_needing_homes: %s, reachable_peers: %s" % (prefix, shares_needing_homes, reachable_peers,))
             shnum = shares_needing_homes.pop(0)
             possible_homes = reachable_peers.keys()

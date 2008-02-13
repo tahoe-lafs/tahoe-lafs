@@ -93,7 +93,7 @@ class CLI(unittest.TestCase):
         self.failUnless("UEB hash: hd7rwri6djiapo6itg5hcxa7ze5im7z9qwcdu8oka6qinahsbiuo" in output)
         self.failUnless("size: 1234" in output)
         self.failUnless("k/N: 25/100" in output)
-        self.failUnless("storage index: kckbjgwsckzrj5srjdniw9h3ke" in output)
+        self.failUnless("storage index: 2WlXTYP4ahK2VBkx1pckfC" in output, output)
 
         output = self._dump_cap("--client-secret", "p3w849k9whqhw6b9fkf4xjs5xc",
                                 u.to_string())
@@ -104,7 +104,7 @@ class CLI(unittest.TestCase):
         self.failUnless("UEB hash: hd7rwri6djiapo6itg5hcxa7ze5im7z9qwcdu8oka6qinahsbiuo" in output)
         self.failUnless("size: 1234" in output)
         self.failUnless("k/N: 25/100" in output)
-        self.failUnless("storage index: kckbjgwsckzrj5srjdniw9h3ke" in output)
+        self.failUnless("storage index: 2WlXTYP4ahK2VBkx1pckfC" in output, output)
 
         prefixed_u = "http://127.0.0.1/uri/%s" % urllib.quote(u.to_string())
         output = self._dump_cap(prefixed_u)
@@ -113,7 +113,7 @@ class CLI(unittest.TestCase):
         self.failUnless("UEB hash: hd7rwri6djiapo6itg5hcxa7ze5im7z9qwcdu8oka6qinahsbiuo" in output)
         self.failUnless("size: 1234" in output)
         self.failUnless("k/N: 25/100" in output)
-        self.failUnless("storage index: kckbjgwsckzrj5srjdniw9h3ke" in output)
+        self.failUnless("storage index: 2WlXTYP4ahK2VBkx1pckfC" in output, output)
 
     def test_dump_cap_lit(self):
         u = uri.LiteralFileURI("this is some data")
@@ -130,7 +130,7 @@ class CLI(unittest.TestCase):
         self.failUnless("SSK Writeable URI:" in output)
         self.failUnless("writekey: yryonyebyryonyebyryonyebyr" in output)
         self.failUnless("readkey: zhgqsyrkuywo3rha41b1d7xrar" in output)
-        self.failUnless("storage index: toz9zpxrzjzwoxtuq6xr3ygdze" in output)
+        self.failUnless("storage index: 4GWqxTUinIqKqWj770lRIA" in output, output)
         self.failUnless("fingerprint: 959x79z6959x79z6959x79z6959x79z6959x79z6959x79z6959y" in output)
 
         output = self._dump_cap("--client-secret", "p3w849k9whqhw6b9fkf4xjs5xc",
@@ -165,13 +165,13 @@ class CLI(unittest.TestCase):
         output = self._dump_cap(u.to_string())
         self.failUnless("SSK Read-only URI:" in output)
         self.failUnless("readkey: zhgqsyrkuywo3rha41b1d7xrar" in output)
-        self.failUnless("storage index: toz9zpxrzjzwoxtuq6xr3ygdze" in output)
+        self.failUnless("storage index: 4GWqxTUinIqKqWj770lRIA" in output, output)
         self.failUnless("fingerprint: 959x79z6959x79z6959x79z6959x79z6959x79z6959x79z6959y" in output)
 
         u = u.get_verifier()
         output = self._dump_cap(u.to_string())
         self.failUnless("SSK Verifier URI:" in output)
-        self.failUnless("storage index: toz9zpxrzjzwoxtuq6xr3ygdze" in output)
+        self.failUnless("storage index: 4GWqxTUinIqKqWj770lRIA" in output, output)
         self.failUnless("fingerprint: 959x79z6959x79z6959x79z6959x79z6959x79z6959x79z6959y" in output)
 
     def test_dump_cap_directory(self):
@@ -184,7 +184,7 @@ class CLI(unittest.TestCase):
         self.failUnless("Directory Writeable URI:" in output)
         self.failUnless("writekey: yryonyebyryonyebyryonyebyr" in output)
         self.failUnless("readkey: zhgqsyrkuywo3rha41b1d7xrar" in output)
-        self.failUnless("storage index: toz9zpxrzjzwoxtuq6xr3ygdze" in output)
+        self.failUnless("storage index: 4GWqxTUinIqKqWj770lRIA" in output, output)
         self.failUnless("fingerprint: 959x79z6959x79z6959x79z6959x79z6959x79z6959x79z6959y" in output)
 
         output = self._dump_cap("--client-secret", "p3w849k9whqhw6b9fkf4xjs5xc",
@@ -207,12 +207,12 @@ class CLI(unittest.TestCase):
         output = self._dump_cap(u.to_string())
         self.failUnless("Directory Read-only URI:" in output)
         self.failUnless("readkey: zhgqsyrkuywo3rha41b1d7xrar" in output)
-        self.failUnless("storage index: toz9zpxrzjzwoxtuq6xr3ygdze" in output)
+        self.failUnless("storage index: 4GWqxTUinIqKqWj770lRIA" in output, output)
         self.failUnless("fingerprint: 959x79z6959x79z6959x79z6959x79z6959x79z6959x79z6959y" in output)
 
         u = u.get_verifier()
         output = self._dump_cap(u.to_string())
         self.failUnless("Directory Verifier URI:" in output)
-        self.failUnless("storage index: toz9zpxrzjzwoxtuq6xr3ygdze" in output)
+        self.failUnless("storage index: 4GWqxTUinIqKqWj770lRIA" in output, output)
         self.failUnless("fingerprint: 959x79z6959x79z6959x79z6959x79z6959x79z6959x79z6959y" in output)
 

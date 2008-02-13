@@ -84,7 +84,7 @@ class PeerTracker:
     def __repr__(self):
         return ("<PeerTracker for peer %s and SI %s>"
                 % (idlib.shortnodeid_b2a(self.peerid),
-                   idlib.b2a(self.storage_index)[:6]))
+                   storage.si_b2a(self.storage_index)[:5]))
 
     def query(self, sharenums):
         d = self._storageserver.callRemote("allocate_buckets",
@@ -659,7 +659,7 @@ class CHKUploader:
         self._storage_index_elapsed = now - started
         storage_index = encoder.get_param("storage_index")
         self._storage_index = storage_index
-        upload_id = idlib.b2a(storage_index)[:6]
+        upload_id = storage.si_b2a(storage_index)[:5]
         self.log("using storage index %s" % upload_id)
         peer_selector = self.peer_selector_class(upload_id, self._log_number,
                                                  self._upload_status)

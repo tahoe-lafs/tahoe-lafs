@@ -498,7 +498,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                 assert pieces[-5].startswith("client")
                 client_num = int(pieces[-5][-1])
                 storage_index_s = pieces[-1]
-                storage_index = idlib.a2b(storage_index_s)
+                storage_index = storage.si_a2b(storage_index_s)
                 for sharename in filenames:
                     shnum = int(sharename)
                     filename = os.path.join(dirpath, sharename)

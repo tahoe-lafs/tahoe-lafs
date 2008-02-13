@@ -243,7 +243,7 @@ def _dump_secrets(storage_index, secret, nodeid, out):
             print >>out, " lease cancel secret:", b2a(cancel)
 
 def dump_uri_instance(u, nodeid, secret, out, err, show_header=True):
-    from allmydata import uri
+    from allmydata import storage, uri
     from allmydata.util.idlib import b2a
     from allmydata.util import hashutil
 
@@ -254,7 +254,7 @@ def dump_uri_instance(u, nodeid, secret, out, err, show_header=True):
         print >>out, " UEB hash:", b2a(u.uri_extension_hash)
         print >>out, " size:", u.size
         print >>out, " k/N: %d/%d" % (u.needed_shares, u.total_shares)
-        print >>out, " storage index:", b2a(u.storage_index)
+        print >>out, " storage index:", storage.si_b2a(u.storage_index)
         _dump_secrets(u.storage_index, secret, nodeid, out)
     elif isinstance(u, uri.CHKFileVerifierURI):
         if show_header:
@@ -262,7 +262,7 @@ def dump_uri_instance(u, nodeid, secret, out, err, show_header=True):
         print >>out, " UEB hash:", b2a(u.uri_extension_hash)
         print >>out, " size:", u.size
         print >>out, " k/N: %d/%d" % (u.needed_shares, u.total_shares)
-        print >>out, " storage index:", b2a(u.storage_index)
+        print >>out, " storage index:", storage.si_b2a(u.storage_index)
 
     elif isinstance(u, uri.LiteralFileURI):
         if show_header:
@@ -274,7 +274,7 @@ def dump_uri_instance(u, nodeid, secret, out, err, show_header=True):
             print >>out, "SSK Writeable URI:"
         print >>out, " writekey:", b2a(u.writekey)
         print >>out, " readkey:", b2a(u.readkey)
-        print >>out, " storage index:", b2a(u.storage_index)
+        print >>out, " storage index:", storage.si_b2a(u.storage_index)
         print >>out, " fingerprint:", b2a(u.fingerprint)
         print >>out
         if nodeid:
@@ -287,12 +287,12 @@ def dump_uri_instance(u, nodeid, secret, out, err, show_header=True):
         if show_header:
             print >>out, "SSK Read-only URI:"
         print >>out, " readkey:", b2a(u.readkey)
-        print >>out, " storage index:", b2a(u.storage_index)
+        print >>out, " storage index:", storage.si_b2a(u.storage_index)
         print >>out, " fingerprint:", b2a(u.fingerprint)
     elif isinstance(u, uri.SSKVerifierURI):
         if show_header:
             print >>out, "SSK Verifier URI:"
-        print >>out, " storage index:", b2a(u.storage_index)
+        print >>out, " storage index:", storage.si_b2a(u.storage_index)
         print >>out, " fingerprint:", b2a(u.fingerprint)
 
     elif isinstance(u, uri.NewDirectoryURI):
@@ -330,7 +330,7 @@ def find_shares(config, out=sys.stdout, err=sys.stderr):
     from allmydata import storage
     from allmydata.util import idlib
 
-    sharedir = storage.storage_index_to_dir(idlib.a2b(config.si_s))
+    sharedir = storage.storage_index_to_dir(storage.si_a2b(config.si_s))
     for d in config.nodedirs:
         d = os.path.join(os.path.expanduser(d), "storage/shares", sharedir)
         if os.path.exists(d):

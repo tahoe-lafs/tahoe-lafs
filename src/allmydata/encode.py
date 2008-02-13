@@ -4,7 +4,7 @@ import time
 from zope.interface import implements
 from twisted.internet import defer
 from foolscap import eventual
-from allmydata import uri
+from allmydata import storage, uri
 from allmydata.hashtree import HashTree
 from allmydata.util import mathutil, hashutil, idlib, log
 from allmydata.util.assertutil import _assert, precondition
@@ -89,7 +89,7 @@ class Encoder(object):
 
     def __repr__(self):
         if hasattr(self, "_storage_index"):
-            return "<Encoder for %s>" % idlib.b2a(self._storage_index)[:6]
+            return "<Encoder for %s>" % storage.si_b2a(self._storage_index)[:5]
         return "<Encoder for unknown storage index>"
 
     def log(self, *args, **kwargs):

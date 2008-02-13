@@ -9,7 +9,7 @@ from zope.interface import implements
 from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
      RIBucketReader, IStorageBucketWriter, IStorageBucketReader, HASH_SIZE, \
      BadWriteEnablerError, IStatsProducer
-from allmydata.util import fileutil, idlib, mathutil, log
+from allmydata.util import base62, fileutil, idlib, mathutil, log
 from allmydata.util.assertutil import precondition, _assert
 import allmydata # for __version__
 
@@ -47,8 +47,15 @@ NUM_RE=re.compile("^[0-9]+$")
 #   B+0x44: expiration time, 4 bytes big-endian seconds-since-epoch
 #   B+0x48: next lease, or end of record
 
+def si_b2a(storageindex):
+    return base62.b2a(storageindex)
+
+def si_a2b(ascii_storageindex):
+    return base62.a2b(ascii_storageindex)
+
 def storage_index_to_dir(storageindex):
-    return os.path.join(idlib.b2a_l(storageindex[:2], 14), idlib.b2a(storageindex))
+    sia = si_b2a(storageindex)
+    return os.path.join(sia[:2], sia)
 
 class ShareFile:
     LEASE_SIZE = struct.calcsize(">L32s32sL")
@@ -919,7 +926,7 @@ class StorageServer(service.MultiService, Referenceable):
                                                secrets,
                                                test_and_write_vectors,
                                                read_vector):
-        si_s = idlib.b2a(storage_index)
+        si_s = si_b2a(storage_index)
         si_dir = storage_index_to_dir(storage_index)
         (write_enabler, renew_secret, cancel_secret) = secrets
         # shares exist if there is a file for them
@@ -997,7 +1004,7 @@ class StorageServer(service.MultiService, Referenceable):
         return share
 
     def remote_slot_readv(self, storage_index, shares, readv):
-        si_s = idlib.b2a(storage_index)
+        si_s = si_b2a(storage_index)
         lp = log.msg("storage: slot_readv %s %s" % (si_s, shares),
                      facility="tahoe.storage", level=log.OPERATIONAL)
         si_dir = storage_index_to_dir(storage_index)

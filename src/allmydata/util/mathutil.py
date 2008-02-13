@@ -49,3 +49,27 @@ def next_power_of_k(n, k):
 def ave(l):
     return sum(l) / len(l)
 
+def log_ceil(n, b):
+    """
+    The smallest integer k such that b^k >= n.
+
+    log_ceil(n, 2) is the number of bits needed to store any of n values, e.g.
+    the number of bits needed to store any of 128 possible values is 7.
+    """
+    p = 1
+    k = 0
+    while p < n:
+        p *= b
+        k += 1
+    return k
+
+def log_floor(n, b):
+    """
+    The largest integer k such that b^k <= n.
+    """
+    p = 1
+    k = 0
+    while p <= n:
+        p *= b
+        k += 1
+    return k - 1

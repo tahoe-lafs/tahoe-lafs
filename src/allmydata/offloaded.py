@@ -136,7 +136,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         self._helper = helper
         self._incoming_file = incoming_file
         self._encoding_file = encoding_file
-        upload_id = idlib.b2a(storage_index)[:6]
+        upload_id = storage.si_b2a(storage_index)[:5]
         self._log_number = log_number
         self._results = results
         self._upload_status = upload.UploadStatus()
@@ -481,7 +481,7 @@ class Helper(Referenceable, service.MultiService):
     def remote_upload_chk(self, storage_index):
         r = upload.UploadResults()
         started = time.time()
-        si_s = idlib.b2a(storage_index)
+        si_s = storage.si_b2a(storage_index)
         lp = self.log(format="helper: upload_chk query for SI %(si)s", si=si_s)
         incoming_file = os.path.join(self._chk_incoming, si_s)
         encoding_file = os.path.join(self._chk_encoding, si_s)
