@@ -1,28 +1,57 @@
-ANNOUNCING: Allmydata-Tahoe version 0.7
+ANNOUNCING: Allmydata-Tahoe version 0.8
 
-We are pleased to announce the release of version 0.7 of allmydata.org
+We are pleased to announce the release of version 0.8 of allmydata.org
 "Tahoe".
 
-Tahoe is a secure, decentralized, fault-tolerant filesystem.  All of
-the source code is available under a Free Software, Open Source
-licence (or two).
+Allmydata.org "Tahoe" is a secure, decentralized, fault-tolerant
+filesystem.  All of the source code is available under a Free
+Software, Open Source licence (or two).
 
 This filesystem is encrypted and distributed over multiple peers in
 such a way that it continues to work correctlly even when some of the
 peers are unavailable, malfunctioning, or malicious.
 
-This is the successor to Allmydata-Tahoe v0.6.1, which was released
-October 15, 2007 [1].
+This is the successor to Allmydata-Tahoe v0.7, which was released
+January 8, 2008 [1].
 
-This release adds decentralized, encrypted directories and mutable
-files, making it the first release of Tahoe in which no part of the
-filesystem is centralized.  It also adds a FUSE interface, allowing
-you to access a distributed Tahoe grid as if it were a normal local
-filesystem.
+This release improves performance, diagnostics, and packaging.  This
+release of allmydata.org "Tahoe" will form the basis of the next
+consumer backup product from Allmydata, Inc. -- http://allmydata.com .
 
-This is also the first release to be offered under a novel open source
-licence which allows people to redistributed proprietary derivatives
-of Tahoe for a limited time.
+
+Since v0.7 we've made the following changes:
+
+ * Add an upload/download helper, with resumption and short-circuiting
+   of upload if the file is already uploaded (tickets #116, #258,
+   #218).
+
+ * Add a preliminary Microsoft Windows package (ticket #195).
+
+ * Add a preliminary Macintosh package (ticket #182).
+
+ * Display information about peers (ticket #32).
+
+ * Display information about uploads and downloads (ticket #39).
+
+ * Add unit tests and docs for contrib/fuse.
+
+ * Update docs, starting with docs/about.html --
+   http://allmydata.org/source/tahoe/trunk/docs/about.html .
+
+ * Improve logging, diagnostic tools, statistics, timing of upload
+   performance, etc..
+
+ * Make upload continue even if some servers disappear during the
+   upload process.
+
+ * Make introduction more efficient by allowing nodes to act as
+   clients-only and not publish themselves as servers (ticket #271).
+
+ * Extend the web API to allow programmatic control of mutable files.
+
+ * Fix potential problem that could cause corruption of downloaded
+   mutable files if a long series of unlikely coincidences and hacked
+   clients occurred (ticket #312).
 
 
 WHAT IS IT GOOD FOR?
@@ -102,7 +131,7 @@ January 7, 2008
 San Francisco, California
 
 
-[1] http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=1346
+[1] http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=1805
 [2] http://allmydata.org/trac/tahoe/wiki/Security
 [3] http://allmydata.org/trac/tahoe/wiki/UseCases
 [4] http://allmydata.org/source/tahoe/trunk/docs/install.html
