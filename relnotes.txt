@@ -21,9 +21,9 @@ consumer backup product from Allmydata, Inc. -- http://allmydata.com .
 
 Since v0.7 we've made the following changes:
 
- * Add an upload/download helper, with resumption and short-circuiting
-   of upload if the file is already uploaded (tickets #116, #258,
-   #218).
+ * Add an upload helper, with resumption of incomplete uploads and
+   short-circuiting of uploads if the file is already present (tickets
+   #116, #258, #218).
 
  * Add a preliminary Microsoft Windows package (ticket #195).
 
@@ -33,13 +33,15 @@ Since v0.7 we've made the following changes:
 
  * Display information about uploads and downloads (ticket #39).
 
- * Add unit tests and docs for contrib/fuse.
+ * Add unit tests and docs for contrib/fuse (ticket #255).
 
  * Update docs, starting with docs/about.html --
    http://allmydata.org/source/tahoe/trunk/docs/about.html .
 
- * Improve logging, diagnostic tools, statistics, timing of upload
-   performance, etc..
+ * Improve logging, diagnostic tools, statistics, timing measurements
+   during upload, etc..
+
+ * Add mtime and ctime timestamps to files (ticket #183).
 
  * Make upload continue even if some servers disappear during the
    upload process.
@@ -52,6 +54,9 @@ Since v0.7 we've made the following changes:
  * Fix potential problem that could cause corruption of downloaded
    mutable files if a long series of unlikely coincidences and hacked
    clients occurred (ticket #312).
+
+ * Add more measurements of performance:
+   http://allmydata.org/trac/tahoe/wiki/Performance .
 
 
 WHAT IS IT GOOD FOR?
