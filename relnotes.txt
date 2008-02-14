@@ -21,10 +21,6 @@ consumer backup product from Allmydata, Inc. -- http://allmydata.com .
 
 Since v0.7 we've made the following changes:
 
- * Add an upload helper, with resumption of incomplete uploads and
-   short-circuiting of uploads if the file is already present (tickets
-   #116, #258, #218).
-
  * Add a preliminary Microsoft Windows package (ticket #195).
 
  * Add a preliminary Macintosh package (ticket #182).
@@ -41,10 +37,17 @@ Since v0.7 we've made the following changes:
  * Improve logging, diagnostic tools, statistics, timing measurements
    during upload, etc..
 
- * Add mtime and ctime timestamps to files (ticket #183).
+ * Add more measurements of performance:
+   http://allmydata.org/trac/tahoe/wiki/Performance .
+
+ * Add an upload helper, with resumption of incomplete uploads and
+   short-circuiting of uploads if the file is already present (tickets
+   #116, #258, #218).
 
  * Make upload continue even if some servers disappear during the
    upload process.
+
+ * Add mtime and ctime timestamps to files (ticket #183).
 
  * Make introduction more efficient by allowing nodes to act as
    clients-only and not publish themselves as servers (ticket #271).
@@ -54,9 +57,6 @@ Since v0.7 we've made the following changes:
  * Fix potential problem that could cause corruption of downloaded
    mutable files if a long series of unlikely coincidences and hacked
    clients occurred (ticket #312).
-
- * Add more measurements of performance:
-   http://allmydata.org/trac/tahoe/wiki/Performance .
 
 
 WHAT IS IT GOOD FOR?
@@ -75,14 +75,14 @@ requests to get started.)
 Because this software is new, it is not yet recommended for storage of
 highly confidential data nor for valuable data which is not otherwise
 backed up. However, it works well in practice, it comes with extensive
-unit tests, and there are no known security flaws which would
+unit tests [2], and there are no known security flaws which would
 compromise confidentiality or data integrity.  (For a current
 description of all known security issues and an overview of Tahoe's
-security properties, please see the Security web page: [2].)
+security properties, please see the Security web page: [3].)
 
-This release of Tahoe is suitable for the "friendnet" use case [3] --
-it is easy to create a filesystem spread over the computers of you
-and your friends so that you can share files and disk space with one
+This release of Tahoe is suitable for the "friendnet" use case [4] --
+it is easy to create a filesystem spread over the computers of you and
+your friends so that you can share files and disk space with one
 another.
 
 
@@ -108,21 +108,21 @@ at your option.)
 INSTALLATION
 
 Tahoe works on Linux, Mac OS X, Windows, Cygwin, and Solaris.  For
-installation instructions please see "doc/install.html" [4].
+installation instructions please see "doc/install.html" [5].
 
 
 HACKING AND COMMUNITY
 
-Please join us on the mailing list [5] to discuss uses of Tahoe.
-Patches that extend and improve Tahoe are gratefully accepted --
-roadmap.txt [6] shows the next improvements that we plan to make and
-CREDITS [7] lists the names of people who've contributed to the
-project.  The wiki Dev page [8] contains resources for hackers.
+Please join us on the mailing list [6] to discuss uses of Tahoe.
+Patches that extend and improve Tahoe are gratefully accepted -- the
+RoadMap page [7] shows the next improvements that we plan to make and
+CREDITS [8] lists the names of people who've contributed to the
+project.  The wiki Dev page [9] contains resources for hackers.
 
 
 SPONSORSHIP
 
-Tahoe is sponsored by Allmydata, Inc. [9], a provider of consumer
+Tahoe is sponsored by Allmydata, Inc. [10], a provider of consumer
 backup services.  Allmydata, Inc. contributes hardware, software,
 ideas, bug reports, suggestions, demands, and money (employing several
 allmydata.org Tahoe hackers and allowing them to spend part of their
@@ -132,16 +132,17 @@ eternally grateful!
 
 Zooko O'Whielacronx
 on behalf of the allmydata.org team
-January 7, 2008
-San Francisco, California
+February 14, 2008
+Boulder, Colorado, USA
 
 
 [1] http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=1805
-[2] http://allmydata.org/trac/tahoe/wiki/Security
-[3] http://allmydata.org/trac/tahoe/wiki/UseCases
-[4] http://allmydata.org/source/tahoe/trunk/docs/install.html
-[5] http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
-[6] http://allmydata.org/trac/tahoe/browser/roadmap.txt
-[7] http://allmydata.org/trac/tahoe/browser/CREDITS?rev=1424
-[8] http://allmydata.org/trac/tahoe/wiki/Dev
-[9] http://allmydata.com
+[2] http://allmydata.org/tahoe-figleaf/current/
+[3] http://allmydata.org/trac/tahoe/wiki/Security
+[4] http://allmydata.org/trac/tahoe/wiki/UseCases
+[5] http://allmydata.org/source/tahoe/trunk/docs/install.html
+[6] http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
+[7] http://allmydata.org/trac/tahoe/roadmap
+[8] http://allmydata.org/trac/tahoe/browser/CREDITS?rev=1804
+[9] http://allmydata.org/trac/tahoe/wiki/Dev
+[10] http://allmydata.com
