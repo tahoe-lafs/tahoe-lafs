@@ -43,6 +43,7 @@ Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: """{app}\Install\
 Filename: "{app}\Install\confwiz.exe"; Flags: hidewizard
 ;Filename: "{app}\Install\ReadMe.txt"; Description: "View the ReadMe file"; Flags: unchecked postinstall nowait shellexec skipifdoesntexist
 Filename: "{app}\Install\winfuse\TahoeTray.exe"; Description: "Run Allmydata Tahoe"; Flags: postinstall nowait
+Filename: "http://www.allmydata.com/welcome_install?v=%(major)d.%(minor)d.%(point)d.%(nano)d"; Description: "View the Welcome Page"; Flags: postinstall shellexec
 
 [UninstallRun]
 ; Performed before the uninstaller runs to undo things
@@ -50,7 +51,7 @@ Filename: "{sys}\net.exe"; Parameters: "stop ""Allmydata Tahoe SMB"""; Flags: ru
 Filename: "{sys}\net.exe"; Parameters: "stop Tahoe"; Flags: runhidden
 Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: "/uninstall ""{app}\Install\winfuse\WinFUSE.exe"""; Flags: runhidden
 Filename: "{app}\Install\tahoesvc.exe"; Parameters: "-remove"; Flags: runhidden
-Filename: "{app}\Install\confwiz.exe"; Parameters: "--uninstall"; Flags: runhidden
+;Filename: "{app}\Install\confwiz.exe"; Parameters: "--uninstall"; Flags: runhidden
 ;Filename: "http://www.allmydata.com/redirect/uninstallsurvey.php?build=%(build)s"; Flags: shellexec
 
 [Registry]
