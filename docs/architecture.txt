@@ -6,11 +6,12 @@ OVERVIEW
 At a high-level this system consists of three layers: the grid, the
 filesystem, and the application.
 
-The lowest layer is the "grid", a mapping from capabilities to
-data. The capabilities are relatively short ascii strings, each used
-as a reference to an arbitrary-length sequence of data bytes. This
-data is encrypted and distributed across a number of nodes, such that
-it will survive the loss of most of the nodes.
+The lowest layer is the "grid", a mapping from capabilities to data.
+The capabilities are relatively short ascii strings, each used as a
+reference to an arbitrary-length sequence of data bytes, and are like a
+URI for that data. This data is encrypted and distributed across a
+number of nodes, such that it will survive the loss of most of the
+nodes.
 
 The middle layer is the decentralized filesystem: a directed graph in
 which the intermediate nodes are directories and the leaf nodes are
@@ -23,7 +24,7 @@ metadata if it is dereferenced through different edges.
 The top layer consists of the applications using the filesystem.
 Allmydata.com uses it for a backup service: the application
 periodically copies files from the local disk onto the decentralized
-filesystem We later provide read-only access to those files, allowing
+filesystem.  We later provide read-only access to those files, allowing
 users to recover them.  The filesystem can be used by other
 applications, too.
 
@@ -61,15 +62,14 @@ initiating a download and receiving the first part of the file; for
 example the lag between hitting "play" and a movie actually starting.
 
 The peer then erasure-codes each segment, producing blocks such that
-only a subset of them are needed to reconstruct the segment (by
-default 3 out of 10 of the blocks).  It sends one block from each
-segment to a given server.  The set of blocks on a given server
-constitutes a "share".  Only a subset of the shares (3 out of 10) are
-needed to reconstruct the file.
+only a subset of them are needed to reconstruct the segment. It sends
+one block from each segment to a given server. The set of blocks on a
+given server constitutes a "share". Only a subset of the shares (3 out
+of 10, by default) are needed to reconstruct the file.
 
 A tagged hash of the encryption key is used to form the "storage
 index", which is used for both server selection (described below) and
-to index shares within the StorageServers on the selected peers.
+to index shares within the Storage Servers on the selected peers.
 
 A variety of hashes are computed while the shares are being produced,
 to validate the plaintext, the ciphertext, and the shares
@@ -111,7 +111,7 @@ if they don't intend to upload some of them, otherwise the hashroot cannot be
 calculated correctly.
 
 
-Capabilities
+CAPABILITIES
 
 Capabilities to immutable files represent a specific set of bytes.  Think of
 it like a hash function: you feed in a bunch of bytes, and you get out a
@@ -120,10 +120,10 @@ even one bit of the input data will result in a completely different
 capability.
 
 Read-only capabilities to mutable files represent the ability to get a set of
-bytes representing a version of the file.  Each read-only capability is
-unique.  In fact, each mutable file has a unique public/private key pair
-created when the mutable file is created, and the read-only capability to
-that file includes a secure hash of the public key.
+bytes representing some version of the file, most likely the latest version.
+Each read-only capability is unique. In fact, each mutable file has a unique
+public/private key pair created when the mutable file is created, and the
+read-only capability to that file includes a secure hash of the public key.
 
 Read-write capabilities to mutable files represent the ability to read the
 file (just like a read-only capability) and also to write a new version of
@@ -418,10 +418,10 @@ disk IO, and CPU time consumed by the verification/repair process must be
 balanced against the robustness that it provides to the grid. The nodes
 involved in repair will have very different access patterns than normal
 nodes, such that these processes may need to be run on hosts with more memory
-or network connectivity than usual. The frequency of repair runs will
-directly affect the resources consumed. In some cases, verification of
-multiple files can be performed at the same time, and repair of files can be
-delegated off to other nodes.
+or network connectivity than usual. The frequency of repair will directly
+affect the resources consumed. In some cases, verification of multiple files
+can be performed at the same time, and repair of files can be delegated off
+to other nodes.
 
 The security model we are currently using assumes that peers who claim to
 hold a share will actually provide it when asked. (We validate the data they
