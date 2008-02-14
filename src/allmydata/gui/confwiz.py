@@ -1,6 +1,6 @@
 
-BACKEND_URL = 'https://www-test.allmydata.com/native_client.php'
-ACCOUNT_PAGE = 'https://www-test.allmydata.com/account'
+BACKEND_URL = 'https://beta.allmydata.com/native_client.php'
+ACCOUNT_PAGE = 'https://beta.allmydata.com/account'
 TAHOESVC_NAME = 'Tahoe'
 WINFUSESVC_NAME = 'Allmydata Tahoe SMB'
 
