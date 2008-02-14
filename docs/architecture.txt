@@ -147,19 +147,18 @@ SERVER SELECTION
 When a file is uploaded, the encoded shares are sent to other peers. But to
 which ones? The "server selection" algorithm is used to make this choice.
 
-In the current version, the verifierid is used to consistently-permute the
-set of all peers (by sorting the peers by HASH(verifierid+peerid)). Each file
-gets a different permutation, which (on average) will evenly distribute
+In the current version, the storage index is used to consistently-permute the
+set of all peers (by sorting the peers by HASH(storage_index+peerid)). Each
+file gets a different permutation, which (on average) will evenly distribute
 shares among the grid and avoid hotspots.
 
 We use this permuted list of peers to ask each peer, in turn, if it will hold
-on to share for us, by sending an 'allocate_buckets() query' to each one.
-Some will say yes, others (those who are full) will say no: when a peer
-refuses our request, we just take that share to the next peer on the list. We
-keep going until we run out of shares to place. At the end of the process,
-we'll have a table that maps each share number to a peer, and then we can
-begin the encode+push phase, using the table to decide where each share
-should be sent.
+a share for us, by sending an 'allocate_buckets() query' to each one. Some
+will say yes, others (those who are full) will say no: when a peer refuses
+our request, we just take that share to the next peer on the list. We keep
+going until we run out of shares to place. At the end of the process, we'll
+have a table that maps each share number to a peer, and then we can begin the
+encode+push phase, using the table to decide where each share should be sent.
 
 Most of the time, this will result in one share per peer, which gives us
 maximum reliability (since it disperses the failures as widely as possible).
@@ -251,9 +250,14 @@ means that on a typical 8x ADSL line, uploading a file will take about 32
 times longer than downloading it again later.
 
 Smaller expansion ratios can reduce this upload penalty, at the expense of
-reliability. See RELIABILITY, below. A project known as "offloaded uploading"
-can eliminate the penalty, if there is a node somewhere else in the network
-that is willing to do the work of encoding and upload for you.
+reliability. See RELIABILITY, below. By using an "upload helper", this
+penalty is eliminated: the client does a 1x upload of encrypted data to the
+helper, then the helper performs encoding and pushes the shares to the
+storage servers. This is an improvement if the helper has significantly
+higher upload bandwidth than the client, so it makes the most sense for a
+commercially-run grid for which all of the storage servers are in a colo
+facility with high interconnect bandwidth. In this case, the helper is placed
+in the same facility, so the helper-to-storage-server bandwidth is huge.
 
 
 VDRIVE and DIRNODES: THE VIRTUAL DRIVE LAYER
@@ -291,14 +295,6 @@ links to spaces that are shared with specific other users, and other spaces
 that are globally visible. Eventually the application layer will present
 these pieces in a way that allows the sharing of a specific file or the
 creation of a "virtual CD" as easily as dragging a folder onto a user icon.
-
-In the current release, these dirnodes are *not* distributed. Instead, each
-dirnode lives on a single host, in a file on it's local (physical) disk. In
-addition, all dirnodes are on the same host, known as the "Introducer And
-VDrive Node". This simplifies implementation and consistency, but obviously
-has a drastic effect on reliability: the file data can survive multiple host
-failures, but the vdrive that points to that data cannot. Fixing this
-situation is a high priority task.
 
 
 LEASES, REFRESHING, GARBAGE COLLECTION
@@ -397,7 +393,7 @@ permanent data loss (affecting the reliability of the file). Hard drives
 crash, power supplies explode, coffee spills, and asteroids strike. The goal
 of a robust distributed filesystem is to survive these setbacks.
 
-To work against this slow, continually loss of shares, a File Checker is used
+To work against this slow, continual loss of shares, a File Checker is used
 to periodically count the number of shares still available for any given
 file. A more extensive form of checking known as the File Verifier can
 download the ciphertext of the target file and perform integrity checks (using
@@ -415,17 +411,17 @@ which peers ought to hold shares for this file, and to see if those peers are
 still around and willing to provide the data. If the file is not healthy
 enough, the File Repairer is invoked to download the ciphertext, regenerate
 any missing shares, and upload them to new peers. The goal of the File
-Repairer is to finish up with a full set of 100 shares.
+Repairer is to finish up with a full set of "N" shares.
 
 There are a number of engineering issues to be resolved here. The bandwidth,
 disk IO, and CPU time consumed by the verification/repair process must be
 balanced against the robustness that it provides to the grid. The nodes
 involved in repair will have very different access patterns than normal
 nodes, such that these processes may need to be run on hosts with more memory
-or network connectivity than usual. The frequency of repair runs directly
-affects the resources consumed. In some cases, verification of multiple files
-can be performed at the same time, and repair of files can be delegated off
-to other nodes.
+or network connectivity than usual. The frequency of repair runs will
+directly affect the resources consumed. In some cases, verification of
+multiple files can be performed at the same time, and repair of files can be
+delegated off to other nodes.
 
 The security model we are currently using assumes that peers who claim to
 hold a share will actually provide it when asked. (We validate the data they
@@ -456,10 +452,11 @@ Data validity and consistency (the promise that the downloaded data will
 match the originally uploaded data) is provided by the hashes embedded in the
 capability. Data confidentiality (the promise that the data is only readable
 by people with the capability) is provided by the encryption key embedded in
-the capability.  Data availability (the hope that data which has been
-uploaded in the past will be downloadable in the future) is provided by the
-grid, which distributes failures in a way that reduces the correlation
-between individual node failure and overall file recovery failure.
+the capability. Data availability (the hope that data which has been uploaded
+in the past will be downloadable in the future) is provided by the grid,
+which distributes failures in a way that reduces the correlation between
+individual node failure and overall file recovery failure, and by the
+erasure-coding technique used to generate shares.
 
 Many of these security properties depend upon the usual cryptographic
 assumptions: the resistance of AES and RSA to attack, the resistance of
@@ -475,9 +472,9 @@ There is no attempt made to provide anonymity, neither of the origin of a
 piece of data nor the identity of the subsequent downloaders. In general,
 anyone who already knows the contents of a file will be in a strong position
 to determine who else is uploading or downloading it. Also, it is quite easy
-for a coalition of more than 1% of the nodes to correlate the set of peers
-who are all uploading or downloading the same file, even if the attacker does
-not know the contents of the file in question.
+for a sufficiently-large coalition of nodes to correlate the set of peers who
+are all uploading or downloading the same file, even if the attacker does not
+know the contents of the file in question.
 
 Also note that the file size and (when convergence is being used) a keyed
 hash of the plaintext are not protected. Many people can determine the size
@@ -500,7 +497,7 @@ transferring the relevant secrets.
 
 The application layer can provide whatever security/access model is desired,
 but we expect the first few to also follow capability discipline: rather than
-user accounts with passwords, each user will get a FURL to their private
+user accounts with passwords, each user will get a write-cap to their private
 dirnode, and the presentation layer will give them the ability to break off
 pieces of this vdrive for delegation or sharing with others on demand.
 
@@ -525,10 +522,14 @@ segments of a given maximum size, which affects memory usage.
 
 The ratio of N/K is the "expansion factor". Higher expansion factors improve
 reliability very quickly (the binomial distribution curve is very sharp), but
-consumes much more grid capacity. The absolute value of K affects the
-granularity of the binomial curve (1-out-of-2 is much worse than
-50-out-of-100), but high values asymptotically approach a constant that
-depends upon 'P' (i.e. 500-of-1000 is not much better than 50-of-100).
+consumes much more grid capacity. When P=50%, the absolute value of K affects
+the granularity of the binomial curve (1-out-of-2 is much worse than
+50-out-of-100), but high values asymptotically approach a constant (i.e.
+500-of-1000 is not much better than 50-of-100). When P is high and the
+expansion factor is held at a constant, higher values of K and N give much
+better reliability (for P=99%, 50-out-of-100 is much much better than
+5-of-10, roughly 10^50 times better), because there are more shares that can
+be lost without losing the file.
 
 Likewise, the total number of peers in the network affects the same
 granularity: having only one peer means a single point of failure, no matter
@@ -539,8 +540,8 @@ will take out all of them at once. The "Sybil Attack" is where a single
 attacker convinces you that they are actually multiple servers, so that you
 think you are using a large number of independent peers, but in fact you have
 a single point of failure (where the attacker turns off all their machines at
-once). Large grids, with lots of truly-independent peers, will enable the
-use of lower expansion factors to achieve the same reliability, but increase
+once). Large grids, with lots of truly-independent peers, will enable the use
+of lower expansion factors to achieve the same reliability, but will increase
 overhead because each peer needs to know something about every other, and the
 rate at which peers come and go will be higher (requiring network maintenance
 traffic). Also, the File Repairer work will increase with larger grids,
@@ -549,7 +550,7 @@ although then the job can be distributed out to more peers.
 Higher values of N increase overhead: more shares means more Merkle hashes
 that must be included with the data, and more peers to contact to retrieve
 the shares. Smaller segment sizes reduce memory usage (since each segment
-must be held in memory while erasure coding runs) and increases "alacrity"
+must be held in memory while erasure coding runs) and improves "alacrity"
 (since downloading can validate a smaller piece of data faster, delivering it
 to the target sooner), but also increase overhead (because more blocks means
 more Merkle hashes to validate them).
