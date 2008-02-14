@@ -102,8 +102,8 @@ class NewDirectoryNode:
         # the directory is serialized as a list of netstrings, one per child.
         # Each child is serialized as a list of four netstrings: (name,
         # rocap, rwcap, metadata), in which the name,rocap,metadata are in
-        # cleartext. The rwcap is formatted as:
-        #  pack("16ss32s", iv, AES(H(writekey+iv), plaintextrwcap), mac)
+        # cleartext. The 'name' is UTF-8 encoded. The rwcap is formatted as:
+        # pack("16ss32s", iv, AES(H(writekey+iv), plaintextrwcap), mac)
         assert isinstance(data, str)
         # an empty directory is serialized as an empty string
         if data == "":
@@ -113,6 +113,7 @@ class NewDirectoryNode:
         while len(data) > 0:
             entry, data = split_netstring(data, 1, True)
             name, rocap, rwcapdata, metadata_s = split_netstring(entry, 4)
+            name = name.decode("utf-8")
             if writeable:
                 rwcap = self._decrypt_rwcapdata(rwcapdata)
                 child = self._create_node(rwcap)
@@ -129,13 +130,14 @@ class NewDirectoryNode:
         entries = []
         for name in sorted(children.keys()):
             child, metadata = children[name]
+            assert isinstance(name, unicode)
             assert (IFileNode.providedBy(child)
                     or IMutableFileNode.providedBy(child)
                     or IDirectoryNode.providedBy(child)), (name,child)
             assert isinstance(metadata, dict)
             rwcap = child.get_uri() # might be RO if the child is not writeable
             rocap = child.get_readonly_uri()
-            entry = "".join([netstring(name),
+            entry = "".join([netstring(name.encode("utf-8")),
                              netstring(rocap),
                              netstring(self._encrypt_rwcap(rwcap)),
                              netstring(simplejson.dumps(metadata))])
@@ -168,6 +170,7 @@ class NewDirectoryNode:
     def has_child(self, name):
         """I return a Deferred that fires with a boolean, True if there
         exists a child of the given name, False if not."""
+        assert isinstance(name, unicode)
         d = self._read()
         d.addCallback(lambda children: children.has_key(name))
         return d
@@ -181,16 +184,19 @@ class NewDirectoryNode:
     def get(self, name):
         """I return a Deferred that fires with the named child node,
         which is either an IFileNode or an IDirectoryNode."""
+        assert isinstance(name, unicode)
         d = self._read()
         d.addCallback(self._get, name)
         return d
 
     def get_metadata_for(self, name):
+        assert isinstance(name, unicode)
         d = self._read()
         d.addCallback(lambda children: children[name][1])
         return d
 
     def set_metadata_for(self, name, metadata):
+        assert isinstance(name, unicode)
         if self.is_readonly():
             return defer.fail(NotMutableError())
         assert isinstance(metadata, dict)
@@ -216,8 +222,12 @@ class NewDirectoryNode:
 
         if not path:
             return defer.succeed(self)
-        if isinstance(path, (str, unicode)):
+        if isinstance(path, (list, tuple)):
+            pass
+        else:
             path = path.split("/")
+        for p in path:
+            assert isinstance(p, unicode)
         childname = path[0]
         remaining_path = path[1:]
         d = self.get(childname)
@@ -237,6 +247,7 @@ class NewDirectoryNode:
 
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
+        assert isinstance(name, unicode)
         return self.set_node(name, self._create_node(child_uri), metadata)
 
     def set_uris(self, entries):
@@ -248,6 +259,7 @@ class NewDirectoryNode:
             else:
                 assert len(e) == 3
                 name, child_uri, metadata = e
+            assert isinstance(name, unicode)
             node_entries.append( (name,self._create_node(child_uri),metadata) )
         return self.set_nodes(node_entries)
 
@@ -259,6 +271,7 @@ class NewDirectoryNode:
 
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
+        assert isinstance(name, unicode)
         assert IFilesystemNode.providedBy(child), child
         d = self.set_nodes( [(name, child, metadata)])
         d.addCallback(lambda res: child)
@@ -277,6 +290,7 @@ class NewDirectoryNode:
                 else:
                     assert len(e) == 3
                     name, child, new_metadata = e
+                assert isinstance(name, unicode)
                 if name in children:
                     metadata = children[name][1].copy()
                 else:
@@ -303,6 +317,7 @@ class NewDirectoryNode:
         resulting FileNode to the directory at the given name. I return a
         Deferred that fires (with the IFileNode of the uploaded file) when
         the operation completes."""
+        assert isinstance(name, unicode)
         if self.is_readonly():
             return defer.fail(NotMutableError())
         d = self._client.upload(uploadable)
@@ -314,6 +329,7 @@ class NewDirectoryNode:
     def delete(self, name):
         """I remove the child at the specific name. I return a Deferred that
         fires (with the node just removed) when the operation finishes."""
+        assert isinstance(name, unicode)
         if self.is_readonly():
             return defer.fail(NotMutableError())
         d = self._read()
@@ -333,6 +349,7 @@ class NewDirectoryNode:
         """I create and attach an empty directory at the given name. I return
         a Deferred that fires (with the new directory node) when the
         operation finishes."""
+        assert isinstance(name, unicode)
         if self.is_readonly():
             return defer.fail(NotMutableError())
         d = self._client.create_empty_dirnode()
@@ -349,10 +366,12 @@ class NewDirectoryNode:
         is referenced by name. On the new parent, the child will live under
         'new_child_name', which defaults to 'current_child_name'. I return a
         Deferred that fires when the operation finishes."""
+        assert isinstance(current_child_name, unicode)
         if self.is_readonly() or new_parent.is_readonly():
             return defer.fail(NotMutableError())
         if new_child_name is None:
             new_child_name = current_child_name
+        assert isinstance(new_child_name, unicode)
         d = self.get(current_child_name)
         def sn(child):
             return new_parent.set_node(new_child_name, child)

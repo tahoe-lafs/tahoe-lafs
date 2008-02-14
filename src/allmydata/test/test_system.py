@@ -750,10 +750,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             log.msg("_created_dirnode(%s)" % (dnode,))
             d1 = dnode.list()
             d1.addCallback(lambda children: self.failUnlessEqual(children, {}))
-            d1.addCallback(lambda res: dnode.has_child("edgar"))
+            d1.addCallback(lambda res: dnode.has_child(u"edgar"))
             d1.addCallback(lambda answer: self.failUnlessEqual(answer, False))
-            d1.addCallback(lambda res: dnode.set_node("see recursive", dnode))
-            d1.addCallback(lambda res: dnode.has_child("see recursive"))
+            d1.addCallback(lambda res: dnode.set_node(u"see recursive", dnode))
+            d1.addCallback(lambda res: dnode.has_child(u"see recursive"))
             d1.addCallback(lambda answer: self.failUnlessEqual(answer, True))
             d1.addCallback(lambda res: dnode.build_manifest())
             d1.addCallback(lambda manifest:
@@ -840,10 +840,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             self._root_directory_uri = new_dirnode.get_uri()
             return c0.create_node_from_uri(self._root_directory_uri)
         d.addCallback(_made_root)
-        d.addCallback(lambda root: root.create_empty_directory("subdir1"))
+        d.addCallback(lambda root: root.create_empty_directory(u"subdir1"))
         def _made_subdir1(subdir1_node):
             self._subdir1_node = subdir1_node
-            d1 = subdir1_node.add_file("mydata567", ut)
+            d1 = subdir1_node.add_file(u"mydata567", ut)
             d1.addCallback(self.log, "publish finished")
             def _stash_uri(filenode):
                 self.uri = filenode.get_uri()
@@ -854,8 +854,8 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
 
     def _do_publish2(self, res):
         ut = upload.Data(self.data)
-        d = self._subdir1_node.create_empty_directory("subdir2")
-        d.addCallback(lambda subdir2: subdir2.add_file("mydata992", ut))
+        d = self._subdir1_node.create_empty_directory(u"subdir2")
+        d.addCallback(lambda subdir2: subdir2.add_file(u"mydata992", ut))
         return d
 
     def log(self, res, msg, **kwargs):
@@ -875,14 +875,14 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         d.addCallback(self.log, "GOT private directory")
         def _got_new_dir(privnode):
             rootnode = self.clients[0].create_node_from_uri(self._root_directory_uri)
-            d1 = privnode.create_empty_directory("personal")
+            d1 = privnode.create_empty_directory(u"personal")
             d1.addCallback(self.log, "made P/personal")
-            d1.addCallback(lambda node: node.add_file("sekrit data", ut))
+            d1.addCallback(lambda node: node.add_file(u"sekrit data", ut))
             d1.addCallback(self.log, "made P/personal/sekrit data")
-            d1.addCallback(lambda res: rootnode.get_child_at_path(["subdir1", "subdir2"]))
+            d1.addCallback(lambda res: rootnode.get_child_at_path([u"subdir1", u"subdir2"]))
             def _got_s2(s2node):
-                d2 = privnode.set_uri("s2-rw", s2node.get_uri())
-                d2.addCallback(lambda node: privnode.set_uri("s2-ro", s2node.get_readonly_uri()))
+                d2 = privnode.set_uri(u"s2-rw", s2node.get_uri())
+                d2.addCallback(lambda node: privnode.set_uri(u"s2-ro", s2node.get_readonly_uri()))
                 return d2
             d1.addCallback(_got_s2)
             d1.addCallback(lambda res: privnode)
@@ -895,8 +895,8 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         c1 = self.clients[1]
         d = defer.succeed(c1.create_node_from_uri(self._root_directory_uri))
         d.addCallback(self.log, "check_publish1 got /")
-        d.addCallback(lambda root: root.get("subdir1"))
-        d.addCallback(lambda subdir1: subdir1.get("mydata567"))
+        d.addCallback(lambda root: root.get(u"subdir1"))
+        d.addCallback(lambda subdir1: subdir1.get(u"mydata567"))
         d.addCallback(lambda filenode: filenode.download_to_data())
         d.addCallback(self.log, "get finished")
         def _get_done(data):
@@ -907,14 +907,14 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
     def _check_publish2(self, res):
         # this one uses the path-based API
         rootnode = self.clients[1].create_node_from_uri(self._root_directory_uri)
-        d = rootnode.get_child_at_path("subdir1")
+        d = rootnode.get_child_at_path(u"subdir1")
         d.addCallback(lambda dirnode:
                       self.failUnless(IDirectoryNode.providedBy(dirnode)))
-        d.addCallback(lambda res: rootnode.get_child_at_path("subdir1/mydata567"))
+        d.addCallback(lambda res: rootnode.get_child_at_path(u"subdir1/mydata567"))
         d.addCallback(lambda filenode: filenode.download_to_data())
         d.addCallback(lambda data: self.failUnlessEqual(data, self.data))
 
-        d.addCallback(lambda res: rootnode.get_child_at_path("subdir1/mydata567"))
+        d.addCallback(lambda res: rootnode.get_child_at_path(u"subdir1/mydata567"))
         def _got_filenode(filenode):
             fnode = self.clients[1].create_node_from_uri(filenode.get_uri())
             assert fnode == filenode
@@ -925,7 +925,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         # this one uses the path-based API
         self._private_node = resnode
 
-        d = self._private_node.get_child_at_path("personal")
+        d = self._private_node.get_child_at_path(u"personal")
         def _got_personal(personal):
             self._personal_node = personal
             return personal
@@ -936,12 +936,12 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         def get_path(path):
             return self._private_node.get_child_at_path(path)
 
-        d.addCallback(lambda res: get_path("personal/sekrit data"))
+        d.addCallback(lambda res: get_path(u"personal/sekrit data"))
         d.addCallback(lambda filenode: filenode.download_to_data())
         d.addCallback(lambda data: self.failUnlessEqual(data, self.smalldata))
-        d.addCallback(lambda res: get_path("s2-rw"))
+        d.addCallback(lambda res: get_path(u"s2-rw"))
         d.addCallback(lambda dirnode: self.failUnless(dirnode.is_mutable()))
-        d.addCallback(lambda res: get_path("s2-ro"))
+        d.addCallback(lambda res: get_path(u"s2-ro"))
         def _got_s2ro(dirnode):
             self.failUnless(dirnode.is_mutable(), dirnode)
             self.failUnless(dirnode.is_readonly(), dirnode)
@@ -949,29 +949,29 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             d1.addCallback(lambda res: dirnode.list())
             d1.addCallback(self.log, "dirnode.list")
 
-            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mkdir(nope)", None, dirnode.create_empty_directory, "nope"))
+            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mkdir(nope)", None, dirnode.create_empty_directory, u"nope"))
 
             d1.addCallback(self.log, "doing add_file(ro)")
             ut = upload.Data("I will disappear, unrecorded and unobserved. The tragedy of my demise is made more poignant by its silence, but this beauty is not for you to ever know.")
-            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "add_file(nope)", None, dirnode.add_file, "hope", ut))
+            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "add_file(nope)", None, dirnode.add_file, u"hope", ut))
 
             d1.addCallback(self.log, "doing get(ro)")
-            d1.addCallback(lambda res: dirnode.get("mydata992"))
+            d1.addCallback(lambda res: dirnode.get(u"mydata992"))
             d1.addCallback(lambda filenode:
                            self.failUnless(IFileNode.providedBy(filenode)))
 
             d1.addCallback(self.log, "doing delete(ro)")
-            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "delete(nope)", None, dirnode.delete, "mydata992"))
+            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "delete(nope)", None, dirnode.delete, u"mydata992"))
 
-            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "set_uri(nope)", None, dirnode.set_uri, "hopeless", self.uri))
+            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "set_uri(nope)", None, dirnode.set_uri, u"hopeless", self.uri))
 
-            d1.addCallback(lambda res: self.shouldFail2(KeyError, "get(missing)", "'missing'", dirnode.get, "missing"))
+            d1.addCallback(lambda res: self.shouldFail2(KeyError, "get(missing)", "'missing'", dirnode.get, u"missing"))
 
             personal = self._personal_node
-            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mv from readonly", None, dirnode.move_child_to, "mydata992", personal, "nope"))
+            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mv from readonly", None, dirnode.move_child_to, u"mydata992", personal, u"nope"))
 
             d1.addCallback(self.log, "doing move_child_to(ro)2")
-            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mv to readonly", None, personal.move_child_to, "sekrit data", dirnode, "nope"))
+            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mv to readonly", None, personal.move_child_to, u"sekrit data", dirnode, u"nope"))
 
             d1.addCallback(self.log, "finished with _got_s2ro")
             return d1
@@ -982,15 +982,15 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             d1 = defer.succeed(None)
             d1.addCallback(self.log, "mv 'P/personal/sekrit data' to P/sekrit")
             d1.addCallback(lambda res:
-                           personal.move_child_to("sekrit data",home,"sekrit"))
+                           personal.move_child_to(u"sekrit data",home,u"sekrit"))
 
             d1.addCallback(self.log, "mv P/sekrit 'P/sekrit data'")
             d1.addCallback(lambda res:
-                           home.move_child_to("sekrit", home, "sekrit data"))
+                           home.move_child_to(u"sekrit", home, u"sekrit data"))
 
             d1.addCallback(self.log, "mv 'P/sekret data' P/personal/")
             d1.addCallback(lambda res:
-                           home.move_child_to("sekrit data", personal))
+                           home.move_child_to(u"sekrit data", personal))
 
             d1.addCallback(lambda res: home.build_manifest())
             d1.addCallback(self.log, "manifest")
@@ -1319,7 +1319,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         def _check_put((out,err)):
             self.failUnless("200 OK" in out)
             self.failUnlessEqual(err, "")
-            d = self._private_node.get_child_at_path("test_put/upload.txt")
+            d = self._private_node.get_child_at_path(u"test_put/upload.txt")
             d.addCallback(lambda filenode: filenode.download_to_data())
             def _check_put2(res):
                 self.failUnlessEqual(res, TESTDATA)
@@ -1358,10 +1358,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         def _check_mv((out,err)):
             self.failUnless("OK" in out)
             self.failUnlessEqual(err, "")
-            d = self.shouldFail2(KeyError, "test_cli._check_rm", "'upload.txt'", self._private_node.get_child_at_path, "test_put/upload.txt")
+            d = self.shouldFail2(KeyError, "test_cli._check_rm", "'upload.txt'", self._private_node.get_child_at_path, u"test_put/upload.txt")
 
             d.addCallback(lambda res:
-                          self._private_node.get_child_at_path("test_put/moved.txt"))
+                          self._private_node.get_child_at_path(u"test_put/moved.txt"))
             d.addCallback(lambda filenode: filenode.download_to_data())
             def _check_mv2(res):
                 self.failUnlessEqual(res, TESTDATA)
@@ -1376,7 +1376,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         def _check_rm((out,err)):
             self.failUnless("200 OK" in out)
             self.failUnlessEqual(err, "")
-            d = self.shouldFail2(KeyError, "test_cli._check_rm", "'moved.txt'", self._private_node.get_child_at_path, "test_put/moved.txt")
+            d = self.shouldFail2(KeyError, "test_cli._check_rm", "'moved.txt'", self._private_node.get_child_at_path, u"test_put/moved.txt")
             return d
         d.addCallback(_check_rm)
         return d
@@ -1443,7 +1443,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
 
     def _test_checker_3(self, res):
         # check one file, through FileNode.check()
-        d = self._private_node.get_child_at_path("personal/sekrit data")
+        d = self._private_node.get_child_at_path(u"personal/sekrit data")
         d.addCallback(lambda n: n.check())
         def _checked(results):
             # 'sekrit data' is small, and fits in a LiteralFileNode, so
@@ -1453,7 +1453,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
 
         c0 = self.clients[1]
         n = c0.create_node_from_uri(self._root_directory_uri)
-        d.addCallback(lambda res: n.get_child_at_path("subdir1/mydata567"))
+        d.addCallback(lambda res: n.get_child_at_path(u"subdir1/mydata567"))
         d.addCallback(lambda n: n.check())
         def _checked2(results):
             # mydata567 is large and lives in a CHK

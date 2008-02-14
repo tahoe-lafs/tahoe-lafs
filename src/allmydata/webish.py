@@ -233,6 +233,8 @@ class Directory(rend.Page):
 
     def render_row(self, ctx, data):
         name, (target, metadata) = data
+        name = name.encode("utf-8")
+        assert not isinstance(name, unicode)
 
         if self._dirnode.is_readonly():
             delete = "-"
@@ -480,9 +482,10 @@ class WebDownloadTarget:
         if self._save_to_file is not None:
             # tell the browser to save the file rather display it
             # TODO: quote save_to_file properly
+            filename = self._save_to_file.encode("utf-8")
             self._req.setHeader("content-disposition",
                                 'attachment; filename="%s"'
-                                % self._save_to_file)
+                                % filename)
 
     def write(self, data):
         self._req.write(data)
@@ -526,16 +529,16 @@ class FileDownloader(resource.Resource):
 
     def render(self, req):
         gte = static.getTypeAndEncoding
-        type, encoding = gte(self._name,
-                             static.File.contentTypes,
-                             static.File.contentEncodings,
-                             defaultType="text/plain")
+        ctype, encoding = gte(self._name,
+                              static.File.contentTypes,
+                              static.File.contentEncodings,
+                              defaultType="text/plain")
         save_to_file = None
         if get_arg(req, "save", False):
             # TODO: make the API specification clear: should "save=" or
             # "save=false" count?
             save_to_file = self._name
-        wdt = WebDownloadTarget(req, type, encoding, save_to_file)
+        wdt = WebDownloadTarget(req, ctype, encoding, save_to_file)
         d = self._filenode.download(wdt)
         # exceptions during download are handled by the WebDownloadTarget
         d.addErrback(lambda why: None)
@@ -683,6 +686,7 @@ class LocalDirectoryDownloader(resource.Resource, DirnodeWalkerMixin):
         self._localdir = localdir
 
     def _handle(self, path, node, metadata):
+        path = tuple([p.encode("utf-8") for p in path])
         localfile = os.path.join(self._localdir, os.sep.join(path))
         if IDirectoryNode.providedBy(node):
             fileutil.make_dirs(localfile)
@@ -807,6 +811,8 @@ class POSTHandler(rend.Page):
         t = get_arg(req, "t")
         assert t is not None
 
+        charset = get_arg(req, "_charset", "utf-8")
+
         name = get_arg(req, "name", None)
         if name and "/" in name:
             req.setResponseCode(http.BAD_REQUEST)
@@ -814,6 +820,8 @@ class POSTHandler(rend.Page):
             return "name= may not contain a slash"
         if name is not None:
             name = name.strip()
+            name = name.decode(charset)
+            assert isinstance(name, unicode)
         # we allow the user to delete an empty-named file, but not to create
         # them, since that's an easy and confusing mistake to make
 
@@ -849,12 +857,16 @@ class POSTHandler(rend.Page):
             d = self._node.delete(name)
             d.addCallback(lambda res: "thing deleted")
         elif t == "rename":
-            from_name = 'from_name' in req.fields and req.fields["from_name"].value
+            from_name = get_arg(req, "from_name")
             if from_name is not None:
                 from_name = from_name.strip()
-            to_name = 'to_name' in req.fields and req.fields["to_name"].value
+                from_name = from_name.decode(charset)
+                assert isinstance(from_name, unicode)
+            to_name = get_arg(req, "to_name")
             if to_name is not None:
                 to_name = to_name.strip()
+                to_name = to_name.decode(charset)
+                assert isinstance(to_name, unicode)
             if not from_name or not to_name:
                 raise RuntimeError("rename requires from_name and to_name")
             if not IDirectoryNode.providedBy(self._node):
@@ -877,13 +889,17 @@ class POSTHandler(rend.Page):
             d.addCallback(lambda res: "thing renamed")
 
         elif t == "upload":
+            contents = req.fields["file"]
+            name = name or contents.filename
+            if name is not None:
+                name = name.strip()
+            if not name:
+                # this prohibts empty, missing, and all-whitespace filenames
+                raise RuntimeError("upload requires a name")
+            name = name.decode(charset)
+            assert isinstance(name, unicode)
+
             if "mutable" in req.fields:
-                contents = req.fields["file"]
-                name = name or contents.filename
-                if name is not None:
-                    name = name.strip()
-                if not name:
-                    raise RuntimeError("upload-mutable requires a name")
                 # SDMF: files are small, and we can only upload data.
                 contents.file.seek(0)
                 data = contents.file.read()
@@ -910,12 +926,6 @@ class POSTHandler(rend.Page):
                     return d2
                 d.addCallback(_checked)
             else:
-                contents = req.fields["file"]
-                name = name or contents.filename
-                if name is not None:
-                    name = name.strip()
-                if not name:
-                    raise RuntimeError("upload requires a name")
                 uploadable = FileHandle(contents.file)
                 d = self._check_replacement(name)
                 d.addCallback(lambda res: self._node.add_file(name, uploadable))
@@ -974,13 +984,13 @@ class DELETEHandler(rend.Page):
         d = self._node.delete(self._name)
         def _done(res):
             # what should this return??
-            return "%s deleted" % self._name
+            return "%s deleted" % self._name.encode("utf-8")
         d.addCallback(_done)
         def _trap_missing(f):
             f.trap(KeyError)
             req.setResponseCode(http.NOT_FOUND)
             req.setHeader("content-type", "text/plain")
-            return "no such child %s" % self._name
+            return "no such child %s" % self._name.encode("utf-8")
         d.addErrback(_trap_missing)
         return d
 
@@ -1098,7 +1108,9 @@ class PUTHandler(rend.Page):
         return d
 
     def _upload_localdir(self, node, localdir):
-        # build up a list of files to upload
+        # build up a list of files to upload. TODO: for now, these files and
+        # directories must have UTF-8 encoded filenames: anything else will
+        # cause the upload to break.
         all_files = []
         all_dirs = []
         msg = "No files to upload! %s is empty" % localdir
@@ -1112,9 +1124,13 @@ class PUTHandler(rend.Page):
                 relative_root = root[len(localdir)+1:]
                 path = tuple(relative_root.split(os.sep))
             for d in dirs:
-                all_dirs.append(path + (d,))
+                this_dir = path + (d,)
+                this_dir = tuple([p.decode("utf-8") for p in this_dir])
+                all_dirs.append(this_dir)
             for f in files:
-                all_files.append(path + (f,))
+                this_file = path + (f,)
+                this_file = tuple([p.decode("utf-8") for p in this_file])
+                all_files.append(this_file)
         d = defer.succeed(msg)
         for dir in all_dirs:
             if dir:
@@ -1190,7 +1206,7 @@ class VDrive(rend.Page):
     def locateChild(self, ctx, segments):
         req = inevow.IRequest(ctx)
         method = req.method
-        path = segments
+        path = tuple([seg.decode("utf-8") for seg in segments])
 
         t = get_arg(req, "t", "")
         localfile = get_arg(req, "localfile", None)

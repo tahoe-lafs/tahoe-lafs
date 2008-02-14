@@ -97,29 +97,34 @@ class WebMixin(object):
             self._foo_readonly_uri = foo.get_readonly_uri()
             # NOTE: we ignore the deferred on all set_uri() calls, because we
             # know the fake nodes do these synchronously
-            self.public_root.set_uri("foo", foo.get_uri())
+            self.public_root.set_uri(u"foo", foo.get_uri())
 
             self.BAR_CONTENTS, n, self._bar_txt_uri = self.makefile(0)
-            foo.set_uri("bar.txt", self._bar_txt_uri)
+            foo.set_uri(u"bar.txt", self._bar_txt_uri)
 
-            foo.set_uri("empty", res[3][1].get_uri())
+            foo.set_uri(u"empty", res[3][1].get_uri())
             sub_uri = res[4][1].get_uri()
-            foo.set_uri("sub", sub_uri)
+            foo.set_uri(u"sub", sub_uri)
             sub = self.s.create_node_from_uri(sub_uri)
 
             _ign, n, blocking_uri = self.makefile(1)
-            foo.set_uri("blockingfile", blocking_uri)
+            foo.set_uri(u"blockingfile", blocking_uri)
+
+            unicode_filename = u"n\u00fc.txt" # n u-umlaut . t x t
+            # ok, unicode calls it LATIN SMALL LETTER U WITH DIAERESIS but I
+            # still think of it as an umlaut
+            foo.set_uri(unicode_filename, self._bar_txt_uri)
 
             _ign, n, baz_file = self.makefile(2)
-            sub.set_uri("baz.txt", baz_file)
+            sub.set_uri(u"baz.txt", baz_file)
 
             _ign, n, self._bad_file_uri = self.makefile(3)
             # this uri should not be downloadable
             del FakeCHKFileNode.all_contents[self._bad_file_uri]
 
             rodir = res[5][1]
-            self.public_root.set_uri("reedownlee", rodir.get_readonly_uri())
-            rodir.set_uri("nor", baz_file)
+            self.public_root.set_uri(u"reedownlee", rodir.get_readonly_uri())
+            rodir.set_uri(u"nor", baz_file)
 
             # public/
             # public/foo/
@@ -132,7 +137,7 @@ class WebMixin(object):
             # public/reedownlee/nor
             self.NEWFILE_CONTENTS = "newfile contents\n"
 
-            return foo.get_metadata_for("bar.txt")
+            return foo.get_metadata_for(u"bar.txt")
         d.addCallback(_then)
         def _got_metadata(metadata):
             self._bar_txt_metadata = metadata
@@ -148,7 +153,7 @@ class WebMixin(object):
         return self.s.stopService()
 
     def failUnlessIsBarDotTxt(self, res):
-        self.failUnlessEqual(res, self.BAR_CONTENTS)
+        self.failUnlessEqual(res, self.BAR_CONTENTS, res)
 
     def failUnlessIsBarJSON(self, res):
         data = simplejson.loads(res)
@@ -170,17 +175,20 @@ class WebMixin(object):
 
         kidnames = sorted(data[1]["children"])
         self.failUnlessEqual(kidnames,
-                             ["bar.txt", "blockingfile", "empty", "sub"])
+                             [u"bar.txt", u"blockingfile", u"empty",
+                              u"n\u00fc.txt", u"sub"])
         kids = data[1]["children"]
-        self.failUnlessEqual(kids["sub"][0], "dirnode")
-        self.failUnless("metadata" in kids["sub"][1])
-        self.failUnless("ctime" in kids["sub"][1]["metadata"])
-        self.failUnless("mtime" in kids["sub"][1]["metadata"])
-        self.failUnlessEqual(kids["bar.txt"][0], "filenode")
-        self.failUnlessEqual(kids["bar.txt"][1]["size"], len(self.BAR_CONTENTS))
-        self.failUnlessEqual(kids["bar.txt"][1]["ro_uri"], self._bar_txt_uri)
-        self.failUnlessEqual(kids["bar.txt"][1]["metadata"]["ctime"],
+        self.failUnlessEqual(kids[u"sub"][0], "dirnode")
+        self.failUnless("metadata" in kids[u"sub"][1])
+        self.failUnless("ctime" in kids[u"sub"][1]["metadata"])
+        self.failUnless("mtime" in kids[u"sub"][1]["metadata"])
+        self.failUnlessEqual(kids[u"bar.txt"][0], "filenode")
+        self.failUnlessEqual(kids[u"bar.txt"][1]["size"], len(self.BAR_CONTENTS))
+        self.failUnlessEqual(kids[u"bar.txt"][1]["ro_uri"], self._bar_txt_uri)
+        self.failUnlessEqual(kids[u"bar.txt"][1]["metadata"]["ctime"],
                              self._bar_txt_metadata["ctime"])
+        self.failUnlessEqual(kids[u"n\u00fc.txt"][1]["ro_uri"],
+                             self._bar_txt_uri)
 
     def GET(self, urlpath, followRedirect=False):
         url = self.webish_url + urlpath
@@ -208,7 +216,7 @@ class WebMixin(object):
             if isinstance(value, tuple):
                 filename, value = value
                 form.append('Content-Disposition: form-data; name="%s"; '
-                            'filename="%s"' % (name, filename))
+                            'filename="%s"' % (name, filename.encode("utf-8")))
             else:
                 form.append('Content-Disposition: form-data; name="%s"' % name)
             form.append('')
@@ -399,9 +407,9 @@ class Web(WebMixin, unittest.TestCase):
         d = self.PUT(self.public_url + "/foo/new.txt", self.NEWFILE_CONTENTS)
         # TODO: we lose the response code, so we can't check this
         #self.failUnlessEqual(responsecode, 201)
-        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, "new.txt")
+        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, u"new.txt")
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(self._foo_node, "new.txt",
+                      self.failUnlessChildContentsAre(self._foo_node, u"new.txt",
                                                       self.NEWFILE_CONTENTS))
         return d
 
@@ -409,9 +417,9 @@ class Web(WebMixin, unittest.TestCase):
         d = self.PUT(self.public_url + "/foo/bar.txt", self.NEWFILE_CONTENTS)
         # TODO: we lose the response code, so we can't check this
         #self.failUnlessEqual(responsecode, 200)
-        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, "bar.txt")
+        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, u"bar.txt")
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(self._foo_node, "bar.txt",
+                      self.failUnlessChildContentsAre(self._foo_node, u"bar.txt",
                                                       self.NEWFILE_CONTENTS))
         return d
 
@@ -427,11 +435,11 @@ class Web(WebMixin, unittest.TestCase):
     def test_PUT_NEWFILEURL_mkdirs(self):
         d = self.PUT(self.public_url + "/foo/newdir/new.txt", self.NEWFILE_CONTENTS)
         fn = self._foo_node
-        d.addCallback(self.failUnlessURIMatchesChild, fn, "newdir/new.txt")
-        d.addCallback(lambda res: self.failIfNodeHasChild(fn, "new.txt"))
-        d.addCallback(lambda res: self.failUnlessNodeHasChild(fn, "newdir"))
+        d.addCallback(self.failUnlessURIMatchesChild, fn, u"newdir/new.txt")
+        d.addCallback(lambda res: self.failIfNodeHasChild(fn, u"new.txt"))
+        d.addCallback(lambda res: self.failUnlessNodeHasChild(fn, u"newdir"))
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(fn, "newdir/new.txt",
+                      self.failUnlessChildContentsAre(fn, u"newdir/new.txt",
                                                       self.NEWFILE_CONTENTS))
         return d
 
@@ -446,7 +454,7 @@ class Web(WebMixin, unittest.TestCase):
     def test_DELETE_FILEURL(self):
         d = self.DELETE(self.public_url + "/foo/bar.txt")
         d.addCallback(lambda res:
-                      self.failIfNodeHasChild(self._foo_node, "bar.txt"))
+                      self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
         return d
 
     def test_DELETE_FILEURL_missing(self):
@@ -546,9 +554,9 @@ class Web(WebMixin, unittest.TestCase):
         f.write(self.NEWFILE_CONTENTS)
         f.close()
         d = self.PUT(url, "")
-        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, "new.txt")
+        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, u"new.txt")
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(self._foo_node, "new.txt",
+                      self.failUnlessChildContentsAre(self._foo_node, u"new.txt",
                                                       self.NEWFILE_CONTENTS))
         return d
 
@@ -584,14 +592,14 @@ class Web(WebMixin, unittest.TestCase):
         d = self.PUT(self.public_url + "/foo/newdir/new.txt?t=upload&localfile=%s"
                      % urllib.quote(localfile), "")
         d.addCallback(self.failUnlessURIMatchesChild,
-                      self._foo_node, "newdir/new.txt")
+                      self._foo_node, u"newdir/new.txt")
         d.addCallback(lambda res:
-                      self.failIfNodeHasChild(self._foo_node, "new.txt"))
+                      self.failIfNodeHasChild(self._foo_node, u"new.txt"))
         d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self._foo_node, "newdir"))
+                      self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(self._foo_node,
-                                                      "newdir/new.txt",
+                                                      u"newdir/new.txt",
                                                       self.NEWFILE_CONTENTS))
         return d
 
@@ -691,16 +699,16 @@ class Web(WebMixin, unittest.TestCase):
     def test_PUT_NEWDIRURL(self):
         d = self.PUT(self.public_url + "/foo/newdir?t=mkdir", "")
         d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self._foo_node, "newdir"))
-        d.addCallback(lambda res: self._foo_node.get("newdir"))
+                      self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessNodeKeysAre, [])
         return d
 
     def test_PUT_NEWDIRURL_replace(self):
         d = self.PUT(self.public_url + "/foo/sub?t=mkdir", "")
         d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self._foo_node, "sub"))
-        d.addCallback(lambda res: self._foo_node.get("sub"))
+                      self.failUnlessNodeHasChild(self._foo_node, u"sub"))
+        d.addCallback(lambda res: self._foo_node.get(u"sub"))
         d.addCallback(self.failUnlessNodeKeysAre, [])
         return d
 
@@ -711,33 +719,33 @@ class Web(WebMixin, unittest.TestCase):
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
         d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self._foo_node, "sub"))
-        d.addCallback(lambda res: self._foo_node.get("sub"))
-        d.addCallback(self.failUnlessNodeKeysAre, ["baz.txt"])
+                      self.failUnlessNodeHasChild(self._foo_node, u"sub"))
+        d.addCallback(lambda res: self._foo_node.get(u"sub"))
+        d.addCallback(self.failUnlessNodeKeysAre, [u"baz.txt"])
         return d
 
     def test_PUT_NEWDIRURL_mkdirs(self):
         d = self.PUT(self.public_url + "/foo/subdir/newdir?t=mkdir", "")
         d.addCallback(lambda res:
-                      self.failIfNodeHasChild(self._foo_node, "newdir"))
+                      self.failIfNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self._foo_node, "subdir"))
+                      self.failUnlessNodeHasChild(self._foo_node, u"subdir"))
         d.addCallback(lambda res:
-                      self._foo_node.get_child_at_path("subdir/newdir"))
+                      self._foo_node.get_child_at_path(u"subdir/newdir"))
         d.addCallback(self.failUnlessNodeKeysAre, [])
         return d
 
     def test_DELETE_DIRURL(self):
         d = self.DELETE(self.public_url + "/foo")
         d.addCallback(lambda res:
-                      self.failIfNodeHasChild(self.public_root, "foo"))
+                      self.failIfNodeHasChild(self.public_root, u"foo"))
         return d
 
     def test_DELETE_DIRURL_missing(self):
         d = self.DELETE(self.public_url + "/foo/missing")
         d.addBoth(self.should404, "test_DELETE_DIRURL_missing")
         d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self.public_root, "foo"))
+                      self.failUnlessNodeHasChild(self.public_root, u"foo"))
         return d
 
     def test_DELETE_DIRURL_missing2(self):
@@ -755,20 +763,22 @@ class Web(WebMixin, unittest.TestCase):
         def _check(res):
             names = [path for (path,node) in out]
             self.failUnlessEqual(sorted(names),
-                                 [('foo',),
-                                  ('foo','bar.txt'),
-                                  ('foo','blockingfile'),
-                                  ('foo', 'empty'),
-                                  ('foo', 'sub'),
-                                  ('foo','sub','baz.txt'),
-                                  ('reedownlee',),
-                                  ('reedownlee', 'nor'),
+                                 [(u'foo',),
+                                  (u'foo',u'bar.txt'),
+                                  (u'foo',u'blockingfile'),
+                                  (u'foo', u'empty'),
+                                  (u'foo', u"n\u00fc.txt"),
+                                  (u'foo', u'sub'),
+                                  (u'foo',u'sub',u'baz.txt'),
+                                  (u'reedownlee',),
+                                  (u'reedownlee', u'nor'),
                                   ])
-            subindex = names.index( ('foo', 'sub') )
-            bazindex = names.index( ('foo', 'sub', 'baz.txt') )
+            subindex = names.index( (u'foo', u'sub') )
+            bazindex = names.index( (u'foo', u'sub', u'baz.txt') )
             self.failUnless(subindex < bazindex)
             for path,node in out:
-                if path[-1] in ('bar.txt', 'blockingfile', 'baz.txt', 'nor'):
+                if path[-1] in (u'bar.txt', u"n\u00fc.txt", u'blockingfile',
+                                u'baz.txt', u'nor'):
                     self.failUnless(interfaces.IFileNode.providedBy(node))
                 else:
                     self.failUnless(interfaces.IDirectoryNode.providedBy(node))
@@ -839,18 +849,22 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def failUnlessNodeKeysAre(self, node, expected_keys):
+        for k in expected_keys:
+            assert isinstance(k, unicode)
         d = node.list()
         def _check(children):
             self.failUnlessEqual(sorted(children.keys()), sorted(expected_keys))
         d.addCallback(_check)
         return d
     def failUnlessNodeHasChild(self, node, name):
+        assert isinstance(name, unicode)
         d = node.list()
         def _check(children):
             self.failUnless(name in children)
         d.addCallback(_check)
         return d
     def failIfNodeHasChild(self, node, name):
+        assert isinstance(name, unicode)
         d = node.list()
         def _check(children):
             self.failIf(name in children)
@@ -858,6 +872,7 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def failUnlessChildContentsAre(self, node, name, expected_contents):
+        assert isinstance(name, unicode)
         d = node.get_child_at_path(name)
         d.addCallback(lambda node: node.download_to_data())
         def _check(contents):
@@ -866,6 +881,7 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def failUnlessChildURIIs(self, node, name, expected_uri):
+        assert isinstance(name, unicode)
         d = node.get_child_at_path(name)
         def _check(child):
             self.failUnlessEqual(child.get_uri(), expected_uri.strip())
@@ -873,6 +889,7 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def failUnlessURIMatchesChild(self, got_uri, node, name):
+        assert isinstance(name, unicode)
         d = node.get_child_at_path(name)
         def _check(child):
             self.failUnlessEqual(got_uri.strip(), child.get_uri())
@@ -896,15 +913,15 @@ class Web(WebMixin, unittest.TestCase):
         d = self.PUT(self.public_url + "/newdir?t=upload&localdir=%s"
                      % urllib.quote(localdir), "")
         pr = self.public_root
-        d.addCallback(lambda res: self.failUnlessNodeHasChild(pr, "newdir"))
-        d.addCallback(lambda res: pr.get("newdir"))
+        d.addCallback(lambda res: self.failUnlessNodeHasChild(pr, u"newdir"))
+        d.addCallback(lambda res: pr.get(u"newdir"))
         d.addCallback(self.failUnlessNodeKeysAre,
-                      ["one", "two", "three", "zap.zip"])
-        d.addCallback(lambda res: pr.get_child_at_path("newdir/one"))
-        d.addCallback(self.failUnlessNodeKeysAre, ["sub"])
-        d.addCallback(lambda res: pr.get_child_at_path("newdir/three"))
-        d.addCallback(self.failUnlessNodeKeysAre, ["foo.txt", "bar.txt"])
-        d.addCallback(lambda res: pr.get_child_at_path("newdir/three/bar.txt"))
+                      [u"one", u"two", u"three", u"zap.zip"])
+        d.addCallback(lambda res: pr.get_child_at_path(u"newdir/one"))
+        d.addCallback(self.failUnlessNodeKeysAre, [u"sub"])
+        d.addCallback(lambda res: pr.get_child_at_path(u"newdir/three"))
+        d.addCallback(self.failUnlessNodeKeysAre, [u"foo.txt", u"bar.txt"])
+        d.addCallback(lambda res: pr.get_child_at_path(u"newdir/three/bar.txt"))
         d.addCallback(lambda barnode: barnode.download_to_data())
         d.addCallback(lambda contents:
                       self.failUnlessEqual(contents,
@@ -945,16 +962,16 @@ class Web(WebMixin, unittest.TestCase):
                      % urllib.quote(localdir),
                      "")
         fn = self._foo_node
-        d.addCallback(lambda res: self.failUnlessNodeHasChild(fn, "subdir"))
-        d.addCallback(lambda res: fn.get_child_at_path("subdir/newdir"))
+        d.addCallback(lambda res: self.failUnlessNodeHasChild(fn, u"subdir"))
+        d.addCallback(lambda res: fn.get_child_at_path(u"subdir/newdir"))
         d.addCallback(self.failUnlessNodeKeysAre,
-                      ["one", "two", "three", "zap.zip"])
-        d.addCallback(lambda res: fn.get_child_at_path("subdir/newdir/one"))
-        d.addCallback(self.failUnlessNodeKeysAre, ["sub"])
-        d.addCallback(lambda res: fn.get_child_at_path("subdir/newdir/three"))
-        d.addCallback(self.failUnlessNodeKeysAre, ["foo.txt", "bar.txt"])
+                      [u"one", u"two", u"three", u"zap.zip"])
+        d.addCallback(lambda res: fn.get_child_at_path(u"subdir/newdir/one"))
+        d.addCallback(self.failUnlessNodeKeysAre, [u"sub"])
+        d.addCallback(lambda res: fn.get_child_at_path(u"subdir/newdir/three"))
+        d.addCallback(self.failUnlessNodeKeysAre, [u"foo.txt", u"bar.txt"])
         d.addCallback(lambda res:
-                      fn.get_child_at_path("subdir/newdir/three/bar.txt"))
+                      fn.get_child_at_path(u"subdir/newdir/three/bar.txt"))
         d.addCallback(lambda barnode: barnode.download_to_data())
         d.addCallback(lambda contents:
                       self.failUnlessEqual(contents,
@@ -976,10 +993,26 @@ class Web(WebMixin, unittest.TestCase):
         d = self.POST(self.public_url + "/foo", t="upload",
                       file=("new.txt", self.NEWFILE_CONTENTS))
         fn = self._foo_node
-        d.addCallback(self.failUnlessURIMatchesChild, fn, "new.txt")
+        d.addCallback(self.failUnlessURIMatchesChild, fn, u"new.txt")
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(fn, "new.txt",
+                      self.failUnlessChildContentsAre(fn, u"new.txt",
                                                       self.NEWFILE_CONTENTS))
+        return d
+
+    def test_POST_upload_unicode(self):
+        filename = u"n\u00e9wer.txt" # n e-acute w e r . t x t
+        target_url = self.public_url + "/foo/" + filename.encode("utf-8")
+        d = self.POST(self.public_url + "/foo", t="upload",
+                      file=(filename, self.NEWFILE_CONTENTS))
+        fn = self._foo_node
+        d.addCallback(self.failUnlessURIMatchesChild, fn, filename)
+        d.addCallback(lambda res:
+                      self.failUnlessChildContentsAre(fn, filename,
+                                                      self.NEWFILE_CONTENTS))
+        d.addCallback(lambda res: self.GET(target_url))
+        d.addCallback(lambda contents: self.failUnlessEqual(contents,
+                                                            self.NEWFILE_CONTENTS,
+                                                            contents))
         return d
 
     def test_POST_upload_no_link(self):
@@ -1026,11 +1059,11 @@ class Web(WebMixin, unittest.TestCase):
         d = self.POST(self.public_url + "/foo", t="upload", mutable="true",
                       file=("new.txt", self.NEWFILE_CONTENTS))
         fn = self._foo_node
-        d.addCallback(self.failUnlessURIMatchesChild, fn, "new.txt")
+        d.addCallback(self.failUnlessURIMatchesChild, fn, u"new.txt")
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(fn, "new.txt",
+                      self.failUnlessChildContentsAre(fn, u"new.txt",
                                                       self.NEWFILE_CONTENTS))
-        d.addCallback(lambda res: self._foo_node.get("new.txt"))
+        d.addCallback(lambda res: self._foo_node.get(u"new.txt"))
         def _got(newnode):
             self.failUnless(IMutableFileNode.providedBy(newnode))
             self.failUnless(newnode.is_mutable())
@@ -1044,11 +1077,11 @@ class Web(WebMixin, unittest.TestCase):
                       self.POST(self.public_url + "/foo", t="upload",
                                 mutable="true",
                                 file=("new.txt", NEWER_CONTENTS)))
-        d.addCallback(self.failUnlessURIMatchesChild, fn, "new.txt")
+        d.addCallback(self.failUnlessURIMatchesChild, fn, u"new.txt")
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(fn, "new.txt",
+                      self.failUnlessChildContentsAre(fn, u"new.txt",
                                                       NEWER_CONTENTS))
-        d.addCallback(lambda res: self._foo_node.get("new.txt"))
+        d.addCallback(lambda res: self._foo_node.get(u"new.txt"))
         def _got2(newnode):
             self.failUnless(IMutableFileNode.providedBy(newnode))
             self.failUnless(newnode.is_mutable())
@@ -1085,9 +1118,9 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_parse_overwrite_form_and_submit)
         d.addBoth(self.shouldRedirect, urllib.quote(self.public_url + "/foo/"))
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(fn, "new.txt",
+                      self.failUnlessChildContentsAre(fn, u"new.txt",
                                                       EVEN_NEWER_CONTENTS))
-        d.addCallback(lambda res: self._foo_node.get("new.txt"))
+        d.addCallback(lambda res: self._foo_node.get(u"new.txt"))
         def _got3(newnode):
             self.failUnless(IMutableFileNode.providedBy(newnode))
             self.failUnless(newnode.is_mutable())
@@ -1101,9 +1134,9 @@ class Web(WebMixin, unittest.TestCase):
         d = self.POST(self.public_url + "/foo", t="upload",
                       file=("bar.txt", self.NEWFILE_CONTENTS))
         fn = self._foo_node
-        d.addCallback(self.failUnlessURIMatchesChild, fn, "bar.txt")
+        d.addCallback(self.failUnlessURIMatchesChild, fn, u"bar.txt")
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(fn, "bar.txt",
+                      self.failUnlessChildContentsAre(fn, u"bar.txt",
                                                       self.NEWFILE_CONTENTS))
         return d
 
@@ -1144,7 +1177,7 @@ class Web(WebMixin, unittest.TestCase):
         d.addBoth(self.shouldRedirect, "/THERE")
         fn = self._foo_node
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(fn, "new.txt",
+                      self.failUnlessChildContentsAre(fn, u"new.txt",
                                                       self.NEWFILE_CONTENTS))
         return d
 
@@ -1152,9 +1185,9 @@ class Web(WebMixin, unittest.TestCase):
         fn = self._foo_node
         d = self.POST(self.public_url + "/foo", t="upload",
                       name="new.txt", file=self.NEWFILE_CONTENTS)
-        d.addCallback(self.failUnlessURIMatchesChild, fn, "new.txt")
+        d.addCallback(self.failUnlessURIMatchesChild, fn, u"new.txt")
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(fn, "new.txt",
+                      self.failUnlessChildContentsAre(fn, u"new.txt",
                                                       self.NEWFILE_CONTENTS))
         return d
 
@@ -1169,13 +1202,14 @@ class Web(WebMixin, unittest.TestCase):
         # make sure that nothing was added
         d.addCallback(lambda res:
                       self.failUnlessNodeKeysAre(self._foo_node,
-                                                 ["bar.txt", "blockingfile",
-                                                  "empty", "sub"]))
+                                                 [u"bar.txt", u"blockingfile",
+                                                  u"empty", u"n\u00fc.txt",
+                                                  u"sub"]))
         return d
 
     def test_POST_mkdir(self): # return value?
         d = self.POST(self.public_url + "/foo", t="mkdir", name="newdir")
-        d.addCallback(lambda res: self._foo_node.get("newdir"))
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessNodeKeysAre, [])
         return d
 
@@ -1223,7 +1257,7 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_POST_mkdir_replace(self): # return value?
         d = self.POST(self.public_url + "/foo", t="mkdir", name="sub")
-        d.addCallback(lambda res: self._foo_node.get("sub"))
+        d.addCallback(lambda res: self._foo_node.get(u"sub"))
         d.addCallback(self.failUnlessNodeKeysAre, [])
         return d
 
@@ -1234,8 +1268,8 @@ class Web(WebMixin, unittest.TestCase):
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
-        d.addCallback(lambda res: self._foo_node.get("sub"))
-        d.addCallback(self.failUnlessNodeKeysAre, ["baz.txt"])
+        d.addCallback(lambda res: self._foo_node.get(u"sub"))
+        d.addCallback(self.failUnlessNodeKeysAre, [u"baz.txt"])
         return d
 
     def test_POST_mkdir_no_replace_field(self): # return value?
@@ -1245,15 +1279,15 @@ class Web(WebMixin, unittest.TestCase):
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
-        d.addCallback(lambda res: self._foo_node.get("sub"))
-        d.addCallback(self.failUnlessNodeKeysAre, ["baz.txt"])
+        d.addCallback(lambda res: self._foo_node.get(u"sub"))
+        d.addCallback(self.failUnlessNodeKeysAre, [u"baz.txt"])
         return d
 
     def test_POST_mkdir_whendone_field(self):
         d = self.POST(self.public_url + "/foo",
                       t="mkdir", name="newdir", when_done="/THERE")
         d.addBoth(self.shouldRedirect, "/THERE")
-        d.addCallback(lambda res: self._foo_node.get("newdir"))
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessNodeKeysAre, [])
         return d
 
@@ -1261,25 +1295,25 @@ class Web(WebMixin, unittest.TestCase):
         d = self.POST(self.public_url + "/foo?when_done=/THERE",
                       t="mkdir", name="newdir")
         d.addBoth(self.shouldRedirect, "/THERE")
-        d.addCallback(lambda res: self._foo_node.get("newdir"))
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessNodeKeysAre, [])
         return d
 
     def test_POST_put_uri(self):
         contents, n, newuri = self.makefile(8)
         d = self.POST(self.public_url + "/foo", t="uri", name="new.txt", uri=newuri)
-        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, "new.txt")
+        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, u"new.txt")
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(self._foo_node, "new.txt",
+                      self.failUnlessChildContentsAre(self._foo_node, u"new.txt",
                                                       contents))
         return d
 
     def test_POST_put_uri_replace(self):
         contents, n, newuri = self.makefile(8)
         d = self.POST(self.public_url + "/foo", t="uri", name="bar.txt", uri=newuri)
-        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, "bar.txt")
+        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, u"bar.txt")
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(self._foo_node, "bar.txt",
+                      self.failUnlessChildContentsAre(self._foo_node, u"bar.txt",
                                                       contents))
         return d
 
@@ -1313,7 +1347,7 @@ class Web(WebMixin, unittest.TestCase):
         d = self.POST(self.public_url + "/foo", t="delete", name="bar.txt")
         d.addCallback(lambda res: self._foo_node.list())
         def _check(children):
-            self.failIf("bar.txt" in children)
+            self.failIf(u"bar.txt" in children)
         d.addCallback(_check)
         return d
 
@@ -1321,9 +1355,9 @@ class Web(WebMixin, unittest.TestCase):
         d = self.POST(self.public_url + "/foo", t="rename",
                       from_name="bar.txt", to_name='wibble.txt')
         d.addCallback(lambda res:
-                      self.failIfNodeHasChild(self._foo_node, "bar.txt"))
+                      self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
         d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self._foo_node, "wibble.txt"))
+                      self.failUnlessNodeHasChild(self._foo_node, u"wibble.txt"))
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/wibble.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/wibble.txt?t=json"))
@@ -1335,9 +1369,9 @@ class Web(WebMixin, unittest.TestCase):
         d = self.POST(self.public_url + "/foo", t="rename",
                       from_name="bar.txt", to_name='empty')
         d.addCallback(lambda res:
-                      self.failIfNodeHasChild(self._foo_node, "bar.txt"))
+                      self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
         d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self._foo_node, "empty"))
+                      self.failUnlessNodeHasChild(self._foo_node, u"empty"))
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/empty"))
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/empty?t=json"))
@@ -1384,7 +1418,7 @@ class Web(WebMixin, unittest.TestCase):
                   "to_name= may not contain a slash",
                   )
         d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self._foo_node, "bar.txt"))
+                      self.failUnlessNodeHasChild(self._foo_node, u"bar.txt"))
         d.addCallback(lambda res: self.POST(self.public_url, t="rename",
                       from_name="foo/bar.txt", to_name='george.txt'))
         d.addBoth(self.shouldFail, error.Error,
@@ -1393,11 +1427,11 @@ class Web(WebMixin, unittest.TestCase):
                   "from_name= may not contain a slash",
                   )
         d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self.public_root, "foo"))
+                      self.failUnlessNodeHasChild(self.public_root, u"foo"))
         d.addCallback(lambda res:
-                      self.failIfNodeHasChild(self.public_root, "george.txt"))
+                      self.failIfNodeHasChild(self.public_root, u"george.txt"))
         d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self._foo_node, "bar.txt"))
+                      self.failUnlessNodeHasChild(self._foo_node, u"bar.txt"))
         d.addCallback(lambda res: self.GET(self.public_url + "/foo?t=json"))
         d.addCallback(self.failUnlessIsFooJSON)
         return d
@@ -1406,9 +1440,9 @@ class Web(WebMixin, unittest.TestCase):
         d = self.POST(self.public_url, t="rename",
                       from_name="foo", to_name='plunk')
         d.addCallback(lambda res:
-                      self.failIfNodeHasChild(self.public_root, "foo"))
+                      self.failIfNodeHasChild(self.public_root, u"foo"))
         d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self.public_root, "plunk"))
+                      self.failUnlessNodeHasChild(self.public_root, u"plunk"))
         d.addCallback(lambda res: self.GET(self.public_url + "/plunk?t=json"))
         d.addCallback(self.failUnlessIsFooJSON)
         return d
@@ -1497,7 +1531,7 @@ class Web(WebMixin, unittest.TestCase):
         d = self.PUT(self.public_url + "/foo/new.txt?t=uri", new_uri)
         d.addCallback(lambda res: self.failUnlessEqual(res.strip(), new_uri))
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(self._foo_node, "new.txt",
+                      self.failUnlessChildContentsAre(self._foo_node, u"new.txt",
                                                       contents))
         return d
 
@@ -1506,7 +1540,7 @@ class Web(WebMixin, unittest.TestCase):
         d = self.PUT(self.public_url + "/foo/bar.txt?t=uri", new_uri)
         d.addCallback(lambda res: self.failUnlessEqual(res.strip(), new_uri))
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(self._foo_node, "bar.txt",
+                      self.failUnlessChildContentsAre(self._foo_node, u"bar.txt",
                                                       contents))
         return d
 

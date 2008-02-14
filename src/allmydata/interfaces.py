@@ -587,6 +587,11 @@ class IMutableFileNode(IFileNode, IMutableFilesystemNode):
         """
 
 class IDirectoryNode(IMutableFilesystemNode):
+    """I represent a name-to-child mapping, holding the tahoe equivalent of a
+    directory. All child names are unicode strings, and all children are some
+    sort of IFilesystemNode (either files or subdirectories).
+    """
+
     def get_uri():
         """
         The dirnode ('1') URI returned by this method can be used in
@@ -607,30 +612,33 @@ class IDirectoryNode(IMutableFilesystemNode):
 
     def list():
         """I return a Deferred that fires with a dictionary mapping child
-        name to (node, metadata_dict) tuples, in which 'node' is either an
-        IFileNode or IDirectoryNode, and 'metadata_dict' is a dictionary of
-        metadata."""
+        name (a unicode string) to (node, metadata_dict) tuples, in which
+        'node' is either an IFileNode or IDirectoryNode, and 'metadata_dict'
+        is a dictionary of metadata."""
 
     def has_child(name):
         """I return a Deferred that fires with a boolean, True if there
-        exists a child of the given name, False if not."""
+        exists a child of the given name, False if not. The child name must
+        be a unicode string."""
 
     def get(name):
         """I return a Deferred that fires with a specific named child node,
-        either an IFileNode or an IDirectoryNode."""
+        either an IFileNode or an IDirectoryNode. The child name must be a
+        unicode string."""
 
     def get_metadata_for(name):
         """I return a Deferred that fires with the metadata dictionary for a
         specific named child node. This metadata is stored in the *edge*, not
         in the child, so it is attached to the parent dirnode rather than the
-        child dir-or-file-node."""
+        child dir-or-file-node. The child name must be a unicode string."""
 
     def set_metadata_for(name, metadata):
         """I replace any existing metadata for the named child with the new
-        metadata. This metadata is stored in the *edge*, not in the child, so
-        it is attached to the parent dirnode rather than the child
-        dir-or-file-node. I return a Deferred (that fires with this dirnode)
-        when the operation is complete."""
+        metadata. The child name must be a unicode string. This metadata is
+        stored in the *edge*, not in the child, so it is attached to the
+        parent dirnode rather than the child dir-or-file-node. I return a
+        Deferred (that fires with this dirnode) when the operation is
+        complete."""
 
     def get_child_at_path(path):
         """Transform a child path into an IDirectoryNode or IFileNode.
@@ -640,13 +648,13 @@ class IDirectoryNode(IMutableFilesystemNode):
         errbacks with IndexError if the node could not be found.
 
         The path can be either a single string (slash-separated) or a list of
-        path-name elements.
+        path-name elements. All elements must be unicode strings.
         """
 
     def set_uri(name, child_uri, metadata=None):
         """I add a child (by URI) at the specific name. I return a Deferred
         that fires when the operation finishes. I will replace any existing
-        child of the same name.
+        child of the same name. The child name must be a unicode string.
 
         The child_uri could be for a file, or for a directory (either
         read-write or read-only, using a URI that came from get_uri() ).
@@ -665,14 +673,15 @@ class IDirectoryNode(IMutableFilesystemNode):
         """Add multiple (name, child_uri) pairs (or (name, child_uri,
         metadata) triples) to a directory node. Returns a Deferred that fires
         (with None) when the operation finishes. This is equivalent to
-        calling set_uri() multiple times, but is much more efficient.
+        calling set_uri() multiple times, but is much more efficient. All
+        child names must be unicode strings.
         """
 
     def set_node(name, child, metadata=None):
         """I add a child at the specific name. I return a Deferred that fires
         when the operation finishes. This Deferred will fire with the child
         node that was just added. I will replace any existing child of the
-        same name.
+        same name. The child name must be a unicode string.
 
         If metadata= is provided, I will use it as the metadata for the named
         edge. This will replace any existing metadata. If metadata= is left
@@ -688,31 +697,35 @@ class IDirectoryNode(IMutableFilesystemNode):
         """Add multiple (name, child_node) pairs (or (name, child_node,
         metadata) triples) to a directory node. Returns a Deferred that fires
         (with None) when the operation finishes. This is equivalent to
-        calling set_node() multiple times, but is much more efficient."""
+        calling set_node() multiple times, but is much more efficient. All
+        child names must be unicode strings."""
 
 
     def add_file(name, uploadable, metadata=None):
         """I upload a file (using the given IUploadable), then attach the
         resulting FileNode to the directory at the given name. I set metadata
-        the same way as set_uri and set_node.
+        the same way as set_uri and set_node. The child name must be a
+        unicode string.
 
         I return a Deferred that fires (with the IFileNode of the uploaded
         file) when the operation completes."""
 
     def delete(name):
         """I remove the child at the specific name. I return a Deferred that
-        fires when the operation finishes."""
+        fires when the operation finishes. The child name must be a unicode
+        string."""
 
     def create_empty_directory(name):
-        """I create and attach an empty directory at the given name. I return
-        a Deferred that fires when the operation finishes."""
+        """I create and attach an empty directory at the given name. The
+        child name must be a unicode string. I return a Deferred that fires
+        when the operation finishes."""
 
     def move_child_to(current_child_name, new_parent, new_child_name=None):
         """I take one of my children and move them to a new parent. The child
         is referenced by name. On the new parent, the child will live under
         'new_child_name', which defaults to 'current_child_name'. TODO: what
         should we do about metadata? I return a Deferred that fires when the
-        operation finishes."""
+        operation finishes. The child name must be a unicode string."""
 
     def build_manifest():
         """Return a frozenset of verifier-capability strings for all nodes
