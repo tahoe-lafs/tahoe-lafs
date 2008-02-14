@@ -261,6 +261,12 @@ class Retrieve:
         #    remove that share from the sharemap.  and start step#6 again.
 
         initial_query_count = 5
+        # how much data should be read on the first fetch? It would be nice
+        # if we could grab small directories in a single RTT. The way we pack
+        # dirnodes consumes about 112 bytes per child. The way we pack
+        # mutable files puts about 935 bytes of pubkey+sig+hashes, then our
+        # data, then about 1216 bytes of encprivkey. So 2kB ought to get us
+        # about 9 entries, which seems like a good default.
         self._read_size = 2000
 
         # we might not know how many shares we need yet.
@@ -774,8 +780,10 @@ class Publish:
         # the privkey from somebody, which means reading more like 3KB, but
         # the code in _obtain_privkey will ensure that we manage that even if
         # we need an extra roundtrip. TODO: arrange to read 3KB from one peer
-        # who is likely to hold a share (like, say, ourselves), so we can
-        # avoid the latency of that extra roundtrip.
+        # who is likely to hold a share, so we can avoid the latency of that
+        # extra roundtrip. 3KB would get us the encprivkey from a dirnode
+        # with up to 7 entries, allowing us to make an update in 2 RTT
+        # instead of 3.
         self._read_size = 1000
 
         d = defer.succeed(total_shares)
