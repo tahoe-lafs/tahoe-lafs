@@ -385,21 +385,21 @@ offset is used both to terminate the share data and to begin the encprivkey).
        58       1        N
        59       8        segment size
        67       8        data length (of original plaintext)
- 6    75       36      offset table:
+ 6    75       32      offset table:
        75       4        (8) signature
        79       4        (9) share hash chain
        83       4        (10) block hash tree
-       91       4        (11) share data
-       95       8        (12) encrypted private key
-       103      8        (13) EOF
- 7    111      292ish  verification key (2048 RSA key)
- 8    367ish   256ish  signature=RSAenc(sigkey, H(version+seqnum+r+IV+encparm))
- 9    623ish   (a)     share hash chain, encoded as:
+       87       4        (11) share data
+       91       8        (12) encrypted private key
+       99       8        (13) EOF
+ 7    107      436ish  verification key (2048 RSA key)
+ 8    543ish   256ish  signature=RSAenc(sigkey, H(version+seqnum+r+IV+encparm))
+ 9    799ish   (a)     share hash chain, encoded as:
                         "".join([pack(">H32s", shnum, hash)
                                  for (shnum,hash) in needed_hashes])
-10    ??       (b)     block hash tree, encoded as:
+10    (927ish) (b)     block hash tree, encoded as:
                         "".join([pack(">32s",hash) for hash in block_hash_tree])
-11    ??       LEN     share data (no gap between this and encprivkey)
+11    (935ish) LEN     share data (no gap between this and encprivkey)
 12    ??       1216ish encrypted private key= AESenc(write-key, RSA-key)
 13    ??       --      EOF
 
