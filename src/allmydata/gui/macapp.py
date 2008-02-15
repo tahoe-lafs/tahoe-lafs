@@ -63,7 +63,7 @@ class App(object):
             f.close()
 
         if self.is_config_incomplete():
-            app = ConfWizApp(DEFAULT_SERVER_URL)
+            app = ConfWizApp(DEFAULT_SERVER_URL, open_welcome_page=True)
             app.MainLoop()
 
         if self.is_config_incomplete():

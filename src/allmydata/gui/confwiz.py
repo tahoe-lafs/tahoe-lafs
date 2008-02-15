@@ -148,18 +148,20 @@ def DisplayTraceback(message):
     wx.MessageBox(u"%s\n (%s)"%(message,''.join(xc)), 'Error')
 
 class ConfWizApp(wx.App):
-    def __init__(self, server):
+    def __init__(self, server, open_welcome_page=False):
         self.server = server
+        self.show_welcome = open_welcome_page
         wx.App.__init__(self, 0)
 
     def get_backend(self):
         return self.server + BACKEND
 
     def open_welcome_page(self):
-        args = {'v':    str(allmydata.__version__),
-                'plat': sys.platform,
-                }
-        webbrowser.open(self.server + WELCOME_PAGE + '?' + urlencode(args))
+        if self.show_welcome:
+            args = {'v':    str(allmydata.__version__),
+                    'plat': sys.platform,
+                    }
+            webbrowser.open(self.server + WELCOME_PAGE + '?' + urlencode(args))
 
     def OnInit(self):
         try:
