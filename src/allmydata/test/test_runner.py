@@ -4,7 +4,7 @@ from twisted.trial import unittest
 from cStringIO import StringIO
 from twisted.python import usage, runtime
 from twisted.internet import defer
-import os.path
+import os.path, re
 from allmydata.scripts import runner
 from allmydata.util import fileutil, testutil
 
@@ -31,7 +31,10 @@ class CreateNode(unittest.TestCase):
         rc = runner.runner(argv, stdout=out, stderr=err)
         self.failIfEqual(rc, 0)
         self.failUnlessEqual(out.getvalue(), "")
-        self.failUnless("The base directory already exists" in err.getvalue())
+        self.failUnless("is not empty." in err.getvalue())
+
+        # Fail if there is a line that doesn't end with a PUNCTUATION MARK.
+        self.failIf(re.search("[^\.!?]\n", err.getvalue()), err.getvalue())
 
         c2 = os.path.join(basedir, "c2")
         argv = ["--quiet", "create-client", c2]
@@ -62,7 +65,10 @@ class CreateNode(unittest.TestCase):
         rc = runner.runner(argv, stdout=out, stderr=err)
         self.failIfEqual(rc, 0)
         self.failUnlessEqual(out.getvalue(), "")
-        self.failUnless("The base directory already exists" in err.getvalue())
+        self.failUnless("is not empty" in err.getvalue())
+
+        # Fail if there is a line that doesn't end with a PUNCTUATION MARK.
+        self.failIf(re.search("[^\.!?]\n", err.getvalue()), err.getvalue())
 
         c2 = os.path.join(basedir, "c2")
         argv = ["--quiet", "create-introducer", c2]

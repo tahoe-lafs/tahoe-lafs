@@ -42,9 +42,9 @@ c.setServiceParent(application)
 def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
     if os.path.exists(basedir):
         if os.listdir(basedir):
-            print >>err, "The base directory already exists: %s" % basedir
-            print >>err, "To avoid clobbering anything, I am going to quit now"
-            print >>err, "Please use a different directory, or delete this one"
+            print >>err, "The base directory \"%s\", which is \"%s\" is not empty." % (basedir, os.path.abspath(basedir))
+            print >>err, "To avoid clobbering anything, I am going to quit now."
+            print >>err, "Please use a different directory, or empty this one."
             return -1
         # we're willing to use an empty directory
     else:
@@ -67,9 +67,9 @@ def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
 def create_introducer(basedir, config, out=sys.stdout, err=sys.stderr):
     if os.path.exists(basedir):
         if os.listdir(basedir):
-            print >>err, "The base directory already exists: %s" % basedir
-            print >>err, "To avoid clobbering anything, I am going to quit now"
-            print >>err, "Please use a different directory, or delete this one"
+            print >>err, "The base directory \"%s\", which is \"%s\" is not empty." % (basedir, os.path.abspath(basedir))
+            print >>err, "To avoid clobbering anything, I am going to quit now."
+            print >>err, "Please use a different directory, or empty this one."
             return -1
         # we're willing to use an empty directory
     else:

@@ -102,7 +102,7 @@ def plaintext_segment_hasher():
     return tagged_hasher("allmydata_plaintext_segment_v1")
 
 def content_hash_key_hash(k, n, segsize, data):
-    # this is defined to return a 16-byte AES key. We use SHA-256d here..
+    # This is defined to return a 16-byte AES key. We use SHA-256d here.
     # we'd like to use it everywhere, but we're only switching algorithms
     # when we can hide the compatibility breaks in other necessary changes.
     param_tag = netstring("%d,%d,%d" % (k, n, segsize))

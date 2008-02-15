@@ -9,9 +9,11 @@
   </head>
 
   <body>
+    <p>This is how to use your Tahoe node.  First, you have to run your own local Tahoe node, as described in <a href="running.html">running.html</a>.</p>
+
     <h1>The WUI</h1>
 
-    <p>Point your web browser to <a href="http://127.0.0.1:8123">http://127.0.0.1:8123</a> to use the node.</p>
+    <p>Point your web browser to <a href="http://127.0.0.1:8123">http://127.0.0.1:8123</a> -- which is the URL of your own local computer -- to use your newly created node.</p>
 
     <p>Create a new directory (with the button labelled "create a directory").  Your web browser will load the new directory.  Now if you want to be able to come back to this directory later, you have to bookmark it, or otherwise save the URL of it.  If you lose URL to this directory, then you can never again come back to this directory.</p>
 
@@ -21,14 +23,14 @@
 
     <h1>The CLI</h1>
 
-    <p>Prefer the command-line?  Run <cite>tahoe --help</cite> (the same command-line tool that is used to start and stop nodes serves to navigate and use the decentralized filesystem).  To make commands like <cite>tahoe ls</cite> work without the <cite>--dir-cap=</cite> option, you have to put a directory capability (e.g. <cite>http://127.0.0.1:8123/uri/URI:DIR2:yar9nnzsho6czczieeesc65sry:upp1pmypwxits3w9izkszgo1zbdnsyk3nm6h7e19s7os7s6yhh9y</cite>) into <cite>~/.tahoe/private/root_dir.cap</cite>.</p>
+    <p>Prefer the command-line?  Run "<cite>tahoe --help</cite>" (the same command-line tool that is used to start and stop nodes serves to navigate and use the decentralized filesystem).  To make commands like "<cite>tahoe ls</cite>" work without the <cite>--dir-cap=</cite> option, you have to put a directory capability (e.g. <cite>http://127.0.0.1:8123/uri/URI%3ADIR2%3Ax2pdyrez6nemrby5jzw6lxkxye%3Arl654zxxdppmhgzvaaaxdyf6bhbzbszmmoynm3h7kzuxtlksbynq/</cite>) into <cite>~/.tahoe/private/root_dir.cap</cite>.</p>
     <p>As with the WUI (and with all current interfaces to Tahoe), you are responsible for remembering directory capabilities yourself.  If you create a new directory and lose the capability to it, then you cannot access that directory ever again.</p>
 
     <p>P.S.  "CLI" is pronounced "clee".</p>
 
     <h1>The FUSE Extension</h1>
 
-    <p>You can plug Tahoe into your computer's local filesystem using the FUSE extension, found in the <cite>contrib</cite> directory.  Warning: unlike most of Tahoe, and unlike the rest of the user interfaces described on this page, the FUSE plugin doesn't have extensive unit tests that are automatically run on every check-in of the source.  Therefore, we don't for sure how complete and reliable it is.</p>
+    <p>You can plug Tahoe into your computer's local filesystem using the FUSE extension, found in the <cite>contrib</cite> directory.  Warning: unlike most of Tahoe, and unlike the rest of the user interfaces described on this page, the FUSE plugin doesn't have extensive unit tests that are automatically run on every check-in of the source.  Therefore, we can't be sure how complete and reliable it is.</p>
 
     <p>P.S.  "FUSE" rhymes with "booze".</p>
 

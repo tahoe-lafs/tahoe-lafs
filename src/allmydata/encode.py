@@ -37,9 +37,10 @@ information necessary to validate the data upon retrieval. Only one segment
 is handled at a time: all blocks for segment A are delivered before any
 work is begun on segment B.
 
-As blocks are created, we retain the hash of each one. The list of
-block hashes for a single share (say, hash(A1), hash(B1), hash(C1)) is
-used to form the base of a Merkle hash tree for that share (hashtrees[1]).
+As blocks are created, we retain the hash of each one. The list of block hashes
+for a single share (say, hash(A1), hash(B1), hash(C1)) is used to form the base
+of a Merkle hash tree for that share, called the block hash tree.
+
 This hash tree has one terminal leaf per block. The complete block hash
 tree is sent to the shareholder after all the data has been sent. At
 retrieval time, the decoder will ask for specific pieces of this tree before
