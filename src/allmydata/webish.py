@@ -124,14 +124,6 @@ class MyRequest(appserver.NevowRequest):
 
         self.process()
 
-    def _escape(self, s):
-        # pain in the ass. Return a string like python repr, but always
-        # escaped as if surrounding quotes were "".
-        r = repr(s)
-        if r[0] == "'":
-            return r[1:-1].replace('"', '\\"').replace("\\'", "'")
-        return r[1:-1]
-
     def _logger(self):
         # we build up a log string that hides most of the cap, to preserve
         # user privacy. We retain the query args so we can identify things
