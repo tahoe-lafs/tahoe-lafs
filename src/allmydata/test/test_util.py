@@ -385,15 +385,17 @@ class DeferredUtilTests(unittest.TestCase):
 
 class HashUtilTests(unittest.TestCase):
     def test_sha256d(self):
-        h1 = hashutil.tagged_hash_256d("tag1", "value")
-        h2 = hashutil.tagged_hasher_256d("tag1")
+        h1 = hashutil.tagged_hash("tag1", "value")
+        h2 = hashutil.tagged_hasher("tag1")
         h2.update("value")
-        h2 = h2.digest()
-        self.failUnlessEqual(h1, h2)
+        h2a = h2.digest()
+        h2b = h2.digest()
+        self.failUnlessEqual(h1, h2a)
+        self.failUnlessEqual(h2a, h2b)
 
     def test_sha256d_truncated(self):
-        h1 = hashutil.tagged_hash_256d("tag1", "value", 16)
-        h2 = hashutil.tagged_hasher_256d("tag1", 16)
+        h1 = hashutil.tagged_hash("tag1", "value", 16)
+        h2 = hashutil.tagged_hasher("tag1", 16)
         h2.update("value")
         h2 = h2.digest()
         self.failUnlessEqual(len(h1), 16)
