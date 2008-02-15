@@ -21,7 +21,7 @@ import amdicon
 
 TRY_TO_INSTALL_TAHOE_SCRIPT = True
 TAHOE_SCRIPT = '''#!/bin/bash
-if [ "x${@}x" == "xx" ]
+if [ "x${*}x" == "xx" ]
 then
     %(exe)s --help
 else
