@@ -48,7 +48,7 @@ or implied.  It probably won't make your computer catch on fire,
 or eat  your children, but it might.  Use at your own risk.
 """
 
-from allmydata.util import idlib
+from allmydata.util import base32
 from allmydata.util.hashutil import tagged_hash, tagged_pair_hash
 
 __version__ = '1.0.0-allmydata'
@@ -153,7 +153,7 @@ class CompleteBinaryTreeMixin:
         lines = []
         for i,depth in self.depth_first():
             lines.append("%s%3d: %s" % ("  "*depth, i,
-                                        idlib.b2a_or_none(self[i])))
+                                        base32.b2a_or_none(self[i])))
         return "\n".join(lines) + "\n"
 
     def get_leaf_index(self, leafnum):

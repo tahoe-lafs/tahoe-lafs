@@ -9,7 +9,7 @@ from zope.interface import implements
 from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
      RIBucketReader, IStorageBucketWriter, IStorageBucketReader, HASH_SIZE, \
      BadWriteEnablerError, IStatsProducer
-from allmydata.util import base62, fileutil, idlib, mathutil, log
+from allmydata.util import base32, fileutil, idlib, mathutil, log
 from allmydata.util.assertutil import precondition, _assert
 import allmydata # for __version__
 
@@ -48,10 +48,10 @@ NUM_RE=re.compile("^[0-9]+$")
 #   B+0x48: next lease, or end of record
 
 def si_b2a(storageindex):
-    return base62.b2a(storageindex)
+    return base32.b2a(storageindex)
 
 def si_a2b(ascii_storageindex):
-    return base62.a2b(ascii_storageindex)
+    return base32.a2b(ascii_storageindex)
 
 def storage_index_to_dir(storageindex):
     sia = si_b2a(storageindex)

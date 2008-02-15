@@ -89,31 +89,31 @@ class CLI(unittest.TestCase):
                            size=size)
         output = self._dump_cap(u.to_string())
         self.failUnless("CHK File:" in output)
-        self.failUnless("key: yyyoryarywdyqnyjbefoadeqbh" in output)
-        self.failUnless("UEB hash: hd7rwri6djiapo6itg5hcxa7ze5im7z9qwcdu8oka6qinahsbiuo" in output)
+        self.failUnless("key: aaaqeayeaudaocajbifqydiob4" in output, output)
+        self.failUnless("UEB hash: 4d5euev6djvynq6vrg34mpy5xi3vl5x7oumdthqky6ovcy4wbvtq" in output, output)
         self.failUnless("size: 1234" in output)
         self.failUnless("k/N: 25/100" in output)
-        self.failUnless("storage index: 2WlXTYP4ahK2VBkx1pckfC" in output, output)
+        self.failUnless("storage index: kmkbjguwmkxej3wejdcvu74zki" in output, output)
 
-        output = self._dump_cap("--client-secret", "p3w849k9whqhw6b9fkf4xjs5xc",
+        output = self._dump_cap("--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
                                 u.to_string())
-        self.failUnless("client renewal secret: pu3oy5fu4irjsudwhn6c71g87anrxi1kokt4hmxz7qh5p1895zpy" in output)
+        self.failUnless("client renewal secret: jltcy6cppghq6ha3uzcawqr2lvwpzmw4teeqj2if6jd2vfpit6hq" in output, output)
 
         output = self._dump_cap(u.get_verifier().to_string())
         self.failIf("key: " in output)
-        self.failUnless("UEB hash: hd7rwri6djiapo6itg5hcxa7ze5im7z9qwcdu8oka6qinahsbiuo" in output)
+        self.failUnless("UEB hash: 4d5euev6djvynq6vrg34mpy5xi3vl5x7oumdthqky6ovcy4wbvtq" in output, output)
         self.failUnless("size: 1234" in output)
         self.failUnless("k/N: 25/100" in output)
-        self.failUnless("storage index: 2WlXTYP4ahK2VBkx1pckfC" in output, output)
+        self.failUnless("storage index: kmkbjguwmkxej3wejdcvu74zki" in output, output)
 
         prefixed_u = "http://127.0.0.1/uri/%s" % urllib.quote(u.to_string())
         output = self._dump_cap(prefixed_u)
         self.failUnless("CHK File:" in output)
-        self.failUnless("key: yyyoryarywdyqnyjbefoadeqbh" in output)
-        self.failUnless("UEB hash: hd7rwri6djiapo6itg5hcxa7ze5im7z9qwcdu8oka6qinahsbiuo" in output)
+        self.failUnless("key: aaaqeayeaudaocajbifqydiob4" in output, output)
+        self.failUnless("UEB hash: 4d5euev6djvynq6vrg34mpy5xi3vl5x7oumdthqky6ovcy4wbvtq" in output, output)
         self.failUnless("size: 1234" in output)
         self.failUnless("k/N: 25/100" in output)
-        self.failUnless("storage index: 2WlXTYP4ahK2VBkx1pckfC" in output, output)
+        self.failUnless("storage index: kmkbjguwmkxej3wejdcvu74zki" in output, output)
 
     def test_dump_cap_lit(self):
         u = uri.LiteralFileURI("this is some data")
@@ -128,22 +128,22 @@ class CLI(unittest.TestCase):
 
         output = self._dump_cap(u.to_string())
         self.failUnless("SSK Writeable URI:" in output)
-        self.failUnless("writekey: yryonyebyryonyebyryonyebyr" in output)
-        self.failUnless("readkey: zhgqsyrkuywo3rha41b1d7xrar" in output)
-        self.failUnless("storage index: 4GWqxTUinIqKqWj770lRIA" in output, output)
-        self.failUnless("fingerprint: 959x79z6959x79z6959x79z6959x79z6959x79z6959x79z6959y" in output)
+        self.failUnless("writekey: aeaqcaibaeaqcaibaeaqcaibae" in output, output)
+        self.failUnless("readkey: x4gowaektauqze4y2sbsd5peye" in output, output)
+        self.failUnless("storage index: rqx7xnpexjxuqprto6pezagdxi" in output, output)
+        self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
-        output = self._dump_cap("--client-secret", "p3w849k9whqhw6b9fkf4xjs5xc",
+        output = self._dump_cap("--client-secret", "tylkpgr364eav3ipsnq57yyafu",
                                 u.to_string())
-        self.failUnless("file renewal secret: xy9p89q9pkitqn4ycwu5tpt9yia7s9izsqudnb4q5jdc3rawgcny" in output)
+        self.failUnless("file renewal secret: cs54qwurfjmeduruapo46kqwexpcvav5oemczblonglj6xmoyvkq" in output, output)
 
         fileutil.make_dirs("cli/test_dump_cap/private")
         f = open("cli/test_dump_cap/private/secret", "w")
-        f.write("p3w849k9whqhw6b9fkf4xjs5xc\n")
+        f.write("y6c7q34mjbt5kkf6hb3utuoj7u\n")
         f.close()
         output = self._dump_cap("--client-dir", "cli/test_dump_cap",
                                 u.to_string())
-        self.failUnless("file renewal secret: xy9p89q9pkitqn4ycwu5tpt9yia7s9izsqudnb4q5jdc3rawgcny" in output)
+        self.failUnless("file renewal secret: 4jkip4ie2zgmbhcni6g4vmsivwuakpbw7hwnmdancsc6fkrv27kq" in output, output)
 
         output = self._dump_cap("--client-dir", "cli/test_dump_cap_BOGUS",
                                 u.to_string())
@@ -151,28 +151,28 @@ class CLI(unittest.TestCase):
 
         output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
                                 u.to_string())
-        self.failUnless("write_enabler: rqk9q6w46dim5ybshqk9kotkyhqcdqmp1z6498xniuz5kkjs1w7o" in output)
+        self.failUnless("write_enabler: eok7o6u26dvl3abw4ok7kqrka4omdolnsx627hpcvtx3kkjwsu5q" in output, output)
         self.failIf("file renewal secret:" in output)
 
         output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
-                                "--client-secret", "p3w849k9whqhw6b9fkf4xjs5xc",
+                                "--client-secret", "6orzlv22ggdhphjpmsixcbwufq",
                                 u.to_string())
-        self.failUnless("write_enabler: rqk9q6w46dim5ybshqk9kotkyhqcdqmp1z6498xniuz5kkjs1w7o" in output)
-        self.failUnless("file renewal secret: xy9p89q9pkitqn4ycwu5tpt9yia7s9izsqudnb4q5jdc3rawgcny" in output)
-        self.failUnless("lease renewal secret: r3fsw67mfji3c9mtsisqdumc1pz3gquzdrh4cpu63h8du4uuedgo" in output)
+        self.failUnless("write_enabler: eok7o6u26dvl3abw4ok7kqrka4omdolnsx627hpcvtx3kkjwsu5q" in output, output)
+        self.failUnless("file renewal secret: aabhsp6kfsxb57jzdan4dnyzcd3m2prx34jd4z5nj5t5a7guf5fq" in output, output)
+        self.failUnless("lease renewal secret: bajcslergse474ga775msalmxxapgwr27lngeja4u7ef5j7yh4bq" in output, output)
 
         u = u.get_readonly()
         output = self._dump_cap(u.to_string())
         self.failUnless("SSK Read-only URI:" in output)
-        self.failUnless("readkey: zhgqsyrkuywo3rha41b1d7xrar" in output)
-        self.failUnless("storage index: 4GWqxTUinIqKqWj770lRIA" in output, output)
-        self.failUnless("fingerprint: 959x79z6959x79z6959x79z6959x79z6959x79z6959x79z6959y" in output)
+        self.failUnless("readkey: x4gowaektauqze4y2sbsd5peye" in output, output)
+        self.failUnless("storage index: rqx7xnpexjxuqprto6pezagdxi" in output, output)
+        self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output)
 
         u = u.get_verifier()
         output = self._dump_cap(u.to_string())
         self.failUnless("SSK Verifier URI:" in output)
-        self.failUnless("storage index: 4GWqxTUinIqKqWj770lRIA" in output, output)
-        self.failUnless("fingerprint: 959x79z6959x79z6959x79z6959x79z6959x79z6959x79z6959y" in output)
+        self.failUnless("storage index: rqx7xnpexjxuqprto6pezagdxi" in output, output)
+        self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output)
 
     def test_dump_cap_directory(self):
         writekey = "\x01" * 16
@@ -182,37 +182,37 @@ class CLI(unittest.TestCase):
 
         output = self._dump_cap(u.to_string())
         self.failUnless("Directory Writeable URI:" in output)
-        self.failUnless("writekey: yryonyebyryonyebyryonyebyr" in output)
-        self.failUnless("readkey: zhgqsyrkuywo3rha41b1d7xrar" in output)
-        self.failUnless("storage index: 4GWqxTUinIqKqWj770lRIA" in output, output)
-        self.failUnless("fingerprint: 959x79z6959x79z6959x79z6959x79z6959x79z6959x79z6959y" in output)
+        self.failUnless("writekey: aeaqcaibaeaqcaibaeaqcaibae" in output, output)
+        self.failUnless("readkey: x4gowaektauqze4y2sbsd5peye" in output, output)
+        self.failUnless("storage index: rqx7xnpexjxuqprto6pezagdxi" in output, output)
+        self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
-        output = self._dump_cap("--client-secret", "p3w849k9whqhw6b9fkf4xjs5xc",
+        output = self._dump_cap("--client-secret", "a3nyfbnkorp377jhguslgc2dqi",
                                 u.to_string())
-        self.failUnless("file renewal secret: xy9p89q9pkitqn4ycwu5tpt9yia7s9izsqudnb4q5jdc3rawgcny" in output)
+        self.failUnless("file renewal secret: zwmq2azrd7lfcmhkrhpgjsxeb2vfpixgvrczbo2asqzdfbmiemwq" in output, output)
 
         output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
                                 u.to_string())
-        self.failUnless("write_enabler: rqk9q6w46dim5ybshqk9kotkyhqcdqmp1z6498xniuz5kkjs1w7o" in output)
+        self.failUnless("write_enabler: eok7o6u26dvl3abw4ok7kqrka4omdolnsx627hpcvtx3kkjwsu5q" in output, output)
         self.failIf("file renewal secret:" in output)
 
         output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
-                                "--client-secret", "p3w849k9whqhw6b9fkf4xjs5xc",
+                                "--client-secret", "rzaq5to2xm6e5otctpdvzw6bfa",
                                 u.to_string())
-        self.failUnless("write_enabler: rqk9q6w46dim5ybshqk9kotkyhqcdqmp1z6498xniuz5kkjs1w7o" in output)
-        self.failUnless("file renewal secret: xy9p89q9pkitqn4ycwu5tpt9yia7s9izsqudnb4q5jdc3rawgcny" in output)
-        self.failUnless("lease renewal secret: r3fsw67mfji3c9mtsisqdumc1pz3gquzdrh4cpu63h8du4uuedgo" in output)
+        self.failUnless("write_enabler: eok7o6u26dvl3abw4ok7kqrka4omdolnsx627hpcvtx3kkjwsu5q" in output, output)
+        self.failUnless("file renewal secret: wdmu6rwefvmp2venbb4xz5u3273oybmuu553mi7uic37gfu6bacq" in output, output)
+        self.failUnless("lease renewal secret: tlvwfudyfeqyss5kybt6ya72foedqxdovumlbt6ok7u5pyrf2mfq" in output, output)
 
         u = u.get_readonly()
         output = self._dump_cap(u.to_string())
         self.failUnless("Directory Read-only URI:" in output)
-        self.failUnless("readkey: zhgqsyrkuywo3rha41b1d7xrar" in output)
-        self.failUnless("storage index: 4GWqxTUinIqKqWj770lRIA" in output, output)
-        self.failUnless("fingerprint: 959x79z6959x79z6959x79z6959x79z6959x79z6959x79z6959y" in output)
+        self.failUnless("readkey: x4gowaektauqze4y2sbsd5peye" in output, output)
+        self.failUnless("storage index: rqx7xnpexjxuqprto6pezagdxi" in output, output)
+        self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output)
 
         u = u.get_verifier()
         output = self._dump_cap(u.to_string())
         self.failUnless("Directory Verifier URI:" in output)
-        self.failUnless("storage index: 4GWqxTUinIqKqWj770lRIA" in output, output)
-        self.failUnless("fingerprint: 959x79z6959x79z6959x79z6959x79z6959x79z6959x79z6959y" in output)
+        self.failUnless("storage index: rqx7xnpexjxuqprto6pezagdxi" in output, output)
+        self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 

@@ -44,7 +44,7 @@ class Literal(unittest.TestCase):
 class Compare(unittest.TestCase):
     def test_compare(self):
         lit1 = uri.LiteralFileURI("some data")
-        fileURI = 'URI:CHK:f3mf6az85wpcai8ma4qayfmxuc:nnw518w5hu3t5oohwtp7ah9n81z9rfg6c1ywk33ia3m64o67nsgo:3:10:345834'
+        fileURI = 'URI:CHK:f5ahxa25t4qkktywz6teyfvcx4:opuioq7tj2y6idzfp6cazehtmgs5fdcebcz3cygrxyydvcozrmeq:3:10:345834'
         chk1 = uri.CHKFileURI.init_from_string(fileURI)
         chk2 = uri.CHKFileURI.init_from_string(fileURI)
         self.failIfEqual(lit1, chk1)
@@ -167,13 +167,13 @@ class Invalid(unittest.TestCase):
 
 class Constraint(unittest.TestCase):
     def test_constraint(self):
-       good="http://127.0.0.1:8123/uri/URI%3ADIR2%3Aqo8ayna47cpw3rx3kho3mu7q4h%3Abk9qbgx76gh6eyj5ps8p6buz8fffw1ofc37e9w9d6ncsfpuz7icy/"
+       good="http://127.0.0.1:8123/uri/URI%3ADIR2%3Agh3l5rbvnv2333mrfvalmjfr4i%3Alz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma/"
        uri.NewDirectoryURI.init_from_human_encoding(good)
        self.failUnlessRaises(AssertionError, uri.NewDirectoryURI.init_from_string, good)
        bad = good + '==='
        self.failUnlessRaises(AssertionError, uri.NewDirectoryURI.init_from_human_encoding, bad)
        self.failUnlessRaises(AssertionError, uri.NewDirectoryURI.init_from_string, bad)
-       fileURI = 'URI:CHK:f3mf6az85wpcai8ma4qayfmxuc:nnw518w5hu3t5oohwtp7ah9n81z9rfg6c1ywk33ia3m64o67nsgo:3:10:345834'
+       fileURI = 'URI:CHK:gh3l5rbvnv2333mrfvalmjfr4i:lz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma:3:10:345834'
        uri.CHKFileURI.init_from_string(fileURI)
 
 class Mutable(unittest.TestCase):

@@ -6,7 +6,7 @@ from twisted.internet import defer
 from foolscap import eventual
 from allmydata import storage, uri
 from allmydata.hashtree import HashTree
-from allmydata.util import mathutil, hashutil, idlib, log
+from allmydata.util import mathutil, hashutil, base32, log
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder, IStorageBucketWriter, \
@@ -435,11 +435,11 @@ class Encoder(object):
             d = self.send_subshare(shareid, segnum, subshare, lognum)
             dl.append(d)
             subshare_hash = hashutil.block_hash(subshare)
-            #from allmydata.util import idlib
+            #from allmydata.util import base32
             #log.msg("creating block (shareid=%d, blocknum=%d) "
             #        "len=%d %r .. %r: %s" %
             #        (shareid, segnum, len(subshare),
-            #         subshare[:50], subshare[-50:], idlib.b2a(subshare_hash)))
+            #         subshare[:50], subshare[-50:], base32.b2a(subshare_hash)))
             self.subshare_hashes[shareid].append(subshare_hash)
 
         dl = self._gather_responses(dl)
@@ -518,7 +518,7 @@ class Encoder(object):
         d.addCallback(_got)
         def _got_hashtree_leaves(leaves):
             self.log("Encoder: got plaintext_hashtree_leaves: %s" %
-                     (",".join([idlib.b2a(h) for h in leaves]),),
+                     (",".join([base32.b2a(h) for h in leaves]),),
                      level=log.NOISY)
             ht = list(HashTree(list(leaves)))
             self.uri_extension_data["plaintext_root_hash"] = ht[0]
@@ -636,7 +636,7 @@ class Encoder(object):
         ed = {}
         for k,v in self.uri_extension_data.items():
             if k.endswith("hash"):
-                ed[k] = idlib.b2a(v)
+                ed[k] = base32.b2a(v)
             else:
                 ed[k] = v
         self.log("uri_extension_data is %s" % (ed,), level=log.NOISY, parent=lp)

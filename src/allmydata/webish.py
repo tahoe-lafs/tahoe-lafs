@@ -6,7 +6,7 @@ from twisted.internet import defer, address
 from twisted.internet.interfaces import IConsumer
 from nevow import inevow, rend, loaders, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
-from allmydata.util import fileutil, idlib, observer, log
+from allmydata.util import base32, fileutil, idlib, observer, log
 import simplejson
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode, \
      IMutableFileNode
@@ -1567,7 +1567,7 @@ class Status(rend.Page):
 
     def _render_common(self, ctx, data):
         s = data
-        si_s = idlib.b2a_or_none(s.get_storage_index())
+        si_s = base32.b2a_or_none(s.get_storage_index())
         if si_s is None:
             si_s = "(None)"
         ctx.fillSlots("si", si_s)

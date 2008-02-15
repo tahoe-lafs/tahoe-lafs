@@ -13,7 +13,7 @@ from allmydata.util.mathutil import log_ceil, log_floor
 
 chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
-ZBASE62CHAR = '[' + chars + ']'
+BASE62CHAR = '[' + chars + ']'
 
 vals = ''.join([chr(i) for i in range(62)])
 c2vtranstable = string.maketrans(chars, vals)

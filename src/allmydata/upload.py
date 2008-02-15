@@ -13,7 +13,7 @@ from allmydata.util.hashutil import file_renewal_secret_hash, \
      bucket_cancel_secret_hash, plaintext_hasher, \
      storage_index_hash, plaintext_segment_hasher, content_hash_key_hasher
 from allmydata import encode, storage, hashtree, uri
-from allmydata.util import idlib, mathutil
+from allmydata.util import base32, idlib, mathutil
 from allmydata.util.assertutil import precondition
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus
@@ -448,7 +448,7 @@ class EncryptAnUploadable:
                          level=log.NOISY)
                 self.log(format="plaintext leaf hash [%(segnum)d] is %(hash)s",
                          segnum=len(self._plaintext_segment_hashes)-1,
-                         hash=idlib.b2a(p.digest()),
+                         hash=base32.b2a(p.digest()),
                          level=log.NOISY)
 
             offset += this_segment
@@ -547,7 +547,7 @@ class EncryptAnUploadable:
                      level=log.NOISY)
             self.log(format="plaintext leaf hash [%(segnum)d] is %(hash)s",
                      segnum=len(self._plaintext_segment_hashes)-1,
-                     hash=idlib.b2a(p.digest()),
+                     hash=base32.b2a(p.digest()),
                      level=log.NOISY)
         assert len(self._plaintext_segment_hashes) == num_segments
         return defer.succeed(tuple(self._plaintext_segment_hashes[first:last]))

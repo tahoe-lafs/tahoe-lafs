@@ -98,7 +98,7 @@ def format_expiration_time(expiration_time):
 
 def dump_mutable_share(config, out, err):
     from allmydata import storage
-    from allmydata.util import idlib
+    from allmydata.util import base32, idlib
     m = storage.MutableShareFile(config['filename'])
     f = open(config['filename'], "rb")
     WE, nodeid = m._read_write_enabler_and_nodeid(f)
@@ -118,7 +118,7 @@ def dump_mutable_share(config, out, err):
     print >>out
     print >>out, "Mutable slot found:"
     print >>out, " share_type: %s" % share_type
-    print >>out, " write_enabler: %s" % idlib.b2a(WE)
+    print >>out, " write_enabler: %s" % base32.b2a(WE)
     print >>out, " WE for nodeid: %s" % idlib.nodeid_b2a(nodeid)
     print >>out, " num_extra_leases: %d" % num_extra_leases
     print >>out, " container_size: %d" % container_size
@@ -130,8 +130,8 @@ def dump_mutable_share(config, out, err):
             print >>out, "  ownerid: %d" % oid
             when = format_expiration_time(et)
             print >>out, "  expires in %s" % when
-            print >>out, "  renew_secret: %s" % idlib.b2a(rs)
-            print >>out, "  cancel_secret: %s" % idlib.b2a(cs)
+            print >>out, "  renew_secret: %s" % base32.b2a(rs)
+            print >>out, "  cancel_secret: %s" % base32.b2a(cs)
             print >>out, "  secrets are for nodeid: %s" % idlib.nodeid_b2a(anid)
     else:
         print >>out, "No leases."
@@ -144,7 +144,7 @@ def dump_mutable_share(config, out, err):
 
 def dump_SDMF_share(offset, length, config, out, err):
     from allmydata import mutable
-    from allmydata.util import idlib
+    from allmydata.util import base32
 
     f = open(config['filename'], "rb")
     f.seek(offset)
@@ -168,8 +168,8 @@ def dump_SDMF_share(offset, length, config, out, err):
 
     print >>out, " SDMF contents:"
     print >>out, "  seqnum: %d" % seqnum
-    print >>out, "  root_hash: %s" % idlib.b2a(root_hash)
-    print >>out, "  IV: %s" % idlib.b2a(IV)
+    print >>out, "  root_hash: %s" % base32.b2a(root_hash)
+    print >>out, "  IV: %s" % base32.b2a(IV)
     print >>out, "  required_shares: %d" % k
     print >>out, "  total_shares: %d" % N
     print >>out, "  segsize: %d" % segsize
@@ -194,7 +194,7 @@ class DumpCapOptions(usage.Options):
 
 def dump_cap(config, out=sys.stdout, err=sys.stderr):
     from allmydata import uri
-    from allmydata.util.idlib import a2b
+    from allmydata.util import base32
     from base64 import b32decode
     import urlparse, urllib
 
@@ -204,11 +204,11 @@ def dump_cap(config, out=sys.stdout, err=sys.stderr):
         nodeid = b32decode(config['nodeid'].upper())
     secret = None
     if config['client-secret']:
-        secret = a2b(config['client-secret'])
+        secret = base32.a2b(config['client-secret'])
     elif config['client-dir']:
         secretfile = os.path.join(config['client-dir'], "private", "secret")
         try:
-            secret = a2b(open(secretfile, "r").read().strip())
+            secret = base32.a2b(open(secretfile, "r").read().strip())
         except EnvironmentError:
             pass
 
@@ -224,34 +224,33 @@ def dump_cap(config, out=sys.stdout, err=sys.stderr):
 
 def _dump_secrets(storage_index, secret, nodeid, out):
     from allmydata.util import hashutil
-    from allmydata.util.idlib import b2a
+    from allmydata.util import base32
 
     if secret:
         crs = hashutil.my_renewal_secret_hash(secret)
-        print >>out, " client renewal secret:", b2a(crs)
+        print >>out, " client renewal secret:", base32.b2a(crs)
         frs = hashutil.file_renewal_secret_hash(crs, storage_index)
-        print >>out, " file renewal secret:", b2a(frs)
+        print >>out, " file renewal secret:", base32.b2a(frs)
         if nodeid:
             renew = hashutil.bucket_renewal_secret_hash(frs, nodeid)
-            print >>out, " lease renewal secret:", b2a(renew)
+            print >>out, " lease renewal secret:", base32.b2a(renew)
         ccs = hashutil.my_cancel_secret_hash(secret)
-        print >>out, " client cancel secret:", b2a(ccs)
+        print >>out, " client cancel secret:", base32.b2a(ccs)
         fcs = hashutil.file_cancel_secret_hash(ccs, storage_index)
-        print >>out, " file cancel secret:", b2a(fcs)
+        print >>out, " file cancel secret:", base32.b2a(fcs)
         if nodeid:
             cancel = hashutil.bucket_cancel_secret_hash(fcs, nodeid)
-            print >>out, " lease cancel secret:", b2a(cancel)
+            print >>out, " lease cancel secret:", base32.b2a(cancel)
 
 def dump_uri_instance(u, nodeid, secret, out, err, show_header=True):
     from allmydata import storage, uri
-    from allmydata.util.idlib import b2a
-    from allmydata.util import hashutil
+    from allmydata.util import base32, hashutil
 
     if isinstance(u, uri.CHKFileURI):
         if show_header:
             print >>out, "CHK File:"
-        print >>out, " key:", b2a(u.key)
-        print >>out, " UEB hash:", b2a(u.uri_extension_hash)
+        print >>out, " key:", base32.b2a(u.key)
+        print >>out, " UEB hash:", base32.b2a(u.uri_extension_hash)
         print >>out, " size:", u.size
         print >>out, " k/N: %d/%d" % (u.needed_shares, u.total_shares)
         print >>out, " storage index:", storage.si_b2a(u.storage_index)
@@ -259,7 +258,7 @@ def dump_uri_instance(u, nodeid, secret, out, err, show_header=True):
     elif isinstance(u, uri.CHKFileVerifierURI):
         if show_header:
             print >>out, "CHK Verifier URI:"
-        print >>out, " UEB hash:", b2a(u.uri_extension_hash)
+        print >>out, " UEB hash:", base32.b2a(u.uri_extension_hash)
         print >>out, " size:", u.size
         print >>out, " k/N: %d/%d" % (u.needed_shares, u.total_shares)
         print >>out, " storage index:", storage.si_b2a(u.storage_index)
@@ -272,28 +271,28 @@ def dump_uri_instance(u, nodeid, secret, out, err, show_header=True):
     elif isinstance(u, uri.WriteableSSKFileURI):
         if show_header:
             print >>out, "SSK Writeable URI:"
-        print >>out, " writekey:", b2a(u.writekey)
-        print >>out, " readkey:", b2a(u.readkey)
+        print >>out, " writekey:", base32.b2a(u.writekey)
+        print >>out, " readkey:", base32.b2a(u.readkey)
         print >>out, " storage index:", storage.si_b2a(u.storage_index)
-        print >>out, " fingerprint:", b2a(u.fingerprint)
+        print >>out, " fingerprint:", base32.b2a(u.fingerprint)
         print >>out
         if nodeid:
             we = hashutil.ssk_write_enabler_hash(u.writekey, nodeid)
-            print >>out, " write_enabler:", b2a(we)
+            print >>out, " write_enabler:", base32.b2a(we)
             print >>out
         _dump_secrets(u.storage_index, secret, nodeid, out)
 
     elif isinstance(u, uri.ReadonlySSKFileURI):
         if show_header:
             print >>out, "SSK Read-only URI:"
-        print >>out, " readkey:", b2a(u.readkey)
+        print >>out, " readkey:", base32.b2a(u.readkey)
         print >>out, " storage index:", storage.si_b2a(u.storage_index)
-        print >>out, " fingerprint:", b2a(u.fingerprint)
+        print >>out, " fingerprint:", base32.b2a(u.fingerprint)
     elif isinstance(u, uri.SSKVerifierURI):
         if show_header:
             print >>out, "SSK Verifier URI:"
         print >>out, " storage index:", storage.si_b2a(u.storage_index)
-        print >>out, " fingerprint:", b2a(u.fingerprint)
+        print >>out, " fingerprint:", base32.b2a(u.fingerprint)
 
     elif isinstance(u, uri.NewDirectoryURI):
         if show_header:
@@ -358,7 +357,7 @@ class CatalogSharesOptions(usage.Options):
 
 def describe_share(abs_sharefile, si_s, shnum_s, now, out, err):
     from allmydata import uri, storage, mutable
-    from allmydata.util import idlib
+    from allmydata.util import base32
     import struct
 
     f = open(abs_sharefile, "rb")
@@ -403,7 +402,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out, err):
 
             print >>out, "SDMF %s %d/%d %d #%d:%s %d %s" % \
                   (si_s, k, N, datalen,
-                   seqnum, idlib.b2a(root_hash),
+                   seqnum, base32.b2a(root_hash),
                    expiration, abs_sharefile)
         else:
             print >>out, "UNKNOWN mutable %s" % (abs_sharefile,)

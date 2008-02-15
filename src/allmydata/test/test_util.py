@@ -6,19 +6,21 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import failure
 
-from allmydata.util import bencode, idlib, humanreadable, mathutil, hashutil
+from allmydata.util import base32, bencode, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, testutil, deferredutil
 
 
-class IDLib(unittest.TestCase):
+class Base32(unittest.TestCase):
     def test_b2a(self):
-        self.failUnlessEqual(idlib.b2a("\x12\x34"), "ne4y")
+        self.failUnlessEqual(base32.b2a("\x12\x34"), "ci2a")
     def test_b2a_or_none(self):
-        self.failUnlessEqual(idlib.b2a_or_none(None), None)
-        self.failUnlessEqual(idlib.b2a_or_none("\x12\x34"), "ne4y")
+        self.failUnlessEqual(base32.b2a_or_none(None), None)
+        self.failUnlessEqual(base32.b2a_or_none("\x12\x34"), "ci2a")
     def test_a2b(self):
-        self.failUnlessEqual(idlib.a2b("ne4y"), "\x12\x34")
-        self.failUnlessRaises(AssertionError, idlib.a2b, "b0gus")
+        self.failUnlessEqual(base32.a2b("ci2a"), "\x12\x34")
+        self.failUnlessRaises(AssertionError, base32.a2b, "b0gus")
+
+class IDLib(unittest.TestCase):
     def test_nodeid_b2a(self):
         self.failUnlessEqual(idlib.nodeid_b2a("\x00"*20), "a"*32)
 

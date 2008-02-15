@@ -6,7 +6,7 @@ from twisted.internet import defer
 from twisted.python import failure
 from foolscap.eventual import eventually
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI
-from allmydata.util import hashutil, mathutil, idlib, log
+from allmydata.util import base32, hashutil, mathutil, idlib, log
 from allmydata.uri import WriteableSSKFileURI
 from allmydata import hashtree, codec, storage
 from allmydata.encode import NotEnoughPeersError
@@ -404,7 +404,7 @@ class Retrieve:
             # ok, it's a valid verinfo. Add it to the list of validated
             # versions.
             self.log(" found valid version %d-%s from %s-sh%d: %d-%d/%d/%d"
-                     % (seqnum, idlib.b2a(root_hash)[:4],
+                     % (seqnum, base32.b2a(root_hash)[:4],
                         idlib.shortnodeid_b2a(peerid), shnum,
                         k, N, segsize, datalength))
             self._valid_versions[verinfo] = (prefix, DictOfSets())
@@ -562,7 +562,7 @@ class Retrieve:
                 shares_s.append("#%d" % shnum)
         shares_s = ",".join(shares_s)
         self.log("_attempt_decode: version %d-%s, shares: %s" %
-                 (seqnum, idlib.b2a(root_hash)[:4], shares_s))
+                 (seqnum, base32.b2a(root_hash)[:4], shares_s))
 
         # first, validate each share that we haven't validated yet. We use
         # self._valid_shares to remember which ones we've already checked.
@@ -963,7 +963,7 @@ class Publish:
             for oldplace in current_share_peers.get(shnum, []):
                 (peerid, seqnum, R) = oldplace
                 logmsg2.append("%s:#%d:R=%s" % (idlib.shortnodeid_b2a(peerid),
-                                                seqnum, idlib.b2a(R)[:4]))
+                                                seqnum, base32.b2a(R)[:4]))
             logmsg.append("sh%d on (%s)" % (shnum, "/".join(logmsg2)))
         self.log("sharemap: %s" % (", ".join(logmsg)), level=log.NOISY)
         self.log("we are planning to push new seqnum=#%d" % self._new_seqnum,
@@ -1126,7 +1126,7 @@ class Publish:
                                               for i in needed_hashes ] )
         root_hash = share_hash_tree[0]
         assert len(root_hash) == 32
-        self.log("my new root_hash is %s" % idlib.b2a(root_hash))
+        self.log("my new root_hash is %s" % base32.b2a(root_hash))
 
         prefix = pack_prefix(seqnum, root_hash, IV,
                              required_shares, total_shares,
@@ -1257,8 +1257,8 @@ class Publish:
                                  " shnum=%d: I thought they had #%d:R=%s,"
                                  " but testv reported #%d:R=%s" %
                                  (shnum,
-                                  seqnum, idlib.b2a(root_hash)[:4],
-                                  old_seqnum, idlib.b2a(old_root_hash)[:4]),
+                                  seqnum, base32.b2a(root_hash)[:4],
+                                  old_seqnum, base32.b2a(old_root_hash)[:4]),
                                  parent=lp, level=log.WEIRD)
                         surprised = True
         if surprised:
@@ -1268,7 +1268,7 @@ class Publish:
         for shnum, places in dispatch_map.items():
             sent_to = [(idlib.shortnodeid_b2a(peerid),
                         seqnum,
-                        idlib.b2a(root_hash)[:4])
+                        base32.b2a(root_hash)[:4])
                        for (peerid,seqnum,root_hash) in places]
             self.log(" share %d sent to: %s" % (shnum, sent_to),
                      level=log.NOISY)

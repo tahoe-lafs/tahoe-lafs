@@ -3,7 +3,7 @@ import re, urllib
 from zope.interface import implements
 from twisted.python.components import registerAdapter
 from allmydata import storage
-from allmydata.util import base62, idlib, hashutil
+from allmydata.util import base32, base32, hashutil
 from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IVerifierURI, \
      IMutableFileURI, INewDirectoryURI, IReadonlyNewDirectoryURI
 
@@ -11,9 +11,8 @@ from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IVerifierURI, \
 # enough information to retrieve and validate the contents. It shall be
 # expressed in a limited character set (namely [TODO]).
 
-ZBASE32STR_128bits = '(%s{25}%s)' % (idlib.ZBASE32CHAR, idlib.ZBASE32CHAR_3bits)
-ZBASE32STR_256bits = '(%s{51}%s)' % (idlib.ZBASE32CHAR, idlib.ZBASE32CHAR_1bits)
-ZBASE62STR_128bits = '(%s{22})' % (base62.ZBASE62CHAR)
+BASE32STR_128bits = '(%s{25}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_3bits)
+BASE32STR_256bits = '(%s{51}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_1bits)
 
 SEP='(?::|%3A)'
 NUMBER='([0-9]+)'
@@ -38,11 +37,11 @@ class _BaseURI:
 class CHKFileURI(_BaseURI):
     implements(IURI, IFileURI)
 
-    STRING_RE=re.compile('^URI:CHK:'+ZBASE32STR_128bits+':'+
-                         ZBASE32STR_256bits+':'+NUMBER+':'+NUMBER+':'+NUMBER+
+    STRING_RE=re.compile('^URI:CHK:'+BASE32STR_128bits+':'+
+                         BASE32STR_256bits+':'+NUMBER+':'+NUMBER+':'+NUMBER+
                          '$')
     HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'CHK'+SEP+
-                     ZBASE32STR_128bits+SEP+ZBASE32STR_256bits+SEP+NUMBER+
+                     BASE32STR_128bits+SEP+BASE32STR_256bits+SEP+NUMBER+
                      SEP+NUMBER+SEP+NUMBER+'$')
 
     def __init__(self, key, uri_extension_hash, needed_shares, total_shares,
@@ -61,14 +60,14 @@ class CHKFileURI(_BaseURI):
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
         assert mo, uri
-        return cls(idlib.a2b(mo.group(1)), idlib.a2b(mo.group(2)),
+        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)),
                    int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         assert mo, uri
-        return cls(idlib.a2b(mo.group(1)), idlib.a2b(mo.group(2)),
+        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)),
                    int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
     def to_string(self):
@@ -77,8 +76,8 @@ class CHKFileURI(_BaseURI):
         assert isinstance(self.size, (int,long))
 
         return ('URI:CHK:%s:%s:%d:%d:%d' %
-                (idlib.b2a(self.key),
-                 idlib.b2a(self.uri_extension_hash),
+                (base32.b2a(self.key),
+                 base32.b2a(self.uri_extension_hash),
                  self.needed_shares,
                  self.total_shares,
                  self.size))
@@ -103,10 +102,10 @@ class CHKFileURI(_BaseURI):
 class CHKFileVerifierURI(_BaseURI):
     implements(IVerifierURI)
 
-    STRING_RE=re.compile('^URI:CHK-Verifier:'+ZBASE62STR_128bits+':'+
-                         ZBASE32STR_256bits+':'+NUMBER+':'+NUMBER+':'+NUMBER)
+    STRING_RE=re.compile('^URI:CHK-Verifier:'+BASE32STR_128bits+':'+
+                         BASE32STR_256bits+':'+NUMBER+':'+NUMBER+':'+NUMBER)
     HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'CHK-Verifier'+SEP+
-                        ZBASE62STR_128bits+SEP+ZBASE32STR_256bits+SEP+NUMBER+
+                        BASE32STR_128bits+SEP+BASE32STR_256bits+SEP+NUMBER+
                         SEP+NUMBER+SEP+NUMBER)
 
     def __init__(self, storage_index, uri_extension_hash,
@@ -122,14 +121,14 @@ class CHKFileVerifierURI(_BaseURI):
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
         assert mo, uri
-        return cls(idlib.a2b(mo.group(1)), idlib.a2b(mo.group(2)),
+        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)),
                    int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         assert mo, (uri, cls, cls.STRING_RE)
-        return cls(storage.si_a2b(mo.group(1)), idlib.a2b(mo.group(2)),
+        return cls(storage.si_a2b(mo.group(1)), base32.a2b(mo.group(2)),
                    int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
     def to_string(self):
@@ -139,7 +138,7 @@ class CHKFileVerifierURI(_BaseURI):
 
         return ('URI:CHK-Verifier:%s:%s:%d:%d:%d' %
                 (storage.si_b2a(self.storage_index),
-                 idlib.b2a(self.uri_extension_hash),
+                 base32.b2a(self.uri_extension_hash),
                  self.needed_shares,
                  self.total_shares,
                  self.size))
@@ -148,8 +147,8 @@ class CHKFileVerifierURI(_BaseURI):
 class LiteralFileURI(_BaseURI):
     implements(IURI, IFileURI)
 
-    STRING_RE=re.compile('^URI:LIT:'+idlib.ZBASE32STR_anybytes+'$')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'LIT'+SEP+idlib.ZBASE32STR_anybytes+'$')
+    STRING_RE=re.compile('^URI:LIT:'+base32.BASE32STR_anybytes+'$')
+    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'LIT'+SEP+base32.BASE32STR_anybytes+'$')
 
     def __init__(self, data=None):
         if data is not None:
@@ -159,16 +158,16 @@ class LiteralFileURI(_BaseURI):
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
         assert mo, uri
-        return cls(idlib.a2b(mo.group(1)))
+        return cls(base32.a2b(mo.group(1)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         assert mo, uri
-        return cls(idlib.a2b(mo.group(1)))
+        return cls(base32.a2b(mo.group(1)))
 
     def to_string(self):
-        return 'URI:LIT:%s' % idlib.b2a(self.data)
+        return 'URI:LIT:%s' % base32.b2a(self.data)
 
     def is_readonly(self):
         return True
@@ -188,10 +187,10 @@ class WriteableSSKFileURI(_BaseURI):
     implements(IURI, IMutableFileURI)
 
     BASE_STRING='URI:SSK:'
-    STRING_RE=re.compile('^'+BASE_STRING+ZBASE32STR_128bits+':'+
-                         ZBASE32STR_256bits+'$')
+    STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+
+                         BASE32STR_256bits+'$')
     HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'SSK'+SEP+
-                        ZBASE32STR_128bits+SEP+ZBASE32STR_256bits+'$')
+                        BASE32STR_128bits+SEP+BASE32STR_256bits+'$')
 
     def __init__(self, writekey, fingerprint):
         self.writekey = writekey
@@ -204,25 +203,25 @@ class WriteableSSKFileURI(_BaseURI):
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
         assert mo, uri
-        return cls(idlib.a2b(mo.group(1)), idlib.a2b(mo.group(2)))
+        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         assert mo, (uri, cls)
-        return cls(idlib.a2b(mo.group(1)), idlib.a2b(mo.group(2)))
+        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
         assert isinstance(self.writekey, str)
         assert isinstance(self.fingerprint, str)
-        return 'URI:SSK:%s:%s' % (idlib.b2a(self.writekey),
-                                  idlib.b2a(self.fingerprint))
+        return 'URI:SSK:%s:%s' % (base32.b2a(self.writekey),
+                                  base32.b2a(self.fingerprint))
 
     def __repr__(self):
         return "<%s %s>" % (self.__class__.__name__, self.abbrev())
 
     def abbrev(self):
-        return idlib.b2a(self.writekey[:5])
+        return base32.b2a(self.writekey[:5])
 
     def is_readonly(self):
         return False
@@ -237,8 +236,8 @@ class ReadonlySSKFileURI(_BaseURI):
     implements(IURI, IMutableFileURI)
 
     BASE_STRING='URI:SSK-RO:'
-    STRING_RE=re.compile('^URI:SSK-RO:'+ZBASE32STR_128bits+':'+ZBASE32STR_256bits+'$')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'SSK-RO'+SEP+ZBASE32STR_128bits+SEP+ZBASE32STR_256bits+'$')
+    STRING_RE=re.compile('^URI:SSK-RO:'+BASE32STR_128bits+':'+BASE32STR_256bits+'$')
+    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'SSK-RO'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+'$')
 
     def __init__(self, readkey, fingerprint):
         self.readkey = readkey
@@ -250,25 +249,25 @@ class ReadonlySSKFileURI(_BaseURI):
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
         assert mo, uri
-        return cls(idlib.a2b(mo.group(1)), idlib.a2b(mo.group(2)))
+        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         assert mo, uri
-        return cls(idlib.a2b(mo.group(1)), idlib.a2b(mo.group(2)))
+        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
         assert isinstance(self.readkey, str)
         assert isinstance(self.fingerprint, str)
-        return 'URI:SSK-RO:%s:%s' % (idlib.b2a(self.readkey),
-                                     idlib.b2a(self.fingerprint))
+        return 'URI:SSK-RO:%s:%s' % (base32.b2a(self.readkey),
+                                     base32.b2a(self.fingerprint))
 
     def __repr__(self):
         return "<%s %s>" % (self.__class__.__name__, self.abbrev())
 
     def abbrev(self):
-        return idlib.b2a(self.readkey[:5])
+        return base32.b2a(self.readkey[:5])
 
     def is_readonly(self):
         return True
@@ -283,8 +282,8 @@ class SSKVerifierURI(_BaseURI):
     implements(IVerifierURI)
 
     BASE_STRING='URI:SSK-Verifier:'
-    STRING_RE=re.compile('^'+BASE_STRING+ZBASE62STR_128bits+':'+ZBASE32STR_256bits+'$')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'SSK-RO'+SEP+ZBASE62STR_128bits+SEP+ZBASE32STR_256bits+'$')
+    STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'$')
+    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'SSK-RO'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+'$')
 
     def __init__(self, storage_index, fingerprint):
         assert len(storage_index) == 16
@@ -295,19 +294,19 @@ class SSKVerifierURI(_BaseURI):
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
         assert mo, uri
-        return cls(storage.si_a2b(mo.group(1)), idlib.a2b(mo.group(2)))
+        return cls(storage.si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         assert mo, (uri, cls)
-        return cls(storage.si_a2b(mo.group(1)), idlib.a2b(mo.group(2)))
+        return cls(storage.si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
         assert isinstance(self.storage_index, str)
         assert isinstance(self.fingerprint, str)
         return 'URI:SSK-Verifier:%s:%s' % (storage.si_b2a(self.storage_index),
-                                           idlib.b2a(self.fingerprint))
+                                           base32.b2a(self.fingerprint))
 
 class _NewDirectoryBaseURI(_BaseURI):
     implements(IURI, IDirnodeURI)
@@ -513,6 +512,6 @@ def unpack_extension_readable(data):
     unpacked["UEB_hash"] = hashutil.uri_extension_hash(data)
     for k in sorted(unpacked.keys()):
         if 'hash' in k:
-            unpacked[k] = idlib.b2a(unpacked[k])
+            unpacked[k] = base32.b2a(unpacked[k])
     return unpacked
 

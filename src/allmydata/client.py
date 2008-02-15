@@ -15,7 +15,7 @@ from allmydata.checker import Checker
 from allmydata.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer import IntroducerClient
-from allmydata.util import hashutil, idlib, testutil
+from allmydata.util import hashutil, base32, testutil
 from allmydata.filenode import FileNode
 from allmydata.dirnode import NewDirectoryNode
 from allmydata.mutable import MutableFileNode
@@ -102,9 +102,9 @@ class Client(node.Node, testutil.PollMixin):
 
     def init_lease_secret(self):
         def make_secret():
-            return idlib.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
+            return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
         secret_s = self.get_or_create_private_config("secret", make_secret)
-        self._lease_secret = idlib.a2b(secret_s)
+        self._lease_secret = base32.a2b(secret_s)
 
     def init_storage(self):
         # should we run a storage server (and publish it for others to use)?

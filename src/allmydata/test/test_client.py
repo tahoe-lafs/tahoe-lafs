@@ -7,7 +7,7 @@ from twisted.python import log
 
 import allmydata
 from allmydata import client, introducer
-from allmydata.util import idlib
+from allmydata.util import base32
 from foolscap.eventual import flushEventualQueue
 
 class FakeIntroducerClient(introducer.IntroducerClient):
@@ -42,9 +42,9 @@ class Basic(unittest.TestCase):
         secret_fname = os.path.join(basedir, "private", "secret")
         self.failUnless(os.path.exists(secret_fname), secret_fname)
         renew_secret = c.get_renewal_secret()
-        self.failUnless(idlib.b2a(renew_secret))
+        self.failUnless(base32.b2a(renew_secret))
         cancel_secret = c.get_cancel_secret()
-        self.failUnless(idlib.b2a(cancel_secret))
+        self.failUnless(base32.b2a(cancel_secret))
 
     def test_sizelimit_1(self):
         basedir = "client.Basic.test_sizelimit_1"

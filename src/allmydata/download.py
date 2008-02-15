@@ -6,7 +6,7 @@ from twisted.internet.interfaces import IPushProducer, IConsumer
 from twisted.application import service
 from foolscap.eventual import eventually
 
-from allmydata.util import idlib, mathutil, hashutil, log
+from allmydata.util import base32, mathutil, hashutil, log
 from allmydata.util.assertutil import _assert
 from allmydata import codec, hashtree, storage, uri
 from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, \
@@ -70,7 +70,7 @@ class Output:
             crypttext_leaves = {self._segment_number: ch.digest()}
             self.log(format="crypttext leaf hash (%(bytes)sB) [%(segnum)d] is %(hash)s",
                      bytes=len(crypttext),
-                     segnum=self._segment_number, hash=idlib.b2a(ch.digest()),
+                     segnum=self._segment_number, hash=base32.b2a(ch.digest()),
                      level=log.NOISY)
             self._crypttext_hash_tree.set_hashes(leaves=crypttext_leaves)
 
@@ -86,7 +86,7 @@ class Output:
             plaintext_leaves = {self._segment_number: ph.digest()}
             self.log(format="plaintext leaf hash (%(bytes)sB) [%(segnum)d] is %(hash)s",
                      bytes=len(plaintext),
-                     segnum=self._segment_number, hash=idlib.b2a(ph.digest()),
+                     segnum=self._segment_number, hash=base32.b2a(ph.digest()),
                      level=log.NOISY)
             self._plaintext_hash_tree.set_hashes(leaves=plaintext_leaves)
 
@@ -180,7 +180,7 @@ class ValidatedBucket:
             #log.msg("checking block_hash(shareid=%d, blocknum=%d) len=%d "
             #        "%r .. %r: %s" %
             #        (self.sharenum, blocknum, len(blockdata),
-            #         blockdata[:50], blockdata[-50:], idlib.b2a(blockhash)))
+            #         blockdata[:50], blockdata[-50:], base32.b2a(blockhash)))
 
             # we always validate the blockhash
             bh = dict(enumerate(blockhashes))
@@ -203,22 +203,22 @@ class ValidatedBucket:
                 received from the remote peer were bad.""")
             log.msg(" have self._share_hash: %s" % bool(self._share_hash))
             log.msg(" block length: %d" % len(blockdata))
-            log.msg(" block hash: %s" % idlib.b2a_or_none(blockhash))
+            log.msg(" block hash: %s" % base32.b2a_or_none(blockhash))
             if len(blockdata) < 100:
                 log.msg(" block data: %r" % (blockdata,))
             else:
                 log.msg(" block data start/end: %r .. %r" %
                         (blockdata[:50], blockdata[-50:]))
-            log.msg(" root hash: %s" % idlib.b2a(self._roothash))
+            log.msg(" root hash: %s" % base32.b2a(self._roothash))
             log.msg(" share hash tree:\n" + self.share_hash_tree.dump())
             log.msg(" block hash tree:\n" + self.block_hash_tree.dump())
             lines = []
             for i,h in sorted(sharehashes):
-                lines.append("%3d: %s" % (i, idlib.b2a_or_none(h)))
+                lines.append("%3d: %s" % (i, base32.b2a_or_none(h)))
             log.msg(" sharehashes:\n" + "\n".join(lines) + "\n")
             lines = []
             for i,h in enumerate(blockhashes):
-                lines.append("%3d: %s" % (i, idlib.b2a_or_none(h)))
+                lines.append("%3d: %s" % (i, base32.b2a_or_none(h)))
             log.msg(" blockhashes:\n" + "\n".join(lines) + "\n")
             raise
 
@@ -782,13 +782,13 @@ class FileDownloader:
         if self.check_crypttext_hash:
             _assert(self._crypttext_hash == self._output.crypttext_hash,
                     "bad crypttext_hash: computed=%s, expected=%s" %
-                    (idlib.b2a(self._output.crypttext_hash),
-                     idlib.b2a(self._crypttext_hash)))
+                    (base32.b2a(self._output.crypttext_hash),
+                     base32.b2a(self._crypttext_hash)))
         if self.check_plaintext_hash:
             _assert(self._plaintext_hash == self._output.plaintext_hash,
                     "bad plaintext_hash: computed=%s, expected=%s" %
-                    (idlib.b2a(self._output.plaintext_hash),
-                     idlib.b2a(self._plaintext_hash)))
+                    (base32.b2a(self._output.plaintext_hash),
+                     base32.b2a(self._plaintext_hash)))
         _assert(self._output.length == self._size,
                 got=self._output.length, expected=self._size)
         return self._output.finish()
