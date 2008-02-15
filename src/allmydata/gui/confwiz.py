@@ -1,6 +1,8 @@
 
-BACKEND_URL = 'https://beta.allmydata.com/native_client.php'
-ACCOUNT_PAGE = 'https://beta.allmydata.com/account'
+DEFAULT_SERVER_URL = 'https://beta.allmydata.com/'
+
+BACKEND = 'native_client.php'
+ACCOUNT_PAGE = 'account'
 TAHOESVC_NAME = 'Tahoe'
 WINFUSESVC_NAME = 'Allmydata Tahoe SMB'
 
@@ -20,6 +22,7 @@ from allmydata import uri
 import amdicon
 
 import foolscap
+from twisted.python import usage
 
 class AuthError(Exception):
     pass
@@ -111,9 +114,9 @@ def get_nodeid():
     tub = foolscap.Tub(certFile=certfile)
     return tub.getTubID()
 
-def configure(user, passwd):
+def configure(backend, user, passwd):
     _config_re = re.compile('^([^:]*): (.*)$')
-    config = get_config(BACKEND_URL, user, passwd)
+    config = get_config(backend, user, passwd)
     config_dict = {}
     for line in config.split('\n'):
         if line:
@@ -143,8 +146,12 @@ def DisplayTraceback(message):
     wx.MessageBox(u"%s\n (%s)"%(message,''.join(xc)), 'Error')
 
 class ConfWizApp(wx.App):
-    def __init__(self):
+    def __init__(self, server):
+        self.server = server
         wx.App.__init__(self, 0)
+
+    def get_backend(self):
+        return self.server + BACKEND
 
     def OnInit(self):
         try:
@@ -182,7 +189,7 @@ class LoginFrame(wx.Frame):
         background = wx.Panel(self, -1)
         background.SetSizeHints(500, 360, 600, 800)
         background.parent = self
-        self.login_panel = LoginPanel(background)
+        self.login_panel = LoginPanel(background, app)
         self.reg_btn_panel = RegisterButtonPanel(background, app)
         sizer = wx.BoxSizer(wx.VERTICAL)
         background_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -212,7 +219,7 @@ class RegisterFrame(wx.Frame):
         background = wx.Panel(self, -1)
         background.SetSizeHints(500, 360, 600, 800)
         background.parent = self
-        self.register_panel = RegisterPanel(background)
+        self.register_panel = RegisterPanel(background, app)
         sizer = wx.BoxSizer(wx.VERTICAL)
         background_sizer = wx.BoxSizer(wx.VERTICAL)
         background_sizer.Add(wx.Size(2,2), 10, wx.EXPAND | wx.ALL, 26)
@@ -231,9 +238,10 @@ class RegisterFrame(wx.Frame):
 
 
 class LoginPanel(wx.Panel):
-    def __init__(self, parent):
+    def __init__(self, parent, app):
         wx.Panel.__init__(self, parent, -1)
         self.parent = parent
+        self.app = app
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -278,6 +286,8 @@ class LoginPanel(wx.Panel):
         self.Layout()
         wx.Yield()
 
+        backend = self.app.get_backend()
+
         if passwd == '':
             self.warning_label.SetLabel('You must enter a password')
             self.pass_field.SetFocus()
@@ -285,7 +295,7 @@ class LoginPanel(wx.Panel):
             return
 
         try:
-            root_cap = get_root_cap(BACKEND_URL, user, passwd)
+            root_cap = get_root_cap(backend, user, passwd)
             write_config_file('private/root_dir.cap', root_cap+'\n')
         except AuthError:
             self.warning_label.SetLabel('Your email and/or password is incorrect')
@@ -294,11 +304,11 @@ class LoginPanel(wx.Panel):
             return
 
         nodeid = get_nodeid()
-        ret = record_install(BACKEND_URL, user, passwd, nodeid)
+        ret = record_install(backend, user, passwd, nodeid)
         if ret != 'ok':
             wx.MessageBox('Error "%s" recording this system (%s)' % (ret, nodeid), 'Error')
 
-        configure(user, passwd)
+        configure(backend, user, passwd)
         maybe_start_services()
 
         # exit
@@ -326,9 +336,10 @@ class RegisterButtonPanel(wx.Panel):
         self.app.swap_to_register_frame()
 
 class RegisterPanel(wx.Panel):
-    def __init__(self, parent):
+    def __init__(self, parent, app):
         wx.Panel.__init__(self, parent, -1)
         self.parent = parent
+        self.app = app
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -404,14 +415,16 @@ class RegisterPanel(wx.Panel):
             self.Layout()
             return
 
+        backend = self.app.get_backend()
+
         #print 'calling create_account', time.asctime()
-        result_code = create_account(BACKEND_URL, user, passwd, subscribe)
+        result_code = create_account(backend, user, passwd, subscribe)
 
         if result_code == 'account_exists':
             # try and log into it; if valid, use it anyway
             try:
                 #print 'calling get_root_cap (ae)', time.asctime()
-                root_cap = get_root_cap(BACKEND_URL, user, passwd)
+                root_cap = get_root_cap(backend, user, passwd)
                 write_config_file('private/root_dir.cap', root_cap+'\n')
             except AuthError:
                 self.warning_label.SetLabel('That email address is already registered')
@@ -425,7 +438,7 @@ class RegisterPanel(wx.Panel):
             return
         elif result_code == 'ok':
             #print 'calling get_root_cap (ok)', time.asctime()
-            root_cap = get_root_cap(BACKEND_URL, user, passwd)
+            root_cap = get_root_cap(backend, user, passwd)
             write_config_file('private/root_dir.cap', root_cap+'\n')
         else:
             self.warning_label.SetLabel('an unexpected error occurred ("%s")' % (result_code,))
@@ -434,28 +447,50 @@ class RegisterPanel(wx.Panel):
             return
 
         nodeid = get_nodeid()
-        ret = record_install(BACKEND_URL, user, passwd, nodeid)
+        ret = record_install(backend, user, passwd, nodeid)
         if ret != 'ok':
             wx.MessageBox('Error "%s" recording this system (%s)' % (ret, nodeid), 'Error')
 
-        configure(user, passwd)
+        configure(backend, user, passwd)
         maybe_start_services()
 
         # exit
         self.parent.parent.Close()
 
-def do_uninstall():
+def do_uninstall(server_url):
     nodeid = get_nodeid()
-    ret = record_uninstall(BACKEND_URL, nodeid)
+    ret = record_uninstall(server_url + BACKEND, nodeid)
     print ret
     if ret != 'ok':
         print 'Error "%s" recording uninstall of this system (%s)' % (ret, nodeid)
 
+class Options(usage.Options):
+    synopsis = "Usage:  confwiz [options]"
+
+    optFlags = [
+        ['uninstall', 'u', 'record uninstall'],
+        ]
+    optParameters = [
+        ['server', 's', DEFAULT_SERVER_URL, 'url of server to contact'],
+        ]
+
 def main(argv):
-    if '--uninstall' in argv:
-        do_uninstall()
+    config = Options()
+    try:
+        config.parseOptions(argv[1:])
+    except usage.error, e:
+        print config
+        print "%s:  %s" % (sys.argv[0], e)
+        sys.exit(-1)
+
+    server = config['server']
+    if not server.endswith('/'):
+        server += '/'
+
+    if config['uninstall']:
+        do_uninstall(server)
     else:
-        app = ConfWizApp()
+        app = ConfWizApp(server)
         app.MainLoop()
 
 

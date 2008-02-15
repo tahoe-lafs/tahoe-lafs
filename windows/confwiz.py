@@ -1,9 +1,5 @@
-
-from allmydata.gui.confwiz import ConfWizApp
-
-def main():
-    app = ConfWizApp()
-    app.MainLoop()
+import sys
+from allmydata.gui.confwiz import main
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv)
