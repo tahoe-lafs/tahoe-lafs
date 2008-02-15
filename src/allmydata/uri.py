@@ -3,7 +3,7 @@ import re, urllib
 from zope.interface import implements
 from twisted.python.components import registerAdapter
 from allmydata import storage
-from allmydata.util import base32, base32, hashutil
+from allmydata.util import base32, hashutil
 from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IVerifierURI, \
      IMutableFileURI, INewDirectoryURI, IReadonlyNewDirectoryURI
 
