@@ -15,7 +15,7 @@ from twisted.python import log, logfile
 
 import allmydata
 from allmydata import client
-from allmydata.gui.confwiz import ConfWizApp, ACCOUNT_PAGE
+from allmydata.gui.confwiz import ConfWizApp, ACCOUNT_PAGE, DEFAULT_SERVER_URL
 import amdicon
 
 
@@ -63,7 +63,7 @@ class App(object):
             f.close()
 
         if self.is_config_incomplete():
-            app = ConfWizApp()
+            app = ConfWizApp(DEFAULT_SERVER_URL)
             app.MainLoop()
 
         if self.is_config_incomplete():
@@ -281,7 +281,7 @@ class MacGuiApp(wx.App):
         self.app.webopen()
 
     def on_account_page(self, event):
-        webbrowser.open(ACCOUNT_PAGE)
+        webbrowser.open(DEFAULT_SERVER_URL + ACCOUNT_PAGE)
 
 
 def main(argv):
