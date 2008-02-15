@@ -6,7 +6,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import failure
 
-from allmydata.util import bencode, idlib, humanreadable, mathutil, hashutil
+from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, testutil, deferredutil
 
 
