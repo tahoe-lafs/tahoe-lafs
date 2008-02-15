@@ -6,7 +6,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import failure
 
-from allmydata.util import base32, bencode, idlib, humanreadable, mathutil, hashutil
+from allmydata.util import bencode, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, testutil, deferredutil
 
 
@@ -62,60 +62,6 @@ class HumanReadable(unittest.TestCase):
 
 class MyList(list):
     pass
-
-class Bencode(unittest.TestCase):
-    def test_bencode(self):
-        e = bencode.bencode
-        self.failUnlessEqual(e(4), "i4e")
-        self.failUnlessEqual(e([1,2]), "li1ei2ee")
-        self.failUnlessEqual(e(MyList([1,2])), "li1ei2ee")
-        self.failUnlessEqual(e({1:2}), "di1ei2ee")
-        self.failUnlessEqual(e(u"a"), "u1:a")
-        self.failUnlessEqual(e([True,False]), "lb1b0e")
-        self.failUnlessEqual(e(1.5), "f1.5e")
-        self.failUnlessEqual(e("foo"), "3:foo")
-        d = bencode.bdecode
-        self.failUnlessEqual(d("li1ei2ee"), [1,2])
-        self.failUnlessEqual(d("u1:a"), u"a")
-        self.failUnlessRaises(ValueError, d, "u10:short")
-        self.failUnlessEqual(d("lb1b0e"), [True,False])
-        self.failUnlessRaises(ValueError, d, "b2")
-        self.failUnlessEqual(d("f1.5e"), 1.5)
-        self.failUnlessEqual(d("3:foo"), "foo")
-        self.failUnlessRaises(ValueError, d,
-                              "38:When doing layout, always plan ah")
-        # ooh! fascinating! bdecode requires string keys! I think this ought
-        # to be changed
-        #self.failUnlessEqual(d("di1ei2ee"), {1:2})
-        self.failUnlessEqual(d("d1:ai2eu1:bi3ee"), {"a":2, u"b":3})
-        self.failUnlessRaises(ValueError, d, "di1ei2ee")
-        self.failUnlessRaises(ValueError, d, "d1:ai1e1:ai2ee")
-
-        self.failUnlessRaises(ValueError, d, "i1ei2e")
-
-        # now run all the module's builtin tests
-        bencode.test_decode_raw_string()
-        bencode.test_encode_and_decode_unicode_results_in_unicode_type()
-        bencode.test_encode_and_decode_unicode_at_least_preserves_the_content_even_if_it_flattens_the_type()
-        bencode.test_dict_forbids_non_string_key()
-        bencode.test_dict_forbids_key_repeat()
-        bencode.test_empty_dict()
-        bencode.test_dict_allows_unicode_keys()
-        bencode.test_ValueError_in_decode_unknown()
-        bencode.test_encode_and_decode_none()
-        bencode.test_encode_and_decode_long()
-        bencode.test_encode_and_decode_int()
-        bencode.test_encode_and_decode_float()
-        bencode.test_encode_and_decode_bool()
-        #bencode.test_decode_noncanonical_int()
-        bencode.test_encode_and_decode_dict()
-        bencode.test_encode_and_decode_list()
-        bencode.test_encode_and_decode_tuple()
-        bencode.test_encode_and_decode_empty_dict()
-        bencode.test_encode_and_decode_complex_object()
-        bencode.test_unfinished_list()
-        bencode.test_unfinished_dict()
-        bencode.test_unsupported_type()
 
 class Math(unittest.TestCase):
     def test_div_ceil(self):
