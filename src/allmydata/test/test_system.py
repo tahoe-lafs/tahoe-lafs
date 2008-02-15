@@ -89,6 +89,9 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                 # client[0] runs a webserver and a helper
                 open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
                 open(os.path.join(basedir, "run_helper"), "w").write("yes\n")
+            if i == 3:
+                # client[3] runs a webserver and uses a helper
+                open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
             if self.createprivdir:
                 fileutil.make_dirs(os.path.join(basedir, "private"))
                 open(os.path.join(basedir, "private", "root_dir.cap"), "w")
@@ -121,6 +124,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             l = self.clients[0].getServiceNamed("webish").listener
             port = l._port.getHost().port
             self.webish_url = "http://localhost:%d/" % port
+            # and the helper-using webport
+            l = self.clients[3].getServiceNamed("webish").listener
+            port = l._port.getHost().port
+            self.helper_webish_url = "http://localhost:%d/" % port
         d.addCallback(_connected)
         return d
 
@@ -1040,6 +1047,36 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         url = self.webish_url + urlpath
         return getPage(url, method="GET", followRedirect=followRedirect)
 
+    def POST(self, urlpath, followRedirect=False, use_helper=False, **fields):
+        if use_helper:
+            url = self.helper_webish_url + urlpath
+        else:
+            url = self.webish_url + urlpath
+        sepbase = "boogabooga"
+        sep = "--" + sepbase
+        form = []
+        form.append(sep)
+        form.append('Content-Disposition: form-data; name="_charset"')
+        form.append('')
+        form.append('UTF-8')
+        form.append(sep)
+        for name, value in fields.iteritems():
+            if isinstance(value, tuple):
+                filename, value = value
+                form.append('Content-Disposition: form-data; name="%s"; '
+                            'filename="%s"' % (name, filename.encode("utf-8")))
+            else:
+                form.append('Content-Disposition: form-data; name="%s"' % name)
+            form.append('')
+            form.append(str(value))
+            form.append(sep)
+        form[-1] += "--"
+        body = "\r\n".join(form) + "\r\n"
+        headers = {"content-type": "multipart/form-data; boundary=%s" % sepbase,
+                   }
+        return getPage(url, method="POST", postdata=body,
+                       headers=headers, followRedirect=followRedirect)
+
     def _test_web(self, res):
         base = self.webish_url
         public = "uri/" + self._root_directory_uri
@@ -1056,6 +1093,14 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                             "in: %s" % page)
         d.addCallback(_got_welcome)
         d.addCallback(self.log, "done with _got_welcome")
+
+        # get the welcome page from the node that uses the helper too
+        d.addCallback(lambda res: getPage(self.helper_webish_url))
+        def _got_welcome_helper(page):
+            self.failUnless("Connected to helper?: <span>yes</span>" in page,
+                            page)
+        d.addCallback(_got_welcome_helper)
+
         d.addCallback(lambda res: getPage(base + public))
         d.addCallback(lambda res: getPage(base + public + "/subdir1"))
         def _got_subdir1(page):
@@ -1116,6 +1161,14 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                                            "NEWER contents"))
         d.addCallback(lambda res: self.GET(public + "/subdir3/new.txt"))
         d.addCallback(self.failUnlessEqual, "NEWER contents")
+
+        # test unlinked POST
+        d.addCallback(lambda res: self.POST("uri", t="upload",
+                                            file=("new.txt", "data" * 10000)))
+        # and again using the helper, which exercises different upload-status
+        # display code
+        d.addCallback(lambda res: self.POST("uri", use_helper=True, t="upload",
+                                            file=("foo.txt", "data2" * 10000)))
 
         # check that the status page exists
         d.addCallback(lambda res: self.GET("status"))
