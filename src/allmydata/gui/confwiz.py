@@ -3,6 +3,7 @@ DEFAULT_SERVER_URL = 'https://beta.allmydata.com/'
 
 BACKEND = 'native_client.php'
 ACCOUNT_PAGE = 'account'
+WELCOME_PAGE = 'welcome_install'
 TAHOESVC_NAME = 'Tahoe'
 WINFUSESVC_NAME = 'Allmydata Tahoe SMB'
 
@@ -13,11 +14,12 @@ import sys
 import traceback
 import urllib2
 from urllib import urlencode
-#import webbrowser
+import webbrowser
 import wx
 
 from allmydata.util.assertutil import precondition
 from allmydata import uri
+import allmydata
 
 import amdicon
 
@@ -152,6 +154,12 @@ class ConfWizApp(wx.App):
 
     def get_backend(self):
         return self.server + BACKEND
+
+    def open_welcome_page(self):
+        args = {'v':    str(allmydata.__version__),
+                'plat': sys.platform,
+                }
+        webbrowser.open(self.server + WELCOME_PAGE + '?' + urlencode(args))
 
     def OnInit(self):
         try:
@@ -311,6 +319,8 @@ class LoginPanel(wx.Panel):
         configure(backend, user, passwd)
         maybe_start_services()
 
+        self.app.open_welcome_page()
+
         # exit
         self.parent.parent.Close()
 
@@ -453,6 +463,8 @@ class RegisterPanel(wx.Panel):
 
         configure(backend, user, passwd)
         maybe_start_services()
+
+        self.app.open_welcome_page()
 
         # exit
         self.parent.parent.Close()
