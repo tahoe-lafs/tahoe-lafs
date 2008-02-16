@@ -1,4 +1,4 @@
-ANNOUNCING: Allmydata-Tahoe version 0.8
+ANNOUNCING: Allmydata.org "Tahoe" version 0.8
 
 We are pleased to announce the release of version 0.8 of allmydata.org
 "Tahoe".
@@ -31,6 +31,8 @@ Since v0.7 we've made the following changes:
 
  * Add unit tests and docs for contrib/fuse (ticket #255).
 
+ * Add a preliminary FUSE interface for Macintosh.
+
  * Update docs, starting with docs/about.html --
    http://allmydata.org/source/tahoe/trunk/docs/about.html .
 
@@ -57,6 +59,10 @@ Since v0.7 we've made the following changes:
  * Fix potential problem that could cause corruption of downloaded
    mutable files if a long series of unlikely coincidences and hacked
    clients occurred (ticket #312).
+
+ * Make file and directory names use unicode.
+
+ * Use SHA-256d instead of SHA-256 for secure hashes.
 
 
 WHAT IS IT GOOD FOR?
@@ -132,7 +138,7 @@ eternally grateful!
 
 Zooko O'Whielacronx
 on behalf of the allmydata.org team
-February 14, 2008
+February 15, 2008
 Boulder, Colorado, USA
 
 
