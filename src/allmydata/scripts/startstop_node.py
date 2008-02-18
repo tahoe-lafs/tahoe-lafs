@@ -35,23 +35,22 @@ class RunOptions(usage.Options):
 
 def do_start(basedir, profile=False, out=sys.stdout, err=sys.stderr):
     print >>out, "STARTING", basedir
-    if os.path.exists(os.path.join(basedir, "client.tac")):
-        tac = "client.tac"
-        type = "client"
-    elif os.path.exists(os.path.join(basedir, "tahoe-client.tac")):
-        tac = "tahoe-client.tac"
-        type = "client"
-    elif os.path.exists(os.path.join(basedir, "introducer.tac")):
-        tac = "introducer.tac"
-        type = "introducer"
-    elif os.path.exists(os.path.join(basedir, "tahoe-introducer.tac")):
-        tac = "tahoe-introducer.tac"
-        type = "introducer"
-    else:
-        print >>err, "%s does not look like a node directory" % basedir
-        if not os.path.isdir(basedir):
-            print >>err, " in fact, it doesn't look like a directory at all!"
+    if not os.path.isdir(basedir):
+        print >>err, "%s does not look like a directory at all" % basedir
         return 1
+    for fn in os.listdir(basedir):
+        if fn.endswith(".tac"):
+            tac = fn
+            break
+    else:
+        print >>err, "%s does not look like a node directory (no .tac file)" % basedir
+        return 1
+    if "client" in tac:
+        nodetype = "client"
+    elif "introducer" in tac:
+        nodetype = "introducer"
+    else:
+        nodetype = "unknown (%s)" % tac
 
     cmd = find_exe.find_exe('twistd')
     if not cmd:
@@ -59,7 +58,9 @@ def do_start(basedir, profile=False, out=sys.stdout, err=sys.stderr):
         sys.exit(1)
 
     fileutil.make_dirs(os.path.join(basedir, "logs"))
-    cmd.extend(["-y", tac, "--logfile", os.path.join("logs", "twistd.log")])
+    cmd.extend(["-y", tac])
+    if nodetype in ("client", "introducer"):
+        cmd.extend(["--logfile", os.path.join("logs", "twistd.log")])
     if profile:
         cmd.extend(["--profile=profiling_results.prof", "--savestats",])
     curdir = os.getcwd()
@@ -69,10 +70,10 @@ def do_start(basedir, profile=False, out=sys.stdout, err=sys.stderr):
     finally:
         os.chdir(curdir)
     if rc == 0:
-        print >>out, "%s node probably started" % type
+        print >>out, "%s node probably started" % nodetype
         return 0
     else:
-        print >>err, "%s node probably not started" % type
+        print >>err, "%s node probably not started" % nodetype
         return 1
 
 def do_stop(basedir, out=sys.stdout, err=sys.stderr):

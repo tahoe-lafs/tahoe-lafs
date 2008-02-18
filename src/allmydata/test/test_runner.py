@@ -215,8 +215,7 @@ class RunNode(unittest.TestCase, testutil.PollMixin):
         out,err = StringIO(), StringIO()
         rc = runner.runner(argv, stdout=out, stderr=err)
         self.failUnlessEqual(rc, 1)
-        self.failUnless("does not look like a node directory" in err.getvalue())
-        self.failUnless("doesn't look like a directory at all"
-                        in err.getvalue())
+        self.failUnless("does not look like a directory at all"
+                        in err.getvalue(), err.getvalue())
 
 
