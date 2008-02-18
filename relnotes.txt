@@ -114,7 +114,7 @@ at your option.)
 INSTALLATION
 
 Tahoe works on Linux, Mac OS X, Windows, Cygwin, and Solaris.  For
-installation instructions please see "doc/install.html" [5].
+installation instructions please see "docs/install.html" [5].
 
 
 HACKING AND COMMUNITY
