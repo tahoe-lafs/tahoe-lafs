@@ -57,9 +57,9 @@ def do_start(basedir, profile=False, out=sys.stdout, err=sys.stderr):
         print "Can't find twistd (it comes with Twisted).  Aborting."
         sys.exit(1)
 
-    fileutil.make_dirs(os.path.join(basedir, "logs"))
     cmd.extend(["-y", tac])
     if nodetype in ("client", "introducer"):
+        fileutil.make_dirs(os.path.join(basedir, "logs"))
         cmd.extend(["--logfile", os.path.join("logs", "twistd.log")])
     if profile:
         cmd.extend(["--profile=profiling_results.prof", "--savestats",])
