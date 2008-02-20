@@ -283,16 +283,3 @@ class MacGuiApp(wx.App):
     def on_account_page(self, event):
         webbrowser.open(DEFAULT_SERVER_URL + ACCOUNT_PAGE)
 
-
-def main(argv):
-    if len(argv) == 1:
-        # then we were given no args; do default mac node startup
-        sys.exit(run_macapp())
-    else:
-        # given any cmd line args, do 'tahoe' cli behaviour
-        from allmydata.scripts import runner
-        sys.exit(runner.runner(argv[1:], install_node_control=False))
-
-if __name__ == '__main__':
-    main(sys.argv)
-

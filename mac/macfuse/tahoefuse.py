@@ -6,6 +6,7 @@ from allmydata.scripts.common_http import do_http as do_http_req
 
 import base64
 import sha
+import sys
 import os
 import errno
 import stat
@@ -22,6 +23,8 @@ import time
 import traceback
 import simplejson
 import urllib
+
+USAGE = 'usage: tahoe fuse [dir_cap_name] [fuse_options] mountpoint'
 
 if not hasattr(fuse, '__version__'):
     raise RuntimeError, \
@@ -101,7 +104,7 @@ class TahoeFuseFile(object):
                 self.fname = self.tfs.cache.tmp_file(os.urandom(20))
                 if self.fnode is None:
                     log('TFF: [%s] open(%s) for write: no such file, creating new File' % (self.name, self.fname, ))
-                    self.fnode = File(0, None)
+                    self.fnode = File(0, None, None)
                     self.fnode.tmp_fname = self.fname # XXX kill this
                     self.parent.add_child(self.name, self.fnode)
                 elif hasattr(self.fnode, 'tmp_fname'):
@@ -208,8 +211,9 @@ class TahoeFuse(fuse.Fuse):
         log("TF: __init__(%r, %r)" % (args, kw))
 
         self.tfs = tfs
+        _tfs_ = tfs
         class MyFuseFile(TahoeFuseFile):
-            tfs = tfs
+            tfs = _tfs_
         self.file_class = MyFuseFile
         log("TF: file_class: %r" % (self.file_class,))
 
@@ -341,22 +345,24 @@ class TahoeFuse(fuse.Fuse):
         self.log("mkdir(%r, %r)" % (path, mode))
         self.tfs.mkdir(path)
 
-def main(tfs):
-
-    usage = "Userspace tahoe fs: cache a tahoe tree and present via fuse\n" + fuse.Fuse.fusage
-
+def launch_tahoe_fuse(tfs, argv):
+    sys.argv = ['tahoe fuse'] + list(argv)
     server = TahoeFuse(tfs, version="%prog " + fuse.__version__,
-                       usage=usage,
+                       usage=USAGE,
                        dash_s_do='setsingle')
     server.parse(errex=1)
     server.main()
 
 
-def getbasedir():
-    f = file(os.path.expanduser("~/.tahoe/private/root_dir.cap"), 'rb')
-    bd = f.read().strip()
-    f.close()
-    return bd
+def getbasedir(cap_name='root_dir'):
+    fname = os.path.expanduser("~/.tahoe/private/%s.cap" % (cap_name,))
+    if os.path.exists(fname):
+        f = file(fname, 'rb')
+        bd = f.read().strip()
+        f.close()
+        return bd
+    else:
+        return None
 
 def getnodeurl():
     f = file(os.path.expanduser("~/.tahoe/node.url"), 'rb')
@@ -437,17 +443,34 @@ class Directory(object):
         return s
 
 class File(object):
-    def __init__(self, size, ro_uri):
+    def __init__(self, size, ro_uri, metadata):
         self.size = size
         if ro_uri:
             ro_uri = str(ro_uri)
         self.ro_uri = ro_uri
+        self.metadata = metadata or {}
 
     def __repr__(self):
         return "<File %s>" % (fingerprint(self.ro_uri) or [self.tmp_fname],)
 
     def pprint(self, prefix='', printed=None):
-        return "         %s (%s)" % (prefix, self.size, )
+        times, remainder = self.get_times()
+        return "         %s (%s) %s %s" % (prefix, self.size, times, remainder)
+
+    def get_times(self):
+        rem = self.metadata.copy()
+        now = time.time()
+        times = {}
+        for T in ['c', 'm']:
+            t = rem.pop('%stime'%T, None)
+            if not t:
+                t = 'none'
+            elif (now-t) < 86400:
+                t = time.strftime('%a:%H:%M:%S', time.localtime(t))
+            else:
+                t = time.strftime('%Y:%b:%d:%H:%M', time.localtime(t))
+            times[T] = t
+        return times, rem
 
     def get_stat(self):
         if hasattr(self, 'tmp_fname'):
@@ -521,7 +544,7 @@ class TFS(object):
                 cobj = self.dir_for(name, cattrs.get('ro_uri'), cattrs.get('rw_uri'))
             else:
                 assert ctype == "filenode"
-                cobj = File(cattrs.get('size'), cattrs.get('ro_uri'))
+                cobj = File(cattrs.get('size'), cattrs.get('ro_uri'), cattrs.get('metadata'))
             dirobj.children[name] = cobj
 
     def dir_for(self, name, ro_uri, rw_uri):
@@ -646,14 +669,45 @@ class FileCache(object):
 def print_tree():
     log('tree:\n' + _tfs.pprint())
 
-if __name__ == '__main__':
-    log("\n\nmain()")
-    tfs = TFS(getnodeurl(), getbasedir())
+def main(argv):
+    log("\n\nmain(%s)" % (argv,))
+
+    if not argv:
+        argv = ['--help']
+    if len(argv) == 1 and argv[0] in ['-h', '--help', '--version']:
+        #print USAGE
+        launch_tahoe_fuse(None, argv)
+        return -2
+
+    if not argv[0].startswith('-'):
+        cap_name = argv[0]
+        basedir = getbasedir(cap_name)
+        if basedir is None:
+            print 'root dir named "%s" not found.' % (cap_name,)
+            return -2
+        argv = argv[1:]
+    else:
+        basedir = getbasedir() # default 'root_dir'
+
+    if argv[-1].startswith('-'):
+        print 'mountpoint not given'
+        return -2
+    mountpoint = os.path.abspath(argv[-1])
+    if not os.path.exists(mountpoint):
+        #raise OSError(2, 'No such file or directory: "%s"' % (mountpoint,))
+        print 'No such file or directory: "%s"' % (mountpoint,)
+        return -2
+
+    nodeurl = getnodeurl()
+
+    tfs = TFS(nodeurl, basedir)
     print tfs.pprint()
 
     # make tfs instance accesible to print_tree() for dbg
     global _tfs
     _tfs = tfs
 
-    main(tfs)
+    launch_tahoe_fuse(tfs, argv)
 
+if __name__ == '__main__':
+    main(sys.argv)
