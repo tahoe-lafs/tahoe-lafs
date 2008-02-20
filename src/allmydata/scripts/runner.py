@@ -19,19 +19,19 @@ class Options(BaseOptions, usage.Options):
         if not hasattr(self, 'subOptions'):
             raise usage.UsageError("must specify a command")
 
-class OptionsNoNodeControl(Options):
-    synopsis = "Usage:  tahoe <command> [command options]"
-
-    subCommands = []
-    subCommands += _general_commands
-
-
 def runner(argv, run_by_human=True, stdout=sys.stdout, stderr=sys.stderr,
-                 install_node_control=True):
+                 install_node_control=True, additional_commands=None):
+
+    config = Options()
     if install_node_control:
-        config = Options()
-    else:
-        config = OptionsNoNodeControl()
+        config.subCommands.extend(startstop_node.subCommands)
+
+    ac_dispatch = {}
+    if additional_commands:
+        for ac in additional_commands:
+            config.subCommands.extend(ac.subCommands)
+            ac_dispatch.update(ac.dispatch)
+
     try:
         config.parseOptions(argv)
     except usage.error, e:
@@ -60,6 +60,8 @@ def runner(argv, run_by_human=True, stdout=sys.stdout, stderr=sys.stderr,
         rc = debug.dispatch[command](so, stdout, stderr)
     elif command in cli.dispatch:
         rc = cli.dispatch[command](so, stdout, stderr)
+    elif command in ac_dispatch:
+        rc = ac_dispatch[command](so, stdout, stderr)
     else:
         raise usage.UsageError()
 
