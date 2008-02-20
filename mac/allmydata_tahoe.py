@@ -27,8 +27,8 @@ class FuseOptions(usage.Options):
         self.args = args
 
 def fuse(config, stdout, stderr):
-    import macfuse.tahoefuse
-    macfuse.tahoefuse.main(config.args)
+    import tahoefuse
+    tahoefuse.main(config.args)
 
 class FuseRunnerExtension(object):
     subCommands = [
