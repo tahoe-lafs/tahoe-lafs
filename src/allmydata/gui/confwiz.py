@@ -5,7 +5,7 @@ BACKEND = 'native_client.php'
 ACCOUNT_PAGE = 'account'
 WELCOME_PAGE = 'welcome_install'
 TAHOESVC_NAME = 'Tahoe'
-WINFUSESVC_NAME = 'Allmydata Tahoe SMB'
+WINFUSESVC_NAME = 'Allmydata SMB'
 
 import os
 import re
