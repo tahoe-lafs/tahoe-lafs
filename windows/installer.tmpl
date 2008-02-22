@@ -31,8 +31,8 @@ Name: "{app}\noderoot"
 
 [Icons]
 ; Program files entries
-Name: "{group}\Allmydata"; Filename: "{app}\Install\winfuse\TahoeTray.exe"
-Name: "{commonstartup}\Allmydata"; Filename: "{app}\Install\winfuse\TahoeTray.exe"
+Name: "{group}\Allmydata"; Filename: "{app}\Install\winfuse\AllmydataTray.exe"
+Name: "{commonstartup}\Allmydata"; Filename: "{app}\Install\winfuse\AllmydataTray.exe"
 ;Name: "{group}\Tahoe root dir (web)"; Filename: "{app}\Install\tahoe.exe"; Parameters: "webopen"
 Name: "{group}\Allmydata Help"; Filename: "http://www.allmydata.com/help.php"
 
@@ -48,7 +48,7 @@ Filename: "http://beta.allmydata.com/welcome_install?v=%(major)d.%(minor)d.%(poi
 
 [UninstallRun]
 ; Performed before the uninstaller runs to undo things
-Filename: "{sys}\net.exe"; Parameters: "stop ""Allmydata Tahoe SMB"""; Flags: runhidden
+Filename: "{sys}\net.exe"; Parameters: "stop ""Allmydata SMB"""; Flags: runhidden
 Filename: "{sys}\net.exe"; Parameters: "stop Tahoe"; Flags: runhidden
 Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: "/uninstall ""{app}\Install\winfuse\WinFUSE.exe"""; Flags: runhidden
 Filename: "{app}\Install\tahoesvc.exe"; Parameters: "-remove"; Flags: runhidden
