@@ -389,6 +389,9 @@ class FileDownloader:
 
         self._status = s = DownloadStatus()
         s.set_status("Starting")
+        s.set_storage_index(self._storage_index)
+        s.set_size(self._size)
+        s.set_helper(False)
 
         if IConsumer.providedBy(downloadable):
             downloadable.registerProducer(self, True)
@@ -717,7 +720,7 @@ class FileDownloader:
     def _download_segment(self, res, segnum):
         if self._status:
             self._status.set_status("Downloading segment %d of %d" %
-                                    (segnum, self._total_segments))
+                                    (segnum+1, self._total_segments))
         self.log("downloading seg#%d of %d (%d%%)"
                  % (segnum, self._total_segments,
                     100.0 * segnum / self._total_segments))
@@ -798,8 +801,6 @@ class FileDownloader:
 
 
 class LiteralDownloader:
-    implements(IDownloadStatus)
-
     def __init__(self, client, u, downloadable):
         self._uri = IFileURI(u)
         assert isinstance(self._uri, uri.LiteralFileURI)
