@@ -8,11 +8,11 @@
   </head>
   <body>
 
-<h1>Current Uploads and Downloads</h1>
+<h1>Upload and Download Status</h1>
 
 
-<h2>Current Uploads:</h2>
-<table n:render="sequence" n:data="uploads" border="1">
+<h2>Active Uploads:</h2>
+<table n:render="sequence" n:data="active_uploads" border="1">
   <tr n:pattern="header">
     <td>Storage Index</td>
     <td>Helper?</td>
@@ -31,11 +31,11 @@
     <td><n:slot name="progress_encode"/></td>
     <td><n:slot name="status"/></td>
   </tr>
-  <tr n:pattern="empty"><td>No current uploads!</td></tr>
+  <tr n:pattern="empty"><td>No active uploads!</td></tr>
 </table>
 
-<h2>Current Downloads:</h2>
-<table n:render="sequence" n:data="downloads" border="1">
+<h2>Active Downloads:</h2>
+<table n:render="sequence" n:data="active_downloads" border="1">
   <tr n:pattern="header">
     <td>Storage Index</td>
     <td>Helper?</td>
@@ -50,7 +50,50 @@
     <td><n:slot name="progress"/></td>
     <td><n:slot name="status"/></td>
   </tr>
-  <tr n:pattern="empty"><td>No current downloads!</td></tr>
+  <tr n:pattern="empty"><td>No active downloads!</td></tr>
+</table>
+
+
+<h2>Recent Uploads:</h2>
+<table n:render="sequence" n:data="recent_uploads" border="1">
+  <tr n:pattern="header">
+    <td>Storage Index</td>
+    <td>Helper?</td>
+    <td>Total Size</td>
+    <td>Progress (Hash)</td>
+    <td>Progress (Ciphertext)</td>
+    <td>Progress (Encode+Push)</td>
+    <td>Status</td>
+  </tr>
+  <tr n:pattern="item" n:render="row_upload">
+    <td><n:slot name="si"/></td>
+    <td><n:slot name="helper"/></td>
+    <td><n:slot name="total_size"/></td>
+    <td><n:slot name="progress_hash"/></td>
+    <td><n:slot name="progress_ciphertext"/></td>
+    <td><n:slot name="progress_encode"/></td>
+    <td><n:slot name="status"/></td>
+  </tr>
+  <tr n:pattern="empty"><td>No recent uploads!</td></tr>
+</table>
+
+<h2>Recent Downloads:</h2>
+<table n:render="sequence" n:data="recent_downloads" border="1">
+  <tr n:pattern="header">
+    <td>Storage Index</td>
+    <td>Helper?</td>
+    <td>Total Size</td>
+    <td>Progress</td>
+    <td>Status</td>
+  </tr>
+  <tr n:pattern="item" n:render="row_download">
+    <td><n:slot name="si"/></td>
+    <td><n:slot name="helper"/></td>
+    <td><n:slot name="total_size"/></td>
+    <td><n:slot name="progress"/></td>
+    <td><n:slot name="status"/></td>
+  </tr>
+  <tr n:pattern="empty"><td>No recent downloads!</td></tr>
 </table>
 
 <div>Return to the <a href="/">Welcome Page</a></div>

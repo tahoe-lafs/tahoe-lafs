@@ -568,6 +568,7 @@ class UploadStatus:
         self.helper = False
         self.status = "Not started"
         self.progress = [0.0, 0.0, 0.0]
+        self.active = True
 
     def get_storage_index(self):
         return self.storage_index
@@ -579,6 +580,8 @@ class UploadStatus:
         return self.status
     def get_progress(self):
         return tuple(self.progress)
+    def get_active(self):
+        return self.active
 
     def set_storage_index(self, si):
         self.storage_index = si
@@ -591,6 +594,8 @@ class UploadStatus:
     def set_progress(self, which, value):
         # [0]: chk, [1]: ciphertext, [2]: encode+push
         self.progress[which] = value
+    def set_active(self, value):
+        self.active = value
 
 class CHKUploader:
     peer_selector_class = Tahoe2PeerSelector
@@ -603,6 +608,7 @@ class CHKUploader:
         self._storage_index = None
         self._upload_status = UploadStatus()
         self._upload_status.set_helper(False)
+        self._upload_status.set_active(True)
 
     def log(self, *args, **kwargs):
         if "parent" not in kwargs:
@@ -629,6 +635,10 @@ class CHKUploader:
             d1.addCallback(lambda key: self._compute_uri(res, key))
             return d1
         d.addCallback(_uploaded)
+        def _done(res):
+            self._upload_status.set_active(False)
+            return res
+        d.addBoth(_done)
         return d
 
     def abort(self):
@@ -758,6 +768,7 @@ class LiteralUploader:
         s.set_storage_index(None)
         s.set_helper(False)
         s.set_progress(0, 1.0)
+        s.set_active(False)
 
     def start(self, uploadable):
         uploadable = IUploadable(uploadable)
@@ -874,6 +885,7 @@ class AssistedUploader:
         self._storage_index = None
         self._upload_status = s = UploadStatus()
         s.set_helper(True)
+        s.set_active(True)
 
     def log(self, msg, parent=None, **kwargs):
         if parent is None:
@@ -900,6 +912,10 @@ class AssistedUploader:
         d.addCallback(self._got_storage_index)
         d.addCallback(self._contact_helper)
         d.addCallback(self._build_readcap)
+        def _done(res):
+            self._upload_status.set_active(False)
+            return res
+        d.addBoth(_done)
         return d
 
     def _got_size(self, size):

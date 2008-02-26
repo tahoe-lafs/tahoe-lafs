@@ -1420,6 +1420,8 @@ class IUploadStatus(Interface):
         process has finished: for helper uploads this is dependent upon the
         helper providing progress reports. It might be reasonable to add all
         three numbers and report the sum to the user."""
+    def get_active():
+        """Return True if the upload is currently active, False if not."""
 
 class IDownloadStatus(Interface):
     def get_storage_index():
@@ -1439,6 +1441,8 @@ class IDownloadStatus(Interface):
         """Returns a float (from 0.0 to 1.0) describing the amount of the
         download that has completed. This value will remain at 0.0 until the
         first byte of plaintext is pushed to the download target."""
+    def get_active():
+        """Return True if the download is currently active, False if not."""
 
 
 class NotCapableError(Exception):

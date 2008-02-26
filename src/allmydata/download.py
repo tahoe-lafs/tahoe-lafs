@@ -336,6 +336,7 @@ class DownloadStatus:
         self.progress = 0.0
         self.paused = False
         self.stopped = False
+        self.active = True
 
     def get_storage_index(self):
         return self.storage_index
@@ -352,6 +353,8 @@ class DownloadStatus:
         return status
     def get_progress(self):
         return self.progress
+    def get_active(self):
+        return self.active
 
     def set_storage_index(self, si):
         self.storage_index = si
@@ -367,7 +370,8 @@ class DownloadStatus:
         self.stopped = stopped
     def set_progress(self, value):
         self.progress = value
-
+    def set_active(self, value):
+        self.active = value
 
 class FileDownloader:
     implements(IPushProducer)
@@ -392,6 +396,7 @@ class FileDownloader:
         s.set_storage_index(self._storage_index)
         s.set_size(self._size)
         s.set_helper(False)
+        s.set_active(True)
 
         if IConsumer.providedBy(downloadable):
             downloadable.registerProducer(self, True)
@@ -448,6 +453,7 @@ class FileDownloader:
         self._stopped = True
         if self._status:
             self._status.set_stopped(True)
+            self._status.set_active(False)
 
     def start(self):
         self.log("starting download")
@@ -465,6 +471,7 @@ class FileDownloader:
         def _finished(res):
             if self._status:
                 self._status.set_status("Finished")
+                self._status.set_active(False)
             if IConsumer.providedBy(self._downloadable):
                 self._downloadable.unregisterProducer()
             return res
@@ -472,6 +479,7 @@ class FileDownloader:
         def _failed(why):
             if self._status:
                 self._status.set_status("Failed")
+                self._status.set_active(False)
             self._output.fail(why)
             return why
         d.addErrback(_failed)
@@ -809,6 +817,7 @@ class LiteralDownloader:
         s.set_storage_index(None)
         s.set_helper(False)
         s.set_status("Done")
+        s.set_active(False)
         s.set_progress(1.0)
 
     def start(self):

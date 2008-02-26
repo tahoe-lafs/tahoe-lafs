@@ -377,7 +377,7 @@ class Web(WebMixin, unittest.TestCase):
     def test_status(self):
         d = self.GET("/status")
         def _check(res):
-            self.failUnless('Current Uploads and Downloads' in res)
+            self.failUnless('Upload and Download Status' in res)
         d.addCallback(_check)
         return d
 

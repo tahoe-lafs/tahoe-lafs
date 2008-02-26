@@ -1567,11 +1567,14 @@ class UnlinkedPOSTCreateDirectory(rend.Page):
 class Status(rend.Page):
     docFactory = getxmlfile("status.xhtml")
 
-    def data_uploads(self, ctx, data):
-        return IClient(ctx).list_uploads()
-
-    def data_downloads(self, ctx, data):
-        return IClient(ctx).list_downloads()
+    def data_active_uploads(self, ctx, data):
+        return [u for u in IClient(ctx).list_uploads() if u.get_active()]
+    def data_active_downloads(self, ctx, data):
+        return [d for d in IClient(ctx).list_downloads() if d.get_active()]
+    def data_recent_uploads(self, ctx, data):
+        return [u for u in IClient(ctx).list_uploads() if not u.get_active()]
+    def data_recent_downloads(self, ctx, data):
+        return [d for d in IClient(ctx).list_downloads() if not d.get_active()]
 
     def _render_common(self, ctx, data):
         s = data
