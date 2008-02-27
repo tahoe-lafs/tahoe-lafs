@@ -441,7 +441,7 @@ mac-dist:
 	VERSION=$(VER) $(MAKE) -C mac diskimage
 
 mac-upload:
-	VERSION=$(VER) $(MAKE) -C mac upload
+	VERSION=$(VER) $(MAKE) -C mac upload UPLOAD_DEST=$(UPLOAD_DEST)
 
 mac-cleanup:
 	VERSION=$(VER) $(MAKE) -C mac cleanup

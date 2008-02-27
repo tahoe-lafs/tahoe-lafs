@@ -16,14 +16,20 @@ diskimage:
 	hdiutil internet-enable -yes Allmydata-$(VERSION).dmg
 	rm -r Allmydata-$(VERSION) allmydata-rw.dmg allmydata-ro.dmg
 
+ifdef UPLOAD_DEST
 upload:
 	mkdir $(VERSION)
-	mv Allmydata-$(VERSION).dmg $(VERSION)/
+	cp Allmydata-$(VERSION).dmg $(VERSION)/
 	chmod -R go+rx $(VERSION)/
-	rsync -av $(VERSION) amduser@svn.allmydata.com:/home/amduser/public_html/dist/tahoe/mac/
+	rsync -av $(VERSION) $(UPLOAD_DEST)
+	rm -r $(VERSION)
+else
+upload:
+	$(error UPLOAD_DEST must be set when using upload target. e.g. make upload UPLOAD_DEST=amduser@svn.allmydata.com:/home/amduser/public_html/dist/tahoe/mac-blah/)
+endif
 
 cleanup:
-	rm -r $(VERSION)
+	rm Allmydata-$(VERSION).dmg
 
 clean:
 	rm -rf build dist
