@@ -10,9 +10,18 @@ from decimal import Decimal
 #if sys.platform in ['darwin', ]:
 from nevow.flat import flatsax
 from xml.parsers import expat
-from xml.sax import expatreader, sax2exts
-from xml.sax.drivers2 import drv_pyexpat, drv_xmlproc
-junk = [ flatsax, expat, expatreader, sax2exts, drv_pyexpat, drv_xmlproc, ]
+from xml.sax import expatreader
+junk = [ flatsax, expat, expatreader, ]
+
+try:
+    # these build hints are needed for nevow/xml on otto's 10.4 / py2.4
+    # environment.  they are broken on zandr's 10.5/py2.5 env, but are
+    # also unnecessary.
+    from xml.sax import sax2exts
+    from xml.sax.drivers2 import drv_pyexpat, drv_xmlproc
+    junk = [ sax2exts, drv_pyexpat, drv_xmlproc, ]
+except:
+    pass
 
 
 
