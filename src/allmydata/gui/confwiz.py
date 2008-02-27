@@ -190,7 +190,7 @@ class ConfWizApp(wx.App):
 
 class LoginFrame(wx.Frame):
     def __init__(self, app):
-        title = 'Allmydata Tahoe Config Wizard'
+        title = 'Allmydata Config Wizard'
         wx.Frame.__init__(self, None, -1, title)
         self.app = app
         self.SetIcon(amdicon.getIcon())
