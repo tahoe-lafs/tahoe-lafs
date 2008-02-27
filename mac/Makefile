@@ -6,6 +6,7 @@ all: build
 dist: build diskimage upload cleanup
 
 build:
+	rsync -avn $( sw_vers -productVersion | sed -e 's/^\(10\.[0-9]*\)\..*$/\1/' )/ ./
 	python setup.py py2app --no-chdir
 
 diskimage:
