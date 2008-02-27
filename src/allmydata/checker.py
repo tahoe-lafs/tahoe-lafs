@@ -115,6 +115,7 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         self._size = u.size
         self._num_needed_shares = u.needed_shares
 
+        self._si_s = storage.si_b2a(self._storage_index)
         self.init_logging()
 
         self._output = VerifyingOutput(self._size)

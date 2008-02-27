@@ -68,7 +68,8 @@ class CHKCheckerAndUEBFetcher:
             if k not in self._sharemap:
                 self._sharemap[k] = []
             self._sharemap[k].append(peerid)
-        self._readers.update(buckets.values())
+        self._readers.update( [ (bucket, peerid)
+                                for bucket in buckets.values() ] )
 
     def _got_error(self, f):
         if f.check(KeyError):
@@ -82,8 +83,9 @@ class CHKCheckerAndUEBFetcher:
         if not self._readers:
             self.log("no readers, so no UEB", level=log.NOISY)
             return
-        b = self._readers.pop()
-        rbp = storage.ReadBucketProxy(b)
+        b,peerid = self._readers.pop()
+        rbp = storage.ReadBucketProxy(b, idlib.shortnodeid_b2a(peerid),
+                                      storage.si_b2a(self._storage_index))
         d = rbp.startIfNecessary()
         d.addCallback(lambda res: rbp.get_uri_extension())
         d.addCallback(self._got_uri_extension)

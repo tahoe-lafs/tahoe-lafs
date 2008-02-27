@@ -1201,9 +1201,15 @@ class WriteBucketProxy:
 
 class ReadBucketProxy:
     implements(IStorageBucketReader)
-    def __init__(self, rref):
+    def __init__(self, rref, peerid_s=None, storage_index_s=None):
         self._rref = rref
+        self._peerid_s = peerid_s
+        self._si_s = storage_index_s
         self._started = False
+
+    def __repr__(self):
+        return "<ReadBucketProxy to peer [%s] SI %s>" % (self._peerid_s,
+                                                         self._si_s)
 
     def startIfNecessary(self):
         if self._started:
