@@ -12,12 +12,14 @@ This document has six sections:
 
 a. connecting to the tahoe node
 
-Writing "8123" into $NODEDIR/webport causes the node to run a webserver on
-port 8123. Writing "tcp:8123:interface=127.0.0.1" into $NODEDIR/webport does
-the same but binds to the loopback interface, ensuring that only the programs
-on the local host can connect. Using
-"ssl:8123:privateKey=mykey.pem:certKey=cert.pem" would run an SSL server. See
-twisted.application.strports for more details.
+Writing "8123" into $NODEDIR/webport causes the node to run a webserver on port
+8123. Writing "tcp:8123:interface=127.0.0.1" into $NODEDIR/webport does the same
+but binds to the loopback interface, ensuring that only the programs on the
+local host can connect.  This is the value that gets written into
+$NODEDIR/webport when a Tahoe node is created.
+
+Using "ssl:8123:privateKey=mykey.pem:certKey=cert.pem" would run an SSL
+server. See twisted.application.strports for more details.
 
 This webport can be set when the node is created by passing a --webport
 option to the 'tahoe create-client' command. By default, the node listens on
