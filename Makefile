@@ -190,7 +190,7 @@ TEST=allmydata
 # use 'make test TRIALARGS=--reporter=bwverbose' from buildbot, to
 # suppress the ansi color sequences
 
-test: .built .checked-deps
+test: .built .checked-deps src/allmydata/_version.py
 	$(PP) \
 	 $(TRIAL) $(TRIALARGS) $(TEST)
 
