@@ -8,4 +8,4 @@ class Web(unittest.TestCase):
         Sometimes Nevow can't find its resource files such as its default css file.
         """
         webform.defaultCSS.openForReading()
-    test_read_default_css.todo = "We have a patch for Nevow that makes this test pass, but we haven't decided how to manage a patched version of Nevow, and the Nevow upstream folks haven't decided to accept our patch."
+    test_read_default_css.todo = "This patch that we submitted to Nevow fixes this issue: http://www.divmod.org/trac/ticket/2527"
