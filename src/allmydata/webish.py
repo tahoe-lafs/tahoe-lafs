@@ -797,6 +797,108 @@ class POSTHandler(rend.Page):
         d.addCallback(_got)
         return d
 
+    def _POST_mkdir(self, name):
+        d = self._check_replacement(name)
+        d.addCallback(lambda res: self._node.create_empty_directory(name))
+        d.addCallback(lambda res: "directory created")
+        return d
+
+    def _POST_uri(self, name, newuri):
+        d = self._check_replacement(name)
+        d.addCallback(lambda res: self._node.set_uri(name, newuri))
+        d.addCallback(lambda res: newuri)
+        return d
+
+    def _POST_delete(self, name):
+        if name is None:
+            # apparently an <input type="hidden" name="name" value="">
+            # won't show up in the resulting encoded form.. the 'name'
+            # field is completely missing. So to allow deletion of an
+            # empty file, we have to pretend that None means ''. The only
+            # downide of this is a slightly confusing error message if
+            # someone does a POST without a name= field. For our own HTML
+            # thisn't a big deal, because we create the 'delete' POST
+            # buttons ourselves.
+            name = ''
+        d = self._node.delete(name)
+        d.addCallback(lambda res: "thing deleted")
+        return d
+
+    def _POST_rename(self, name, from_name, to_name):
+        d = self._check_replacement(to_name)
+        d.addCallback(lambda res: self._node.get(from_name))
+        def add_dest(child):
+            uri = child.get_uri()
+            # now actually do the rename
+            return self._node.set_uri(to_name, uri)
+        d.addCallback(add_dest)
+        def rm_src(junk):
+            return self._node.delete(from_name)
+        d.addCallback(rm_src)
+        d.addCallback(lambda res: "thing renamed")
+        return d
+
+    def _POST_upload(self, contents, name, mutable, client):
+        if mutable:
+            # SDMF: files are small, and we can only upload data.
+            contents.file.seek(0)
+            data = contents.file.read()
+            #uploadable = FileHandle(contents.file)
+            d = self._check_replacement(name)
+            d.addCallback(lambda res: self._node.has_child(name))
+            def _checked(present):
+                if present:
+                    # modify the existing one instead of creating a new
+                    # one
+                    d2 = self._node.get(name)
+                    def _got_newnode(newnode):
+                        d3 = newnode.replace(data)
+                        d3.addCallback(lambda res: newnode.get_uri())
+                        return d3
+                    d2.addCallback(_got_newnode)
+                else:
+                    d2 = client.create_mutable_file(data)
+                    def _uploaded(newnode):
+                        d1 = self._node.set_node(name, newnode)
+                        d1.addCallback(lambda res: newnode.get_uri())
+                        return d1
+                    d2.addCallback(_uploaded)
+                return d2
+            d.addCallback(_checked)
+        else:
+            uploadable = FileHandle(contents.file)
+            d = self._check_replacement(name)
+            d.addCallback(lambda res: self._node.add_file(name, uploadable))
+            def _done(newnode):
+                return newnode.get_uri()
+            d.addCallback(_done)
+        return d
+
+    def _POST_overwrite(self, contents):
+        # SDMF: files are small, and we can only upload data.
+        contents.file.seek(0)
+        data = contents.file.read()
+        # TODO: 'name' handling needs review
+        d = defer.succeed(self._node)
+        def _got_child_overwrite(child_node):
+            child_node.replace(data)
+            return child_node.get_uri()
+        d.addCallback(_got_child_overwrite)
+        return d
+
+    def _POST_check(self, name):
+        d = self._node.get(name)
+        def _got_child_check(child_node):
+            d2 = child_node.check()
+            def _done(res):
+                log.msg("checked %s, results %s" % (child_node, res),
+                        facility="tahoe.webish", level=log.NOISY)
+                return str(res)
+            d2.addCallback(_done)
+            return d2
+        d.addCallback(_got_child_check)
+        return d
+
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
 
@@ -824,30 +926,15 @@ class POSTHandler(rend.Page):
         if t == "mkdir":
             if not name:
                 raise RuntimeError("mkdir requires a name")
-            d = self._check_replacement(name)
-            d.addCallback(lambda res: self._node.create_empty_directory(name))
-            d.addCallback(lambda res: "directory created")
+            d = self._POST_mkdir(name)
         elif t == "uri":
             if not name:
                 raise RuntimeError("set-uri requires a name")
             newuri = get_arg(req, "uri")
             assert newuri is not None
-            d = self._check_replacement(name)
-            d.addCallback(lambda res: self._node.set_uri(name, newuri))
-            d.addCallback(lambda res: newuri)
+            d = self._POST_uri(name, newuri)
         elif t == "delete":
-            if name is None:
-                # apparently an <input type="hidden" name="name" value="">
-                # won't show up in the resulting encoded form.. the 'name'
-                # field is completely missing. So to allow deletion of an
-                # empty file, we have to pretend that None means ''. The only
-                # downide of this is a slightly confusing error message if
-                # someone does a POST without a name= field. For our own HTML
-                # thisn't a big deal, because we create the 'delete' POST
-                # buttons ourselves.
-                name = ''
-            d = self._node.delete(name)
-            d.addCallback(lambda res: "thing deleted")
+            d = self._POST_delete(name)
         elif t == "rename":
             from_name = get_arg(req, "from_name")
             if from_name is not None:
@@ -868,18 +955,7 @@ class POSTHandler(rend.Page):
                     req.setResponseCode(http.BAD_REQUEST)
                     req.setHeader("content-type", "text/plain")
                     return "%s= may not contain a slash" % (k,)
-            d = self._check_replacement(to_name)
-            d.addCallback(lambda res: self._node.get(from_name))
-            def add_dest(child):
-                uri = child.get_uri()
-                # now actually do the rename
-                return self._node.set_uri(to_name, uri)
-            d.addCallback(add_dest)
-            def rm_src(junk):
-                return self._node.delete(from_name)
-            d.addCallback(rm_src)
-            d.addCallback(lambda res: "thing renamed")
-
+            d = self._POST_rename(name, from_name, to_name)
         elif t == "upload":
             contents = req.fields["file"]
             name = name or contents.filename
@@ -890,64 +966,23 @@ class POSTHandler(rend.Page):
                 raise RuntimeError("upload requires a name")
             name = name.decode(charset)
             assert isinstance(name, unicode)
-
-            if "mutable" in req.fields:
-                # SDMF: files are small, and we can only upload data.
-                contents.file.seek(0)
-                data = contents.file.read()
-                #uploadable = FileHandle(contents.file)
-                d = self._check_replacement(name)
-                d.addCallback(lambda res: self._node.has_child(name))
-                def _checked(present):
-                    if present:
-                        # modify the existing one instead of creating a new
-                        # one
-                        d2 = self._node.get(name)
-                        def _got_newnode(newnode):
-                            d3 = newnode.replace(data)
-                            d3.addCallback(lambda res: newnode.get_uri())
-                            return d3
-                        d2.addCallback(_got_newnode)
-                    else:
-                        d2 = IClient(ctx).create_mutable_file(data)
-                        def _uploaded(newnode):
-                            d1 = self._node.set_node(name, newnode)
-                            d1.addCallback(lambda res: newnode.get_uri())
-                            return d1
-                        d2.addCallback(_uploaded)
-                    return d2
-                d.addCallback(_checked)
-            else:
-                uploadable = FileHandle(contents.file)
-                d = self._check_replacement(name)
-                d.addCallback(lambda res: self._node.add_file(name, uploadable))
-                def _done(newnode):
-                    return newnode.get_uri()
-                d.addCallback(_done)
-
+            mutable = boolean_of_arg(get_arg(req, "mutable", "false"))
+            d = self._POST_upload(contents, name, mutable, IClient(ctx))
         elif t == "overwrite":
             contents = req.fields["file"]
-            # SDMF: files are small, and we can only upload data.
-            contents.file.seek(0)
-            data = contents.file.read()
-            # TODO: 'name' handling needs review
-            d = defer.succeed(self._node)
-            def _got_child_overwrite(child_node):
-                child_node.replace(data)
-                return child_node.get_uri()
-            d.addCallback(_got_child_overwrite)
-
+            d = self._POST_overwrite(contents)
         elif t == "check":
-            d = self._node.get(name)
-            def _got_child_check(child_node):
-                d2 = child_node.check()
-                def _done(res):
-                    log.msg("checked %s, results %s" % (child_node, res),
-                            facility="tahoe.webish", level=log.NOISY)
-                    return str(res)
-                d2.addCallback(_done)
-                return d2
-            d.addCallback(_got_child_check)
+            d = self._POST_check(name)
+        # elif t == "set_children":
+        #     d = self._POST_set_(name)
+        #     if not name:
+        #         raise RuntimeError("set-uri requires a name")
+        #     newuri = get_arg(req, "uri")
+        #     assert newuri is not None
+        #     d = self._check_replacement(name)
+        #     d.addCallback(lambda res: self._node.set_uri(name, newuri))
+        #     d.addCallback(lambda res: newuri)
+
         else:
             print "BAD t=%s" % t
             return "BAD t=%s" % t
