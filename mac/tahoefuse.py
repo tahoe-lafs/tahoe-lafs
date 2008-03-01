@@ -3,6 +3,8 @@
 #-----------------------------------------------------------------------------------------------
 from allmydata.uri import CHKFileURI, NewDirectoryURI, LiteralFileURI
 from allmydata.scripts.common_http import do_http as do_http_req
+from allmydata.util.hashutil import tagged_hash
+from allmydata.util import base32
 
 import base64
 import sha
@@ -25,6 +27,7 @@ import simplejson
 import urllib
 
 USAGE = 'usage: tahoe fuse [dir_cap_name] [fuse_options] mountpoint'
+DEFAULT_DIRECTORY_VALIDITY=26
 
 if not hasattr(fuse, '__version__'):
     raise RuntimeError, \
@@ -34,7 +37,7 @@ fuse.fuse_python_api = (0, 2)
 fuse.feature_assert('stateful_files', 'has_init')
 
 
-logfile = file('tfuse.log', 'wb')
+logfile = file('tfuse.log', 'ab')
 
 def log(msg):
     logfile.write("%s: %s\n" % (time.asctime(), msg))
@@ -62,6 +65,25 @@ def flag2mode(flags):
 
     return m
 
+class TFSIOError(IOError):
+    pass
+
+class ENOENT(TFSIOError):
+    def __init__(self, msg):
+        TFSIOError.__init__(self, errno.ENOENT, msg)
+
+class EINVAL(TFSIOError):
+    def __init__(self, msg):
+        TFSIOError.__init__(self, errno.EINVAL, msg)
+
+class EACCESS(TFSIOError):
+    def __init__(self, msg):
+        TFSIOError.__init__(self, errno.EACCESS, msg)
+
+class EEXIST(TFSIOError):
+    def __init__(self, msg):
+        TFSIOError.__init__(self, errno.EEXIST, msg)
+
 def logargsretexc(meth):
     def inner(self, *args, **kwargs):
         log("%s(%r, %r)" % (meth, args, kwargs))
@@ -79,6 +101,9 @@ def logexc(meth):
     def inner(self, *args, **kwargs):
         try:
             ret = meth(self, *args, **kwargs)
+        except TFSIOError, tie:
+            log('error: %s' % (tie,))
+            raise
         except:
             log('exception:\n%s' % (traceback.format_exc(),))
             raise
@@ -103,13 +128,16 @@ class TahoeFuseFile(object):
                 # write
                 self.fname = self.tfs.cache.tmp_file(os.urandom(20))
                 if self.fnode is None:
-                    log('TFF: [%s] open(%s) for write: no such file, creating new File' % (self.name, self.fname, ))
-                    self.fnode = File(0, None, None)
+                    log('TFF: [%s] open() for write: no file node, creating new File %s' % (self.name, self.fname, ))
+                    self.fnode = File(0, 'URI:LIT:')
                     self.fnode.tmp_fname = self.fname # XXX kill this
-                    self.parent.add_child(self.name, self.fnode)
+                    self.parent.add_child(self.name, self.fnode, {})
                 elif hasattr(self.fnode, 'tmp_fname'):
                     self.fname = self.fnode.tmp_fname
-                self.file = os.fdopen(os.open(self.fname, flags, *mode), m)
+                    log('TFF: [%s] open() for write: existing file node lists %s' % (self.name, self.fname, ))
+                else:
+                    log('TFF: [%s] open() for write: existing file node lists no tmp_file, using new %s' % (self.name, self.fname, ))
+                self.file = os.fdopen(os.open(self.fname, flags|os.O_CREAT, *mode), m)
                 self.fd = self.file.fileno()
                 log('TFF: opened(%s) for write' % self.fname)
                 self.open_for_write = True
@@ -161,7 +189,9 @@ class TahoeFuseFile(object):
             self.fnode.size = size
             file_cap = self.tfs.upload(self.fname)
             self.fnode.ro_uri = file_cap
-            self.tfs.add_child(self.parent.get_uri(), self.name, file_cap)
+            # XXX [ ] TODO: set metadata
+            # write new uri into parent dir entry
+            self.parent.add_child(self.name, self.fnode, {})
             self.log("uploaded: %s" % (file_cap,))
 
         # dbg
@@ -199,12 +229,6 @@ class TahoeFuseFile(object):
         self.log("ftruncate(%r)" % (len,))
         self.file.truncate(len)
 
-class ObjFetcher(object):
-    def get_tahoe_file(self, path, flags, *mode):
-        log('objfetcher.get_tahoe_file(%r, %r, %r, %r)' % (self, path, flags, mode))
-        return TahoeFuseFile(path, flags, *mode)
-fetcher = ObjFetcher()
-
 class TahoeFuse(fuse.Fuse):
 
     def __init__(self, tfs, *args, **kw):
@@ -228,22 +252,26 @@ class TahoeFuse(fuse.Fuse):
     @logexc
     def readlink(self, path):
         self.log("readlink(%r)" % (path,))
-        return -errno.EOPNOTSUPP
+        node = self.tfs.get_path(path)
+        if node:
+            raise EINVAL('Not a symlink') # nothing in tahoe is a symlink
+        else:
+            raise ENOENT('Invalid argument')
 
     @logexc
     def unlink(self, path):
         self.log("unlink(%r)" % (path,))
-        return -errno.EOPNOTSUPP
+        self.tfs.unlink(path)
 
     @logexc
     def rmdir(self, path):
         self.log("rmdir(%r)" % (path,))
-        return -errno.EOPNOTSUPP
+        self.tfs.unlink(path)
 
     @logexc
     def symlink(self, path, path1):
         self.log("symlink(%r, %r)" % (path, path1))
-        return -errno.EOPNOTSUPP
+        self.tfs.link(path, path1)
 
     @logexc
     def rename(self, path, path1):
@@ -253,27 +281,27 @@ class TahoeFuse(fuse.Fuse):
     @logexc
     def link(self, path, path1):
         self.log("link(%r, %r)" % (path, path1))
-        return -errno.EOPNOTSUPP
+        self.tfs.link(path, path1)
 
     @logexc
     def chmod(self, path, mode):
-        self.log("chmod(%r, %r)" % (path, mode))
-        return -errno.EOPNOTSUPP
+        self.log("XX chmod(%r, %r)" % (path, mode))
+        #return -errno.EOPNOTSUPP
 
     @logexc
     def chown(self, path, user, group):
-        self.log("chown(%r, %r, %r)" % (path, user, group))
-        return -errno.EOPNOTSUPP
+        self.log("XX chown(%r, %r, %r)" % (path, user, group))
+        #return -errno.EOPNOTSUPP
 
     @logexc
     def truncate(self, path, len):
-        self.log("truncate(%r, %r)" % (path, len))
-        return -errno.EOPNOTSUPP
+        self.log("XX truncate(%r, %r)" % (path, len))
+        #return -errno.EOPNOTSUPP
 
     @logexc
     def utime(self, path, times):
-        self.log("utime(%r, %r)" % (path, times))
-        return -errno.EOPNOTSUPP
+        self.log("XX utime(%r, %r)" % (path, times))
+        #return -errno.EOPNOTSUPP
 
     @logexc
     def statfs(self):
@@ -321,10 +349,19 @@ class TahoeFuse(fuse.Fuse):
     @logexc
     def getattr(self, path):
         log('getattr(%r)' % (path,))
-        node = self.tfs.get_path(path)
-        if node is None:
-            return -errno.ENOENT
-        return node.get_stat()
+
+        if path == '/':
+            # we don't have any metadata for the root (no edge leading to it)
+            mode = (stat.S_IFDIR | 755)
+            mtime = self.tfs.root.mtime
+            s = TStat({}, st_mode=mode, st_nlink=1, st_mtime=mtime)
+            log('getattr(%r) -> %r' % (path, s))
+            return s
+            
+        parent, name, child = self.tfs.get_parent_name_and_child(path)
+        if not child: # implicitly 'or not parent'
+            raise ENOENT('No such file or directory')
+        return parent.get_stat(name)
 
     @logexc
     def access(self, path, mode):
@@ -378,11 +415,22 @@ def fingerprint(uri):
     return base64.b32encode(sha.new(uri).digest()).lower()[:6]
 
 class TStat(fuse.Stat):
-    def __init__(self, **kwargs):
+    fields = [ 'st_mode', 'st_ino', 'st_dev', 'st_nlink', 'st_uid', 'st_gid', 'st_size',
+               'st_atime', 'st_mtime', 'st_ctime', ]
+    def __init__(self, metadata, **kwargs):
+        # first load any stat fields present in 'metadata'
+        for st in [ 'mtime', 'ctime' ]:
+            if st in metadata:
+                setattr(self, "st_%s" % st, metadata[st])
+        for st in self.fields:
+            if st in metadata:
+                setattr(self, st, metadata[st])
+
+        # then set any values passed in as kwargs
         fuse.Stat.__init__(self, **kwargs)
 
     def __repr__(self):
-        return "<Stat%r" % {
+        return "<Stat%r>" % {
             'st_mode': self.st_mode,
             'st_ino': self.st_ino,
             'st_dev': self.st_dev,
@@ -396,26 +444,86 @@ class TStat(fuse.Stat):
             }
 
 class Directory(object):
-    def __init__(self, ro_uri, rw_uri):
+    def __init__(self, tfs, ro_uri, rw_uri):
+        self.tfs = tfs
         self.ro_uri = ro_uri
         self.rw_uri = rw_uri
         assert (rw_uri or ro_uri)
         self.children = {}
+        self.last_load = None
+        self.last_data = None
+        self.mtime = 0
 
     def __repr__(self):
         return "<Directory %s>" % (fingerprint(self.get_uri()),)
+
+    def maybe_refresh(self, name=None):
+        """
+        if the previously cached data was retrieved within the cache
+        validity period, does nothing. otherwise refetches the data
+        for this directory and reloads itself
+        """
+        now = time.time()
+        if self.last_load is None or (now - self.last_load) > self.tfs.cache_validity:
+            self.load(name)
+
+    def load(self, name=None):
+        now = time.time()
+        print 'loading', name or self
+        log('%s.loading(%s)' % (self, name))
+        url = self.tfs.compose_url("uri/%s?t=json", self.get_uri())
+        data = urllib.urlopen(url).read()
+        h = tagged_hash('cache_hash', data)
+        if h == self.last_data:
+            self.last_load = now
+            log('%s.load() : no change h(data)=%s' % (self, base32.b2a(h), ))
+            return
+        try:
+            parsed = simplejson.loads(data)
+        except ValueError:
+            log('%s.load(): unable to parse json data for dir:\n%r' % (self, data))
+            return
+        nodetype, d = parsed
+        assert nodetype == 'dirnode'
+        self.children.clear()
+        for cname,details in d['children'].items():
+            cname = str(cname)
+            ctype, cattrs = details
+            metadata = cattrs.get('metadata', {})
+            if ctype == 'dirnode':
+                cobj = self.tfs.dir_for(cname, cattrs.get('ro_uri'), cattrs.get('rw_uri'))
+            else:
+                assert ctype == "filenode"
+                cobj = File(cattrs.get('size'), cattrs.get('ro_uri'))
+            self.children[cname] = cobj, metadata
+        self.last_load = now
+        self.last_data = h
+        self.mtime = now
+        log('%s.load() loaded: \n%s' % (self, self.pprint(),))
 
     def get_children(self):
         return self.children.keys()
 
     def get_child(self, name):
-        return self.children[name]
+        return self.children[name][0]
 
-    def add_child(self, name, file_node):
-        self.children[name] = file_node
+    def add_child(self, name, child, metadata):
+        log('%s.add_child(%r, %r, %r)' % (self, name, child, metadata, ))
+        self.children[name] = child, metadata
+        url = self.tfs.compose_url("uri/%s/%s?t=uri", self.get_uri(), name)
+        child_cap = do_http('PUT', url, child.get_uri())
+        # XXX [ ] TODO: push metadata to tahoe node
+        assert child_cap == child.get_uri()
+        self.mtime = time.time()
+        log('added child %r with %r to %r' % (name, child_cap, self))
 
     def remove_child(self, name):
+        log('%s.remove_child(%r)' % (self, name, ))
         del self.children[name]
+        url = self.tfs.compose_url("uri/%s/%s", self.get_uri(), name)
+        resp = do_http('DELETE', url)
+        self.mtime = time.time()
+        log('child (%s) removal yielded %r' % (name, resp,))
 
     def get_uri(self):
         return self.rw_uri or self.ro_uri
@@ -423,81 +531,77 @@ class Directory(object):
     def writable(self):
         return self.rw_uri and self.rw_uri != self.ro_uri
 
-    def pprint(self, prefix='', printed=None):
+    def pprint(self, prefix='', printed=None, suffix=''):
         ret = []
         if printed is None:
             printed = set()
         writable = self.writable() and '+' or ' '
         if self in printed:
-            ret.append("         %s/%s ... <%s>" % (prefix, writable, fingerprint(self.get_uri()), ))
+            ret.append("         %s/%s ... <%s> : %s" % (prefix, writable, fingerprint(self.get_uri()), suffix, ))
         else:
-            ret.append("[%s] %s/%s" % (fingerprint(self.get_uri()), prefix, writable, ))
+            ret.append("[%s] %s/%s : %s" % (fingerprint(self.get_uri()), prefix, writable, suffix, ))
             printed.add(self)
-            for name,f in sorted(self.children.items()):
-                ret.append(f.pprint(' ' * (len(prefix)+1)+name, printed))
+            for name,(child,metadata) in sorted(self.children.items()):
+                ret.append(child.pprint(' ' * (len(prefix)+1)+name, printed, repr(metadata)))
         return '\n'.join(ret)
 
-    def get_stat(self):
-        s = TStat(st_mode = stat.S_IFDIR | 0755, st_nlink = 2)
-        log("%s.get_stat()->%s" % (self, s))
+    def get_metadata(self, name):
+        return self.children[name][1]
+
+    def get_stat(self, name):
+        child,metadata = self.children[name]
+        log("%s.get_stat(%s) md: %r" % (self, name, metadata))
+
+        if isinstance(child, Directory):
+            child.maybe_refresh(name)
+            mode = metadata.get('st_mode') or (stat.S_IFDIR | 0755)
+            s = TStat(metadata, st_mode=mode, st_nlink=1, st_mtime=child.mtime)
+        else:
+            if hasattr(child, 'tmp_fname'):
+                s = os.stat(child.tmp_fname)
+                log("%s.get_stat(%s) returning local stat of tmp file" % (self, name, ))
+            else:
+                s = TStat(metadata,
+                          st_nlink = 1,
+                          st_size = child.size,
+                          st_mode = metadata.get('st_mode') or (stat.S_IFREG | 0444),
+                          st_mtime = metadata.get('mtime') or self.mtime,
+                          )
+            return s
+
+        log("%s.get_stat(%s)->%s" % (self, name, s))
         return s
 
 class File(object):
-    def __init__(self, size, ro_uri, metadata):
+    def __init__(self, size, ro_uri):
         self.size = size
         if ro_uri:
             ro_uri = str(ro_uri)
         self.ro_uri = ro_uri
-        self.metadata = metadata or {}
 
     def __repr__(self):
         return "<File %s>" % (fingerprint(self.ro_uri) or [self.tmp_fname],)
 
-    def pprint(self, prefix='', printed=None):
-        times, remainder = self.get_times()
-        return "         %s (%s) %s %s" % (prefix, self.size, times, remainder)
-
-    def get_times(self):
-        rem = self.metadata.copy()
-        now = time.time()
-        times = {}
-        for T in ['c', 'm']:
-            t = rem.pop('%stime'%T, None)
-            if not t:
-                t = 'none'
-            elif (now-t) < 86400:
-                t = time.strftime('%a:%H:%M:%S', time.localtime(t))
-            else:
-                t = time.strftime('%Y:%b:%d:%H:%M', time.localtime(t))
-            times[T] = t
-        return times, rem
-
-    def get_stat(self):
-        if hasattr(self, 'tmp_fname'):
-            s = os.stat(self.tmp_fname)
-            log("%s.get_stat()->%s" % (self, s))
-        else:
-            s = TStat(st_size=self.size, st_mode = stat.S_IFREG | 0444, st_nlink = 1)
-            log("%s.get_stat()->%s" % (self, s))
-        return s
+    def pprint(self, prefix='', printed=None, suffix=''):
+        return "         %s (%s) : %s" % (prefix, self.size, suffix, )
 
     def get_uri(self):
         return self.ro_uri
 
     def writable(self):
-        #return not self.ro_uri
         return True
 
 class TFS(object):
-    def __init__(self, nodeurl, root_uri):
+    def __init__(self, nodeurl, root_uri, cache_validity_period=DEFAULT_DIRECTORY_VALIDITY):
+        self.cache_validity = cache_validity_period
         self.nodeurl = nodeurl
         self.root_uri = root_uri
         self.dirs = {}
 
         self.cache = FileCache(nodeurl, os.path.expanduser('~/.tahoe/_cache'))
         ro_uri = NewDirectoryURI.init_from_string(self.root_uri).get_readonly()
-        self.root = Directory(ro_uri, self.root_uri)
-        self.load_dir('<root>', self.root)
+        self.root = Directory(self, ro_uri, self.root_uri)
+        self.root.maybe_refresh('<root>')
 
     def log(self, msg):
         log("<TFS> %s" % (msg, ))
@@ -505,49 +609,53 @@ class TFS(object):
     def pprint(self):
         return self.root.pprint()
 
+    def compose_url(self, fmt, *args):
+        return self.nodeurl + (fmt % tuple(map(urllib.quote, args)))
+
     def get_parent_name_and_child(self, path):
+        """
+        find the parent dir node, name of child relative to that parent, and
+        child node within the TFS object space.
+        @returns: (parent, name, child) if the child is found
+                  (parent, name, None) if the child is missing from the parent
+                  (None, name, None) if the parent is not found
+        """
+        if path == '/':
+            return 
         dirname, name = os.path.split(path)
         parent = self.get_path(dirname)
-        try:
-            child = parent.get_child(name)
-            return parent, name, child
-        except KeyError:
-            return parent, name, None
-        
+        if parent:
+            try:
+                child = parent.get_child(name)
+                return parent, name, child
+            except KeyError:
+                return parent, name, None
+        else:
+            return None, name, None
+
     def get_path(self, path):
         comps = path.strip('/').split('/')
         if comps == ['']:
             comps = []
         cursor = self.root
+        c_name = '<root>'
         for comp in comps:
             if not isinstance(cursor, Directory):
                 self.log('path "%s" is not a dir' % (path,))
                 return None
+            cursor.maybe_refresh(c_name)
             try:
-                cursor = cursor.children[comp]
+                cursor = cursor.get_child(comp)
+                c_name = comp
             except KeyError:
                 self.log('path "%s" not found' % (path,))
                 return None
+        if isinstance(cursor, Directory):
+            cursor.maybe_refresh(c_name)
         return cursor
 
-    def load_dir(self, name, dirobj):
-        print 'loading', name, dirobj
-        url = self.nodeurl + "uri/%s?t=json" % urllib.quote(dirobj.get_uri())
-        data = urllib.urlopen(url).read()
-        parsed = simplejson.loads(data)
-        nodetype, d = parsed
-        assert nodetype == 'dirnode'
-        for name,details in d['children'].items():
-            name = str(name)
-            ctype, cattrs = details
-            if ctype == 'dirnode':
-                cobj = self.dir_for(name, cattrs.get('ro_uri'), cattrs.get('rw_uri'))
-            else:
-                assert ctype == "filenode"
-                cobj = File(cattrs.get('size'), cattrs.get('ro_uri'), cattrs.get('metadata'))
-            dirobj.children[name] = cobj
-
     def dir_for(self, name, ro_uri, rw_uri):
+        #self.log('dir_for(%s) [%s/%s]' % (name, fingerprint(ro_uri), fingerprint(rw_uri)))
         if ro_uri:
             ro_uri = str(ro_uri)
         if rw_uri:
@@ -556,57 +664,68 @@ class TFS(object):
         assert uri
         dirobj = self.dirs.get(uri)
         if not dirobj:
-            dirobj = Directory(ro_uri, rw_uri)
+            self.log('dir_for(%s) creating new Directory' % (name, ))
+            dirobj = Directory(self, ro_uri, rw_uri)
             self.dirs[uri] = dirobj
-            self.load_dir(name, dirobj)
         return dirobj
 
     def upload(self, fname):
         self.log('upload(%r)' % (fname,))
         fh = file(fname, 'rb')
-        url = self.nodeurl + "uri"
+        url = self.compose_url("uri")
         file_cap = do_http('PUT', url, fh)
         self.log('uploaded to: %r' % (file_cap,))
         return file_cap
 
-    def add_child(self, parent_dir_uri, child_name, child_uri):
-        self.log('add_child(%r, %r, %r)' % (parent_dir_uri, child_name, child_uri,))
-        url = self.nodeurl + "uri/%s/%s?t=uri" % (urllib.quote(parent_dir_uri), urllib.quote(child_name), )
-        child_cap = do_http('PUT', url, child_uri)
-        assert child_cap == child_uri
-        self.log('added child %r with %r to %r' % (child_name, child_uri, parent_dir_uri))
-        return child_uri
-
-    def remove_child(self, parent_uri, child_name):
-        self.log('remove_child(%r, %r)' % (parent_uri, child_name, ))
-        url = self.nodeurl + "uri/%s/%s" % (urllib.quote(parent_uri), urllib.quote(child_name))
-        resp = do_http('DELETE', url)
-        self.log('child removal yielded %r' % (resp,))
-
     def mkdir(self, path):
         self.log('mkdir(%r)' % (path,))
-        url = self.nodeurl + "uri?t=mkdir"
+        parent, name, child = self.get_parent_name_and_child(path)
+
+        if child:
+            raise EEXIST('File exists: %s' % (name,))
+        if not parent:
+            raise ENOENT('No such file or directory: %s' % (path,))
+
+        url = self.compose_url("uri?t=mkdir")
         new_dir_cap = do_http('PUT', url)
-        parent_path, name = os.path.split(path)
-        self.log('parent_path, name = %s, %s' % (parent_path, name,))
-        parent = self.get_path(parent_path)
-        self.log('parent = %s' % (parent, ))
-        self.log('new_dir_cap = %s' % (new_dir_cap, ))
-        child_uri = self.add_child(parent.get_uri(), name, new_dir_cap)
-        ro_uri = NewDirectoryURI.init_from_string(child_uri).get_readonly()
-        child = Directory(ro_uri, child_uri)
-        parent.add_child(name, child)
+
+        ro_uri = NewDirectoryURI.init_from_string(new_dir_cap).get_readonly()
+        child = Directory(self, ro_uri, new_dir_cap)
+        parent.add_child(name, child, {})
 
     def rename(self, path, path1):
         self.log('rename(%s, %s)' % (path, path1))
+        src_parent, src_name, src_child = self.get_parent_name_and_child(path)
+        dst_parent, dst_name, dst_child = self.get_parent_name_and_child(path1)
+
+        if not src_child or not dst_parent:
+            raise ENOENT('No such file or directory')
+
+        dst_parent.add_child(dst_name, src_child, {})
+        src_parent.remove_child(src_name)
+
+    def unlink(self, path):
         parent, name, child = self.get_parent_name_and_child(path)
-        child_uri = child.get_uri()
-        new_parent_path, new_child_name = os.path.split(path1)
-        new_parent = self.get_path(new_parent_path)
-        self.add_child(new_parent.get_uri(), new_child_name, child_uri)
-        self.remove_child(parent.get_uri(), name)
+
+        if child is None: # parent or child is missing
+            raise ENOENT('No such file or directory')
+        if not parent.writable():
+            raise EACCESS('Permission denied')
+
         parent.remove_child(name)
-        new_parent.add_child(new_child_name, child)
+
+    def link(self, path, path1):
+        src = self.get_path(path)
+        dst_parent, dst_name, dst_child = self.get_parent_name_and_child(path1)
+
+        if not src:
+            raise ENOENT('No such file or directory')
+        if dst_parent is None:
+            raise ENOENT('No such file or directory')
+        if not dst_parent.writable():
+            raise EACCESS('Permission denied')
+
+        dst_parent.add_child(dst_name, src, {})
 
 class FileCache(object):
     def __init__(self, nodeurl, cachedir):
@@ -666,6 +785,7 @@ class FileCache(object):
         fname = os.path.join(self.tmpdir, base64.b32encode(id).lower())
         return fname
 
+_tfs = None # to appease pyflakes; is set in main()
 def print_tree():
     log('tree:\n' + _tfs.pprint())
 
@@ -675,11 +795,10 @@ def main(argv):
     if not argv:
         argv = ['--help']
     if len(argv) == 1 and argv[0] in ['-h', '--help', '--version']:
-        #print USAGE
         launch_tahoe_fuse(None, argv)
         return -2
 
-    if not argv[0].startswith('-'):
+    if not argv[0].startswith('-') and len(argv) > 1:
         cap_name = argv[0]
         basedir = getbasedir(cap_name)
         if basedir is None:
@@ -688,6 +807,14 @@ def main(argv):
         argv = argv[1:]
     else:
         basedir = getbasedir() # default 'root_dir'
+        cap_name = 'root_dir'
+
+    # switch to named log file.
+    global logfile
+    fname = 'tfuse.%s.log' % (cap_name,)
+    log('switching to %s' % (fname,))
+    logfile.close()
+    logfile = file(fname, 'ab')
 
     if argv[-1].startswith('-'):
         print 'mountpoint not given'
@@ -710,4 +837,4 @@ def main(argv):
     launch_tahoe_fuse(tfs, argv)
 
 if __name__ == '__main__':
-    main(sys.argv)
+    main(sys.argv[1:])
