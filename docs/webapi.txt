@@ -120,11 +120,11 @@ d. examining files or directories
 
    GET $FILEURL?t=json :
 
-    [ 'filenode', { 'ro_uri': file_uri,
-                    'size': bytes,
-                    'metadata': {'ctime': 1202777696.7564139,
-                                 'mtime': 1202777696.7564139,
-                                 },
+    [ "filenode", { "ro_uri": file_uri,
+                    "size": bytes,
+                    "metadata": {"ctime": 1202777696.7564139,
+                                 "mtime": 1202777696.7564139
+                                 }
                     } ]
 
   If it is a directory, then it includes information about the children of
@@ -136,24 +136,24 @@ d. examining files or directories
 
    GET $DIRURL?t=json :
 
-    [ 'dirnode', { 'rw_uri': read_write_uri,
-                   'ro_uri': read_only_uri,
-                   'children': [
-                     'foo.txt': [ 'filenode', { 'ro_uri': uri,
-                                                'size': bytes,
-                                                'metadata': {
-                                                  'ctime': 1202777696.7564139,
-                                                  'mtime': 1202777696.7564139,
-                                                 },
+    [ "dirnode", { "rw_uri": read_write_uri,
+                   "ro_uri": read_only_uri,
+                   "children": {
+                     "foo.txt": [ "filenode", { "ro_uri": uri,
+                                                "size": bytes,
+                                                "metadata": {
+                                                  "ctime": 1202777696.7564139,
+                                                  "mtime": 1202777696.7564139
+                                                 }
                                                } ],
-                     'subdir':  [ 'dirnode', { 'rw_uri': rwuri,
-                                               'ro_uri': rouri,
-                                                'metadata': {
-                                                  'ctime': 1202778102.7589991,
-                                                  'mtime': 1202778111.2160511,
-                                                 },
-                                              } ],
-                    ] } ]
+                     "subdir":  [ "dirnode", { "rw_uri": rwuri,
+                                               "ro_uri": rouri,
+                                                "metadata": {
+                                                  "ctime": 1202778102.7589991,
+                                                  "mtime": 1202778111.2160511,
+                                                 }
+                                              } ]
+                    } } ]
 
   In the above example, note how 'children' is a dictionary in which the keys
   are child names and the values depend upon whether the child is a file or a
