@@ -110,7 +110,7 @@ def make_verifier_uri():
     return uri.SSKVerifierURI(storage_index=os.urandom(16),
                               fingerprint=os.urandom(32))
 
-class NonGridDirectoryNode(dirnode.NewDirectoryNode):
+class FakeDirectoryNode(dirnode.NewDirectoryNode):
     """This offers IDirectoryNode, but uses a FakeMutableFileNode for the
     backing store, so it doesn't go to the grid. The child data is still
     encrypted and serialized, so this isn't useful for tests that want to

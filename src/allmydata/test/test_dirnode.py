@@ -7,14 +7,12 @@ from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
      INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode
 from allmydata.util import hashutil, testutil
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
-     NonGridDirectoryNode, create_chk_filenode
+     FakeDirectoryNode, create_chk_filenode
 from twisted.internet import defer, reactor
 
 # to test dirnode.py, we want to construct a tree of real DirectoryNodes that
 # contain pointers to fake files. We start with a fake MutableFileNode that
 # stores all of its data in a static table.
-
-FakeDirectoryNode = NonGridDirectoryNode
 
 class Marker:
     implements(IFileNode, IMutableFileNode) # sure, why not
@@ -281,8 +279,8 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.delete(u"d3"))
             d.addCallback(lambda res: n.delete(u"d4"))
 
-            # metadata through set_uris()
-            d.addCallback(lambda res: n.set_uris([ (u"e1", fake_file_uri),
+            # metadata through set_children()
+            d.addCallback(lambda res: n.set_children([ (u"e1", fake_file_uri),
                                                    (u"e2", fake_file_uri, {}),
                                                    (u"e3", fake_file_uri,
                                                     {"key": "value"}),

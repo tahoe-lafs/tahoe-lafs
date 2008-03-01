@@ -7,7 +7,7 @@ from twisted.web import client, error, http
 from twisted.python import failure, log
 from allmydata import interfaces, provisioning, uri, webish, upload, download
 from allmydata.util import fileutil
-from allmydata.test.common import NonGridDirectoryNode, FakeCHKFileNode, FakeMutableFileNode, create_chk_filenode
+from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, FakeMutableFileNode, create_chk_filenode
 from allmydata.interfaces import IURI, INewDirectoryURI, IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, IMutableFileNode
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
@@ -35,18 +35,18 @@ class FakeClient(service.MultiService):
     def connected_to_introducer(self):
         return False
 
-    def create_node_from_uri(self, uri):
-        u = IURI(uri)
+    def create_node_from_uri(self, auri):
+        u = uri.from_string(auri)
         if (INewDirectoryURI.providedBy(u)
             or IReadonlyNewDirectoryURI.providedBy(u)):
-            return NonGridDirectoryNode(self).init_from_uri(u)
+            return FakeDirectoryNode(self).init_from_uri(u)
         if IFileURI.providedBy(u):
             return FakeCHKFileNode(u, self)
         assert IMutableFileURI.providedBy(u), u
         return FakeMutableFileNode(self).init_from_uri(u)
 
     def create_empty_dirnode(self):
-        n = NonGridDirectoryNode(self)
+        n = FakeDirectoryNode(self)
         d = n.create()
         d.addCallback(lambda res: n)
         return d
@@ -1297,6 +1297,46 @@ class Web(WebMixin, unittest.TestCase):
         d.addBoth(self.shouldRedirect, "/THERE")
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessNodeKeysAre, [])
+        return d
+
+    def test_POST_set_children(self):
+        contents9, n9, newuri9 = self.makefile(9)
+        contents10, n10, newuri10 = self.makefile(10)
+        contents11, n11, newuri11 = self.makefile(11)
+
+        reqbody = """{
+                     "atomic_added_1": [ "filenode", { "rw_uri": "%s",
+                                                "size": 0,
+                                                "metadata": {
+                                                  "ctime": 1002777696.7564139,
+                                                  "mtime": 1002777696.7564139
+                                                 }
+                                               } ], 
+                     "atomic_added_2": [ "filenode", { "rw_uri": "%s",
+                                                "size": 1,
+                                                "metadata": {
+                                                  "ctime": 1002777696.7564139,
+                                                  "mtime": 1002777696.7564139
+                                                 }
+                                               } ],
+                     "atomic_added_3": [ "filenode", { "rw_uri": "%s",
+                                                "size": 2,
+                                                "metadata": {
+                                                  "ctime": 1002777696.7564139,
+                                                  "mtime": 1002777696.7564139
+                                                 }
+                                               } ]
+                    }""" % (newuri9, newuri10, newuri11)
+
+        url = self.webish_url + self.public_url + "/foo" + "?t=set_children"
+
+        d = client.getPage(url, method="POST", postdata=reqbody)
+        def _then(res):
+            self.failUnlessURIMatchesChild(newuri9, self._foo_node, u"atomic_added_1")
+            self.failUnlessURIMatchesChild(newuri10, self._foo_node, u"atomic_added_2")
+            self.failUnlessURIMatchesChild(newuri11, self._foo_node, u"atomic_added_3")
+
+        d.addCallback(_then)
         return d
 
     def test_POST_put_uri(self):

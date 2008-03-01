@@ -669,7 +669,7 @@ class IDirectoryNode(IMutableFilesystemNode):
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
 
-    def set_uris(entries):
+    def set_children(entries):
         """Add multiple (name, child_uri) pairs (or (name, child_uri,
         metadata) triples) to a directory node. Returns a Deferred that fires
         (with None) when the operation finishes. This is equivalent to

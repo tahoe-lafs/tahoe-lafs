@@ -899,6 +899,16 @@ class POSTHandler(rend.Page):
         d.addCallback(_got_child_check)
         return d
 
+    def _POST_set_children(self, children):
+        cs = []
+        for name, (file_or_dir, mddict) in children.iteritems():
+            cap = str(mddict.get('rw_uri') or mddict.get('ro_uri'))
+            cs.append((name, cap, mddict.get('metadata')))
+
+        d = self._node.set_children(cs)
+        d.addCallback(lambda res: "Okay so I did it.")
+        return d
+
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
 
@@ -973,16 +983,16 @@ class POSTHandler(rend.Page):
             d = self._POST_overwrite(contents)
         elif t == "check":
             d = self._POST_check(name)
-        # elif t == "set_children":
-        #     d = self._POST_set_(name)
-        #     if not name:
-        #         raise RuntimeError("set-uri requires a name")
-        #     newuri = get_arg(req, "uri")
-        #     assert newuri is not None
-        #     d = self._check_replacement(name)
-        #     d.addCallback(lambda res: self._node.set_uri(name, newuri))
-        #     d.addCallback(lambda res: newuri)
-
+        elif t == "set_children":
+            req.content.seek(0)
+            body = req.content.read()
+            try:
+                children = simplejson.loads(body)
+            except ValueError, le:
+                le.args = tuple(le.args + (body,))
+                # TODO test handling of bad JSON
+                raise
+            d = self._POST_set_children(children)
         else:
             print "BAD t=%s" % t
             return "BAD t=%s" % t
@@ -1346,9 +1356,8 @@ class UnlinkedPUTSSKUploader(rend.Page):
         req = inevow.IRequest(ctx)
         assert req.method == "PUT"
         # SDMF: files are small, and we can only upload data
-        contents = req.content
-        contents.seek(0)
-        data = contents.read()
+        req.content.seek(0)
+        data = req.content.read()
         d = IClient(ctx).create_mutable_file(data)
         d.addCallback(lambda n: n.get_uri())
         return d

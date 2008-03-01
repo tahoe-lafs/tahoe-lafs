@@ -250,7 +250,7 @@ class NewDirectoryNode:
         assert isinstance(name, unicode)
         return self.set_node(name, self._create_node(child_uri), metadata)
 
-    def set_uris(self, entries):
+    def set_children(self, entries):
         node_entries = []
         for e in entries:
             if len(e) == 2:
