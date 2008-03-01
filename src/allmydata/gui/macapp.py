@@ -20,6 +20,7 @@ from allmydata.gui.confwiz import ConfWizApp, ACCOUNT_PAGE, DEFAULT_SERVER_URL
 from allmydata.uri import NewDirectoryURI
 import amdicon
 
+DEFAULT_FUSE_TIMEOUT = 300
 
 TRY_TO_INSTALL_TAHOE_SCRIPT = True
 TAHOE_SCRIPT = '''#!/bin/bash
@@ -331,13 +332,19 @@ class MountPanel(wx.Panel):
         bin_path = sys.executable[:-6] + 'Allmydata Tahoe'
         log.msg('%r exists: %r' % (bin_path, os.path.exists(bin_path),))
 
+        foptions = []
+        foptions.append('-ovolname=%s' % (cap_name,))
+
+        timeout = DEFAULT_FUSE_TIMEOUT
+        # [ ] TODO: make this configurable
+        if timeout:
+            foptions.append('-odaemon_timeout=%d' % (timeout,))
+
         icns_path = os.path.join(self.app.basedir, 'private', cap_name+'.icns')
         if os.path.exists(icns_path):
-            icon_arg = ['-ovolicon=%s' % (icns_path,)]
-        else:
-            icon_arg = []
+            foptions.append('-ovolicon=%s' % (icns_path,))
 
-        command = [bin_path, 'fuse', cap_name] + icon_arg + [mountpoint]
+        command = [bin_path, 'fuse', cap_name] + foptions + [mountpoint]
         log.msg('spawning command %r' % (command,))
         proc = subprocess.Popen(command,
                                 cwd=self.app.basedir,
