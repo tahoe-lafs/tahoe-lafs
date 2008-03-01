@@ -1,0 +1,26 @@
+<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+  <head>
+    <title>AllMyData - Tahoe - File Upload Status</title>
+    <!-- <link href="http://www.allmydata.com/common/css/styles.css"
+          rel="stylesheet" type="text/css"/> -->
+    <link href="/webform_css" rel="stylesheet" type="text/css"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  </head>
+  <body>
+
+<h1>File Upload Status</h1>
+
+<ul>
+  <li>Storage Index: <span n:render="si"/></li>
+  <li>Helper?: <span n:render="helper"/></li>
+  <li>Total Size: <span n:render="total_size"/></li>
+  <li>Progress (Hash): <span n:render="progress_hash"/></li>
+  <li>Progress (Ciphertext): <span n:render="progress_ciphertext"/></li>
+  <li>Progress (Encode+Push): <span n:render="progress_encode_push"/></li>
+  <li>Status: <span n:render="status"/></li>
+</ul>
+
+<div>Return to the <a href="/">Welcome Page</a></div>
+
+  </body>
+</html>

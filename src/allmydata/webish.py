@@ -1608,6 +1608,70 @@ class UnlinkedPOSTCreateDirectory(rend.Page):
             d.addCallback(lambda dirnode: dirnode.get_uri())
         return d
 
+class UploadStatusPage(rend.Page):
+    docFactory = getxmlfile("upload-status.xhtml")
+
+    def render_si(self, ctx, data):
+        si_s = base32.b2a_or_none(data.get_storage_index())
+        if si_s is None:
+            si_s = "(None)"
+        return si_s
+
+    def render_helper(self, ctx, data):
+        return {True: "Yes",
+                False: "No"}[data.using_helper()]
+
+    def render_total_size(self, ctx, data):
+        size = data.get_size()
+        if size is None:
+            size = "(unknown)"
+        return size
+
+    def render_progress_hash(self, ctx, data):
+        progress = data.get_progress()[0]
+        # TODO: make an ascii-art bar
+        return "%.1f%%" % (100.0 * progress)
+
+    def render_progress_ciphertext(self, ctx, data):
+        progress = data.get_progress()[1]
+        # TODO: make an ascii-art bar
+        return "%.1f%%" % (100.0 * progress)
+
+    def render_progress_encode_push(self, ctx, data):
+        progress = data.get_progress()[2]
+        # TODO: make an ascii-art bar
+        return "%.1f%%" % (100.0 * progress)
+
+    def render_status(self, ctx, data):
+        return data.get_status()
+
+class DownloadStatusPage(rend.Page):
+    docFactory = getxmlfile("download-status.xhtml")
+
+    def render_si(self, ctx, data):
+        si_s = base32.b2a_or_none(data.get_storage_index())
+        if si_s is None:
+            si_s = "(None)"
+        return si_s
+
+    def render_helper(self, ctx, data):
+        return {True: "Yes",
+                False: "No"}[data.using_helper()]
+
+    def render_total_size(self, ctx, data):
+        size = data.get_size()
+        if size is None:
+            size = "(unknown)"
+        return size
+
+    def render_progress(self, ctx, data):
+        progress = data.get_progress()
+        # TODO: make an ascii-art bar
+        return "%.1f%%" % (100.0 * progress)
+
+    def render_status(self, ctx, data):
+        return data.get_status()
+
 class Status(rend.Page):
     docFactory = getxmlfile("status.xhtml")
     addSlash = True
@@ -1624,6 +1688,25 @@ class Status(rend.Page):
     def data_recent_downloads(self, ctx, data):
         return [d for d in IClient(ctx).list_recent_downloads()
                 if not d.get_active()]
+
+    def childFactory(self, ctx, name):
+        client = IClient(ctx)
+        stype,count_s = name.split("-")
+        count = int(count_s)
+        if stype == "up":
+            for s in client.list_recent_uploads():
+                if s.get_counter() == count:
+                    return UploadStatusPage(s)
+            for s in client.list_all_uploads():
+                if s.get_counter() == count:
+                    return UploadStatusPage(s)
+        if stype == "down":
+            for s in client.list_recent_downloads():
+                if s.get_counter() == count:
+                    return DownloadStatusPage(s)
+            for s in client.list_all_downloads():
+                if s.get_counter() == count:
+                    return DownloadStatusPage(s)
 
     def _render_common(self, ctx, data):
         s = data
@@ -1642,8 +1725,7 @@ class Status(rend.Page):
         else:
             assert IDownloadStatus.providedBy(data)
             link = "down-%d" % data.get_counter()
-        #ctx.fillSlots("status", T.a(href=link)[s.get_status()])
-        ctx.fillSlots("status", s.get_status())
+        ctx.fillSlots("status", T.a(href=link)[s.get_status()])
 
     def render_row_upload(self, ctx, data):
         self._render_common(ctx, data)
