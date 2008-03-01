@@ -1,5 +1,5 @@
 
-import os, random, weakref
+import os, random, weakref, itertools
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer, IConsumer
@@ -327,6 +327,7 @@ class SegmentDownloader:
 
 class DownloadStatus:
     implements(IDownloadStatus)
+    statusid_counter = itertools.count(0)
 
     def __init__(self):
         self.storage_index = None
@@ -337,6 +338,7 @@ class DownloadStatus:
         self.paused = False
         self.stopped = False
         self.active = True
+        self.counter = self.statusid_counter.next()
 
     def get_storage_index(self):
         return self.storage_index
@@ -355,6 +357,8 @@ class DownloadStatus:
         return self.progress
     def get_active(self):
         return self.active
+    def get_counter(self):
+        return self.counter
 
     def set_storage_index(self, si):
         self.storage_index = si
@@ -907,10 +911,12 @@ class Downloader(service.MultiService):
     """
     implements(IDownloader)
     name = "downloader"
+    MAX_DOWNLOAD_STATUSES = 10
 
     def __init__(self):
         service.MultiService.__init__(self)
         self._all_downloads = weakref.WeakKeyDictionary()
+        self._recent_download_status = []
 
     def download(self, u, t):
         assert self.parent
@@ -925,7 +931,10 @@ class Downloader(service.MultiService):
             dl = FileDownloader(self.parent, u, t)
         else:
             raise RuntimeError("I don't know how to download a %s" % u)
-        self._all_downloads[dl.get_download_status()] = None
+        self._all_downloads[dl] = None
+        self._recent_download_status.append(dl.get_download_status())
+        while len(self._recent_download_status) > self.MAX_DOWNLOAD_STATUSES:
+            self._recent_download_status.pop(0)
         d = dl.start()
         return d
 
@@ -938,5 +947,7 @@ class Downloader(service.MultiService):
         return self.download(uri, FileHandle(filehandle))
 
 
-    def list_downloads(self):
+    def list_all_downloads(self):
         return self._all_downloads.keys()
+    def list_recent_downloads(self):
+        return self._recent_download_status

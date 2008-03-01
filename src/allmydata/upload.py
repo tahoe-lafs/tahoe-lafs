@@ -1,5 +1,5 @@
 
-import os, time, weakref
+import os, time, weakref, itertools
 from zope.interface import implements
 from twisted.python import failure
 from twisted.internet import defer
@@ -564,6 +564,7 @@ class EncryptAnUploadable:
 
 class UploadStatus:
     implements(IUploadStatus)
+    statusid_counter = itertools.count(0)
 
     def __init__(self):
         self.storage_index = None
@@ -572,6 +573,7 @@ class UploadStatus:
         self.status = "Not started"
         self.progress = [0.0, 0.0, 0.0]
         self.active = True
+        self.counter = self.statusid_counter.next()
 
     def get_storage_index(self):
         return self.storage_index
@@ -585,6 +587,8 @@ class UploadStatus:
         return tuple(self.progress)
     def get_active(self):
         return self.active
+    def get_counter(self):
+        return self.counter
 
     def set_storage_index(self, si):
         self.storage_index = si
@@ -1139,11 +1143,13 @@ class Uploader(service.MultiService):
     name = "uploader"
     uploader_class = CHKUploader
     URI_LIT_SIZE_THRESHOLD = 55
+    MAX_UPLOAD_STATUSES = 10
 
     def __init__(self, helper_furl=None):
         self._helper_furl = helper_furl
         self._helper = None
         self._all_uploads = weakref.WeakKeyDictionary()
+        self._recent_upload_status = []
         service.MultiService.__init__(self)
 
     def startService(self):
@@ -1180,7 +1186,10 @@ class Uploader(service.MultiService):
                 uploader = AssistedUploader(self._helper)
             else:
                 uploader = self.uploader_class(self.parent)
-            self._all_uploads[uploader.get_upload_status()] = None
+            self._all_uploads[uploader] = None
+            self._recent_upload_status.append(uploader.get_upload_status())
+            while len(self._recent_upload_status) > self.MAX_UPLOAD_STATUSES:
+                self._recent_upload_status.pop(0)
             return uploader.start(uploadable)
         d.addCallback(_got_size)
         def _done(res):
@@ -1189,5 +1198,7 @@ class Uploader(service.MultiService):
         d.addBoth(_done)
         return d
 
-    def list_uploads(self):
+    def list_all_uploads(self):
         return self._all_uploads.keys()
+    def list_recent_uploads(self):
+        return self._recent_upload_status

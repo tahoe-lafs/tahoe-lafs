@@ -67,9 +67,14 @@ class FakeClient(service.MultiService):
         d.addCallback(_got_data)
         return d
 
-    def list_uploads(self):
+    def list_all_uploads(self):
         return [upload.UploadStatus()]
-    def list_downloads(self):
+    def list_all_downloads(self):
+        return [download.DownloadStatus()]
+
+    def list_recent_uploads(self):
+        return [upload.UploadStatus()]
+    def list_recent_downloads(self):
         return [download.DownloadStatus()]
 
 
@@ -375,7 +380,7 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_status(self):
-        d = self.GET("/status")
+        d = self.GET("/status", followRedirect=True)
         def _check(res):
             self.failUnless('Upload and Download Status' in res)
         d.addCallback(_check)

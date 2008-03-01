@@ -9,7 +9,7 @@ from nevow.static import File as nevow_File # TODO: merge with static.File?
 from allmydata.util import base32, fileutil, idlib, observer, log
 import simplejson
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode, \
-     IMutableFileNode
+     IMutableFileNode, IUploadStatus, IDownloadStatus
 import allmydata # to display import path
 from allmydata import download
 from allmydata.upload import FileHandle, FileName
@@ -1610,15 +1610,20 @@ class UnlinkedPOSTCreateDirectory(rend.Page):
 
 class Status(rend.Page):
     docFactory = getxmlfile("status.xhtml")
+    addSlash = True
 
     def data_active_uploads(self, ctx, data):
-        return [u for u in IClient(ctx).list_uploads() if u.get_active()]
+        return [u for u in IClient(ctx).list_all_uploads()
+                if u.get_active()]
     def data_active_downloads(self, ctx, data):
-        return [d for d in IClient(ctx).list_downloads() if d.get_active()]
+        return [d for d in IClient(ctx).list_all_downloads()
+                if d.get_active()]
     def data_recent_uploads(self, ctx, data):
-        return [u for u in IClient(ctx).list_uploads() if not u.get_active()]
+        return [u for u in IClient(ctx).list_recent_uploads()
+                if not u.get_active()]
     def data_recent_downloads(self, ctx, data):
-        return [d for d in IClient(ctx).list_downloads() if not d.get_active()]
+        return [d for d in IClient(ctx).list_recent_downloads()
+                if not d.get_active()]
 
     def _render_common(self, ctx, data):
         s = data
@@ -1632,6 +1637,12 @@ class Status(rend.Page):
         if size is None:
             size = "(unknown)"
         ctx.fillSlots("total_size", size)
+        if IUploadStatus.providedBy(data):
+            link = "up-%d" % data.get_counter()
+        else:
+            assert IDownloadStatus.providedBy(data)
+            link = "down-%d" % data.get_counter()
+        #ctx.fillSlots("status", T.a(href=link)[s.get_status()])
         ctx.fillSlots("status", s.get_status())
 
     def render_row_upload(self, ctx, data):

@@ -1388,12 +1388,23 @@ class IClient(Interface):
         """
 
 class IClientStatus(Interface):
-    def list_uploads():
-        """Return a list of IUploadStatus objects, one for each
-        upload which is currently running."""
-    def list_downloads():
-        """Return a list of IDownloadStatus objects, one for each
-        download which is currently running."""
+    def list_all_uploads():
+        """Return a list of IUploadStatus objects, one for each upload which
+        currently has an object available. This uses weakrefs to track the
+        objects, so it may report uploads which have already finished. Use
+        get_active() to filter these out."""
+    def list_recent_uploads():
+        """Return a list of IUploadStatus objects for the most recently
+        started uploads."""
+
+    def list_all_downloads():
+        """Return a list of IDownloadStatus objects, one for each download
+        which currently has an object available. This uses weakrefs to track
+        the objects, so it may report downloadswhich have already finished.
+        Use get_active() to filter these out."""
+    def list_recent_downloads():
+        """Return a list of IDownloadStatus objects for the most recently
+        started downloads."""
 
 class IUploadStatus(Interface):
     def get_storage_index():
@@ -1422,6 +1433,10 @@ class IUploadStatus(Interface):
         three numbers and report the sum to the user."""
     def get_active():
         """Return True if the upload is currently active, False if not."""
+    def get_counter():
+        """Each upload status gets a unique number: this method returns that
+        number. This provides a handle to this particular upload, so a web
+        page can generate a suitable hyperlink."""
 
 class IDownloadStatus(Interface):
     def get_storage_index():
@@ -1443,6 +1458,10 @@ class IDownloadStatus(Interface):
         first byte of plaintext is pushed to the download target."""
     def get_active():
         """Return True if the download is currently active, False if not."""
+    def get_counter():
+        """Each download status gets a unique number: this method returns
+        that number. This provides a handle to this particular download, so a
+        web page can generate a suitable hyperlink."""
 
 
 class NotCapableError(Exception):
