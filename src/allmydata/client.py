@@ -207,19 +207,6 @@ class Client(node.Node, testutil.PollMixin):
 
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS
-        p = self.introducer_client.encoding_parameters # a tuple
-        # TODO: make the 0.7.1 introducer publish a dict instead of a tuple
-        params = {"k": p[0],
-                  "happy": p[1],
-                  "n": p[2],
-                  }
-        if len(p) == 3:
-            # TODO: compatibility with 0.7.0 Introducer that doesn't specify
-            # segment_size
-            self.log("Introducer didn't provide max_segment_size, using 1MiB",
-                     level=log.UNUSUAL)
-            params["max_segment_size"] = 1*MiB
-        return params
 
     def connected_to_introducer(self):
         if self.introducer_client:
