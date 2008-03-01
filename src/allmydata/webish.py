@@ -33,8 +33,8 @@ class ILocalAccess(Interface):
         can talk to the webserver control over the local (disk) filesystem."""
 
 def boolean_of_arg(arg):
-    assert arg.lower() in ("true", "t", "1", "false", "f", "0")
-    return arg.lower() in ("true", "t", "1")
+    assert arg.lower() in ("true", "t", "1", "false", "f", "0", "on", "off")
+    return arg.lower() in ("true", "t", "1", "on")
 
 def get_arg(req, argname, default=None, multiple=False):
     """Extract an argument from either the query args (req.args) or the form
