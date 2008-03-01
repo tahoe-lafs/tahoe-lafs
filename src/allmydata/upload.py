@@ -347,8 +347,9 @@ class EncryptAnUploadable:
     implements(IEncryptedUploadable)
     CHUNKSIZE = 50*1024
 
-    def __init__(self, original):
+    def __init__(self, original, log_parent=None):
         self.original = IUploadable(original)
+        self._log_number = log_parent
         self._encryptor = None
         self._plaintext_hasher = plaintext_hasher()
         self._plaintext_segment_hasher = None
@@ -365,6 +366,8 @@ class EncryptAnUploadable:
     def log(self, *args, **kwargs):
         if "facility" not in kwargs:
             kwargs["facility"] = "upload.encryption"
+        if "parent" not in kwargs:
+            kwargs["parent"] = self._log_number
         return log.msg(*args, **kwargs)
 
     def get_size(self):
@@ -511,8 +514,8 @@ class EncryptAnUploadable:
         bytes_processed = 0
         while data:
             chunk = data.pop(0)
-            log.msg(" read_encrypted handling %dB-sized chunk" % len(chunk),
-                    level=log.NOISY)
+            self.log(" read_encrypted handling %dB-sized chunk" % len(chunk),
+                     level=log.NOISY)
             bytes_processed += len(chunk)
             self._plaintext_hasher.update(chunk)
             self._update_segment_hash(chunk)
@@ -523,7 +526,7 @@ class EncryptAnUploadable:
             # before each call to (hash_only==False) _encryptor.process()
             ciphertext = self._encryptor.process(chunk)
             if hash_only:
-                log.msg("  skipping encryption")
+                self.log("  skipping encryption", level=log.NOISY)
             else:
                 cryptdata.append(ciphertext)
             del ciphertext
@@ -627,7 +630,7 @@ class CHKUploader:
         uploadable = IUploadable(uploadable)
         self.log("starting upload of %s" % uploadable)
 
-        eu = EncryptAnUploadable(uploadable)
+        eu = EncryptAnUploadable(uploadable, self._log_number)
         eu.set_upload_status(self._upload_status)
         d = self.start_encrypted(eu)
         def _uploaded(res):
@@ -887,15 +890,15 @@ class AssistedUploader:
         s.set_helper(True)
         s.set_active(True)
 
-    def log(self, msg, parent=None, **kwargs):
-        if parent is None:
-            parent = self._log_number
-        return log.msg(msg, parent=parent, **kwargs)
+    def log(self, *args, **kwargs):
+        if "parent" not in kwargs:
+            kwargs["parent"] = self._log_number
+        return log.msg(*args, **kwargs)
 
     def start(self, uploadable):
         self._started = time.time()
         u = IUploadable(uploadable)
-        eu = EncryptAnUploadable(u)
+        eu = EncryptAnUploadable(u, self._log_number)
         eu.set_upload_status(self._upload_status)
         self._encuploadable = eu
         d = eu.get_size()
@@ -939,7 +942,8 @@ class AssistedUploader:
     def _contact_helper(self, res):
         now = self._time_contacting_helper_start = time.time()
         self._storage_index_elapsed = now - self._started
-        self.log("contacting helper..")
+        self.log(format="contacting helper for SI %(si)s..",
+                 si=storage.si_b2a(self._storage_index))
         self._upload_status.set_status("Contacting Helper")
         d = self._helper.callRemote("upload_chk", self._storage_index)
         d.addCallback(self._contacted_helper)
@@ -1128,7 +1132,8 @@ class Data(FileHandle):
         FileHandle.__init__(self, StringIO(data), contenthashkey=contenthashkey)
 
 class Uploader(service.MultiService):
-    """I am a service that allows file uploading.
+    """I am a service that allows file uploading. I am a service-child of the
+    Client.
     """
     implements(IUploader)
     name = "uploader"
