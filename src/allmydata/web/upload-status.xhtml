@@ -20,6 +20,42 @@
   <li>Status: <span n:render="status"/></li>
 </ul>
 
+<div n:render="results">
+  <h2>Upload Results</h2>
+  <ul>
+    <li>Sharemap: <span n:render="sharemap" /></li>
+    <li>Servermap: <span n:render="servermap" /></li>
+    <li>Timings:</li>
+    <ul>
+      <li>File Size: <span n:render="string" n:data="file_size" /> bytes</li>
+      <li>Total: <span n:render="time" n:data="time_total" />
+      (<span n:render="rate" n:data="rate_total" />)</li>
+      <ul>
+        <li>Storage Index: <span n:render="time" n:data="time_storage_index" />
+        (<span n:render="rate" n:data="rate_storage_index" />)</li>
+        <li>[Contacting Helper]: <span n:render="time" n:data="time_contacting_helper" /></li>
+        <ul>
+          <li>[Helper Already-In-Grid Check]: <span n:render="time" n:data="time_existence_check" /></li>
+        </ul>
+        <li>[Upload Ciphertext To Helper]: <span n:render="time" n:data="time_cumulative_fetch" />
+        (<span n:render="rate" n:data="rate_ciphertext_fetch" />)</li>
+
+        <li>Peer Selection: <span n:render="time" n:data="time_peer_selection" /></li>
+        <li>Encode And Push: <span n:render="time" n:data="time_total_encode_and_push" />
+        (<span n:render="rate" n:data="rate_encode_and_push" />)</li>
+        <ul>
+          <li>Cumulative Encoding: <span n:render="time" n:data="time_cumulative_encoding" />
+          (<span n:render="rate" n:data="rate_encode" />)</li>
+          <li>Cumulative Pushing: <span n:render="time" n:data="time_cumulative_sending" />
+          (<span n:render="rate" n:data="rate_push" />)</li>
+          <li>Send Hashes And Close: <span n:render="time" n:data="time_hashes_and_close" /></li>
+        </ul>
+        <li>[Helper Total]: <span n:render="time" n:data="time_helper_total" /></li>
+      </ul>
+    </ul>
+  </ul>
+</div>
+
 <div>Return to the <a href="/">Welcome Page</a></div>
 
   </body>

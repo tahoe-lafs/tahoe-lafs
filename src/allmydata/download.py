@@ -949,5 +949,8 @@ class Downloader(service.MultiService):
 
     def list_all_downloads(self):
         return self._all_downloads.keys()
+    def list_active_downloads(self):
+        return [d.get_download_status() for d in self._all_downloads.keys()
+                if d.get_download_status().get_active()]
     def list_recent_downloads(self):
         return self._recent_download_status

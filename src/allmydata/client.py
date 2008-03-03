@@ -267,6 +267,7 @@ class Client(node.Node, testutil.PollMixin):
         uploader = self.getServiceNamed("uploader")
         return uploader.upload(uploadable)
 
+
     def list_all_uploads(self):
         uploader = self.getServiceNamed("uploader")
         return uploader.list_all_uploads()
@@ -274,6 +275,16 @@ class Client(node.Node, testutil.PollMixin):
     def list_all_downloads(self):
         downloader = self.getServiceNamed("downloader")
         return downloader.list_all_downloads()
+
+
+    def list_active_uploads(self):
+        uploader = self.getServiceNamed("uploader")
+        return uploader.list_active_uploads()
+
+    def list_active_downloads(self):
+        downloader = self.getServiceNamed("downloader")
+        return downloader.list_active_downloads()
+
 
     def list_recent_uploads(self):
         uploader = self.getServiceNamed("uploader")

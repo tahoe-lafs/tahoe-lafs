@@ -32,8 +32,8 @@ class FakeClient(service.MultiService):
                 }
     introducer_furl = "None"
     introducer_client = FakeIntroducerClient()
-    _all_uploads = [upload.UploadStatus()]
-    _all_downloads = [download.DownloadStatus()]
+    _all_upload_status = [upload.UploadStatus()]
+    _all_download_status = [download.DownloadStatus()]
 
     def connected_to_introducer(self):
         return False
@@ -71,14 +71,18 @@ class FakeClient(service.MultiService):
         return d
 
     def list_all_uploads(self):
-        return self._all_uploads
+        return []
     def list_all_downloads(self):
-        return self._all_downloads
+        return []
 
+    def list_active_uploads(self):
+        return self._all_upload_status
+    def list_active_downloads(self):
+        return self._all_download_status
     def list_recent_uploads(self):
-        return self._all_uploads
+        return self._all_upload_status
     def list_recent_downloads(self):
-        return self._all_downloads
+        return self._all_download_status
 
 
 class WebMixin(object):
@@ -1331,7 +1335,7 @@ class Web(WebMixin, unittest.TestCase):
                                                   "ctime": 1002777696.7564139,
                                                   "mtime": 1002777696.7564139
                                                  }
-                                               } ], 
+                                               } ],
                      "atomic_added_2": [ "filenode", { "rw_uri": "%s",
                                                 "size": 1,
                                                 "metadata": {

@@ -573,6 +573,7 @@ class UploadStatus:
         self.status = "Not started"
         self.progress = [0.0, 0.0, 0.0]
         self.active = True
+        self.results = None
         self.counter = self.statusid_counter.next()
 
     def get_storage_index(self):
@@ -587,6 +588,8 @@ class UploadStatus:
         return tuple(self.progress)
     def get_active(self):
         return self.active
+    def get_results(self):
+        return self.results
     def get_counter(self):
         return self.counter
 
@@ -603,6 +606,8 @@ class UploadStatus:
         self.progress[which] = value
     def set_active(self, value):
         self.active = value
+    def set_results(self, value):
+        self.results = value
 
 class CHKUploader:
     peer_selector_class = Tahoe2PeerSelector
@@ -616,6 +621,7 @@ class CHKUploader:
         self._upload_status = UploadStatus()
         self._upload_status.set_helper(False)
         self._upload_status.set_active(True)
+        self._upload_status.set_results(self._results)
 
     def log(self, *args, **kwargs):
         if "parent" not in kwargs:
@@ -776,6 +782,7 @@ class LiteralUploader:
         s.set_helper(False)
         s.set_progress(0, 1.0)
         s.set_active(False)
+        s.set_results(self._results)
 
     def start(self, uploadable):
         uploadable = IUploadable(uploadable)
@@ -971,6 +978,7 @@ class AssistedUploader:
             return d
         self.log("helper says file is already uploaded")
         self._upload_status.set_progress(1, 1.0)
+        self._upload_status.set_results(upload_results)
         return upload_results
 
     def _build_readcap(self, upload_results):
@@ -996,6 +1004,7 @@ class AssistedUploader:
             r.timings["helper_total"] = r.timings["total"]
         r.timings["total"] = now - self._started
         self._upload_status.set_status("Done")
+        self._upload_status.set_results(r)
         return r
 
     def get_upload_status(self):
@@ -1200,5 +1209,8 @@ class Uploader(service.MultiService):
 
     def list_all_uploads(self):
         return self._all_uploads.keys()
+    def list_active_uploads(self):
+        return [u.get_upload_status() for u in self._all_uploads.keys()
+                if u.get_upload_status().get_active()]
     def list_recent_uploads(self):
         return self._recent_upload_status

@@ -1372,51 +1372,8 @@ class UnlinkedPUTCreateDirectory(rend.Page):
         # XXX add redirect_to_result
         return d
 
-
-class UnlinkedPOSTCHKUploader(rend.Page):
-    """'POST /uri', to create an unlinked file."""
-    docFactory = getxmlfile("unlinked-upload.xhtml")
-
-    def __init__(self, client, req):
-        rend.Page.__init__(self)
-        # we start the upload now, and distribute notification of its
-        # completion to render_ methods with an ObserverList
-        assert req.method == "POST"
-        self._done = observer.OneShotObserverList()
-        fileobj = req.fields["file"].file
-        uploadable = FileHandle(fileobj)
-        d = client.upload(uploadable)
-        d.addBoth(self._done.fire)
-
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        when_done = get_arg(req, "when_done", None)
-        if when_done:
-            # if when_done= is provided, return a redirect instead of our
-            # usual upload-results page
-            d = self._done.when_fired()
-            d.addCallback(lambda res: url.URL.fromString(when_done))
-            return d
-        return rend.Page.renderHTTP(self, ctx)
-
-    def upload_results(self):
-        return self._done.when_fired()
-
-    def data_done(self, ctx, data):
-        d = self.upload_results()
-        d.addCallback(lambda res: "done!")
-        return d
-
-    def data_uri(self, ctx, data):
-        d = self.upload_results()
-        d.addCallback(lambda res: res.uri)
-        return d
-
-    def render_download_link(self, ctx, data):
-        d = self.upload_results()
-        d.addCallback(lambda res: T.a(href="/uri/" + urllib.quote(res.uri))
-                      ["/uri/" + res.uri])
-        return d
+class UploadResultsRendererMixin:
+    # this requires a method named 'upload_results'
 
     def render_sharemap(self, ctx, data):
         d = self.upload_results()
@@ -1574,6 +1531,51 @@ class UnlinkedPOSTCHKUploader(rend.Page):
         d.addCallback(_convert)
         return d
 
+class UnlinkedPOSTCHKUploader(UploadResultsRendererMixin, rend.Page):
+    """'POST /uri', to create an unlinked file."""
+    docFactory = getxmlfile("upload-results.xhtml")
+
+    def __init__(self, client, req):
+        rend.Page.__init__(self)
+        # we start the upload now, and distribute notification of its
+        # completion to render_ methods with an ObserverList
+        assert req.method == "POST"
+        self._done = observer.OneShotObserverList()
+        fileobj = req.fields["file"].file
+        uploadable = FileHandle(fileobj)
+        d = client.upload(uploadable)
+        d.addBoth(self._done.fire)
+
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        when_done = get_arg(req, "when_done", None)
+        if when_done:
+            # if when_done= is provided, return a redirect instead of our
+            # usual upload-results page
+            d = self._done.when_fired()
+            d.addCallback(lambda res: url.URL.fromString(when_done))
+            return d
+        return rend.Page.renderHTTP(self, ctx)
+
+    def upload_results(self):
+        return self._done.when_fired()
+
+    def data_done(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: "done!")
+        return d
+
+    def data_uri(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.uri)
+        return d
+
+    def render_download_link(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: T.a(href="/uri/" + urllib.quote(res.uri))
+                      ["/uri/" + res.uri])
+        return d
+
 class UnlinkedPOSTSSKUploader(rend.Page):
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
@@ -1608,8 +1610,24 @@ class UnlinkedPOSTCreateDirectory(rend.Page):
             d.addCallback(lambda dirnode: dirnode.get_uri())
         return d
 
-class UploadStatusPage(rend.Page):
+class UploadStatusPage(UploadResultsRendererMixin, rend.Page):
     docFactory = getxmlfile("upload-status.xhtml")
+
+    def __init__(self, data):
+        rend.Page.__init__(self, data)
+        self.upload_status = data
+
+    def upload_results(self):
+        return defer.maybeDeferred(self.upload_status.get_results)
+
+    def render_results(self, ctx, data):
+        d = self.upload_results()
+        def _got_results(results):
+            if results:
+                return ctx.tag
+            return ""
+        d.addCallback(_got_results)
+        return d
 
     def render_si(self, ctx, data):
         si_s = base32.b2a_or_none(data.get_storage_index())
@@ -1677,11 +1695,9 @@ class Status(rend.Page):
     addSlash = True
 
     def data_active_uploads(self, ctx, data):
-        return [u for u in IClient(ctx).list_all_uploads()
-                if u.get_active()]
+        return [u for u in IClient(ctx).list_active_uploads()]
     def data_active_downloads(self, ctx, data):
-        return [d for d in IClient(ctx).list_all_downloads()
-                if d.get_active()]
+        return [d for d in IClient(ctx).list_active_downloads()]
     def data_recent_uploads(self, ctx, data):
         return [u for u in IClient(ctx).list_recent_uploads()
                 if not u.get_active()]
