@@ -1,6 +1,7 @@
 
 from twisted.trial import unittest
-from allmydata import filenode, uri, download
+from allmydata import filenode, uri, download, mutable
+from allmydata.util import hashutil
 
 class NotANode:
     pass
@@ -56,4 +57,49 @@ class Node(unittest.TestCase):
         d.addCallback(lambda res: fn1.download_to_data())
         d.addCallback(_check)
         return d
+
+    def test_mutable_filenode(self):
+        client = None
+        wk = "\x00"*16
+        fp = "\x00"*32
+        rk = hashutil.ssk_readkey_hash(wk)
+        si = hashutil.ssk_storage_index_hash(rk)
+
+        u = uri.WriteableSSKFileURI("\x00"*16, "\x00"*32)
+        n = mutable.MutableFileNode(client).init_from_uri(u)
+
+        self.failUnlessEqual(n.get_writekey(), wk)
+        self.failUnlessEqual(n.get_readkey(), rk)
+        self.failUnlessEqual(n.get_storage_index(), si)
+        # these itmes are populated on first read (or create), so until that
+        # happens they'll be None
+        self.failUnlessEqual(n.get_privkey(), None)
+        self.failUnlessEqual(n.get_encprivkey(), None)
+        self.failUnlessEqual(n.get_pubkey(), None)
+
+        self.failUnlessEqual(n.get_uri(), u.to_string())
+        self.failUnlessEqual(n.get_readonly_uri(), u.get_readonly().to_string())
+        self.failUnlessEqual(n.is_mutable(), True)
+        self.failUnlessEqual(n.is_readonly(), False)
+
+        n2 = mutable.MutableFileNode(client).init_from_uri(u)
+        self.failUnlessEqual(n, n2)
+        self.failIfEqual(n, "not even the right type")
+        self.failIfEqual(n, u) # not the right class
+        d = {n: "can these be used as dictionary keys?"}
+        d[n2] = "replace the old one"
+        self.failUnlessEqual(len(d), 1)
+
+        nro = n.get_readonly()
+        self.failUnless(isinstance(nro, mutable.MutableFileNode))
+
+        self.failUnlessEqual(nro.get_readonly(), nro)
+        nro_u = nro.get_uri()
+        self.failUnlessEqual(nro_u, nro.get_readonly_uri())
+        self.failUnlessEqual(nro_u, u.get_readonly().to_string())
+        self.failUnlessEqual(nro.is_mutable(), True)
+        self.failUnlessEqual(nro.is_readonly(), True)
+
+        v = n.get_verifier()
+        self.failUnless(isinstance(v, uri.SSKVerifierURI))
 

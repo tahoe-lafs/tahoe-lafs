@@ -1580,13 +1580,13 @@ class MutableFileNode:
         return self._uri.is_readonly()
 
     def __hash__(self):
-        return hash((self.__class__, self.uri))
+        return hash((self.__class__, self._uri))
     def __cmp__(self, them):
         if cmp(type(self), type(them)):
             return cmp(type(self), type(them))
         if cmp(self.__class__, them.__class__):
             return cmp(self.__class__, them.__class__)
-        return cmp(self.uri, them.uri)
+        return cmp(self._uri, them._uri)
 
     def get_verifier(self):
         return IMutableFileURI(self._uri).get_verifier()
