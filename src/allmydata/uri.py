@@ -19,7 +19,7 @@ NUMBER='([0-9]+)'
 
 # URIs (soon to be renamed "caps") are always allowed to come with a leading
 # 'http://127.0.0.1:8123/uri/' that will be ignored.
-OPTIONALHTTPLEAD=r'(?:https?://(127.0.0.1|localhost):8123/uri/)?'
+OPTIONALHTTPLEAD=r'(?:https?://(?:127.0.0.1|localhost):8123/uri/)?'
 
 
 class _BaseURI:
@@ -283,7 +283,7 @@ class SSKVerifierURI(_BaseURI):
 
     BASE_STRING='URI:SSK-Verifier:'
     STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'$')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'SSK-RO'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+'$')
+    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'SSK-Verifier'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+'$')
 
     def __init__(self, storage_index, fingerprint):
         assert len(storage_index) == 16

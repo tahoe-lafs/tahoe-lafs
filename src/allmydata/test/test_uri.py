@@ -29,6 +29,10 @@ class Literal(unittest.TestCase):
         self.failUnlessIdentical(u, u3)
         self.failUnlessEqual(u.get_verifier(), None)
 
+        he = u.to_human_encoding()
+        u_h = uri.LiteralFileURI.init_from_human_encoding(he)
+        self.failUnlessEqual(u, u_h)
+
     def test_empty(self):
         data = "" # This data is some *very* small data!
         return self._help_test(data)
@@ -53,6 +57,11 @@ class Compare(unittest.TestCase):
         # these should be hashable too
         s = set([lit1, chk1, chk2])
         self.failUnlessEqual(len(s), 2) # since chk1==chk2
+
+    def test_is_uri(self):
+        lit1 = uri.LiteralFileURI("some data").to_string()
+        self.failUnless(uri.is_uri(lit1))
+        self.failIf(uri.is_uri("this is not a uri"))
 
 class CHKFile(unittest.TestCase):
     def test_pack(self):
@@ -85,6 +94,9 @@ class CHKFile(unittest.TestCase):
         self.failUnlessIdentical(u, u_ro)
         u1a = IFileURI(u.to_string())
         self.failUnlessEqual(u1a, u)
+        he = u.to_human_encoding()
+        self.failUnlessEqual(he, "http://127.0.0.1:8123/uri/" + u.to_string())
+        self.failUnlessEqual(uri.CHKFileURI.init_from_human_encoding(he), u)
 
         u2 = uri.from_string(u.to_string())
         self.failUnlessEqual(u2.storage_index, storage_index)
@@ -106,6 +118,9 @@ class CHKFile(unittest.TestCase):
         self.failUnless(isinstance(v.to_string(), str))
         v2 = uri.from_string(v.to_string())
         self.failUnlessEqual(v, v2)
+        he = v.to_human_encoding()
+        v2_h = uri.CHKFileVerifierURI.init_from_human_encoding(he)
+        self.failUnlessEqual(v2, v2_h)
 
         v3 = uri.CHKFileVerifierURI(storage_index="\x00"*16,
                                     uri_extension_hash="\x00"*32,
@@ -193,6 +208,10 @@ class Mutable(unittest.TestCase):
         u1a = IMutableFileURI(u.to_string())
         self.failUnlessEqual(u1a, u)
 
+        he = u.to_human_encoding()
+        u_h = uri.WriteableSSKFileURI.init_from_human_encoding(he)
+        self.failUnlessEqual(u, u_h)
+
         u2 = uri.from_string(u.to_string())
         self.failUnlessEqual(u2.writekey, writekey)
         self.failUnlessEqual(u2.fingerprint, fingerprint)
@@ -211,6 +230,10 @@ class Mutable(unittest.TestCase):
         self.failUnless(IURI.providedBy(u3))
         self.failUnless(IMutableFileURI.providedBy(u3))
         self.failIf(IDirnodeURI.providedBy(u3))
+
+        he = u3.to_human_encoding()
+        u3_h = uri.ReadonlySSKFileURI.init_from_human_encoding(he)
+        self.failUnlessEqual(u3, u3_h)
 
         u4 = uri.ReadonlySSKFileURI(readkey, fingerprint)
         self.failUnlessEqual(u4.fingerprint, fingerprint)
@@ -235,6 +258,10 @@ class Mutable(unittest.TestCase):
         u7 = u.get_verifier()
         self.failUnless(IVerifierURI.providedBy(u7))
         self.failUnlessEqual(u7.storage_index, u.storage_index)
+
+        he = u5.to_human_encoding()
+        u5_h = uri.SSKVerifierURI.init_from_human_encoding(he)
+        self.failUnlessEqual(u5, u5_h)
 
 
 class NewDirnode(unittest.TestCase):
