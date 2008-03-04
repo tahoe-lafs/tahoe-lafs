@@ -14,8 +14,9 @@ from allmydata.util import log
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
 from allmydata.mutable import NotMutableError
+from allmydata.stats import PickleStatsGatherer
 from foolscap.eventual import flushEventualQueue
-from foolscap import DeadReferenceError
+from foolscap import DeadReferenceError, Tub
 from twisted.python.failure import Failure
 from twisted.web.client import getPage
 from twisted.web.error import Error
@@ -73,8 +74,23 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         iv = IntroducerNode(basedir=iv_dir)
         self.introducer = self.add_service(iv)
         d = self.introducer.when_tub_ready()
+        d.addCallback(self._set_up_stats_gatherer)
         d.addCallback(self._set_up_nodes_2)
+        d.addCallback(self._grab_stats)
         return d
+
+    def _set_up_stats_gatherer(self, res):
+        statsdir = self.getdir("stats_gatherer")
+        fileutil.make_dirs(statsdir)
+        t = Tub()
+        self.add_service(t)
+        l = t.listenOn("tcp:0")
+        p = l.getPortnum()
+        t.setLocation("localhost:%d" % p)
+
+        self.stats_gatherer = PickleStatsGatherer(t, statsdir, False)
+        self.add_service(self.stats_gatherer)
+        self.stats_gatherer_furl = self.stats_gatherer.get_furl()
 
     def _set_up_nodes_2(self, res):
         q = self.introducer
@@ -96,6 +112,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                 fileutil.make_dirs(os.path.join(basedir, "private"))
                 open(os.path.join(basedir, "private", "root_dir.cap"), "w")
             open(os.path.join(basedir, "introducer.furl"), "w").write(self.introducer_furl)
+            open(os.path.join(basedir, "stats_gatherer.furl"), "w").write(self.stats_gatherer_furl)
 
         # start client[0], wait for it's tub to be ready (at which point it
         # will have registered the helper furl).
@@ -129,6 +146,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             port = l._port.getHost().port
             self.helper_webish_url = "http://localhost:%d/" % port
         d.addCallback(_connected)
+        return d
+
+    def _grab_stats(self, res):
+        d = self.stats_gatherer.poll()
         return d
 
     def bounce_client(self, num):
@@ -224,15 +245,16 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
     del test_connections
 
     def test_upload_and_download_random_key(self):
+        self.basedir = "system/SystemTest/test_upload_and_download_random_key"
         return self._test_upload_and_download(False)
     test_upload_and_download_random_key.timeout = 4800
 
     def test_upload_and_download_content_hash_key(self):
+        self.basedir = "system/SystemTest/test_upload_and_download_CHK"
         return self._test_upload_and_download(True)
     test_upload_and_download_content_hash_key.timeout = 4800
 
     def _test_upload_and_download(self, contenthashkey):
-        self.basedir = "system/SystemTest/test_upload_and_download"
         # we use 4000 bytes of data, which will result in about 400k written
         # to disk among all our simulated nodes
         DATA = "Some data to upload\n" * 200
@@ -836,6 +858,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         # P/test_put/  (empty)
         d.addCallback(self._test_checker)
         d.addCallback(self._test_verifier)
+        d.addCallback(self._grab_stats)
         return d
     test_vdrive.timeout = 1100
 
