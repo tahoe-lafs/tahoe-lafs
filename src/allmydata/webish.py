@@ -1663,8 +1663,126 @@ class UploadStatusPage(UploadResultsRendererMixin, rend.Page):
     def render_status(self, ctx, data):
         return data.get_status()
 
-class DownloadStatusPage(rend.Page):
+class DownloadResultsRendererMixin:
+    # this requires a method named 'download_results'
+
+    def render_servers_used(self, ctx, data):
+        return "nope"
+
+    def render_servermap(self, ctx, data):
+        d = self.download_results()
+        d.addCallback(lambda res: res.servermap)
+        def _render(servermap):
+            if servermap is None:
+                return "None"
+            l = T.ul()
+            for peerid in sorted(servermap.keys()):
+                peerid_s = idlib.shortnodeid_b2a(peerid)
+                shares_s = ",".join([str(shnum) for shnum in servermap[peerid]])
+                l[T.li["[%s] got shares: %s" % (peerid_s, shares_s)]]
+            return l
+        d.addCallback(_render)
+        return d
+
+    def data_file_size(self, ctx, data):
+        d = self.download_results()
+        d.addCallback(lambda res: res.file_size)
+        return d
+
+    def render_time(self, ctx, data):
+        # 1.23s, 790ms, 132us
+        if data is None:
+            return ""
+        s = float(data)
+        if s >= 1.0:
+            return "%.2fs" % s
+        if s >= 0.01:
+            return "%dms" % (1000*s)
+        if s >= 0.001:
+            return "%.1fms" % (1000*s)
+        return "%dus" % (1000000*s)
+
+    def render_rate(self, ctx, data):
+        # 21.8kBps, 554.4kBps 4.37MBps
+        if data is None:
+            return ""
+        r = float(data)
+        if r > 1000000:
+            return "%1.2fMBps" % (r/1000000)
+        if r > 1000:
+            return "%.1fkBps" % (r/1000)
+        return "%dBps" % r
+
+    def _get_time(self, name):
+        d = self.download_results()
+        d.addCallback(lambda res: res.timings.get(name))
+        return d
+
+    def data_time_total(self, ctx, data):
+        return self._get_time("total")
+
+    def data_time_peer_selection(self, ctx, data):
+        return self._get_time("peer_selection")
+
+    def data_time_uri_extension(self, ctx, data):
+        return self._get_time("uri_extension")
+
+    def data_time_hashtrees(self, ctx, data):
+        return self._get_time("hashtrees")
+
+    def data_time_fetching(self, ctx, data):
+        return self._get_time("fetching")
+
+    def data_time_cumulative_fetch(self, ctx, data):
+        return self._get_time("cumulative_fetch")
+
+    def data_time_cumulative_decoding(self, ctx, data):
+        return self._get_time("cumulative_decoding")
+
+    def _get_rate(self, name):
+        d = self.download_results()
+        def _convert(r):
+            file_size = r.file_size
+            time = r.timings.get(name)
+            if time is None:
+                return None
+            try:
+                return 1.0 * file_size / time
+            except ZeroDivisionError:
+                return None
+        d.addCallback(_convert)
+        return d
+
+    def data_rate_total(self, ctx, data):
+        return self._get_rate("total")
+
+    def data_rate_fetching(self, ctx, data):
+        return self._get_rate("fetching")
+
+    def data_rate_decode(self, ctx, data):
+        return self._get_rate("cumulative_decoding")
+
+    def data_rate_fetch(self, ctx, data):
+        return self._get_rate("cumulative_fetching")
+
+class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
     docFactory = getxmlfile("download-status.xhtml")
+
+    def __init__(self, data):
+        rend.Page.__init__(self, data)
+        self.download_status = data
+
+    def download_results(self):
+        return defer.maybeDeferred(self.download_status.get_results)
+
+    def render_results(self, ctx, data):
+        d = self.download_results()
+        def _got_results(results):
+            if results:
+                return ctx.tag
+            return ""
+        d.addCallback(_got_results)
+        return d
 
     def render_si(self, ctx, data):
         si_s = base32.b2a_or_none(data.get_storage_index())

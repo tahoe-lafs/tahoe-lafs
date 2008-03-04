@@ -84,7 +84,7 @@ class CHKCheckerAndUEBFetcher:
             self.log("no readers, so no UEB", level=log.NOISY)
             return
         b,peerid = self._readers.pop()
-        rbp = storage.ReadBucketProxy(b, idlib.shortnodeid_b2a(peerid),
+        rbp = storage.ReadBucketProxy(b, peerid,
                                       storage.si_b2a(self._storage_index))
         d = rbp.startIfNecessary()
         d.addCallback(lambda res: rbp.get_uri_extension())

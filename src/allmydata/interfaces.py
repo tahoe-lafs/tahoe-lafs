@@ -1278,9 +1278,52 @@ class IUploadable(Interface):
 
 class IUploadResults(Interface):
     """I am returned by upload() methods. I contain a number of public
-    attributes which can be read to determine the results of the upload::
+    attributes which can be read to determine the results of the upload. Some
+    of these are functional, some are timing information. All of these may be
+    None.::
 
+     .file_size : the size of the file, in bytes
      .uri : the CHK read-cap for the file
+     .ciphertext_fetched : how many bytes were fetched by the helper
+     .sharemap : dict mapping share number to placement string
+     .servermap : dict mapping server peerid to a set of share numbers
+     .timings : dict of timing information, mapping name to seconds (float)
+       total : total upload time, start to finish
+       storage_index : time to compute the storage index
+       peer_selection : time to decide which peers will be used
+       contacting_helper : initial helper query to upload/no-upload decision
+       existence_check : helper pre-upload existence check
+       helper_total : initial helper query to helper finished pushing
+       cumulative_fetch : helper waiting for ciphertext requests
+       total_fetch : helper start to last ciphertext response
+       cumulative_encoding : just time spent in zfec
+       cumulative_sending : just time spent waiting for storage servers
+       hashes_and_close : last segment push to shareholder close
+       total_encode_and_push : first encode to shareholder close
+
+    """
+
+class IDownloadResults(Interface):
+    """I am created internally by download() methods. I contain a number of
+    public attributes which contain details about the download process.::
+
+      .file_size : the size of the file, in bytes
+      .servers_used : set of server peerids that were used during download
+      .server_problems : dict mapping server peerid to a problem string. Only
+                         servers that had problems (bad hashes, disconnects) are
+                         listed here.
+      .servermap : dict mapping server peerid to a set of share numbers. Only
+                   servers that had any shares are listed here.
+     .timings : dict of timing information, mapping name to seconds (float)
+       peer_selection : time to ask servers about shares
+       servers_peer_selection : dict of peerid to DYHB-query time
+       uri_extension : time to fetch a copy of the URI extension block
+       hashtrees : time to fetch the hash trees
+       fetching : time to fetch, decode, and deliver segments
+        cumulative_fetching : time spent waiting for storage servers
+        cumulative_decoding : just time spent in zfec
+       total : total download time, start to finish
+        servers_fetching : dict of peerid to list of per-segment fetch times
 
     """
 

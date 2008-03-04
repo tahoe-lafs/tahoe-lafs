@@ -18,6 +18,34 @@
   <li>Status: <span n:render="status"/></li>
 </ul>
 
+
+<div n:render="results">
+  <h2>Download Results</h2>
+  <ul>
+    <li>Servers Used: <span n:render="servers_used" /></li>
+    <li>Servermap: <span n:render="servermap" /></li>
+    <li>Timings:</li>
+    <ul>
+      <li>File Size: <span n:render="string" n:data="file_size" /> bytes</li>
+      <li>Total: <span n:render="time" n:data="time_total" />
+      (<span n:render="rate" n:data="rate_total" />)</li>
+      <ul>
+        <li>Peer Selection: <span n:render="time" n:data="time_peer_selection" /></li>
+        <li>UEB Fetch: <span n:render="time" n:data="time_uri_extension" /></li>
+        <li>Hashtree Fetch: <span n:render="time" n:data="time_hashtrees" /></li>
+        <li>Segment Fetch: <span n:render="time" n:data="time_fetching" />
+        (<span n:render="rate" n:data="rate_fetching" />)</li>
+        <ul>
+          <li>Cumulative Fetching: <span n:render="time" n:data="time_cumulative_fetch" />
+          (<span n:render="rate" n:data="rate_fetch" />)</li>
+          <li>Cumulative Decoding: <span n:render="time" n:data="time_cumulative_decoding" />
+          (<span n:render="rate" n:data="rate_decode" />)</li>
+        </ul>
+      </ul>
+    </ul>
+  </ul>
+</div>
+
 <div>Return to the <a href="/">Welcome Page</a></div>
 
   </body>

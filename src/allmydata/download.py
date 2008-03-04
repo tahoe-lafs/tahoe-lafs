@@ -1,16 +1,16 @@
 
-import os, random, weakref, itertools
+import os, random, weakref, itertools, time
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer, IConsumer
 from twisted.application import service
 from foolscap.eventual import eventually
 
-from allmydata.util import base32, mathutil, hashutil, log, idlib
+from allmydata.util import base32, mathutil, hashutil, log
 from allmydata.util.assertutil import _assert
 from allmydata import codec, hashtree, storage, uri
 from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, \
-     IDownloadStatus
+     IDownloadStatus, IDownloadResults
 from allmydata.encode import NotEnoughPeersError
 from pycryptopp.cipher.aes import AES
 
@@ -27,6 +27,16 @@ class BadCrypttextHashValue(Exception):
 
 class DownloadStopped(Exception):
     pass
+
+class DownloadResults:
+    implements(IDownloadResults)
+
+    def __init__(self):
+        self.servers_used = set()
+        self.server_problems = {}
+        self.servermap = {}
+        self.timings = {}
+        self.file_size = None
 
 class Output:
     def __init__(self, downloadable, key, total_length, log_parent,
@@ -338,6 +348,7 @@ class DownloadStatus:
         self.paused = False
         self.stopped = False
         self.active = True
+        self.results = None
         self.counter = self.statusid_counter.next()
 
     def get_storage_index(self):
@@ -357,6 +368,8 @@ class DownloadStatus:
         return self.progress
     def get_active(self):
         return self.active
+    def get_results(self):
+        return self.results
     def get_counter(self):
         return self.counter
 
@@ -376,6 +389,8 @@ class DownloadStatus:
         self.progress = value
     def set_active(self, value):
         self.active = value
+    def set_results(self, value):
+        self.results = value
 
 class FileDownloader:
     implements(IPushProducer)
@@ -396,12 +411,17 @@ class FileDownloader:
         self._si_s = storage.si_b2a(self._storage_index)
         self.init_logging()
 
+        self._started = time.time()
         self._status = s = DownloadStatus()
         s.set_status("Starting")
         s.set_storage_index(self._storage_index)
         s.set_size(self._size)
         s.set_helper(False)
         s.set_active(True)
+
+        self._results = DownloadResults()
+        s.set_results(self._results)
+        self._results.file_size = self._size
 
         if IConsumer.providedBy(downloadable):
             downloadable.registerProducer(self, True)
@@ -463,6 +483,8 @@ class FileDownloader:
     def start(self):
         self.log("starting download")
 
+        if self._results:
+            self._results.timings["servers_peer_selection"] = {}
         # first step: who should we download from?
         d = defer.maybeDeferred(self._get_all_shareholders)
         d.addCallback(self._got_all_shareholders)
@@ -495,10 +517,9 @@ class FileDownloader:
         dl = []
         for (peerid,ss) in self._client.get_permuted_peers("storage",
                                                            self._storage_index):
-            peerid_s = idlib.shortnodeid_b2a(peerid)
             d = ss.callRemote("get_buckets", self._storage_index)
             d.addCallbacks(self._got_response, self._got_error,
-                           callbackArgs=(peerid_s,))
+                           callbackArgs=(peerid,))
             dl.append(d)
         self._responses_received = 0
         self._queries_sent = len(dl)
@@ -508,14 +529,17 @@ class FileDownloader:
                                      self._queries_sent))
         return defer.DeferredList(dl)
 
-    def _got_response(self, buckets, peerid_s):
+    def _got_response(self, buckets, peerid):
         self._responses_received += 1
+        if self._results:
+            elapsed = time.time() - self._started
+            self._results.timings["servers_peer_selection"][peerid] = elapsed
         if self._status:
             self._status.set_status("Locating Shares (%d/%d)" %
                                     (self._responses_received,
                                      self._queries_sent))
         for sharenum, bucket in buckets.iteritems():
-            b = storage.ReadBucketProxy(bucket, peerid_s, self._si_s)
+            b = storage.ReadBucketProxy(bucket, peerid, self._si_s)
             self.add_share_bucket(sharenum, b)
             self._uri_extension_sources.append(b)
 
@@ -539,6 +563,10 @@ class FileDownloader:
             del self._share_vbuckets[shnum]
 
     def _got_all_shareholders(self, res):
+        if self._results:
+            now = time.time()
+            self._results.timings["peer_selection"] = now - self._started
+
         if len(self._share_buckets) < self._num_needed_shares:
             raise NotEnoughPeersError
 
@@ -558,6 +586,7 @@ class FileDownloader:
         if self._status:
             self._status.set_status("Obtaining URI Extension")
 
+        self._uri_extension_fetch_started = time.time()
         def _validate(proposal, bucket):
             h = hashutil.uri_extension_hash(proposal)
             if h != self._uri_extension_hash:
@@ -599,6 +628,10 @@ class FileDownloader:
         return d
 
     def _got_uri_extension(self, uri_extension_data):
+        if self._results:
+            elapsed = time.time() - self._uri_extension_fetch_started
+            self._results.timings["uri_extension"] = elapsed
+
         d = self._uri_extension_data = uri_extension_data
 
         self._codec = codec.get_decoder_by_name(d['codec_name'])
@@ -621,6 +654,7 @@ class FileDownloader:
         self._share_hashtree.set_hashes({0: self._roothash})
 
     def _get_hashtrees(self, res):
+        self._get_hashtrees_started = time.time()
         if self._status:
             self._status.set_status("Retrieving Hash Trees")
         d = self._get_plaintext_hashtrees()
@@ -679,7 +713,9 @@ class FileDownloader:
     def _setup_hashtrees(self, res):
         self._output.setup_hashtrees(self._plaintext_hashtree,
                                      self._crypttext_hashtree)
-
+        if self._results:
+            elapsed = time.time() - self._get_hashtrees_started
+            self._results.timings["hashtrees"] = elapsed
 
     def _create_validated_buckets(self, ignored=None):
         self._share_vbuckets = {}
@@ -718,6 +754,8 @@ class FileDownloader:
         # of ValidatedBuckets, which themselves are wrappers around
         # RIBucketReader references.
         self.active_buckets = {} # k: shnum, v: ValidatedBucket instance
+
+        self._started_fetching = time.time()
 
         d = defer.succeed(None)
         for segnum in range(self._total_segments-1):
@@ -801,6 +839,10 @@ class FileDownloader:
 
     def _done(self, res):
         self.log("download done")
+        if self._results:
+            now = time.time()
+            self._results.timings["total"] = now - self._started
+            self._results.timings["fetching"] = now - self._started_fetching
         self._output.close()
         if self.check_crypttext_hash:
             _assert(self._crypttext_hash == self._output.crypttext_hash,

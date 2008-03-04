@@ -122,6 +122,7 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         self._paused = False
         self._stopped = False
 
+        self._results = None
         self.active_buckets = {} # k: shnum, v: bucket
         self._share_buckets = [] # list of (sharenum, bucket) tuples
         self._share_vbuckets = {} # k: shnum, v: set of ValidatedBuckets
