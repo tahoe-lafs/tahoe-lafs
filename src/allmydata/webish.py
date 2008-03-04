@@ -1372,6 +1372,11 @@ class UnlinkedPUTCreateDirectory(rend.Page):
         # XXX add redirect_to_result
         return d
 
+def plural(sequence):
+    if len(sequence) == 1:
+        return ""
+    return "s"
+
 class UploadResultsRendererMixin:
     # this requires a method named 'upload_results'
 
@@ -1397,8 +1402,11 @@ class UploadResultsRendererMixin:
             l = T.ul()
             for peerid in sorted(servermap.keys()):
                 peerid_s = idlib.shortnodeid_b2a(peerid)
-                shares_s = ",".join([str(shnum) for shnum in servermap[peerid]])
-                l[T.li["[%s] got shares: %s" % (peerid_s, shares_s)]]
+                shares_s = ",".join(["#%d" % shnum
+                                     for shnum in servermap[peerid]])
+                l[T.li["[%s] got share%s: %s" % (peerid_s,
+                                                 plural(servermap[peerid]),
+                                                 shares_s)]]
             return l
         d.addCallback(_render)
         return d
@@ -1678,8 +1686,11 @@ class DownloadResultsRendererMixin:
             l = T.ul()
             for peerid in sorted(servermap.keys()):
                 peerid_s = idlib.shortnodeid_b2a(peerid)
-                shares_s = ",".join([str(shnum) for shnum in servermap[peerid]])
-                l[T.li["[%s] got shares: %s" % (peerid_s, shares_s)]]
+                shares_s = ",".join(["#%d" % shnum
+                                     for shnum in servermap[peerid]])
+                l[T.li["[%s] has share%s: %s" % (peerid_s,
+                                                 plural(servermap[peerid]),
+                                                 shares_s)]]
             return l
         d.addCallback(_render)
         return d
@@ -1730,14 +1741,17 @@ class DownloadResultsRendererMixin:
     def data_time_hashtrees(self, ctx, data):
         return self._get_time("hashtrees")
 
-    def data_time_fetching(self, ctx, data):
-        return self._get_time("fetching")
+    def data_time_segments(self, ctx, data):
+        return self._get_time("segments")
 
     def data_time_cumulative_fetch(self, ctx, data):
         return self._get_time("cumulative_fetch")
 
-    def data_time_cumulative_decoding(self, ctx, data):
-        return self._get_time("cumulative_decoding")
+    def data_time_cumulative_decode(self, ctx, data):
+        return self._get_time("cumulative_decode")
+
+    def data_time_cumulative_decrypt(self, ctx, data):
+        return self._get_time("cumulative_decrypt")
 
     def _get_rate(self, name):
         d = self.download_results()
@@ -1756,14 +1770,17 @@ class DownloadResultsRendererMixin:
     def data_rate_total(self, ctx, data):
         return self._get_rate("total")
 
-    def data_rate_fetching(self, ctx, data):
-        return self._get_rate("fetching")
-
-    def data_rate_decode(self, ctx, data):
-        return self._get_rate("cumulative_decoding")
+    def data_rate_segments(self, ctx, data):
+        return self._get_rate("segments")
 
     def data_rate_fetch(self, ctx, data):
-        return self._get_rate("cumulative_fetching")
+        return self._get_rate("cumulative_fetch")
+
+    def data_rate_decode(self, ctx, data):
+        return self._get_rate("cumulative_decode")
+
+    def data_rate_decrypt(self, ctx, data):
+        return self._get_rate("cumulative_decrypt")
 
 class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
     docFactory = getxmlfile("download-status.xhtml")

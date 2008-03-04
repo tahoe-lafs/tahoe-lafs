@@ -33,13 +33,15 @@
         <li>Peer Selection: <span n:render="time" n:data="time_peer_selection" /></li>
         <li>UEB Fetch: <span n:render="time" n:data="time_uri_extension" /></li>
         <li>Hashtree Fetch: <span n:render="time" n:data="time_hashtrees" /></li>
-        <li>Segment Fetch: <span n:render="time" n:data="time_fetching" />
-        (<span n:render="rate" n:data="rate_fetching" />)</li>
+        <li>Segment Fetch: <span n:render="time" n:data="time_segments" />
+        (<span n:render="rate" n:data="rate_segments" />)</li>
         <ul>
           <li>Cumulative Fetching: <span n:render="time" n:data="time_cumulative_fetch" />
           (<span n:render="rate" n:data="rate_fetch" />)</li>
-          <li>Cumulative Decoding: <span n:render="time" n:data="time_cumulative_decoding" />
+          <li>Cumulative Decoding: <span n:render="time" n:data="time_cumulative_decode" />
           (<span n:render="rate" n:data="rate_decode" />)</li>
+          <li>Cumulative Decrypting: <span n:render="time" n:data="time_cumulative_decrypt" />
+          (<span n:render="rate" n:data="rate_decrypt" />)</li>
         </ul>
       </ul>
     </ul>

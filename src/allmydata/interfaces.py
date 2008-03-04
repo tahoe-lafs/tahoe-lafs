@@ -1307,21 +1307,22 @@ class IDownloadResults(Interface):
     """I am created internally by download() methods. I contain a number of
     public attributes which contain details about the download process.::
 
-      .file_size : the size of the file, in bytes
+     .file_size : the size of the file, in bytes
       .servers_used : set of server peerids that were used during download
       .server_problems : dict mapping server peerid to a problem string. Only
                          servers that had problems (bad hashes, disconnects) are
                          listed here.
-      .servermap : dict mapping server peerid to a set of share numbers. Only
-                   servers that had any shares are listed here.
+     .servermap : dict mapping server peerid to a set of share numbers. Only
+                  servers that had any shares are listed here.
      .timings : dict of timing information, mapping name to seconds (float)
        peer_selection : time to ask servers about shares
        servers_peer_selection : dict of peerid to DYHB-query time
        uri_extension : time to fetch a copy of the URI extension block
        hashtrees : time to fetch the hash trees
-       fetching : time to fetch, decode, and deliver segments
-        cumulative_fetching : time spent waiting for storage servers
-        cumulative_decoding : just time spent in zfec
+       segments : time to fetch, decode, and deliver segments
+       cumulative_fetch : time spent waiting for storage servers
+       cumulative_decode : just time spent in zfec
+       cumulative_decrypt : just time spent in decryption
        total : total download time, start to finish
         servers_fetching : dict of peerid to list of per-segment fetch times
 

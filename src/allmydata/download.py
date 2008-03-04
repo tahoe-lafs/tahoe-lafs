@@ -422,6 +422,10 @@ class FileDownloader:
         self._results = DownloadResults()
         s.set_results(self._results)
         self._results.file_size = self._size
+        self._results.timings["servers_peer_selection"] = {}
+        self._results.timings["cumulative_fetch"] = 0.0
+        self._results.timings["cumulative_decode"] = 0.0
+        self._results.timings["cumulative_decrypt"] = 0.0
 
         if IConsumer.providedBy(downloadable):
             downloadable.registerProducer(self, True)
@@ -483,8 +487,6 @@ class FileDownloader:
     def start(self):
         self.log("starting download")
 
-        if self._results:
-            self._results.timings["servers_peer_selection"] = {}
         # first step: who should we download from?
         d = defer.maybeDeferred(self._get_all_shareholders)
         d.addCallback(self._got_all_shareholders)
@@ -499,6 +501,7 @@ class FileDownloader:
             if self._status:
                 self._status.set_status("Finished")
                 self._status.set_active(False)
+                self._status.set_paused(False)
             if IConsumer.providedBy(self._downloadable):
                 self._downloadable.unregisterProducer()
             return res
@@ -542,6 +545,10 @@ class FileDownloader:
             b = storage.ReadBucketProxy(bucket, peerid, self._si_s)
             self.add_share_bucket(sharenum, b)
             self._uri_extension_sources.append(b)
+            if self._results:
+                if peerid not in self._results.servermap:
+                    self._results.servermap[peerid] = set()
+                self._results.servermap[peerid].add(sharenum)
 
     def add_share_bucket(self, sharenum, bucket):
         # this is split out for the benefit of test_encode.py
@@ -785,15 +792,33 @@ class FileDownloader:
         # memory footprint: when the SegmentDownloader finishes pulling down
         # all shares, we have 1*segment_size of usage.
         segmentdler = SegmentDownloader(self, segnum, self._num_needed_shares)
+        started = time.time()
         d = segmentdler.start()
+        def _finished_fetching(res):
+            elapsed = time.time() - started
+            self._results.timings["cumulative_fetch"] += elapsed
+            return res
+        if self._results:
+            d.addCallback(_finished_fetching)
         # pause before using more memory
         d.addCallback(self._check_for_pause)
         # while the codec does its job, we hit 2*segment_size
+        def _started_decode(res):
+            self._started_decode = time.time()
+            return res
+        if self._results:
+            d.addCallback(_started_decode)
         d.addCallback(lambda (shares, shareids):
                       self._codec.decode(shares, shareids))
         # once the codec is done, we drop back to 1*segment_size, because
         # 'shares' goes out of scope. The memory usage is all in the
         # plaintext now, spread out into a bunch of tiny buffers.
+        def _finished_decode(res):
+            elapsed = time.time() - self._started_decode
+            self._results.timings["cumulative_decode"] += elapsed
+            return res
+        if self._results:
+            d.addCallback(_finished_decode)
 
         # pause/check-for-stop just before writing, to honor stopProducing
         d.addCallback(self._check_for_pause)
@@ -808,7 +833,11 @@ class FileDownloader:
             # we're down to 1*segment_size right now, but write_segment()
             # will decrypt a copy of the segment internally, which will push
             # us up to 2*segment_size while it runs.
+            started_decrypt = time.time()
             self._output.write_segment(segment)
+            if self._results:
+                elapsed = time.time() - started_decrypt
+                self._results.timings["cumulative_decrypt"] += elapsed
         d.addCallback(_done)
         return d
 
@@ -817,11 +846,29 @@ class FileDownloader:
                  % (segnum, self._total_segments,
                     100.0 * segnum / self._total_segments))
         segmentdler = SegmentDownloader(self, segnum, self._num_needed_shares)
+        started = time.time()
         d = segmentdler.start()
+        def _finished_fetching(res):
+            elapsed = time.time() - started
+            self._results.timings["cumulative_fetch"] += elapsed
+            return res
+        if self._results:
+            d.addCallback(_finished_fetching)
         # pause before using more memory
         d.addCallback(self._check_for_pause)
+        def _started_decode(res):
+            self._started_decode = time.time()
+            return res
+        if self._results:
+            d.addCallback(_started_decode)
         d.addCallback(lambda (shares, shareids):
                       self._tail_codec.decode(shares, shareids))
+        def _finished_decode(res):
+            elapsed = time.time() - self._started_decode
+            self._results.timings["cumulative_decode"] += elapsed
+            return res
+        if self._results:
+            d.addCallback(_finished_decode)
         # pause/check-for-stop just before writing, to honor stopProducing
         d.addCallback(self._check_for_pause)
         def _done(buffers):
@@ -833,7 +880,11 @@ class FileDownloader:
             pad_size = mathutil.pad_size(self._size, self._segment_size)
             tail_size = self._segment_size - pad_size
             segment = segment[:tail_size]
+            started_decrypt = time.time()
             self._output.write_segment(segment)
+            if self._results:
+                elapsed = time.time() - started_decrypt
+                self._results.timings["cumulative_decrypt"] += elapsed
         d.addCallback(_done)
         return d
 
@@ -842,7 +893,7 @@ class FileDownloader:
         if self._results:
             now = time.time()
             self._results.timings["total"] = now - self._started
-            self._results.timings["fetching"] = now - self._started_fetching
+            self._results.timings["segments"] = now - self._started_fetching
         self._output.close()
         if self.check_crypttext_hash:
             _assert(self._crypttext_hash == self._output.crypttext_hash,
