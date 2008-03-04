@@ -384,6 +384,11 @@ class DeferredUtilTests(unittest.TestCase):
         self.failUnless(f.check(RuntimeError))
 
 class HashUtilTests(unittest.TestCase):
+
+    def test_random_key(self):
+        k = hashutil.random_key()
+        self.failUnlessEqual(len(k), hashutil.KEYLEN)
+
     def test_sha256d(self):
         h1 = hashutil.tagged_hash("tag1", "value")
         h2 = hashutil.tagged_hasher("tag1")
@@ -408,3 +413,34 @@ class HashUtilTests(unittest.TestCase):
         h2.update("data")
         h2 = h2.digest()
         self.failUnlessEqual(h1, h2)
+
+    def test_hashers(self):
+        h1 = hashutil.block_hash("foo")
+        h2 = hashutil.block_hasher()
+        h2.update("foo")
+        self.failUnlessEqual(h1, h2.digest())
+
+        h1 = hashutil.uri_extension_hash("foo")
+        h2 = hashutil.uri_extension_hasher()
+        h2.update("foo")
+        self.failUnlessEqual(h1, h2.digest())
+
+        h1 = hashutil.plaintext_hash("foo")
+        h2 = hashutil.plaintext_hasher()
+        h2.update("foo")
+        self.failUnlessEqual(h1, h2.digest())
+
+        h1 = hashutil.crypttext_hash("foo")
+        h2 = hashutil.crypttext_hasher()
+        h2.update("foo")
+        self.failUnlessEqual(h1, h2.digest())
+
+        h1 = hashutil.crypttext_segment_hash("foo")
+        h2 = hashutil.crypttext_segment_hasher()
+        h2.update("foo")
+        self.failUnlessEqual(h1, h2.digest())
+
+        h1 = hashutil.plaintext_segment_hash("foo")
+        h2 = hashutil.plaintext_segment_hasher()
+        h2.update("foo")
+        self.failUnlessEqual(h1, h2.digest())
