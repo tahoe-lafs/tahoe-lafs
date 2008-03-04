@@ -405,6 +405,29 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check_ul)
         return d
 
+    def test_status_numbers(self):
+        drrm = webish.DownloadResultsRendererMixin()
+        self.failUnlessEqual(drrm.render_time(None, None), "")
+        self.failUnlessEqual(drrm.render_time(None, 2.5), "2.50s")
+        self.failUnlessEqual(drrm.render_time(None, 0.25), "250ms")
+        self.failUnlessEqual(drrm.render_time(None, 0.0021), "2.1ms")
+        self.failUnlessEqual(drrm.render_time(None, 0.000123), "123us")
+        self.failUnlessEqual(drrm.render_rate(None, None), "")
+        self.failUnlessEqual(drrm.render_rate(None, 2500000), "2.50MBps")
+        self.failUnlessEqual(drrm.render_rate(None, 30100), "30.1kBps")
+        self.failUnlessEqual(drrm.render_rate(None, 123), "123Bps")
+
+        urrm = webish.UploadResultsRendererMixin()
+        self.failUnlessEqual(urrm.render_time(None, None), "")
+        self.failUnlessEqual(urrm.render_time(None, 2.5), "2.50s")
+        self.failUnlessEqual(urrm.render_time(None, 0.25), "250ms")
+        self.failUnlessEqual(urrm.render_time(None, 0.0021), "2.1ms")
+        self.failUnlessEqual(urrm.render_time(None, 0.000123), "123us")
+        self.failUnlessEqual(urrm.render_rate(None, None), "")
+        self.failUnlessEqual(urrm.render_rate(None, 2500000), "2.50MBps")
+        self.failUnlessEqual(urrm.render_rate(None, 30100), "30.1kBps")
+        self.failUnlessEqual(urrm.render_rate(None, 123), "123Bps")
+
     def test_GET_FILEURL(self):
         d = self.GET(self.public_url + "/foo/bar.txt")
         d.addCallback(self.failUnlessIsBarDotTxt)
