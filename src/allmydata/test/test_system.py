@@ -1172,6 +1172,22 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
 
         # check that the status page exists
         d.addCallback(lambda res: self.GET("status", followRedirect=True))
+        def _got_status(res):
+            # find an interesting upload and download to look at. LIT files
+            # are not interesting.
+            for dl in self.clients[0].list_recent_downloads():
+                if dl.get_size() > 200:
+                    self._down_status = dl.get_counter()
+            for ul in self.clients[0].list_recent_uploads():
+                if ul.get_size() > 200:
+                    self._up_status = ul.get_counter()
+
+            # and that there are some upload- and download- status pages
+            return self.GET("status/up-%d" % self._up_status)
+        d.addCallback(_got_status)
+        def _got_up(res):
+            return self.GET("status/down-%d" % self._down_status)
+        d.addCallback(_got_up)
 
         # TODO: mangle the second segment of a file, to test errors that
         # occur after we've already sent some good data, which uses a
