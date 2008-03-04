@@ -18,7 +18,7 @@ from allmydata.introducer import IntroducerClient
 from allmydata.util import hashutil, base32, testutil
 from allmydata.filenode import FileNode
 from allmydata.dirnode import NewDirectoryNode
-from allmydata.mutable import MutableFileNode
+from allmydata.mutable import MutableFileNode, MutableWatcher
 from allmydata.stats import StatsProvider
 from allmydata.interfaces import IURI, INewDirectoryURI, \
      IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI
@@ -67,6 +67,7 @@ class Client(node.Node, testutil.PollMixin):
         self.add_service(Uploader(helper_furl))
         self.add_service(Downloader())
         self.add_service(Checker())
+        self.add_service(MutableWatcher())
         # ControlServer and Helper are attached after Tub startup
 
         hotline_file = os.path.join(self.basedir,
@@ -251,6 +252,11 @@ class Client(node.Node, testutil.PollMixin):
         assert IMutableFileURI.providedBy(u), u
         return MutableFileNode(self).init_from_uri(u)
 
+    def notify_publish(self, p):
+        self.getServiceNamed("mutable-watcher").notify_publish(p)
+    def notify_retrieve(self, r):
+        self.getServiceNamed("mutable-watcher").notify_retrieve(r)
+
     def create_empty_dirnode(self):
         n = NewDirectoryNode(self)
         d = n.create()
@@ -271,25 +277,39 @@ class Client(node.Node, testutil.PollMixin):
     def list_all_uploads(self):
         uploader = self.getServiceNamed("uploader")
         return uploader.list_all_uploads()
-
-    def list_all_downloads(self):
-        downloader = self.getServiceNamed("downloader")
-        return downloader.list_all_downloads()
-
-
     def list_active_uploads(self):
         uploader = self.getServiceNamed("uploader")
         return uploader.list_active_uploads()
-
-    def list_active_downloads(self):
-        downloader = self.getServiceNamed("downloader")
-        return downloader.list_active_downloads()
-
-
     def list_recent_uploads(self):
         uploader = self.getServiceNamed("uploader")
         return uploader.list_recent_uploads()
 
+    def list_all_downloads(self):
+        downloader = self.getServiceNamed("downloader")
+        return downloader.list_all_downloads()
+    def list_active_downloads(self):
+        downloader = self.getServiceNamed("downloader")
+        return downloader.list_active_downloads()
     def list_recent_downloads(self):
         downloader = self.getServiceNamed("downloader")
         return downloader.list_recent_downloads()
+
+    def list_all_publish(self):
+        watcher = self.getServiceNamed("mutable-watcher")
+        return watcher.list_all_publish()
+    def list_active_publish(self):
+        watcher = self.getServiceNamed("mutable-watcher")
+        return watcher.list_active_publish()
+    def list_recent_publish(self):
+        watcher = self.getServiceNamed("mutable-watcher")
+        return watcher.list_recent_publish()
+
+    def list_all_retrieve(self):
+        watcher = self.getServiceNamed("mutable-watcher")
+        return watcher.list_all_retrieve()
+    def list_active_retrieve(self):
+        watcher = self.getServiceNamed("mutable-watcher")
+        return watcher.list_active_retrieve()
+    def list_recent_retrieve(self):
+        watcher = self.getServiceNamed("mutable-watcher")
+        return watcher.list_recent_retrieve()

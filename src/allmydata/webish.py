@@ -9,7 +9,8 @@ from nevow.static import File as nevow_File # TODO: merge with static.File?
 from allmydata.util import base32, fileutil, idlib, observer, log
 import simplejson
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode, \
-     IMutableFileNode, IUploadStatus, IDownloadStatus
+     IMutableFileNode, IUploadStatus, IDownloadStatus, IPublishStatus, \
+     IRetrieveStatus
 import allmydata # to display import path
 from allmydata import download
 from allmydata.upload import FileHandle, FileName
@@ -1864,20 +1865,119 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
     def render_status(self, ctx, data):
         return data.get_status()
 
+class RetrieveStatusPage(rend.Page):
+    docFactory = getxmlfile("retrieve-status.xhtml")
+
+    def render_si(self, ctx, data):
+        si_s = base32.b2a_or_none(data.get_storage_index())
+        if si_s is None:
+            si_s = "(None)"
+        return si_s
+
+    def render_helper(self, ctx, data):
+        return {True: "Yes",
+                False: "No"}[data.using_helper()]
+
+    def render_current_size(self, ctx, data):
+        size = data.get_size()
+        if size is None:
+            size = "(unknown)"
+        return size
+
+    def render_progress(self, ctx, data):
+        progress = data.get_progress()
+        # TODO: make an ascii-art bar
+        return "%.1f%%" % (100.0 * progress)
+
+    def render_status(self, ctx, data):
+        return data.get_status()
+
+class PublishStatusPage(rend.Page):
+    docFactory = getxmlfile("publish-status.xhtml")
+
+    def render_si(self, ctx, data):
+        si_s = base32.b2a_or_none(data.get_storage_index())
+        if si_s is None:
+            si_s = "(None)"
+        return si_s
+
+    def render_helper(self, ctx, data):
+        return {True: "Yes",
+                False: "No"}[data.using_helper()]
+
+    def render_current_size(self, ctx, data):
+        size = data.get_size()
+        if size is None:
+            size = "(unknown)"
+        return size
+
+    def render_progress(self, ctx, data):
+        progress = data.get_progress()
+        # TODO: make an ascii-art bar
+        return "%.1f%%" % (100.0 * progress)
+
+    def render_status(self, ctx, data):
+        return data.get_status()
+
 class Status(rend.Page):
     docFactory = getxmlfile("status.xhtml")
     addSlash = True
 
-    def data_active_uploads(self, ctx, data):
-        return [u for u in IClient(ctx).list_active_uploads()]
-    def data_active_downloads(self, ctx, data):
-        return [d for d in IClient(ctx).list_active_downloads()]
-    def data_recent_uploads(self, ctx, data):
-        return [u for u in IClient(ctx).list_recent_uploads()
-                if not u.get_active()]
-    def data_recent_downloads(self, ctx, data):
-        return [d for d in IClient(ctx).list_recent_downloads()
-                if not d.get_active()]
+    def data_active_operations(self, ctx, data):
+        active =  (IClient(ctx).list_active_uploads() +
+                   IClient(ctx).list_active_downloads() +
+                   IClient(ctx).list_active_publish() +
+                   IClient(ctx).list_active_retrieve())
+        return active
+
+    def data_recent_operations(self, ctx, data):
+        recent = [o for o in (IClient(ctx).list_recent_uploads() +
+                            IClient(ctx).list_recent_downloads() +
+                            IClient(ctx).list_recent_publish() +
+                            IClient(ctx).list_recent_retrieve())
+                  if not o.get_active()]
+        return recent
+
+    def render_row(self, ctx, data):
+        s = data
+        si_s = base32.b2a_or_none(s.get_storage_index())
+        if si_s is None:
+            si_s = "(None)"
+        ctx.fillSlots("si", si_s)
+        ctx.fillSlots("helper", {True: "Yes",
+                                 False: "No"}[s.using_helper()])
+
+        size = s.get_size()
+        if size is None:
+            size = "(unknown)"
+        ctx.fillSlots("total_size", size)
+
+        progress = data.get_progress()
+        if IUploadStatus.providedBy(data):
+            link = "up-%d" % data.get_counter()
+            ctx.fillSlots("type", "upload")
+            # TODO: make an ascii-art bar
+            (chk, ciphertext, encandpush) = progress
+            progress_s = ("hash: %.1f%%, ciphertext: %.1f%%, encode: %.1f%%" %
+                          ( (100.0 * chk),
+                            (100.0 * ciphertext),
+                            (100.0 * encandpush) ))
+            ctx.fillSlots("progress", progress_s)
+        elif IDownloadStatus.providedBy(data):
+            link = "down-%d" % data.get_counter()
+            ctx.fillSlots("type", "download")
+            ctx.fillSlots("progress", "%.1f%%" % (100.0 * progress))
+        elif IPublishStatus.providedBy(data):
+            link = "publish-%d" % data.get_counter()
+            ctx.fillSlots("type", "publish")
+            ctx.fillSlots("progress", "%.1f%%" % (100.0 * progress))
+        else:
+            assert IRetrieveStatus.providedBy(data)
+            ctx.fillSlots("type", "retrieve")
+            link = "retrieve-%d" % data.get_counter()
+            ctx.fillSlots("progress", "%.1f%%" % (100.0 * progress))
+        ctx.fillSlots("status", T.a(href=link)[s.get_status()])
+        return ctx.tag
 
     def childFactory(self, ctx, name):
         client = IClient(ctx)
@@ -1897,41 +1997,20 @@ class Status(rend.Page):
             for s in client.list_all_downloads():
                 if s.get_counter() == count:
                     return DownloadStatusPage(s)
-
-    def _render_common(self, ctx, data):
-        s = data
-        si_s = base32.b2a_or_none(s.get_storage_index())
-        if si_s is None:
-            si_s = "(None)"
-        ctx.fillSlots("si", si_s)
-        ctx.fillSlots("helper", {True: "Yes",
-                                 False: "No"}[s.using_helper()])
-        size = s.get_size()
-        if size is None:
-            size = "(unknown)"
-        ctx.fillSlots("total_size", size)
-        if IUploadStatus.providedBy(data):
-            link = "up-%d" % data.get_counter()
-        else:
-            assert IDownloadStatus.providedBy(data)
-            link = "down-%d" % data.get_counter()
-        ctx.fillSlots("status", T.a(href=link)[s.get_status()])
-
-    def render_row_upload(self, ctx, data):
-        self._render_common(ctx, data)
-        (chk, ciphertext, encandpush) = data.get_progress()
-        # TODO: make an ascii-art bar
-        ctx.fillSlots("progress_hash", "%.1f%%" % (100.0 * chk))
-        ctx.fillSlots("progress_ciphertext", "%.1f%%" % (100.0 * ciphertext))
-        ctx.fillSlots("progress_encode", "%.1f%%" % (100.0 * encandpush))
-        return ctx.tag
-
-    def render_row_download(self, ctx, data):
-        self._render_common(ctx, data)
-        progress = data.get_progress()
-        # TODO: make an ascii-art bar
-        ctx.fillSlots("progress", "%.1f%%" % (100.0 * progress))
-        return ctx.tag
+        if stype == "publish":
+            for s in client.list_recent_publish():
+                if s.get_counter() == count:
+                    return PublishStatusPage(s)
+            for s in client.list_all_publish():
+                if s.get_counter() == count:
+                    return PublishStatusPage(s)
+        if stype == "retrieve":
+            for s in client.list_recent_retrieve():
+                if s.get_counter() == count:
+                    return RetrieveStatusPage(s)
+            for s in client.list_all_retrieve():
+                if s.get_counter() == count:
+                    return RetrieveStatusPage(s)
 
 
 class Root(rend.Page):

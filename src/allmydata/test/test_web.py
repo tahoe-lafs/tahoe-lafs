@@ -79,10 +79,19 @@ class FakeClient(service.MultiService):
         return self._all_upload_status
     def list_active_downloads(self):
         return self._all_download_status
+    def list_active_publish(self):
+        return []
+    def list_active_retrieve(self):
+        return []
+
     def list_recent_uploads(self):
         return self._all_upload_status
     def list_recent_downloads(self):
         return self._all_download_status
+    def list_recent_publish(self):
+        return []
+    def list_recent_retrieve(self):
+        return []
 
 
 class WebMixin(object):
@@ -391,17 +400,17 @@ class Web(WebMixin, unittest.TestCase):
         ul_num = self.s.list_recent_uploads()[0].get_counter()
         d = self.GET("/status", followRedirect=True)
         def _check(res):
-            self.failUnless('Upload and Download Status' in res)
-            self.failUnless('"down-%d"' % dl_num in res)
-            self.failUnless('"up-%d"' % ul_num in res)
+            self.failUnless('Upload and Download Status' in res, res)
+            self.failUnless('"down-%d"' % dl_num in res, res)
+            self.failUnless('"up-%d"' % ul_num in res, res)
         d.addCallback(_check)
         d.addCallback(lambda res: self.GET("/status/down-%d" % dl_num))
         def _check_dl(res):
-            self.failUnless("File Download Status" in res)
+            self.failUnless("File Download Status" in res, res)
         d.addCallback(_check_dl)
         d.addCallback(lambda res: self.GET("/status/up-%d" % ul_num))
         def _check_ul(res):
-            self.failUnless("File Upload Status" in res)
+            self.failUnless("File Upload Status" in res, res)
         d.addCallback(_check_ul)
         return d
 

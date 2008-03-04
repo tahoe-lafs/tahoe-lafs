@@ -1,11 +1,13 @@
 
-import os, struct
-from itertools import islice
+import os, struct, time, weakref
+from itertools import islice, count
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
+from twisted.application import service
 from foolscap.eventual import eventually
-from allmydata.interfaces import IMutableFileNode, IMutableFileURI
+from allmydata.interfaces import IMutableFileNode, IMutableFileURI, \
+     IPublishStatus, IRetrieveStatus
 from allmydata.util import base32, hashutil, mathutil, idlib, log
 from allmydata.uri import WriteableSSKFileURI
 from allmydata import hashtree, codec, storage
@@ -196,6 +198,48 @@ def pack_share(prefix, verification_key, signature,
     return final_share
 
 
+class RetrieveStatus:
+    implements(IRetrieveStatus)
+    statusid_counter = count(0)
+    def __init__(self):
+        self.timings = {}
+        self.sharemap = None
+        self.active = True
+        self.storage_index = None
+        self.helper = False
+        self.size = None
+        self.status = "Not started"
+        self.progress = 0.0
+        self.counter = self.statusid_counter.next()
+
+    def get_storage_index(self):
+        return self.storage_index
+    def using_helper(self):
+        return self.helper
+    def get_size(self):
+        return self.size
+    def get_status(self):
+        return self.status
+    def get_progress(self):
+        return self.progress
+    def get_active(self):
+        return self.active
+    def get_counter(self):
+        return self.counter
+
+    def set_storage_index(self, si):
+        self.storage_index = si
+    def set_helper(self, helper):
+        self.helper = helper
+    def set_size(self, size):
+        self.size = size
+    def set_status(self, status):
+        self.status = status
+    def set_progress(self, value):
+        self.progress = value
+    def set_active(self, value):
+        self.active = value
+
 class Retrieve:
     def __init__(self, filenode):
         self._node = filenode
@@ -210,6 +254,11 @@ class Retrieve:
         self._log_prefix = prefix = storage.si_b2a(self._storage_index)[:5]
         num = self._node._client.log("Retrieve(%s): starting" % prefix)
         self._log_number = num
+        self._status = RetrieveStatus()
+        self._status.set_storage_index(self._storage_index)
+        self._status.set_helper(False)
+        self._status.set_progress(0.0)
+        self._status.set_active(True)
 
     def log(self, msg, **kwargs):
         prefix = self._log_prefix
@@ -704,8 +753,14 @@ class Retrieve:
     def _done(self, contents):
         self.log("DONE")
         self._running = False
+        self._status.set_active(False)
+        self._status.set_status("Done")
+        self._status.set_progress(1.0)
+        self._status.set_size(len(contents))
         eventually(self._done_deferred.callback, contents)
 
+    def get_status(self):
+        return self._status
 
 
 class DictOfSets(dict):
@@ -714,6 +769,48 @@ class DictOfSets(dict):
             self[key].add(value)
         else:
             self[key] = set([value])
+
+class PublishStatus:
+    implements(IPublishStatus)
+    statusid_counter = count(0)
+    def __init__(self):
+        self.timings = {}
+        self.sharemap = None
+        self.active = True
+        self.storage_index = None
+        self.helper = False
+        self.size = None
+        self.status = "Not started"
+        self.progress = 0.0
+        self.counter = self.statusid_counter.next()
+
+    def get_storage_index(self):
+        return self.storage_index
+    def using_helper(self):
+        return self.helper
+    def get_size(self):
+        return self.size
+    def get_status(self):
+        return self.status
+    def get_progress(self):
+        return self.progress
+    def get_active(self):
+        return self.active
+    def get_counter(self):
+        return self.counter
+
+    def set_storage_index(self, si):
+        self.storage_index = si
+    def set_helper(self, helper):
+        self.helper = helper
+    def set_size(self, size):
+        self.size = size
+    def set_status(self, status):
+        self.status = status
+    def set_progress(self, value):
+        self.progress = value
+    def set_active(self, value):
+        self.active = value
 
 class Publish:
     """I represent a single act of publishing the mutable file to the grid."""
@@ -724,6 +821,11 @@ class Publish:
         self._log_prefix = prefix = storage.si_b2a(self._storage_index)[:5]
         num = self._node._client.log("Publish(%s): starting" % prefix)
         self._log_number = num
+        self._status = PublishStatus()
+        self._status.set_storage_index(self._storage_index)
+        self._status.set_helper(False)
+        self._status.set_progress(0.0)
+        self._status.set_active(True)
 
     def log(self, *args, **kwargs):
         if 'parent' not in kwargs:
@@ -754,6 +856,8 @@ class Publish:
         # 5: when enough responses are back, we're done
 
         self.log("starting publish, datalen is %s" % len(newdata))
+        self._started = time.time()
+        self._status.set_size(len(newdata))
 
         self._writekey = self._node.get_writekey()
         assert self._writekey, "need write capability to publish"
@@ -796,7 +900,7 @@ class Publish:
 
         d.addCallback(self._send_shares, IV)
         d.addCallback(self._maybe_recover)
-        d.addCallback(lambda res: None)
+        d.addCallback(self._done)
         return d
 
     def _query_peers(self, total_shares):
@@ -1293,6 +1397,17 @@ class Publish:
         # but dispatch_map will help us do it
         raise UncoordinatedWriteError("I was surprised!")
 
+    def _done(self, res):
+        now = time.time()
+        self._status.timings["total"] = now - self._started
+        self._status.set_active(False)
+        self._status.set_status("Done")
+        self._status.set_progress(1.0)
+        return None
+
+    def get_status(self):
+        return self._status
+
 
 # use client.create_mutable_file() to make one of these
 
@@ -1374,6 +1489,7 @@ class MutableFileNode:
 
     def _publish(self, initial_contents):
         p = self.publish_class(self)
+        self._client.notify_publish(p)
         d = p.publish(initial_contents)
         d.addCallback(lambda res: self)
         return d
@@ -1491,11 +1607,54 @@ class MutableFileNode:
         return d
 
     def download_to_data(self):
-        r = Retrieve(self)
+        r = self.retrieve_class(self)
+        self._client.notify_retrieve(r)
         return r.retrieve()
 
     def replace(self, newdata):
-        r = Retrieve(self)
+        r = self.retrieve_class(self)
+        self._client.notify_retrieve(r)
         d = r.retrieve()
         d.addCallback(lambda res: self._publish(newdata))
         return d
+
+class MutableWatcher(service.MultiService):
+    MAX_PUBLISH_STATUSES = 20
+    MAX_RETRIEVE_STATUSES = 20
+    name = "mutable-watcher"
+
+    def __init__(self):
+        service.MultiService.__init__(self)
+        self._all_publish = weakref.WeakKeyDictionary()
+        self._recent_publish_status = []
+        self._all_retrieve = weakref.WeakKeyDictionary()
+        self._recent_retrieve_status = []
+
+    def notify_publish(self, p):
+        self._all_publish[p] = None
+        self._recent_publish_status.append(p.get_status())
+        while len(self._recent_publish_status) > self.MAX_PUBLISH_STATUSES:
+            self._recent_publish_status.pop(0)
+
+    def list_all_publish(self):
+        return self._all_publish.keys()
+    def list_active_publish(self):
+        return [p.get_status() for p in self._all_publish.keys()
+                if p.get_status().get_active()]
+    def list_recent_publish(self):
+        return self._recent_publish_status
+
+
+    def notify_retrieve(self, r):
+        self._all_retrieve[r] = None
+        self._recent_retrieve_status.append(r.get_status())
+        while len(self._recent_retrieve_status) > self.MAX_RETRIEVE_STATUSES:
+            self._recent_retrieve_status.pop(0)
+
+    def list_all_retrieve(self):
+        return self._all_retrieve.keys()
+    def list_active_retrieve(self):
+        return [p.get_status() for p in self._all_retrieve.keys()
+                if p.get_status().get_active()]
+    def list_recent_retrieve(self):
+        return self._recent_retrieve_status

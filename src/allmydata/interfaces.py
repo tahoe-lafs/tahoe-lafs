@@ -1513,6 +1513,10 @@ class IDownloadStatus(Interface):
         that number. This provides a handle to this particular download, so a
         web page can generate a suitable hyperlink."""
 
+class IPublishStatus(Interface):
+    pass
+class IRetrieveStatus(Interface):
+    pass
 
 class NotCapableError(Exception):
     """You have tried to write to a read-only node."""
