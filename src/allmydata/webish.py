@@ -1695,6 +1695,20 @@ class DownloadResultsRendererMixin:
         d.addCallback(_render)
         return d
 
+    def render_problems(self, ctx, data):
+        d = self.download_results()
+        d.addCallback(lambda res: res.server_problems)
+        def _got(server_problems):
+            if not server_problems:
+                return ""
+            l = T.ul()
+            for peerid in sorted(server_problems.keys()):
+                peerid_s = idlib.shortnodeid_b2a(peerid)
+                l[T.li["[%s]: %s" % (peerid_s, server_problems[peerid])]]
+            return T.li["Server Problems:", l]
+        d.addCallback(_got)
+        return d
+
     def data_file_size(self, ctx, data):
         d = self.download_results()
         d.addCallback(lambda res: res.file_size)

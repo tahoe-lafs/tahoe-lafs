@@ -247,10 +247,11 @@ class BlockDownloader:
     I am a child of the SegmentDownloader.
     """
 
-    def __init__(self, vbucket, blocknum, parent):
+    def __init__(self, vbucket, blocknum, parent, results):
         self.vbucket = vbucket
         self.blocknum = blocknum
         self.parent = parent
+        self.results = results
         self._log_number = self.parent.log("starting block %d" % blocknum)
 
     def log(self, msg, parent=None):
@@ -272,6 +273,9 @@ class BlockDownloader:
     def _got_block_error(self, f, lognum):
         self.log("BlockDownloader[%d] got error: %s" % (self.blocknum, f),
                  parent=lognum)
+        if self.results:
+            peerid = self.vbucket.bucket.get_peerid()
+            self.results.server_problems[peerid] = str(f)
         self.parent.bucket_failed(self.vbucket)
 
 class SegmentDownloader:
@@ -281,11 +285,12 @@ class SegmentDownloader:
     I am a child of the FileDownloader.
     """
 
-    def __init__(self, parent, segmentnumber, needed_shares):
+    def __init__(self, parent, segmentnumber, needed_shares, results):
         self.parent = parent
         self.segmentnumber = segmentnumber
         self.needed_blocks = needed_shares
         self.blocks = {} # k: blocknum, v: data
+        self.results = results
         self._log_number = self.parent.log("starting segment %d" %
                                            segmentnumber)
 
@@ -324,7 +329,7 @@ class SegmentDownloader:
         # through it.
         downloaders = []
         for blocknum, vbucket in active_buckets.iteritems():
-            bd = BlockDownloader(vbucket, blocknum, self)
+            bd = BlockDownloader(vbucket, blocknum, self, self.results)
             downloaders.append(bd)
         l = [bd.start(self.segmentnumber) for bd in downloaders]
         return defer.DeferredList(l, fireOnOneErrback=True)
@@ -791,7 +796,8 @@ class FileDownloader:
                     100.0 * segnum / self._total_segments))
         # memory footprint: when the SegmentDownloader finishes pulling down
         # all shares, we have 1*segment_size of usage.
-        segmentdler = SegmentDownloader(self, segnum, self._num_needed_shares)
+        segmentdler = SegmentDownloader(self, segnum, self._num_needed_shares,
+                                        self._results)
         started = time.time()
         d = segmentdler.start()
         def _finished_fetching(res):
@@ -845,7 +851,8 @@ class FileDownloader:
         self.log("downloading seg#%d of %d (%d%%)"
                  % (segnum, self._total_segments,
                     100.0 * segnum / self._total_segments))
-        segmentdler = SegmentDownloader(self, segnum, self._num_needed_shares)
+        segmentdler = SegmentDownloader(self, segnum, self._num_needed_shares,
+                                        self._results)
         started = time.time()
         d = segmentdler.start()
         def _finished_fetching(res):

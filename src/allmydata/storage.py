@@ -1207,6 +1207,9 @@ class ReadBucketProxy:
         self._si_s = storage_index_s
         self._started = False
 
+    def get_peerid(self):
+        return self._peerid
+
     def __repr__(self):
         peerid_s = idlib.shortnodeid_b2a(self._peerid)
         return "<ReadBucketProxy to peer [%s] SI %s>" % (peerid_s,

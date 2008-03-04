@@ -1309,9 +1309,9 @@ class IDownloadResults(Interface):
 
      .file_size : the size of the file, in bytes
       .servers_used : set of server peerids that were used during download
-      .server_problems : dict mapping server peerid to a problem string. Only
-                         servers that had problems (bad hashes, disconnects) are
-                         listed here.
+     .server_problems : dict mapping server peerid to a problem string. Only
+                        servers that had problems (bad hashes, disconnects) are
+                        listed here.
      .servermap : dict mapping server peerid to a set of share numbers. Only
                   servers that had any shares are listed here.
      .timings : dict of timing information, mapping name to seconds (float)

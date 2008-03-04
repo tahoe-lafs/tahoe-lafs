@@ -31,6 +31,9 @@ class FakeBucketWriterProxy:
         self.share_hashes = None
         self.closed = False
 
+    def get_peerid(self):
+        return "peerid"
+
     def startIfNecessary(self):
         return defer.succeed(self)
     def start(self):
