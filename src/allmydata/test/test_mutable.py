@@ -3,7 +3,7 @@ import itertools, struct
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import failure, log
-from allmydata import mutable, uri, dirnode
+from allmydata import mutable, uri, dirnode, download
 from allmydata.util.hashutil import tagged_hash
 from allmydata.encode import NotEnoughPeersError
 from allmydata.interfaces import IURI, INewDirectoryURI, \
@@ -153,6 +153,8 @@ class Filenode(unittest.TestCase):
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
             d.addCallback(lambda res: n.replace("contents 2"))
             d.addCallback(lambda res: n.download_to_data())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
+            d.addCallback(lambda res: n.download(download.Data()))
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
             return d
         d.addCallback(_created)
