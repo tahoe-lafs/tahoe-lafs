@@ -261,12 +261,19 @@ class BlockDownloader:
 
     def start(self, segnum):
         lognum = self.log("get_block(segnum=%d)" % segnum)
+        started = time.time()
         d = self.vbucket.get_block(segnum)
         d.addCallbacks(self._hold_block, self._got_block_error,
-                       callbackArgs=(lognum,), errbackArgs=(lognum,))
+                       callbackArgs=(started, lognum,), errbackArgs=(lognum,))
         return d
 
-    def _hold_block(self, data, lognum):
+    def _hold_block(self, data, started, lognum):
+        if self.results:
+            elapsed = time.time() - started
+            peerid = self.vbucket.bucket.get_peerid()
+            if peerid not in self.results.timings["fetch_per_server"]:
+                self.results.timings["fetch_per_server"][peerid] = []
+            self.results.timings["fetch_per_server"][peerid].append(elapsed)
         self.log("got block", parent=lognum)
         self.parent.hold_block(self.blocknum, data)
 
@@ -331,6 +338,8 @@ class SegmentDownloader:
         for blocknum, vbucket in active_buckets.iteritems():
             bd = BlockDownloader(vbucket, blocknum, self, self.results)
             downloaders.append(bd)
+            if self.results:
+                self.results.servers_used.add(vbucket.bucket.get_peerid())
         l = [bd.start(self.segmentnumber) for bd in downloaders]
         return defer.DeferredList(l, fireOnOneErrback=True)
 
@@ -428,6 +437,7 @@ class FileDownloader:
         s.set_results(self._results)
         self._results.file_size = self._size
         self._results.timings["servers_peer_selection"] = {}
+        self._results.timings["fetch_per_server"] = {}
         self._results.timings["cumulative_fetch"] = 0.0
         self._results.timings["cumulative_decode"] = 0.0
         self._results.timings["cumulative_decrypt"] = 0.0

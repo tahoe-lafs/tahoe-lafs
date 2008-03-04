@@ -1308,7 +1308,7 @@ class IDownloadResults(Interface):
     public attributes which contain details about the download process.::
 
      .file_size : the size of the file, in bytes
-      .servers_used : set of server peerids that were used during download
+     .servers_used : set of server peerids that were used during download
      .server_problems : dict mapping server peerid to a problem string. Only
                         servers that had problems (bad hashes, disconnects) are
                         listed here.
@@ -1324,7 +1324,7 @@ class IDownloadResults(Interface):
        cumulative_decode : just time spent in zfec
        cumulative_decrypt : just time spent in decryption
        total : total download time, start to finish
-        servers_fetching : dict of peerid to list of per-segment fetch times
+       fetch_per_server : dict of peerid to list of per-segment fetch times
 
     """
 

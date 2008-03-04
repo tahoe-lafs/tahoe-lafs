@@ -22,9 +22,9 @@
 <div n:render="results">
   <h2>Download Results</h2>
   <ul>
-    <li>Servers Used: <span n:render="servers_used" /></li>
+    <li n:render="servers_used" />
     <li>Servermap: <span n:render="servermap" /></li>
-    <li n:render="problems"></li>
+    <li n:render="problems" />
     <li>Timings:</li>
     <ul>
       <li>File Size: <span n:render="string" n:data="file_size" /> bytes</li>
@@ -45,6 +45,7 @@
           (<span n:render="rate" n:data="rate_decrypt" />)</li>
         </ul>
       </ul>
+      <li n:render="server_timings" />
     </ul>
   </ul>
 </div>

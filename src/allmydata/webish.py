@@ -1674,9 +1674,6 @@ class UploadStatusPage(UploadResultsRendererMixin, rend.Page):
 class DownloadResultsRendererMixin:
     # this requires a method named 'download_results'
 
-    def render_servers_used(self, ctx, data):
-        return "nope"
-
     def render_servermap(self, ctx, data):
         d = self.download_results()
         d.addCallback(lambda res: res.servermap)
@@ -1693,6 +1690,18 @@ class DownloadResultsRendererMixin:
                                                  shares_s)]]
             return l
         d.addCallback(_render)
+        return d
+
+    def render_servers_used(self, ctx, data):
+        d = self.download_results()
+        d.addCallback(lambda res: res.servers_used)
+        def _got(servers_used):
+            if not servers_used:
+                return ""
+            peerids_s = ", ".join(["[%s]" % idlib.shortnodeid_b2a(peerid)
+                                   for peerid in servers_used])
+            return T.li["Servers Used: ", peerids_s]
+        d.addCallback(_got)
         return d
 
     def render_problems(self, ctx, data):
@@ -1795,6 +1804,22 @@ class DownloadResultsRendererMixin:
 
     def data_rate_decrypt(self, ctx, data):
         return self._get_rate("cumulative_decrypt")
+
+    def render_server_timings(self, ctx, data):
+        d = self.download_results()
+        d.addCallback(lambda res: res.timings.get("fetch_per_server"))
+        def _render(per_server):
+            if per_server is None:
+                return ""
+            l = T.ul()
+            for peerid in sorted(per_server.keys()):
+                peerid_s = idlib.shortnodeid_b2a(peerid)
+                times_s = ", ".join([self.render_time(None, t)
+                                     for t in per_server[peerid]])
+                l[T.li["[%s]: %s" % (peerid_s, times_s)]]
+            return T.li["Per-Server Segment Fetch Response Times: ", l]
+        d.addCallback(_render)
+        return d
 
 class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
     docFactory = getxmlfile("download-status.xhtml")
