@@ -203,10 +203,14 @@ class RetrieveStatus:
     statusid_counter = count(0)
     def __init__(self):
         self.timings = {}
-        self.sharemap = None
+        self.timings["fetch_per_server"] = {}
+        self.sharemap = {}
+        self.problems = {}
         self.active = True
         self.storage_index = None
         self.helper = False
+        self.encoding = ("?","?")
+        self.search_distance = None
         self.size = None
         self.status = "Not started"
         self.progress = 0.0
@@ -217,6 +221,10 @@ class RetrieveStatus:
         return self.started
     def get_storage_index(self):
         return self.storage_index
+    def get_encoding(self):
+        return self.encoding
+    def get_search_distance(self):
+        return self.search_distance
     def using_helper(self):
         return self.helper
     def get_size(self):
@@ -234,6 +242,10 @@ class RetrieveStatus:
         self.storage_index = si
     def set_helper(self, helper):
         self.helper = helper
+    def set_encoding(self, k, n):
+        self.encoding = (k, n)
+    def set_search_distance(self, value):
+        self.search_distance = value
     def set_size(self, size):
         self.size = size
     def set_status(self, status):
@@ -346,6 +358,7 @@ class Retrieve:
         # the hashes over and over again.
         self._valid_shares = {}
 
+        self._started = time.time()
         self._done_deferred = defer.Deferred()
 
         d = defer.succeed(initial_query_count)
@@ -359,6 +372,7 @@ class Retrieve:
 
     def _choose_initial_peers(self, numqueries):
         n = self._node
+        started = time.time()
         full_peerlist = n._client.get_permuted_peers("storage",
                                                      self._storage_index)
 
@@ -373,9 +387,13 @@ class Retrieve:
         # we later increase this limit, it may be useful to re-scan the
         # permuted list.
         self._peerlist_limit = numqueries
+        self._status.set_search_distance(len(self._peerlist))
+        elapsed = time.time() - started
+        self._status.timings["peer_selection"] = elapsed
         return self._peerlist
 
     def _send_initial_requests(self, peerlist):
+        self._first_query_sent = time.time()
         self._bad_peerids = set()
         self._running = True
         self._queries_outstanding = set()
@@ -392,9 +410,11 @@ class Retrieve:
         return None
 
     def _do_query(self, ss, peerid, storage_index, readsize):
+        started = time.time()
         self._queries_outstanding.add(peerid)
         d = ss.callRemote("slot_readv", storage_index, [], [(0, readsize)])
-        d.addCallback(self._got_results, peerid, readsize, (ss, storage_index))
+        d.addCallback(self._got_results, peerid, readsize, (ss, storage_index),
+                      started)
         d.addErrback(self._query_failed, peerid)
         # errors that aren't handled by _query_failed (and errors caused by
         # _query_failed) get logged, but we still want to check for doneness.
@@ -406,11 +426,18 @@ class Retrieve:
         verifier = rsa.create_verifying_key_from_string(pubkey_s)
         return verifier
 
-    def _got_results(self, datavs, peerid, readsize, stuff):
+    def _got_results(self, datavs, peerid, readsize, stuff, started):
+        elapsed = time.time() - started
+        if peerid not in self._status.timings["fetch_per_server"]:
+            self._status.timings["fetch_per_server"][peerid] = []
+        self._status.timings["fetch_per_server"][peerid].append(elapsed)
         self._queries_outstanding.discard(peerid)
         self._used_peers.add(peerid)
         if not self._running:
             return
+
+        if peerid not in self._status.sharemap:
+            self._status.sharemap[peerid] = set()
 
         for shnum,datav in datavs.items():
             data = datav[0]
@@ -447,16 +474,20 @@ class Retrieve:
             fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
             assert len(fingerprint) == 32
             if fingerprint != self._node._fingerprint:
+                self._status.problems[peerid] = "sh#%d: pubkey doesn't match fingerprint" % shnum
                 raise CorruptShareError(peerid, shnum,
                                         "pubkey doesn't match fingerprint")
             self._pubkey = self._deserialize_pubkey(pubkey_s)
             self._node._populate_pubkey(self._pubkey)
 
         verinfo = (seqnum, root_hash, IV, segsize, datalength)
+        self._status.sharemap[peerid].add(verinfo)
+
         if verinfo not in self._valid_versions:
             # it's a new pair. Verify the signature.
             valid = self._pubkey.verify(prefix, signature)
             if not valid:
+                self._status.problems[peerid] = "sh#%d: invalid signature" % shnum
                 raise CorruptShareError(peerid, shnum,
                                         "signature is invalid")
             # ok, it's a valid verinfo. Add it to the list of validated
@@ -486,11 +517,15 @@ class Retrieve:
         # rest of the shares), we need to implement the refactoring mentioned
         # above.
         if k != self._required_shares:
+            self._status.problems[peerid] = "sh#%d: k=%d, we want %d" \
+                                            % (shnum, k, self._required_shares)
             raise CorruptShareError(peerid, shnum,
                                     "share has k=%d, we want k=%d" %
                                     (k, self._required_shares))
 
         if N != self._total_shares:
+            self._status.problems[peerid] = "sh#%d: N=%d, we want %d" \
+                                            % (shnum, N, self._total_shares)
             raise CorruptShareError(peerid, shnum,
                                     "share has N=%d, we want N=%d" %
                                     (N, self._total_shares))
@@ -587,14 +622,19 @@ class Retrieve:
                      level=log.UNUSUAL)
         # are there any peers on the list that we haven't used?
         new_query_peers = []
-        for (peerid, ss) in self._peerlist:
+        peer_indicies = []
+        for i, (peerid, ss) in enumerate(self._peerlist):
             if peerid not in self._used_peers:
                 new_query_peers.append( (peerid, ss) )
+                peer_indicies.append(i)
                 if len(new_query_peers) > 5:
                     # only query in batches of 5. TODO: this is pretty
                     # arbitrary, really I want this to be something like
                     # k - max(known_version_sharecounts) + some extra
                     break
+        new_search_distance = max(max(peer_indicies),
+                                  self._status.get_search_distance())
+        self._status.set_search_distance(new_search_distance)
         if new_query_peers:
             self.log("sending %d new queries (read %d bytes)" %
                      (len(new_query_peers), self._read_size), level=log.UNUSUAL)
@@ -671,6 +711,8 @@ class Retrieve:
         # now that the big loop is done, all shares in the sharemap are
         # valid, and they're all for the same seqnum+root_hash version, so
         # it's now down to doing FEC and decrypt.
+        elapsed = time.time() - self._started
+        self._status.timings["fetch"] = elapsed
         assert len(shares) >= self._required_shares, len(shares)
         d = defer.maybeDeferred(self._decode, shares, segsize, datalength)
         d.addCallback(self._decrypt, IV, seqnum, root_hash)
@@ -728,8 +770,12 @@ class Retrieve:
 
         self.log("params %s, we have %d shares" % (params, len(shares)))
         self.log("about to decode, shareids=%s" % (shareids,))
+        started = time.time()
         d = defer.maybeDeferred(fec.decode, shares, shareids)
         def _done(buffers):
+            elapsed = time.time() - started
+            self._status.timings["decode"] = elapsed
+            self._status.set_encoding(self._required_shares, self._total_shares)
             self.log(" decode done, %d buffers" % len(buffers))
             segment = "".join(buffers)
             self.log(" joined length %d, datalength %d" %
@@ -745,9 +791,12 @@ class Retrieve:
         return d
 
     def _decrypt(self, crypttext, IV, seqnum, root_hash):
+        started = time.time()
         key = hashutil.ssk_readkey_data_hash(IV, self._readkey)
         decryptor = AES(key)
         plaintext = decryptor.process(crypttext)
+        elapsed = time.time() - started
+        self._status.timings["decrypt"] = elapsed
         # it worked, so record the seqnum and root_hash for next time
         self._node._populate_seqnum(seqnum)
         self._node._populate_root_hash(root_hash)
@@ -760,6 +809,8 @@ class Retrieve:
         self._status.set_status("Done")
         self._status.set_progress(1.0)
         self._status.set_size(len(contents))
+        elapsed = time.time() - self._started
+        self._status.timings["total"] = elapsed
         eventually(self._done_deferred.callback, contents)
 
     def get_status(self):

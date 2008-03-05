@@ -1373,12 +1373,42 @@ class UnlinkedPUTCreateDirectory(rend.Page):
         # XXX add redirect_to_result
         return d
 
-def plural(sequence):
-    if len(sequence) == 1:
+def plural(sequence_or_length):
+    if isinstance(sequence_or_length, int):
+        length = sequence_or_length
+    else:
+        length = len(sequence_or_length)
+    if length == 1:
         return ""
     return "s"
 
-class UploadResultsRendererMixin:
+class RateAndTimeMixin:
+
+    def render_time(self, ctx, data):
+        # 1.23s, 790ms, 132us
+        if data is None:
+            return ""
+        s = float(data)
+        if s >= 1.0:
+            return "%.2fs" % s
+        if s >= 0.01:
+            return "%dms" % (1000*s)
+        if s >= 0.001:
+            return "%.1fms" % (1000*s)
+        return "%dus" % (1000000*s)
+
+    def render_rate(self, ctx, data):
+        # 21.8kBps, 554.4kBps 4.37MBps
+        if data is None:
+            return ""
+        r = float(data)
+        if r > 1000000:
+            return "%1.2fMBps" % (r/1000000)
+        if r > 1000:
+            return "%.1fkBps" % (r/1000)
+        return "%dBps" % r
+
+class UploadResultsRendererMixin(RateAndTimeMixin):
     # this requires a method named 'upload_results'
 
     def render_sharemap(self, ctx, data):
@@ -1416,30 +1446,6 @@ class UploadResultsRendererMixin:
         d = self.upload_results()
         d.addCallback(lambda res: res.file_size)
         return d
-
-    def render_time(self, ctx, data):
-        # 1.23s, 790ms, 132us
-        if data is None:
-            return ""
-        s = float(data)
-        if s >= 1.0:
-            return "%.2fs" % s
-        if s >= 0.01:
-            return "%dms" % (1000*s)
-        if s >= 0.001:
-            return "%.1fms" % (1000*s)
-        return "%dus" % (1000000*s)
-
-    def render_rate(self, ctx, data):
-        # 21.8kBps, 554.4kBps 4.37MBps
-        if data is None:
-            return ""
-        r = float(data)
-        if r > 1000000:
-            return "%1.2fMBps" % (r/1000000)
-        if r > 1000:
-            return "%.1fkBps" % (r/1000)
-        return "%dBps" % r
 
     def _get_time(self, name):
         d = self.upload_results()
@@ -1678,7 +1684,7 @@ class UploadStatusPage(UploadResultsRendererMixin, rend.Page):
     def render_status(self, ctx, data):
         return data.get_status()
 
-class DownloadResultsRendererMixin:
+class DownloadResultsRendererMixin(RateAndTimeMixin):
     # this requires a method named 'download_results'
 
     def render_servermap(self, ctx, data):
@@ -1729,30 +1735,6 @@ class DownloadResultsRendererMixin:
         d = self.download_results()
         d.addCallback(lambda res: res.file_size)
         return d
-
-    def render_time(self, ctx, data):
-        # 1.23s, 790ms, 132us
-        if data is None:
-            return ""
-        s = float(data)
-        if s >= 1.0:
-            return "%.2fs" % s
-        if s >= 0.01:
-            return "%dms" % (1000*s)
-        if s >= 0.001:
-            return "%.1fms" % (1000*s)
-        return "%dus" % (1000000*s)
-
-    def render_rate(self, ctx, data):
-        # 21.8kBps, 554.4kBps 4.37MBps
-        if data is None:
-            return ""
-        r = float(data)
-        if r > 1000000:
-            return "%1.2fMBps" % (r/1000000)
-        if r > 1000:
-            return "%.1fkBps" % (r/1000)
-        return "%dBps" % r
 
     def _get_time(self, name):
         d = self.download_results()
@@ -1877,8 +1859,12 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
     def render_status(self, ctx, data):
         return data.get_status()
 
-class RetrieveStatusPage(rend.Page):
+class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
     docFactory = getxmlfile("retrieve-status.xhtml")
+
+    def __init__(self, data):
+        rend.Page.__init__(self, data)
+        self.retrieve_status = data
 
     def render_started(self, ctx, data):
         TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
@@ -1909,6 +1895,70 @@ class RetrieveStatusPage(rend.Page):
 
     def render_status(self, ctx, data):
         return data.get_status()
+
+    def render_encoding(self, ctx, data):
+        k, n = data.get_encoding()
+        return ctx.tag["Encoding: %s of %s" % (k, n)]
+
+    def render_search_distance(self, ctx, data):
+        d = data.get_search_distance()
+        return ctx.tag["Search Distance: %s peer%s" % (d, plural(d))]
+
+    def render_problems(self, ctx, data):
+        problems = data.problems
+        if not problems:
+            return ""
+        l = T.ul()
+        for peerid in sorted(problems.keys()):
+            peerid_s = idlib.shortnodeid_b2a(peerid)
+            l[T.li["[%s]: %s" % (peerid_s, problems[peerid])]]
+        return ctx.tag["Server Problems:", l]
+
+    def _get_rate(self, data, name):
+        file_size = self.retrieve_status.get_size()
+        time = self.retrieve_status.timings.get(name)
+        if time is None:
+            return None
+        try:
+            return 1.0 * file_size / time
+        except ZeroDivisionError:
+            return None
+
+    def data_time_total(self, ctx, data):
+        return self.retrieve_status.timings.get("total")
+    def data_rate_total(self, ctx, data):
+        return self._get_rate(data, "total")
+
+    def data_time_peer_selection(self, ctx, data):
+        return self.retrieve_status.timings.get("peer_selection")
+
+    def data_time_fetch(self, ctx, data):
+        return self.retrieve_status.timings.get("fetch")
+    def data_rate_fetch(self, ctx, data):
+        return self._get_rate(data, "fetch")
+
+    def data_time_decode(self, ctx, data):
+        return self.retrieve_status.timings.get("decode")
+    def data_rate_decode(self, ctx, data):
+        return self._get_rate(data, "decode")
+
+    def data_time_decrypt(self, ctx, data):
+        return self.retrieve_status.timings.get("decrypt")
+    def data_rate_decrypt(self, ctx, data):
+        return self._get_rate(data, "decrypt")
+
+    def render_server_timings(self, ctx, data):
+        per_server = self.retrieve_status.timings.get("fetch_per_server")
+        if not per_server:
+            return ""
+        l = T.ul()
+        for peerid in sorted(per_server.keys()):
+            peerid_s = idlib.shortnodeid_b2a(peerid)
+            times_s = ", ".join([self.render_time(None, t)
+                                 for t in per_server[peerid]])
+            l[T.li["[%s]: %s" % (peerid_s, times_s)]]
+        return T.li["Per-Server Fetch Response Times: ", l]
+
 
 class PublishStatusPage(rend.Page):
     docFactory = getxmlfile("publish-status.xhtml")
@@ -1956,9 +2006,9 @@ class Status(rend.Page):
 
     def data_recent_operations(self, ctx, data):
         recent = [o for o in (IClient(ctx).list_recent_uploads() +
-                            IClient(ctx).list_recent_downloads() +
-                            IClient(ctx).list_recent_publish() +
-                            IClient(ctx).list_recent_retrieve())
+                              IClient(ctx).list_recent_downloads() +
+                              IClient(ctx).list_recent_publish() +
+                              IClient(ctx).list_recent_retrieve())
                   if not o.get_active()]
         recent.sort(lambda a,b: cmp(a.get_started(), b.get_started()))
         recent.reverse()

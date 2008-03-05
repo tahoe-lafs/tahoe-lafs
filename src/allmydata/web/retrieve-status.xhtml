@@ -19,4 +19,28 @@
   <li>Status: <span n:render="status"/></li>
 </ul>
 
+<h2>Retrieve Results</h2>
+<ul>
+  <li n:render="encoding" />
+  <li n:render="search_distance" />
+  <li n:render="problems" />
+  <li>Timings:</li>
+  <ul>
+    <li>Total: <span n:render="time" n:data="time_total" />
+    (<span n:render="rate" n:data="rate_total" />)</li>
+    <ul>
+      <li>Initial Peer Selection: <span n:render="time" n:data="time_peer_selection" /></li>
+      <li>Fetching: <span n:render="time" n:data="time_fetch" />
+      (<span n:render="rate" n:data="rate_fetch" />)</li>
+      <li>Decoding: <span n:render="time" n:data="time_decode" />
+      (<span n:render="rate" n:data="rate_decode" />)</li>
+      <li>Decrypting: <span n:render="time" n:data="time_decrypt" />
+      (<span n:render="rate" n:data="rate_decrypt" />)</li>
+    </ul>
+    <li n:render="server_timings" />
+  </ul>
+</ul>
+
+<div>Return to the <a href="/">Welcome Page</a></div>
+
 </body></html>
