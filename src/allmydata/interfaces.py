@@ -1453,6 +1453,9 @@ class IClientStatus(Interface):
         started downloads."""
 
 class IUploadStatus(Interface):
+    def get_started():
+        """Return a timestamp (float with seconds since epoch) indicating
+        when the operation was started."""
     def get_storage_index():
         """Return a string with the (binary) storage index in use on this
         upload. Returns None if the storage index has not yet been
@@ -1489,6 +1492,9 @@ class IUploadStatus(Interface):
         page can generate a suitable hyperlink."""
 
 class IDownloadStatus(Interface):
+    def get_started():
+        """Return a timestamp (float with seconds since epoch) indicating
+        when the operation was started."""
     def get_storage_index():
         """Return a string with the (binary) storage index in use on this
         download. This may be None if there is no storage index (i.e. LIT

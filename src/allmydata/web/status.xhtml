@@ -36,6 +36,7 @@
 <h2>Recent Operations:</h2>
 <table n:render="sequence" n:data="recent_operations" border="1">
   <tr n:pattern="header">
+    <td>Started</td>
     <td>Type</td>
     <td>Storage Index</td>
     <td>Helper?</td>
@@ -44,6 +45,7 @@
     <td>Status</td>
   </tr>
   <tr n:pattern="item" n:render="row">
+    <td><n:slot name="started"/></td>
     <td><n:slot name="type"/></td>
     <td><n:slot name="si"/></td>
     <td><n:slot name="helper"/></td>

@@ -364,7 +364,10 @@ class DownloadStatus:
         self.active = True
         self.results = None
         self.counter = self.statusid_counter.next()
+        self.started = time.time()
 
+    def get_started(self):
+        return self.started
     def get_storage_index(self):
         return self.storage_index
     def get_size(self):

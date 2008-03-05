@@ -211,7 +211,10 @@ class RetrieveStatus:
         self.status = "Not started"
         self.progress = 0.0
         self.counter = self.statusid_counter.next()
+        self.started = time.time()
 
+    def get_started(self):
+        return self.started
     def get_storage_index(self):
         return self.storage_index
     def using_helper(self):
@@ -783,7 +786,10 @@ class PublishStatus:
         self.status = "Not started"
         self.progress = 0.0
         self.counter = self.statusid_counter.next()
+        self.started = time.time()
 
+    def get_started(self):
+        return self.started
     def get_storage_index(self):
         return self.storage_index
     def using_helper(self):

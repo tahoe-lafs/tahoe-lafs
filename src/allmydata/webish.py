@@ -1638,6 +1638,12 @@ class UploadStatusPage(UploadResultsRendererMixin, rend.Page):
         d.addCallback(_got_results)
         return d
 
+    def render_started(self, ctx, data):
+        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
+        started_s = time.strftime(TIME_FORMAT,
+                                  time.localtime(data.get_started()))
+        return started_s
+
     def render_si(self, ctx, data):
         si_s = base32.b2a_or_none(data.get_storage_index())
         if si_s is None:
@@ -1841,6 +1847,12 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         d.addCallback(_got_results)
         return d
 
+    def render_started(self, ctx, data):
+        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
+        started_s = time.strftime(TIME_FORMAT,
+                                  time.localtime(data.get_started()))
+        return started_s
+
     def render_si(self, ctx, data):
         si_s = base32.b2a_or_none(data.get_storage_index())
         if si_s is None:
@@ -1868,6 +1880,12 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
 class RetrieveStatusPage(rend.Page):
     docFactory = getxmlfile("retrieve-status.xhtml")
 
+    def render_started(self, ctx, data):
+        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
+        started_s = time.strftime(TIME_FORMAT,
+                                  time.localtime(data.get_started()))
+        return started_s
+
     def render_si(self, ctx, data):
         si_s = base32.b2a_or_none(data.get_storage_index())
         if si_s is None:
@@ -1894,6 +1912,12 @@ class RetrieveStatusPage(rend.Page):
 
 class PublishStatusPage(rend.Page):
     docFactory = getxmlfile("publish-status.xhtml")
+
+    def render_started(self, ctx, data):
+        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
+        started_s = time.strftime(TIME_FORMAT,
+                                  time.localtime(data.get_started()))
+        return started_s
 
     def render_si(self, ctx, data):
         si_s = base32.b2a_or_none(data.get_storage_index())
@@ -1936,10 +1960,18 @@ class Status(rend.Page):
                             IClient(ctx).list_recent_publish() +
                             IClient(ctx).list_recent_retrieve())
                   if not o.get_active()]
+        recent.sort(lambda a,b: cmp(a.get_started(), b.get_started()))
+        recent.reverse()
         return recent
 
     def render_row(self, ctx, data):
         s = data
+
+        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
+        started_s = time.strftime(TIME_FORMAT,
+                                  time.localtime(s.get_started()))
+        ctx.fillSlots("started", started_s)
+
         si_s = base32.b2a_or_none(s.get_storage_index())
         if si_s is None:
             si_s = "(None)"
