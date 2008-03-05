@@ -6,6 +6,7 @@ from twisted.internet import defer
 from twisted.web import client, error, http
 from twisted.python import failure, log
 from allmydata import interfaces, provisioning, uri, webish, upload, download
+from allmydata.web import status
 from allmydata.util import fileutil
 from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, FakeMutableFileNode, create_chk_filenode
 from allmydata.interfaces import IURI, INewDirectoryURI, IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, IMutableFileNode
@@ -415,7 +416,7 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_status_numbers(self):
-        drrm = webish.DownloadResultsRendererMixin()
+        drrm = status.DownloadResultsRendererMixin()
         self.failUnlessEqual(drrm.render_time(None, None), "")
         self.failUnlessEqual(drrm.render_time(None, 2.5), "2.50s")
         self.failUnlessEqual(drrm.render_time(None, 0.25), "250ms")
@@ -426,7 +427,7 @@ class Web(WebMixin, unittest.TestCase):
         self.failUnlessEqual(drrm.render_rate(None, 30100), "30.1kBps")
         self.failUnlessEqual(drrm.render_rate(None, 123), "123Bps")
 
-        urrm = webish.UploadResultsRendererMixin()
+        urrm = status.UploadResultsRendererMixin()
         self.failUnlessEqual(urrm.render_time(None, None), "")
         self.failUnlessEqual(urrm.render_time(None, 2.5), "2.50s")
         self.failUnlessEqual(urrm.render_time(None, 0.25), "250ms")
