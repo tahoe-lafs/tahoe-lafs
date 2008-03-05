@@ -128,9 +128,14 @@ The pubkey hash is hashed by itself and truncated to 64 bits to form the last
 write-cap.
 
 The first 192 bits of the read-cap are hashed and truncated to form the first
-64 bits of the storage index. The last 64 bits of the read-cap are hashed to
-form the last 64 bits of the storage index. This gives us a 128-bit storage
-index.
+192 bits of the "traversal cap". The last 64 bits of the read-cap are hashed
+to form the last 64 bits of the traversal cap. This gives us a 256-bit
+traversal cap.
+
+The first 192 bits of the traversal-cap are hashed and truncated to form the
+first 64 bits of the storage index. The last 64 bits of the traversal-cap are
+hashed to form the last 64 bits of the storage index. This gives us a 128-bit
+storage index.
 
 The verification-cap is the first 64 bits of the storage index plus the
 pubkey hash, 320 bits total. The verification-cap doesn't need to be
@@ -150,6 +155,10 @@ encrypt the actual file data. This is to avoid key-reuse. An outstanding
 issue is how to avoid key reuse when files are modified in place instead of
 being replaced completely; this is not done in SDMF but might occur in MDMF.
 
+The master data encryption key is used to encrypt data that should be visible
+to holders of a write-cap or a read-cap, but not to holders of a
+traversal-cap.
+
 The private key is hashed one way to form the salt, and a different way to
 form the "write enabler master". For each storage server on which a share is
 kept, the write enabler master is concatenated with the server's nodeid and
@@ -163,6 +172,18 @@ be used by applications which wish to store some data in a form that is only
 available to those with a write-cap, and not to those with merely a read-cap.
 This is used to implement transitive read-onlyness of dirnodes.
 
+The traversal cap is hashed to work the "traversal key", which can be used by
+applications that wish to store data in a form that is available to holders
+of a write-cap, read-cap, or traversal-cap.
+
+The idea is that dirnodes will store child write-caps under the writekey,
+child names and read-caps under the read-key, and verify-caps (for files) or
+deep-verify-caps (for directories) under the traversal key. This would give
+the holder of a root deep-verify-cap the ability to create a verify manifest
+for everything reachable from the root, but not the ability to see any
+plaintext or filenames. This would make it easier to delegate filechecking
+and repair to a not-fully-trusted agent.
+
 The public key is stored on the servers, as is the encrypted salt, the
 (non-encrypted) data salt, the encrypted data, and a signature. The container
 records the write-enabler, but of course this is not visible to readers. To
@@ -173,19 +194,20 @@ tree, the encoding parameters, and the encrypted salt. "R" itself covers the
 hash trees and the share data.
 
 The read-write URI is just the private key. The read-only URI is the read-cap
-key. The verify-only URI contains the the pubkey hash and the first 64 bits
-of the storage index.
+key. The deep-verify URI is the traversal-cap. The verify-only URI contains
+the the pubkey hash and the first 64 bits of the storage index.
 
  FMW:b2a(privatekey)
  FMR:b2a(readcap)
+ FMT:b2a(traversalcap)
  FMV:b2a(storageindex[:64])b2a(pubkey-hash)
 
-Note that this allows the read-only and verify-only URIs to be derived from
-the read-write URI without actually retrieving any data from the share, but
-instead by regenerating the public key from the private one. Uses of the
-read-only or verify-only caps must validate the public key against their
-pubkey hash (or its derivative) the first time they retrieve the pubkey,
-before trusting any signatures they see.
+Note that this allows the read-only, deep-verify, and verify-only URIs to be
+derived from the read-write URI without actually retrieving any data from the
+share, but instead by regenerating the public key from the private one. Users
+of the read-only, deep-verify, or verify-only caps must validate the public
+key against their pubkey hash (or its derivative) the first time they
+retrieve the pubkey, before trusting any signatures they see.
 
 The SDMF slot is allocated by sending a request to the storage server with a
 desired size, the storage index, and the write enabler for that server's
