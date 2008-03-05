@@ -122,6 +122,50 @@ def unpack_share(data):
             pubkey, signature, share_hash_chain, block_hash_tree,
             share_data, enc_privkey)
 
+def unpack_share_data(data):
+    assert len(data) >= HEADER_LENGTH
+    o = {}
+    (version,
+     seqnum,
+     root_hash,
+     IV,
+     k, N, segsize, datalen,
+     o['signature'],
+     o['share_hash_chain'],
+     o['block_hash_tree'],
+     o['share_data'],
+     o['enc_privkey'],
+     o['EOF']) = struct.unpack(HEADER, data[:HEADER_LENGTH])
+
+    assert version == 0
+    if len(data) < o['enc_privkey']:
+        raise NeedMoreDataError(o['enc_privkey'],
+                                o['enc_privkey'], o['EOF']-o['enc_privkey'])
+
+    pubkey = data[HEADER_LENGTH:o['signature']]
+    signature = data[o['signature']:o['share_hash_chain']]
+    share_hash_chain_s = data[o['share_hash_chain']:o['block_hash_tree']]
+    share_hash_format = ">H32s"
+    hsize = struct.calcsize(share_hash_format)
+    assert len(share_hash_chain_s) % hsize == 0, len(share_hash_chain_s)
+    share_hash_chain = []
+    for i in range(0, len(share_hash_chain_s), hsize):
+        chunk = share_hash_chain_s[i:i+hsize]
+        (hid, h) = struct.unpack(share_hash_format, chunk)
+        share_hash_chain.append( (hid, h) )
+    share_hash_chain = dict(share_hash_chain)
+    block_hash_tree_s = data[o['block_hash_tree']:o['share_data']]
+    assert len(block_hash_tree_s) % 32 == 0, len(block_hash_tree_s)
+    block_hash_tree = []
+    for i in range(0, len(block_hash_tree_s), 32):
+        block_hash_tree.append(block_hash_tree_s[i:i+32])
+
+    share_data = data[o['share_data']:o['enc_privkey']]
+
+    return (seqnum, root_hash, IV, k, N, segsize, datalen,
+            pubkey, signature, share_hash_chain, block_hash_tree,
+            share_data)
+
 
 def pack_checkstring(seqnum, root_hash, IV):
     return struct.pack(PREFIX,
@@ -445,6 +489,10 @@ class Retrieve:
                 self._got_results_one_share(shnum, data, peerid)
             except NeedMoreDataError, e:
                 # ah, just re-send the query then.
+                self.log("need more data from %(peerid)s, got %(got)d, need %(needed)d",
+                         peerid=idlib.shortnodeid_b2a(peerid),
+                         got=len(data), needed=e.needed_bytes,
+                         level=log.NOISY)
                 self._read_size = max(self._read_size, e.needed_bytes)
                 # TODO: for MDMF, sanity-check self._read_size: don't let one
                 # server cause us to try to read gigabytes of data from all
@@ -534,7 +582,7 @@ class Retrieve:
         # know it's a valid candidate. Accumulate the share info, if
         # there's enough data present. If not, raise NeedMoreDataError,
         # which will trigger a re-fetch.
-        _ignored = unpack_share(data)
+        _ignored = unpack_share_data(data)
         self.log(" found enough data to add share contents")
         self._valid_versions[verinfo][1].add(shnum, (peerid, data))
 
@@ -722,10 +770,10 @@ class Retrieve:
         # 'data' is the whole SMDF share
         self.log("_validate_share_and_extract_data[%d]" % shnum)
         assert data[0] == "\x00"
-        pieces = unpack_share(data)
+        pieces = unpack_share_data(data)
         (seqnum, root_hash_copy, IV, k, N, segsize, datalen,
          pubkey, signature, share_hash_chain, block_hash_tree,
-         share_data, enc_privkey) = pieces
+         share_data) = pieces
 
         assert isinstance(share_data, str)
         # build the block hash tree. SDMF has only one leaf.
