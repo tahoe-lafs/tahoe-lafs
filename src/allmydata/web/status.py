@@ -1,15 +1,11 @@
 
 import time
 from twisted.internet import defer
-from nevow import rend, loaders, tags as T
-from nevow.util import resource_filename
+from nevow import rend, tags as T
 from allmydata.util import base32, idlib
-from allmydata.web.common import IClient
+from allmydata.web.common import IClient, getxmlfile
 from allmydata.interfaces import IUploadStatus, IDownloadStatus, \
      IPublishStatus, IRetrieveStatus
-
-def getxmlfile(name):
-    return loaders.xmlfile(resource_filename('allmydata.web', '%s' % name))
 
 def plural(sequence_or_length):
     if isinstance(sequence_or_length, int):

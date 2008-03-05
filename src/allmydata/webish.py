@@ -4,9 +4,9 @@ from twisted.application import service, strports, internet
 from twisted.web import static, resource, server, html, http
 from twisted.internet import defer, address
 from twisted.internet.interfaces import IConsumer
-from nevow import inevow, rend, loaders, appserver, url, tags as T
+from nevow import inevow, rend, appserver, url, tags as T
 from nevow.static import File as nevow_File # TODO: merge with static.File?
-from allmydata.util import fileutil, idlib, observer, log
+from allmydata.util import fileutil, idlib, log
 import simplejson
 from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode, \
      IMutableFileNode
@@ -22,38 +22,13 @@ from foolscap.eventual import fireEventually
 
 from nevow.util import resource_filename
 
-from allmydata.web import status
-from allmydata.web.common import IClient
-
-def getxmlfile(name):
-    return loaders.xmlfile(resource_filename('allmydata.web', '%s' % name))
+from allmydata.web import status, unlinked
+from allmydata.web.common import IClient, getxmlfile, get_arg, boolean_of_arg
 
 class ILocalAccess(Interface):
     def local_access_is_allowed():
         """Return True if t=upload&localdir= is allowed, giving anyone who
         can talk to the webserver control over the local (disk) filesystem."""
-
-def boolean_of_arg(arg):
-    assert arg.lower() in ("true", "t", "1", "false", "f", "0", "on", "off")
-    return arg.lower() in ("true", "t", "1", "on")
-
-def get_arg(req, argname, default=None, multiple=False):
-    """Extract an argument from either the query args (req.args) or the form
-    body fields (req.fields). If multiple=False, this returns a single value
-    (or the default, which defaults to None), and the query args take
-    precedence. If multiple=True, this returns a tuple of arguments (possibly
-    empty), starting with all those in the query args.
-    """
-    results = []
-    if argname in req.args:
-        results.extend(req.args[argname])
-    if req.fields and argname in req.fields:
-        results.append(req.fields[argname].value)
-    if multiple:
-        return tuple(results)
-    if results:
-        return results[0]
-    return default
 
 # we must override twisted.web.http.Request.requestReceived with a version
 # that doesn't use cgi.parse_multipart() . Since we actually use Nevow, we
@@ -1339,119 +1314,6 @@ class VDrive(rend.Page):
             return rend.NotFound
         return d
 
-class UnlinkedPUTCHKUploader(rend.Page):
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        assert req.method == "PUT"
-        # "PUT /uri", to create an unlinked file. This is like PUT but
-        # without the associated set_uri.
-
-        uploadable = FileHandle(req.content)
-        d = IClient(ctx).upload(uploadable)
-        d.addCallback(lambda results: results.uri)
-        # that fires with the URI of the new file
-        return d
-
-class UnlinkedPUTSSKUploader(rend.Page):
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        assert req.method == "PUT"
-        # SDMF: files are small, and we can only upload data
-        req.content.seek(0)
-        data = req.content.read()
-        d = IClient(ctx).create_mutable_file(data)
-        d.addCallback(lambda n: n.get_uri())
-        return d
-
-class UnlinkedPUTCreateDirectory(rend.Page):
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        assert req.method == "PUT"
-        # "PUT /uri?t=mkdir", to create an unlinked directory.
-        d = IClient(ctx).create_empty_dirnode()
-        d.addCallback(lambda dirnode: dirnode.get_uri())
-        # XXX add redirect_to_result
-        return d
-
-class UnlinkedPOSTCHKUploader(status.UploadResultsRendererMixin, rend.Page):
-    """'POST /uri', to create an unlinked file."""
-    docFactory = getxmlfile("upload-results.xhtml")
-
-    def __init__(self, client, req):
-        rend.Page.__init__(self)
-        # we start the upload now, and distribute notification of its
-        # completion to render_ methods with an ObserverList
-        assert req.method == "POST"
-        self._done = observer.OneShotObserverList()
-        fileobj = req.fields["file"].file
-        uploadable = FileHandle(fileobj)
-        d = client.upload(uploadable)
-        d.addBoth(self._done.fire)
-
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        when_done = get_arg(req, "when_done", None)
-        if when_done:
-            # if when_done= is provided, return a redirect instead of our
-            # usual upload-results page
-            d = self._done.when_fired()
-            d.addCallback(lambda res: url.URL.fromString(when_done))
-            return d
-        return rend.Page.renderHTTP(self, ctx)
-
-    def upload_results(self):
-        return self._done.when_fired()
-
-    def data_done(self, ctx, data):
-        d = self.upload_results()
-        d.addCallback(lambda res: "done!")
-        return d
-
-    def data_uri(self, ctx, data):
-        d = self.upload_results()
-        d.addCallback(lambda res: res.uri)
-        return d
-
-    def render_download_link(self, ctx, data):
-        d = self.upload_results()
-        d.addCallback(lambda res: T.a(href="/uri/" + urllib.quote(res.uri))
-                      ["/uri/" + res.uri])
-        return d
-
-class UnlinkedPOSTSSKUploader(rend.Page):
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        assert req.method == "POST"
-
-        # "POST /uri", to create an unlinked file.
-        # SDMF: files are small, and we can only upload data
-        contents = req.fields["file"]
-        contents.file.seek(0)
-        data = contents.file.read()
-        d = IClient(ctx).create_mutable_file(data)
-        d.addCallback(lambda n: n.get_uri())
-        return d
-
-class UnlinkedPOSTCreateDirectory(rend.Page):
-    def renderHTTP(self, ctx):
-        req = inevow.IRequest(ctx)
-        assert req.method == "POST"
-
-        # "POST /uri?t=mkdir", to create an unlinked directory.
-        d = IClient(ctx).create_empty_dirnode()
-        redirect = get_arg(req, "redirect_to_result", "false")
-        if boolean_of_arg(redirect):
-            def _then_redir(res):
-                new_url = "uri/" + urllib.quote(res.get_uri())
-                req.setResponseCode(http.SEE_OTHER) # 303
-                req.setHeader('location', new_url)
-                req.finish()
-                return ''
-            d.addCallback(_then_redir)
-        else:
-            d.addCallback(lambda dirnode: dirnode.get_uri())
-        return d
-
 class Root(rend.Page):
 
     addSlash = True
@@ -1485,11 +1347,11 @@ class Root(rend.Page):
                         if t == "":
                             mutable = bool(get_arg(req, "mutable", "").strip())
                             if mutable:
-                                return UnlinkedPUTSSKUploader(), ()
+                                return unlinked.UnlinkedPUTSSKUploader(), ()
                             else:
-                                return UnlinkedPUTCHKUploader(), ()
+                                return unlinked.UnlinkedPUTCHKUploader(), ()
                         if t == "mkdir":
-                            return UnlinkedPUTCreateDirectory(), ()
+                            return unlinked.UnlinkedPUTCreateDirectory(), ()
                         errmsg = "/uri only accepts PUT and PUT?t=mkdir"
                         return WebError(http.BAD_REQUEST, errmsg), ()
 
@@ -1501,11 +1363,11 @@ class Root(rend.Page):
                         if t in ("", "upload"):
                             mutable = bool(get_arg(req, "mutable", "").strip())
                             if mutable:
-                                return UnlinkedPOSTSSKUploader(), ()
+                                return unlinked.UnlinkedPOSTSSKUploader(), ()
                             else:
-                                return UnlinkedPOSTCHKUploader(client, req), ()
+                                return unlinked.UnlinkedPOSTCHKUploader(client, req), ()
                         if t == "mkdir":
-                            return UnlinkedPOSTCreateDirectory(), ()
+                            return unlinked.UnlinkedPOSTCreateDirectory(), ()
                         errmsg = "/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, and POST?t=mkdir"
                         return WebError(http.BAD_REQUEST, errmsg), ()
                 if len(segments) < 2:
