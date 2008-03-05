@@ -471,14 +471,15 @@ class Retrieve:
         return verifier
 
     def _got_results(self, datavs, peerid, readsize, stuff, started):
-        elapsed = time.time() - started
-        if peerid not in self._status.timings["fetch_per_server"]:
-            self._status.timings["fetch_per_server"][peerid] = []
-        self._status.timings["fetch_per_server"][peerid].append(elapsed)
         self._queries_outstanding.discard(peerid)
         self._used_peers.add(peerid)
         if not self._running:
             return
+
+        elapsed = time.time() - started
+        if peerid not in self._status.timings["fetch_per_server"]:
+            self._status.timings["fetch_per_server"][peerid] = []
+        self._status.timings["fetch_per_server"][peerid].append(elapsed)
 
         if peerid not in self._status.sharemap:
             self._status.sharemap[peerid] = set()
