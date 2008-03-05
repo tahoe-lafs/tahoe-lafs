@@ -9,6 +9,7 @@ WINFUSESVC_NAME = 'Allmydata SMB'
 
 import os
 import re
+import socket
 import sys
 #import time
 import traceback
@@ -63,12 +64,13 @@ def create_account(url, user, passwd, subscribe):
     result_code = post(url, args)
     return result_code
 
-def record_install(url, user, passwd, nodeid):
+def record_install(url, user, passwd, nodeid, nickname):
     args = {
         'action': 'record_install',
         'email': unicode_to_utf8(user),
         'passwd': unicode_to_utf8(passwd),
         'nodeid': nodeid,
+        'moniker': nickname,
         }
     result_code = post(url, args)
     return result_code
@@ -115,6 +117,31 @@ def get_nodeid():
     certfile = os.path.join(get_basedir(), "private", CERTFILE)
     tub = foolscap.Tub(certFile=certfile)
     return tub.getTubID()
+
+def get_nickname():
+    nick = None
+    nnfile = os.path.join(get_basedir(), 'nickname')
+    if os.path.exists(nnfile):
+        try:
+            fh = file(nnfile, 'rb')
+            nick = fh.read().strip()
+            fh.close()
+        except:
+            DisplayTraceback('Failed to read existing nickname file %s' % (nnfile,))
+    if not nick:
+        nick = socket.gethostname()
+    return nick
+
+def maybe_write_nickname(nickname):
+    nnfile = os.path.join(get_basedir(), 'nickname')
+    try:
+        if not os.path.exists(nnfile):
+            fh = file(nnfile, 'wb')
+            fh.write(nickname)
+            fh.write('\n')
+            fh.close()
+    except:
+        DisplayTraceback('Failed to write nickname file %s' % (nnfile,))
 
 def configure(backend, user, passwd):
     _config_re = re.compile('^([^:]*): (.*)$')
@@ -314,12 +341,14 @@ class LoginPanel(wx.Panel):
             return
 
         nodeid = get_nodeid()
-        ret = record_install(backend, user, passwd, nodeid)
+        nickname = get_nickname()
+        ret = record_install(backend, user, passwd, nodeid, nickname)
         if ret != 'ok':
             wx.MessageBox('Error "%s" recording this system (%s)' % (ret, nodeid), 'Error')
 
         configure(backend, user, passwd)
         maybe_start_services()
+        maybe_write_nickname(nickname)
 
         self.app.open_welcome_page()
 
@@ -459,12 +488,14 @@ class RegisterPanel(wx.Panel):
             return
 
         nodeid = get_nodeid()
-        ret = record_install(backend, user, passwd, nodeid)
+        nickname = get_nickname()
+        ret = record_install(backend, user, passwd, nodeid, nickname)
         if ret != 'ok':
             wx.MessageBox('Error "%s" recording this system (%s)' % (ret, nodeid), 'Error')
 
         configure(backend, user, passwd)
         maybe_start_services()
+        maybe_write_nickname(nickname)
 
         self.app.open_welcome_page()
 
