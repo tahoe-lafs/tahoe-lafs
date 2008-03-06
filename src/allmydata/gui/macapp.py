@@ -43,22 +43,19 @@ def run_macapp():
     app = App(basedir)
     return app.run()
 
-ABORT_EVENT_ID = wx.NewId()
-
-class AbortEvent(wx.PyEvent):
-    def __init__(self, failure):
-        wx.PyEvent.__init__(self)
-        self.SetEventType(ABORT_EVENT_ID)
-        self.failure = failure
-
 class MacGuiClient(client.Client):
     def __init__(self, basedir, app):
         self.app = app
         client.Client.__init__(self, basedir)
 
-    def _abort_process(self, failure):
-        event = AbortEvent(failure)
-        wx.PostEvent(self.app.guiapp.frame, event)
+    def _service_startup_failed(self, failure):
+        wx.CallAfter(self.wx_abort, failure)
+        log.msg('node service startup failed')
+        log.err(failure)
+
+    def wx_abort(self, failure):
+        wx.MessageBox(failure.getTraceback(), 'Fatal Error in Node startup')
+        self.app.guiapp.ExitMainLoop()
 
 class App(object):
     def __init__(self, basedir):
@@ -194,9 +191,8 @@ ACCOUNT_PAGE_ID = wx.NewId()
 MOUNT_ID = wx.NewId()
 
 class SplashFrame(wx.Frame):
-    def __init__(self, app):
+    def __init__(self):
         wx.Frame.__init__(self, None, -1, 'Allmydata Tahoe')
-        self.app = app
 
         self.SetSizeHints(100, 100, 600, 800)
         self.SetIcon(amdicon.getIcon())
@@ -215,15 +211,8 @@ class SplashFrame(wx.Frame):
         self.Fit()
         self.Layout()
 
-        # plumb up event handler for abort
-        self.Connect(-1, -1, ABORT_EVENT_ID, self.wx_abort)
-
     def on_close(self, event):
         self.Show(False)
-
-    def wx_abort(self, event):
-        wx.MessageBox(event.failure.getTraceback(), 'Fatal Error in Node startup')
-        self.app.ExitMainLoop()
 
 class SplashPanel(wx.Panel):
     def __init__(self, parent, on_close):
@@ -395,7 +384,7 @@ class MacGuiApp(wx.App):
 
     def OnInit(self):
         try:
-            self.frame = SplashFrame(self)
+            self.frame = SplashFrame()
             self.frame.Show(True)
             self.SetTopWindow(self.frame)
 
