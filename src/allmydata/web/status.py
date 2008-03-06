@@ -45,6 +45,16 @@ class RateAndTimeMixin:
 class UploadResultsRendererMixin(RateAndTimeMixin):
     # this requires a method named 'upload_results'
 
+    def render_pushed_shares(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.pushed_shares)
+        return d
+
+    def render_preexisting_shares(self, ctx, data):
+        d = self.upload_results()
+        d.addCallback(lambda res: res.preexisting_shares)
+        return d
+
     def render_sharemap(self, ctx, data):
         d = self.upload_results()
         d.addCallback(lambda res: res.sharemap)

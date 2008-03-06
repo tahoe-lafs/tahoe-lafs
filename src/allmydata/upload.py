@@ -41,13 +41,16 @@ class UploadResults(Copyable, RemoteCopy):
     typeToCopy = "allmydata.upload.UploadResults.tahoe.allmydata.com"
     copytype = typeToCopy
 
-    file_size = None
-    ciphertext_fetched = None # how much the helper fetched
-    uri = None
-    sharemap = None # dict of shnum to placement string
-    servermap = None # dict of peerid to set(shnums)
     def __init__(self):
         self.timings = {} # dict of name to number of seconds
+        self.sharemap = {} # dict of shnum to placement string
+        self.servermap = {} # dict of peerid to set(shnums)
+        self.file_size = None
+        self.ciphertext_fetched = None # how much the helper fetched
+        self.uri = None
+        self.preexisting_shares = None # count of shares already present
+        self.pushed_shares = None # count of shares we pushed
+
 
 # our current uri_extension is 846 bytes for small files, a few bytes
 # more for larger ones (since the filesize is encoded in decimal in a
@@ -129,8 +132,11 @@ class Tahoe2PeerSelector:
                          storage_index, share_size, block_size,
                          num_segments, total_shares, shares_of_happiness):
         """
-        @return: a set of PeerTracker instances that have agreed to hold some
-                 shares for us
+        @return: (used_peers, already_peers), where used_peers is a set of
+                 PeerTracker instances that have agreed to hold some shares
+                 for us (the shnum is stashed inside the PeerTracker),
+                 and already_peers is a dict mapping shnum to a peer
+                 which claims to already have the share.
         """
 
         if self._status:
@@ -145,7 +151,7 @@ class Tahoe2PeerSelector:
         self.contacted_peers2 = [] # peers that we have asked again
         self._started_second_pass = False
         self.use_peers = set() # PeerTrackers that have shares assigned to them
-        self.preexisting_shares = {} # sharenum -> PeerTracker holding the share
+        self.preexisting_shares = {} # sharenum -> peerid holding the share
 
         peers = client.get_permuted_peers("storage", storage_index)
         if not peers:
@@ -198,7 +204,7 @@ class Tahoe2PeerSelector:
                     self.error_count))
             log.msg("peer selection successful for %s: %s" % (self, msg),
                     parent=self._log_parent)
-            return self.use_peers
+            return (self.use_peers, self.preexisting_shares)
 
         if self.uncontacted_peers:
             peer = self.uncontacted_peers.pop(0)
@@ -297,7 +303,7 @@ class Tahoe2PeerSelector:
                     level=log.NOISY, parent=self._log_parent)
             progress = False
             for s in alreadygot:
-                self.preexisting_shares[s] = peer
+                self.preexisting_shares[s] = peer.peerid
                 if s in self.homeless_shares:
                     self.homeless_shares.remove(s)
                     progress = True
@@ -705,11 +711,22 @@ class CHKUploader:
         d.addCallback(_done)
         return d
 
-    def set_shareholders(self, used_peers, encoder):
+    def set_shareholders(self, (used_peers, already_peers), encoder):
         """
         @param used_peers: a sequence of PeerTracker objects
+        @paran already_peers: a dict mapping sharenum to a peerid that
+                              claims to already have this share
         """
         self.log("_send_shares, used_peers is %s" % (used_peers,))
+        # record already-present shares in self._results
+        for (shnum, peerid) in already_peers.items():
+            peerid_s = idlib.shortnodeid_b2a(peerid)
+            self._results.sharemap[shnum] = "Found on [%s]" % peerid_s
+            if peerid not in self._results.servermap:
+                self._results.servermap[peerid] = set()
+            self._results.servermap[peerid].add(shnum)
+        self._results.preexisting_shares = len(already_peers)
+
         self._sharemap = {}
         for peer in used_peers:
             assert isinstance(peer, PeerTracker)
@@ -723,8 +740,6 @@ class CHKUploader:
 
     def _encrypted_done(self, res):
         r = self._results
-        r.sharemap = {}
-        r.servermap = {}
         for shnum in self._encoder.get_shares_placed():
             peer_tracker = self._sharemap[shnum]
             peerid = peer_tracker.peerid
@@ -733,6 +748,7 @@ class CHKUploader:
             if peerid not in r.servermap:
                 r.servermap[peerid] = set()
             r.servermap[peerid].add(shnum)
+        r.pushed_shares = len(self._encoder.get_shares_placed())
         now = time.time()
         r.file_size = self._encoder.file_size
         r.timings["total"] = now - self._started

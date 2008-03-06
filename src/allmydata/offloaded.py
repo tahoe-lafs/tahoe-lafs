@@ -543,6 +543,8 @@ class Helper(Referenceable, service.MultiService):
                                         for peerid in peerids])
                     results.sharemap[shnum] = "Found on " + peers_s
                 results.uri_extension_data = ueb_data
+                results.preexisting_shares = len(sharemap)
+                results.pushed_shares = 0
                 return True
             return False
         d.addCallback(_checked)
