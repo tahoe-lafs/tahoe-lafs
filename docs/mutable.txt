@@ -1,5 +1,5 @@
 
-(protocol proposal, work-in-progress, not authoritative)
+This describes the "RSA-based mutable files" which were shipped in Tahoe v0.8.0.
 
 = Mutable Files =
 
