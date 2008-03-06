@@ -492,6 +492,9 @@ class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
     def data_rate_fetch(self, ctx, data):
         return self._get_rate(data, "fetch")
 
+    def data_time_cumulative_verify(self, ctx, data):
+        return self.retrieve_status.timings.get("cumulative_verify")
+
     def data_time_decode(self, ctx, data):
         return self.retrieve_status.timings.get("decode")
     def data_rate_decode(self, ctx, data):
@@ -515,8 +518,12 @@ class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
         return T.li["Per-Server Fetch Response Times: ", l]
 
 
-class PublishStatusPage(rend.Page):
+class PublishStatusPage(rend.Page, RateAndTimeMixin):
     docFactory = getxmlfile("publish-status.xhtml")
+
+    def __init__(self, data):
+        rend.Page.__init__(self, data)
+        self.publish_status = data
 
     def render_started(self, ctx, data):
         TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
@@ -547,6 +554,111 @@ class PublishStatusPage(rend.Page):
 
     def render_status(self, ctx, data):
         return data.get_status()
+
+    def render_encoding(self, ctx, data):
+        k, n = data.get_encoding()
+        return ctx.tag["Encoding: %s of %s" % (k, n)]
+
+    def render_peers_queried(self, ctx, data):
+        return ctx.tag["Peers Queried: ", data.peers_queried]
+
+    def render_sharemap(self, ctx, data):
+        sharemap = data.sharemap
+        if sharemap is None:
+            return ctx.tag["None"]
+        l = T.ul()
+        for shnum in sorted(sharemap.keys()):
+            l[T.li["%d -> Placed on " % shnum,
+                   ", ".join(["[%s]" % idlib.shortnodeid_b2a(peerid)
+                              for (peerid,seqnum,root_hash)
+                              in sharemap[shnum]])]]
+        return ctx.tag["Sharemap:", l]
+
+    def render_problems(self, ctx, data):
+        problems = data.problems
+        if not problems:
+            return ""
+        l = T.ul()
+        for peerid in sorted(problems.keys()):
+            peerid_s = idlib.shortnodeid_b2a(peerid)
+            l[T.li["[%s]: %s" % (peerid_s, problems[peerid])]]
+        return ctx.tag["Server Problems:", l]
+
+    def _get_rate(self, data, name):
+        file_size = self.publish_status.get_size()
+        time = self.publish_status.timings.get(name)
+        if time is None:
+            return None
+        try:
+            return 1.0 * file_size / time
+        except ZeroDivisionError:
+            return None
+
+    def data_time_total(self, ctx, data):
+        return self.publish_status.timings.get("total")
+    def data_rate_total(self, ctx, data):
+        return self._get_rate(data, "total")
+
+    def data_time_setup(self, ctx, data):
+        return self.publish_status.timings.get("setup")
+
+    def data_time_query(self, ctx, data):
+        return self.publish_status.timings.get("query")
+
+    def data_time_privkey(self, ctx, data):
+        return self.publish_status.timings.get("privkey")
+
+    def data_time_privkey_fetch(self, ctx, data):
+        return self.publish_status.timings.get("privkey_fetch")
+    def render_privkey_from(self, ctx, data):
+        peerid = data.privkey_from
+        if peerid:
+            return " (got from [%s])" % idlib.shortnodeid_b2a(peerid)
+        else:
+            return ""
+
+    def data_time_encrypt(self, ctx, data):
+        return self.publish_status.timings.get("encrypt")
+    def data_rate_encrypt(self, ctx, data):
+        return self._get_rate(data, "encrypt")
+
+    def data_time_encode(self, ctx, data):
+        return self.publish_status.timings.get("encode")
+    def data_rate_encode(self, ctx, data):
+        return self._get_rate(data, "encode")
+
+    def data_time_pack(self, ctx, data):
+        return self.publish_status.timings.get("pack")
+    def data_rate_pack(self, ctx, data):
+        return self._get_rate(data, "pack")
+    def data_time_sign(self, ctx, data):
+        return self.publish_status.timings.get("sign")
+
+    def data_time_push(self, ctx, data):
+        return self.publish_status.timings.get("push")
+    def data_rate_push(self, ctx, data):
+        return self._get_rate(data, "push")
+
+    def data_initial_read_size(self, ctx, data):
+        return self.publish_status.initial_read_size
+
+    def render_server_timings(self, ctx, data):
+        per_server = self.publish_status.timings.get("per_server")
+        if not per_server:
+            return ""
+        l = T.ul()
+        for peerid in sorted(per_server.keys()):
+            peerid_s = idlib.shortnodeid_b2a(peerid)
+            times = []
+            for op,t in per_server[peerid]:
+                if op == "read":
+                    times.append( "(" + self.render_time(None, t) + ")" )
+                else:
+                    times.append( self.render_time(None, t) )
+            times_s = ", ".join(times)
+            l[T.li["[%s]: %s" % (peerid_s, times_s)]]
+        return T.li["Per-Server Response Times: ", l]
+
 
 class Status(rend.Page):
     docFactory = getxmlfile("status.xhtml")

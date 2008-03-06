@@ -31,7 +31,10 @@
     <ul>
       <li>Initial Peer Selection: <span n:render="time" n:data="time_peer_selection" /></li>
       <li>Fetching: <span n:render="time" n:data="time_fetch" />
-      (<span n:render="rate" n:data="rate_fetch" />)</li>
+      (<span n:render="rate" n:data="rate_fetch" />)
+      <ul>
+        <li>Cumulative Verify: <span n:render="time" n:data="time_cumulative_verify" /></li>
+      </ul></li>
       <li>Decoding: <span n:render="time" n:data="time_decode" />
       (<span n:render="rate" n:data="rate_decode" />)</li>
       <li>Decrypting: <span n:render="time" n:data="time_decrypt" />
