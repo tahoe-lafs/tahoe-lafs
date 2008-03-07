@@ -4,6 +4,7 @@
 from allmydata.uri import CHKFileURI, NewDirectoryURI, LiteralFileURI
 from allmydata.scripts.common_http import do_http as do_http_req
 from allmydata.util.hashutil import tagged_hash
+from allmydata.util.assertutil import precondition
 from allmydata.util import base32
 
 import base64
@@ -45,6 +46,10 @@ def log(msg):
     logfile.flush()
 
 fuse.flog = log
+
+def unicode_to_utf8(u):
+    precondition(isinstance(u, unicode), repr(u))
+    return u.encode('utf-8')
 
 def do_http(method, url, body=''):
     resp = do_http_req(method, url, body)
@@ -487,7 +492,7 @@ class Directory(object):
         assert nodetype == 'dirnode'
         self.children.clear()
         for cname,details in d['children'].items():
-            cname = str(cname)
+            cname = unicode_to_utf8(cname)
             ctype, cattrs = details
             metadata = cattrs.get('metadata', {})
             if ctype == 'dirnode':
