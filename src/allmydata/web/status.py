@@ -3,7 +3,8 @@ import time
 from twisted.internet import defer
 from nevow import rend, tags as T
 from allmydata.util import base32, idlib
-from allmydata.web.common import IClient, getxmlfile
+from allmydata.web.common import IClient, getxmlfile, abbreviate_time, \
+     abbreviate_rate
 from allmydata.interfaces import IUploadStatus, IDownloadStatus, \
      IPublishStatus, IRetrieveStatus
 
@@ -19,28 +20,10 @@ def plural(sequence_or_length):
 class RateAndTimeMixin:
 
     def render_time(self, ctx, data):
-        # 1.23s, 790ms, 132us
-        if data is None:
-            return ""
-        s = float(data)
-        if s >= 1.0:
-            return "%.2fs" % s
-        if s >= 0.01:
-            return "%dms" % (1000*s)
-        if s >= 0.001:
-            return "%.1fms" % (1000*s)
-        return "%dus" % (1000000*s)
+        return abbreviate_time(data)
 
     def render_rate(self, ctx, data):
-        # 21.8kBps, 554.4kBps 4.37MBps
-        if data is None:
-            return ""
-        r = float(data)
-        if r > 1000000:
-            return "%1.2fMBps" % (r/1000000)
-        if r > 1000:
-            return "%.1fkBps" % (r/1000)
-        return "%dBps" % r
+        return abbreviate_rate(data)
 
 class UploadResultsRendererMixin(RateAndTimeMixin):
     # this requires a method named 'upload_results'

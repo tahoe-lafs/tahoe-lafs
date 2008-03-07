@@ -31,3 +31,40 @@ def get_arg(req, argname, default=None, multiple=False):
     if results:
         return results[0]
     return default
+
+def abbreviate_time(data):
+    # 1.23s, 790ms, 132us
+    if data is None:
+        return ""
+    s = float(data)
+    if s >= 1.0:
+        return "%.2fs" % s
+    if s >= 0.01:
+        return "%dms" % (1000*s)
+    if s >= 0.001:
+        return "%.1fms" % (1000*s)
+    return "%dus" % (1000000*s)
+
+def abbreviate_rate(data):
+    # 21.8kBps, 554.4kBps 4.37MBps
+    if data is None:
+        return ""
+    r = float(data)
+    if r > 1000000:
+        return "%1.2fMBps" % (r/1000000)
+    if r > 1000:
+        return "%.1fkBps" % (r/1000)
+    return "%dBps" % r
+
+def abbreviate_size(data):
+    # 21.8kB, 554.4kB 4.37MB
+    if data is None:
+        return ""
+    r = float(data)
+    if r > 1000000000:
+        return "%1.2fGB" % (r/1000000000)
+    if r > 1000000:
+        return "%1.2fMB" % (r/1000000)
+    if r > 1000:
+        return "%.1fkB" % (r/1000)
+    return "%dB" % r

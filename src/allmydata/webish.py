@@ -23,7 +23,8 @@ from foolscap.eventual import fireEventually
 from nevow.util import resource_filename
 
 from allmydata.web import status, unlinked
-from allmydata.web.common import IClient, getxmlfile, get_arg, boolean_of_arg
+from allmydata.web.common import IClient, getxmlfile, get_arg, \
+     boolean_of_arg, abbreviate_size
 
 class ILocalAccess(Interface):
     def local_access_is_allowed():
@@ -1403,8 +1404,11 @@ class Root(rend.Page):
             ss = client.getServiceNamed("storage")
         except KeyError:
             return "Not running"
-        allocated = ss.allocated_size()
-        return "about %d bytes allocated" % allocated
+        allocated = "about %s allocated" % abbreviate_size(ss.allocated_size())
+        sizelimit = "no size limit"
+        if ss.sizelimit is not None:
+            sizelimit = "size limit is %s" % abbreviate_size(ss.sizelimit)
+        return "%s, %s" % (allocated, sizelimit)
 
     def data_introducer_furl(self, ctx, data):
         return IClient(ctx).introducer_furl
