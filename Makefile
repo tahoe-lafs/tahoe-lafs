@@ -61,7 +61,7 @@ TRIAL=PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 .PHONY: make-version build
 
 show-eggspath:
-	echo $(EGGSPATH)
+	@echo $(EGGSPATH)
 
 # The 'darcsver' setup.py command comes in the 'darcsver' package:
 # http://pypi.python.org/pypi/darcsver It is necessary only if you want to
