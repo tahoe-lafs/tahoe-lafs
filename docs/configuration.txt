@@ -45,7 +45,7 @@ nodes will use to contact this one. By providing this file, you can add to
 this list. This can be useful if your node is running behind a firewall, but
 you have created a port-forwarding to allow the outside world to access it.
 Each line must have a dotted-quad IP address and an optional :portnum
-specification:
+specification, like:
 
  123.45.67.89
  44.55.66.77:8098
