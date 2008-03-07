@@ -101,7 +101,7 @@ src/allmydata/_version.py:
 build: src/allmydata/_version.py
 	mkdir -p "$(SUPPORTLIB)"
 	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
-		$(PYTHON) ./setup.py develop install --prefix="$(SUPPORT)"
+		$(PYTHON) ./setup.py develop --prefix="$(SUPPORT)"
 	chmod +x bin/tahoe
 	touch .built
 
