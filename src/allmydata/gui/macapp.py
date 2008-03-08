@@ -406,7 +406,7 @@ class MacGuiApp(wx.App):
 
     def setup_dock_icon(self):
         self.tbicon = wx.TaskBarIcon()
-        self.tbicon.SetIcon(amdicon.getIcon(), "Allmydata Tahoe")
+        #self.tbicon.SetIcon(amdicon.getIcon(), "Allmydata Tahoe")
         wx.EVT_TASKBAR_RIGHT_UP(self.tbicon, self.on_dock_menu)
 
     def setup_app_menu(self, frame):
