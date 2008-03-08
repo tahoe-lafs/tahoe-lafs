@@ -46,7 +46,7 @@ class Client(node.Node, testutil.PollMixin):
     DEFAULT_ENCODING_PARAMETERS = {"k": 3,
                                    "happy": 7,
                                    "n": 10,
-                                   "max_segment_size": 1*MiB,
+                                   "max_segment_size": 128*KiB,
                                    }
 
     def __init__(self, basedir="."):

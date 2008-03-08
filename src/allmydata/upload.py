@@ -1030,7 +1030,7 @@ class AssistedUploader:
         return self._upload_status
 
 class BaseUploadable:
-    default_max_segment_size = 1*MiB # overridden by max_segment_size
+    default_max_segment_size = 128*KiB # overridden by max_segment_size
     default_encoding_param_k = 3 # overridden by encoding_parameters
     default_encoding_param_happy = 7
     default_encoding_param_n = 10
