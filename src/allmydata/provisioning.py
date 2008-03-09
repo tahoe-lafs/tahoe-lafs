@@ -1,10 +1,8 @@
 
 from nevow import inevow, loaders, rend, tags as T
 import math
-from allmydata.util import mathutil, sibpath
-
-def getxmlfile(name):
-    return loaders.xmlfile(sibpath.sibpath(__file__, "web/%s" % name))
+from allmydata.util import mathutil
+from allmydata.web.common import getxmlfile
 
 # factorial and binomial copied from
 # http://mail.python.org/pipermail/python-list/2007-April/435718.html
