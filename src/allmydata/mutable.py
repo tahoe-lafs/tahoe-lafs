@@ -454,10 +454,14 @@ class Retrieve:
         # might produce a result.
         return None
 
+    def _do_read(self, ss, peerid, storage_index, shnums, readv):
+        d = ss.callRemote("slot_readv", storage_index, shnums, readv)
+        return d
+
     def _do_query(self, ss, peerid, storage_index, readsize):
         started = time.time()
         self._queries_outstanding.add(peerid)
-        d = ss.callRemote("slot_readv", storage_index, [], [(0, readsize)])
+        d = self._do_read(ss, peerid, storage_index, [], [(0, readsize)])
         d.addCallback(self._got_results, peerid, readsize, (ss, storage_index),
                       started)
         d.addErrback(self._query_failed, peerid)
