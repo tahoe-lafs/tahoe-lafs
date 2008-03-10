@@ -1098,10 +1098,15 @@ class Publish:
         # the permuted peerlist.
         return d
 
+    def _do_read(self, ss, peerid, storage_index, shnums, readv):
+        # isolate the callRemote to a separate method, so tests can subclass
+        # Publish and override it
+        d = ss.callRemote("slot_readv", storage_index, shnums, readv)
+        return d
+
     def _do_query(self, ss, peerid, storage_index):
         self.log("querying %s" % idlib.shortnodeid_b2a(peerid))
-        d = ss.callRemote("slot_readv",
-                          storage_index, [], [(0, self._read_size)])
+        d = self._do_read(ss, peerid, storage_index, [], [(0, self._read_size)])
         return d
 
     def _got_query_results(self, datavs, peerid, permutedid,
@@ -1302,8 +1307,8 @@ class Publish:
 
     def _do_privkey_query(self, rref, peerid, shnum, offset, length):
         started = time.time()
-        d = rref.callRemote("slot_readv", self._storage_index,
-                            [shnum], [(offset, length)] )
+        d = self._do_read(rref, peerid, self._storage_index,
+                          [shnum], [(offset, length)])
         d.addCallback(self._privkey_query_response, peerid, shnum, started)
         return d
 

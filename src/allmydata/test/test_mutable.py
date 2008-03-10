@@ -47,8 +47,9 @@ class FakeFilenode(mutable.MutableFileNode):
         return defer.succeed(None)
 
 class FakePublish(mutable.Publish):
-    def _do_query(self, ss, peerid, storage_index):
+    def _do_read(self, ss, peerid, storage_index, shnums, readv):
         assert ss[0] == peerid
+        assert shnums == []
         shares = self._peers[peerid]
         return defer.succeed(shares)
 
@@ -275,6 +276,7 @@ class Publish(unittest.TestCase):
         p = FakePublish(fn)
         p._storage_index = "\x00"*32
         p._new_seqnum = 3
+        p._read_size = 1000
         #r = mutable.Retrieve(fn)
         p._peers = {}
         for peerid in c._peerids:
