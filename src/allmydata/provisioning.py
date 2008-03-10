@@ -1,5 +1,5 @@
 
-from nevow import inevow, loaders, rend, tags as T
+from nevow import inevow, rend, tags as T
 import math
 from allmydata.util import mathutil
 from allmydata.web.common import getxmlfile
