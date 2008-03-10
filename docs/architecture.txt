@@ -297,13 +297,18 @@ these pieces in a way that allows the sharing of a specific file or the
 creation of a "virtual CD" as easily as dragging a folder onto a user icon.
 
 
-LEASES, REFRESHING, GARBAGE COLLECTION
+LEASES, REFRESHING, GARBAGE COLLECTION, QUOTAS
 
 Shares are uploaded to a storage server, but they do not necessarily stay
 there forever. We are anticipating three main share-lifetime management modes
 for Tahoe: 1) per-share leases which expire, 2) per-account timers which
 expire and cancel all leases for the account, and 3) centralized account
 management without expiration timers.
+
+To be clear, none of these have been implemented yet. The
+http://allmydata.org/trac/tahoe/wiki/QuotaManagement "Quota Management" wiki
+page describes some of our plans for managing data lifetime and limited-space
+user accounts.
 
 Multiple clients may be interested in a given share, for example if two
 clients uploaded the same file, or if two clients are sharing a directory and
@@ -576,6 +581,7 @@ This tool will continue to evolve as our analysis improves.
      concocted, in this case in a car ride from Boulder to DEN. To be
      precise, "tahoe 1" was an unworkable scheme in which everyone who holds
      shares for a given file would form a sort of cabal which kept track of
-     all the others, "tahoe 2" is the first-100-peers in the permuted hash,
-     and this document descibes "tahoe 3", or perhaps "potrero hill 1".
+     all the others, "tahoe 2" is the first-100-peers in the permuted hash
+     described in this document, and "tahoe 3" (or perhaps "potrero hill 1")
+     was the abandoned ring-with-many-hands approach.
 
