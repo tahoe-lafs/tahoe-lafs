@@ -514,10 +514,11 @@ class Retrieve:
     def _got_results_one_share(self, shnum, data, peerid):
         self.log("_got_results: got shnum #%d from peerid %s"
                  % (shnum, idlib.shortnodeid_b2a(peerid)))
+
+        # this might raise NeedMoreDataError, in which case the rest of
+        # the shares are probably short too. _query_failed() will take
+        # responsiblity for re-issuing the queries with a new length.
         (seqnum, root_hash, IV, k, N, segsize, datalength,
-         # this might raise NeedMoreDataError, in which case the rest of
-         # the shares are probably short too. _query_failed() will take
-         # responsiblity for re-issuing the queries with a new length.
          pubkey_s, signature, prefix) = unpack_prefix_and_signature(data)
 
         if not self._pubkey:
@@ -1088,7 +1089,7 @@ class Publish:
         d.addCallback(self._got_all_query_results,
                       total_shares, reachable_peers,
                       current_share_peers)
-        # TODO: add an errback to, probably to ignore that peer
+        # TODO: add an errback too, probably to ignore that peer
 
         # TODO: if we can't get a privkey from these servers, consider
         # looking farther afield. Be aware of the old 0.7.0 behavior that

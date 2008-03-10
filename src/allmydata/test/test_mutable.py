@@ -141,6 +141,23 @@ class FakeClient:
         d.addCallback(_got_data)
         return d
 
+class FakePubKey:
+    def __init__(self, count):
+        self.count = count
+    def serialize(self):
+        return "PUBKEY-%d" % self.count
+    def verify(self, msg, signature):
+        return True
+
+class FakePrivKey:
+    def __init__(self, count):
+        self.count = count
+    def serialize(self):
+        return "PRIVKEY-%d" % self.count
+    def sign(self, data):
+        return "SIGN(%s)" % data
+
+
 class Filenode(unittest.TestCase):
     def setUp(self):
         self.client = FakeClient()
@@ -396,20 +413,3 @@ class Publish(unittest.TestCase):
             pass
         d.addCallback(_done)
         return d
-
-
-class FakePubKey:
-    def __init__(self, count):
-        self.count = count
-    def serialize(self):
-        return "PUBKEY-%d" % self.count
-    def verify(self, msg, signature):
-        return True
-
-class FakePrivKey:
-    def __init__(self, count):
-        self.count = count
-    def serialize(self):
-        return "PRIVKEY-%d" % self.count
-    def sign(self, data):
-        return "SIGN(%s)" % data
