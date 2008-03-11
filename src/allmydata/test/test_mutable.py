@@ -1,5 +1,5 @@
 
-import itertools, struct
+import itertools, struct, re
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -52,6 +52,10 @@ class FakeStorage:
     # tests to examine and manipulate the published shares. It also lets us
     # control the order in which read queries are answered, to exercise more
     # of the error-handling code in mutable.Retrieve .
+    #
+    # Note that we ignore the storage index: this FakeStorage instance can
+    # only be used for a single storage index.
+
 
     def __init__(self):
         self._peers = {}
@@ -177,6 +181,12 @@ class FakePubKey:
     def serialize(self):
         return "PUBKEY-%d" % self.count
     def verify(self, msg, signature):
+        if signature[:5] != "SIGN(":
+            return False
+        if signature[5:-1] != msg:
+            return False
+        if signature[-1] != ")":
+            return False
         return True
 
 class FakePrivKey:
@@ -433,6 +443,14 @@ class FakeRetrieve(mutable.Retrieve):
                 vector.append(shares[shnum][offset:offset+length])
         return defer.succeed(response)
 
+    def _deserialize_pubkey(self, pubkey_s):
+        mo = re.search(r"^PUBKEY-(\d+)$", pubkey_s)
+        if not mo:
+            raise RuntimeError("mangled pubkey")
+        count = mo.group(1)
+        return FakePubKey(int(count))
+
+
 class Roundtrip(unittest.TestCase):
 
     def setup_for_publish(self, num_peers):
@@ -444,20 +462,152 @@ class Roundtrip(unittest.TestCase):
         fn.create("")
         p = FakePublish(fn)
         p._storage = s
-        return c, fn, p
+        r = FakeRetrieve(fn)
+        r._storage = s
+        return c, s, fn, p, r
 
     def test_basic(self):
-        c, fn, p = self.setup_for_publish(20)
+        c, s, fn, p, r = self.setup_for_publish(20)
         contents = "New contents go here"
         d = p.publish(contents)
         def _published(res):
-            # TODO: examine peers and check on their shares
-            r = FakeRetrieve(fn)
-            r._storage = p._storage
             return r.retrieve()
         d.addCallback(_published)
         def _retrieved(new_contents):
             self.failUnlessEqual(contents, new_contents)
         d.addCallback(_retrieved)
         return d
+
+    def flip_bit(self, original, byte_offset):
+        return (original[:byte_offset] +
+                chr(ord(original[byte_offset]) ^ 0x01) +
+                original[byte_offset+1:])
+
+
+    def shouldFail(self, expected_failure, which, substring,
+                    callable, *args, **kwargs):
+        assert substring is None or isinstance(substring, str)
+        d = defer.maybeDeferred(callable, *args, **kwargs)
+        def done(res):
+            if isinstance(res, failure.Failure):
+                res.trap(expected_failure)
+                if substring:
+                    self.failUnless(substring in str(res),
+                                    "substring '%s' not in '%s'"
+                                    % (substring, str(res)))
+            else:
+                self.fail("%s was supposed to raise %s, not get '%s'" %
+                          (which, expected_failure, res))
+        d.addBoth(done)
+        return d
+
+    def _corrupt_all(self, offset, substring, refetch_pubkey=False,
+                     should_succeed=False):
+        c, s, fn, p, r = self.setup_for_publish(20)
+        contents = "New contents go here"
+        d = p.publish(contents)
+        def _published(res):
+            if refetch_pubkey:
+                # clear the pubkey, to force a fetch
+                r._pubkey = None
+            for peerid in s._peers:
+                shares = s._peers[peerid]
+                for shnum in shares:
+                    data = shares[shnum]
+                    (version,
+                     seqnum,
+                     root_hash,
+                     IV,
+                     k, N, segsize, datalen,
+                     o) = mutable.unpack_header(data)
+                    if isinstance(offset, tuple):
+                        offset1, offset2 = offset
+                    else:
+                        offset1 = offset
+                        offset2 = 0
+                    if offset1 == "pubkey":
+                        real_offset = 107
+                    elif offset1 in o:
+                        real_offset = o[offset1]
+                    else:
+                        real_offset = offset1
+                    real_offset = int(real_offset) + offset2
+                    assert isinstance(real_offset, int), offset
+                    shares[shnum] = self.flip_bit(data, real_offset)
+        d.addCallback(_published)
+        if should_succeed:
+            d.addCallback(lambda res: r.retrieve())
+        else:
+            d.addCallback(lambda res:
+                          self.shouldFail(NotEnoughPeersError,
+                                          "_corrupt_all(offset=%s)" % (offset,),
+                                          substring,
+                                          r.retrieve))
+        return d
+
+    def test_corrupt_all_verbyte(self):
+        # when the version byte is not 0, we hit an assertion error in
+        # unpack_share().
+        return self._corrupt_all(0, "AssertionError")
+
+    def test_corrupt_all_seqnum(self):
+        # a corrupt sequence number will trigger a bad signature
+        return self._corrupt_all(1, "signature is invalid")
+
+    def test_corrupt_all_R(self):
+        # a corrupt root hash will trigger a bad signature
+        return self._corrupt_all(9, "signature is invalid")
+
+    def test_corrupt_all_IV(self):
+        # a corrupt salt/IV will trigger a bad signature
+        return self._corrupt_all(41, "signature is invalid")
+
+    def test_corrupt_all_k(self):
+        # a corrupt 'k' will trigger a bad signature
+        return self._corrupt_all(57, "signature is invalid")
+
+    def test_corrupt_all_N(self):
+        # a corrupt 'N' will trigger a bad signature
+        return self._corrupt_all(58, "signature is invalid")
+
+    def test_corrupt_all_segsize(self):
+        # a corrupt segsize will trigger a bad signature
+        return self._corrupt_all(59, "signature is invalid")
+
+    def test_corrupt_all_datalen(self):
+        # a corrupt data length will trigger a bad signature
+        return self._corrupt_all(67, "signature is invalid")
+
+    def test_corrupt_all_pubkey(self):
+        # a corrupt pubkey won't match the URI's fingerprint
+        return self._corrupt_all("pubkey", "pubkey doesn't match fingerprint",
+                                 refetch_pubkey=True)
+
+    def test_corrupt_all_sig(self):
+        # a corrupt signature is a bad one
+        # the signature runs from about [543:799], depending upon the length
+        # of the pubkey
+        return self._corrupt_all("signature", "signature is invalid",
+                                 refetch_pubkey=True)
+
+    def test_corrupt_all_share_hash_chain_number(self):
+        # a corrupt share hash chain entry will show up as a bad hash. If we
+        # mangle the first byte, that will look like a bad hash number,
+        # causing an IndexError
+        return self._corrupt_all("share_hash_chain", "corrupt hashes")
+
+    def test_corrupt_all_share_hash_chain_hash(self):
+        # a corrupt share hash chain entry will show up as a bad hash. If we
+        # mangle a few bytes in, that will look like a bad hash.
+        return self._corrupt_all(("share_hash_chain",4), "corrupt hashes")
+
+    def test_corrupt_all_block_hash_tree(self):
+        return self._corrupt_all("block_hash_tree", "block hash tree failure")
+
+    def test_corrupt_all_block(self):
+        return self._corrupt_all("share_data", "block hash tree failure")
+
+    def test_corrupt_all_encprivkey(self):
+        # a corrupted privkey won't even be noticed by the reader
+        return self._corrupt_all("enc_privkey", None, should_succeed=True)
 

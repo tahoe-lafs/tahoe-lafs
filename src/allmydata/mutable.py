@@ -49,11 +49,8 @@ SIGNED_PREFIX = ">BQ32s16s BBQQ" # this is covered by the signature
 HEADER = ">BQ32s16s BBQQ LLLLQQ" # includes offsets
 HEADER_LENGTH = struct.calcsize(HEADER)
 
-def unpack_prefix_and_signature(data):
-    assert len(data) >= HEADER_LENGTH
+def unpack_header(data):
     o = {}
-    prefix = data[:struct.calcsize(SIGNED_PREFIX)]
-
     (version,
      seqnum,
      root_hash,
@@ -65,6 +62,18 @@ def unpack_prefix_and_signature(data):
      o['share_data'],
      o['enc_privkey'],
      o['EOF']) = struct.unpack(HEADER, data[:HEADER_LENGTH])
+    return (version, seqnum, root_hash, IV, k, N, segsize, datalen, o)
+
+def unpack_prefix_and_signature(data):
+    assert len(data) >= HEADER_LENGTH
+    prefix = data[:struct.calcsize(SIGNED_PREFIX)]
+
+    (version,
+     seqnum,
+     root_hash,
+     IV,
+     k, N, segsize, datalen,
+     o) = unpack_header(data)
 
     assert version == 0
     if len(data) < o['share_hash_chain']:
@@ -535,7 +544,7 @@ class Retrieve:
             self._pubkey = self._deserialize_pubkey(pubkey_s)
             self._node._populate_pubkey(self._pubkey)
 
-        verinfo = (seqnum, root_hash, IV, segsize, datalength)
+        verinfo = (seqnum, root_hash, IV, segsize, datalength) #, k, N)
         self._status.sharemap[peerid].add(verinfo)
 
         if verinfo not in self._valid_versions:
@@ -694,12 +703,12 @@ class Retrieve:
                     # arbitrary, really I want this to be something like
                     # k - max(known_version_sharecounts) + some extra
                     break
-        new_search_distance = max(max(peer_indicies),
-                                  self._status.get_search_distance())
-        self._status.set_search_distance(new_search_distance)
         if new_query_peers:
             self.log("sending %d new queries (read %d bytes)" %
                      (len(new_query_peers), self._read_size), level=log.UNUSUAL)
+            new_search_distance = max(max(peer_indicies),
+                                      self._status.get_search_distance())
+            self._status.set_search_distance(new_search_distance)
             for (peerid, ss) in new_query_peers:
                 self._do_query(ss, peerid, self._storage_index, self._read_size)
             # we'll retrigger when those queries come back
@@ -802,7 +811,8 @@ class Retrieve:
         try:
             t2.set_hashes(hashes=share_hash_chain,
                           leaves={shnum: share_hash_leaf})
-        except (hashtree.BadHashError, hashtree.NotEnoughHashesError), e:
+        except (hashtree.BadHashError, hashtree.NotEnoughHashesError,
+                IndexError), e:
             msg = "corrupt hashes: %s" % (e,)
             raise CorruptShareError(peerid, shnum, msg)
         self.log(" data valid! len=%d" % len(share_data))
@@ -864,16 +874,18 @@ class Retrieve:
         self._node._populate_root_hash(root_hash)
         return plaintext
 
-    def _done(self, contents):
+    def _done(self, res):
+        # res is either the new contents, or a Failure
         self.log("DONE")
         self._running = False
         self._status.set_active(False)
         self._status.set_status("Done")
         self._status.set_progress(1.0)
-        self._status.set_size(len(contents))
+        if isinstance(res, str):
+            self._status.set_size(len(res))
         elapsed = time.time() - self._started
         self._status.timings["total"] = elapsed
-        eventually(self._done_deferred.callback, contents)
+        eventually(self._done_deferred.callback, res)
 
     def get_status(self):
         return self._status
