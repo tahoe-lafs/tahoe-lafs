@@ -5,6 +5,7 @@ from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python import failure
 from allmydata import mutable, uri, dirnode, download
+from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash
 from allmydata.encode import NotEnoughPeersError
 from allmydata.interfaces import IURI, INewDirectoryURI, \
@@ -88,7 +89,7 @@ class FakeStorage:
             if peerid in pending:
                 d, shares = pending.pop(peerid)
                 eventually(d.callback, shares)
-        for (d, shares) in pending.items():
+        for (d, shares) in pending.values():
             eventually(d.callback, shares)
 
     def write(self, peerid, storage_index, shnum, offset, data):
@@ -704,7 +705,7 @@ class Roundtrip(unittest.TestCase):
         d.addCallback(_retrieved)
         return d
 
-    def OFF_test_multiple_encodings(self): # not finished yet
+    def test_multiple_encodings(self):
         # we encode the same file in two different ways (3-of-10 and 4-of-9),
         # then mix up the shares, to make sure that download survives seeing
         # a variety of encodings. This is actually kind of tricky to set up.
@@ -763,45 +764,63 @@ class Roundtrip(unittest.TestCase):
         d.addCallback(_published_2)
         def _merge(res):
             log.msg("merging sharelists")
-            print len(self._shares1), len(self._shares2)
-            from allmydata.util import idlib
-            # we rearrange the shares, removing them from their original
-            # homes.
-            shares1 = self._shares1.values()
-            shares2 = self._shares2.values()
-
-            print len(shares1), len(shares2)
-            # then we place shares in the following order:
+            # we merge the shares from the two sets, leaving each shnum in
+            # its original location, but using a share from set1 or set2
+            # according to the following sequence:
+            #
             #  4-of-9  a  s2
             #  4-of-9  b  s2
             #  4-of-9  c  s2
             #  3-of-9  d s1
             #  3-of-9  e s1
-            #  4-of-9  f  s2
-            #  3-of-9  g s1
-            # so that neither form can be recovered until fetch [f]. Later,
-            # when we implement code that handles multiple versions, we can
-            # use this framework to assert that all recoverable versions are
-            # retrieved, and test that 'epsilon' does its job
-            places = [2, 2, 2, 1, 1, 2, 1]
+            #  3-of-9  f s1
+            #  4-of-9  g  s2
+            #
+            # so that neither form can be recovered until fetch [f], at which
+            # point version-s1 (the 3-of-10 form) should be recoverable. If
+            # the implementation latches on to the first version it sees,
+            # then s2 will be recoverable at fetch [g].
+
+            # Later, when we implement code that handles multiple versions,
+            # we can use this framework to assert that all recoverable
+            # versions are retrieved, and test that 'epsilon' does its job
+
+            places = [2, 2, 2, 1, 1, 1, 2]
+
+            sharemap = {}
+
             for i in range(len(s._sequence)):
                 peerid = s._sequence[i]
-                if not places:
-                    print idlib.shortnodeid_b2a(peerid), "-", "-"
-                    break
-                which = places.pop(0)
-                if which == 1:
-                    print idlib.shortnodeid_b2a(peerid), "1", "-"
-                    s._peers[peerid] = shares1.pop(0)
-                else:
-                    print idlib.shortnodeid_b2a(peerid), "-", "2"
-                    s._peers[peerid] = shares2.pop(0)
+                peerid_s = shortnodeid_b2a(peerid)
+                for shnum in self._shares1.get(peerid, {}):
+                    sharemap[shnum] = peerid
+                    if shnum < len(places):
+                        which = places[shnum]
+                    else:
+                        which = "x"
+                    s._peers[peerid] = peers = {}
+                    in_1 = shnum in self._shares1[peerid]
+                    in_2 = shnum in self._shares2.get(peerid, {})
+                    #print peerid_s, shnum, which, in_1, in_2
+                    if which == 1:
+                        if in_1:
+                            peers[shnum] = self._shares1[peerid][shnum]
+                    elif which == 2:
+                        if in_2:
+                            peers[shnum] = self._shares2[peerid][shnum]
+
             # we don't bother placing any other shares
+            # now sort the sequence so that share 0 is returned first
+            new_sequence = [sharemap[shnum]
+                            for shnum in sorted(sharemap.keys())]
+            s._sequence = new_sequence
             log.msg("merge done")
         d.addCallback(_merge)
         d.addCallback(lambda res: r3.retrieve())
         def _retrieved(new_contents):
-            # the current specified behavior is "first version recoverable"
+            ## the current specified behavior is "first version recoverable"
+            #self.failUnlessEqual(new_contents, contents1)
+            # the current behavior is "first version seen is sticky"
             self.failUnlessEqual(new_contents, contents2)
         d.addCallback(_retrieved)
         return d
