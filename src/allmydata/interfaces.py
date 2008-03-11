@@ -1,7 +1,7 @@
 
 from zope.interface import Interface
 from foolscap.schema import StringConstraint, ListOf, TupleOf, SetOf, DictOf, \
-     ChoiceOf
+     ChoiceOf, IntegerConstraint
 from foolscap import RemoteInterface, Referenceable
 
 HASH_SIZE=32
@@ -19,6 +19,9 @@ MAX_BUCKETS = 200  # per peer
 # MAX_SEGMENT_SIZE in encode.py is 1 MiB (this constraint allows k = 1)
 ShareData = StringConstraint(2**20)
 URIExtensionData = StringConstraint(1000)
+Number = IntegerConstraint(8) # 2**(8*8) == 16EiB ~= 18e18 ~= 18 exabytes
+Offset = Number
+ReadSize = int # the 'int' constraint is 2**31 == 2Gib
 LeaseRenewSecret = Hash # used to protect bucket lease renewal requests
 LeaseCancelSecret = Hash # used to protect bucket lease cancellation requests
 
@@ -159,7 +162,7 @@ class IIntroducerClient(Interface):
 
 
 class RIBucketWriter(RemoteInterface):
-    def write(offset=int, data=ShareData):
+    def write(offset=Offset, data=ShareData):
         return None
 
     def close():
@@ -176,21 +179,24 @@ class RIBucketWriter(RemoteInterface):
         return None
 
 class RIBucketReader(RemoteInterface):
-    def read(offset=int, length=int):
+    def read(offset=Offset, length=ReadSize):
+        # ShareData is limited to 1MiB, so we don't need length= to be any
+        # larger than that. Large files must be read in pieces.
         return ShareData
 
-TestVector = ListOf(TupleOf(int, int, str, str))
+TestVector = ListOf(TupleOf(Offset, ReadSize, str, str))
 # elements are (offset, length, operator, specimen)
 # operator is one of "lt, le, eq, ne, ge, gt"
 # nop always passes and is used to fetch data while writing.
 # you should use length==len(specimen) for everything except nop
-DataVector = ListOf(TupleOf(int, ShareData))
+DataVector = ListOf(TupleOf(Offset, ShareData))
 # (offset, data). This limits us to 30 writes of 1MiB each per call
 TestAndWriteVectorsForShares = DictOf(int,
                                       TupleOf(TestVector,
                                               DataVector,
-                                              ChoiceOf(None, int))) # new_length
-ReadVector = ListOf(TupleOf(int, int))
+                                              ChoiceOf(None, Offset), # new_length
+                                              ))
+ReadVector = ListOf(TupleOf(Offset, ReadSize))
 ReadData = ListOf(ShareData)
 # returns data[offset:offset+length] for each element of TestVector
 
@@ -214,7 +220,7 @@ class RIStorageServer(RemoteInterface):
                          renew_secret=LeaseRenewSecret,
                          cancel_secret=LeaseCancelSecret,
                          sharenums=SetOf(int, maxLength=MAX_BUCKETS),
-                         allocated_size=int, canary=Referenceable):
+                         allocated_size=Offset, canary=Referenceable):
         """
         @param storage_index: the index of the bucket to be created or
                               increfed.
@@ -1587,12 +1593,12 @@ class RIEncryptedUploadable(RemoteInterface):
     __remote_name__ = "RIEncryptedUploadable.tahoe.allmydata.com"
 
     def get_size():
-        return int
+        return Offset
 
     def get_all_encoding_parameters():
         return (int, int, int, long)
 
-    def read_encrypted(offset=long, length=long):
+    def read_encrypted(offset=Offset, length=ReadSize):
         return ListOf(str)
 
     def get_plaintext_hashtree_leaves(first=int, last=int, num_segments=int):
