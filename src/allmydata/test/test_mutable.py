@@ -830,10 +830,8 @@ class Roundtrip(unittest.TestCase):
             return r3.retrieve()
         d.addCallback(_retrieve)
         def _retrieved(new_contents):
-            ## the current specified behavior is "first version recoverable"
-            #self.failUnlessEqual(new_contents, contents1)
-            # the current behavior is "first version seen is sticky"
-            self.failUnlessEqual(new_contents, contents2)
+            # the current specified behavior is "first version recoverable"
+            self.failUnlessEqual(new_contents, contents1)
         d.addCallback(_retrieved)
         return d
 
