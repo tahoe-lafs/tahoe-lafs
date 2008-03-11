@@ -1362,7 +1362,17 @@ class Publish:
         started = now
 
         # now apply FEC
-        self.MAX_SEGMENT_SIZE = 1024*1024
+
+        # we limit the segment size as usual to constrain our memory
+        # footprint. The max segsize is higher for mutable files, because we
+        # want to support dirnodes with up to 10k children, and each child
+        # uses about 330 bytes. If you actually put that much into a
+        # directory you'll be using a footprint of around 14MB, which is
+        # higher than we'd like, but it is more important right now to
+        # support large directories than to make memory usage small when you
+        # use them. Once we implement MDMF (with multiple segments), we will
+        # drop this back down, probably to 128KiB.
+        self.MAX_SEGMENT_SIZE = 3500000
         data_length = len(crypttext)
 
         segment_size = min(self.MAX_SEGMENT_SIZE, len(crypttext))
