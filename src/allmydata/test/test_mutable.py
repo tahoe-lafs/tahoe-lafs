@@ -611,3 +611,18 @@ class Roundtrip(unittest.TestCase):
         # a corrupted privkey won't even be noticed by the reader
         return self._corrupt_all("enc_privkey", None, should_succeed=True)
 
+    def test_short_read(self):
+        c, s, fn, p, r = self.setup_for_publish(20)
+        contents = "New contents go here"
+        d = p.publish(contents)
+        def _published(res):
+            # force a short read, to make Retrieve._got_results re-send the
+            # queries. But don't make it so short that we can't read the
+            # header.
+            r._read_size = mutable.HEADER_LENGTH + 10
+            return r.retrieve()
+        d.addCallback(_published)
+        def _retrieved(new_contents):
+            self.failUnlessEqual(contents, new_contents)
+        d.addCallback(_retrieved)
+        return d

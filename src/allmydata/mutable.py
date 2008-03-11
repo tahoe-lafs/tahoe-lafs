@@ -328,6 +328,13 @@ class Retrieve:
         self._status.set_helper(False)
         self._status.set_progress(0.0)
         self._status.set_active(True)
+        # how much data should be read on the first fetch? It would be nice
+        # if we could grab small directories in a single RTT. The way we pack
+        # dirnodes consumes about 112 bytes per child. The way we pack
+        # mutable files puts about 935 bytes of pubkey+sig+hashes, then our
+        # data, then about 1216 bytes of encprivkey. So 2kB ought to get us
+        # about 9 entries, which seems like a good default.
+        self._read_size = 2000
 
     def log(self, msg, **kwargs):
         prefix = self._log_prefix
@@ -379,13 +386,6 @@ class Retrieve:
         #    remove that share from the sharemap.  and start step#6 again.
 
         initial_query_count = 5
-        # how much data should be read on the first fetch? It would be nice
-        # if we could grab small directories in a single RTT. The way we pack
-        # dirnodes consumes about 112 bytes per child. The way we pack
-        # mutable files puts about 935 bytes of pubkey+sig+hashes, then our
-        # data, then about 1216 bytes of encprivkey. So 2kB ought to get us
-        # about 9 entries, which seems like a good default.
-        self._read_size = 2000
 
         # we might not know how many shares we need yet.
         self._required_shares = self._node.get_required_shares()
