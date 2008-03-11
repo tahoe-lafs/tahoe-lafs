@@ -132,16 +132,16 @@ def get_nickname():
         nick = socket.gethostname()
     return nick
 
-def maybe_write_nickname(nickname):
-    nnfile = os.path.join(get_basedir(), 'nickname')
+def maybe_write_file(filename, contents):
+    fname = os.path.join(get_basedir(), filename)
     try:
-        if not os.path.exists(nnfile):
-            fh = file(nnfile, 'wb')
-            fh.write(nickname)
+        if not os.path.exists(fname):
+            fh = file(fname, 'wb')
+            fh.write(contents)
             fh.write('\n')
             fh.close()
     except:
-        DisplayTraceback('Failed to write nickname file %s' % (nnfile,))
+        DisplayTraceback('Failed to write file %s' % (fname,))
 
 def configure(backend, user, passwd):
     _config_re = re.compile('^([^:]*): (.*)$')
@@ -348,7 +348,8 @@ class LoginPanel(wx.Panel):
 
         configure(backend, user, passwd)
         maybe_start_services()
-        maybe_write_nickname(nickname)
+        maybe_write_file('nickname', nickname)
+        maybe_write_file('accountname', user)
 
         self.app.open_welcome_page()
 
@@ -495,7 +496,8 @@ class RegisterPanel(wx.Panel):
 
         configure(backend, user, passwd)
         maybe_start_services()
-        maybe_write_nickname(nickname)
+        maybe_write_file('nickname', nickname)
+        maybe_write_file('accountname', user)
 
         self.app.open_welcome_page()
 
