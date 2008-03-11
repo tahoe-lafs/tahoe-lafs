@@ -67,7 +67,7 @@ show-eggspath:
 # http://pypi.python.org/pypi/darcsver It is necessary only if you want to
 # automatically produce a new _version.py file from the current darcs history.
 make-version:
-	$(PYTHON) ./setup.py darcsver
+	$(PYTHON) ./setup.py darcsver --count-all-patches
 
 # We want src/allmydata/_version.py to be up-to-date, but it's a fairly
 # expensive operation (about 6 seconds on a just-before-0.7.0 tree, probably
