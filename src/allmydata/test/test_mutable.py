@@ -705,6 +705,35 @@ class Roundtrip(unittest.TestCase):
         d.addCallback(_retrieved)
         return d
 
+    def _encode(self, c, s, fn, k, n, data):
+        # encode 'data' into a peerid->shares dict.
+
+        fn2 = FakeFilenode(c)
+        # init_from_uri populates _uri, _writekey, _readkey, _storage_index,
+        # and _fingerprint
+        fn2.init_from_uri(fn.get_uri())
+        # then we copy over other fields that are normally fetched from the
+        # existing shares
+        fn2._pubkey = fn._pubkey
+        fn2._privkey = fn._privkey
+        fn2._encprivkey = fn._encprivkey
+        fn2._current_seqnum = 0
+        fn2._current_roothash = "\x00" * 32
+        # and set the encoding parameters to something completely different
+        fn2._required_shares = k
+        fn2._total_shares = n
+
+        p2 = FakePublish(fn2)
+        p2._storage = s
+        p2._storage._peers = {} # clear existing storage
+        d = p2.publish(data)
+        def _published(res):
+            shares = s._peers
+            s._peers = {}
+            return shares
+        d.addCallback(_published)
+        return d
+
     def test_multiple_encodings(self):
         # we encode the same file in two different ways (3-of-10 and 4-of-9),
         # then mix up the shares, to make sure that download survives seeing
@@ -712,56 +741,29 @@ class Roundtrip(unittest.TestCase):
         c, s, fn, p, r = self.setup_for_publish(20)
         # we ignore fn, p, and r
 
-        # force share retrieval to occur in this order
-        s._sequence = c._peerids[:]
-
-        fn1 = FakeFilenode(c)
-        fn1.DEFAULT_ENCODING = (3,10)
-        fn1.create("")
-        p1 = FakePublish(fn1)
-        p1._storage = s
-
-        # and we make a second filenode with the same key but different
-        # encoding
-        fn2 = FakeFilenode(c)
-        # init_from_uri populates _uri, _writekey, _readkey, _storage_index,
-        # and _fingerprint
-        fn2.init_from_uri(fn1.get_uri())
-        # then we copy over other fields that are normally fetched from the
-        # existing shares
-        fn2._pubkey = fn1._pubkey
-        fn2._privkey = fn1._privkey
-        fn2._encprivkey = fn1._encprivkey
-        fn2._current_seqnum = 0
-        fn2._current_roothash = "\x00" * 32
-        # and set the encoding parameters to something completely different
-        fn2._required_shares = 4
-        fn2._total_shares = 9
-
-        p2 = FakePublish(fn2)
-        p2._storage = s
+        contents1 = "Contents for encoding 1 (3-of-10) go here"
+        contents2 = "Contents for encoding 2 (4-of-9) go here"
+        contents3 = "Contents for encoding 3 (4-of-7) go here"
 
         # we make a retrieval object that doesn't know what encoding
         # parameters to use
         fn3 = FakeFilenode(c)
-        fn3.init_from_uri(fn1.get_uri())
-        r3 = FakeRetrieve(fn3)
-        r3._storage = s
+        fn3.init_from_uri(fn.get_uri())
 
         # now we upload a file through fn1, and grab its shares
-        contents1 = "Contents for encoding 1 (3-of-10) go here"
-        contents2 = "Contents for encoding 2 (4-of-9) go here"
-        d = p1.publish(contents1)
-        def _published_1(res):
-            self._shares1 = s._peers
-            s._peers = {}
-            # and upload it through fn2
-            return p2.publish(contents2)
-        d.addCallback(_published_1)
-        def _published_2(res):
-            self._shares2 = s._peers
-            s._peers = {}
-        d.addCallback(_published_2)
+        d = self._encode(c, s, fn, 3, 10, contents1)
+        def _encoded_1(shares):
+            self._shares1 = shares
+        d.addCallback(_encoded_1)
+        d.addCallback(lambda res: self._encode(c, s, fn, 4, 9, contents2))
+        def _encoded_2(shares):
+            self._shares2 = shares
+        d.addCallback(_encoded_2)
+        d.addCallback(lambda res: self._encode(c, s, fn, 4, 7, contents3))
+        def _encoded_3(shares):
+            self._shares3 = shares
+        d.addCallback(_encoded_3)
+
         def _merge(res):
             log.msg("merging sharelists")
             # we merge the shares from the two sets, leaving each shnum in
@@ -770,11 +772,12 @@ class Roundtrip(unittest.TestCase):
             #
             #  4-of-9  a  s2
             #  4-of-9  b  s2
-            #  4-of-9  c  s2
-            #  3-of-9  d s1
+            #  4-of-7  c   s3
+            #  4-of-9  d  s2
             #  3-of-9  e s1
             #  3-of-9  f s1
-            #  4-of-9  g  s2
+            #  3-of-9  g s1
+            #  4-of-9  h  s2
             #
             # so that neither form can be recovered until fetch [f], at which
             # point version-s1 (the 3-of-10 form) should be recoverable. If
@@ -785,15 +788,13 @@ class Roundtrip(unittest.TestCase):
             # we can use this framework to assert that all recoverable
             # versions are retrieved, and test that 'epsilon' does its job
 
-            places = [2, 2, 2, 1, 1, 1, 2]
+            places = [2, 2, 3, 2, 1, 1, 1, 2]
 
             sharemap = {}
 
-            for i in range(len(s._sequence)):
-                peerid = s._sequence[i]
+            for i,peerid in enumerate(c._peerids):
                 peerid_s = shortnodeid_b2a(peerid)
                 for shnum in self._shares1.get(peerid, {}):
-                    sharemap[shnum] = peerid
                     if shnum < len(places):
                         which = places[shnum]
                     else:
@@ -801,13 +802,20 @@ class Roundtrip(unittest.TestCase):
                     s._peers[peerid] = peers = {}
                     in_1 = shnum in self._shares1[peerid]
                     in_2 = shnum in self._shares2.get(peerid, {})
-                    #print peerid_s, shnum, which, in_1, in_2
+                    in_3 = shnum in self._shares3.get(peerid, {})
+                    #print peerid_s, shnum, which, in_1, in_2, in_3
                     if which == 1:
                         if in_1:
                             peers[shnum] = self._shares1[peerid][shnum]
+                            sharemap[shnum] = peerid
                     elif which == 2:
                         if in_2:
                             peers[shnum] = self._shares2[peerid][shnum]
+                            sharemap[shnum] = peerid
+                    elif which == 3:
+                        if in_3:
+                            peers[shnum] = self._shares3[peerid][shnum]
+                            sharemap[shnum] = peerid
 
             # we don't bother placing any other shares
             # now sort the sequence so that share 0 is returned first
@@ -816,7 +824,11 @@ class Roundtrip(unittest.TestCase):
             s._sequence = new_sequence
             log.msg("merge done")
         d.addCallback(_merge)
-        d.addCallback(lambda res: r3.retrieve())
+        def _retrieve(res):
+            r3 = FakeRetrieve(fn3)
+            r3._storage = s
+            return r3.retrieve()
+        d.addCallback(_retrieve)
         def _retrieved(new_contents):
             ## the current specified behavior is "first version recoverable"
             #self.failUnlessEqual(new_contents, contents1)
