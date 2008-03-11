@@ -1579,9 +1579,9 @@ class WebishServer(service.MultiService):
         # what is our webport?
         s = self.listener
         if isinstance(s, internet.TCPServer):
-            base_url = "http://localhost:%d" % s._port.getHost().port
+            base_url = "http://127.0.0.1:%d" % s._port.getHost().port
         elif isinstance(s, internet.SSLServer):
-            base_url = "https://localhost:%d" % s._port.getHost().port
+            base_url = "https://127.0.0.1:%d" % s._port.getHost().port
         else:
             base_url = None
         if base_url:
