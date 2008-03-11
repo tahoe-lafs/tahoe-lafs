@@ -17,7 +17,7 @@ vern = {
     'minor': v.minor,
     'point': v.micro,
     'micro': v.micro,
-    'nano' : v.nano,
+    'revision' : v.revision,
     'build': str(v),
     }
 

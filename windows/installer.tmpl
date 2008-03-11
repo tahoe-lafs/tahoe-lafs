@@ -1,8 +1,8 @@
 [Setup]
 AppName=Allmydata 3.0
-AppVerName=Allmydata 3.0 %(major)d.%(minor)d.%(point)d-%(nano)d
-AppVersion=%(major)d.%(minor)d.%(point)d-%(nano)d
-VersionInfoVersion=%(major)d.%(minor)d.%(point)d.%(nano)d
+AppVerName=Allmydata 3.0 %(major)d.%(minor)d.%(point)d-r%(revision)d
+AppVersion=%(major)d.%(minor)d.%(point)d-r%(revision)d
+VersionInfoVersion=%(major)d.%(minor)d.%(point)d.%(revision)d
 AppPublisher=Allmydata Inc.
 AppPublisherURL=http://www.allmydata.com/
 AppSupportURL=http://www.allmydata.com/support/
@@ -18,7 +18,7 @@ SetupIconFile=../installer.ico
 UninstallDisplayIcon=../amdicon.ico
 ; license file needs to be build/all dir
 ;LicenseFile=../license.txt
-OutputBaseFilename=Allmydata_Tahoe_Setup_v%(major)d_%(minor)d_%(point)d_%(nano)d
+OutputBaseFilename=Allmydata_Tahoe_Setup_v%(major)d_%(minor)d_%(point)d_r%(revision)d
 
 [Files]
 ; contents of 'binaries' dir. (consolidated build target)
@@ -44,7 +44,7 @@ Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: """{app}\Install\
 Filename: "{app}\Install\confwiz.exe"; Flags: hidewizard
 ;Filename: "{app}\Install\ReadMe.txt"; Description: "View the ReadMe file"; Flags: unchecked postinstall nowait shellexec skipifdoesntexist
 Filename: "{app}\Install\winfuse\AllmydataTray.exe"; Description: "Run Allmydata"; Flags: postinstall nowait
-Filename: "http://beta.allmydata.com/welcome_install?v=%(major)d.%(minor)d.%(point)d.%(nano)d"; Description: "View the Welcome Page"; Flags: postinstall shellexec
+Filename: "http://beta.allmydata.com/welcome_install?v=%(major)d.%(minor)d.%(point)d.%(revision)d"; Description: "View the Welcome Page"; Flags: postinstall shellexec
 
 [UninstallRun]
 ; Performed before the uninstaller runs to undo things
