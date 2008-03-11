@@ -308,7 +308,7 @@ clean:
 	rm -f `find src/allmydata -name '*.so' -or -name '*.pyc'`
 	rm -rf tahoe_deps.egg-info allmydata_tahoe.egg-info
 	rm -rf support dist
-	rm -rf setuptools*.egg *.pyc darcsver*.egg
+	rm -rf setuptools*.egg *.pyc darcsver*.egg pyutil*.egg
 	rm -rf misc/dependencies/build misc/dependencies/temp
 	rm -rf misc/dependencies/tahoe_deps.egg-info
 
