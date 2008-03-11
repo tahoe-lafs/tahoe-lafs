@@ -104,7 +104,7 @@ setup_requires = []
 # version stamp in src/allmydata/_version.py, with a version number derived from
 # darcs history.
 # http://pypi.python.org/pypi/darcsver
-setup_requires.append('darcsver >= 1.1.1')
+setup_requires.append('darcsver >= 1.1.2')
 
 # setuptools_darcs is required to produce complete distributions (such as with
 # "sdist" or "bdist_egg"), unless there is a PKG-INFO file present which shows
