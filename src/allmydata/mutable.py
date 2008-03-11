@@ -1641,6 +1641,7 @@ class MutableFileNode:
     publish_class = Publish
     retrieve_class = Retrieve
     SIGNATURE_KEY_SIZE = 2048
+    DEFAULT_ENCODING = (3, 10)
 
     def __init__(self, client):
         self._client = client
@@ -1685,8 +1686,8 @@ class MutableFileNode:
         contents. Returns a Deferred that fires (with the MutableFileNode
         instance you should use) when it completes.
         """
-        self._required_shares = 3
-        self._total_shares = 10
+        self._required_shares, self._total_shares = self.DEFAULT_ENCODING
+
         d = defer.maybeDeferred(self._generate_pubprivkeys)
         def _generated( (pubkey, privkey) ):
             self._pubkey, self._privkey = pubkey, privkey
