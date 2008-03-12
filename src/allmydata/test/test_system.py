@@ -7,6 +7,7 @@ from twisted.internet import defer, reactor
 from twisted.internet import threads # CLI tests use deferToThread
 from twisted.internet.error import ConnectionDone, ConnectionLost
 from twisted.application import service
+import allmydata
 from allmydata import client, uri, download, upload, storage, mutable, offloaded
 from allmydata.introducer import IntroducerNode
 from allmydata.util import deferredutil, fileutil, idlib, mathutil, testutil
@@ -71,13 +72,22 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         iv_dir = self.getdir("introducer")
         if not os.path.isdir(iv_dir):
             fileutil.make_dirs(iv_dir)
+        f = open(os.path.join(iv_dir, "webport"), "w")
+        f.write("tcp:0:interface=127.0.0.1\n")
+        f.close()
         iv = IntroducerNode(basedir=iv_dir)
         self.introducer = self.add_service(iv)
         d = self.introducer.when_tub_ready()
+        d.addCallback(self._get_introducer_web)
         d.addCallback(self._set_up_stats_gatherer)
         d.addCallback(self._set_up_nodes_2)
         d.addCallback(self._grab_stats)
         return d
+
+    def _get_introducer_web(self, res):
+        f = open(os.path.join(self.getdir("introducer"), "node.url"), "r")
+        self.introweb_url = f.read().strip()
+        f.close()
 
     def _set_up_stats_gatherer(self, res):
         statsdir = self.getdir("stats_gatherer")
@@ -266,6 +276,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                 permuted_peers = list(c.get_permuted_peers("storage", "a"))
                 self.failUnlessEqual(len(permuted_peers), self.numclients)
         d.addCallback(_check_connections)
+
         def _do_upload(res):
             log.msg("UPLOADING")
             u = self.clients[0].getServiceNamed("uploader")
@@ -821,6 +832,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         self.basedir = "system/SystemTest/test_vdrive"
         self.data = LARGE_DATA
         d = self.set_up_nodes(createprivdir=True)
+        d.addCallback(self._test_introweb)
         d.addCallback(self.log, "starting publish")
         d.addCallback(self._do_publish1)
         d.addCallback(self._test_runner)
@@ -861,6 +873,21 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         d.addCallback(self._grab_stats)
         return d
     test_vdrive.timeout = 1100
+
+    def _test_introweb(self, res):
+        d = getPage(self.introweb_url, method="GET", followRedirect=True)
+        def _check(res):
+            try:
+                self.failUnless("allmydata: %s" % str(allmydata.__version__)
+                                in res)
+                self.failUnless("Clients:" in res)
+            except unittest.FailTest:
+                print
+                print "GET %s output was:" % self.introweb_url
+                print res
+                raise
+        d.addCallback(_check)
+        return d
 
     def _do_publish1(self, res):
         ut = upload.Data(self.data)

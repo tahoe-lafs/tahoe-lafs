@@ -22,7 +22,7 @@ from foolscap.eventual import fireEventually
 
 from nevow.util import resource_filename
 
-from allmydata.web import status, unlinked
+from allmydata.web import status, unlinked, introweb
 from allmydata.web.common import IClient, getxmlfile, get_arg, \
      boolean_of_arg, abbreviate_size
 
@@ -1544,11 +1544,12 @@ class LocalAccess:
 
 class WebishServer(service.MultiService):
     name = "webish"
+    root_class = Root
 
     def __init__(self, webport, nodeurl_path=None):
         service.MultiService.__init__(self)
         self.webport = webport
-        self.root = Root()
+        self.root = self.root_class()
         self.site = site = appserver.NevowSite(self.root)
         self.site.requestFactory = MyRequest
         self.allow_local = LocalAccess()
@@ -1590,3 +1591,5 @@ class WebishServer(service.MultiService):
             f.write(base_url + "\n")
             f.close()
 
+class IntroducerWebishServer(WebishServer):
+    root_class = introweb.IntroducerRoot

@@ -1,5 +1,5 @@
 
-import re, time, sha
+import re, time, sha, os.path
 from base64 import b32decode
 from zope.interface import implements
 from twisted.application import service
@@ -16,6 +16,9 @@ class IntroducerNode(node.Node):
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
         self.init_introducer()
+        webport = self.get_config("webport")
+        if webport:
+            self.init_web(webport) # strports string
 
     def init_introducer(self):
         introducerservice = IntroducerService(self.basedir)
@@ -29,6 +32,14 @@ class IntroducerNode(node.Node):
             self.write_config("introducer.furl", self.introducer_url + "\n")
         d.addCallback(_publish)
         d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
+
+    def init_web(self, webport):
+        self.log("init_web(webport=%s)", args=(webport,))
+
+        from allmydata.webish import IntroducerWebishServer
+        nodeurl_path = os.path.join(self.basedir, "node.url")
+        ws = IntroducerWebishServer(webport, nodeurl_path)
+        self.add_service(ws)
 
 class IntroducerService(service.MultiService, Referenceable):
     implements(RIIntroducerPublisherAndSubscriberService)
@@ -44,6 +55,11 @@ class IntroducerService(service.MultiService, Referenceable):
         if "facility" not in kwargs:
             kwargs["facility"] = "tahoe.introducer"
         return log.msg(*args, **kwargs)
+
+    def get_announcements(self):
+        return frozenset(self._announcements)
+    def get_subscribers(self):
+        return self._subscribers
 
     def remote_publish(self, announcement):
         self.log("introducer: announcement published: %s" % (announcement,) )
