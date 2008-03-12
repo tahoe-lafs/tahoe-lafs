@@ -19,25 +19,32 @@ class IntroducerRoot(rend.Page):
     def data_my_nodeid(self, ctx, data):
         return idlib.nodeid_b2a(IClient(ctx).nodeid)
 
-    def data_known_storage_servers(self, ctx, data):
+    def render_announcement_summary(self, ctx, data):
         i = IClient(ctx).getServiceNamed("introducer")
-        storage = [1
-                   for (furl, service_name, ri_name, nickname, ver, oldest)
-                   in i.get_announcements()
-                   if service_name == "storage"]
-        return len(storage)
+        services = {}
+        for ann in i.get_announcements():
+            (furl, service_name, ri_name, nickname, ver, oldest) = ann
+            if service_name not in services:
+                services[service_name] = 0
+            services[service_name] += 1
+        service_names = services.keys()
+        service_names.sort()
+        return ", ".join(["%s: %d" % (service_name, services[service_name])
+                          for service_name in service_names])
 
-    def data_num_clients(self, ctx, data):
+    def render_client_summary(self, ctx, data):
         i = IClient(ctx).getServiceNamed("introducer")
-        num_clients = 0
-        subscribers = i.get_subscribers()
-        for service_name,who in subscribers.items():
-            num_clients += len(who)
-        return num_clients
+        clients = i.get_subscribers()
+        service_names = clients.keys()
+        service_names.sort()
+        return ", ".join(["%s: %d" % (service_name, len(clients[service_name]))
+                          for service_name in service_names])
 
     def data_services(self, ctx, data):
         i = IClient(ctx).getServiceNamed("introducer")
-        ann = list(i.get_announcements())
+        ann = [a
+               for a in i.get_announcements()
+               if a[1] != "stub_client"]
         ann.sort(lambda a,b: cmp( (a[1], a), (b[1], b) ) )
         return ann
 
@@ -45,8 +52,9 @@ class IntroducerRoot(rend.Page):
         (furl, service_name, ri_name, nickname, ver, oldest) = announcement
         sr = SturdyRef(furl)
         nodeid = sr.tubID
-        advertised = [loc.split(":")[0] for loc in sr.locationHints]
-        ctx.fillSlots("peerid", "%s %s" % (idlib.nodeid_b2a(nodeid), nickname))
+        advertised = [loc.split(":")[0] for loc in sr.locationHints
+                      if not loc.startswith("127.0.0.1:")]
+        ctx.fillSlots("peerid", "%s %s" % (nodeid, nickname))
         ctx.fillSlots("advertised", " ".join(advertised))
         ctx.fillSlots("connected", "?")
         ctx.fillSlots("since", "?")
@@ -57,23 +65,40 @@ class IntroducerRoot(rend.Page):
 
     def data_subscribers(self, ctx, data):
         i = IClient(ctx).getServiceNamed("introducer")
+        # use the "stub_client" announcements to get information per nodeid
+        clients = {}
+        for ann in i.get_announcements():
+            if ann[1] != "stub_client":
+                continue
+            (furl, service_name, ri_name, nickname, ver, oldest) = ann
+            sr = SturdyRef(furl)
+            nodeid = sr.tubID
+            clients[nodeid] = ann
+
+        # then we actually provide information per subscriber
         s = []
         for service_name, subscribers in i.get_subscribers().items():
             for rref in subscribers:
-                s.append( (service_name, rref) )
+                sr = rref.getSturdyRef()
+                nodeid = sr.tubID
+                ann = clients.get(nodeid)
+                s.append( (service_name, rref, ann) )
         s.sort()
         return s
 
     def render_subscriber_row(self, ctx, s):
-        (service_name, rref) = s
+        (service_name, rref, ann) = s
+        nickname = "?"
+        version = "?"
+        if ann:
+            (furl, service_name_2, ri_name, nickname, version, oldest) = ann
+
         sr = rref.getSturdyRef()
-        nodeid = sr.tubID
         # if the subscriber didn't do Tub.setLocation, nodeid will be None
-        nodeid_s = "?"
-        if nodeid:
-            nodeid_s = idlib.nodeid_b2a(nodeid)
-        ctx.fillSlots("peerid", nodeid_s)
-        advertised = [loc.split(":")[0] for loc in sr.locationHints]
+        nodeid = sr.tubID or "?"
+        ctx.fillSlots("peerid", "%s %s" % (nodeid, nickname))
+        advertised = [loc.split(":")[0] for loc in sr.locationHints
+                      if not loc.startswith("127.0.0.1:")]
         ctx.fillSlots("advertised", " ".join(advertised))
         remote_host = rref.tracker.broker.transport.getPeer()
         if isinstance(remote_host, address.IPv4Address):
@@ -83,6 +108,7 @@ class IntroducerRoot(rend.Page):
             remote_host_s = str(remote_host)
         ctx.fillSlots("connected", remote_host_s)
         ctx.fillSlots("since", "?")
+        ctx.fillSlots("version", version)
         ctx.fillSlots("service_name", service_name)
         return ctx.tag
 

@@ -1,6 +1,6 @@
 <html xmlns:n="http://nevow.com/ns/nevow/0.1">
   <head>
-    <title>AllMyData - Tahoe</title>
+    <title>Introducer Status - AllMyData Tahoe</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   </head>
   <body>
@@ -15,9 +15,8 @@
 
 <br />
 
-<div>Storage Servers: <span n:render="string" n:data="known_storage_servers" /> known</div>
-
-<div>Clients: <span n:render="string" n:data="num_clients" /> subscribed</div>
+<div>Announcement Summary: <span n:render="announcement_summary" /></div>
+<div>Subscription Summary: <span n:render="client_summary" /></div>
 
 <h2>Service Announcements</h2>
 
@@ -46,10 +45,11 @@
 <div>
 <table n:render="sequence" n:data="subscribers" border="1">
   <tr n:pattern="header">
-    <td>PeerID</td>
+    <td>PeerID / Nickname</td>
     <td>Advertised IPs</td>
     <td>Connected From</td>
     <td>Since</td>
+    <td>Version</td>
     <td>Subscribed To</td>
   </tr>
   <tr n:pattern="item" n:render="subscriber_row">
@@ -57,6 +57,7 @@
     <td><tt><n:slot name="advertised"/></tt></td>
     <td><tt><n:slot name="connected"/></tt></td>
     <td><tt><n:slot name="since"/></tt></td>
+    <td><tt><n:slot name="version"/></tt></td>
     <td><tt><n:slot name="service_name"/></tt></td>
   </tr>
   <tr n:pattern="empty"><td>no peers!</td></tr>

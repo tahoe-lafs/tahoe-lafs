@@ -880,7 +880,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             try:
                 self.failUnless("allmydata: %s" % str(allmydata.__version__)
                                 in res)
-                self.failUnless("Clients:" in res)
+                self.failUnless("Summary: storage: 5, stub_client: 5" in res)
             except unittest.FailTest:
                 print
                 print "GET %s output was:" % self.introweb_url
