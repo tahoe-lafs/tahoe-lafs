@@ -68,7 +68,11 @@ class IntroducerRoot(rend.Page):
         (service_name, rref) = s
         sr = rref.getSturdyRef()
         nodeid = sr.tubID
-        ctx.fillSlots("peerid", "%s" % idlib.nodeid_b2a(nodeid))
+        # if the subscriber didn't do Tub.setLocation, nodeid will be None
+        nodeid_s = "?"
+        if nodeid:
+            nodeid_s = idlib.nodeid_b2a(nodeid)
+        ctx.fillSlots("peerid", nodeid_s)
         advertised = [loc.split(":")[0] for loc in sr.locationHints]
         ctx.fillSlots("advertised", " ".join(advertised))
         remote_host = rref.tracker.broker.transport.getPeer()
