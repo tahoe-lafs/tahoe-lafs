@@ -1,4 +1,5 @@
 
+import time
 from nevow import rend
 from foolscap.referenceable import SturdyRef
 from twisted.internet import address
@@ -78,16 +79,16 @@ class IntroducerRoot(rend.Page):
         # then we actually provide information per subscriber
         s = []
         for service_name, subscribers in i.get_subscribers().items():
-            for rref in subscribers:
+            for (rref, timestamp) in subscribers.items():
                 sr = rref.getSturdyRef()
                 nodeid = sr.tubID
                 ann = clients.get(nodeid)
-                s.append( (service_name, rref, ann) )
+                s.append( (service_name, rref, timestamp, ann) )
         s.sort()
         return s
 
     def render_subscriber_row(self, ctx, s):
-        (service_name, rref, ann) = s
+        (service_name, rref, since, ann) = s
         nickname = "?"
         version = "?"
         if ann:
@@ -107,7 +108,9 @@ class IntroducerRoot(rend.Page):
             # loopback is a non-IPv4Address
             remote_host_s = str(remote_host)
         ctx.fillSlots("connected", remote_host_s)
-        ctx.fillSlots("since", "?")
+        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
+        ctx.fillSlots("since",
+                      time.strftime(TIME_FORMAT, time.localtime(since)))
         ctx.fillSlots("version", version)
         ctx.fillSlots("service_name", service_name)
         return ctx.tag

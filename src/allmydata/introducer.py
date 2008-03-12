@@ -49,7 +49,7 @@ class IntroducerService(service.MultiService, Referenceable):
         service.MultiService.__init__(self)
         self.introducer_url = None
         self._announcements = set()
-        self._subscribers = {}
+        self._subscribers = {} # dict of (rref->timestamp) dicts
 
     def log(self, *args, **kwargs):
         if "facility" not in kwargs:
@@ -75,17 +75,17 @@ class IntroducerService(service.MultiService, Referenceable):
         self.log("introducer: subscription[%s] request at %s" % (service_name,
                                                                  subscriber))
         if service_name not in self._subscribers:
-            self._subscribers[service_name] = set()
+            self._subscribers[service_name] = {}
         subscribers = self._subscribers[service_name]
         if subscriber in subscribers:
             self.log("but they're already subscribed, ignoring",
                      level=log.UNUSUAL)
             return
-        subscribers.add(subscriber)
+        subscribers[subscriber] = time.time()
         def _remove():
             self.log("introducer: unsubscribing[%s] %s" % (service_name,
                                                            subscriber))
-            subscribers.remove(subscriber)
+            subscribers.pop(subscriber, None)
         subscriber.notifyOnDisconnect(_remove)
 
         announcements = set( [ a
