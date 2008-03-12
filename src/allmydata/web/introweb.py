@@ -43,13 +43,13 @@ class IntroducerRoot(rend.Page):
 
     def data_services(self, ctx, data):
         i = IClient(ctx).getServiceNamed("introducer")
-        ann = [a
-               for a in i.get_announcements()
+        ann = [(since,a)
+               for (a,since) in i.get_announcements().items()
                if a[1] != "stub_client"]
-        ann.sort(lambda a,b: cmp( (a[1], a), (b[1], b) ) )
+        ann.sort(lambda a,b: cmp( (a[1][1], a), (b[1][1], b) ) )
         return ann
 
-    def render_service_row(self, ctx, announcement):
+    def render_service_row(self, ctx, (since,announcement)):
         (furl, service_name, ri_name, nickname, ver, oldest) = announcement
         sr = SturdyRef(furl)
         nodeid = sr.tubID
@@ -58,8 +58,9 @@ class IntroducerRoot(rend.Page):
         ctx.fillSlots("peerid", "%s %s" % (nodeid, nickname))
         ctx.fillSlots("advertised", " ".join(advertised))
         ctx.fillSlots("connected", "?")
-        ctx.fillSlots("since", "?")
-        ctx.fillSlots("announced", "?")
+        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
+        ctx.fillSlots("announced",
+                      time.strftime(TIME_FORMAT, time.localtime(since)))
         ctx.fillSlots("version", ver)
         ctx.fillSlots("service_name", service_name)
         return ctx.tag

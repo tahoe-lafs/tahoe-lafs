@@ -48,7 +48,7 @@ class IntroducerService(service.MultiService, Referenceable):
     def __init__(self, basedir="."):
         service.MultiService.__init__(self)
         self.introducer_url = None
-        self._announcements = set()
+        self._announcements = {} # dict of (announcement)->timestamp
         self._subscribers = {} # dict of (rref->timestamp) dicts
 
     def log(self, *args, **kwargs):
@@ -57,7 +57,7 @@ class IntroducerService(service.MultiService, Referenceable):
         return log.msg(*args, **kwargs)
 
     def get_announcements(self):
-        return frozenset(self._announcements)
+        return self._announcements
     def get_subscribers(self):
         return self._subscribers
 
@@ -67,7 +67,7 @@ class IntroducerService(service.MultiService, Referenceable):
         if announcement in self._announcements:
             self.log("but we already knew it, ignoring", level=log.NOISY)
             return
-        self._announcements.add(announcement)
+        self._announcements[announcement] = time.time()
         for s in self._subscribers.get(service_name, []):
             s.callRemote("announce", set([announcement]))
 
