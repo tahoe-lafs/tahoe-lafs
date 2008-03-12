@@ -3,8 +3,10 @@ import os, stat, time, re
 from allmydata.interfaces import RIStorageServer
 from allmydata import node
 
+from zope.interface import implements
 from twisted.internet import reactor
 from twisted.application.internet import TimerService
+from foolscap import Referenceable
 from foolscap.logging import log
 
 import allmydata
@@ -21,13 +23,16 @@ from allmydata.dirnode import NewDirectoryNode
 from allmydata.mutable import MutableFileNode, MutableWatcher
 from allmydata.stats import StatsProvider
 from allmydata.interfaces import IURI, INewDirectoryURI, \
-     IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI
+     IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, RIStubClient
 
 KiB=1024
 MiB=1024*KiB
 GiB=1024*MiB
 TiB=1024*GiB
 PiB=1024*TiB
+
+class StubClient(Referenceable):
+    implements(RIStubClient)
 
 class Client(node.Node, testutil.PollMixin):
     PORTNUMFILE = "client.port"
@@ -63,11 +68,7 @@ class Client(node.Node, testutil.PollMixin):
         run_helper = self.get_config("run_helper")
         if run_helper:
             self.init_helper()
-        helper_furl = self.get_config("helper.furl")
-        self.add_service(Uploader(helper_furl))
-        self.add_service(Downloader())
-        self.add_service(Checker())
-        self.add_service(MutableWatcher())
+        self.init_client()
         # ControlServer and Helper are attached after Tub startup
 
         hotline_file = os.path.join(self.basedir,
@@ -145,6 +146,24 @@ class Client(node.Node, testutil.PollMixin):
             furl = self.tub.registerReference(ss, furlFile=furl_file)
             ri_name = RIStorageServer.__remote_name__
             self.introducer_client.publish(furl, "storage", ri_name)
+        d.addCallback(_publish)
+        d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
+
+    def init_client(self):
+        helper_furl = self.get_config("helper.furl")
+        self.add_service(Uploader(helper_furl))
+        self.add_service(Downloader())
+        self.add_service(Checker())
+        self.add_service(MutableWatcher())
+        def _publish(res):
+            # we publish an empty object so that the introducer can count how
+            # many clients are connected and see what versions they're
+            # running.
+            sc = StubClient()
+            furl = self.tub.registerReference(sc)
+            ri_name = RIStubClient.__remote_name__
+            self.introducer_client.publish(furl, "stub_client", ri_name)
+        d = self.when_tub_ready()
         d.addCallback(_publish)
         d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
 

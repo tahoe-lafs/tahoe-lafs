@@ -160,6 +160,13 @@ class IIntroducerClient(Interface):
         """Returns a boolean, True if we are currently connected to the
         introducer, False if not."""
 
+class RIStubClient(RemoteInterface):
+    """Each client publishes a service announcement for a dummy object called
+    the StubClient. This object doesn't actually offer any services, but the
+    announcement helps the Introducer keep track of which clients are
+    subscribed (so the grid admin can keep track of things like the size of
+    the grid and the client versions in use. This is the (empty)
+    RemoteInterface for the StubClient."""
 
 class RIBucketWriter(RemoteInterface):
     def write(offset=Offset, data=ShareData):
