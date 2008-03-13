@@ -146,5 +146,5 @@ Boulder, Colorado, USA
 [10] http://allmydata.com
 
 P.S.  Someday, people might search for some of the earliest occurrences of the
-name "LAUGFS", which stands for Least AUthority Grid FileSystem".  Hello,
+name "LAUGFS", which stands for "Least AUthority Grid FileSystem".  Hello,
 searchers from the future!
