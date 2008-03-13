@@ -1,6 +1,6 @@
-ANNOUNCING: Allmydata.org "Tahoe" version 0.8
+ANNOUNCING: Allmydata.org "Tahoe" version 0.9
 
-We are pleased to announce the release of version 0.8 of allmydata.org
+We are pleased to announce the release of version 0.9 of allmydata.org
 "Tahoe".
 
 Allmydata.org "Tahoe" is a secure, decentralized, fault-tolerant
@@ -11,58 +11,46 @@ This filesystem is encrypted and distributed over multiple peers in
 such a way that it continues to work correctlly even when some of the
 peers are unavailable, malfunctioning, or malicious.
 
-This is the successor to Allmydata-Tahoe v0.7, which was released
-January 8, 2008 [1].
+A one-page explanation of the novel properties of this filesystem is
+visible at:
 
-This release improves performance, diagnostics, and packaging.  This
-release of allmydata.org "Tahoe" will form the basis of the next
+http://allmydata.org/source/tahoe/trunk/docs/about.html
+
+
+This is the successor to Allmydata.org "Tahoe" v0.8, which was
+released February 15, 2008 [1].  This release is backwards-compatible
+with v0.8.
+
+This is a major release of allmydata.org "Tahoe" -- the first release
+which is considered stable and functional enough to serve as a
+permanent store of valuable data.  Future releases are expected to
+maintain backwards compatibility to this version for the forseeable
+future.
+
+This release of allmydata.org "Tahoe" will form the basis of the next
 consumer backup product from Allmydata, Inc. -- http://allmydata.com .
 
+This release adds extensive "visibility into the grid" -- the web user
+interface now shows detailed information about the nodes comprising
+the grid and fine-grained statistics about the time and space used for
+the storage and retrieval operations.
 
-Since v0.7 we've made the following changes:
 
- * Add a preliminary Microsoft Windows package (ticket #195).
+Since v0.8 we've made the following changes:
 
- * Add a preliminary Macintosh package (ticket #182).
-
- * Display information about peers (ticket #32).
+ * Added user-friendly Windows application and package, thanks
+   especially to Rob Kinninmont and Mike Booker (tickets #195, 242,
+   243, 321, 335).
 
  * Display information about uploads and downloads (ticket #39).
 
- * Add unit tests and docs for contrib/fuse (ticket #255).
+ * Improve performance (including tickets #304, 321).
 
- * Add a preliminary FUSE interface for Macintosh.
+ * Improve packaging and testing (including ticket #145).
 
- * Update docs, starting with docs/about.html --
-   http://allmydata.org/source/tahoe/trunk/docs/about.html .
+ * Add even more extensive automated tests (including ticket #207).
 
- * Improve logging, diagnostic tools, statistics, timing measurements
-   during upload, etc..
-
- * Add more measurements of performance:
-   http://allmydata.org/trac/tahoe/wiki/Performance .
-
- * Add an upload helper, with resumption of incomplete uploads and
-   short-circuiting of uploads if the file is already present (tickets
-   #116, #258, #218).
-
- * Make upload continue even if some servers disappear during the
-   upload process.
-
- * Add mtime and ctime timestamps to files (ticket #183).
-
- * Make introduction more efficient by allowing nodes to act as
-   clients-only and not publish themselves as servers (ticket #271).
-
- * Extend the web API to allow programmatic control of mutable files.
-
- * Fix potential problem that could cause corruption of downloaded
-   mutable files if a long series of unlikely coincidences and hacked
-   clients occurred (ticket #312).
-
- * Make file and directory names use unicode.
-
- * Use SHA-256d instead of SHA-256 for secure hashes.
+ * Updated documentation.
 
 
 WHAT IS IT GOOD FOR?
@@ -78,13 +66,19 @@ use a web user interface, a command-line user interface, or a FUSE
 interface.  (Or a RESTful API.  Just telnet to localhost and type HTTP
 requests to get started.)
 
-Because this software is new, it is not yet recommended for storage of
-highly confidential data nor for valuable data which is not otherwise
-backed up. However, it works well in practice, it comes with extensive
-unit tests [2], and there are no known security flaws which would
-compromise confidentiality or data integrity.  (For a current
-description of all known security issues and an overview of Tahoe's
-security properties, please see the Security web page: [3].)
+Because this software is the product of less than a year and a half of
+active development, we do not categorically recommend it for the
+storage of data which is extremely confidential or precious.  However,
+we believe that the combination of erasure coding and careful
+engineering makes the use of this software a much safer alternative
+than common alternatives, such as RAID or traditional backup onto a
+remote hard drive, removable drive, or tape.
+
+This software comes with extensive unit tests [2], and there are no
+known security flaws which would compromise confidentiality or data
+integrity.  (For a current description of all known security issues
+and an overview of Tahoe's security properties, please see the
+Security web page: [3].)
 
 This release of Tahoe is suitable for the "friendnet" use case [4] --
 it is easy to create a filesystem spread over the computers of you and
@@ -138,11 +132,10 @@ eternally grateful!
 
 Zooko O'Whielacronx
 on behalf of the allmydata.org team
-February 15, 2008
+March 13, 2008
 Boulder, Colorado, USA
 
-
-[1] http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=1805
+[1] http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=2183
 [2] http://allmydata.org/tahoe-figleaf/current/
 [3] http://allmydata.org/trac/tahoe/wiki/Security
 [4] http://allmydata.org/trac/tahoe/wiki/UseCases
@@ -152,3 +145,7 @@ Boulder, Colorado, USA
 [8] http://allmydata.org/trac/tahoe/browser/CREDITS?rev=1804
 [9] http://allmydata.org/trac/tahoe/wiki/Dev
 [10] http://allmydata.com
+
+P.S.  Someday, people might search for some of the earliest occurrences of the
+name "LAUGFS", which stands for Least AUthority Grid FileSystem".  Hello,
+searchers from the future!
