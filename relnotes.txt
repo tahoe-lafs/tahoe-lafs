@@ -141,7 +141,7 @@ Boulder, Colorado, USA
 [5] http://allmydata.org/source/tahoe/trunk/docs/install.html
 [6] http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
 [7] http://allmydata.org/trac/tahoe/roadmap
-[8] http://allmydata.org/trac/tahoe/browser/CREDITS?rev=1804
+[8] http://allmydata.org/trac/tahoe/browser/CREDITS?rev=2307
 [9] http://allmydata.org/trac/tahoe/wiki/Dev
 [10] http://allmydata.com
 
