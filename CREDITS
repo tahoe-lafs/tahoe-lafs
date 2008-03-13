@@ -29,7 +29,11 @@ D: code
 
 N: Nathan Wilcox
 E: nejucomo@gmail.com
-D: unit tests, attack example, documentation, FUSE interface
+D: unit tests, attack example, documentation, initial Linux FUSE interface
 
 N: Mike Booker
 D: documentation (README.win32)
+
+N: David Reid
+E: dreid@dreid.org
+D: make the provisioning page work in py2exe and py2app packages
