@@ -1805,11 +1805,21 @@ class MutableFileNode:
         self._client.notify_retrieve(r)
         return r.retrieve()
 
-    def replace(self, newdata):
+    def update(self, newdata):
+        # this must be called after a retrieve
+        assert self._pubkey, "download_to_data() must be called before update()"
+        assert self._current_seqnum is not None, "download_to_data() must be called before update()"
+        return self._publish(newdata)
+
+    def overwrite(self, newdata):
+        # we do retrieve just to get the seqnum. We ignore the contents.
+        # TODO: use a smaller form of retrieve that doesn't try to fetch the
+        # data. Also, replace Publish with a form that uses the cached
+        # sharemap from the previous retrieval.
         r = self.retrieve_class(self)
         self._client.notify_retrieve(r)
         d = r.retrieve()
-        d.addCallback(lambda res: self._publish(newdata))
+        d.addCallback(lambda ignored: self._publish(newdata))
         return d
 
 class MutableWatcher(service.MultiService):

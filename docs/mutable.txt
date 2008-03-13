@@ -351,17 +351,101 @@ defined concretely at a later date.
 
 === Code Details ===
 
-The current FileNode class will be renamed ImmutableFileNode, and a new
-MutableFileNode class will be created. Instances of this class will contain a
-URI and a reference to the client (for peer selection and connection). The
-methods of MutableFileNode are:
+The MutableFileNode class is used to manipulate mutable files (as opposed to
+ImmutableFileNodes). These are initially generated with
+client.create_mutable_file(), and later recreated from URIs with
+client.create_node_from_uri(). Instances of this class will contain a URI and
+a reference to the client (for peer selection and connection).
 
- * replace(newdata) -> OK, ConsistencyError, NotEnoughPeersError
- * get() -> [deferred] newdata, NotEnoughPeersError
+The methods of MutableFileNode are:
+
+ * download_to_data() -> [deferred] newdata, NotEnoughPeersError
    * if there are multiple retrieveable versions in the grid, get() returns
      the first version it can reconstruct, and silently ignores the others.
      In the future, a more advanced API will signal and provide access to
      the multiple heads.
+ * update(newdata) -> OK, UncoordinatedWriteError, NotEnoughPeersError
+ * overwrite(newdata) -> OK, UncoordinatedWriteError, NotEnoughPeersError
+
+download_to_data() causes a new retrieval to occur, pulling the current
+contents from the grid and returning them to the caller. At the same time,
+this call caches information about the current version of the file. This
+information will be used in a subsequent call to update(), and if another
+change has occured between the two, this information will be out of date,
+triggering the UncoordinatedWriteError.
+
+update() is therefore intended to be used just after a download_to_data(), in
+the following pattern:
+
+ d = mfn.download_to_data()
+ d.addCallback(apply_delta)
+ d.addCallback(mfn.update)
+
+If the update() call raises UCW, then the application can simply return an
+error to the user ("you violated the Prime Coordination Directive"), and they
+can try again later. Alternatively, the application can attempt to retry on
+its own. To accomplish this, the app needs to pause, download the new
+(post-collision and post-recovery) form of the file, reapply their delta,
+then submit the update request again. A randomized pause is necessary to
+reduce the chances of colliding a second time with another client that is
+doing exactly the same thing:
+
+ d = mfn.download_to_data()
+ d.addCallback(apply_delta)
+ d.addCallback(mfn.update)
+ def _retry(f):
+   f.trap(UncoordinatedWriteError)
+   d1 = pause(random.uniform(5, 20))
+   d1.addCallback(lambda res: mfn.download_to_data())
+   d1.addCallback(apply_delta)
+   d1.addCallback(mfn.update)
+   return d1
+ d.addErrback(_retry)
+
+Enthusiastic applications can retry multiple times, using a randomized
+exponential backoff between each. A particularly enthusiastic application can
+retry forever, but such apps are encouraged to provide a means to the user of
+giving up after a while.
+
+UCW does not mean that the update was not applied, so it is also a good idea
+to skip the retry-update step if the delta was already applied:
+
+ d = mfn.download_to_data()
+ d.addCallback(apply_delta)
+ d.addCallback(mfn.update)
+ def _retry(f):
+   f.trap(UncoordinatedWriteError)
+   d1 = pause(random.uniform(5, 20))
+   d1.addCallback(lambda res: mfn.download_to_data())
+   def _maybe_apply_delta(contents):
+     new_contents = apply_delta(contents)
+     if new_contents != contents:
+       return mfn.update(new_contents)
+   d1.addCallback(_maybe_apply_delta)
+   return d1
+ d.addErrback(_retry)
+
+update() is the right interface to use for delta-application situations, like
+directory nodes (in which apply_delta might be adding or removing child
+entries from a serialized table).
+
+Note that any uncoordinated write has the potential to lose data. We must do
+more analysis to be sure, but it appears that two clients who write to the
+same mutable file at the same time (even if both eventually retry) will, with
+high probability, result in one client observing UCW and the other silently
+losing their changes. It is also possible for both clients to observe UCW.
+The moral of the story is that the Prime Coordination Directive is there for
+a reason, and that recovery/UCW/retry is not a subsitute for write
+coordination.
+
+overwrite() tells the client to ignore this cached version information, and
+to unconditionally replace the mutable file's contents with the new data.
+This should not be used in delta application, but rather in situations where
+you want to replace the file's contents with completely unrelated ones. When
+raw files are uploaded into a mutable slot through the tahoe webapi (using
+POST and the ?mutable=true argument), they are put in place with overwrite().
+
+
 
 The peer-selection and data-structure manipulation (and signing/verification)
 steps will be implemented in a separate class in allmydata/mutable.py .

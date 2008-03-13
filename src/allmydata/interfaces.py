@@ -576,17 +576,45 @@ class IMutableFileNode(IFileNode, IMutableFilesystemNode):
         more advanced API will signal and provide access to the multiple
         heads."""
 
-    def replace(newdata):
-        """Replace the old contents with the new data. Returns a Deferred
-        that fires (with None) when the operation is complete.
+    def update(newdata):
+        """Attempt to replace the old contents with the new data.
 
-        If the node detects that there are multiple outstanding versions of
-        the file, this will raise ConsistencyError, and may leave the
-        distributed file in an unusual state (the node will try to ensure
-        that at least one version of the file remains retrievable, but it may
-        or may not be the one you just tried to upload). You should respond
-        to this by downloading the current contents of the file and retrying
-        the replace() operation.
+        download_to_data() must have been called before calling update().
+
+        Returns a Deferred. If the Deferred fires successfully, the update
+        appeared to succeed. However, another writer (who read before your
+        changes were published) might still clobber your changes: they will
+        discover a problem but you will not. (see ticket #347 for details).
+
+        If the mutable file has been changed (by some other writer) since the
+        last call to download_to_data(), this will raise
+        UncoordinatedWriteError and the file will be left in an inconsistent
+        state (possibly the version you provided, possibly the old version,
+        possibly somebody else's version, and possibly a mix of shares from
+        all of these). The recommended response to UncoordinatedWriteError is
+        to either return it to the caller (since they failed to coordinate
+        their writes), or to do a new download_to_data() / modify-data /
+        update() loop.
+
+        update() is appropriate to use in a read-modify-write sequence, such
+        as a directory modification.
+        """
+
+    def overwrite(newdata):
+        """Attempt to replace the old contents with the new data.
+
+        Unlike update(), overwrite() does not require a previous call to
+        download_to_data(). It will unconditionally replace the old contents
+        with new data.
+
+        overwrite() is implemented by doing download_to_data() and update()
+        in rapid succession, so there remains a (smaller) possibility of
+        UncoordinatedWriteError. A future version will remove the full
+        download_to_data step, making this faster than update().
+
+        overwrite() is only appropriate to use when the new contents of the
+        mutable file are completely unrelated to the old ones, and you do not
+        care about other clients changes to the file.
         """
 
     def get_writekey():

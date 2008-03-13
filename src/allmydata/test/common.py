@@ -97,10 +97,13 @@ class FakeMutableFileNode:
     def get_size(self):
         return "?" # TODO: see mutable.MutableFileNode.get_size
 
-    def replace(self, new_contents):
+    def update(self, new_contents):
         assert not self.is_readonly()
         self.all_contents[self.storage_index] = new_contents
         return defer.succeed(None)
+
+    def overwrite(self, new_contents):
+        return self.update(new_contents)
 
 
 def make_mutable_file_uri():

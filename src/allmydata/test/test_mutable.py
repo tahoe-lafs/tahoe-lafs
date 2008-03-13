@@ -46,9 +46,11 @@ class FakeFilenode(mutable.MutableFileNode):
             return defer.succeed(self.all_contents[self.all_rw_friends[self.get_uri()]])
         else:
             return defer.succeed(self.all_contents[self.get_uri()])
-    def replace(self, newdata):
+    def update(self, newdata):
         self.all_contents[self.get_uri()] = newdata
         return defer.succeed(None)
+    def overwrite(self, newdata):
+        return self.update(newdata)
 
 class FakeStorage:
     # this class replaces the collection of storage servers, allowing the
@@ -162,6 +164,9 @@ class FakeClient:
         d.addCallback(lambda res: n)
         return d
 
+    def notify_retrieve(self, r):
+        pass
+
     def create_node_from_uri(self, u):
         u = IURI(u)
         if INewDirectoryURI.providedBy(u):
@@ -233,15 +238,18 @@ class Filenode(unittest.TestCase):
     def test_create(self):
         d = self.client.create_mutable_file()
         def _created(n):
-            d = n.replace("contents 1")
+            d = n.overwrite("contents 1")
             d.addCallback(lambda res: self.failUnlessIdentical(res, None))
             d.addCallback(lambda res: n.download_to_data())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
-            d.addCallback(lambda res: n.replace("contents 2"))
+            d.addCallback(lambda res: n.overwrite("contents 2"))
             d.addCallback(lambda res: n.download_to_data())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
             d.addCallback(lambda res: n.download(download.Data()))
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
+            d.addCallback(lambda res: n.update("contents 3"))
+            d.addCallback(lambda res: n.download_to_data())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 3"))
             return d
         d.addCallback(_created)
         return d
@@ -251,7 +259,7 @@ class Filenode(unittest.TestCase):
         def _created(n):
             d = n.download_to_data()
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
-            d.addCallback(lambda res: n.replace("contents 2"))
+            d.addCallback(lambda res: n.overwrite("contents 2"))
             d.addCallback(lambda res: n.download_to_data())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
             return d

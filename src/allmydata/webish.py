@@ -829,7 +829,7 @@ class POSTHandler(rend.Page):
                     # one
                     d2 = self._node.get(name)
                     def _got_newnode(newnode):
-                        d3 = newnode.replace(data)
+                        d3 = newnode.overwrite(data)
                         d3.addCallback(lambda res: newnode.get_uri())
                         return d3
                     d2.addCallback(_got_newnode)
@@ -858,7 +858,7 @@ class POSTHandler(rend.Page):
         # TODO: 'name' handling needs review
         d = defer.succeed(self._node)
         def _got_child_overwrite(child_node):
-            child_node.replace(data)
+            child_node.overwrite(data)
             return child_node.get_uri()
         d.addCallback(_got_child_overwrite)
         return d

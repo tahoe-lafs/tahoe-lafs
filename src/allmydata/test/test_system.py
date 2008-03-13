@@ -695,7 +695,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             self.failUnlessEqual(res, DATA)
             # replace the data
             log.msg("starting replace1")
-            d1 = newnode.replace(NEWDATA)
+            d1 = newnode.update(NEWDATA)
             d1.addCallback(lambda res: newnode.download_to_data())
             return d1
         d.addCallback(_check_download_3)
@@ -709,7 +709,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             newnode2 = self.clients[3].create_node_from_uri(uri)
             self._newnode3 = self.clients[3].create_node_from_uri(uri)
             log.msg("starting replace2")
-            d1 = newnode1.replace(NEWERDATA)
+            d1 = newnode1.overwrite(NEWERDATA)
             d1.addCallback(lambda res: newnode2.download_to_data())
             return d1
         d.addCallback(_check_download_4)
