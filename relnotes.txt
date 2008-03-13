@@ -23,9 +23,9 @@ with v0.8.
 
 This is a major release of allmydata.org "Tahoe" -- the first release
 which is considered stable and functional enough to serve as a
-permanent store of valuable data.  Future releases are expected to
-maintain backwards compatibility to this version for the forseeable
-future.
+permanent store of valuable data.  New versions of Tahoe are expected
+to maintain backwards compatibility with this version for the
+forseeable future.
 
 This release of allmydata.org "Tahoe" will form the basis of the next
 consumer backup product from Allmydata, Inc. -- http://allmydata.com .
