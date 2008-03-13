@@ -1,4 +1,5 @@
 import os, re, weakref, stat, struct, time
+from distutils.version import LooseVersion
 from itertools import chain
 
 from foolscap import Referenceable
@@ -677,8 +678,7 @@ class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer, IStatsProducer)
     name = 'storage'
 
-    # we're pretty narrow-minded right now
-    OLDEST_SUPPORTED_VERSION = allmydata.__version__
+    OLDEST_SUPPORTED_VERSION = LooseVersion("0.8.0")
 
     def __init__(self, storedir, sizelimit=None,
                  discard_storage=False, readonly_storage=False,
