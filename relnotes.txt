@@ -76,8 +76,7 @@ remote hard drive, removable drive, or tape.
 
 This software comes with extensive unit tests [2], and there are no
 known security flaws which would compromise confidentiality or data
-integrity.  (For a current description of all known security issues
-and an overview of Tahoe's security properties, please see the
+integrity.  (For all currently known security issues please see the
 Security web page: [3].)
 
 This release of Tahoe is suitable for the "friendnet" use case [4] --
