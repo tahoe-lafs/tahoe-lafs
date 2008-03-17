@@ -465,7 +465,7 @@ class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
     def _get_rate(self, data, name):
         file_size = self.retrieve_status.get_size()
         time = self.retrieve_status.timings.get(name)
-        if time is None:
+        if time is None or file_size is None:
             return None
         try:
             return 1.0 * file_size / time
