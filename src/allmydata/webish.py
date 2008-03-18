@@ -780,6 +780,30 @@ class POSTHandler(rend.Page):
         d.addCallback(lambda res: "directory created")
         return d
 
+    def _POST_mkdir_p(self, path):
+        path_ = tuple([seg.decode("utf-8") for seg in path.split('/') if seg ])
+        d = self._get_or_create_directories(self._node, path_)
+        d.addCallback(lambda node: node.get_uri())
+        return d
+
+    # this code stolen from PUTHandler: should be refactored to a more
+    # generally accesible place, perhaps...
+    def _get_or_create_directories(self, node, path):
+        if not IDirectoryNode.providedBy(node):
+            # unfortunately it is too late to provide the name of the
+            # blocking directory in the error message.
+            raise BlockingFileError("cannot create directory because there "
+                                    "is a file in the way")
+        if not path:
+            return defer.succeed(node)
+        d = node.get(path[0])
+        def _maybe_create(f):
+            f.trap(KeyError)
+            return node.create_empty_directory(path[0])
+        d.addErrback(_maybe_create)
+        d.addCallback(self._get_or_create_directories, path[1:])
+        return d
+
     def _POST_uri(self, name, newuri):
         d = self._check_replacement(name)
         d.addCallback(lambda res: self._node.set_uri(name, newuri))
@@ -914,6 +938,11 @@ class POSTHandler(rend.Page):
             if not name:
                 raise RuntimeError("mkdir requires a name")
             d = self._POST_mkdir(name)
+        elif t == "mkdir-p":
+            path = get_arg(req, "path")
+            if not path:
+                raise RuntimeError("mkdir-p requires a path")
+            d = self._POST_mkdir_p(path)
         elif t == "uri":
             if not name:
                 raise RuntimeError("set-uri requires a name")
