@@ -5,7 +5,7 @@ AppVersion=%(major)d.%(minor)d.%(point)d-r%(revision)d
 VersionInfoVersion=%(major)d.%(minor)d.%(point)d.%(revision)d
 AppPublisher=Allmydata Inc.
 AppPublisherURL=http://www.allmydata.com/
-AppSupportURL=http://www.allmydata.com/support/
+AppSupportURL=http://support.allmydata.com/
 DefaultDirName={pf}\Allmydata 3.0
 DefaultGroupName=Allmydata 3.0
 ; minumum version NT 4, no classic windows
@@ -31,10 +31,10 @@ Name: "{app}\noderoot"
 
 [Icons]
 ; Program files entries
-Name: "{group}\Allmydata"; Filename: "{app}\Install\winfuse\AllmydataTray.exe"
-Name: "{commonstartup}\Allmydata"; Filename: "{app}\Install\winfuse\AllmydataTray.exe"
+Name: "{group}\Allmydata"; Filename: "{app}\Install\winfuse\StartAllmydata.exe"
+Name: "{commonstartup}\Allmydata"; Filename: "{app}\Install\winfuse\StartAllmydata.exe"
 ;Name: "{group}\Tahoe root dir (web)"; Filename: "{app}\Install\tahoe.exe"; Parameters: "webopen"
-Name: "{group}\Allmydata Help"; Filename: "http://www.allmydata.com/help.php"
+Name: "{group}\Allmydata Help"; Filename: "http://www.allmydata.com/help"
 
 [Run]
 ; Things performed before the final page of the installer
@@ -43,7 +43,7 @@ Filename: "{app}\Install\tahoe.exe"; Parameters: "create-client ""{app}\noderoot
 Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: """{app}\Install\winfuse\WinFUSE.exe"""; Flags: runhidden
 Filename: "{app}\Install\confwiz.exe"; Flags: hidewizard
 ;Filename: "{app}\Install\ReadMe.txt"; Description: "View the ReadMe file"; Flags: unchecked postinstall nowait shellexec skipifdoesntexist
-Filename: "{app}\Install\winfuse\AllmydataTray.exe"; Description: "Run Allmydata"; Flags: postinstall nowait
+Filename: "{app}\Install\winfuse\StartAllmydata.exe"; Description: "Run Allmydata"; Flags: postinstall nowait
 Filename: "http://beta.allmydata.com/welcome_install?v=%(major)d.%(minor)d.%(point)d.%(revision)d"; Description: "View the Welcome Page"; Flags: postinstall shellexec
 
 [UninstallRun]
