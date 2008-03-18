@@ -781,6 +781,25 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(self.failUnlessNodeKeysAre, [u"baz.txt"])
         return d
 
+    def test_PUT_NEWDIRURL_mkdir_p(self):
+        d = defer.succeed(None)
+        d.addCallback(lambda res: self.POST(self.public_url + "/foo", t='mkdir', name='mkp'))
+        d.addCallback(lambda res: self.failUnlessNodeHasChild(self._foo_node, u"mkp"))
+        d.addCallback(lambda res: self._foo_node.get(u"mkp"))
+        def mkdir_p(mkpnode):
+            url = '/uri/%s?t=mkdir-p&path=/sub1/sub2' % urllib.quote(mkpnode.get_uri())
+            d = self.POST(url)
+            def made_subsub(ssuri):
+                d = self._foo_node.get_child_at_path(u"mkp/sub1/sub2")
+                d.addCallback(lambda ssnode: self.failUnlessEqual(ssnode.get_uri(), ssuri))
+                d = self.POST(url)
+                d.addCallback(lambda uri2: self.failUnlessEqual(uri2, ssuri))
+                return d
+            d.addCallback(made_subsub)
+            return d
+        d.addCallback(mkdir_p)
+        return d
+
     def test_PUT_NEWDIRURL_mkdirs(self):
         d = self.PUT(self.public_url + "/foo/subdir/newdir?t=mkdir", "")
         d.addCallback(lambda res:
