@@ -22,7 +22,8 @@ from allmydata.util.assertutil import precondition
 from allmydata import uri
 import allmydata
 
-import amdicon
+#import amdicon
+import amdlogo
 
 import foolscap
 from twisted.python import usage
@@ -194,7 +195,7 @@ class ConfWizApp(wx.App):
         try:
             wx.InitAllImageHandlers()
 
-            self.login_frame = LoginFrame(self)
+            self.login_frame = WizardFrame(self, LoginPanel)
             self.login_frame.CenterOnScreen()
             self.SetTopWindow(self.login_frame)
             #self.SetExitOnFrameDelete(True)
@@ -207,7 +208,7 @@ class ConfWizApp(wx.App):
     def swap_to_register_frame(self):
         try:
             self.login_frame.Show(False)
-            self.regiser_frame = RegisterFrame(self)
+            self.regiser_frame = WizardFrame(self, RegisterPanel)
             self.regiser_frame.CenterOnScreen()
             self.SetTopWindow(self.regiser_frame)
             self.SetExitOnFrameDelete(True)
@@ -215,55 +216,48 @@ class ConfWizApp(wx.App):
         except:
             DisplayTraceback('config wizard threw an exception')
 
-class LoginFrame(wx.Frame):
-    def __init__(self, app):
-        title = 'Allmydata Config Wizard'
+class WizardFrame(wx.Frame):
+    def __init__(self, app, panel_class):
+        #title = 'Allmydata Config Wizard'
+        title = 'Setup - Allmydata 3.0'
         wx.Frame.__init__(self, None, -1, title)
         self.app = app
-        self.SetIcon(amdicon.getIcon())
+        self.SetIcon(amdlogo.getIcon())
         self.Bind(wx.EVT_CLOSE, self.close)
 
-        background = wx.Panel(self, -1)
-        background.SetSizeHints(500, 360, 600, 800)
+        self.SetSizeHints(500, 360, 600, 800)
+
+        banner = wx.Panel(self, -1)
+        banner.SetSize((496,58))
+        banner.SetBackgroundColour(wx.WHITE)
+        banner_label = wx.StaticText(banner, -1, 'Sign in to your account')
+
+        banner_icon = wx.StaticBitmap(banner, -1, amdlogo.getBitmap())
+
+        banner_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        banner_sizer.Add(banner_label, 1, wx.EXPAND | wx.ALL, 12)
+        banner_sizer.Add(banner_icon, 0, wx.ALL, 12)
+        banner.SetSizer(banner_sizer)
+        banner.SetAutoLayout(True)
+
+        background = wx.Panel(self, -1, style=wx.SIMPLE_BORDER)
         background.parent = self
-        self.login_panel = LoginPanel(background, app)
-        self.reg_btn_panel = RegisterButtonPanel(background, app)
+
+        button_panel = wx.Panel(self, -1)
+        button_panel.SetSize((496, 64))
+
+        self.panel = panel_class(background, button_panel, app)
         sizer = wx.BoxSizer(wx.VERTICAL)
         background_sizer = wx.BoxSizer(wx.VERTICAL)
-        background_sizer.Add(wx.Size(2,2), 10, wx.EXPAND | wx.ALL, 26)
-        background_sizer.Add(self.login_panel, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 26)
-        background_sizer.Add(wx.Size(2,2), 10, wx.EXPAND | wx.ALL, 26)
-        background_sizer.Add(self.reg_btn_panel, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 26)
+        background_sizer.Add(wx.Size(2,2), 0, wx.EXPAND | wx.ALL, self.panel.padding)
+        background_sizer.Add(self.panel, 1, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 26)
+        background_sizer.Add(wx.Size(2,2), 0, wx.EXPAND | wx.ALL, self.panel.padding)
         background.SetSizer(background_sizer)
+
+
+        sizer.Add(banner, 0, wx.EXPAND | wx.HORIZONTAL, 0)
         sizer.Add(background, 0, wx.EXPAND | wx.ALL, 0)
-        self.SetSizer(sizer)
-        self.SetAutoLayout(True)
-        self.Fit()
-        self.Layout()
-
-    def close(self, event):
-        self.Show(False)
-        self.app.ExitMainLoop()
-
-class RegisterFrame(wx.Frame):
-    def __init__(self, app):
-        title = 'Allmydata Config Wizard'
-        wx.Frame.__init__(self, None, -1, title)
-        self.app = app
-        self.SetIcon(amdicon.getIcon())
-        self.Bind(wx.EVT_CLOSE, self.close)
-
-        background = wx.Panel(self, -1)
-        background.SetSizeHints(500, 360, 600, 800)
-        background.parent = self
-        self.register_panel = RegisterPanel(background, app)
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        background_sizer = wx.BoxSizer(wx.VERTICAL)
-        background_sizer.Add(wx.Size(2,2), 10, wx.EXPAND | wx.ALL, 26)
-        background_sizer.Add(self.register_panel, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 26)
-        background_sizer.Add(wx.Size(2,2), 10, wx.EXPAND | wx.ALL, 26)
-        background.SetSizer(background_sizer)
-        sizer.Add(background, 0, wx.EXPAND | wx.ALL, 0)
+        sizer.Add(button_panel, 0, wx.EXPAND | wx.HORIZONTAL, 0)
         self.SetSizer(sizer)
         self.SetAutoLayout(True)
         self.Fit()
@@ -275,7 +269,9 @@ class RegisterFrame(wx.Frame):
 
 
 class LoginPanel(wx.Panel):
-    def __init__(self, parent, app):
+    padding = 26
+
+    def __init__(self, parent, button_panel, app):
         wx.Panel.__init__(self, parent, -1)
         self.parent = parent
         self.app = app
@@ -286,23 +282,35 @@ class LoginPanel(wx.Panel):
         self.pass_label = wx.StaticText(self, -1, 'Password')
         self.user_field = wx.TextCtrl(self, -1, u'', size=(260,-1))
         self.pass_field = wx.TextCtrl(self, -1, u'', size=(260,-1), style=wx.TE_PASSWORD)
-        self.login_button = wx.Button(self, -1, 'Sign In')
         self.warning_label = wx.StaticText(self, -1, '')
         self.warning_label.SetOwnForegroundColour(wx.RED)
         wx.EVT_CHAR(self.user_field, self.on_user_entry)
         wx.EVT_CHAR(self.pass_field, self.on_pass_entry)
-        self.Bind(wx.EVT_BUTTON, self.on_login, self.login_button)
-        login_sizer = wx.FlexGridSizer(3, 2, 5, 4)
+        login_sizer = wx.FlexGridSizer(2, 2, 5, 4)
         login_sizer.Add(self.user_label, 0, wx.ALIGN_RIGHT | wx.ALL, 2)
         login_sizer.Add(self.user_field, 0, wx.EXPAND | wx.ALL, 2)
         login_sizer.Add(self.pass_label, 0, wx.ALIGN_RIGHT | wx.ALL, 2)
         login_sizer.Add(self.pass_field, 0, wx.EXPAND | wx.ALL, 2)
-        login_sizer.Add(wx.Size(2,2), 0, wx.ALIGN_RIGHT | wx.ALL, 2)
-        login_sizer.Add(self.login_button, 0, wx.ALIGN_RIGHT | wx.ALL, 2)
         self.sizer.Add(login_sizer, 1, wx.EXPAND | wx.ALL, 2)
         self.sizer.Add(self.warning_label, 0, wx.CENTER | wx.ALL, 2)
         self.SetSizer(self.sizer)
         self.SetAutoLayout(True)
+
+        self.reg_label = wx.StaticText(button_panel, -1, "Don't have an account?")
+        self.reg_button = wx.Button(button_panel, -1, 'Create Account')
+        self.login_button = wx.Button(button_panel, -1, 'Sign In')
+        button_panel.Bind(wx.EVT_BUTTON, self.on_reg_button, self.reg_button)
+        button_panel.Bind(wx.EVT_BUTTON, self.on_login, self.login_button)
+        btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        btn_sizer.Add(wx.Size(2,2), 1, wx.EXPAND | wx.ALL, 12)
+        btn_sizer.Add(self.reg_label, 0, wx.ALIGN_RIGHT | wx.ALL, 12)
+        btn_sizer.Add(self.reg_button, 0, wx.ALIGN_RIGHT | wx.ALL, 12)
+        btn_sizer.Add(self.login_button, 0, wx.ALIGN_RIGHT | wx.ALL, 12)
+        button_panel.SetSizer(btn_sizer)
+        self.button_panel = button_panel
+
+    def on_reg_button(self, event):
+        self.app.swap_to_register_frame()
 
     def on_user_entry(self, event):
         if event.GetKeyCode() == wx.WXK_RETURN:
@@ -356,29 +364,10 @@ class LoginPanel(wx.Panel):
         # exit
         self.parent.parent.Close()
 
-class RegisterButtonPanel(wx.Panel):
-    def __init__(self, parent, app):
-        wx.Panel.__init__(self, parent, -1)
-        self.parent = parent
-        self.app = app
-
-        self.sizer = wx.BoxSizer(wx.VERTICAL)
-
-        self.reg_label = wx.StaticText(self, -1, "Don't have an account?")
-        self.reg_button = wx.Button(self, -1, 'Create Account')
-        self.Bind(wx.EVT_BUTTON, self.on_reg_button, self.reg_button)
-        reg_sizer = wx.FlexGridSizer(1, 2, 5, 4)
-        reg_sizer.Add(self.reg_label, 0, wx.ALIGN_RIGHT | wx.ALL, 2)
-        reg_sizer.Add(self.reg_button, 0, wx.ALIGN_RIGHT | wx.ALL, 2)
-        self.sizer.Add(reg_sizer, 1, wx.EXPAND | wx.ALL, 2)
-        self.SetSizer(self.sizer)
-        self.SetAutoLayout(True)
-
-    def on_reg_button(self, event):
-        self.app.swap_to_register_frame()
-
 class RegisterPanel(wx.Panel):
-    def __init__(self, parent, app):
+    padding = 7
+
+    def __init__(self, parent, button_panel, app):
         wx.Panel.__init__(self, parent, -1)
         self.parent = parent
         self.app = app
@@ -391,7 +380,6 @@ class RegisterPanel(wx.Panel):
         self.user_field = wx.TextCtrl(self, -1, u'', size=(260,-1))
         self.pass_field = wx.TextCtrl(self, -1, u'', size=(260,-1), style=wx.TE_PASSWORD)
         self.conf_field = wx.TextCtrl(self, -1, u'', size=(260,-1), style=wx.TE_PASSWORD)
-        self.create_account_button = wx.Button(self, -1, 'Create Account')
         self.subscribe_box = wx.CheckBox(self, -1, 'Sign up for our Newsletter')
         self.subscribe_box.SetValue(True)
         self.warning_label = wx.StaticText(self, -1, '')
@@ -399,8 +387,7 @@ class RegisterPanel(wx.Panel):
         wx.EVT_CHAR(self.user_field, self.on_user_entry)
         wx.EVT_CHAR(self.pass_field, self.on_pass_entry)
         wx.EVT_CHAR(self.conf_field, self.on_conf_entry)
-        self.Bind(wx.EVT_BUTTON, self.on_create_account, self.create_account_button)
-        login_sizer = wx.FlexGridSizer(4, 2, 5, 4)
+        login_sizer = wx.FlexGridSizer(3, 2, 5, 4)
         login_sizer.Add(self.user_label, 0, wx.ALIGN_RIGHT | wx.ALL, 2)
         login_sizer.Add(self.user_field, 0, wx.EXPAND | wx.ALL, 2)
         login_sizer.Add(self.pass_label, 0, wx.ALIGN_RIGHT | wx.ALL, 2)
@@ -408,13 +395,22 @@ class RegisterPanel(wx.Panel):
         login_sizer.Add(self.conf_label, 0, wx.ALIGN_RIGHT | wx.ALL, 2)
         login_sizer.Add(self.conf_field, 0, wx.EXPAND | wx.ALL, 2)
         login_sizer.Add(wx.Size(2,2), 0, wx.ALIGN_RIGHT | wx.ALL, 2)
-        login_sizer.Add(self.create_account_button, 0, wx.ALIGN_RIGHT | wx.ALL, 2)
-        self.sizer.Add(login_sizer, 1, wx.EXPAND | wx.ALL, 2)
+        self.sizer.Add(login_sizer, 0, wx.EXPAND | wx.ALL, 2)
         self.sizer.Add(self.warning_label, 0, wx.CENTER | wx.ALL, 2)
         self.sizer.Add(wx.Size(2,2), 0, wx.EXPAND | wx.ALL, 4)
         self.sizer.Add(self.subscribe_box, 0, wx.CENTER | wx.ALL, 2)
         self.SetSizer(self.sizer)
         self.SetAutoLayout(True)
+
+        self.reg_button = wx.Button(button_panel, -1, 'Create Account')
+        button_panel.Bind(wx.EVT_BUTTON, self.on_create_account, self.reg_button)
+        btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        btn_sizer.Add(wx.Size(2,2), 1, wx.EXPAND | wx.ALL, 12)
+        btn_sizer.Add(self.reg_button, 0, wx.ALIGN_RIGHT | wx.ALL, 12)
+        button_panel.SetSizer(btn_sizer)
+        self.button_panel = button_panel
+
+        self.Fit()
 
     def on_user_entry(self, event):
         if event.GetKeyCode() == wx.WXK_RETURN:
