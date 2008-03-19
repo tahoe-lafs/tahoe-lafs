@@ -230,12 +230,19 @@ class WizardFrame(wx.Frame):
         banner = wx.Panel(self, -1)
         banner.SetSize((496,58))
         banner.SetBackgroundColour(wx.WHITE)
-        banner_label = wx.StaticText(banner, -1, 'Sign in to your account')
 
+        banner_title = wx.StaticText(banner, -1, panel_class.title)
+        banner_desc = wx.StaticText(banner, -1, "        " + panel_class.description)
+        font = banner_title.GetFont()
+        font.SetWeight(wx.FONTWEIGHT_BOLD)
+        banner_title.SetFont(font)
         banner_icon = wx.StaticBitmap(banner, -1, amdlogo.getBitmap())
+        banner_label_sizer = wx.BoxSizer(wx.VERTICAL)
+        banner_label_sizer.Add(banner_title, 0, wx.EXPAND | wx.ALL, 2)
+        banner_label_sizer.Add(banner_desc, 0, wx.EXPAND | wx.ALL, 2)
 
         banner_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        banner_sizer.Add(banner_label, 1, wx.EXPAND | wx.ALL, 12)
+        banner_sizer.Add(banner_label_sizer, 1, wx.EXPAND | wx.ALL, 12)
         banner_sizer.Add(banner_icon, 0, wx.ALL, 12)
         banner.SetSizer(banner_sizer)
         banner.SetAutoLayout(True)
@@ -270,6 +277,8 @@ class WizardFrame(wx.Frame):
 
 class LoginPanel(wx.Panel):
     padding = 26
+    title = 'Sign in'
+    description = 'Sign in to your existing account'
 
     def __init__(self, parent, button_panel, app):
         wx.Panel.__init__(self, parent, -1)
@@ -366,6 +375,8 @@ class LoginPanel(wx.Panel):
 
 class RegisterPanel(wx.Panel):
     padding = 7
+    title = 'Create account'
+    description = 'Create a new account on Allmydata'
 
     def __init__(self, parent, button_panel, app):
         wx.Panel.__init__(self, parent, -1)
