@@ -1,0 +1,134 @@
+This is a proposal for handing accounts and quotas in Tahoe. Nothing is final
+yet.. we are still evaluating the options.
+
+
+= Account Management: Introducer-based =
+
+A Tahoe grid can be configured in several different modes. The simplest mode
+(which is also the default) is completely permissive: all storage servers
+will accept shares from all clients, and no attempt is made to keep track of
+who is storing what. Access to the grid is mostly equivalent to having access
+to the Introducer (or convincing one of the existing members to give you a
+list of all their storage server FURLs).
+
+This mode, while a good starting point, does not accomodate any sort of
+auditing or quota management. Even in a small friendnet, operators might like
+to know how much of their storage space is being consumed by Alice, so they
+might be able to ask her to cut back when overall disk usage is getting to
+high. In a larger commercial deployment, a service provider needs to be able
+to get accurate usage numbers so they can bill the user appropriately. In
+addition, the operator may want the ability to delete all of Bob's shares
+(i.e. cancel any outstanding leases) when he terminates his account.
+
+There are several lease-management/garbage-collection/deletion strategies
+possible for a Tahoe grid, but the most efficient ones require knowledge of
+lease ownership, so that renewals and expiration can take place on a
+per-account basis rather than a (more numerous) per-share basis.
+
+== Accounts ==
+
+To accomplish this, "Accounts" can be established in a Tahoe grid. There is
+nominally one account per human user of the grid, but of course a user might
+use multiple accounts, or an account might be shared between multiple users.
+The Account is the smallest unit of quota and lease management.
+
+Accounts are created by an "Account Manager". In a commercial network there
+will be just one (centralized) account manager, and all storage nodes will be
+configured to require a valid account before providing storage services. In a
+friendnet, each peer can run their own account manager, and servers will
+accept accounts from any of the managers (this mode is permissive but allows
+quota-tracking of non-malicious users).
+
+The account manager is free to manage the accounts as it pleases. Large
+systems will probably use a database to correlate things like username,
+storage consumed, billing status, etc.
+
+== Overview ==
+
+The Account Manager ("AM") replaces the normal Introducer node: grids which
+use an Account Manager will not run an Introducer, and the participating
+nodes will not be configured with an "introducer.furl".
+
+Instead, each client will be configured with a different "account.furl",
+which gives that client access to a specific account. These account FURLs
+point to an object inside the Account Manager which exists solely for the
+benefit of that one account. When the client needs access to storage servers,
+it will use this account object to acquire personalized introductions to a
+per-account "Personal Storage Server" facet, one per storage server node. For
+example, Alice would wind up with PSS[1A] on server 1, and PSS[2A] on server
+2. Bob would get PSS[1B] and PSS[2B].
+
+These PSS facets provide the same remote methods as the old generic SS facet,
+except that every time they create a lease object, the account information of
+the holder is recorded in that lease. The client stores a list of these PSS
+facet FURLs in persistent storage, and uses them in the "get_permuted_peers"
+function that all uploads and downloads use to figure out who to talk to when
+looking for shares or shareholders.
+
+Each Storage Server has a private facet that it gives to the Account Manager.
+This facet allows the AM to create PSS facets for a specific account. In
+particular, the AM tells the SS "please create account number 42, and tell me
+the PSS FURL that I should give to the client". The SS creates an object
+which remembers the account number, creates a FURL for it, and returns the
+FURL.
+
+If there is a single central account manager, then account numbers can be
+small integers. (if there are multiple ones, they need to be large random
+strings to ensure uniqueness). To avoid requiring large (accounts*servers)
+lookup tables, a given account should use the same identifer for all the
+servers it talks to. When this can be done, the PSS and Account FURLs are
+generated as MAC'ed copies of the account number.
+
+More specifically, the PSS FURL is a MAC'ed copy of the account number: each
+SS has a private secret "S", and it creates a string "%d-%s" % (accountnum,
+b2a(hash(S+accountnum))) to use as the swissnum part of the FURL. The SS uses
+tub.registerNameLookupHandler to add a function that tries to validate
+inbound FURLs against this scheme: if successful, it creates a new PSS object
+with the account number stashed inside. This allows the server to minimize
+their per-user storage requirements but still insure that PSS FURLs are
+unguessable.
+
+Account FURLs are created by the Account Manager in a similar fashion, using
+a MAC of the account number. The Account Manager can use the same account
+number to index other information in a database, like account status, billing
+status, etc.
+
+The mechanism by which Account FURLs are minted is left up to the account
+manager, but the simple AM that the 'tahoe create-account-manager' command
+makes has a "new-account" FURL which accepts a username and creates an
+account for them. The 'tahoe create-account' command is a CLI frontend to
+this facility. In a friendnet, you could publish this FURL to your friends,
+allowing everyone to make their own account. In a commercial grid, this
+facility would be reserved use by the same code which handles billing.
+
+
+== Creating the Account Manager ==
+
+The 'tahoe create-account-manager' command is used to create a simple account
+manager node. When started, this node will write several FURLs to its
+private/ directory, some of which should be provided to other services.
+
+ * new-account.furl : this FURL allows the holder to create new accounts
+ * manage-accounts.furl : this FURL allows the holder to list and modify
+                          all existing accounts
+ * serverdesk.furl : this FURL is used by storage servers to make themselves
+                     available to all account holders
+
+
+== Configuring the Storage Servers ==
+
+To use an account manager, each storage server node should be given access to
+the AM's serverdesk (by simply copying "serverdesk.furl" into the storage
+server's base directory). In addition, it should *not* be given an
+introducer.furl . The serverdesk FURL tells the SS that it should allow the
+AM to create PSS facets for each account, and the lack of an introducer FURL
+tells the SS to not make its generic SS facet available to anyone. The
+combination means that clients must acquire PSS facets instead of using the
+generic one.
+
+== Configuring Clients ==
+
+Each client should be configured to use a specific account by copying their
+account FURL into their basedir, in a file named "account.furl". In addition,
+these client nodes should *not* have an "introducer.furl". This combination
+tells the client to ask the AM for ...

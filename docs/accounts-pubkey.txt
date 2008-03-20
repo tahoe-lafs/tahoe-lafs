@@ -1,0 +1,636 @@
+This is a proposal for handing accounts and quotas in Tahoe. Nothing is final
+yet.. we are still evaluating the options.
+
+
+= Accounts =
+
+The basic Tahoe account is defined by a DSA key pair. The holder of the
+private key has the ability to consume storage in conjunction with a specific
+account number.
+
+The Account Server has a long-term keypair. Valid accounts are marked as such
+by the Account Server's signature on a "membership card", which binds a
+specific pubkey to an account number and declares that this pair is a valid
+account.
+
+Each Storage Server which participages in the AS's domain will have the AS's
+pubkey in its list of valid AS keys, and will thus accept membership cards
+that were signed by that AS. If the SS accepts multiple ASs, then it will
+give each a distinct number, and leases will be labled with an (AS#,Account#)
+pair. If there is only one AS, then leases will be labeled with just the
+Account#.
+
+Each client node is given the FURL of their personal Account object. The
+Account will accept a DSA public key and return a signed membership card that
+authorizes the corresponding private key to consume storage on behalf of the
+account. The client will create its own DSA keypair the first time it
+connects to the Account, and will then use the resulting membership card for
+all subsequent storage operations.
+
+== Storage Server Goals ==
+
+The Storage Server cares about two things:
+
+ 1: maintaining an accurate refcount on each bucket, so it can delete the
+    bucket when the refcount goes to zero
+ 2: being able to answer questions about aggregate usage per account
+
+The SS conceptually maintains a big matrix of lease information: one column
+per account, one row per storage index. The cells contain a boolean
+(has-lease or no-lease). If the grid uses per-lease timers, then each
+has-lease cell also contains a lease timer.
+
+This matrix may be stored in a variety of ways: entries in each share file,
+or items in a SQL database, according to the desired tradeoff between
+complexity, robustness, read speed, and write speed.
+
+Each client (by virtue of their knowledge of an authorized private key) gets
+to manipulate their column of this matrix in any way they like: add lease,
+renew lease, delete lease. (TODO: for reconcilliation purposes, the should
+also be able to enumerate leases).
+
+== Storage Operations ==
+
+Side-effect-causing storage operations come in three forms:
+
+ 1: allocate bucket / add lease to existing bucket
+     arguments: storage_index=, storage_server=, ueb_hash=, account=
+ 2: renew lease
+     arguments: storage_index=, storage_server=, account=
+ 3: cancel lease
+     arguments: storage_index=, storage_server=, account=
+
+(where lease renewal is only relevant for grids which use per-lease timers).
+Clients do add-lease when they upload a file, and cancel-lease when they
+remove their last reference to it.
+
+Storage Servers publish a "public storage port" through the introducer, which
+does not actually enable storage operations, but is instead used in a
+rights-amplification pattern to grant authorized parties access to a
+"personal storage server facet". This personal facet is the one that
+implements allocate_bucket. All clients get access to the same public storage
+port, which means that we can improve the introduction mechanism later (to
+use a gossip-based protocol) without affecting the authority-granting
+protocols.
+
+The public storage port accepts signed messages asking for storage authority.
+It responds by creating a personal facet and making it available to the
+requester. The account number is curried into the facet, so that all
+lease-creating operations will record this account number into the lease. By
+restricting the nature of the personal facets that a client can access, we
+restrict them to using their designated account number.
+
+
+========================================
+
+There are two kinds of signed messages: use (other names: connection,
+FURLification, activation, reification, grounding, specific-making, ?), and
+delegation. The FURLification message results in a FURL that points to an
+object which can actually accept RIStorageServer methods. The delegation
+message results in a new signed message.
+
+The furlification message looks like:
+
+ (pubkey, signed(serialized({limitations}, beneficiary_furl)))
+
+The delegation message looks like:
+
+ (pubkey, signed(serialized({limitations}, delegate_pubkey)))
+
+The limitations dict indicates what the resulting connection or delegation
+can be used for. All limitations for the cert chain are applied, and the
+result must be restricted to their overall minimum.
+
+The following limitation keys are defined:
+
+ 'account': a number. All resulting leases must be tagged with this account
+            number. A chain with multiple distinct 'account' limitations is
+            an error (the result will not permit leases)
+ 'SI': a storage index (binary string). Leases may only be created for this
+       specific storage index, no other.
+ 'serverid': a peerid (binary string). Leases may only be created on the
+             storage server identified by this serverid.
+ 'UEB_hash': (binary string): Leases may only be created for shares which
+             contain a matching UEB_hash. Note: this limitation is a nuisance
+             to implement correctly: it requires that the storage server
+             parse the share and verify all hashes.
+ 'before': a timestamp (seconds since epoch). All leases must be made before
+           this time. In addition, all liverefs and FURLs must expire and
+           cease working at this time.
+ 'server_size': a number, measuring share size (in bytes). A storage server
+                which sees this message should keep track of how much storage
+                space has been consumed using this liveref/FURL, and throw
+                an exception when receiving a lease request that would bring
+                this total above 'server_size'. Note: this limitation is
+                a nuisance to implement (it works best if 'before' is used
+                and provides a short lifetime).
+
+Actually, let's merge the two, and put the type in the limitations dict.
+'furl_to' and 'delegate_key' are mutually exclusive.
+
+ 'furl_to': (string): Used only on furlification messages. This requests the
+            recipient to create an object which implements the given access,
+            then send a FURL which references this object to an
+            RIFURLReceiver.furl() call at the given 'furl_to' FURL:
+               facet = create_storage_facet(limitations)
+               facet_furl = tub.registerReference(facet)
+               d = tub.getReference(limitations['furl_to'])
+               d.addCallback(lambda rref: rref.furl(facet_furl))
+            The facet_furl should be persistent, so to reduce storage space,
+            facet_furl should contain an HMAC'ed list of all limitations, and
+            create_storage_facet() should be deferred until the client
+            actually tries to use the furl. This leads to 150-200 byte base32
+            swissnums.
+ 'delegate_key': (binary string, a DSA pubkey). Used only on delegation
+                 messages. This requests all observers to accept messages
+                 signed by the given public key and to apply the associated
+                 limitations.
+
+I also want to keep the message size small, so I'm going to define a custom
+netstring-based encoding format for it (JSON expands binary data by about
+3.5x). Each dict entry will be encoded as netstring(key)+netstring(value).
+The container is responsible for providing the size of this serialized
+structure.
+
+The actual message will then look like:
+
+def make_message(privkey, limitations):
+  message_to_sign = "".join([ netstring(k) + netstring(v) 
+                              for k,v in limitations ])
+  signature = privkey.sign(message_to_sign)
+  pubkey = privkey.get_public_key()
+  msg = netstring(message_to_sign) + netstring(signature) + netstring(pubkey)
+  return msg
+
+The deserialization code MUST throw an exception if the same limitations key
+appears twice, to ensure that everybody interprets the dict the same way.
+
+These messages are passed over foolscap connections as a single string. They
+are also saved to disk in this format. Code should only store them in a
+deserialized form if the signature has been verified, the cert chain
+verified, and the limitations accumulated.
+
+
+The membership card is just the following:
+
+ membership_card = make_message(account_server_privkey,
+                                {'account': account_number,
+                                 'before': time.time() + 1*MONTH,
+                                 'delegate_key': client_pubkey})
+
+This card is provided on demand by the given user's Account facet, for
+whatever pubkey they submit.
+
+When a client learns about a new storage server, they create a new receiver
+object (and stash the peerid in it), and submit the following message to the
+RIStorageServerWelcome.get_personal_facet() method:
+
+ mymsg = make_message(client_privkey, {'furl_to': receiver_furl})
+ send(membership_card, mymsg)
+
+(note that the receiver_furl will probably not have a routeable address, but
+this won't matter because the client is already attached, so foolscap can use
+the existing connection.)
+
+The server will validate the cert chain (see below) and wind up with a
+complete list of limitations that are to be applied to the facet it will
+provide to the caller. This list must combine limitations from the entire
+chain: in particular it must enforce the account= limitation from the
+membership card.
+
+The server will then serialize this limitation dict into a string, compute a
+fixed-size HMAC code using a server-private secret, then base32 encode the
+(hmac+limitstring) value (and prepend a "0-" version indicator). The
+resulting string is used as the swissnum portion of the FURL that is sent to
+the furl_to target.
+
+Later, when the client tries to dereference this FURL, a
+Tub.registerNameLookupHandler hook will notice the attempt, claim the "0-"
+namespace, base32decode the string, check the HMAC, decode the limitation
+dict, then create and return an RIStorageServer facet with these limitations.
+
+The client should cache the (peerid, FURL) mapping in persistent storage.
+Later, when it learns about this storage server again, it will use the cached
+FURL instead of signing another message. If the getReference or the storage
+operation fails with StorageAuthorityExpiredError, the cache entry should be
+removed and the client should sign a new message to obtain a new one.
+
+ (security note: an evil storage server can take 'mymsg' and present it to
+ someone else, but other servers will only send the resulting authority to
+ the client's receiver_furl, so the evil server cannot benefit from this. The
+ receiver object has the serverid curried into it, so the evil server can
+ only affect the client's mapping for this one serverid, not anything else,
+ so the server cannot hurt the client in any way other than denying service
+ to itself. It might be a good idea to include serverid= in the message, but
+ it isn't clear that it really helps anything).
+
+When the client wants to use a Helper, it needs to delegate some amount of
+storage authority to the helper. The first phase has the client send the
+storage index to the helper, so it can query servers and decide whether the
+file needs to be uploaded or not. If it decides yes, the Helper creates a new
+Uploader object and a receiver object, and sends the Uploader liveref and the
+receiver FURL to the client.
+
+The client then creates a message for the helper to use:
+
+ helper_msg = make_message(client_privkey, {'furl_to': helper_rx_furl,
+                                            'SI': storage_index,
+                                            'before': time.time() + 1*DAY, #?
+                                            'server_size': filesize/k+overhead,
+                                            })
+
+The client then sends (membership_card, helper_msg) to the helper. The Helper
+sends (membership_card, helper_msg) to each storage server that it needs to
+use for the upload. This gives the Helper access to a limited facet on each
+storage server. This facet gives the helper the authority to upload data for
+a specific storage index, for a limited time, using leases that are tagged by
+the user's account number. The helper cannot use the client's storage
+authority for any other file. The size limit prevents the helper from storing
+some other (larger) file of its own using this authority. The time
+restriction allows the storage servers to expire their 'server_size' table
+entry quickly, and prevents the helper from hanging on to the storage
+authority indefinitely.
+
+The Helper only gets one furl_to target, which must be used for multiple SS
+peerids. The helper's receiver must parse the FURL that gets returned to
+determine which server is which. [problems: an evil server could deliver a
+bogus FURL which points to a different server. The Helper might reject the
+real server's good FURL as a duplicate. This allows an evil server to block
+access to a good server. Queries could be sent sequentially, which would
+partially mitigate this problem (an evil server could send multiple
+requests). Better: if the cert-chain send message could include a nonce,
+which is supposed to be returned with the FURL, then the helper could use
+this to correlate sends and receives.]
+
+=== repair caps ===
+
+There are three basic approaches to provide a Repairer with the storage
+authority that it needs. The first is to give the Repairer complete
+authority: allow it to place leases for whatever account number it wishes.
+This is simple and requires the least overhead, but of course it give the
+Repairer the ability to abuse everyone's quota. The second is to give the
+Repairer no user authority: instead, give the repairer its own account, and
+build it to keep track of which leases it is holding on behalf of one of its
+customers. This repairer will slowly accumulate quota space over time, as it
+creates new shares to replace ones that have decayed. Eventually, when the
+client comes back online, the client should establish its own leases on these
+new shares and allow the repairer to cancel its temporary ones.
+
+The third approach is in between the other two: give the repairer some
+limited authority over the customer's account, but not enough to let it
+consume the user's whole quota.
+
+To create the storage-authority portion of a (one-month) repair-cap, the
+client creates a new DSA keypair (repair_privkey, repair_pubkey), and then
+creates a signed message and bundles it into the repaircap:
+
+ repair_msg = make_message(client_privkey, {'delegate_key': repair_pubkey,
+                                            'SI': storage_index,
+                                            'UEB_hash': file_ueb_hash})
+ repair_cap = (verify_cap, repair_privkey, (membership_card, repair_msg))
+
+This gives the holder of the repair cap a time-limited authority to upload
+shares for the given storage index which contain the given data. This
+prohibits the repair-cap from being used to upload or repair any other file.
+
+When the repairer needs to upload a new share, it will use the delegated key
+to create its own signed message:
+
+ upload_msg = make_message(repair_privkey, {'furl_to': repairer_rx_furl})
+ send(membership_card, repair_msg, upload_msg)
+
+The biggest problem with the low-authority approaches is the expiration time
+of the membership card, which limits the duration for which the repair-cap
+authority is valid. It would be nice if repair-caps could last a long time,
+years perhaps, so that clients can be offline for a similar period of time.
+However to retain a reasonable revocation interval for users, the membership
+card's before= timeout needs to be closer to a month. [it might be reasonable
+to use some sort of rights-amplification: the repairer has a special cert
+which allows it to remove the before= value from a chain].
+
+
+=== chain verification ===
+
+The server will create a chain that starts with the AS's certificate: an
+unsigned message which derives its authority from being manually placed in
+the SS's configdir. The only limitation in the AS certificate will be on some
+kind of meta-account, in case we want to use multiple account servers and
+allow their account numbers to live in distinct number spaces (think
+sub-accounts or business partners to buy storage in bulk and resell it to
+users). The rest of the chain comes directly from what the client sent.
+
+The server walks the chain, keeping an accumulated limitations dictionary
+along the way. At each step it knows the pubkey that was delegated by the
+previous step.
+
+== client config ==
+
+Clients are configured with an Account FURL that points to a private facet on
+the Account Server. The client generates a private key at startup. It sends
+the pubkey to the AS facet, which will return a signed delegate_key message
+(the "membership card") that grants the client's privkey any storage
+authority it wishes (as long as the account number is set to a specific
+value).
+
+The client stores this membership card in private/membership.cert .
+
+
+RIStorageServer messages will accept an optional account= argument. If left
+unspecified, the value is taken from the limitations that were curried into
+the SS facet. In all cases, the value used must meet those limitations. The
+value must not be None: Helpers/Repairers or other super-powered storage
+clients are obligated to specify an account number.
+
+== server config ==
+
+Storage servers are configured with an unsigned root authority message. This
+is like the output of make_message(account_server_privkey, {}) but has empty
+'signature' and 'pubkey' strings. This root goes into
+NODEDIR/storage_authority_root.cert . It is prepended to all chains that
+arrive.
+
+ [if/when we accept multiple authorities, storage_authority_root.cert will
+  turn into a storage_authority_root/ directory with *.cert files, and each
+  arriving chain will cause a search through these root certs for a matching
+  pubkey. The empty limitations will be replaced by {domain=X}, which is used
+  as a sort of meta-account.. the details depend upon whether we express
+  account numbers as an int (with various ranges) or as a tuple]
+
+The root authority message is published by the Account Server through its web
+interface, and also into a local file: NODEDIR/storage_authority_root.cert .
+The admin of the storage server is responsible for copying this file into
+place, thus enabling clients to use storage services.
+
+
+----------------------------------------
+
+-- Text beyond this point is out-of-date, and exists purely for background --
+
+Each storage server offers a "public storage port", which only accepts signed
+messages. The Introducer mechanism exists to give clients a reference to a
+set of these public storage ports. All clients get access to the same ports.
+If clients did all their work themselves, these public storage ports would be
+enough, and no further code would be necessary (all storage requests would we
+signed the same way).
+
+Fundamentally, each storage request must be signed by the account's private
+key, giving the SS an authenticated Account Number to go with the request.
+This is used to index the correct cell in the lease matrix. The holder of the
+account privkey is allowed to manipulate their column of the matrix in any
+way they like: add leases, renew leases, delete leases. (TODO: for
+reconcilliation purposes, they should also be able to enumerate leases). The
+storage request is sent in the form of a signed request message, accompanied
+by the membership card. For example:
+
+ req = SIGN("allocate SI=123 SSID=abc", accountprivkey) , membership_card
+  -> RemoteBucketWriter reference
+
+Upon receipt of this request, the storage server will return a reference to a
+RemoteBucketWriter object, which the client can use to fill and close the
+bucket. The SS must perform two DSA signature verifications before accepting
+this request. The first is to validate the membership card: the Account
+Server's pubkey is used to verify the membership card's signature, from which
+an account pubkey and account# is extracted. The second is to validate the
+request: the account pubkey is used to verify the request signature. If both
+are valid, the full request (with account# and storage index) is delivered to
+the internal StorageServer object.
+
+Note that the signed request message includes the Storage Server's node ID,
+to prevent this storage server from taking the signed message and echoing to
+other storage servers. Each SS will ignore any request that is not addressed
+to the right SSID. Also note that the SI= and SSID= fields may contain
+wildcards, if the signing client so chooses.
+
+== Caching Signature Verification ==
+
+We add some complexity to this simple model to achieve two goals: to enable
+fine-grained delegation of storage capabilities (specifically for renewers
+and repairers), and to reduce the number of public-key crypto operations that
+must be performed.
+
+The first enhancement is to allow the SS to cache the results of the
+verification step. To do this, the client creates a signed message which asks
+the SS to return a FURL of an object which can be used to execute further
+operations *without* a DSA signature. The FURL is expected to contain a
+MAC'ed string that contains the account# and the argument restrictions,
+effectively currying a subset of arguments into the RemoteReference. Clients
+which do all their operations themselves would use this to obtain a private
+storage port for each public storage port, stashing the FURLs in a local
+table, and then later storage operations would be done to those FURLs instead
+of creating signed requests. For example:
+
+ req = SIGN("FURL(allocate SI=* SSID=abc)", accountprivkey), membership_card
+  -> FURL
+ Tub.getReference(FURL).allocate(SI=123) -> RemoteBucketWriter reference
+
+== Renewers and Repairers
+
+A brief digression is in order, to motivate the other enhancement. The
+"manifest" is a list of caps, one for each node that is reachable from the
+user's root directory/directories. The client is expected to generate the
+manifest on a periodic basis (perhaps once a day), and to keep track of which
+files/dirnodes have been added and removed. Items which have been removed
+must be explicitly dereferenced to reclaim their storage space. For grids
+which use per-file lease timers, the manifest is used to drive the Renewer: a
+process which renews the lease timers on a periodic basis (perhaps once a
+week). The manifest can also be used to drive a Checker, which in turn feeds
+work into the Repairer.
+
+The manifest should contain the minimum necessary authority to do its job,
+which generally means it contains the "verify cap" for each node. For
+immutable files, the verify cap contains the storage index and the UEB hash:
+enough information to retrieve and validate the ciphertext but not enough to
+decrypt it. For mutable files, the verify cap contains the storage index and
+the pubkey hash, which also serves to retrieve and validate ciphertext but
+not decrypt it.
+
+If the client does its own Renewing and Repairing, then a verifycap-based
+manifest is sufficient. However, if the user wants to be able to turn their
+computer off for a few months and still keep their files around, they need to
+delegate this job off to some other willing node. In a commercial network,
+there will be centralized (and perhaps trusted) Renewer/Repairer nodes, but
+in a friendnet these may not be available, and the user will depend upon one
+of their friends being willing to run this service for them while they are
+away. In either of these cases, the verifycaps are not enough: the Renewer
+will need additional authority to renew the client's leases, and the Repairer
+will need the authority to create new shares (in the client's name) when
+necessary.
+
+A trusted central service could be given all-account superpowers, allowing it
+to exercise storage authority on behalf of all users as it pleases. If this
+is the case, the verifycaps are sufficient. But if we desire to grant less
+authority to the Renewer/Repairer, then we need a mechanism to attenuate this
+authority.
+
+The usual objcap approach is to create a proxy: an intermediate object which
+itself is given full authority, but which is unwilling to exercise more than
+a portion of that authority in response to incoming requests. The
+not-fully-trusted service is then only given access to the proxy, not the
+final authority. For example:
+
+ class Proxy(RemoteReference):
+   def __init__(self, original, storage_index):
+     self.original = original
+     self.storage_index = storage_index
+   def remote_renew_leases(self):
+     return self.original.renew_leases(self.storage_index)
+ renewer.grant(Proxy(target, "abcd"))
+
+But this approach interposes the proxy in the calling chain, requiring the
+machine which hosts the proxy to be available and on-line at all times, which
+runs opposite to our use case (turning the client off for a month).
+
+== Creating Attenuated Authorities ==
+
+The other enhancement is to use more public-key operations to allow the
+delegation of reduced authority to external helper services. Specifically, we
+want to give then Renewer the ability to renew leases for a specific file,
+rather than giving it lease-renewal power for all files. Likewise, the
+Repairer should have the ability to create new shares, but only for the file
+that is being repaired, not for unrelated files.
+
+If we do not mind giving the storage servers the ability to replay their
+inbound message to other storage servers, then the client can simply generate
+a signed message with a wildcard SSID= argument and leave it in the care of
+the Renewer or Repairer. For example, the Renewer would get:
+
+ SIGN("renew-lease SI=123 SSID=*", accountprivkey), membership_card
+
+Then, when the Renewer needed to renew a lease, it would deliver this signed
+request message to the storage server. The SS would verify the signatures
+just as if the message came from the original client, find them good, and
+perform the desired operation. With this approach, the manifest that is
+delivered to the remote Renewer process needs to include a signed
+lease-renewal request for each file: we use the term "renew-cap" for this
+combined (verifycap + signed lease-renewal request) message. Likewise the
+"repair-cap" would be the verifycap plus a signed allocate-bucket message. A
+renew-cap manifest would be enough for a remote Renewer to do its job, a
+repair-cap manifest would provide a remote Repairer with enough authority,
+and a cancel-cap manifest would be used for a remote Canceller (used, e.g.,
+to make sure that file has been dereferenced even if the client does not
+stick around long enough to track down and inform all of the storage servers
+involved).
+
+The only concern is that the SS could also take this exact same renew-lease
+message and deliver it to other storage servers. This wouldn't cause a
+concern for mere lease renewal, but the allocate-share message might be a bit
+less comfortable (you might not want to grant the first storage server the
+ability to claim space in your name on all other storage servers).
+
+Ideally we'd like to send a different message to each storage server, each
+narrowed in scope to a single SSID, since then none of these messages would
+be useful on any other SS. If the client knew the identities of all the
+storage servers in the system ahead of time, it might create a whole slew of
+signed messages, but a) this is a lot of signatures, only a fraction of which
+will ever actually be used, and b) new servers might be introduced after the
+manifest is created, particularly if we're talking about repair-caps instead
+of renewal-caps. The Renewer can't generate these one-per-SSID messages from
+the SSID=* message, because it doesn't have a privkey to make the correct
+signatures. So without some other mechanism, we're stuck with these
+relatively coarse authorities.
+
+If we want to limit this sort of authority, then we need to introduce a new
+method. The client begins by generating a new DSA keypair. Then it signs a
+message that declares the new pubkey to be valid for a specific subset of
+storage operations (such as "renew-lease SI=123 SSID=*"). Then it delivers
+the new privkey, the declaration message, and the membership card to the
+Renewer. The renewer uses the new privkey to sign its own one-per-SSID
+request message for each server, then sends the (signed request, declaration,
+membership card) triple to the server. The server needs to perform three
+verification checks per message: first the membership card, then the
+declaration message, then the actual request message.
+
+== Other Enhancements ==
+
+If a given authority is likely to be used multiple times, the same
+give-me-a-FURL trick can be used to cut down on the number of public key
+operations that must be performed. This is trickier with the per-SI messages.
+
+When storing the manifest, things like the membership card should be
+amortized across a set of common entries. An isolated renew-cap needs to
+contain the verifycap, the signed renewal request, and the membership card.
+But a manifest with a thousand entries should only include one copy of the
+membership card.
+
+It might be sensible to define a signed renewal request that grants authority
+for a set of storage indicies, so that the signature can be shared among
+several entries (to save space and perhaps processing time). The request
+could include a Bloom filter of authorized SI values: when the request is
+actually sent to the server, the renewer would add a list of actual SI values
+to renew, and the server would accept all that are contained in the filter.
+
+== Revocation ==
+
+The lifetime of the storage authority included in the manifest's renew-caps
+or repair-caps will determine the lifetime of those caps. In particular, if
+we implement account revocation by using time-limited membership cards
+(requiring the client to get a new card once a month), then the repair-caps
+won't work for more than a month, which kind of defeats the purpose.
+
+A related issue is the FURL-shortcut: the MAC'ed message needs to include a
+validity period of some sort, and if the client tries to use a old FURL they
+should get an error message that will prompt them to try and acquire a newer
+one.
+
+------------------------------
+
+The client can produce a repair-cap manifest for a specific Repairer's
+pubkey, so it can produce a signed message that includes the pubkey (instead
+of needing to generate a new privkey just for this purpose). The result is
+not a capability, since it can only be used by the holder of the
+corresponding privkey.
+
+So the generic form of the storage operation message is the request (which
+has all the argument values filled in), followed by a chain of
+authorizations. The first authorization must be signed by the Account
+Server's key. Each authorization must be signed by the key mentioned in the
+previous one. Each one adds a new limitation on the power of the following
+ones. The actual request is bounded by all the limitations of the chain.
+
+The membership card is an authorization that simply limits the account number
+that can be used: "op=* SI=* SSID=* account=4 signed-by=CLIENT-PUBKEY".
+
+So a repair manifest created for a Repairer with pubkey ABCD could consist of
+a list of verifycaps plus a single authorization (using a Bloom filter to
+identify the SIs that were allowed):
+
+ SIGN("allocate SI=[bloom] SSID=* signed-by=ABCD")
+
+If/when the Repairer needed to allocate a share, it would use its own privkey
+to sign an additional message and send the whole list to the SS:
+
+ request=allocate SI=1234 SSID=EEFS account=4 shnum=2
+ SIGN("allocate SI=1234 SSID=EEFS", ABCD)
+ SIGN("allocate SI=[bloom] SSID=* signed-by=ABCD", clientkey)
+ membership: SIGN("op=* SI=* SSID=* account=4 signed-by=clientkey", ASkey)
+ [implicit]: ASkey
+
+----------------------------------------
+
+Things would be a lot simpler if the Repairer (actually the Re-Leaser) had
+everybody's account authority.
+
+One simplifying approach: the Repairer/Re-Leaser has its own account, and the
+shares it creates are leased under that account number. The R/R keeps track
+of which leases it has created for whom. When the client eventually comes
+back online, it is told to perform a re-leasing run, and after that occurs
+the R/R can cancel its own temporary leases.
+
+This would effectively transfer storage quota from the original client to the
+R/R over time (as shares are regenerated by the R/R while the client remains
+offline). If the R/R is centrally managed, the quota mechanism can sum the
+R/R's numbers with the SS's numbers when determining how much storage is
+consumed by any given account. Not quite as clean as storing the exact
+information in the SS's lease tables directly, but:
+
+ * the R/R no longer needs any special account authority (it merely needs an
+   accurate account number, which can be supplied by giving the client a
+   specific facet that is bound to that account number)
+ * the verify-cap manifest is sufficient to perform repair
+ * no extra DSA keys are necessary
+ * account authority could be implemented with either DSA keys or personal SS
+   facets: i.e. we don't need the delegability aspects of DSA keys for use by
+   the repair mechanism (we might still want them to simplify introduction).
+
+I *think* this would eliminate all that complexity of chained authorization
+messages.
