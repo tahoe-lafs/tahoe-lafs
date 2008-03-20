@@ -1324,67 +1324,69 @@ class Root(rend.Page):
         client = IClient(ctx)
         req = inevow.IRequest(ctx)
 
-        segments = list(segments) # XXX HELP I AM YUCKY!
+        if not segments or segments[0] != "uri":
+            return rend.Page.locateChild(self, ctx, segments)
+
+        segments = list(segments)
         while segments and not segments[-1]:
             segments.pop()
         if not segments:
             segments.append('')
         segments = tuple(segments)
-        if segments:
-            if segments[0] == "uri":
-                if len(segments) == 1 or segments[1] == '':
-                    uri = get_arg(req, "uri", None)
-                    if uri is not None:
-                        there = url.URL.fromContext(ctx)
-                        there = there.clear("uri")
-                        there = there.child("uri").child(uri)
-                        return there, ()
-                if len(segments) == 1:
-                    # /uri
-                    if req.method == "PUT":
-                        # either "PUT /uri" to create an unlinked file, or
-                        # "PUT /uri?t=mkdir" to create an unlinked directory
-                        t = get_arg(req, "t", "").strip()
-                        if t == "":
-                            mutable = bool(get_arg(req, "mutable", "").strip())
-                            if mutable:
-                                return unlinked.UnlinkedPUTSSKUploader(), ()
-                            else:
-                                return unlinked.UnlinkedPUTCHKUploader(), ()
-                        if t == "mkdir":
-                            return unlinked.UnlinkedPUTCreateDirectory(), ()
-                        errmsg = "/uri only accepts PUT and PUT?t=mkdir"
-                        return WebError(http.BAD_REQUEST, errmsg), ()
 
-                    elif req.method == "POST":
-                        # "POST /uri?t=upload&file=newfile" to upload an
-                        # unlinked file or "POST /uri?t=mkdir" to create a
-                        # new directory
-                        t = get_arg(req, "t", "").strip()
-                        if t in ("", "upload"):
-                            mutable = bool(get_arg(req, "mutable", "").strip())
-                            if mutable:
-                                return unlinked.UnlinkedPOSTSSKUploader(), ()
-                            else:
-                                return unlinked.UnlinkedPOSTCHKUploader(client, req), ()
-                        if t == "mkdir":
-                            return unlinked.UnlinkedPOSTCreateDirectory(), ()
-                        errmsg = "/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, and POST?t=mkdir"
-                        return WebError(http.BAD_REQUEST, errmsg), ()
-                if len(segments) < 2:
-                    return rend.NotFound
-                uri = segments[1]
-                d = defer.maybeDeferred(client.create_node_from_uri, uri)
-                d.addCallback(lambda node: VDrive(node, uri))
-                d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
-                def _trap_KeyError(f):
-                    f.trap(KeyError)
-                    return rend.FourOhFour(), ()
-                d.addErrback(_trap_KeyError)
-                return d
-            elif segments[0] == "xmlrpc":
-                raise NotImplementedError()
-        return rend.Page.locateChild(self, ctx, segments)
+        if len(segments) == 1 or segments[1] == '':
+            uri = get_arg(req, "uri", None)
+            if uri is not None:
+                there = url.URL.fromContext(ctx)
+                there = there.clear("uri")
+                there = there.child("uri").child(uri)
+                return there, ()
+
+        if len(segments) == 1:
+            # /uri
+            if req.method == "PUT":
+                # either "PUT /uri" to create an unlinked file, or
+                # "PUT /uri?t=mkdir" to create an unlinked directory
+                t = get_arg(req, "t", "").strip()
+                if t == "":
+                    mutable = bool(get_arg(req, "mutable", "").strip())
+                    if mutable:
+                        return unlinked.UnlinkedPUTSSKUploader(), ()
+                    else:
+                        return unlinked.UnlinkedPUTCHKUploader(), ()
+                if t == "mkdir":
+                    return unlinked.UnlinkedPUTCreateDirectory(), ()
+                errmsg = "/uri only accepts PUT and PUT?t=mkdir"
+                return WebError(http.BAD_REQUEST, errmsg), ()
+
+            elif req.method == "POST":
+                # "POST /uri?t=upload&file=newfile" to upload an
+                # unlinked file or "POST /uri?t=mkdir" to create a
+                # new directory
+                t = get_arg(req, "t", "").strip()
+                if t in ("", "upload"):
+                    mutable = bool(get_arg(req, "mutable", "").strip())
+                    if mutable:
+                        return unlinked.UnlinkedPOSTSSKUploader(), ()
+                    else:
+                        return unlinked.UnlinkedPOSTCHKUploader(client, req), ()
+                if t == "mkdir":
+                    return unlinked.UnlinkedPOSTCreateDirectory(), ()
+                errmsg = "/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, and POST?t=mkdir"
+                return WebError(http.BAD_REQUEST, errmsg), ()
+
+        if len(segments) < 2:
+            return rend.NotFound
+
+        uri = segments[1]
+        d = defer.maybeDeferred(client.create_node_from_uri, uri)
+        d.addCallback(lambda node: VDrive(node, uri))
+        d.addCallback(lambda vd: vd.locateChild(ctx, segments[2:]))
+        def _trap_KeyError(f):
+            f.trap(KeyError)
+            return rend.FourOhFour(), ()
+        d.addErrback(_trap_KeyError)
+        return d
 
     child_webform_css = webform.defaultCSS
     child_tahoe_css = nevow_File(resource_filename('allmydata.web', 'tahoe.css'))
