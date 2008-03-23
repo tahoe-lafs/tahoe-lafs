@@ -664,11 +664,13 @@ class FileDownloader:
         self._tail_codec = codec.get_decoder_by_name(d['codec_name'])
         self._tail_codec.set_serialized_params(d['tail_codec_params'])
 
-        crypttext_hash = d['crypttext_hash']
-        assert isinstance(crypttext_hash, str)
-        assert len(crypttext_hash) == 32
+        crypttext_hash = d.get('crypttext_hash', None) # optional
+        if crypttext_hash:
+            assert isinstance(crypttext_hash, str)
+            assert len(crypttext_hash) == 32
         self._crypttext_hash = crypttext_hash
-        self._plaintext_hash = d['plaintext_hash']
+        self._plaintext_hash = d.get('plaintext_hash', None) # optional
+
         self._roothash = d['share_root_hash']
 
         self._segment_size = segment_size = d['segment_size']
@@ -682,12 +684,18 @@ class FileDownloader:
         self._get_hashtrees_started = time.time()
         if self._status:
             self._status.set_status("Retrieving Hash Trees")
-        d = self._get_plaintext_hashtrees()
+        d = defer.maybeDeferred(self._get_plaintext_hashtrees)
         d.addCallback(self._get_crypttext_hashtrees)
         d.addCallback(self._setup_hashtrees)
         return d
 
     def _get_plaintext_hashtrees(self):
+        # plaintext hashes are optional. If the root isn't in the UEB, then
+        # the share will be holding an empty list. We don't even bother
+        # fetching it.
+        if "plaintext_root_hash" not in self._uri_extension_data:
+            self._plaintext_hashtree = None
+            return
         def _validate_plaintext_hashtree(proposal, bucket):
             if proposal[0] != self._uri_extension_data['plaintext_root_hash']:
                 self._fetch_failures["plaintext_hashroot"] += 1
@@ -713,6 +721,10 @@ class FileDownloader:
         return d
 
     def _get_crypttext_hashtrees(self, res):
+        # crypttext hashes are optional too
+        if "crypttext_root_hash" not in self._uri_extension_data:
+            self._crypttext_hashtree = None
+            return
         def _validate_crypttext_hashtree(proposal, bucket):
             if proposal[0] != self._uri_extension_data['crypttext_root_hash']:
                 self._fetch_failures["crypttext_hashroot"] += 1
@@ -915,12 +927,12 @@ class FileDownloader:
             self._results.timings["total"] = now - self._started
             self._results.timings["segments"] = now - self._started_fetching
         self._output.close()
-        if self.check_crypttext_hash:
+        if self.check_crypttext_hash and self._crypttext_hash:
             _assert(self._crypttext_hash == self._output.crypttext_hash,
                     "bad crypttext_hash: computed=%s, expected=%s" %
                     (base32.b2a(self._output.crypttext_hash),
                      base32.b2a(self._crypttext_hash)))
-        if self.check_plaintext_hash:
+        if self.check_plaintext_hash and self._plaintext_hash:
             _assert(self._plaintext_hash == self._output.plaintext_hash,
                     "bad plaintext_hash: computed=%s, expected=%s" %
                     (base32.b2a(self._output.plaintext_hash),

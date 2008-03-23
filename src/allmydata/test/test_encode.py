@@ -25,8 +25,8 @@ class FakeBucketWriterProxy:
     def __init__(self, mode="good"):
         self.mode = mode
         self.blocks = {}
-        self.plaintext_hashes = None
-        self.crypttext_hashes = None
+        self.plaintext_hashes = []
+        self.crypttext_hashes = []
         self.block_hashes = None
         self.share_hashes = None
         self.closed = False
@@ -57,14 +57,14 @@ class FakeBucketWriterProxy:
     def put_plaintext_hashes(self, hashes):
         def _try():
             assert not self.closed
-            assert self.plaintext_hashes is None
+            assert not self.plaintext_hashes
             self.plaintext_hashes = hashes
         return defer.maybeDeferred(_try)
 
     def put_crypttext_hashes(self, hashes):
         def _try():
             assert not self.closed
-            assert self.crypttext_hashes is None
+            assert not self.crypttext_hashes
             self.crypttext_hashes = hashes
         return defer.maybeDeferred(_try)
 
