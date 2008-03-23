@@ -239,10 +239,6 @@ class Encoder(object):
 
         d.addCallback(lambda res: self.finish_hashing())
 
-        d.addCallback(lambda res:
-                      self.send_plaintext_hash_tree_to_all_shareholders())
-        d.addCallback(lambda res:
-                      self.send_crypttext_hash_tree_to_all_shareholders())
         d.addCallback(lambda res: self.send_all_subshare_hash_trees())
         d.addCallback(lambda res: self.send_all_share_hash_trees())
         d.addCallback(lambda res: self.send_uri_extension_to_all_shareholders())
@@ -510,63 +506,7 @@ class Encoder(object):
         self._start_hashing_and_close_timestamp = time.time()
         self.set_status("Finishing hashes")
         self.set_encode_and_push_progress(extra=0.0)
-        crypttext_hash = self._crypttext_hasher.digest()
-        self.uri_extension_data["crypttext_hash"] = crypttext_hash
-        d = self._uploadable.get_plaintext_hash()
-        def _got(plaintext_hash):
-            self.uri_extension_data["plaintext_hash"] = plaintext_hash
-            return self._uploadable.get_plaintext_hashtree_leaves(0, self.num_segments, self.num_segments)
-        d.addCallback(_got)
-        def _got_hashtree_leaves(leaves):
-            self.log("Encoder: got plaintext_hashtree_leaves: %s" %
-                     (",".join([base32.b2a(h) for h in leaves]),),
-                     level=log.NOISY)
-            ht = list(HashTree(list(leaves)))
-            self.uri_extension_data["plaintext_root_hash"] = ht[0]
-            self._plaintext_hashtree_nodes = ht
-        d.addCallback(_got_hashtree_leaves)
-
-        d.addCallback(lambda res: self._uploadable.close())
-        return d
-
-    def send_plaintext_hash_tree_to_all_shareholders(self):
-        self.log("sending plaintext hash tree", level=log.NOISY)
-        self.set_status("Sending Plaintext Hash Tree")
-        self.set_encode_and_push_progress(extra=0.2)
-        dl = []
-        for shareid in self.landlords.keys():
-            d = self.send_plaintext_hash_tree(shareid,
-                                              self._plaintext_hashtree_nodes)
-            dl.append(d)
-        return self._gather_responses(dl)
-
-    def send_plaintext_hash_tree(self, shareid, all_hashes):
-        if shareid not in self.landlords:
-            return defer.succeed(None)
-        sh = self.landlords[shareid]
-        d = sh.put_plaintext_hashes(all_hashes)
-        d.addErrback(self._remove_shareholder, shareid, "put_plaintext_hashes")
-        return d
-
-    def send_crypttext_hash_tree_to_all_shareholders(self):
-        self.log("sending crypttext hash tree", level=log.NOISY)
-        self.set_status("Sending Crypttext Hash Tree")
-        self.set_encode_and_push_progress(extra=0.3)
-        t = HashTree(self._crypttext_hashes)
-        all_hashes = list(t)
-        self.uri_extension_data["crypttext_root_hash"] = t[0]
-        dl = []
-        for shareid in self.landlords.keys():
-            dl.append(self.send_crypttext_hash_tree(shareid, all_hashes))
-        return self._gather_responses(dl)
-
-    def send_crypttext_hash_tree(self, shareid, all_hashes):
-        if shareid not in self.landlords:
-            return defer.succeed(None)
-        sh = self.landlords[shareid]
-        d = sh.put_crypttext_hashes(all_hashes)
-        d.addErrback(self._remove_shareholder, shareid, "put_crypttext_hashes")
-        return d
+        return self._uploadable.close()
 
     def send_all_subshare_hash_trees(self):
         self.log("sending subshare hash trees", level=log.NOISY)
@@ -629,10 +569,6 @@ class Encoder(object):
         lp = self.log("sending uri_extension", level=log.NOISY)
         self.set_status("Sending URI Extensions")
         self.set_encode_and_push_progress(extra=0.8)
-        for k in ('crypttext_root_hash', 'crypttext_hash',
-                  'plaintext_root_hash', 'plaintext_hash',
-                  ):
-            assert k in self.uri_extension_data
         uri_extension = uri.pack_extension(self.uri_extension_data)
         ed = {}
         for k,v in self.uri_extension_data.items():

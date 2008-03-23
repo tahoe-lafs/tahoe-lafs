@@ -1303,8 +1303,6 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         for key in ("size", "num_segments", "segment_size",
                     "needed_shares", "total_shares",
                     "codec_name", "codec_params", "tail_codec_params",
-                    "plaintext_hash", "plaintext_root_hash",
-                    "crypttext_hash", "crypttext_root_hash",
                     "share_root_hash", "UEB_hash"):
             self.failUnless("%s: " % key in output, key)
 
