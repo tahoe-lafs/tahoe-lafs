@@ -367,7 +367,7 @@ this file are ignored.
         if self.mode in ("upload", "upload-self"):
             files[name] = self.create_data(name, size)
             d = self.control_rref.callRemote("upload_from_file_to_uri",
-                                             files[name], convergence=None)
+                                             files[name], convergence="check-memory convergence string")
             def _done(uri):
                 os.remove(files[name])
                 del files[name]
@@ -391,7 +391,7 @@ this file are ignored.
             files[name] = self.create_data(name, size)
             u = self.nodes[0].getServiceNamed("uploader")
             d = self.nodes[0].debug_wait_for_client_connections(self.numnodes+1)
-            d.addCallback(lambda res: u.upload(upload.FileName(files[name])))
+            d.addCallback(lambda res: u.upload(upload.FileName(files[name], convergence="check-memory convergence string")))
             d.addCallback(lambda results: results.uri)
         else:
             raise RuntimeError("unknown mode=%s" % self.mode)
