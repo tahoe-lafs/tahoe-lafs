@@ -1089,7 +1089,7 @@ class FileHandle(BaseUploadable):
         Upload the data from the filehandle.  If convergence is None then a
         random encryption key will be used, else the plaintext will be hashed,
         then the hash will be hashed together with the string in the
-        "convergence" argument to form the encryption key."
+        "convergence" argument to form the encryption key.
         """
         assert convergence is None or isinstance(convergence, str), (convergence, type(convergence))
         self._filehandle = filehandle
@@ -1165,7 +1165,7 @@ class FileName(FileHandle):
         Upload the data from the filename.  If convergence is None then a
         random encryption key will be used, else the plaintext will be hashed,
         then the hash will be hashed together with the string in the
-        "convergence" argument to form the encryption key."
+        "convergence" argument to form the encryption key.
         """
         assert convergence is None or isinstance(convergence, str), (convergence, type(convergence))
         FileHandle.__init__(self, open(filename, "rb"), convergence=convergence)
@@ -1179,7 +1179,7 @@ class Data(FileHandle):
         Upload the data from the data argument.  If convergence is None then a
         random encryption key will be used, else the plaintext will be hashed,
         then the hash will be hashed together with the string in the
-        "convergence" argument to form the encryption key."
+        "convergence" argument to form the encryption key.
         """
         assert convergence is None or isinstance(convergence, str), (convergence, type(convergence))
         FileHandle.__init__(self, StringIO(data), convergence=convergence)
