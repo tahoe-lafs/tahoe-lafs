@@ -1221,13 +1221,13 @@ class Publish:
             for oldplace in current_share_peers.get(shnum, []):
                 (peerid, seqnum, R) = oldplace
                 if seqnum >= self._new_seqnum:
-                    self.log("somebody has a newer sequence number than what we were uploading",
+                    self.log("the sequence number has changed unexpectedly",
                              level=log.WEIRD)
                     self.log(format="peerid=%(peerid)s, theirs=%(seqnum)d, mine=%(new_seqnum)d",
                              peerid=idlib.shortnodeid_b2a(peerid),
                              seqnum=seqnum,
                              new_seqnum=self._new_seqnum)
-                    raise UncoordinatedWriteError("somebody has a newer sequence number than us")
+                    raise UncoordinatedWriteError("the sequence number has changed unexpectedly")
                 target_map.add(shnum, oldplace)
                 shares_per_peer.add(peerid, shnum)
                 if shnum in shares_needing_homes:
