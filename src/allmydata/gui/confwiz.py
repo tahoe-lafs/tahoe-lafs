@@ -7,6 +7,8 @@ WELCOME_PAGE = 'welcome_install'
 TAHOESVC_NAME = 'Tahoe'
 WINFUSESVC_NAME = 'Allmydata SMB'
 
+CONVERGENCE_DOMAIN_TAG = "allmydata_root_cap_to_convergence_domain_tag_v1"
+
 import os
 import re
 import socket
@@ -19,6 +21,7 @@ import webbrowser
 import wx
 
 from allmydata.util.assertutil import precondition
+from allmydata.util import hashutil, base32
 from allmydata import uri
 import allmydata
 
@@ -112,6 +115,11 @@ def write_config_file(filename, contents):
     iff = file(path, 'wb')
     iff.write(contents)
     iff.close()
+
+def write_root_cap(root_cap):
+    write_config_file('private/root_dir.cap', root_cap+'\n')
+    convergence = base32.b2a(hashutil.tagged_hash(CONVERGENCE_DOMAIN_TAG, root_cap))
+    write_config_file('private/convergence', convergence+'\n')
 
 def get_nodeid():
     CERTFILE = "node.pem"
@@ -350,7 +358,7 @@ class LoginPanel(wx.Panel):
 
         try:
             root_cap = get_root_cap(backend, user, passwd)
-            write_config_file('private/root_dir.cap', root_cap+'\n')
+            write_root_cap(root_cap)
         except AuthError:
             self.warning_label.SetLabel('Your email and/or password is incorrect')
             self.user_field.SetFocus()
@@ -474,7 +482,7 @@ class RegisterPanel(wx.Panel):
             try:
                 #print 'calling get_root_cap (ae)', time.asctime()
                 root_cap = get_root_cap(backend, user, passwd)
-                write_config_file('private/root_dir.cap', root_cap+'\n')
+                write_root_cap(root_cap)
             except AuthError:
                 self.warning_label.SetLabel('That email address is already registered')
                 self.user_field.SetFocus()
@@ -488,7 +496,7 @@ class RegisterPanel(wx.Panel):
         elif result_code == 'ok':
             #print 'calling get_root_cap (ok)', time.asctime()
             root_cap = get_root_cap(backend, user, passwd)
-            write_config_file('private/root_dir.cap', root_cap+'\n')
+            write_root_cap(root_cap)
         else:
             self.warning_label.SetLabel('an unexpected error occurred ("%s")' % (result_code,))
             self.user_field.SetFocus()
