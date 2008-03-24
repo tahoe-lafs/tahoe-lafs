@@ -256,15 +256,15 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
 
     def test_upload_and_download_random_key(self):
         self.basedir = "system/SystemTest/test_upload_and_download_random_key"
-        return self._test_upload_and_download(False)
+        return self._test_upload_and_download(convergence=None)
     test_upload_and_download_random_key.timeout = 4800
 
-    def test_upload_and_download_content_hash_key(self):
-        self.basedir = "system/SystemTest/test_upload_and_download_CHK"
-        return self._test_upload_and_download(True)
-    test_upload_and_download_content_hash_key.timeout = 4800
+    def test_upload_and_download_convergent(self):
+        self.basedir = "system/SystemTest/test_upload_and_download_convergent"
+        return self._test_upload_and_download(convergence="some convergence string")
+    test_upload_and_download_convergent.timeout = 4800
 
-    def _test_upload_and_download(self, contenthashkey):
+    def _test_upload_and_download(self, convergence):
         # we use 4000 bytes of data, which will result in about 400k written
         # to disk among all our simulated nodes
         DATA = "Some data to upload\n" * 200
@@ -287,7 +287,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             # tail segment is not the same length as the others. This actualy
             # gets rounded up to 1025 to be a multiple of the number of
             # required shares (since we use 25 out of 100 FEC).
-            up = upload.Data(DATA, contenthashkey=contenthashkey)
+            up = upload.Data(DATA, convergence=convergence)
             up.max_segment_size = 1024
             d1 = u.upload(up)
             return d1
@@ -301,12 +301,12 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         d.addCallback(_upload_done)
 
         def _upload_again(res):
-            # Upload again. If contenthashkey then this ought to be
+            # Upload again. If using convergent encryption then this ought to be
             # short-circuited, however with the way we currently generate URIs
             # (i.e. because they include the roothash), we have to do all of the
             # encoding work, and only get to save on the upload part.
             log.msg("UPLOADING AGAIN")
-            up = upload.Data(DATA, contenthashkey=contenthashkey)
+            up = upload.Data(DATA, convergence=convergence)
             up.max_segment_size = 1024
             d1 = self.uploader.upload(up)
         d.addCallback(_upload_again)
@@ -372,7 +372,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
 
         HELPER_DATA = "Data that needs help to upload" * 1000
         def _upload_with_helper(res):
-            u = upload.Data(HELPER_DATA, contenthashkey=contenthashkey)
+            u = upload.Data(HELPER_DATA, convergence=convergence)
             d = self.extra_node.upload(u)
             def _uploaded(results):
                 uri = results.uri
@@ -385,7 +385,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         d.addCallback(_upload_with_helper)
 
         def _upload_duplicate_with_helper(res):
-            u = upload.Data(HELPER_DATA, contenthashkey=contenthashkey)
+            u = upload.Data(HELPER_DATA, convergence=convergence)
             u.debug_stash_RemoteEncryptedUploadable = True
             d = self.extra_node.upload(u)
             def _uploaded(results):
@@ -398,13 +398,13 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                             "uploadable started uploading, should have been avoided")
             d.addCallback(_check)
             return d
-        if contenthashkey:
+        if convergence is not None:
             d.addCallback(_upload_duplicate_with_helper)
 
         def _upload_resumable(res):
             DATA = "Data that needs help to upload and gets interrupted" * 1000
-            u1 = CountingDataUploadable(DATA, contenthashkey=contenthashkey)
-            u2 = CountingDataUploadable(DATA, contenthashkey=contenthashkey)
+            u1 = CountingDataUploadable(DATA, convergence=convergence)
+            u2 = CountingDataUploadable(DATA, convergence=convergence)
 
             # we interrupt the connection after about 5kB by shutting down
             # the helper, then restartingit.
@@ -490,7 +490,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                 # to store the key locally and re-use it on the next upload of
                 # this file, which isn't a bad thing to do, but we currently
                 # don't do it.)
-                if contenthashkey:
+                if convergence is not None:
                     # Make sure we did not have to read the whole file the
                     # second time around .
                     self.failUnless(bytes_sent < len(DATA),
@@ -510,9 +510,9 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
 
             def _check(newdata):
                 self.failUnlessEqual(newdata, DATA)
-                # If using a content hash key, then also check that the helper
-                # has removed the temp file from its directories.
-                if contenthashkey:
+                # If using convergent encryption, then also check that the
+                # helper has removed the temp file from its directories.
+                if convergence is not None:
                     basedir = os.path.join(self.getdir("client0"), "helper")
                     files = os.listdir(os.path.join(basedir, "CHK_encoding"))
                     self.failUnlessEqual(files, [])
@@ -890,7 +890,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         return d
 
     def _do_publish1(self, res):
-        ut = upload.Data(self.data)
+        ut = upload.Data(self.data, convergence=None)
         c0 = self.clients[0]
         d = c0.create_empty_dirnode()
         def _made_root(new_dirnode):
@@ -910,7 +910,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         return d
 
     def _do_publish2(self, res):
-        ut = upload.Data(self.data)
+        ut = upload.Data(self.data, convergence=None)
         d = self._subdir1_node.create_empty_directory(u"subdir2")
         d.addCallback(lambda subdir2: subdir2.add_file(u"mydata992", ut))
         return d
@@ -927,7 +927,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
 
     def _do_publish_private(self, res):
         self.smalldata = "sssh, very secret stuff"
-        ut = upload.Data(self.smalldata)
+        ut = upload.Data(self.smalldata, convergence=None)
         d = self.clients[0].create_empty_dirnode()
         d.addCallback(self.log, "GOT private directory")
         def _got_new_dir(privnode):
@@ -1009,7 +1009,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mkdir(nope)", None, dirnode.create_empty_directory, u"nope"))
 
             d1.addCallback(self.log, "doing add_file(ro)")
-            ut = upload.Data("I will disappear, unrecorded and unobserved. The tragedy of my demise is made more poignant by its silence, but this beauty is not for you to ever know.")
+            ut = upload.Data("I will disappear, unrecorded and unobserved. The tragedy of my demise is made more poignant by its silence, but this beauty is not for you to ever know.", convergence="99i-p1x4-xd4-18yc-ywt-87uu-msu-zo -- completely and totally unguessable string (unless you read this)")
             d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "add_file(nope)", None, dirnode.add_file, u"hope", ut))
 
             d1.addCallback(self.log, "doing get(ro)")
@@ -1345,7 +1345,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         d.addCallback(self._test_control2, control_furl_file)
         return d
     def _test_control2(self, rref, filename):
-        d = rref.callRemote("upload_from_file_to_uri", filename)
+        d = rref.callRemote("upload_from_file_to_uri", filename, convergence=None)
         downfile = os.path.join(self.basedir, "control.downfile")
         d.addCallback(lambda uri:
                       rref.callRemote("download_from_uri_to_file",

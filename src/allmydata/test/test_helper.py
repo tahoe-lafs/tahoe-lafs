@@ -72,8 +72,8 @@ def flush_but_dont_ignore(res):
     d.addCallback(_done)
     return d
 
-def upload_data(uploader, data):
-    u = upload.Data(data)
+def upload_data(uploader, data, convergence):
+    u = upload.Data(data, convergence=convergence)
     return uploader.upload(u)
 
 class AssistedUpload(unittest.TestCase):
@@ -116,7 +116,7 @@ class AssistedUpload(unittest.TestCase):
         def _ready(res):
             assert u._helper
 
-            return upload_data(u, DATA)
+            return upload_data(u, DATA, convergence="some convergence string")
         d.addCallback(_ready)
         def _uploaded(results):
             uri = results.uri
@@ -149,7 +149,7 @@ class AssistedUpload(unittest.TestCase):
         # this must be a multiple of 'required_shares'==k
         segsize = mathutil.next_multiple(segsize, k)
 
-        key = hashutil.content_hash_key_hash(k, n, segsize, DATA)
+        key = hashutil.convergence_hash(k, n, segsize, DATA, "test convergence string")
         assert len(key) == 16
         encryptor = AES(key)
         SI = hashutil.storage_index_hash(key)
@@ -169,7 +169,7 @@ class AssistedUpload(unittest.TestCase):
 
         def _ready(res):
             assert u._helper
-            return upload_data(u, DATA)
+            return upload_data(u, DATA, convergence="test convergence string")
         d.addCallback(_ready)
         def _uploaded(results):
             uri = results.uri
@@ -200,7 +200,7 @@ class AssistedUpload(unittest.TestCase):
         def _ready(res):
             assert u._helper
 
-            return upload_data(u, DATA)
+            return upload_data(u, DATA, convergence="some convergence string")
         d.addCallback(_ready)
         def _uploaded(results):
             uri = results.uri

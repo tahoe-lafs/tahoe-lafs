@@ -120,7 +120,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
     def test_readonly(self):
         fileuri = make_chk_file_uri(1234)
         filenode = self.client.create_node_from_uri(fileuri)
-        uploadable = upload.Data("some data")
+        uploadable = upload.Data("some data", convergence="some convergence string")
 
         d = self.client.create_empty_dirnode()
         def _created(rw_dn):
@@ -338,7 +338,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
             # hundrededths of a second.
             d.addCallback(self.stall, 0.1)
             d.addCallback(lambda res: n.add_file(u"timestamps",
-                                                 upload.Data("stamp me")))
+                                                 upload.Data("stamp me", convergence="some convergence string")))
             d.addCallback(self.stall, 0.1)
             def _stop(res):
                 self._stop_timestamp = time.time()
@@ -393,7 +393,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
                           self.failUnlessEqual(sorted(children.keys()),
                                                sorted([u"child"])))
 
-            uploadable = upload.Data("some data")
+            uploadable = upload.Data("some data", convergence="some convergence string")
             d.addCallback(lambda res: n.add_file(u"newfile", uploadable))
             d.addCallback(lambda newnode:
                           self.failUnless(IFileNode.providedBy(newnode)))
@@ -406,7 +406,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
                           self.failUnlessEqual(sorted(metadata.keys()),
                                                ["ctime", "mtime"]))
 
-            uploadable = upload.Data("some data")
+            uploadable = upload.Data("some data", convergence="some convergence string")
             d.addCallback(lambda res: n.add_file(u"newfile-metadata",
                                                  uploadable,
                                                  {"key": "value"}))

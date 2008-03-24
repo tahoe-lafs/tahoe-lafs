@@ -35,6 +35,7 @@ class FakeClient(service.MultiService):
     introducer_client = FakeIntroducerClient()
     _all_upload_status = [upload.UploadStatus()]
     _all_download_status = [download.DownloadStatus()]
+    convergence = "some random string"
 
     def connected_to_introducer(self):
         return False

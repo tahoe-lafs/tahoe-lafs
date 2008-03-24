@@ -42,9 +42,9 @@ class ControlServer(Referenceable, service.Service, testutil.PollMixin):
     def remote_wait_for_client_connections(self, num_clients):
         return self.parent.debug_wait_for_client_connections(num_clients)
 
-    def remote_upload_from_file_to_uri(self, filename):
+    def remote_upload_from_file_to_uri(self, filename, convergence):
         uploader = self.parent.getServiceNamed("uploader")
-        u = upload.FileName(filename)
+        u = upload.FileName(filename, convergence=convergence)
         d = uploader.upload(u)
         d.addCallback(lambda results: results.uri)
         return d
@@ -161,7 +161,7 @@ class SpeedTest:
                 d1 = self._n.overwrite(data)
                 d1.addCallback(lambda res: self._n.get_uri())
             else:
-                up = upload.FileName(fn)
+                up = upload.FileName(fn, convergence=None)
                 d1 = self.parent.upload(up)
                 d1.addCallback(lambda results: results.uri)
             d1.addCallback(_record_uri, i)

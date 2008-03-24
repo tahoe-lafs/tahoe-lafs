@@ -25,14 +25,14 @@ class Uploadable(unittest.TestCase):
         self.failUnlessEqual(s, expected)
 
     def test_filehandle_random_key(self):
-        return self._test_filehandle(True)
+        return self._test_filehandle(convergence=None)
 
-    def test_filehandle_content_hash_key(self):
-        return self._test_filehandle(False)
+    def test_filehandle_convergent_encryption(self):
+        return self._test_filehandle(convergence="some convergence string")
 
-    def _test_filehandle(self, randomkey):
+    def _test_filehandle(self, convergence):
         s = StringIO("a"*41)
-        u = upload.FileHandle(s, randomkey)
+        u = upload.FileHandle(s, convergence=convergence)
         d = u.get_size()
         d.addCallback(self.failUnlessEqual, 41)
         d.addCallback(lambda res: u.read(1))
@@ -50,7 +50,7 @@ class Uploadable(unittest.TestCase):
         f = open(fn, "w")
         f.write("a"*41)
         f.close()
-        u = upload.FileName(fn)
+        u = upload.FileName(fn, convergence=None)
         d = u.get_size()
         d.addCallback(self.failUnlessEqual, 41)
         d.addCallback(lambda res: u.read(1))
@@ -62,7 +62,7 @@ class Uploadable(unittest.TestCase):
 
     def test_data(self):
         s = "a"*41
-        u = upload.Data(s)
+        u = upload.Data(s, convergence=None)
         d = u.get_size()
         d.addCallback(self.failUnlessEqual, 41)
         d.addCallback(lambda res: u.read(1))
@@ -169,13 +169,13 @@ SIZE_SMALL = 16
 SIZE_LARGE = len(DATA)
 
 def upload_data(uploader, data):
-    u = upload.Data(data)
+    u = upload.Data(data, convergence=None)
     return uploader.upload(u)
 def upload_filename(uploader, filename):
-    u = upload.FileName(filename)
+    u = upload.FileName(filename, convergence=None)
     return uploader.upload(u)
 def upload_filehandle(uploader, fh):
-    u = upload.FileHandle(fh)
+    u = upload.FileHandle(fh, convergence=None)
     return uploader.upload(u)
 
 class GoodServer(unittest.TestCase):
@@ -444,38 +444,57 @@ class PeerSelection(unittest.TestCase):
 class StorageIndex(unittest.TestCase):
     def test_params_must_matter(self):
         DATA = "I am some data"
-        u = upload.Data(DATA)
+        u = upload.Data(DATA, convergence="")
         eu = upload.EncryptAnUploadable(u)
         d1 = eu.get_storage_index()
 
         # CHK means the same data should encrypt the same way
-        u = upload.Data(DATA)
+        u = upload.Data(DATA, convergence="")
         eu = upload.EncryptAnUploadable(u)
         d1a = eu.get_storage_index()
 
-        # but if we change the encoding parameters, it should be different
-        u = upload.Data(DATA)
+        # but if we use a different convergence string it should be different
+        u = upload.Data(DATA, convergence="wheee!")
+        eu = upload.EncryptAnUploadable(u)
+        d1salt1 = eu.get_storage_index()
+
+        # and if we add yet a different convergence it should be different again
+        u = upload.Data(DATA, convergence="NOT wheee!")
+        eu = upload.EncryptAnUploadable(u)
+        d1salt2 = eu.get_storage_index()
+
+        # and if we use the first string again it should be the same as last time
+        u = upload.Data(DATA, convergence="wheee!")
+        eu = upload.EncryptAnUploadable(u)
+        d1salt1a = eu.get_storage_index()
+
+        # and if we change the encoding parameters, it should be different (from the same convergence string with different encoding parameters)
+        u = upload.Data(DATA, convergence="")
         u.encoding_param_k = u.default_encoding_param_k + 1
         eu = upload.EncryptAnUploadable(u)
         d2 = eu.get_storage_index()
 
         # and if we use a random key, it should be different than the CHK
-        u = upload.Data(DATA, contenthashkey=False)
+        u = upload.Data(DATA, convergence=None)
         eu = upload.EncryptAnUploadable(u)
         d3 = eu.get_storage_index()
         # and different from another instance
-        u = upload.Data(DATA, contenthashkey=False)
+        u = upload.Data(DATA, convergence=None)
         eu = upload.EncryptAnUploadable(u)
         d4 = eu.get_storage_index()
 
-        d = DeferredListShouldSucceed([d1,d1a,d2,d3,d4])
+        d = DeferredListShouldSucceed([d1,d1a,d1salt1,d1salt2,d1salt1a,d2,d3,d4])
         def _done(res):
-            si1, si1a, si2, si3, si4 = res
+            si1, si1a, si1salt1, si1salt2, si1salt1a, si2, si3, si4 = res
             self.failUnlessEqual(si1, si1a)
             self.failIfEqual(si1, si2)
             self.failIfEqual(si1, si3)
             self.failIfEqual(si1, si4)
             self.failIfEqual(si3, si4)
+            self.failIfEqual(si1salt1, si1)
+            self.failIfEqual(si1salt1, si1salt2)
+            self.failIfEqual(si1salt2, si1)
+            self.failUnlessEqual(si1salt1, si1salt1a)
         d.addCallback(_done)
         return d
 

@@ -11,7 +11,7 @@ from foolscap.logging import log
 from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
      bucket_cancel_secret_hash, plaintext_hasher, \
-     storage_index_hash, plaintext_segment_hasher, content_hash_key_hasher
+     storage_index_hash, plaintext_segment_hasher, convergence_hasher
 from allmydata import encode, storage, hashtree, uri
 from allmydata.util import base32, idlib, mathutil
 from allmydata.util.assertutil import precondition
@@ -1084,13 +1084,20 @@ class BaseUploadable:
 class FileHandle(BaseUploadable):
     implements(IUploadable)
 
-    def __init__(self, filehandle, contenthashkey=True):
+    def __init__(self, filehandle, convergence):
+        """
+        Upload the data from the filehandle.  If convergence is None then a
+        random encryption key will be used, else the plaintext will be hashed,
+        then the hash will be hashed together with the string in the
+        "convergence" argument to form the encryption key."
+        """
+        assert convergence is None or isinstance(convergence, str), (convergence, type(convergence))
         self._filehandle = filehandle
         self._key = None
-        self._contenthashkey = contenthashkey
+        self.convergence = convergence
         self._size = None
 
-    def _get_encryption_key_content_hash(self):
+    def _get_encryption_key_convergent(self):
         if self._key is not None:
             return defer.succeed(self._key)
 
@@ -1100,7 +1107,7 @@ class FileHandle(BaseUploadable):
         def _got(params):
             k, happy, n, segsize = params
             f = self._filehandle
-            enckey_hasher = content_hash_key_hasher(k, n, segsize)
+            enckey_hasher = convergence_hasher(k, n, segsize, self.convergence)
             f.seek(0)
             BLOCKSIZE = 64*1024
             bytes_read = 0
@@ -1131,8 +1138,8 @@ class FileHandle(BaseUploadable):
         return defer.succeed(self._key)
 
     def get_encryption_key(self):
-        if self._contenthashkey:
-            return self._get_encryption_key_content_hash()
+        if self.convergence is not None:
+            return self._get_encryption_key_convergent()
         else:
             return self._get_encryption_key_random()
 
@@ -1153,15 +1160,29 @@ class FileHandle(BaseUploadable):
         pass
 
 class FileName(FileHandle):
-    def __init__(self, filename, contenthashkey=True):
-        FileHandle.__init__(self, open(filename, "rb"), contenthashkey=contenthashkey)
+    def __init__(self, filename, convergence):
+        """
+        Upload the data from the filename.  If convergence is None then a
+        random encryption key will be used, else the plaintext will be hashed,
+        then the hash will be hashed together with the string in the
+        "convergence" argument to form the encryption key."
+        """
+        assert convergence is None or isinstance(convergence, str), (convergence, type(convergence))
+        FileHandle.__init__(self, open(filename, "rb"), convergence=convergence)
     def close(self):
         FileHandle.close(self)
         self._filehandle.close()
 
 class Data(FileHandle):
-    def __init__(self, data, contenthashkey=True):
-        FileHandle.__init__(self, StringIO(data), contenthashkey=contenthashkey)
+    def __init__(self, data, convergence):
+        """
+        Upload the data from the data argument.  If convergence is None then a
+        random encryption key will be used, else the plaintext will be hashed,
+        then the hash will be hashed together with the string in the
+        "convergence" argument to form the encryption key."
+        """
+        assert convergence is None or isinstance(convergence, str), (convergence, type(convergence))
+        FileHandle.__init__(self, StringIO(data), convergence=convergence)
 
 class Uploader(service.MultiService):
     """I am a service that allows file uploading. I am a service-child of the

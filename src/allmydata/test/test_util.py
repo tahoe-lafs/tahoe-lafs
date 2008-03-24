@@ -408,8 +408,8 @@ class HashUtilTests(unittest.TestCase):
         self.failUnlessEqual(h1, h2)
 
     def test_chk(self):
-        h1 = hashutil.content_hash_key_hash(3, 10, 1000, "data")
-        h2 = hashutil.content_hash_key_hasher(3, 10, 1000)
+        h1 = hashutil.convergence_hash(3, 10, 1000, "data", "secret")
+        h2 = hashutil.convergence_hasher(3, 10, 1000, "secret")
         h2.update("data")
         h2 = h2.digest()
         self.failUnlessEqual(h1, h2)

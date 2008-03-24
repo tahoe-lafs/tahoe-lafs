@@ -14,8 +14,10 @@ class UnlinkedPUTCHKUploader(rend.Page):
         # "PUT /uri", to create an unlinked file. This is like PUT but
         # without the associated set_uri.
 
-        uploadable = FileHandle(req.content)
-        d = IClient(ctx).upload(uploadable)
+        client = IClient(ctx)
+
+        uploadable = FileHandle(req.content, client.convergence)
+        d = client.upload(uploadable)
         d.addCallback(lambda results: results.uri)
         # that fires with the URI of the new file
         return d
@@ -52,7 +54,7 @@ class UnlinkedPOSTCHKUploader(status.UploadResultsRendererMixin, rend.Page):
         assert req.method == "POST"
         self._done = observer.OneShotObserverList()
         fileobj = req.fields["file"].file
-        uploadable = FileHandle(fileobj)
+        uploadable = FileHandle(fileobj, client.convergence)
         d = client.upload(uploadable)
         d.addBoth(self._done.fire)
 

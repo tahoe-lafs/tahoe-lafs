@@ -367,7 +367,7 @@ this file are ignored.
         if self.mode in ("upload", "upload-self"):
             files[name] = self.create_data(name, size)
             d = self.control_rref.callRemote("upload_from_file_to_uri",
-                                             files[name])
+                                             files[name], convergence=None)
             def _done(uri):
                 os.remove(files[name])
                 del files[name]

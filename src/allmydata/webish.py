@@ -867,7 +867,7 @@ class POSTHandler(rend.Page):
                 return d2
             d.addCallback(_checked)
         else:
-            uploadable = FileHandle(contents.file)
+            uploadable = FileHandle(contents.file, convergence=client.convergence)
             d = self._check_replacement(name)
             d.addCallback(lambda res: self._node.add_file(name, uploadable))
             def _done(newnode):
@@ -1047,6 +1047,7 @@ class PUTHandler(rend.Page):
         self._replace = replace
 
     def renderHTTP(self, ctx):
+        client = IClient(ctx)
         req = inevow.IRequest(ctx)
         t = self._t
         localfile = self._localfile
@@ -1063,18 +1064,18 @@ class PUTHandler(rend.Page):
         d.addCallback(self._check_replacement, name, self._replace)
         if t == "upload":
             if localfile:
-                d.addCallback(self._upload_localfile, localfile, name)
+                d.addCallback(self._upload_localfile, localfile, name, convergence=client.convergence)
             else:
                 # localdir
                 # take the last step
                 d.addCallback(self._get_or_create_directories, self._path[-1:])
-                d.addCallback(self._upload_localdir, localdir)
+                d.addCallback(self._upload_localdir, localdir, convergence=client.convergence)
         elif t == "uri":
             d.addCallback(self._attach_uri, req.content, name)
         elif t == "mkdir":
             d.addCallback(self._mkdir, name)
         else:
-            d.addCallback(self._upload_file, req.content, name)
+            d.addCallback(self._upload_file, req.content, name, convergence=client.convergence)
 
         def _transform_error(f):
             errors = {BlockingFileError: http.BAD_REQUEST,
@@ -1126,8 +1127,8 @@ class PUTHandler(rend.Page):
         d.addCallback(_done)
         return d
 
-    def _upload_file(self, node, contents, name):
-        uploadable = FileHandle(contents)
+    def _upload_file(self, node, contents, name, convergence):
+        uploadable = FileHandle(contents, convergence=convergence)
         d = node.add_file(name, uploadable)
         def _done(filenode):
             log.msg("webish upload complete",
@@ -1136,8 +1137,8 @@ class PUTHandler(rend.Page):
         d.addCallback(_done)
         return d
 
-    def _upload_localfile(self, node, localfile, name):
-        uploadable = FileName(localfile)
+    def _upload_localfile(self, node, localfile, name, convergence):
+        uploadable = FileName(localfile, convergence=convergence)
         d = node.add_file(name, uploadable)
         d.addCallback(lambda filenode: filenode.get_uri())
         return d
@@ -1150,7 +1151,7 @@ class PUTHandler(rend.Page):
         d.addCallback(_done)
         return d
 
-    def _upload_localdir(self, node, localdir):
+    def _upload_localdir(self, node, localdir, convergence):
         # build up a list of files to upload. TODO: for now, these files and
         # directories must have UTF-8 encoded filenames: anything else will
         # cause the upload to break.
@@ -1179,7 +1180,7 @@ class PUTHandler(rend.Page):
             if dir:
                 d.addCallback(self._makedir, node, dir)
         for f in all_files:
-            d.addCallback(self._upload_one_file, node, localdir, f)
+            d.addCallback(self._upload_one_file, node, localdir, f, convergence=convergence)
         return d
 
     def _makedir(self, res, node, dir):
@@ -1191,12 +1192,12 @@ class PUTHandler(rend.Page):
         d.addCallback(lambda parent: parent.create_empty_directory(dir[-1]))
         return d
 
-    def _upload_one_file(self, res, node, localdir, f):
+    def _upload_one_file(self, res, node, localdir, f, convergence):
         # get the parent. We can be sure this exists because we already
         # went through and created all the directories we require.
         localfile = os.path.join(localdir, *f)
         d = node.get_child_at_path(f[:-1])
-        d.addCallback(self._upload_localfile, localfile, f[-1])
+        d.addCallback(self._upload_localfile, localfile, f[-1], convergence=convergence)
         return d
 
 

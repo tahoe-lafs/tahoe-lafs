@@ -34,6 +34,9 @@ PiB=1024*TiB
 class StubClient(Referenceable):
     implements(RIStubClient)
 
+def _make_secret():
+    return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
+
 class Client(node.Node, testutil.PollMixin):
     PORTNUMFILE = "client.port"
     STOREDIR = 'storage'
@@ -103,9 +106,7 @@ class Client(node.Node, testutil.PollMixin):
             self.stats_provider = None
 
     def init_lease_secret(self):
-        def make_secret():
-            return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
-        secret_s = self.get_or_create_private_config("secret", make_secret)
+        secret_s = self.get_or_create_private_config("secret", _make_secret)
         self._lease_secret = base32.a2b(secret_s)
 
     def init_storage(self):
@@ -151,6 +152,8 @@ class Client(node.Node, testutil.PollMixin):
 
     def init_client(self):
         helper_furl = self.get_config("helper.furl")
+        convergence_s = self.get_or_create_private_config('convergence', _make_secret)
+        self.convergence = base32.a2b(convergence_s)
         self.add_service(Uploader(helper_furl))
         self.add_service(Downloader())
         self.add_service(Checker())

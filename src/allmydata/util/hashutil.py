@@ -68,7 +68,7 @@ PLAINTEXT_TAG = "allmydata_plaintext_v1"
 CIPHERTEXT_TAG = "allmydata_crypttext_v1"
 CIPHERTEXT_SEGMENT_TAG = "allmydata_crypttext_segment_v1"
 PLAINTEXT_SEGMENT_TAG = "allmydata_plaintext_segment_v1"
-CONTENT_HASH_KEY_TAG = "allmydata_immutable_content_to_key_v1+"
+CONVERGENT_ENCRYPTION_TAG = "allmydata_immutable_content_to_key_with_added_secret_v1+"
 
 CLIENT_RENEWAL_TAG = "allmydata_client_renewal_secret_v1"
 CLIENT_CANCEL_TAG = "allmydata_client_cancel_secret_v1"
@@ -91,9 +91,9 @@ DIRNODE_CHILD_WRITECAP_TAG = "allmydata_mutable_writekey_and_salt_to_dirnode_chi
 
 def storage_index_hash(key):
     # storage index is truncated to 128 bits (16 bytes). We're only hashing a
-    # 16-byte value to get it, so there's no point in using a larger value.
-    # We use this same tagged hash to go from encryption key to storage index
-    # for random-keyed immutable files and content-hash-keyed immutabie
+    # 16-byte value to get it, so there's no point in using a larger value.  We
+    # use this same tagged hash to go from encryption key to storage index for
+    # random-keyed immutable files and convergent-encryption immutabie
     # files. Mutable files use ssk_storage_index_hash().
     return tagged_hash(STORAGE_INDEX_TAG, key, 16)
 
@@ -129,15 +129,14 @@ def plaintext_segment_hasher():
 
 KEYLEN = 16
 
-def content_hash_key_hash(k, n, segsize, data):
-    # This is defined to return a 16-byte AES key.
+def convergence_hash(k, n, segsize, data, convergence):
+    h = convergence_hasher(k, n, segsize, convergence)
+    h.update(data)
+    return h.digest()
+def convergence_hasher(k, n, segsize, convergence):
+    assert isinstance(convergence, str)
     param_tag = netstring("%d,%d,%d" % (k, n, segsize))
-    tag = CONTENT_HASH_KEY_TAG + param_tag
-    h = tagged_hash(tag, data, KEYLEN)
-    return h
-def content_hash_key_hasher(k, n, segsize):
-    param_tag = netstring("%d,%d,%d" % (k, n, segsize))
-    tag = CONTENT_HASH_KEY_TAG + param_tag
+    tag = CONVERGENT_ENCRYPTION_TAG + netstring(convergence) + param_tag
     return tagged_hasher(tag, KEYLEN)
 
 def random_key():

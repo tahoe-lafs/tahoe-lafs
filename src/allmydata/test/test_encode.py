@@ -168,7 +168,7 @@ class Encode(unittest.TestCase):
         data = make_data(datalen)
         # force use of multiple segments
         e = encode.Encoder()
-        u = upload.Data(data)
+        u = upload.Data(data, convergence="some convergence string")
         u.max_segment_size = max_segment_size
         u.encoding_param_k = 25
         u.encoding_param_happy = 75
@@ -303,7 +303,7 @@ class Roundtrip(unittest.TestCase):
         if AVAILABLE_SHARES is None:
             AVAILABLE_SHARES = NUM_SHARES
         e = encode.Encoder()
-        u = upload.Data(data)
+        u = upload.Data(data, convergence="some convergence string")
         # force use of multiple segments by using a low max_segment_size
         u.max_segment_size = max_segment_size
         u.encoding_param_k = k
