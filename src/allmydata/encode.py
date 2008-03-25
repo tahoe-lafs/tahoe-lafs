@@ -514,13 +514,18 @@ class Encoder(object):
         self.set_encode_and_push_progress(extra=0.0)
         crypttext_hash = self._crypttext_hasher.digest()
         self.uri_extension_data["crypttext_hash"] = crypttext_hash
-        d = defer.succeed(None)
+        d = self._uploadable.get_plaintext_hash()
+        def _got(plaintext_hash):
+            self.log(format="plaintext_hash=%(plaintext_hash)s, SI=%(SI)s",
+                     plaintext_hash=base32.b2a(plaintext_hash),
+                     SI=storage.si_b2a(self._storage_index) )
+            return plaintext_hash
+        d.addCallback(_got)
         if self.USE_PLAINTEXT_HASHES:
-            d.addCallback(lambda res: self._uploadable.get_plaintext_hash())
-            def _got(plaintext_hash):
+            def _use_plaintext_hash(plaintext_hash):
                 self.uri_extension_data["plaintext_hash"] = plaintext_hash
                 return self._uploadable.get_plaintext_hashtree_leaves(0, self.num_segments, self.num_segments)
-            d.addCallback(_got)
+            d.addCallback(_use_plaintext_hash)
             def _got_hashtree_leaves(leaves):
                 self.log("Encoder: got plaintext_hashtree_leaves: %s" %
                          (",".join([base32.b2a(h) for h in leaves]),),
