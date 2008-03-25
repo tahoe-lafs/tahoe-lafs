@@ -162,19 +162,18 @@ signal-error-pyopenssl-dep:
 	exit 1
 
 check-auto-deps:
-	$(PP) \
-	 $(PYTHON) -c 'import _auto_deps ; _auto_deps.require_auto_deps()' || $(MAKE) signal-error-deps
+	@$(PP) $(PYTHON) -c 'import _auto_deps ; _auto_deps.require_auto_deps()' || $(MAKE) signal-error-deps
 
 check-all-deps: check-deps check-auto-deps
 
 check-twisted-dep:
-	$(PYTHON) -c 'import twisted, zope.interface' || $(MAKE) signal-error-twisted-dep
+	@$(PYTHON) -c 'import twisted, zope.interface' || $(MAKE) signal-error-twisted-dep
 
 check-pywin32-dep:
-	$(PYTHON) -c 'import win32process' || $(MAKE) signal-error-pywin32-dep
+	@$(PYTHON) -c 'import win32process' || $(MAKE) signal-error-pywin32-dep
 
 check-pyopenssl-dep:
-	$(PYTHON) -c 'import OpenSSL' || $(MAKE) signal-error-pyopenssl-dep
+	@$(PYTHON) -c 'import OpenSSL' || $(MAKE) signal-error-pyopenssl-dep
 
 check-deps: check-twisted-dep $(CHECK_PYWIN32_DEP) check-pyopenssl-dep
 
