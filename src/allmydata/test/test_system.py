@@ -1,6 +1,6 @@
 
 from base64 import b32encode
-import os, sys, time, re
+import os, sys, time, re, simplejson
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
@@ -880,13 +880,30 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             try:
                 self.failUnless("allmydata: %s" % str(allmydata.__version__)
                                 in res)
-                self.failUnless("Summary: storage: 5, stub_client: 5" in res)
+                self.failUnless("Announcement Summary: storage: 5, stub_client: 5" in res)
+                self.failUnless("Subscription Summary: storage: 5" in res)
             except unittest.FailTest:
                 print
                 print "GET %s output was:" % self.introweb_url
                 print res
                 raise
         d.addCallback(_check)
+        d.addCallback(lambda res:
+                      getPage(self.introweb_url + "?t=json",
+                              method="GET", followRedirect=True))
+        def _check_json(res):
+            data = simplejson.loads(res)
+            try:
+                self.failUnlessEqual(data["subscription_summary"],
+                                     {"storage": 5})
+                self.failUnlessEqual(data["announcement_summary"],
+                                     {"storage": 5, "stub_client": 5})
+            except unittest.FailTest:
+                print
+                print "GET %s?t=json output was:" % self.introweb_url
+                print res
+                raise
+        d.addCallback(_check_json)
         return d
 
     def _do_publish1(self, res):

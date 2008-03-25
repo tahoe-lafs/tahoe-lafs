@@ -1,17 +1,42 @@
 
 import time
-from nevow import rend
+from nevow import rend, inevow
 from foolscap.referenceable import SturdyRef
 from twisted.internet import address
 import allmydata
+import simplejson
 from allmydata import get_package_versions_string
 from allmydata.util import idlib
-from common import getxmlfile, IClient
+from common import getxmlfile, get_arg, IClient
 
 class IntroducerRoot(rend.Page):
 
     addSlash = True
     docFactory = getxmlfile("introducer.xhtml")
+
+    def renderHTTP(self, ctx):
+        t = get_arg(inevow.IRequest(ctx), "t")
+        if t == "json":
+            return self.render_JSON(ctx)
+        return rend.Page.renderHTTP(self, ctx)
+
+    def render_JSON(self, ctx):
+        i = IClient(ctx).getServiceNamed("introducer")
+        res = {}
+        clients = i.get_subscribers()
+        subscription_summary = dict([ (name, len(clients[name]))
+                                      for name in clients ])
+        res["subscription_summary"] = subscription_summary
+
+        announcement_summary = {}
+        for ann in i.get_announcements():
+            (furl, service_name, ri_name, nickname, ver, oldest) = ann
+            if service_name not in announcement_summary:
+                announcement_summary[service_name] = 0
+            announcement_summary[service_name] += 1
+        res["announcement_summary"] = announcement_summary
+
+        return simplejson.dumps(res, indent=1)
 
     def data_version(self, ctx, data):
         return get_package_versions_string()
