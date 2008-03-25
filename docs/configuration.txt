@@ -84,6 +84,28 @@ private/root_dir.cap (optional): The command-line tools will read a directory
 cap out of this file and use it, if you don't specify a '--dir-cap' option or
 if you specify '--dir-cap=root'.
 
+private/convergence (automatically generated): An added secret for encrypting
+immutable files. Everyone who has this same string in their private/convergence
+file encrypts their immutable files in the same way when uploading them.  This
+causes identical files to "converge" -- to share the same storage space since
+they have identical ciphertext -- which conserves space and optimizes upload
+time, but it also exposes files to the possibility of a brute-force attack by
+people who know that string.  In this attack, if the attacker can guess most of
+the contents of a file, then they can use brute-force to learn the remaining
+contents.
+
+So the set of people who know your private/convergence string is the set of
+people who converge their storage space with you when you and they upload
+identical immutable files, and it is also the set of people who could mount such
+an attack.
+
+The content of the private/convergence file is a base-32 encoded string.  If the
+file doesn't exist, then when the Tahoe client starts up it will generate a
+random 256-bit string and write the base-32 encoding of this string into the
+file.  If you want to converge your immutable files with as many people as
+possible, put the empty string (so that private/convergence is a zero-length
+file).
+
 
 == Node State ==
 
