@@ -37,3 +37,6 @@ D: documentation (README.win32)
 N: David Reid
 E: dreid@dreid.org
 D: make the provisioning page work in py2exe and py2app packages
+
+N: Paul Gerhardt
+D: don't emit "signal-error" to stdout when testing for error in make check-deps
