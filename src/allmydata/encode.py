@@ -516,9 +516,10 @@ class Encoder(object):
         self.uri_extension_data["crypttext_hash"] = crypttext_hash
         d = self._uploadable.get_plaintext_hash()
         def _got(plaintext_hash):
-            self.log(format="plaintext_hash=%(plaintext_hash)s, SI=%(SI)s",
+            self.log(format="plaintext_hash=%(plaintext_hash)s, SI=%(SI)s, size=%(size)d",
                      plaintext_hash=base32.b2a(plaintext_hash),
-                     SI=storage.si_b2a(self._storage_index) )
+                     SI=storage.si_b2a(self._storage_index),
+                     size=self.file_size)
             return plaintext_hash
         d.addCallback(_got)
         if self.USE_PLAINTEXT_HASHES:
