@@ -1,56 +1,52 @@
-ANNOUNCING: Allmydata.org "Tahoe" version 0.9
+ANNOUNCING Allmydata.org "Tahoe", the Least-Authority Filesystem, v1.0
 
-We are pleased to announce the release of version 0.9 of allmydata.org
-"Tahoe".
+We are pleased to announce the release of version 1.0 of the "Tahoe"
+Least Authority Filesystem.
 
-Allmydata.org "Tahoe" is a secure, decentralized, fault-tolerant
-filesystem.  All of the source code is available under a Free
-Software, Open Source licence (or two).
+The "Tahoe" Least Authority Filesystem is a secure, decentralized,
+fault-tolerant filesystem.  All of the source code is available under
+a Free Software, Open Source licence (or two).
 
 This filesystem is encrypted and distributed over multiple peers in
-such a way that it continues to work correctlly even when some of the
-peers are unavailable, malfunctioning, or malicious.
+such a way it continues to function even when some of the peers are
+unavailable, malfunctioning, or malicious.
 
-A one-page explanation of the novel properties of this filesystem is
-visible at:
+A one-page explanation of the security and fault-tolerance properties
+that it offers is visible at:
 
 http://allmydata.org/source/tahoe/trunk/docs/about.html
 
 
-This is the successor to Allmydata.org "Tahoe" v0.8, which was
-released February 15, 2008 [1].  This release is backwards-compatible
-with v0.8.
+We believe that this version of Tahoe is stable enough to rely on as a
+permanent store of valuable data.  The version 1 branch of Tahoe will
+be actively supported and maintained for the forseeable future, and
+future versions of Tahoe will retain the ability to read files and
+directories produced by Tahoe v1.0 for the forseeable future.
 
-This is a major release of allmydata.org "Tahoe" -- the first release
-which is considered stable and functional enough to serve as a
-permanent store of valuable data.  New versions of Tahoe are expected
-to maintain backwards compatibility with this version for the
-forseeable future.
-
-This release of allmydata.org "Tahoe" will form the basis of the next
-consumer backup product from Allmydata, Inc. -- http://allmydata.com .
-
-This release adds extensive "visibility into the grid" -- the web user
-interface now shows detailed information about the nodes comprising
-the grid and fine-grained statistics about the time and space used for
-the storage and retrieval operations.
+This release of Tahoe will form the basis of the new consumer backup
+product from Allmydata, Inc. -- http://allmydata.com .
 
 
-Since v0.8 we've made the following changes:
+This is the successor to Allmydata.org "Tahoe" Least Authority
+Filesystem v0.9, which was released March 13, 2008 [1].  Since v0.9
+we've made the following changes:
 
- * Added user-friendly Windows application and package, thanks
-   especially to Rob Kinninmont and Mike Booker (tickets #195, 242,
-   243, 321, 335).
+ * Use an added secret for convergent encryption to better protect the
+   confidentiality of immutable files, and remove the publically
+   readable hash of the plaintext (ticket #365).
 
- * Display information about uploads and downloads (ticket #39).
+ * Add a "mkdir-p" feature to the WAPI (ticket #357).
 
- * Improve performance (including tickets #304, 321).
+ * Many updates to the Windows installer and Windows filesystem
+   integration.
 
- * Improve packaging and testing (including ticket #145).
 
- * Add even more extensive automated tests (including ticket #207).
-
- * Updated documentation.
+Tahoe v1.0 produces files which can't be read by older versions of
+Tahoe, although files produced by Tahoe >= 0.8 can be read by Tahoe
+1.0.  The reason that older versions of Tahoe can't read files
+produced by Tahoe 1.0 is that those older versions require the file to
+come with a publically-readable hash of the plaintext, but exposing
+such a hash is a confidentiality leak, so Tahoe 1.0 does not do it.
 
 
 WHAT IS IT GOOD FOR?
@@ -61,18 +57,13 @@ malicious, the filesystem continues to work from the remaining
 computers.  You can also share your files with other users, using a
 strongly encrypted, capability-based access control scheme.
 
-This release is targeted at hackers and smart users who are willing to
-use a web user interface, a command-line user interface, or a FUSE
-interface.  (Or a RESTful API.  Just telnet to localhost and type HTTP
-requests to get started.)
-
 Because this software is the product of less than a year and a half of
 active development, we do not categorically recommend it for the
 storage of data which is extremely confidential or precious.  However,
-we believe that the combination of erasure coding and careful
-engineering makes the use of this software a much safer alternative
-than common alternatives, such as RAID or traditional backup onto a
-remote hard drive, removable drive, or tape.
+we believe that the combination of erasure coding, strong encryption,
+and careful engineering makes the use of this software a much safer
+alternative than common alternatives, such as RAID, or traditional
+backup onto a remote server, removable drive, or tape.
 
 This software comes with extensive unit tests [2], and there are no
 known security flaws which would compromise confidentiality or data
@@ -124,27 +115,23 @@ SPONSORSHIP
 Tahoe is sponsored by Allmydata, Inc. [10], a provider of consumer
 backup services.  Allmydata, Inc. contributes hardware, software,
 ideas, bug reports, suggestions, demands, and money (employing several
-allmydata.org Tahoe hackers and allowing them to spend part of their
-work time on the next-generation, free-software project).  We are
-eternally grateful!
+allmydata.org Tahoe hackers and instructing them to spend part of
+their work time on this free-software project).  We are eternally
+grateful!
 
 
 Zooko O'Whielacronx
 on behalf of the allmydata.org team
-March 13, 2008
-Boulder, Colorado, USA
+March 25, 2008
+San Francisco, California, USA
 
-[1] http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=2183
-[2] http://allmydata.org/tahoe-figleaf/current/
+[1] http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=2315
+[2] http://allmydata.org/trac/tahoe/wiki/Dev
 [3] http://allmydata.org/trac/tahoe/wiki/Security
 [4] http://allmydata.org/trac/tahoe/wiki/UseCases
 [5] http://allmydata.org/source/tahoe/trunk/docs/install.html
 [6] http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
 [7] http://allmydata.org/trac/tahoe/roadmap
-[8] http://allmydata.org/trac/tahoe/browser/CREDITS?rev=2307
+[8] http://allmydata.org/trac/tahoe/browser/CREDITS?rev=2345
 [9] http://allmydata.org/trac/tahoe/wiki/Dev
 [10] http://allmydata.com
-
-P.S.  Someday, people might search for some of the earliest occurrences of the
-name "LAUGFS", which stands for "Least AUthority Grid FileSystem".  Hello,
-searchers from the future!
