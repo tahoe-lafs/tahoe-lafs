@@ -34,7 +34,7 @@ if len(sys.argv) > 1:
         configinfo = \
         """graph_title Memory Consumed by Nodes
 graph_vlabel bytes
-graph_category allmydata
+graph_category Tahoe
 graph_info This graph shows the memory used by specific processes
 """
         for nodename,nodedir in nodedirs:
