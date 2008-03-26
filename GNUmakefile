@@ -48,26 +48,22 @@ endif
 build-deps:
 	echo "This is done automatically (by delegating to setuptools) now."
 
-EGGSPATH = $(shell $(PYTHON) misc/find-dep-eggs.py)
-
 ifneq ($(PYTHONPATH),)
-	PYTHONPATH := $(PYTHONPATH)$(PATHSEP)
+        PP=PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)"
+else
+        PP=PYTHONPATH="$(SUPPORTLIB)"
 endif
-PP=PYTHONPATH="$(SRCPATH)$(PATHSEP)$(PYTHONPATH)$(PATHSEP)$(EGGSPATH)"
 
 TRIALCMD = $(shell $(PP) $(PYTHON) misc/find_trial.py)
 TRIAL=PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 
 .PHONY: make-version build
 
-show-eggspath:
-	@echo $(EGGSPATH)
-
 # The 'darcsver' setup.py command comes in the 'darcsver' package:
 # http://pypi.python.org/pypi/darcsver It is necessary only if you want to
 # automatically produce a new _version.py file from the current darcs history.
 make-version:
-	$(PYTHON) ./setup.py darcsver --count-all-patches
+	$(PP) $(PYTHON) ./setup.py darcsver --count-all-patches
 
 # We want src/allmydata/_version.py to be up-to-date, but it's a fairly
 # expensive operation (about 6 seconds on a just-before-0.7.0 tree, probably
@@ -100,8 +96,7 @@ src/allmydata/_version.py:
 
 build: src/allmydata/_version.py
 	mkdir -p "$(SUPPORTLIB)"
-	PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)$(PATHSEP)" \
-		$(PYTHON) ./setup.py develop --prefix="$(SUPPORT)"
+	$(PP) $(PYTHON) ./setup.py develop --prefix="$(SUPPORT)"
 	chmod +x bin/tahoe
 	touch .built
 
@@ -167,13 +162,13 @@ check-auto-deps:
 check-all-deps: check-deps check-auto-deps
 
 check-twisted-dep:
-	@$(PYTHON) -c 'import twisted, zope.interface' || $(MAKE) signal-error-twisted-dep
+	@$(PP) $(PYTHON) -c 'import twisted, zope.interface' || $(MAKE) signal-error-twisted-dep
 
 check-pywin32-dep:
-	@$(PYTHON) -c 'import win32process' || $(MAKE) signal-error-pywin32-dep
+	@$(PP) $(PYTHON) -c 'import win32process' || $(MAKE) signal-error-pywin32-dep
 
 check-pyopenssl-dep:
-	@$(PYTHON) -c 'import OpenSSL' || $(MAKE) signal-error-pyopenssl-dep
+	@$(PP) $(PYTHON) -c 'import OpenSSL' || $(MAKE) signal-error-pyopenssl-dep
 
 check-deps: check-twisted-dep $(CHECK_PYWIN32_DEP) check-pyopenssl-dep
 
