@@ -15,11 +15,14 @@ try:
 except ImportError:
     pass
 else:
-    # On cygwin there was a permissions error that was fixed in 0.6c6.  (Also
-    # foolscap uses a module-level os.urandom() during import, which breaks
-    # inside older setuptools' sandboxing. 0.6c4 is the first version which
-    # fixed this problem.)
-    use_setuptools(min_version='0.6c6')
+    # This invokes our own customized version of ez_setup.py to make sure that
+    # setuptools >= v0.6c8 (a.k.a. v0.6-final) is installed.
+
+    # setuptools < v0.6c8 doesn't handle eggs which get installed into the CWD
+    # as a result of being transitively depended on in a setup_requires, but
+    # then are needed for the installed code to run, i.e. in an
+    # install_requires.
+    use_setuptools(download_delay=0, min_version="0.6c8")
 
 from setuptools import Extension, find_packages, setup
 
