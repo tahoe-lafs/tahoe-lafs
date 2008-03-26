@@ -1,0 +1,71 @@
+#! /usr/bin/python
+
+# This munin plugin isolates processes by looking for the 'pid' file created
+# by 'allmydata start', then extracts the amount of memory they consume (both
+# VmSize and VmRSS) from /proc
+
+import os, sys, re
+
+if 0:
+    # for testing
+    os.environ["nodememory_warner1"] = "run/warner1"
+    os.environ["nodememory_warner2"] = "run/warner2"
+
+nodedirs = []
+for k,v in os.environ.items():
+    if k.startswith("nodememory_"):
+        nodename = k[len("nodememory_"):]
+        nodedirs.append((nodename, v))
+nodedirs.sort(lambda a,b: cmp(a[0],b[0]))
+
+pids = {}
+
+for node,nodedir in nodedirs:
+    pidfile = os.path.join(nodedir, "twistd.pid")
+    if os.path.exists(pidfile):
+        pid = int(open(pidfile,"r").read())
+        pids[node] = pid
+
+fields = ["VmSize", "VmRSS"]
+
+
+if len(sys.argv) > 1:
+    if sys.argv[1] == "config":
+        configinfo = \
+        """graph_title Memory Consumed by Nodes
+graph_vlabel bytes
+graph_category allmydata
+graph_info This graph shows the memory used by specific processes
+"""
+        for nodename,nodedir in nodedirs:
+            for f in fields:
+                configinfo += "%s_%s.label %s used by %s\n" % (nodename, f,
+                                                               f, nodename)
+                linetype = "LINE1"
+                if f == "VmSize":
+                    linetype = "LINE2"
+                configinfo += "%s_%s.draw %s\n" % (nodename, f, linetype)
+                if f == "VmData":
+                    configinfo += "%s_%s.graph no\n" % (nodename, f)
+
+        print configinfo
+        sys.exit(0)
+
+nodestats = {}
+for node,pid in pids.items():
+    stats = {}
+    statusfile = "/proc/%s/status" % pid
+    if not os.path.exists(statusfile):
+        continue
+    for line in open(statusfile,"r").readlines():
+        for f in fields:
+            if line.startswith(f + ":"):
+                m = re.search(r'(\d+)', line)
+                stats[f] = int(m.group(1))
+    nodestats[node] = stats
+
+for node,stats in nodestats.items():
+    for f,value in stats.items():
+        # TODO: not sure if /proc/%d/status means 1000 or 1024 when it says
+        # 'kB'
+        print "%s_%s.value %d" % (node, f, 1024*value)
