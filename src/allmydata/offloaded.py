@@ -1,5 +1,5 @@
 
-import os.path, stat, time
+import os, stat, time
 from zope.interface import implements
 from twisted.application import service
 from twisted.internet import defer
@@ -467,19 +467,13 @@ class Helper(Referenceable, service.MultiService):
     name = "helper"
     chk_upload_helper_class = CHKUploadHelper
 
-    def __init__(self, basedir):
+    def __init__(self, basedir, stats_provider=None):
         self._basedir = basedir
         self._chk_incoming = os.path.join(basedir, "CHK_incoming")
         self._chk_encoding = os.path.join(basedir, "CHK_encoding")
         fileutil.make_dirs(self._chk_incoming)
         fileutil.make_dirs(self._chk_encoding)
         self._active_uploads = {}
-        self._stats = {"CHK_upload_requests": 0,
-                       "CHK_upload_already_present": 0,
-                       "CHK_upload_need_upload": 0,
-                       "CHK_fetched_bytes": 0,
-                       "CHK_encoded_bytes": 0,
-                       }
         service.MultiService.__init__(self)
 
     def setServiceParent(self, parent):
@@ -512,6 +506,37 @@ class Helper(Referenceable, service.MultiService):
         if 'facility' not in kwargs:
             kwargs['facility'] = "tahoe.helper"
         return self.parent.log(*args, **kwargs)
+
+    def get_stats(self):
+        OLD = 86400*2 # 48hours
+        now = time.time()
+        inc_count = inc_size = inc_size_old = 0
+        enc_count = enc_size = enc_size_old = 0
+        inc = os.listdir(self._chk_incoming)
+        enc = os.listdir(self._chk_encoding)
+        for f in inc:
+            s = os.stat(os.path.join(self._chk_incoming, f))
+            size = s[stat.ST_SIZE]
+            mtime = s[stat.ST_MTIME]
+            inc_count += 1
+            inc_size += size
+            if now - mtime > OLD:
+                inc_size_old += size
+        for f in enc:
+            s = os.stat(os.path.join(self._chk_encoding, f))
+            size = s[stat.ST_SIZE]
+            mtime = s[stat.ST_MTIME]
+            enc_count += 1
+            enc_size += size
+            if now - mtime > OLD:
+                enc_size_old += size
+        return { 'chk_upload_helper.inc_count': inc_count,
+                 'chk_upload_helper.inc_size': inc_size,
+                 'chk_upload_helper.inc_size_old': inc_size_old,
+                 'chk_upload_helper.enc_count': enc_count,
+                 'chk_upload_helper.enc_size': enc_size,
+                 'chk_upload_helper.enc_size_old': enc_size_old,
+               }
 
     def remote_upload_chk(self, storage_index):
         self._stats["CHK_upload_requests"] += 1

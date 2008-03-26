@@ -188,7 +188,7 @@ class Client(node.Node, testutil.PollMixin):
     def init_helper(self):
         d = self.when_tub_ready()
         def _publish(self):
-            h = Helper(os.path.join(self.basedir, "helper"))
+            h = Helper(os.path.join(self.basedir, "helper"), self.stats_provider)
             h.setServiceParent(self)
             # TODO: this is confusing. BASEDIR/private/helper.furl is created
             # by the helper. BASEDIR/helper.furl is consumed by the client
