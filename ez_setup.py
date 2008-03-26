@@ -22,6 +22,8 @@ md5_data = {
     'setuptools-0.6c7.egg': 'bd04f1074b86a1b35618cb2b96b38ffa',
 }
 
+import sys, os
+
 def _validate_md5(egg_name, data):
     if egg_name in md5_data:
         from md5 import md5
@@ -34,71 +36,11 @@ def _validate_md5(egg_name, data):
             sys.exit(2)
     return data
 
-# The following code to parse versions is copied from pkg_resources.py so that
-# we can parse versions without importing that module.
-import re
-component_re = re.compile(r'(\d+ | [a-z]+ | \.| -)', re.VERBOSE)
-replace = {'pre':'c', 'preview':'c','-':'final-','rc':'c','dev':'@'}.get
-
-def _parse_version_parts(s):
-    for part in component_re.split(s):
-        part = replace(part,part)
-        if not part or part=='.':
-            continue
-        if part[:1] in '0123456789':
-            yield part.zfill(8)    # pad for numeric comparison
-        else:
-            yield '*'+part
-
-    yield '*final'  # ensure that alpha/beta/candidate are before final
-
-def parse_version(s):
-    parts = []
-    for part in _parse_version_parts(s.lower()):
-        if part.startswith('*'):
-            if part<'*final':   # remove '-' before a prerelease tag
-                while parts and parts[-1]=='*final-': parts.pop()
-            # remove trailing zeros from each series of numeric parts
-            while parts and parts[-1]=='00000000':
-                parts.pop()
-        parts.append(part)
-    return tuple(parts)
-
-def setuptools_is_new_enough(required_version):
-    """Return True if setuptools is already installed and has a version
-    number >= required_version."""
-    if 'pkg_resources' in sys.modules:
-        import pkg_resources
-        try:
-            pkg_resources.require('setuptools >= %s' % (required_version,))
-        except pkg_resources.VersionConflict:
-            # An insufficiently new version is installed.
-            return False
-        else:
-            return True
-    else:
-        try:
-            import pkg_resources
-        except ImportError:
-            # Okay it is not installed.
-            return False
-        else:
-            try:
-                pkg_resources.require('setuptools >= %s' % (required_version,))
-            except pkg_resources.VersionConflict:
-                # An insufficiently new version is installed.
-                pkg_resources.__dict__.clear() # "If you want to be absolutely sure... before deleting it." --said PJE on IRC
-                del sys.modules['pkg_resources']
-                return False
-            else:
-                pkg_resources.__dict__.clear() # "If you want to be absolutely sure... before deleting it." --said PJE on IRC
-                del sys.modules['pkg_resources']
-                return True
 
 def use_setuptools(
-    version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=DEFAULT_DIR,
-    min_version=None, download_delay=0
-    ):
+    version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir,
+    min_version=None, download_delay=15
+):
     """Automatically find/download setuptools and make it available on sys.path
 
     `version` should be a valid setuptools version number that is available as
@@ -115,14 +57,36 @@ def use_setuptools(
     """
     if min_version is None:
         min_version = version
-    if not setuptools_is_new_enough(min_version):
-        egg = download_setuptools(version, min_version, download_base, to_dir, download_delay)
+
+    was_imported = 'pkg_resources' in sys.modules or 'setuptools' in sys.modules
+    def do_download():
+        egg = download_setuptools(version, download_base, to_dir, download_delay)
         sys.path.insert(0, egg)
         import setuptools; setuptools.bootstrap_install_from = egg
+    try:
+        import pkg_resources
+    except ImportError:
+        return do_download()       
+    try:
+        pkg_resources.require("setuptools>="+min_version); return
+    except pkg_resources.VersionConflict, e:
+        if was_imported:
+            print >>sys.stderr, (
+            "The required version of setuptools (>=%s) is not available, and\n"
+            "can't be installed while this script is running. Please install\n"
+            " a more recent version first, using 'easy_install -U setuptools'."
+            "\n\n(Currently using %r)"
+            ) % (min_version, e.args[0])
+            sys.exit(2)
+        else:
+            del pkg_resources, sys.modules['pkg_resources']    # reload ok
+            return do_download()
+    except pkg_resources.DistributionNotFound:
+        return do_download()
 
 def download_setuptools(
-    version=DEFAULT_VERSION, min_version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir,
-    delay = 0
+    version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir,
+    delay = 15
 ):
     """Download setuptools from a specified location and return its filename
 
@@ -142,8 +106,8 @@ def download_setuptools(
             if delay:
                 log.warn("""
 ---------------------------------------------------------------------------
-This script requires setuptools version >= %s to run (even to display
-help).  I will attempt to download setuptools for you (from
+This script requires setuptools version %s to run (even to display
+help).  I will attempt to download it for you (from
 %s), but
 you may need to enable firewall access for this script first.
 I will start the download in %d seconds.
@@ -154,7 +118,7 @@ I will start the download in %d seconds.
 
 and place it in this directory before rerunning this script.)
 ---------------------------------------------------------------------------""",
-                    min_version, download_base, delay, url
+                    version, download_base, delay, url
                 ); from time import sleep; sleep(delay)
             log.warn("Downloading %s", url)
             src = urllib2.urlopen(url)
@@ -167,26 +131,81 @@ and place it in this directory before rerunning this script.)
             if dst: dst.close()
     return os.path.realpath(saveto)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def main(argv, version=DEFAULT_VERSION):
     """Install or upgrade setuptools and EasyInstall"""
-
-    if setuptools_is_new_enough(version):
-        if argv:
-            from setuptools.command.easy_install import main
-            main(argv)
-        else:
-            print "Setuptools version",version,"or greater has been installed."
-            print '(Run "ez_setup.py -U setuptools" to reinstall or upgrade.)'
-    else:
+    try:
+        import setuptools
+    except ImportError:
         egg = None
         try:
-            egg = download_setuptools(version, min_version=version, delay=0)
+            egg = download_setuptools(version, delay=0)
             sys.path.insert(0,egg)
             from setuptools.command.easy_install import main
             return main(list(argv)+[egg])   # we're done here
         finally:
             if egg and os.path.exists(egg):
                 os.unlink(egg)
+    else:
+        if setuptools.__version__ == '0.0.1':
+            print >>sys.stderr, (
+            "You have an obsolete version of setuptools installed.  Please\n"
+            "remove it from your system entirely before rerunning this script."
+            )
+            sys.exit(2)
+
+    req = "setuptools>="+version
+    import pkg_resources
+    try:
+        pkg_resources.require(req)
+    except pkg_resources.VersionConflict:
+        try:
+            from setuptools.command.easy_install import main
+        except ImportError:
+            from easy_install import main
+        main(list(argv)+[download_setuptools(delay=0)])
+        sys.exit(0) # try to force an exit
+    else:
+        if argv:
+            from setuptools.command.easy_install import main
+            main(argv)
+        else:
+            print "Setuptools version",version,"or greater has been installed."
+            print '(Run "ez_setup.py -U setuptools" to reinstall or upgrade.)'
 
 def update_md5(filenames):
     """Update our built-in md5 registry"""
@@ -220,8 +239,12 @@ def update_md5(filenames):
 
 
 if __name__=='__main__':
-    if '--md5update' in sys.argv:
-        sys.argv.remove('--md5update')
-        update_md5(sys.argv[1:])
+    if len(sys.argv)>2 and sys.argv[1]=='--md5update':
+        update_md5(sys.argv[2:])
     else:
         main(sys.argv[1:])
+
+
+
+
+
