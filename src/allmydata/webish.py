@@ -1452,17 +1452,30 @@ class Root(rend.Page):
         return str(allmydata)
     def data_my_nodeid(self, ctx, data):
         return idlib.nodeid_b2a(IClient(ctx).nodeid)
-    def data_storage(self, ctx, data):
+
+    def render_services(self, ctx, data):
+        ul = T.ul()
         client = IClient(ctx)
         try:
             ss = client.getServiceNamed("storage")
+            allocated_s = abbreviate_size(ss.allocated_size())
+            allocated = "about %s allocated" % allocated_s
+            sizelimit = "no size limit"
+            if ss.sizelimit is not None:
+                sizelimit = "size limit is %s" % abbreviate_size(ss.sizelimit)
+            ul[T.li["Storage Server: %s, %s" % (allocated, sizelimit)]]
         except KeyError:
-            return "Not running"
-        allocated = "about %s allocated" % abbreviate_size(ss.allocated_size())
-        sizelimit = "no size limit"
-        if ss.sizelimit is not None:
-            sizelimit = "size limit is %s" % abbreviate_size(ss.sizelimit)
-        return "%s, %s" % (allocated, sizelimit)
+            ul[T.li["Not running storage server"]]
+
+        try:
+            h = client.getServiceNamed("helper")
+            stats = h.get_stats()
+            active_uploads = stats["helper"]["CHK_active_uploads"]
+            ul[T.li["Helper: %d active uploads" % (active_uploads,)]]
+        except KeyError:
+            ul[T.li["Not running helper"]]
+
+        return ctx.tag[ul]
 
     def data_introducer_furl(self, ctx, data):
         return IClient(ctx).introducer_furl

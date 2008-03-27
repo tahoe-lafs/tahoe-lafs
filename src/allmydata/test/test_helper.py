@@ -58,6 +58,7 @@ class FakeClient(service.MultiService):
                                    "n": 100,
                                    "max_segment_size": 1*MiB,
                                    }
+    stats_provider = None
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
     def get_encoding_parameters(self):

@@ -456,7 +456,7 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
 
 
 class Helper(Referenceable, service.MultiService):
-    implements(interfaces.RIHelper)
+    implements(interfaces.RIHelper, interfaces.IStatsProducer)
     # this is the non-distributed version. When we need to have multiple
     # helpers, this object will become the HelperCoordinator, and will query
     # the farm of Helpers to see if anyone has the storage_index of interest,
@@ -473,7 +473,37 @@ class Helper(Referenceable, service.MultiService):
         fileutil.make_dirs(self._chk_incoming)
         fileutil.make_dirs(self._chk_encoding)
         self._active_uploads = {}
+        self._stats = {"CHK_upload_requests": 0,
+                       "CHK_upload_already_present": 0,
+                       "CHK_upload_need_upload": 0,
+                       }
         service.MultiService.__init__(self)
+
+    def setServiceParent(self, parent):
+        service.MultiService.setServiceParent(self, parent)
+        stats = parent.stats_provider
+        if stats:
+            stats.register_producer(self)
+
+    def get_stats(self):
+        chk_incoming_files, chk_incoming_size = 0,0
+        chk_encoding_files, chk_encoding_size = 0,0
+        for fn in os.listdir(self._chk_incoming):
+            size = os.stat(os.path.join(self._chk_incoming, fn))[stat.ST_SIZE]
+            chk_incoming_files += 1
+            chk_incoming_size += 1
+        for fn in os.listdir(self._chk_encoding):
+            size = os.stat(os.path.join(self._chk_encoding, fn))[stat.ST_SIZE]
+            chk_encoding_files += 1
+            chk_encoding_size += 1
+        stats = {"CHK_active_uploads": len(self._active_uploads),
+                 "CHK_incoming_files": chk_incoming_files,
+                 "CHK_incoming_size": chk_incoming_size,
+                 "CHK_encoding_files": chk_encoding_files,
+                 "CHK_encoding_size": chk_encoding_size,
+                 }
+        stats.update(self._stats)
+        return {"helper": stats}
 
     def log(self, *args, **kwargs):
         if 'facility' not in kwargs:
@@ -481,6 +511,7 @@ class Helper(Referenceable, service.MultiService):
         return self.parent.log(*args, **kwargs)
 
     def remote_upload_chk(self, storage_index):
+        self._stats["CHK_upload_requests"] += 1
         r = upload.UploadResults()
         started = time.time()
         si_s = storage.si_b2a(storage_index)
@@ -498,9 +529,11 @@ class Helper(Referenceable, service.MultiService):
             r.timings['existence_check'] = elapsed
             if already_present:
                 # the necessary results are placed in the UploadResults
+                self._stats["CHK_upload_already_present"] += 1
                 self.log("file already found in grid", parent=lp)
                 return (r, None)
 
+            self._stats["CHK_upload_need_upload"] += 1
             # the file is not present in the grid, by which we mean there are
             # less than 'N' shares available.
             self.log("unable to find file in the grid", parent=lp,
