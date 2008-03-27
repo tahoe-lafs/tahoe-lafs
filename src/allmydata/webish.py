@@ -12,6 +12,7 @@ from allmydata.interfaces import IDownloadTarget, IDirectoryNode, IFileNode, \
      IMutableFileNode
 import allmydata # to display import path
 from allmydata import download
+from allmydata.uri import from_string_verifier, CHKFileVerifierURI
 from allmydata.upload import FileHandle, FileName
 from allmydata import provisioning
 from allmydata import get_package_versions_string
@@ -1223,6 +1224,25 @@ class Manifest(rend.Page):
         ctx.fillSlots("refresh_capability", refresh_cap)
         return ctx.tag
 
+class DeepSize(rend.Page):
+
+    def __init__(self, dirnode, dirpath):
+        self._dirnode = dirnode
+        self._dirpath = dirpath
+
+    def renderHTTP(self, ctx):
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        d = self._dirnode.build_manifest()
+        def _measure_size(manifest):
+            total = 0
+            for verifiercap in manifest:
+                u = from_string_verifier(verifiercap)
+                if isinstance(u, CHKFileVerifierURI):
+                    total += u.size
+            return str(total)
+        d.addCallback(_measure_size)
+        return d
+
 class ChildError:
     implements(inevow.IResource)
     def renderHTTP(self, ctx):
@@ -1315,6 +1335,8 @@ class VDrive(rend.Page):
                         return DirectoryReadonlyURI(node), ()
                     elif t == "manifest":
                         return Manifest(node, path), ()
+                    elif t == "deep-size":
+                        return DeepSize(node, path), ()
                     elif t == 'rename-form':
                         return RenameForm(self.name, node, path), ()
                     else:

@@ -561,6 +561,15 @@ GET $URL?t=manifest
 
   Return an HTML-formatted manifest of the given directory, for debugging.
 
+GET $URL?t=deep-size
+
+  Return a number (in bytes) containing the sum of the filesize of all
+  immutable files reachable from the given directory. This is a rough lower
+  bound of the total space consumed by this subtree. It does not include
+  space consumed by directories or immutable files, nor does it take
+  expansion or encoding overhead into account. Later versions of the code may
+  improve this estimate upwards.
+
 6. XMLRPC (coming soon)
 
   http://localhost:8123/xmlrpc

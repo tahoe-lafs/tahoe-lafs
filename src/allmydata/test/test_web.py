@@ -740,6 +740,14 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_got)
         return d
 
+    def test_GET_DIRURL_deepsize(self):
+        d = self.GET(self.public_url + "/foo?t=deep-size", followRedirect=True)
+        def _got(manifest):
+            self.failUnless(re.search(r'^\d+$', manifest), manifest)
+            self.failUnlessEqual("57", manifest)
+        d.addCallback(_got)
+        return d
+
     def test_GET_DIRURL_uri(self):
         d = self.GET(self.public_url + "/foo?t=uri")
         def _check(res):
