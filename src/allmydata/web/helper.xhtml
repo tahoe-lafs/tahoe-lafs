@@ -1,0 +1,32 @@
+<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+  <head>
+    <title>Helper Status - AllMyData Tahoe</title>
+    <!-- <link href="http://www.allmydata.com/common/css/styles.css"
+          rel="stylesheet" type="text/css"/> -->
+    <link href="/webform_css" rel="stylesheet" type="text/css"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  </head>
+  <body>
+
+<h1>Helper Status</h1>
+
+<h2>Immutable Uploads</h2>
+<ul>
+  <li>Active: <span n:render="active_uploads" /></li>
+  <li>--</li>
+  <li>Bytes Fetched: <span n:render="upload_bytes_fetched" /></li>
+  <li>Incoming: <span n:render="incoming" /></li>
+  <li>Encoding: <span n:render="encoding" /></li>
+  <li>Bytes Encoded: <span n:render="upload_bytes_encoded" /></li>
+  <li>--</li>
+  <li>Total Requests: <span n:render="upload_requests" /></li>
+  <ul>
+    <li>Already Present: <span n:render="upload_already_present" /></li>
+    <li>Need Upload: <span n:render="upload_need_upload" /></li>
+  </ul>
+</ul>
+
+<div>Return to the <a href="/">Welcome Page</a></div>
+
+  </body>
+</html>

@@ -205,12 +205,12 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         self._reader.close()
         os.unlink(self._encoding_file)
         self._finished_observers.fire(r)
-        self._helper.upload_finished(self._storage_index)
+        self._helper.upload_finished(self._storage_index, size)
         del self._reader
 
     def _failed(self, f):
         self._finished_observers.fire(f)
-        self._helper.upload_finished(self._storage_index)
+        self._helper.upload_finished(self._storage_index, 0)
         del self._reader
 
 class AskUntilSuccessMixin:
@@ -377,6 +377,7 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
                 self._f.write(data)
                 self._have += len(data)
                 self._ciphertext_fetched += len(data)
+                self._upload_helper._helper._stats["CHK_fetched_bytes"] += len(data)
             return False # not done
         d.addCallback(_got_data)
         return d
@@ -476,6 +477,8 @@ class Helper(Referenceable, service.MultiService):
         self._stats = {"CHK_upload_requests": 0,
                        "CHK_upload_already_present": 0,
                        "CHK_upload_need_upload": 0,
+                       "CHK_fetched_bytes": 0,
+                       "CHK_encoded_bytes": 0,
                        }
         service.MultiService.__init__(self)
 
@@ -491,11 +494,11 @@ class Helper(Referenceable, service.MultiService):
         for fn in os.listdir(self._chk_incoming):
             size = os.stat(os.path.join(self._chk_incoming, fn))[stat.ST_SIZE]
             chk_incoming_files += 1
-            chk_incoming_size += 1
+            chk_incoming_size += size
         for fn in os.listdir(self._chk_encoding):
             size = os.stat(os.path.join(self._chk_encoding, fn))[stat.ST_SIZE]
             chk_encoding_files += 1
-            chk_encoding_size += 1
+            chk_encoding_size += size
         stats = {"CHK_active_uploads": len(self._active_uploads),
                  "CHK_incoming_files": chk_incoming_files,
                  "CHK_incoming_size": chk_incoming_size,
@@ -583,5 +586,6 @@ class Helper(Referenceable, service.MultiService):
         d.addCallback(_checked)
         return d
 
-    def upload_finished(self, storage_index):
+    def upload_finished(self, storage_index, size):
+        self._stats["CHK_encoded_bytes"] += size
         del self._active_uploads[storage_index]

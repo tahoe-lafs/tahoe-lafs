@@ -1,10 +1,11 @@
 
 import time
+import simplejson
 from twisted.internet import defer
-from nevow import rend, tags as T
+from nevow import rend, inevow, tags as T
 from allmydata.util import base32, idlib
 from allmydata.web.common import IClient, getxmlfile, abbreviate_time, \
-     abbreviate_rate
+     abbreviate_rate, get_arg
 from allmydata.interfaces import IUploadStatus, IDownloadStatus, \
      IPublishStatus, IRetrieveStatus
 
@@ -759,4 +760,51 @@ class Status(rend.Page):
                 if s.get_counter() == count:
                     return RetrieveStatusPage(s)
 
+
+class HelperStatus(rend.Page):
+    docFactory = getxmlfile("helper.xhtml")
+
+    def renderHTTP(self, ctx):
+        t = get_arg(inevow.IRequest(ctx), "t")
+        if t == "json":
+            return self.render_JSON(ctx)
+        # is there a better way to provide 'data' to all rendering methods?
+        helper = IClient(ctx).getServiceNamed("helper")
+        self.original = helper.get_stats()["helper"]
+        return rend.Page.renderHTTP(self, ctx)
+
+    def render_JSON(self, ctx):
+        try:
+            h = IClient(ctx).getServiceNamed("helper")
+        except KeyError:
+            return simplejson.dumps({})
+
+        stats = h.get_stats()["helper"]
+        return simplejson.dumps(stats, indent=1)
+
+    def render_active_uploads(self, ctx, data):
+        return data["CHK_active_uploads"]
+
+    def render_incoming(self, ctx, data):
+        return "%d bytes in %d files" % (data["CHK_incoming_size"],
+                                         data["CHK_incoming_files"])
+
+    def render_encoding(self, ctx, data):
+        return "%d bytes in %d files" % (data["CHK_encoding_size"],
+                                         data["CHK_encoding_files"])
+
+    def render_upload_requests(self, ctx, data):
+        return str(data["CHK_upload_requests"])
+
+    def render_upload_already_present(self, ctx, data):
+        return str(data["CHK_upload_already_present"])
+
+    def render_upload_need_upload(self, ctx, data):
+        return str(data["CHK_upload_need_upload"])
+
+    def render_upload_bytes_fetched(self, ctx, data):
+        return str(data["CHK_fetched_bytes"])
+
+    def render_upload_bytes_encoded(self, ctx, data):
+        return str(data["CHK_encoded_bytes"])
 

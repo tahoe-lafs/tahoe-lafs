@@ -1445,6 +1445,7 @@ class Root(rend.Page):
 
     child_provisioning = provisioning.ProvisioningTool()
     child_status = status.Status()
+    child_helper_status = status.HelperStatus()
 
     def data_version(self, ctx, data):
         return get_package_versions_string()
