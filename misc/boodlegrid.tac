@@ -42,11 +42,15 @@ class Listener:
     def msg(self, m, furl):
         #print "got it", m
         message = m.get("message", m.get("format", ""))
+        format = m.get("format", "")
+        facility = m.get("facility", "")
 
         # messages emitted by the Introducer: client join/leave
         if message.startswith("introducer: subscription[storage] request"):
+            print "new client"
             self.sound("voice/hooray.aiff")
         if message.startswith("introducer: unsubscribing"):
+            print "unsubscribe"
             self.sound("electro/zaptrill-fade.aiff")
 
         # messages from the helper
@@ -54,7 +58,7 @@ class Listener:
             print "already found"
             self.sound("mech/ziplash-high.aiff")
         #if message == "upload done":
-        if m.get("format") == "plaintext_hash=%(plaintext_hash)s, SI=%(SI)s, size=%(size)d":
+        if format == "plaintext_hash=%(plaintext_hash)s, SI=%(SI)s, size=%(size)d":
             size = m.get("size")
             print "upload done, size", size
             self.sound("mech/ziplash-low.aiff")
@@ -73,13 +77,24 @@ class Listener:
         if message.startswith("Publish") and "starting" in message:
             #self.sound("mech/metal-clash.aiff")
             self.sound("mech/clock-clang.aiff")
-        if "web" in message and "POST" in message and "t=set_children" in message:
+        if ("web: %(clientip)s" in format
+            and m.get("method") == "POST"
+            and "t=set_children" in m.get("uri", "")):
             self.sound("mech/door-slam.aiff")
 
         # generic messages
         #if m['level'] < 20:
         #    self.sound("mech/keyboard-1.aiff")
-        if m['level'] > 30: # SCARY or BAD
+        if "_check_for_done but we're not running" in message:
+            pass
+        elif format == "excessive reactor delay (%ss)":
+            self.sound("animal/frog-cheep.aiff")
+            print "excessive delay", furl
+        elif (facility == "foolscap.negotiation"
+              and (message == "got offer for an existing connection"
+                   or "master told us to use a new connection" in message)):
+            print "foolscap: got offer for an existing connection", message, furl
+        elif m['level'] > 30: # SCARY or BAD
             #self.sound("mech/alarm-bell.aiff")
             self.sound("environ/thunder-tense.aiff")
             print m, furl
@@ -87,10 +102,7 @@ class Listener:
             self.sound("mech/glass-breaking.aiff")
             print m, furl
         elif m['level'] > 20: # UNUSUAL or INFREQUENT or CURIOUS
-            if "_check_for_done but we're not running" in message:
-                pass
-            else:
-                self.sound("mech/telephone-ring-old.aiff")
+            self.sound("mech/telephone-ring-old.aiff")
             print m, furl
 
 class BoodleSender(protocol.Protocol):
