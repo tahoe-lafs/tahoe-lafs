@@ -729,28 +729,33 @@ class Status(rend.Page):
             for s in client.list_recent_uploads():
                 if s.get_counter() == count:
                     return UploadStatusPage(s)
-            for s in client.list_all_uploads():
+            for u in client.list_all_uploads():
+                # u is an uploader object
+                s = u.get_upload_status()
                 if s.get_counter() == count:
                     return UploadStatusPage(s)
         if stype == "down":
             for s in client.list_recent_downloads():
                 if s.get_counter() == count:
                     return DownloadStatusPage(s)
-            for s in client.list_all_downloads():
+            for d in client.list_all_downloads():
+                s = d.get_download_status()
                 if s.get_counter() == count:
                     return DownloadStatusPage(s)
         if stype == "publish":
             for s in client.list_recent_publish():
                 if s.get_counter() == count:
                     return PublishStatusPage(s)
-            for s in client.list_all_publish():
+            for p in client.list_all_publish():
+                s = p.get_status()
                 if s.get_counter() == count:
                     return PublishStatusPage(s)
         if stype == "retrieve":
             for s in client.list_recent_retrieve():
                 if s.get_counter() == count:
                     return RetrieveStatusPage(s)
-            for s in client.list_all_retrieve():
+            for r in client.list_all_retrieve():
+                s = r.get_status()
                 if s.get_counter() == count:
                     return RetrieveStatusPage(s)
 
