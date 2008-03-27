@@ -150,6 +150,10 @@ class Node(service.MultiService):
     def startService(self):
         # Note: this class can be started and stopped at most once.
         self.log("Node.startService")
+        try:
+            os.chmod("twistd.pid", 0644)
+        except EnvironmentError:
+            pass
         # Delay until the reactor is running.
         eventual.eventually(self._startService)
 
