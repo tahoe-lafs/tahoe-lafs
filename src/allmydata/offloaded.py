@@ -474,6 +474,14 @@ class Helper(Referenceable, service.MultiService):
         fileutil.make_dirs(self._chk_incoming)
         fileutil.make_dirs(self._chk_encoding)
         self._active_uploads = {}
+        if stats_provider:
+            stats_provider.register_producer(self)
+        self._stats = {"CHK_upload_requests": 0,
+                       "CHK_upload_already_present": 0,
+                       "CHK_upload_need_upload": 0,
+                       "CHK_fetched_bytes": 0,
+                       "CHK_encoded_bytes": 0,
+                       }
         service.MultiService.__init__(self)
 
     def setServiceParent(self, parent):
