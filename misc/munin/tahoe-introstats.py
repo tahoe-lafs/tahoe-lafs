@@ -7,6 +7,7 @@ import simplejson
 configinfo = """\
 graph_title Tahoe Introducer Stats
 graph_vlabel hosts
+graph_category tahoe
 graph_info This graph shows the number of hosts announcing and subscribing to various services
 storage_server.label Storage Servers
 storage_server.draw LINE1
