@@ -33,8 +33,8 @@ Name: "{app}\noderoot"
 
 [Icons]
 ; Program files entries
-Name: "{group}\Allmydata"; Filename: "{app}\Install\winfuse\StartAllmydata.exe"
-Name: "{commonstartup}\Allmydata"; Filename: "{app}\Install\winfuse\StartAllmydata.exe"
+Name: "{group}\Allmydata"; Filename: "{app}\Install\winfuse\AllmydataTray.exe"
+Name: "{commonstartup}\Allmydata"; Filename: "{app}\Install\winfuse\AllmydataTray.exe"
 ;Name: "{group}\Tahoe root dir (web)"; Filename: "{app}\Install\tahoe.exe"; Parameters: "webopen"
 Name: "{group}\Allmydata Help"; Filename: "http://www.allmydata.com/help"
 
@@ -45,7 +45,7 @@ Filename: "{app}\Install\tahoe.exe"; Parameters: "create-client ""{app}\noderoot
 Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: """{app}\Install\winfuse\WinFUSE.exe"""; Flags: runhidden
 Filename: "{app}\Install\confwiz.exe"; Flags: hidewizard
 ;Filename: "{app}\Install\ReadMe.txt"; Description: "View the ReadMe file"; Flags: unchecked postinstall nowait shellexec skipifdoesntexist
-Filename: "{app}\Install\winfuse\StartAllmydata.exe"; Description: "Run Allmydata"; Flags: postinstall nowait
+Filename: "{app}\Install\winfuse\AllmydataTray.exe"; Description: "Run Allmydata"; Flags: postinstall nowait
 Filename: "http://beta.allmydata.com/welcome_install?v=%(major)d.%(minor)d.%(point)d.%(revision)d"; Description: "View the Welcome Page"; Flags: postinstall shellexec
 
 [UninstallRun]
