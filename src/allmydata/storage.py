@@ -752,6 +752,9 @@ class StorageServer(service.MultiService, Referenceable):
         alreadygot = set()
         bucketwriters = {} # k: shnum, v: BucketWriter
         si_dir = storage_index_to_dir(storage_index)
+        si_s = si_b2a(storage_index)
+
+        log.msg("storage: allocate_buckets %s" % si_s)
 
         # in this implementation, the lease information (including secrets)
         # goes into the share files themselves. It could also be put into a
@@ -900,6 +903,8 @@ class StorageServer(service.MultiService, Referenceable):
             pass
 
     def remote_get_buckets(self, storage_index):
+        si_s = si_b2a(storage_index)
+        log.msg("storage: get_buckets %s" % si_s)
         bucketreaders = {} # k: sharenum, v: BucketReader
         for shnum, filename in self._get_bucket_shares(storage_index):
             bucketreaders[shnum] = BucketReader(filename)
@@ -927,6 +932,7 @@ class StorageServer(service.MultiService, Referenceable):
                                                test_and_write_vectors,
                                                read_vector):
         si_s = si_b2a(storage_index)
+        lp = log.msg("storage: slot_writev %s" % si_s)
         si_dir = storage_index_to_dir(storage_index)
         (write_enabler, renew_secret, cancel_secret) = secrets
         # shares exist if there is a file for them
