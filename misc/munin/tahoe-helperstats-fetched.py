@@ -7,6 +7,7 @@ import simplejson
 configinfo = """\
 graph_title Tahoe Helper Stats - Bytes Fetched
 graph_vlabel bytes
+graph_category tahoe
 graph_info This graph shows the amount of data being fetched by the helper
 fetched.label Bytes Fetched
 fetched.type GAUGE

@@ -7,6 +7,7 @@ import simplejson
 configinfo = """\
 graph_title Tahoe Helper Stats - Active Files
 graph_vlabel bytes
+graph_category tahoe
 graph_info This graph shows the number of files being actively processed by the helper
 fetched.label Active Files
 fetched.draw LINE2
