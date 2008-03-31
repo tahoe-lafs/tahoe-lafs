@@ -169,6 +169,8 @@ class RemoteServiceConnector:
         self.remote_host = None
         self._ic.remove_connection(self._nodeid, self.service_name, rref)
 
+    def reset(self):
+        self._reconnector.reset()
 
 
 class IntroducerClient(service.Service, Referenceable):
@@ -305,6 +307,15 @@ class IntroducerClient(service.Service, Referenceable):
     def add_connection(self, nodeid, service_name, rref):
         self._connections.add( (nodeid, service_name, rref) )
         self.counter += 1
+        # when one connection is established, reset the timers on all others,
+        # to trigger a reconnection attempt in one second. This is intended
+        # to accelerate server connections when we've been offline for a
+        # while. The goal is to avoid hanging out for a long time with
+        # connections to only a subset of the servers, which would increase
+        # the chances that we'll put shares in weird places (and not update
+        # existing shares of mutable files). See #374 for more details.
+        for rsc in self._connectors.values():
+            rsc.reset()
 
     def remove_connection(self, nodeid, service_name, rref):
         self._connections.discard( (nodeid, service_name, rref) )
