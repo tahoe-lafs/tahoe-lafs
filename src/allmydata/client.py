@@ -8,6 +8,7 @@ from twisted.internet import reactor
 from twisted.application.internet import TimerService
 from foolscap import Referenceable
 from foolscap.logging import log
+from pycryptopp.publickey import rsa
 
 import allmydata
 from allmydata.storage import StorageServer
@@ -72,6 +73,10 @@ class Client(node.Node, testutil.PollMixin):
         if run_helper:
             self.init_helper()
         self.init_client()
+        self._key_generator = None
+        key_gen_furl = self.get_config('key_generator.furl')
+        if key_gen_furl:
+            self.init_key_gen(key_gen_furl)
         # ControlServer and Helper are attached after Tub startup
 
         hotline_file = os.path.join(self.basedir,
@@ -196,6 +201,20 @@ class Client(node.Node, testutil.PollMixin):
         d.addCallback(_publish)
         d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
 
+    def init_key_gen(self, key_gen_furl):
+        d = self.when_tub_ready()
+        def _subscribe(self):
+            self.tub.connectTo(key_gen_furl, self._got_key_generator)
+        d.addCallback(_subscribe)
+        d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
+
+    def _got_key_generator(self, key_generator):
+        self._key_generator = key_generator
+        key_generator.notifyOnDisconnect(self._lost_key_generator)
+
+    def _lost_key_generator(self):
+        self._key_generator = None
+
     def init_web(self, webport):
         self.log("init_web(webport=%s)", args=(webport,))
 
@@ -281,15 +300,30 @@ class Client(node.Node, testutil.PollMixin):
 
     def create_empty_dirnode(self):
         n = NewDirectoryNode(self)
-        d = n.create()
+        d = n.create(self._generate_pubprivkeys)
         d.addCallback(lambda res: n)
         return d
 
     def create_mutable_file(self, contents=""):
         n = MutableFileNode(self)
-        d = n.create(contents)
+        d = n.create(contents, self._generate_pubprivkeys)
         d.addCallback(lambda res: n)
         return d
+
+    def _generate_pubprivkeys(self, key_size):
+        if self._key_generator:
+            d = self._key_generator.callRemote('get_rsa_key_pair', key_size)
+            def make_key_objs((verifying_key, signing_key)):
+                v = rsa.create_verifying_key_from_string(verifying_key)
+                s = rsa.create_signing_key_from_string(signing_key)
+                return v, s
+            d.addCallback(make_key_objs)
+            return d
+        else:
+            # RSA key generation for a 2048 bit key takes between 0.8 and 3.2 secs
+            signer = rsa.generate(key_size)
+            verifier = signer.get_verifying_key()
+            return verifier, signer
 
     def upload(self, uploadable):
         uploader = self.getServiceNamed("uploader")

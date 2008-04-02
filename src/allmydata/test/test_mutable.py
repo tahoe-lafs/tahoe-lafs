@@ -33,7 +33,7 @@ class FakeFilenode(mutable.MutableFileNode):
     def init_from_uri(self, myuri):
         mutable.MutableFileNode.init_from_uri(self, myuri)
         return self
-    def _generate_pubprivkeys(self):
+    def _generate_pubprivkeys(self, key_size):
         count = self.counter.next()
         return FakePubKey(count), FakePrivKey(count)
     def _publish(self, initial_contents):

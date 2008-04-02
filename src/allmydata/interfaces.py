@@ -1714,3 +1714,15 @@ class IStatsProducer(Interface):
         to be monitored, and numeric values.
         """
 
+class RIKeyGenerator(RemoteInterface):
+    __remote_name__ = "RIKeyGenerator.tahoe.allmydata.com"
+    """
+    Provides a service offering to make RSA key pairs.
+    """
+
+    def get_rsa_key_pair(key_size=int):
+        """
+        @param key_size: the size of the signature key.
+        @return: tuple(verifying_key, signing_key)
+        """
+        return TupleOf(str, str)

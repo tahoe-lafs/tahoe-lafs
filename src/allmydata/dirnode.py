@@ -53,7 +53,7 @@ class NewDirectoryNode:
         self._node.init_from_uri(self._uri.get_filenode_uri())
         return self
 
-    def create(self):
+    def create(self, keypair_generator=None):
         """
         Returns a deferred that eventually fires with self once the directory
         has been created (distributed across a set of storage servers).
@@ -62,7 +62,7 @@ class NewDirectoryNode:
         # URI to create our own.
         self._node = self.filenode_class(self._client)
         empty_contents = self._pack_contents({})
-        d = self._node.create(empty_contents)
+        d = self._node.create(empty_contents, keypair_generator)
         d.addCallback(self._filenode_created)
         return d
     def _filenode_created(self, res):

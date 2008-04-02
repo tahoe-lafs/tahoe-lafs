@@ -4,9 +4,13 @@ from cStringIO import StringIO
 from twisted.python import usage
 
 from allmydata.scripts.common import BaseOptions
-import debug, create_node, startstop_node, cli
+import debug, create_node, startstop_node, cli, keygen
 
-_general_commands = create_node.subCommands + debug.subCommands + cli.subCommands
+_general_commands = ( create_node.subCommands
+                    + keygen.subCommands
+                    + debug.subCommands
+                    + cli.subCommands
+                    )
 
 class Options(BaseOptions, usage.Options):
     synopsis = "Usage:  tahoe <command> [command options]"
@@ -60,6 +64,8 @@ def runner(argv, run_by_human=True, stdout=sys.stdout, stderr=sys.stderr,
         rc = debug.dispatch[command](so, stdout, stderr)
     elif command in cli.dispatch:
         rc = cli.dispatch[command](so, stdout, stderr)
+    elif command in keygen.dispatch:
+        rc = keygen.dispatch[command](so, stdout, stderr)
     elif command in ac_dispatch:
         rc = ac_dispatch[command](so, stdout, stderr)
     else:
