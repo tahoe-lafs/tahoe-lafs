@@ -54,6 +54,7 @@ class KeyGenerator(foolscap.Referenceable):
     def remote_get_rsa_key_pair(self, key_size):
         self.vlog('%s remote_get_key' % (self,))
         if key_size != self.DEFAULT_KEY_SIZE or not self.keypool:
+            self.reset_timer()
             return self.gen_key(key_size)
         else:
             self.reset_timer()
@@ -62,7 +63,7 @@ class KeyGenerator(foolscap.Referenceable):
 class KeyGeneratorService(service.MultiService):
     furl_file = 'key_generator.furl'
 
-    def __init__(self):
+    def __init__(self, display_furl=True):
         service.MultiService.__init__(self)
         self.tub = foolscap.Tub(certFile='key_generator.pem')
         self.tub.setServiceParent(self)
@@ -73,7 +74,7 @@ class KeyGeneratorService(service.MultiService):
         d = self.tub.setLocationAutomatically()
         if portnum is None:
             d.addCallback(self.save_portnum)
-        d.addCallback(self.tub_ready)
+        d.addCallback(self.tub_ready, display_furl)
         d.addErrback(log.err)
 
     def get_portnum(self):
@@ -84,6 +85,7 @@ class KeyGeneratorService(service.MultiService):
         portnum = self.listener.getPortnum()
         file('portnum', 'wb').write('%d\n' % (portnum,))
 
-    def tub_ready(self, junk):
+    def tub_ready(self, junk, display_furl):
         self.keygen_furl = self.tub.registerReference(self.key_generator, furlFile=self.furl_file)
-        print 'key generator at:', self.keygen_furl 
+        if display_furl:
+            print 'key generator at:', self.keygen_furl 
