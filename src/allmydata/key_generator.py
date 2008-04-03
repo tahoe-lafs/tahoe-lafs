@@ -3,7 +3,6 @@ import os
 import time
 
 import foolscap
-from foolscap.eventual import eventually
 from zope.interface import implements
 from twisted.internet import reactor
 from twisted.application import service
@@ -12,7 +11,7 @@ from twisted.python import log
 from pycryptopp.publickey import rsa
 from allmydata.interfaces import RIKeyGenerator
 
-class KeyGenerator(foolscap.Referenceable):
+class KeyGenerator(service.MultiService, foolscap.Referenceable):
     implements(RIKeyGenerator)
 
     DEFAULT_KEY_SIZE = 2048
@@ -21,9 +20,18 @@ class KeyGenerator(foolscap.Referenceable):
     verbose = False
 
     def __init__(self):
+        service.MultiService.__init__(self)
         self.keypool = []
         self.last_fetch = 0
-        eventually(self.maybe_refill_pool)
+
+    def startService(self):
+        self.timer = reactor.callLater(0, self.maybe_refill_pool)
+        return service.MultiService.startService(self)
+
+    def stopService(self):
+        if self.timer.active():
+            self.timer.cancel()
+        return service.MultiService.stopService(self)
 
     def __repr__(self):
         return '<KeyGenerator[%s]>' % (len(self.keypool),)
@@ -34,7 +42,10 @@ class KeyGenerator(foolscap.Referenceable):
 
     def reset_timer(self):
         self.last_fetch = time.time()
-        reactor.callLater(self.pool_refresh_delay, self.maybe_refill_pool)
+        if self.timer.active():
+            self.timer.reset(self.pool_refresh_delay)
+        else:
+            self.timer = reactor.callLater(self.pool_refresh_delay, self.maybe_refill_pool)
 
     def maybe_refill_pool(self):
         now = time.time()
@@ -63,11 +74,13 @@ class KeyGenerator(foolscap.Referenceable):
 class KeyGeneratorService(service.MultiService):
     furl_file = 'key_generator.furl'
 
-    def __init__(self, display_furl=True):
+    def __init__(self, basedir='.', display_furl=True):
         service.MultiService.__init__(self)
-        self.tub = foolscap.Tub(certFile='key_generator.pem')
+        self.basedir = basedir
+        self.tub = foolscap.Tub(certFile=os.path.join(self.basedir, 'key_generator.pem'))
         self.tub.setServiceParent(self)
         self.key_generator = KeyGenerator()
+        self.key_generator.setServiceParent(self)
 
         portnum = self.get_portnum()
         self.listener = self.tub.listenOn(portnum or 'tcp:0')
@@ -78,14 +91,17 @@ class KeyGeneratorService(service.MultiService):
         d.addErrback(log.err)
 
     def get_portnum(self):
-        if os.path.exists('portnum'):
-            return file('portnum', 'rb').read().strip()
+        portnumfile = os.path.join(self.basedir, 'portnum')
+        if os.path.exists(portnumfile):
+            return file(portnumfile, 'rb').read().strip()
 
     def save_portnum(self, junk):
         portnum = self.listener.getPortnum()
-        file('portnum', 'wb').write('%d\n' % (portnum,))
+        portnumfile = os.path.join(self.basedir, 'portnum')
+        file(portnumfile, 'wb').write('%d\n' % (portnum,))
 
     def tub_ready(self, junk, display_furl):
-        self.keygen_furl = self.tub.registerReference(self.key_generator, furlFile=self.furl_file)
+        kgf = os.path.join(self.basedir, self.furl_file)
+        self.keygen_furl = self.tub.registerReference(self.key_generator, furlFile=kgf)
         if display_furl:
-            print 'key generator at:', self.keygen_furl 
+            print 'key generator at:', self.keygen_furl

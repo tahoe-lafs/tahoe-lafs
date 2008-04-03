@@ -52,7 +52,7 @@ class KeyGenService(unittest.TestCase, testutil.PollMixin):
         d = eventual.fireEventually()
         d.addCallback(p, 'waiting for pool to fill up')
         d.addCallback(lambda junk: self.poll(keypool_full, timeout=16))
-        
+
         d.addCallback(p, 'grabbing a few keys')
         # grab a few keys, check that pool size shrinks
         def get_key(junk=None):
@@ -89,7 +89,7 @@ class KeyGenService(unittest.TestCase, testutil.PollMixin):
         # and check it still works (will gen key synchronously on demand)
         d.addCallback(get_key)
         d.addCallback(check_key_works)
-        
+
         d.addCallback(p, 'checking pool replenishment')
         # check that the pool will refill
         timeout = 2*kgs.key_generator.pool_size + kgs.key_generator.pool_refresh_delay

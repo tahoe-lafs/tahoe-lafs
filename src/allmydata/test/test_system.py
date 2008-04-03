@@ -16,7 +16,8 @@ from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
 from allmydata.mutable import NotMutableError
 from allmydata.stats import PickleStatsGatherer
-from foolscap.eventual import flushEventualQueue
+from allmydata.key_generator import KeyGeneratorService
+from foolscap.eventual import flushEventualQueue, fireEventually
 from foolscap import DeadReferenceError, Tub
 from twisted.python.failure import Failure
 from twisted.web.client import getPage
@@ -80,6 +81,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         d = self.introducer.when_tub_ready()
         d.addCallback(self._get_introducer_web)
         d.addCallback(self._set_up_stats_gatherer)
+        d.addCallback(self._set_up_key_generator)
         d.addCallback(self._set_up_nodes_2)
         d.addCallback(self._grab_stats)
         return d
@@ -102,6 +104,25 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         self.add_service(self.stats_gatherer)
         self.stats_gatherer_furl = self.stats_gatherer.get_furl()
 
+    def _set_up_key_generator(self, res):
+        kgsdir = self.getdir("key_generator")
+        fileutil.make_dirs(kgsdir)
+
+        self.key_generator_svc = KeyGeneratorService(kgsdir, display_furl=False)
+        self.key_generator_svc.key_generator.pool_size = 4
+        self.key_generator_svc.key_generator.pool_refresh_delay = 60
+        self.add_service(self.key_generator_svc)
+
+        d = fireEventually()
+        def check_for_furl():
+            return os.path.exists(os.path.join(kgsdir, 'key_generator.furl'))
+        d.addCallback(lambda junk: self.poll(check_for_furl, timeout=30))
+        def get_furl(junk):
+            kgf = os.path.join(kgsdir, 'key_generator.furl')
+            self.key_generator_furl = file(kgf, 'rb').read().strip()
+        d.addCallback(get_furl)
+        return d
+
     def _set_up_nodes_2(self, res):
         q = self.introducer
         self.introducer_furl = q.introducer_url
@@ -112,12 +133,14 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             basedirs.append(basedir)
             fileutil.make_dirs(basedir)
             if i == 0:
-                # client[0] runs a webserver and a helper
+                # client[0] runs a webserver and a helper, no key_generator
                 open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
                 open(os.path.join(basedir, "run_helper"), "w").write("yes\n")
             if i == 3:
-                # client[3] runs a webserver and uses a helper
+                # client[3] runs a webserver and uses a helper, uses key_generator
                 open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
+                kgf = "%s\n" % (self.key_generator_furl,)
+                open(os.path.join(basedir, "key_generator.furl"), "w").write(kgf)
             if self.createprivdir:
                 fileutil.make_dirs(os.path.join(basedir, "private"))
                 open(os.path.join(basedir, "private", "root_dir.cap"), "w")
@@ -800,6 +823,23 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                            self.failUnlessEqual(len(manifest), 1))
             return d1
         d.addCallback(_created_dirnode)
+
+        def wait_for_c3_kg_conn():
+            return self.clients[3]._key_generator is not None
+        d.addCallback(lambda junk: self.poll(wait_for_c3_kg_conn))
+
+        def check_kg_poolsize(junk, size_delta):
+            self.failUnlessEqual(len(self.key_generator_svc.key_generator.keypool),
+                                 self.key_generator_svc.key_generator.pool_size + size_delta)
+
+        d.addCallback(check_kg_poolsize, 0)
+        d.addCallback(lambda junk: self.clients[3].create_mutable_file('hello, world'))
+        d.addCallback(check_kg_poolsize, -1)
+        d.addCallback(lambda junk: self.clients[3].create_empty_dirnode())
+        d.addCallback(check_kg_poolsize, -2)
+        # use_helper induces use of clients[3], which is the using-key_gen client
+        d.addCallback(lambda junk: self.POST("uri", use_helper=True, t="mkdir", name='george'))
+        d.addCallback(check_kg_poolsize, -3)
 
         return d
     # The default 120 second timeout went off when running it under valgrind
