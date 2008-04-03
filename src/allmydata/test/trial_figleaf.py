@@ -67,21 +67,35 @@ class FigleafReporter(TreeReporter):
     def __init__(self, *args, **kwargs):
         TreeReporter.__init__(self, *args, **kwargs)
 
-    def printSummary(self):
+    def stop_figleaf(self):
         figleaf.stop()
         figleaf.write_coverage(".figleaf")
         print "Figleaf results written to .figleaf"
+    def printSummary(self):
+        # for twisted-2.5.x
+        self.stop_figleaf()
         return TreeReporter.printSummary(self)
+    def done(self):
+        # for twisted-8.x
+        self.stop_figleaf()
+        return TreeReporter.done(self)
 
 class FigleafTextReporter(VerboseTextReporter):
     def __init__(self, *args, **kwargs):
         VerboseTextReporter.__init__(self, *args, **kwargs)
 
-    def printSummary(self):
+    def stop_figleaf(self):
         figleaf.stop()
         figleaf.write_coverage(".figleaf")
         print "Figleaf results written to .figleaf"
+    def printSummary(self):
+        # for twisted-2.5.x
+        self.stop_figleaf()
         return VerboseTextReporter.printSummary(self)
+    def done(self):
+        # for twisted-8.x
+        self.stop_figleaf()
+        return VerboseTextReporter.done(self)
 
 class not_FigleafReporter(object):
     # this class, used as a reporter on a fully-passing test suite, doesn't
