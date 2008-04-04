@@ -65,8 +65,9 @@ class KeyGenerator(service.MultiService, foolscap.Referenceable):
     def remote_get_rsa_key_pair(self, key_size):
         self.vlog('%s remote_get_key' % (self,))
         if key_size != self.DEFAULT_KEY_SIZE or not self.keypool:
+            key = self.gen_key(key_size)
             self.reset_timer()
-            return self.gen_key(key_size)
+            return key
         else:
             self.reset_timer()
             return self.keypool.pop()
