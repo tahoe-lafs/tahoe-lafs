@@ -5,13 +5,14 @@ from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python import failure
 from allmydata import mutable, uri, dirnode, download
+from allmydata.util import base32
 from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash
 from allmydata.encode import NotEnoughPeersError
 from allmydata.interfaces import IURI, INewDirectoryURI, \
      IMutableFileURI, IUploadable, IFileURI
 from allmydata.filenode import LiteralFileNode
-from foolscap.eventual import eventually
+from foolscap.eventual import eventually, fireEventually
 from foolscap.logging import log
 import sha
 
@@ -110,7 +111,9 @@ class FakePublish(mutable.Publish):
     def _do_read(self, ss, peerid, storage_index, shnums, readv):
         assert ss[0] == peerid
         assert shnums == []
-        return defer.maybeDeferred(self._storage.read, peerid, storage_index)
+        d = fireEventually()
+        d.addCallback(lambda res: self._storage.read(peerid, storage_index))
+        return d
 
     def _do_testreadwrite(self, peerid, secrets,
                           tw_vectors, read_vector):
@@ -182,7 +185,6 @@ class FakeClient:
         return res
 
     def get_permuted_peers(self, service_name, key):
-        # TODO: include_myself=True
         """
         @return: list of (peerid, connection,)
         """
@@ -303,6 +305,7 @@ class Publish(unittest.TestCase):
         CONTENTS = "some initial contents"
         fn.create(CONTENTS)
         p = mutable.Publish(fn)
+        r = mutable.Retrieve(fn)
         # make some fake shares
         shares_and_ids = ( ["%07d" % i for i in range(10)], range(10) )
         target_info = None
@@ -467,7 +470,27 @@ class Publish(unittest.TestCase):
 
 class FakeRetrieve(mutable.Retrieve):
     def _do_read(self, ss, peerid, storage_index, shnums, readv):
-        d = defer.maybeDeferred(self._storage.read, peerid, storage_index)
+        d = fireEventually()
+        d.addCallback(lambda res: self._storage.read(peerid, storage_index))
+        def _read(shares):
+            response = {}
+            for shnum in shares:
+                if shnums and shnum not in shnums:
+                    continue
+                vector = response[shnum] = []
+                for (offset, length) in readv:
+                    assert isinstance(offset, (int, long)), offset
+                    assert isinstance(length, (int, long)), length
+                    vector.append(shares[shnum][offset:offset+length])
+            return response
+        d.addCallback(_read)
+        return d
+
+class FakeServermapUpdater(mutable.ServermapUpdater):
+
+    def _do_read(self, ss, peerid, storage_index, shnums, readv):
+        d = fireEventually()
+        d.addCallback(lambda res: self._storage.read(peerid, storage_index))
         def _read(shares):
             response = {}
             for shnum in shares:
@@ -487,31 +510,217 @@ class FakeRetrieve(mutable.Retrieve):
         count = mo.group(1)
         return FakePubKey(int(count))
 
+class Sharemap(unittest.TestCase):
+    def setUp(self):
+        # publish a file and create shares, which can then be manipulated
+        # later.
+        num_peers = 20
+        self._client = FakeClient(num_peers)
+        self._fn = FakeFilenode(self._client)
+        self._storage = FakeStorage()
+        d = self._fn.create("")
+        def _created(res):
+            p = FakePublish(self._fn)
+            p._storage = self._storage
+            contents = "New contents go here"
+            return p.publish(contents)
+        d.addCallback(_created)
+        return d
+
+    def make_servermap(self, storage, mode=mutable.MODE_CHECK):
+        smu = FakeServermapUpdater(self._fn, mutable.ServerMap(), mode)
+        smu._storage = storage
+        d = smu.update()
+        return d
+
+    def update_servermap(self, storage, oldmap, mode=mutable.MODE_CHECK):
+        smu = FakeServermapUpdater(self._fn, oldmap, mode)
+        smu._storage = storage
+        d = smu.update()
+        return d
+
+    def failUnlessOneRecoverable(self, sm, num_shares):
+        self.failUnlessEqual(len(sm.recoverable_versions()), 1)
+        self.failUnlessEqual(len(sm.unrecoverable_versions()), 0)
+        best = sm.best_recoverable_version()
+        self.failIfEqual(best, None)
+        self.failUnlessEqual(sm.recoverable_versions(), set([best]))
+        self.failUnlessEqual(len(sm.shares_available()), 1)
+        self.failUnlessEqual(sm.shares_available()[best], (num_shares, 3))
+        return sm
+
+    def test_basic(self):
+        s = self._storage # unmangled
+        d = defer.succeed(None)
+        ms = self.make_servermap
+        us = self.update_servermap
+
+        d.addCallback(lambda res: ms(s, mode=mutable.MODE_CHECK))
+        d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
+        d.addCallback(lambda res: ms(s, mode=mutable.MODE_WRITE))
+        d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
+        d.addCallback(lambda res: ms(s, mode=mutable.MODE_ENOUGH))
+        # this more stops at k+epsilon, and epsilon=k, so 6 shares
+        d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 6))
+        d.addCallback(lambda res: ms(s, mode=mutable.MODE_ANYTHING))
+        # this mode stops at 'k' shares
+        d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 3))
+
+        # and can we re-use the same servermap? Note that these are sorted in
+        # increasing order of number of servers queried, since once a server
+        # gets into the servermap, we'll always ask it for an update.
+        d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 3))
+        d.addCallback(lambda sm: us(s, sm, mode=mutable.MODE_ENOUGH))
+        d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 6))
+        d.addCallback(lambda sm: us(s, sm, mode=mutable.MODE_WRITE))
+        d.addCallback(lambda sm: us(s, sm, mode=mutable.MODE_CHECK))
+        d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
+        d.addCallback(lambda sm: us(s, sm, mode=mutable.MODE_ANYTHING))
+        d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
+
+        return d
+
+    def failUnlessNoneRecoverable(self, sm):
+        self.failUnlessEqual(len(sm.recoverable_versions()), 0)
+        self.failUnlessEqual(len(sm.unrecoverable_versions()), 0)
+        best = sm.best_recoverable_version()
+        self.failUnlessEqual(best, None)
+        self.failUnlessEqual(len(sm.shares_available()), 0)
+
+    def test_no_shares(self):
+        s = self._storage
+        s._peers = {} # delete all shares
+        ms = self.make_servermap
+        d = defer.succeed(None)
+
+        d.addCallback(lambda res: ms(s, mode=mutable.MODE_CHECK))
+        d.addCallback(lambda sm: self.failUnlessNoneRecoverable(sm))
+
+        d.addCallback(lambda res: ms(s, mode=mutable.MODE_ANYTHING))
+        d.addCallback(lambda sm: self.failUnlessNoneRecoverable(sm))
+
+        d.addCallback(lambda res: ms(s, mode=mutable.MODE_WRITE))
+        d.addCallback(lambda sm: self.failUnlessNoneRecoverable(sm))
+
+        d.addCallback(lambda res: ms(s, mode=mutable.MODE_ENOUGH))
+        d.addCallback(lambda sm: self.failUnlessNoneRecoverable(sm))
+
+        return d
+
+    def failUnlessNotQuiteEnough(self, sm):
+        self.failUnlessEqual(len(sm.recoverable_versions()), 0)
+        self.failUnlessEqual(len(sm.unrecoverable_versions()), 1)
+        best = sm.best_recoverable_version()
+        self.failUnlessEqual(best, None)
+        self.failUnlessEqual(len(sm.shares_available()), 1)
+        self.failUnlessEqual(sm.shares_available().values()[0], (2,3) )
+
+    def test_not_quite_enough_shares(self):
+        s = self._storage
+        ms = self.make_servermap
+        num_shares = len(s._peers)
+        for peerid in s._peers:
+            s._peers[peerid] = {}
+            num_shares -= 1
+            if num_shares == 2:
+                break
+        # now there ought to be only two shares left
+        assert len([peerid for peerid in s._peers if s._peers[peerid]]) == 2
+
+        d = defer.succeed(None)
+
+        d.addCallback(lambda res: ms(s, mode=mutable.MODE_CHECK))
+        d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
+        d.addCallback(lambda res: ms(s, mode=mutable.MODE_ANYTHING))
+        d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
+        d.addCallback(lambda res: ms(s, mode=mutable.MODE_WRITE))
+        d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
+        d.addCallback(lambda res: ms(s, mode=mutable.MODE_ENOUGH))
+        d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
+
+        return d
+
+
 
 class Roundtrip(unittest.TestCase):
 
-    def setup_for_publish(self, num_peers):
-        c = FakeClient(num_peers)
-        fn = FakeFilenode(c)
-        s = FakeStorage()
-        # .create usually returns a Deferred, but we happen to know it's
-        # synchronous
-        fn.create("")
-        p = FakePublish(fn)
-        p._storage = s
-        r = FakeRetrieve(fn)
-        r._storage = s
-        return c, s, fn, p, r
+    def setUp(self):
+        # publish a file and create shares, which can then be manipulated
+        # later.
+        self.CONTENTS = "New contents go here"
+        num_peers = 20
+        self._client = FakeClient(num_peers)
+        self._fn = FakeFilenode(self._client)
+        self._storage = FakeStorage()
+        d = self._fn.create("")
+        def _created(res):
+            p = FakePublish(self._fn)
+            p._storage = self._storage
+            return p.publish(self.CONTENTS)
+        d.addCallback(_created)
+        return d
+
+    def make_servermap(self, mode=mutable.MODE_ENOUGH, oldmap=None):
+        if oldmap is None:
+            oldmap = mutable.ServerMap()
+        smu = FakeServermapUpdater(self._fn, oldmap, mode)
+        smu._storage = self._storage
+        d = smu.update()
+        return d
+
+    def abbrev_verinfo(self, verinfo):
+        if verinfo is None:
+            return None
+        (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
+         offsets_tuple) = verinfo
+        return "%d-%s" % (seqnum, base32.b2a(root_hash)[:4])
+
+    def abbrev_verinfo_dict(self, verinfo_d):
+        output = {}
+        for verinfo,value in verinfo_d.items():
+            (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
+             offsets_tuple) = verinfo
+            output["%d-%s" % (seqnum, base32.b2a(root_hash)[:4])] = value
+        return output
+
+    def dump_servermap(self, servermap):
+        print "SERVERMAP", servermap
+        print "RECOVERABLE", [self.abbrev_verinfo(v)
+                              for v in servermap.recoverable_versions()]
+        print "BEST", self.abbrev_verinfo(servermap.best_recoverable_version())
+        print "available", self.abbrev_verinfo_dict(servermap.shares_available())
+
+    def do_download(self, servermap, version=None):
+        if version is None:
+            version = servermap.best_recoverable_version()
+        r = FakeRetrieve(self._fn, servermap, version)
+        r._storage = self._storage
+        return r.download()
 
     def test_basic(self):
-        c, s, fn, p, r = self.setup_for_publish(20)
-        contents = "New contents go here"
-        d = p.publish(contents)
-        def _published(res):
-            return r.retrieve()
-        d.addCallback(_published)
+        d = self.make_servermap()
+        def _do_retrieve(servermap):
+            self._smap = servermap
+            #self.dump_servermap(servermap)
+            self.failUnlessEqual(len(servermap.recoverable_versions()), 1)
+            return self.do_download(servermap)
+        d.addCallback(_do_retrieve)
         def _retrieved(new_contents):
-            self.failUnlessEqual(contents, new_contents)
+            self.failUnlessEqual(new_contents, self.CONTENTS)
+        d.addCallback(_retrieved)
+        # we should be able to re-use the same servermap, both with and
+        # without updating it.
+        d.addCallback(lambda res: self.do_download(self._smap))
+        d.addCallback(_retrieved)
+        d.addCallback(lambda res: self.make_servermap(oldmap=self._smap))
+        d.addCallback(lambda res: self.do_download(self._smap))
+        d.addCallback(_retrieved)
+        # clobbering the pubkey should make the servermap updater re-fetch it
+        def _clobber_pubkey(res):
+            self._fn._pubkey = None
+        d.addCallback(_clobber_pubkey)
+        d.addCallback(lambda res: self.make_servermap(oldmap=self._smap))
+        d.addCallback(lambda res: self.do_download(self._smap))
         d.addCallback(_retrieved)
         return d
 
@@ -538,144 +747,139 @@ class Roundtrip(unittest.TestCase):
         d.addBoth(done)
         return d
 
-    def _corrupt_all(self, offset, substring, refetch_pubkey=False,
-                     should_succeed=False):
-        c, s, fn, p, r = self.setup_for_publish(20)
-        contents = "New contents go here"
-        d = p.publish(contents)
-        def _published(res):
-            if refetch_pubkey:
-                # clear the pubkey, to force a fetch
-                r._pubkey = None
-            for peerid in s._peers:
-                shares = s._peers[peerid]
-                for shnum in shares:
-                    data = shares[shnum]
-                    (version,
-                     seqnum,
-                     root_hash,
-                     IV,
-                     k, N, segsize, datalen,
-                     o) = mutable.unpack_header(data)
-                    if isinstance(offset, tuple):
-                        offset1, offset2 = offset
-                    else:
-                        offset1 = offset
-                        offset2 = 0
-                    if offset1 == "pubkey":
-                        real_offset = 107
-                    elif offset1 in o:
-                        real_offset = o[offset1]
-                    else:
-                        real_offset = offset1
-                    real_offset = int(real_offset) + offset2
-                    assert isinstance(real_offset, int), offset
-                    shares[shnum] = self.flip_bit(data, real_offset)
-        d.addCallback(_published)
-        if should_succeed:
-            d.addCallback(lambda res: r.retrieve())
-        else:
-            d.addCallback(lambda res:
-                          self.shouldFail(NotEnoughPeersError,
-                                          "_corrupt_all(offset=%s)" % (offset,),
-                                          substring,
-                                          r.retrieve))
+    def _corrupt(self, res, s, offset, shnums_to_corrupt=None):
+        # if shnums_to_corrupt is None, corrupt all shares. Otherwise it is a
+        # list of shnums to corrupt.
+        for peerid in s._peers:
+            shares = s._peers[peerid]
+            for shnum in shares:
+                if (shnums_to_corrupt is not None
+                    and shnum not in shnums_to_corrupt):
+                    continue
+                data = shares[shnum]
+                (version,
+                 seqnum,
+                 root_hash,
+                 IV,
+                 k, N, segsize, datalen,
+                 o) = mutable.unpack_header(data)
+                if isinstance(offset, tuple):
+                    offset1, offset2 = offset
+                else:
+                    offset1 = offset
+                    offset2 = 0
+                if offset1 == "pubkey":
+                    real_offset = 107
+                elif offset1 in o:
+                    real_offset = o[offset1]
+                else:
+                    real_offset = offset1
+                real_offset = int(real_offset) + offset2
+                assert isinstance(real_offset, int), offset
+                shares[shnum] = self.flip_bit(data, real_offset)
+        return res
+
+    def _test_corrupt_all(self, offset, substring,
+                          should_succeed=False, corrupt_early=True):
+        d = defer.succeed(None)
+        if corrupt_early:
+            d.addCallback(self._corrupt, self._storage, offset)
+        d.addCallback(lambda res: self.make_servermap())
+        if not corrupt_early:
+            d.addCallback(self._corrupt, self._storage, offset)
+        def _do_retrieve(servermap):
+            ver = servermap.best_recoverable_version()
+            if ver is None and not should_succeed:
+                # no recoverable versions == not succeeding. The problem
+                # should be noted in the servermap's list of problems.
+                if substring:
+                    allproblems = [str(f) for f in servermap.problems]
+                    self.failUnless(substring in "".join(allproblems))
+                return
+            r = FakeRetrieve(self._fn, servermap, ver)
+            r._storage = self._storage
+            if should_succeed:
+                d1 = r.download()
+                d1.addCallback(lambda new_contents:
+                               self.failUnlessEqual(new_contents, self.CONTENTS))
+                return d1
+            else:
+                return self.shouldFail(NotEnoughPeersError,
+                                       "_corrupt_all(offset=%s)" % (offset,),
+                                       substring,
+                                       r.download)
+        d.addCallback(_do_retrieve)
         return d
 
     def test_corrupt_all_verbyte(self):
         # when the version byte is not 0, we hit an assertion error in
         # unpack_share().
-        return self._corrupt_all(0, "AssertionError")
+        return self._test_corrupt_all(0, "AssertionError")
 
     def test_corrupt_all_seqnum(self):
         # a corrupt sequence number will trigger a bad signature
-        return self._corrupt_all(1, "signature is invalid")
+        return self._test_corrupt_all(1, "signature is invalid")
 
     def test_corrupt_all_R(self):
         # a corrupt root hash will trigger a bad signature
-        return self._corrupt_all(9, "signature is invalid")
+        return self._test_corrupt_all(9, "signature is invalid")
 
     def test_corrupt_all_IV(self):
         # a corrupt salt/IV will trigger a bad signature
-        return self._corrupt_all(41, "signature is invalid")
+        return self._test_corrupt_all(41, "signature is invalid")
 
     def test_corrupt_all_k(self):
         # a corrupt 'k' will trigger a bad signature
-        return self._corrupt_all(57, "signature is invalid")
+        return self._test_corrupt_all(57, "signature is invalid")
 
     def test_corrupt_all_N(self):
         # a corrupt 'N' will trigger a bad signature
-        return self._corrupt_all(58, "signature is invalid")
+        return self._test_corrupt_all(58, "signature is invalid")
 
     def test_corrupt_all_segsize(self):
         # a corrupt segsize will trigger a bad signature
-        return self._corrupt_all(59, "signature is invalid")
+        return self._test_corrupt_all(59, "signature is invalid")
 
     def test_corrupt_all_datalen(self):
         # a corrupt data length will trigger a bad signature
-        return self._corrupt_all(67, "signature is invalid")
+        return self._test_corrupt_all(67, "signature is invalid")
 
     def test_corrupt_all_pubkey(self):
-        # a corrupt pubkey won't match the URI's fingerprint
-        return self._corrupt_all("pubkey", "pubkey doesn't match fingerprint",
-                                 refetch_pubkey=True)
+        # a corrupt pubkey won't match the URI's fingerprint. We need to
+        # remove the pubkey from the filenode, or else it won't bother trying
+        # to update it.
+        self._fn._pubkey = None
+        return self._test_corrupt_all("pubkey",
+                                      "pubkey doesn't match fingerprint")
 
     def test_corrupt_all_sig(self):
         # a corrupt signature is a bad one
         # the signature runs from about [543:799], depending upon the length
         # of the pubkey
-        return self._corrupt_all("signature", "signature is invalid",
-                                 refetch_pubkey=True)
+        return self._test_corrupt_all("signature", "signature is invalid")
 
     def test_corrupt_all_share_hash_chain_number(self):
         # a corrupt share hash chain entry will show up as a bad hash. If we
         # mangle the first byte, that will look like a bad hash number,
         # causing an IndexError
-        return self._corrupt_all("share_hash_chain", "corrupt hashes")
+        return self._test_corrupt_all("share_hash_chain", "corrupt hashes")
 
     def test_corrupt_all_share_hash_chain_hash(self):
         # a corrupt share hash chain entry will show up as a bad hash. If we
         # mangle a few bytes in, that will look like a bad hash.
-        return self._corrupt_all(("share_hash_chain",4), "corrupt hashes")
+        return self._test_corrupt_all(("share_hash_chain",4), "corrupt hashes")
 
     def test_corrupt_all_block_hash_tree(self):
-        return self._corrupt_all("block_hash_tree", "block hash tree failure")
+        return self._test_corrupt_all("block_hash_tree",
+                                      "block hash tree failure")
 
     def test_corrupt_all_block(self):
-        return self._corrupt_all("share_data", "block hash tree failure")
+        return self._test_corrupt_all("share_data", "block hash tree failure")
 
     def test_corrupt_all_encprivkey(self):
-        # a corrupted privkey won't even be noticed by the reader
-        return self._corrupt_all("enc_privkey", None, should_succeed=True)
-
-    def test_short_read(self):
-        c, s, fn, p, r = self.setup_for_publish(20)
-        contents = "New contents go here"
-        d = p.publish(contents)
-        def _published(res):
-            # force a short read, to make Retrieve._got_results re-send the
-            # queries. But don't make it so short that we can't read the
-            # header.
-            r._read_size = mutable.HEADER_LENGTH + 10
-            return r.retrieve()
-        d.addCallback(_published)
-        def _retrieved(new_contents):
-            self.failUnlessEqual(contents, new_contents)
-        d.addCallback(_retrieved)
-        return d
-
-    def test_basic_sequenced(self):
-        c, s, fn, p, r = self.setup_for_publish(20)
-        s._sequence = c._peerids[:]
-        contents = "New contents go here"
-        d = p.publish(contents)
-        def _published(res):
-            return r.retrieve()
-        d.addCallback(_published)
-        def _retrieved(new_contents):
-            self.failUnlessEqual(contents, new_contents)
-        d.addCallback(_retrieved)
-        return d
+        # a corrupted privkey won't even be noticed by the reader, only by a
+        # writer.
+        return self._test_corrupt_all("enc_privkey", None, should_succeed=True)
 
     def test_basic_pubkey_at_end(self):
         # we corrupt the pubkey in all but the last 'k' shares, allowing the
@@ -683,33 +887,25 @@ class Roundtrip(unittest.TestCase):
         # this is rather pessimistic: our Retrieve process will throw away
         # the whole share if the pubkey is bad, even though the rest of the
         # share might be good.
-        c, s, fn, p, r = self.setup_for_publish(20)
-        s._sequence = c._peerids[:]
-        contents = "New contents go here"
-        d = p.publish(contents)
-        def _published(res):
-            r._pubkey = None
-            homes = [peerid for peerid in c._peerids
-                     if s._peers.get(peerid, {})]
-            k = fn.get_required_shares()
-            homes_to_corrupt = homes[:-k]
-            for peerid in homes_to_corrupt:
-                shares = s._peers[peerid]
-                for shnum in shares:
-                    data = shares[shnum]
-                    (version,
-                     seqnum,
-                     root_hash,
-                     IV,
-                     k, N, segsize, datalen,
-                     o) = mutable.unpack_header(data)
-                    offset = 107 # pubkey
-                    shares[shnum] = self.flip_bit(data, offset)
-            return r.retrieve()
-        d.addCallback(_published)
-        def _retrieved(new_contents):
-            self.failUnlessEqual(contents, new_contents)
-        d.addCallback(_retrieved)
+
+        self._fn._pubkey = None
+        k = self._fn.get_required_shares()
+        N = self._fn.get_total_shares()
+        d = defer.succeed(None)
+        d.addCallback(self._corrupt, self._storage, "pubkey",
+                      shnums_to_corrupt=range(0, N-k))
+        d.addCallback(lambda res: self.make_servermap())
+        def _do_retrieve(servermap):
+            self.failUnless(servermap.problems)
+            self.failUnless("pubkey doesn't match fingerprint"
+                            in str(servermap.problems[0]))
+            ver = servermap.best_recoverable_version()
+            r = FakeRetrieve(self._fn, servermap, ver)
+            r._storage = self._storage
+            return r.download()
+        d.addCallback(_do_retrieve)
+        d.addCallback(lambda new_contents:
+                      self.failUnlessEqual(new_contents, self.CONTENTS))
         return d
 
     def _encode(self, c, s, fn, k, n, data):
@@ -739,6 +935,32 @@ class Roundtrip(unittest.TestCase):
             s._peers = {}
             return shares
         d.addCallback(_published)
+        return d
+
+class MultipleEncodings(unittest.TestCase):
+
+    def publish(self):
+        # publish a file and create shares, which can then be manipulated
+        # later.
+        self.CONTENTS = "New contents go here"
+        num_peers = 20
+        self._client = FakeClient(num_peers)
+        self._fn = FakeFilenode(self._client)
+        self._storage = FakeStorage()
+        d = self._fn.create("")
+        def _created(res):
+            p = FakePublish(self._fn)
+            p._storage = self._storage
+            return p.publish(self.CONTENTS)
+        d.addCallback(_created)
+        return d
+
+    def make_servermap(self, mode=mutable.MODE_ENOUGH, oldmap=None):
+        if oldmap is None:
+            oldmap = mutable.ServerMap()
+        smu = FakeServermapUpdater(self._fn, oldmap, mode)
+        smu._storage = self._storage
+        d = smu.update()
         return d
 
     def test_multiple_encodings(self):
@@ -841,4 +1063,88 @@ class Roundtrip(unittest.TestCase):
             self.failUnlessEqual(new_contents, contents1)
         d.addCallback(_retrieved)
         return d
+
+
+class Utils(unittest.TestCase):
+    def test_dict_of_sets(self):
+        ds = mutable.DictOfSets()
+        ds.add(1, "a")
+        ds.add(2, "b")
+        ds.add(2, "b")
+        ds.add(2, "c")
+        self.failUnlessEqual(ds[1], set(["a"]))
+        self.failUnlessEqual(ds[2], set(["b", "c"]))
+        ds.discard(3, "d") # should not raise an exception
+        ds.discard(2, "b")
+        self.failUnlessEqual(ds[2], set(["c"]))
+        ds.discard(2, "c")
+        self.failIf(2 in ds)
+
+    def _do_inside(self, c, x_start, x_length, y_start, y_length):
+        # we compare this against sets of integers
+        x = set(range(x_start, x_start+x_length))
+        y = set(range(y_start, y_start+y_length))
+        should_be_inside = x.issubset(y)
+        self.failUnlessEqual(should_be_inside, c._inside(x_start, x_length,
+                                                         y_start, y_length),
+                             str((x_start, x_length, y_start, y_length)))
+
+    def test_cache_inside(self):
+        c = mutable.ResponseCache()
+        x_start = 10
+        x_length = 5
+        for y_start in range(8, 17):
+            for y_length in range(8):
+                self._do_inside(c, x_start, x_length, y_start, y_length)
+
+    def _do_overlap(self, c, x_start, x_length, y_start, y_length):
+        # we compare this against sets of integers
+        x = set(range(x_start, x_start+x_length))
+        y = set(range(y_start, y_start+y_length))
+        overlap = bool(x.intersection(y))
+        self.failUnlessEqual(overlap, c._does_overlap(x_start, x_length,
+                                                      y_start, y_length),
+                             str((x_start, x_length, y_start, y_length)))
+
+    def test_cache_overlap(self):
+        c = mutable.ResponseCache()
+        x_start = 10
+        x_length = 5
+        for y_start in range(8, 17):
+            for y_length in range(8):
+                self._do_overlap(c, x_start, x_length, y_start, y_length)
+
+    def test_cache(self):
+        c = mutable.ResponseCache()
+        # xdata = base62.b2a(os.urandom(100))[:100]
+        xdata = "1Ex4mdMaDyOl9YnGBM3I4xaBF97j8OQAg1K3RBR01F2PwTP4HohB3XpACuku8Xj4aTQjqJIR1f36mEj3BCNjXaJmPBEZnnHL0U9l"
+        ydata = "4DCUQXvkEPnnr9Lufikq5t21JsnzZKhzxKBhLhrBB6iIcBOWRuT4UweDhjuKJUre8A4wOObJnl3Kiqmlj4vjSLSqUGAkUD87Y3vs"
+        nope = (None, None)
+        c.add("v1", 1, 0, xdata, "time0")
+        c.add("v1", 1, 2000, ydata, "time1")
+        self.failUnlessEqual(c.read("v2", 1, 10, 11), nope)
+        self.failUnlessEqual(c.read("v1", 2, 10, 11), nope)
+        self.failUnlessEqual(c.read("v1", 1, 0, 10), (xdata[:10], "time0"))
+        self.failUnlessEqual(c.read("v1", 1, 90, 10), (xdata[90:], "time0"))
+        self.failUnlessEqual(c.read("v1", 1, 300, 10), nope)
+        self.failUnlessEqual(c.read("v1", 1, 2050, 5), (ydata[50:55], "time1"))
+        self.failUnlessEqual(c.read("v1", 1, 0, 101), nope)
+        self.failUnlessEqual(c.read("v1", 1, 99, 1), (xdata[99:100], "time0"))
+        self.failUnlessEqual(c.read("v1", 1, 100, 1), nope)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 9), nope)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 10), nope)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 11), nope)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 15), nope)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 19), nope)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 20), nope)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 21), nope)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 25), nope)
+        self.failUnlessEqual(c.read("v1", 1, 1999, 25), nope)
+
+        # optional: join fragments
+        c = mutable.ResponseCache()
+        c.add("v1", 1, 0, xdata[:10], "time0")
+        c.add("v1", 1, 10, xdata[10:20], "time1")
+        #self.failUnlessEqual(c.read("v1", 1, 0, 20), (xdata[:20], "time0"))
+
 
