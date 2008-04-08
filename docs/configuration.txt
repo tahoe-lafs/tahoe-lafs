@@ -78,7 +78,9 @@ this file. Note that this is a fairly loose bound, and the node may
 occasionally use slightly more storage than this. To enforce a stronger (and
 possibly more reliable) limit, use a symlink to place the 'storage/'
 directory on a separate size-limited filesystem, and/or use per-user
-OS/filesystem quotas.
+OS/filesystem quotas.  If a size limit is specified then Tahoe will do a "du"
+at startup (traversing all the storage and summing the sizes of the files),
+which can take a long time if there are a lot of shares stored.
 
 private/root_dir.cap (optional): The command-line tools will read a directory
 cap out of this file and use it, if you don't specify a '--dir-cap' option or

@@ -700,10 +700,12 @@ class StorageServer(service.MultiService, Referenceable):
         self._active_writers = weakref.WeakKeyDictionary()
         lp = log.msg("StorageServer created, now measuring space..",
                      facility="tahoe.storage")
-        self.measure_size()
-        log.msg(format="space measurement done, consumed=%(consumed)d bytes",
-                consumed=self.consumed,
-                parent=lp, facility="tahoe.storage")
+        self.consumed = None
+        if self.sizelimit:
+            self.consumed = fileutil.du(self.sharedir)
+            log.msg(format="space measurement done, consumed=%(consumed)d bytes",
+                    consumed=self.consumed,
+                    parent=lp, facility="tahoe.storage")
 
     def log(self, *args, **kwargs):
         if "facility" not in kwargs:
@@ -730,11 +732,8 @@ class StorageServer(service.MultiService, Referenceable):
                  'storage_server.allocated': self.allocated_size(),
                }
 
-    def measure_size(self):
-        self.consumed = fileutil.du(self.sharedir)
-
     def allocated_size(self):
-        space = self.consumed
+        space = self.consumed or 0
         for bw in self._active_writers:
             space += bw.allocated_size()
         return space
@@ -866,14 +865,16 @@ class StorageServer(service.MultiService, Referenceable):
                 total_space_freed += filelen
         if not remaining_files:
             fileutil.rm_dir(storagedir)
-        self.consumed -= total_space_freed
+        if self.consumed is not None:
+            self.consumed -= total_space_freed
         if self.stats_provider:
             self.stats_provider.count('storage_server.bytes_freed', total_space_freed)
         if not found_buckets:
             raise IndexError("no such lease to cancel")
 
     def bucket_writer_closed(self, bw, consumed_size):
-        self.consumed += consumed_size
+        if self.consumed is not None:
+            self.consumed += consumed_size
         if self.stats_provider:
             self.stats_provider.count('storage_server.bytes_added', consumed_size)
         del self._active_writers[bw]
