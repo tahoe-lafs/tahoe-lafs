@@ -4,6 +4,7 @@ install_requires=["zfec >= 1.1.0",
                   "pycryptopp >= 0.2.8",
                   "nevow >= 0.6.0",
                   "zope.interface",
+                  "twisted >= 2.4.0",
                   ]
 import sys
 if hasattr(sys, 'frozen'):
