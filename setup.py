@@ -101,7 +101,9 @@ dependency_links=[os.path.join(miscdeps, t) for t in os.listdir(miscdeps) if t.e
 # tahoe source when that source was built.
 dependency_links.append("http://allmydata.org/trac/tahoe/wiki/Dependencies")
 
-setup_requires = ['pyutil >= 1.3.16'] # used by the Windows installer builder, see misc/sub-ver.py
+setup_requires = []
+setup_requires.append('pyutil >= 1.3.16') # used by the Windows installer builder, see misc/sub-ver.py
+setup_requires.append('twisted >= 2.4.0') # for trial, and because foolscap <= 0.2.5 imports it in its setup.py
 
 # darcsver is needed only if you want "./setup.py darcsver" to write a new
 # version stamp in src/allmydata/_version.py, with a version number derived from
