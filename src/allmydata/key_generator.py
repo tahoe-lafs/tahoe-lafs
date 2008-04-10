@@ -55,6 +55,7 @@ class KeyGenerator(service.MultiService, foolscap.Referenceable):
                 self.keypool.append(self.gen_key(self.DEFAULT_KEY_SIZE))
         else:
             self.vlog('%s not refilling pool' % (self,))
+            reactor.callLater(1, self.maybe_refill_pool)
 
     def gen_key(self, key_size):
         self.vlog('%s generating key size %s' % (self, key_size, ))
