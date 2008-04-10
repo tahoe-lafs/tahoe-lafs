@@ -728,9 +728,10 @@ class StorageServer(service.MultiService, Referenceable):
         fileutil.rm_dir(self.incomingdir)
 
     def get_stats(self):
-        return { 'storage_server.consumed': self.consumed,
-                 'storage_server.allocated': self.allocated_size(),
-               }
+        stats = { 'storage_server.allocated': self.allocated_size(), }
+        if self.consumed is not None:
+            stats['storage_server.consumed'] = self.consumed
+        return stats
 
     def allocated_size(self):
         space = self.consumed or 0
