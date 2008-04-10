@@ -2,14 +2,14 @@ Source: allmydata-tahoe
 Section: python
 Priority: optional
 Maintainer: Brian Warner <warner@allmydata.com>
-Build-Depends: debhelper (>= 5.0.37.2), cdbs (>= 0.4.43), python-central (>= 0.5), python, python-dev
+Build-Depends: debhelper (>= 5.0.37.2), cdbs (>= 0.4.43), python-central (>= 0.5), python-setuptools, python, python-dev
 Build-Depends-Indep: python-twisted-core
 XS-Python-Version: 2.4
 Standards-Version: 3.7.2
 
 Package: allmydata-tahoe
 Architecture: all
-Depends: ${python:Depends}, python-twisted-core, python-foolscap (>= 0.2.5), python-pyopenssl, python-twisted-names, python-nevow, python-simplejson (>= 1.4), python-zfec (>= 1.1), python-pycryptopp (>= 0.2.8)
+Depends: ${python:Depends}, python-twisted-core, python-foolscap (>= 0.2.5), python-pyopenssl, python-twisted-names, python-nevow, python-simplejson (>= 1.4), python-zfec (>= 1.1), python-pycryptopp (>= 0.2.8), python-pkg-resources | python-setuptools
 Recommends:
 XB-Python-Version: 2.4
 Description: A secure distributed filestore
