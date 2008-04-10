@@ -9,21 +9,9 @@ include /usr/share/cdbs/1/class/python-distutils.mk
 
 STAGING_DIR=$(CURDIR)/debian/allmydata-tahoe
 
-# we overwrite the setuptools-generated /usr/bin/tahoe with our package's
-# original version, because the setuptools form (using "entry points")
-# insists upon .egg-info -visible forms of dependent packages to be
-# installed. For a debian package, we rely upon the dependencies that are
-# declared in debian/control .
-#
-# One disadvantage to this approach is that the #! line will not get updated
-# to match the version of python that we're using for this build. Instead, it
-# will retain the original '#!/usr/bin/env python', which has the potential
-# to surprise people.
-
 install/allmydata-tahoe::
 	mkdir -pm755 $(STAGING_DIR)
 	python setup.py install --root=$(STAGING_DIR)
-	cp bin/tahoe $(STAGING_DIR)/usr/bin/
 
 	dh_pycentral
 
