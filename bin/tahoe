@@ -1,52 +1,43 @@
 #!/usr/bin/env python
 
-# This preamble is adapted from Twisted. If we're being run from a source
-# tree, add that tree's libdir to our path, so tahoe can be run from source
-# without a lot of tedious PYTHONPATH changes.
-import sys, os.path
-where = os.path.realpath(sys.argv[0]).split(os.sep)
+import errno, sys, os
 
-# look for Tahoe.home . Two cases:
-#  ...(not BASE)/tahoe
-#  .../(BASE)/bin/tahoe
-if len(where) >= 2 and where[-2] == "bin":
-    base = os.sep.join(where[:-2])
+where = os.path.realpath(sys.argv[0])
+base = os.path.dirname(os.path.dirname(where))
 
-    if os.path.exists(os.path.join(base, "Tahoe.home")):
-        # we've found our home. Put the tahoe source at the front of sys.path
-        srcdir = os.path.join(base, "src")
-        sys.path.insert(0, srcdir)
-        # and put any support eggs at the end of sys.path
-        if sys.platform == "win32":
-            supportdir = os.path.join(base, "support", "Lib", "site-packages")
-        else:
-            supportdir = os.path.join(base, "support",
-                                      "lib",
-                                      "python%d.%d" % sys.version_info[:2],
-                                      "site-packages")
-        support_eggs = []
-        if os.path.exists(supportdir):
-            for fn in os.listdir(supportdir):
-                if fn.endswith(".egg"):
-                    support_eggs.append(os.path.join(supportdir, fn))
+# look for Tahoe.home .
+homemarker = os.path.join(base, "Tahoe.home")
+if not os.path.exists(homemarker):
+    print "I am a \"bin/tahoe\" executable who is only for the convenience of running Tahoe from its source distribution -- I work only when run from the \"bin/\" subdirectory of a Tahoe source code distribution, and only if you have already run \"make\".  I just tried to run and found that I am not in the bin/ subdirectory of a Tahoe source distribution, so I am stopping now.  To run Tahoe when it is installed, please execute my brother, also named \"tahoe\", who gets installed into the appropriate place for executables when you run \"make install\"."
+    sys.exit(1)
 
-        # We also need to include .egg's in the base dir, because if there is an
-        # .egg there then "make build-deps" will take that as satisfying its
-        # requirements.
-        for fn in os.listdir(base):
-            if fn.endswith(".egg"):
-                support_eggs.append(os.path.abspath(os.path.join(base, fn)))
+# we've found our home. Put the tahoe support/lib etc. in our PYTHONPATH.
+if sys.platform == "win32":
+    supportdir = os.path.join(base, "support", "Lib", "site-packages")
+else:
+    supportdir = os.path.join(base, "support",
+                              "lib",
+                              "python%d.%d" % sys.version_info[:2],
+                              "site-packages")
 
-        sys.path.extend(support_eggs)
+# update PYTHONPATH so that child processes (like twistd) will use this too
+pp = os.environ.get("PYTHONPATH")
+if pp:
+    pp = os.pathsep.join([supportdir] + pp.split(os.pathsep))
+else:
+    pp = supportdir
+os.environ["PYTHONPATH"] = pp
 
-        # also update PYTHONPATH so that child processes (like twistd) will
-        # use this too
-        pp = os.environ.get("PYTHONPATH")
-        if pp:
-            pp = os.pathsep.join([srcdir] + pp.split(os.pathsep) + support_eggs)
-        else:
-            pp = os.pathsep.join([srcdir] + support_eggs)
-        os.environ["PYTHONPATH"] = pp
+executable = os.path.join(base, "support", "bin", "tahoe")
 
-from allmydata.scripts import runner
-runner.run()
+try:
+    os.execve(executable, [executable] + sys.argv[1:], os.environ)
+except (OSError, IOError), le:
+    if le.args[0] == errno.ENOENT:
+        print "I am a \"bin/tahoe\" executable who is only for the convenience of running Tahoe from its source distribution -- I work only when run from the \"bin/\" subdirectory of a Tahoe source code distribution, and only if you have already run \"make\".  I just tried to run and could not find my brother, named \"../support/bin/tahoe\".  To run Tahoe when it is installed, please execute my brother, also named \"tahoe\", who gets installed into the appropriate place for executables when you run \"make install\"."
+        raise
+except Exception, le:
+    print "I am a \"bin/tahoe\" executable who is only for the convenience of running Tahoe from its source distribution -- I work only when run from the \"bin/\" subdirectory of a Tahoe source code distribution, and only if you have already run \"make\".  I just tried to invoke my brother, named \"../support/bin/tahoe\" and got an exception."
+    raise
+
+
