@@ -1,5 +1,5 @@
 
-# this Makefile requires GNU make
+# NOTE: this Makefile requires GNU make
 
 default: build
 
