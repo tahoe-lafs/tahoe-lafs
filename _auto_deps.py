@@ -5,6 +5,7 @@ install_requires=["zfec >= 1.1.0",
                   "nevow >= 0.6.0",
                   "zope.interface",
                   "twisted >= 2.4.0",
+                  "setuptools >= 0.6c8",
                   ]
 import sys
 if hasattr(sys, 'frozen'):
