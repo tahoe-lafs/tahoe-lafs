@@ -1830,8 +1830,9 @@ class MutableWatcher(service.MultiService):
     MAX_RETRIEVE_STATUSES = 20
     name = "mutable-watcher"
 
-    def __init__(self):
+    def __init__(self, stats_provider=None):
         service.MultiService.__init__(self)
+        self.stats_provider = stats_provider
         self._all_publish = weakref.WeakKeyDictionary()
         self._recent_publish_status = []
         self._all_retrieve = weakref.WeakKeyDictionary()
@@ -1840,6 +1841,9 @@ class MutableWatcher(service.MultiService):
     def notify_publish(self, p):
         self._all_publish[p] = None
         self._recent_publish_status.append(p.get_status())
+        if self.stats_provider:
+            self.stats_provider.count('mutable.files_published', 1)
+            #self.stats_provider.count('mutable.bytes_published', p._node.get_size())
         while len(self._recent_publish_status) > self.MAX_PUBLISH_STATUSES:
             self._recent_publish_status.pop(0)
 
@@ -1855,6 +1859,9 @@ class MutableWatcher(service.MultiService):
     def notify_retrieve(self, r):
         self._all_retrieve[r] = None
         self._recent_retrieve_status.append(r.get_status())
+        if self.stats_provider:
+            self.stats_provider.count('mutable.files_retrieved', 1)
+            #self.stats_provider.count('mutable.bytes_retrieved', r._node.get_size())
         while len(self._recent_retrieve_status) > self.MAX_RETRIEVE_STATUSES:
             self._recent_retrieve_status.pop(0)
 

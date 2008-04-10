@@ -1038,9 +1038,10 @@ class Downloader(service.MultiService):
     name = "downloader"
     MAX_DOWNLOAD_STATUSES = 10
 
-    def __init__(self):
+    def __init__(self, stats_provider=None):
         service.MultiService.__init__(self)
         self._all_downloads = weakref.WeakKeyDictionary()
+        self.stats_provider = stats_provider
         self._recent_download_status = []
 
     def download(self, u, t):
@@ -1050,6 +1051,11 @@ class Downloader(service.MultiService):
         t = IDownloadTarget(t)
         assert t.write
         assert t.close
+
+        if self.stats_provider:
+            self.stats_provider.count('downloader.files_downloaded', 1)
+            self.stats_provider.count('downloader.bytes_downloaded', u.get_size())
+
         if isinstance(u, uri.LiteralFileURI):
             dl = LiteralDownloader(self.parent, u, t)
         elif isinstance(u, uri.CHKFileURI):

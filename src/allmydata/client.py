@@ -159,10 +159,10 @@ class Client(node.Node, testutil.PollMixin):
         helper_furl = self.get_config("helper.furl")
         convergence_s = self.get_or_create_private_config('convergence', _make_secret)
         self.convergence = base32.a2b(convergence_s)
-        self.add_service(Uploader(helper_furl))
-        self.add_service(Downloader())
+        self.add_service(Uploader(helper_furl, self.stats_provider))
+        self.add_service(Downloader(self.stats_provider))
         self.add_service(Checker())
-        self.add_service(MutableWatcher())
+        self.add_service(MutableWatcher(self.stats_provider))
         def _publish(res):
             # we publish an empty object so that the introducer can count how
             # many clients are connected and see what versions they're

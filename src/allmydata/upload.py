@@ -1194,8 +1194,9 @@ class Uploader(service.MultiService):
     URI_LIT_SIZE_THRESHOLD = 55
     MAX_UPLOAD_STATUSES = 10
 
-    def __init__(self, helper_furl=None):
+    def __init__(self, helper_furl=None, stats_provider=None):
         self._helper_furl = helper_furl
+        self.stats_provider = stats_provider
         self._helper = None
         self._all_uploads = weakref.WeakKeyDictionary()
         self._recent_upload_status = []
@@ -1229,6 +1230,11 @@ class Uploader(service.MultiService):
             precondition(isinstance(default_params, dict), default_params)
             precondition("max_segment_size" in default_params, default_params)
             uploadable.set_default_encoding_parameters(default_params)
+
+            if self.stats_provider:
+                self.stats_provider.count('uploader.files_uploaded', 1)
+                self.stats_provider.count('uploader.bytes_uploaded', size)
+
             if size <= self.URI_LIT_SIZE_THRESHOLD:
                 uploader = LiteralUploader(self.parent)
             elif self._helper:
