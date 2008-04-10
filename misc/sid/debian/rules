@@ -9,9 +9,25 @@ include /usr/share/cdbs/1/class/python-distutils.mk
 
 STAGING_DIR=$(CURDIR)/debian/allmydata-tahoe
 
+# we overwrite the setuptools-generated /usr/bin/tahoe (located in
+# support/bin/tahoe after a 'make build') with a different version, because
+# the setuptools form (using "entry points") insists upon .egg-info -visible
+# forms of dependent packages to be installed. For a debian package, we rely
+# upon the dependencies that are declared in debian/control .
+#
+# To make sure the #! line matches the version of python that we're using for
+# this build, we copy it from the setuptools-generated /usr/bin/tahoe, then
+# add other code to the generated file.
+
 install/allmydata-tahoe::
 	mkdir -pm755 $(STAGING_DIR)
 	python setup.py install --root=$(STAGING_DIR)
+
+	head -1 $(STAGING_DIR)/usr/bin/tahoe >$(STAGING_DIR)/usr/bin/tahoe.new
+	echo "from allmydata.scripts import runner" >>$(STAGING_DIR)/usr/bin/tahoe.new
+	echo "runner.run()" >>$(STAGING_DIR)/usr/bin/tahoe.new
+	chmod +x $(STAGING_DIR)/usr/bin/tahoe.new
+	mv $(STAGING_DIR)/usr/bin/tahoe.new $(STAGING_DIR)/usr/bin/tahoe
 
 	dh_pycentral
 
