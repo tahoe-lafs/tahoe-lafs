@@ -1290,10 +1290,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             for ul in self.clients[0].list_recent_uploads():
                 if ul.get_size() > 200:
                     self._up_status = ul.get_counter()
-            rs = self.clients[0].list_recent_retrieve()[0]
-            self._retrieve_status = rs.get_counter()
-            ps = self.clients[0].list_recent_publish()[0]
-            self._publish_status = ps.get_counter()
+            #rs = self.clients[0].list_recent_retrieve()[0]
+            #self._retrieve_status = rs.get_counter()
+            #ps = self.clients[0].list_recent_publish()[0]
+            #self._publish_status = ps.get_counter()
 
             # and that there are some upload- and download- status pages
             return self.GET("status/up-%d" % self._up_status)
@@ -1303,76 +1303,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         d.addCallback(_got_up)
         def _got_down(res):
             return self.GET("status/publish-%d" % self._publish_status)
-        d.addCallback(_got_down)
+        #d.addCallback(_got_down)
         def _got_publish(res):
             return self.GET("status/retrieve-%d" % self._retrieve_status)
         d.addCallback(_got_publish)
-
-        # check that the helper status page exists
-        d.addCallback(lambda res:
-                      self.GET("helper_status", followRedirect=True))
-        def _got_helper_status(res):
-            self.failUnless("Bytes Fetched:" in res)
-            # touch a couple of files in the helper's working directory to
-            # exercise more code paths
-            workdir = os.path.join(self.getdir("client0"), "helper")
-            incfile = os.path.join(workdir, "CHK_incoming", "spurious")
-            f = open(incfile, "wb")
-            f.write("small file")
-            f.close()
-            then = time.time() - 86400*3
-            now = time.time()
-            os.utime(incfile, (now, then))
-            encfile = os.path.join(workdir, "CHK_encoding", "spurious")
-            f = open(encfile, "wb")
-            f.write("less small file")
-            f.close()
-            os.utime(encfile, (now, then))
-        d.addCallback(_got_helper_status)
-        # and that the json form exists
-        d.addCallback(lambda res:
-                      self.GET("helper_status?t=json", followRedirect=True))
-        def _got_helper_status_json(res):
-            data = simplejson.loads(res)
-            self.failUnlessEqual(data["chk_upload_helper.upload_need_upload"],
-                                 1)
-            self.failUnlessEqual(data["chk_upload_helper.incoming_count"], 1)
-            self.failUnlessEqual(data["chk_upload_helper.incoming_size"], 10)
-            self.failUnlessEqual(data["chk_upload_helper.incoming_size_old"],
-                                 10)
-            self.failUnlessEqual(data["chk_upload_helper.encoding_count"], 1)
-            self.failUnlessEqual(data["chk_upload_helper.encoding_size"], 15)
-            self.failUnlessEqual(data["chk_upload_helper.encoding_size_old"],
-                                 15)
-        d.addCallback(_got_helper_status_json)
-
-        # and check that client[3] (which uses a helper but does not run one
-        # itself) doesn't explode when you ask for its status
-        d.addCallback(lambda res: getPage(self.helper_webish_url + "status/"))
-        def _got_non_helper_status(res):
-            self.failUnless("Upload and Download Status" in res)
-        d.addCallback(_got_non_helper_status)
-
-        # or for helper status with t=json
-        d.addCallback(lambda res:
-                      getPage(self.helper_webish_url + "helper_status?t=json"))
-        def _got_non_helper_status_json(res):
-            data = simplejson.loads(res)
-            self.failUnlessEqual(data, {})
-        d.addCallback(_got_non_helper_status_json)
-
-        # see if the statistics page exists
-        d.addCallback(lambda res: self.GET("statistics"))
-        def _got_stats(res):
-            self.failUnless("Node Statistics" in res)
-            self.failUnless("  'downloader.files_downloaded': 8," in res)
-        d.addCallback(_got_stats)
-        d.addCallback(lambda res: self.GET("statistics?t=json"))
-        def _got_stats_json(res):
-            data = simplejson.loads(res)
-            self.failUnlessEqual(data["counters"]["uploader.files_uploaded"], 5)
-            self.failUnlessEqual(data["stats"]["chk_upload_helper.upload_need_upload"], 1)
-        d.addCallback(_got_stats_json)
 
         # TODO: mangle the second segment of a file, to test errors that
         # occur after we've already sent some good data, which uses a

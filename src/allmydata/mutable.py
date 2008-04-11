@@ -753,7 +753,6 @@ class ServermapUpdater:
             # files (since the privkey will be small enough to fit in the
             # write cap).
 
-            self._encprivkey_shares.append( (peerid, shnum, offset, length))
             return
 
         (seqnum, root_hash, IV, k, N, segsize, datalen,
@@ -766,7 +765,7 @@ class ServermapUpdater:
 
         alleged_privkey_s = self._node._decrypt_privkey(enc_privkey)
         alleged_writekey = hashutil.ssk_writekey_hash(alleged_privkey_s)
-        if alleged_writekey != self._writekey:
+        if alleged_writekey != self._node.get_writekey():
             self.log("invalid privkey from %s shnum %d" %
                      (idlib.nodeid_b2a(peerid)[:8], shnum), level=log.WEIRD)
             return
@@ -1376,6 +1375,11 @@ class Retrieve:
             self.log("Retrieve done, with failure", failure=res)
         else:
             self.log("Retrieve done, success!: res=%s" % (res,))
+            # remember the encoding parameters, use them again next time
+            (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
+             offsets_tuple) = self.verinfo
+            self._node._populate_required_shares(k)
+            self._node._populate_total_shares(N)
         eventually(self._done_deferred.callback, res)
 
 
@@ -1513,6 +1517,9 @@ class Publish:
             # initial publish
             self._new_seqnum = 1
             self._servermap = ServerMap()
+
+        self.log(format="new seqnum will be %(seqnum)d",
+                 seqnum=self._new_seqnum, level=log.NOISY)
 
         # having an up-to-date servermap (or using a filenode that was just
         # created for the first time) also guarantees that the following
@@ -2064,8 +2071,10 @@ class MutableFileNode:
         self._client = client
         self._pubkey = None # filled in upon first read
         self._privkey = None # filled in if we're mutable
-        self._required_shares = None # ditto
-        self._total_shares = None # ditto
+        # we keep track of the last encoding parameters that we use. These
+        # are updated upon retrieve, and used by publish. If we publish
+        # without ever reading (i.e. overwrite()), then we use these values.
+        (self._required_shares, self._total_shares) = self.DEFAULT_ENCODING
         self._sharemap = {} # known shares, shnum-to-[nodeids]
         self._cache = ResponseCache()
 
