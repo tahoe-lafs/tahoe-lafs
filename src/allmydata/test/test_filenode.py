@@ -1,6 +1,7 @@
 
 from twisted.trial import unittest
-from allmydata import filenode, uri, download, mutable
+from allmydata import filenode, uri, download
+from allmydata.mutable.node import MutableFileNode
 from allmydata.util import hashutil
 
 class NotANode:
@@ -66,7 +67,7 @@ class Node(unittest.TestCase):
         si = hashutil.ssk_storage_index_hash(rk)
 
         u = uri.WriteableSSKFileURI("\x00"*16, "\x00"*32)
-        n = mutable.MutableFileNode(client).init_from_uri(u)
+        n = MutableFileNode(client).init_from_uri(u)
 
         self.failUnlessEqual(n.get_writekey(), wk)
         self.failUnlessEqual(n.get_readkey(), rk)
@@ -82,7 +83,7 @@ class Node(unittest.TestCase):
         self.failUnlessEqual(n.is_mutable(), True)
         self.failUnlessEqual(n.is_readonly(), False)
 
-        n2 = mutable.MutableFileNode(client).init_from_uri(u)
+        n2 = MutableFileNode(client).init_from_uri(u)
         self.failUnlessEqual(n, n2)
         self.failIfEqual(n, "not even the right type")
         self.failIfEqual(n, u) # not the right class
@@ -91,7 +92,7 @@ class Node(unittest.TestCase):
         self.failUnlessEqual(len(d), 1)
 
         nro = n.get_readonly()
-        self.failUnless(isinstance(nro, mutable.MutableFileNode))
+        self.failUnless(isinstance(nro, MutableFileNode))
 
         self.failUnlessEqual(nro.get_readonly(), nro)
         nro_u = nro.get_uri()

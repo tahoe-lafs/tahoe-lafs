@@ -8,13 +8,14 @@ from twisted.internet import threads # CLI tests use deferToThread
 from twisted.internet.error import ConnectionDone, ConnectionLost
 from twisted.application import service
 import allmydata
-from allmydata import client, uri, download, upload, storage, mutable, offloaded
+from allmydata import client, uri, download, upload, storage, offloaded
 from allmydata.introducer import IntroducerNode
 from allmydata.util import deferredutil, fileutil, idlib, mathutil, testutil
 from allmydata.util import log
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
-from allmydata.mutable import NotMutableError
+from allmydata.mutable.common import NotMutableError
+from allmydata.mutable import layout as mutable_layout
 from allmydata.stats import PickleStatsGatherer
 from allmydata.key_generator import KeyGeneratorService
 from foolscap.eventual import flushEventualQueue, fireEventually
@@ -576,7 +577,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         datav = msf.readv([ (0, 1000000) ])
         final_share = datav[0]
         assert len(final_share) < 1000000 # ought to be truncated
-        pieces = mutable.unpack_share(final_share)
+        pieces = mutable_layout.unpack_share(final_share)
         (seqnum, root_hash, IV, k, N, segsize, datalen,
          verification_key, signature, share_hash_chain, block_hash_tree,
          share_data, enc_privkey) = pieces
@@ -603,15 +604,15 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         elif which == "encprivkey":
             enc_privkey = self.flip_bit(enc_privkey)
 
-        prefix = mutable.pack_prefix(seqnum, root_hash, IV, k, N,
-                                     segsize, datalen)
-        final_share = mutable.pack_share(prefix,
-                                         verification_key,
-                                         signature,
-                                         share_hash_chain,
-                                         block_hash_tree,
-                                         share_data,
-                                         enc_privkey)
+        prefix = mutable_layout.pack_prefix(seqnum, root_hash, IV, k, N,
+                                            segsize, datalen)
+        final_share = mutable_layout.pack_share(prefix,
+                                                verification_key,
+                                                signature,
+                                                share_hash_chain,
+                                                block_hash_tree,
+                                                share_data,
+                                                enc_privkey)
         msf.writev( [(0, final_share)], None)
 
     def test_mutable(self):

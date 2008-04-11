@@ -143,7 +143,8 @@ def dump_mutable_share(config, out, err):
     return 0
 
 def dump_SDMF_share(offset, length, config, out, err):
-    from allmydata import mutable
+    from allmydata.mutable.layout import unpack_share
+    from allmydata.mutable.common import NeedMoreDataError
     from allmydata.util import base32
 
     f = open(config['filename'], "rb")
@@ -152,15 +153,15 @@ def dump_SDMF_share(offset, length, config, out, err):
     f.close()
 
     try:
-        pieces = mutable.unpack_share(data)
-    except mutable.NeedMoreDataError, e:
+        pieces = unpack_share(data)
+    except NeedMoreDataError, e:
         # retry once with the larger size
         size = e.needed_bytes
         f = open(config['filename'], "rb")
         f.seek(offset)
         data = f.read(min(length, size))
         f.close()
-        pieces = mutable.unpack_share(data)
+        pieces = unpack_share(data)
 
     (seqnum, root_hash, IV, k, N, segsize, datalen,
      pubkey, signature, share_hash_chain, block_hash_tree,
@@ -356,7 +357,9 @@ class CatalogSharesOptions(usage.Options):
         self.nodedirs = nodedirs
 
 def describe_share(abs_sharefile, si_s, shnum_s, now, out, err):
-    from allmydata import uri, storage, mutable
+    from allmydata import uri, storage
+    from allmydata.mutable.layout import unpack_share
+    from allmydata.mutable.common import NeedMoreDataError
     from allmydata.util import base32
     import struct
 
@@ -389,13 +392,13 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out, err):
             data = f.read(min(data_length, 2000))
 
             try:
-                pieces = mutable.unpack_share(data)
-            except mutable.NeedMoreDataError, e:
+                pieces = unpack_share(data)
+            except NeedMoreDataError, e:
                 # retry once with the larger size
                 size = e.needed_bytes
                 f.seek(m.DATA_OFFSET)
                 data = f.read(min(data_length, size))
-                pieces = mutable.unpack_share(data)
+                pieces = unpack_share(data)
             (seqnum, root_hash, IV, k, N, segsize, datalen,
              pubkey, signature, share_hash_chain, block_hash_tree,
              share_data, enc_privkey) = pieces

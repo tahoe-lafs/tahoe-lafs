@@ -4,15 +4,14 @@ import os, time
 from zope.interface import implements
 from twisted.internet import defer
 import simplejson
-from allmydata.mutable import NotMutableError
+from allmydata.mutable.common import NotMutableError
+from allmydata.mutable.node import MutableFileNode
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
      IURI, IFileNode, IMutableFileURI, IVerifierURI, IFilesystemNode
 from allmydata.util import hashutil
 from allmydata.util.hashutil import netstring
 from allmydata.uri import NewDirectoryURI
 from pycryptopp.cipher.aes import AES
-
-from allmydata.mutable import MutableFileNode
 
 def split_netstring(data, numstrings, allow_leftover=False):
     """like string.split(), but extracts netstrings. If allow_leftover=False,

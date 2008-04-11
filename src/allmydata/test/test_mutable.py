@@ -4,7 +4,7 @@ from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python import failure
-from allmydata import mutable, uri, download
+from allmydata import uri, download
 from allmydata.util import base32
 from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash
@@ -14,11 +14,19 @@ from foolscap.eventual import eventually, fireEventually
 from foolscap.logging import log
 import sha
 
+from allmydata.mutable.node import MutableFileNode
+from allmydata.mutable.common import DictOfSets, ResponseCache, \
+     MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_ENOUGH
+from allmydata.mutable.retrieve import Retrieve
+from allmydata.mutable.publish import Publish
+from allmydata.mutable.servermap import ServerMap, ServermapUpdater
+from allmydata.mutable.layout import unpack_header, unpack_share
+
 # this "FastMutableFileNode" exists solely to speed up tests by using smaller
 # public/private keys. Once we switch to fast DSA-based keys, we can get rid
 # of this.
 
-class FastMutableFileNode(mutable.MutableFileNode):
+class FastMutableFileNode(MutableFileNode):
     SIGNATURE_KEY_SIZE = 522
 
 # this "FakeStorage" exists to put the share data in RAM and avoid using real
@@ -29,7 +37,7 @@ class FakeStorage:
     # this class replaces the collection of storage servers, allowing the
     # tests to examine and manipulate the published shares. It also lets us
     # control the order in which read queries are answered, to exercise more
-    # of the error-handling code in mutable.Retrieve .
+    # of the error-handling code in Retrieve .
     #
     # Note that we ignore the storage index: this FakeStorage instance can
     # only be used for a single storage index.
@@ -242,7 +250,7 @@ class Filenode(unittest.TestCase):
         return d
 
     def test_upload_and_download_full_size_keys(self):
-        self.client.mutable_file_node_class = mutable.MutableFileNode
+        self.client.mutable_file_node_class = MutableFileNode
         d = self.client.create_mutable_file()
         def _created(n):
             d = defer.succeed(None)
@@ -267,14 +275,14 @@ class Filenode(unittest.TestCase):
         return d
 
 
-class Publish(unittest.TestCase):
+class MakeShares(unittest.TestCase):
     def test_encrypt(self):
         c = FakeClient()
         fn = FastMutableFileNode(c)
         CONTENTS = "some initial contents"
         d = fn.create(CONTENTS)
         def _created(res):
-            p = mutable.Publish(fn, None)
+            p = Publish(fn, None)
             p.salt = "SALT" * 4
             p.readkey = "\x00" * 16
             p.newdata = CONTENTS
@@ -323,7 +331,7 @@ class Publish(unittest.TestCase):
             for i,sh in final_shares.items():
                 self.failUnless(isinstance(sh, str))
                 # feed the share through the unpacker as a sanity-check
-                pieces = mutable.unpack_share(sh)
+                pieces = unpack_share(sh)
                 (u_seqnum, u_root_hash, IV, k, N, segsize, datalen,
                  pubkey, signature, share_hash_chain, block_hash_tree,
                  share_data, enc_privkey) = pieces
@@ -370,13 +378,13 @@ class Servermap(unittest.TestCase):
         d.addCallback(_created)
         return d
 
-    def make_servermap(self, mode=mutable.MODE_CHECK):
-        smu = mutable.ServermapUpdater(self._fn, mutable.ServerMap(), mode)
+    def make_servermap(self, mode=MODE_CHECK):
+        smu = ServermapUpdater(self._fn, ServerMap(), mode)
         d = smu.update()
         return d
 
-    def update_servermap(self, oldmap, mode=mutable.MODE_CHECK):
-        smu = mutable.ServermapUpdater(self._fn, oldmap, mode)
+    def update_servermap(self, oldmap, mode=MODE_CHECK):
+        smu = ServermapUpdater(self._fn, oldmap, mode)
         d = smu.update()
         return d
 
@@ -395,14 +403,14 @@ class Servermap(unittest.TestCase):
         ms = self.make_servermap
         us = self.update_servermap
 
-        d.addCallback(lambda res: ms(mode=mutable.MODE_CHECK))
+        d.addCallback(lambda res: ms(mode=MODE_CHECK))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
-        d.addCallback(lambda res: ms(mode=mutable.MODE_WRITE))
+        d.addCallback(lambda res: ms(mode=MODE_WRITE))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
-        d.addCallback(lambda res: ms(mode=mutable.MODE_ENOUGH))
+        d.addCallback(lambda res: ms(mode=MODE_ENOUGH))
         # this more stops at k+epsilon, and epsilon=k, so 6 shares
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 6))
-        d.addCallback(lambda res: ms(mode=mutable.MODE_ANYTHING))
+        d.addCallback(lambda res: ms(mode=MODE_ANYTHING))
         # this mode stops at 'k' shares
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 3))
 
@@ -410,12 +418,12 @@ class Servermap(unittest.TestCase):
         # increasing order of number of servers queried, since once a server
         # gets into the servermap, we'll always ask it for an update.
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 3))
-        d.addCallback(lambda sm: us(sm, mode=mutable.MODE_ENOUGH))
+        d.addCallback(lambda sm: us(sm, mode=MODE_ENOUGH))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 6))
-        d.addCallback(lambda sm: us(sm, mode=mutable.MODE_WRITE))
-        d.addCallback(lambda sm: us(sm, mode=mutable.MODE_CHECK))
+        d.addCallback(lambda sm: us(sm, mode=MODE_WRITE))
+        d.addCallback(lambda sm: us(sm, mode=MODE_CHECK))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
-        d.addCallback(lambda sm: us(sm, mode=mutable.MODE_ANYTHING))
+        d.addCallback(lambda sm: us(sm, mode=MODE_ANYTHING))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
 
         return d
@@ -432,16 +440,16 @@ class Servermap(unittest.TestCase):
         ms = self.make_servermap
         d = defer.succeed(None)
 
-        d.addCallback(lambda res: ms(mode=mutable.MODE_CHECK))
+        d.addCallback(lambda res: ms(mode=MODE_CHECK))
         d.addCallback(lambda sm: self.failUnlessNoneRecoverable(sm))
 
-        d.addCallback(lambda res: ms(mode=mutable.MODE_ANYTHING))
+        d.addCallback(lambda res: ms(mode=MODE_ANYTHING))
         d.addCallback(lambda sm: self.failUnlessNoneRecoverable(sm))
 
-        d.addCallback(lambda res: ms(mode=mutable.MODE_WRITE))
+        d.addCallback(lambda res: ms(mode=MODE_WRITE))
         d.addCallback(lambda sm: self.failUnlessNoneRecoverable(sm))
 
-        d.addCallback(lambda res: ms(mode=mutable.MODE_ENOUGH))
+        d.addCallback(lambda res: ms(mode=MODE_ENOUGH))
         d.addCallback(lambda sm: self.failUnlessNoneRecoverable(sm))
 
         return d
@@ -468,13 +476,13 @@ class Servermap(unittest.TestCase):
 
         d = defer.succeed(None)
 
-        d.addCallback(lambda res: ms(mode=mutable.MODE_CHECK))
+        d.addCallback(lambda res: ms(mode=MODE_CHECK))
         d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
-        d.addCallback(lambda res: ms(mode=mutable.MODE_ANYTHING))
+        d.addCallback(lambda res: ms(mode=MODE_ANYTHING))
         d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
-        d.addCallback(lambda res: ms(mode=mutable.MODE_WRITE))
+        d.addCallback(lambda res: ms(mode=MODE_WRITE))
         d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
-        d.addCallback(lambda res: ms(mode=mutable.MODE_ENOUGH))
+        d.addCallback(lambda res: ms(mode=MODE_ENOUGH))
         d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
 
         return d
@@ -495,10 +503,10 @@ class Roundtrip(unittest.TestCase):
         d.addCallback(_created)
         return d
 
-    def make_servermap(self, mode=mutable.MODE_ENOUGH, oldmap=None):
+    def make_servermap(self, mode=MODE_ENOUGH, oldmap=None):
         if oldmap is None:
-            oldmap = mutable.ServerMap()
-        smu = mutable.ServermapUpdater(self._fn, oldmap, mode)
+            oldmap = ServerMap()
+        smu = ServermapUpdater(self._fn, oldmap, mode)
         d = smu.update()
         return d
 
@@ -527,7 +535,7 @@ class Roundtrip(unittest.TestCase):
     def do_download(self, servermap, version=None):
         if version is None:
             version = servermap.best_recoverable_version()
-        r = mutable.Retrieve(self._fn, servermap, version)
+        r = Retrieve(self._fn, servermap, version)
         return r.download()
 
     def test_basic(self):
@@ -595,7 +603,7 @@ class Roundtrip(unittest.TestCase):
                  root_hash,
                  IV,
                  k, N, segsize, datalen,
-                 o) = mutable.unpack_header(data)
+                 o) = unpack_header(data)
                 if isinstance(offset, tuple):
                     offset1, offset2 = offset
                 else:
@@ -629,7 +637,7 @@ class Roundtrip(unittest.TestCase):
                     allproblems = [str(f) for f in servermap.problems]
                     self.failUnless(substring in "".join(allproblems))
                 return
-            r = mutable.Retrieve(self._fn, servermap, ver)
+            r = Retrieve(self._fn, servermap, ver)
             if should_succeed:
                 d1 = r.download()
                 d1.addCallback(lambda new_contents:
@@ -732,7 +740,7 @@ class Roundtrip(unittest.TestCase):
             self.failUnless("pubkey doesn't match fingerprint"
                             in str(servermap.problems[0]))
             ver = servermap.best_recoverable_version()
-            r = mutable.Retrieve(self._fn, servermap, ver)
+            r = Retrieve(self._fn, servermap, ver)
             return r.download()
         d.addCallback(_do_retrieve)
         d.addCallback(lambda new_contents:
@@ -773,7 +781,7 @@ class MultipleEncodings(unittest.TestCase):
 
         s = self._client._storage
         s._peers = {} # clear existing storage
-        p2 = mutable.Publish(fn2, None)
+        p2 = Publish(fn2, None)
         d = p2.publish(data)
         def _published(res):
             shares = s._peers
@@ -782,10 +790,10 @@ class MultipleEncodings(unittest.TestCase):
         d.addCallback(_published)
         return d
 
-    def make_servermap(self, mode=mutable.MODE_ENOUGH, oldmap=None):
+    def make_servermap(self, mode=MODE_ENOUGH, oldmap=None):
         if oldmap is None:
-            oldmap = mutable.ServerMap()
-        smu = mutable.ServermapUpdater(self._fn, oldmap, mode)
+            oldmap = ServerMap()
+        smu = ServermapUpdater(self._fn, oldmap, mode)
         d = smu.update()
         return d
 
@@ -887,7 +895,7 @@ class MultipleEncodings(unittest.TestCase):
 
 class Utils(unittest.TestCase):
     def test_dict_of_sets(self):
-        ds = mutable.DictOfSets()
+        ds = DictOfSets()
         ds.add(1, "a")
         ds.add(2, "b")
         ds.add(2, "b")
@@ -910,7 +918,7 @@ class Utils(unittest.TestCase):
                              str((x_start, x_length, y_start, y_length)))
 
     def test_cache_inside(self):
-        c = mutable.ResponseCache()
+        c = ResponseCache()
         x_start = 10
         x_length = 5
         for y_start in range(8, 17):
@@ -927,7 +935,7 @@ class Utils(unittest.TestCase):
                              str((x_start, x_length, y_start, y_length)))
 
     def test_cache_overlap(self):
-        c = mutable.ResponseCache()
+        c = ResponseCache()
         x_start = 10
         x_length = 5
         for y_start in range(8, 17):
@@ -935,7 +943,7 @@ class Utils(unittest.TestCase):
                 self._do_overlap(c, x_start, x_length, y_start, y_length)
 
     def test_cache(self):
-        c = mutable.ResponseCache()
+        c = ResponseCache()
         # xdata = base62.b2a(os.urandom(100))[:100]
         xdata = "1Ex4mdMaDyOl9YnGBM3I4xaBF97j8OQAg1K3RBR01F2PwTP4HohB3XpACuku8Xj4aTQjqJIR1f36mEj3BCNjXaJmPBEZnnHL0U9l"
         ydata = "4DCUQXvkEPnnr9Lufikq5t21JsnzZKhzxKBhLhrBB6iIcBOWRuT4UweDhjuKJUre8A4wOObJnl3Kiqmlj4vjSLSqUGAkUD87Y3vs"
@@ -962,7 +970,7 @@ class Utils(unittest.TestCase):
         self.failUnlessEqual(c.read("v1", 1, 1999, 25), nope)
 
         # optional: join fragments
-        c = mutable.ResponseCache()
+        c = ResponseCache()
         c.add("v1", 1, 0, xdata[:10], "time0")
         c.add("v1", 1, 10, xdata[10:20], "time1")
         #self.failUnlessEqual(c.read("v1", 1, 0, 20), (xdata[:20], "time0"))
