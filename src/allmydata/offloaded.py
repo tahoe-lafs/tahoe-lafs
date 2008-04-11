@@ -377,7 +377,9 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
                 self._f.write(data)
                 self._have += len(data)
                 self._ciphertext_fetched += len(data)
-                self._upload_helper._helper._stats["CHK_fetched_bytes"] += len(data)
+                stats_provider = self._upload_helper._helper.stats_provider
+                if stats_provider:
+                    stats_provider.count("chk_upload_helper.fetched_bytes", len(data))
             return False # not done
         d.addCallback(_got_data)
         return d
@@ -476,39 +478,10 @@ class Helper(Referenceable, service.MultiService):
         self._active_uploads = {}
         if stats_provider:
             stats_provider.register_producer(self)
-        self._stats = {"CHK_upload_requests": 0,
-                       "CHK_upload_already_present": 0,
-                       "CHK_upload_need_upload": 0,
-                       "CHK_fetched_bytes": 0,
-                       "CHK_encoded_bytes": 0,
-                       }
         service.MultiService.__init__(self)
 
     def setServiceParent(self, parent):
         service.MultiService.setServiceParent(self, parent)
-        stats = parent.stats_provider
-        if stats:
-            stats.register_producer(self)
-
-    def get_stats(self):
-        chk_incoming_files, chk_incoming_size = 0,0
-        chk_encoding_files, chk_encoding_size = 0,0
-        for fn in os.listdir(self._chk_incoming):
-            size = os.stat(os.path.join(self._chk_incoming, fn))[stat.ST_SIZE]
-            chk_incoming_files += 1
-            chk_incoming_size += size
-        for fn in os.listdir(self._chk_encoding):
-            size = os.stat(os.path.join(self._chk_encoding, fn))[stat.ST_SIZE]
-            chk_encoding_files += 1
-            chk_encoding_size += size
-        stats = {"CHK_active_uploads": len(self._active_uploads),
-                 "CHK_incoming_files": chk_incoming_files,
-                 "CHK_incoming_size": chk_incoming_size,
-                 "CHK_encoding_files": chk_encoding_files,
-                 "CHK_encoding_size": chk_encoding_size,
-                 }
-        stats.update(self._stats)
-        return {"helper": stats}
 
     def log(self, *args, **kwargs):
         if 'facility' not in kwargs:
@@ -538,16 +511,18 @@ class Helper(Referenceable, service.MultiService):
             enc_size += size
             if now - mtime > OLD:
                 enc_size_old += size
-        return { 'chk_upload_helper.inc_count': inc_count,
-                 'chk_upload_helper.inc_size': inc_size,
-                 'chk_upload_helper.inc_size_old': inc_size_old,
-                 'chk_upload_helper.enc_count': enc_count,
-                 'chk_upload_helper.enc_size': enc_size,
-                 'chk_upload_helper.enc_size_old': enc_size_old,
+        return { 'chk_upload_helper.active_uploads': len(self._active_uploads),
+                 'chk_upload_helper.incoming_count': inc_count,
+                 'chk_upload_helper.incoming_size': inc_size,
+                 'chk_upload_helper.incoming_size_old': inc_size_old,
+                 'chk_upload_helper.encoding_count': enc_count,
+                 'chk_upload_helper.encoding_size': enc_size,
+                 'chk_upload_helper.encoding_size_old': enc_size_old,
                }
 
     def remote_upload_chk(self, storage_index):
-        self._stats["CHK_upload_requests"] += 1
+        if self.stats_provider:
+            self.stats_provider.count("chk_upload_helper.upload_requests")
         r = upload.UploadResults()
         started = time.time()
         si_s = storage.si_b2a(storage_index)
@@ -565,11 +540,13 @@ class Helper(Referenceable, service.MultiService):
             r.timings['existence_check'] = elapsed
             if already_present:
                 # the necessary results are placed in the UploadResults
-                self._stats["CHK_upload_already_present"] += 1
+                if self.stats_provider:
+                    self.stats_provider.count("chk_upload_helper.upload_already_present")
                 self.log("file already found in grid", parent=lp)
                 return (r, None)
 
-            self._stats["CHK_upload_need_upload"] += 1
+            if self.stats_provider:
+                self.stats_provider.count("chk_upload_helper.upload_need_upload")
             # the file is not present in the grid, by which we mean there are
             # less than 'N' shares available.
             self.log("unable to find file in the grid", parent=lp,
@@ -620,5 +597,6 @@ class Helper(Referenceable, service.MultiService):
         return d
 
     def upload_finished(self, storage_index, size):
-        self._stats["CHK_encoded_bytes"] += size
+        if self.stats_provider:
+            self.stats_provider.count("chk_upload_helper.encoded_bytes", size)
         del self._active_uploads[storage_index]

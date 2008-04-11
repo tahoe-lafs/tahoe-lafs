@@ -96,7 +96,7 @@ class StatsProvider(foolscap.Referenceable, service.MultiService):
             d.addCallback(connect)
         service.MultiService.startService(self)
 
-    def count(self, name, delta):
+    def count(self, name, delta=1):
         val = self.counters.setdefault(name, 0)
         self.counters[name] = val + delta
 
