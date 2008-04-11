@@ -1,57 +1,29 @@
 
-import itertools, struct, re
+import struct
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python import failure
-from allmydata import mutable, uri, dirnode, download
+from allmydata import mutable, uri, download
 from allmydata.util import base32
 from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash
 from allmydata.encode import NotEnoughPeersError
-from allmydata.interfaces import IURI, INewDirectoryURI, \
-     IMutableFileURI, IUploadable, IFileURI
-from allmydata.filenode import LiteralFileNode
+from allmydata.interfaces import IURI, IMutableFileURI, IUploadable
 from foolscap.eventual import eventually, fireEventually
 from foolscap.logging import log
 import sha
 
-#from allmydata.test.common import FakeMutableFileNode
-#FakeFilenode = FakeMutableFileNode
+# this "FastMutableFileNode" exists solely to speed up tests by using smaller
+# public/private keys. Once we switch to fast DSA-based keys, we can get rid
+# of this.
 
-class FakeFilenode(mutable.MutableFileNode):
-    counter = itertools.count(1)
-    all_contents = {}
-    all_rw_friends = {}
+class FastMutableFileNode(mutable.MutableFileNode):
+    SIGNATURE_KEY_SIZE = 522
 
-    def create(self, initial_contents):
-        d = mutable.MutableFileNode.create(self, initial_contents)
-        def _then(res):
-            self.all_contents[self.get_uri()] = initial_contents
-            return res
-        d.addCallback(_then)
-        return d
-    def init_from_uri(self, myuri):
-        mutable.MutableFileNode.init_from_uri(self, myuri)
-        return self
-    def _generate_pubprivkeys(self, key_size):
-        count = self.counter.next()
-        return FakePubKey(count), FakePrivKey(count)
-    def _publish(self, initial_contents):
-        self.all_contents[self.get_uri()] = initial_contents
-        return defer.succeed(self)
-
-    def download_to_data(self):
-        if self.is_readonly():
-            assert self.all_rw_friends.has_key(self.get_uri()), (self.get_uri(), id(self.all_rw_friends))
-            return defer.succeed(self.all_contents[self.all_rw_friends[self.get_uri()]])
-        else:
-            return defer.succeed(self.all_contents[self.get_uri()])
-    def update(self, newdata):
-        self.all_contents[self.get_uri()] = newdata
-        return defer.succeed(None)
-    def overwrite(self, newdata):
-        return self.update(newdata)
+# this "FakeStorage" exists to put the share data in RAM and avoid using real
+# network connections, both to speed up the tests and to reduce the amount of
+# non-mutable.py code being exercised.
 
 class FakeStorage:
     # this class replaces the collection of storage servers, allowing the
@@ -77,7 +49,7 @@ class FakeStorage:
     def read(self, peerid, storage_index):
         shares = self._peers.get(peerid, {})
         if self._sequence is None:
-            return shares
+            return defer.succeed(shares)
         d = defer.Deferred()
         if not self._pending:
             reactor.callLater(1.0, self._fire_readers)
@@ -106,42 +78,68 @@ class FakeStorage:
         shares[shnum] = f.getvalue()
 
 
-class FakePublish(mutable.Publish):
-
-    def _do_read(self, ss, peerid, storage_index, shnums, readv):
-        assert ss[0] == peerid
-        assert shnums == []
+class FakeStorageServer:
+    def __init__(self, peerid, storage):
+        self.peerid = peerid
+        self.storage = storage
+        self.queries = 0
+    def callRemote(self, methname, *args, **kwargs):
+        def _call():
+            meth = getattr(self, methname)
+            return meth(*args, **kwargs)
         d = fireEventually()
-        d.addCallback(lambda res: self._storage.read(peerid, storage_index))
+        d.addCallback(lambda res: _call())
         return d
 
-    def _do_testreadwrite(self, peerid, secrets,
-                          tw_vectors, read_vector):
-        storage_index = self._node._uri.storage_index
+    def slot_readv(self, storage_index, shnums, readv):
+        d = self.storage.read(self.peerid, storage_index)
+        def _read(shares):
+            response = {}
+            for shnum in shares:
+                if shnums and shnum not in shnums:
+                    continue
+                vector = response[shnum] = []
+                for (offset, length) in readv:
+                    assert isinstance(offset, (int, long)), offset
+                    assert isinstance(length, (int, long)), length
+                    vector.append(shares[shnum][offset:offset+length])
+            return response
+        d.addCallback(_read)
+        return d
+
+    def slot_testv_and_readv_and_writev(self, storage_index, secrets,
+                                        tw_vectors, read_vector):
         # always-pass: parrot the test vectors back to them.
         readv = {}
         for shnum, (testv, writev, new_length) in tw_vectors.items():
             for (offset, length, op, specimen) in testv:
                 assert op in ("le", "eq", "ge")
+            # TODO: this isn't right, the read is controlled by read_vector,
+            # not by testv
             readv[shnum] = [ specimen
                              for (offset, length, op, specimen)
                              in testv ]
             for (offset, data) in writev:
-                self._storage.write(peerid, storage_index, shnum, offset, data)
+                self.storage.write(self.peerid, storage_index, shnum,
+                                   offset, data)
         answer = (True, readv)
-        return defer.succeed(answer)
+        return fireEventually(answer)
 
 
-
-
-class FakeNewDirectoryNode(dirnode.NewDirectoryNode):
-    filenode_class = FakeFilenode
+# our "FakeClient" has just enough functionality of the real Client to let
+# the tests run.
 
 class FakeClient:
+    mutable_file_node_class = FastMutableFileNode
+
     def __init__(self, num_peers=10):
+        self._storage = FakeStorage()
         self._num_peers = num_peers
         self._peerids = [tagged_hash("peerid", "%d" % i)[:20]
                          for i in range(self._num_peers)]
+        self._connections = dict([(peerid, FakeStorageServer(peerid,
+                                                             self._storage))
+                                  for peerid in self._peerids])
         self.nodeid = "fakenodeid"
 
     def log(self, msg, **kw):
@@ -152,17 +150,8 @@ class FakeClient:
     def get_cancel_secret(self):
         return "I hereby permit you to cancel my leases"
 
-    def create_empty_dirnode(self):
-        n = FakeNewDirectoryNode(self)
-        d = n.create()
-        d.addCallback(lambda res: n)
-        return d
-
-    def create_dirnode_from_uri(self, u):
-        return FakeNewDirectoryNode(self).init_from_uri(u)
-
     def create_mutable_file(self, contents=""):
-        n = FakeFilenode(self)
+        n = self.mutable_file_node_class(self)
         d = n.create(contents)
         d.addCallback(lambda res: n)
         return d
@@ -172,25 +161,16 @@ class FakeClient:
 
     def create_node_from_uri(self, u):
         u = IURI(u)
-        if INewDirectoryURI.providedBy(u):
-            return self.create_dirnode_from_uri(u)
-        if IFileURI.providedBy(u):
-            if isinstance(u, uri.LiteralFileURI):
-                return LiteralFileNode(u, self)
-            else:
-                # CHK
-                raise RuntimeError("not simulated")
         assert IMutableFileURI.providedBy(u), u
-        res = FakeFilenode(self).init_from_uri(u)
+        res = self.mutable_file_node_class(self).init_from_uri(u)
         return res
 
     def get_permuted_peers(self, service_name, key):
         """
         @return: list of (peerid, connection,)
         """
-        peers_and_connections = [(pid, (pid,)) for pid in self._peerids]
         results = []
-        for peerid, connection in peers_and_connections:
+        for (peerid, connection) in self._connections.items():
             assert isinstance(peerid, str)
             permuted = sha.new(key + peerid).digest()
             results.append((permuted, peerid, connection))
@@ -205,32 +185,10 @@ class FakeClient:
         #d.addCallback(self.create_mutable_file)
         def _got_data(datav):
             data = "".join(datav)
-            #newnode = FakeFilenode(self)
+            #newnode = FastMutableFileNode(self)
             return uri.LiteralFileURI(data)
         d.addCallback(_got_data)
         return d
-
-class FakePubKey:
-    def __init__(self, count):
-        self.count = count
-    def serialize(self):
-        return "PUBKEY-%d" % self.count
-    def verify(self, msg, signature):
-        if signature[:5] != "SIGN(":
-            return False
-        if signature[5:-1] != msg:
-            return False
-        if signature[-1] != ")":
-            return False
-        return True
-
-class FakePrivKey:
-    def __init__(self, count):
-        self.count = count
-    def serialize(self):
-        return "PRIVKEY-%d" % self.count
-    def sign(self, data):
-        return "SIGN(%s)" % data
 
 
 class Filenode(unittest.TestCase):
@@ -240,7 +198,22 @@ class Filenode(unittest.TestCase):
     def test_create(self):
         d = self.client.create_mutable_file()
         def _created(n):
-            d = n.overwrite("contents 1")
+            self.failUnless(isinstance(n, FastMutableFileNode))
+            peer0 = self.client._peerids[0]
+            shnums = self.client._storage._peers[peer0].keys()
+            self.failUnlessEqual(len(shnums), 1)
+        d.addCallback(_created)
+        return d
+
+    def test_upload_and_download(self):
+        d = self.client.create_mutable_file()
+        def _created(n):
+            d = defer.succeed(None)
+            d.addCallback(lambda res: n.update_servermap())
+            d.addCallback(lambda smap: smap.dump(StringIO()))
+            d.addCallback(lambda sio:
+                          self.failUnless("3-of-10" in sio.getvalue()))
+            d.addCallback(lambda res: n.overwrite("contents 1"))
             d.addCallback(lambda res: self.failUnlessIdentical(res, None))
             d.addCallback(lambda res: n.download_to_data())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
@@ -268,40 +241,61 @@ class Filenode(unittest.TestCase):
         d.addCallback(_created)
         return d
 
+    def test_upload_and_download_full_size_keys(self):
+        self.client.mutable_file_node_class = mutable.MutableFileNode
+        d = self.client.create_mutable_file()
+        def _created(n):
+            d = defer.succeed(None)
+            d.addCallback(lambda res: n.update_servermap())
+            d.addCallback(lambda smap: smap.dump(StringIO()))
+            d.addCallback(lambda sio:
+                          self.failUnless("3-of-10" in sio.getvalue()))
+            d.addCallback(lambda res: n.overwrite("contents 1"))
+            d.addCallback(lambda res: self.failUnlessIdentical(res, None))
+            d.addCallback(lambda res: n.download_to_data())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
+            d.addCallback(lambda res: n.overwrite("contents 2"))
+            d.addCallback(lambda res: n.download_to_data())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
+            d.addCallback(lambda res: n.download(download.Data()))
+            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
+            d.addCallback(lambda res: n.update("contents 3"))
+            d.addCallback(lambda res: n.download_to_data())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 3"))
+            return d
+        d.addCallback(_created)
+        return d
+
 
 class Publish(unittest.TestCase):
     def test_encrypt(self):
         c = FakeClient()
-        fn = FakeFilenode(c)
-        # .create usually returns a Deferred, but we happen to know it's
-        # synchronous
+        fn = FastMutableFileNode(c)
         CONTENTS = "some initial contents"
-        fn.create(CONTENTS)
-        p = mutable.Publish(fn)
-        target_info = None
-        d = defer.maybeDeferred(p._encrypt_and_encode, target_info,
-                                CONTENTS, "READKEY", "IV"*8, 3, 10)
-        def _done( ((shares, share_ids),
-                    required_shares, total_shares,
-                    segsize, data_length, target_info2) ):
+        d = fn.create(CONTENTS)
+        def _created(res):
+            p = mutable.Publish(fn, None)
+            p.salt = "SALT" * 4
+            p.readkey = "\x00" * 16
+            p.newdata = CONTENTS
+            p.required_shares = 3
+            p.total_shares = 10
+            p.setup_encoding_parameters()
+            return p._encrypt_and_encode()
+        d.addCallback(_created)
+        def _done(shares_and_shareids):
+            (shares, share_ids) = shares_and_shareids
             self.failUnlessEqual(len(shares), 10)
             for sh in shares:
                 self.failUnless(isinstance(sh, str))
                 self.failUnlessEqual(len(sh), 7)
             self.failUnlessEqual(len(share_ids), 10)
-            self.failUnlessEqual(required_shares, 3)
-            self.failUnlessEqual(total_shares, 10)
-            self.failUnlessEqual(segsize, 21)
-            self.failUnlessEqual(data_length, len(CONTENTS))
-            self.failUnlessIdentical(target_info, target_info2)
         d.addCallback(_done)
         return d
 
     def test_generate(self):
         c = FakeClient()
-        fn = FakeFilenode(c)
-        # .create usually returns a Deferred, but we happen to know it's
-        # synchronous
+        fn = FastMutableFileNode(c)
         CONTENTS = "some initial contents"
         fn.create(CONTENTS)
         p = mutable.Publish(fn)
@@ -328,7 +322,6 @@ class Publish(unittest.TestCase):
             self.failUnlessEqual(sorted(final_shares.keys()), range(10))
             for i,sh in final_shares.items():
                 self.failUnless(isinstance(sh, str))
-                self.failUnlessEqual(len(sh), 381)
                 # feed the share through the unpacker as a sanity-check
                 pieces = mutable.unpack_share(sh)
                 (u_seqnum, u_root_hash, IV, k, N, segsize, datalen,
@@ -340,12 +333,12 @@ class Publish(unittest.TestCase):
                 self.failUnlessEqual(N, 10)
                 self.failUnlessEqual(segsize, 21)
                 self.failUnlessEqual(datalen, len(CONTENTS))
-                self.failUnlessEqual(pubkey, FakePubKey(0).serialize())
+                self.failUnlessEqual(pubkey, p._pubkey.serialize())
                 sig_material = struct.pack(">BQ32s16s BBQQ",
-                                           0, seqnum, root_hash, IV,
+                                           0, p._new_seqnum, root_hash, IV,
                                            k, N, segsize, datalen)
-                self.failUnlessEqual(signature,
-                                     FakePrivKey(0).sign(sig_material))
+                self.failUnless(p._pubkey.verify(sig_material, signature))
+                #self.failUnlessEqual(signature, p._privkey.sign(sig_material))
                 self.failUnless(isinstance(share_hash_chain, dict))
                 self.failUnlessEqual(len(share_hash_chain), 4) # ln2(10)++
                 for shnum,share_hash in share_hash_chain.items():
@@ -354,188 +347,36 @@ class Publish(unittest.TestCase):
                     self.failUnlessEqual(len(share_hash), 32)
                 self.failUnless(isinstance(block_hash_tree, list))
                 self.failUnlessEqual(len(block_hash_tree), 1) # very small tree
-                self.failUnlessEqual(IV, "IV"*8)
+                self.failUnlessEqual(IV, "SALT"*4)
                 self.failUnlessEqual(len(share_data), len("%07d" % 1))
-                self.failUnlessEqual(enc_privkey, "encprivkey")
-            self.failUnlessIdentical(target_info, target_info2)
-        d.addCallback(_done)
+                self.failUnlessEqual(enc_privkey, fn.get_encprivkey())
+        d.addCallback(_generated)
         return d
 
-    def setup_for_sharemap(self, num_peers):
-        c = FakeClient(num_peers)
-        fn = FakeFilenode(c)
-        s = FakeStorage()
-        # .create usually returns a Deferred, but we happen to know it's
-        # synchronous
-        CONTENTS = "some initial contents"
-        fn.create(CONTENTS)
-        p = FakePublish(fn)
-        p._storage_index = "\x00"*32
-        p._new_seqnum = 3
-        p._read_size = 1000
-        #r = mutable.Retrieve(fn)
-        p._storage = s
-        return c, p
+    # TODO: when we publish to 20 peers, we should get one share per peer on 10
+    # when we publish to 3 peers, we should get either 3 or 4 shares per peer
+    # when we publish to zero peers, we should get a NotEnoughPeersError
 
-    def shouldFail(self, expected_failure, which, call, *args, **kwargs):
-        substring = kwargs.pop("substring", None)
-        d = defer.maybeDeferred(call, *args, **kwargs)
-        def _done(res):
-            if isinstance(res, failure.Failure):
-                res.trap(expected_failure)
-                if substring:
-                    self.failUnless(substring in str(res),
-                                    "substring '%s' not in '%s'"
-                                    % (substring, str(res)))
-            else:
-                self.fail("%s was supposed to raise %s, not get '%s'" %
-                          (which, expected_failure, res))
-        d.addBoth(_done)
-        return d
-
-    def test_sharemap_20newpeers(self):
-        c, p = self.setup_for_sharemap(20)
-
-        total_shares = 10
-        d = p._query_peers(total_shares)
-        def _done(target_info):
-            (target_map, shares_per_peer) = target_info
-            shares_per_peer = {}
-            for shnum in target_map:
-                for (peerid, old_seqnum, old_R) in target_map[shnum]:
-                    #print "shnum[%d]: send to %s [oldseqnum=%s]" % \
-                    #      (shnum, idlib.b2a(peerid), old_seqnum)
-                    if peerid not in shares_per_peer:
-                        shares_per_peer[peerid] = 1
-                    else:
-                        shares_per_peer[peerid] += 1
-            # verify that we're sending only one share per peer
-            for peerid, count in shares_per_peer.items():
-                self.failUnlessEqual(count, 1)
-        d.addCallback(_done)
-        return d
-
-    def test_sharemap_3newpeers(self):
-        c, p = self.setup_for_sharemap(3)
-
-        total_shares = 10
-        d = p._query_peers(total_shares)
-        def _done(target_info):
-            (target_map, shares_per_peer) = target_info
-            shares_per_peer = {}
-            for shnum in target_map:
-                for (peerid, old_seqnum, old_R) in target_map[shnum]:
-                    if peerid not in shares_per_peer:
-                        shares_per_peer[peerid] = 1
-                    else:
-                        shares_per_peer[peerid] += 1
-            # verify that we're sending 3 or 4 shares per peer
-            for peerid, count in shares_per_peer.items():
-                self.failUnless(count in (3,4), count)
-        d.addCallback(_done)
-        return d
-
-    def test_sharemap_nopeers(self):
-        c, p = self.setup_for_sharemap(0)
-
-        total_shares = 10
-        d = self.shouldFail(NotEnoughPeersError, "test_sharemap_nopeers",
-                            p._query_peers, total_shares)
-        return d
-
-    def test_write(self):
-        total_shares = 10
-        c, p = self.setup_for_sharemap(20)
-        p._privkey = FakePrivKey(0)
-        p._encprivkey = "encprivkey"
-        p._pubkey = FakePubKey(0)
-        # make some fake shares
-        CONTENTS = "some initial contents"
-        shares_and_ids = ( ["%07d" % i for i in range(10)], range(10) )
-        d = defer.maybeDeferred(p._query_peers, total_shares)
-        IV = "IV"*8
-        d.addCallback(lambda target_info:
-                      p._generate_shares( (shares_and_ids,
-                                           3, total_shares,
-                                           21, # segsize
-                                           len(CONTENTS),
-                                           target_info),
-                                          3, # seqnum
-                                          IV))
-        d.addCallback(p._send_shares, IV)
-        def _done((surprised, dispatch_map)):
-            self.failIf(surprised, "surprised!")
-        d.addCallback(_done)
-        return d
-
-class FakeRetrieve(mutable.Retrieve):
-    def _do_read(self, ss, peerid, storage_index, shnums, readv):
-        d = fireEventually()
-        d.addCallback(lambda res: self._storage.read(peerid, storage_index))
-        def _read(shares):
-            response = {}
-            for shnum in shares:
-                if shnums and shnum not in shnums:
-                    continue
-                vector = response[shnum] = []
-                for (offset, length) in readv:
-                    assert isinstance(offset, (int, long)), offset
-                    assert isinstance(length, (int, long)), length
-                    vector.append(shares[shnum][offset:offset+length])
-            return response
-        d.addCallback(_read)
-        return d
-
-class FakeServermapUpdater(mutable.ServermapUpdater):
-
-    def _do_read(self, ss, peerid, storage_index, shnums, readv):
-        d = fireEventually()
-        d.addCallback(lambda res: self._storage.read(peerid, storage_index))
-        def _read(shares):
-            response = {}
-            for shnum in shares:
-                if shnums and shnum not in shnums:
-                    continue
-                vector = response[shnum] = []
-                for (offset, length) in readv:
-                    vector.append(shares[shnum][offset:offset+length])
-            return response
-        d.addCallback(_read)
-        return d
-
-    def _deserialize_pubkey(self, pubkey_s):
-        mo = re.search(r"^PUBKEY-(\d+)$", pubkey_s)
-        if not mo:
-            raise RuntimeError("mangled pubkey")
-        count = mo.group(1)
-        return FakePubKey(int(count))
-
-class Sharemap(unittest.TestCase):
+class Servermap(unittest.TestCase):
     def setUp(self):
         # publish a file and create shares, which can then be manipulated
         # later.
         num_peers = 20
         self._client = FakeClient(num_peers)
-        self._fn = FakeFilenode(self._client)
-        self._storage = FakeStorage()
-        d = self._fn.create("")
-        def _created(res):
-            p = FakePublish(self._fn)
-            p._storage = self._storage
-            contents = "New contents go here"
-            return p.publish(contents)
+        self._storage = self._client._storage
+        d = self._client.create_mutable_file("New contents go here")
+        def _created(node):
+            self._fn = node
         d.addCallback(_created)
         return d
 
-    def make_servermap(self, storage, mode=mutable.MODE_CHECK):
-        smu = FakeServermapUpdater(self._fn, mutable.ServerMap(), mode)
-        smu._storage = storage
+    def make_servermap(self, mode=mutable.MODE_CHECK):
+        smu = mutable.ServermapUpdater(self._fn, mutable.ServerMap(), mode)
         d = smu.update()
         return d
 
-    def update_servermap(self, storage, oldmap, mode=mutable.MODE_CHECK):
-        smu = FakeServermapUpdater(self._fn, oldmap, mode)
-        smu._storage = storage
+    def update_servermap(self, oldmap, mode=mutable.MODE_CHECK):
+        smu = mutable.ServermapUpdater(self._fn, oldmap, mode)
         d = smu.update()
         return d
 
@@ -550,19 +391,18 @@ class Sharemap(unittest.TestCase):
         return sm
 
     def test_basic(self):
-        s = self._storage # unmangled
         d = defer.succeed(None)
         ms = self.make_servermap
         us = self.update_servermap
 
-        d.addCallback(lambda res: ms(s, mode=mutable.MODE_CHECK))
+        d.addCallback(lambda res: ms(mode=mutable.MODE_CHECK))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
-        d.addCallback(lambda res: ms(s, mode=mutable.MODE_WRITE))
+        d.addCallback(lambda res: ms(mode=mutable.MODE_WRITE))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
-        d.addCallback(lambda res: ms(s, mode=mutable.MODE_ENOUGH))
+        d.addCallback(lambda res: ms(mode=mutable.MODE_ENOUGH))
         # this more stops at k+epsilon, and epsilon=k, so 6 shares
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 6))
-        d.addCallback(lambda res: ms(s, mode=mutable.MODE_ANYTHING))
+        d.addCallback(lambda res: ms(mode=mutable.MODE_ANYTHING))
         # this mode stops at 'k' shares
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 3))
 
@@ -570,12 +410,12 @@ class Sharemap(unittest.TestCase):
         # increasing order of number of servers queried, since once a server
         # gets into the servermap, we'll always ask it for an update.
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 3))
-        d.addCallback(lambda sm: us(s, sm, mode=mutable.MODE_ENOUGH))
+        d.addCallback(lambda sm: us(sm, mode=mutable.MODE_ENOUGH))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 6))
-        d.addCallback(lambda sm: us(s, sm, mode=mutable.MODE_WRITE))
-        d.addCallback(lambda sm: us(s, sm, mode=mutable.MODE_CHECK))
+        d.addCallback(lambda sm: us(sm, mode=mutable.MODE_WRITE))
+        d.addCallback(lambda sm: us(sm, mode=mutable.MODE_CHECK))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
-        d.addCallback(lambda sm: us(s, sm, mode=mutable.MODE_ANYTHING))
+        d.addCallback(lambda sm: us(sm, mode=mutable.MODE_ANYTHING))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
 
         return d
@@ -588,21 +428,20 @@ class Sharemap(unittest.TestCase):
         self.failUnlessEqual(len(sm.shares_available()), 0)
 
     def test_no_shares(self):
-        s = self._storage
-        s._peers = {} # delete all shares
+        self._client._storage._peers = {} # delete all shares
         ms = self.make_servermap
         d = defer.succeed(None)
 
-        d.addCallback(lambda res: ms(s, mode=mutable.MODE_CHECK))
+        d.addCallback(lambda res: ms(mode=mutable.MODE_CHECK))
         d.addCallback(lambda sm: self.failUnlessNoneRecoverable(sm))
 
-        d.addCallback(lambda res: ms(s, mode=mutable.MODE_ANYTHING))
+        d.addCallback(lambda res: ms(mode=mutable.MODE_ANYTHING))
         d.addCallback(lambda sm: self.failUnlessNoneRecoverable(sm))
 
-        d.addCallback(lambda res: ms(s, mode=mutable.MODE_WRITE))
+        d.addCallback(lambda res: ms(mode=mutable.MODE_WRITE))
         d.addCallback(lambda sm: self.failUnlessNoneRecoverable(sm))
 
-        d.addCallback(lambda res: ms(s, mode=mutable.MODE_ENOUGH))
+        d.addCallback(lambda res: ms(mode=mutable.MODE_ENOUGH))
         d.addCallback(lambda sm: self.failUnlessNoneRecoverable(sm))
 
         return d
@@ -616,7 +455,7 @@ class Sharemap(unittest.TestCase):
         self.failUnlessEqual(sm.shares_available().values()[0], (2,3) )
 
     def test_not_quite_enough_shares(self):
-        s = self._storage
+        s = self._client._storage
         ms = self.make_servermap
         num_shares = len(s._peers)
         for peerid in s._peers:
@@ -629,13 +468,13 @@ class Sharemap(unittest.TestCase):
 
         d = defer.succeed(None)
 
-        d.addCallback(lambda res: ms(s, mode=mutable.MODE_CHECK))
+        d.addCallback(lambda res: ms(mode=mutable.MODE_CHECK))
         d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
-        d.addCallback(lambda res: ms(s, mode=mutable.MODE_ANYTHING))
+        d.addCallback(lambda res: ms(mode=mutable.MODE_ANYTHING))
         d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
-        d.addCallback(lambda res: ms(s, mode=mutable.MODE_WRITE))
+        d.addCallback(lambda res: ms(mode=mutable.MODE_WRITE))
         d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
-        d.addCallback(lambda res: ms(s, mode=mutable.MODE_ENOUGH))
+        d.addCallback(lambda res: ms(mode=mutable.MODE_ENOUGH))
         d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
 
         return d
@@ -643,28 +482,23 @@ class Sharemap(unittest.TestCase):
 
 
 class Roundtrip(unittest.TestCase):
-
     def setUp(self):
         # publish a file and create shares, which can then be manipulated
         # later.
         self.CONTENTS = "New contents go here"
         num_peers = 20
         self._client = FakeClient(num_peers)
-        self._fn = FakeFilenode(self._client)
-        self._storage = FakeStorage()
-        d = self._fn.create("")
-        def _created(res):
-            p = FakePublish(self._fn)
-            p._storage = self._storage
-            return p.publish(self.CONTENTS)
+        self._storage = self._client._storage
+        d = self._client.create_mutable_file(self.CONTENTS)
+        def _created(node):
+            self._fn = node
         d.addCallback(_created)
         return d
 
     def make_servermap(self, mode=mutable.MODE_ENOUGH, oldmap=None):
         if oldmap is None:
             oldmap = mutable.ServerMap()
-        smu = FakeServermapUpdater(self._fn, oldmap, mode)
-        smu._storage = self._storage
+        smu = mutable.ServermapUpdater(self._fn, oldmap, mode)
         d = smu.update()
         return d
 
@@ -693,8 +527,7 @@ class Roundtrip(unittest.TestCase):
     def do_download(self, servermap, version=None):
         if version is None:
             version = servermap.best_recoverable_version()
-        r = FakeRetrieve(self._fn, servermap, version)
-        r._storage = self._storage
+        r = mutable.Retrieve(self._fn, servermap, version)
         return r.download()
 
     def test_basic(self):
@@ -796,8 +629,7 @@ class Roundtrip(unittest.TestCase):
                     allproblems = [str(f) for f in servermap.problems]
                     self.failUnless(substring in "".join(allproblems))
                 return
-            r = FakeRetrieve(self._fn, servermap, ver)
-            r._storage = self._storage
+            r = mutable.Retrieve(self._fn, servermap, ver)
             if should_succeed:
                 d1 = r.download()
                 d1.addCallback(lambda new_contents:
@@ -900,20 +732,33 @@ class Roundtrip(unittest.TestCase):
             self.failUnless("pubkey doesn't match fingerprint"
                             in str(servermap.problems[0]))
             ver = servermap.best_recoverable_version()
-            r = FakeRetrieve(self._fn, servermap, ver)
-            r._storage = self._storage
+            r = mutable.Retrieve(self._fn, servermap, ver)
             return r.download()
         d.addCallback(_do_retrieve)
         d.addCallback(lambda new_contents:
                       self.failUnlessEqual(new_contents, self.CONTENTS))
         return d
 
-    def _encode(self, c, s, fn, k, n, data):
+
+class MultipleEncodings(unittest.TestCase):
+    def setUp(self):
+        self.CONTENTS = "New contents go here"
+        num_peers = 20
+        self._client = FakeClient(num_peers)
+        self._storage = self._client._storage
+        d = self._client.create_mutable_file(self.CONTENTS)
+        def _created(node):
+            self._fn = node
+        d.addCallback(_created)
+        return d
+
+    def _encode(self, k, n, data):
         # encode 'data' into a peerid->shares dict.
 
-        fn2 = FakeFilenode(c)
+        fn2 = FastMutableFileNode(self._client)
         # init_from_uri populates _uri, _writekey, _readkey, _storage_index,
         # and _fingerprint
+        fn = self._fn
         fn2.init_from_uri(fn.get_uri())
         # then we copy over other fields that are normally fetched from the
         # existing shares
@@ -926,9 +771,9 @@ class Roundtrip(unittest.TestCase):
         fn2._required_shares = k
         fn2._total_shares = n
 
-        p2 = FakePublish(fn2)
-        p2._storage = s
-        p2._storage._peers = {} # clear existing storage
+        s = self._client._storage
+        s._peers = {} # clear existing storage
+        p2 = mutable.Publish(fn2, None)
         d = p2.publish(data)
         def _published(res):
             shares = s._peers
@@ -937,29 +782,10 @@ class Roundtrip(unittest.TestCase):
         d.addCallback(_published)
         return d
 
-class MultipleEncodings(unittest.TestCase):
-
-    def publish(self):
-        # publish a file and create shares, which can then be manipulated
-        # later.
-        self.CONTENTS = "New contents go here"
-        num_peers = 20
-        self._client = FakeClient(num_peers)
-        self._fn = FakeFilenode(self._client)
-        self._storage = FakeStorage()
-        d = self._fn.create("")
-        def _created(res):
-            p = FakePublish(self._fn)
-            p._storage = self._storage
-            return p.publish(self.CONTENTS)
-        d.addCallback(_created)
-        return d
-
     def make_servermap(self, mode=mutable.MODE_ENOUGH, oldmap=None):
         if oldmap is None:
             oldmap = mutable.ServerMap()
-        smu = FakeServermapUpdater(self._fn, oldmap, mode)
-        smu._storage = self._storage
+        smu = mutable.ServermapUpdater(self._fn, oldmap, mode)
         d = smu.update()
         return d
 
@@ -967,8 +793,6 @@ class MultipleEncodings(unittest.TestCase):
         # we encode the same file in two different ways (3-of-10 and 4-of-9),
         # then mix up the shares, to make sure that download survives seeing
         # a variety of encodings. This is actually kind of tricky to set up.
-        c, s, fn, p, r = self.setup_for_publish(20)
-        # we ignore fn, p, and r
 
         contents1 = "Contents for encoding 1 (3-of-10) go here"
         contents2 = "Contents for encoding 2 (4-of-9) go here"
@@ -976,19 +800,19 @@ class MultipleEncodings(unittest.TestCase):
 
         # we make a retrieval object that doesn't know what encoding
         # parameters to use
-        fn3 = FakeFilenode(c)
-        fn3.init_from_uri(fn.get_uri())
+        fn3 = FastMutableFileNode(self._client)
+        fn3.init_from_uri(self._fn.get_uri())
 
         # now we upload a file through fn1, and grab its shares
-        d = self._encode(c, s, fn, 3, 10, contents1)
+        d = self._encode(3, 10, contents1)
         def _encoded_1(shares):
             self._shares1 = shares
         d.addCallback(_encoded_1)
-        d.addCallback(lambda res: self._encode(c, s, fn, 4, 9, contents2))
+        d.addCallback(lambda res: self._encode(4, 9, contents2))
         def _encoded_2(shares):
             self._shares2 = shares
         d.addCallback(_encoded_2)
-        d.addCallback(lambda res: self._encode(c, s, fn, 4, 7, contents3))
+        d.addCallback(lambda res: self._encode(4, 7, contents3))
         def _encoded_3(shares):
             self._shares3 = shares
         d.addCallback(_encoded_3)
@@ -1021,14 +845,14 @@ class MultipleEncodings(unittest.TestCase):
 
             sharemap = {}
 
-            for i,peerid in enumerate(c._peerids):
+            for i,peerid in enumerate(self._client._peerids):
                 peerid_s = shortnodeid_b2a(peerid)
                 for shnum in self._shares1.get(peerid, {}):
                     if shnum < len(places):
                         which = places[shnum]
                     else:
                         which = "x"
-                    s._peers[peerid] = peers = {}
+                    self._client._storage._peers[peerid] = peers = {}
                     in_1 = shnum in self._shares1[peerid]
                     in_2 = shnum in self._shares2.get(peerid, {})
                     in_3 = shnum in self._shares3.get(peerid, {})
@@ -1050,14 +874,10 @@ class MultipleEncodings(unittest.TestCase):
             # now sort the sequence so that share 0 is returned first
             new_sequence = [sharemap[shnum]
                             for shnum in sorted(sharemap.keys())]
-            s._sequence = new_sequence
+            self._client._storage._sequence = new_sequence
             log.msg("merge done")
         d.addCallback(_merge)
-        def _retrieve(res):
-            r3 = FakeRetrieve(fn3)
-            r3._storage = s
-            return r3.retrieve()
-        d.addCallback(_retrieve)
+        d.addCallback(lambda res: fn3.download_to_data())
         def _retrieved(new_contents):
             # the current specified behavior is "first version recoverable"
             self.failUnlessEqual(new_contents, contents1)
@@ -1146,5 +966,4 @@ class Utils(unittest.TestCase):
         c.add("v1", 1, 0, xdata[:10], "time0")
         c.add("v1", 1, 10, xdata[10:20], "time1")
         #self.failUnlessEqual(c.read("v1", 1, 0, 20), (xdata[:20], "time0"))
-
 

@@ -1,5 +1,5 @@
 
-import os, struct, time, weakref
+import os, sys, struct, time, weakref
 from itertools import count
 from zope.interface import implements
 from twisted.internet import defer
@@ -31,6 +31,9 @@ class NeedMoreDataError(Exception):
 class UncoordinatedWriteError(Exception):
     def __repr__(self):
         return "<%s -- You, oh user, tried to change a file or directory at the same time as another process was trying to change it.  To avoid data loss, don't do this.  Please see docs/write_coordination.html for details.>" % (self.__class__.__name__,)
+
+class UnrecoverableFileError(Exception):
+    pass
 
 class CorruptShareError(Exception):
     def __init__(self, peerid, shnum, reason):
@@ -278,6 +281,18 @@ class ServerMap:
         self.last_update_mode = None
         self.last_update_time = 0
 
+    def dump(self, out=sys.stdout):
+        print >>out, "servermap:"
+        for (peerid, shares) in self.servermap.items():
+            for (shnum, versionid, timestamp) in sorted(shares):
+                (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
+                 offsets_tuple) = versionid
+                print >>out, ("[%s]: sh#%d seq%d-%s %d-of-%d len%d" %
+                              (idlib.shortnodeid_b2a(peerid), shnum,
+                               seqnum, base32.b2a(root_hash)[:4], k, N,
+                               datalength))
+        return out
+
     def make_versionmap(self):
         """Return a dict that maps versionid to sets of (shnum, peerid,
         timestamp) tuples."""
@@ -286,6 +301,18 @@ class ServerMap:
             for (shnum, verinfo, timestamp) in shares:
                 versionmap.add(verinfo, (shnum, peerid, timestamp))
         return versionmap
+
+    def shares_on_peer(self, peerid):
+        return set([shnum
+                    for (shnum, versionid, timestamp)
+                    in self.servermap.get(peerid, [])])
+
+    def version_on_peer(self, peerid, shnum):
+        shares = self.servermap.get(peerid, [])
+        for (sm_shnum, sm_versionid, sm_timestamp) in shares:
+            if sm_shnum == shnum:
+                return sm_versionid
+        return None
 
     def shares_available(self):
         """Return a dict that maps versionid to tuples of
@@ -300,6 +327,13 @@ class ServerMap:
              offsets_tuple) = versionid
             all_shares[versionid] = (len(s), k)
         return all_shares
+
+    def highest_seqnum(self):
+        available = self.shares_available()
+        seqnums = [versionid[0]
+                   for versionid in available.keys()]
+        seqnums.append(0)
+        return max(seqnums)
 
     def recoverable_versions(self):
         """Return a set of versionids, one for each version that is currently
@@ -433,7 +467,10 @@ class ServermapUpdater:
         #  * if we only need the checkstring, then [0:75]
         #  * if we need to validate the checkstring sig, then [543ish:799ish]
         #  * if we need the verification key, then [107:436ish]
-        #  * the offset table at [75:107] tells us about the 'ish'
+        #   * the offset table at [75:107] tells us about the 'ish'
+        #  * if we need the encrypted private key, we want [-1216ish:]
+        #   * but we can't read from negative offsets
+        #   * the offset table tells us the 'ish', also the positive offset
         # A future version of the SMDF slot format should consider using
         # fixed-size slots so we can retrieve less data. For now, we'll just
         # read 2000 bytes, which also happens to read enough actual data to
@@ -442,6 +479,9 @@ class ServermapUpdater:
         if mode == MODE_CHECK:
             # we use unpack_prefix_and_signature, so we need 1k
             self._read_size = 1000
+        self._need_privkey = False
+        if mode == MODE_WRITE and not self._node._privkey:
+            self._need_privkey = True
 
         prefix = storage.si_b2a(self._storage_index)[:5]
         self._log_number = log.msg("SharemapUpdater(%s): starting" % prefix)
@@ -494,9 +534,6 @@ class ServermapUpdater:
         # might not wait for all of their answers to come back)
         self.num_peers_to_query = k + self.EPSILON
 
-        # TODO: initial_peers_to_query needs to be ordered list of (peerid,
-        # ss) tuples
-
         if self.mode == MODE_CHECK:
             initial_peers_to_query = dict(full_peerlist)
             must_query = set(initial_peers_to_query.keys())
@@ -509,12 +546,11 @@ class ServermapUpdater:
             initial_peers_to_query, must_query = self._build_initial_querylist()
             self.required_num_empty_peers = self.EPSILON
 
-            # TODO: also populate self._filenode._privkey
+            # TODO: arrange to read lots of data from k-ish servers, to avoid
+            # the extra round trip required to read large directories. This
+            # might also avoid the round trip required to read the encrypted
+            # private key.
 
-            # TODO: arrange to read 3KB from one peer who is likely to hold a
-            # share, so we can avoid the latency of that extra roundtrip. 3KB
-            # would get us the encprivkey from a dirnode with up to 7
-            # entries, allowing us to make an update in 2 RTT instead of 3.
         else:
             initial_peers_to_query, must_query = self._build_initial_querylist()
 
@@ -531,10 +567,8 @@ class ServermapUpdater:
         # contains the overflow (peers that we should tap if we don't get
         # enough responses)
 
-        d = defer.succeed(initial_peers_to_query)
-        d.addCallback(self._send_initial_requests)
-        d.addCallback(lambda res: self._done_deferred)
-        return d
+        self._send_initial_requests(initial_peers_to_query)
+        return self._done_deferred
 
     def _build_initial_querylist(self):
         initial_peers_to_query = {}
@@ -566,10 +600,6 @@ class ServermapUpdater:
         # might produce a result.
         return None
 
-    def _do_read(self, ss, peerid, storage_index, shnums, readv):
-        d = ss.callRemote("slot_readv", storage_index, shnums, readv)
-        return d
-
     def _do_query(self, ss, peerid, storage_index, readsize):
         self.log(format="sending query to [%(peerid)s], readsize=%(readsize)d",
                  peerid=idlib.shortnodeid_b2a(peerid),
@@ -586,8 +616,118 @@ class ServermapUpdater:
         # _query_failed) get logged, but we still want to check for doneness.
         d.addErrback(log.err)
         d.addBoth(self._check_for_done)
-        d.addErrback(log.err)
+        d.addErrback(self._fatal_error)
         return d
+
+    def _do_read(self, ss, peerid, storage_index, shnums, readv):
+        d = ss.callRemote("slot_readv", storage_index, shnums, readv)
+        return d
+
+    def _got_results(self, datavs, peerid, readsize, stuff, started):
+        lp = self.log(format="got result from [%(peerid)s], %(numshares)d shares",
+                     peerid=idlib.shortnodeid_b2a(peerid),
+                     numshares=len(datavs),
+                     level=log.NOISY)
+        self._queries_outstanding.discard(peerid)
+        self._must_query.discard(peerid)
+        self._queries_completed += 1
+        if not self._running:
+            self.log("but we're not running, so we'll ignore it")
+            return
+
+        if datavs:
+            self._good_peers.add(peerid)
+        else:
+            self._empty_peers.add(peerid)
+
+        last_verinfo = None
+        last_shnum = None
+        for shnum,datav in datavs.items():
+            data = datav[0]
+            try:
+                verinfo = self._got_results_one_share(shnum, data, peerid)
+                last_verinfo = verinfo
+                last_shnum = shnum
+            except CorruptShareError, e:
+                # log it and give the other shares a chance to be processed
+                f = failure.Failure()
+                self.log("bad share: %s %s" % (f, f.value), level=log.WEIRD)
+                self._bad_peers.add(peerid)
+                self._last_failure = f
+                self._servermap.problems.append(f)
+                pass
+
+        if self._need_privkey and last_verinfo:
+            # send them a request for the privkey. We send one request per
+            # server.
+            (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
+             offsets_tuple) = last_verinfo
+            o = dict(offsets_tuple)
+
+            self._queries_outstanding.add(peerid)
+            readv = [ (o['enc_privkey'], (o['EOF'] - o['enc_privkey'])) ]
+            ss = self._servermap.connections[peerid]
+            d = self._do_read(ss, peerid, self._storage_index,
+                              [last_shnum], readv)
+            d.addCallback(self._got_privkey_results, peerid, last_shnum)
+            d.addErrback(self._privkey_query_failed, peerid, last_shnum)
+            d.addErrback(log.err)
+            d.addCallback(self._check_for_done)
+            d.addErrback(self._fatal_error)
+
+        # all done!
+        self.log("_got_results done", parent=lp)
+
+    def _got_results_one_share(self, shnum, data, peerid):
+        self.log(format="_got_results: got shnum #%(shnum)d from peerid %(peerid)s",
+                 shnum=shnum,
+                 peerid=idlib.shortnodeid_b2a(peerid))
+
+        # this might raise NeedMoreDataError, if the pubkey and signature
+        # live at some weird offset. That shouldn't happen, so I'm going to
+        # treat it as a bad share.
+        (seqnum, root_hash, IV, k, N, segsize, datalength,
+         pubkey_s, signature, prefix) = unpack_prefix_and_signature(data)
+
+        if not self._node._pubkey:
+            fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
+            assert len(fingerprint) == 32
+            if fingerprint != self._node._fingerprint:
+                raise CorruptShareError(peerid, shnum,
+                                        "pubkey doesn't match fingerprint")
+            self._node._pubkey = self._deserialize_pubkey(pubkey_s)
+
+        if self._need_privkey:
+            self._try_to_extract_privkey(data, peerid, shnum)
+
+        (ig_version, ig_seqnum, ig_root_hash, ig_IV, ig_k, ig_N,
+         ig_segsize, ig_datalen, offsets) = unpack_header(data)
+        offsets_tuple = tuple( [(key,value) for key,value in offsets.items()] )
+
+        verinfo = (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
+                   offsets_tuple)
+
+        if verinfo not in self._valid_versions:
+            # it's a new pair. Verify the signature.
+            valid = self._node._pubkey.verify(prefix, signature)
+            if not valid:
+                raise CorruptShareError(peerid, shnum, "signature is invalid")
+
+            # ok, it's a valid verinfo. Add it to the list of validated
+            # versions.
+            self.log(" found valid version %d-%s from %s-sh%d: %d-%d/%d/%d"
+                     % (seqnum, base32.b2a(root_hash)[:4],
+                        idlib.shortnodeid_b2a(peerid), shnum,
+                        k, N, segsize, datalength))
+            self._valid_versions.add(verinfo)
+        # We now know that this is a valid candidate verinfo.
+
+        # Add the info to our servermap.
+        timestamp = time.time()
+        self._servermap.servermap.add(peerid, (shnum, verinfo, timestamp))
+        # and the versionmap
+        self.versionmap.add(verinfo, (shnum, peerid, timestamp))
+        return verinfo
 
     def _deserialize_pubkey(self, pubkey_s):
         verifier = rsa.create_verifying_key_from_string(pubkey_s)
@@ -620,9 +760,10 @@ class ServermapUpdater:
          pubkey, signature, share_hash_chain, block_hash_tree,
          share_data, enc_privkey) = r
 
-        return self._try_to_validate_privkey(enc_privkey, peerid, shnum)
+        return self._try_to_validate_privkey(self, enc_privkey, peerid, shnum)
 
     def _try_to_validate_privkey(self, enc_privkey, peerid, shnum):
+
         alleged_privkey_s = self._node._decrypt_privkey(enc_privkey)
         alleged_writekey = hashutil.ssk_writekey_hash(alleged_privkey_s)
         if alleged_writekey != self._writekey:
@@ -633,89 +774,10 @@ class ServermapUpdater:
         # it's good
         self.log("got valid privkey from shnum %d on peerid %s" %
                  (shnum, idlib.shortnodeid_b2a(peerid)))
-        self._privkey = rsa.create_signing_key_from_string(alleged_privkey_s)
-        self._encprivkey = enc_privkey
-        self._node._populate_encprivkey(self._encprivkey)
-        self._node._populate_privkey(self._privkey)
-
-    def _got_results(self, datavs, peerid, readsize, stuff, started):
-        self.log(format="got result from [%(peerid)s], %(numshares)d shares",
-                 peerid=idlib.shortnodeid_b2a(peerid),
-                 numshares=len(datavs),
-                 level=log.NOISY)
-        self._queries_outstanding.discard(peerid)
-        self._must_query.discard(peerid)
-        self._queries_completed += 1
-        if not self._running:
-            self.log("but we're not running, so we'll ignore it")
-            return
-
-        if datavs:
-            self._good_peers.add(peerid)
-        else:
-            self._empty_peers.add(peerid)
-
-        for shnum,datav in datavs.items():
-            data = datav[0]
-            try:
-                self._got_results_one_share(shnum, data, peerid)
-            except CorruptShareError, e:
-                # log it and give the other shares a chance to be processed
-                f = failure.Failure()
-                self.log("bad share: %s %s" % (f, f.value), level=log.WEIRD)
-                self._bad_peers.add(peerid)
-                self._last_failure = f
-                self._servermap.problems.append(f)
-                pass
-        # all done!
-        self.log("DONE")
-
-    def _got_results_one_share(self, shnum, data, peerid):
-        self.log(format="_got_results: got shnum #%(shnum)d from peerid %(peerid)s",
-                 shnum=shnum,
-                 peerid=idlib.shortnodeid_b2a(peerid))
-
-        # this might raise NeedMoreDataError, if the pubkey and signature
-        # live at some weird offset. That shouldn't happen, so I'm going to
-        # treat it as a bad share.
-        (seqnum, root_hash, IV, k, N, segsize, datalength,
-         pubkey_s, signature, prefix) = unpack_prefix_and_signature(data)
-
-        if not self._node._pubkey:
-            fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
-            assert len(fingerprint) == 32
-            if fingerprint != self._node._fingerprint:
-                raise CorruptShareError(peerid, shnum,
-                                        "pubkey doesn't match fingerprint")
-            self._node._pubkey = self._deserialize_pubkey(pubkey_s)
-
-        (ig_version, ig_seqnum, ig_root_hash, ig_IV, ig_k, ig_N,
-         ig_segsize, ig_datalen, offsets) = unpack_header(data)
-        offsets_tuple = tuple( [(key,value) for key,value in offsets.items()] )
-
-        verinfo = (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
-                   offsets_tuple)
-
-        if verinfo not in self._valid_versions:
-            # it's a new pair. Verify the signature.
-            valid = self._node._pubkey.verify(prefix, signature)
-            if not valid:
-                raise CorruptShareError(peerid, shnum, "signature is invalid")
-
-            # ok, it's a valid verinfo. Add it to the list of validated
-            # versions.
-            self.log(" found valid version %d-%s from %s-sh%d: %d-%d/%d/%d"
-                     % (seqnum, base32.b2a(root_hash)[:4],
-                        idlib.shortnodeid_b2a(peerid), shnum,
-                        k, N, segsize, datalength))
-            self._valid_versions.add(verinfo)
-        # We now know that this is a valid candidate verinfo.
-
-        # Add the info to our servermap.
-        timestamp = time.time()
-        self._servermap.servermap.add(peerid, (shnum, verinfo, timestamp))
-        # and the versionmap
-        self.versionmap.add(verinfo, (shnum, peerid, timestamp))
+        privkey = rsa.create_signing_key_from_string(alleged_privkey_s)
+        self._node._populate_encprivkey(enc_privkey)
+        self._node._populate_privkey(privkey)
+        self._need_privkey = False
 
 
     def _query_failed(self, f, peerid):
@@ -728,6 +790,27 @@ class ServermapUpdater:
         self._servermap.problems.append(f)
         self._servermap.unreachable_peers.add(peerid) # TODO: overkill?
         self._queries_completed += 1
+        self._last_failure = f
+
+    def _got_privkey_results(self, datavs, peerid, shnum):
+        self._queries_outstanding.discard(peerid)
+        if not self._need_privkey:
+            return
+        if shnum not in datavs:
+            self.log("privkey wasn't there when we asked it", level=log.WEIRD)
+            return
+        datav = datavs[shnum]
+        enc_privkey = datav[0]
+        self._try_to_validate_privkey(enc_privkey, peerid, shnum)
+
+    def _privkey_query_failed(self, f, peerid, shnum):
+        self._queries_outstanding.discard(peerid)
+        self.log("error during privkey query: %s %s" % (f, f.value),
+                 level=log.WEIRD)
+        if not self._running:
+            return
+        self._queries_outstanding.discard(peerid)
+        self._servermap.problems.append(f)
         self._last_failure = f
 
     def _check_for_done(self, res):
@@ -821,6 +904,8 @@ class ServermapUpdater:
             num_not_responded = 0
             num_not_found = 0
             states = []
+            found_boundary = False
+
             for i,(peerid,ss) in enumerate(self.full_peerlist):
                 if peerid in self._bad_peers:
                     # query failed
@@ -835,14 +920,8 @@ class ServermapUpdater:
                         if num_not_found >= self.EPSILON:
                             self.log("MODE_WRITE: found our boundary, %s" %
                                      "".join(states))
-                            # we need to know that we've gotten answers from
-                            # everybody to the left of here
-                            if last_not_responded == -1:
-                                # we're done
-                                self.log("have all our answers")
-                                return self._done()
-                            # still waiting for somebody
-                            return self._send_more_queries(num_not_responded)
+                            found_boundary = True
+                            break
 
                 elif peerid in self._good_peers:
                     # yes shares
@@ -857,6 +936,25 @@ class ServermapUpdater:
                     last_not_responded = i
                     num_not_responded += 1
 
+            if found_boundary:
+                # we need to know that we've gotten answers from
+                # everybody to the left of here
+                if last_not_responded == -1:
+                    # we're done
+                    self.log("have all our answers")
+                    # .. unless we're still waiting on the privkey
+                    if self._need_privkey:
+                        self.log("but we're still waiting for the privkey")
+                        # if we found the boundary but we haven't yet found
+                        # the privkey, we may need to look further. If
+                        # somehow all the privkeys were corrupted (but the
+                        # shares were readable), then this is likely to do an
+                        # exhaustive search.
+                        return self._send_more_queries(MAX_IN_FLIGHT)
+                    return self._done()
+                # still waiting for somebody
+                return self._send_more_queries(num_not_responded)
+
             # if we hit here, we didn't find our boundary, so we're still
             # waiting for peers
             self.log("MODE_WRITE: no boundary yet, %s" % "".join(states))
@@ -869,11 +967,12 @@ class ServermapUpdater:
         return self._send_more_queries(MAX_IN_FLIGHT)
 
     def _send_more_queries(self, num_outstanding):
-        assert self.extra_peers # we shouldn't get here with nothing in reserve
         more_queries = []
 
         while True:
-            self.log(" there are %d queries outstanding" % len(self._queries_outstanding))
+            self.log(format=" there are %(outstanding)d queries outstanding",
+                     outstanding=len(self._queries_outstanding),
+                     level=log.NOISY)
             active_queries = len(self._queries_outstanding) + len(more_queries)
             if active_queries >= num_outstanding:
                 break
@@ -895,10 +994,14 @@ class ServermapUpdater:
         if not self._running:
             return
         self._running = False
-        self._servermap.last_update_mode = self._mode
+        self._servermap.last_update_mode = self.mode
         self._servermap.last_update_time = self._started
         # the servermap will not be touched after this
         eventually(self._done_deferred.callback, self._servermap)
+
+    def _fatal_error(self, f):
+        self.log("fatal error", failure=f, level=log.WEIRD)
+        self._done_deferred.errback(f)
 
 
 class Marker:
@@ -1270,9 +1373,9 @@ class Retrieve:
         self._running = False
         # res is either the new contents, or a Failure
         if isinstance(res, failure.Failure):
-            self.log("DONE, with failure", failure=res)
+            self.log("Retrieve done, with failure", failure=res)
         else:
-            self.log("DONE, success!: res=%s" % (res,))
+            self.log("Retrieve done, success!: res=%s" % (res,))
         eventually(self._done_deferred.callback, res)
 
 
@@ -1345,6 +1448,16 @@ class Publish:
     To make the initial publish, set servermap to None.
     """
 
+    # we limit the segment size as usual to constrain our memory footprint.
+    # The max segsize is higher for mutable files, because we want to support
+    # dirnodes with up to 10k children, and each child uses about 330 bytes.
+    # If you actually put that much into a directory you'll be using a
+    # footprint of around 14MB, which is higher than we'd like, but it is
+    # more important right now to support large directories than to make
+    # memory usage small when you use them. Once we implement MDMF (with
+    # multiple segments), we will drop this back down, probably to 128KiB.
+    MAX_SEGMENT_SIZE = 3500000
+
     def __init__(self, filenode, servermap):
         self._node = filenode
         self._servermap = servermap
@@ -1352,6 +1465,7 @@ class Publish:
         self._log_prefix = prefix = storage.si_b2a(self._storage_index)[:5]
         num = self._node._client.log("Publish(%s): starting" % prefix)
         self._log_number = num
+        self._running = True
 
     def log(self, *args, **kwargs):
         if 'parent' not in kwargs:
@@ -1380,6 +1494,8 @@ class Publish:
         # 5: when enough responses are back, we're done
 
         self.log("starting publish, datalen is %s" % len(newdata))
+
+        self.done_deferred = defer.Deferred()
 
         self._writekey = self._node.get_writekey()
         assert self._writekey, "need write capability to publish"
@@ -1433,28 +1549,7 @@ class Publish:
                       current_share_peers)
         # TODO: add an errback too, probably to ignore that peer
 
-        # we limit the segment size as usual to constrain our memory
-        # footprint. The max segsize is higher for mutable files, because we
-        # want to support dirnodes with up to 10k children, and each child
-        # uses about 330 bytes. If you actually put that much into a
-        # directory you'll be using a footprint of around 14MB, which is
-        # higher than we'd like, but it is more important right now to
-        # support large directories than to make memory usage small when you
-        # use them. Once we implement MDMF (with multiple segments), we will
-        # drop this back down, probably to 128KiB.
-        self.MAX_SEGMENT_SIZE = 3500000
-
-        segment_size = min(self.MAX_SEGMENT_SIZE, len(self.newdata))
-        # this must be a multiple of self.required_shares
-        segment_size = mathutil.next_multiple(segment_size,
-                                              self.required_shares)
-        self.segment_size = segment_size
-        if segment_size:
-            self.num_segments = mathutil.div_ceil(len(self.newdata),
-                                                  segment_size)
-        else:
-            self.num_segments = 0
-        assert self.num_segments in [0, 1,] # SDMF restrictions
+        self.setup_encoding_parameters()
 
         self.surprised = False
 
@@ -1474,11 +1569,17 @@ class Publish:
         # When self.placed == self.goal, we're done.
         self.placed = set() # (peerid, shnum) tuples
 
+        # we also keep a mapping from peerid to RemoteReference. Each time we
+        # pull a connection out of the full peerlist, we add it to this for
+        # use later.
+        self.connections = {}
+
         # we use the servermap to populate the initial goal: this way we will
         # try to update each existing share in place.
         for (peerid, shares) in self._servermap.servermap.items():
             for (shnum, versionid, timestamp) in shares:
                 self.goal.add( (peerid, shnum) )
+                self.connections[peerid] = self._servermap.connections[peerid]
 
         # create the shares. We'll discard these as they are delivered. SMDF:
         # we're allowed to hold everything in memory.
@@ -1486,27 +1587,53 @@ class Publish:
         d = self._encrypt_and_encode()
         d.addCallback(self._generate_shares)
         d.addCallback(self.loop) # trigger delivery
+        d.addErrback(self._fatal_error)
 
         return self.done_deferred
 
-    def loop(self):
+    def setup_encoding_parameters(self):
+        segment_size = min(self.MAX_SEGMENT_SIZE, len(self.newdata))
+        # this must be a multiple of self.required_shares
+        segment_size = mathutil.next_multiple(segment_size,
+                                              self.required_shares)
+        self.segment_size = segment_size
+        if segment_size:
+            self.num_segments = mathutil.div_ceil(len(self.newdata),
+                                                  segment_size)
+        else:
+            self.num_segments = 0
+        assert self.num_segments in [0, 1,] # SDMF restrictions
+
+    def _fatal_error(self, f):
+        self.log("error during loop", failure=f, level=log.SCARY)
+        self._done(f)
+
+    def loop(self, ignored=None):
+        self.log("entering loop", level=log.NOISY)
         self.update_goal()
         # how far are we from our goal?
         needed = self.goal - self.placed - self.outstanding
 
         if needed:
             # we need to send out new shares
-            d = self.send_shares(needed)
+            self.log(format="need to send %(needed)d new shares",
+                     needed=len(needed), level=log.NOISY)
+            d = self._send_shares(needed)
             d.addCallback(self.loop)
             d.addErrback(self._fatal_error)
             return
 
         if self.outstanding:
             # queries are still pending, keep waiting
+            self.log(format="%(outstanding)d queries still outstanding",
+                     outstanding=len(self.outstanding),
+                     level=log.NOISY)
             return
 
         # no queries outstanding, no placements needed: we're done
-        return self._done()
+        self.log("no queries outstanding, no placements needed: done",
+                 level=log.OPERATIONAL)
+        return self._done(None)
 
     def log_goal(self, goal):
         logmsg = []
@@ -1544,19 +1671,19 @@ class Publish:
         # TODO: 2: move those shares instead of copying them, to reduce future
         #       update work
 
-        # this is CPU intensive but easy to analyze. We create a sort order
-        # for each peerid. If the peerid is marked as bad, we don't even put
-        # them in the list. Then we care about the number of shares which
-        # have already been assigned to them. After that we care about their
-        # permutation order.
+        # this is a bit CPU intensive but easy to analyze. We create a sort
+        # order for each peerid. If the peerid is marked as bad, we don't
+        # even put them in the list. Then we care about the number of shares
+        # which have already been assigned to them. After that we care about
+        # their permutation order.
         old_assignments = DictOfSets()
         for (peerid, shnum) in self.goal:
             old_assignments.add(peerid, shnum)
 
         peerlist = []
         for i, (peerid, ss) in enumerate(self.full_peerlist):
-            entry = (len(old_assignments[peerid]), i, peerid, ss)
-            peerlist.add(entry)
+            entry = (len(old_assignments.get(peerid, [])), i, peerid, ss)
+            peerlist.append(entry)
         peerlist.sort()
 
         new_assignments = []
@@ -1566,6 +1693,7 @@ class Publish:
         for shnum in homeless_shares:
             (ignored1, ignored2, peerid, ss) = peerlist[i]
             self.goal.add( (peerid, shnum) )
+            self.connections[peerid] = ss
             i += 1
             if i >= len(peerlist):
                 i = 0
@@ -1681,6 +1809,18 @@ class Publish:
         self.shares = final_shares
         self.root_hash = root_hash
 
+        # we also need to build up the version identifier for what we're
+        # pushing. Extract the offsets from one of our shares.
+        assert final_shares
+        offsets = unpack_header(final_shares.values()[0])[-1]
+        offsets_tuple = tuple( [(key,value) for key,value in offsets.items()] )
+        verinfo = (self._new_seqnum, root_hash, self.salt,
+                   self.segment_size, len(self.newdata),
+                   self.required_shares, self.total_shares,
+                   prefix, offsets_tuple)
+        self.versioninfo = verinfo
+
+
 
     def _send_shares(self, needed):
         self.log("_send_shares")
@@ -1698,7 +1838,7 @@ class Publish:
 
         peermap = DictOfSets()
         for (peerid, shnum) in needed:
-            peermap[peerid].add(shnum)
+            peermap.add(peerid, shnum)
 
         # the next thing is to build up a bunch of test vectors. The
         # semantics of Publish are that we perform the operation if the world
@@ -1712,7 +1852,7 @@ class Publish:
 
         for (peerid, shnum) in needed:
             testvs = []
-            for (old_shnum, old_versionid, old_timestamp) in sm[peerid]:
+            for (old_shnum, old_versionid, old_timestamp) in sm.get(peerid,[]):
                 if old_shnum == shnum:
                     # an old version of that share already exists on the
                     # server, according to our servermap. We will create a
@@ -1723,12 +1863,23 @@ class Publish:
                     old_checkstring = pack_checkstring(old_seqnum,
                                                        old_root_hash,
                                                        old_salt)
-                    testv = [ (0, len(old_checkstring), "eq", old_checkstring) ]
+                    testv = (0, len(old_checkstring), "eq", old_checkstring)
                     testvs.append(testv)
                     break
             if not testvs:
                 # add a testv that requires the share not exist
-                testv = [ (0, 1, 'eq', "") ]
+                #testv = (0, 1, 'eq', "")
+
+                # Unfortunately, foolscap-0.2.5 has a bug in the way inbound
+                # constraints are handled. If the same object is referenced
+                # multiple times inside the arguments, foolscap emits a
+                # 'reference' token instead of a distinct copy of the
+                # argument. The bug is that these 'reference' tokens are not
+                # accepted by the inbound constraint code. To work around
+                # this, we need to prevent python from interning the
+                # (constant) tuple, by creating a new copy of this vector
+                # each time. This bug is fixed in later versions of foolscap.
+                testv = tuple([0, 1, 'eq', ""])
                 testvs.append(testv)
 
             # the write vector is simply the share
@@ -1768,7 +1919,7 @@ class Publish:
             d.addCallbacks(self._got_write_answer, self._got_write_error,
                            callbackArgs=(peerid, shnums, started),
                            errbackArgs=(peerid, shnums, started))
-            d.addErrback(self.error, peerid)
+            d.addErrback(self._fatal_error)
             dl.append(d)
 
         d = defer.DeferredList(dl)
@@ -1784,8 +1935,9 @@ class Publish:
     def _do_testreadwrite(self, peerid, secrets,
                           tw_vectors, read_vector):
         storage_index = self._storage_index
-        ss = self._storage_servers[peerid]
+        ss = self.connections[peerid]
 
+        #print "SS[%s] is %s" % (idlib.shortnodeid_b2a(peerid), ss), ss.tracker.interfaceName
         d = ss.callRemote("slot_testv_and_readv_and_writev",
                           storage_index,
                           secrets,
@@ -1798,31 +1950,40 @@ class Publish:
                       idlib.shortnodeid_b2a(peerid))
         for shnum in shnums:
             self.outstanding.discard( (peerid, shnum) )
+        sm = self._servermap.servermap
 
         wrote, read_data = answer
 
         if not wrote:
-            # TODO: use the checkstring to add information to the log message
-            #self.log("somebody modified the share on us:"
-            #         " shnum=%d: I thought they had #%d:R=%s,"
-            #         " but testv reported #%d:R=%s" %
-            #         (shnum,
-            #          seqnum, base32.b2a(root_hash)[:4],
-            #          old_seqnum, base32.b2a(old_root_hash)[:4]),
-            #         parent=lp, level=log.WEIRD)
             self.log("our testv failed, so the write did not happen",
                      parent=lp, level=log.WEIRD)
             self.surprised = True
             self.bad_peers.add(peerid) # don't ask them again
+            # use the checkstring to add information to the log message
+            for (shnum,readv) in read_data.items():
+                checkstring = readv[0]
+                (other_seqnum,
+                 other_roothash,
+                 other_salt) = unpack_checkstring(checkstring)
+                expected_version = self._servermap.version_on_peer(peerid,
+                                                                   shnum)
+                (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
+                 offsets_tuple) = expected_version
+                self.log("somebody modified the share on us:"
+                         " shnum=%d: I thought they had #%d:R=%s,"
+                         " but testv reported #%d:R=%s" %
+                         (shnum,
+                          seqnum, base32.b2a(root_hash)[:4],
+                          other_seqnum, base32.b2a(other_roothash)[:4]),
+                         parent=lp, level=log.NOISY)
             # self.loop() will take care of finding new homes
             return
 
-        sm = self._servermap.servermap
         for shnum in shnums:
             self.placed.add( (peerid, shnum) )
             # and update the servermap. We strip the old entry out..
             newset = set([ t
-                           for t in sm[peerid]
+                           for t in sm.get(peerid, [])
                            if t[0] != shnum ])
             sm[peerid] = newset
             # and add a new one
@@ -1845,6 +2006,7 @@ class Publish:
         self.bad_peers.add(peerid)
         self.log(format="error while writing shares %(shnums)s to peerid %(peerid)s",
                  shnums=list(shnums), peerid=idlib.shortnodeid_b2a(peerid),
+                 failure=f,
                  level=log.UNUSUAL)
         # self.loop() will take care of checking to see if we're done
         return
@@ -1873,39 +2035,20 @@ class Publish:
         raise UncoordinatedWriteError("I was surprised!")
 
     def _done(self, res):
-        now = time.time()
-        self._status.timings["total"] = now - self._started
-        self._status.set_active(False)
-        self._status.set_status("Done")
-        self._status.set_progress(1.0)
+        if not self._running:
+            return
+        self._running = False
+        #now = time.time()
+        #self._status.timings["total"] = now - self._started
+        #self._status.set_active(False)
+        #self._status.set_status("Done")
+        #self._status.set_progress(1.0)
+        self.done_deferred.callback(res)
         return None
 
     def get_status(self):
         return self._status
 
-
-    def _do_privkey_query(self, rref, peerid, shnum, offset, length):
-        started = time.time()
-        d = self._do_read(rref, peerid, self._storage_index,
-                          [shnum], [(offset, length)])
-        d.addCallback(self._privkey_query_response, peerid, shnum, started)
-        return d
-
-    def _privkey_query_response(self, datav, peerid, shnum, started):
-        elapsed = time.time() - started
-        self._status.add_per_server_time(peerid, "read", elapsed)
-
-        data = datav[shnum][0]
-        self._try_to_validate_privkey(data, peerid, shnum)
-
-        elapsed = time.time() - self._privkey_fetch_started
-        self._status.timings["privkey_fetch"] = elapsed
-        self._status.privkey_from = peerid
-
-    def _obtain_privkey_done(self, target_info):
-        elapsed = time.time() - self._obtain_privkey_started
-        self._status.timings["privkey"] = elapsed
-        return target_info
 
 
 # use client.create_mutable_file() to make one of these
@@ -1990,13 +2133,6 @@ class MutableFileNode:
             signer = rsa.generate(self.SIGNATURE_KEY_SIZE)
             verifier = signer.get_verifying_key()
             return verifier, signer
-
-    def _publish(self, initial_contents):
-        p = self.publish_class(self)
-        self._client.notify_publish(p)
-        d = p.publish(initial_contents)
-        d.addCallback(lambda res: self)
-        return d
 
     def _encrypt_privkey(self, writekey, privkey):
         enc = AES(writekey)
@@ -2114,7 +2250,7 @@ class MutableFileNode:
         d = self.obtain_lock()
         d.addCallback(lambda res:
                       ServermapUpdater(self, servermap, mode).update())
-        d.addCallback(self.release_lock)
+        d.addBoth(self.release_lock)
         return d
 
     def download_version(self, servermap, versionid):
@@ -2122,7 +2258,7 @@ class MutableFileNode:
         d = self.obtain_lock()
         d.addCallback(lambda res:
                       Retrieve(self, servermap, versionid).download())
-        d.addCallback(self.release_lock)
+        d.addBoth(self.release_lock)
         return d
 
     def publish(self, servermap, newdata):
@@ -2131,7 +2267,7 @@ class MutableFileNode:
         d.addCallback(lambda res: Publish(self, servermap).publish(newdata))
         # p = self.publish_class(self)
         # self._client.notify_publish(p)
-        d.addCallback(self.release_lock)
+        d.addBoth(self.release_lock)
         return d
 
     def modify(self, modifier, *args, **kwargs):
@@ -2178,17 +2314,32 @@ class MutableFileNode:
     def download_to_data(self):
         d = self.obtain_lock()
         d.addCallback(lambda res: self.update_servermap(mode=MODE_ENOUGH))
-        d.addCallback(lambda smap:
-                      self.download_version(smap,
-                                            smap.best_recoverable_version()))
-        d.addCallback(self.release_lock)
+        def _updated(smap):
+            goal = smap.best_recoverable_version()
+            if not goal:
+                raise UnrecoverableFileError("no recoverable versions")
+            return self.download_version(smap, goal)
+        d.addCallback(_updated)
+        d.addBoth(self.release_lock)
+        return d
+
+    def _publish(self, initial_contents):
+        p = Publish(self, None)
+        d = p.publish(initial_contents)
+        d.addCallback(lambda res: self)
         return d
 
     def update(self, newdata):
-        return self._publish(newdata)
+        d = self.obtain_lock()
+        d.addCallback(lambda res: self.update_servermap(mode=MODE_WRITE))
+        d.addCallback(lambda smap:
+                      Publish(self, smap).publish(newdata))
+        d.addBoth(self.release_lock)
+        return d
 
     def overwrite(self, newdata):
-        return self._publish(newdata)
+        return self.update(newdata)
+
 
 class MutableWatcher(service.MultiService):
     MAX_PUBLISH_STATUSES = 20
