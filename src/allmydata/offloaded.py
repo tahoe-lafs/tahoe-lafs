@@ -476,6 +476,7 @@ class Helper(Referenceable, service.MultiService):
         fileutil.make_dirs(self._chk_incoming)
         fileutil.make_dirs(self._chk_encoding)
         self._active_uploads = {}
+        self.stats_provider = stats_provider
         if stats_provider:
             stats_provider.register_producer(self)
         service.MultiService.__init__(self)
