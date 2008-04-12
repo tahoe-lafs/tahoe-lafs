@@ -1069,7 +1069,7 @@ class Publish:
                           peerid, permutedid,
                           reachable_peers, current_share_peers, started)
             dl.append(d)
-        d = defer.DeferredList(dl)
+        d = defer.DeferredList(dl, fireOnOneErrback=True)
         d.addCallback(self._got_all_query_results,
                       total_shares, reachable_peers,
                       current_share_peers)
@@ -1498,7 +1498,7 @@ class Publish:
                           started)
             dl.append(d)
 
-        d = defer.DeferredList(dl)
+        d = defer.DeferredList(dl, fireOnOneErrback=True)
         def _done_sending(res):
             elapsed = time.time() - started
             self._status.timings["push"] = elapsed
