@@ -16,8 +16,7 @@ URI = StringConstraint(300) # kind of arbitrary
 
 MAX_BUCKETS = 200  # per peer
 
-# MAX_SEGMENT_SIZE in encode.py is 1 MiB (this constraint allows k = 1)
-ShareData = StringConstraint(2**20)
+ShareData = StringConstraint(None)
 URIExtensionData = StringConstraint(1000)
 Number = IntegerConstraint(8) # 2**(8*8) == 16EiB ~= 18e18 ~= 18 exabytes
 Offset = Number
