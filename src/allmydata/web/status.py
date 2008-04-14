@@ -1,11 +1,11 @@
 
-import time
+import time, pprint
 import simplejson
 from twisted.internet import defer
 from nevow import rend, inevow, tags as T
 from allmydata.util import base32, idlib
 from allmydata.web.common import IClient, getxmlfile, abbreviate_time, \
-     abbreviate_rate, get_arg
+     abbreviate_rate, abbreviate_size, get_arg
 from allmydata.interfaces import IUploadStatus, IDownloadStatus, \
      IPublishStatus, IRetrieveStatus
 
@@ -808,3 +808,48 @@ class HelperStatus(rend.Page):
     def render_upload_bytes_encoded(self, ctx, data):
         return str(data["chk_upload_helper.encoded_bytes"])
 
+
+class Statistics(rend.Page):
+    docFactory = getxmlfile("statistics.xhtml")
+
+    def renderHTTP(self, ctx):
+        provider = IClient(ctx).stats_provider
+        stats = {'stats': {}, 'counters': {}}
+        if provider:
+            stats = provider.get_stats()
+        t = get_arg(inevow.IRequest(ctx), "t")
+        if t == "json":
+            return simplejson.dumps(stats, indent=1)
+        # is there a better way to provide 'data' to all rendering methods?
+        self.original = stats
+        return rend.Page.renderHTTP(self, ctx)
+
+    def render_load_average(self, ctx, data):
+        return str(data["stats"].get("load_monitor.avg_load"))
+
+    def render_peak_load(self, ctx, data):
+        return str(data["stats"].get("load_monitor.max_load"))
+
+    def render_uploads(self, ctx, data):
+        files = data["counters"].get("uploader.files_uploaded")
+        bytes = data["counters"].get("uploader.bytes_uploaded")
+        return ("%s files / %s bytes (%s)" %
+                (files, bytes, abbreviate_size(bytes)))
+
+    def render_downloads(self, ctx, data):
+        files = data["counters"].get("downloader.files_uploaded")
+        bytes = data["counters"].get("downloader.bytes_uploaded")
+        return ("%s files / %s bytes (%s)" %
+                (files, bytes, abbreviate_size(bytes)))
+
+    def render_publishes(self, ctx, data):
+        files = data["counters"].get("mutable.files_published")
+        return "%s files" % (files,)
+
+    def render_retrieves(self, ctx, data):
+        files = data["counters"].get("mutable.files_retrieved")
+        return "%s files" % (files,)
+
+    def render_raw(self, ctx, data):
+        raw = pprint.pformat(data)
+        return ctx.tag[raw]

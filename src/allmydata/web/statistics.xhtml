@@ -1,0 +1,28 @@
+<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+  <head>
+    <title>Stats - AllMyData Tahoe</title>
+    <!-- <link href="http://www.allmydata.com/common/css/styles.css"
+          rel="stylesheet" type="text/css"/> -->
+    <link href="/webform_css" rel="stylesheet" type="text/css"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  </head>
+  <body>
+
+<h1>Node Statistics</h1>
+
+<ul>
+  <li>Load Average: <span n:render="load_average" /></li>
+  <li>Peak Load: <span n:render="peak_load" /></li>
+  <li>Files Uploaded (immutable): <span n:render="uploads" /></li>
+  <li>Files Downloaded (immutable): <span n:render="downloads" /></li>
+  <li>Files Published (mutable): <span n:render="publishes" /></li>
+  <li>Files Retrieved (mutable): <span n:render="retrieves" /></li>
+</ul>
+
+<h2>Raw Stats:</h2>
+<pre n:render="raw" />
+
+<div>Return to the <a href="/">Welcome Page</a></div>
+
+  </body>
+</html>

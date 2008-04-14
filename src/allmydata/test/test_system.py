@@ -1354,6 +1354,18 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             self.failUnlessEqual(data, {})
         d.addCallback(_got_non_helper_status_json)
 
+        # see if the statistics page exists
+        d.addCallback(lambda res: self.GET("statistics"))
+        def _got_stats(res):
+            self.failUnless("Node Statistics" in res)
+            self.failUnless("  'downloader.files_downloaded': 8," in res)
+        d.addCallback(_got_stats)
+        d.addCallback(lambda res: self.GET("statistics?t=json"))
+        def _got_stats_json(res):
+            data = simplejson.loads(res)
+            self.failUnlessEqual(data["counters"]["uploader.files_uploaded"], 5)
+            self.failUnlessEqual(data["stats"]["chk_upload_helper.upload_need_upload"], 1)
+        d.addCallback(_got_stats_json)
 
         # TODO: mangle the second segment of a file, to test errors that
         # occur after we've already sent some good data, which uses a

@@ -103,14 +103,16 @@ class StatsProvider(foolscap.Referenceable, service.MultiService):
     def register_producer(self, stats_producer):
         self.stats_producers.append(IStatsProducer(stats_producer))
 
-    def remote_get_stats(self):
+    def get_stats(self):
         stats = {}
         for sp in self.stats_producers:
             stats.update(sp.get_stats())
-        #return { 'counters': self.counters, 'stats': stats }
         ret = { 'counters': self.counters, 'stats': stats }
-        log.msg(format='get_stats() -> %s', args=(pprint.pformat(ret),), level=12)
+        log.msg(format='get_stats() -> %(stats)s', stats=ret, level=log.NOISY)
         return ret
+
+    def remote_get_stats(self):
+        return self.get_stats()
 
     def _connected(self, gatherer, nickname):
         gatherer.callRemoteOnly('provide', self, nickname or '')
