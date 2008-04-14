@@ -1472,7 +1472,7 @@ class Root(rend.Page):
         try:
             h = client.getServiceNamed("helper")
             stats = h.get_stats()
-            active_uploads = stats["helper"]["CHK_active_uploads"]
+            active_uploads = stats["chk_upload_helper.active_uploads"]
             ul[T.li["Helper: %d active uploads" % (active_uploads,)]]
         except KeyError:
             ul[T.li["Not running helper"]]

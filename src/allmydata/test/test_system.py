@@ -1198,6 +1198,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             self.failUnless(expected in page,
                             "I didn't see the right 'My nodeid' message "
                             "in: %s" % page)
+            self.failUnless("Helper: 0 active uploads" in page)
         d.addCallback(_got_welcome)
         d.addCallback(self.log, "done with _got_welcome")
 
@@ -1206,6 +1207,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         def _got_welcome_helper(page):
             self.failUnless("Connected to helper?: <span>yes</span>" in page,
                             page)
+            self.failUnless("Not running helper" in page)
         d.addCallback(_got_welcome_helper)
 
         d.addCallback(lambda res: getPage(base + public))
