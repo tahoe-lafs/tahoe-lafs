@@ -366,10 +366,15 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         fetch_size = min(needed, self.CHUNK_SIZE)
         if fetch_size == 0:
             return True # all done
-        self.log(format="fetching %(start)d-%(end)d of %(total)d",
+        percent = 0
+        if self._expected_size:
+            percent = 1.0 * (self._have+fetch_size) / self._expected_size
+            percent = int(100*percent)
+        self.log(format="fetching %(start)d-%(end)d of %(total)d (%(percent)d%%)",
                  start=self._have,
                  end=self._have+fetch_size,
                  total=self._expected_size,
+                 percent=percent,
                  level=log.NOISY)
         d = self.call("read_encrypted", self._have, fetch_size)
         def _got_data(ciphertext_v):
