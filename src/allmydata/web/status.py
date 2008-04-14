@@ -770,7 +770,7 @@ class HelperStatus(rend.Page):
             return self.render_JSON(ctx)
         # is there a better way to provide 'data' to all rendering methods?
         helper = IClient(ctx).getServiceNamed("helper")
-        self.original = helper.get_stats()["helper"]
+        self.original = helper.get_stats()
         return rend.Page.renderHTTP(self, ctx)
 
     def render_JSON(self, ctx):
@@ -779,32 +779,32 @@ class HelperStatus(rend.Page):
         except KeyError:
             return simplejson.dumps({})
 
-        stats = h.get_stats()["helper"]
+        stats = h.get_stats()
         return simplejson.dumps(stats, indent=1)
 
     def render_active_uploads(self, ctx, data):
-        return data["CHK_active_uploads"]
+        return data["chk_upload_helper.active_uploads"]
 
     def render_incoming(self, ctx, data):
-        return "%d bytes in %d files" % (data["CHK_incoming_size"],
-                                         data["CHK_incoming_files"])
+        return "%d bytes in %d files" % (data["chk_upload_helper.incoming_size"],
+                                         data["chk_upload_helper.incoming_count"])
 
     def render_encoding(self, ctx, data):
-        return "%d bytes in %d files" % (data["CHK_encoding_size"],
-                                         data["CHK_encoding_files"])
+        return "%d bytes in %d files" % (data["chk_upload_helper.encoding_size"],
+                                         data["chk_upload_helper.encoding_count"])
 
     def render_upload_requests(self, ctx, data):
-        return str(data["CHK_upload_requests"])
+        return str(data["chk_upload_helper.upload_requests"])
 
     def render_upload_already_present(self, ctx, data):
-        return str(data["CHK_upload_already_present"])
+        return str(data["chk_upload_helper.upload_already_present"])
 
     def render_upload_need_upload(self, ctx, data):
-        return str(data["CHK_upload_need_upload"])
+        return str(data["chk_upload_helper.upload_need_upload"])
 
     def render_upload_bytes_fetched(self, ctx, data):
-        return str(data["CHK_fetched_bytes"])
+        return str(data["chk_upload_helper.fetched_bytes"])
 
     def render_upload_bytes_encoded(self, ctx, data):
-        return str(data["CHK_encoded_bytes"])
+        return str(data["chk_upload_helper.encoded_bytes"])
 

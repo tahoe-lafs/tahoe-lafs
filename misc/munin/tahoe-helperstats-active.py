@@ -21,5 +21,5 @@ if len(sys.argv) > 1:
 url = os.environ["url"]
 
 data = simplejson.loads(urllib.urlopen(url).read())
-print "fetched.value %d" % data["CHK_active_uploads"]
+print "fetched.value %d" % data["chk_upload_helper.active_uploads"]
 
