@@ -125,8 +125,7 @@ endif
 signal-error-deps:
 	@echo
 	@echo
-	@echo "ERROR: Not all of Tahoe's dependencies are in place.  Please see\
-docs/install.html for help on installing dependencies."
+	@echo "ERROR: Not all of Tahoe's dependencies are in place.  Please see docs/install.html for help on installing dependencies."
 	@echo
 	@echo
 	exit 1
@@ -142,8 +141,7 @@ signal-error-twisted-dep:
 signal-error-pywin32-dep:
 	@echo
 	@echo
-	@echo "ERROR: the pywin32 dependency is not in place.  Please see docs/install.html for\
-help on installing dependencies."
+	@echo "ERROR: the pywin32 dependency is not in place.  Please see docs/install.html for help on installing dependencies."
 	@echo
 	@echo
 	exit 1
@@ -185,13 +183,11 @@ TEST=allmydata
 # suppress the ansi color sequences
 
 test: .built .checked-deps src/allmydata/_version.py
-	$(PP) \
-	 $(TRIAL) $(TRIALARGS) $(TEST)
+	$(PP) $(TRIAL) $(TRIALARGS) $(TEST)
 
 test-figleaf: .built .checked-deps
 	rm -f .figleaf
-	$(PP) \
-	 $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
+	$(PP) $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
 
 figleaf-output:
 	$(PP) \
@@ -224,8 +220,7 @@ upload-figleaf:
 endif
 
 .figleaf.el: .figleaf
-	$(PP) \
-	 $(PYTHON) misc/figleaf2el.py .figleaf src
+	$(PP) $(PYTHON) misc/figleaf2el.py .figleaf src
 
 pyflakes:
 	$(PYTHON) -OOu `which pyflakes` src/allmydata |sort |uniq
@@ -447,4 +442,3 @@ mac-dbg:
 .PHONY: stats-gatherer-run
 stats-gatherer-run:
 	cd stats_gatherer && $(PP) $(PYTHON) ../src/allmydata/stats.py
-
