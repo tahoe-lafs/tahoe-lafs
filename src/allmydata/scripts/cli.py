@@ -51,8 +51,8 @@ class VDriveOptions(BaseOptions, usage.Options):
             except EnvironmentError, le:
                 raise usage.UsageError("\n"
                                        "If --dir-cap is absent or is 'root', then the node directory's 'private'\n"
-                                       "subdirectory is required to contain a file named 'root_dir.cap' which must\n"
-                                       "contain a dir cap, but when we tried to open that file we got:\n"
+                                       "subdirectory is required to contain a file named 'root_dir.cap' which is\n"
+                                       "required to contain a dir cap, but when we tried to open that file we got:\n"
                                        "'%s'." % (le,))
         else:
             rootdircap = self['dir-cap']
@@ -69,7 +69,7 @@ class VDriveOptions(BaseOptions, usage.Options):
                                            "subdirectory's 'root_dir.cap' is required to contain a dir cap, but we found\n"
                                            "'%s'." % (rootdircap,))
                 else:
-                    raise usage.UsageError("--dir-cap must be a dir cap (or \"root\"), but we got '%s'." % (self['dir-cap'],))
+                    raise usage.UsageError("--dir-cap is required to be a dir cap (or \"root\"), but we got '%s'." % (self['dir-cap'],))
 
         self['dir-cap'] = parsed.to_string()
 
