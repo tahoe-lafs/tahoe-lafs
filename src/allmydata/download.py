@@ -110,7 +110,12 @@ class Output:
 
     def fail(self, why):
         # this is really unusual, and deserves maximum forensics
-        self.log("download failed!", failure=why, level=log.SCARY)
+        if why.check(DownloadStopped):
+            # except DownloadStopped just means the consumer aborted the
+            # download, not so scary
+            self.log("download stopped", level=log.UNUSUAL)
+        else:
+            self.log("download failed!", failure=why, level=log.SCARY)
         self.downloadable.fail(why)
 
     def close(self):
