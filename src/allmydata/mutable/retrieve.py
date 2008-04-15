@@ -93,6 +93,7 @@ class Retrieve:
         self._outstanding_queries = {} # maps (peerid,shnum) to start_time
         self._running = True
         self._decoding = False
+        self._bad_shares = set()
 
         self.servermap = servermap
         assert self._node._pubkey
@@ -238,6 +239,8 @@ class Retrieve:
                 f = failure.Failure()
                 self.log("bad share: %s %s" % (f, f.value), level=log.WEIRD)
                 self.remove_peer(peerid)
+                self.servermap.mark_bad_share(peerid, shnum)
+                self._bad_shares.add( (peerid, shnum) )
                 self._last_failure = f
                 pass
         # all done!
@@ -374,19 +377,26 @@ class Retrieve:
             format = ("ran out of peers: "
                       "have %(have)d shares (k=%(k)d), "
                       "%(outstanding)d queries in flight, "
-                      "need %(need)d more")
+                      "need %(need)d more, "
+                      "found %(bad)d bad shares")
+            args = {"have": len(self.shares),
+                    "k": k,
+                    "outstanding": len(self._outstanding_queries),
+                    "need": needed,
+                    "bad": len(self._bad_shares),
+                    }
             self.log(format=format,
-                     have=len(self.shares), k=k,
-                     outstanding=len(self._outstanding_queries),
-                     need=needed,
-                     level=log.WEIRD)
-            msg2 = format % {"have": len(self.shares),
-                             "k": k,
-                             "outstanding": len(self._outstanding_queries),
-                             "need": needed,
-                             }
-            raise NotEnoughPeersError("%s, last failure: %s" %
-                                      (msg2, self._last_failure))
+                     level=log.WEIRD, **args)
+            err = NotEnoughPeersError("%s, last failure: %s" %
+                                      (format % args, self._last_failure))
+            if self._bad_shares:
+                self.log("We found some bad shares this pass. You should "
+                         "update the servermap and try again to check "
+                         "more peers",
+                         level=log.WEIRD)
+                err.worth_retrying = True
+                err.servermap = self.servermap
+            raise err
 
         return
 

@@ -7,6 +7,7 @@ from twisted.internet import defer
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI
 from allmydata.util import hashutil
 from allmydata.uri import WriteableSSKFileURI
+from allmydata.encode import NotEnoughPeersError
 from pycryptopp.publickey import rsa
 from pycryptopp.cipher.aes import AES
 
@@ -279,15 +280,30 @@ class MutableFileNode:
         d.addCallback(_done)
         return d
 
-    def download_to_data(self):
-        d = self.obtain_lock()
-        d.addCallback(lambda res: self.update_servermap(mode=MODE_ENOUGH))
+    def _update_and_retrieve_best(self, old_map=None):
+        d = self.update_servermap(old_map=old_map, mode=MODE_ENOUGH)
         def _updated(smap):
             goal = smap.best_recoverable_version()
             if not goal:
                 raise UnrecoverableFileError("no recoverable versions")
             return self.download_version(smap, goal)
         d.addCallback(_updated)
+        return d
+
+    def download_to_data(self):
+        d = self.obtain_lock()
+        d.addCallback(lambda res: self._update_and_retrieve_best())
+        def _maybe_retry(f):
+            f.trap(NotEnoughPeersError)
+            e = f.value
+            if not e.worth_retrying:
+                return f
+            # the download is worth retrying once. Make sure to use the old
+            # servermap, since it is what remembers the bad shares. TODO:
+            # consider allowing this to retry multiple times.. this approach
+            # will let us tolerate about 8 bad shares, I think.
+            return self._update_and_retrieve_best(e.servermap)
+        d.addErrback(_maybe_retry)
         d.addBoth(self.release_lock)
         return d
 

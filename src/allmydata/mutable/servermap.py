@@ -25,6 +25,14 @@ class ServerMap:
     operations, which means 'publish this new version, but only if nothing
     has changed since I last retrieved this data'. This reduces the chances
     of clobbering a simultaneous (uncoordinated) write.
+
+    @ivar bad_shares: a sequence of (peerid, shnum) tuples, describing
+                      shares that I should ignore (because a previous user of
+                      the servermap determined that they were invalid). The
+                      updater only locates a certain number of shares: if
+                      some of these turn out to have integrity problems and
+                      are unusable, the caller will need to mark those shares
+                      as bad, then re-update the servermap, then try again.
     """
 
     def __init__(self):
@@ -35,8 +43,35 @@ class ServerMap:
         self.connections = {} # maps peerid to a RemoteReference
         self.unreachable_peers = set() # peerids that didn't respond to queries
         self.problems = [] # mostly for debugging
+        self.bad_shares = set()
         self.last_update_mode = None
         self.last_update_time = 0
+
+    def mark_bad_share(self, peerid, shnum):
+        """This share was found to be bad, not in the checkstring or
+        signature, but deeper in the share, detected at retrieve time. Remove
+        it from our list of useful shares, and remember that it is bad so we
+        don't add it back again later.
+        """
+        self.bad_shares.add( (peerid, shnum) )
+        self._remove_share(peerid, shnum)
+
+    def _remove_share(self, peerid, shnum):
+        #(s_shnum, s_verinfo, s_timestamp) = share
+        to_remove = [share
+                     for share in self.servermap[peerid]
+                     if share[0] == shnum]
+        for share in to_remove:
+            self.servermap[peerid].discard(share)
+        if not self.servermap[peerid]:
+            del self.servermap[peerid]
+
+    def add_new_share(self, peerid, shnum, verinfo, timestamp):
+        """We've written a new share out, replacing any that was there
+        before."""
+        self.bad_shares.discard( (peerid, shnum) )
+        self._remove_share(peerid, shnum)
+        self.servermap.add(peerid, (shnum, verinfo, timestamp) )
 
     def dump(self, out=sys.stdout):
         print >>out, "servermap:"
@@ -148,6 +183,11 @@ class ServerMap:
 
 class ServermapUpdater:
     def __init__(self, filenode, servermap, mode=MODE_ENOUGH):
+        """I update a servermap, locating a sufficient number of useful
+        shares and remembering where they are located.
+
+        """
+
         self._node = filenode
         self._servermap = servermap
         self.mode = mode
@@ -414,6 +454,11 @@ class ServermapUpdater:
                         k, N, segsize, datalength))
             self._valid_versions.add(verinfo)
         # We now know that this is a valid candidate verinfo.
+
+        if (peerid, shnum, verinfo) in self._servermap.bad_shares:
+            # we've been told that the rest of the data in this share is
+            # unusable, so don't add it to the servermap.
+            return verinfo
 
         # Add the info to our servermap.
         timestamp = time.time()

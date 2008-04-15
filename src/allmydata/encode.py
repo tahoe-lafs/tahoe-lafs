@@ -61,6 +61,8 @@ hash tree is put into the URI.
 """
 
 class NotEnoughPeersError(Exception):
+    worth_retrying = False
+    servermap = None
     pass
 
 class UploadAborted(Exception):
