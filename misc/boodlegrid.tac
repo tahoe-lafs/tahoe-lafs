@@ -75,12 +75,12 @@ class Listener:
         if message.startswith("Retrieve") and "starting" in message:
             self.sound("mech/metal-clack.aiff")
         if message.startswith("Publish") and "starting" in message:
+            self.sound("mech/door-slam.aiff")
             #self.sound("mech/metal-clash.aiff")
-            self.sound("mech/clock-clang.aiff")
         if ("web: %(clientip)s" in format
             and m.get("method") == "POST"
             and "t=set_children" in m.get("uri", "")):
-            self.sound("mech/door-slam.aiff")
+            self.sound("mech/clock-clang.aiff")
 
         # generic messages
         #if m['level'] < 20:
@@ -89,11 +89,17 @@ class Listener:
             pass
         elif format == "excessive reactor delay (%ss)":
             self.sound("animal/frog-cheep.aiff")
-            print "excessive delay", furl
-        elif (facility == "foolscap.negotiation"
-              and (message == "got offer for an existing connection"
-                   or "master told us to use a new connection" in message)):
-            print "foolscap: got offer for an existing connection", message, furl
+            print "excessive delay %s: %s" % (m['args'][0], furl)
+        elif format == "excessive reactor delay (%(delay)ss)":
+            self.sound("animal/frog-cheep.aiff")
+            print "excessive delay %s: %s" % (m['delay'], furl)
+        elif facility == "foolscap.negotiation":
+          if (message == "got offer for an existing connection"
+              or "master told us to use a new connection" in message):
+              print "foolscap: got offer for an existing connection", message, furl
+          else:
+              #print "foolscap:", message
+              pass
         elif m['level'] > 30: # SCARY or BAD
             #self.sound("mech/alarm-bell.aiff")
             self.sound("environ/thunder-tense.aiff")
