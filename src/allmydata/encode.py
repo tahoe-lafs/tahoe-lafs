@@ -60,7 +60,7 @@ hash tree is put into the URI.
 
 """
 
-class NotEnoughPeersError(Exception):
+class NotEnoughSharesError(Exception):
     worth_retrying = False
     servermap = None
     pass
@@ -489,7 +489,7 @@ class Encoder(object):
                      level=log.WEIRD)
         if len(self.landlords) < self.shares_of_happiness:
             msg = "lost too many shareholders during upload: %s" % why
-            raise NotEnoughPeersError(msg)
+            raise NotEnoughSharesError(msg)
         self.log("but we can still continue with %s shares, we'll be happy "
                  "with at least %s" % (len(self.landlords),
                                        self.shares_of_happiness),
@@ -497,17 +497,17 @@ class Encoder(object):
 
     def _gather_responses(self, dl):
         d = defer.DeferredList(dl, fireOnOneErrback=True)
-        def _eatNotEnoughPeersError(f):
+        def _eatNotEnoughSharesError(f):
             # all exceptions that occur while talking to a peer are handled
-            # in _remove_shareholder. That might raise NotEnoughPeersError,
+            # in _remove_shareholder. That might raise NotEnoughSharesError,
             # which will cause the DeferredList to errback but which should
-            # otherwise be consumed. Allow non-NotEnoughPeersError exceptions
+            # otherwise be consumed. Allow non-NotEnoughSharesError exceptions
             # to pass through as an unhandled errback. We use this in lieu of
             # consumeErrors=True to allow coding errors to be logged.
-            f.trap(NotEnoughPeersError)
+            f.trap(NotEnoughSharesError)
             return None
         for d0 in dl:
-            d0.addErrback(_eatNotEnoughPeersError)
+            d0.addErrback(_eatNotEnoughSharesError)
         return d
 
     def finish_hashing(self):

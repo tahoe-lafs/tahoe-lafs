@@ -157,7 +157,7 @@ class Tahoe2PeerSelector:
 
         peers = client.get_permuted_peers("storage", storage_index)
         if not peers:
-            raise encode.NotEnoughPeersError("client gave us zero peers")
+            raise encode.NotEnoughSharesError("client gave us zero peers")
 
         # figure out how much space to ask for
 
@@ -269,7 +269,7 @@ class Tahoe2PeerSelector:
                 if self.last_failure_msg:
                     msg += " (%s)" % (self.last_failure_msg,)
                 log.msg(msg, level=log.UNUSUAL, parent=self._log_parent)
-                raise encode.NotEnoughPeersError(msg)
+                raise encode.NotEnoughSharesError(msg)
             else:
                 # we placed enough to be happy, so we're done
                 if self._status:

@@ -374,10 +374,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                 log.msg("finished downloading non-existend URI",
                         level=log.UNUSUAL, facility="tahoe.tests")
                 self.failUnless(isinstance(res, Failure))
-                self.failUnless(res.check(download.NotEnoughPeersError),
-                                "expected NotEnoughPeersError, got %s" % res)
+                self.failUnless(res.check(download.NotEnoughSharesError),
+                                "expected NotEnoughSharesError, got %s" % res)
                 # TODO: files that have zero peers should get a special kind
-                # of NotEnoughPeersError, which can be used to suggest that
+                # of NotEnoughSharesError, which can be used to suggest that
                 # the URI might be wrong or that they've never uploaded the
                 # file in the first place.
             d1.addBoth(_baduri_should_fail)

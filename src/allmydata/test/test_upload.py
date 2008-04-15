@@ -303,7 +303,7 @@ class FullServer(unittest.TestCase):
         self.u.parent = self.node
 
     def _should_fail(self, f):
-        self.failUnless(isinstance(f, Failure) and f.check(encode.NotEnoughPeersError), f)
+        self.failUnless(isinstance(f, Failure) and f.check(encode.NotEnoughSharesError), f)
 
     def test_data_large(self):
         data = DATA

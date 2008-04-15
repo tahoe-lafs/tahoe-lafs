@@ -8,7 +8,7 @@ from allmydata import uri, download
 from allmydata.util import base32
 from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash
-from allmydata.encode import NotEnoughPeersError
+from allmydata.encode import NotEnoughSharesError
 from allmydata.interfaces import IURI, IMutableFileURI, IUploadable
 from foolscap.eventual import eventually, fireEventually
 from foolscap.logging import log
@@ -363,7 +363,7 @@ class MakeShares(unittest.TestCase):
 
     # TODO: when we publish to 20 peers, we should get one share per peer on 10
     # when we publish to 3 peers, we should get either 3 or 4 shares per peer
-    # when we publish to zero peers, we should get a NotEnoughPeersError
+    # when we publish to zero peers, we should get a NotEnoughSharesError
 
 class Servermap(unittest.TestCase):
     def setUp(self):
@@ -644,7 +644,7 @@ class Roundtrip(unittest.TestCase):
                                self.failUnlessEqual(new_contents, self.CONTENTS))
                 return d1
             else:
-                return self.shouldFail(NotEnoughPeersError,
+                return self.shouldFail(NotEnoughSharesError,
                                        "_corrupt_all(offset=%s)" % (offset,),
                                        substring,
                                        r.download)

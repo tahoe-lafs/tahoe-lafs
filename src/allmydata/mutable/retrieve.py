@@ -8,7 +8,7 @@ from foolscap.eventual import eventually
 from allmydata.interfaces import IRetrieveStatus
 from allmydata.util import hashutil, idlib, log
 from allmydata import hashtree, codec, storage
-from allmydata.encode import NotEnoughPeersError
+from allmydata.encode import NotEnoughSharesError
 from pycryptopp.cipher.aes import AES
 
 from common import DictOfSets, CorruptShareError, UncoordinatedWriteError
@@ -328,7 +328,7 @@ class Retrieve:
         # There are some number of queries outstanding, each for a single
         # share. If we can generate 'needed_shares' additional queries, we do
         # so. If we can't, then we know this file is a goner, and we raise
-        # NotEnoughPeersError.
+        # NotEnoughSharesError.
         self.log(format=("_maybe_send_more_queries, have=%(have)d, k=%(k)d, "
                          "outstanding=%(outstanding)d"),
                  have=len(self.shares), k=k,
@@ -387,7 +387,7 @@ class Retrieve:
                     }
             self.log(format=format,
                      level=log.WEIRD, **args)
-            err = NotEnoughPeersError("%s, last failure: %s" %
+            err = NotEnoughSharesError("%s, last failure: %s" %
                                       (format % args, self._last_failure))
             if self._bad_shares:
                 self.log("We found some bad shares this pass. You should "

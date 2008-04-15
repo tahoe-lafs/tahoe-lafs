@@ -7,7 +7,7 @@ from twisted.internet import defer
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI
 from allmydata.util import hashutil
 from allmydata.uri import WriteableSSKFileURI
-from allmydata.encode import NotEnoughPeersError
+from allmydata.encode import NotEnoughSharesError
 from pycryptopp.publickey import rsa
 from pycryptopp.cipher.aes import AES
 
@@ -294,7 +294,7 @@ class MutableFileNode:
         d = self.obtain_lock()
         d.addCallback(lambda res: self._update_and_retrieve_best())
         def _maybe_retry(f):
-            f.trap(NotEnoughPeersError)
+            f.trap(NotEnoughSharesError)
             e = f.value
             if not e.worth_retrying:
                 return f

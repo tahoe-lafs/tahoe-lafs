@@ -485,7 +485,7 @@ class ServermapUpdater:
             # NOTE: if uncoordinated writes are taking place, someone might
             # change the share (and most probably move the encprivkey) before
             # we get a chance to do one of these reads and fetch it. This
-            # will cause us to see a NotEnoughPeersError(unable to fetch
+            # will cause us to see a NotEnoughSharesError(unable to fetch
             # privkey) instead of an UncoordinatedWriteError . This is a
             # nuisance, but it will go away when we move to DSA-based mutable
             # files (since the privkey will be small enough to fit in the

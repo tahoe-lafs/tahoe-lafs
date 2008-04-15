@@ -530,8 +530,8 @@ MutableFileNode class will be created. Instances of this class will contain a
 URI and a reference to the client (for peer selection and connection). The
 methods of MutableFileNode are:
 
- * replace(newdata) -> OK, ConsistencyError, NotEnoughPeersError
- * get() -> [deferred] newdata, NotEnoughPeersError
+ * replace(newdata) -> OK, ConsistencyError, NotEnoughSharesError
+ * get() -> [deferred] newdata, NotEnoughSharesError
    * if there are multiple retrieveable versions in the grid, get() returns
      the first version it can reconstruct, and silently ignores the others.
      In the future, a more advanced API will signal and provide access to

@@ -359,13 +359,13 @@ a reference to the client (for peer selection and connection).
 
 The methods of MutableFileNode are:
 
- * download_to_data() -> [deferred] newdata, NotEnoughPeersError
+ * download_to_data() -> [deferred] newdata, NotEnoughSharesError
    * if there are multiple retrieveable versions in the grid, get() returns
      the first version it can reconstruct, and silently ignores the others.
      In the future, a more advanced API will signal and provide access to
      the multiple heads.
- * update(newdata) -> OK, UncoordinatedWriteError, NotEnoughPeersError
- * overwrite(newdata) -> OK, UncoordinatedWriteError, NotEnoughPeersError
+ * update(newdata) -> OK, UncoordinatedWriteError, NotEnoughSharesError
+ * overwrite(newdata) -> OK, UncoordinatedWriteError, NotEnoughSharesError
 
 download_to_data() causes a new retrieval to occur, pulling the current
 contents from the grid and returning them to the caller. At the same time,

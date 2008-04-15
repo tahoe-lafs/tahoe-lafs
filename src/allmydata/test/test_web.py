@@ -1659,7 +1659,7 @@ class Web(WebMixin, unittest.TestCase):
         base = "/uri/%s" % self._bad_file_uri
         d = self.GET(base)
         d.addBoth(self.shouldHTTPError, "test_GET_URI_URL_missing",
-                  http.GONE, response_substring="NotEnoughPeersError")
+                  http.GONE, response_substring="NotEnoughSharesError")
         # TODO: how can we exercise both sides of WebDownloadTarget.fail
         # here? we must arrange for a download to fail after target.open()
         # has been called, and then inspect the response to see that it is

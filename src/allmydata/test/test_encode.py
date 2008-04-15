@@ -408,7 +408,7 @@ class Roundtrip(unittest.TestCase):
         d = self.send_and_recover((4,8,10), AVAILABLE_SHARES=2)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(download.NotEnoughPeersError))
+            self.failUnless(res.check(download.NotEnoughSharesError))
         d.addBoth(_done)
         return d
 
@@ -457,7 +457,7 @@ class Roundtrip(unittest.TestCase):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(download.NotEnoughPeersError))
+            self.failUnless(res.check(download.NotEnoughSharesError))
         d.addBoth(_done)
         return d
 
@@ -480,7 +480,7 @@ class Roundtrip(unittest.TestCase):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(download.NotEnoughPeersError))
+            self.failUnless(res.check(download.NotEnoughSharesError))
         d.addBoth(_done)
         return d
 
@@ -597,7 +597,7 @@ class Roundtrip(unittest.TestCase):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(download.NotEnoughPeersError))
+            self.failUnless(res.check(download.NotEnoughSharesError))
         d.addBoth(_done)
         return d
 
@@ -620,7 +620,7 @@ class Roundtrip(unittest.TestCase):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(download.NotEnoughPeersError))
+            self.failUnless(res.check(download.NotEnoughSharesError))
         d.addBoth(_done)
         return d
 
@@ -649,7 +649,7 @@ class Roundtrip(unittest.TestCase):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(encode.NotEnoughPeersError), res)
+            self.failUnless(res.check(encode.NotEnoughSharesError), res)
         d.addBoth(_done)
         return d
 
@@ -660,7 +660,7 @@ class Roundtrip(unittest.TestCase):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(encode.NotEnoughPeersError))
+            self.failUnless(res.check(encode.NotEnoughSharesError))
         d.addBoth(_done)
         return d
 

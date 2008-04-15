@@ -6,7 +6,7 @@ from twisted.python import failure
 from twisted.application import service
 from allmydata import uri, dirnode
 from allmydata.interfaces import IURI, IMutableFileNode, IFileNode
-from allmydata.encode import NotEnoughPeersError
+from allmydata.encode import NotEnoughSharesError
 from allmydata.util import log
 
 class FakeCHKFileNode:
@@ -34,7 +34,7 @@ class FakeCHKFileNode:
 
     def download(self, target):
         if self.my_uri not in self.all_contents:
-            f = failure.Failure(NotEnoughPeersError())
+            f = failure.Failure(NotEnoughSharesError())
             target.fail(f)
             return defer.fail(f)
         data = self.all_contents[self.my_uri]
@@ -44,7 +44,7 @@ class FakeCHKFileNode:
         return defer.maybeDeferred(target.finish)
     def download_to_data(self):
         if self.my_uri not in self.all_contents:
-            return defer.fail(NotEnoughPeersError())
+            return defer.fail(NotEnoughSharesError())
         data = self.all_contents[self.my_uri]
         return defer.succeed(data)
     def get_size(self):

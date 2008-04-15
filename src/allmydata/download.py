@@ -11,7 +11,7 @@ from allmydata.util.assertutil import _assert
 from allmydata import codec, hashtree, storage, uri
 from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, \
      IDownloadStatus, IDownloadResults
-from allmydata.encode import NotEnoughPeersError
+from allmydata.encode import NotEnoughSharesError
 from pycryptopp.cipher.aes import AES
 
 class HaveAllPeersError(Exception):
@@ -332,7 +332,7 @@ class SegmentDownloader:
         return d
 
     def _try(self):
-        # fill our set of active buckets, maybe raising NotEnoughPeersError
+        # fill our set of active buckets, maybe raising NotEnoughSharesError
         active_buckets = self.parent._activate_enough_buckets()
         # Now we have enough buckets, in self.parent.active_buckets.
 
@@ -598,7 +598,7 @@ class FileDownloader:
             self._results.timings["peer_selection"] = now - self._started
 
         if len(self._share_buckets) < self._num_needed_shares:
-            raise NotEnoughPeersError
+            raise NotEnoughSharesError
 
         #for s in self._share_vbuckets.values():
         #    for vb in s:
@@ -637,7 +637,7 @@ class FileDownloader:
     def _obtain_validated_thing(self, ignored, sources, name, methname, args,
                                 validatorfunc):
         if not sources:
-            raise NotEnoughPeersError("started with zero peers while fetching "
+            raise NotEnoughSharesError("started with zero peers while fetching "
                                       "%s" % name)
         bucket = sources[0]
         sources = sources[1:]
@@ -649,7 +649,7 @@ class FileDownloader:
             self.log("%s from vbucket %s failed:" % (name, bucket),
                      failure=f, level=log.WEIRD)
             if not sources:
-                raise NotEnoughPeersError("ran out of peers, last error was %s"
+                raise NotEnoughSharesError("ran out of peers, last error was %s"
                                           % (f,))
             # try again with a different one
             return self._obtain_validated_thing(None, sources, name,
@@ -771,7 +771,7 @@ class FileDownloader:
 
     def _activate_enough_buckets(self):
         """either return a mapping from shnum to a ValidatedBucket that can
-        provide data for that share, or raise NotEnoughPeersError"""
+        provide data for that share, or raise NotEnoughSharesError"""
 
         while len(self.active_buckets) < self._num_needed_shares:
             # need some more
@@ -779,7 +779,7 @@ class FileDownloader:
             available_shnums = set(self._share_vbuckets.keys())
             potential_shnums = list(available_shnums - handled_shnums)
             if not potential_shnums:
-                raise NotEnoughPeersError
+                raise NotEnoughSharesError
             # choose a random share
             shnum = random.choice(potential_shnums)
             # and a random bucket that will provide it
