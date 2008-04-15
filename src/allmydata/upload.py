@@ -58,6 +58,8 @@ class UploadResults(Copyable, RemoteCopy):
 # the extension changes size, we can change EXTENSION_SIZE to
 # allocate a more accurate amount of space.
 EXTENSION_SIZE = 1000
+# TODO: actual extensions are closer to 419 bytes, so we can probably lower
+# this.
 
 class PeerTracker:
     def __init__(self, peerid, storage_server,
