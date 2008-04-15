@@ -138,7 +138,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         self._helper = helper
         self._incoming_file = incoming_file
         self._encoding_file = encoding_file
-        upload_id = storage.si_b2a(storage_index)[:5]
+        self._upload_id = storage.si_b2a(storage_index)[:5]
         self._log_number = log_number
         self._results = results
         self._upload_status = upload.UploadStatus()
@@ -146,7 +146,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         self._upload_status.set_storage_index(storage_index)
         self._upload_status.set_status("fetching ciphertext")
         self._upload_status.set_progress(0, 1.0)
-        self._helper.log("CHKUploadHelper starting for SI %s" % upload_id,
+        self._helper.log("CHKUploadHelper starting for SI %s" % self._upload_id,
                          parent=log_number)
 
         self._client = helper.parent
@@ -261,6 +261,7 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         self._upload_helper = helper
         self._incoming_file = incoming_file
         self._encoding_file = encoded_file
+        self._upload_id = helper._upload_id
         self._log_parent = logparent
         self._done_observers = observer.OneShotObserverList()
         self._readers = []
@@ -378,7 +379,8 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         percent = 0.0
         if self._expected_size:
             percent = 1.0 * (self._have+fetch_size) / self._expected_size
-        self.log(format="fetching %(start)d-%(end)d of %(total)d (%(percent)d%%)",
+        self.log(format="fetching [%(si)s] %(start)d-%(end)d of %(total)d (%(percent)d%%)",
+                 si=self._upload_id,
                  start=self._have,
                  end=self._have+fetch_size,
                  total=self._expected_size,
@@ -436,9 +438,6 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
         self._storage_index = storage_index
         self._encoding_file = encoding_file
         self._status = None
-
-    def set_upload_status(self, upload_status):
-        self._status = interfaces.IUploadStatus(upload_status)
 
     def start(self):
         self._upload_helper._upload_status.set_status("pushing")
