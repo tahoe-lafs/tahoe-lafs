@@ -1347,8 +1347,13 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         d.addCallback(_got_helper_status_json)
 
         # and check that client[3] (which uses a helper but does not run one
-        # itself) doesn't explode when you ask for its helper status with
-        # t=json
+        # itself) doesn't explode when you ask for its status
+        d.addCallback(lambda res: getPage(self.helper_webish_url + "status/"))
+        def _got_non_helper_status(res):
+            self.failUnless("Upload and Download Status" in res)
+        d.addCallback(_got_non_helper_status)
+
+        # or for helper status with t=json
         d.addCallback(lambda res:
                       getPage(self.helper_webish_url + "helper_status?t=json"))
         def _got_non_helper_status_json(res):

@@ -371,9 +371,15 @@ class Client(node.Node, testutil.PollMixin):
         return watcher.list_recent_retrieve()
 
     def list_active_helper_statuses(self):
-        helper = self.getServiceNamed("helper")
+        try:
+            helper = self.getServiceNamed("helper")
+        except KeyError:
+            return []
         return helper.get_active_upload_statuses()
     def list_recent_helper_statuses(self):
-        helper = self.getServiceNamed("helper")
+        try:
+            helper = self.getServiceNamed("helper")
+        except KeyError:
+            return []
         return helper.get_recent_upload_statuses()
 
