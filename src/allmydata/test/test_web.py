@@ -272,8 +272,10 @@ class WebMixin(object):
                       (which, expected_failure, res))
 
     def shouldFail2(self, expected_failure, which, substring,
+                    response_substring,
                     callable, *args, **kwargs):
         assert substring is None or isinstance(substring, str)
+        assert response_substring is None or isinstance(response_substring, str)
         d = defer.maybeDeferred(callable, *args, **kwargs)
         def done(res):
             if isinstance(res, failure.Failure):
@@ -282,6 +284,10 @@ class WebMixin(object):
                     self.failUnless(substring in str(res),
                                     "substring '%s' not in '%s'"
                                     % (substring, str(res)))
+                if response_substring:
+                    self.failUnless(response_substring in res.value.response,
+                                    "respose substring '%s' not in '%s'"
+                                    % (response_substring, res.value.response))
             else:
                 self.fail("%s was supposed to raise %s, not get '%s'" %
                           (which, expected_failure, res))
@@ -1385,6 +1391,12 @@ class Web(WebMixin, unittest.TestCase):
         d.addBoth(self.shouldRedirect, "/THERE")
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessNodeKeysAre, [])
+        return d
+
+    def test_POST_bad_t(self):
+        d = self.shouldFail2(error.Error, "POST_bad_t", "400 Bad Request",
+                             "BAD t=BOGUS",
+                             self.POST, self.public_url + "/foo", t="BOGUS")
         return d
 
     def test_POST_set_children(self):

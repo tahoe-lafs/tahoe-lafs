@@ -1001,7 +1001,8 @@ class POSTHandler(rend.Page):
                 raise
             d = self._POST_set_children(children)
         else:
-            print "BAD t=%s" % t
+            req.setResponseCode(http.BAD_REQUEST)
+            req.setHeader("content-type", "text/plain")
             return "BAD t=%s" % t
         if when_done:
             d.addCallback(lambda res: url.URL.fromString(when_done))
