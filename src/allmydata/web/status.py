@@ -847,8 +847,8 @@ class Statistics(rend.Page):
                 (files, bytes, abbreviate_size(bytes)))
 
     def render_downloads(self, ctx, data):
-        files = data["counters"].get("downloader.files_uploaded")
-        bytes = data["counters"].get("downloader.bytes_uploaded")
+        files = data["counters"].get("downloader.files_downloaded")
+        bytes = data["counters"].get("downloader.bytes_downloaded")
         return ("%s files / %s bytes (%s)" %
                 (files, bytes, abbreviate_size(bytes)))
 
