@@ -365,7 +365,8 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
             else:
                 self._loop(fire_when_done)
         def _err(f):
-            self.log("ciphertext read failed", failure=f, level=log.UNUSUAL)
+            self.log(format="[%(si)s] ciphertext read failed",
+                     si=self._upload_id, failure=f, level=log.UNUSUAL)
             fire_when_done.errback(f)
         d.addCallbacks(_done, _err)
         return None
