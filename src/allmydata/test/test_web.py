@@ -94,7 +94,10 @@ class FakeClient(service.MultiService):
         return []
     def list_recent_retrieve(self):
         return []
-
+    def list_active_helper_statuses(self):
+        return []
+    def list_recent_helper_statuses(self):
+        return []
 
 class WebMixin(object):
     def setUp(self):

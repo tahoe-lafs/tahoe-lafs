@@ -143,6 +143,9 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         self._results = results
         self._upload_status = upload.UploadStatus()
         self._upload_status.set_helper(False)
+        self._upload_status.set_storage_index(storage_index)
+        self._upload_status.set_status("fetching ciphertext")
+        self._upload_status.set_progress(0, 1.0)
         self._helper.log("CHKUploadHelper starting for SI %s" % upload_id,
                          parent=log_number)
 
@@ -209,6 +212,10 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         del self._reader
 
     def _failed(self, f):
+        self.log(format="CHKUploadHelper(%(si)s) failed",
+                 si=storage.si_b2a(self._storage_index)[:5],
+                 failure=f,
+                 level=log.UNUSUAL)
         self._finished_observers.fire(f)
         self._helper.upload_finished(self._storage_index, 0)
         del self._reader
@@ -306,6 +313,7 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
 
     def _got_size(self, size):
         self.log("total size is %d bytes" % size, level=log.NOISY)
+        self._upload_helper._upload_status.set_size(size)
         self._expected_size = size
 
     def _start_reading(self, res):
@@ -365,16 +373,16 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         needed = self._expected_size - self._have
         fetch_size = min(needed, self.CHUNK_SIZE)
         if fetch_size == 0:
+            self._upload_helper._upload_status.set_progress(1, 1.0)
             return True # all done
-        percent = 0
+        percent = 0.0
         if self._expected_size:
             percent = 1.0 * (self._have+fetch_size) / self._expected_size
-            percent = int(100*percent)
         self.log(format="fetching %(start)d-%(end)d of %(total)d (%(percent)d%%)",
                  start=self._have,
                  end=self._have+fetch_size,
                  total=self._expected_size,
-                 percent=percent,
+                 percent=int(100.0*percent),
                  level=log.NOISY)
         d = self.call("read_encrypted", self._have, fetch_size)
         def _got_data(ciphertext_v):
@@ -383,6 +391,7 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
                 self._have += len(data)
                 self._ciphertext_fetched += len(data)
                 self._upload_helper._helper.count("chk_upload_helper.fetched_bytes", len(data))
+                self._upload_helper._upload_status.set_progress(1, percent)
             return False # not done
         d.addCallback(_got_data)
         return d
@@ -432,6 +441,7 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
         self._status = interfaces.IUploadStatus(upload_status)
 
     def start(self):
+        self._upload_helper._upload_status.set_status("pushing")
         self._size = os.stat(self._encoding_file)[stat.ST_SIZE]
         self.f = open(self._encoding_file, "rb")
 
@@ -471,6 +481,7 @@ class Helper(Referenceable, service.MultiService):
 
     name = "helper"
     chk_upload_helper_class = CHKUploadHelper
+    MAX_UPLOAD_STATUSES = 10
 
     def __init__(self, basedir, stats_provider=None):
         self._basedir = basedir
@@ -479,6 +490,7 @@ class Helper(Referenceable, service.MultiService):
         fileutil.make_dirs(self._chk_incoming)
         fileutil.make_dirs(self._chk_encoding)
         self._active_uploads = {}
+        self._recent_upload_statuses = []
         self.stats_provider = stats_provider
         if stats_provider:
             stats_provider.register_producer(self)
@@ -612,4 +624,16 @@ class Helper(Referenceable, service.MultiService):
 
     def upload_finished(self, storage_index, size):
         self.count("chk_upload_helper.encoded_bytes", size)
+        uh = self._active_uploads[storage_index]
         del self._active_uploads[storage_index]
+        s = uh.get_upload_status()
+        s.set_active(False)
+        self._recent_upload_statuses.append(s)
+        while len(self._recent_upload_statuses) > self.MAX_UPLOAD_STATUSES:
+            self._recent_upload_statuses.pop(0)
+
+    def get_active_upload_statuses(self):
+        return [u.get_upload_status() for u in self._active_uploads.values()]
+
+    def get_recent_upload_statuses(self):
+        return self._recent_upload_statuses

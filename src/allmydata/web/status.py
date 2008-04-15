@@ -659,17 +659,21 @@ class Status(rend.Page):
     addSlash = True
 
     def data_active_operations(self, ctx, data):
-        active =  (IClient(ctx).list_active_uploads() +
-                   IClient(ctx).list_active_downloads() +
-                   IClient(ctx).list_active_publish() +
-                   IClient(ctx).list_active_retrieve())
+        client = IClient(ctx)
+        active =  (client.list_active_uploads() +
+                   client.list_active_downloads() +
+                   client.list_active_publish() +
+                   client.list_active_retrieve() +
+                   client.list_active_helper_statuses())
         return active
 
     def data_recent_operations(self, ctx, data):
-        recent = [o for o in (IClient(ctx).list_recent_uploads() +
-                              IClient(ctx).list_recent_downloads() +
-                              IClient(ctx).list_recent_publish() +
-                              IClient(ctx).list_recent_retrieve())
+        client = IClient(ctx)
+        recent = [o for o in (client.list_recent_uploads() +
+                              client.list_recent_downloads() +
+                              client.list_recent_publish() +
+                              client.list_recent_retrieve() +
+                              client.list_recent_helper_statuses())
                   if not o.get_active()]
         recent.sort(lambda a,b: cmp(a.get_started(), b.get_started()))
         recent.reverse()
@@ -734,6 +738,12 @@ class Status(rend.Page):
                 # u is an uploader object
                 s = u.get_upload_status()
                 if s.get_counter() == count:
+                    return UploadStatusPage(s)
+            for s in (client.list_active_helper_statuses() +
+                      client.list_recent_helper_statuses()):
+                if s.get_counter() == count:
+                    # immutable-upload helpers use the same status object as
+                    # a regular immutable-upload
                     return UploadStatusPage(s)
         if stype == "down":
             for s in client.list_recent_downloads():

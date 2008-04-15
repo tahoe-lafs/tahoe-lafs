@@ -369,3 +369,11 @@ class Client(node.Node, testutil.PollMixin):
     def list_recent_retrieve(self):
         watcher = self.getServiceNamed("mutable-watcher")
         return watcher.list_recent_retrieve()
+
+    def list_active_helper_statuses(self):
+        helper = self.getServiceNamed("helper")
+        return helper.get_active_upload_statuses()
+    def list_recent_helper_statuses(self):
+        helper = self.getServiceNamed("helper")
+        return helper.get_recent_upload_statuses()
+
