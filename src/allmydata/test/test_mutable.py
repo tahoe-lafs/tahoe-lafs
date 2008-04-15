@@ -303,7 +303,6 @@ class Publish(unittest.TestCase):
         CONTENTS = "some initial contents"
         fn.create(CONTENTS)
         p = mutable.Publish(fn)
-        r = mutable.Retrieve(fn)
         # make some fake shares
         shares_and_ids = ( ["%07d" % i for i in range(10)], range(10) )
         target_info = None
