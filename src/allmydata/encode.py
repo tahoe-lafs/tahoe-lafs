@@ -61,7 +61,6 @@ hash tree is put into the URI.
 """
 
 class NotEnoughSharesError(Exception):
-    worth_retrying = False
     servermap = None
     pass
 

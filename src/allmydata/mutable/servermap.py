@@ -26,6 +26,13 @@ class ServerMap:
     has changed since I last retrieved this data'. This reduces the chances
     of clobbering a simultaneous (uncoordinated) write.
 
+    @ivar servermap: a dictionary, mapping a (peerid, shnum) tuple to a
+                     (versionid, timestamp) tuple. Each 'versionid' is a
+                     tuple of (seqnum, root_hash, IV, segsize, datalength,
+                     k, N, signed_prefix, offsets)
+
+    @ivar connections: maps peerid to a RemoteReference
+
     @ivar bad_shares: a sequence of (peerid, shnum) tuples, describing
                       shares that I should ignore (because a previous user of
                       the servermap determined that they were invalid). The
@@ -36,11 +43,8 @@ class ServerMap:
     """
 
     def __init__(self):
-        # 'servermap' maps peerid to sets of (shnum, versionid, timestamp)
-        # tuples. Each 'versionid' is a (seqnum, root_hash, IV, segsize,
-        # datalength, k, N, signed_prefix, offsets) tuple
-        self.servermap = DictOfSets()
-        self.connections = {} # maps peerid to a RemoteReference
+        self.servermap = {}
+        self.connections = {}
         self.unreachable_peers = set() # peerids that didn't respond to queries
         self.problems = [] # mostly for debugging
         self.bad_shares = set()
@@ -53,77 +57,74 @@ class ServerMap:
         it from our list of useful shares, and remember that it is bad so we
         don't add it back again later.
         """
-        self.bad_shares.add( (peerid, shnum) )
-        self._remove_share(peerid, shnum)
-
-    def _remove_share(self, peerid, shnum):
-        #(s_shnum, s_verinfo, s_timestamp) = share
-        to_remove = [share
-                     for share in self.servermap[peerid]
-                     if share[0] == shnum]
-        for share in to_remove:
-            self.servermap[peerid].discard(share)
-        if not self.servermap[peerid]:
-            del self.servermap[peerid]
+        key = (peerid, shnum)
+        self.bad_shares.add(key)
+        self.servermap.pop(key, None)
 
     def add_new_share(self, peerid, shnum, verinfo, timestamp):
         """We've written a new share out, replacing any that was there
         before."""
-        self.bad_shares.discard( (peerid, shnum) )
-        self._remove_share(peerid, shnum)
-        self.servermap.add(peerid, (shnum, verinfo, timestamp) )
+        key = (peerid, shnum)
+        self.bad_shares.discard(key)
+        self.servermap[key] = (verinfo, timestamp)
 
     def dump(self, out=sys.stdout):
         print >>out, "servermap:"
-        for (peerid, shares) in self.servermap.items():
-            for (shnum, versionid, timestamp) in sorted(shares):
-                (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
-                 offsets_tuple) = versionid
-                print >>out, ("[%s]: sh#%d seq%d-%s %d-of-%d len%d" %
-                              (idlib.shortnodeid_b2a(peerid), shnum,
-                               seqnum, base32.b2a(root_hash)[:4], k, N,
-                               datalength))
+
+        for ( (peerid, shnum), (verinfo, timestamp) ) in self.servermap.items():
+            (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
+             offsets_tuple) = verinfo
+            print >>out, ("[%s]: sh#%d seq%d-%s %d-of-%d len%d" %
+                          (idlib.shortnodeid_b2a(peerid), shnum,
+                           seqnum, base32.b2a(root_hash)[:4], k, N,
+                           datalength))
         return out
+
+    def all_peers(self):
+        return set([peerid
+                    for (peerid, shnum)
+                    in self.servermap])
 
     def make_versionmap(self):
         """Return a dict that maps versionid to sets of (shnum, peerid,
         timestamp) tuples."""
         versionmap = DictOfSets()
-        for (peerid, shares) in self.servermap.items():
-            for (shnum, verinfo, timestamp) in shares:
-                versionmap.add(verinfo, (shnum, peerid, timestamp))
+        for ( (peerid, shnum), (verinfo, timestamp) ) in self.servermap.items():
+            versionmap.add(verinfo, (shnum, peerid, timestamp))
         return versionmap
 
     def shares_on_peer(self, peerid):
         return set([shnum
-                    for (shnum, versionid, timestamp)
-                    in self.servermap.get(peerid, [])])
+                    for (s_peerid, shnum)
+                    in self.servermap
+                    if s_peerid == peerid])
 
     def version_on_peer(self, peerid, shnum):
-        shares = self.servermap.get(peerid, [])
-        for (sm_shnum, sm_versionid, sm_timestamp) in shares:
-            if sm_shnum == shnum:
-                return sm_versionid
+        key = (peerid, shnum)
+        if key in self.servermap:
+            (verinfo, timestamp) = self.servermap[key]
+            return verinfo
+        return None
         return None
 
     def shares_available(self):
-        """Return a dict that maps versionid to tuples of
+        """Return a dict that maps verinfo to tuples of
         (num_distinct_shares, k) tuples."""
         versionmap = self.make_versionmap()
         all_shares = {}
-        for versionid, shares in versionmap.items():
+        for verinfo, shares in versionmap.items():
             s = set()
             for (shnum, peerid, timestamp) in shares:
                 s.add(shnum)
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
-             offsets_tuple) = versionid
-            all_shares[versionid] = (len(s), k)
+             offsets_tuple) = verinfo
+            all_shares[verinfo] = (len(s), k)
         return all_shares
 
     def highest_seqnum(self):
         available = self.shares_available()
-        seqnums = [versionid[0]
-                   for versionid in available.keys()]
+        seqnums = [verinfo[0]
+                   for verinfo in available.keys()]
         seqnums.append(0)
         return max(seqnums)
 
@@ -306,7 +307,7 @@ class ServermapUpdater:
     def _build_initial_querylist(self):
         initial_peers_to_query = {}
         must_query = set()
-        for peerid in self._servermap.servermap.keys():
+        for peerid in self._servermap.all_peers():
             ss = self._servermap.connections[peerid]
             # we send queries to everyone who was already in the sharemap
             initial_peers_to_query[peerid] = ss
@@ -365,7 +366,7 @@ class ServermapUpdater:
         self._must_query.discard(peerid)
         self._queries_completed += 1
         if not self._running:
-            self.log("but we're not running, so we'll ignore it")
+            self.log("but we're not running, so we'll ignore it", parent=lp)
             return
 
         if datavs:
@@ -384,7 +385,8 @@ class ServermapUpdater:
             except CorruptShareError, e:
                 # log it and give the other shares a chance to be processed
                 f = failure.Failure()
-                self.log("bad share: %s %s" % (f, f.value), level=log.WEIRD)
+                self.log("bad share: %s %s" % (f, f.value),
+                         parent=lp, level=log.WEIRD)
                 self._bad_peers.add(peerid)
                 self._last_failure = f
                 self._servermap.problems.append(f)
@@ -412,9 +414,9 @@ class ServermapUpdater:
         self.log("_got_results done", parent=lp)
 
     def _got_results_one_share(self, shnum, data, peerid):
-        self.log(format="_got_results: got shnum #%(shnum)d from peerid %(peerid)s",
-                 shnum=shnum,
-                 peerid=idlib.shortnodeid_b2a(peerid))
+        lp = self.log(format="_got_results: got shnum #%(shnum)d from peerid %(peerid)s",
+                      shnum=shnum,
+                      peerid=idlib.shortnodeid_b2a(peerid))
 
         # this might raise NeedMoreDataError, if the pubkey and signature
         # live at some weird offset. That shouldn't happen, so I'm going to
@@ -451,18 +453,21 @@ class ServermapUpdater:
             self.log(" found valid version %d-%s from %s-sh%d: %d-%d/%d/%d"
                      % (seqnum, base32.b2a(root_hash)[:4],
                         idlib.shortnodeid_b2a(peerid), shnum,
-                        k, N, segsize, datalength))
+                        k, N, segsize, datalength),
+                     parent=lp)
             self._valid_versions.add(verinfo)
         # We now know that this is a valid candidate verinfo.
 
-        if (peerid, shnum, verinfo) in self._servermap.bad_shares:
+        if (peerid, shnum) in self._servermap.bad_shares:
             # we've been told that the rest of the data in this share is
             # unusable, so don't add it to the servermap.
+            self.log("but we've been told this is a bad share",
+                     parent=lp, level=log.UNUSUAL)
             return verinfo
 
         # Add the info to our servermap.
         timestamp = time.time()
-        self._servermap.servermap.add(peerid, (shnum, verinfo, timestamp))
+        self._servermap.add_new_share(peerid, shnum, verinfo, timestamp)
         # and the versionmap
         self.versionmap.add(verinfo, (shnum, peerid, timestamp))
         return verinfo
@@ -556,28 +561,35 @@ class ServermapUpdater:
         #  return self._done() : all done
         #  return : keep waiting, no new queries
 
-        self.log(format=("_check_for_done, mode is '%(mode)s', "
-                         "%(outstanding)d queries outstanding, "
-                         "%(extra)d extra peers available, "
-                         "%(must)d 'must query' peers left"
-                         ),
-                 mode=self.mode,
-                 outstanding=len(self._queries_outstanding),
-                 extra=len(self.extra_peers),
-                 must=len(self._must_query),
-                 )
+        lp = self.log(format=("_check_for_done, mode is '%(mode)s', "
+                              "%(outstanding)d queries outstanding, "
+                              "%(extra)d extra peers available, "
+                              "%(must)d 'must query' peers left"
+                              ),
+                      mode=self.mode,
+                      outstanding=len(self._queries_outstanding),
+                      extra=len(self.extra_peers),
+                      must=len(self._must_query),
+                      level=log.NOISY,
+                      )
+
+        if not self._running:
+            self.log("but we're not running", parent=lp, level=log.NOISY)
+            return
 
         if self._must_query:
             # we are still waiting for responses from peers that used to have
             # a share, so we must continue to wait. No additional queries are
             # required at this time.
-            self.log("%d 'must query' peers left" % len(self._must_query))
+            self.log("%d 'must query' peers left" % len(self._must_query),
+                     parent=lp)
             return
 
         if (not self._queries_outstanding and not self.extra_peers):
             # all queries have retired, and we have no peers left to ask. No
             # more progress can be made, therefore we are done.
-            self.log("all queries are retired, no extra peers: done")
+            self.log("all queries are retired, no extra peers: done",
+                     parent=lp)
             return self._done()
 
         recoverable_versions = self._servermap.recoverable_versions()
@@ -588,13 +600,15 @@ class ServermapUpdater:
         if self.mode == MODE_ANYTHING:
             if recoverable_versions:
                 self.log("MODE_ANYTHING and %d recoverable versions: done"
-                         % len(recoverable_versions))
+                         % len(recoverable_versions),
+                         parent=lp)
                 return self._done()
 
         if self.mode == MODE_CHECK:
             # we used self._must_query, and we know there aren't any
             # responses still waiting, so that means we must be done
-            self.log("MODE_CHECK: done")
+            self.log("MODE_CHECK: done",
+                     parent=lp)
             return self._done()
 
         MAX_IN_FLIGHT = 5
@@ -606,10 +620,12 @@ class ServermapUpdater:
             if self._queries_completed < self.num_peers_to_query:
                 self.log(format="ENOUGH, %(completed)d completed, %(query)d to query: need more",
                          completed=self._queries_completed,
-                         query=self.num_peers_to_query)
+                         query=self.num_peers_to_query,
+                         parent=lp)
                 return self._send_more_queries(MAX_IN_FLIGHT)
             if not recoverable_versions:
-                self.log("ENOUGH, no recoverable versions: need more")
+                self.log("ENOUGH, no recoverable versions: need more",
+                         parent=lp)
                 return self._send_more_queries(MAX_IN_FLIGHT)
             highest_recoverable = max(recoverable_versions)
             highest_recoverable_seqnum = highest_recoverable[0]
@@ -623,7 +639,8 @@ class ServermapUpdater:
                     return self._send_more_queries(MAX_IN_FLIGHT)
             # all the unrecoverable versions were old or concurrent with a
             # recoverable version. Good enough.
-            self.log("ENOUGH: no higher-seqnum: done")
+            self.log("ENOUGH: no higher-seqnum: done",
+                     parent=lp)
             return self._done()
 
         if self.mode == MODE_WRITE:
@@ -633,7 +650,8 @@ class ServermapUpdater:
             # every server in the world.
 
             if not recoverable_versions:
-                self.log("WRITE, no recoverable versions: need more")
+                self.log("WRITE, no recoverable versions: need more",
+                         parent=lp)
                 return self._send_more_queries(MAX_IN_FLIGHT)
 
             last_found = -1
@@ -656,7 +674,8 @@ class ServermapUpdater:
                         num_not_found += 1
                         if num_not_found >= self.EPSILON:
                             self.log("MODE_WRITE: found our boundary, %s" %
-                                     "".join(states))
+                                     "".join(states),
+                                     parent=lp)
                             found_boundary = True
                             break
 
@@ -678,10 +697,12 @@ class ServermapUpdater:
                 # everybody to the left of here
                 if last_not_responded == -1:
                     # we're done
-                    self.log("have all our answers")
+                    self.log("have all our answers",
+                             parent=lp)
                     # .. unless we're still waiting on the privkey
                     if self._need_privkey:
-                        self.log("but we're still waiting for the privkey")
+                        self.log("but we're still waiting for the privkey",
+                                 parent=lp)
                         # if we found the boundary but we haven't yet found
                         # the privkey, we may need to look further. If
                         # somehow all the privkeys were corrupted (but the
@@ -694,13 +715,14 @@ class ServermapUpdater:
 
             # if we hit here, we didn't find our boundary, so we're still
             # waiting for peers
-            self.log("MODE_WRITE: no boundary yet, %s" % "".join(states))
+            self.log("MODE_WRITE: no boundary yet, %s" % "".join(states),
+                     parent=lp)
             return self._send_more_queries(MAX_IN_FLIGHT)
 
         # otherwise, keep up to 5 queries in flight. TODO: this is pretty
         # arbitrary, really I want this to be something like k -
         # max(known_version_sharecounts) + some extra
-        self.log("catchall: need more")
+        self.log("catchall: need more", parent=lp)
         return self._send_more_queries(MAX_IN_FLIGHT)
 
     def _send_more_queries(self, num_outstanding):

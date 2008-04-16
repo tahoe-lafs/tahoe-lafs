@@ -16,7 +16,7 @@ import sha
 
 from allmydata.mutable.node import MutableFileNode
 from allmydata.mutable.common import DictOfSets, ResponseCache, \
-     MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_ENOUGH
+     MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_ENOUGH, UnrecoverableFileError
 from allmydata.mutable.retrieve import Retrieve
 from allmydata.mutable.publish import Publish
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
@@ -198,6 +198,43 @@ class FakeClient:
         d.addCallback(_got_data)
         return d
 
+
+def flip_bit(original, byte_offset):
+    return (original[:byte_offset] +
+            chr(ord(original[byte_offset]) ^ 0x01) +
+            original[byte_offset+1:])
+
+def corrupt(res, s, offset, shnums_to_corrupt=None):
+    # if shnums_to_corrupt is None, corrupt all shares. Otherwise it is a
+    # list of shnums to corrupt.
+    for peerid in s._peers:
+        shares = s._peers[peerid]
+        for shnum in shares:
+            if (shnums_to_corrupt is not None
+                and shnum not in shnums_to_corrupt):
+                continue
+            data = shares[shnum]
+            (version,
+             seqnum,
+             root_hash,
+             IV,
+             k, N, segsize, datalen,
+             o) = unpack_header(data)
+            if isinstance(offset, tuple):
+                offset1, offset2 = offset
+            else:
+                offset1 = offset
+                offset2 = 0
+            if offset1 == "pubkey":
+                real_offset = 107
+            elif offset1 in o:
+                real_offset = o[offset1]
+            else:
+                real_offset = offset1
+            real_offset = int(real_offset) + offset2
+            assert isinstance(real_offset, int), offset
+            shares[shnum] = flip_bit(data, real_offset)
+    return res
 
 class Filenode(unittest.TestCase):
     def setUp(self):
@@ -428,6 +465,41 @@ class Servermap(unittest.TestCase):
 
         return d
 
+    def test_mark_bad(self):
+        d = defer.succeed(None)
+        ms = self.make_servermap
+        us = self.update_servermap
+
+        d.addCallback(lambda res: ms(mode=MODE_ENOUGH))
+        d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 6))
+        def _made_map(sm):
+            v = sm.best_recoverable_version()
+            vm = sm.make_versionmap()
+            shares = list(vm[v])
+            self.failUnlessEqual(len(shares), 6)
+            self._corrupted = set()
+            # mark the first 5 shares as corrupt, then update the servermap.
+            # The map should not have the marked shares it in any more, and
+            # new shares should be found to replace the missing ones.
+            for (shnum, peerid, timestamp) in shares:
+                if shnum < 5:
+                    self._corrupted.add( (peerid, shnum) )
+                    sm.mark_bad_share(peerid, shnum)
+            return self.update_servermap(sm, MODE_WRITE)
+        d.addCallback(_made_map)
+        def _check_map(sm):
+            # this should find all 5 shares that weren't marked bad
+            v = sm.best_recoverable_version()
+            vm = sm.make_versionmap()
+            shares = list(vm[v])
+            for (peerid, shnum) in self._corrupted:
+                peer_shares = sm.shares_on_peer(peerid)
+                self.failIf(shnum in peer_shares,
+                            "%d was in %s" % (shnum, peer_shares))
+            self.failUnlessEqual(len(shares), 5)
+        d.addCallback(_check_map)
+        return d
+
     def failUnlessNoneRecoverable(self, sm):
         self.failUnlessEqual(len(sm.recoverable_versions()), 0)
         self.failUnlessEqual(len(sm.unrecoverable_versions()), 0)
@@ -565,11 +637,6 @@ class Roundtrip(unittest.TestCase):
         d.addCallback(_retrieved)
         return d
 
-    def flip_bit(self, original, byte_offset):
-        return (original[:byte_offset] +
-                chr(ord(original[byte_offset]) ^ 0x01) +
-                original[byte_offset+1:])
-
 
     def shouldFail(self, expected_failure, which, substring,
                     callable, *args, **kwargs):
@@ -588,46 +655,14 @@ class Roundtrip(unittest.TestCase):
         d.addBoth(done)
         return d
 
-    def _corrupt(self, res, s, offset, shnums_to_corrupt=None):
-        # if shnums_to_corrupt is None, corrupt all shares. Otherwise it is a
-        # list of shnums to corrupt.
-        for peerid in s._peers:
-            shares = s._peers[peerid]
-            for shnum in shares:
-                if (shnums_to_corrupt is not None
-                    and shnum not in shnums_to_corrupt):
-                    continue
-                data = shares[shnum]
-                (version,
-                 seqnum,
-                 root_hash,
-                 IV,
-                 k, N, segsize, datalen,
-                 o) = unpack_header(data)
-                if isinstance(offset, tuple):
-                    offset1, offset2 = offset
-                else:
-                    offset1 = offset
-                    offset2 = 0
-                if offset1 == "pubkey":
-                    real_offset = 107
-                elif offset1 in o:
-                    real_offset = o[offset1]
-                else:
-                    real_offset = offset1
-                real_offset = int(real_offset) + offset2
-                assert isinstance(real_offset, int), offset
-                shares[shnum] = self.flip_bit(data, real_offset)
-        return res
-
     def _test_corrupt_all(self, offset, substring,
                           should_succeed=False, corrupt_early=True):
         d = defer.succeed(None)
         if corrupt_early:
-            d.addCallback(self._corrupt, self._storage, offset)
+            d.addCallback(corrupt, self._storage, offset)
         d.addCallback(lambda res: self.make_servermap())
         if not corrupt_early:
-            d.addCallback(self._corrupt, self._storage, offset)
+            d.addCallback(corrupt, self._storage, offset)
         def _do_retrieve(servermap):
             ver = servermap.best_recoverable_version()
             if ver is None and not should_succeed:
@@ -637,9 +672,8 @@ class Roundtrip(unittest.TestCase):
                     allproblems = [str(f) for f in servermap.problems]
                     self.failUnless(substring in "".join(allproblems))
                 return
-            r = Retrieve(self._fn, servermap, ver)
             if should_succeed:
-                d1 = r.download()
+                d1 = self._fn.download_to_data()
                 d1.addCallback(lambda new_contents:
                                self.failUnlessEqual(new_contents, self.CONTENTS))
                 return d1
@@ -647,7 +681,7 @@ class Roundtrip(unittest.TestCase):
                 return self.shouldFail(NotEnoughSharesError,
                                        "_corrupt_all(offset=%s)" % (offset,),
                                        substring,
-                                       r.download)
+                                       self._fn.download_to_data)
         d.addCallback(_do_retrieve)
         return d
 
@@ -732,7 +766,7 @@ class Roundtrip(unittest.TestCase):
         k = self._fn.get_required_shares()
         N = self._fn.get_total_shares()
         d = defer.succeed(None)
-        d.addCallback(self._corrupt, self._storage, "pubkey",
+        d.addCallback(corrupt, self._storage, "pubkey",
                       shnums_to_corrupt=range(0, N-k))
         d.addCallback(lambda res: self.make_servermap())
         def _do_retrieve(servermap):
@@ -745,6 +779,29 @@ class Roundtrip(unittest.TestCase):
         d.addCallback(_do_retrieve)
         d.addCallback(lambda new_contents:
                       self.failUnlessEqual(new_contents, self.CONTENTS))
+        return d
+
+    def test_corrupt_some(self):
+        # corrupt the data of first five shares (so the servermap thinks
+        # they're good but retrieve marks them as bad), so that the
+        # MODE_ENOUGH set of 6 will be insufficient, forcing node.download to
+        # retry with more servers.
+        corrupt(None, self._storage, "share_data", range(5))
+        d = self.make_servermap()
+        def _do_retrieve(servermap):
+            ver = servermap.best_recoverable_version()
+            self.failUnless(ver)
+            return self._fn.download_to_data()
+        d.addCallback(_do_retrieve)
+        d.addCallback(lambda new_contents:
+                      self.failUnlessEqual(new_contents, self.CONTENTS))
+        return d
+
+    def test_download_fails(self):
+        corrupt(None, self._storage, "signature")
+        d = self.shouldFail(UnrecoverableFileError, "test_download_anyway",
+                            "no recoverable versions",
+                            self._fn.download_to_data)
         return d
 
 

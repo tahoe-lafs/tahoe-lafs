@@ -202,10 +202,9 @@ class Publish:
 
         # we use the servermap to populate the initial goal: this way we will
         # try to update each existing share in place.
-        for (peerid, shares) in self._servermap.servermap.items():
-            for (shnum, versionid, timestamp) in shares:
-                self.goal.add( (peerid, shnum) )
-                self.connections[peerid] = self._servermap.connections[peerid]
+        for (peerid, shnum) in self._servermap.servermap:
+            self.goal.add( (peerid, shnum) )
+            self.connections[peerid] = self._servermap.connections[peerid]
 
         # create the shares. We'll discard these as they are delivered. SMDF:
         # we're allowed to hold everything in memory.
@@ -476,23 +475,23 @@ class Publish:
         all_tw_vectors = {} # maps peerid to tw_vectors
         sm = self._servermap.servermap
 
-        for (peerid, shnum) in needed:
-            testvs = []
-            for (old_shnum, old_versionid, old_timestamp) in sm.get(peerid,[]):
-                if old_shnum == shnum:
-                    # an old version of that share already exists on the
-                    # server, according to our servermap. We will create a
-                    # request that attempts to replace it.
-                    (old_seqnum, old_root_hash, old_salt, old_segsize,
-                     old_datalength, old_k, old_N, old_prefix,
-                     old_offsets_tuple) = old_versionid
-                    old_checkstring = pack_checkstring(old_seqnum,
-                                                       old_root_hash,
-                                                       old_salt)
-                    testv = (0, len(old_checkstring), "eq", old_checkstring)
-                    testvs.append(testv)
-                    break
-            if not testvs:
+        for key in needed:
+            (peerid, shnum) = key
+
+            if key in sm:
+                # an old version of that share already exists on the
+                # server, according to our servermap. We will create a
+                # request that attempts to replace it.
+                old_versionid, old_timestamp = sm[key]
+                (old_seqnum, old_root_hash, old_salt, old_segsize,
+                 old_datalength, old_k, old_N, old_prefix,
+                 old_offsets_tuple) = old_versionid
+                old_checkstring = pack_checkstring(old_seqnum,
+                                                   old_root_hash,
+                                                   old_salt)
+                testv = (0, len(old_checkstring), "eq", old_checkstring)
+
+            else:
                 # add a testv that requires the share not exist
                 #testv = (0, 1, 'eq', "")
 
@@ -506,8 +505,8 @@ class Publish:
                 # (constant) tuple, by creating a new copy of this vector
                 # each time. This bug is fixed in later versions of foolscap.
                 testv = tuple([0, 1, 'eq', ""])
-                testvs.append(testv)
 
+            testvs = [testv]
             # the write vector is simply the share
             writev = [(0, self.shares[shnum])]
 
@@ -568,7 +567,6 @@ class Publish:
                       idlib.shortnodeid_b2a(peerid))
         for shnum in shnums:
             self.outstanding.discard( (peerid, shnum) )
-        sm = self._servermap.servermap
 
         wrote, read_data = answer
 
@@ -599,13 +597,9 @@ class Publish:
 
         for shnum in shnums:
             self.placed.add( (peerid, shnum) )
-            # and update the servermap. We strip the old entry out..
-            newset = set([ t
-                           for t in sm.get(peerid, [])
-                           if t[0] != shnum ])
-            sm[peerid] = newset
-            # and add a new one
-            sm[peerid].add( (shnum, self.versioninfo, started) )
+            # and update the servermap
+            self._servermap.add_new_share(peerid, shnum,
+                                          self.versioninfo, started)
 
         surprise_shares = set(read_data.keys()) - set(shnums)
         if surprise_shares:

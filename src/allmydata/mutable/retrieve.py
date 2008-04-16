@@ -394,7 +394,6 @@ class Retrieve:
                          "update the servermap and try again to check "
                          "more peers",
                          level=log.WEIRD)
-                err.worth_retrying = True
                 err.servermap = self.servermap
             raise err
 

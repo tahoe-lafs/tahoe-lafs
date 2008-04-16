@@ -280,8 +280,8 @@ class MutableFileNode:
         d.addCallback(_done)
         return d
 
-    def _update_and_retrieve_best(self, old_map=None):
-        d = self.update_servermap(old_map=old_map, mode=MODE_ENOUGH)
+    def _update_and_retrieve_best(self, old_map=None, mode=MODE_ENOUGH):
+        d = self.update_servermap(old_map=old_map, mode=mode)
         def _updated(smap):
             goal = smap.best_recoverable_version()
             if not goal:
@@ -296,13 +296,12 @@ class MutableFileNode:
         def _maybe_retry(f):
             f.trap(NotEnoughSharesError)
             e = f.value
-            if not e.worth_retrying:
-                return f
             # the download is worth retrying once. Make sure to use the old
-            # servermap, since it is what remembers the bad shares. TODO:
-            # consider allowing this to retry multiple times.. this approach
-            # will let us tolerate about 8 bad shares, I think.
-            return self._update_and_retrieve_best(e.servermap)
+            # servermap, since it is what remembers the bad shares, but use
+            # MODE_WRITE to make it look for even more shares. TODO: consider
+            # allowing this to retry multiple times.. this approach will let
+            # us tolerate about 8 bad shares, I think.
+            return self._update_and_retrieve_best(e.servermap, mode=MODE_WRITE)
         d.addErrback(_maybe_retry)
         d.addBoth(self.release_lock)
         return d
