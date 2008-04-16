@@ -37,15 +37,15 @@ PiB=1024*TiB
 
 class Sizes:
     def __init__(self, mode, file_size, arity=2):
-        MAX_SEGSIZE = 2*MiB
+        MAX_SEGSIZE = 128*KiB
         self.mode = mode
         self.file_size = file_size
         self.seg_size = seg_size = 1.0 * min(MAX_SEGSIZE, file_size)
         self.num_segs = num_segs = math.ceil(file_size / seg_size)
         self.num_blocks = num_blocks = num_segs
 
-        self.num_shares = num_shares = 100
-        self.shares_needed = shares_needed = 25
+        self.num_shares = num_shares = 10
+        self.shares_needed = shares_needed = 3
 
         self.block_size = block_size = seg_size / shares_needed
         self.share_size = share_size = block_size * num_blocks
