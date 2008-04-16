@@ -16,7 +16,7 @@ import sha
 
 from allmydata.mutable.node import MutableFileNode
 from allmydata.mutable.common import DictOfSets, ResponseCache, \
-     MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_ENOUGH, UnrecoverableFileError
+     MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, UnrecoverableFileError
 from allmydata.mutable.retrieve import Retrieve
 from allmydata.mutable.publish import Publish
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
@@ -444,7 +444,7 @@ class Servermap(unittest.TestCase):
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
         d.addCallback(lambda res: ms(mode=MODE_WRITE))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
-        d.addCallback(lambda res: ms(mode=MODE_ENOUGH))
+        d.addCallback(lambda res: ms(mode=MODE_READ))
         # this more stops at k+epsilon, and epsilon=k, so 6 shares
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 6))
         d.addCallback(lambda res: ms(mode=MODE_ANYTHING))
@@ -455,7 +455,7 @@ class Servermap(unittest.TestCase):
         # increasing order of number of servers queried, since once a server
         # gets into the servermap, we'll always ask it for an update.
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 3))
-        d.addCallback(lambda sm: us(sm, mode=MODE_ENOUGH))
+        d.addCallback(lambda sm: us(sm, mode=MODE_READ))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 6))
         d.addCallback(lambda sm: us(sm, mode=MODE_WRITE))
         d.addCallback(lambda sm: us(sm, mode=MODE_CHECK))
@@ -470,7 +470,7 @@ class Servermap(unittest.TestCase):
         ms = self.make_servermap
         us = self.update_servermap
 
-        d.addCallback(lambda res: ms(mode=MODE_ENOUGH))
+        d.addCallback(lambda res: ms(mode=MODE_READ))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 6))
         def _made_map(sm):
             v = sm.best_recoverable_version()
@@ -521,7 +521,7 @@ class Servermap(unittest.TestCase):
         d.addCallback(lambda res: ms(mode=MODE_WRITE))
         d.addCallback(lambda sm: self.failUnlessNoneRecoverable(sm))
 
-        d.addCallback(lambda res: ms(mode=MODE_ENOUGH))
+        d.addCallback(lambda res: ms(mode=MODE_READ))
         d.addCallback(lambda sm: self.failUnlessNoneRecoverable(sm))
 
         return d
@@ -554,7 +554,7 @@ class Servermap(unittest.TestCase):
         d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
         d.addCallback(lambda res: ms(mode=MODE_WRITE))
         d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
-        d.addCallback(lambda res: ms(mode=MODE_ENOUGH))
+        d.addCallback(lambda res: ms(mode=MODE_READ))
         d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
 
         return d
@@ -575,7 +575,7 @@ class Roundtrip(unittest.TestCase):
         d.addCallback(_created)
         return d
 
-    def make_servermap(self, mode=MODE_ENOUGH, oldmap=None):
+    def make_servermap(self, mode=MODE_READ, oldmap=None):
         if oldmap is None:
             oldmap = ServerMap()
         smu = ServermapUpdater(self._fn, oldmap, mode)
@@ -784,7 +784,7 @@ class Roundtrip(unittest.TestCase):
     def test_corrupt_some(self):
         # corrupt the data of first five shares (so the servermap thinks
         # they're good but retrieve marks them as bad), so that the
-        # MODE_ENOUGH set of 6 will be insufficient, forcing node.download to
+        # MODE_READ set of 6 will be insufficient, forcing node.download to
         # retry with more servers.
         corrupt(None, self._storage, "share_data", range(5))
         d = self.make_servermap()
@@ -847,7 +847,7 @@ class MultipleEncodings(unittest.TestCase):
         d.addCallback(_published)
         return d
 
-    def make_servermap(self, mode=MODE_ENOUGH, oldmap=None):
+    def make_servermap(self, mode=MODE_READ, oldmap=None):
         if oldmap is None:
             oldmap = ServerMap()
         smu = ServermapUpdater(self._fn, oldmap, mode)

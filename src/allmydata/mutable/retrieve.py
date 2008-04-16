@@ -452,7 +452,7 @@ class Retrieve:
         if isinstance(res, failure.Failure):
             self.log("Retrieve done, with failure", failure=res)
         else:
-            self.log("Retrieve done, success!: res=%s" % (res,))
+            self.log("Retrieve done, success!")
             # remember the encoding parameters, use them again next time
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
              offsets_tuple) = self.verinfo

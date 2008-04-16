@@ -1,10 +1,11 @@
 
 from allmydata.util import idlib
 
-MODE_CHECK = "query all peers"
-MODE_ANYTHING = "one recoverable version"
-MODE_WRITE = "replace all shares, probably" # not for initial creation
-MODE_ENOUGH = "enough"
+MODE_CHECK = "MODE_CHECK" # query all peers
+MODE_ANYTHING = "MODE_ANYTHING" # one recoverable version
+MODE_WRITE = "MODE_WRITE" # replace all shares, probably.. not for initial
+                          # creation
+MODE_READ = "MODE_READ"
 
 class NotMutableError(Exception):
     pass

@@ -12,7 +12,7 @@ from pycryptopp.publickey import rsa
 from pycryptopp.cipher.aes import AES
 
 from publish import Publish
-from common import MODE_ENOUGH, MODE_WRITE, UnrecoverableFileError, \
+from common import MODE_READ, MODE_WRITE, UnrecoverableFileError, \
      ResponseCache
 from servermap import ServerMap, ServermapUpdater
 from retrieve import Retrieve
@@ -214,7 +214,7 @@ class MutableFileNode:
 
     # methods exposed to the higher-layer application
 
-    def update_servermap(self, old_map=None, mode=MODE_ENOUGH):
+    def update_servermap(self, old_map=None, mode=MODE_READ):
         servermap = old_map or ServerMap()
         d = self.obtain_lock()
         d.addCallback(lambda res:
@@ -280,7 +280,7 @@ class MutableFileNode:
         d.addCallback(_done)
         return d
 
-    def _update_and_retrieve_best(self, old_map=None, mode=MODE_ENOUGH):
+    def _update_and_retrieve_best(self, old_map=None, mode=MODE_READ):
         d = self.update_servermap(old_map=old_map, mode=mode)
         def _updated(smap):
             goal = smap.best_recoverable_version()

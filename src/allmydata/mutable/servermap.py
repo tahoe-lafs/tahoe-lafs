@@ -7,7 +7,7 @@ from allmydata.util import base32, hashutil, idlib, log
 from allmydata import storage
 from pycryptopp.publickey import rsa
 
-from common import MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_ENOUGH, \
+from common import MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, \
      DictOfSets, CorruptShareError, NeedMoreDataError
 from layout import unpack_prefix_and_signature, unpack_header, unpack_share
 
@@ -128,6 +128,18 @@ class ServerMap:
         seqnums.append(0)
         return max(seqnums)
 
+    def summarize_versions(self):
+        """Return a string describing which versions we know about."""
+        versionmap = self.make_versionmap()
+        bits = []
+        for (verinfo, shares) in versionmap.items():
+            (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
+             offsets_tuple) = verinfo
+            shnums = set([shnum for (shnum, peerid, timestamp) in shares])
+            bits.append("%d*seq%d-%s" %
+                        (len(shnums), seqnum, base32.b2a(root_hash)[:4]))
+        return "/".join(bits)
+
     def recoverable_versions(self):
         """Return a set of versionids, one for each version that is currently
         recoverable."""
@@ -183,7 +195,7 @@ class ServerMap:
         pass
 
 class ServermapUpdater:
-    def __init__(self, filenode, servermap, mode=MODE_ENOUGH):
+    def __init__(self, filenode, servermap, mode=MODE_READ):
         """I update a servermap, locating a sufficient number of useful
         shares and remembering where they are located.
 
@@ -218,7 +230,8 @@ class ServermapUpdater:
             self._need_privkey = True
 
         prefix = storage.si_b2a(self._storage_index)[:5]
-        self._log_number = log.msg("SharemapUpdater(%s): starting" % prefix)
+        self._log_number = log.msg(format="SharemapUpdater(%(si)s): starting (%(mode)s)",
+                                   si=prefix, mode=mode)
 
     def log(self, *args, **kwargs):
         if "parent" not in kwargs:
@@ -599,7 +612,7 @@ class ServermapUpdater:
 
         if self.mode == MODE_ANYTHING:
             if recoverable_versions:
-                self.log("MODE_ANYTHING and %d recoverable versions: done"
+                self.log("%d recoverable versions: done"
                          % len(recoverable_versions),
                          parent=lp)
                 return self._done()
@@ -607,24 +620,23 @@ class ServermapUpdater:
         if self.mode == MODE_CHECK:
             # we used self._must_query, and we know there aren't any
             # responses still waiting, so that means we must be done
-            self.log("MODE_CHECK: done",
-                     parent=lp)
+            self.log("done", parent=lp)
             return self._done()
 
         MAX_IN_FLIGHT = 5
-        if self.mode == MODE_ENOUGH:
+        if self.mode == MODE_READ:
             # if we've queried k+epsilon servers, and we see a recoverable
             # version, and we haven't seen any unrecoverable higher-seqnum'ed
             # versions, then we're done.
 
             if self._queries_completed < self.num_peers_to_query:
-                self.log(format="ENOUGH, %(completed)d completed, %(query)d to query: need more",
+                self.log(format="%(completed)d completed, %(query)d to query: need more",
                          completed=self._queries_completed,
                          query=self.num_peers_to_query,
                          parent=lp)
                 return self._send_more_queries(MAX_IN_FLIGHT)
             if not recoverable_versions:
-                self.log("ENOUGH, no recoverable versions: need more",
+                self.log("no recoverable versions: need more",
                          parent=lp)
                 return self._send_more_queries(MAX_IN_FLIGHT)
             highest_recoverable = max(recoverable_versions)
@@ -635,12 +647,11 @@ class ServermapUpdater:
                     # don't yet see enough shares to recover it. Try harder.
                     # TODO: consider sending more queries.
                     # TODO: consider limiting the search distance
-                    self.log("ENOUGH, evidence of higher seqnum: need more")
+                    self.log("evidence of higher seqnum: need more")
                     return self._send_more_queries(MAX_IN_FLIGHT)
             # all the unrecoverable versions were old or concurrent with a
             # recoverable version. Good enough.
-            self.log("ENOUGH: no higher-seqnum: done",
-                     parent=lp)
+            self.log("no higher-seqnum: done", parent=lp)
             return self._done()
 
         if self.mode == MODE_WRITE:
@@ -650,8 +661,7 @@ class ServermapUpdater:
             # every server in the world.
 
             if not recoverable_versions:
-                self.log("WRITE, no recoverable versions: need more",
-                         parent=lp)
+                self.log("no recoverable versions: need more", parent=lp)
                 return self._send_more_queries(MAX_IN_FLIGHT)
 
             last_found = -1
@@ -673,7 +683,7 @@ class ServermapUpdater:
                     if last_found != -1:
                         num_not_found += 1
                         if num_not_found >= self.EPSILON:
-                            self.log("MODE_WRITE: found our boundary, %s" %
+                            self.log("found our boundary, %s" %
                                      "".join(states),
                                      parent=lp)
                             found_boundary = True
@@ -715,8 +725,7 @@ class ServermapUpdater:
 
             # if we hit here, we didn't find our boundary, so we're still
             # waiting for peers
-            self.log("MODE_WRITE: no boundary yet, %s" % "".join(states),
-                     parent=lp)
+            self.log("no boundary yet, %s" % "".join(states), parent=lp)
             return self._send_more_queries(MAX_IN_FLIGHT)
 
         # otherwise, keep up to 5 queries in flight. TODO: this is pretty
@@ -756,6 +765,7 @@ class ServermapUpdater:
         self._servermap.last_update_mode = self.mode
         self._servermap.last_update_time = self._started
         # the servermap will not be touched after this
+        self.log("servermap: %s" % self._servermap.summarize_versions())
         eventually(self._done_deferred.callback, self._servermap)
 
     def _fatal_error(self, f):
