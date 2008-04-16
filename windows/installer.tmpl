@@ -41,6 +41,8 @@ Name: "{group}\Allmydata Help"; Filename: "http://www.allmydata.com/help"
 
 [Run]
 ; Things performed before the final page of the installer
+Filename: "{sys}\net.exe"; Parameters: "stop ""Allmydata SMB"""; Flags: runhidden
+Filename: "{sys}\net.exe"; Parameters: "stop Tahoe"; Flags: runhidden
 Filename: "{app}\Install\tahoesvc.exe"; Parameters: "-install -auto"; Flags: runhidden
 Filename: "{app}\Install\tahoe.exe"; Parameters: "create-client ""{app}\noderoot"""; Flags: runhidden
 Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: """{app}\Install\winfuse\WinFUSE.exe"""; Flags: runhidden
