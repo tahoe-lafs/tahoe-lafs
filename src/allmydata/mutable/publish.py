@@ -583,7 +583,7 @@ class Publish:
             dl.append(d)
 
         self._update_status()
-        return defer.DeferredList(dl) # purely for testing
+        return defer.DeferredList(dl, fireOnOneErrback=True) # just for testing
 
     def _do_testreadwrite(self, peerid, secrets,
                           tw_vectors, read_vector):
