@@ -346,25 +346,27 @@ class MakeShares(unittest.TestCase):
         c = FakeClient()
         fn = FastMutableFileNode(c)
         CONTENTS = "some initial contents"
-        fn.create(CONTENTS)
-        p = mutable.Publish(fn)
-        r = mutable.Retrieve(fn)
-        # make some fake shares
-        shares_and_ids = ( ["%07d" % i for i in range(10)], range(10) )
-        target_info = None
-        p._privkey = FakePrivKey(0)
-        p._encprivkey = "encprivkey"
-        p._pubkey = FakePubKey(0)
-        d = defer.maybeDeferred(p._generate_shares,
-                                (shares_and_ids,
-                                 3, 10,
-                                 21, # segsize
-                                 len(CONTENTS),
-                                 target_info),
-                                3, # seqnum
-                                "IV"*8)
-        def _done( (seqnum, root_hash, final_shares, target_info2) ):
-            self.failUnlessEqual(seqnum, 3)
+        d = fn.create(CONTENTS)
+        def _created(res):
+            p = Publish(fn, None)
+            self._p = p
+            p.newdata = CONTENTS
+            p.required_shares = 3
+            p.total_shares = 10
+            p.setup_encoding_parameters()
+            p._new_seqnum = 3
+            p.salt = "SALT" * 4
+            # make some fake shares
+            shares_and_ids = ( ["%07d" % i for i in range(10)], range(10) )
+            p._privkey = fn.get_privkey()
+            p._encprivkey = fn.get_encprivkey()
+            p._pubkey = fn.get_pubkey()
+            return p._generate_shares(shares_and_ids)
+        d.addCallback(_created)
+        def _generated(res):
+            p = self._p
+            final_shares = p.shares
+            root_hash = p.root_hash
             self.failUnlessEqual(len(root_hash), 32)
             self.failUnless(isinstance(final_shares, dict))
             self.failUnlessEqual(len(final_shares), 10)
