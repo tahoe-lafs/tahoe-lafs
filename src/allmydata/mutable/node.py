@@ -342,7 +342,11 @@ class MutableWatcher(service.MultiService):
         self._recent_publish_status.append(p)
         if self.stats_provider:
             self.stats_provider.count('mutable.files_published', 1)
-            self.stats_provider.count('mutable.bytes_published', p.get_size())
+            # bytes_published can't be handled here, because the
+            # publish_status does not yet know how much data it will be asked
+            # to send. TODO: figure out a clean way to do this that doesn't
+            # make MDMF harder.
+            #self.stats_provider.count('mutable.bytes_published', p.get_size())
         while len(self._recent_publish_status) > self.MAX_PUBLISH_STATUSES:
             self._recent_publish_status.pop(0)
 
