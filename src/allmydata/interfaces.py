@@ -1559,6 +1559,8 @@ class IDownloadStatus(Interface):
         that number. This provides a handle to this particular download, so a
         web page can generate a suitable hyperlink."""
 
+class IServermapUpdaterStatus(Interface):
+    pass
 class IPublishStatus(Interface):
     pass
 class IRetrieveStatus(Interface):

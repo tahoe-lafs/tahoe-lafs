@@ -168,6 +168,8 @@ class FakeClient:
         pass
     def notify_publish(self, p):
         pass
+    def notify_mapupdate(self, u):
+        pass
 
     def create_node_from_uri(self, u):
         u = IURI(u)

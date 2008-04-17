@@ -85,6 +85,10 @@ class FakeClient(service.MultiService):
         return []
     def list_active_retrieve(self):
         return []
+    def list_active_mapupdate(self):
+        return []
+    def list_recent_mapupdate(self):
+        return []
 
     def list_recent_uploads(self):
         return self._all_upload_status

@@ -7,7 +7,7 @@ from allmydata.util import base32, idlib
 from allmydata.web.common import IClient, getxmlfile, abbreviate_time, \
      abbreviate_rate, abbreviate_size, get_arg
 from allmydata.interfaces import IUploadStatus, IDownloadStatus, \
-     IPublishStatus, IRetrieveStatus
+     IPublishStatus, IRetrieveStatus, IServermapUpdaterStatus
 
 def plural(sequence_or_length):
     if isinstance(sequence_or_length, int):
@@ -623,6 +623,81 @@ class PublishStatusPage(rend.Page, RateAndTimeMixin):
             l[T.li["[%s]: %s" % (peerid_s, times_s)]]
         return T.li["Per-Server Response Times: ", l]
 
+class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
+    docFactory = getxmlfile("map-update-status.xhtml")
+
+    def __init__(self, data):
+        rend.Page.__init__(self, data)
+        self.update_status = data
+
+    def render_started(self, ctx, data):
+        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
+        started_s = time.strftime(TIME_FORMAT,
+                                  time.localtime(data.get_started()))
+        return started_s
+
+    def render_si(self, ctx, data):
+        si_s = base32.b2a_or_none(data.get_storage_index())
+        if si_s is None:
+            si_s = "(None)"
+        return si_s
+
+    def render_helper(self, ctx, data):
+        return {True: "Yes",
+                False: "No"}[data.using_helper()]
+
+    def render_progress(self, ctx, data):
+        progress = data.get_progress()
+        # TODO: make an ascii-art bar
+        return "%.1f%%" % (100.0 * progress)
+
+    def render_status(self, ctx, data):
+        return data.get_status()
+
+    def render_problems(self, ctx, data):
+        problems = data.problems
+        if not problems:
+            return ""
+        l = T.ul()
+        for peerid in sorted(problems.keys()):
+            peerid_s = idlib.shortnodeid_b2a(peerid)
+            l[T.li["[%s]: %s" % (peerid_s, problems[peerid])]]
+        return ctx.tag["Server Problems:", l]
+
+    def render_privkey_from(self, ctx, data):
+        peerid = data.get_privkey_from()
+        if peerid:
+            return ctx.tag["Got privkey from: [%s]"
+                           % idlib.shortnodeid_b2a(peerid)]
+        else:
+            return ""
+
+    def data_time_total(self, ctx, data):
+        return self.update_status.timings.get("total")
+
+    def data_time_setup(self, ctx, data):
+        return self.update_status.timings.get("setup")
+
+    def data_time_cumulative_verify(self, ctx, data):
+        return self.update_status.timings.get("cumulative_verify")
+
+    def render_server_timings(self, ctx, data):
+        per_server = self.update_status.timings.get("per_server")
+        if not per_server:
+            return ""
+        l = T.ul()
+        for peerid in sorted(per_server.keys()):
+            peerid_s = idlib.shortnodeid_b2a(peerid)
+            times = []
+            for op,t in per_server[peerid]:
+                if op == "query":
+                    times.append( self.render_time(None, t) )
+                else:
+                    times.append( "(" + self.render_time(None, t) + ")" )
+            times_s = ", ".join(times)
+            l[T.li["[%s]: %s" % (peerid_s, times_s)]]
+        return T.li["Per-Server Response Times: ", l]
+
 
 class Status(rend.Page):
     docFactory = getxmlfile("status.xhtml")
@@ -632,6 +707,7 @@ class Status(rend.Page):
         client = IClient(ctx)
         active =  (client.list_active_uploads() +
                    client.list_active_downloads() +
+                   client.list_active_mapupdate() +
                    client.list_active_publish() +
                    client.list_active_retrieve() +
                    client.list_active_helper_statuses())
@@ -641,6 +717,7 @@ class Status(rend.Page):
         client = IClient(ctx)
         recent = [o for o in (client.list_recent_uploads() +
                               client.list_recent_downloads() +
+                              client.list_recent_mapupdate() +
                               client.list_recent_publish() +
                               client.list_recent_retrieve() +
                               client.list_recent_helper_statuses())
@@ -688,10 +765,14 @@ class Status(rend.Page):
             link = "publish-%d" % data.get_counter()
             ctx.fillSlots("type", "publish")
             ctx.fillSlots("progress", "%.1f%%" % (100.0 * progress))
-        else:
-            assert IRetrieveStatus.providedBy(data)
+        elif IRetrieveStatus.providedBy(data):
             ctx.fillSlots("type", "retrieve")
             link = "retrieve-%d" % data.get_counter()
+            ctx.fillSlots("progress", "%.1f%%" % (100.0 * progress))
+        else:
+            assert IServermapUpdaterStatus.providedBy(data)
+            ctx.fillSlots("type", "mapupdate %s" % data.get_mode())
+            link = "mapupdate-%d" % data.get_counter()
             ctx.fillSlots("progress", "%.1f%%" % (100.0 * progress))
         ctx.fillSlots("status", T.a(href=link)[s.get_status()])
         return ctx.tag
@@ -723,6 +804,14 @@ class Status(rend.Page):
                 s = d.get_download_status()
                 if s.get_counter() == count:
                     return DownloadStatusPage(s)
+        if stype == "mapupdate":
+            for s in client.list_recent_mapupdate():
+                if s.get_counter() == count:
+                    return MapupdateStatusPage(s)
+            for p in client.list_all_mapupdate():
+                s = p.get_status()
+                if s.get_counter() == count:
+                    return MapupdateStatusPage(s)
         if stype == "publish":
             for s in client.list_recent_publish():
                 if s.get_counter() == count:

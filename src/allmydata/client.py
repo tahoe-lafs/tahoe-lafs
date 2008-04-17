@@ -304,6 +304,8 @@ class Client(node.Node, testutil.PollMixin):
         self.getServiceNamed("mutable-watcher").notify_publish(publish_status)
     def notify_retrieve(self, retrieve_status):
         self.getServiceNamed("mutable-watcher").notify_retrieve(retrieve_status)
+    def notify_mapupdate(self, update_status):
+        self.getServiceNamed("mutable-watcher").notify_mapupdate(update_status)
 
     def create_empty_dirnode(self):
         n = NewDirectoryNode(self)
@@ -356,6 +358,16 @@ class Client(node.Node, testutil.PollMixin):
     def list_recent_downloads(self):
         downloader = self.getServiceNamed("downloader")
         return downloader.list_recent_downloads()
+
+    def list_all_mapupdate(self):
+        watcher = self.getServiceNamed("mutable-watcher")
+        return watcher.list_all_mapupdate()
+    def list_active_mapupdate(self):
+        watcher = self.getServiceNamed("mutable-watcher")
+        return watcher.list_active_mapupdate()
+    def list_recent_mapupdate(self):
+        watcher = self.getServiceNamed("mutable-watcher")
+        return watcher.list_recent_mapupdate()
 
     def list_all_publish(self):
         watcher = self.getServiceNamed("mutable-watcher")

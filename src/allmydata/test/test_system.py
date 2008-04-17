@@ -1291,10 +1291,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             for ul in self.clients[0].list_recent_uploads():
                 if ul.get_size() > 200:
                     self._up_status = ul.get_counter()
-            #rs = self.clients[0].list_recent_retrieve()[0]
-            #self._retrieve_status = rs.get_counter()
-            #ps = self.clients[0].list_recent_publish()[0]
-            #self._publish_status = ps.get_counter()
+            rs = self.clients[0].list_recent_retrieve()[0]
+            self._retrieve_status = rs.get_counter()
+            ps = self.clients[0].list_recent_publish()[0]
+            self._publish_status = ps.get_counter()
 
             # and that there are some upload- and download- status pages
             return self.GET("status/up-%d" % self._up_status)
@@ -1304,10 +1304,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         d.addCallback(_got_up)
         def _got_down(res):
             return self.GET("status/publish-%d" % self._publish_status)
-        #d.addCallback(_got_down) # TODO: disabled during #303 refactoring
+        d.addCallback(_got_down)
         def _got_publish(res):
             return self.GET("status/retrieve-%d" % self._retrieve_status)
-        #d.addCallback(_got_publish)
+        d.addCallback(_got_publish)
 
         # check that the helper status page exists
         d.addCallback(lambda res:

@@ -215,8 +215,7 @@ class MutableFileNode:
     def update_servermap(self, old_map=None, mode=MODE_READ):
         servermap = old_map or ServerMap()
         d = self.obtain_lock()
-        d.addCallback(lambda res:
-                      ServermapUpdater(self, servermap, mode).update())
+        d.addCallback(lambda res: self._update_servermap(servermap, mode))
         d.addBoth(self.release_lock)
         return d
 
@@ -263,6 +262,10 @@ class MutableFileNode:
         verifier = self.get_verifier()
         return self._client.getServiceNamed("checker").check(verifier)
 
+    def _update_servermap(self, old_map, mode):
+        u = ServermapUpdater(self, old_map, mode)
+        self._client.notify_mapupdate(u.get_status())
+        return u.update()
 
     def _retrieve(self, servermap, verinfo):
         r = Retrieve(self, servermap, verinfo)
@@ -325,6 +328,7 @@ class MutableFileNode:
 
 
 class MutableWatcher(service.MultiService):
+    MAX_MAPUPDATE_STATUSES = 20
     MAX_PUBLISH_STATUSES = 20
     MAX_RETRIEVE_STATUSES = 20
     name = "mutable-watcher"
@@ -332,10 +336,27 @@ class MutableWatcher(service.MultiService):
     def __init__(self, stats_provider=None):
         service.MultiService.__init__(self)
         self.stats_provider = stats_provider
+        self._all_mapupdate_status = weakref.WeakKeyDictionary()
+        self._recent_mapupdate_status = []
         self._all_publish_status = weakref.WeakKeyDictionary()
         self._recent_publish_status = []
         self._all_retrieve_status = weakref.WeakKeyDictionary()
         self._recent_retrieve_status = []
+
+
+    def notify_mapupdate(self, p):
+        self._all_mapupdate_status[p] = None
+        self._recent_mapupdate_status.append(p)
+        while len(self._recent_mapupdate_status) > self.MAX_MAPUPDATE_STATUSES:
+            self._recent_mapupdate_status.pop(0)
+
+    def list_all_mapupdate(self):
+        return self._all_mapupdate_status.keys()
+    def list_active_mapupdate(self):
+        return [p for p in self._all_mapupdate_status.keys() if p.get_active()]
+    def list_recent_mapupdate(self):
+        return self._recent_mapupdate_status
+
 
     def notify_publish(self, p):
         self._all_publish_status[p] = None
