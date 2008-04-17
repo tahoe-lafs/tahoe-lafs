@@ -23,7 +23,7 @@ from allmydata.filenode import FileNode
 from allmydata.dirnode import NewDirectoryNode
 from allmydata.mutable import MutableFileNode, MutableWatcher
 from allmydata.stats import StatsProvider
-from allmydata.interfaces import IURI, INewDirectoryURI, \
+from allmydata.interfaces import IURI, INewDirectoryURI, IStatsProducer, \
      IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, RIStubClient
 
 KiB=1024
@@ -39,6 +39,8 @@ def _make_secret():
     return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
 
 class Client(node.Node, testutil.PollMixin):
+    implements(IStatsProducer)
+
     PORTNUMFILE = "client.port"
     STOREDIR = 'storage'
     NODETYPE = "client"
@@ -60,6 +62,7 @@ class Client(node.Node, testutil.PollMixin):
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
+        self.started_timestamp = time.time()
         self.logSource="Client"
         self.nickname = self.get_config("nickname")
         if self.nickname is None:
@@ -107,8 +110,12 @@ class Client(node.Node, testutil.PollMixin):
         if gatherer_furl:
             self.stats_provider = StatsProvider(self, gatherer_furl)
             self.add_service(self.stats_provider)
+            self.stats_provider.register_producer(self)
         else:
             self.stats_provider = None
+
+    def get_stats(self):
+        return { 'node.uptime': time.time() - self.started_timestamp }
 
     def init_lease_secret(self):
         secret_s = self.get_or_create_private_config("secret", _make_secret)

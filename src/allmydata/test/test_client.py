@@ -133,6 +133,10 @@ class Basic(unittest.TestCase):
         all_versions = allmydata.get_package_versions_string()
         self.failUnless("allmydata" in all_versions)
         log.msg("tahoe versions: %s" % all_versions)
+        # also test stats
+        stats = c.get_stats()
+        self.failUnless("node.uptime" in stats)
+        self.failUnless(isinstance(stats["node.uptime"], float))
 
 def flush_but_dont_ignore(res):
     d = flushEventualQueue()
