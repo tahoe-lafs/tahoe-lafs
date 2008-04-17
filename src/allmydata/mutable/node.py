@@ -350,14 +350,6 @@ class MutableWatcher(service.MultiService):
         while len(self._recent_mapupdate_status) > self.MAX_MAPUPDATE_STATUSES:
             self._recent_mapupdate_status.pop(0)
 
-    def list_all_mapupdate(self):
-        return self._all_mapupdate_status.keys()
-    def list_active_mapupdate(self):
-        return [p for p in self._all_mapupdate_status.keys() if p.get_active()]
-    def list_recent_mapupdate(self):
-        return self._recent_mapupdate_status
-
-
     def notify_publish(self, p):
         self._all_publish_status[p] = None
         self._recent_publish_status.append(p)
@@ -371,14 +363,6 @@ class MutableWatcher(service.MultiService):
         while len(self._recent_publish_status) > self.MAX_PUBLISH_STATUSES:
             self._recent_publish_status.pop(0)
 
-    def list_all_publish(self):
-        return self._all_publish_status.keys()
-    def list_active_publish(self):
-        return [p for p in self._all_publish_status.keys() if p.get_active()]
-    def list_recent_publish(self):
-        return self._recent_publish_status
-
-
     def notify_retrieve(self, r):
         self._all_retrieve_status[r] = None
         self._recent_retrieve_status.append(r)
@@ -388,9 +372,10 @@ class MutableWatcher(service.MultiService):
         while len(self._recent_retrieve_status) > self.MAX_RETRIEVE_STATUSES:
             self._recent_retrieve_status.pop(0)
 
-    def list_all_retrieve(self):
+
+    def list_all_mapupdate_statuses(self):
+        return self._all_mapupdate_status.keys()
+    def list_all_publish_statuses(self):
+        return self._all_publish_status.keys()
+    def list_all_retrieve_statuses(self):
         return self._all_retrieve_status.keys()
-    def list_active_retrieve(self):
-        return [p for p in self._all_retrieve_status.keys() if p.get_active()]
-    def list_recent_retrieve(self):
-        return self._recent_retrieve_status

@@ -1200,8 +1200,9 @@ class Uploader(service.MultiService):
         self._helper_furl = helper_furl
         self.stats_provider = stats_provider
         self._helper = None
-        self._all_uploads = weakref.WeakKeyDictionary()
-        self._recent_upload_status = []
+        self._all_uploads = weakref.WeakKeyDictionary() # for debugging
+        self._all_upload_statuses = weakref.WeakKeyDictionary()
+        self._recent_upload_statuses = []
         service.MultiService.__init__(self)
 
     def startService(self):
@@ -1243,10 +1244,7 @@ class Uploader(service.MultiService):
                 uploader = AssistedUploader(self._helper)
             else:
                 uploader = self.uploader_class(self.parent)
-            self._all_uploads[uploader] = None
-            self._recent_upload_status.append(uploader.get_upload_status())
-            while len(self._recent_upload_status) > self.MAX_UPLOAD_STATUSES:
-                self._recent_upload_status.pop(0)
+            self._add_upload(uploader)
             return uploader.start(uploadable)
         d.addCallback(_got_size)
         def _done(res):
@@ -1255,10 +1253,14 @@ class Uploader(service.MultiService):
         d.addBoth(_done)
         return d
 
-    def list_all_uploads(self):
-        return self._all_uploads.keys()
-    def list_active_uploads(self):
-        return [u.get_upload_status() for u in self._all_uploads.keys()
-                if u.get_upload_status().get_active()]
-    def list_recent_uploads(self):
-        return self._recent_upload_status
+    def _add_upload(self, uploader):
+        s = uploader.get_upload_status()
+        self._all_uploads[uploader] = None
+        self._all_upload_statuses[s] = None
+        self._recent_upload_statuses.append(s)
+        while len(self._recent_upload_statuses) > self.MAX_UPLOAD_STATUSES:
+            self._recent_upload_statuses.pop(0)
+
+    def list_all_upload_statuses(self):
+        for us in self._all_upload_statuses:
+            yield us

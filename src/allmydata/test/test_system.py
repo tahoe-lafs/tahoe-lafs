@@ -1285,16 +1285,18 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         def _got_status(res):
             # find an interesting upload and download to look at. LIT files
             # are not interesting.
-            for dl in self.clients[0].list_recent_downloads():
-                if dl.get_size() > 200:
-                    self._down_status = dl.get_counter()
-            for ul in self.clients[0].list_recent_uploads():
-                if ul.get_size() > 200:
-                    self._up_status = ul.get_counter()
-            rs = self.clients[0].list_recent_retrieve()[0]
+            for ds in self.clients[0].list_all_download_statuses():
+                if ds.get_size() > 200:
+                    self._down_status = ds.get_counter()
+            for us in self.clients[0].list_all_upload_statuses():
+                if us.get_size() > 200:
+                    self._up_status = us.get_counter()
+            rs = self.clients[0].list_all_retrieve_statuses()[0]
             self._retrieve_status = rs.get_counter()
-            ps = self.clients[0].list_recent_publish()[0]
+            ps = self.clients[0].list_all_publish_statuses()[0]
             self._publish_status = ps.get_counter()
+            us = self.clients[0].list_all_mapupdate_statuses()[0]
+            self._update_status = us.get_counter()
 
             # and that there are some upload- and download- status pages
             return self.GET("status/up-%d" % self._up_status)
@@ -1303,8 +1305,11 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             return self.GET("status/down-%d" % self._down_status)
         d.addCallback(_got_up)
         def _got_down(res):
-            return self.GET("status/publish-%d" % self._publish_status)
+            return self.GET("status/mapupdate-%d" % self._update_status)
         d.addCallback(_got_down)
+        def _got_update(res):
+            return self.GET("status/publish-%d" % self._publish_status)
+        d.addCallback(_got_update)
         def _got_publish(res):
             return self.GET("status/retrieve-%d" % self._retrieve_status)
         d.addCallback(_got_publish)

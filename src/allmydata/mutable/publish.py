@@ -109,7 +109,6 @@ class Publish:
         self._status.set_helper(False)
         self._status.set_progress(0.0)
         self._status.set_active(True)
-        self._status.set_servermap(servermap)
 
     def log(self, *args, **kwargs):
         if 'parent' not in kwargs:
@@ -160,6 +159,7 @@ class Publish:
             # initial publish
             self._new_seqnum = 1
             self._servermap = ServerMap()
+        self._status.set_servermap(self._servermap)
 
         self.log(format="new seqnum will be %(seqnum)d",
                  seqnum=self._new_seqnum, level=log.NOISY)

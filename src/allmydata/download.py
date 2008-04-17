@@ -1045,9 +1045,10 @@ class Downloader(service.MultiService):
 
     def __init__(self, stats_provider=None):
         service.MultiService.__init__(self)
-        self._all_downloads = weakref.WeakKeyDictionary()
         self.stats_provider = stats_provider
-        self._recent_download_status = []
+        self._all_downloads = weakref.WeakKeyDictionary() # for debugging
+        self._all_download_statuses = weakref.WeakKeyDictionary()
+        self._recent_download_statuses = []
 
     def download(self, u, t):
         assert self.parent
@@ -1067,10 +1068,7 @@ class Downloader(service.MultiService):
             dl = FileDownloader(self.parent, u, t)
         else:
             raise RuntimeError("I don't know how to download a %s" % u)
-        self._all_downloads[dl] = None
-        self._recent_download_status.append(dl.get_download_status())
-        while len(self._recent_download_status) > self.MAX_DOWNLOAD_STATUSES:
-            self._recent_download_status.pop(0)
+        self._add_download(dl)
         d = dl.start()
         return d
 
@@ -1082,11 +1080,14 @@ class Downloader(service.MultiService):
     def download_to_filehandle(self, uri, filehandle):
         return self.download(uri, FileHandle(filehandle))
 
+    def _add_download(self, downloader):
+        self._all_downloads[downloader] = None
+        s = downloader.get_download_status()
+        self._all_download_statuses[s] = None
+        self._recent_download_statuses.append(s)
+        while len(self._recent_download_statuses) > self.MAX_DOWNLOAD_STATUSES:
+            self._recent_download_statuses.pop(0)
 
-    def list_all_downloads(self):
-        return self._all_downloads.keys()
-    def list_active_downloads(self):
-        return [d.get_download_status() for d in self._all_downloads.keys()
-                if d.get_download_status().get_active()]
-    def list_recent_downloads(self):
-        return self._recent_download_status
+    def list_all_download_statuses(self):
+        for ds in self._all_download_statuses:
+            yield ds

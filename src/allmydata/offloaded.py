@@ -1,5 +1,5 @@
 
-import os, stat, time
+import os, stat, time, weakref
 from zope.interface import implements
 from twisted.application import service
 from twisted.internet import defer
@@ -490,6 +490,8 @@ class Helper(Referenceable, service.MultiService):
         fileutil.make_dirs(self._chk_incoming)
         fileutil.make_dirs(self._chk_encoding)
         self._active_uploads = {}
+        self._all_uploads = weakref.WeakKeyDictionary() # for debugging
+        self._all_upload_statuses = weakref.WeakKeyDictionary()
         self._recent_upload_statuses = []
         self.stats_provider = stats_provider
         if stats_provider:
@@ -588,6 +590,7 @@ class Helper(Referenceable, service.MultiService):
                                                   incoming_file, encoding_file,
                                                   r, lp)
                 self._active_uploads[storage_index] = uh
+                self._add_upload(uh)
             return uh.start()
         d.addCallback(_checked)
         def _err(f):
@@ -622,18 +625,21 @@ class Helper(Referenceable, service.MultiService):
         d.addCallback(_checked)
         return d
 
+    def _add_upload(self, uh):
+        self._all_uploads[uh] = None
+        s = uh.get_upload_status()
+        self._all_upload_statuses[s] = None
+        self._recent_upload_statuses.append(s)
+        while len(self._recent_upload_statuses) > self.MAX_UPLOAD_STATUSES:
+            self._recent_upload_statuses.pop(0)
+
     def upload_finished(self, storage_index, size):
+        # this is called with size=0 if the upload failed
         self.count("chk_upload_helper.encoded_bytes", size)
         uh = self._active_uploads[storage_index]
         del self._active_uploads[storage_index]
         s = uh.get_upload_status()
         s.set_active(False)
-        self._recent_upload_statuses.append(s)
-        while len(self._recent_upload_statuses) > self.MAX_UPLOAD_STATUSES:
-            self._recent_upload_statuses.pop(0)
 
-    def get_active_upload_statuses(self):
-        return [u.get_upload_status() for u in self._active_uploads.values()]
-
-    def get_recent_upload_statuses(self):
-        return self._recent_upload_statuses
+    def get_all_upload_statuses(self):
+        return self._all_upload_statuses

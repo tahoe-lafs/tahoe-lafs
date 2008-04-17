@@ -8,8 +8,11 @@ from twisted.python import failure, log
 from allmydata import interfaces, provisioning, uri, webish, upload, download
 from allmydata.web import status
 from allmydata.util import fileutil
-from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, FakeMutableFileNode, create_chk_filenode
-from allmydata.interfaces import IURI, INewDirectoryURI, IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, IMutableFileNode
+from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, \
+     FakeMutableFileNode, create_chk_filenode
+from allmydata.interfaces import IURI, INewDirectoryURI, \
+     IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, IMutableFileNode
+from allmydata.mutable import servermap, publish, retrieve
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -35,6 +38,9 @@ class FakeClient(service.MultiService):
     introducer_client = FakeIntroducerClient()
     _all_upload_status = [upload.UploadStatus()]
     _all_download_status = [download.DownloadStatus()]
+    _all_mapupdate_statuses = [servermap.UpdateStatus()]
+    _all_publish_statuses = [publish.PublishStatus()]
+    _all_retrieve_statuses = [retrieve.RetrieveStatus()]
     convergence = "some random string"
 
     def connected_to_introducer(self):
@@ -72,35 +78,17 @@ class FakeClient(service.MultiService):
         d.addCallback(_got_data)
         return d
 
-    def list_all_uploads(self):
-        return []
-    def list_all_downloads(self):
-        return []
-
-    def list_active_uploads(self):
+    def list_all_upload_statuses(self):
         return self._all_upload_status
-    def list_active_downloads(self):
+    def list_all_download_statuses(self):
         return self._all_download_status
-    def list_active_publish(self):
-        return []
-    def list_active_retrieve(self):
-        return []
-    def list_active_mapupdate(self):
-        return []
-    def list_recent_mapupdate(self):
-        return []
-
-    def list_recent_uploads(self):
-        return self._all_upload_status
-    def list_recent_downloads(self):
-        return self._all_download_status
-    def list_recent_publish(self):
-        return []
-    def list_recent_retrieve(self):
-        return []
-    def list_active_helper_statuses(self):
-        return []
-    def list_recent_helper_statuses(self):
+    def list_all_mapupdate_statuses(self):
+        return self._all_mapupdate_statuses
+    def list_all_publish_statuses(self):
+        return self._all_publish_statuses
+    def list_all_retrieve_statuses(self):
+        return self._all_retrieve_statuses
+    def list_all_helper_statuses(self):
         return []
 
 class WebMixin(object):
@@ -411,13 +399,19 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_status(self):
-        dl_num = self.s.list_recent_downloads()[0].get_counter()
-        ul_num = self.s.list_recent_uploads()[0].get_counter()
+        dl_num = self.s.list_all_download_statuses()[0].get_counter()
+        ul_num = self.s.list_all_upload_statuses()[0].get_counter()
+        mu_num = self.s.list_all_mapupdate_statuses()[0].get_counter()
+        pub_num = self.s.list_all_publish_statuses()[0].get_counter()
+        ret_num = self.s.list_all_retrieve_statuses()[0].get_counter()
         d = self.GET("/status", followRedirect=True)
         def _check(res):
             self.failUnless('Upload and Download Status' in res, res)
             self.failUnless('"down-%d"' % dl_num in res, res)
             self.failUnless('"up-%d"' % ul_num in res, res)
+            self.failUnless('"mapupdate-%d"' % mu_num in res, res)
+            self.failUnless('"publish-%d"' % pub_num in res, res)
+            self.failUnless('"retrieve-%d"' % ret_num in res, res)
         d.addCallback(_check)
         d.addCallback(lambda res: self.GET("/status/down-%d" % dl_num))
         def _check_dl(res):
@@ -427,6 +421,19 @@ class Web(WebMixin, unittest.TestCase):
         def _check_ul(res):
             self.failUnless("File Upload Status" in res, res)
         d.addCallback(_check_ul)
+        d.addCallback(lambda res: self.GET("/status/mapupdate-%d" % mu_num))
+        def _check_mapupdate(res):
+            self.failUnless("Mutable File Servermap Update Status" in res, res)
+        d.addCallback(_check_mapupdate)
+        d.addCallback(lambda res: self.GET("/status/publish-%d" % pub_num))
+        def _check_publish(res):
+            self.failUnless("Mutable File Publish Status" in res, res)
+        d.addCallback(_check_publish)
+        d.addCallback(lambda res: self.GET("/status/retrieve-%d" % ret_num))
+        def _check_retrieve(res):
+            self.failUnless("Mutable File Retrieve Status" in res, res)
+        d.addCallback(_check_retrieve)
+
         return d
 
     def test_status_numbers(self):

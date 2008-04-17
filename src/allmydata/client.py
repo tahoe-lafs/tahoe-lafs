@@ -329,7 +329,8 @@ class Client(node.Node, testutil.PollMixin):
             d.addCallback(make_key_objs)
             return d
         else:
-            # RSA key generation for a 2048 bit key takes between 0.8 and 3.2 secs
+            # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
+            # secs
             signer = rsa.generate(key_size)
             verifier = signer.get_verifying_key()
             return verifier, signer
@@ -339,66 +340,28 @@ class Client(node.Node, testutil.PollMixin):
         return uploader.upload(uploadable)
 
 
-    def list_all_uploads(self):
+    def list_all_upload_statuses(self):
         uploader = self.getServiceNamed("uploader")
-        return uploader.list_all_uploads()
-    def list_active_uploads(self):
-        uploader = self.getServiceNamed("uploader")
-        return uploader.list_active_uploads()
-    def list_recent_uploads(self):
-        uploader = self.getServiceNamed("uploader")
-        return uploader.list_recent_uploads()
+        return uploader.list_all_upload_statuses()
 
-    def list_all_downloads(self):
+    def list_all_download_statuses(self):
         downloader = self.getServiceNamed("downloader")
-        return downloader.list_all_downloads()
-    def list_active_downloads(self):
-        downloader = self.getServiceNamed("downloader")
-        return downloader.list_active_downloads()
-    def list_recent_downloads(self):
-        downloader = self.getServiceNamed("downloader")
-        return downloader.list_recent_downloads()
+        return downloader.list_all_download_statuses()
 
-    def list_all_mapupdate(self):
+    def list_all_mapupdate_statuses(self):
         watcher = self.getServiceNamed("mutable-watcher")
-        return watcher.list_all_mapupdate()
-    def list_active_mapupdate(self):
+        return watcher.list_all_mapupdate_statuses()
+    def list_all_publish_statuses(self):
         watcher = self.getServiceNamed("mutable-watcher")
-        return watcher.list_active_mapupdate()
-    def list_recent_mapupdate(self):
+        return watcher.list_all_publish_statuses()
+    def list_all_retrieve_statuses(self):
         watcher = self.getServiceNamed("mutable-watcher")
-        return watcher.list_recent_mapupdate()
+        return watcher.list_all_retrieve_statuses()
 
-    def list_all_publish(self):
-        watcher = self.getServiceNamed("mutable-watcher")
-        return watcher.list_all_publish()
-    def list_active_publish(self):
-        watcher = self.getServiceNamed("mutable-watcher")
-        return watcher.list_active_publish()
-    def list_recent_publish(self):
-        watcher = self.getServiceNamed("mutable-watcher")
-        return watcher.list_recent_publish()
-
-    def list_all_retrieve(self):
-        watcher = self.getServiceNamed("mutable-watcher")
-        return watcher.list_all_retrieve()
-    def list_active_retrieve(self):
-        watcher = self.getServiceNamed("mutable-watcher")
-        return watcher.list_active_retrieve()
-    def list_recent_retrieve(self):
-        watcher = self.getServiceNamed("mutable-watcher")
-        return watcher.list_recent_retrieve()
-
-    def list_active_helper_statuses(self):
+    def list_all_helper_statuses(self):
         try:
             helper = self.getServiceNamed("helper")
         except KeyError:
             return []
-        return helper.get_active_upload_statuses()
-    def list_recent_helper_statuses(self):
-        try:
-            helper = self.getServiceNamed("helper")
-        except KeyError:
-            return []
-        return helper.get_recent_upload_statuses()
+        return helper.get_all_upload_statuses()
 

@@ -1,5 +1,5 @@
 
-import time, pprint
+import time, pprint, itertools
 import simplejson
 from twisted.internet import defer
 from nevow import rend, inevow, tags as T
@@ -143,13 +143,9 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
         d = self.upload_results()
         def _convert(r):
             file_size = r.file_size
-            if file_size is None:
-                return None
             time1 = r.timings.get("cumulative_encoding")
-            if time1 is None:
-                return None
             time2 = r.timings.get("cumulative_sending")
-            if time2 is None:
+            if (file_size is None or time1 is None or time2 is None):
                 return None
             try:
                 return 1.0 * file_size / (time1+time2)
@@ -162,10 +158,8 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
         d = self.upload_results()
         def _convert(r):
             fetch_size = r.ciphertext_fetched
-            if fetch_size is None:
-                return None
             time = r.timings.get("cumulative_fetch")
-            if time is None:
+            if (fetch_size is None or time is None):
                 return None
             try:
                 return 1.0 * fetch_size / time
@@ -474,16 +468,10 @@ class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
     def data_rate_total(self, ctx, data):
         return self._get_rate(data, "total")
 
-    def data_time_peer_selection(self, ctx, data):
-        return self.retrieve_status.timings.get("peer_selection")
-
     def data_time_fetch(self, ctx, data):
         return self.retrieve_status.timings.get("fetch")
     def data_rate_fetch(self, ctx, data):
         return self._get_rate(data, "fetch")
-
-    def data_time_cumulative_verify(self, ctx, data):
-        return self.retrieve_status.timings.get("cumulative_verify")
 
     def data_time_decode(self, ctx, data):
         return self.retrieve_status.timings.get("decode")
@@ -703,25 +691,27 @@ class Status(rend.Page):
     docFactory = getxmlfile("status.xhtml")
     addSlash = True
 
+    def _get_all_statuses(self, client):
+        return itertools.chain(client.list_all_upload_statuses(),
+                               client.list_all_download_statuses(),
+                               client.list_all_mapupdate_statuses(),
+                               client.list_all_publish_statuses(),
+                               client.list_all_retrieve_statuses(),
+                               client.list_all_helper_statuses(),
+                               )
+
     def data_active_operations(self, ctx, data):
         client = IClient(ctx)
-        active =  (client.list_active_uploads() +
-                   client.list_active_downloads() +
-                   client.list_active_mapupdate() +
-                   client.list_active_publish() +
-                   client.list_active_retrieve() +
-                   client.list_active_helper_statuses())
+        active = [s
+                  for s in self._get_all_statuses(client)
+                  if s.get_active()]
         return active
 
     def data_recent_operations(self, ctx, data):
         client = IClient(ctx)
-        recent = [o for o in (client.list_recent_uploads() +
-                              client.list_recent_downloads() +
-                              client.list_recent_mapupdate() +
-                              client.list_recent_publish() +
-                              client.list_recent_retrieve() +
-                              client.list_recent_helper_statuses())
-                  if not o.get_active()]
+        recent = [s
+                  for s in self._get_all_statuses(client)
+                  if not s.get_active()]
         recent.sort(lambda a,b: cmp(a.get_started(), b.get_started()))
         recent.reverse()
         return recent
@@ -782,50 +772,26 @@ class Status(rend.Page):
         stype,count_s = name.split("-")
         count = int(count_s)
         if stype == "up":
-            for s in client.list_recent_uploads():
+            for s in itertools.chain(client.list_all_upload_statuses(),
+                                     client.list_all_helper_statuses()):
+                # immutable-upload helpers use the same status object as a
+                # regular immutable-upload
                 if s.get_counter() == count:
-                    return UploadStatusPage(s)
-            for u in client.list_all_uploads():
-                # u is an uploader object
-                s = u.get_upload_status()
-                if s.get_counter() == count:
-                    return UploadStatusPage(s)
-            for s in (client.list_active_helper_statuses() +
-                      client.list_recent_helper_statuses()):
-                if s.get_counter() == count:
-                    # immutable-upload helpers use the same status object as
-                    # a regular immutable-upload
                     return UploadStatusPage(s)
         if stype == "down":
-            for s in client.list_recent_downloads():
-                if s.get_counter() == count:
-                    return DownloadStatusPage(s)
-            for d in client.list_all_downloads():
-                s = d.get_download_status()
+            for s in client.list_all_download_statuses():
                 if s.get_counter() == count:
                     return DownloadStatusPage(s)
         if stype == "mapupdate":
-            for s in client.list_recent_mapupdate():
-                if s.get_counter() == count:
-                    return MapupdateStatusPage(s)
-            for p in client.list_all_mapupdate():
-                s = p.get_status()
+            for s in client.list_all_mapupdate_statuses():
                 if s.get_counter() == count:
                     return MapupdateStatusPage(s)
         if stype == "publish":
-            for s in client.list_recent_publish():
-                if s.get_counter() == count:
-                    return PublishStatusPage(s)
-            for p in client.list_all_publish():
-                s = p.get_status()
+            for s in client.list_all_publish_statuses():
                 if s.get_counter() == count:
                     return PublishStatusPage(s)
         if stype == "retrieve":
-            for s in client.list_recent_retrieve():
-                if s.get_counter() == count:
-                    return RetrieveStatusPage(s)
-            for r in client.list_all_retrieve():
-                s = r.get_status()
+            for s in client.list_all_retrieve_statuses():
                 if s.get_counter() == count:
                     return RetrieveStatusPage(s)
 
