@@ -22,7 +22,6 @@
 <h2>Retrieve Results</h2>
 <ul>
   <li n:render="encoding" />
-  <li n:render="peers_queried" />
   <li n:render="problems" />
   <li n:render="sharemap" />
   <li>Timings:</li>
@@ -31,12 +30,6 @@
     (<span n:render="rate" n:data="rate_total" />)</li>
     <ul>
       <li>Setup: <span n:render="time" n:data="time_setup" /></li>
-      <li>Initial Version Query: <span n:render="time" n:data="time_query" />
-      (read size <span n:render="string" n:data="initial_read_size"/> bytes)</li>
-      <li>Obtain Privkey: <span n:render="time" n:data="time_privkey" />
-      <ul>
-        <li>Separate Privkey Fetch: <span n:render="time" n:data="time_privkey_fetch" /> <span n:render="privkey_from"/></li>
-      </ul></li>
       <li>Encrypting: <span n:render="time" n:data="time_encrypt" />
       (<span n:render="rate" n:data="rate_encrypt" />)</li>
       <li>Encoding: <span n:render="time" n:data="time_encode" />

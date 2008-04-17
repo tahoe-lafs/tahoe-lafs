@@ -300,10 +300,10 @@ class Client(node.Node, testutil.PollMixin):
         assert IMutableFileURI.providedBy(u), u
         return MutableFileNode(self).init_from_uri(u)
 
-    def notify_publish(self, p):
-        self.getServiceNamed("mutable-watcher").notify_publish(p)
-    def notify_retrieve(self, r):
-        self.getServiceNamed("mutable-watcher").notify_retrieve(r)
+    def notify_publish(self, publish_status):
+        self.getServiceNamed("mutable-watcher").notify_publish(publish_status)
+    def notify_retrieve(self, retrieve_status):
+        self.getServiceNamed("mutable-watcher").notify_retrieve(retrieve_status)
 
     def create_empty_dirnode(self):
         n = NewDirectoryNode(self)

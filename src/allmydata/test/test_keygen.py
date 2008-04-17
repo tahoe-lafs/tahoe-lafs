@@ -25,6 +25,7 @@ class KeyGenService(unittest.TestCase, testutil.PollMixin):
         t.setServiceParent(self.parent)
         t.listenOn("tcp:0")
         t.setLocationAutomatically()
+        return eventual.fireEventually()
 
     def tearDown(self):
         d = self.parent.stopService()

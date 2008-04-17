@@ -21,13 +21,11 @@ class RetrieveStatus:
         self.timings = {}
         self.timings["fetch_per_server"] = {}
         self.timings["cumulative_verify"] = 0.0
-        self.sharemap = {}
         self.problems = {}
         self.active = True
         self.storage_index = None
         self.helper = False
         self.encoding = ("?","?")
-        self.search_distance = None
         self.size = None
         self.status = "Not started"
         self.progress = 0.0
@@ -40,8 +38,6 @@ class RetrieveStatus:
         return self.storage_index
     def get_encoding(self):
         return self.encoding
-    def get_search_distance(self):
-        return self.search_distance
     def using_helper(self):
         return self.helper
     def get_size(self):
@@ -55,14 +51,16 @@ class RetrieveStatus:
     def get_counter(self):
         return self.counter
 
+    def add_fetch_timing(self, peerid, elapsed):
+        if peerid not in self.timings["fetch_per_server"]:
+            self.timings["fetch_per_server"][peerid] = []
+        self.timings["fetch_per_server"][peerid].append(elapsed)
     def set_storage_index(self, si):
         self.storage_index = si
     def set_helper(self, helper):
         self.helper = helper
     def set_encoding(self, k, n):
         self.encoding = (k, n)
-    def set_search_distance(self, value):
-        self.search_distance = value
     def set_size(self, size):
         self.size = size
     def set_status(self, status):
@@ -99,6 +97,19 @@ class Retrieve:
         assert self._node._pubkey
         self.verinfo = verinfo
 
+        self._status = RetrieveStatus()
+        self._status.set_storage_index(self._storage_index)
+        self._status.set_helper(False)
+        self._status.set_progress(0.0)
+        self._status.set_active(True)
+        (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
+         offsets_tuple) = self.verinfo
+        self._status.set_size(datalength)
+        self._status.set_encoding(k, N)
+
+    def get_status(self):
+        return self._status
+
     def log(self, *args, **kwargs):
         if "parent" not in kwargs:
             kwargs["parent"] = self._log_number
@@ -106,6 +117,8 @@ class Retrieve:
 
     def download(self):
         self._done_deferred = defer.Deferred()
+        self._started = time.time()
+        self._status.set_status("Retrieving Shares")
 
         # first, which servers can we use?
         versionmap = self.servermap.make_versionmap()
@@ -165,6 +178,7 @@ class Retrieve:
         self._outstanding_queries[m] = (peerid, shnum, started)
 
         # ask the cache first
+        got_from_cache = False
         datav = []
         #for (offset, length) in readv:
         #    (data, timestamp) = self._node._cache.read(self.verinfo, shnum,
@@ -173,13 +187,14 @@ class Retrieve:
         #        datav.append(data)
         if len(datav) == len(readv):
             self.log("got data from cache")
+            got_from_cache = True
             d = defer.succeed(datav)
         else:
             self.remaining_sharemap[shnum].remove(peerid)
             d = self._do_read(ss, peerid, self._storage_index, [shnum], readv)
             d.addCallback(self._fill_cache, readv)
 
-        d.addCallback(self._got_results, m, peerid, started)
+        d.addCallback(self._got_results, m, peerid, started, got_from_cache)
         d.addErrback(self._query_failed, m, peerid)
         # errors that aren't handled by _query_failed (and errors caused by
         # _query_failed) get logged, but we still want to check for doneness.
@@ -216,7 +231,11 @@ class Retrieve:
         for shnum in list(self.remaining_sharemap.keys()):
             self.remaining_sharemap.discard(shnum, peerid)
 
-    def _got_results(self, datavs, marker, peerid, started):
+    def _got_results(self, datavs, marker, peerid, started, got_from_cache):
+        now = time.time()
+        elapsed = now - started
+        if not got_from_cache:
+            self._status.add_fetch_timing(peerid, elapsed)
         self.log(format="got results (%(shares)d shares) from [%(peerid)s]",
                  shares=len(datavs),
                  peerid=idlib.shortnodeid_b2a(peerid),
@@ -241,6 +260,7 @@ class Retrieve:
                 self.remove_peer(peerid)
                 self.servermap.mark_bad_share(peerid, shnum)
                 self._bad_shares.add( (peerid, shnum) )
+                self._status.problems[peerid] = f
                 self._last_failure = f
                 pass
         # all done!
@@ -284,6 +304,7 @@ class Retrieve:
         self.log(format="query to [%(peerid)s] failed",
                  peerid=idlib.shortnodeid_b2a(peerid),
                  level=log.NOISY)
+        self._status.problems[peerid] = f
         self._outstanding_queries.pop(marker, None)
         if not self._running:
             return
@@ -317,6 +338,10 @@ class Retrieve:
         # to fix it, so the download will fail.
 
         self._decoding = True # avoid reentrancy
+        self._status.set_status("decoding")
+        now = time.time()
+        elapsed = now - self._started
+        self._status.timings["fetch"] = elapsed
 
         d = defer.maybeDeferred(self._decode)
         d.addCallback(self._decrypt, IV, self._node._readkey)
@@ -366,6 +391,7 @@ class Retrieve:
             peerid = list(self.remaining_sharemap[shnum])[0]
             # get_data will remove that peerid from the sharemap, and add the
             # query to self._outstanding_queries
+            self._status.set_status("Retrieving More Shares")
             self.get_data(shnum, peerid)
             needed -= 1
             if not needed:
@@ -400,6 +426,7 @@ class Retrieve:
         return
 
     def _decode(self):
+        started = time.time()
         (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
          offsets_tuple) = self.verinfo
 
@@ -423,6 +450,7 @@ class Retrieve:
         self.log("about to decode, shareids=%s" % (shareids,))
         d = defer.maybeDeferred(fec.decode, shares, shareids)
         def _done(buffers):
+            self._status.timings["decode"] = time.time() - started
             self.log(" decode done, %d buffers" % len(buffers))
             segment = "".join(buffers)
             self.log(" joined length %d, datalength %d" %
@@ -438,21 +466,28 @@ class Retrieve:
         return d
 
     def _decrypt(self, crypttext, IV, readkey):
+        self._status.set_status("decrypting")
         started = time.time()
         key = hashutil.ssk_readkey_data_hash(IV, readkey)
         decryptor = AES(key)
         plaintext = decryptor.process(crypttext)
+        self._status.timings["decrypt"] = time.time() - started
         return plaintext
 
     def _done(self, res):
         if not self._running:
             return
         self._running = False
+        self._status.set_active(False)
+        self._status.timings["total"] = time.time() - self._started
         # res is either the new contents, or a Failure
         if isinstance(res, failure.Failure):
             self.log("Retrieve done, with failure", failure=res)
+            self._status.set_status("Failed")
         else:
             self.log("Retrieve done, success!")
+            self._status.set_status("Done")
+            self._status.set_progress(1.0)
             # remember the encoding parameters, use them again next time
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
              offsets_tuple) = self.verinfo

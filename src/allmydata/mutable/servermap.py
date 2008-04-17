@@ -85,6 +85,13 @@ class ServerMap:
                     for (peerid, shnum)
                     in self.servermap])
 
+    def make_sharemap(self):
+        """Return a dict that maps shnum to a set of peerds that hold it."""
+        sharemap = DictOfSets()
+        for (peerid, shnum) in self.servermap:
+            sharemap.add(shnum, peerid)
+        return sharemap
+
     def make_versionmap(self):
         """Return a dict that maps versionid to sets of (shnum, peerid,
         timestamp) tuples."""

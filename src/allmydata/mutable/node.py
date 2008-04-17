@@ -22,8 +22,6 @@ from retrieve import Retrieve
 
 class MutableFileNode:
     implements(IMutableFileNode)
-    publish_class = Publish
-    retrieve_class = Retrieve
     SIGNATURE_KEY_SIZE = 2048
     DEFAULT_ENCODING = (3, 10)
 
@@ -90,7 +88,7 @@ class MutableFileNode:
             # nobody knows about us yet"
             self._current_seqnum = 0
             self._current_roothash = "\x00"*32
-            return self._publish(initial_contents)
+            return self._publish(None, initial_contents)
         d.addCallback(_generated)
         return d
 
@@ -225,17 +223,13 @@ class MutableFileNode:
     def download_version(self, servermap, versionid):
         """Returns a Deferred that fires with a string."""
         d = self.obtain_lock()
-        d.addCallback(lambda res:
-                      Retrieve(self, servermap, versionid).download())
+        d.addCallback(lambda res: self._retrieve(servermap, versionid))
         d.addBoth(self.release_lock)
         return d
 
-    def publish(self, servermap, newdata):
-        assert self._pubkey, "update_servermap must be called before publish"
+    def publish(self, servermap, new_contents):
         d = self.obtain_lock()
-        d.addCallback(lambda res: Publish(self, servermap).publish(newdata))
-        # p = self.publish_class(self)
-        # self._client.notify_publish(p)
+        d.addCallback(lambda res: self._publish(servermap, new_contents))
         d.addBoth(self.release_lock)
         return d
 
@@ -269,16 +263,11 @@ class MutableFileNode:
         verifier = self.get_verifier()
         return self._client.getServiceNamed("checker").check(verifier)
 
-    def download(self, target):
-        # fake it. TODO: make this cleaner.
-        d = self.download_to_data()
-        def _done(data):
-            target.open(len(data))
-            target.write(data)
-            target.close()
-            return target.finish()
-        d.addCallback(_done)
-        return d
+
+    def _retrieve(self, servermap, verinfo):
+        r = Retrieve(self, servermap, verinfo)
+        self._client.notify_retrieve(r.get_status())
+        return r.download()
 
     def _update_and_retrieve_best(self, old_map=None, mode=MODE_READ):
         d = self.update_servermap(old_map=old_map, mode=mode)
@@ -306,22 +295,33 @@ class MutableFileNode:
         d.addBoth(self.release_lock)
         return d
 
-    def _publish(self, initial_contents):
-        p = Publish(self, None)
-        d = p.publish(initial_contents)
-        d.addCallback(lambda res: self)
+    def download(self, target):
+        # fake it. TODO: make this cleaner.
+        d = self.download_to_data()
+        def _done(data):
+            target.open(len(data))
+            target.write(data)
+            target.close()
+            return target.finish()
+        d.addCallback(_done)
         return d
 
-    def update(self, newdata):
+
+    def _publish(self, servermap, new_contents):
+        assert self._pubkey, "update_servermap must be called before publish"
+        p = Publish(self, servermap)
+        self._client.notify_publish(p.get_status())
+        return p.publish(new_contents)
+
+    def update(self, new_contents):
         d = self.obtain_lock()
         d.addCallback(lambda res: self.update_servermap(mode=MODE_WRITE))
-        d.addCallback(lambda smap:
-                      Publish(self, smap).publish(newdata))
+        d.addCallback(self._publish, new_contents)
         d.addBoth(self.release_lock)
         return d
 
-    def overwrite(self, newdata):
-        return self.update(newdata)
+    def overwrite(self, new_contents):
+        return self.update(new_contents)
 
 
 class MutableWatcher(service.MultiService):
@@ -332,42 +332,40 @@ class MutableWatcher(service.MultiService):
     def __init__(self, stats_provider=None):
         service.MultiService.__init__(self)
         self.stats_provider = stats_provider
-        self._all_publish = weakref.WeakKeyDictionary()
+        self._all_publish_status = weakref.WeakKeyDictionary()
         self._recent_publish_status = []
-        self._all_retrieve = weakref.WeakKeyDictionary()
+        self._all_retrieve_status = weakref.WeakKeyDictionary()
         self._recent_retrieve_status = []
 
     def notify_publish(self, p):
-        self._all_publish[p] = None
-        self._recent_publish_status.append(p.get_status())
+        self._all_publish_status[p] = None
+        self._recent_publish_status.append(p)
         if self.stats_provider:
             self.stats_provider.count('mutable.files_published', 1)
-            #self.stats_provider.count('mutable.bytes_published', p._node.get_size())
+            self.stats_provider.count('mutable.bytes_published', p.get_size())
         while len(self._recent_publish_status) > self.MAX_PUBLISH_STATUSES:
             self._recent_publish_status.pop(0)
 
     def list_all_publish(self):
-        return self._all_publish.keys()
+        return self._all_publish_status.keys()
     def list_active_publish(self):
-        return [p.get_status() for p in self._all_publish.keys()
-                if p.get_status().get_active()]
+        return [p for p in self._all_publish_status.keys() if p.get_active()]
     def list_recent_publish(self):
         return self._recent_publish_status
 
 
     def notify_retrieve(self, r):
-        self._all_retrieve[r] = None
-        self._recent_retrieve_status.append(r.get_status())
+        self._all_retrieve_status[r] = None
+        self._recent_retrieve_status.append(r)
         if self.stats_provider:
             self.stats_provider.count('mutable.files_retrieved', 1)
-            #self.stats_provider.count('mutable.bytes_retrieved', r._node.get_size())
+            self.stats_provider.count('mutable.bytes_retrieved', r.get_size())
         while len(self._recent_retrieve_status) > self.MAX_RETRIEVE_STATUSES:
             self._recent_retrieve_status.pop(0)
 
     def list_all_retrieve(self):
-        return self._all_retrieve.keys()
+        return self._all_retrieve_status.keys()
     def list_active_retrieve(self):
-        return [p.get_status() for p in self._all_retrieve.keys()
-                if p.get_status().get_active()]
+        return [p for p in self._all_retrieve_status.keys() if p.get_active()]
     def list_recent_retrieve(self):
         return self._recent_retrieve_status

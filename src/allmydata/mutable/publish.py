@@ -4,10 +4,12 @@ import os, struct, time
 from itertools import count
 from zope.interface import implements
 from twisted.internet import defer
+from twisted.python import failure
 from allmydata.interfaces import IPublishStatus
 from allmydata.util import base32, hashutil, mathutil, idlib, log
 from allmydata import hashtree, codec, storage
 from pycryptopp.cipher.aes import AES
+from foolscap.eventual import eventually
 
 from common import MODE_WRITE, UncoordinatedWriteError, DictOfSets
 from servermap import ServerMap
@@ -19,27 +21,23 @@ class PublishStatus:
     statusid_counter = count(0)
     def __init__(self):
         self.timings = {}
-        self.timings["per_server"] = {}
-        self.privkey_from = None
-        self.peers_queried = None
-        self.sharemap = None # DictOfSets
+        self.timings["send_per_server"] = {}
+        self.servermap = None
         self.problems = {}
         self.active = True
         self.storage_index = None
         self.helper = False
         self.encoding = ("?", "?")
-        self.initial_read_size = None
         self.size = None
         self.status = "Not started"
         self.progress = 0.0
         self.counter = self.statusid_counter.next()
         self.started = time.time()
 
-    def add_per_server_time(self, peerid, op, elapsed):
-        assert op in ("read", "write")
-        if peerid not in self.timings["per_server"]:
-            self.timings["per_server"][peerid] = []
-        self.timings["per_server"][peerid].append((op,elapsed))
+    def add_per_server_time(self, peerid, elapsed):
+        if peerid not in self.timings["send_per_server"]:
+            self.timings["send_per_server"][peerid] = []
+        self.timings["send_per_server"][peerid].append(elapsed)
 
     def get_started(self):
         return self.started
@@ -49,6 +47,8 @@ class PublishStatus:
         return self.encoding
     def using_helper(self):
         return self.helper
+    def get_servermap(self):
+        return self.servermap
     def get_size(self):
         return self.size
     def get_status(self):
@@ -64,6 +64,8 @@ class PublishStatus:
         self.storage_index = si
     def set_helper(self, helper):
         self.helper = helper
+    def set_servermap(self, servermap):
+        self.servermap = servermap
     def set_encoding(self, k, n):
         self.encoding = (k, n)
     def set_size(self, size):
@@ -102,6 +104,13 @@ class Publish:
         self._log_number = num
         self._running = True
 
+        self._status = PublishStatus()
+        self._status.set_storage_index(self._storage_index)
+        self._status.set_helper(False)
+        self._status.set_progress(0.0)
+        self._status.set_active(True)
+        self._status.set_servermap(servermap)
+
     def log(self, *args, **kwargs):
         if 'parent' not in kwargs:
             kwargs['parent'] = self._log_number
@@ -129,6 +138,9 @@ class Publish:
         # 5: when enough responses are back, we're done
 
         self.log("starting publish, datalen is %s" % len(newdata))
+        self._status.set_size(len(newdata))
+        self._status.set_status("Started")
+        self._started = time.time()
 
         self.done_deferred = defer.Deferred()
 
@@ -160,6 +172,8 @@ class Publish:
         assert self.required_shares is not None
         self.total_shares = self._node.get_total_shares()
         assert self.total_shares is not None
+        self._status.set_encoding(self.required_shares, self.total_shares)
+
         self._pubkey = self._node.get_pubkey()
         assert self._pubkey
         self._privkey = self._node.get_privkey()
@@ -209,8 +223,13 @@ class Publish:
         # create the shares. We'll discard these as they are delivered. SMDF:
         # we're allowed to hold everything in memory.
 
+        self._status.timings["setup"] = time.time() - self._started
         d = self._encrypt_and_encode()
         d.addCallback(self._generate_shares)
+        def _start_pushing(res):
+            self._started_pushing = time.time()
+            return res
+        d.addCallback(_start_pushing)
         d.addCallback(self.loop) # trigger delivery
         d.addErrback(self._fatal_error)
 
@@ -233,11 +252,22 @@ class Publish:
         self.log("error during loop", failure=f, level=log.SCARY)
         self._done(f)
 
+    def _update_status(self):
+        self._status.set_status("Sending Shares: %d placed out of %d, "
+                                "%d messages outstanding" %
+                                (len(self.placed),
+                                 len(self.goal),
+                                 len(self.outstanding)))
+        self._status.set_progress(1.0 * len(self.placed) / len(self.goal))
+
     def loop(self, ignored=None):
         self.log("entering loop", level=log.NOISY)
+        if not self._running:
+            return
         self.update_goal()
         # how far are we from our goal?
         needed = self.goal - self.placed - self.outstanding
+        self._update_status()
 
         if needed:
             # we need to send out new shares
@@ -258,6 +288,9 @@ class Publish:
         # no queries outstanding, no placements needed: we're done
         self.log("no queries outstanding, no placements needed: done",
                  level=log.OPERATIONAL)
+        now = time.time()
+        elapsed = now - self._started_pushing
+        self._status.timings["push"] = elapsed
         return self._done(None)
 
     def log_goal(self, goal):
@@ -331,19 +364,21 @@ class Publish:
         # shares that we care about.
         self.log("_encrypt_and_encode")
 
-        #started = time.time()
+        self._status.set_status("Encrypting")
+        started = time.time()
 
         key = hashutil.ssk_readkey_data_hash(self.salt, self.readkey)
         enc = AES(key)
         crypttext = enc.process(self.newdata)
         assert len(crypttext) == len(self.newdata)
 
-        #now = time.time()
-        #self._status.timings["encrypt"] = now - started
-        #started = now
+        now = time.time()
+        self._status.timings["encrypt"] = now - started
+        started = now
 
         # now apply FEC
 
+        self._status.set_status("Encoding")
         fec = codec.CRSEncoder()
         fec.set_params(self.segment_size,
                        self.required_shares, self.total_shares)
@@ -358,8 +393,8 @@ class Publish:
 
         d = fec.encode(crypttext_pieces)
         def _done_encoding(res):
-            #elapsed = time.time() - started
-            #self._status.timings["encode"] = elapsed
+            elapsed = time.time() - started
+            self._status.timings["encode"] = elapsed
             return res
         d.addCallback(_done_encoding)
         return d
@@ -367,7 +402,8 @@ class Publish:
     def _generate_shares(self, shares_and_shareids):
         # this sets self.shares and self.root_hash
         self.log("_generate_shares")
-        #started = time.time()
+        self._status.set_status("Generating Shares")
+        started = time.time()
 
         # we should know these by now
         privkey = self._privkey
@@ -413,9 +449,9 @@ class Publish:
         # then they all share the same encprivkey at the end. The sizes
         # of everything are the same for all shares.
 
-        #sign_started = time.time()
+        sign_started = time.time()
         signature = privkey.sign(prefix)
-        #self._status.timings["sign"] = time.time() - sign_started
+        self._status.timings["sign"] = time.time() - sign_started
 
         verification_key = pubkey.serialize()
 
@@ -429,8 +465,8 @@ class Publish:
                                      all_shares[shnum],
                                      encprivkey)
             final_shares[shnum] = final_share
-        #elapsed = time.time() - started
-        #self._status.timings["pack"] = elapsed
+        elapsed = time.time() - started
+        self._status.timings["pack"] = elapsed
         self.shares = final_shares
         self.root_hash = root_hash
 
@@ -449,7 +485,6 @@ class Publish:
 
     def _send_shares(self, needed):
         self.log("_send_shares")
-        #started = time.time()
 
         # we're finally ready to send out our shares. If we encounter any
         # surprises here, it's because somebody else is writing at the same
@@ -547,6 +582,7 @@ class Publish:
             d.addErrback(self._fatal_error)
             dl.append(d)
 
+        self._update_status()
         return defer.DeferredList(dl) # purely for testing
 
     def _do_testreadwrite(self, peerid, secrets,
@@ -567,6 +603,10 @@ class Publish:
                       idlib.shortnodeid_b2a(peerid))
         for shnum in shnums:
             self.outstanding.discard( (peerid, shnum) )
+
+        now = time.time()
+        elapsed = now - started
+        self._status.add_per_server_time(peerid, elapsed)
 
         wrote, read_data = answer
 
@@ -650,13 +690,16 @@ class Publish:
         if not self._running:
             return
         self._running = False
-        #now = time.time()
-        #self._status.timings["total"] = now - self._started
-        #self._status.set_active(False)
-        #self._status.set_status("Done")
-        #self._status.set_progress(1.0)
-        self.done_deferred.callback(res)
-        return None
+        now = time.time()
+        self._status.timings["total"] = now - self._started
+        self._status.set_active(False)
+        if isinstance(res, failure.Failure):
+            self.log("Retrieve done, with failure", failure=res)
+            self._status.set_status("Failed")
+        else:
+            self._status.set_status("Done")
+            self._status.set_progress(1.0)
+        eventually(self.done_deferred.callback, res)
 
     def get_status(self):
         return self._status

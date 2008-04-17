@@ -449,10 +449,6 @@ class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
         k, n = data.get_encoding()
         return ctx.tag["Encoding: %s of %s" % (k, n)]
 
-    def render_search_distance(self, ctx, data):
-        d = data.get_search_distance()
-        return ctx.tag["Search Distance: %s peer%s" % (d, plural(d))]
-
     def render_problems(self, ctx, data):
         problems = data.problems
         if not problems:
@@ -553,19 +549,16 @@ class PublishStatusPage(rend.Page, RateAndTimeMixin):
         k, n = data.get_encoding()
         return ctx.tag["Encoding: %s of %s" % (k, n)]
 
-    def render_peers_queried(self, ctx, data):
-        return ctx.tag["Peers Queried: ", data.peers_queried]
-
     def render_sharemap(self, ctx, data):
-        sharemap = data.sharemap
-        if sharemap is None:
+        servermap = data.get_servermap()
+        if servermap is None:
             return ctx.tag["None"]
         l = T.ul()
+        sharemap = servermap.make_sharemap()
         for shnum in sorted(sharemap.keys()):
             l[T.li["%d -> Placed on " % shnum,
                    ", ".join(["[%s]" % idlib.shortnodeid_b2a(peerid)
-                              for (peerid,seqnum,root_hash)
-                              in sharemap[shnum]])]]
+                              for peerid in sharemap[shnum]])]]
         return ctx.tag["Sharemap:", l]
 
     def render_problems(self, ctx, data):
@@ -596,21 +589,6 @@ class PublishStatusPage(rend.Page, RateAndTimeMixin):
     def data_time_setup(self, ctx, data):
         return self.publish_status.timings.get("setup")
 
-    def data_time_query(self, ctx, data):
-        return self.publish_status.timings.get("query")
-
-    def data_time_privkey(self, ctx, data):
-        return self.publish_status.timings.get("privkey")
-
-    def data_time_privkey_fetch(self, ctx, data):
-        return self.publish_status.timings.get("privkey_fetch")
-    def render_privkey_from(self, ctx, data):
-        peerid = data.privkey_from
-        if peerid:
-            return " (got from [%s])" % idlib.shortnodeid_b2a(peerid)
-        else:
-            return ""
-
     def data_time_encrypt(self, ctx, data):
         return self.publish_status.timings.get("encrypt")
     def data_rate_encrypt(self, ctx, data):
@@ -633,23 +611,15 @@ class PublishStatusPage(rend.Page, RateAndTimeMixin):
     def data_rate_push(self, ctx, data):
         return self._get_rate(data, "push")
 
-    def data_initial_read_size(self, ctx, data):
-        return self.publish_status.initial_read_size
-
     def render_server_timings(self, ctx, data):
-        per_server = self.publish_status.timings.get("per_server")
+        per_server = self.publish_status.timings.get("send_per_server")
         if not per_server:
             return ""
         l = T.ul()
         for peerid in sorted(per_server.keys()):
             peerid_s = idlib.shortnodeid_b2a(peerid)
-            times = []
-            for op,t in per_server[peerid]:
-                if op == "read":
-                    times.append( "(" + self.render_time(None, t) + ")" )
-                else:
-                    times.append( self.render_time(None, t) )
-            times_s = ", ".join(times)
+            times_s = ", ".join([self.render_time(None, t)
+                                 for t in per_server[peerid]])
             l[T.li["[%s]: %s" % (peerid_s, times_s)]]
         return T.li["Per-Server Response Times: ", l]
 
