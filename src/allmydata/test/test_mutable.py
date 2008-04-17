@@ -166,6 +166,8 @@ class FakeClient:
 
     def notify_retrieve(self, r):
         pass
+    def notify_publish(self, p):
+        pass
 
     def create_node_from_uri(self, u):
         u = IURI(u)
