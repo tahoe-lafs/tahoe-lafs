@@ -3,7 +3,6 @@ import struct
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
-from twisted.python import failure
 from allmydata import uri, download
 from allmydata.util import base32, testutil
 from allmydata.util.idlib import shortnodeid_b2a
