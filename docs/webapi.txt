@@ -347,7 +347,7 @@ a. uploading a file and attaching it to the vdrive
   the client is not obligated to do anything with the URI. According to the
   HTTP/1.1 specification (rfc2616), this should return a 200 (OK) code when
   modifying an existing file, and a 201 (Created) code when creating a new
-  file. (TODO: as of 0.5, the web server only returns 200, never 201).
+  file. (TODO: as of Tahoe v1.0, the web server only returns 200, never 201).
 
   To use this, run 'curl -T localfile http://127.0.0.1:8123/vdrive/global/newfile'
 
