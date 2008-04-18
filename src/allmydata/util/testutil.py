@@ -59,7 +59,8 @@ class PollMixin:
 
 class ShouldFailMixin:
 
-    def shouldFail(self, expected_failure, which, substring, callable, *args, **kwargs):
+    def shouldFail(self, expected_failure, which, substring,
+                   callable, *args, **kwargs):
         assert substring is None or isinstance(substring, str)
         d = defer.maybeDeferred(callable, *args, **kwargs)
         def done(res):
