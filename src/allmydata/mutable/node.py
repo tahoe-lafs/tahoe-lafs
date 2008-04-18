@@ -4,6 +4,8 @@ from twisted.application import service
 
 from zope.interface import implements
 from twisted.internet import defer, reactor
+from twisted.python import log
+from foolscap.eventual import eventually
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI
 from allmydata.util import hashutil
 from allmydata.util.assertutil import precondition
@@ -237,7 +239,15 @@ class MutableFileNode:
         # MFN instance.
         d = defer.Deferred()
         self._serializer.addCallback(lambda ignore: cb(*args, **kwargs))
-        self._serializer.addBoth(d.callback)
+        # we need to put off d.callback until this Deferred is finished being
+        # processed. Otherwise the caller's subsequent activities (like,
+        # doing other things with this node) can cause reentrancy problems in
+        # the Deferred code itself
+        self._serializer.addBoth(lambda res: eventually(d.callback, res))
+        # add a log.err just in case something really weird happens, because
+        # self._serializer stays around forever, therefore we won't see the
+        # usual Unhandled Error in Deferred that would give us a hint.
+        self._serializer.addErrback(log.err)
         return d
 
     #################################
