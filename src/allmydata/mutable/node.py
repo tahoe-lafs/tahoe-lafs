@@ -1,11 +1,12 @@
 
-import weakref
+import weakref, random
 from twisted.application import service
 
 from zope.interface import implements
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI
 from allmydata.util import hashutil
+from allmydata.util.assertutil import precondition
 from allmydata.uri import WriteableSSKFileURI
 from allmydata.encode import NotEnoughSharesError
 from pycryptopp.publickey import rsa
@@ -13,10 +14,32 @@ from pycryptopp.cipher.aes import AES
 
 from publish import Publish
 from common import MODE_READ, MODE_WRITE, UnrecoverableFileError, \
-     ResponseCache
+     ResponseCache, UncoordinatedWriteError
 from servermap import ServerMap, ServermapUpdater
 from retrieve import Retrieve
 
+
+class BackoffAgent:
+    # these parameters are copied from foolscap.reconnector, which gets them
+    # from twisted.internet.protocol.ReconnectingClientFactory
+    initialDelay = 1.0
+    factor = 2.7182818284590451 # (math.e)
+    jitter = 0.11962656492 # molar Planck constant times c, Joule meter/mole
+    maxRetries = 4
+
+    def __init__(self):
+        self._delay = self.initialDelay
+        self._count = 0
+    def delay(self, node, f):
+        self._count += 1
+        if self._count == 4:
+            return f
+        self._delay = self._delay * self.factor
+        self._delay = random.normalvariate(self._delay,
+                                           self._delay * self.jitter)
+        d = defer.Deferred()
+        reactor.callLater(self._delay, d.callback, None)
+        return d
 
 # use client.create_mutable_file() to make one of these
 
@@ -253,14 +276,13 @@ class MutableFileNode:
         return d
     def _try_once_to_download_best_version(self, servermap, mode):
         d = self._update_servermap(servermap, mode)
-        def _updated(ignored):
-            goal = servermap.best_recoverable_version()
-            if not goal:
-                raise UnrecoverableFileError("no recoverable versions")
-            return self._try_once_to_download_version(servermap, goal)
-        d.addCallback(_updated)
+        d.addCallback(self._once_updated_download_best_version, servermap)
         return d
-
+    def _once_updated_download_best_version(self, ignored, servermap):
+        goal = servermap.best_recoverable_version()
+        if not goal:
+            raise UnrecoverableFileError("no recoverable versions")
+        return self._try_once_to_download_version(servermap, goal)
 
     def overwrite(self, new_contents):
         return self._do_serialized(self._overwrite, new_contents)
@@ -271,7 +293,7 @@ class MutableFileNode:
         return d
 
 
-    def modify(self, modifier, *args, **kwargs):
+    def modify(self, modifier, backoffer=None):
         """I use a modifier callback to apply a change to the mutable file.
         I implement the following pseudocode::
 
@@ -283,7 +305,8 @@ class MutableFileNode:
            if new == old: break
            try:
              publish(new)
-           except UncoordinatedWriteError:
+           except UncoordinatedWriteError, e:
+             backoffer(e)
              continue
            break
          release_mutable_filenode_lock()
@@ -295,8 +318,49 @@ class MutableFileNode:
 
         Note that the modifier is required to run synchronously, and must not
         invoke any methods on this MutableFileNode instance.
+
+        The backoff-er is a callable that is responsible for inserting a
+        random delay between subsequent attempts, to help competing updates
+        from colliding forever. It is also allowed to give up after a while.
+        The backoffer is given two arguments: this MutableFileNode, and the
+        Failure object that contains the UncoordinatedWriteError. It should
+        return a Deferred that will fire when the next attempt should be
+        made, or return the Failure if the loop should give up. If
+        backoffer=None, a default one is provided which will perform
+        exponential backoff, and give up after 4 tries. Note that the
+        backoffer should not invoke any methods on this MutableFileNode
+        instance, and it needs to be highly conscious of deadlock issues.
         """
-        NotImplementedError
+        return self._do_serialized(self._modify, modifier, backoffer)
+    def _modify(self, modifier, backoffer):
+        servermap = ServerMap()
+        if backoffer is None:
+            backoffer = BackoffAgent().delay
+        return self._modify_and_retry(servermap, modifier, backoffer)
+    def _modify_and_retry(self, servermap, modifier, backoffer):
+        d = self._modify_once(servermap, modifier)
+        def _retry(f):
+            f.trap(UncoordinatedWriteError)
+            d2 = defer.maybeDeferred(backoffer, self, f)
+            d2.addCallback(lambda ignored:
+                           self._modify_and_retry(servermap, modifier,
+                                                  backoffer))
+            return d2
+        d.addErrback(_retry)
+        return d
+    def _modify_once(self, servermap, modifier):
+        d = self._update_servermap(servermap, MODE_WRITE)
+        d.addCallback(self._once_updated_download_best_version, servermap)
+        def _apply(old_contents):
+            new_contents = modifier(old_contents)
+            if new_contents is None or new_contents == old_contents:
+                # no changes need to be made
+                return
+            precondition(isinstance(new_contents, str),
+                         "Modifier function must return a string or None")
+            return self._upload(new_contents, servermap)
+        d.addCallback(_apply)
+        return d
 
     def get_servermap(self, mode):
         return self._do_serialized(self._get_servermap, mode)

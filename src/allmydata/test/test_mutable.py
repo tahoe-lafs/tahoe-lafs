@@ -14,9 +14,10 @@ from foolscap.eventual import eventually, fireEventually
 from foolscap.logging import log
 import sha
 
-from allmydata.mutable.node import MutableFileNode
+from allmydata.mutable.node import MutableFileNode, BackoffAgent
 from allmydata.mutable.common import DictOfSets, ResponseCache, \
-     MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, UnrecoverableFileError
+     MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, \
+     UnrecoverableFileError, UncoordinatedWriteError
 from allmydata.mutable.retrieve import Retrieve
 from allmydata.mutable.publish import Publish
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
@@ -254,6 +255,27 @@ class Filenode(unittest.TestCase):
         d.addCallback(_created)
         return d
 
+    def test_serialize(self):
+        n = MutableFileNode(self.client)
+        calls = []
+        def _callback(*args, **kwargs):
+            self.failUnlessEqual(args, (4,) )
+            self.failUnlessEqual(kwargs, {"foo": 5})
+            calls.append(1)
+            return 6
+        d = n._do_serialized(_callback, 4, foo=5)
+        def _check_callback(res):
+            self.failUnlessEqual(res, 6)
+            self.failUnlessEqual(calls, [1])
+        d.addCallback(_check_callback)
+
+        def _errback():
+            raise ValueError("heya")
+        d.addCallback(lambda res:
+                      self.shouldFail(ValueError, "_check_errback", "heya",
+                                      n._do_serialized, _errback))
+        return d
+
     def test_upload_and_download(self):
         d = self.client.create_mutable_file()
         def _created(n):
@@ -292,6 +314,147 @@ class Filenode(unittest.TestCase):
             d.addCallback(lambda res: n.overwrite("contents 2"))
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
+            return d
+        d.addCallback(_created)
+        return d
+
+    def failUnlessCurrentSeqnumIs(self, n, expected_seqnum):
+        d = n.get_servermap(MODE_READ)
+        d.addCallback(lambda servermap: servermap.best_recoverable_version())
+        d.addCallback(lambda verinfo:
+                      self.failUnlessEqual(verinfo[0], expected_seqnum))
+        return d
+
+    def shouldFail(self, expected_failure, which, substring,
+                   callable, *args, **kwargs):
+        assert substring is None or isinstance(substring, str)
+        d = defer.maybeDeferred(callable, *args, **kwargs)
+        def done(res):
+            if isinstance(res, failure.Failure):
+                res.trap(expected_failure)
+                if substring:
+                    self.failUnless(substring in str(res),
+                                    "substring '%s' not in '%s'"
+                                    % (substring, str(res)))
+            else:
+                self.fail("%s was supposed to raise %s, not get '%s'" %
+                          (which, expected_failure, res))
+        d.addBoth(done)
+        return d
+
+    def test_modify(self):
+        def _modifier(old_contents):
+            return old_contents + "line2"
+        def _non_modifier(old_contents):
+            return old_contents
+        def _none_modifier(old_contents):
+            return None
+        def _error_modifier(old_contents):
+            raise ValueError
+        calls = []
+        def _ucw_error_modifier(old_contents):
+            # simulate an UncoordinatedWriteError once
+            calls.append(1)
+            if len(calls) <= 1:
+                raise UncoordinatedWriteError("simulated")
+            return old_contents + "line3"
+
+        d = self.client.create_mutable_file("line1")
+        def _created(n):
+            d = n.modify(_modifier)
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
+
+            d.addCallback(lambda res: n.modify(_non_modifier))
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
+
+            d.addCallback(lambda res: n.modify(_none_modifier))
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
+
+            d.addCallback(lambda res:
+                          self.shouldFail(ValueError, "error_modifier", None,
+                                          n.modify, _error_modifier))
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
+
+            d.addCallback(lambda res: n.modify(_ucw_error_modifier))
+            d.addCallback(lambda res: self.failUnlessEqual(len(calls), 2))
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res: self.failUnlessEqual(res,
+                                                           "line1line2line3"))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 3))
+
+            return d
+        d.addCallback(_created)
+        return d
+
+    def test_modify_backoffer(self):
+        def _modifier(old_contents):
+            return old_contents + "line2"
+        calls = []
+        def _ucw_error_modifier(old_contents):
+            # simulate an UncoordinatedWriteError once
+            calls.append(1)
+            if len(calls) <= 1:
+                raise UncoordinatedWriteError("simulated")
+            return old_contents + "line3"
+        def _always_ucw_error_modifier(old_contents):
+            raise UncoordinatedWriteError("simulated")
+        def _backoff_stopper(node, f):
+            return f
+        def _backoff_pauser(node, f):
+            d = defer.Deferred()
+            reactor.callLater(0.5, d.callback, None)
+            return d
+
+        # the give-up-er will hit its maximum retry count quickly
+        giveuper = BackoffAgent()
+        giveuper._delay = 0.1
+        giveuper.factor = 1
+
+        d = self.client.create_mutable_file("line1")
+        def _created(n):
+            d = n.modify(_modifier)
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
+
+            d.addCallback(lambda res:
+                          self.shouldFail(UncoordinatedWriteError,
+                                          "_backoff_stopper", None,
+                                          n.modify, _ucw_error_modifier,
+                                          _backoff_stopper))
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
+
+            def _reset_ucw_error_modifier(res):
+                calls[:] = []
+                return res
+            d.addCallback(_reset_ucw_error_modifier)
+            d.addCallback(lambda res: n.modify(_ucw_error_modifier,
+                                               _backoff_pauser))
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res: self.failUnlessEqual(res,
+                                                           "line1line2line3"))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 3))
+
+            d.addCallback(lambda res:
+                          self.shouldFail(UncoordinatedWriteError,
+                                          "giveuper", None,
+                                          n.modify, _always_ucw_error_modifier,
+                                          giveuper.delay))
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res: self.failUnlessEqual(res,
+                                                           "line1line2line3"))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 3))
+
             return d
         d.addCallback(_created)
         return d
