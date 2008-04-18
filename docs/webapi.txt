@@ -12,18 +12,16 @@ This document has six sections:
 
 a. connecting to the tahoe node
 
-Writing "8123" into $NODEDIR/webport causes the node to run a webserver on port
-8123. Writing "tcp:8123:interface=127.0.0.1" into $NODEDIR/webport does the same
-but binds to the loopback interface, ensuring that only the programs on the
-local host can connect.  This is the value that gets written into
-$NODEDIR/webport when a Tahoe node is created.
-
-Using "ssl:8123:privateKey=mykey.pem:certKey=cert.pem" would run an SSL
-server. See twisted.application.strports for more details.
+Writing "8123" into $NODEDIR/webport causes the node to run a webserver on
+port 8123. Writing "tcp:8123:interface=127.0.0.1" into $NODEDIR/webport does
+the same but binds to the loopback interface, ensuring that only the programs
+on the local host can connect. Using
+"ssl:8123:privateKey=mykey.pem:certKey=cert.pem" would run an SSL server. See
+twisted.application.strports for more details.
 
 This webport can be set when the node is created by passing a --webport
 option to the 'tahoe create-client' command. By default, the node listens on
-port 8123, on the loopback (127.0.0.1) interface.
+port 8123, on the loopback (localhost) interface.
 
 b. file names
 
@@ -514,7 +512,7 @@ GET $URL?t=download&localdir=$LOCALPATH
   localdir= is used with a $URL that refers to a file.
 
   This request will only be accepted from an HTTP client connection
-  originating at 127.0.0.1 . This request is most useful when the client node
+  originating at localhost . This request is most useful when the client node
   and the HTTP client are operated by the same user. $LOCALPATH should be an
   absolute pathname.
 
@@ -529,7 +527,7 @@ PUT $NEWURL?t=upload&localdir=$LOCALPATH
 
   This uploads a file or directory from the node's local filesystem to the
   vdrive. As with "GET $URL?t=download&localfile=$LOCALPATH", this request
-  will only be accepted from an HTTP connection originating from 127.0.0.1 .
+  will only be accepted from an HTTP connection originating from localhost .
 
   The localfile= form expects that $LOCALPATH will point to a file on the
   node's local filesystem, and causes the node to upload that one file into
