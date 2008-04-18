@@ -39,12 +39,15 @@ def split_netstring(data, numstrings, allow_leftover=False):
     return tuple(elements)
 
 class Deleter:
-    def __init__(self, node, name):
+    def __init__(self, node, name, must_exist=True):
         self.node = node
         self.name = name
+        self.must_exist = True
     def modify(self, old_contents):
         children = self.node._unpack_contents(old_contents)
         if self.name not in children:
+            if self.must_exist:
+                raise KeyError(self.name)
             self.old_child = None
             return None
         self.old_child, metadata = children[self.name]
