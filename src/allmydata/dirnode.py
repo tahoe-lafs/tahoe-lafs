@@ -38,6 +38,71 @@ def split_netstring(data, numstrings, allow_leftover=False):
         raise ValueError("leftover data in netstrings")
     return tuple(elements)
 
+class Deleter:
+    def __init__(self, node, name):
+        self.node = node
+        self.name = name
+    def modify(self, old_contents):
+        children = self.node._unpack_contents(old_contents)
+        if self.name not in children:
+            self.old_child = None
+            return None
+        self.old_child, metadata = children[self.name]
+        del children[self.name]
+        new_contents = self.node._pack_contents(children)
+        return new_contents
+
+class MetadataSetter:
+    def __init__(self, node, name, metadata):
+        self.node = node
+        self.name = name
+        self.metadata = metadata
+
+    def modify(self, old_contents):
+        children = self.node._unpack_contents(old_contents)
+        children[self.name] = (children[self.name][0], self.metadata)
+        new_contents = self.node._pack_contents(children)
+        return new_contents
+
+
+class Adder:
+    def __init__(self, node, entries=None):
+        self.node = node
+        if entries is None:
+            entries = []
+        self.entries = entries
+
+    def set_node(self, name, node, metadata):
+        self.entries.append( [name, node, metadata] )
+
+    def modify(self, old_contents):
+        children = self.node._unpack_contents(old_contents)
+        now = time.time()
+        for e in self.entries:
+            if len(e) == 2:
+                name, child = e
+                new_metadata = None
+            else:
+                assert len(e) == 3
+                name, child, new_metadata = e
+            assert isinstance(name, unicode)
+            if name in children:
+                metadata = children[name][1].copy()
+            else:
+                metadata = {"ctime": now,
+                            "mtime": now}
+            if new_metadata is None:
+                # update timestamps
+                if "ctime" not in metadata:
+                    metadata["ctime"] = now
+                metadata["mtime"] = now
+            else:
+                # just replace it
+                metadata = new_metadata.copy()
+            children[name] = (child, metadata)
+        new_contents = self.node._pack_contents(children)
+        return new_contents
+
 class NewDirectoryNode:
     implements(IDirectoryNode)
     filenode_class = MutableFileNode
@@ -199,12 +264,8 @@ class NewDirectoryNode:
         if self.is_readonly():
             return defer.fail(NotMutableError())
         assert isinstance(metadata, dict)
-        d = self._read()
-        def _update(children):
-            children[name] = (children[name][0], metadata)
-            new_contents = self._pack_contents(children)
-            return self._node.overwrite(new_contents)
-        d.addCallback(_update)
+        s = MetadataSetter(self, name, metadata)
+        d = self._node.modify(s.modify)
         d.addCallback(lambda res: self)
         return d
 
@@ -247,9 +308,14 @@ class NewDirectoryNode:
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
         assert isinstance(name, unicode)
-        return self.set_node(name, self._create_node(child_uri), metadata)
+        child_node = self._create_node(child_uri)
+        d = self.set_node(name, child_node, metadata)
+        d.addCallback(lambda res: child_node)
+        return d
 
     def set_children(self, entries):
+        # this takes URIs
+        a = Adder(self)
         node_entries = []
         for e in entries:
             if len(e) == 2:
@@ -259,8 +325,8 @@ class NewDirectoryNode:
                 assert len(e) == 3
                 name, child_uri, metadata = e
             assert isinstance(name, unicode)
-            node_entries.append( (name,self._create_node(child_uri),metadata) )
-        return self.set_nodes(node_entries)
+            a.set_node(name, self._create_node(child_uri), metadata)
+        return self._node.modify(a.modify)
 
     def set_node(self, name, child, metadata=None):
         """I add a child at the specific name. I return a Deferred that fires
@@ -270,43 +336,22 @@ class NewDirectoryNode:
 
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
+
+        if self.is_readonly():
+            return defer.fail(NotMutableError())
         assert isinstance(name, unicode)
         assert IFilesystemNode.providedBy(child), child
-        d = self.set_nodes( [(name, child, metadata)])
+        a = Adder(self)
+        a.set_node(name, child, metadata)
+        d = self._node.modify(a.modify)
         d.addCallback(lambda res: child)
         return d
 
     def set_nodes(self, entries):
         if self.is_readonly():
             return defer.fail(NotMutableError())
-        d = self._read()
-        def _add(children):
-            now = time.time()
-            for e in entries:
-                if len(e) == 2:
-                    name, child = e
-                    new_metadata = None
-                else:
-                    assert len(e) == 3
-                    name, child, new_metadata = e
-                assert isinstance(name, unicode)
-                if name in children:
-                    metadata = children[name][1].copy()
-                else:
-                    metadata = {"ctime": now,
-                                "mtime": now}
-                if new_metadata is None:
-                    # update timestamps
-                    if "ctime" not in metadata:
-                        metadata["ctime"] = now
-                    metadata["mtime"] = now
-                else:
-                    # just replace it
-                    metadata = new_metadata.copy()
-                children[name] = (child, metadata)
-            new_contents = self._pack_contents(children)
-            return self._node.overwrite(new_contents)
-        d.addCallback(_add)
+        a = Adder(self, entries)
+        d = self._node.modify(a.modify)
         d.addCallback(lambda res: None)
         return d
 
@@ -331,17 +376,9 @@ class NewDirectoryNode:
         assert isinstance(name, unicode)
         if self.is_readonly():
             return defer.fail(NotMutableError())
-        d = self._read()
-        def _delete(children):
-            old_child, metadata = children[name]
-            del children[name]
-            new_contents = self._pack_contents(children)
-            d = self._node.overwrite(new_contents)
-            def _done(res):
-                return old_child
-            d.addCallback(_done)
-            return d
-        d.addCallback(_delete)
+        deleter = Deleter(self, name)
+        d = self._node.modify(deleter.modify)
+        d.addCallback(lambda res: deleter.old_child)
         return d
 
     def create_empty_directory(self, name):
@@ -353,7 +390,9 @@ class NewDirectoryNode:
             return defer.fail(NotMutableError())
         d = self._client.create_empty_dirnode()
         def _created(child):
-            d = self.set_node(name, child)
+            entries = [(name, child, None)]
+            a = Adder(self, entries)
+            d = self._node.modify(a.modify)
             d.addCallback(lambda res: child)
             return d
         d.addCallback(_created)

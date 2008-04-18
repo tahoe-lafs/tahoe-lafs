@@ -101,6 +101,11 @@ class FakeMutableFileNode:
         assert not self.is_readonly()
         self.all_contents[self.storage_index] = new_contents
         return defer.succeed(None)
+    def modify(self, modifier):
+        assert not self.is_readonly()
+        old_contents = self.all_contents[self.storage_index]
+        self.all_contents[self.storage_index] = modifier(old_contents)
+        return defer.succeed(None)
 
 
 def make_mutable_file_uri():
