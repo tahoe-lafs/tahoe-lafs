@@ -5,7 +5,7 @@ from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python import failure
 from allmydata import uri, download
-from allmydata.util import base32
+from allmydata.util import base32, testutil
 from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash
 from allmydata.encode import NotEnoughSharesError
@@ -241,7 +241,7 @@ def corrupt(res, s, offset, shnums_to_corrupt=None):
             shares[shnum] = flip_bit(data, real_offset)
     return res
 
-class Filenode(unittest.TestCase):
+class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
     def setUp(self):
         self.client = FakeClient()
 
@@ -325,23 +325,6 @@ class Filenode(unittest.TestCase):
                       self.failUnlessEqual(verinfo[0], expected_seqnum))
         return d
 
-    def shouldFail(self, expected_failure, which, substring,
-                   callable, *args, **kwargs):
-        assert substring is None or isinstance(substring, str)
-        d = defer.maybeDeferred(callable, *args, **kwargs)
-        def done(res):
-            if isinstance(res, failure.Failure):
-                res.trap(expected_failure)
-                if substring:
-                    self.failUnless(substring in str(res),
-                                    "substring '%s' not in '%s'"
-                                    % (substring, str(res)))
-            else:
-                self.fail("%s was supposed to raise %s, not get '%s'" %
-                          (which, expected_failure, res))
-        d.addBoth(done)
-        return d
-
     def test_modify(self):
         def _modifier(old_contents):
             return old_contents + "line2"
@@ -350,7 +333,7 @@ class Filenode(unittest.TestCase):
         def _none_modifier(old_contents):
             return None
         def _error_modifier(old_contents):
-            raise ValueError
+            raise ValueError("oops")
         calls = []
         def _ucw_error_modifier(old_contents):
             # simulate an UncoordinatedWriteError once
@@ -742,7 +725,7 @@ class Servermap(unittest.TestCase):
 
 
 
-class Roundtrip(unittest.TestCase):
+class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
     def setUp(self):
         # publish a file and create shares, which can then be manipulated
         # later.
@@ -818,23 +801,6 @@ class Roundtrip(unittest.TestCase):
         d.addCallback(_retrieved)
         return d
 
-
-    def shouldFail(self, expected_failure, which, substring,
-                    callable, *args, **kwargs):
-        assert substring is None or isinstance(substring, str)
-        d = defer.maybeDeferred(callable, *args, **kwargs)
-        def done(res):
-            if isinstance(res, failure.Failure):
-                res.trap(expected_failure)
-                if substring:
-                    self.failUnless(substring in str(res),
-                                    "substring '%s' not in '%s'"
-                                    % (substring, str(res)))
-            else:
-                self.fail("%s was supposed to raise %s, not get '%s'" %
-                          (which, expected_failure, res))
-        d.addBoth(done)
-        return d
 
     def _test_corrupt_all(self, offset, substring,
                           should_succeed=False, corrupt_early=True):
