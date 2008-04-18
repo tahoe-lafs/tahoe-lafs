@@ -16,12 +16,14 @@ Writing "8123" into $NODEDIR/webport causes the node to run a webserver on
 port 8123. Writing "tcp:8123:interface=127.0.0.1" into $NODEDIR/webport does
 the same but binds to the loopback interface, ensuring that only the programs
 on the local host can connect. Using
-"ssl:8123:privateKey=mykey.pem:certKey=cert.pem" would run an SSL server. See
-twisted.application.strports for more details.
+"ssl:8123:privateKey=mykey.pem:certKey=cert.pem" runs an SSL server. See
+twisted.application.strports:
+
+http://twistedmatrix.com/documents/current/api/twisted.application.strports.html
 
 This webport can be set when the node is created by passing a --webport
 option to the 'tahoe create-client' command. By default, the node listens on
-port 8123, on the loopback (localhost) interface.
+port 8123, on the loopback (127.0.0.1) interface.
 
 b. file names
 
@@ -48,20 +50,20 @@ Within the webserver, there is a tree of resources. The top-level "vdrive"
 resource gives access to files and directories in all of the user's virtual
 drives. For example, the URL that corresponds to notes.txt would be:
 
-http://localhost:8123/vdrive/global/Documents/notes.txt
+http://127.0.0.1:8123/vdrive/global/Documents/notes.txt
 
 and the URL for tractors.jpg would be:
 
-http://localhost:8123/uri/$PRIVATE_VDRIVE_URI/Pictures/tractors.jpg
+http://127.0.0.1:8123/uri/$PRIVATE_VDRIVE_URI/Pictures/tractors.jpg
 
 In addition, each directory has a corresponding URL. The Pictures URL is:
 
-http://localhost:8123/uri/$PRIVATE_VDRIVE_URI/Pictures
+http://127.0.0.1:8123/uri/$PRIVATE_VDRIVE_URI/Pictures
 
 Note that all filenames in URLs are required to be UTF-8 encoded, so
 "resume.doc" (with an acute accent on both E's) would be accessed with:
 
- http://localhost:8123/uri/$PRIVATE_VDRIVE_URI/r%C3%A9sum%C3%A9.doc
+ http://127.0.0.1:8123/uri/$PRIVATE_VDRIVE_URI/r%C3%A9sum%C3%A9.doc
 
 The filenames inside upload POST forms are interpreted using whatever
 character set was provided in the conventional '_charset' field, and defaults
@@ -84,12 +86,12 @@ the pathnames in the vdrive.
 
 For example, this identifies a file or directory:
 
-http://localhost:8123/uri/$URI
+http://127.0.0.1:8123/uri/$URI
 
 And this identifies a file or directory named "tractors.jpg" in a
 subdirectory "Pictures" of the identified directory:
 
-http://localhost:8123/uri/$URI/Pictures/tractors.jpg
+http://127.0.0.1:8123/uri/$URI/Pictures/tractors.jpg
 
 In the following examples, "$URL" is a shorthand for a URL like the ones
 above, either with "vdrive/" and a vdrive name as the top level and a
@@ -193,11 +195,11 @@ e. downloading a file
   file (e.g. if it ends with the URI of the file instead). This filename is
   also the one used if the 'save=true' argument is set. For example:
 
-   GET http://localhost:8123/uri/$TRACTORS_URI?filename=tractors.jpg
+   GET http://127.0.0.1:8123/uri/$TRACTORS_URI?filename=tractors.jpg
 
 f. uploading a file
 
-  PUT http://localhost:8123/uri
+  PUT http://127.0.0.1:8123/uri
 
    in: file contents
    out: file write cap
@@ -207,7 +209,7 @@ f. uploading a file
    visible from the virtual drive -- to do that, see section 1.h. below, or
    the convenience method in section 2.a..
 
-  POST http://localhost:8123/uri?t=upload
+  POST http://127.0.0.1:8123/uri?t=upload
 
    This action also uploads a file without attaching it to a virtual drive
    directory, but can be used from an HTML form. The response is an HTML page
@@ -216,13 +218,13 @@ f. uploading a file
    when_done=URL argument is provided, the reponse is a redirect to the given
    URL instead of the upload-results page.
 
-  POST http://localhost:8123/uri?t=upload&mutable=true
+  POST http://127.0.0.1:8123/uri?t=upload&mutable=true
 
    This action also uploads a file without attaching it to a virtual drive
    directory, but creates a mutable file (SSK) instead of an immutable one.
    The response contains the new URI that was created.
 
-  PUT http://localhost:8123/uri?mutable=true
+  PUT http://127.0.0.1:8123/uri?mutable=true
 
    This second form also accepts data from the HTTP request body, but creates
    a mutable file (SSK) instead of an immutable one (CHK). The response
@@ -231,7 +233,7 @@ f. uploading a file
 
 g. creating a new directory
 
-  PUT http://localhost:8123/uri?t=mkdir
+  PUT http://127.0.0.1:8123/uri?t=mkdir
 
    in: (nothing)
    out: directory write cap
@@ -241,7 +243,7 @@ g. creating a new directory
    drive, but you can use section 1.h. to attach it, or the convenience method
    in section 2.XXX.
 
- POST http://localhost:8123/uri?t=mkdir
+ POST http://127.0.0.1:8123/uri?t=mkdir
 
    in: (nothing)
    out: directory write cap
@@ -249,7 +251,7 @@ g. creating a new directory
    Just like the equivalent PUT form, but this can be called from an HTML
    form.
 
- POST http://localhost:8123/uri?t=mkdir&redirect_to_result=true
+ POST http://127.0.0.1:8123/uri?t=mkdir&redirect_to_result=true
 
    in: (nothing)
    out: redirects to the /uri/$NEWDIRURI page
@@ -277,9 +279,9 @@ h. attaching a file or directory as the child of an extant directory
   $URL is required to indicate a directory as the second-to-last element and
   the desired filename as the last element, for example:
 
-   PUT http://localhost:8123/uri/$URI_OF_SOME_DIR/Pictures/tractors.jpg
-   PUT http://localhost:8123/uri/$URI_OF_SOME_DIR/tractors.jpg
-   PUT http://localhost:8123/uri/$PRIVATE_VDRIVE_URI/Pictures/tractors.jpg
+   PUT http://127.0.0.1:8123/uri/$URI_OF_SOME_DIR/Pictures/tractors.jpg
+   PUT http://127.0.0.1:8123/uri/$URI_OF_SOME_DIR/tractors.jpg
+   PUT http://127.0.0.1:8123/uri/$PRIVATE_VDRIVE_URI/Pictures/tractors.jpg
 
   (Note that a URI_OF_SOME_DIR and a PRIVATE_VDRIVE_URI are each just
   separate URIs, and there is nothing special about the latter except that it
@@ -346,7 +348,7 @@ a. uploading a file and attaching it to the vdrive
   modifying an existing file, and a 201 (Created) code when creating a new
   file. (TODO: as of 0.5, the web server only returns 200, never 201).
 
-  To use this, run 'curl -T localfile http://localhost:8123/vdrive/global/newfile'
+  To use this, run 'curl -T localfile http://127.0.0.1:8123/vdrive/global/newfile'
 
 3. safety and security issues -- names vs. URIs
 
@@ -393,7 +395,7 @@ request reaches the server". Use URIs if you want "this particular object".
 
 a. uri redirect
 
-  GET http://localhost:8123/uri?uri=$URI
+  GET http://127.0.0.1:8123/uri?uri=$URI
 
   This causes a redirect to /uri/$URI, and retains any additional query
   arguments (like filename= or save=). This is for the convenience of web
@@ -512,7 +514,7 @@ GET $URL?t=download&localdir=$LOCALPATH
   localdir= is used with a $URL that refers to a file.
 
   This request will only be accepted from an HTTP client connection
-  originating at localhost . This request is most useful when the client node
+  originating at 127.0.0.1 . This request is most useful when the client node
   and the HTTP client are operated by the same user. $LOCALPATH should be an
   absolute pathname.
 
@@ -527,7 +529,7 @@ PUT $NEWURL?t=upload&localdir=$LOCALPATH
 
   This uploads a file or directory from the node's local filesystem to the
   vdrive. As with "GET $URL?t=download&localfile=$LOCALPATH", this request
-  will only be accepted from an HTTP connection originating from localhost .
+  will only be accepted from an HTTP connection originating from 127.0.0.1 .
 
   The localfile= form expects that $LOCALPATH will point to a file on the
   node's local filesystem, and causes the node to upload that one file into
@@ -547,7 +549,7 @@ PUT $NEWURL?t=upload&localdir=$LOCALPATH
   Note that the "curl" utility can be used to provoke this sort of recursive
   upload, since the -T option will make it use an HTTP 'PUT':
 
-   curl -T /dev/null 'http://localhost:8123/vdrive/global/newdir?t=upload&localdir=/home/user/directory-to-upload'
+   curl -T /dev/null 'http://127.0.0.1:8123/vdrive/global/newdir?t=upload&localdir=/home/user/directory-to-upload'
 
   This form is only implemented for testing purposes, because any attacker's
   web server that a local browser visits could serve an IMG tag that causes
@@ -570,7 +572,7 @@ GET $URL?t=deep-size
 
 6. XMLRPC (coming soon)
 
-  http://localhost:8123/xmlrpc
+  http://127.0.0.1:8123/xmlrpc
 
   This resource provides an XMLRPC server on which all of the previous
   operations can be expressed as function calls taking a "pathname" argument.
