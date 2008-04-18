@@ -70,7 +70,10 @@ class MutableFileNode:
         self._serializer = defer.succeed(None)
 
     def __repr__(self):
-        return "<%s %x %s %s>" % (self.__class__.__name__, id(self), self.is_readonly() and 'RO' or 'RW', hasattr(self, '_uri') and self._uri.abbrev())
+        if hasattr(self, '_uri'):
+            return "<%s %x %s %s>" % (self.__class__.__name__, id(self), self.is_readonly() and 'RO' or 'RW', self._uri.abbrev())
+        else:
+            return "<%s %x %s %s>" % (self.__class__.__name__, id(self), None, None)
 
     def init_from_uri(self, myuri):
         # we have the URI, but we have not yet retrieved the public
