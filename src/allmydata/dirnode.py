@@ -69,7 +69,7 @@ class NewDirectoryNode:
         return self
 
     def _read(self):
-        d = self._node.download_to_data()
+        d = self._node.download_best_version()
         d.addCallback(self._unpack_contents)
         return d
 
@@ -203,7 +203,7 @@ class NewDirectoryNode:
         def _update(children):
             children[name] = (children[name][0], metadata)
             new_contents = self._pack_contents(children)
-            return self._node.update(new_contents)
+            return self._node.overwrite(new_contents)
         d.addCallback(_update)
         d.addCallback(lambda res: self)
         return d
@@ -305,7 +305,7 @@ class NewDirectoryNode:
                     metadata = new_metadata.copy()
                 children[name] = (child, metadata)
             new_contents = self._pack_contents(children)
-            return self._node.update(new_contents)
+            return self._node.overwrite(new_contents)
         d.addCallback(_add)
         d.addCallback(lambda res: None)
         return d
@@ -336,7 +336,7 @@ class NewDirectoryNode:
             old_child, metadata = children[name]
             del children[name]
             new_contents = self._pack_contents(children)
-            d = self._node.update(new_contents)
+            d = self._node.overwrite(new_contents)
             def _done(res):
                 return old_child
             d.addCallback(_done)

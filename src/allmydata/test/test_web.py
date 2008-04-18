@@ -985,6 +985,15 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    def failUnlessMutableChildContentsAre(self, node, name, expected_contents):
+        assert isinstance(name, unicode)
+        d = node.get_child_at_path(name)
+        d.addCallback(lambda node: node.download_best_version())
+        def _check(contents):
+            self.failUnlessEqual(contents, expected_contents)
+        d.addCallback(_check)
+        return d
+
     def failUnlessChildURIIs(self, node, name, expected_uri):
         assert isinstance(name, unicode)
         d = node.get_child_at_path(name)
@@ -1152,7 +1161,7 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnless(IMutableFileURI.providedBy(u))
             self.failUnless(u.storage_index in FakeMutableFileNode.all_contents)
             n = self.s.create_node_from_uri(new_uri)
-            return n.download_to_data()
+            return n.download_best_version()
         d.addCallback(_check)
         def _check2(data):
             self.failUnlessEqual(data, self.NEWFILE_CONTENTS)
@@ -1166,8 +1175,8 @@ class Web(WebMixin, unittest.TestCase):
         fn = self._foo_node
         d.addCallback(self.failUnlessURIMatchesChild, fn, u"new.txt")
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(fn, u"new.txt",
-                                                      self.NEWFILE_CONTENTS))
+                      self.failUnlessMutableChildContentsAre(fn, u"new.txt",
+                                                             self.NEWFILE_CONTENTS))
         d.addCallback(lambda res: self._foo_node.get(u"new.txt"))
         def _got(newnode):
             self.failUnless(IMutableFileNode.providedBy(newnode))
@@ -1184,8 +1193,8 @@ class Web(WebMixin, unittest.TestCase):
                                 file=("new.txt", NEWER_CONTENTS)))
         d.addCallback(self.failUnlessURIMatchesChild, fn, u"new.txt")
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(fn, u"new.txt",
-                                                      NEWER_CONTENTS))
+                      self.failUnlessMutableChildContentsAre(fn, u"new.txt",
+                                                             NEWER_CONTENTS))
         d.addCallback(lambda res: self._foo_node.get(u"new.txt"))
         def _got2(newnode):
             self.failUnless(IMutableFileNode.providedBy(newnode))
@@ -1223,8 +1232,8 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_parse_overwrite_form_and_submit)
         d.addBoth(self.shouldRedirect, urllib.quote(self.public_url + "/foo/"))
         d.addCallback(lambda res:
-                      self.failUnlessChildContentsAre(fn, u"new.txt",
-                                                      EVEN_NEWER_CONTENTS))
+                      self.failUnlessMutableChildContentsAre(fn, u"new.txt",
+                                                             EVEN_NEWER_CONTENTS))
         d.addCallback(lambda res: self._foo_node.get(u"new.txt"))
         def _got3(newnode):
             self.failUnless(IMutableFileNode.providedBy(newnode))
@@ -1735,7 +1744,7 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnless(IMutableFileURI.providedBy(u))
             self.failUnless(u.storage_index in FakeMutableFileNode.all_contents)
             n = self.s.create_node_from_uri(uri)
-            return n.download_to_data()
+            return n.download_best_version()
         d.addCallback(_check_mutable)
         def _check2_mutable(data):
             self.failUnlessEqual(data, file_contents)

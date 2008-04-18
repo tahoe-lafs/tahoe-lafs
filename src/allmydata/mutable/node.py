@@ -40,6 +40,12 @@ class MutableFileNode:
         self._current_roothash = None # ditto
         self._current_seqnum = None # ditto
 
+        # all users of this MutableFileNode go through the serializer. This
+        # takes advantage of the fact that Deferreds discard the callbacks
+        # that they're done with, so we can keep using the same Deferred
+        # forever without consuming more and more memory.
+        self._serializer = defer.succeed(None)
+
     def __repr__(self):
         return "<%s %x %s %s>" % (self.__class__.__name__, id(self), self.is_readonly() and 'RO' or 'RW', hasattr(self, '_uri') and self._uri.abbrev())
 
@@ -88,7 +94,7 @@ class MutableFileNode:
             # nobody knows about us yet"
             self._current_seqnum = 0
             self._current_roothash = "\x00"*32
-            return self._publish(None, initial_contents)
+            return self._upload(initial_contents, None)
         d.addCallback(_generated)
         return d
 
@@ -198,39 +204,72 @@ class MutableFileNode:
     def get_verifier(self):
         return IMutableFileURI(self._uri).get_verifier()
 
-    def obtain_lock(self, res=None):
-        # stub, get real version from zooko's #265 patch
+    def _do_serialized(self, cb, *args, **kwargs):
+        # note: to avoid deadlock, this callable is *not* allowed to invoke
+        # other serialized methods within this (or any other)
+        # MutableFileNode. The callable should be a bound method of this same
+        # MFN instance.
         d = defer.Deferred()
-        d.callback(res)
+        self._serializer.addCallback(lambda ignore: cb(*args, **kwargs))
+        self._serializer.addBoth(d.callback)
         return d
 
-    def release_lock(self, res):
-        # stub
-        return res
+    #################################
 
-    ############################
+    def check(self):
+        verifier = self.get_verifier()
+        return self._client.getServiceNamed("checker").check(verifier)
 
-    # methods exposed to the higher-layer application
-
-    def update_servermap(self, old_map=None, mode=MODE_READ):
-        servermap = old_map or ServerMap()
-        d = self.obtain_lock()
-        d.addCallback(lambda res: self._update_servermap(servermap, mode))
-        d.addBoth(self.release_lock)
+    # allow the use of IDownloadTarget
+    def download(self, target):
+        # fake it. TODO: make this cleaner.
+        d = self.download_best_version()
+        def _done(data):
+            target.open(len(data))
+            target.write(data)
+            target.close()
+            return target.finish()
+        d.addCallback(_done)
         return d
 
-    def download_version(self, servermap, versionid):
-        """Returns a Deferred that fires with a string."""
-        d = self.obtain_lock()
-        d.addCallback(lambda res: self._retrieve(servermap, versionid))
-        d.addBoth(self.release_lock)
+
+    # new API
+
+    def download_best_version(self):
+        return self._do_serialized(self._download_best_version)
+    def _download_best_version(self):
+        servermap = ServerMap()
+        d = self._try_once_to_download_best_version(servermap, MODE_READ)
+        def _maybe_retry(f):
+            f.trap(NotEnoughSharesError)
+            # the download is worth retrying once. Make sure to use the
+            # old servermap, since it is what remembers the bad shares,
+            # but use MODE_WRITE to make it look for even more shares.
+            # TODO: consider allowing this to retry multiple times.. this
+            # approach will let us tolerate about 8 bad shares, I think.
+            return self._try_once_to_download_best_version(servermap,
+                                                           MODE_WRITE)
+        d.addErrback(_maybe_retry)
+        return d
+    def _try_once_to_download_best_version(self, servermap, mode):
+        d = self._update_servermap(servermap, mode)
+        def _updated(ignored):
+            goal = servermap.best_recoverable_version()
+            if not goal:
+                raise UnrecoverableFileError("no recoverable versions")
+            return self._try_once_to_download_version(servermap, goal)
+        d.addCallback(_updated)
         return d
 
-    def publish(self, servermap, new_contents):
-        d = self.obtain_lock()
-        d.addCallback(lambda res: self._publish(servermap, new_contents))
-        d.addBoth(self.release_lock)
+
+    def overwrite(self, new_contents):
+        return self._do_serialized(self._overwrite, new_contents)
+    def _overwrite(self, new_contents):
+        servermap = ServerMap()
+        d = self._update_servermap(servermap, mode=MODE_WRITE)
+        d.addCallback(lambda ignored: self._upload(new_contents, servermap))
         return d
+
 
     def modify(self, modifier, *args, **kwargs):
         """I use a modifier callback to apply a change to the mutable file.
@@ -253,78 +292,39 @@ class MutableFileNode:
         sort, and it will be re-run as necessary until it succeeds. The
         modifier must inspect the old version to see whether its delta has
         already been applied: if so it should return the contents unmodified.
+
+        Note that the modifier is required to run synchronously, and must not
+        invoke any methods on this MutableFileNode instance.
         """
         NotImplementedError
 
-    #################################
-
-    def check(self):
-        verifier = self.get_verifier()
-        return self._client.getServiceNamed("checker").check(verifier)
-
-    def _update_servermap(self, old_map, mode):
-        u = ServermapUpdater(self, old_map, mode)
+    def get_servermap(self, mode):
+        return self._do_serialized(self._get_servermap, mode)
+    def _get_servermap(self, mode):
+        servermap = ServerMap()
+        return self._update_servermap(servermap, mode)
+    def _update_servermap(self, servermap, mode):
+        u = ServermapUpdater(self, servermap, mode)
         self._client.notify_mapupdate(u.get_status())
         return u.update()
 
-    def _retrieve(self, servermap, verinfo):
-        r = Retrieve(self, servermap, verinfo)
+    def download_version(self, servermap, version):
+        return self._do_serialized(self._try_once_to_download_version,
+                                   servermap, version)
+    def _try_once_to_download_version(self, servermap, version):
+        r = Retrieve(self, servermap, version)
         self._client.notify_retrieve(r.get_status())
         return r.download()
 
-    def _update_and_retrieve_best(self, old_map=None, mode=MODE_READ):
-        d = self.update_servermap(old_map=old_map, mode=mode)
-        def _updated(smap):
-            goal = smap.best_recoverable_version()
-            if not goal:
-                raise UnrecoverableFileError("no recoverable versions")
-            return self.download_version(smap, goal)
-        d.addCallback(_updated)
-        return d
-
-    def download_to_data(self):
-        d = self.obtain_lock()
-        d.addCallback(lambda res: self._update_and_retrieve_best())
-        def _maybe_retry(f):
-            f.trap(NotEnoughSharesError)
-            e = f.value
-            # the download is worth retrying once. Make sure to use the old
-            # servermap, since it is what remembers the bad shares, but use
-            # MODE_WRITE to make it look for even more shares. TODO: consider
-            # allowing this to retry multiple times.. this approach will let
-            # us tolerate about 8 bad shares, I think.
-            return self._update_and_retrieve_best(e.servermap, mode=MODE_WRITE)
-        d.addErrback(_maybe_retry)
-        d.addBoth(self.release_lock)
-        return d
-
-    def download(self, target):
-        # fake it. TODO: make this cleaner.
-        d = self.download_to_data()
-        def _done(data):
-            target.open(len(data))
-            target.write(data)
-            target.close()
-            return target.finish()
-        d.addCallback(_done)
-        return d
-
-
-    def _publish(self, servermap, new_contents):
+    def upload(self, new_contents, servermap):
+        return self._do_serialized(self._upload, new_contents, servermap)
+    def _upload(self, new_contents, servermap):
         assert self._pubkey, "update_servermap must be called before publish"
         p = Publish(self, servermap)
         self._client.notify_publish(p.get_status())
         return p.publish(new_contents)
 
-    def update(self, new_contents):
-        d = self.obtain_lock()
-        d.addCallback(lambda res: self.update_servermap(mode=MODE_WRITE))
-        d.addCallback(self._publish, new_contents)
-        d.addBoth(self.release_lock)
-        return d
 
-    def overwrite(self, new_contents):
-        return self.update(new_contents)
 
 
 class MutableWatcher(service.MultiService):

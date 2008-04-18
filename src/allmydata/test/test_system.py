@@ -692,7 +692,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         # contents. This allows it to use the cached pubkey and maybe the
         # latest-known sharemap.
 
-        d.addCallback(lambda res: self._mutable_node_1.download_to_data())
+        d.addCallback(lambda res: self._mutable_node_1.download_best_version())
         def _check_download_1(res):
             self.failUnlessEqual(res, DATA)
             # now we see if we can retrieve the data from a new node,
@@ -701,7 +701,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             uri = self._mutable_node_1.get_uri()
             log.msg("starting retrieve1")
             newnode = self.clients[0].create_node_from_uri(uri)
-            return newnode.download_to_data()
+            return newnode.download_best_version()
         d.addCallback(_check_download_1)
 
         def _check_download_2(res):
@@ -710,7 +710,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             uri = self._mutable_node_1.get_uri()
             newnode = self.clients[1].create_node_from_uri(uri)
             log.msg("starting retrieve2")
-            d1 = newnode.download_to_data()
+            d1 = newnode.download_best_version()
             d1.addCallback(lambda res: (res, newnode))
             return d1
         d.addCallback(_check_download_2)
@@ -719,8 +719,8 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             self.failUnlessEqual(res, DATA)
             # replace the data
             log.msg("starting replace1")
-            d1 = newnode.update(NEWDATA)
-            d1.addCallback(lambda res: newnode.download_to_data())
+            d1 = newnode.overwrite(NEWDATA)
+            d1.addCallback(lambda res: newnode.download_best_version())
             return d1
         d.addCallback(_check_download_3)
 
@@ -734,7 +734,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
             self._newnode3 = self.clients[3].create_node_from_uri(uri)
             log.msg("starting replace2")
             d1 = newnode1.overwrite(NEWERDATA)
-            d1.addCallback(lambda res: newnode2.download_to_data())
+            d1.addCallback(lambda res: newnode2.download_best_version())
             return d1
         d.addCallback(_check_download_4)
 
@@ -797,14 +797,14 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
                 # pubkey mangling
         d.addCallback(_corrupt_shares)
 
-        d.addCallback(lambda res: self._newnode3.download_to_data())
+        d.addCallback(lambda res: self._newnode3.download_best_version())
         d.addCallback(_check_download_5)
 
         def _check_empty_file(res):
             # make sure we can create empty files, this usually screws up the
             # segsize math
             d1 = self.clients[2].create_mutable_file("")
-            d1.addCallback(lambda newnode: newnode.download_to_data())
+            d1.addCallback(lambda newnode: newnode.download_best_version())
             d1.addCallback(lambda res: self.failUnlessEqual("", res))
             return d1
         d.addCallback(_check_empty_file)

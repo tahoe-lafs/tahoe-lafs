@@ -566,54 +566,155 @@ class IFileNode(IFilesystemNode):
         """Return the length (in bytes) of the data this node represents."""
 
 class IMutableFileNode(IFileNode, IMutableFilesystemNode):
-    def download_to_data():
-        """Download the file's contents. Return a Deferred that fires with
-        those contents. If there are multiple retrievable versions in the
-        grid (because you failed to avoid simultaneous writes, see
-        docs/mutable.txt), this will return the first version that it can
-        reconstruct, and will silently ignore the others. In the future, a
-        more advanced API will signal and provide access to the multiple
-        heads."""
+    """I provide access to a 'mutable file', which retains its identity
+    regardless of what contents are put in it.
 
-    def update(newdata):
-        """Attempt to replace the old contents with the new data.
+    The consistency-vs-availability problem means that there might be
+    multiple versions of a file present in the grid, some of which might be
+    unrecoverable (i.e. have fewer than 'k' shares). These versions are
+    loosely ordered: each has a sequence number and a hash, and any version
+    with seqnum=N was uploaded by a node which has seen at least one version
+    with seqnum=N-1.
 
-        download_to_data() must have been called before calling update().
+    The 'servermap' (an instance of IMutableFileServerMap) is used to
+    describe the versions that are known to be present in the grid, and which
+    servers are hosting their shares. It is used to represent the 'state of
+    the world', and is used for this purpose by my test-and-set operations.
+    Downloading the contents of the mutable file will also return a
+    servermap. Uploading a new version into the mutable file requires a
+    servermap as input, and the semantics of the replace operation is
+    'replace the file with my new version if it looks like nobody else has
+    changed the file since my previous download'. Because the file is
+    distributed, this is not a perfect test-and-set operation, but it will do
+    its best. If the replace process sees evidence of a simultaneous write,
+    it will signal an UncoordinatedWriteError, so that the caller can take
+    corrective action.
 
-        Returns a Deferred. If the Deferred fires successfully, the update
-        appeared to succeed. However, another writer (who read before your
-        changes were published) might still clobber your changes: they will
-        discover a problem but you will not. (see ticket #347 for details).
 
-        If the mutable file has been changed (by some other writer) since the
-        last call to download_to_data(), this will raise
-        UncoordinatedWriteError and the file will be left in an inconsistent
-        state (possibly the version you provided, possibly the old version,
-        possibly somebody else's version, and possibly a mix of shares from
-        all of these). The recommended response to UncoordinatedWriteError is
-        to either return it to the caller (since they failed to coordinate
-        their writes), or to do a new download_to_data() / modify-data /
-        update() loop.
+    Most readers will want to use the 'best' current version of the file, and
+    should use my 'download_best_version()' method.
 
-        update() is appropriate to use in a read-modify-write sequence, such
-        as a directory modification.
+    To unconditionally replace the file, callers should use overwrite(). This
+    is the mode that user-visible mutable files will probably use.
+
+    To apply some delta to the file, call modify() with a callable modifier
+    function that can apply the modification that you want to make. This is
+    the mode that dirnodes will use, since most directory modification
+    operations can be expressed in terms of deltas to the directory state.
+
+
+    Three methods are available for users who need to perform more complex
+    operations. The first is get_servermap(), which returns an up-to-date
+    servermap using a specified mode. The second is download_version(), which
+    downloads a specific version (not necessarily the 'best' one). The third
+    is 'upload', which accepts new contents and a servermap (which must have
+    been updated with MODE_WRITE). The upload method will attempt to apply
+    the new contents as long as no other node has modified the file since the
+    servermap was updated. This might be useful to a caller who wants to
+    merge multiple versions into a single new one.
+
+    Note that each time the servermap is updated, a specific 'mode' is used,
+    which determines how many peers are queried. To use a servermap for my
+    replace() method, that servermap must have been updated in MODE_WRITE.
+    These modes are defined in allmydata.mutable.common, and consist of
+    MODE_READ, MODE_WRITE, MODE_ANYTHING, and MODE_CHECK. Please look in
+    allmydata/mutable/servermap.py for details about the differences.
+
+    Mutable files are currently limited in size (about 3.5MB max) and can
+    only be retrieved and updated all-at-once, as a single big string. Future
+    versions of our mutable files will remove this restriction.
+    """
+
+    def download_best_version():
+        """Download the 'best' available version of the file, meaning one of
+        the recoverable versions with the highest sequence number. If no
+        uncoordinated writes have occurred, and if enough shares are
+        available, then this will be the most recent version that has been
+        uploaded.
+
+        I return a Deferred that fires with a (contents, servermap) pair. The
+        servermap is updated with MODE_READ. The contents will be the version
+        of the file indicated by servermap.best_recoverable_version(). If no
+        version is recoverable, the Deferred will errback with
+        UnrecoverableFileError.
         """
 
-    def overwrite(newdata):
-        """Attempt to replace the old contents with the new data.
+    def overwrite(new_contents):
+        """Unconditionally replace the contents of the mutable file with new
+        ones. This simply chains get_servermap(MODE_WRITE) and upload(). This
+        is only appropriate to use when the new contents of the file are
+        completely unrelated to the old ones, and you do not care about other
+        clients' changes.
 
-        Unlike update(), overwrite() does not require a previous call to
-        download_to_data(). It will unconditionally replace the old contents
-        with new data.
+        I return a Deferred that fires (with a PublishStatus object) when the
+        update has completed.
+        """
 
-        overwrite() is implemented by doing download_to_data() and update()
-        in rapid succession, so there remains a (smaller) possibility of
-        UncoordinatedWriteError. A future version will remove the full
-        download_to_data step, making this faster than update().
+    def modify(modifier_cb):
+        """Modify the contents of the file, by downloading the current
+        version, applying the modifier function (or bound method), then
+        uploading the new version. I return a Deferred that fires (with a
+        PublishStatus object) when the update is complete.
 
-        overwrite() is only appropriate to use when the new contents of the
-        mutable file are completely unrelated to the old ones, and you do not
-        care about other clients changes to the file.
+        The modifier callable will be given two arguments: a string (with the
+        old contents) and a servermap. As with download_best_version(), the
+        old contents will be from the best recoverable version, but the
+        modifier can use the servermap to make other decisions (such as
+        refusing to apply the delta if there are multiple parallel versions,
+        or if there is evidence of a newer unrecoverable version).
+
+        The callable should return a string with the new contents. The
+        callable must be prepared to be called multiple times, and must
+        examine the input string to see if the change that it wants to make
+        is already present in the old version. If it does not need to make
+        any changes, it can either return None, or return its input string.
+
+        If the modifier raises an exception, it will be returned in the
+        errback.
+        """
+
+
+    def get_servermap(mode):
+        """Return a Deferred that fires with an IMutableFileServerMap
+        instance, updated using the given mode.
+        """
+
+    def download_version(servermap, version):
+        """Download a specific version of the file, using the servermap
+        as a guide to where the shares are located.
+
+        I return a Deferred that fires with the requested contents, or
+        errbacks with UnrecoverableFileError. Note that a servermap which was
+        updated with MODE_ANYTHING or MODE_READ may not know about shares for
+        all versions (those modes stop querying servers as soon as they can
+        fulfil their goals), so you may want to use MODE_CHECK (which checks
+        everything) to get increased visibility.
+        """
+
+    def upload(new_contents, servermap):
+        """Replace the contents of the file with new ones. This requires a
+        servermap that was previously updated with MODE_WRITE.
+
+        I attempt to provide test-and-set semantics, in that I will avoid
+        modifying any share that is different than the version I saw in the
+        servermap. However, if another node is writing to the file at the
+        same time as me, I may manage to update some shares while they update
+        others. If I see any evidence of this, I will signal
+        UncoordinatedWriteError, and the file will be left in an inconsistent
+        state (possibly the version you provided, possibly the old version,
+        possibly somebody else's version, and possibly a mix of shares from
+        all of these).
+
+        The recommended response to UncoordinatedWriteError is to either
+        return it to the caller (since they failed to coordinate their
+        writes), or to attempt some sort of recovery. It may be sufficient to
+        wait a random interval (with exponential backoff) and repeat your
+        operation. If I do not signal UncoordinatedWriteError, then I was
+        able to write the new version without incident.
+
+        I return a Deferred that fires (with a PublishStatus object) when the
+        publish has completed. I will update the servermap in-place with the
+        location of all new shares.
         """
 
     def get_writekey():

@@ -258,21 +258,27 @@ class Filenode(unittest.TestCase):
         d = self.client.create_mutable_file()
         def _created(n):
             d = defer.succeed(None)
-            d.addCallback(lambda res: n.update_servermap())
+            d.addCallback(lambda res: n.get_servermap(MODE_READ))
             d.addCallback(lambda smap: smap.dump(StringIO()))
             d.addCallback(lambda sio:
                           self.failUnless("3-of-10" in sio.getvalue()))
             d.addCallback(lambda res: n.overwrite("contents 1"))
             d.addCallback(lambda res: self.failUnlessIdentical(res, None))
-            d.addCallback(lambda res: n.download_to_data())
+            d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
             d.addCallback(lambda res: n.overwrite("contents 2"))
-            d.addCallback(lambda res: n.download_to_data())
+            d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
             d.addCallback(lambda res: n.download(download.Data()))
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
-            d.addCallback(lambda res: n.update("contents 3"))
-            d.addCallback(lambda res: n.download_to_data())
+            d.addCallback(lambda res: n.get_servermap(MODE_WRITE))
+            d.addCallback(lambda smap: n.upload("contents 3", smap))
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 3"))
+            d.addCallback(lambda res: n.get_servermap(MODE_ANYTHING))
+            d.addCallback(lambda smap:
+                          n.download_version(smap,
+                                             smap.best_recoverable_version()))
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 3"))
             return d
         d.addCallback(_created)
@@ -281,10 +287,10 @@ class Filenode(unittest.TestCase):
     def test_create_with_initial_contents(self):
         d = self.client.create_mutable_file("contents 1")
         def _created(n):
-            d = n.download_to_data()
+            d = n.download_best_version()
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
             d.addCallback(lambda res: n.overwrite("contents 2"))
-            d.addCallback(lambda res: n.download_to_data())
+            d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
             return d
         d.addCallback(_created)
@@ -295,21 +301,27 @@ class Filenode(unittest.TestCase):
         d = self.client.create_mutable_file()
         def _created(n):
             d = defer.succeed(None)
-            d.addCallback(lambda res: n.update_servermap())
+            d.addCallback(lambda res: n.get_servermap(MODE_READ))
             d.addCallback(lambda smap: smap.dump(StringIO()))
             d.addCallback(lambda sio:
                           self.failUnless("3-of-10" in sio.getvalue()))
             d.addCallback(lambda res: n.overwrite("contents 1"))
             d.addCallback(lambda res: self.failUnlessIdentical(res, None))
-            d.addCallback(lambda res: n.download_to_data())
+            d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
             d.addCallback(lambda res: n.overwrite("contents 2"))
-            d.addCallback(lambda res: n.download_to_data())
+            d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
             d.addCallback(lambda res: n.download(download.Data()))
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
-            d.addCallback(lambda res: n.update("contents 3"))
-            d.addCallback(lambda res: n.download_to_data())
+            d.addCallback(lambda res: n.get_servermap(MODE_WRITE))
+            d.addCallback(lambda smap: n.upload("contents 3", smap))
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 3"))
+            d.addCallback(lambda res: n.get_servermap(MODE_ANYTHING))
+            d.addCallback(lambda smap:
+                          n.download_version(smap,
+                                             smap.best_recoverable_version()))
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 3"))
             return d
         d.addCallback(_created)
@@ -679,7 +691,7 @@ class Roundtrip(unittest.TestCase):
                     self.failUnless(substring in "".join(allproblems))
                 return
             if should_succeed:
-                d1 = self._fn.download_to_data()
+                d1 = self._fn.download_best_version()
                 d1.addCallback(lambda new_contents:
                                self.failUnlessEqual(new_contents, self.CONTENTS))
                 return d1
@@ -687,7 +699,7 @@ class Roundtrip(unittest.TestCase):
                 return self.shouldFail(NotEnoughSharesError,
                                        "_corrupt_all(offset=%s)" % (offset,),
                                        substring,
-                                       self._fn.download_to_data)
+                                       self._fn.download_best_version)
         d.addCallback(_do_retrieve)
         return d
 
@@ -797,7 +809,7 @@ class Roundtrip(unittest.TestCase):
         def _do_retrieve(servermap):
             ver = servermap.best_recoverable_version()
             self.failUnless(ver)
-            return self._fn.download_to_data()
+            return self._fn.download_best_version()
         d.addCallback(_do_retrieve)
         d.addCallback(lambda new_contents:
                       self.failUnlessEqual(new_contents, self.CONTENTS))
@@ -807,7 +819,7 @@ class Roundtrip(unittest.TestCase):
         corrupt(None, self._storage, "signature")
         d = self.shouldFail(UnrecoverableFileError, "test_download_anyway",
                             "no recoverable versions",
-                            self._fn.download_to_data)
+                            self._fn.download_best_version)
         return d
 
 
@@ -948,7 +960,7 @@ class MultipleEncodings(unittest.TestCase):
             self._client._storage._sequence = new_sequence
             log.msg("merge done")
         d.addCallback(_merge)
-        d.addCallback(lambda res: fn3.download_to_data())
+        d.addCallback(lambda res: fn3.download_best_version())
         def _retrieved(new_contents):
             # the current specified behavior is "first version recoverable"
             self.failUnlessEqual(new_contents, contents1)

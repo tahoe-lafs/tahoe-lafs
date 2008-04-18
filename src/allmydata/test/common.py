@@ -90,20 +90,17 @@ class FakeMutableFileNode:
         return self.my_uri.is_readonly()
     def is_mutable(self):
         return self.my_uri.is_mutable()
-    def download_to_data(self):
-        return defer.succeed(self.all_contents[self.storage_index])
     def get_writekey(self):
         return "\x00"*16
     def get_size(self):
         return "?" # TODO: see mutable.MutableFileNode.get_size
 
-    def update(self, new_contents):
+    def download_best_version(self):
+        return defer.succeed(self.all_contents[self.storage_index])
+    def overwrite(self, new_contents):
         assert not self.is_readonly()
         self.all_contents[self.storage_index] = new_contents
         return defer.succeed(None)
-
-    def overwrite(self, new_contents):
-        return self.update(new_contents)
 
 
 def make_mutable_file_uri():
