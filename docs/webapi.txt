@@ -8,7 +8,8 @@ This document has six sections:
 6.  XML-RPC (coming soon)
 
 
-1. the basic API for how to programmatically control your tahoe node
+
+1. the basic REST-ful API for how to programmatically control your tahoe node
 
 a. connecting to the tahoe node
 
