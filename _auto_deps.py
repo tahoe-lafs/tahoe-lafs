@@ -26,20 +26,14 @@ def require_auto_deps():
                 pkg_resources.require(requirement)
             except pkg_resources.DistributionNotFound:
                 # there is no .egg-info present for this requirement, which
-                # either means that it isn't installed, or it is installed in
-                # a way that pkg_resources can't find it (but regular python
-                # might). The __import__ below will pass the second case,
-                # which is good enough for us. There are several
-                # distributions which provide our dependencies just fine, but
-                # they don't ship .egg-info files. Note that if there *is* an
-                # .egg-info file, but it indicates an older version, then
-                # we'll get a VersionConflict error instead of
-                # DistributionNotFound.
+                # either means that it isn't installed, or it is installed in a
+                # way that pkg_resources can't find it (but regular python
+                # might).  There are several older Linux distributions which
+                # provide our dependencies just fine, but they don't ship
+                # .egg-info files. Note that if there *is* an .egg-info file,
+                # but it shows a too-old version, then we'll get a
+                # VersionConflict error instead of DistributionNotFound.
                 pass
-    for requirement in install_requires:
-        reqparts = requirement.split()
-        name = reqparts[0]
-        __import__(name)
 
 if __name__ == "__main__":
     require_auto_deps()
