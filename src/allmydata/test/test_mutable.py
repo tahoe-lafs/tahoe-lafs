@@ -599,6 +599,10 @@ class Servermap(unittest.TestCase):
         self.failUnlessEqual(sm.recoverable_versions(), set([best]))
         self.failUnlessEqual(len(sm.shares_available()), 1)
         self.failUnlessEqual(sm.shares_available()[best], (num_shares, 3))
+        shnum, peerids = sm.make_sharemap().items()[0]
+        peerid = list(peerids)[0]
+        self.failUnlessEqual(sm.version_on_peer(peerid, shnum), best)
+        self.failUnlessEqual(sm.version_on_peer(peerid, 666), None)
         return sm
 
     def test_basic(self):
