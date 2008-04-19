@@ -624,6 +624,15 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
                                   time.localtime(data.get_started()))
         return started_s
 
+    def render_finished(self, ctx, data):
+        when = data.get_finished()
+        if not when:
+            return "not yet"
+        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
+        started_s = time.strftime(TIME_FORMAT,
+                                  time.localtime(data.get_finished()))
+        return started_s
+
     def render_si(self, ctx, data):
         si_s = base32.b2a_or_none(data.get_storage_index())
         if si_s is None:
@@ -677,11 +686,13 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
         for peerid in sorted(per_server.keys()):
             peerid_s = idlib.shortnodeid_b2a(peerid)
             times = []
-            for op,t in per_server[peerid]:
+            for op,started,t in per_server[peerid]:
                 if op == "query":
                     times.append( self.render_time(None, t) )
+                elif op == "late":
+                    times.append( "late(" + self.render_time(None, t) + ")" )
                 else:
-                    times.append( "(" + self.render_time(None, t) + ")" )
+                    times.append( "privkey(" + self.render_time(None, t) + ")" )
             times_s = ", ".join(times)
             l[T.li["[%s]: %s" % (peerid_s, times_s)]]
         return T.li["Per-Server Response Times: ", l]

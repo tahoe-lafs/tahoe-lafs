@@ -61,10 +61,6 @@ class MutableFileNode:
         self._sharemap = {} # known shares, shnum-to-[nodeids]
         self._cache = ResponseCache()
 
-        self._current_data = None # SDMF: we're allowed to cache the contents
-        self._current_roothash = None # ditto
-        self._current_seqnum = None # ditto
-
         # all users of this MutableFileNode go through the serializer. This
         # takes advantage of the fact that Deferreds discard the callbacks
         # that they're done with, so we can keep using the same Deferred
@@ -118,10 +114,6 @@ class MutableFileNode:
             self._uri = WriteableSSKFileURI(self._writekey, self._fingerprint)
             self._readkey = self._uri.readkey
             self._storage_index = self._uri.storage_index
-            # TODO: seqnum/roothash: really we mean "doesn't matter since
-            # nobody knows about us yet"
-            self._current_seqnum = 0
-            self._current_roothash = "\x00"*32
             return self._upload(initial_contents, None)
         d.addCallback(_generated)
         return d
@@ -157,10 +149,6 @@ class MutableFileNode:
         self._required_shares = required_shares
     def _populate_total_shares(self, total_shares):
         self._total_shares = total_shares
-    def _populate_seqnum(self, seqnum):
-        self._current_seqnum = seqnum
-    def _populate_root_hash(self, root_hash):
-        self._current_roothash = root_hash
 
     def _populate_privkey(self, privkey):
         self._privkey = privkey
