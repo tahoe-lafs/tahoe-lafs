@@ -16,12 +16,16 @@ class NeedMoreDataError(Exception):
         self.needed_bytes = needed_bytes # up through EOF
         self.encprivkey_offset = encprivkey_offset
         self.encprivkey_length = encprivkey_length
-    def __str__(self):
+    def __repr__(self):
         return "<NeedMoreDataError (%d bytes)>" % self.needed_bytes
 
 class UncoordinatedWriteError(Exception):
     def __repr__(self):
-        return "<%s -- You, oh user, tried to change a file or directory at the same time as another process was trying to change it.  To avoid data loss, don't do this.  Please see docs/write_coordination.html for details.>" % (self.__class__.__name__,)
+        return ("<%s -- You, oh user, tried to change a file or directory "
+                "at the same time as another process was trying to change it. "
+                " To avoid data loss, don't do this.  Please see "
+                "docs/write_coordination.html for details.>" %
+                (self.__class__.__name__,))
 
 class UnrecoverableFileError(Exception):
     pass

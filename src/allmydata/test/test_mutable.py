@@ -16,7 +16,7 @@ import sha
 from allmydata.mutable.node import MutableFileNode, BackoffAgent
 from allmydata.mutable.common import DictOfSets, ResponseCache, \
      MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, \
-     UnrecoverableFileError, UncoordinatedWriteError
+     NeedMoreDataError, UnrecoverableFileError, UncoordinatedWriteError
 from allmydata.mutable.retrieve import Retrieve
 from allmydata.mutable.publish import Publish
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
@@ -1315,4 +1315,11 @@ class Utils(unittest.TestCase):
         c.add("v1", 1, 0, xdata[:10], "time0")
         c.add("v1", 1, 10, xdata[10:20], "time1")
         #self.failUnlessEqual(c.read("v1", 1, 0, 20), (xdata[:20], "time0"))
+
+class Exceptions(unittest.TestCase):
+    def test_repr(self):
+        nmde = NeedMoreDataError(100, 50, 100)
+        self.failUnless("NeedMoreDataError" in repr(nmde), repr(nmde))
+        ucwe = UncoordinatedWriteError()
+        self.failUnless("UncoordinatedWriteError" in repr(ucwe), repr(ucwe))
 
