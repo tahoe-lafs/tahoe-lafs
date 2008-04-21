@@ -13,11 +13,11 @@ else:
     raise ValueError('must provide 0 or 1 argument (stdin, or filename)')
 
 vern = { 
-    'major': v.major,
-    'minor': v.minor,
-    'point': v.micro,
-    'micro': v.micro,
-    'revision' : v.revision,
+    'major': v.major or 0,
+    'minor': v.minor or 0,
+    'point': v.micro or 0,
+    'micro': v.micro or 0,
+    'revision' : v.revision or 0,
     'build': str(v),
     }
 
