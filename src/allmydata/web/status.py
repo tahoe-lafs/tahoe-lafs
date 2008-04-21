@@ -675,8 +675,8 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
     def data_time_total(self, ctx, data):
         return self.update_status.timings.get("total")
 
-    def data_time_setup(self, ctx, data):
-        return self.update_status.timings.get("setup")
+    def data_time_initial_queries(self, ctx, data):
+        return self.update_status.timings.get("initial_queries")
 
     def data_time_cumulative_verify(self, ctx, data):
         return self.update_status.timings.get("cumulative_verify")
@@ -690,6 +690,10 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
             peerid_s = idlib.shortnodeid_b2a(peerid)
             times = []
             for op,started,t in per_server[peerid]:
+                #times.append("%s/%.4fs/%s/%s" % (op,
+                #                              started,
+                #                              self.render_time(None, started - self.update_status.get_started()),
+                #                              self.render_time(None,t)))
                 if op == "query":
                     times.append( self.render_time(None, t) )
                 elif op == "late":
@@ -699,6 +703,68 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
             times_s = ", ".join(times)
             l[T.li["[%s]: %s" % (peerid_s, times_s)]]
         return T.li["Per-Server Response Times: ", l]
+
+    def render_timing_chart(self, ctx, data):
+        imageurl = self._timing_chart()
+        return ctx.tag[imageurl]
+
+    def _timing_chart(self):
+        started = self.update_status.get_started()
+        total = self.update_status.timings["total"]
+        per_server = self.update_status.timings.get("per_server")
+        base = "http://chart.apis.google.com/chart?"
+        pieces = ["cht=bhs", "chs=400x300"]
+        pieces.append("chco=ffffff,4d89f9,c6d9fd") # colors
+        data0 = []
+        data1 = []
+        data2 = []
+        peerids_s = []
+        top_abs = started
+        # we sort the queries by the time at which we sent the first request
+        sorttable = [ (times[0][1], peerid)
+                      for peerid, times in per_server.items() ]
+        sorttable.sort()
+        peerids = [t[1] for t in sorttable]
+            
+        for peerid in peerids:
+            times = per_server[peerid]
+            peerid_s = idlib.shortnodeid_b2a(peerid)
+            peerids_s.append(peerid_s)
+            # for servermap updates, there are either one or two queries per
+            # peer. The second (if present) is to get the privkey.
+            op,q_started,q_elapsed = times[0]
+            data0.append("%.3f" % (q_started-started))
+            data1.append("%.3f" % q_elapsed)
+            top_abs = max(top_abs, q_started+q_elapsed)
+            if len(times) > 1:
+                op,p_started,p_elapsed = times[0]
+                data2.append("%.3f" % p_elapsed)
+                top_abs = max(top_abs, p_started+p_elapsed)
+            else:
+                data2.append("0.0")
+        finished = self.update_status.get_finished()
+        if finished:
+            top_abs = max(top_abs, finished)
+        top_rel = top_abs - started
+        chd = "chd=t:" + "|".join([",".join(data0),
+                                   ",".join(data1),
+                                   ",".join(data2)])
+        pieces.append(chd)
+        chds = "chds=0,%0.3f" % top_rel
+        pieces.append(chds)
+        pieces.append("chxt=x,y")
+        pieces.append("chxr=0,0.0,%0.3f" % top_rel)
+        pieces.append("chxl=1:|" + "|".join(reversed(peerids_s)))
+        # use up to 10 grid lines, at decimal multiples.
+        # mathutil.next_power_of_k doesn't handle numbers smaller than one,
+        # unfortunately.
+        #pieces.append("chg="
+        # this chm=r thing is being interpreted as 1.0=fullscale
+        finished_f = 1.0 * total / top_rel
+        pieces.append("chm=r,FF0000,0,%0.3f,%0.3f" % (finished_f,
+                                                      finished_f+0.01))
+        url = base + "&".join(pieces)
+        return T.img(src=url, align="right", float="right")
 
 
 class Status(rend.Page):

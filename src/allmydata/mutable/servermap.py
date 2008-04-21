@@ -425,7 +425,7 @@ class ServermapUpdater:
         # enough responses)
 
         self._send_initial_requests(initial_peers_to_query)
-        self._status.timings["setup"] = time.time() - self._started
+        self._status.timings["initial_queries"] = time.time() - self._started
         return self._done_deferred
 
     def _build_initial_querylist(self):

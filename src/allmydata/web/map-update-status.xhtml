@@ -22,11 +22,11 @@
 <h2>Update Results</h2>
 <ul>
   <li n:render="problems" />
-  <li>Timings:</li>
+  <li>Timings: <span n:render="timing_chart" /></li>
   <ul>
     <li>Total: <span n:render="time" n:data="time_total" /></li>
     <ul>
-      <li>Setup: <span n:render="time" n:data="time_setup" /></li>
+      <li>Initial Queries: <span n:render="time" n:data="time_initial_queries" /></li>
       <li n:render="privkey_from" />
       <li>Cumulative Verify: <span n:render="time" n:data="time_cumulative_verify" /></li>
     </ul>
