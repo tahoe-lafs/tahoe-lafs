@@ -308,6 +308,9 @@ class DownloadResultsRendererMixin(RateAndTimeMixin):
     def data_time_cumulative_decrypt(self, ctx, data):
         return self._get_time("cumulative_decrypt")
 
+    def data_time_paused(self, ctx, data):
+        return self._get_time("paused")
+
     def _get_rate(self, name):
         d = self.download_results()
         def _convert(r):

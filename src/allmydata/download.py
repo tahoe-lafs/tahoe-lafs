@@ -449,6 +449,7 @@ class FileDownloader:
         self._results.timings["cumulative_fetch"] = 0.0
         self._results.timings["cumulative_decode"] = 0.0
         self._results.timings["cumulative_decrypt"] = 0.0
+        self._results.timings["paused"] = 0.0
 
         if IConsumer.providedBy(downloadable):
             downloadable.registerProducer(self, True)
@@ -489,6 +490,7 @@ class FileDownloader:
         if self._paused:
             return
         self._paused = defer.Deferred()
+        self._paused_at = time.time()
         if self._status:
             self._status.set_paused(True)
 
@@ -503,6 +505,8 @@ class FileDownloader:
     def stopProducing(self):
         self.log("Download.stopProducing")
         self._stopped = True
+        paused_for = time.time() - self._paused_at
+        self._results.timings['paused'] += paused_for
         if self._status:
             self._status.set_stopped(True)
             self._status.set_active(False)
