@@ -41,6 +41,7 @@ Name: "{group}\Allmydata Help"; Filename: "http://www.allmydata.com/help"
 
 [Run]
 ; Things performed before the final page of the installer
+Filename: "{app}\Install\winfuse\AllmydataTray.exe"; Parameters: "-Q"; Flags: runhidden
 Filename: "{sys}\net.exe"; Parameters: "stop ""Allmydata SMB"""; Flags: runhidden
 Filename: "{sys}\net.exe"; Parameters: "stop Tahoe"; Flags: runhidden
 Filename: "{app}\Install\tahoesvc.exe"; Parameters: "-install -auto"; Flags: runhidden
@@ -54,6 +55,7 @@ Filename: "http://beta.allmydata.com/welcome_install?v=%(major)d.%(minor)d.%(poi
 [UninstallRun]
 ; Performed before the uninstaller runs to undo things
 Filename: "{app}\Install\winfuse\AllmydataTray.exe"; Parameters: "-Q"; Flags: runhidden
+Filename: "{sys}\net.exe"; Parameters: "stop ""Allmydata SMB"""; Flags: runhidden
 Filename: "{sys}\net.exe"; Parameters: "stop Tahoe"; Flags: runhidden
 Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: "/uninstall ""{app}\Install\winfuse\WinFUSE.exe"""; Flags: runhidden
 Filename: "{app}\Install\tahoesvc.exe"; Parameters: "-remove"; Flags: runhidden
