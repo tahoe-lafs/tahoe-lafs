@@ -9,6 +9,10 @@ from foolscap import Tub, eventual
 MB = 1000000
 
 class SpeedTest:
+    DO_IMMUTABLE = True
+    DO_MUTABLE_CREATE = True
+    DO_MUTABLE = True
+
     def __init__(self, test_client_dir):
         #self.real_stderr = sys.stderr
         log.startLogging(open("st.log", "a"), setStdout=False)
@@ -95,36 +99,42 @@ class SpeedTest:
         d.addCallback(self.one_test, "startup", 1, 1000, False) #ignore this one
         d.addCallback(self.measure_rtt)
 
-        # immutable files
-        d.addCallback(self.one_test, "1x 200B", 1, 200, False)
-        d.addCallback(self.one_test, "10x 200B", 10, 200, False)
-        def _maybe_do_100x_200B(res):
-            if self.upload_times["10x 200B"] < 5:
-                print "10x 200B test went too fast, doing 100x 200B test"
-                return self.one_test(None, "100x 200B", 100, 200, False)
-            return
-        d.addCallback(_maybe_do_100x_200B)
-        d.addCallback(self.one_test, "1MB", 1, 1*MB, False)
-        d.addCallback(self.one_test, "10MB", 1, 10*MB, False)
-        def _maybe_do_100MB(res):
-            if self.upload_times["10MB"] > 30:
-                print "10MB test took too long, skipping 100MB test"
+        if self.DO_IMMUTABLE:
+            # immutable files
+            d.addCallback(self.one_test, "1x 200B", 1, 200, False)
+            d.addCallback(self.one_test, "10x 200B", 10, 200, False)
+            def _maybe_do_100x_200B(res):
+                if self.upload_times["10x 200B"] < 5:
+                    print "10x 200B test went too fast, doing 100x 200B test"
+                    return self.one_test(None, "100x 200B", 100, 200, False)
                 return
-            return self.one_test(None, "100MB", 1, 100*MB, False)
-        d.addCallback(_maybe_do_100MB)
+            d.addCallback(_maybe_do_100x_200B)
+            d.addCallback(self.one_test, "1MB", 1, 1*MB, False)
+            d.addCallback(self.one_test, "10MB", 1, 10*MB, False)
+            def _maybe_do_100MB(res):
+                if self.upload_times["10MB"] > 30:
+                    print "10MB test took too long, skipping 100MB test"
+                    return
+                return self.one_test(None, "100MB", 1, 100*MB, False)
+            d.addCallback(_maybe_do_100MB)
 
-        # mutable file creation
-        d.addCallback(self.one_test, "10x 200B SSK creation", 10, 200, "create")
+        if self.DO_MUTABLE_CREATE:
+            # mutable file creation
+            d.addCallback(self.one_test, "10x 200B SSK creation", 10, 200,
+                          "create")
 
-        # mutable file upload/download
-        d.addCallback(self.one_test, "10x 200B SSK", 10, 200, "upload")
-        def _maybe_do_100x_200B_SSK(res):
-            if self.upload_times["10x 200B SSK"] < 5:
-                print "10x 200B SSK test went too fast, doing 100x 200B SSK"
-                return self.one_test(None, "100x 200B SSK", 100, 200, "upload")
-            return
-        d.addCallback(_maybe_do_100x_200B_SSK)
-        d.addCallback(self.one_test, "1MB SSK", 1, 1*MB, "upload")
+        if self.DO_MUTABLE:
+            # mutable file upload/download
+            d.addCallback(self.one_test, "10x 200B SSK", 10, 200, "upload")
+            def _maybe_do_100x_200B_SSK(res):
+                if self.upload_times["10x 200B SSK"] < 5:
+                    print "10x 200B SSK test went too fast, doing 100x 200B SSK"
+                    return self.one_test(None, "100x 200B SSK", 100, 200,
+                                         "upload")
+                return
+            d.addCallback(_maybe_do_100x_200B_SSK)
+            d.addCallback(self.one_test, "1MB SSK", 1, 1*MB, "upload")
+
         d.addCallback(self.calculate_speeds)
         return d
 
@@ -132,59 +142,63 @@ class SpeedTest:
         # time = A*size+B
         # we assume that A*200bytes is negligible
 
-        # upload
-        if "100x 200B" in self.upload_times:
-            B = self.upload_times["100x 200B"] / 100
-        else:
-            B = self.upload_times["10x 200B"] / 10
-        print "upload per-file time: %.3fs" % B
-        print "upload per-file times-avg-RTT: %f" % (B / self.average_rtt)
-        print "upload per-file times-total-RTT: %f" % (B / self.total_rtt)
-        A1 = 1*MB / (self.upload_times["1MB"] - B) # in bytes per second
-        print "upload speed (1MB):", self.number(A1, "Bps")
-        A2 = 10*MB / (self.upload_times["10MB"] - B)
-        print "upload speed (10MB):", self.number(A2, "Bps")
-        if "100MB" in self.upload_times:
-            A3 = 100*MB / (self.upload_times["100MB"] - B)
-            print "upload speed (100MB):", self.number(A3, "Bps")
+        if self.DO_IMMUTABLE:
+            # upload
+            if "100x 200B" in self.upload_times:
+                B = self.upload_times["100x 200B"] / 100
+            else:
+                B = self.upload_times["10x 200B"] / 10
+            print "upload per-file time: %.3fs" % B
+            print "upload per-file times-avg-RTT: %f" % (B / self.average_rtt)
+            print "upload per-file times-total-RTT: %f" % (B / self.total_rtt)
+            A1 = 1*MB / (self.upload_times["1MB"] - B) # in bytes per second
+            print "upload speed (1MB):", self.number(A1, "Bps")
+            A2 = 10*MB / (self.upload_times["10MB"] - B)
+            print "upload speed (10MB):", self.number(A2, "Bps")
+            if "100MB" in self.upload_times:
+                A3 = 100*MB / (self.upload_times["100MB"] - B)
+                print "upload speed (100MB):", self.number(A3, "Bps")
 
-        # download
-        if "100x 200B" in self.download_times:
-            B = self.download_times["100x 200B"] / 100
-        else:
-            B = self.download_times["10x 200B"] / 10
-        print "download per-file time: %.3fs" % B
-        print "download per-file times-avg-RTT: %f" % (B / self.average_rtt)
-        print "download per-file times-total-RTT: %f" % (B / self.total_rtt)
-        A1 = 1*MB / (self.download_times["1MB"] - B) # in bytes per second
-        print "download speed (1MB):", self.number(A1, "Bps")
-        A2 = 10*MB / (self.download_times["10MB"] - B)
-        print "download speed (10MB):", self.number(A2, "Bps")
-        if "100MB" in self.download_times:
-            A3 = 100*MB / (self.download_times["100MB"] - B)
-            print "download speed (100MB):", self.number(A3, "Bps")
+            # download
+            if "100x 200B" in self.download_times:
+                B = self.download_times["100x 200B"] / 100
+            else:
+                B = self.download_times["10x 200B"] / 10
+            print "download per-file time: %.3fs" % B
+            print "download per-file times-avg-RTT: %f" % (B / self.average_rtt)
+            print "download per-file times-total-RTT: %f" % (B / self.total_rtt)
+            A1 = 1*MB / (self.download_times["1MB"] - B) # in bytes per second
+            print "download speed (1MB):", self.number(A1, "Bps")
+            A2 = 10*MB / (self.download_times["10MB"] - B)
+            print "download speed (10MB):", self.number(A2, "Bps")
+            if "100MB" in self.download_times:
+                A3 = 100*MB / (self.download_times["100MB"] - B)
+                print "download speed (100MB):", self.number(A3, "Bps")
 
-        # SSK creation
-        B = self.upload_times["10x 200B SSK creation"] / 10
-        print "create per-file time SSK: %.3fs" % B
+        if self.DO_MUTABLE_CREATE:
+            # SSK creation
+            B = self.upload_times["10x 200B SSK creation"] / 10
+            print "create per-file time SSK: %.3fs" % B
 
-        # upload SSK
-        if "100x 200B SSK" in self.upload_times:
-            B = self.upload_times["100x 200B SSK"] / 100
-        else:
-            B = self.upload_times["10x 200B SSK"] / 10
-        print "upload per-file time SSK: %.3fs" % B
-        A1 = 1*MB / (self.upload_times["1MB SSK"] - B) # in bytes per second
-        print "upload speed SSK (1MB):", self.number(A1, "Bps")
+        if self.DO_MUTABLE:
+            # upload SSK
+            if "100x 200B SSK" in self.upload_times:
+                B = self.upload_times["100x 200B SSK"] / 100
+            else:
+                B = self.upload_times["10x 200B SSK"] / 10
+            print "upload per-file time SSK: %.3fs" % B
+            A1 = 1*MB / (self.upload_times["1MB SSK"] - B) # in bytes per second
+            print "upload speed SSK (1MB):", self.number(A1, "Bps")
 
-        # download SSK
-        if "100x 200B SSK" in self.download_times:
-            B = self.download_times["100x 200B SSK"] / 100
-        else:
-            B = self.download_times["10x 200B SSK"] / 10
-        print "download per-file time SSK: %.3fs" % B
-        A1 = 1*MB / (self.download_times["1MB SSK"] - B) # in bytes per second
-        print "download speed SSK (1MB):", self.number(A1, "Bps")
+            # download SSK
+            if "100x 200B SSK" in self.download_times:
+                B = self.download_times["100x 200B SSK"] / 100
+            else:
+                B = self.download_times["10x 200B SSK"] / 10
+            print "download per-file time SSK: %.3fs" % B
+            A1 = 1*MB / (self.download_times["1MB SSK"] - B) # in bytes per
+                                                             # second
+            print "download speed SSK (1MB):", self.number(A1, "Bps")
 
     def number(self, value, suffix=""):
         scaling = 1
