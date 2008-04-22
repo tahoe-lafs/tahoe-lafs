@@ -484,9 +484,9 @@ class ServermapUpdater:
 
     def _got_results(self, datavs, peerid, readsize, stuff, started):
         lp = self.log(format="got result from [%(peerid)s], %(numshares)d shares",
-                     peerid=idlib.shortnodeid_b2a(peerid),
-                     numshares=len(datavs),
-                     level=log.NOISY)
+                      peerid=idlib.shortnodeid_b2a(peerid),
+                      numshares=len(datavs),
+                      level=log.NOISY)
         now = time.time()
         elapsed = now - started
         self._queries_outstanding.discard(peerid)
@@ -508,7 +508,7 @@ class ServermapUpdater:
         for shnum,datav in datavs.items():
             data = datav[0]
             try:
-                verinfo = self._got_results_one_share(shnum, data, peerid)
+                verinfo = self._got_results_one_share(shnum, data, peerid, lp)
                 last_verinfo = verinfo
                 last_shnum = shnum
                 self._node._cache.add(verinfo, shnum, 0, data, now)
@@ -527,6 +527,8 @@ class ServermapUpdater:
         if self._need_privkey and last_verinfo:
             # send them a request for the privkey. We send one request per
             # server.
+            lp2 = self.log("sending privkey request",
+                           parent=lp, level=log.NOISY)
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
              offsets_tuple) = last_verinfo
             o = dict(offsets_tuple)
@@ -538,8 +540,8 @@ class ServermapUpdater:
             d = self._do_read(ss, peerid, self._storage_index,
                               [last_shnum], readv)
             d.addCallback(self._got_privkey_results, peerid, last_shnum,
-                          privkey_started)
-            d.addErrback(self._privkey_query_failed, peerid, last_shnum)
+                          privkey_started, lp2)
+            d.addErrback(self._privkey_query_failed, peerid, last_shnum, lp2)
             d.addErrback(log.err)
             d.addCallback(self._check_for_done)
             d.addErrback(self._fatal_error)
@@ -547,10 +549,11 @@ class ServermapUpdater:
         # all done!
         self.log("_got_results done", parent=lp)
 
-    def _got_results_one_share(self, shnum, data, peerid):
-        lp = self.log(format="_got_results: got shnum #%(shnum)d from peerid %(peerid)s",
-                      shnum=shnum,
-                      peerid=idlib.shortnodeid_b2a(peerid))
+    def _got_results_one_share(self, shnum, data, peerid, lp):
+        self.log(format="_got_results: got shnum #%(shnum)d from peerid %(peerid)s",
+                 shnum=shnum,
+                 peerid=idlib.shortnodeid_b2a(peerid),
+                 parent=lp)
 
         # this might raise NeedMoreDataError, if the pubkey and signature
         # live at some weird offset. That shouldn't happen, so I'm going to
@@ -567,7 +570,7 @@ class ServermapUpdater:
             self._node._populate_pubkey(self._deserialize_pubkey(pubkey_s))
 
         if self._need_privkey:
-            self._try_to_extract_privkey(data, peerid, shnum)
+            self._try_to_extract_privkey(data, peerid, shnum, lp)
 
         (ig_version, ig_seqnum, ig_root_hash, ig_IV, ig_k, ig_N,
          ig_segsize, ig_datalen, offsets) = unpack_header(data)
@@ -610,7 +613,7 @@ class ServermapUpdater:
         verifier = rsa.create_verifying_key_from_string(pubkey_s)
         return verifier
 
-    def _try_to_extract_privkey(self, data, peerid, shnum):
+    def _try_to_extract_privkey(self, data, peerid, shnum, lp):
         try:
             r = unpack_share(data)
         except NeedMoreDataError, e:
@@ -620,7 +623,8 @@ class ServermapUpdater:
             self.log("shnum %d on peerid %s: share was too short (%dB) "
                      "to get the encprivkey; [%d:%d] ought to hold it" %
                      (shnum, idlib.shortnodeid_b2a(peerid), len(data),
-                      offset, offset+length))
+                      offset, offset+length),
+                     parent=lp)
             # NOTE: if uncoordinated writes are taking place, someone might
             # change the share (and most probably move the encprivkey) before
             # we get a chance to do one of these reads and fetch it. This
@@ -636,20 +640,22 @@ class ServermapUpdater:
          pubkey, signature, share_hash_chain, block_hash_tree,
          share_data, enc_privkey) = r
 
-        return self._try_to_validate_privkey(enc_privkey, peerid, shnum)
+        return self._try_to_validate_privkey(enc_privkey, peerid, shnum, lp)
 
-    def _try_to_validate_privkey(self, enc_privkey, peerid, shnum):
+    def _try_to_validate_privkey(self, enc_privkey, peerid, shnum, lp):
 
         alleged_privkey_s = self._node._decrypt_privkey(enc_privkey)
         alleged_writekey = hashutil.ssk_writekey_hash(alleged_privkey_s)
         if alleged_writekey != self._node.get_writekey():
             self.log("invalid privkey from %s shnum %d" %
-                     (idlib.nodeid_b2a(peerid)[:8], shnum), level=log.WEIRD)
+                     (idlib.nodeid_b2a(peerid)[:8], shnum),
+                     parent=lp, level=log.WEIRD)
             return
 
         # it's good
         self.log("got valid privkey from shnum %d on peerid %s" %
-                 (shnum, idlib.shortnodeid_b2a(peerid)))
+                 (shnum, idlib.shortnodeid_b2a(peerid)),
+                 parent=lp)
         privkey = rsa.create_signing_key_from_string(alleged_privkey_s)
         self._node._populate_encprivkey(enc_privkey)
         self._node._populate_privkey(privkey)
@@ -669,7 +675,7 @@ class ServermapUpdater:
         self._queries_completed += 1
         self._last_failure = f
 
-    def _got_privkey_results(self, datavs, peerid, shnum, started):
+    def _got_privkey_results(self, datavs, peerid, shnum, started, lp):
         now = time.time()
         elapsed = now - started
         self._status.add_per_server_time(peerid, "privkey", started, elapsed)
@@ -681,12 +687,12 @@ class ServermapUpdater:
             return
         datav = datavs[shnum]
         enc_privkey = datav[0]
-        self._try_to_validate_privkey(enc_privkey, peerid, shnum)
+        self._try_to_validate_privkey(enc_privkey, peerid, shnum, lp)
 
-    def _privkey_query_failed(self, f, peerid, shnum):
+    def _privkey_query_failed(self, f, peerid, shnum, lp):
         self._queries_outstanding.discard(peerid)
         self.log("error during privkey query: %s %s" % (f, f.value),
-                 level=log.WEIRD)
+                 parent=lp, level=log.WEIRD)
         if not self._running:
             return
         self._queries_outstanding.discard(peerid)
@@ -702,12 +708,14 @@ class ServermapUpdater:
         lp = self.log(format=("_check_for_done, mode is '%(mode)s', "
                               "%(outstanding)d queries outstanding, "
                               "%(extra)d extra peers available, "
-                              "%(must)d 'must query' peers left"
+                              "%(must)d 'must query' peers left, "
+                              "need_privkey=%(need_privkey)s"
                               ),
                       mode=self.mode,
                       outstanding=len(self._queries_outstanding),
                       extra=len(self.extra_peers),
                       must=len(self._must_query),
+                      need_privkey=self._need_privkey,
                       level=log.NOISY,
                       )
 

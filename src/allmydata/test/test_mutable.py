@@ -3,6 +3,7 @@ import os, struct
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
+from twisted.python import failure
 from allmydata import uri, download, storage
 from allmydata.util import base32, testutil, idlib
 from allmydata.util.idlib import shortnodeid_b2a
@@ -54,18 +55,29 @@ class FakeStorage:
         # order).
         self._sequence = None
         self._pending = {}
+        self._pending_timer = None
+        self._special_answers = {}
 
     def read(self, peerid, storage_index):
         shares = self._peers.get(peerid, {})
+        if self._special_answers.get(peerid, []):
+            mode = self._special_answers[peerid].pop(0)
+            if mode == "fail":
+                shares = failure.Failure(IntentionalError())
+            elif mode == "none":
+                shares = {}
+            elif mode == "normal":
+                pass
         if self._sequence is None:
             return defer.succeed(shares)
         d = defer.Deferred()
         if not self._pending:
-            reactor.callLater(1.0, self._fire_readers)
+            self._pending_timer = reactor.callLater(1.0, self._fire_readers)
         self._pending[peerid] = (d, shares)
         return d
 
     def _fire_readers(self):
+        self._pending_timer = None
         pending = self._pending
         self._pending = {}
         extra = []
@@ -654,7 +666,7 @@ class Servermap(unittest.TestCase):
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
 
         # create a new file, which is large enough to knock the privkey out
-        # of the early part of the fil
+        # of the early part of the file
         LARGE = "These are Larger contents" * 200 # about 5KB
         d.addCallback(lambda res: self._client.create_mutable_file(LARGE))
         def _created(large_fn):
@@ -1342,6 +1354,7 @@ class LocalWrapper:
     def __init__(self, original):
         self.original = original
         self.broken = False
+        self.post_call_notifier = None
     def callRemote(self, methname, *args, **kwargs):
         def _call():
             if self.broken:
@@ -1350,6 +1363,8 @@ class LocalWrapper:
             return meth(*args, **kwargs)
         d = fireEventually()
         d.addCallback(lambda res: _call())
+        if self.post_call_notifier:
+            d.addCallback(self.post_call_notifier, methname)
         return d
 
 class LessFakeClient(FakeClient):
@@ -1467,5 +1482,74 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
         # that ought to work too
         d.addCallback(lambda res: n.download_best_version())
         d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
+        return d
+
+    def test_privkey_query_error(self):
+        # when a servermap is updated with MODE_WRITE, it tries to get the
+        # privkey. Something might go wrong during this query attempt.
+        self.client = FakeClient(20)
+        # we need some contents that are large enough to push the privkey out
+        # of the early part of the file
+        LARGE = "These are Larger contents" * 200 # about 5KB
+        d = self.client.create_mutable_file(LARGE)
+        def _created(n):
+            self.uri = n.get_uri()
+            self.n2 = self.client.create_node_from_uri(self.uri)
+            # we start by doing a map update to figure out which is the first
+            # server.
+            return n.get_servermap(MODE_WRITE)
+        d.addCallback(_created)
+        d.addCallback(lambda res: fireEventually(res))
+        def _got_smap1(smap):
+            peer0 = list(smap.make_sharemap()[0])[0]
+            # we tell the server to respond to this peer first, so that it
+            # will be asked for the privkey first
+            self.client._storage._sequence = [peer0]
+            # now we make the peer fail their second query
+            self.client._storage._special_answers[peer0] = ["normal", "fail"]
+        d.addCallback(_got_smap1)
+        # now we update a servermap from a new node (which doesn't have the
+        # privkey yet, forcing it to use a separate privkey query). Each
+        # query response will trigger a privkey query, and since we're using
+        # _sequence to make the peer0 response come back first, we'll send it
+        # a privkey query first, and _sequence will again ensure that the
+        # peer0 query will also come back before the others, and then
+        # _special_answers will make sure that the query raises an exception.
+        # The whole point of these hijinks is to exercise the code in
+        # _privkey_query_failed. Note that the map-update will succeed, since
+        # we'll just get a copy from one of the other shares.
+        d.addCallback(lambda res: self.n2.get_servermap(MODE_WRITE))
+        # Using FakeStorage._sequence means there will be read requests still
+        # floating around.. wait for them to retire
+        def _cancel_timer(res):
+            if self.client._storage._pending_timer:
+                self.client._storage._pending_timer.cancel()
+            return res
+        d.addBoth(_cancel_timer)
+        return d
+
+    def test_privkey_query_missing(self):
+        # like test_privkey_query_error, but the shares are deleted by the
+        # second query, instead of raising an exception.
+        self.client = FakeClient(20)
+        LARGE = "These are Larger contents" * 200 # about 5KB
+        d = self.client.create_mutable_file(LARGE)
+        def _created(n):
+            self.uri = n.get_uri()
+            self.n2 = self.client.create_node_from_uri(self.uri)
+            return n.get_servermap(MODE_WRITE)
+        d.addCallback(_created)
+        d.addCallback(lambda res: fireEventually(res))
+        def _got_smap1(smap):
+            peer0 = list(smap.make_sharemap()[0])[0]
+            self.client._storage._sequence = [peer0]
+            self.client._storage._special_answers[peer0] = ["normal", "none"]
+        d.addCallback(_got_smap1)
+        d.addCallback(lambda res: self.n2.get_servermap(MODE_WRITE))
+        def _cancel_timer(res):
+            if self.client._storage._pending_timer:
+                self.client._storage._pending_timer.cancel()
+            return res
+        d.addBoth(_cancel_timer)
         return d
 
