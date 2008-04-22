@@ -1,12 +1,13 @@
 
-import struct
+import os, struct
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
-from allmydata import uri, download
-from allmydata.util import base32, testutil
+from allmydata import uri, download, storage
+from allmydata.util import base32, testutil, idlib
 from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash
+from allmydata.util.fileutil import make_dirs
 from allmydata.encode import NotEnoughSharesError
 from allmydata.interfaces import IURI, IMutableFileURI, IUploadable
 from foolscap.eventual import eventually, fireEventually
@@ -1330,4 +1331,141 @@ class Exceptions(unittest.TestCase):
         self.failUnless("NeedMoreDataError" in repr(nmde), repr(nmde))
         ucwe = UncoordinatedWriteError()
         self.failUnless("UncoordinatedWriteError" in repr(ucwe), repr(ucwe))
+
+# we can't do this test with a FakeClient, since it uses FakeStorageServer
+# instances which always succeed. So we need a less-fake one.
+
+class IntentionalError(Exception):
+    pass
+
+class LocalWrapper:
+    def __init__(self, original):
+        self.original = original
+        self.broken = False
+    def callRemote(self, methname, *args, **kwargs):
+        def _call():
+            if self.broken:
+                raise IntentionalError("I was asked to break")
+            meth = getattr(self.original, "remote_" + methname)
+            return meth(*args, **kwargs)
+        d = fireEventually()
+        d.addCallback(lambda res: _call())
+        return d
+
+class LessFakeClient(FakeClient):
+
+    def __init__(self, basedir, num_peers=10):
+        self._num_peers = num_peers
+        self._peerids = [tagged_hash("peerid", "%d" % i)[:20]
+                         for i in range(self._num_peers)]
+        self._connections = {}
+        for peerid in self._peerids:
+            peerdir = os.path.join(basedir, idlib.shortnodeid_b2a(peerid))
+            make_dirs(peerdir)
+            ss = storage.StorageServer(peerdir)
+            ss.setNodeID(peerid)
+            lw = LocalWrapper(ss)
+            self._connections[peerid] = lw
+        self.nodeid = "fakenodeid"
+
+
+class Problems(unittest.TestCase, testutil.ShouldFailMixin):
+    def test_surprise(self):
+        basedir = os.path.join("mutable/CollidingWrites/test_surprise")
+        self.client = LessFakeClient(basedir)
+        d = self.client.create_mutable_file("contents 1")
+        def _created(n):
+            d = defer.succeed(None)
+            d.addCallback(lambda res: n.get_servermap(MODE_WRITE))
+            def _got_smap1(smap):
+                # stash the old state of the file
+                self.old_map = smap
+            d.addCallback(_got_smap1)
+            # then modify the file, leaving the old map untouched
+            d.addCallback(lambda res: log.msg("starting winning write"))
+            d.addCallback(lambda res: n.overwrite("contents 2"))
+            # now attempt to modify the file with the old servermap. This
+            # will look just like an uncoordinated write, in which every
+            # single share got updated between our mapupdate and our publish
+            d.addCallback(lambda res: log.msg("starting doomed write"))
+            d.addCallback(lambda res:
+                          self.shouldFail(UncoordinatedWriteError,
+                                          "test_surprise", None,
+                                          n.upload,
+                                          "contents 2a", self.old_map))
+            return d
+        d.addCallback(_created)
+        return d
+
+    def test_unexpected_shares(self):
+        # upload the file, take a servermap, shut down one of the servers,
+        # upload it again (causing shares to appear on a new server), then
+        # upload using the old servermap. The last upload should fail with an
+        # UncoordinatedWriteError, because of the shares that didn't appear
+        # in the servermap.
+        basedir = os.path.join("mutable/CollidingWrites/test_unexpexted_shares")
+        self.client = LessFakeClient(basedir)
+        d = self.client.create_mutable_file("contents 1")
+        def _created(n):
+            d = defer.succeed(None)
+            d.addCallback(lambda res: n.get_servermap(MODE_WRITE))
+            def _got_smap1(smap):
+                # stash the old state of the file
+                self.old_map = smap
+                # now shut down one of the servers
+                peer0 = list(smap.make_sharemap()[0])[0]
+                self.client._connections.pop(peer0)
+                # then modify the file, leaving the old map untouched
+                log.msg("starting winning write")
+                return n.overwrite("contents 2")
+            d.addCallback(_got_smap1)
+            # now attempt to modify the file with the old servermap. This
+            # will look just like an uncoordinated write, in which every
+            # single share got updated between our mapupdate and our publish
+            d.addCallback(lambda res: log.msg("starting doomed write"))
+            d.addCallback(lambda res:
+                          self.shouldFail(UncoordinatedWriteError,
+                                          "test_surprise", None,
+                                          n.upload,
+                                          "contents 2a", self.old_map))
+            return d
+        d.addCallback(_created)
+        return d
+
+    def test_bad_server(self):
+        # Break one server, then create the file: the initial publish should
+        # complete with an alternate server. Breaking a second server should
+        # not prevent an update from succeeding either.
+        basedir = os.path.join("mutable/CollidingWrites/test_bad_server")
+        self.client = LessFakeClient(basedir, 20)
+        # to make sure that one of the initial peers is broken, we have to
+        # get creative. We create the keys, so we can figure out the storage
+        # index, but we hold off on doing the initial publish until we've
+        # broken the server on which the first share wants to be stored.
+        n = FastMutableFileNode(self.client)
+        d = defer.succeed(None)
+        d.addCallback(n._generate_pubprivkeys)
+        d.addCallback(n._generated)
+        def _break_peer0(res):
+            si = n.get_storage_index()
+            peerlist = self.client.get_permuted_peers("storage", si)
+            peerid0, connection0 = peerlist[0]
+            peerid1, connection1 = peerlist[1]
+            connection0.broken = True
+            self.connection1 = connection1
+        d.addCallback(_break_peer0)
+        # now let the initial publish finally happen
+        d.addCallback(lambda res: n._upload("contents 1", None))
+        # that ought to work
+        d.addCallback(lambda res: n.download_best_version())
+        d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
+        # now break the second peer
+        def _break_peer1(res):
+            self.connection1.broken = True
+        d.addCallback(_break_peer1)
+        d.addCallback(lambda res: n.overwrite("contents 2"))
+        # that ought to work too
+        d.addCallback(lambda res: n.download_best_version())
+        d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
+        return d
 

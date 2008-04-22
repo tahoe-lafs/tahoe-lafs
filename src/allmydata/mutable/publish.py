@@ -11,7 +11,8 @@ from allmydata import hashtree, codec, storage
 from pycryptopp.cipher.aes import AES
 from foolscap.eventual import eventually
 
-from common import MODE_WRITE, UncoordinatedWriteError, DictOfSets
+from common import MODE_WRITE, DictOfSets, \
+     UncoordinatedWriteError, NotEnoughServersError
 from servermap import ServerMap
 from layout import pack_prefix, pack_share, unpack_header, pack_checkstring, \
      unpack_checkstring, SIGNED_PREFIX
@@ -110,15 +111,13 @@ class Publish:
         self._status.set_progress(0.0)
         self._status.set_active(True)
 
+    def get_status(self):
+        return self._status
+
     def log(self, *args, **kwargs):
         if 'parent' not in kwargs:
             kwargs['parent'] = self._log_number
         return log.msg(*args, **kwargs)
-
-    def log_err(self, *args, **kwargs):
-        if 'parent' not in kwargs:
-            kwargs['parent'] = self._log_number
-        return log.err(*args, **kwargs)
 
     def publish(self, newdata):
         """Publish the filenode's current contents.  Returns a Deferred that
@@ -191,7 +190,15 @@ class Publish:
 
         self.setup_encoding_parameters()
 
+        # if we experience any surprises (writes which were rejected because
+        # our test vector did not match, or shares which we didn't expect to
+        # see), we set this flag and report an UncoordinatedWriteError at the
+        # end of the publish process.
         self.surprised = False
+
+        # as a failsafe, refuse to iterate through self.loop more than a
+        # thousand times.
+        self.looplimit = 1000
 
         # we keep track of three tables. The first is our goal: which share
         # we want to see on which servers. This is initially populated by the
@@ -264,19 +271,28 @@ class Publish:
         self.log("entering loop", level=log.NOISY)
         if not self._running:
             return
-        self.update_goal()
-        # how far are we from our goal?
-        needed = self.goal - self.placed - self.outstanding
-        self._update_status()
 
-        if needed:
-            # we need to send out new shares
-            self.log(format="need to send %(needed)d new shares",
-                     needed=len(needed), level=log.NOISY)
-            d = self._send_shares(needed)
-            d.addCallback(self.loop)
-            d.addErrback(self._fatal_error)
-            return
+        self.looplimit -= 1
+        if self.looplimit <= 0:
+            raise RuntimeError("loop limit exceeded")
+
+        if self.surprised:
+            # don't send out any new shares, just wait for the outstanding
+            # ones to be retired.
+            self.log("currently surprised, so don't send any new shares",
+                     level=log.NOISY)
+        else:
+            self.update_goal()
+            # how far are we from our goal?
+            needed = self.goal - self.placed - self.outstanding
+            self._update_status()
+
+            if needed:
+                # we need to send out new shares
+                self.log(format="need to send %(needed)d new shares",
+                         needed=len(needed), level=log.NOISY)
+                self._send_shares(needed)
+                return
 
         if self.outstanding:
             # queries are still pending, keep waiting
@@ -293,9 +309,9 @@ class Publish:
         self._status.timings["push"] = elapsed
         return self._done(None)
 
-    def log_goal(self, goal):
-        logmsg = []
-        for (peerid, shnum) in goal:
+    def log_goal(self, goal, message=""):
+        logmsg = [message]
+        for (shnum, peerid) in sorted([(s,p) for (p,s) in goal]):
             logmsg.append("sh%d to [%s]" % (shnum,
                                             idlib.shortnodeid_b2a(peerid)))
         self.log("current goal: %s" % (", ".join(logmsg)), level=log.NOISY)
@@ -303,6 +319,10 @@ class Publish:
                  level=log.NOISY)
 
     def update_goal(self):
+        # if log.recording_noisy
+        if True:
+            self.log_goal(self.goal, "before update: ")
+
         # first, remove any bad peers from our goal
         self.goal = set([ (peerid, shnum)
                           for (peerid, shnum) in self.goal
@@ -317,10 +337,6 @@ class Publish:
 
         if not homeless_shares:
             return
-
-        # if log.recording_noisy
-        if False:
-            self.log_goal(self.goal)
 
         # if an old share X is on a node, put the new share X there too.
         # TODO: 1: redistribute shares to achieve one-per-peer, by copying
@@ -340,9 +356,14 @@ class Publish:
 
         peerlist = []
         for i, (peerid, ss) in enumerate(self.full_peerlist):
+            if peerid in self.bad_peers:
+                continue
             entry = (len(old_assignments.get(peerid, [])), i, peerid, ss)
             peerlist.append(entry)
         peerlist.sort()
+
+        if not peerlist:
+            raise NotEnoughServersError("Ran out of non-bad servers")
 
         new_assignments = []
         # we then index this peerlist with an integer, because we may have to
@@ -350,11 +371,20 @@ class Publish:
         i = 0
         for shnum in homeless_shares:
             (ignored1, ignored2, peerid, ss) = peerlist[i]
+            # TODO: if we are forced to send a share to a server that already
+            # has one, we may have two write requests in flight, and the
+            # servermap (which was computed before either request was sent)
+            # won't reflect the new shares, so the second response will cause
+            # us to be surprised ("unexpected share on peer"), causing the
+            # publish to fail with an UncoordinatedWriteError. This is
+            # troublesome but not really a bit problem. Fix it at some point.
             self.goal.add( (peerid, shnum) )
             self.connections[peerid] = ss
             i += 1
             if i >= len(peerlist):
                 i = 0
+        if True:
+            self.log_goal(self.goal, "after update: ")
 
 
 
@@ -564,8 +594,8 @@ class Publish:
         read_vector = [(0, struct.calcsize(SIGNED_PREFIX))]
 
         # ok, send the messages!
+        self.log("sending %d shares" % len(all_tw_vectors), level=log.NOISY)
         started = time.time()
-        dl = []
         for (peerid, tw_vectors) in all_tw_vectors.items():
 
             write_enabler = self._node.get_write_enabler(peerid)
@@ -574,16 +604,19 @@ class Publish:
             secrets = (write_enabler, renew_secret, cancel_secret)
             shnums = tw_vectors.keys()
 
+            for shnum in shnums:
+                self.outstanding.add( (peerid, shnum) )
+
             d = self._do_testreadwrite(peerid, secrets,
                                        tw_vectors, read_vector)
             d.addCallbacks(self._got_write_answer, self._got_write_error,
                            callbackArgs=(peerid, shnums, started),
                            errbackArgs=(peerid, shnums, started))
+            d.addCallback(self.loop)
             d.addErrback(self._fatal_error)
-            dl.append(d)
 
         self._update_status()
-        return defer.DeferredList(dl, fireOnOneErrback=True) # just for testing
+        self.log("%d shares sent" % len(all_tw_vectors), level=log.NOISY)
 
     def _do_testreadwrite(self, peerid, secrets,
                           tw_vectors, read_vector):
@@ -610,7 +643,29 @@ class Publish:
 
         wrote, read_data = answer
 
+        surprise_shares = set(read_data.keys()) - set(shnums)
+        if surprise_shares:
+            self.log("they had shares %s that we didn't know about" %
+                     (list(surprise_shares),),
+                     parent=lp, level=log.WEIRD)
+            self.surprised = True
+
         if not wrote:
+            # TODO: there are two possibilities. The first is that the server
+            # is full (or just doesn't want to give us any room), which means
+            # we shouldn't ask them again, but is *not* an indication of an
+            # uncoordinated write. The second is that our testv failed, which
+            # *does* indicate an uncoordinated write. We currently don't have
+            # a way to tell these two apart (in fact, the storage server code
+            # doesn't have the option of refusing our share).
+            #
+            # If the server is full, mark the peer as bad (so we don't ask
+            # them again), but don't set self.surprised. The loop() will find
+            # a new server.
+            #
+            # If the testv failed, log it, set self.surprised, but don't
+            # bother adding to self.bad_peers .
+
             self.log("our testv failed, so the write did not happen",
                      parent=lp, level=log.WEIRD)
             self.surprised = True
@@ -623,15 +678,19 @@ class Publish:
                  other_salt) = unpack_checkstring(checkstring)
                 expected_version = self._servermap.version_on_peer(peerid,
                                                                    shnum)
-                (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
-                 offsets_tuple) = expected_version
-                self.log("somebody modified the share on us:"
-                         " shnum=%d: I thought they had #%d:R=%s,"
-                         " but testv reported #%d:R=%s" %
-                         (shnum,
-                          seqnum, base32.b2a(root_hash)[:4],
-                          other_seqnum, base32.b2a(other_roothash)[:4]),
-                         parent=lp, level=log.NOISY)
+                if expected_version:
+                    (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
+                     offsets_tuple) = expected_version
+                    self.log("somebody modified the share on us:"
+                             " shnum=%d: I thought they had #%d:R=%s,"
+                             " but testv reported #%d:R=%s" %
+                             (shnum,
+                              seqnum, base32.b2a(root_hash)[:4],
+                              other_seqnum, base32.b2a(other_roothash)[:4]),
+                             parent=lp, level=log.NOISY)
+                # if expected_version==None, then we didn't expect to see a
+                # share on that peer, and the 'surprise_shares' clause above
+                # will have logged it.
             # self.loop() will take care of finding new homes
             return
 
@@ -640,14 +699,6 @@ class Publish:
             # and update the servermap
             self._servermap.add_new_share(peerid, shnum,
                                           self.versioninfo, started)
-
-        surprise_shares = set(read_data.keys()) - set(shnums)
-        if surprise_shares:
-            self.log("they had shares %s that we didn't know about" %
-                     (list(surprise_shares),),
-                     parent=lp, level=log.WEIRD)
-            self.surprised = True
-            return
 
         # self.loop() will take care of checking to see if we're done
         return
@@ -664,28 +715,6 @@ class Publish:
         return
 
 
-
-    def _log_dispatch_map(self, dispatch_map):
-        for shnum, places in dispatch_map.items():
-            sent_to = [(idlib.shortnodeid_b2a(peerid),
-                        seqnum,
-                        base32.b2a(root_hash)[:4])
-                       for (peerid,seqnum,root_hash) in places]
-            self.log(" share %d sent to: %s" % (shnum, sent_to),
-                     level=log.NOISY)
-
-    def _maybe_recover(self, (surprised, dispatch_map)):
-        self.log("_maybe_recover, surprised=%s, dispatch_map:" % surprised,
-                 level=log.NOISY)
-        self._log_dispatch_map(dispatch_map)
-        if not surprised:
-            self.log(" no recovery needed")
-            return
-        self.log("We need recovery!", level=log.WEIRD)
-        print "RECOVERY NOT YET IMPLEMENTED"
-        # but dispatch_map will help us do it
-        raise UncoordinatedWriteError("I was surprised!")
-
     def _done(self, res):
         if not self._running:
             return
@@ -694,14 +723,18 @@ class Publish:
         self._status.timings["total"] = now - self._started
         self._status.set_active(False)
         if isinstance(res, failure.Failure):
-            self.log("Retrieve done, with failure", failure=res)
+            self.log("Publish done, with failure", failure=res, level=log.WEIRD)
             self._status.set_status("Failed")
+        elif self.surprised:
+            self.log("Publish done, UncoordinatedWriteError", level=log.UNUSUAL)
+            self._status.set_status("UncoordinatedWriteError")
+            # deliver a failure
+            res = failure.Failure(UncoordinatedWriteError())
+            # TODO: recovery
         else:
+            self.log("Publish done, success")
             self._status.set_status("Done")
             self._status.set_progress(1.0)
         eventually(self.done_deferred.callback, res)
-
-    def get_status(self):
-        return self._status
 
 

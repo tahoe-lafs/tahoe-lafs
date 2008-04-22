@@ -101,22 +101,23 @@ class MutableFileNode:
         contents. Returns a Deferred that fires (with the MutableFileNode
         instance you should use) when it completes.
         """
-        self._required_shares, self._total_shares = self.DEFAULT_ENCODING
 
         d = defer.maybeDeferred(self._generate_pubprivkeys, keypair_generator)
-        def _generated( (pubkey, privkey) ):
-            self._pubkey, self._privkey = pubkey, privkey
-            pubkey_s = self._pubkey.serialize()
-            privkey_s = self._privkey.serialize()
-            self._writekey = hashutil.ssk_writekey_hash(privkey_s)
-            self._encprivkey = self._encrypt_privkey(self._writekey, privkey_s)
-            self._fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
-            self._uri = WriteableSSKFileURI(self._writekey, self._fingerprint)
-            self._readkey = self._uri.readkey
-            self._storage_index = self._uri.storage_index
-            return self._upload(initial_contents, None)
-        d.addCallback(_generated)
+        d.addCallback(self._generated)
+        d.addCallback(lambda res: self._upload(initial_contents, None))
         return d
+
+    def _generated(self, (pubkey, privkey) ):
+        self._pubkey, self._privkey = pubkey, privkey
+        pubkey_s = self._pubkey.serialize()
+        privkey_s = self._privkey.serialize()
+        self._writekey = hashutil.ssk_writekey_hash(privkey_s)
+        self._encprivkey = self._encrypt_privkey(self._writekey, privkey_s)
+        self._fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
+        self._uri = WriteableSSKFileURI(self._writekey, self._fingerprint)
+        self._readkey = self._uri.readkey
+        self._storage_index = self._uri.storage_index
+        self._required_shares, self._total_shares = self.DEFAULT_ENCODING
 
     def _generate_pubprivkeys(self, keypair_generator):
         if keypair_generator:

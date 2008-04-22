@@ -30,6 +30,10 @@ class UncoordinatedWriteError(Exception):
 class UnrecoverableFileError(Exception):
     pass
 
+class NotEnoughServersError(Exception):
+    """There were not enough functioning servers available to place shares
+    upon."""
+
 class CorruptShareError(Exception):
     def __init__(self, peerid, shnum, reason):
         self.args = (peerid, shnum, reason)
