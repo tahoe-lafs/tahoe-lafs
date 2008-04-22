@@ -725,7 +725,7 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
                       for peerid, times in per_server.items() ]
         sorttable.sort()
         peerids = [t[1] for t in sorttable]
-            
+
         for peerid in peerids:
             times = per_server[peerid]
             peerid_s = idlib.shortnodeid_b2a(peerid)
