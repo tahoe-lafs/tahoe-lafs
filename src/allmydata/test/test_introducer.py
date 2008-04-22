@@ -10,7 +10,7 @@ from foolscap import Tub, Referenceable
 from foolscap.eventual import fireEventually, flushEventualQueue
 from twisted.application import service
 from allmydata.introducer import IntroducerClient, IntroducerService, IntroducerNode
-from allmydata.util import testutil
+from allmydata.util import testutil, idlib
 
 class FakeNode(Referenceable):
     pass
@@ -117,8 +117,9 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
             # now disconnect somebody's connection to someone else
             current_counter = origin_c.counter
             victim_nodeid = b32decode(tubs[clients[1]].tubID.upper())
-            log.msg(" disconnecting %s->%s" % (tubs[origin_c].tubID,
-                                               victim_nodeid))
+            log.msg(" disconnecting %s->%s" %
+                    (tubs[origin_c].tubID,
+                     idlib.shortnodeid_b2a(victim_nodeid)))
             origin_c.debug_disconnect_from_peerid(victim_nodeid)
             log.msg(" did disconnect")
 
@@ -142,8 +143,9 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
             # now disconnect somebody's connection to themselves.
             current_counter = origin_c.counter
             victim_nodeid = b32decode(tubs[clients[0]].tubID.upper())
-            log.msg(" disconnecting %s->%s" % (tubs[origin_c].tubID,
-                                               victim_nodeid))
+            log.msg(" disconnecting %s->%s" %
+                    (tubs[origin_c].tubID,
+                     idlib.shortnodeid_b2a(victim_nodeid)))
             origin_c.debug_disconnect_from_peerid(victim_nodeid)
             log.msg(" did disconnect from self")
 
