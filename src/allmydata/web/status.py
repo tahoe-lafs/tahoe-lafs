@@ -710,7 +710,7 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
 
     def _timing_chart(self):
         started = self.update_status.get_started()
-        total = self.update_status.timings["total"]
+        total = self.update_status.timings.get("total")
         per_server = self.update_status.timings.get("per_server")
         base = "http://chart.apis.google.com/chart?"
         pieces = ["cht=bhs", "chs=400x300"]
@@ -759,10 +759,11 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
         # mathutil.next_power_of_k doesn't handle numbers smaller than one,
         # unfortunately.
         #pieces.append("chg="
-        # this chm=r thing is being interpreted as 1.0=fullscale
-        finished_f = 1.0 * total / top_rel
-        pieces.append("chm=r,FF0000,0,%0.3f,%0.3f" % (finished_f,
-                                                      finished_f+0.01))
+
+        if total is not None:
+            finished_f = 1.0 * total / top_rel
+            pieces.append("chm=r,FF0000,0,%0.3f,%0.3f" % (finished_f,
+                                                          finished_f+0.01))
         url = base + "&".join(pieces)
         return T.img(src=url, align="right", float="right")
 
