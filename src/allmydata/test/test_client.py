@@ -7,7 +7,7 @@ from twisted.python import log
 
 import allmydata
 from allmydata import client, introducer
-from allmydata.util import base32
+from allmydata.util import base32, testutil
 from foolscap.eventual import flushEventualQueue
 
 class FakeIntroducerClient(introducer.IntroducerClient):
@@ -145,7 +145,7 @@ def flush_but_dont_ignore(res):
     d.addCallback(_done)
     return d
 
-class Run(unittest.TestCase):
+class Run(unittest.TestCase, testutil.StallMixin):
 
     def setUp(self):
         self.sparent = service.MultiService()
@@ -162,11 +162,6 @@ class Run(unittest.TestCase):
         open(os.path.join(basedir, "introducer.furl"), "w").write(dummy)
         open(os.path.join(basedir, "suicide_prevention_hotline"), "w")
         c = client.Client(basedir)
-
-    def stall(self, res=None, delay=1):
-        d = defer.Deferred()
-        reactor.callLater(delay, d.callback, res)
-        return d
 
     def test_reloadable(self):
         basedir = "test_client.Run.test_reloadable"

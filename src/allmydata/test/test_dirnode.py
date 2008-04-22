@@ -64,7 +64,7 @@ class FakeClient:
         return d
 
 
-class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
+class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
     def setUp(self):
         self.client = FakeClient()
 
@@ -161,11 +161,6 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin):
 
     def failUnlessGreaterOrEqualThan(self, a, b):
         self.failUnless(a >= b, "%r should be >= %r" % (a, b))
-
-    def stall(self, res, delay=1.0):
-        d = defer.Deferred()
-        reactor.callLater(delay, d.callback, res)
-        return d
 
     def test_create(self):
         self.expected_manifest = []

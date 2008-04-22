@@ -57,6 +57,12 @@ class PollMixin:
         if check_f():
             lc.stop()
 
+class StallMixin:
+    def stall(self, res=None, delay=1):
+        d = defer.Deferred()
+        reactor.callLater(delay, d.callback, res)
+        return d
+
 class ShouldFailMixin:
 
     def shouldFail(self, expected_failure, which, substring,

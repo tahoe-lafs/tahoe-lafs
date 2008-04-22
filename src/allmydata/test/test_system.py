@@ -50,7 +50,8 @@ class CountingDataUploadable(upload.Data):
         return upload.Data.read(self, length)
 
 
-class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
+class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
+                 unittest.TestCase):
 
     def setUp(self):
         self.sparent = service.MultiService()
@@ -977,11 +978,6 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, unittest.TestCase):
         # print "MSG: %s  RES: %s" % (msg, res)
         log.msg(msg, **kwargs)
         return res
-
-    def stall(self, res, delay=1.0):
-        d = defer.Deferred()
-        reactor.callLater(delay, d.callback, res)
-        return d
 
     def _do_publish_private(self, res):
         self.smalldata = "sssh, very secret stuff"
