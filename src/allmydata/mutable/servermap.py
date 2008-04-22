@@ -511,6 +511,7 @@ class ServermapUpdater:
                 verinfo = self._got_results_one_share(shnum, data, peerid)
                 last_verinfo = verinfo
                 last_shnum = shnum
+                self._node._cache.add(verinfo, shnum, 0, data, now)
             except CorruptShareError, e:
                 # log it and give the other shares a chance to be processed
                 f = failure.Failure()
