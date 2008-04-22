@@ -40,11 +40,11 @@ class KeyGenService(unittest.TestCase, testutil.PollMixin):
             return junk
 
         #print 'starting key generator service'
-        kgs = key_generator.KeyGeneratorService(display_furl=False)
+        keysize = 522
+        kgs = key_generator.KeyGeneratorService(display_furl=False, default_key_size=keysize)
         kgs.key_generator.verbose = True
         kgs.setServiceParent(self.parent)
         kgs.key_generator.pool_size = 8
-        keysize = kgs.key_generator.DEFAULT_KEY_SIZE
 
         def keypool_full():
             return len(kgs.key_generator.keypool) == kgs.key_generator.pool_size

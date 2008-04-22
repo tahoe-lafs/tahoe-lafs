@@ -14,9 +14,8 @@ keygen_tac = """
 from allmydata import key_generator
 from twisted.application import service
 
-k = key_generator.KeyGeneratorService()
+k = key_generator.KeyGeneratorService(2048)
 #k.key_generator.verbose = False
-#k.key_generator.DEFAULT_KEY_SIZE = 2048
 #k.key_generator.pool_size = 16
 #k.key_generator.pool_refresh_delay = 6
 

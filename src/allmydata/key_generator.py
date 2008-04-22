@@ -14,15 +14,15 @@ from allmydata.interfaces import RIKeyGenerator
 class KeyGenerator(service.MultiService, foolscap.Referenceable):
     implements(RIKeyGenerator)
 
-    DEFAULT_KEY_SIZE = 2048
     pool_size = 16 # no. keys to keep on hand in the pool
     pool_refresh_delay = 6 # no. sec to wait after a fetch before generating new keys
     verbose = False
 
-    def __init__(self):
+    def __init__(self, default_key_size=2048):
         service.MultiService.__init__(self)
         self.keypool = []
         self.last_fetch = 0
+        self.default_key_size = default_key_size
 
     def startService(self):
         self.timer = reactor.callLater(0, self.maybe_refill_pool)
@@ -52,7 +52,7 @@ class KeyGenerator(service.MultiService, foolscap.Referenceable):
         if self.last_fetch + self.pool_refresh_delay < now:
             self.vlog('%s refilling pool' % (self,))
             while len(self.keypool) < self.pool_size:
-                self.keypool.append(self.gen_key(self.DEFAULT_KEY_SIZE))
+                self.keypool.append(self.gen_key(self.default_key_size))
         else:
             self.vlog('%s not refilling pool' % (self,))
             reactor.callLater(1, self.maybe_refill_pool)
@@ -65,7 +65,7 @@ class KeyGenerator(service.MultiService, foolscap.Referenceable):
 
     def remote_get_rsa_key_pair(self, key_size):
         self.vlog('%s remote_get_key' % (self,))
-        if key_size != self.DEFAULT_KEY_SIZE or not self.keypool:
+        if key_size != self.default_key_size or not self.keypool:
             key = self.gen_key(key_size)
             self.reset_timer()
             return key
@@ -76,12 +76,12 @@ class KeyGenerator(service.MultiService, foolscap.Referenceable):
 class KeyGeneratorService(service.MultiService):
     furl_file = 'key_generator.furl'
 
-    def __init__(self, basedir='.', display_furl=True):
+    def __init__(self, basedir='.', display_furl=True, default_key_size=2048):
         service.MultiService.__init__(self)
         self.basedir = basedir
         self.tub = foolscap.Tub(certFile=os.path.join(self.basedir, 'key_generator.pem'))
         self.tub.setServiceParent(self)
-        self.key_generator = KeyGenerator()
+        self.key_generator = KeyGenerator(default_key_size=default_key_size)
         self.key_generator.setServiceParent(self)
 
         portnum = self.get_portnum()
