@@ -137,12 +137,6 @@ class MutableFileNode:
         privkey = enc.process(enc_privkey)
         return privkey
 
-    def _populate(self, stuff):
-        # the Retrieval object calls this with values it discovers when
-        # downloading the slot. This is how a MutableFileNode that was
-        # created from a URI learns about its full key.
-        pass
-
     def _populate_pubkey(self, pubkey):
         self._pubkey = pubkey
     def _populate_required_shares(self, required_shares):

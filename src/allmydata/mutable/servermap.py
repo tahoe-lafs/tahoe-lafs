@@ -558,13 +558,13 @@ class ServermapUpdater:
         (seqnum, root_hash, IV, k, N, segsize, datalength,
          pubkey_s, signature, prefix) = unpack_prefix_and_signature(data)
 
-        if not self._node._pubkey:
+        if not self._node.get_pubkey():
             fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
             assert len(fingerprint) == 32
             if fingerprint != self._node._fingerprint:
                 raise CorruptShareError(peerid, shnum,
                                         "pubkey doesn't match fingerprint")
-            self._node._pubkey = self._deserialize_pubkey(pubkey_s)
+            self._node._populate_pubkey(self._deserialize_pubkey(pubkey_s))
 
         if self._need_privkey:
             self._try_to_extract_privkey(data, peerid, shnum)
