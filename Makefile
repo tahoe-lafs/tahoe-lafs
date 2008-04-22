@@ -42,12 +42,6 @@ else
 	REACTOROPT := 
 endif
 
-# The following target is here because I don't know how to tell the buildmaster
-# to start instructing his slaves to "build" instead of instructing them to
-# "build-deps".  --Z
-build-deps:
-	echo "This is done automatically (by delegating to setuptools) now."
-
 ifneq ($(PYTHONPATH),)
         PP=PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)"
 else
