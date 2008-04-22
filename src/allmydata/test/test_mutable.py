@@ -301,6 +301,14 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
                           n.download_version(smap,
                                              smap.best_recoverable_version()))
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 3"))
+            # test a file that is large enough to overcome the
+            # mapupdate-to-retrieve data caching (i.e. make the shares larger
+            # than the default readsize, which is 2000 bytes). A 15kB file
+            # will have 5kB shares.
+            d.addCallback(lambda res: n.overwrite("large size file" * 1000))
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res:
+                          self.failUnlessEqual(res, "large size file" * 1000))
             return d
         d.addCallback(_created)
         return d
