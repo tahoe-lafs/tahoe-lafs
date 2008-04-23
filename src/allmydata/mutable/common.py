@@ -79,6 +79,10 @@ class ResponseCache:
     def __init__(self):
         self.cache = DictOfSets()
 
+    def _clear(self):
+        # used by unit tests
+        self.cache = DictOfSets()
+
     def _does_overlap(self, x_start, x_length, y_start, y_length):
         if x_start < y_start:
             x_start, y_start = y_start, x_start

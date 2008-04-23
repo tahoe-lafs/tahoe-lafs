@@ -1385,7 +1385,7 @@ class LessFakeClient(FakeClient):
 
 
 class Problems(unittest.TestCase, testutil.ShouldFailMixin):
-    def test_surprise(self):
+    def test_publish_surprise(self):
         basedir = os.path.join("mutable/CollidingWrites/test_surprise")
         self.client = LessFakeClient(basedir)
         d = self.client.create_mutable_file("contents 1")
@@ -1405,9 +1405,40 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: log.msg("starting doomed write"))
             d.addCallback(lambda res:
                           self.shouldFail(UncoordinatedWriteError,
-                                          "test_surprise", None,
+                                          "test_publish_surprise", None,
                                           n.upload,
                                           "contents 2a", self.old_map))
+            return d
+        d.addCallback(_created)
+        return d
+
+    def test_retrieve_surprise(self):
+        basedir = os.path.join("mutable/CollidingWrites/test_retrieve")
+        self.client = LessFakeClient(basedir)
+        d = self.client.create_mutable_file("contents 1")
+        def _created(n):
+            d = defer.succeed(None)
+            d.addCallback(lambda res: n.get_servermap(MODE_READ))
+            def _got_smap1(smap):
+                # stash the old state of the file
+                self.old_map = smap
+            d.addCallback(_got_smap1)
+            # then modify the file, leaving the old map untouched
+            d.addCallback(lambda res: log.msg("starting winning write"))
+            d.addCallback(lambda res: n.overwrite("contents 2"))
+            # now attempt to retrieve the old version with the old servermap.
+            # This will look like someone has changed the file since we
+            # updated the servermap.
+            d.addCallback(lambda res: n._cache._clear())
+            d.addCallback(lambda res: log.msg("starting doomed read"))
+            d.addCallback(lambda res:
+                          self.shouldFail(NotEnoughSharesError,
+                                          "test_retrieve_surprise",
+                                          "ran out of peers: have 0 shares (k=3)",
+                                          n.download_version,
+                                          self.old_map,
+                                          self.old_map.best_recoverable_version(),
+                                          ))
             return d
         d.addCallback(_created)
         return d
