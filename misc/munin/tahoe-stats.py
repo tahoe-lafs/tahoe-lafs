@@ -312,8 +312,8 @@ PLUGINS = {
           'graph_render': '\n'.join(['%(name)s.value %(value)s',
                                      ]),
         },
-    'tahoe_mutable_bytes_published':
-        { 'statid': 'mutable.bytes_published',
+    'tahoe_mutable_files_published':
+        { 'statid': 'mutable.files_published',
           'category': 'counters',
           'configheader': '\n'.join(['graph_title Tahoe Mutable Files Published',
                                      'graph_vlabel files',
