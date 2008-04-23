@@ -3,7 +3,7 @@ from base64 import b32encode
 import os, sys, time, re, simplejson
 from cStringIO import StringIO
 from twisted.trial import unittest
-from twisted.internet import defer, reactor
+from twisted.internet import defer
 from twisted.internet import threads # CLI tests use deferToThread
 from twisted.internet.error import ConnectionDone, ConnectionLost
 from twisted.application import service

@@ -2,7 +2,6 @@
 import os
 from twisted.trial import unittest
 from twisted.application import service
-from twisted.internet import reactor, defer
 from twisted.python import log
 
 import allmydata
