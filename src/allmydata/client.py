@@ -101,9 +101,16 @@ class Client(node.Node, testutil.PollMixin):
                               str(allmydata.__version__),
                               str(self.OLDEST_SUPPORTED_VERSION))
         self.introducer_client = ic
-        ic.setServiceParent(self)
-        # nodes that want to upload and download will need storage servers
-        ic.subscribe_to("storage")
+        # hold off on starting the IntroducerClient until our tub has been
+        # started, so we'll have a useful address on our RemoteReference, so
+        # that the introducer's status page will show us.
+        d = self.when_tub_ready()
+        def _start_introducer_client(res):
+            ic.setServiceParent(self)
+            # nodes that want to upload and download will need storage servers
+            ic.subscribe_to("storage")
+        d.addCallback(_start_introducer_client)
+        d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
 
     def init_stats_provider(self):
         gatherer_furl = self.get_config('stats_gatherer.furl')
