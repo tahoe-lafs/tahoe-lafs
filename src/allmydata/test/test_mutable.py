@@ -18,7 +18,8 @@ import sha
 from allmydata.mutable.node import MutableFileNode, BackoffAgent
 from allmydata.mutable.common import DictOfSets, ResponseCache, \
      MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, \
-     NeedMoreDataError, UnrecoverableFileError, UncoordinatedWriteError
+     NeedMoreDataError, UnrecoverableFileError, UncoordinatedWriteError, \
+     NotEnoughServersError
 from allmydata.mutable.retrieve import Retrieve
 from allmydata.mutable.publish import Publish
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
@@ -1515,6 +1516,18 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
         return d
 
+    def test_publish_all_servers_bad(self):
+        # Break all servers: the publish should fail
+        basedir = os.path.join("mutable/CollidingWrites/publish_all_servers_bad")
+        self.client = LessFakeClient(basedir, 20)
+        for connection in self.client._connections.values():
+            connection.broken = True
+        d = self.shouldFail(NotEnoughServersError,
+                            "test_publish_all_servers_bad",
+                            "Ran out of non-bad servers",
+                            self.client.create_mutable_file, "contents")
+        return d
+
     def test_privkey_query_error(self):
         # when a servermap is updated with MODE_WRITE, it tries to get the
         # privkey. Something might go wrong during this query attempt.
@@ -1583,4 +1596,3 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
             return res
         d.addBoth(_cancel_timer)
         return d
-
