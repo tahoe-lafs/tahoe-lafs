@@ -41,6 +41,13 @@ class IntroducerNode(node.Node):
         ws = IntroducerWebishServer(webport, nodeurl_path)
         self.add_service(ws)
 
+def make_index(announcement):
+    (furl, service_name, ri_name, nickname, ver, oldest) = announcement
+    m = re.match(r'pb://(\w+)@', furl)
+    assert m
+    nodeid = b32decode(m.group(1).upper())
+    return (nodeid, service_name)
+
 class IntroducerService(service.MultiService, Referenceable):
     implements(RIIntroducerPublisherAndSubscriberService)
     name = "introducer"
@@ -48,7 +55,8 @@ class IntroducerService(service.MultiService, Referenceable):
     def __init__(self, basedir="."):
         service.MultiService.__init__(self)
         self.introducer_url = None
-        self._announcements = {} # dict of (announcement)->timestamp
+        # 'index' is (tubid, service_name)
+        self._announcements = {} # dict of index -> (announcement, timestamp)
         self._subscribers = {} # dict of (rref->timestamp) dicts
 
     def log(self, *args, **kwargs):
@@ -63,11 +71,16 @@ class IntroducerService(service.MultiService, Referenceable):
 
     def remote_publish(self, announcement):
         self.log("introducer: announcement published: %s" % (announcement,) )
+        index = make_index(announcement)
+        if index in self._announcements:
+            (old_announcement, timestamp) = self._announcements[index]
+            if old_announcement == announcement:
+                self.log("but we already knew it, ignoring", level=log.NOISY)
+                return
+            else:
+                self.log("old announcement being updated", level=log.NOISY)
+        self._announcements[index] = (announcement, time.time())
         (furl, service_name, ri_name, nickname, ver, oldest) = announcement
-        if announcement in self._announcements:
-            self.log("but we already knew it, ignoring", level=log.NOISY)
-            return
-        self._announcements[announcement] = time.time()
         for s in self._subscribers.get(service_name, []):
             s.callRemote("announce", set([announcement]))
 
@@ -88,9 +101,9 @@ class IntroducerService(service.MultiService, Referenceable):
             subscribers.pop(subscriber, None)
         subscriber.notifyOnDisconnect(_remove)
 
-        announcements = set( [ a
-                               for a in self._announcements
-                               if a[1] == service_name ] )
+        announcements = set( [ ann
+                               for idx,(ann,when) in self._announcements.items()
+                               if idx[1] == service_name] )
         d = subscriber.callRemote("announce", announcements)
         d.addErrback(log.err, facility="tahoe.introducer", level=log.UNUSUAL)
 
@@ -126,7 +139,6 @@ class RemoteServiceConnector:
         self._nodeid = b32decode(m.group(1).upper())
         self._nodeid_s = idlib.shortnodeid_b2a(self._nodeid)
 
-        self._index = (self._nodeid, service_name)
         self.service_name = service_name
 
         self.log("attempting to connect to %s" % self._nodeid_s)
@@ -141,9 +153,6 @@ class RemoteServiceConnector:
 
     def log(self, *args, **kwargs):
         return self._ic.log(*args, **kwargs)
-
-    def get_index(self):
-        return self._index
 
     def startConnecting(self):
         self._reconnector = self._tub.connectTo(self._furl, self._got_service)
@@ -297,10 +306,11 @@ class IntroducerClient(service.Service, Referenceable):
 
     def _new_announcement(self, announcement):
         # this will only be called for new announcements
-        rsc = RemoteServiceConnector(announcement, self._tub, self)
-        index = rsc.get_index()
+        index = make_index(announcement)
         if index in self._connectors:
+            self.log("replacing earlier announcement", level=log.NOISY)
             self._connectors[index].stopConnecting()
+        rsc = RemoteServiceConnector(announcement, self._tub, self)
         self._connectors[index] = rsc
         rsc.startConnecting()
 

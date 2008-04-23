@@ -51,6 +51,26 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
         i = IntroducerService()
         i.setServiceParent(self.parent)
 
+    def test_duplicate(self):
+        i = IntroducerService()
+        self.failUnlessEqual(len(i.get_announcements()), 0)
+        self.failUnlessEqual(len(i.get_subscribers()), 0)
+        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@192.168.69.247:36106,127.0.0.1:36106/gydnpigj2ja2qr2srq4ikjwnl7xfgbra"
+        furl2 = "pb://ttwwooyunnyhzs7r6vdonnm2hpi52w6y@192.168.69.247:36111,127.0.0.1:36106/ttwwoogj2ja2qr2srq4ikjwnl7xfgbra"
+        ann1 = (furl1, "storage", "RIStorage", "nick1", "ver23", "ver0")
+        ann1b = (furl1, "storage", "RIStorage", "nick1", "ver24", "ver0")
+        ann2 = (furl2, "storage", "RIStorage", "nick2", "ver30", "ver0")
+        i.remote_publish(ann1)
+        self.failUnlessEqual(len(i.get_announcements()), 1)
+        self.failUnlessEqual(len(i.get_subscribers()), 0)
+        i.remote_publish(ann2)
+        self.failUnlessEqual(len(i.get_announcements()), 2)
+        self.failUnlessEqual(len(i.get_subscribers()), 0)
+        i.remote_publish(ann1b)
+        self.failUnlessEqual(len(i.get_announcements()), 2)
+        self.failUnlessEqual(len(i.get_subscribers()), 0)
+
+
     def test_system(self):
 
         self.central_tub = tub = Tub()

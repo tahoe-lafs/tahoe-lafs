@@ -29,7 +29,7 @@ class IntroducerRoot(rend.Page):
         res["subscription_summary"] = subscription_summary
 
         announcement_summary = {}
-        for ann in i.get_announcements():
+        for (ann,when) in i.get_announcements().values():
             (furl, service_name, ri_name, nickname, ver, oldest) = ann
             if service_name not in announcement_summary:
                 announcement_summary[service_name] = 0
@@ -48,7 +48,7 @@ class IntroducerRoot(rend.Page):
     def render_announcement_summary(self, ctx, data):
         i = IClient(ctx).getServiceNamed("introducer")
         services = {}
-        for ann in i.get_announcements():
+        for (ann,when) in i.get_announcements().values():
             (furl, service_name, ri_name, nickname, ver, oldest) = ann
             if service_name not in services:
                 services[service_name] = 0
@@ -69,7 +69,7 @@ class IntroducerRoot(rend.Page):
     def data_services(self, ctx, data):
         i = IClient(ctx).getServiceNamed("introducer")
         ann = [(since,a)
-               for (a,since) in i.get_announcements().items()
+               for (a,since) in i.get_announcements().values()
                if a[1] != "stub_client"]
         ann.sort(lambda a,b: cmp( (a[1][1], a), (b[1][1], b) ) )
         return ann
@@ -94,7 +94,7 @@ class IntroducerRoot(rend.Page):
         i = IClient(ctx).getServiceNamed("introducer")
         # use the "stub_client" announcements to get information per nodeid
         clients = {}
-        for ann in i.get_announcements():
+        for (ann,when) in i.get_announcements().values():
             if ann[1] != "stub_client":
                 continue
             (furl, service_name, ri_name, nickname, ver, oldest) = ann
