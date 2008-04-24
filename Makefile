@@ -186,6 +186,10 @@ test-figleaf: build src/allmydata/_version.py
 	rm -f .figleaf
 	$(PP) $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
 
+quicktest-figleaf: src/allmydata/_version.py
+	rm -f .figleaf
+	$(PP) $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
+
 figleaf-output:
 	$(PP) \
 	 $(PYTHON) misc/figleaf2html -d coverage-html -r src -x misc/figleaf.excludes
