@@ -176,10 +176,13 @@ TEST=allmydata
 # use 'make test TRIALARGS=--reporter=bwverbose' from buildbot, to
 # suppress the ansi color sequences
 
-test: .built .checked-deps src/allmydata/_version.py
+test: build src/allmydata/_version.py
 	$(PP) $(TRIAL) $(TRIALARGS) $(TEST)
 
-test-figleaf: .built .checked-deps
+quicktest: .built .checked-deps
+	$(PP) $(TRIAL) $(TRIALARGS) $(TEST)
+
+test-figleaf: build src/allmydata/_version.py
 	rm -f .figleaf
 	$(PP) $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
 
