@@ -1,0 +1,36 @@
+This announcement is archived in the tahoe-dev mailing list archive:
+
+http://allmydata.org/pipermail/tahoe-dev/2008-March/000465.html
+
+[tahoe-dev] Another FUSE interface
+Armin Rigo arigo at tunes.org
+Sat Mar 29 04:35:36 PDT 2008
+
+    * Previous message: [tahoe-dev] announcing allmydata.org "Tahoe", v1.0
+    * Next message: [tahoe-dev] convergent encryption reconsidered -- salting and key-strengthening
+    * Messages sorted by: [ date ] [ thread ] [ subject ] [ author ]
+
+Hi all,
+
+I implemented for fun another Tahoe-to-FUSE interface using my own set
+of FUSE bindings.  If you are interested, you can check out the
+following subversion directory:
+
+    http://codespeak.net/svn/user/arigo/hack/pyfuse
+
+tahoe.py is a 100-lines, half-an-hour-job interface to Tahoe, limited to
+read-only at the moment.  The rest of the directory contains PyFuse, and
+many other small usage examples.  PyFuse is a pure Python FUSE daemon
+(no messy linking issues, no dependencies).
+
+
+A bientot,
+
+Armin Rigo
+
+    * Previous message: [tahoe-dev] announcing allmydata.org "Tahoe", v1.0
+    * Next message: [tahoe-dev] convergent encryption reconsidered -- salting and key-strengthening
+    * Messages sorted by: [ date ] [ thread ] [ subject ] [ author ]
+
+More information about the tahoe-dev mailing list
+
