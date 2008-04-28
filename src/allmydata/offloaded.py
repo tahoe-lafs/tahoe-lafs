@@ -321,6 +321,7 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         # then find out how much crypttext we have on disk
         if os.path.exists(self._incoming_file):
             self._have = os.stat(self._incoming_file)[stat.ST_SIZE]
+            self._upload_helper._helper.count("chk_upload_helper.resumes")
             self.log("we already have %d bytes" % self._have, level=log.NOISY)
         else:
             self._have = 0
@@ -499,6 +500,7 @@ class Helper(Referenceable, service.MultiService):
         self._counters = {"chk_upload_helper.upload_requests": 0,
                           "chk_upload_helper.upload_already_present": 0,
                           "chk_upload_helper.upload_need_upload": 0,
+                          "chk_upload_helper.resumes": 0,
                           "chk_upload_helper.fetched_bytes": 0,
                           "chk_upload_helper.encoded_bytes": 0,
                           }
