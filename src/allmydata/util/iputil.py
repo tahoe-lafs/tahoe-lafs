@@ -146,6 +146,7 @@ _platform_map = {
     "darwin": "bsd",       # Mac OS X
     "freebsd4": "bsd",
     "freebsd5": "bsd",
+    "freebsd6": "bsd",
     "netbsd1": "bsd",
     "sunos5": "sunos",
     "cygwin": "cygwin",
