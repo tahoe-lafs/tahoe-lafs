@@ -10,19 +10,26 @@
 
 <h1>Welcome To AllMyData "Tahoe"!</h1>
 
-<div>Please visit the <a href="http://allmydata.org">Tahoe home page</a> for
-code updates and bug reporting. The <a href="provisioning">provisioning
-tool</a> may also be useful. <a href="status/">Current Uploads and
-Downloads</a></div>
-
-<h2>Grid Status</h2>
+<h2>Status of this Client</h2>
 
 <div>My nodeid: <span n:render="string" n:data="my_nodeid" /></div>
 <div>My versions: <span n:render="string" n:data="version" /></div>
 <div>Tahoe code imported from: <span n:render="string" n:data="import_path" /></div>
 <div n:render="services">Services Running:</div>
 
-<br />
+<div><a href="status/">Uploads and Downloads</a></div>
+
+<h2>The Controls</h2>
+
+<div>There are also controls for each directory on that directory's page.</div>
+
+<div n:render="mkdir_form" />
+<div n:render="view_form" />
+<div n:render="upload_form" />
+<div n:render="download_form" />
+
+
+<h2>Status of the Storage Grid</h2>
 
 <div>Introducer: <span n:render="string" n:data="introducer_furl" /></div>
 <div>Connected to introducer?: <span n:render="string" n:data="connected_to_introducer" /></div>
@@ -57,12 +64,14 @@ Downloads</a></div>
 </table>
 </div>
 
-<br />
+<h2>Other Resources</h2>
 
-<div n:render="download_form" />
-<div n:render="view_form" />
-<div n:render="upload_form" />
-<div n:render="mkdir_form" />
+<div>Please visit the <a href="http://allmydata.org">Tahoe home page</a> for
+  code updates and bug reporting.</div>
+
+<div>The <a href="provisioning">provisioning
+    tool</a> may also be useful.</div>
+
 
   </body>
 </html>
