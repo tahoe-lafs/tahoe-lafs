@@ -8,7 +8,7 @@ class FasterMonitor(CPUUsageMonitor):
     POLL_INTERVAL = 0.1
 
 
-class CPUUsage(unittest.TestCase, testutil.PollMixin):
+class CPUUsage(unittest.TestCase, testutil.PollMixin, testutil.StallMixin):
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()
@@ -24,6 +24,9 @@ class CPUUsage(unittest.TestCase, testutil.PollMixin):
         def _poller():
             return bool(len(m.samples) == m.HISTORY_LENGTH+1)
         d = self.poll(_poller)
+        # pause one more second, to make sure that the history-trimming code
+        # is exercised
+        d.addCallback(self.stall, 1.0)
         def _check(res):
             s = m.get_stats()
             self.failUnless("cpu_monitor.1min_avg" in s)
