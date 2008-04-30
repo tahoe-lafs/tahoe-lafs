@@ -19,16 +19,8 @@ except ImportError:
 hush_pyflakes = __version__
 del hush_pyflakes
 
-try:
-    import _auto_deps
-except ImportError:
-    # Never mind -- even if we can't use pkg_resources to check the required
-    # version numbers and to select the right one in the case that more than one
-    # version is available, we can still barrel on and if "import thingie" gives
-    # us a thingie that works, we're okay.
-    pass
-else:
-    _auto_deps.require_auto_deps()
+import _auto_deps
+_auto_deps.require_auto_deps()
 
 def get_package_versions():
     import OpenSSL, allmydata, foolscap, nevow, pycryptopp, simplejson, twisted, zfec
