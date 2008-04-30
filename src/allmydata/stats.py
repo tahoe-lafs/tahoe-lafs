@@ -75,7 +75,8 @@ class LoadMonitor(service.MultiService):
 
 class CPUUsageMonitor(service.MultiService):
     implements(IStatsProducer)
-    MINUTES = 15
+    HISTORY_LENGTH = 15
+    POLL_INTERVAL = 60
 
     def __init__(self):
         service.MultiService.__init__(self)
@@ -88,7 +89,7 @@ class CPUUsageMonitor(service.MultiService):
         eventually(self._set_initial_cpu)
         self.samples = []
         # we provide 1min, 5min, and 15min moving averages
-        TimerService(60, self.check).setServiceParent(self)
+        TimerService(self.POLL_INTERVAL, self.check).setServiceParent(self)
 
     def _set_initial_cpu(self):
         self.initial_cpu = time.clock()
@@ -97,7 +98,7 @@ class CPUUsageMonitor(service.MultiService):
         now_wall = time.time()
         now_cpu = time.clock()
         self.samples.append( (now_wall, now_cpu) )
-        while len(self.samples) > self.MINUTES+1:
+        while len(self.samples) > self.HISTORY_LENGTH+1:
             self.samples.pop(0)
 
     def _average_N_minutes(self, size):
