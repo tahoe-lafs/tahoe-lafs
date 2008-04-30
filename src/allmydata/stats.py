@@ -11,6 +11,7 @@ from twisted.application import service
 from twisted.application.internet import TimerService
 from zope.interface import implements
 import foolscap
+from foolscap.eventual import eventually
 from foolscap.logging.gatherer import get_local_ip_for
 from twisted.internet.error import ConnectionDone, ConnectionLost
 from foolscap import DeadReferenceError
@@ -72,6 +73,57 @@ class LoadMonitor(service.MultiService):
         return { 'load_monitor.avg_load': avg,
                  'load_monitor.max_load': m_x, }
 
+class CPUUsageMonitor(service.MultiService):
+    implements(IStatsProducer)
+    MINUTES = 15
+
+    def __init__(self):
+        service.MultiService.__init__(self)
+        # we don't use time.clock() here, because the constructor is run by
+        # the twistd parent process (as it loads the .tac file), whereas the
+        # rest of the program will be run by the child process, after twistd
+        # forks. Instead, set self.initial_cpu as soon as the reactor starts
+        # up.
+        self.initial_cpu = 0.0 # just in case
+        eventually(self._set_initial_cpu)
+        self.samples = []
+        # we provide 1min, 5min, and 15min moving averages
+        TimerService(60, self.check).setServiceParent(self)
+
+    def _set_initial_cpu(self):
+        self.initial_cpu = time.clock()
+
+    def check(self):
+        now_wall = time.time()
+        now_cpu = time.clock()
+        self.samples.append( (now_wall, now_cpu) )
+        while len(self.samples) > self.MINUTES+1:
+            self.samples.pop(0)
+
+    def _average_N_minutes(self, size):
+        if len(self.samples) < size+1:
+            return None
+        first = -size-1
+        elapsed_wall = self.samples[-1][0] - self.samples[first][0]
+        elapsed_cpu = self.samples[-1][1] - self.samples[first][1]
+        fraction = elapsed_cpu / elapsed_wall
+        return fraction
+
+    def get_stats(self):
+        s = {}
+        avg = self._average_N_minutes(1)
+        if avg is not None:
+            s["cpu_monitor.1min_avg"] = avg
+        avg = self._average_N_minutes(5)
+        if avg is not None:
+            s["cpu_monitor.5min_avg"] = avg
+        avg = self._average_N_minutes(15)
+        if avg is not None:
+            s["cpu_monitor.15min_avg"] = avg
+        now_cpu = time.clock()
+        s["cpu_monitor.total"] = now_cpu - self.initial_cpu
+        return s
+
 class StatsProvider(foolscap.Referenceable, service.MultiService):
     implements(RIStatsProvider)
 
@@ -86,6 +138,10 @@ class StatsProvider(foolscap.Referenceable, service.MultiService):
         self.load_monitor = LoadMonitor(self)
         self.load_monitor.setServiceParent(self)
         self.register_producer(self.load_monitor)
+
+        self.cpu_monitor = CPUUsageMonitor()
+        self.cpu_monitor.setServiceParent(self)
+        self.register_producer(self.cpu_monitor)
 
     def startService(self):
         if self.node:
