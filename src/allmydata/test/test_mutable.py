@@ -180,7 +180,7 @@ class FakeClient:
 
     def notify_retrieve(self, r):
         pass
-    def notify_publish(self, p):
+    def notify_publish(self, p, size):
         pass
     def notify_mapupdate(self, u):
         pass
