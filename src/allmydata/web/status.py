@@ -947,24 +947,28 @@ class Statistics(rend.Page):
         return str(data["stats"].get("load_monitor.max_load"))
 
     def render_uploads(self, ctx, data):
-        files = data["counters"].get("uploader.files_uploaded")
-        bytes = data["counters"].get("uploader.bytes_uploaded")
+        files = data["counters"].get("uploader.files_uploaded", 0)
+        bytes = data["counters"].get("uploader.bytes_uploaded", 0)
         return ("%s files / %s bytes (%s)" %
                 (files, bytes, abbreviate_size(bytes)))
 
     def render_downloads(self, ctx, data):
-        files = data["counters"].get("downloader.files_downloaded")
-        bytes = data["counters"].get("downloader.bytes_downloaded")
+        files = data["counters"].get("downloader.files_downloaded", 0)
+        bytes = data["counters"].get("downloader.bytes_downloaded", 0)
         return ("%s files / %s bytes (%s)" %
                 (files, bytes, abbreviate_size(bytes)))
 
     def render_publishes(self, ctx, data):
         files = data["counters"].get("mutable.files_published")
-        return "%s files" % (files,)
+        bytes = data["counters"].get("mutable.bytes_published", 0)
+        return "%s files / %s bytes (%s)" % (files, bytes,
+                                             abbreviate_size(bytes))
 
     def render_retrieves(self, ctx, data):
         files = data["counters"].get("mutable.files_retrieved")
-        return "%s files" % (files,)
+        bytes = data["counters"].get("mutable.bytes_retrieved", 0)
+        return "%s files / %s bytes (%s)" % (files, bytes,
+                                             abbreviate_size(bytes))
 
     def render_raw(self, ctx, data):
         raw = pprint.pformat(data)

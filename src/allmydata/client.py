@@ -307,8 +307,9 @@ class Client(node.Node, testutil.PollMixin):
         assert IMutableFileURI.providedBy(u), u
         return MutableFileNode(self).init_from_uri(u)
 
-    def notify_publish(self, publish_status):
-        self.getServiceNamed("mutable-watcher").notify_publish(publish_status)
+    def notify_publish(self, publish_status, size):
+        self.getServiceNamed("mutable-watcher").notify_publish(publish_status,
+                                                               size)
     def notify_retrieve(self, retrieve_status):
         self.getServiceNamed("mutable-watcher").notify_retrieve(retrieve_status)
     def notify_mapupdate(self, update_status):

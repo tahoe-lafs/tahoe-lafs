@@ -381,7 +381,7 @@ class MutableFileNode:
     def _upload(self, new_contents, servermap):
         assert self._pubkey, "update_servermap must be called before publish"
         p = Publish(self, servermap)
-        self._client.notify_publish(p.get_status())
+        self._client.notify_publish(p.get_status(), len(new_contents))
         return p.publish(new_contents)
 
 
@@ -410,16 +410,16 @@ class MutableWatcher(service.MultiService):
         while len(self._recent_mapupdate_status) > self.MAX_MAPUPDATE_STATUSES:
             self._recent_mapupdate_status.pop(0)
 
-    def notify_publish(self, p):
+    def notify_publish(self, p, size):
         self._all_publish_status[p] = None
         self._recent_publish_status.append(p)
         if self.stats_provider:
             self.stats_provider.count('mutable.files_published', 1)
-            # bytes_published can't be handled here, because the
+            # We must be told bytes_published as an argument, since the
             # publish_status does not yet know how much data it will be asked
-            # to send. TODO: figure out a clean way to do this that doesn't
-            # make MDMF harder.
-            #self.stats_provider.count('mutable.bytes_published', p.get_size())
+            # to send. When we move to MDMF we'll need to find a better way
+            # to handle this.
+            self.stats_provider.count('mutable.bytes_published', size)
         while len(self._recent_publish_status) > self.MAX_PUBLISH_STATUSES:
             self._recent_publish_status.pop(0)
 
