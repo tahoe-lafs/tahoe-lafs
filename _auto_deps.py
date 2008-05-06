@@ -1,7 +1,12 @@
 install_requires=["zfec >= 1.1.0",
                   "foolscap >= 0.2.5",
                   "simplejson >= 1.4",
-                  "pycryptopp >= 0.2.8",
+
+                  # pycryptopp < 0.5 had a bug which, using a Microsoft
+                  # compiler, or using some versions of g++ while linking
+                  # against certain older versions of Crypto++, would cause
+                  # incorrect AES results.
+                  "pycryptopp >= 0.5",
                   "nevow >= 0.6.0",
                   "zope.interface",
                   "twisted >= 2.4.0",
