@@ -39,9 +39,13 @@
     <p>To construct a node run "<cite>tahoe create-client</cite>", which will
     create <cite>~/.tahoe</cite> to be the node's base directory. Acquire a copy
     of the <cite>introducer.furl</cite> from the introducer and put it into this
-    directory, then run "<cite>tahoe start</cite>". After that, the node should be
-    off and running. The first thing it will do is connect to the introducer and
-    get itself connected to all other nodes on the grid.</p>
+    directory, then run "<cite>tahoe start</cite>". After that, the node should
+    be off and running. The first thing it will do is connect to the introducer
+    and get itself connected to all other nodes on the grid.  By default, a node
+    serves as both a Storage Server (meaning that it offers some of its disk
+    space to other nodes) and as a Gateway (meaning that it listens for HTTP
+    requests on port 8123).  To configure other behavior,
+    see <a href="configuration.txt">configuration.txt</a>.</p>
 
     <p>To stop a running node run "<cite>tahoe stop</cite>".</p>
 
