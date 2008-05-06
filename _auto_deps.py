@@ -10,6 +10,7 @@ install_requires=["zfec >= 1.1.0",
                   "nevow >= 0.6.0",
                   "zope.interface",
                   "twisted >= 2.4.0",
+
                   # we require 0.6c8 to build, but can handle older versions
                   # to run
                   "setuptools >= 0.6a9",
