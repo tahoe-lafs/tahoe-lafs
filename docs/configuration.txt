@@ -33,6 +33,9 @@ command sets the webport to "tcp:8123:interface=127.0.0.1" by default, and is
 overridable by the "--webport" option.  You can make it use SSL by writing
 "ssl:8123:privateKey=mykey.pem:certKey=cert.pem" instead.
 
+helper.furl (optional): If present, the node will attempt to connect to and
+use the given helper for uploads. See docs/helper.txt for details.
+
 client.port (optional): This controls which port the node listens on. If not
 provided, the node will ask the kernel for any available port, and write it
 to this file so that subsequent runs will re-use the same port.
@@ -108,6 +111,15 @@ file.  If you want to converge your immutable files with as many people as
 possible, put the empty string (so that private/convergence is a zero-length
 file).
 
+log_gatherer.furl : if present, this file is used to contact a 'log
+gatherer', which will be granted access to the logport. This can be used by
+centralized storage meshes to gather operational logs in a single place.
+
+run_helper : if present and not empty, the node will run a helper (see
+docs/helper.txt for details). The helper's contact FURL will be placed in
+private/helper.furl, from which it can be copied to any clients which wish to
+use it. Clearly nodes should not both run a helper and attempt to use one: do
+not create both helper.furl and run_helper in the same node.
 
 == Node State ==
 
@@ -141,10 +153,9 @@ private/logport.furl : this file contains a FURL that provides access to a
 Do not grant logport access to strangers, because occasionally secret
 information may be placed in the logs.
 
-log_gatherer.furl : if present, this file is used to contact a 'log
-gatherer', which will be granted access to the logport. This can be used by
-centralized storage meshes to gather operational logs in a single place.
-
+private/helper.furl : if the node is running a helper (for use by other
+clients), its contact FURL will be placed here. See docs/helper.txt for more
+details.
 
 == Introducer configuration ==
 
