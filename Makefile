@@ -113,21 +113,13 @@ endif
 
 # TESTING
 
-.PHONY: check-all-deps check-twisted-dep $(CHECK_PYWIN32_DEP) signal-error-deps, signal-error-twisted-dep, signal-error-pywin32-dep, test test-figleaf figleaf-output
+.PHONY: check-all-deps $(CHECK_PYWIN32_DEP) signal-error-deps, signal-error-pywin32-dep, test test-figleaf figleaf-output
 
 
 signal-error-deps:
 	@echo
 	@echo
 	@echo "ERROR: Not all of Tahoe's dependencies are in place.  Please see docs/install.html for help on installing dependencies."
-	@echo
-	@echo
-	exit 1
-
-signal-error-twisted-dep:
-	@echo
-	@echo
-	@echo "ERROR: Twisted is not installed.  Please see docs/install.html for details."
 	@echo
 	@echo
 	exit 1
@@ -153,16 +145,13 @@ check-auto-deps:
 
 check-all-deps: check-deps check-auto-deps
 
-check-twisted-dep:
-	@$(PP) $(PYTHON) -c 'import twisted, zope.interface' || $(MAKE) signal-error-twisted-dep
-
 check-pywin32-dep:
 	@$(PP) $(PYTHON) -c 'import win32process' || $(MAKE) signal-error-pywin32-dep
 
 check-pyopenssl-dep:
 	@$(PP) $(PYTHON) -c 'import OpenSSL' || $(MAKE) signal-error-pyopenssl-dep
 
-check-deps: check-twisted-dep $(CHECK_PYWIN32_DEP) check-pyopenssl-dep
+check-deps: $(CHECK_PYWIN32_DEP) check-pyopenssl-dep
 
 .checked-deps:
 	$(MAKE) check-all-deps
