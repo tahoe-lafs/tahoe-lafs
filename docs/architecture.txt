@@ -259,6 +259,8 @@ commercially-run grid for which all of the storage servers are in a colo
 facility with high interconnect bandwidth. In this case, the helper is placed
 in the same facility, so the helper-to-storage-server bandwidth is huge.
 
+See "helper.txt" for details about the upload helper.
+
 
 VDRIVE and DIRNODES: THE VIRTUAL DRIVE LAYER
 
