@@ -329,7 +329,22 @@ class TahoeFuse(fuse.Fuse):
             - f_ffree - nunber of free file inodes
         """
 
-        return os.statvfs(".")
+        block_size = 4096 # 4k
+        preferred_block_size = 131072 # 128k, c.f. seg_size
+        fs_size = 8*2**40 # 8Tb
+        fs_free = 2*2**40 # 2Tb
+
+        s = fuse.StatVfs(f_bsize = preferred_block_size,
+                         f_frsize = block_size,
+                         f_blocks = fs_size / block_size,
+                         f_bfree = fs_free / block_size,
+                         f_bavail = fs_free / block_size,
+                         f_files = 2**30, # total files
+                         f_ffree = 2**20, # available files
+                         f_favail = 2**20, # available files (root)
+                         f_flag = 2, # no suid
+                         f_namemax = 255) # max name length
+        return s
 
     def fsinit(self):
         self.log("fsinit()")
