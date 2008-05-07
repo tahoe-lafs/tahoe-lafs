@@ -65,7 +65,7 @@ def flag2mode(flags):
     md = {os.O_RDONLY: 'rb', os.O_WRONLY: 'wb', os.O_RDWR: 'w+b'}
     m = md[flags & (os.O_RDONLY | os.O_WRONLY | os.O_RDWR)]
 
-    if flags | os.O_APPEND:
+    if flags & os.O_APPEND:
         m = m.replace('w', 'a', 1)
 
     return m
