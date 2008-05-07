@@ -70,6 +70,7 @@
 ^setuptools-.*.egg$
 # creating a tahoe egg puts files here
 allmydata_tahoe.egg-info$
+^Twisted-.*.egg($|/)
 
 ^\.checked-deps$
 ^\.built$
