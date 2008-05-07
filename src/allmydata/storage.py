@@ -24,9 +24,8 @@ class DataTooLargeError(Exception):
 # storage/shares/$START/$STORAGEINDEX
 # storage/shares/$START/$STORAGEINDEX/$SHARENUM
 
-# Where "$START" denotes the first 14 bits worth of $STORAGEINDEX (that's 3
-# base-32 chars, but the last one has only 4 bits in it -- i.e. only 16 possible
-# chars in the last position).
+# Where "$START" denotes the first 10 bits worth of $STORAGEINDEX (that's 2
+# base-32 chars).
 
 # $SHARENUM matches this regex:
 NUM_RE=re.compile("^[0-9]+$")

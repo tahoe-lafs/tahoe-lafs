@@ -20,7 +20,7 @@ ShareData = StringConstraint(None)
 URIExtensionData = StringConstraint(1000)
 Number = IntegerConstraint(8) # 2**(8*8) == 16EiB ~= 18e18 ~= 18 exabytes
 Offset = Number
-ReadSize = int # the 'int' constraint is 2**31 == 2Gib
+ReadSize = int # the 'int' constraint is 2**31 == 2Gib -- large files are processed in not-so-large increments
 LeaseRenewSecret = Hash # used to protect bucket lease renewal requests
 LeaseCancelSecret = Hash # used to protect bucket lease cancellation requests
 
@@ -186,8 +186,6 @@ class RIBucketWriter(RemoteInterface):
 
 class RIBucketReader(RemoteInterface):
     def read(offset=Offset, length=ReadSize):
-        # ShareData is limited to 1MiB, so we don't need length= to be any
-        # larger than that. Large files must be read in pieces.
         return ShareData
 
 TestVector = ListOf(TupleOf(Offset, ReadSize, str, str))
