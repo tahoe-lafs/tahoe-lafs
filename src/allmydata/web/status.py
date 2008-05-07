@@ -206,7 +206,7 @@ class UploadStatusPage(UploadResultsRendererMixin, rend.Page):
     def render_total_size(self, ctx, data):
         size = data.get_size()
         if size is None:
-            size = "(unknown)"
+            return "(unknown)"
         return size
 
     def render_progress_hash(self, ctx, data):
@@ -394,7 +394,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
     def render_total_size(self, ctx, data):
         size = data.get_size()
         if size is None:
-            size = "(unknown)"
+            return "(unknown)"
         return size
 
     def render_progress(self, ctx, data):
@@ -815,6 +815,8 @@ class Status(rend.Page):
         size = s.get_size()
         if size is None:
             size = "(unknown)"
+        elif isinstance(size, (int, long, float)):
+            size = abbreviate_size(size)
         ctx.fillSlots("total_size", size)
 
         progress = data.get_progress()
