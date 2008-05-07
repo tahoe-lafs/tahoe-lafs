@@ -113,7 +113,7 @@ endif
 
 # TESTING
 
-.PHONY: check-all-deps $(CHECK_PYWIN32_DEP) signal-error-deps, signal-error-pywin32-dep, test test-figleaf figleaf-output
+.PHONY: check-all-deps $(CHECK_PYWIN32_DEP) signal-error-deps signal-error-pywin32-dep test test-figleaf figleaf-output
 
 
 signal-error-deps:
