@@ -229,14 +229,12 @@ this file are ignored.
         f = open(os.path.join(clientdir, "introducer.furl"), "w")
         f.write(self.introducer_furl + "\n")
         f.close()
+
+        # set webport=0 and then ask the node what port it picked.
         f = open(os.path.join(clientdir, "webport"), "w")
-        # TODO: ideally we would set webport=0 and then ask the node what
-        # port it picked. But at the moment it is not convenient to do this,
-        # so we just pick a relatively unique one.
-        webport = max(os.getpid(), 2000)
-        f.write("tcp:%d:interface=127.0.0.1\n" % webport)
+        f.write("tcp:0:interface=127.0.0.1\n")
         f.close()
-        self.webish_url = "http://localhost:%d" % webport
+
         if self.mode in ("upload-self", "receive"):
             # accept and store shares, to trigger the memory consumption bugs
             pass
@@ -269,6 +267,7 @@ this file are ignored.
         # now we wait for the client to get started. we're looking for the
         # control.furl file to appear.
         furl_file = os.path.join(clientdir, "private", "control.furl")
+        url_file = os.path.join(clientdir, "node.url")
         def _check():
             if pp.ended and pp.ended.value.status != 0:
                 # the twistd process ends normally (with rc=0) if the child
@@ -288,6 +287,8 @@ this file are ignored.
             return d2
         d.addCallback(_stall)
         def _read(res):
+            # read the node's URL
+            self.webish_url = open(url_file, "r").read().strip()
             f = open(furl_file, "r")
             furl = f.read()
             return furl.strip()
