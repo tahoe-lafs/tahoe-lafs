@@ -138,12 +138,16 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                             ro_dn.set_uri, u"newchild", fileuri)
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
                             ro_dn.set_node, u"newchild", filenode)
+            self.shouldFail(dirnode.NotMutableError, "set_nodes ro", None,
+                            ro_dn.set_nodes, [ (u"newchild", filenode) ])
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
                             ro_dn.add_file, u"newchild", uploadable)
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
                             ro_dn.delete, u"child")
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
                             ro_dn.create_empty_directory, u"newchild")
+            self.shouldFail(dirnode.NotMutableError, "set_metadata_for ro", None,
+                            ro_dn.set_metadata_for, u"child", {})
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
                             ro_dn.move_child_to, u"child", rw_dn)
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
