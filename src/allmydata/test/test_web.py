@@ -788,6 +788,8 @@ class Web(WebMixin, unittest.TestCase):
                 self.failUnlessEqual(stats[k], v,
                                      "stats[%s] was %s, not %s" %
                                      (k, stats[k], v))
+            self.failUnlessEqual(stats["size-files-histogram"],
+                                 [ [11, 31, 3] ])
         d.addCallback(_got)
         return d
 

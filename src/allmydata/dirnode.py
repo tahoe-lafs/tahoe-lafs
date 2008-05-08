@@ -1,5 +1,5 @@
 
-import os, time
+import os, time, math
 
 from zope.interface import implements
 from twisted.internet import defer
@@ -8,7 +8,7 @@ from allmydata.mutable.common import NotMutableError
 from allmydata.mutable.node import MutableFileNode
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
      IURI, IFileNode, IMutableFileURI, IVerifierURI, IFilesystemNode
-from allmydata.util import hashutil
+from allmydata.util import hashutil, mathutil
 from allmydata.util.hashutil import netstring
 from allmydata.util.limiter import ConcurrencyLimiter
 from allmydata.uri import NewDirectoryURI
@@ -514,6 +514,7 @@ class NewDirectoryNode:
                 elif IFileNode.providedBy(child): # CHK and LIT
                     stats.add("count-files")
                     size = child.get_size()
+                    stats.histogram("size-files-histogram", size)
                     if child.get_uri().startswith("URI:LIT:"):
                         stats.add("count-literal-files")
                         stats.add("size-literal-files", size)
@@ -544,6 +545,11 @@ class DeepStats:
                   #"largest-mutable-file",
                   ]:
             self.stats[k] = 0
+        self.histograms = {}
+        for k in ["size-files-histogram"]:
+            self.histograms[k] = {} # maps (min,max) to count
+        self.buckets = [ (0,0), (1,3)]
+        self.root = math.sqrt(10)
 
     def add(self, key, value=1):
         self.stats[key] += value
@@ -551,8 +557,38 @@ class DeepStats:
     def max(self, key, value):
         self.stats[key] = max(self.stats[key], value)
 
+    def which_bucket(self, size):
+        # return (min,max) such that min <= size <= max
+        # values are from the set (0,0), (1,3), (4,10), (11,31), (32,100),
+        # (101,316), (317, 1000), etc: two per decade
+        assert size >= 0
+        i = 0
+        while True:
+            if i >= len(self.buckets):
+                # extend the list
+                new_lower = self.buckets[i-1][1]+1
+                new_upper = int(mathutil.next_power_of_k(new_lower, self.root))
+                self.buckets.append( (new_lower, new_upper) )
+            maybe = self.buckets[i]
+            if maybe[0] <= size <= maybe[1]:
+                return maybe
+            i += 1
+
+    def histogram(self, key, size):
+        bucket = self.which_bucket(size)
+        h = self.histograms[key]
+        if bucket not in h:
+            h[bucket] = 0
+        h[bucket] += 1
+
     def get_results(self):
-        return self.stats
+        stats = self.stats.copy()
+        for key in self.histograms:
+            h = self.histograms[key]
+            out = [ (bucket[0], bucket[1], h[bucket]) for bucket in h ]
+            out.sort()
+            stats[key] = out
+        return stats
 
 
 # use client.create_dirnode() to make one of these

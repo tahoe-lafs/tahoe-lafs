@@ -585,6 +585,9 @@ GET $URL?t=deep-stats
    size-mutable-files (TODO): same, for current version of all mutable files
    size-literal-files: same, for LIT files
    size-directories: size of directories (includes size-literal-files)
+   size-files-histogram: list of (minsize, maxsize, count) buckets,
+                         with a histogram of filesizes, 5dB/bucket,
+                         for both literal and immutable files
    largest-directory: number of children in the largest directory
    largest-immutable-file: number of bytes in the largest CHK file
 

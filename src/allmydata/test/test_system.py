@@ -1112,6 +1112,31 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
             # P/s2-rw/mydata992 (same as P/s2-rw/mydata992)
             d1.addCallback(lambda manifest:
                            self.failUnlessEqual(len(manifest), 4))
+            d1.addCallback(lambda res: home.deep_stats())
+            def _check_stats(stats):
+                expected = {"count-immutable-files": 1,
+                            "count-mutable-files": 0,
+                            "count-literal-files": 1,
+                            "count-files": 2,
+                            "count-directories": 3,
+                            "size-immutable-files": 112,
+                            "size-literal-files": 23,
+                            #"size-directories": 616, # varies
+                            #"largest-directory": 616,
+                            "largest-directory-children": 3,
+                            "largest-immutable-file": 112,
+                            }
+                for k,v in expected.iteritems():
+                    self.failUnlessEqual(stats[k], v,
+                                         "stats[%s] was %s, not %s" %
+                                         (k, stats[k], v))
+                self.failUnless(stats["size-directories"] > 1300,
+                                stats["size-directories"])
+                self.failUnless(stats["largest-directory"] > 800,
+                                stats["largest-directory"])
+                self.failUnlessEqual(stats["size-files-histogram"],
+                                     [ (11, 31, 1), (101, 316, 1) ])
+            d1.addCallback(_check_stats)
             return d1
         d.addCallback(_got_home)
         return d

@@ -166,6 +166,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
 
         d = self.client.create_empty_dirnode()
         def _then(n):
+            # /
             self.failUnless(n.is_mutable())
             u = n.get_uri()
             self.failUnless(u)
@@ -186,8 +187,13 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             assert isinstance(ffu_v, str)
             self.expected_manifest.append(ffu_v)
             d.addCallback(lambda res: n.set_uri(u"child", fake_file_uri))
+            # /
+            # /child = mutable
 
             d.addCallback(lambda res: n.create_empty_directory(u"subdir"))
+            # /
+            # /child = mutable
+            # /subdir = directory
             def _created(subdir):
                 self.failUnless(isinstance(subdir, FakeDirectoryNode))
                 self.subdir = subdir
@@ -230,6 +236,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                                 stats["size-directories"])
                 self.failUnless(stats["largest-directory"] > 500,
                                 stats["largest-directory"])
+                self.failUnlessEqual(stats["size-files-histogram"], [])
             d.addCallback(_check_deepstats)
 
             def _add_subsubdir(res):
@@ -457,6 +464,49 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
         d.addCallback(_then)
 
         return d
+
+class DeepStats(unittest.TestCase):
+    def test_stats(self):
+        ds = dirnode.DeepStats()
+        ds.add("count-files")
+        ds.add("size-immutable-files", 123)
+        ds.histogram("size-files-histogram", 123)
+        ds.max("largest-directory", 444)
+
+        s = ds.get_results()
+        self.failUnlessEqual(s["count-files"], 1)
+        self.failUnlessEqual(s["size-immutable-files"], 123)
+        self.failUnlessEqual(s["largest-directory"], 444)
+        self.failUnlessEqual(s["count-literal-files"], 0)
+
+        ds.add("count-files")
+        ds.add("size-immutable-files", 321)
+        ds.histogram("size-files-histogram", 321)
+        ds.max("largest-directory", 2)
+
+        s = ds.get_results()
+        self.failUnlessEqual(s["count-files"], 2)
+        self.failUnlessEqual(s["size-immutable-files"], 444)
+        self.failUnlessEqual(s["largest-directory"], 444)
+        self.failUnlessEqual(s["count-literal-files"], 0)
+        self.failUnlessEqual(s["size-files-histogram"],
+                             [ (101, 316, 1), (317, 1000, 1) ])
+
+        ds = dirnode.DeepStats()
+        for i in range(1, 1100):
+            ds.histogram("size-files-histogram", i)
+        ds.histogram("size-files-histogram", 4*1000*1000*1000*1000) # 4TB
+        s = ds.get_results()
+        self.failUnlessEqual(s["size-files-histogram"],
+                             [ (1, 3, 3),
+                               (4, 10, 7),
+                               (11, 31, 21),
+                               (32, 100, 69),
+                               (101, 316, 216),
+                               (317, 1000, 684),
+                               (1001, 3162, 99),
+                               (3162277660169L, 10000000000000L, 1),
+                               ])
 
 
 netstring = hashutil.netstring
