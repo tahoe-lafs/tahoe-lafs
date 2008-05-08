@@ -476,20 +476,7 @@ class NewDirectoryNode:
         return d
 
     def deep_stats(self):
-        stats = dict([ (k,0) for k in ["count-immutable-files",
-                                       "count-mutable-files",
-                                       "count-literal-files",
-                                       "count-files",
-                                       "count-directories",
-                                       "size-immutable-files",
-                                       #"size-mutable-files",
-                                       "size-literal-files",
-                                       "size-directories",
-                                       "largest-directory",
-                                       "largest-directory-children",
-                                       "largest-immutable-file",
-                                       #"largest-mutable-file",
-                                       ]])
+        stats = DeepStats()
         # we track verifier caps, to avoid double-counting children for which
         # we've got both a write-cap and a read-cap
         found = set()
@@ -498,7 +485,7 @@ class NewDirectoryNode:
         limiter = ConcurrencyLimiter(10)
 
         d = self._add_deepstats_from_node(self, found, stats, limiter)
-        d.addCallback(lambda res: stats)
+        d.addCallback(lambda res: stats.get_results())
         return d
 
     def _add_deepstats_from_node(self, node, found, stats, limiter):
@@ -507,12 +494,10 @@ class NewDirectoryNode:
             dl = []
             dirsize_bytes = node.get_size()
             dirsize_children = len(children)
-            stats["count-directories"] += 1
-            stats["size-directories"] += dirsize_bytes
-            stats["largest-directory"] = max(stats["largest-directory"],
-                                             dirsize_bytes)
-            stats["largest-directory-children"] = max(stats["largest-directory-children"],
-                                                      dirsize_children)
+            stats.add("count-directories")
+            stats.add("size-directories", dirsize_bytes)
+            stats.max("largest-directory", dirsize_bytes)
+            stats.max("largest-directory-children", dirsize_children)
             for name, (child, metadata) in children.iteritems():
                 verifier = child.get_verifier()
                 if verifier in found:
@@ -522,27 +507,52 @@ class NewDirectoryNode:
                     dl.append(self._add_deepstats_from_node(child, found,
                                                             stats, limiter))
                 elif IMutableFileNode.providedBy(child):
-                    stats["count-files"] += 1
-                    stats["count-mutable-files"] += 1
+                    stats.add("count-files")
+                    stats.add("count-mutable-files")
                     # TODO: update the servermap, compute a size, add it to
-                    # stats["size-mutable-files"], max it into
-                    # stats["largest-mutable-file"]
+                    # size-mutable-files, max it into "largest-mutable-file"
                 elif IFileNode.providedBy(child): # CHK and LIT
-                    stats["count-files"] += 1
+                    stats.add("count-files")
                     size = child.get_size()
                     if child.get_uri().startswith("URI:LIT:"):
-                        stats["count-literal-files"] += 1
-                        stats["size-literal-files"] += size
+                        stats.add("count-literal-files")
+                        stats.add("size-literal-files", size)
                     else:
-                        stats["count-immutable-files"] += 1
-                        stats["size-immutable-files"] += size
-                        stats["largest-immutable-file"] = max(
-                            stats["largest-immutable-file"], size)
+                        stats.add("count-immutable-files")
+                        stats.add("size-immutable-files", size)
+                        stats.max("largest-immutable-file", size)
             if dl:
                 return defer.DeferredList(dl)
         d.addCallback(_got_list)
         return d
 
+class DeepStats:
+    def __init__(self):
+        self.stats = {}
+        for k in ["count-immutable-files",
+                  "count-mutable-files",
+                  "count-literal-files",
+                  "count-files",
+                  "count-directories",
+                  "size-immutable-files",
+                  #"size-mutable-files",
+                  "size-literal-files",
+                  "size-directories",
+                  "largest-directory",
+                  "largest-directory-children",
+                  "largest-immutable-file",
+                  #"largest-mutable-file",
+                  ]:
+            self.stats[k] = 0
+
+    def add(self, key, value=1):
+        self.stats[key] += value
+
+    def max(self, key, value):
+        self.stats[key] = max(self.stats[key], value)
+
+    def get_results(self):
+        return self.stats
 
 
 # use client.create_dirnode() to make one of these

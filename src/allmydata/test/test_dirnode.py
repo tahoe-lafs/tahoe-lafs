@@ -226,8 +226,10 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                     self.failUnlessEqual(stats[k], v,
                                          "stats[%s] was %s, not %s" %
                                          (k, stats[k], v))
-                self.failUnless(stats["size-directories"] > 600)
-                self.failUnless(stats["largest-directory"] > 600)
+                self.failUnless(stats["size-directories"] > 600,
+                                stats["size-directories"])
+                self.failUnless(stats["largest-directory"] > 600,
+                                stats["largest-directory"])
             d.addCallback(_check_deepstats)
 
             def _add_subsubdir(res):
