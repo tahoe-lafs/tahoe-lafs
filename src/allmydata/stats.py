@@ -131,25 +131,31 @@ class StatsProvider(foolscap.Referenceable, service.MultiService):
     def __init__(self, node, gatherer_furl):
         service.MultiService.__init__(self)
         self.node = node
-        self.gatherer_furl = gatherer_furl
+        self.gatherer_furl = gatherer_furl # might be None
 
         self.counters = {}
         self.stats_producers = []
 
-        self.load_monitor = LoadMonitor(self)
-        self.load_monitor.setServiceParent(self)
-        self.register_producer(self.load_monitor)
+        # only run the LoadMonitor (which submits a timer every second) if
+        # there is a gatherer who is going to be paying attention. Our stats
+        # are visible through HTTP even without a gatherer, so run the rest
+        # of the stats (including the once-per-minute CPUUsageMonitor)
+        if gatherer_furl:
+            self.load_monitor = LoadMonitor(self)
+            self.load_monitor.setServiceParent(self)
+            self.register_producer(self.load_monitor)
 
         self.cpu_monitor = CPUUsageMonitor()
         self.cpu_monitor.setServiceParent(self)
         self.register_producer(self.cpu_monitor)
 
     def startService(self):
-        if self.node:
+        if self.node and self.gatherer_furl:
             d = self.node.when_tub_ready()
             def connect(junk):
                 nickname = self.node.get_config('nickname')
-                self.node.tub.connectTo(self.gatherer_furl, self._connected, nickname)
+                self.node.tub.connectTo(self.gatherer_furl,
+                                        self._connected, nickname)
             d.addCallback(connect)
         service.MultiService.startService(self)
 

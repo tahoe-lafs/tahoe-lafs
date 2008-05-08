@@ -114,12 +114,9 @@ class Client(node.Node, testutil.PollMixin):
 
     def init_stats_provider(self):
         gatherer_furl = self.get_config('stats_gatherer.furl')
-        if gatherer_furl:
-            self.stats_provider = StatsProvider(self, gatherer_furl)
-            self.add_service(self.stats_provider)
-            self.stats_provider.register_producer(self)
-        else:
-            self.stats_provider = None
+        self.stats_provider = StatsProvider(self, gatherer_furl)
+        self.add_service(self.stats_provider)
+        self.stats_provider.register_producer(self)
 
     def get_stats(self):
         return { 'node.uptime': time.time() - self.started_timestamp }
