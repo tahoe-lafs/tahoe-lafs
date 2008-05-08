@@ -9,7 +9,7 @@ class ConcurrencyLimiter:
     """
 
     def __init__(self, limit=10):
-        self.limit = 10
+        self.limit = limit
         self.pending = []
         self.active = 0
 
