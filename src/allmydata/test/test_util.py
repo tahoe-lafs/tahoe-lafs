@@ -453,7 +453,7 @@ class Limiter(unittest.TestCase):
         d = defer.Deferred()
         def _done():
             self.simultaneous -= 1
-            d.callback("done")
+            d.callback("done %d" % i)
         reactor.callLater(1.0, _done)
         return d
 
@@ -489,6 +489,14 @@ class Limiter(unittest.TestCase):
         d2 = l.add(self.bad_job, 21, "21")
         d = defer.DeferredList(dl, fireOnOneErrback=True)
         def _most_done(res):
+            results = []
+            for (success, result) in res:
+                self.failUnlessEqual(success, True)
+                results.append(result)
+            results.sort()
+            expected_results = ["done %d" % i for i in range(20)]
+            expected_results.sort()
+            self.failUnlessEqual(results, expected_results)
             self.failUnless(self.peak_simultaneous <= 10)
             self.failUnlessEqual(len(self.calls), 20)
             for i in range(20):
