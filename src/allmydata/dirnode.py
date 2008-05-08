@@ -113,6 +113,8 @@ class NewDirectoryNode:
 
     def __init__(self, client):
         self._client = client
+        self._most_recent_size = None
+
     def __repr__(self):
         return "<%s %s %s>" % (self.__class__.__name__, self.is_readonly() and "RO" or "RW", hasattr(self, '_uri') and self._uri.abbrev())
     def init_from_uri(self, myuri):
@@ -137,8 +139,18 @@ class NewDirectoryNode:
         self._uri = NewDirectoryURI(IMutableFileURI(self._node.get_uri()))
         return self
 
+    def get_size(self):
+        # return the size of our backing mutable file, in bytes, if we've
+        # fetched it.
+        return self._most_recent_size
+
+    def _set_size(self, data):
+        self._most_recent_size = len(data)
+        return data
+
     def _read(self):
         d = self._node.download_best_version()
+        d.addCallback(self._set_size)
         d.addCallback(self._unpack_contents)
         return d
 
@@ -462,6 +474,76 @@ class NewDirectoryNode:
                 return defer.DeferredList(dl)
         d.addCallback(_got_list)
         return d
+
+    def deep_stats(self):
+        stats = dict([ (k,0) for k in ["count-immutable-files",
+                                       "count-mutable-files",
+                                       "count-literal-files",
+                                       "count-files",
+                                       "count-directories",
+                                       "size-immutable-files",
+                                       #"size-mutable-files",
+                                       "size-literal-files",
+                                       "size-directories",
+                                       "largest-directory",
+                                       "largest-directory-children",
+                                       "largest-immutable-file",
+                                       #"largest-mutable-file",
+                                       ]])
+        # we track verifier caps, to avoid double-counting children for which
+        # we've got both a write-cap and a read-cap
+        found = set()
+        found.add(self.get_verifier())
+
+        limiter = ConcurrencyLimiter(10)
+
+        d = self._add_deepstats_from_node(self, found, stats, limiter)
+        d.addCallback(lambda res: stats)
+        return d
+
+    def _add_deepstats_from_node(self, node, found, stats, limiter):
+        d = limiter.add(node.list)
+        def _got_list(children):
+            dl = []
+            dirsize_bytes = node.get_size()
+            dirsize_children = len(children)
+            stats["count-directories"] += 1
+            stats["size-directories"] += dirsize_bytes
+            stats["largest-directory"] = max(stats["largest-directory"],
+                                             dirsize_bytes)
+            stats["largest-directory-children"] = max(stats["largest-directory-children"],
+                                                      dirsize_children)
+            for name, (child, metadata) in children.iteritems():
+                verifier = child.get_verifier()
+                if verifier in found:
+                    continue
+                found.add(verifier)
+                if IDirectoryNode.providedBy(child):
+                    dl.append(self._add_deepstats_from_node(child, found,
+                                                            stats, limiter))
+                elif IMutableFileNode.providedBy(child):
+                    stats["count-files"] += 1
+                    stats["count-mutable-files"] += 1
+                    # TODO: update the servermap, compute a size, add it to
+                    # stats["size-mutable-files"], max it into
+                    # stats["largest-mutable-file"]
+                elif IFileNode.providedBy(child): # CHK and LIT
+                    stats["count-files"] += 1
+                    size = child.get_size()
+                    if child.get_uri().startswith("URI:LIT:"):
+                        stats["count-literal-files"] += 1
+                        stats["size-literal-files"] += size
+                    else:
+                        stats["count-immutable-files"] += 1
+                        stats["size-immutable-files"] += size
+                        stats["largest-immutable-file"] = max(
+                            stats["largest-immutable-file"], size)
+            if dl:
+                return defer.DeferredList(dl)
+        d.addCallback(_got_list)
+        return d
+
+
 
 # use client.create_dirnode() to make one of these
 

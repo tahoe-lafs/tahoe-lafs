@@ -571,6 +571,38 @@ GET $URL?t=deep-size
   expansion or encoding overhead into account. Later versions of the code may
   improve this estimate upwards.
 
+GET $URL?t=deep-stats
+
+  Return a JSON-encoded dictionary that lists interesting statistics about
+  the set of all files and directories reachable from the given directory:
+
+   count-immutable-files: count of how many CHK files are in the set
+   count-mutable-files: same, for mutable files (does not include directories)
+   count-literal-files: same, for LIT files (data contained inside the URI)
+   count-files: sum of the above three
+   count-directories: count of directories
+   size-immutable-files: total bytes for all CHK files in the set, =deep-size
+   size-mutable-files (TODO): same, for current version of all mutable files
+   size-literal-files: same, for LIT files
+   size-directories: size of directories (includes size-literal-files)
+   largest-directory: number of children in the largest directory
+   largest-immutable-file: number of bytes in the largest CHK file
+
+  size-mutable-files is not implemented, because it would require extra
+  queries to each mutable file to get their size. This may be implemented in
+  the future.
+
+  Assuming no sharing, the basic space consumed by a single root directory is
+  the sum of size-immutable-files, size-mutable-files, and size-directories.
+  The actual disk space used by the shares is larger, because of the
+  following sources of overhead:
+
+   integrity data
+   expansion due to erasure coding
+   share management data (leases)
+   backend (ext3) minimum block size
+
+
 6. XMLRPC (coming soon)
 
   http://127.0.0.1:8123/xmlrpc

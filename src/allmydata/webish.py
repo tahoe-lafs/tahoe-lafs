@@ -1244,6 +1244,18 @@ class DeepSize(rend.Page):
         d.addCallback(_measure_size)
         return d
 
+class DeepStats(rend.Page):
+
+    def __init__(self, dirnode, dirpath):
+        self._dirnode = dirnode
+        self._dirpath = dirpath
+
+    def renderHTTP(self, ctx):
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        d = self._dirnode.deep_stats()
+        d.addCallback(simplejson.dumps, indent=1)
+        return d
+
 class ChildError:
     implements(inevow.IResource)
     def renderHTTP(self, ctx):
@@ -1338,6 +1350,8 @@ class VDrive(rend.Page):
                         return Manifest(node, path), ()
                     elif t == "deep-size":
                         return DeepSize(node, path), ()
+                    elif t == "deep-stats":
+                        return DeepStats(node, path), ()
                     elif t == 'rename-form':
                         return RenameForm(self.name, node, path), ()
                     else:

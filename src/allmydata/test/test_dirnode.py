@@ -207,6 +207,29 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                                      sorted(self.expected_manifest))
             d.addCallback(_check_manifest)
 
+            d.addCallback(lambda res: n.deep_stats())
+            def _check_deepstats(stats):
+                self.failUnless(isinstance(stats, dict))
+                expected = {"count-immutable-files": 0,
+                            "count-mutable-files": 1,
+                            "count-literal-files": 0,
+                            "count-files": 1,
+                            "count-directories": 2,
+                            "size-immutable-files": 0,
+                            "size-literal-files": 0,
+                            #"size-directories": 616, # varies
+                            #"largest-directory": 616,
+                            "largest-directory-children": 2,
+                            "largest-immutable-file": 0,
+                            }
+                for k,v in expected.iteritems():
+                    self.failUnlessEqual(stats[k], v,
+                                         "stats[%s] was %s, not %s" %
+                                         (k, stats[k], v))
+                self.failUnless(stats["size-directories"] > 600)
+                self.failUnless(stats["largest-directory"] > 600)
+            d.addCallback(_check_deepstats)
+
             def _add_subsubdir(res):
                 return self.subdir.create_empty_directory(u"subsubdir")
             d.addCallback(_add_subsubdir)

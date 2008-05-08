@@ -768,6 +768,29 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_got)
         return d
 
+    def test_GET_DIRURL_deepstats(self):
+        d = self.GET(self.public_url + "/foo?t=deep-stats", followRedirect=True)
+        def _got(stats_json):
+            stats = simplejson.loads(stats_json)
+            expected = {"count-immutable-files": 3,
+                        "count-mutable-files": 0,
+                        "count-literal-files": 0,
+                        "count-files": 3,
+                        "count-directories": 3,
+                        "size-immutable-files": 57,
+                        "size-literal-files": 0,
+                        #"size-directories": 1912, # varies
+                        #"largest-directory": 1590,
+                        "largest-directory-children": 5,
+                        "largest-immutable-file": 19,
+                        }
+            for k,v in expected.iteritems():
+                self.failUnlessEqual(stats[k], v,
+                                     "stats[%s] was %s, not %s" %
+                                     (k, stats[k], v))
+        d.addCallback(_got)
+        return d
+
     def test_GET_DIRURL_uri(self):
         d = self.GET(self.public_url + "/foo?t=uri")
         def _check(res):

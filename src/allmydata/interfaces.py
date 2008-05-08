@@ -867,8 +867,42 @@ class IDirectoryNode(IMutableFilesystemNode):
         operation finishes. The child name must be a unicode string."""
 
     def build_manifest():
-        """Return a frozenset of verifier-capability strings for all nodes
-        (directories and files) reachable from this one."""
+        """Return a Deferred that fires with a frozenset of
+        verifier-capability strings for all nodes (directories and files)
+        reachable from this one."""
+
+    def deep_stats():
+        """Return a Deferred that fires with a dictionary of statistics
+        computed by examining all nodes (directories and files) reachable
+        from this one, with the following keys::
+
+           count-immutable-files: count of how many CHK files are in the set
+           count-mutable-files: same, for mutable files (does not include
+                                directories)
+           count-literal-files: same, for LIT files
+           count-files: sum of the above three
+
+           count-directories: count of directories
+
+           size-immutable-files: total bytes for all CHK files in the set
+           size-mutable-files (TODO): same, for current version of all mutable
+                                      files, does not include directories
+           size-literal-files: same, for LIT files
+           size-directories: size of mutable files used by directories
+
+           largest-directory: number of bytes in the largest directory
+           largest-directory-children: number of children in the largest
+                                       directory
+           largest-immutable-file: number of bytes in the largest CHK file
+
+        size-mutable-files is not yet implemented, because it would involve
+        even more queries than deep_stats does.
+
+        This operation will visit every directory node underneath this one,
+        and can take a long time to run. On a typical workstation with good
+        bandwidth, this can examine roughly 15 directories per second (and
+        takes several minutes of 100% CPU for ~1700 directories).
+        """
 
 class ICodecEncoder(Interface):
     def set_params(data_size, required_shares, max_shares):
