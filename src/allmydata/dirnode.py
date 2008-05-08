@@ -10,6 +10,7 @@ from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
      IURI, IFileNode, IMutableFileURI, IVerifierURI, IFilesystemNode
 from allmydata.util import hashutil
 from allmydata.util.hashutil import netstring
+from allmydata.util.limiter import ConcurrencyLimiter
 from allmydata.uri import NewDirectoryURI
 from pycryptopp.cipher.aes import AES
 
@@ -425,12 +426,14 @@ class NewDirectoryNode:
         (directories and files) reachable from this one."""
 
         # this is just a tree-walker, except that following each edge
-        # requires a Deferred.
+        # requires a Deferred. We use a ConcurrencyLimiter to make sure the
+        # fan-out doesn't cause problems.
 
         manifest = set()
         manifest.add(self.get_verifier())
+        limiter = ConcurrencyLimiter(10) # allow 10 in parallel
 
-        d = self._build_manifest_from_node(self, manifest)
+        d = self._build_manifest_from_node(self, manifest, limiter)
         def _done(res):
             # LIT nodes have no verifier-capability: their data is stored
             # inside the URI itself, so there is no need to refresh anything.
@@ -443,8 +446,8 @@ class NewDirectoryNode:
         d.addCallback(_done)
         return d
 
-    def _build_manifest_from_node(self, node, manifest):
-        d = node.list()
+    def _build_manifest_from_node(self, node, manifest, limiter):
+        d = limiter.add(node.list)
         def _got_list(res):
             dl = []
             for name, (child, metadata) in res.iteritems():
@@ -453,7 +456,8 @@ class NewDirectoryNode:
                     manifest.add(verifier)
                     if IDirectoryNode.providedBy(child):
                         dl.append(self._build_manifest_from_node(child,
-                                                                 manifest))
+                                                                 manifest,
+                                                                 limiter))
             if dl:
                 return defer.DeferredList(dl)
         d.addCallback(_got_list)
