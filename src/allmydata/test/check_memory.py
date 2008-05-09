@@ -289,6 +289,9 @@ this file are ignored.
         def _read(res):
             # read the node's URL
             self.webish_url = open(url_file, "r").read().strip()
+            if self.webish_url[-1] == "/":
+                # trim trailing slash, since the rest of the code wants it gone
+                self.webish_url = self.webish_url[:-1]
             f = open(furl_file, "r")
             furl = f.read()
             return furl.strip()
