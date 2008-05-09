@@ -1,0 +1,102 @@
+= The Tahoe CLI commands =
+
+Tahoe provides a single executable named "tahoe", which can be used to create
+and manage client/server nodes, manipulate the virtual drive, and perform
+several debugging/maintenance tasks.
+
+This executable lives in the source tree at "bin/tahoe". Once you've done a
+build (by running "make"), bin/tahoe can be run in-place: if it discovers
+that it is being run from within a Tahoe source tree, it will modify sys.path
+as necessary to use all the source code and dependent libraries contained in
+that tree.
+
+If you've installed Tahoe (using "make install", or by installing a binary
+package), then the tahoe executable will be available somewhere else, perhaps
+in /usr/bin/tahoe . In this case, it will use your platform's normal
+PYTHONPATH search paths to find the tahoe code and other libraries.
+
+== CLI Command Overview ==
+
+The "tahoe" tool provides access to three categories of commands.
+
+ * node management: create a client/server node, start/stop/restart it
+ * vdrive manipulation: list files, upload, download, delete, rename
+ * debugging: unpack cap-strings, examine share files
+
+To get a list of all commands, just run "tahoe" with no additional arguments.
+"tahoe --help" might also provide something useful.
+
+Running "tahoe --version" will display a list of version strings, starting
+with the "allmydata" module (which contains the majority of the Tahoe
+functionality) and including versions for a number of dependent libraries,
+like Twisted, Foolscap, pycryptopp, and zfec.
+
+== Node Management ==
+
+"tahoe create-client [NODEDIR]" is the basic make-a-new-node command. It
+creates a new directory and populates it with files that will allow the
+"tahoe start" command to use it later on. This command creates nodes that
+have client functionality (upload/download files), web API services
+(controlled by the 'webport' file), and storage services (controlled by
+"no_storage" and the like).
+
+NODEDIR defaults to ~/.tahoe/ , and newly-created clients default to
+publishing a web server on port 8123 (limited to the loopback interface, at
+127.0.0.1, to restrict access to other programs on the same host). All of the
+other "tahoe" subcommands use corresponding defaults.
+
+"tahoe create-introducer [NODEDIR]" is used to create the Introducer node.
+This node provides introduction services and nothing else. When started, this
+node will produce an introducer.furl, which should be published to all
+clients.
+
+"tahoe create-key-generator [NODEDIR]" is used to create a special
+"key-generation" service, which allows a client to offload their RSA key
+generation to a separate process. Since RSA key generation takes several
+seconds, and must be done each time a directory is created, moving it to a
+separate process allows the first process (perhaps a busy webapi server) to
+continue servicing other requests. The key generator exports a FURL that can
+be copied into a client node to enable this functionality.
+
+"tahoe start [NODEDIR]" will launch a previously-created node. It will launch
+the node into the background, using the standard Twisted "twistd"
+daemon-launching tool.
+
+"tahoe run [NODEDIR]" will start a previous-created node in the foreground.
+Some platforms are unable to run a daemon in the background: this command
+provides a way to use a tahoe node on such platforms.
+
+"tahoe stop [NODEDIR]" will shut down a running node.
+
+"tahoe restart [NODEDIR]" will stop and then restart a running node. This is
+most often used by developers who have just modified the code and want to
+start using their changes.
+
+
+== Virtual Drive Manipulation ==
+
+TODO
+
+== Debugging ==
+
+"tahoe find-shares STORAGEINDEX NODEDIRS.." will look through one or more
+storage nodes for the share files that are providing storage for the given
+storage index.
+
+"tahoe catalog-shares NODEDIRS.." will look through one or more storage nodes
+and locate every single share they contain. It produces a report on stdout
+with one line per share, describing what kind of share it is, the storage
+index, the size of the file is used for, etc. It may be useful to concatenate
+these reports from all storage hosts and use it to look for anomalies.
+
+"tahoe dump-share SHAREFILE" will take the name of a single share file (as
+found by "tahoe find-shares") and print a summary of its contents to stdout.
+This includes a list of leases, summaries of the hash tree, and information
+from the UEB (URI Extension Block). For mutable file shares, it will describe
+which version (seqnum and root-hash) is being stored in this share.
+
+"tahoe dump-cap CAP" will take a URI (a file read-cap, or a directory read-
+or write- cap) and unpack it into separate pieces. The most useful aspect of
+this command is to reveal the storage index for any given URI. This can be
+used to locate the share files that are holding the encoded+encrypted data
+for this file.
