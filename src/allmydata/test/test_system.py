@@ -702,6 +702,8 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
             uri = self._mutable_node_1.get_uri()
             log.msg("starting retrieve1")
             newnode = self.clients[0].create_node_from_uri(uri)
+            newnode_2 = self.clients[0].create_node_from_uri(uri)
+            self.failUnlessIdentical(newnode, newnode_2)
             return newnode.download_best_version()
         d.addCallback(_check_download_1)
 

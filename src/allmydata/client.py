@@ -1,5 +1,5 @@
 
-import os, stat, time, re
+import os, stat, time, re, weakref
 from allmydata.interfaces import RIStorageServer
 from allmydata import node
 
@@ -170,6 +170,7 @@ class Client(node.Node, testutil.PollMixin):
         helper_furl = self.get_config("helper.furl")
         convergence_s = self.get_or_create_private_config('convergence', _make_secret)
         self.convergence = base32.a2b(convergence_s)
+        self._node_cache = weakref.WeakValueDictionary() # uri -> node
         self.add_service(Uploader(helper_furl, self.stats_provider))
         self.add_service(Downloader(self.stats_provider))
         self.add_service(Checker())
@@ -292,17 +293,22 @@ class Client(node.Node, testutil.PollMixin):
     def create_node_from_uri(self, u):
         # this returns synchronously.
         u = IURI(u)
-        if IReadonlyNewDirectoryURI.providedBy(u):
-            # new-style read-only dirnodes
-            return NewDirectoryNode(self).init_from_uri(u)
-        if INewDirectoryURI.providedBy(u):
-            # new-style dirnodes
-            return NewDirectoryNode(self).init_from_uri(u)
-        if IFileURI.providedBy(u):
-            # CHK
-            return FileNode(u, self)
-        assert IMutableFileURI.providedBy(u), u
-        return MutableFileNode(self).init_from_uri(u)
+        u_s = u.to_string()
+        if u_s not in self._node_cache:
+            if IReadonlyNewDirectoryURI.providedBy(u):
+                # new-style read-only dirnodes
+                node = NewDirectoryNode(self).init_from_uri(u)
+            elif INewDirectoryURI.providedBy(u):
+                # new-style dirnodes
+                node = NewDirectoryNode(self).init_from_uri(u)
+            elif IFileURI.providedBy(u):
+                # CHK
+                node = FileNode(u, self)
+            else:
+                assert IMutableFileURI.providedBy(u), u
+                node = MutableFileNode(self).init_from_uri(u)
+            self._node_cache[u_s] = node
+        return self._node_cache[u_s]
 
     def notify_publish(self, publish_status, size):
         self.getServiceNamed("mutable-watcher").notify_publish(publish_status,
