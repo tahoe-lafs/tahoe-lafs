@@ -1255,6 +1255,32 @@ class MultipleVersions(unittest.TestCase):
                                                   res == self.CONTENTS[4]))
         return d
 
+    def test_replace(self):
+        # if we see a mix of versions in the grid, we should be able to
+        # replace them all with a newer version
+
+        # if exactly one share is at version 3, we should download (and
+        # replace) v2, and the result should be v4. Note that the index we
+        # give to _set_versions is different than the sequence number.
+        target = dict([(i,2) for i in range(10)]) # seqnum3
+        target[0] = 3 # seqnum4
+        self._set_versions(target)
+
+        def _modify(oldversion):
+            return oldversion + " modified"
+        d = self._fn.modify(_modify)
+        d.addCallback(lambda res: self._fn.download_best_version())
+        expected = self.CONTENTS[2] + " modified"
+        d.addCallback(lambda res: self.failUnlessEqual(res, expected))
+        # and the servermap should indicate that the outlier was replaced too
+        d.addCallback(lambda res: self._fn.get_servermap(MODE_CHECK))
+        def _check_smap(smap):
+            self.failUnlessEqual(smap.highest_seqnum(), 5)
+            self.failUnlessEqual(len(smap.unrecoverable_versions()), 0)
+            self.failUnlessEqual(len(smap.recoverable_versions()), 1)
+        d.addCallback(_check_smap)
+        return d
+
 
 class Utils(unittest.TestCase):
     def test_dict_of_sets(self):
