@@ -78,8 +78,7 @@ class IntroducerRoot(rend.Page):
         (furl, service_name, ri_name, nickname, ver, oldest) = announcement
         sr = SturdyRef(furl)
         nodeid = sr.tubID
-        advertised = [loc.split(":")[0] for loc in sr.locationHints
-                      if not loc.startswith("127.0.0.1:")]
+        advertised = self.show_location_hints(sr)
         ctx.fillSlots("peerid", "%s %s" % (nodeid, nickname))
         ctx.fillSlots("advertised", " ".join(advertised))
         ctx.fillSlots("connected", "?")
@@ -124,8 +123,7 @@ class IntroducerRoot(rend.Page):
         # if the subscriber didn't do Tub.setLocation, nodeid will be None
         nodeid = sr.tubID or "?"
         ctx.fillSlots("peerid", "%s %s" % (nodeid, nickname))
-        advertised = [loc.split(":")[0] for loc in sr.locationHints
-                      if not loc.startswith("127.0.0.1:")]
+        advertised = self.show_location_hints(sr)
         ctx.fillSlots("advertised", " ".join(advertised))
         remote_host = rref.tracker.broker.transport.getPeer()
         if isinstance(remote_host, address.IPv4Address):
@@ -140,5 +138,22 @@ class IntroducerRoot(rend.Page):
         ctx.fillSlots("version", version)
         ctx.fillSlots("service_name", service_name)
         return ctx.tag
+
+    def show_location_hints(self, sr, ignore_localhost=True):
+        advertised = []
+        for hint in sr.locationHints:
+            if isinstance(hint, str):
+                # Foolscap-0.2.5 and earlier used strings in .locationHints
+                if ignore_localhost and hint.startswith("127.0.0.1"):
+                    continue
+                advertised.append(hint.split(":")[0])
+            else:
+                # Foolscap-0.2.6 and later use tuples of ("ipv4", host, port)
+                if hint[0] == "ipv4":
+                    host = hint[1]
+                if ignore_localhost and host == "127.0.0.1":
+                    continue
+                advertised.append(hint[1])
+        return advertised
 
 
