@@ -252,25 +252,17 @@ class Directory(rend.Page):
                 times.append("m: " + mtime)
         ctx.fillSlots("times", times)
 
-
-        # build the base of the uri_link link url
-        uri_link = "/uri/" + urllib.quote(target.get_uri())
-
         assert (IFileNode.providedBy(target)
                 or IDirectoryNode.providedBy(target)
                 or IMutableFileNode.providedBy(target)), target
 
+        quoted_uri = urllib.quote(target.get_uri())
+
         if IMutableFileNode.providedBy(target):
-            # file
-
-            # add the filename to the uri_link url
-            uri_link += '?%s' % (urllib.urlencode({'filename': name}),)
-
             # to prevent javascript in displayed .html files from stealing a
             # secret directory URI from the URL, send the browser to a URI-based
             # page that doesn't know about the directory at all
-            #dlurl = urllib.quote(name)
-            dlurl = uri_link
+            dlurl = "/file/%s/@@named=/%s" % (quoted_uri, urllib.quote(name))
 
             ctx.fillSlots("filename",
                           T.a(href=dlurl)[html.escape(name)])
@@ -278,20 +270,11 @@ class Directory(rend.Page):
 
             ctx.fillSlots("size", "?")
 
-            text_plain_link = uri_link + "?filename=foo.txt"
-            text_plain_tag = T.a(href=text_plain_link)["text/plain"]
+            text_plain_url = "/file/%s/@@named=/foo.txt" % quoted_uri
+            text_plain_tag = T.a(href=text_plain_url)["text/plain"]
 
         elif IFileNode.providedBy(target):
-            # file
-
-            # add the filename to the uri_link url
-            uri_link += '?%s' % (urllib.urlencode({'filename': name}),)
-
-            # to prevent javascript in displayed .html files from stealing a
-            # secret directory URI from the URL, send the browser to a URI-based
-            # page that doesn't know about the directory at all
-            #dlurl = urllib.quote(name)
-            dlurl = uri_link
+            dlurl = "/file/%s/@@named=/%s" % (quoted_uri, urllib.quote(name))
 
             ctx.fillSlots("filename",
                           T.a(href=dlurl)[html.escape(name)])
@@ -299,11 +282,13 @@ class Directory(rend.Page):
 
             ctx.fillSlots("size", target.get_size())
 
-            text_plain_link = uri_link + "?filename=foo.txt"
-            text_plain_tag = T.a(href=text_plain_link)["text/plain"]
+            text_plain_url = "/file/%s/@@named=/foo.txt" % quoted_uri
+            text_plain_tag = T.a(href=text_plain_url)["text/plain"]
+
 
         elif IDirectoryNode.providedBy(target):
             # directory
+            uri_link = "/uri/" + urllib.quote(target.get_uri())
             ctx.fillSlots("filename",
                           T.a(href=uri_link)[html.escape(name)])
             if target.is_readonly():
@@ -491,6 +476,7 @@ class WebDownloadTarget:
         pass
 
 class FileDownloader(resource.Resource):
+    isLeaf = True
     def __init__(self, filenode, name):
         assert (IFileNode.providedBy(filenode)
                 or IMutableFileNode.providedBy(filenode))
@@ -1391,7 +1377,18 @@ class Root(rend.Page):
         client = IClient(ctx)
         req = inevow.IRequest(ctx)
 
-        if not segments or segments[0] != "uri":
+        if not segments:
+            return rend.Page.locateChild(self, ctx, segments)
+
+        if segments[0] == "file":
+            if len(segments) < 2:
+                return rend.Page.locateChild(self, ctx, segments)
+            filecap = segments[1]
+            node = client.create_node_from_uri(filecap)
+            name = segments[-1]
+            return FileDownloader(node, name), ()
+
+        if segments[0] != "uri":
             return rend.Page.locateChild(self, ctx, segments)
 
         segments = list(segments)

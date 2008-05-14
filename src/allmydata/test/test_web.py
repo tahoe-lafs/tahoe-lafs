@@ -464,6 +464,16 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
+    def test_GET_FILEURL_named(self):
+        base = "/file/%s" % urllib.quote(self._bar_txt_uri)
+        d = self.GET(base + "/@@name=/blah.txt")
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(base + "/blah.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(base + "/ignore/lots/blah.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        return d
+
     def test_GET_FILEURL_save(self):
         d = self.GET(self.public_url + "/foo/bar.txt?save=bar.txt")
         # TODO: look at the headers, expect a Content-Disposition: attachment
