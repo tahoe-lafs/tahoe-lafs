@@ -74,8 +74,8 @@ class ShouldFailMixin:
                 res.trap(expected_failure)
                 if substring:
                     self.failUnless(substring in str(res),
-                                    "substring '%s' not in '%s'"
-                                    % (substring, str(res)))
+                                    "%s: substring '%s' not in '%s'"
+                                    % (which, substring, str(res)))
             else:
                 self.fail("%s was supposed to raise %s, not get '%s'" %
                           (which, expected_failure, res))
