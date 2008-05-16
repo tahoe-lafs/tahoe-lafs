@@ -725,6 +725,10 @@ class IMutableFileNode(IFileNode, IMutableFilesystemNode):
         writer-visible data using this writekey.
         """
 
+class ExistingChildError(Exception):
+    """A directory node was asked to add or replace a child that already
+    exists, and overwrite= was set to False."""
+
 class IDirectoryNode(IMutableFilesystemNode):
     """I represent a name-to-child mapping, holding the tahoe equivalent of a
     directory. All child names are unicode strings, and all children are some
@@ -790,10 +794,12 @@ class IDirectoryNode(IMutableFilesystemNode):
         path-name elements. All elements must be unicode strings.
         """
 
-    def set_uri(name, child_uri, metadata=None):
+    def set_uri(name, child_uri, metadata=None, overwrite=True):
         """I add a child (by URI) at the specific name. I return a Deferred
-        that fires when the operation finishes. I will replace any existing
-        child of the same name. The child name must be a unicode string.
+        that fires when the operation finishes. If overwrite= is True, I will
+        replace any existing child of the same name, otherwise an existing
+        child will cause me to return ExistingChildError. The child name must
+        be a unicode string.
 
         The child_uri could be for a file, or for a directory (either
         read-write or read-only, using a URI that came from get_uri() ).
@@ -808,7 +814,7 @@ class IDirectoryNode(IMutableFilesystemNode):
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
 
-    def set_children(entries):
+    def set_children(entries, overwrite=True):
         """Add multiple (name, child_uri) pairs (or (name, child_uri,
         metadata) triples) to a directory node. Returns a Deferred that fires
         (with None) when the operation finishes. This is equivalent to
@@ -816,7 +822,7 @@ class IDirectoryNode(IMutableFilesystemNode):
         child names must be unicode strings.
         """
 
-    def set_node(name, child, metadata=None):
+    def set_node(name, child, metadata=None, overwrite=True):
         """I add a child at the specific name. I return a Deferred that fires
         when the operation finishes. This Deferred will fire with the child
         node that was just added. I will replace any existing child of the
@@ -832,7 +838,7 @@ class IDirectoryNode(IMutableFilesystemNode):
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
 
-    def set_nodes(entries):
+    def set_nodes(entries, overwrite=True):
         """Add multiple (name, child_node) pairs (or (name, child_node,
         metadata) triples) to a directory node. Returns a Deferred that fires
         (with None) when the operation finishes. This is equivalent to
@@ -840,7 +846,7 @@ class IDirectoryNode(IMutableFilesystemNode):
         child names must be unicode strings."""
 
 
-    def add_file(name, uploadable, metadata=None):
+    def add_file(name, uploadable, metadata=None, overwrite=True):
         """I upload a file (using the given IUploadable), then attach the
         resulting FileNode to the directory at the given name. I set metadata
         the same way as set_uri and set_node. The child name must be a
@@ -854,12 +860,13 @@ class IDirectoryNode(IMutableFilesystemNode):
         fires when the operation finishes. The child name must be a unicode
         string."""
 
-    def create_empty_directory(name):
+    def create_empty_directory(name, overwrite=True):
         """I create and attach an empty directory at the given name. The
         child name must be a unicode string. I return a Deferred that fires
         when the operation finishes."""
 
-    def move_child_to(current_child_name, new_parent, new_child_name=None):
+    def move_child_to(current_child_name, new_parent, new_child_name=None,
+                      overwrite=True):
         """I take one of my children and move them to a new parent. The child
         is referenced by name. On the new parent, the child will live under
         'new_child_name', which defaults to 'current_child_name'. TODO: what

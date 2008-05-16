@@ -7,7 +7,8 @@ import simplejson
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable.node import MutableFileNode
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
-     IURI, IFileNode, IMutableFileURI, IVerifierURI, IFilesystemNode
+     IURI, IFileNode, IMutableFileURI, IVerifierURI, IFilesystemNode, \
+     ExistingChildError
 from allmydata.util import hashutil, mathutil
 from allmydata.util.hashutil import netstring
 from allmydata.util.limiter import ConcurrencyLimiter
@@ -70,11 +71,12 @@ class MetadataSetter:
 
 
 class Adder:
-    def __init__(self, node, entries=None):
+    def __init__(self, node, entries=None, overwrite=True):
         self.node = node
         if entries is None:
             entries = []
         self.entries = entries
+        self.overwrite = overwrite
 
     def set_node(self, name, node, metadata):
         self.entries.append( [name, node, metadata] )
@@ -91,6 +93,8 @@ class Adder:
                 name, child, new_metadata = e
             assert isinstance(name, unicode)
             if name in children:
+                if not self.overwrite:
+                    raise ExistingChildError("child '%s' already exists" % name)
                 metadata = children[name][1].copy()
             else:
                 metadata = {"ctime": now,
@@ -313,7 +317,7 @@ class NewDirectoryNode:
             d.addCallback(_got)
         return d
 
-    def set_uri(self, name, child_uri, metadata=None):
+    def set_uri(self, name, child_uri, metadata=None, overwrite=True):
         """I add a child (by URI) at the specific name. I return a Deferred
         that fires with the child node when the operation finishes. I will
         replace any existing child of the same name.
@@ -325,13 +329,13 @@ class NewDirectoryNode:
         NotMutableError."""
         assert isinstance(name, unicode)
         child_node = self._create_node(child_uri)
-        d = self.set_node(name, child_node, metadata)
+        d = self.set_node(name, child_node, metadata, overwrite)
         d.addCallback(lambda res: child_node)
         return d
 
-    def set_children(self, entries):
+    def set_children(self, entries, overwrite=True):
         # this takes URIs
-        a = Adder(self)
+        a = Adder(self, overwrite=overwrite)
         node_entries = []
         for e in entries:
             if len(e) == 2:
@@ -344,7 +348,7 @@ class NewDirectoryNode:
             a.set_node(name, self._create_node(child_uri), metadata)
         return self._node.modify(a.modify)
 
-    def set_node(self, name, child, metadata=None):
+    def set_node(self, name, child, metadata=None, overwrite=True):
         """I add a child at the specific name. I return a Deferred that fires
         when the operation finishes. This Deferred will fire with the child
         node that was just added. I will replace any existing child of the
@@ -357,22 +361,22 @@ class NewDirectoryNode:
             return defer.fail(NotMutableError())
         assert isinstance(name, unicode)
         assert IFilesystemNode.providedBy(child), child
-        a = Adder(self)
+        a = Adder(self, overwrite=overwrite)
         a.set_node(name, child, metadata)
         d = self._node.modify(a.modify)
         d.addCallback(lambda res: child)
         return d
 
-    def set_nodes(self, entries):
+    def set_nodes(self, entries, overwrite=True):
         if self.is_readonly():
             return defer.fail(NotMutableError())
-        a = Adder(self, entries)
+        a = Adder(self, entries, overwrite=overwrite)
         d = self._node.modify(a.modify)
         d.addCallback(lambda res: None)
         return d
 
 
-    def add_file(self, name, uploadable, metadata=None):
+    def add_file(self, name, uploadable, metadata=None, overwrite=True):
         """I upload a file (using the given IUploadable), then attach the
         resulting FileNode to the directory at the given name. I return a
         Deferred that fires (with the IFileNode of the uploaded file) when
@@ -383,7 +387,8 @@ class NewDirectoryNode:
         d = self._client.upload(uploadable)
         d.addCallback(lambda results: results.uri)
         d.addCallback(self._client.create_node_from_uri)
-        d.addCallback(lambda node: self.set_node(name, node, metadata))
+        d.addCallback(lambda node:
+                      self.set_node(name, node, metadata, overwrite))
         return d
 
     def delete(self, name):
@@ -397,7 +402,7 @@ class NewDirectoryNode:
         d.addCallback(lambda res: deleter.old_child)
         return d
 
-    def create_empty_directory(self, name):
+    def create_empty_directory(self, name, overwrite=True):
         """I create and attach an empty directory at the given name. I return
         a Deferred that fires (with the new directory node) when the
         operation finishes."""
@@ -407,7 +412,7 @@ class NewDirectoryNode:
         d = self._client.create_empty_dirnode()
         def _created(child):
             entries = [(name, child, None)]
-            a = Adder(self, entries)
+            a = Adder(self, entries, overwrite=overwrite)
             d = self._node.modify(a.modify)
             d.addCallback(lambda res: child)
             return d
@@ -415,7 +420,7 @@ class NewDirectoryNode:
         return d
 
     def move_child_to(self, current_child_name, new_parent,
-                      new_child_name=None):
+                      new_child_name=None, overwrite=True):
         """I take one of my children and move them to a new parent. The child
         is referenced by name. On the new parent, the child will live under
         'new_child_name', which defaults to 'current_child_name'. I return a
@@ -428,7 +433,8 @@ class NewDirectoryNode:
         assert isinstance(new_child_name, unicode)
         d = self.get(current_child_name)
         def sn(child):
-            return new_parent.set_node(new_child_name, child)
+            return new_parent.set_node(new_child_name, child,
+                                       overwrite=overwrite)
         d.addCallback(sn)
         d.addCallback(lambda child: self.delete(current_child_name))
         return d

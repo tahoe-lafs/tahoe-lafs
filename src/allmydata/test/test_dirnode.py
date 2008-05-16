@@ -4,7 +4,7 @@ from zope.interface import implements
 from twisted.trial import unittest
 from allmydata import uri, dirnode, upload
 from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
-     INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode
+     INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode, ExistingChildError
 from allmydata.util import hashutil, testutil
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
      FakeDirectoryNode, create_chk_filenode
@@ -186,15 +186,22 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             d.addCallback(lambda res: n.has_child(u"missing"))
             d.addCallback(lambda res: self.failIf(res))
             fake_file_uri = make_mutable_file_uri()
+            other_file_uri = make_mutable_file_uri()
             m = Marker(fake_file_uri)
             ffu_v = m.get_verifier()
             assert isinstance(ffu_v, str)
             self.expected_manifest.append(ffu_v)
             d.addCallback(lambda res: n.set_uri(u"child", fake_file_uri))
+            d.addCallback(lambda res:
+                          self.shouldFail(ExistingChildError, "set_uri-no",
+                                          "child 'child' already exists",
+                                          n.set_uri, u"child", other_file_uri,
+                                          overwrite=False))
             # /
             # /child = mutable
 
             d.addCallback(lambda res: n.create_empty_directory(u"subdir"))
+
             # /
             # /child = mutable
             # /subdir = directory
@@ -205,6 +212,12 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                 assert isinstance(new_v, str)
                 self.expected_manifest.append(new_v)
             d.addCallback(_created)
+
+            d.addCallback(lambda res:
+                          self.shouldFail(ExistingChildError, "mkdir-no",
+                                          "child 'subdir' already exists",
+                                          n.create_empty_directory, u"subdir",
+                                          overwrite=False))
 
             d.addCallback(lambda res: n.list())
             d.addCallback(lambda children:
@@ -287,6 +300,12 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             # set_node + metadata
             # it should be possible to add a child without any metadata
             d.addCallback(lambda res: n.set_node(u"d2", n, {}))
+            d.addCallback(lambda res: self.client.create_empty_dirnode())
+            d.addCallback(lambda n2:
+                          self.shouldFail(ExistingChildError, "set_node-no",
+                                          "child 'd2' already exists",
+                                          n.set_node, u"d2", n2,
+                                          overwrite=False))
             d.addCallback(lambda res: n.get_metadata_for(u"d2"))
             d.addCallback(lambda metadata: self.failUnlessEqual(metadata, {}))
 
@@ -315,6 +334,16 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                                                    (u"e3", fake_file_uri,
                                                     {"key": "value"}),
                                                    ]))
+            d.addCallback(lambda res:
+                          self.shouldFail(ExistingChildError, "set_children-no",
+                                          "child 'e1' already exists",
+                                          n.set_children,
+                                          [ (u"e1", other_file_uri),
+                                            (u"new", other_file_uri), ],
+                                          overwrite=False))
+            # and 'new' should not have been created
+            d.addCallback(lambda res: n.list())
+            d.addCallback(lambda children: self.failIf(u"new" in children))
             d.addCallback(lambda res: n.get_metadata_for(u"e1"))
             d.addCallback(lambda metadata:
                           self.failUnlessEqual(sorted(metadata.keys()),
@@ -335,6 +364,16 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                                                     (u"f3", n,
                                                      {"key": "value"}),
                                                     ]))
+            d.addCallback(lambda res:
+                          self.shouldFail(ExistingChildError, "set_nodes-no",
+                                          "child 'f1' already exists",
+                                          n.set_nodes,
+                                          [ (u"f1", n),
+                                            (u"new", n), ],
+                                          overwrite=False))
+            # and 'new' should not have been created
+            d.addCallback(lambda res: n.list())
+            d.addCallback(lambda children: self.failIf(u"new" in children))
             d.addCallback(lambda res: n.get_metadata_for(u"f1"))
             d.addCallback(lambda metadata:
                           self.failUnlessEqual(sorted(metadata.keys()),
@@ -427,6 +466,13 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             d.addCallback(lambda res: n.add_file(u"newfile", uploadable))
             d.addCallback(lambda newnode:
                           self.failUnless(IFileNode.providedBy(newnode)))
+            other_uploadable = upload.Data("some data", convergence="stuff")
+            d.addCallback(lambda res:
+                          self.shouldFail(ExistingChildError, "add_file-no",
+                                          "child 'newfile' already exists",
+                                          n.add_file, u"newfile",
+                                          other_uploadable,
+                                          overwrite=False))
             d.addCallback(lambda res: n.list())
             d.addCallback(lambda children:
                           self.failUnlessEqual(sorted(children.keys()),
@@ -436,7 +482,6 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                           self.failUnlessEqual(sorted(metadata.keys()),
                                                ["ctime", "mtime"]))
 
-            uploadable = upload.Data("some data", convergence="some convergence string")
             d.addCallback(lambda res: n.add_file(u"newfile-metadata",
                                                  uploadable,
                                                  {"key": "value"}))
@@ -450,6 +495,9 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             d.addCallback(lambda res: n.create_empty_directory(u"subdir2"))
             def _created2(subdir2):
                 self.subdir2 = subdir2
+                # put something in the way, to make sure it gets overwritten
+                return subdir2.add_file(u"child", upload.Data("overwrite me",
+                                                              "converge"))
             d.addCallback(_created2)
 
             d.addCallback(lambda res:
@@ -462,6 +510,37 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             d.addCallback(lambda children:
                           self.failUnlessEqual(sorted(children.keys()),
                                                sorted([u"child"])))
+            d.addCallback(lambda res: self.subdir2.get(u"child"))
+            d.addCallback(lambda child:
+                          self.failUnlessEqual(child.get_uri(),
+                                               fake_file_uri.to_string()))
+
+            # move it back, using new_child_name=
+            d.addCallback(lambda res:
+                          self.subdir2.move_child_to(u"child", n, u"newchild"))
+            d.addCallback(lambda res: n.list())
+            d.addCallback(lambda children:
+                          self.failUnlessEqual(sorted(children.keys()),
+                                               sorted([u"newchild", u"newfile",
+                                                       u"subdir2"])))
+            d.addCallback(lambda res: self.subdir2.list())
+            d.addCallback(lambda children:
+                          self.failUnlessEqual(sorted(children.keys()), []))
+
+            # now make sure that we honor overwrite=False
+            d.addCallback(lambda res:
+                          self.subdir2.set_uri(u"newchild", other_file_uri))
+
+            d.addCallback(lambda res:
+                          self.shouldFail(ExistingChildError, "move_child_to-no",
+                                          "child 'newchild' already exists",
+                                          n.move_child_to, u"newchild",
+                                          self.subdir2,
+                                          overwrite=False))
+            d.addCallback(lambda res: self.subdir2.get(u"newchild"))
+            d.addCallback(lambda child:
+                          self.failUnlessEqual(child.get_uri(),
+                                               other_file_uri.to_string()))
 
             return d
 
