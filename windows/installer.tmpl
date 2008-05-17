@@ -45,9 +45,12 @@ Filename: "{sys}\net.exe"; Parameters: "stop ""Allmydata SMB"""; Flags: runhidde
 Filename: "{sys}\net.exe"; Parameters: "stop Tahoe"; Flags: runhidden
 Filename: "{app}\Install\tahoesvc.exe"; Parameters: "-install -auto"; Flags: runhidden
 Filename: "{app}\Install\tahoe.exe"; Parameters: "create-client ""{app}\noderoot"""; Flags: runhidden
+Filename: "{app}\Install\winfuse\AllmydataManager.exe"; Parameters: "-install"; Flags: runhidden
 Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: """{app}\Install\winfuse\WinFUSE.exe"""; Flags: runhidden
 Filename: "{app}\Install\confwiz.exe"; Flags: hidewizard
 ;Filename: "{app}\Install\ReadMe.txt"; Description: "View the ReadMe file"; Flags: unchecked postinstall nowait shellexec skipifdoesntexist
+Filename: "{sys}\net.exe"; Parameters: "start Allmydata Manager"; Flags: runhidden
+Filename: "{sys}\rundll32.exe"; Parameters: "{app}\Install\winfuse\loopback_install.dll doLoopBackEntry"; Flags: runhidden
 Filename: "{app}\Install\winfuse\AllmydataTray.exe"; Description: "Run Allmydata"; Flags: postinstall nowait
 Filename: "http://beta.allmydata.com/welcome_install?v=%(major)d.%(minor)d.%(point)d.%(revision)d"; Description: "View the Welcome Page"; Flags: postinstall shellexec
 
@@ -56,6 +59,7 @@ Filename: "http://beta.allmydata.com/welcome_install?v=%(major)d.%(minor)d.%(poi
 ; xFilename: "{app}\Install\winfuse\AllmydataTray.exe"; Parameters: "-Q"; Flags: runhidden
 Filename: "{sys}\net.exe"; Parameters: "stop ""Allmydata SMB"""; Flags: runhidden
 Filename: "{sys}\net.exe"; Parameters: "stop Tahoe"; Flags: runhidden
+Filename: "{sys}\net.exe"; Parameters: "stop Allmydata Manager"; Flags: runhidden
 Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: "/uninstall ""{app}\Install\winfuse\WinFUSE.exe"""; Flags: runhidden
 Filename: "{app}\Install\tahoesvc.exe"; Parameters: "-remove"; Flags: runhidden
 ;Filename: "{app}\Install\confwiz.exe"; Parameters: "--uninstall"; Flags: runhidden
