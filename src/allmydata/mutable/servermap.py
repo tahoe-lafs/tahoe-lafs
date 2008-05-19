@@ -258,6 +258,13 @@ class ServerMap:
             return recoverable[-1]
         return None
 
+    def size_of_version(self, verinfo):
+        """Given a versionid (perhaps returned by best_recoverable_version),
+        return the size of the file in bytes."""
+        (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
+         offsets_tuple) = verinfo
+        return datalength
+
     def unrecoverable_newer_versions(self):
         # Return a dict of versionid -> health, for versions that are
         # unrecoverable and have later seqnums than any recoverable versions.
