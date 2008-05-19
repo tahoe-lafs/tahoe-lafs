@@ -256,7 +256,7 @@ class WebMixin(object):
                                 % (substring, str(res)))
             if response_substring:
                 self.failUnless(response_substring in res.value.response,
-                                "respose substring '%s' not in '%s'"
+                                "response substring '%s' not in '%s'"
                                 % (response_substring, res.value.response))
         else:
             self.fail("%s was supposed to raise %s, not get '%s'" %
@@ -277,7 +277,7 @@ class WebMixin(object):
                                     % (substring, str(res)))
                 if response_substring:
                     self.failUnless(response_substring in res.value.response,
-                                    "respose substring '%s' not in '%s'"
+                                    "response substring '%s' not in '%s'"
                                     % (response_substring, res.value.response))
             else:
                 self.fail("%s was supposed to raise %s, not get '%s'" %
@@ -305,7 +305,7 @@ class WebMixin(object):
                                 % (substring, str(res)))
             if response_substring:
                 self.failUnless(response_substring in res.value.response,
-                                "respose substring '%s' not in '%s'"
+                                "response substring '%s' not in '%s'"
                                 % (response_substring, res.value.response))
         else:
             self.fail("%s was supposed to Error(%s), not get '%s'" %
@@ -977,7 +977,21 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnlessEqual(self._mutable_uri, newnode.get_uri())
         d.addCallback(_got3)
 
+        d.addErrback(self.dump_error)
         return d
+
+    def dump_error(self, f):
+        # if the web server returns an error code (like 400 Bad Request),
+        # web.client.getPage puts the HTTP response body into the .response
+        # attribute of the exception object that it gives back. It does not
+        # appear in the Failure's repr(), so the ERROR that trial displays
+        # will be rather terse and unhelpful. addErrback this method to the
+        # end of your chain to get more information out of these errors.
+        if f.check(error.Error):
+            print "web.error.Error:"
+            print f
+            print f.value.response
+        return f
 
     def test_POST_upload_replace(self):
         d = self.POST(self.public_url + "/foo", t="upload",
@@ -1192,6 +1206,7 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnlessURIMatchesChild(newuri11, self._foo_node, u"atomic_added_3")
 
         d.addCallback(_then)
+        d.addErrback(self.dump_error)
         return d
 
     def test_POST_put_uri(self):
