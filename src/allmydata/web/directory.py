@@ -18,7 +18,7 @@ from allmydata.interfaces import IDirectoryNode, IFileNode, IMutableFileNode, \
      ExistingChildError
 from allmydata.web.common import text_plain, WebError, IClient, \
      boolean_of_arg, get_arg, should_create_intermediate_directories, \
-     getxmlfile
+     getxmlfile, RenderMixin
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
 
@@ -38,7 +38,7 @@ def make_handler_for(node, parentnode=None, name=None):
         return DirectoryNodeHandler(node, parentnode, name)
     raise WebError("Cannot provide handler for '%s'" % node)
 
-class DirectoryNodeHandler(rend.Page, ReplaceMeMixin):
+class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     addSlash = True
 
     def __init__(self, node, parentnode=None, name=None):
@@ -110,22 +110,6 @@ class DirectoryNodeHandler(rend.Page, ReplaceMeMixin):
                                http.CONFLICT)
         if DEBUG: print "good child"
         return make_handler_for(node, self.node, name)
-
-    def renderHTTP(self, ctx):
-        # This is where all of the ?t=* actions are implemented.
-        request = IRequest(ctx)
-
-        # if we were using regular twisted.web Resources (and the regular
-        # twisted.web.server.Request object) then we could implement
-        # render_PUT and render_GET. But Nevow's request handler
-        # (NevowRequest.gotPageContext) goes directly to renderHTTP. Copy
-        # some code from the Resource.render method that Nevow bypasses, to
-        # do the same thing.
-        m = getattr(self, 'render_' + request.method, None)
-        if not m:
-            from twisted.web.server import UnsupportedMethod
-            raise UnsupportedMethod(getattr(self, 'allowedMethods', ()))
-        return m(ctx)
 
     def render_DELETE(self, ctx):
         assert self.parentnode and self.name

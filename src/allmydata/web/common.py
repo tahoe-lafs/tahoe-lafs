@@ -125,3 +125,20 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
                                http.NOT_IMPLEMENTED)
         super = appserver.DefaultExceptionHandler
         return super.renderHTTP_exception(self, ctx, f)
+
+class RenderMixin:
+
+    def renderHTTP(self, ctx):
+        request = IRequest(ctx)
+
+        # if we were using regular twisted.web Resources (and the regular
+        # twisted.web.server.Request object) then we could implement
+        # render_PUT and render_GET. But Nevow's request handler
+        # (NevowRequest.gotPageContext) goes directly to renderHTTP. Copy
+        # some code from the Resource.render method that Nevow bypasses, to
+        # do the same thing.
+        m = getattr(self, 'render_' + request.method, None)
+        if not m:
+            from twisted.web.server import UnsupportedMethod
+            raise UnsupportedMethod(getattr(self, 'allowedMethods', ()))
+        return m(ctx)

@@ -16,28 +16,13 @@ from allmydata.util import idlib
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status
 from allmydata.web.common import abbreviate_size, IClient, getxmlfile, \
-     WebError, get_arg
+     WebError, get_arg, RenderMixin
 
 
 
-class URIHandler(rend.Page):
+class URIHandler(RenderMixin, rend.Page):
     # I live at /uri . There are several operations defined on /uri itself,
     # mostly involed with creation of unlinked files and directories.
-
-    def renderHTTP(self, ctx):
-        request = IRequest(ctx)
-
-        # if we were using regular twisted.web Resources (and the regular
-        # twisted.web.server.Request object) then we could implement
-        # render_PUT and render_GET. But Nevow's request handler
-        # (NevowRequest.gotPageContext) goes directly to renderHTTP. Copy
-        # some code from the Resource.render method that Nevow bypasses, to
-        # do the same thing.
-        m = getattr(self, 'render_' + request.method, None)
-        if not m:
-            from twisted.web.server import UnsupportedMethod
-            raise UnsupportedMethod(getattr(self, 'allowedMethods', ()))
-        return m(ctx)
 
     def render_GET(self, ctx):
         req = IRequest(ctx)

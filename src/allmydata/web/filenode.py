@@ -13,7 +13,7 @@ from allmydata.interfaces import IDownloadTarget, ExistingChildError
 from allmydata.mutable.common import MODE_READ
 from allmydata.util import log
 
-from allmydata.web.common import text_plain, WebError, IClient, \
+from allmydata.web.common import text_plain, WebError, IClient, RenderMixin, \
      boolean_of_arg, get_arg, should_create_intermediate_directories
 
 class ReplaceMeMixin:
@@ -79,7 +79,7 @@ class ReplaceMeMixin:
         d.addCallback(lambda newnode: newnode.get_uri())
         return d
 
-class PlaceHolderNodeHandler(rend.Page, ReplaceMeMixin):
+class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def __init__(self, parentnode, name):
         rend.Page.__init__(self)
         assert parentnode
@@ -96,22 +96,6 @@ class PlaceHolderNodeHandler(rend.Page, ReplaceMeMixin):
         raise WebError("Files have no children, certainly not named '%s'"
                        % name, http.CONFLICT)
 
-
-    def renderHTTP(self, ctx):
-        # This is where all of the ?t=* actions are implemented.
-        request = IRequest(ctx)
-
-        # if we were using regular twisted.web Resources (and the regular
-        # twisted.web.server.Request object) then we could implement
-        # render_PUT and render_GET. But Nevow's request handler
-        # (NevowRequest.gotPageContext) goes directly to renderHTTP. Copy
-        # some code from the Resource.render method that Nevow bypasses, to
-        # do the same thing.
-        m = getattr(self, 'render_' + request.method, None)
-        if not m:
-            from twisted.web.server import UnsupportedMethod
-            raise UnsupportedMethod(getattr(self, 'allowedMethods', ()))
-        return m(ctx)
 
     def render_PUT(self, ctx):
         req = IRequest(ctx)
@@ -149,7 +133,7 @@ class PlaceHolderNodeHandler(rend.Page, ReplaceMeMixin):
         return d
 
 
-class FileNodeHandler(rend.Page, ReplaceMeMixin):
+class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def __init__(self, node, parentnode=None, name=None):
         rend.Page.__init__(self)
         assert node
@@ -164,23 +148,6 @@ class FileNodeHandler(rend.Page, ReplaceMeMixin):
                            "parent is a file, not a directory" % name)
         raise WebError("Files have no children, certainly not named '%s'"
                        % name)
-
-
-    def renderHTTP(self, ctx):
-        # This is where all of the ?t=* actions are implemented.
-        request = IRequest(ctx)
-
-        # if we were using regular twisted.web Resources (and the regular
-        # twisted.web.server.Request object) then we could implement
-        # render_PUT and render_GET. But Nevow's request handler
-        # (NevowRequest.gotPageContext) goes directly to renderHTTP. Copy
-        # some code from the Resource.render method that Nevow bypasses, to
-        # do the same thing.
-        m = getattr(self, 'render_' + request.method, None)
-        if not m:
-            from twisted.web.server import UnsupportedMethod
-            raise UnsupportedMethod(getattr(self, 'allowedMethods', ()))
-        return m(ctx)
 
     def render_GET(self, ctx):
         req = IRequest(ctx)
