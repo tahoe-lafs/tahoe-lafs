@@ -1,7 +1,7 @@
 [Setup]
-AppName=Allmydata 3.0
-; AppVerName=Allmydata 3.0 (build %(major)d.%(minor)d.%(point)d-r%(revision)d)
-AppVerName=Allmydata 3.0
+AppName=Allmydata 3.0.2
+; AppVerName=Allmydata 3.0.2 (build %(major)d.%(minor)d.%(point)d-r%(revision)d)
+AppVerName=Allmydata 3.0.2
 AppVersion=%(major)d.%(minor)d.%(point)d-r%(revision)d
 VersionInfoVersion=%(major)d.%(minor)d.%(point)d.%(revision)d
 AppPublisher=Allmydata Inc.
@@ -53,14 +53,14 @@ Filename: "{app}\Install\confwiz.exe"; Flags: hidewizard
 Filename: "{sys}\rundll32.exe"; Parameters: "{app}\Install\winfuse\loopback_install.dll doLoopBackEntry"; Flags: runhidden
 Filename: "{app}\Install\winfuse\AllmydataTray.exe"; Description: "Run Allmydata"; Flags: postinstall nowait
 Filename: "http://www.allmydata.com/welcome_install?v=%(major)d.%(minor)d.%(point)d.%(revision)d"; Description: "View the Welcome Page"; Flags: postinstall shellexec
-Filename: "{sys}\net.exe"; Parameters: "start Allmydata Manager"; Flags: runhidden
+Filename: "{sys}\net.exe"; Parameters: "start ""Allmydata Manager"""; Flags: runhidden
 
 [UninstallRun]
 ; Performed before the uninstaller runs to undo things
 ; xFilename: "{app}\Install\winfuse\AllmydataTray.exe"; Parameters: "-Q"; Flags: runhidden
 Filename: "{sys}\net.exe"; Parameters: "stop ""Allmydata SMB"""; Flags: runhidden
 Filename: "{sys}\net.exe"; Parameters: "stop Tahoe"; Flags: runhidden
-Filename: "{sys}\net.exe"; Parameters: "stop Allmydata Manager"; Flags: runhidden
+Filename: "{sys}\net.exe"; Parameters: "stop ""Allmydata Manager"""; Flags: runhidden
 Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: "/uninstall ""{app}\Install\winfuse\WinFUSE.exe"""; Flags: runhidden
 Filename: "{app}\Install\tahoesvc.exe"; Parameters: "-remove"; Flags: runhidden
 Filename: "{app}\Install\winfuse\AllmydataManager.exe"; Parameters: "-U"; Flags: runhidden
