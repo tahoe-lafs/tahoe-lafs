@@ -474,14 +474,9 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_GET_FILEURL_save(self):
-        d = self.GET(self.public_url + "/foo/bar.txt?save=bar.txt")
+        d = self.GET(self.public_url + "/foo/bar.txt?filename=bar.txt&save=true")
         # TODO: look at the headers, expect a Content-Disposition: attachment
         # header.
-        d.addCallback(self.failUnlessIsBarDotTxt)
-        return d
-
-    def test_GET_FILEURL_download(self):
-        d = self.GET(self.public_url + "/foo/bar.txt?t=download")
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
@@ -534,8 +529,8 @@ class Web(WebMixin, unittest.TestCase):
         d = self.PUT(self.public_url + "/foo/blockingfile/new.txt",
                      self.NEWFILE_CONTENTS)
         d.addBoth(self.shouldFail, error.Error, "PUT_NEWFILEURL_blocked",
-                  "400 Bad Request",
-                  "cannot create directory because there is a file in the way")
+                  "409 Conflict",
+                  "Unable to create directory 'blockingfile': a file was in the way")
         return d
 
     def test_DELETE_FILEURL(self):
@@ -702,20 +697,19 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(self.failUnlessNodeKeysAre, [])
         return d
 
-    def test_PUT_NEWDIRURL_replace(self):
+    def test_PUT_NEWDIRURL_exists(self):
         d = self.PUT(self.public_url + "/foo/sub?t=mkdir", "")
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"sub"))
         d.addCallback(lambda res: self._foo_node.get(u"sub"))
-        d.addCallback(self.failUnlessNodeKeysAre, [])
+        d.addCallback(self.failUnlessNodeKeysAre, [u"baz.txt"])
         return d
 
-    def test_PUT_NEWDIRURL_no_replace(self):
-        d = self.PUT(self.public_url + "/foo/sub?t=mkdir&replace=false", "")
-        d.addBoth(self.shouldFail, error.Error, "PUT_NEWDIRURL_no_replace",
-                  "409 Conflict",
-                  "There was already a child by that name, and you asked me "
-                  "to not replace it")
+    def test_PUT_NEWDIRURL_blocked(self):
+        d = self.shouldFail2(error.Error, "PUT_NEWDIRURL_blocked",
+                             "409 Conflict", "Unable to create directory 'bar.txt': a file was in the way",
+                             self.PUT,
+                             self.public_url + "/foo/bar.txt/sub?t=mkdir", "")
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"sub"))
         d.addCallback(lambda res: self._foo_node.get(u"sub"))
@@ -954,18 +948,23 @@ class Web(WebMixin, unittest.TestCase):
         # test that clicking on the "overwrite" button works
         EVEN_NEWER_CONTENTS = NEWER_CONTENTS + "even newer\n"
         def _parse_overwrite_form_and_submit(res):
-            OVERWRITE_FORM_RE=re.compile('<form action="([^"]*)" method="post" .*<input type="hidden" name="t" value="overwrite" /><input type="hidden" name="name" value="([^"]*)" /><input type="hidden" name="when_done" value="([^"]*)" />', re.I)
-            mo = OVERWRITE_FORM_RE.search(res)
-            self.failUnless(mo)
-            formaction=mo.group(1)
-            formname=mo.group(2)
-            formwhendone=mo.group(3)
 
-            if formaction == ".":
-                formaction = self.public_url + "/foo"
-            return self.POST(formaction, t="overwrite", name=formname, when_done=formwhendone, file=("new.txt", EVEN_NEWER_CONTENTS), followRedirect=False)
+            OVERWRITE_FORM_RE=re.compile('<form action="([^"]*)" method="post" .*<input type="hidden" name="t" value="upload" /><input type="hidden" name="when_done" value="([^"]*)" />', re.I)
+            mo = OVERWRITE_FORM_RE.search(res)
+            self.failUnless(mo, "overwrite form not found in '" + res +
+                            "', in which the overwrite form was not found")
+            formaction=mo.group(1)
+            formwhendone=mo.group(2)
+
+            fileurl = "/uri/" + urllib.quote(self._mutable_uri)
+            self.failUnless(formaction.startswith(fileurl), formaction)
+            return self.POST(formaction,
+                             t="upload",
+                             file=("new.txt", EVEN_NEWER_CONTENTS),
+                             when_done=formwhendone,
+                             followRedirect=False)
         d.addCallback(_parse_overwrite_form_and_submit)
-        d.addBoth(self.shouldRedirect, urllib.quote(self.public_url + "/foo/"))
+        d.addBoth(self.shouldRedirect, urllib.quote(self.public_url + "/foo"))
         d.addCallback(lambda res:
                       self.failUnlessMutableChildContentsAre(fn, u"new.txt",
                                                              EVEN_NEWER_CONTENTS))
@@ -1076,6 +1075,23 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(self.failUnlessNodeKeysAre, [])
         return d
 
+    def test_POST_mkdir_2(self):
+        d = self.POST(self.public_url + "/foo/newdir?t=mkdir", "")
+        d.addCallback(lambda res:
+                      self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
+        d.addCallback(self.failUnlessNodeKeysAre, [])
+        return d
+
+    def test_POST_mkdirs_2(self):
+        d = self.POST(self.public_url + "/foo/bardir/newdir?t=mkdir", "")
+        d.addCallback(lambda res:
+                      self.failUnlessNodeHasChild(self._foo_node, u"bardir"))
+        d.addCallback(lambda res: self._foo_node.get(u"bardir"))
+        d.addCallback(lambda bardirnode: bardirnode.get(u"newdir"))
+        d.addCallback(self.failUnlessNodeKeysAre, [])
+        return d
+
     def test_POST_mkdir_no_parentdir_noredirect(self):
         d = self.POST("/uri?t=mkdir")
         def _after_mkdir(res):
@@ -1164,7 +1180,7 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_POST_bad_t(self):
         d = self.shouldFail2(error.Error, "POST_bad_t", "400 Bad Request",
-                             "BAD t=BOGUS",
+                             "POST to a directory with bad t=BOGUS",
                              self.POST, self.public_url + "/foo", t="BOGUS")
         return d
 
@@ -1482,7 +1498,7 @@ class Web(WebMixin, unittest.TestCase):
         d.addBoth(self.shouldFail, error.Error,
                   "PUT_NEWFILE_URI_only_PUT",
                   "400 Bad Request",
-                  "/uri only accepts PUT and PUT?t=mkdir")
+                  "/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, and POST?t=mkdir")
         return d
 
     def test_PUT_NEWFILE_URI_mutable(self):
@@ -1538,12 +1554,15 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_bad_method(self):
         url = self.webish_url + self.public_url + "/foo/bar.txt"
-        d = self.shouldHTTPError2("test_bad_method", 404, "Not Found", None,
+        d = self.shouldHTTPError2("test_bad_method",
+                                  501, "Not Implemented",
+                                  "I don't know how to treat a BOGUS request.",
                                   client.getPage, url, method="BOGUS")
         return d
 
     def test_short_url(self):
         url = self.webish_url + "/uri"
-        d = self.shouldHTTPError2("test_short_url", 404, "Not Found", None,
+        d = self.shouldHTTPError2("test_short_url", 501, "Not Implemented",
+                                  "I don't know how to treat a DELETE request.",
                                   client.getPage, url, method="DELETE")
         return d
