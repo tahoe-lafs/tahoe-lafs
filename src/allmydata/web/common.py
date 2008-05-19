@@ -1,7 +1,10 @@
 
+from twisted.web import http, server
 from zope.interface import Interface
-from nevow import loaders
+from nevow import loaders, appserver
+from nevow.inevow import IRequest
 from nevow.util import resource_filename
+from allmydata.interfaces import ExistingChildError
 
 class IClient(Interface):
     pass
@@ -11,6 +14,7 @@ def getxmlfile(name):
     return loaders.xmlfile(resource_filename('allmydata.web', '%s' % name))
 
 def boolean_of_arg(arg):
+    # TODO: ""
     assert arg.lower() in ("true", "t", "1", "false", "f", "0", "on", "off")
     return arg.lower() in ("true", "t", "1", "on")
 
@@ -68,3 +72,56 @@ def abbreviate_size(data):
     if r > 1000:
         return "%.1fkB" % (r/1000)
     return "%dB" % r
+
+def text_plain(text, ctx):
+    req = IRequest(ctx)
+    req.setHeader("content-type", "text/plain")
+    req.setHeader("content-length", len(text))
+    return text
+
+class WebError(Exception):
+    def __init__(self, text, code=http.BAD_REQUEST):
+        self.text = text
+        self.code = code
+
+# XXX: to make UnsupportedMethod return 501 NOT_IMPLEMENTED instead of 500
+# Internal Server Error, we either need to do that ICanHandleException trick,
+# or make sure that childFactory returns a WebErrorResource (and never an
+# actual exception). The latter is growing increasingly annoying.
+
+def should_create_intermediate_directories(req):
+    t = get_arg(req, "t", "").strip()
+    return bool(req.method in ("PUT", "POST") and
+                t not in ("delete", "rename", "rename-form", "check"))
+
+
+class MyExceptionHandler(appserver.DefaultExceptionHandler):
+    def simple(self, ctx, text, code=http.BAD_REQUEST):
+        req = IRequest(ctx)
+        req.setResponseCode(code)
+        req.setHeader("content-type", "text/plain;charset=utf-8")
+        if isinstance(text, unicode):
+            text = text.encode("utf-8")
+        req.write(text)
+        req.finishRequest(False)
+
+    def renderHTTP_exception(self, ctx, f):
+        if f.check(ExistingChildError):
+            return self.simple(ctx,
+                               "There was already a child by that "
+                               "name, and you asked me to not "
+                               "replace it.",
+                               http.CONFLICT)
+        elif f.check(WebError):
+            return self.simple(ctx, f.value.text, f.value.code)
+        elif f.check(server.UnsupportedMethod):
+            # twisted.web.server.Request.render() has support for transforming
+            # this into an appropriate 501 NOT_IMPLEMENTED or 405 NOT_ALLOWED
+            # return code, but nevow does not.
+            req = IRequest(ctx)
+            method = req.method
+            return self.simple(ctx,
+                               "I don't know how to treat a %s request." % method,
+                               http.NOT_IMPLEMENTED)
+        super = appserver.DefaultExceptionHandler
+        return super.renderHTTP_exception(self, ctx, f)
