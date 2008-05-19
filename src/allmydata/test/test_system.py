@@ -1600,7 +1600,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
             return self._run_cli(argv)
         d.addCallback(_put)
         def _check_put((out,err)):
-            self.failUnless("200 OK" in out)
+            self.failUnless("201 Created" in out, out)
             self.failUnlessEqual(err, "")
             d = self._private_node.get_child_at_path(u"test_put/upload.txt")
             d.addCallback(lambda filenode: filenode.download_to_data())
