@@ -175,6 +175,9 @@ def dump_SDMF_share(offset, length, config, out, err):
     print >>out, "  total_shares: %d" % N
     print >>out, "  segsize: %d" % segsize
     print >>out, "  datalen: %d" % datalen
+    print >>out, "  enc_privkey: %d bytes" % len(enc_privkey)
+    print >>out, "  pubkey: %d bytes" % len(pubkey)
+    print >>out, "  signature: %d bytes" % len(signature)
     share_hash_ids = ",".join(sorted([str(hid)
                                       for hid in share_hash_chain.keys()]))
     print >>out, "  share_hash_chain: %s" % share_hash_ids
