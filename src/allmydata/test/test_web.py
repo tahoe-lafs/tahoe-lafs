@@ -1,4 +1,4 @@
-import re, os.path, urllib
+import re, urllib
 import simplejson
 from twisted.application import service
 from twisted.trial import unittest
