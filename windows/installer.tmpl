@@ -52,7 +52,8 @@ Filename: "{app}\Install\confwiz.exe"; Flags: hidewizard
 ;Filename: "{app}\Install\ReadMe.txt"; Description: "View the ReadMe file"; Flags: unchecked postinstall nowait shellexec skipifdoesntexist
 Filename: "{sys}\rundll32.exe"; Parameters: "{app}\Install\winfuse\loopback_install.dll doLoopBackEntry"; Flags: runhidden
 Filename: "{app}\Install\winfuse\AllmydataTray.exe"; Description: "Run Allmydata"; Flags: postinstall nowait
-Filename: "http://beta.allmydata.com/welcome_install?v=%(major)d.%(minor)d.%(point)d.%(revision)d"; Description: "View the Welcome Page"; Flags: postinstall shellexec
+Filename: "http://www.allmydata.com/welcome_install?v=%(major)d.%(minor)d.%(point)d.%(revision)d"; Description: "View the Welcome Page"; Flags: postinstall shellexec
+Filename: "{sys}\net.exe"; Parameters: "start Allmydata Manager"; Flags: runhidden
 
 [UninstallRun]
 ; Performed before the uninstaller runs to undo things
@@ -62,6 +63,7 @@ Filename: "{sys}\net.exe"; Parameters: "stop Tahoe"; Flags: runhidden
 Filename: "{sys}\net.exe"; Parameters: "stop Allmydata Manager"; Flags: runhidden
 Filename: "{app}\Install\winfuse\InstallUtil.exe"; Parameters: "/uninstall ""{app}\Install\winfuse\WinFUSE.exe"""; Flags: runhidden
 Filename: "{app}\Install\tahoesvc.exe"; Parameters: "-remove"; Flags: runhidden
+Filename: "{app}\Install\winfuse\AllmydataManager.exe"; Parameters: "-U"; Flags: runhidden
 ;Filename: "{app}\Install\confwiz.exe"; Parameters: "--uninstall"; Flags: runhidden
 ;Filename: "http://www.allmydata.com/redirect/uninstallsurvey.php?build=%(build)s"; Flags: shellexec
 
