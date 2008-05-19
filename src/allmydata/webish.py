@@ -99,6 +99,11 @@ class MyRequest(appserver.NevowRequest):
             queryargs = "?" + queryargs
         if path.startswith("/uri"):
             path = "/uri/[CENSORED].."
+        elif path.startswith("/file"):
+            path = "/file/[CENSORED].."
+        elif path.startswith("/named"):
+            path = "/named/[CENSORED].."
+
         uri = path + queryargs
 
         log.msg(format="web: %(clientip)s %(method)s %(uri)s %(code)s %(length)s",
