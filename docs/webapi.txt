@@ -1,3 +1,6 @@
+
+= The Tahoe REST-ful Web API =
+
 This document has six sections:
 
 1.  the basic API for how to programmatically control your tahoe node
@@ -8,118 +11,290 @@ This document has six sections:
 6.  XML-RPC (coming soon)
 
 
+== Enabling the web-API port ==
 
-1. the basic REST-ful API for how to programmatically control your tahoe node
+Every Tahoe node is capable of running a built-in HTTP server. To enable
+this, just write a port number into a file named "webport" in the node's base
+directory. For example, writing "8123" into $NODEDIR/webport will cause the
+node to run a webserver on port 8123.
 
-a. connecting to the tahoe node
-
-Writing "8123" into $NODEDIR/webport causes the node to run a webserver on
-port 8123. Writing "tcp:8123:interface=127.0.0.1" into $NODEDIR/webport does
-the same but binds to the loopback interface, ensuring that only the programs
-on the local host can connect. Using
-"ssl:8123:privateKey=mykey.pem:certKey=cert.pem" runs an SSL server. See
+This string is actually a Twisted "strports" specification, meaning you can
+get more control over the interface to which the server binds by supplying
+additional arguments. For more details, see the documentation on
 twisted.application.strports:
-
 http://twistedmatrix.com/documents/current/api/twisted.application.strports.html
+
+Writing "tcp:8123:interface=127.0.0.1" into $NODEDIR/webport does the same
+but binds to the loopback interface, ensuring that only the programs on the
+local host can connect. Using
+"ssl:8123:privateKey=mykey.pem:certKey=cert.pem" runs an SSL server.
 
 This webport can be set when the node is created by passing a --webport
 option to the 'tahoe create-client' command. By default, the node listens on
 port 8123, on the loopback (127.0.0.1) interface.
 
-b. file names
+== Basic Concepts ==
 
-The node provides some small number of "virtual drives". In the 0.5 release,
-this number is two: the first is the global shared vdrive, the second is the
-private non-shared vdrive. We will call the global one "global", and we will
-refer to the second one by "$PRIVATE_VDRIVE_URI", to show that to use it you
-have to insert the specific URI for that private vdrive.
+As described in architecture.txt, each file and directory in a Tahoe virtual
+filesystem is referenced by an identifier that combines the designation of
+the object with the authority to do something with it (such as read or modify
+the contents). This identifier is called a "read-cap" or "write-cap",
+depending upon whether it enables read-only or read-write access. These
+"caps" are also referred to as URIs.
 
-For the purpose of this document, let us assume that the vdrives currently
-contain the following directories and files:
+The Tahoe web-based API is "REST-ful", meaning it implements the concepts of
+"REpresentational State Transfer": the original scheme by which the World
+Wide Web was intended to work. Each object (file or directory) is referenced
+by a URL that includes the read- or write- cap. HTTP methods (GET, PUT, and
+DELETE) are used to manipulate these objects. You can think of the URL as a
+noun, and the method as a verb.
 
-global/
-global/Documents/
-global/Documents/notes.txt
+In REST, the GET method is used to retrieve information about an object, or
+to retrieve some representation of the object itself. When the object is a
+file, the basic GET method will simply return the contents of that file.
+Other variations (generally implemented by adding query parameters to the
+URL) will return information about the object, such as metadata. GET
+operations are required to have no side-effects.
 
-$PRIVATE_VDRIVE_URI/
-$PRIVATE_VDRIVE_URI/Pictures/
-$PRIVATE_VDRIVE_URI/Pictures/tractors.jpg
-$PRIVATE_VDRIVE_URI/Pictures/family/
-$PRIVATE_VDRIVE_URI/Pictures/family/bobby.jpg
+PUT is used to upload new objects into the filesystem, or to replace an
+existing object. DELETE it used to delete objects from the filesystem. Both
+PUT and DELETE are required to be idempotent: performing the same operation
+multiple times must have the same side-effects as only performing it once.
 
-Within the webserver, there is a tree of resources. The top-level "vdrive"
-resource gives access to files and directories in all of the user's virtual
-drives. For example, the URL that corresponds to notes.txt would be:
+POST is used for more complicated actions that cannot be expressed as a GET,
+PUT, or DELETE. POST operations can be thought of as a method call: sending
+some message to the object referenced by the URL. In Tahoe, POST is also used
+for operations that must be triggered by an HTML form (including upload and
+delete), because otherwise a regular web browser has no way to accomplish
+these tasks.
 
-http://127.0.0.1:8123/vdrive/global/Documents/notes.txt
+Tahoe's web API is designed for two different consumers. The first is a
+program that needs to manipulate the virtual file system. Such programs are
+expected to use the RESTful interface described above. The second is a human
+using a standard web browser to work with the filesystem. This user is given
+a series of HTML pages with links to download files, and forms that use POST
+actions to upload, rename, and delete files.
 
-and the URL for tractors.jpg would be:
+== URLs ==
 
-http://127.0.0.1:8123/uri/$PRIVATE_VDRIVE_URI/Pictures/tractors.jpg
+Tahoe uses a variety of read- and write- caps to identify files and
+directories. The most common of these is the "immutable file read-cap", which
+is used for most uploaded files. These read-caps look like the following:
 
-In addition, each directory has a corresponding URL. The Pictures URL is:
+ URI:CHK:ime6pvkaxuetdfah2p2f35pe54:4btz54xk3tew6nd4y2ojpxj4m6wxjqqlwnztgre6gnjgtucd5r4a:3:10:202
 
-http://127.0.0.1:8123/uri/$PRIVATE_VDRIVE_URI/Pictures
+The next most common is a "directory write-cap", which provides both read and
+write access to a directory, and look like this:
 
-Note that all filenames in URLs are required to be UTF-8 encoded, so
-"resume.doc" (with an acute accent on both E's) would be accessed with:
+ URI:DIR2:djrdkfawoqihigoett4g6auz6a:jx5mplfpwexnoqff7y5e4zjus4lidm76dcuarpct7cckorh2dpgq
 
- http://127.0.0.1:8123/uri/$PRIVATE_VDRIVE_URI/r%C3%A9sum%C3%A9.doc
+There are also "directory read-caps", which start with "URI:DIR2-RO:", and
+give read-only access to a directory. Finally there are also mutable file
+read- and write- caps, which start with "URI:SSK", and give access to mutable
+files.
 
-The filenames inside upload POST forms are interpreted using whatever
-character set was provided in the conventional '_charset' field, and defaults
-to UTF-8 if not otherwise specified. The JSON representation of each
+(later versions of Tahoe will make these strings shorter, and will remove the
+unfortunate colons, which must be escaped when these caps are embedded in
+URLs).
+
+To refer to any Tahoe object through the web API, you simply need to combine
+a prefix (which indicates the HTTP server to use) with the cap (which
+indicates which object inside that server to access). Since the default Tahoe
+webport is 8123, the most common prefix is one that will use a local node
+listening on this port:
+
+ http://127.0.0.1:8123/uri/ + $CAP
+
+So, to access the directory named above (which happens to be the
+publically-writable sample directory on the Tahoe test grid, described at
+http://allmydata.org/trac/tahoe/wiki/TestGrid), the URL would be:
+
+ http://127.0.0.1:8123/uri/URI%3ADIR2%3Adjrdkfawoqihigoett4g6auz6a%3Ajx5mplfpwexnoqff7y5e4zjus4lidm76dcuarpct7cckorh2dpgq/
+
+(note that the colons in the directory-cap are url-encoded into "%3A"
+sequences).
+
+Likewise, to access the file named above, use:
+
+ http://127.0.0.1:8123/uri/URI%3ACHK%3Aime6pvkaxuetdfah2p2f35pe54%3A4btz54xk3tew6nd4y2ojpxj4m6wxjqqlwnztgre6gnjgtucd5r4a%3A3%3A10%3A202
+
+In the rest of this document, we'll use "$DIRCAP" as shorthand for a read-cap
+or write-cap that refers to a directory, and "$FILECAP" to abbreviate a cap
+that refers to a file (whether mutable or immutable). So those URLs above can
+be abbreviated as:
+
+ http://127.0.0.1:8123/uri/$DIRCAP/
+ http://127.0.0.1:8123/uri/$FILECAP
+
+The operation summaries below will abbreviate these further, by eliding the
+server prefix. They will be displayed like this:
+
+ /uri/$DIRCAP/
+ /uri/$FILECAP
+
+
+=== Child Lookup ===
+
+Tahoe directories contain named children, just like directories in a regular
+local filesystem. These children can be either files or subdirectories.
+
+If you have a Tahoe URL that refers to a directory, and want to reference a
+named child inside it, just append the child name to the URL. For example, if
+our sample directory contains a file named "welcome.txt", we can refer to
+that file with:
+
+ http://127.0.0.1:8123/uri/$DIRCAP/welcome.txt
+
+(or http://127.0.0.1:8123/uri/URI%3ADIR2%3Adjrdkfawoqihigoett4g6auz6a%3Ajx5mplfpwexnoqff7y5e4zjus4lidm76dcuarpct7cckorh2dpgq/welcome.txt)
+
+Multiple levels of subdirectories can be handled this way:
+
+ http://127.0.0.1:8123/uri/$DIRCAP/tahoe-source/docs/webapi.txt
+
+In this document, when we need to refer to a URL that references a file using
+this child-of-some-directory format, we'll use the following string:
+
+ /uri/$DIRCAP/[SUBDIRS../]FILENAME
+
+The "[SUBDIRS../]" part means that there are zero or more (optional)
+subdirectory names in the middle of the URL. The "FILENAME" at the end means
+that this whole URL refers to a file of some sort, rather than to a
+directory.
+
+When we need to refer specifically to a directory in this way, we'll write:
+
+ /uri/$DIRCAP/[SUBDIRS../]SUBDIR
+
+
+Note that all components of pathnames in URLs are required to be UTF-8
+encoded, so "resume.doc" (with an acute accent on both E's) would be accessed
+with:
+
+ http://127.0.0.1:8123/uri/$DIRCAP/r%C3%A9sum%C3%A9.doc
+
+Also note that the filenames inside upload POST forms are interpreted using
+whatever character set was provided in the conventional '_charset' field, and
+defaults to UTF-8 if not otherwise specified. The JSON representation of each
 directory contains native unicode strings. Tahoe directories are specified to
 contain unicode filenames, and cannot contain binary strings that are not
 representable as such.
 
-c. URIs
+All Tahoe operations that refer to existing files or directories must include
+a suitable read- or write- cap in the URL: the webapi server won't add one
+for you. If you don't know the cap, you can't access the file. This allows
+the security properties of Tahoe caps to be extended across the webapi
+interface.
 
-From the "URIs" chapter in architecture.txt, recall that each file and
-directory has a unique "URI". This is a string which provides a secure
-reference to the file or directory: if you know the URI, you can retrieve
-(and possibly modify) the object. If you don't know the URI, you cannot
-access the object.
+== Programmatic Operations ==
 
-A separate top-level namespace ("uri/" instead of "vdrive/") is used to
-access to files and directories directly by URI, rather than by going through
-the pathnames in the vdrive.
+Now that we know how to build URLs that refer to files and directories in a
+Tahoe virtual filesystem, what sorts of operations can we do with those URLs?
+This section contains a catalog of GET, PUT, DELETE, and POST operations that
+can be performed on these URLs. This set of operations are aimed at programs
+that use HTTP to communicate with a Tahoe node. The next section describes
+operations that are intended for web browsers.
 
-For example, this identifies a file or directory:
+=== Reading A File ===
 
-http://127.0.0.1:8123/uri/$URI
+GET /uri/$FILECAP
+GET /uri/$DIRCAP/[SUBDIRS../]FILENAME
 
-And this identifies a file or directory named "tractors.jpg" in a
-subdirectory "Pictures" of the identified directory:
+ This will retrieve the contents of the given file. The HTTP response body
+ will contain the sequence of bytes that make up the file.
 
-http://127.0.0.1:8123/uri/$URI/Pictures/tractors.jpg
+ To view files in a web browser, you may want more control over the
+ Content-Type and Content-Disposition headers. Please see the next section
+ "Browser Operations", for details on how to modify these URLs for that
+ purpose.
 
-In the following examples, "$URL" is a shorthand for a URL like the ones
-above, either with "vdrive/" and a vdrive name as the top level and a
-sequence of slash-separated pathnames following, or with "uri/" as the top
-level, followed by a URI, optionally followed by a sequence of
-slash-separated pathnames.
+=== Writing/Uploading A File ===
 
+PUT /uri/$FILECAP
+PUT /uri/$DIRCAP/[SUBDIRS../]FILENAME
 
-Now, what can we do with these URLs? By varying the HTTP method
-(GET/PUT/POST/DELETE) and by appending a type-indicating query argument, we
-control what we want to do with the data and how it should be presented.
+ Upload a file, using the data from the HTTP request body, and add whatever
+ child links and subdirectories are necessary to make the file available at
+ the given location. Once this operation succeeds, a GET on the same URL will
+ retrieve the same contents that were just uploaded. This will create any
+ necessary intermediate subdirectories.
 
-d. examining files or directories
+ To use the /uri/$FILECAP form, $FILECAP be a write-cap for a mutable file.
 
-  GET $URL?t=json
+ In the /uri/$DIRCAP/[SUBDIRS../]FILENAME form, if the target file is a
+ writable mutable file, that files contents will be overwritten in-place. If
+ it is a read-cap for a mutable file, an error will occur. If it is an
+ immutable file, the old file will be discarded, and a new one will be put in
+ its place.
 
-  out: json description of $URL
+ When creating a new file, if "mutable=true" is in the query arguments, the
+ operation will create a mutable file instead of an immutable one.
 
-  This returns machine-parseable information about the indicated file or
-  directory in the HTTP response body. The JSON always contains a list, and
-  the first element of the list is always a flag that indicates whether the
-  referenced object is a file or a directory.
+ This returns the file-cap of the resulting file. If a new file was created
+ by this method, the HTTP response code (as dictated by rfc2616) will be set
+ to 201 CREATED. If an existing file was replaced or modified, the response
+ code will be 200 OK.
 
-  If it is a file, then the information includes file size and URI, like
-  this:
+ Note that the 'curl -T localfile http://127.0.0.1:8123/uri/$DIRCAP/foo.txt'
+ command can be used to invoke this operation.
 
-   GET $FILEURL?t=json :
+PUT /uri
+
+ This uploads a file, and produces a file-cap for the contents, but does not
+ attach the file into the virtual drive. No directories will be modified by
+ this operation. The file-cap is returned as the body of the HTTP response.
+
+ If "mutable=true" is in the query arguments, the operation will create a
+ mutable file, and return its write-cap in the HTTP respose. The default is
+ to create an immutable file, returning the read-cap as a response.
+
+=== Creating A New Directory ===
+
+POST /uri?t=mkdir
+PUT /uri?t=mkdir
+
+ Create a new empty directory and return its write-cap as the HTTP response
+ body. This does not make the newly created directory visible from the
+ virtual drive. The "PUT" operation is provided for backwards compatibility:
+ new code should use POST.
+
+POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
+PUT /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
+
+ Create new directories as necessary to make sure that the named target
+ ($DIRCAP/SUBDIRS../SUBDIR) is a directory. This will create additional
+ intermediate directories as necessary. If the named target directory already
+ exists, this will make no changes to it.
+
+ This will return an error if a blocking file is present at any of the parent
+ names, preventing the server from creating the necessary parent directory.
+
+ The write-cap of the new directory will be returned as the HTTP response
+ body.
+
+POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=NAME
+
+ Create a new empty directory and attach it to the given existing directory.
+ This will create additional intermediate directories as necessary.
+
+ The URL of this form points to the parent of the bottom-most new directory,
+ whereas the previous form has a URL that points directly to the bottom-most
+ new directory.
+
+=== Get Information About A File Or Directory (as JSON) ===
+
+GET /uri/$FILECAP?t=json
+GET /uri/$DIRCAP?t=json
+GET /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=json
+GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
+
+  This returns a machine-parseable JSON-encoded description of the given
+  object. The JSON always contains a list, and the first element of the list
+  is always a flag that indicates whether the referenced object is a file or a
+  directory. If it is a file, then the information includes file size and URI,
+  like this:
+
+   GET /uri/$FILECAP?t=json :
+   GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json :
 
     [ "filenode", { "ro_uri": file_uri,
                     "size": bytes,
@@ -135,7 +310,8 @@ d. examining files or directories
   including creation- and modification- timestamps. The output looks like
   this:
 
-   GET $DIRURL?t=json :
+   GET /uri/$DIRCAP?t=json :
+   GET /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=json :
 
     [ "dirnode", { "rw_uri": read_write_uri,
                    "ro_uri": read_only_uri,
@@ -166,192 +342,467 @@ d. examining files or directories
   Then the rw_uri field will be present in the information about a directory
   if and only if you have read-write access to that directory,
 
-e. downloading a file
 
-  GET $URL
+=== Attaching an existing File or Directory by its read- or write- cap ===
 
-  out: file contents or dir metadata
-  options:
-        save=<boolean> - If true add header "Content-Disposition: attachment"
+PUT /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=uri
 
-  If the indicated object is a file, then this simply retrieves the contents
-  of the file. The file's contents are provided in the body of the HTTP
-  response.
+ This attaches a child object (either a file or directory) to a specified
+ location in the virtual filesystem. The child object is referenced by its
+ read- or write- cap, as provided in the HTTP request body. This will create
+ intermediate directories as necessary.
 
-  If the indicated object a directory, then this returns an HTML page,
-  intended to be displayed to a human by a web browser, which contains HREF
-  links to all files and directories reachable from this directory. These
-  HREF links do not have a t= argument, meaning that a human who follows them
-  will get pages also meant for a human. It also contains forms to upload new
-  files, and to delete files and directories. These forms use POST methods to
-  do their job.
+ This is similar to a UNIX hardlink: by referencing a previously-uploaded
+ file (or previously-created directory) instead of uploading/creating a new
+ one, you can create two references to the same object.
 
-  You can add the "save=true" argument, which adds a 'Content-Disposition:
-  attachment' header to prompt most web browsers to save the file to disk
-  rather than attempting to display it.
+ The read- or write- cap of the child is provided in the body of the HTTP
+ request, and this same cap is returned in the response body.
 
-  A filename (from which a MIME type can be derived, for use in the
-  Content-Type header) can be specified using a 'filename=' query argument.
-  This is especially useful if the $URL does not end with the name of the
-  file (e.g. if it ends with the URI of the file instead). This filename is
-  also the one used if the 'save=true' argument is set. For example:
+ The default behavior is to overwrite any existing object at the same
+ location. To prevent this (and make the operation return an error instead of
+ overwriting), add a "replace=false" argument, as "?t=uri&replace=false".
+ With replace=false, this operation will return an HTTP 409 "Conflict" error
+ if there is already an object at the given location, rather than overwriting
+ the existing object. Note that "true", "t", and "1" are all synonyms for
+ "True", and "false", "f", and "0" are synonyms for "False". the parameter is
+ case-insensitive.
 
-   GET http://127.0.0.1:8123/uri/$TRACTORS_URI?filename=tractors.jpg
+=== Deleting a File or Directory ===
 
-f. uploading a file
+DELETE /uri/$DIRCAP/[SUBDIRS../]CHILDNAME
 
-  PUT http://127.0.0.1:8123/uri
+  This removes the given name from its parent directory. CHILDNAME is the
+  name to be removed, and $DIRCAP/SUBDIRS.. indicates the directory that will
+  be modified.
 
-   in: file contents
-   out: file write cap
+  Note that this does not actually delete the file or directory that the name
+  points to from the tahoe grid -- it only removes the named reference from
+  this directory. If there are other names in this directory or in other
+  directories that point to the resource, then it will remain accessible
+  through those paths. Even if all names pointing to this object are removed
+  from their parent directories, then someone with possession of its read-cap
+  can continue to access the object through that cap.
 
-   Upload a file, using the data from the HTTP request body, and returning
-   the resulting URI as the HTTP response body. This does not make the file
-   visible from the virtual drive -- to do that, see section 1.h. below, or
-   the convenience method in section 2.a..
+  The object will only become completely unreachable once 1: there are no
+  reachable directories that reference it, and 2: nobody is holding a read-
+  or write- cap to the object. (This behavior is very similar to the way
+  hardlinks and anonymous files work in traditional unix filesystems).
 
-  POST http://127.0.0.1:8123/uri?t=upload
+  This operation will not modify more than a single directory. Intermediate
+  directories which were implicitly created by PUT or POST methods will *not*
+  be automatically removed by DELETE.
 
-   This action also uploads a file without attaching it to a virtual drive
-   directory, but can be used from an HTML form. The response is an HTML page
-   that describes the results of the upload, including the resulting URI (but
-   also including information about which peers were used, etc). If a
-   when_done=URL argument is provided, the reponse is a redirect to the given
-   URL instead of the upload-results page.
+  This method returns the file- or directory- cap of the object that was just
+  removed.
 
-  POST http://127.0.0.1:8123/uri?t=upload&mutable=true
+== Browser Operations ==
 
-   This action also uploads a file without attaching it to a virtual drive
-   directory, but creates a mutable file (SSK) instead of an immutable one.
-   The response contains the new URI that was created.
+This section describes the HTTP operations that provide support for humans
+running a web browser. Most of these operations use HTML forms that use POST
+to drive the Tahoe node.
 
-  PUT http://127.0.0.1:8123/uri?mutable=true
+Note that for all POST operations, the arguments listed can be provided
+either as URL query arguments or as form body fields. URL query arguments are
+separated from the main URL by "?", and from each other by "&". For example,
+"POST /uri/$DIRCAP?t=upload&mutable=true". Form body fields are usually
+specified by using <input type="hidden"> elements. For clarity, the
+descriptions below display the most significant arguments as URL query args.
 
-   This second form also accepts data from the HTTP request body, but creates
-   a mutable file (SSK) instead of an immutable one (CHK). The response
-   contains the new URI that was created.
+=== Viewing A Directory (as HTML) ===
+
+GET /uri/$DIRCAP/[SUBDIRS../]
+
+ This returns an HTML page, intended to be displayed to a human by a web
+ browser, which contains HREF links to all files and directories reachable
+ from this directory. These HREF links do not have a t= argument, meaning
+ that a human who follows them will get pages also meant for a human. It also
+ contains forms to upload new files, and to delete files and directories.
+ Those forms use POST methods to do their job.
+
+=== Viewing/Downloading a File ===
+
+GET /uri/$FILECAP
+GET /uri/$DIRCAP/[SUBDIRS../]FILENAME
+
+ This will retrieve the contents of the given file. The HTTP response body
+ will contain the sequence of bytes that make up the file.
+
+ If you want the HTTP response to include a useful Content-Type header,
+ either use the second form (which starts with a $DIRCAP), or add a
+ "filename=foo" query argument, like "GET /uri/$FILECAP?filename=foo.jpg".
+ The bare "GET /uri/$FILECAP" does not give the Tahoe node enough information
+ to determine a Content-Type (since Tahoe immutable files are merely
+ sequences of bytes, not typed+named file objects).
+
+ If the URL has both filename= and "save=true" in the query arguments, then
+ the server to add a "Content-Disposition: attachment" header, along with a
+ filename= parameter. When a user clicks on such a link, most browsers will
+ offer to let the user save the file instead of displaying it inline (indeed,
+ most browsers will refuse to display it inline). "true", "t", "1", and other
+ case-insensitive equivalents are all treated the same.
+
+GET /named/$FILECAP/FILENAME
+
+ This is an alternate download form which makes it easier to get the correct
+ filename. The Tahoe server will provide the contents of the given file, with
+ a Content-Type header derived from the given filename. This form is used to
+ get browsers to use the "Save Link As" feature correctly, and also helps
+ command-line tools like "wget" and "curl" use the right filename. Note that
+ this form can *only* be used with file caps; it is an error to use a
+ directory cap after the /named/ prefix.
+
+=== Creating a Directory ===
+
+POST /uri?t=mkdir
+
+ This creates a new directory, but does not attach it to the virtual
+ filesystem.
+
+ If a "redirect_to_result=true" argument is provided, then the HTTP response
+ will cause the web browser to be redirected to a /uri/$DIRCAP page that
+ gives access to the newly-created directory. If you bookmark this page,
+ you'll be able to get back to the directory again in the future. This is the
+ recommended way to start working with a Tahoe server: create a new unlinked
+ directory (using redirect_to_result=true), then bookmark the resulting
+ /uri/$DIRCAP page. There is a "Create Directory" button on the Welcome page
+ to invoke this action.
+
+ If "redirect_to_result=true" is not provided (or is given a value of
+ "false"), then the HTTP response body will simply be the write-cap of the
+ new directory.
+
+POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=CHILDNAME
+
+ This creates a new directory as a child of the designated SUBDIR. This will
+ create additional intermediate directories as necessary.
+
+ If a "when_done=URL" argument is provided, the HTTP response will cause the
+ web browser to redirect to the given URL. This provides a convenient way to
+ return the browser to the directory that was just modified. Without a
+ when_done= argument, the HTTP response will simply contain the write-cap of
+ the directory that was just created.
 
 
-g. creating a new directory
+=== Uploading a File ===
 
-  PUT http://127.0.0.1:8123/uri?t=mkdir
+POST /uri?t=upload
 
-   in: (nothing)
-   out: directory write cap
+ This uploads a file, and produces a file-cap for the contents, but does not
+ attach the file into the virtual drive. No directories will be modified by
+ this operation.
 
-   Create a new empty directory and return its URI as the HTTP response body.
-   This does not make the newly created directory visible from the virtual
-   drive, but you can use section 1.h. to attach it, or the convenience method
-   in section 2.XXX.
+ The file must be provided as the "file" field of an HTML encoded form body,
+ produced in response to an HTML form like this:
+  <form action="/uri" method="POST" enctype="multipart/form-data">
+   <input type="hidden" name="t" value="upload" />
+   <input type="file" name="file" />
+   <input type="submit" value="Upload Unlinked" />
+  </form>
 
- POST http://127.0.0.1:8123/uri?t=mkdir
+ If a "when_done=URL" argument is provided, the response body will cause the
+ browser to redirect to the given URL. If the when_done= URL has the string
+ "%(uri)s" in it, that string will be replaced by a URL-escaped form of the
+ newly created file-cap. (Note that without this substitution, there is no
+ way to access the file that was just uploaded).
 
-   in: (nothing)
-   out: directory write cap
+ The default (in the absence of when_done=) is to return an HTML page that
+ describes the results of the upload. This page will contain information
+ about which storage servers were used for the upload, how long each
+ operation took, etc.
 
-   Just like the equivalent PUT form, but this can be called from an HTML
-   form.
-
- POST http://127.0.0.1:8123/uri?t=mkdir&redirect_to_result=true
-
-   in: (nothing)
-   out: redirects to the /uri/$NEWDIRURI page
-
-   This also creates an unlinked directory, but instead of returning the URI
-   as a string, this form will return an HTTP Redirect that takes you to the
-   new directory's HTML page, just as if you had directed your browser to
-   /uri/$NEWDIRURI . If you bookmark this page, you'll be able to get back to
-   the directory again in the future.
-
-   This method is the recommended way to create a new root directory. There
-   is a "Create Directory" button on the Welcome page to invoke this action.
+ If a "mutable=true" argument is provided, the operation will create a
+ mutable file, and the response body will contain the write-cap instead of
+ the upload results page. The default is to create an immutable file,
+ returning the upload results page as a response.
 
 
-h. attaching a file or directory as the child of an extant directory
+POST /uri/$DIRCAP/[SUBDIRS../]?t=upload
 
-  PUT $URL?t=uri
+ This uploads a file, and attaches it as a new child of the given directory.
+ The file must be provided as the "file" field of an HTML encoded form body,
+ produced in response to an HTML form like this:
+  <form action="." method="POST" enctype="multipart/form-data">
+   <input type="hidden" name="t" value="upload" />
+   <input type="file" name="file" />
+   <input type="submit" value="Upload" />
+  </form>
 
-  in: child cap
-  out: the same child cap
-  options:
-        replace=<boolean> - If true, overwrite existing contents.
+ A "name=" argument can be provided to specify the new child's name,
+ otherwise it will be taken from the "filename" field of the upload form
+ (most web browsers will copy the last component of the original file's
+ pathname into this field). To avoid confusion, name= is not allowed to
+ contain a slash.
 
-  This attaches a child (either a file or a directory) to the given directory
-  $URL is required to indicate a directory as the second-to-last element and
-  the desired filename as the last element, for example:
+ If there is already a child with that name, and it is a mutable file, then
+ its contents are replaced with the data being uploaded. If it is not a
+ mutable file, the default behavior is to remove the existing child before
+ creating a new one. To prevent this (and make the operation return an error
+ instead of overwriting the old child), add a "replace=false" argument, as
+ "?t=upload&replace=false". With replace=false, this operation will return an
+ HTTP 409 "Conflict" error if there is already an object at the given
+ location, rather than overwriting the existing object. Note that "true",
+ "t", and "1" are all synonyms for "True", and "false", "f", and "0" are
+ synonyms for "False". the parameter is case-insensitive.
 
-   PUT http://127.0.0.1:8123/uri/$URI_OF_SOME_DIR/Pictures/tractors.jpg
-   PUT http://127.0.0.1:8123/uri/$URI_OF_SOME_DIR/tractors.jpg
-   PUT http://127.0.0.1:8123/uri/$PRIVATE_VDRIVE_URI/Pictures/tractors.jpg
+ This will create additional intermediate directories as necessary, although
+ since it is expected to be triggered by a form that was retrieved by "GET
+ /uri/$DIRCAP/[SUBDIRS../]", it is likely that the parent directory will
+ already exist.
 
-  (Note that a URI_OF_SOME_DIR and a PRIVATE_VDRIVE_URI are each just
-  separate URIs, and there is nothing special about the latter except that it
-  is useful to put all of the user's top-level files and directories into one
-  place, so we choose to use that particular directory to be the user's main
-  directory.)
+ If a "mutable=true" argument is provided, any new file that is created will
+ be a mutable file instead of an immutable one. <input type="checkbox"
+ name="mutable" /> will give the user a way to set this option.
 
-  The URI of the child is provided in the body of the HTTP request,
-  and this same URI is returned in the response body.
+ If a "when_done=URL" argument is provided, the HTTP response will cause the
+ web browser to redirect to the given URL. This provides a convenient way to
+ return the browser to the directory that was just modified. Without a
+ when_done= argument, the HTTP response will simply contain the file-cap of
+ the file that was just uploaded (a write-cap for mutable files, or a
+ read-cap for immutable files).
 
-  There is an optional "?replace=" param whose value can be "true", "t", "1",
-  "false", "f", or "0" (case-insensitive), and which defaults to "true". If
-  the indicated directory already contains the given child name, then if
-  replace is true then the value of that name is changed to be the new URI.
-  If replace is false then an HTTP 409 "Conflict" error is returned.
+POST /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=upload
 
-  This can be used to attach a shared directory (a directory that other
-  people can read or write) to the vdrive. Intermediate directories, if any,
-  are created on-demand.
+ This also uploads a file and attaches it as a new child of the given
+ directory. It is a slight variant of the previous operation, as the URL
+ refers to the target file rather than the parent directory. It is otherwise
+ identical: this accepts mutable= and when_done= arguments too.
 
-i. removing a name from a directory
+POST /uri/$FILECAP?t=upload
 
-  DELETE $URL
+=== Attaching An Existing File Or Directory (by URI) ===
 
-  This removes the given name from the given directory. $URL is required to
-  indicate a directory as the second-to-last element and the name to remove
-  from that directory as the last element, just as in section 1.g..
+POST /uri/$DIRCAP/[SUBDIRS../]?t=uri&name=CHILDNAME&uri=CHILDCAP
 
-  Note that this does not actually delete the resource that the name points
-  to from the tahoe grid -- it only removes this name in this directory. If
-  there are other names in this directory or in other directories that point
-  to the resource, then it will remain accessible through those paths. Even
-  if all names pointing to this resource are removed from their parent
-  directories, then if someone is in possession of the URI of this resource
-  they can continue to access the resource through the URI. Only if a person
-  is not in possession of the URI, and they do not have access to any
-  directories which contain names pointing to this resource, are they
-  prevented from accessing the resource. (This behavior is very similar to
-  the way hardlinks and anonymous files work in traditional unix
-  filesystems).
+ This attaches a given read- or write- cap "CHILDCAP" to the designated
+ directory, with a specified child name. This behaves much like the PUT t=uri
+ operation, and is a lot like a UNIX hardlink.
 
-2. convenience methods
+ This will create additional intermediate directories as necessary, although
+ since it is expected to be triggered by a form that was retrieved by "GET
+ /uri/$DIRCAP/[SUBDIRS../]", it is likely that the parent directory will
+ already exist.
 
-a. uploading a file and attaching it to the vdrive
+=== Deleting A Child ===
 
-  PUT $URI
+POST /uri/$DIRCAP/[SUBDIRS../]?t=delete&name=CHILDNAME
 
-  in: file contents
-  out: file write cap
+ This instructs the node to delete a child object (file or subdirectory) from
+ the given directory. Note that the entire subtree is removed. This is
+ somewhat like "rm -rf" (from the point of view of the parent), but other
+ references into the subtree will see that the child subdirectories are not
+ modified by this operation. Only the link from the given directory to its
+ child is severed.
 
-  statuses:
-  200 - File updated.  [FIXME: Is this true yet?]
-  201 - File created.  [FIXME: Is this true yet?]
+=== Renaming A Child ===
 
-  Upload a file and link it into the the vdrive at the location specified by
-  $URI. The last item in the $URI must be a filename, and the second-to-last
-  item must identify a directory.
+POST /uri/$DIRCAP/[SUBDIRS../]?t=rename&from_name=OLD&to_name=NEW
 
-  It will create intermediate directories as necessary. The file's contents
-  are taken from the body of the HTTP request. For convenience, the HTTP
-  response contains the URI that results from uploading the file, although
-  the client is not obligated to do anything with the URI. According to the
-  HTTP/1.1 specification (rfc2616), this should return a 200 (OK) code when
-  modifying an existing file, and a 201 (Created) code when creating a new
-  file. (TODO: as of Tahoe v1.0, the web server only returns 200, never 201).
+ This instructs the node to rename a child of the given directory. This is
+ exactly the same as removing the child, then adding the same child-cap under
+ the new name. This operation cannot move the child to a different directory.
 
-  To use this, run 'curl -T localfile http://127.0.0.1:8123/vdrive/global/newfile'
+ This operation will replace any existing child of the new name, making it
+ behave like the UNIX "mv -f" command.
+
+=== Other Utilities ===
+
+GET /uri?uri=$CAP
+
+  This causes a redirect to /uri/$CAP, and retains any additional query
+  arguments (like filename= or save=). This is for the convenience of web
+  forms which allow the user to paste in a read- or write- cap (obtained
+  through some out-of-band channel, like IM or email).
+
+  Note that this form merely redirects to the specific file or directory
+  indicated by the $CAP: unlike the GET /uri/$DIRCAP form, you cannot
+  traverse to children by appending additional path segments to the URL.
+
+GET /uri/$DIRCAP/[SUBDIRS../]?t=rename-form&name=$CHILDNAME
+
+  This provides a useful facility to browser-based user interfaces. It
+  returns a page containing a form targetting the "POST $DIRCAP t=rename"
+  functionality described above, with the provided $CHILDNAME present in the
+  'from_name' field of that form. I.e. this presents a form offering to
+  rename $CHILDNAME, requesting the new name, and submitting POST rename.
+
+GET /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=uri
+
+ This returns the file- or directory- cap for the specified object.
+
+GET /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=readonly-uri
+
+ This returns a read-only file- or directory- cap for the specified object.
+ If the object is an immutable file, this will return the same value as
+ t=uri.
+
+=== Debugging and Testing Features ===
+
+These URLs are less-likely to be helpful to the casual Tahoe user, and are
+mainly intended for developers.
+
+POST $URL?t=check
+
+  This triggers the FileChecker to determine the current "health" of the
+  given file or directory, by counting how many shares are available. The
+  results will be displayed on the directory page containing this file.
+
+
+GET $DIRURL?t=manifest
+
+  Return an HTML-formatted manifest of the given directory, for debugging.
+
+GET $DIRURL?t=deep-size
+
+  Return a number (in bytes) containing the sum of the filesize of all
+  immutable files reachable from the given directory. This is a rough lower
+  bound of the total space consumed by this subtree. It does not include
+  space consumed by directories or immutable files, nor does it take
+  expansion or encoding overhead into account. Later versions of the code may
+  improve this estimate upwards.
+
+GET $DIRURL?t=deep-stats
+
+  Return a JSON-encoded dictionary that lists interesting statistics about
+  the set of all files and directories reachable from the given directory:
+
+   count-immutable-files: count of how many CHK files are in the set
+   count-mutable-files: same, for mutable files (does not include directories)
+   count-literal-files: same, for LIT files (data contained inside the URI)
+   count-files: sum of the above three
+   count-directories: count of directories
+   size-immutable-files: total bytes for all CHK files in the set, =deep-size
+   size-mutable-files (TODO): same, for current version of all mutable files
+   size-literal-files: same, for LIT files
+   size-directories: size of directories (includes size-literal-files)
+   size-files-histogram: list of (minsize, maxsize, count) buckets,
+                         with a histogram of filesizes, 5dB/bucket,
+                         for both literal and immutable files
+   largest-directory: number of children in the largest directory
+   largest-immutable-file: number of bytes in the largest CHK file
+
+  size-mutable-files is not implemented, because it would require extra
+  queries to each mutable file to get their size. This may be implemented in
+  the future.
+
+  Assuming no sharing, the basic space consumed by a single root directory is
+  the sum of size-immutable-files, size-mutable-files, and size-directories.
+  The actual disk space used by the shares is larger, because of the
+  following sources of overhead:
+
+   integrity data
+   expansion due to erasure coding
+   share management data (leases)
+   backend (ext3) minimum block size
+
+== Other Useful Pages ==
+
+The portion of the web namespace that begins with "/uri" (and "/named") is
+dedicated to giving users (both humans and programs) access to the Tahoe
+virtual filesystem. The rest of the namespace provides status information
+about the state of the Tahoe node.
+
+GET /   (the root page)
+
+This is the "Welcome Page", and contains a few distinct sections:
+
+ Node information: library versions, local nodeid, services being provided.
+
+ Filesystem Access Forms: create a new directory, view a file/directory by
+                          URI, upload a file (unlinked), download a file by
+                          URI.
+
+ Grid Status: introducer information, helper information, connected storage
+              servers.
+
+GET /status/
+
+ This page lists all active uploads and downloads, and contains a short list
+ of recent upload/download operations. Each operation has a link to a page
+ that describes file sizes, servers that were involved, and the time consumed
+ in each phase of the operation.
+
+GET /provisioning/
+
+ This page provides a basic tool to predict the likely storage and bandwidth
+ requirements of a large Tahoe grid. It provides forms to input things like
+ total number of users, number of files per user, average file size, number
+ of servers, expansion ratio, hard drive failure rate, etc. It then provides
+ numbers like how many disks per server will be needed, how many read
+ operations per second should be expected, and the likely MTBF for files in
+ the grid. This information is very preliminary, and the model upon which it
+ is based still needs a lot of work.
+
+GET /helper_status/
+
+ If the node is running a helper (i.e. if "$BASEDIR/run_helper" is
+ non-empty), then this page will provide a list of all the helper operations
+ currently in progress. If "?t=json" is added to the URL, it will return a
+ JSON-formatted list of helper statistics, which can then be used to produce
+ graphs to indicate how busy the helper is.
+
+GET /statistics/
+
+ This page provides "node statistics", which are collected from a variety of
+ sources.
+
+   load_monitor: every second, the node schedules a timer for one second in
+                 the future, then measures how late the subsequent callback
+                 is. The "load_average" is this tardiness, measured in
+                 seconds, averaged over the last minute. It is an indication
+                 of a busy node, one which is doing more work than can be
+                 completed in a timely fashion. The "max_load" value is the
+                 highest value that has been seen in the last 60 seconds.
+
+   cpu_monitor: every minute, the node uses time.clock() to measure how much
+                CPU time it has used, and it uses this value to produce
+                1min/5min/15min moving averages. These values range from 0%
+                (0.0) to 100% (1.0), and indicate what fraction of the CPU
+                has been used by the Tahoe node. Not all operating systems
+                provide meaningful data to time.clock(): they may report 100%
+                CPU usage at all times.
+
+   uploader: this counts how many immutable files (and bytes) have been
+             uploaded since the node was started
+
+   downloader: this counts how many immutable files have been downloaded
+               since the node was started
+
+   publishes: this counts how many mutable files (including directories) have
+              been modified since the node was started
+
+   retrieves: this counts how many mutable files (including directories) have
+              been read since the node was started
+
+ There are other statistics that are tracked by the node. The "raw stats"
+ section shows a formatted dump of all of them.
+
+ By adding "?t=json" to the URL, the node will return a JSON-formatted
+ dictionary of stats values, which can be used by other tools to produce
+ graphs of node behavior. The misc/munin/ directory in the source
+ distribution provides some tools to produce these graphs.
+
+GET /   (introducer status)
+
+ For Introducer nodes, the welcome page displays information about both
+ clients and servers which are connected to the introducer. Servers make
+ "service announcements", and these are listed in a table. Clients will
+ subscribe to hear about service announcements, and these subscriptions are
+ listed in a separate table. Both tables contain information about what
+ version of Tahoe is being run by the remote node, their advertised and
+ outbound IP addresses, their nodeid and nickname, and how long they have
+ been available.
+
+ By adding "?t=json" to the URL, the node will return a JSON-formatted
+ dictionary of stats values, which can be used to produce graphs of connected
+ clients over time.
+
 
 3. safety and security issues -- names vs. URIs
+
+Summary: use explicit file- and dir- caps whenever possible, to reduce the
+potential for surprises when the virtual drive is changed while you aren't
+looking.
 
 The vdrive provides a mutable filesystem, but the ways that the filesystem
 can change are limited. The only thing that can change is that the mapping
@@ -391,240 +842,3 @@ parent directory, so it isn't any harder to use the URI for this purpose.
 In general, use names if you want "whatever object (whether file or
 directory) is found by following this name (or sequence of names) when my
 request reaches the server". Use URIs if you want "this particular object".
-
-4. features for controlling your tahoe node from a standard web browser
-
-a. uri redirect
-
-  GET http://127.0.0.1:8123/uri?uri=$URI
-
-  This causes a redirect to /uri/$URI, and retains any additional query
-  arguments (like filename= or save=). This is for the convenience of web
-  forms which allow the user to paste in a URI (obtained through some
-  out-of-band channel, like IM or email).
-
-  Note that this form merely redirects to the specific file or directory
-  indicated by the URI: unlike the GET /uri/$URI form, you cannot traverse to
-  children by appending additional path segments to the URL.
-
-b. web page offering rename
-
-  GET $URL?t=rename-form&name=$CHILDNAME
-
-  This provides a useful facility to browser-based user interfaces. It
-  returns a page containing a form targetting the "POST $URL t=rename"
-  functionality described below, with the provided $CHILDNAME present in the
-  'from_name' field of that form. I.e. this presents a form offering to
-  rename $CHILDNAME, requesting the new name, and submitting POST rename.
-
-c. POST forms
-
-  POST $URL
-  t=upload
-  name=childname  (optional)
-  file=newfile
-
-  This instructs the node to upload a file into the given directory. We need
-  this because forms are the only way for a web browser to upload a file
-  (browsers do not know how to do PUT or DELETE). The file's contents and the
-  new child name will be included in the form's arguments. This can only be
-  used to upload a single file at a time. To avoid confusion, name= is not
-  allowed to contain a slash (a 400 Bad Request error will result). The
-  response is the file read-cap (URI) of the resulting file.
-
-
-  POST $URL
-  t=upload
-  name=childname  (optional)
-  mutable="true"
-  file=newfile
-
-  This instructs the node to upload a file into the given directory, using a
-  mutable file (SSK) rather than the usual immutable file (CHK). As a result,
-  further operations to the same $URL will not cause the identity of the file
-  to change. The response is the file write-cap (URI) of the resulting
-  mutable file.
-
-
-  POST $URL
-  t=overwrite
-  file=newfile
-
-  This is used to replace the existing (mutable) file's contents with new
-  ones. It may only be used when $URL refers to a mutable file, as created by
-  POST $URL?t=upload&mutable=true, or PUT /uri?t=mutable . The name
-  associated with the uploaded file is ignored. TODO: rethink this, it's kind
-  of weird.
-
-
-  POST $URL
-  t=mkdir
-  name=childname
-
-  This instructs the node to create a new empty directory. The name of the
-  new child directory will be included in the form's arguments.
-
-
-  POST $URL
-  t=uri
-  name=childname
-  uri=newuri
-
-  This instructs the node to attach a child that is referenced by URI (just
-  like the PUT $URL?t=uri method). The name and URI of the new child
-  will be included in the form's arguments.
-
-
-  POST $URL
-  t=delete
-  name=childname
-
-  This instructs the node to delete a file from the given directory. The name
-  of the child to be deleted will be included in the form's arguments.
-
-
-  POST $URL
-  t=rename
-  from_name=oldchildname
-  to_name=newchildname
-
-  This instructs the node to rename a child within the given directory. The
-  child specified by 'from_name' is removed, and reattached as a child named
-  for 'to_name'. This is unconditional and will replace any child already
-  present under 'to_name', akin to 'mv -f' in unix parlance.
-
-
-  POST $URL
-  t=check
-
-  This triggers the FileChecker to determine the current "health" of the
-  given file, by counting how many shares are available. The results will be
-  displayed on the directory page containing this file.
-
-
-5. debugging and testing features
-
-GET $URL?t=download&localfile=$LOCALPATH
-GET $URL?t=download&localdir=$LOCALPATH
-
-  The localfile= form instructs the node to download the given file and write
-  it into the local filesystem at $LOCALPATH. The localdir= form instructs
-  the node to recursively download everything from the given directory and
-  below into the local filesystem. To avoid surprises, the localfile= form
-  will signal an error if $URL actually refers to a directory, likewise if
-  localdir= is used with a $URL that refers to a file.
-
-  This request will only be accepted from an HTTP client connection
-  originating at 127.0.0.1 . This request is most useful when the client node
-  and the HTTP client are operated by the same user. $LOCALPATH should be an
-  absolute pathname.
-
-  This form is only implemented for testing purposes, because of a trivially
-  easy attack: any web server that the local browser visits could serve an
-  IMG tag that causes the local node to modify the local filesystem.
-  Therefore this form is only enabled if you create a file named
-  'webport_allow_localfile' in the node's base directory.
-
-PUT $NEWURL?t=upload&localfile=$LOCALPATH
-PUT $NEWURL?t=upload&localdir=$LOCALPATH
-
-  This uploads a file or directory from the node's local filesystem to the
-  vdrive. As with "GET $URL?t=download&localfile=$LOCALPATH", this request
-  will only be accepted from an HTTP connection originating from 127.0.0.1 .
-
-  The localfile= form expects that $LOCALPATH will point to a file on the
-  node's local filesystem, and causes the node to upload that one file into
-  the vdrive at the given location. Any parent directories will be created in
-  the vdrive as necessary.
-
-  The localdir= form expects that $LOCALPATH will point to a directory on the
-  node's local filesystem, and it causes the node to perform a recursive
-  upload of the directory into the vdrive at the given location, creating
-  parent directories as necessary. When the operation is complete, the
-  directory referenced by $NEWURL will contain all of the files and
-  directories that were present in $LOCALPATH, so this is equivalent to the
-  unix commands:
-
-   mkdir -p $NEWURL; cp -r $LOCALPATH/* $NEWURL/
-
-  Note that the "curl" utility can be used to provoke this sort of recursive
-  upload, since the -T option will make it use an HTTP 'PUT':
-
-   curl -T /dev/null 'http://127.0.0.1:8123/vdrive/global/newdir?t=upload&localdir=/home/user/directory-to-upload'
-
-  This form is only implemented for testing purposes, because any attacker's
-  web server that a local browser visits could serve an IMG tag that causes
-  the local node to modify the local filesystem. Therefore this form is only
-  enabled if you create a file named 'webport_allow_localfile' in the node's
-  base directory.
-
-GET $URL?t=manifest
-
-  Return an HTML-formatted manifest of the given directory, for debugging.
-
-GET $URL?t=deep-size
-
-  Return a number (in bytes) containing the sum of the filesize of all
-  immutable files reachable from the given directory. This is a rough lower
-  bound of the total space consumed by this subtree. It does not include
-  space consumed by directories or immutable files, nor does it take
-  expansion or encoding overhead into account. Later versions of the code may
-  improve this estimate upwards.
-
-GET $URL?t=deep-stats
-
-  Return a JSON-encoded dictionary that lists interesting statistics about
-  the set of all files and directories reachable from the given directory:
-
-   count-immutable-files: count of how many CHK files are in the set
-   count-mutable-files: same, for mutable files (does not include directories)
-   count-literal-files: same, for LIT files (data contained inside the URI)
-   count-files: sum of the above three
-   count-directories: count of directories
-   size-immutable-files: total bytes for all CHK files in the set, =deep-size
-   size-mutable-files (TODO): same, for current version of all mutable files
-   size-literal-files: same, for LIT files
-   size-directories: size of directories (includes size-literal-files)
-   size-files-histogram: list of (minsize, maxsize, count) buckets,
-                         with a histogram of filesizes, 5dB/bucket,
-                         for both literal and immutable files
-   largest-directory: number of children in the largest directory
-   largest-immutable-file: number of bytes in the largest CHK file
-
-  size-mutable-files is not implemented, because it would require extra
-  queries to each mutable file to get their size. This may be implemented in
-  the future.
-
-  Assuming no sharing, the basic space consumed by a single root directory is
-  the sum of size-immutable-files, size-mutable-files, and size-directories.
-  The actual disk space used by the shares is larger, because of the
-  following sources of overhead:
-
-   integrity data
-   expansion due to erasure coding
-   share management data (leases)
-   backend (ext3) minimum block size
-
-
-6. XMLRPC (coming soon)
-
-  http://127.0.0.1:8123/xmlrpc
-
-  This resource provides an XMLRPC server on which all of the previous
-  operations can be expressed as function calls taking a "pathname" argument.
-  This is provided for applications that want to think of everything in terms
-  of XMLRPC.
-
-   listdir(vdrivename, path) -> dict of (childname -> (stuff))
-   put(vdrivename, path, contents) -> URI
-   get(vdrivename, path) -> contents
-   mkdir(vdrivename, path) -> URI
-   put_localfile(vdrivename, path, localfilename) -> URI
-   get_localfile(vdrivename, path, localfilename)
-   put_localdir(vdrivename, path, localdirname)   # recursive
-   get_localdir(vdrivename, path, localdirname)   # recursive
-   put_uri(vdrivename, path, URI)
-
-   etc..
-
-
