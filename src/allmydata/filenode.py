@@ -15,6 +15,9 @@ class FileNode:
     def get_uri(self):
         return self.uri
 
+    def is_mutable(self):
+        return False
+
     def is_readonly(self):
         return True
 
@@ -61,6 +64,9 @@ class LiteralFileNode:
 
     def get_uri(self):
         return self.uri
+
+    def is_mutable(self):
+        return False
 
     def is_readonly(self):
         return True

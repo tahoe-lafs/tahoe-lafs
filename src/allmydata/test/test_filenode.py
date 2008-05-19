@@ -22,6 +22,7 @@ class Node(unittest.TestCase):
         self.failIfEqual(fn1, NotANode())
         self.failUnlessEqual(fn1.get_uri(), u.to_string())
         self.failUnlessEqual(fn1.is_readonly(), True)
+        self.failUnlessEqual(fn1.is_mutable(), False)
         self.failUnlessEqual(fn1.get_readonly_uri(), u.to_string())
         self.failUnlessEqual(fn1.get_size(), 1000)
         d = {}
@@ -40,6 +41,7 @@ class Node(unittest.TestCase):
         self.failIfEqual(fn1, NotANode())
         self.failUnlessEqual(fn1.get_uri(), u.to_string())
         self.failUnlessEqual(fn1.is_readonly(), True)
+        self.failUnlessEqual(fn1.is_mutable(), False)
         self.failUnlessEqual(fn1.get_readonly_uri(), u.to_string())
         self.failUnlessEqual(fn1.get_size(), len(DATA))
         d = {}
