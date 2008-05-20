@@ -87,16 +87,6 @@ class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         self.name = name
         self.node = None
 
-    def childFactory(self, ctx, name):
-        req = IRequest(ctx)
-        if should_create_intermediate_directories(req):
-            raise WebError("Cannot create directory '%s', because its "
-                           "parent is a file, not a directory" % name,
-                           http.CONFLICT)
-        raise WebError("Files have no children, certainly not named '%s'"
-                       % name, http.CONFLICT)
-
-
     def render_PUT(self, ctx):
         req = IRequest(ctx)
         t = get_arg(req, "t", "").strip()
