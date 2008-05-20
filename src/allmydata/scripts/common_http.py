@@ -58,3 +58,8 @@ def do_http(method, url, body=""):
         c.send(data)
 
     return c.getresponse()
+
+def check_http_error(resp, stderr):
+    if resp.status < 200 or resp.status >= 300:
+        print >>stderr, "error %d during HTTP request" % resp.status
+        return 1

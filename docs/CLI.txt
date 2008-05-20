@@ -140,7 +140,7 @@ use the following command to create a new directory and set it as your
 
  tahoe set-alias tahoe `tahoe mkdir`
 
-After thatm you can use "tahoe ls tahoe:" and "tahoe cp local.txt tahoe:",
+After that you can use "tahoe ls tahoe:" and "tahoe cp local.txt tahoe:",
 and both will refer to the directory that you've just created.
 
 === Command Syntax Summary ===

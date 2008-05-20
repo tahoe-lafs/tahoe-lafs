@@ -1,9 +1,11 @@
 
+from cStringIO import StringIO
 import urllib
 from allmydata.scripts.common_http import do_http
+from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
 
-def put(nodeurl, dir_uri, local_fname, vdrive_fname, verbosity,
-        stdout, stderr):
+def put(nodeurl, aliases, from_file, to_file, verbosity,
+        stdin, stdout, stderr):
     """
     @param verbosity: 0, 1, or 2, meaning quiet, verbose, or very verbose
 
@@ -11,15 +13,28 @@ def put(nodeurl, dir_uri, local_fname, vdrive_fname, verbosity,
     """
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    url = nodeurl + "uri/%s/" % urllib.quote(dir_uri)
-    if vdrive_fname:
-        url += urllib.quote(vdrive_fname)
+    if to_file:
+        rootcap, path = get_alias(aliases, to_file, DEFAULT_ALIAS)
+        url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
+        if path:
+            url += escape_path(path)
+    else:
+        url = nodeurl + "uri"
+    if from_file:
+        infileobj = open(from_file, "rb")
+    else:
+        # do_http() can't use stdin directly: for one thing, we need a
+        # Content-Length field. So we currently must copy it.
+        if verbosity > 0:
+            print >>stderr, "waiting for file data on stdin.."
+        data = stdin.read()
+        infileobj = StringIO(data)
 
-    infileobj = open(local_fname, "rb")
     resp = do_http("PUT", url, infileobj)
 
     if resp.status in (200, 201,):
-        print >>stdout, "%s %s" % (resp.status, resp.reason)
+        print >>stderr, "%s %s" % (resp.status, resp.reason)
+        print >>stdout, resp.read()
         return 0
 
     print >>stderr, "error, got %s %s" % (resp.status, resp.reason)

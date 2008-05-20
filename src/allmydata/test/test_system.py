@@ -12,7 +12,7 @@ from allmydata import client, uri, download, upload, storage, offloaded
 from allmydata.introducer import IntroducerNode
 from allmydata.util import deferredutil, fileutil, idlib, mathutil, testutil
 from allmydata.util import log
-from allmydata.scripts import runner
+from allmydata.scripts import runner, cli
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable import layout as mutable_layout
@@ -69,9 +69,8 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         s.setServiceParent(self.sparent)
         return s
 
-    def set_up_nodes(self, NUMCLIENTS=5, createprivdir=False):
+    def set_up_nodes(self, NUMCLIENTS=5):
         self.numclients = NUMCLIENTS
-        self.createprivdir = createprivdir
         iv_dir = self.getdir("introducer")
         if not os.path.isdir(iv_dir):
             fileutil.make_dirs(iv_dir)
@@ -143,9 +142,6 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
                 open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
                 kgf = "%s\n" % (self.key_generator_furl,)
                 open(os.path.join(basedir, "key_generator.furl"), "w").write(kgf)
-            if self.createprivdir:
-                fileutil.make_dirs(os.path.join(basedir, "private"))
-                open(os.path.join(basedir, "private", "root_dir.cap"), "w")
             open(os.path.join(basedir, "introducer.furl"), "w").write(self.introducer_furl)
             open(os.path.join(basedir, "stats_gatherer.furl"), "w").write(self.stats_gatherer_furl)
 
@@ -875,7 +871,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
     def test_vdrive(self):
         self.basedir = "system/SystemTest/test_vdrive"
         self.data = LARGE_DATA
-        d = self.set_up_nodes(createprivdir=True)
+        d = self.set_up_nodes()
         d.addCallback(self._test_introweb)
         d.addCallback(self.log, "starting publish")
         d.addCallback(self._do_publish1)
@@ -1528,7 +1524,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
 
         nodeargs = [
             "--node-directory", client0_basedir,
-            "--dir-cap", private_uri,
+            #"--dir-cap", private_uri,
             ]
         public_nodeargs = [
             "--node-url", self.webish_url,
@@ -1538,44 +1534,147 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
 
         d = defer.succeed(None)
 
-        def _ls_root(res):
-            argv = ["ls"] + nodeargs
-            return self._run_cli(argv)
-        d.addCallback(_ls_root)
+        # for compatibility with earlier versions, private/root_dir.cap is
+        # supposed to be treated as an alias named "tahoe:". Start by making
+        # sure that works, before we add other aliases.
+
+        root_file = os.path.join(client0_basedir, "private", "root_dir.cap")
+        f = open(root_file, "w")
+        f.write(private_uri)
+        f.close()
+
+        def run(ignored, verb, *args):
+            newargs = [verb] + nodeargs + list(args)
+            return self._run_cli(newargs)
+
+        def _check_ls((out,err), expected_children, unexpected_children=[]):
+            self.failUnlessEqual(err, "")
+            for s in expected_children:
+                self.failUnless(s in out, s)
+            for s in unexpected_children:
+                self.failIf(s in out, s)
+
         def _check_ls_root((out,err)):
             self.failUnless("personal" in out)
             self.failUnless("s2-ro" in out)
             self.failUnless("s2-rw" in out)
             self.failUnlessEqual(err, "")
-        d.addCallback(_check_ls_root)
 
-        def _ls_subdir(res):
-            argv = ["ls"] + nodeargs + ["personal"]
-            return self._run_cli(argv)
-        d.addCallback(_ls_subdir)
-        def _check_ls_subdir((out,err)):
-            self.failUnless("sekrit data" in out)
-            self.failUnlessEqual(err, "")
-        d.addCallback(_check_ls_subdir)
+        # this should reference private_uri
+        d.addCallback(run, "ls")
+        d.addCallback(_check_ls, ["personal", "s2-ro", "s2-rw"])
 
-        def _ls_public_subdir(res):
-            argv = ["ls"] + public_nodeargs + ["subdir1"]
-            return self._run_cli(argv)
-        d.addCallback(_ls_public_subdir)
-        def _check_ls_public_subdir((out,err)):
-            self.failUnless("subdir2" in out)
-            self.failUnless("mydata567" in out)
-            self.failUnlessEqual(err, "")
-        d.addCallback(_check_ls_public_subdir)
+        # now that that's out of the way, remove root_dir.cap and work with
+        # new files
+        d.addCallback(lambda res: os.unlink(root_file))
 
-        def _ls_file(res):
-            argv = ["ls"] + public_nodeargs + ["subdir1/mydata567"]
-            return self._run_cli(argv)
-        d.addCallback(_ls_file)
-        def _check_ls_file((out,err)):
-            self.failUnlessEqual(out.strip(), "112 subdir1/mydata567")
+        d.addCallback(run, "mkdir")
+        def _got_dir( (out,err) ):
+            self.failUnless(uri.from_string_dirnode(out.strip()))
+            return out.strip()
+        d.addCallback(_got_dir)
+        d.addCallback(lambda newcap: run(None, "add-alias", "tahoe", newcap))
+        def _check_empty_dir((out,err)):
+            self.failUnlessEqual(out, "")
             self.failUnlessEqual(err, "")
-        d.addCallback(_check_ls_file)
+        d.addCallback(run, "ls")
+        d.addCallback(_check_empty_dir)
+
+        files = []
+        datas = []
+        for i in range(10):
+            fn = os.path.join(self.basedir, "file%d" % i)
+            files.append(fn)
+            data = "data to be uploaded: file%d\n" % i
+            datas.append(data)
+            open(fn,"w").write(data)
+
+        # test all both forms of put: from a file, and from stdin
+        #  tahoe put bar FOO
+        d.addCallback(run, "put", files[0], "tahoe-file0")
+        def _put_out((out,err)):
+            self.failUnless("URI:LIT:" in out, out)
+            self.failUnless("201 Created" in err, err)
+            uri0 = out.strip()
+            return run(None, "get", uri0)
+        d.addCallback(_put_out)
+        d.addCallback(lambda (out,err): self.failUnlessEqual(out, datas[0]))
+
+        d.addCallback(run, "put", files[1], "subdir/tahoe-file1")
+        #  tahoe put bar tahoe:FOO
+        d.addCallback(run, "put", files[2], "tahoe:file2")
+
+        def _put_from_stdin(res, data, *args):
+            args = nodeargs + list(args)
+            o = cli.PutOptions()
+            o.parseOptions(args)
+            stdin = StringIO(data)
+            stdout, stderr = StringIO(), StringIO()
+            d = threads.deferToThread(cli.put, o,
+                                      stdout=stdout, stderr=stderr, stdin=stdin)
+            def _done(res):
+                return stdout.getvalue(), stderr.getvalue()
+            d.addCallback(_done)
+            return d
+
+        #  tahoe put FOO
+        STDIN_DATA = "This is the file to upload from stdin."
+        d.addCallback(_put_from_stdin,
+                      STDIN_DATA,
+                      "tahoe-file-stdin")
+        #  tahoe put tahoe:FOO
+        d.addCallback(_put_from_stdin,
+                      "Other file from stdin.",
+                      "tahoe:from-stdin")
+
+        d.addCallback(run, "ls")
+        d.addCallback(_check_ls, ["tahoe-file0", "file2", "subdir",
+                                  "tahoe-file-stdin", "from-stdin"])
+        d.addCallback(run, "ls", "subdir")
+        d.addCallback(_check_ls, ["tahoe-file1"])
+
+        # tahoe mkdir FOO
+        d.addCallback(run, "mkdir", "subdir2")
+        d.addCallback(run, "ls")
+        # TODO: extract the URI, set an alias with it
+        d.addCallback(_check_ls, ["subdir2"])
+
+        # tahoe get: (to stdin and to a file)
+        d.addCallback(run, "get", "tahoe-file0")
+        d.addCallback(lambda (out,err):
+                      self.failUnlessEqual(out, "data to be uploaded: file0\n"))
+        d.addCallback(run, "get", "tahoe:subdir/tahoe-file1")
+        d.addCallback(lambda (out,err):
+                      self.failUnlessEqual(out, "data to be uploaded: file1\n"))
+        outfile0 = os.path.join(self.basedir, "outfile0")
+        d.addCallback(run, "get", "file2", outfile0)
+        def _check_outfile0((out,err)):
+            data = open(outfile0,"rb").read()
+            self.failUnlessEqual(data, "data to be uploaded: file2\n")
+        d.addCallback(_check_outfile0)
+        outfile1 = os.path.join(self.basedir, "outfile0")
+        d.addCallback(run, "get", "tahoe:subdir/tahoe-file1", outfile1)
+        def _check_outfile1((out,err)):
+            data = open(outfile1,"rb").read()
+            self.failUnlessEqual(data, "data to be uploaded: file1\n")
+        d.addCallback(_check_outfile1)
+
+        d.addCallback(run, "rm", "tahoe-file0")
+        d.addCallback(run, "rm", "tahoe:file2")
+        d.addCallback(run, "ls")
+        d.addCallback(_check_ls, [], ["tahoe-file0", "file2"])
+
+        d.addCallback(run, "ls", "-l")
+        def _check_ls_l((out,err)):
+            lines = out.split("\n")
+            for l in lines:
+                if "tahoe-file-stdin" in l:
+                    self.failUnless(" %d " % len(STDIN_DATA) in l)
+        d.addCallback(_check_ls_l)
+
+        d.addCallback(run, "mv", "tahoe-file-stdin", "tahoe-moved")
+        d.addCallback(run, "ls")
+        d.addCallback(_check_ls, ["tahoe-moved"], ["tahoe-file-stdin"])
 
         # tahoe_ls doesn't currently handle the error correctly: it tries to
         # JSON-parse a traceback.
@@ -1589,82 +1688,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
 ##             self.failUnlessEqual(err, "")
 ##         d.addCallback(_check_ls_missing)
 
-        def _put(res):
-            tdir = self.getdir("cli_put")
-            fileutil.make_dirs(tdir)
-            fn = os.path.join(tdir, "upload_me")
-            f = open(fn, "wb")
-            f.write(TESTDATA)
-            f.close()
-            argv = ["put"] + nodeargs + [fn, "test_put/upload.txt"]
-            return self._run_cli(argv)
-        d.addCallback(_put)
-        def _check_put((out,err)):
-            self.failUnless("201 Created" in out, out)
-            self.failUnlessEqual(err, "")
-            d = self._private_node.get_child_at_path(u"test_put/upload.txt")
-            d.addCallback(lambda filenode: filenode.download_to_data())
-            def _check_put2(res):
-                self.failUnlessEqual(res, TESTDATA)
-            d.addCallback(_check_put2)
-            return d
-        d.addCallback(_check_put)
-
-        def _get_to_stdout(res):
-            argv = ["get"] + nodeargs + ["test_put/upload.txt"]
-            return self._run_cli(argv)
-        d.addCallback(_get_to_stdout)
-        def _check_get_to_stdout((out,err)):
-            self.failUnlessEqual(out, TESTDATA)
-            self.failUnlessEqual(err, "")
-        d.addCallback(_check_get_to_stdout)
-
-        get_to_file_target = self.basedir + "/get.downfile"
-        def _get_to_file(res):
-            argv = ["get"] + nodeargs + ["test_put/upload.txt",
-                                         get_to_file_target]
-            return self._run_cli(argv)
-        d.addCallback(_get_to_file)
-        def _check_get_to_file((out,err)):
-            data = open(get_to_file_target, "rb").read()
-            self.failUnlessEqual(data, TESTDATA)
-            self.failUnlessEqual(out, "")
-            self.failUnlessEqual(err, "test_put/upload.txt retrieved and written to system/SystemTest/test_vdrive/get.downfile\n")
-        d.addCallback(_check_get_to_file)
-
-
-        def _mv(res):
-            argv = ["mv"] + nodeargs + ["test_put/upload.txt",
-                                        "test_put/moved.txt"]
-            return self._run_cli(argv)
-        d.addCallback(_mv)
-        def _check_mv((out,err)):
-            self.failUnless("OK" in out)
-            self.failUnlessEqual(err, "")
-            d = self.shouldFail2(KeyError, "test_cli._check_rm", "'upload.txt'", self._private_node.get_child_at_path, u"test_put/upload.txt")
-
-            d.addCallback(lambda res:
-                          self._private_node.get_child_at_path(u"test_put/moved.txt"))
-            d.addCallback(lambda filenode: filenode.download_to_data())
-            def _check_mv2(res):
-                self.failUnlessEqual(res, TESTDATA)
-            d.addCallback(_check_mv2)
-            return d
-        d.addCallback(_check_mv)
-
-        def _rm(res):
-            argv = ["rm"] + nodeargs + ["test_put/moved.txt"]
-            return self._run_cli(argv)
-        d.addCallback(_rm)
-        def _check_rm((out,err)):
-            self.failUnless("200 OK" in out)
-            self.failUnlessEqual(err, "")
-            d = self.shouldFail2(KeyError, "test_cli._check_rm", "'moved.txt'", self._private_node.get_child_at_path, u"test_put/moved.txt")
-            return d
-        d.addCallback(_check_rm)
         return d
 
     def _run_cli(self, argv):
+        #print "CLI:", argv
         stdout, stderr = StringIO(), StringIO()
         d = threads.deferToThread(runner.runner, argv, run_by_human=False,
                                   stdout=stdout, stderr=stderr)

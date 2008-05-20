@@ -9,10 +9,13 @@ from allmydata import uri
 # at least import the CLI scripts, even if we don't have any real tests for
 # them yet.
 from allmydata.scripts import tahoe_ls, tahoe_get, tahoe_put, tahoe_rm
+from allmydata.scripts.common import DEFAULT_ALIAS
 _hush_pyflakes = [tahoe_ls, tahoe_get, tahoe_put, tahoe_rm]
 
 from allmydata.scripts import cli, debug
 
+# this test case only looks at argument-processing and simple stuff.
+# test_system contains all the CLI tests that actually use a real node.
 
 class CLI(unittest.TestCase):
     def test_options(self):
@@ -27,27 +30,22 @@ class CLI(unittest.TestCase):
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o['dir-cap'], private_uri)
-        self.failUnlessEqual(o['vdrive_pathname'], "")
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessEqual(o.where, "")
 
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options",
                         "--node-url", "http://example.org:8111/"])
         self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
-        self.failUnlessEqual(o['dir-cap'], private_uri)
-        self.failUnlessEqual(o['vdrive_pathname'], "")
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessEqual(o.where, "")
 
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options",
                         "--dir-cap", "root"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o['dir-cap'], private_uri)
-        self.failUnlessEqual(o['vdrive_pathname'], "")
-
-        o = cli.ListOptions()
-        o.parseOptions(["--node-directory", "cli/test_options"])
-        self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o['vdrive_pathname'], "")
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], "root")
+        self.failUnlessEqual(o.where, "")
 
         o = cli.ListOptions()
         other_filenode_uri = uri.WriteableSSKFileURI(writekey="\x11"*16,
@@ -56,15 +54,15 @@ class CLI(unittest.TestCase):
         o.parseOptions(["--node-directory", "cli/test_options",
                         "--dir-cap", other_uri])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o['dir-cap'], other_uri)
-        self.failUnlessEqual(o['vdrive_pathname'], "")
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], other_uri)
+        self.failUnlessEqual(o.where, "")
 
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options",
                         "--dir-cap", other_uri, "subdir"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o['dir-cap'], other_uri)
-        self.failUnlessEqual(o['vdrive_pathname'], "subdir")
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], other_uri)
+        self.failUnlessEqual(o.where, "subdir")
 
     def _dump_cap(self, *args):
         out,err = StringIO(), StringIO()

@@ -1,8 +1,9 @@
 
 import urllib
 from allmydata.scripts.common_http import do_http
+from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
 
-def rm(nodeurl, dir_uri, vdrive_pathname, verbosity, stdout, stderr):
+def rm(nodeurl, aliases, where, verbosity, stdout, stderr):
     """
     @param verbosity: 0, 1, or 2, meaning quiet, verbose, or very verbose
 
@@ -10,9 +11,10 @@ def rm(nodeurl, dir_uri, vdrive_pathname, verbosity, stdout, stderr):
     """
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    url = nodeurl + "uri/%s/" % urllib.quote(dir_uri)
-    if vdrive_pathname:
-        url += urllib.quote(vdrive_pathname)
+    rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
+    assert path
+    url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+    url += "/" + escape_path(path)
 
     resp = do_http("DELETE", url)
 
