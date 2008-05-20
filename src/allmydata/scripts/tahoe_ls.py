@@ -31,6 +31,12 @@ def list(nodeurl, aliases, where, config, stdout, stderr):
         children = {childname: d}
     childnames = sorted(children.keys())
     now = time.time()
+
+    # we build up a series of rows, then we loop through them to compute a
+    # maxwidth so we can format them tightly. Size, filename, and URI are the
+    # variable-width ones.
+    rows = []
+
     for name in childnames:
         child = children[name]
         childtype = child[0]
@@ -54,7 +60,7 @@ def list(nodeurl, aliases, where, config, stdout, stderr):
             classify = "/"
         elif childtype == "filenode":
             t0 = "-"
-            size = child[1]['size']
+            size = str(child[1]['size'])
             classify = ""
             if rw_uri:
                 classify = "*"
@@ -76,13 +82,40 @@ def list(nodeurl, aliases, where, config, stdout, stderr):
 
         line = []
         if config["long"]:
-            line.append("%s %10s %12s" % (t0+t1+t2+t3, size, ctime_s))
+            line.append(t0+t1+t2+t3)
+            line.append(size)
+            line.append(ctime_s)
+        if not config["classify"]:
+            classify = ""
+        line.append(name + classify)
         if config["uri"]:
             line.append(uri)
         if config["readonly-uri"]:
             line.append(ro_uri or "-")
-        line.append(name)
-        if config["classify"]:
-            line[-1] += classify
 
-        print >>stdout, " ".join(line)
+        rows.append(line)
+
+    max_widths = []
+    left_justifys = []
+    for row in rows:
+        for i,cell in enumerate(row):
+            while len(max_widths) <= i:
+                max_widths.append(0)
+            while len(left_justifys) <= i:
+                left_justifys.append(False)
+            max_widths[i] = max(max_widths[i], len(cell))
+            if cell.startswith("URI"):
+                left_justifys[i] = True
+    if len(left_justifys) == 1:
+        left_justifys[0] = True
+    fmt_pieces = []
+    for i in range(len(max_widths)):
+        piece = "%"
+        if left_justifys[i]:
+            piece += "-"
+        piece += str(max_widths[i])
+        piece += "s"
+        fmt_pieces.append(piece)
+    fmt = " ".join(fmt_pieces)
+    for row in rows:
+        print >>stdout, (fmt % tuple(row)).rstrip()
