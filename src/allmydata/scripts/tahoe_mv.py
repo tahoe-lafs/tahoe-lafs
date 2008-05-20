@@ -5,7 +5,9 @@ import simplejson
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
 from allmydata.scripts.common_http import do_http
 
-def mv(nodeurl, aliases, from_file, to_file, stdout, stderr):
+# this script is used for both 'mv' and 'ln'
+
+def mv(nodeurl, aliases, from_file, to_file, stdout, stderr, mode="move"):
     if nodeurl[-1] != "/":
         nodeurl += "/"
     rootcap, path = get_alias(aliases, from_file, DEFAULT_ALIAS)
@@ -35,14 +37,16 @@ def mv(nodeurl, aliases, from_file, to_file, stdout, stderr):
     if not re.search(r'^2\d\d$', str(status)):
         print >>stderr, "error, got %s %s" % (resp.status, resp.reason)
         print >>stderr, resp.read()
-        print >>stderr, "NOT removing the original"
+        if mode == "move":
+            print >>stderr, "NOT removing the original"
         return
 
-    # now remove the original
-    resp = do_http("DELETE", from_url)
-    if not re.search(r'^2\d\d$', str(status)):
-        print >>stderr, "error, got %s %s" % (resp.status, resp.reason)
-        print >>stderr, resp.read()
+    if mode == "move":
+        # now remove the original
+        resp = do_http("DELETE", from_url)
+        if not re.search(r'^2\d\d$', str(status)):
+            print >>stderr, "error, got %s %s" % (resp.status, resp.reason)
+            print >>stderr, resp.read()
 
     print >>stdout, "OK"
     return

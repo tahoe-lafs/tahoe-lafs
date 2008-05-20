@@ -160,6 +160,14 @@ class MvOptions(VDriveOptions):
     def getSynopsis(self):
         return "%s mv FROM TO" % (os.path.basename(sys.argv[0]),)
 
+class LnOptions(VDriveOptions):
+    def parseArgs(self, frompath, topath):
+        self.from_file = frompath
+        self.to_file = topath
+
+    def getSynopsis(self):
+        return "%s ln FROM TO" % (os.path.basename(sys.argv[0]),)
+
 class WebopenOptions(VDriveOptions):
     def parseArgs(self, vdrive_pathname=""):
         self['vdrive_pathname'] = vdrive_pathname
@@ -177,6 +185,7 @@ subCommands = [
     ["put", None, PutOptions, "Upload a file into the virtual drive."],
     ["rm", None, RmOptions, "Unlink a file or directory in the virtual drive."],
     ["mv", None, MvOptions, "Move a file within the virtual drive."],
+    ["ln", None, LnOptions, "Make an additional link to an existing file."],
     ["webopen", None, WebopenOptions, "Open a webbrowser to the root_dir"],
     ["repl", None, ReplOptions, "Open a python interpreter"],
     ]
@@ -258,7 +267,18 @@ def mv(config, stdout, stderr):
                      config.aliases,
                      config.from_file,
                      config.to_file,
-                     stdout, stderr)
+                     stdout, stderr,
+                     mode="move")
+    return rc
+
+def ln(config, stdout, stderr):
+    from allmydata.scripts import tahoe_mv
+    rc = tahoe_mv.mv(config['node-url'],
+                     config.aliases,
+                     config.from_file,
+                     config.to_file,
+                     stdout, stderr,
+                     mode="link")
     return rc
 
 def webopen(config, stdout, stderr):
@@ -284,6 +304,7 @@ dispatch = {
     "put": put,
     "rm": rm,
     "mv": mv,
+    "ln": ln,
     "webopen": webopen,
     "repl": repl,
     }

@@ -1699,6 +1699,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, ["tahoe-moved"], ["tahoe-file-stdin"])
 
+        d.addCallback(run, "ln", "tahoe-moved", "newlink")
+        d.addCallback(run, "ls")
+        d.addCallback(_check_ls, ["tahoe-moved", "newlink"])
+
         # tahoe_ls doesn't currently handle the error correctly: it tries to
         # JSON-parse a traceback.
 ##         def _ls_missing(res):
