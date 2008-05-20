@@ -1139,6 +1139,7 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnlessEqual(self._mutable_uri, newnode.get_uri())
         d.addCallback(_got3)
 
+        # look at the JSON form of the enclosing directory
         d.addCallback(lambda res:
                       self.GET(self.public_url + "/foo/?t=json",
                                followRedirect=True))
@@ -1153,6 +1154,17 @@ class Web(WebMixin, unittest.TestCase):
             ro_uri = unicode(self._mutable_node.get_readonly().to_string())
             self.failUnlessEqual(new_json[1]["ro_uri"], ro_uri)
         d.addCallback(_check_page_json)
+
+        # and the JSON form of the file
+        d.addCallback(lambda res:
+                      self.GET(self.public_url + "/foo/new.txt?t=json"))
+        def _check_file_json(res):
+            parsed = simplejson.loads(res)
+            self.failUnlessEqual(parsed[0], "filenode")
+            self.failUnlessEqual(parsed[1]["rw_uri"], self._mutable_uri)
+            ro_uri = unicode(self._mutable_node.get_readonly().to_string())
+            self.failUnlessEqual(parsed[1]["ro_uri"], ro_uri)
+        d.addCallback(_check_file_json)
 
         # and look at t=uri and t=readonly-uri
         d.addCallback(lambda res:

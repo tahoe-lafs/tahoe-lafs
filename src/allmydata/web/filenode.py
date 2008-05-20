@@ -368,11 +368,18 @@ class FileDownloader(resource.Resource):
         return server.NOT_DONE_YET
 
 def FileJSONMetadata(ctx, filenode):
-    file_uri = filenode.get_uri()
-    data = ("filenode",
-            {'ro_uri': file_uri,
-             'size': filenode.get_size(),
-             })
+    if filenode.is_readonly():
+        rw_uri = None
+        ro_uri = filenode.get_uri()
+    else:
+        rw_uri = filenode.get_uri()
+        ro_uri = filenode.get_readonly_uri()
+    data = ("filenode", {})
+    data[1]['size'] = filenode.get_size()
+    if ro_uri:
+        data[1]['ro_uri'] = ro_uri
+    if rw_uri:
+        data[1]['rw_uri'] = rw_uri
     return text_plain(simplejson.dumps(data, indent=1), ctx)
 
 def FileURI(ctx, filenode):
