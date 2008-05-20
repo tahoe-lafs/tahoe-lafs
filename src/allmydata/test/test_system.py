@@ -137,6 +137,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
                 # client[0] runs a webserver and a helper, no key_generator
                 open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
                 open(os.path.join(basedir, "run_helper"), "w").write("yes\n")
+                open(os.path.join(basedir, "sizelimit"), "w").write("10GB\n")
             if i == 3:
                 # client[3] runs a webserver and uses a helper, uses key_generator
                 open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")

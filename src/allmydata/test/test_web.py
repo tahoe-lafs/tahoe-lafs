@@ -473,12 +473,46 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
+    def test_PUT_FILEURL_named_bad(self):
+        base = "/file/%s" % urllib.quote(self._bar_txt_uri)
+        d = self.shouldFail2(error.Error, "test_PUT_FILEURL_named_bad",
+                             "400 Bad Request",
+                             "/file can only be used with GET or HEAD",
+                             self.PUT, base + "/@@name=/blah.txt", "")
+        return d
+
+    def test_GET_DIRURL_named_bad(self):
+        base = "/file/%s" % urllib.quote(self._foo_uri)
+        d = self.shouldFail2(error.Error, "test_PUT_DIRURL_named_bad",
+                             "400 Bad Request",
+                             "is not a file-cap",
+                             self.GET, base + "/@@name=/blah.txt")
+        return d
+
+    def test_GET_slash_file_bad(self):
+        d = self.shouldFail2(error.Error, "test_GET_slash_file_bad",
+                             "404 Not Found",
+                             "/file must be followed by a file-cap and a name",
+                             self.GET, "/file")
+        return d
+
     def test_GET_unhandled_URI_named(self):
         contents, n, newuri = self.makefile(12)
         verifier_cap = n.get_verifier().to_string()
         base = "/file/%s" % urllib.quote(verifier_cap)
         # client.create_node_from_uri() can't handle verify-caps
         d = self.shouldFail2(error.Error, "GET_unhandled_URI_named",
+                             "400 Bad Request",
+                             "is not a valid file- or directory- cap",
+                             self.GET, base)
+        return d
+
+    def test_GET_unhandled_URI(self):
+        contents, n, newuri = self.makefile(12)
+        verifier_cap = n.get_verifier().to_string()
+        base = "/uri/%s" % urllib.quote(verifier_cap)
+        # client.create_node_from_uri() can't handle verify-caps
+        d = self.shouldFail2(error.Error, "test_GET_unhandled_URI",
                              "400 Bad Request",
                              "is not a valid file- or directory- cap",
                              self.GET, base)
@@ -897,6 +931,33 @@ class Web(WebMixin, unittest.TestCase):
         d = self.POST("/uri", t="upload", when_done="/",
                       file=("new.txt", self.NEWFILE_CONTENTS))
         d.addBoth(self.shouldRedirect, "/")
+        return d
+
+    def shouldRedirect2(self, which, checker, callable, *args, **kwargs):
+        d = defer.maybeDeferred(callable, *args, **kwargs)
+        def done(res):
+            if isinstance(res, failure.Failure):
+                res.trap(error.PageRedirect)
+                statuscode = res.value.status
+                target = res.value.location
+                return checker(statuscode, target)
+            self.fail("%s: callable was supposed to redirect, not return '%s'"
+                      % (which, res))
+        d.addBoth(done)
+        return d
+
+    def test_POST_upload_no_link_whendone_results(self):
+        def check(statuscode, target):
+            self.failUnlessEqual(statuscode, str(http.FOUND))
+            self.failUnless(target.startswith(self.webish_url), target)
+            return client.getPage(target, method="GET")
+        d = self.shouldRedirect2("test_POST_upload_no_link_whendone_results",
+                                 check,
+                                 self.POST, "/uri", t="upload",
+                                 when_done="/uri/%(uri)s",
+                                 file=("new.txt", self.NEWFILE_CONTENTS))
+        d.addCallback(lambda res:
+                      self.failUnlessEqual(res, self.NEWFILE_CONTENTS))
         return d
 
     def test_POST_upload_no_link_mutable(self):
@@ -1461,6 +1522,12 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(self.failUnlessIsFooJSON)
         d.addCallback(self.log, "got dir by uri")
 
+        return d
+
+    def test_GET_URI_form_bad(self):
+        d = self.shouldFail2(error.Error, "test_GET_URI_form_bad",
+                             "400 Bad Request", "GET /uri requires uri=",
+                             self.GET, "/uri")
         return d
 
     def test_GET_rename_form(self):
