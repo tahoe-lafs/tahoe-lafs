@@ -2,7 +2,7 @@ import re, urllib
 import simplejson
 from twisted.application import service
 from twisted.trial import unittest
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.web import client, error, http
 from twisted.python import failure, log
 from allmydata import interfaces, provisioning, uri, webish, upload, download
@@ -91,13 +91,19 @@ class FakeClient(service.MultiService):
     def list_all_helper_statuses(self):
         return []
 
+class HTTPClientHEADFactory(client.HTTPClientFactory):
+    def __init__(self, *args, **kwargs):
+        client.HTTPClientFactory.__init__(self, *args, **kwargs)
+        self.deferred.addCallback(lambda res: self.response_headers)
+
+
 class WebMixin(object):
     def setUp(self):
         self.s = FakeClient()
         self.s.startService()
         self.ws = s = webish.WebishServer("0")
         s.setServiceParent(self.s)
-        port = s.listener._port.getHost().port
+        self.webish_port = port = s.listener._port.getHost().port
         self.webish_url = "http://localhost:%d" % port
 
         l = [ self.s.create_empty_dirnode() for x in range(6) ]
@@ -210,6 +216,13 @@ class WebMixin(object):
     def GET(self, urlpath, followRedirect=False):
         url = self.webish_url + urlpath
         return client.getPage(url, method="GET", followRedirect=followRedirect)
+
+    def HEAD(self, urlpath):
+        # this requires some surgery, because twisted.web.client doesn't want
+        # to give us back the response headers.
+        factory = HTTPClientHEADFactory(urlpath)
+        reactor.connectTCP("localhost", self.webish_port, factory)
+        return factory.deferred
 
     def PUT(self, urlpath, data):
         url = self.webish_url + urlpath
@@ -461,6 +474,15 @@ class Web(WebMixin, unittest.TestCase):
     def test_GET_FILEURL(self):
         d = self.GET(self.public_url + "/foo/bar.txt")
         d.addCallback(self.failUnlessIsBarDotTxt)
+        return d
+
+    def test_HEAD_FILEURL(self):
+        d = self.HEAD(self.public_url + "/foo/bar.txt")
+        def _got(headers):
+            self.failUnlessEqual(headers["content-length"][0],
+                                 str(len(self.BAR_CONTENTS)))
+            self.failUnlessEqual(headers["content-type"], ["text/plain"])
+        d.addCallback(_got)
         return d
 
     def test_GET_FILEURL_named(self):
@@ -1130,6 +1152,15 @@ class Web(WebMixin, unittest.TestCase):
                       self.GET("/uri/%s" % urllib.quote(self._mutable_uri)))
         d.addCallback(lambda res:
                       self.failUnlessEqual(res, EVEN_NEWER_CONTENTS))
+
+        # and that HEAD computes the size correctly
+        d.addCallback(lambda res:
+                      self.HEAD(self.public_url + "/foo/new.txt"))
+        def _got_headers(headers):
+            self.failUnlessEqual(headers["content-length"][0],
+                                 str(len(EVEN_NEWER_CONTENTS)))
+            self.failUnlessEqual(headers["content-type"], ["text/plain"])
+        d.addCallback(_got_headers)
 
         d.addErrback(self.dump_error)
         return d
