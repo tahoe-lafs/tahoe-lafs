@@ -109,6 +109,21 @@ class FakeMutableFileNode:
         self.all_contents[self.storage_index] = modifier(old_contents)
         return None
 
+    def download(self, target):
+        if self.storage_index not in self.all_contents:
+            f = failure.Failure(NotEnoughSharesError())
+            target.fail(f)
+            return defer.fail(f)
+        data = self.all_contents[self.storage_index]
+        target.open(len(data))
+        target.write(data)
+        target.close()
+        return defer.maybeDeferred(target.finish)
+    def download_to_data(self):
+        if self.storage_index not in self.all_contents:
+            return defer.fail(NotEnoughSharesError())
+        data = self.all_contents[self.storage_index]
+        return defer.succeed(data)
 
 def make_mutable_file_uri():
     return uri.WriteableSSKFileURI(writekey=os.urandom(16),

@@ -473,6 +473,17 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
+    def test_GET_unhandled_URI_named(self):
+        contents, n, newuri = self.makefile(12)
+        verifier_cap = n.get_verifier().to_string()
+        base = "/file/%s" % urllib.quote(verifier_cap)
+        # client.create_node_from_uri() can't handle verify-caps
+        d = self.shouldFail2(error.Error, "GET_unhandled_URI_named",
+                             "400 Bad Request",
+                             "is not a valid file- or directory- cap",
+                             self.GET, base)
+        return d
+
     def test_GET_FILEURL_save(self):
         d = self.GET(self.public_url + "/foo/bar.txt?filename=bar.txt&save=true")
         # TODO: look at the headers, expect a Content-Disposition: attachment
@@ -503,6 +514,13 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(self._foo_node, u"bar.txt",
                                                       self.NEWFILE_CONTENTS))
+        return d
+
+    def test_PUT_NEWFILEURL_bad_t(self):
+        d = self.shouldFail2(error.Error, "PUT_bad_t", "400 Bad Request",
+                             "PUT to a file: bad t=bogus",
+                             self.PUT, self.public_url + "/foo/bar.txt?t=bogus",
+                             "contents")
         return d
 
     def test_PUT_NEWFILEURL_no_replace(self):
@@ -886,6 +904,7 @@ class Web(WebMixin, unittest.TestCase):
                       file=("new.txt", self.NEWFILE_CONTENTS))
         def _check(new_uri):
             new_uri = new_uri.strip()
+            self.new_uri = new_uri
             u = IURI(new_uri)
             self.failUnless(IMutableFileURI.providedBy(u))
             self.failUnless(u.storage_index in FakeMutableFileNode.all_contents)
@@ -894,7 +913,15 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check)
         def _check2(data):
             self.failUnlessEqual(data, self.NEWFILE_CONTENTS)
+            return self.GET("/uri/%s" % urllib.quote(self.new_uri))
         d.addCallback(_check2)
+        def _check3(data):
+            self.failUnlessEqual(data, self.NEWFILE_CONTENTS)
+            return self.GET("/file/%s" % urllib.quote(self.new_uri))
+        d.addCallback(_check3)
+        def _check4(data):
+            self.failUnlessEqual(data, self.NEWFILE_CONTENTS)
+        d.addCallback(_check4)
         return d
 
     def test_POST_upload_mutable(self):
@@ -932,6 +959,15 @@ class Web(WebMixin, unittest.TestCase):
             self.failIf(newnode.is_readonly())
             self.failUnlessEqual(self._mutable_uri, newnode.get_uri())
         d.addCallback(_got2)
+
+        # upload a second time, using PUT instead of POST
+        NEW2_CONTENTS = NEWER_CONTENTS + "overwrite with PUT\n"
+        d.addCallback(lambda res:
+                      self.PUT(self.public_url + "/foo/new.txt", NEW2_CONTENTS))
+        d.addCallback(self.failUnlessURIMatchesChild, fn, u"new.txt")
+        d.addCallback(lambda res:
+                      self.failUnlessMutableChildContentsAre(fn, u"new.txt",
+                                                             NEW2_CONTENTS))
 
         # finally list the directory, since mutable files are displayed
         # differently
