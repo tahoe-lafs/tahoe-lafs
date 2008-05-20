@@ -911,6 +911,7 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnless(IMutableFileNode.providedBy(newnode))
             self.failUnless(newnode.is_mutable())
             self.failIf(newnode.is_readonly())
+            self._mutable_node = newnode
             self._mutable_uri = newnode.get_uri()
         d.addCallback(_got)
 
@@ -975,6 +976,21 @@ class Web(WebMixin, unittest.TestCase):
             self.failIf(newnode.is_readonly())
             self.failUnlessEqual(self._mutable_uri, newnode.get_uri())
         d.addCallback(_got3)
+
+        d.addCallback(lambda res:
+                      self.GET(self.public_url + "/foo/?t=json",
+                               followRedirect=True))
+        def _check_page_json(res):
+            parsed = simplejson.loads(res)
+            self.failUnlessEqual(parsed[0], "dirnode")
+            children = parsed[1]["children"]
+            self.failUnless("new.txt" in children)
+            new_json = children["new.txt"]
+            self.failUnlessEqual(new_json[0], "filenode")
+            self.failUnlessEqual(new_json[1]["rw_uri"], self._mutable_uri)
+            ro_uri = unicode(self._mutable_node.get_readonly().to_string())
+            self.failUnlessEqual(new_json[1]["ro_uri"], ro_uri)
+        d.addCallback(_check_page_json)
 
         d.addErrback(self.dump_error)
         return d

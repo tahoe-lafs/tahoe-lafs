@@ -627,28 +627,36 @@ def DirectoryJSONMetadata(ctx, dirnode):
     def _got(children):
         kids = {}
         for name, (childnode, metadata) in children.iteritems():
+            if childnode.is_readonly():
+                rw_uri = None
+                ro_uri = childnode.get_uri()
+            else:
+                rw_uri = childnode.get_uri()
+                ro_uri = childnode.get_readonly_uri()
             if IFileNode.providedBy(childnode):
-                kiduri = childnode.get_uri()
-                kiddata = ("filenode",
-                           {'ro_uri': kiduri,
-                            'size': childnode.get_size(),
-                            'metadata': metadata,
-                            })
+                kiddata = ("filenode", {'size': childnode.get_size(),
+                                        'metadata': metadata,
+                                        })
             else:
                 assert IDirectoryNode.providedBy(childnode), (childnode,
                                                               children,)
-                kiddata = ("dirnode",
-                           {'ro_uri': childnode.get_readonly_uri(),
-                            'metadata': metadata,
-                            })
-                if not childnode.is_readonly():
-                    kiddata[1]['rw_uri'] = childnode.get_uri()
+                kiddata = ("dirnode", {'metadata': metadata})
+            if ro_uri:
+                kiddata[1]["ro_uri"] = ro_uri
+            if rw_uri:
+                kiddata[1]["rw_uri"] = rw_uri
             kids[name] = kiddata
-        contents = { 'children': kids,
-                     'ro_uri': dirnode.get_readonly_uri(),
-                     }
-        if not dirnode.is_readonly():
-            contents['rw_uri'] = dirnode.get_uri()
+        if dirnode.is_readonly():
+            drw_uri = None
+            dro_uri = dirnode.get_uri()
+        else:
+            drw_uri = dirnode.get_uri()
+            dro_uri = dirnode.get_readonly_uri()
+        contents = { 'children': kids }
+        if dro_uri:
+            contents['ro_uri'] = dro_uri
+        if drw_uri:
+            contents['rw_uri'] = drw_uri
         data = ("dirnode", contents)
         return simplejson.dumps(data, indent=1)
     d.addCallback(_got)
