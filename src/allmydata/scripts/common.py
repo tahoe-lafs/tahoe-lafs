@@ -91,9 +91,14 @@ def get_aliases(nodedir):
         pass
     return aliases
 
+class DefaultAliasMarker:
+    pass
+
 def get_alias(aliases, path, default):
-    # transform "work:path/filename" into (aliases["work"], "path/filename")
-    # We special-case URI:
+    # transform "work:path/filename" into (aliases["work"], "path/filename").
+    # If default=None, then an empty alias is indicated by returning
+    # DefaultAliasMarker. We special-case "URI:" to make it easy to access
+    # specific files/directories by their read-cap.
     if path.startswith("URI:"):
         # The only way to get a sub-path is to use URI:blah:./foo, and we
         # strip out the :./ sequence.
@@ -104,11 +109,15 @@ def get_alias(aliases, path, default):
     colon = path.find(":")
     if colon == -1:
         # no alias
+        if default == None:
+            return DefaultAliasMarker, path
         return aliases[default], path
     alias = path[:colon]
     if "/" in alias:
         # no alias, but there's a colon in a dirname/filename, like
         # "foo/bar:7"
+        if default == None:
+            return DefaultAliasMarker, path
         return aliases[default], path
     return aliases[alias], path[colon+1:]
 

@@ -1603,6 +1603,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
             datas.append(data)
             open(fn,"wb").write(data)
 
+        def _check_stdout_against((out,err), filenum):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(out, datas[filenum])
+
         # test all both forms of put: from a file, and from stdin
         #  tahoe put bar FOO
         d.addCallback(run, "put", files[0], "tahoe-file0")
@@ -1621,6 +1625,8 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         def _check_put_mutable((out,err)):
             self._mutable_file3_uri = out.strip()
         d.addCallback(_check_put_mutable)
+        d.addCallback(run, "get", "tahoe:file3")
+        d.addCallback(_check_stdout_against, 3)
 
         def _put_from_stdin(res, data, *args):
             args = nodeargs + list(args)
@@ -1659,11 +1665,9 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
 
         # tahoe get: (to stdin and to a file)
         d.addCallback(run, "get", "tahoe-file0")
-        d.addCallback(lambda (out,err):
-                      self.failUnlessEqual(out, "data to be uploaded: file0\n"))
+        d.addCallback(_check_stdout_against, 0)
         d.addCallback(run, "get", "tahoe:subdir/tahoe-file1")
-        d.addCallback(lambda (out,err):
-                      self.failUnlessEqual(out, "data to be uploaded: file1\n"))
+        d.addCallback(_check_stdout_against, 1)
         outfile0 = os.path.join(self.basedir, "outfile0")
         d.addCallback(run, "get", "file2", outfile0)
         def _check_outfile0((out,err)):
@@ -1720,6 +1724,59 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         d.addCallback(run, "ln", "tahoe-moved", "newlink")
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, ["tahoe-moved", "newlink"])
+
+        d.addCallback(run, "cp", "tahoe:file3", "tahoe:file3-copy")
+        d.addCallback(run, "ls")
+        d.addCallback(_check_ls, ["file3", "file3-copy"])
+        d.addCallback(run, "get", "tahoe:file3-copy")
+        d.addCallback(_check_stdout_against, 3)
+
+        # copy from disk into tahoe
+        d.addCallback(run, "cp", files[4], "tahoe:file4")
+        d.addCallback(run, "ls")
+        d.addCallback(_check_ls, ["file3", "file3-copy", "file4"])
+        d.addCallback(run, "get", "tahoe:file4")
+        d.addCallback(_check_stdout_against, 4)
+
+        # copy from tahoe into disk
+        target_filename = os.path.join(self.basedir, "file-out")
+        d.addCallback(run, "cp", "tahoe:file4", target_filename)
+        def _check_cp_out((out,err)):
+            self.failUnless(os.path.exists(target_filename))
+            got = open(target_filename,"rb").read()
+            self.failUnlessEqual(got, datas[4])
+        d.addCallback(_check_cp_out)
+
+        # copy from disk to disk (silly case)
+        target2_filename = os.path.join(self.basedir, "file-out-copy")
+        d.addCallback(run, "cp", target_filename, target2_filename)
+        def _check_cp_out2((out,err)):
+            self.failUnless(os.path.exists(target2_filename))
+            got = open(target2_filename,"rb").read()
+            self.failUnlessEqual(got, datas[4])
+        d.addCallback(_check_cp_out2)
+
+        # copy from tahoe into disk, overwriting an existing file
+        d.addCallback(run, "cp", "tahoe:file3", target_filename)
+        def _check_cp_out3((out,err)):
+            self.failUnless(os.path.exists(target_filename))
+            got = open(target_filename,"rb").read()
+            self.failUnlessEqual(got, datas[3])
+        d.addCallback(_check_cp_out3)
+
+        # copy from disk into tahoe, overwriting an existing immutable file
+        d.addCallback(run, "cp", files[5], "tahoe:file4")
+        d.addCallback(run, "ls")
+        d.addCallback(_check_ls, ["file3", "file3-copy", "file4"])
+        d.addCallback(run, "get", "tahoe:file4")
+        d.addCallback(_check_stdout_against, 5)
+
+        # copy from disk into tahoe, overwriting an existing mutable file
+        d.addCallback(run, "cp", files[5], "tahoe:file3")
+        d.addCallback(run, "ls")
+        d.addCallback(_check_ls, ["file3", "file3-copy", "file4"])
+        d.addCallback(run, "get", "tahoe:file3")
+        d.addCallback(_check_stdout_against, 5)
 
         # tahoe_ls doesn't currently handle the error correctly: it tries to
         # JSON-parse a traceback.

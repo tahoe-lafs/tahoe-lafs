@@ -122,6 +122,16 @@ class PutOptions(VDriveOptions):
     contents from the local filesystem). LOCAL_FILE is required to be a
     local file (it can't be stdin)."""
 
+class CpOptions(VDriveOptions):
+    optFlags = [
+        ("recursive", "r", "Copy source directory recursively."),
+        ]
+    def parseArgs(self, *args):
+        if len(args) < 2:
+            raise usage.UsageError("cp requires at least two arguments")
+        self.sources = args[:-1]
+        self.destination = args[-1]
+
 class RmOptions(VDriveOptions):
     def parseArgs(self, where):
         self.where = where
@@ -161,6 +171,7 @@ subCommands = [
     ["ls", None, ListOptions, "List a directory"],
     ["get", None, GetOptions, "Retrieve a file from the virtual drive."],
     ["put", None, PutOptions, "Upload a file into the virtual drive."],
+    ["cp", None, CpOptions, "Copy one or more files."],
     ["rm", None, RmOptions, "Unlink a file or directory in the virtual drive."],
     ["mv", None, MvOptions, "Move a file within the virtual drive."],
     ["ln", None, LnOptions, "Make an additional link to an existing file."],
@@ -232,6 +243,21 @@ def put(config, stdout, stderr, stdin=sys.stdin):
                        stdin, stdout, stderr)
     return rc
 
+def cp(config, stdout, stderr):
+    from allmydata.scripts import tahoe_cp
+    if config['quiet']:
+        verbosity = 0
+    else:
+        verbosity = 2
+    rc = tahoe_cp.copy(config['node-url'],
+                       config,
+                       config.aliases,
+                       config.sources,
+                       config.destination,
+                       verbosity,
+                       stdout, stderr)
+    return rc
+
 def rm(config, stdout, stderr):
     from allmydata.scripts import tahoe_rm
     if config['quiet']:
@@ -287,6 +313,7 @@ dispatch = {
     "ls": list,
     "get": get,
     "put": put,
+    "cp": cp,
     "rm": rm,
     "mv": mv,
     "ln": ln,
