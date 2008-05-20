@@ -84,6 +84,8 @@ class FakeMutableFileNode:
         return self
     def get_uri(self):
         return self.my_uri.to_string()
+    def get_readonly(self):
+        return self.my_uri.get_readonly()
     def get_readonly_uri(self):
         return self.my_uri.get_readonly().to_string()
     def is_readonly(self):
