@@ -36,6 +36,8 @@ def list(nodeurl, aliases, where, config, stdout, stderr):
         childtype = child[0]
         ctime = child[1]["metadata"].get("ctime")
         mtime = child[1]["metadata"].get("mtime")
+        rw_uri = child[1].get("rw_uri")
+        ro_uri = child[1].get("ro_uri")
         if ctime:
             # match for formatting that GNU 'ls' does
             if (now - ctime) > 6*30*24*60*60:
@@ -47,21 +49,32 @@ def list(nodeurl, aliases, where, config, stdout, stderr):
         else:
             ctime_s = "-"
         if childtype == "dirnode":
-            t = "d---------"
+            t0 = "d"
             size = "-"
             classify = "/"
         elif childtype == "filenode":
-            t = "----------"
+            t0 = "-"
             size = child[1]['size']
             classify = ""
-            if "rw_uri" in child[1]:
-                classify = "*" # mutable
+        else:
+            t0 = "?"
+            size = "?"
+            classify = "?"
+        t1 = "-"
+        if ro_uri:
+            t1 = "r"
+        t2 = "-"
+        if rw_uri:
+            t2 = "w"
+        t3 = "-"
+        if childtype == "dirnode":
+            t3 = "x"
 
-        uri = child[1].get("rw_uri", child[1].get("ro_uri", "-"))
+        uri = rw_uri or ro_uri
 
         line = []
         if config["long"]:
-            line.append("%s %10s %12s" % (t, size, ctime_s))
+            line.append("%s %10s %12s" % (t0+t1+t2+t3, size, ctime_s))
         if config["uri"]:
             line.append(uri)
         line.append(name)

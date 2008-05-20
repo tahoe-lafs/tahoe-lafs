@@ -114,6 +114,10 @@ class GetOptions(VDriveOptions):
     will be written to stdout."""
 
 class PutOptions(VDriveOptions):
+    optFlags = [
+        ("mutable", "m", "Create a mutable file instead of an immutable one."),
+        ]
+
     def parseArgs(self, arg1=None, arg2=None):
         # cat FILE > tahoe put           # create unlinked file from stdin
         # cat FILE > tahoe put FOO       # create tahoe:FOO from stdin
@@ -229,6 +233,7 @@ def put(config, stdout, stderr, stdin=sys.stdin):
                        config.aliases,
                        config.from_file,
                        config.to_file,
+                       config['mutable'],
                        verbosity,
                        stdin, stdout, stderr)
     return rc

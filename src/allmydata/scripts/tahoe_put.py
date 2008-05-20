@@ -4,8 +4,8 @@ import urllib
 from allmydata.scripts.common_http import do_http
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
 
-def put(nodeurl, aliases, from_file, to_file, verbosity,
-        stdin, stdout, stderr):
+def put(nodeurl, aliases, from_file, to_file, mutable,
+        verbosity, stdin, stdout, stderr):
     """
     @param verbosity: 0, 1, or 2, meaning quiet, verbose, or very verbose
 
@@ -20,6 +20,8 @@ def put(nodeurl, aliases, from_file, to_file, verbosity,
             url += escape_path(path)
     else:
         url = nodeurl + "uri"
+    if mutable:
+        url += "?mutable=true"
     if from_file:
         infileobj = open(from_file, "rb")
     else:

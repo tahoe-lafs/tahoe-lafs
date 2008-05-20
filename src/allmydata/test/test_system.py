@@ -1604,6 +1604,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         d.addCallback(run, "put", files[1], "subdir/tahoe-file1")
         #  tahoe put bar tahoe:FOO
         d.addCallback(run, "put", files[2], "tahoe:file2")
+        d.addCallback(run, "put", "--mutable", files[3], "tahoe:file3")
 
         def _put_from_stdin(res, data, *args):
             args = nodeargs + list(args)
@@ -1629,7 +1630,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
                       "tahoe:from-stdin")
 
         d.addCallback(run, "ls")
-        d.addCallback(_check_ls, ["tahoe-file0", "file2", "subdir",
+        d.addCallback(_check_ls, ["tahoe-file0", "file2", "file3", "subdir",
                                   "tahoe-file-stdin", "from-stdin"])
         d.addCallback(run, "ls", "subdir")
         d.addCallback(_check_ls, ["tahoe-file1"])
@@ -1670,7 +1671,10 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
             lines = out.split("\n")
             for l in lines:
                 if "tahoe-file-stdin" in l:
+                    self.failUnless(l.startswith("-r-- "), l)
                     self.failUnless(" %d " % len(STDIN_DATA) in l)
+                if "file3" in l:
+                    self.failUnless(l.startswith("-rw- "), l) # mutable
         d.addCallback(_check_ls_l)
 
         d.addCallback(run, "mv", "tahoe-file-stdin", "tahoe-moved")
