@@ -6,7 +6,7 @@ from twisted.internet import defer, reactor
 from twisted.web import client, error, http
 from twisted.python import failure, log
 from allmydata import interfaces, provisioning, uri, webish, upload, download
-from allmydata.web import status
+from allmydata.web import status, common
 from allmydata.util import fileutil
 from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, \
      FakeMutableFileNode, create_chk_filenode
@@ -1804,3 +1804,25 @@ class Web(WebMixin, unittest.TestCase):
                                   "I don't know how to treat a DELETE request.",
                                   client.getPage, url, method="DELETE")
         return d
+
+class Util(unittest.TestCase):
+    def test_abbreviate_time(self):
+        self.failUnlessEqual(common.abbreviate_time(None), "")
+        self.failUnlessEqual(common.abbreviate_time(1.234), "1.23s")
+        self.failUnlessEqual(common.abbreviate_time(0.123), "123ms")
+        self.failUnlessEqual(common.abbreviate_time(0.00123), "1.2ms")
+        self.failUnlessEqual(common.abbreviate_time(0.000123), "123us")
+
+    def test_abbreviate_rate(self):
+        self.failUnlessEqual(common.abbreviate_rate(None), "")
+        self.failUnlessEqual(common.abbreviate_rate(1234000), "1.23MBps")
+        self.failUnlessEqual(common.abbreviate_rate(12340), "12.3kBps")
+        self.failUnlessEqual(common.abbreviate_rate(123), "123Bps")
+
+    def test_abbreviate_size(self):
+        self.failUnlessEqual(common.abbreviate_size(None), "")
+        self.failUnlessEqual(common.abbreviate_size(1.23*1000*1000*1000), "1.23GB")
+        self.failUnlessEqual(common.abbreviate_size(1.23*1000*1000), "1.23MB")
+        self.failUnlessEqual(common.abbreviate_size(1230), "1.2kB")
+        self.failUnlessEqual(common.abbreviate_size(123), "123B")
+
