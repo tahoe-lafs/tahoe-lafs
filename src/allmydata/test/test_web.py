@@ -1125,6 +1125,12 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnlessEqual(res, ro_uri)
         d.addCallback(_check_ro_uri)
 
+        # make sure we can get to it from /uri/URI
+        d.addCallback(lambda res:
+                      self.GET("/uri/%s" % urllib.quote(self._mutable_uri)))
+        d.addCallback(lambda res:
+                      self.failUnlessEqual(res, EVEN_NEWER_CONTENTS))
+
         d.addErrback(self.dump_error)
         return d
 
