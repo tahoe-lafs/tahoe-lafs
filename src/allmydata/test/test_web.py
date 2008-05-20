@@ -521,6 +521,28 @@ class Web(WebMixin, unittest.TestCase):
                              self.GET, base)
         return d
 
+    def test_GET_FILE_URI(self):
+        base = "/uri/%s" % urllib.quote(self._bar_txt_uri)
+        d = self.GET(base)
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        return d
+
+    def test_GET_FILE_URI_badchild(self):
+        base = "/uri/%s/boguschild" % urllib.quote(self._bar_txt_uri)
+        errmsg = "Files have no children, certainly not named 'boguschild'"
+        d = self.shouldFail2(error.Error, "test_GET_FILE_URI_badchild",
+                             "400 Bad Request", errmsg,
+                             self.GET, base)
+        return d
+
+    def test_PUT_FILE_URI_badchild(self):
+        base = "/uri/%s/boguschild" % urllib.quote(self._bar_txt_uri)
+        errmsg = "Cannot create directory 'boguschild', because its parent is a file, not a directory"
+        d = self.shouldFail2(error.Error, "test_GET_FILE_URI_badchild",
+                             "400 Bad Request", errmsg,
+                             self.PUT, base, "")
+        return d
+
     def test_GET_FILEURL_save(self):
         d = self.GET(self.public_url + "/foo/bar.txt?filename=bar.txt&save=true")
         # TODO: look at the headers, expect a Content-Disposition: attachment
@@ -1092,6 +1114,17 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnlessEqual(new_json[1]["ro_uri"], ro_uri)
         d.addCallback(_check_page_json)
 
+        # and look at t=uri and t=readonly-uri
+        d.addCallback(lambda res:
+                      self.GET(self.public_url + "/foo/new.txt?t=uri"))
+        d.addCallback(lambda res: self.failUnlessEqual(res, self._mutable_uri))
+        d.addCallback(lambda res:
+                      self.GET(self.public_url + "/foo/new.txt?t=readonly-uri"))
+        def _check_ro_uri(res):
+            ro_uri = unicode(self._mutable_node.get_readonly().to_string())
+            self.failUnlessEqual(res, ro_uri)
+        d.addCallback(_check_ro_uri)
+
         d.addErrback(self.dump_error)
         return d
 
@@ -1183,6 +1216,22 @@ class Web(WebMixin, unittest.TestCase):
                                                  [u"bar.txt", u"blockingfile",
                                                   u"empty", u"n\u00fc.txt",
                                                   u"sub"]))
+        return d
+
+    def test_POST_FILEURL_check(self):
+        d = self.POST(self.public_url + "/foo/bar.txt", t="check")
+        def _check(res):
+            # this currently just returns "None". You'd only really use it
+            # with a when_done= redirect.
+            self.failUnlessEqual(res, "None")
+        d.addCallback(_check)
+        return d
+
+    def test_POST_FILEURL_bad_t(self):
+        d = self.shouldFail2(error.Error, "POST_bad_t", "400 Bad Request",
+                             "POST to file: bad t=bogus",
+                             self.POST, self.public_url + "/foo/bar.txt",
+                             t="bogus")
         return d
 
     def test_POST_mkdir(self): # return value?

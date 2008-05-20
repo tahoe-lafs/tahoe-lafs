@@ -368,7 +368,7 @@ def FileURI(ctx, filenode):
 def FileReadOnlyURI(ctx, filenode):
     if filenode.is_readonly():
         return text_plain(filenode.get_uri(), ctx)
-    return text_plain(filenode.get_readonly().get_uri(), ctx)
+    return text_plain(filenode.get_readonly_uri(), ctx)
 
 class FileNodeDownloadHandler(FileNodeHandler):
     def childFactory(self, ctx, name):
