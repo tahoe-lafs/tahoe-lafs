@@ -35,6 +35,8 @@ def mv(nodeurl, aliases, from_file, to_file, stdout, stderr):
     if not re.search(r'^2\d\d$', str(status)):
         print >>stderr, "error, got %s %s" % (resp.status, resp.reason)
         print >>stderr, resp.read()
+        print >>stderr, "NOT removing the original"
+        return
 
     # now remove the original
     resp = do_http("DELETE", from_url)
