@@ -298,6 +298,7 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
 
     [ "filenode", { "ro_uri": file_uri,
                     "size": bytes,
+                    "mutable": false,
                     "metadata": {"ctime": 1202777696.7564139,
                                  "mtime": 1202777696.7564139
                                  }
@@ -315,6 +316,7 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
 
     [ "dirnode", { "rw_uri": read_write_uri,
                    "ro_uri": read_only_uri,
+                   "mutable": true,
                    "children": {
                      "foo.txt": [ "filenode", { "ro_uri": uri,
                                                 "size": bytes,
