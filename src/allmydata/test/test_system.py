@@ -1560,9 +1560,20 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, ["personal", "s2-ro", "s2-rw"])
 
+        d.addCallback(run, "list-aliases")
+        def _check_aliases_1((out,err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(out, "tahoe: %s\n" % private_uri)
+        d.addCallback(_check_aliases_1)
+
         # now that that's out of the way, remove root_dir.cap and work with
         # new files
         d.addCallback(lambda res: os.unlink(root_file))
+        d.addCallback(run, "list-aliases")
+        def _check_aliases_2((out,err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(out, "")
+        d.addCallback(_check_aliases_2)
 
         d.addCallback(run, "mkdir")
         def _got_dir( (out,err) ):
@@ -1570,6 +1581,13 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
             return out.strip()
         d.addCallback(_got_dir)
         d.addCallback(lambda newcap: run(None, "add-alias", "tahoe", newcap))
+
+        d.addCallback(run, "list-aliases")
+        def _check_aliases_3((out,err)):
+            self.failUnlessEqual(err, "")
+            self.failUnless("tahoe: " in out)
+        d.addCallback(_check_aliases_3)
+
         def _check_empty_dir((out,err)):
             self.failUnlessEqual(out, "")
             self.failUnlessEqual(err, "")

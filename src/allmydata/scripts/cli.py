@@ -1,7 +1,7 @@
 
 import os.path, re, sys
 from twisted.python import usage
-from allmydata.scripts.common import BaseOptions
+from allmydata.scripts.common import BaseOptions, get_aliases
 
 NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
 
@@ -40,37 +40,11 @@ class VDriveOptions(BaseOptions, usage.Options):
             node_url_file = os.path.join(self['node-directory'], "node.url")
             self['node-url'] = open(node_url_file, "r").read().strip()
 
-        aliases = self.get_aliases(self['node-directory'])
+        aliases = get_aliases(self['node-directory'])
         if self['dir-cap']:
             aliases["tahoe"] = self['dir-cap']
         self.aliases = aliases # maps alias name to dircap
 
-
-    def get_aliases(self, nodedir):
-        from allmydata import uri
-        aliases = {}
-        aliasfile = os.path.join(nodedir, "private", "aliases")
-        rootfile = os.path.join(nodedir, "private", "root_dir.cap")
-        try:
-            f = open(rootfile, "r")
-            rootcap = f.read().strip()
-            if rootcap:
-                aliases["tahoe"] = uri.from_string_dirnode(rootcap).to_string()
-        except EnvironmentError:
-            pass
-        try:
-            f = open(aliasfile, "r")
-            for line in f.readlines():
-                line = line.strip()
-                if line.startswith("#"):
-                    continue
-                name, cap = line.split(":", 1)
-                # normalize it: remove http: prefix, urldecode
-                cap = cap.strip()
-                aliases[name] = uri.from_string_dirnode(cap).to_string()
-        except EnvironmentError:
-            pass
-        return aliases
 
 class MakeDirectoryOptions(VDriveOptions):
     def parseArgs(self, where=""):
@@ -81,6 +55,9 @@ class AddAliasOptions(VDriveOptions):
     def parseArgs(self, alias, cap):
         self.alias = alias
         self.cap = cap
+
+class ListAliasOptions(VDriveOptions):
+    pass
 
 class ListOptions(VDriveOptions):
     optFlags = [
@@ -180,6 +157,7 @@ class ReplOptions(usage.Options):
 subCommands = [
     ["mkdir", None, MakeDirectoryOptions, "Create a new directory"],
     ["add-alias", None, AddAliasOptions, "Add a new alias cap"],
+    ["list-aliases", None, ListAliasOptions, "List all alias caps"],
     ["ls", None, ListOptions, "List a directory"],
     ["get", None, GetOptions, "Retrieve a file from the virtual drive."],
     ["put", None, PutOptions, "Upload a file into the virtual drive."],
@@ -204,6 +182,12 @@ def add_alias(config, stdout, stderr):
                                    config.alias,
                                    config.cap,
                                    stdout, stderr)
+    return rc
+
+def list_aliases(config, stdout, stderr):
+    from allmydata.scripts import tahoe_add_alias
+    rc = tahoe_add_alias.list_aliases(config['node-directory'],
+                                      stdout, stderr)
     return rc
 
 def list(config, stdout, stderr):
@@ -299,6 +283,7 @@ def repl(config, stdout, stderr):
 dispatch = {
     "mkdir": mkdir,
     "add-alias": add_alias,
+    "list-aliases": list_aliases,
     "ls": list,
     "get": get,
     "put": put,

@@ -138,13 +138,15 @@ The best way to get started with Tahoe is to create a node, start it, then
 use the following command to create a new directory and set it as your
 "tahoe:" alias:
 
- tahoe set-alias tahoe `tahoe mkdir`
+ tahoe add-alias tahoe `tahoe mkdir`
 
 After that you can use "tahoe ls tahoe:" and "tahoe cp local.txt tahoe:",
 and both will refer to the directory that you've just created.
 
 === Command Syntax Summary ===
 
+tahoe add-alias alias cap
+tahoe list-aliases
 tahoe mkdir
 tahoe mkdir [alias:]path
 tahoe ls [alias:][path]
@@ -162,6 +164,17 @@ tahoe mkdir
 
  This creates a new empty unlinked directory, and prints its write-cap to
  stdout. The new directory is not attached to anything else.
+
+tahoe add-alias work DIRCAP
+
+ This create an alias "work:" and configures it to use the given directory
+ cap. Once this is done, "tahoe ls work:" will list the contents of this
+ directory. Use "tahoe add-alias tahoe DIRCAP" to set the contents of the
+ default "tahoe:" alias.
+
+tahoe list-aliases
+
+ This displays a table of all configured aliases.
 
 tahoe mkdir subdir
 tahoe mkdir /subdir

@@ -64,6 +64,33 @@ class NoDefaultBasedirMixin(BasedirMixin):
 
 DEFAULT_ALIAS = "tahoe"
 
+
+def get_aliases(nodedir):
+    from allmydata import uri
+    aliases = {}
+    aliasfile = os.path.join(nodedir, "private", "aliases")
+    rootfile = os.path.join(nodedir, "private", "root_dir.cap")
+    try:
+        f = open(rootfile, "r")
+        rootcap = f.read().strip()
+        if rootcap:
+            aliases["tahoe"] = uri.from_string_dirnode(rootcap).to_string()
+    except EnvironmentError:
+        pass
+    try:
+        f = open(aliasfile, "r")
+        for line in f.readlines():
+            line = line.strip()
+            if line.startswith("#"):
+                continue
+            name, cap = line.split(":", 1)
+            # normalize it: remove http: prefix, urldecode
+            cap = cap.strip()
+            aliases[name] = uri.from_string_dirnode(cap).to_string()
+    except EnvironmentError:
+        pass
+    return aliases
+
 def get_alias(aliases, path, default):
     # transform "work:path/filename" into (aliases["work"], "path/filename")
     # We special-case URI:
