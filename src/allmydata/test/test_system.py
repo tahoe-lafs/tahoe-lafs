@@ -1605,6 +1605,9 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         #  tahoe put bar tahoe:FOO
         d.addCallback(run, "put", files[2], "tahoe:file2")
         d.addCallback(run, "put", "--mutable", files[3], "tahoe:file3")
+        def _check_put_mutable((out,err)):
+            self._mutable_file3_uri = out.strip()
+        d.addCallback(_check_put_mutable)
 
         def _put_from_stdin(res, data, *args):
             args = nodeargs + list(args)
@@ -1676,6 +1679,26 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
                 if "file3" in l:
                     self.failUnless(l.startswith("-rw- "), l) # mutable
         d.addCallback(_check_ls_l)
+
+        d.addCallback(run, "ls", "--uri")
+        def _check_ls_uri((out,err)):
+            lines = out.split("\n")
+            for l in lines:
+                if "file3" in l:
+                    self.failUnless(self._mutable_file3_uri in l)
+        d.addCallback(_check_ls_uri)
+
+        d.addCallback(run, "ls", "--readonly-uri")
+        def _check_ls_rouri((out,err)):
+            lines = out.split("\n")
+            for l in lines:
+                if "file3" in l:
+                    rw_uri = self._mutable_file3_uri
+                    u = uri.from_string_mutable_filenode(rw_uri)
+                    ro_uri = u.get_readonly().to_string()
+                    self.failUnless(ro_uri in l)
+        d.addCallback(_check_ls_rouri)
+
 
         d.addCallback(run, "mv", "tahoe-file-stdin", "tahoe-moved")
         d.addCallback(run, "ls")

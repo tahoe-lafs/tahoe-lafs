@@ -56,6 +56,8 @@ def list(nodeurl, aliases, where, config, stdout, stderr):
             t0 = "-"
             size = child[1]['size']
             classify = ""
+            if rw_uri:
+                classify = "*"
         else:
             t0 = "?"
             size = "?"
@@ -77,6 +79,8 @@ def list(nodeurl, aliases, where, config, stdout, stderr):
             line.append("%s %10s %12s" % (t0+t1+t2+t3, size, ctime_s))
         if config["uri"]:
             line.append(uri)
+        if config["readonly-uri"]:
+            line.append(ro_uri or "-")
         line.append(name)
         if config["classify"]:
             line[-1] += classify

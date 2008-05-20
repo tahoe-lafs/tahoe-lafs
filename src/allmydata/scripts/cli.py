@@ -85,7 +85,8 @@ class AddAliasOptions(VDriveOptions):
 class ListOptions(VDriveOptions):
     optFlags = [
         ("long", "l", "Use long format: show file sizes, and timestamps"),
-        ("uri", "u", "Show file URIs"),
+        ("uri", "u", "Show file/directory URIs"),
+        ("readonly-uri", None, "Show readonly file/directory URIs"),
         ("classify", "F", "Append '/' to directory names, and '*' to mutable"),
         ("json", None, "Show the raw JSON output"),
         ]
