@@ -1587,7 +1587,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
             files.append(fn)
             data = "data to be uploaded: file%d\n" % i
             datas.append(data)
-            open(fn,"w").write(data)
+            open(fn,"wb").write(data)
 
         # test all both forms of put: from a file, and from stdin
         #  tahoe put bar FOO
