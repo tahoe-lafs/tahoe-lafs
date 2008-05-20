@@ -1525,11 +1525,6 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
 
         nodeargs = [
             "--node-directory", client0_basedir,
-            #"--dir-cap", private_uri,
-            ]
-        public_nodeargs = [
-            "--node-url", self.webish_url,
-            "--dir-cap", some_uri,
             ]
         TESTDATA = "I will not write the same thing over and over.\n" * 100
 
