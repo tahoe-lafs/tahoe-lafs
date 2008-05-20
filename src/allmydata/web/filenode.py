@@ -22,8 +22,21 @@ class ReplaceMeMixin:
         # a new file is being uploaded in our place.
         req = IRequest(ctx)
         client = IClient(ctx)
-        uploadable = FileHandle(req.content, convergence=client.convergence)
-        d = self.parentnode.add_file(self.name, uploadable, overwrite=replace)
+        mutable = boolean_of_arg(get_arg(req, "mutable", "false"))
+        if mutable:
+            req.content.seek(0)
+            data = req.content.read()
+            d = client.create_mutable_file(data)
+            def _uploaded(newnode):
+                d2 = self.parentnode.set_node(self.name, newnode,
+                                              overwrite=replace)
+                d2.addCallback(lambda res: newnode)
+                return d2
+            d.addCallback(_uploaded)
+        else:
+            uploadable = FileHandle(req.content, convergence=client.convergence)
+            d = self.parentnode.add_file(self.name, uploadable,
+                                         overwrite=replace)
         def _done(filenode):
             log.msg("webish upload complete",
                     facility="tahoe.webish", level=log.NOISY)

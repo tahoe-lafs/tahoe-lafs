@@ -587,6 +587,24 @@ class Web(WebMixin, unittest.TestCase):
                                                       self.NEWFILE_CONTENTS))
         return d
 
+    def test_PUT_NEWFILEURL_mutable(self):
+        d = self.PUT(self.public_url + "/foo/new.txt?mutable=true",
+                     self.NEWFILE_CONTENTS)
+        # TODO: we lose the response code, so we can't check this
+        #self.failUnlessEqual(responsecode, 201)
+        def _check_uri(res):
+            u = uri.from_string_mutable_filenode(res)
+            self.failUnless(u.is_mutable())
+            self.failIf(u.is_readonly())
+            return res
+        d.addCallback(_check_uri)
+        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, u"new.txt")
+        d.addCallback(lambda res:
+                      self.failUnlessMutableChildContentsAre(self._foo_node,
+                                                             u"new.txt",
+                                                             self.NEWFILE_CONTENTS))
+        return d
+
     def test_PUT_NEWFILEURL_replace(self):
         d = self.PUT(self.public_url + "/foo/bar.txt", self.NEWFILE_CONTENTS)
         # TODO: we lose the response code, so we can't check this
