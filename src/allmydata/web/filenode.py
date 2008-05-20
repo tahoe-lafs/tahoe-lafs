@@ -103,11 +103,7 @@ class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         req = IRequest(ctx)
         t = get_arg(req, "t", "").strip()
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        if t == "mkdir":
-            d = self.parentnode.create_empty_directory(self.name, replace)
-            d.addCallback(lambda node: node.get_uri())
-            d.addCallback(text_plain, ctx)
-        elif t == "upload":
+        if t == "upload":
             # like PUT, but get the file data from an HTML form's input field.
             # We could get here from POST /uri/mutablefilecap?t=upload,
             # or POST /uri/path/file?t=upload, or
@@ -115,6 +111,9 @@ class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             # behavior, we just ignore any name= argument
             d = self.replace_me_with_a_formpost(ctx, replace)
         else:
+            # t=mkdir is handled in DirectoryNodeHandler._POST_mkdir, so
+            # there are no other t= values left to be handled by the
+            # placeholder.
             raise WebError("POST to a file: bad t=%s" % t)
 
         when_done = get_arg(req, "when_done", None)

@@ -465,11 +465,14 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_GET_FILEURL_named(self):
         base = "/file/%s" % urllib.quote(self._bar_txt_uri)
+        base2 = "/named/%s" % urllib.quote(self._bar_txt_uri)
         d = self.GET(base + "/@@name=/blah.txt")
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(base + "/blah.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(base + "/ignore/lots/blah.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(base2 + "/@@name=/blah.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 

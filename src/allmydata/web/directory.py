@@ -256,7 +256,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             if isinstance(node_or_failure, Failure):
                 f = node_or_failure
                 f.trap(KeyError)
-                # create a placeholder
+                # create a placeholder which will see POST t=upload
                 return PlaceHolderNodeHandler(self.node, name)
             else:
                 node = node_or_failure
