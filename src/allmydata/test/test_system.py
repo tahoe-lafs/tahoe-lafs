@@ -1603,9 +1603,12 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
             datas.append(data)
             open(fn,"wb").write(data)
 
-        def _check_stdout_against((out,err), filenum):
+        def _check_stdout_against((out,err), filenum=None, data=None):
             self.failUnlessEqual(err, "")
-            self.failUnlessEqual(out, datas[filenum])
+            if filenum is not None:
+                self.failUnlessEqual(out, datas[filenum])
+            if data is not None:
+                self.failUnlessEqual(out, data)
 
         # test all both forms of put: from a file, and from stdin
         #  tahoe put bar FOO
@@ -1777,6 +1780,28 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         d.addCallback(_check_ls, ["file3", "file3-copy", "file4"])
         d.addCallback(run, "get", "tahoe:file3")
         d.addCallback(_check_stdout_against, 5)
+
+        # recursive copy: setup
+        dn = os.path.join(self.basedir, "dir1")
+        os.makedirs(dn)
+        open(os.path.join(dn, "file1"), "wb").write("file1")
+        open(os.path.join(dn, "file2"), "wb").write("file2")
+        open(os.path.join(dn, "file3"), "wb").write("file3")
+        sdn2 = os.path.join(dn, "subdir2")
+        os.makedirs(sdn2)
+        open(os.path.join(dn, "file4"), "wb").write("file4")
+        open(os.path.join(dn, "file5"), "wb").write("file5")
+
+        # from disk into tahoe
+        #d.addCallback(run, "cp", "-r", dn, "tahoe:dir1")
+        #d.addCallback(run, "ls")
+        #d.addCallback(_check_ls, ["dir1"])
+        #d.addCallback(run, "ls", "dir1")
+        #d.addCallback(_check_ls, ["file1", "file2", "file3", "subdir2"])
+        #d.addCallback(run, "ls", "tahoe:dir1/subdir2")
+        #d.addCallback(_check_ls, ["file4", "file5"])
+        #d.addCallback(run, "get", "dir1/subdir2/file4")
+        #d.addCallback(_check_stdout_against, data="file4")
 
         # tahoe_ls doesn't currently handle the error correctly: it tries to
         # JSON-parse a traceback.
