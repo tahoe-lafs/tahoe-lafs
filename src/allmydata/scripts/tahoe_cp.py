@@ -284,8 +284,7 @@ class TahoeDirectoryTarget:
         # TODO: this always creates immutable files. We might want an option
         # to always create mutable files, or to copy mutable files into new
         # mutable files.
-        resp = do_http("PUT", url, inf)
-        filecap = check_PUT(resp)
+        filecap = PUT(url, inf)
         self.new_children[name] = filecap
 
     def put_uri(self, name, filecap):
