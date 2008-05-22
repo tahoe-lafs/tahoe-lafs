@@ -1812,6 +1812,23 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         d.addCallback(run, "get", "dir1/subdir2/rfile4")
         d.addCallback(_check_stdout_against, data="rfile4")
 
+        # and back out again
+        dn_copy = os.path.join(self.basedir, "dir1-copy")
+        d.addCallback(run, "cp", "--verbose", "-r", "tahoe:dir1", dn_copy)
+        def _check_cp_r_out((out,err)):
+            def _cmp(name):
+                old = open(os.path.join(dn, name), "rb").read()
+                newfn = os.path.join(dn_copy, name)
+                self.failUnless(os.path.exists(newfn))
+                new = open(newfn, "rb").read()
+                self.failUnlessEqual(old, new)
+            _cmp("rfile1")
+            _cmp("rfile2")
+            _cmp("rfile3")
+            _cmp(os.path.join("subdir2", "rfile4"))
+            _cmp(os.path.join("subdir2", "rfile5"))
+        d.addCallback(_check_cp_r_out)
+
         # tahoe_ls doesn't currently handle the error correctly: it tries to
         # JSON-parse a traceback.
 ##         def _ls_missing(res):
