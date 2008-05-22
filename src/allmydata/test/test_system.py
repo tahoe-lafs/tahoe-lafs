@@ -1829,6 +1829,25 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
             _cmp(os.path.join("subdir2", "rfile5"))
         d.addCallback(_check_cp_r_out)
 
+        # and copy it a second time, which ought to overwrite the same files
+        d.addCallback(run, "cp", "-r", "tahoe:dir1", dn_copy)
+
+        # and tahoe-to-tahoe
+        d.addCallback(run, "cp", "-r", "tahoe:dir1", "tahoe:dir1-copy")
+        d.addCallback(run, "ls")
+        d.addCallback(_check_ls, ["dir1", "dir1-copy"])
+        d.addCallback(run, "ls", "dir1-copy")
+        d.addCallback(_check_ls, ["rfile1", "rfile2", "rfile3", "subdir2"],
+                      ["rfile4", "rfile5"])
+        d.addCallback(run, "ls", "tahoe:dir1-copy/subdir2")
+        d.addCallback(_check_ls, ["rfile4", "rfile5"],
+                      ["rfile1", "rfile2", "rfile3"])
+        d.addCallback(run, "get", "dir1-copy/subdir2/rfile4")
+        d.addCallback(_check_stdout_against, data="rfile4")
+
+        # and copy it a second time, which ought to overwrite the same files
+        d.addCallback(run, "cp", "-r", "tahoe:dir1", "tahoe:dir1-copy")
+
         # tahoe_ls doesn't currently handle the error correctly: it tries to
         # JSON-parse a traceback.
 ##         def _ls_missing(res):
