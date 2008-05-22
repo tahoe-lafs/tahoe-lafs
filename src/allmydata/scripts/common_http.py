@@ -29,6 +29,9 @@ def do_http(method, url, body=""):
     elif isinstance(body, unicode):
         raise RuntimeError("do_http body must be a bytestring, not unicode")
     else:
+        # We must give a Content-Length header to twisted.web, otherwise it
+        # seems to get a zero-length file. I suspect that "chunked-encoding"
+        # may fix this.
         assert body.tell
         assert body.seek
         assert body.read
