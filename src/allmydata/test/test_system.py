@@ -1800,7 +1800,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         open(os.path.join(sdn2, "rfile5"), "wb").write("rfile5")
 
         # from disk into tahoe
-        d.addCallback(run, "cp", "--recursive", dn, "tahoe:dir1")
+        d.addCallback(run, "cp", "-r", dn, "tahoe:dir1")
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, ["dir1"])
         d.addCallback(run, "ls", "dir1")

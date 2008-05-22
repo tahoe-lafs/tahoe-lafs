@@ -17,7 +17,7 @@ class VDriveOptions(BaseOptions, usage.Options):
         ["node-url", "u", None,
          "URL of the tahoe node to use, a URL like \"http://127.0.0.1:8123\". "
          "This overrides the URL found in the --node-directory ."],
-        ["dir-cap", "r", None,
+        ["dir-cap", None, None,
          "Which dirnode URI should be used as the 'tahoe' alias."]
         ]
 
