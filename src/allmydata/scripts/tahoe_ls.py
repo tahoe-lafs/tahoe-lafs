@@ -2,6 +2,7 @@
 import urllib, time
 import simplejson
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
+from allmydata.scripts.common_http import do_http
 
 def list(nodeurl, aliases, where, config, stdout, stderr):
     if not nodeurl.endswith("/"):
@@ -15,7 +16,15 @@ def list(nodeurl, aliases, where, config, stdout, stderr):
         url += "/" + escape_path(path)
     assert not url.endswith("/")
     url += "?t=json"
-    data = urllib.urlopen(url).read()
+    resp = do_http("GET", url)
+    if resp.status == 404:
+        print >>stderr, "No such file or directory"
+        return 2
+    if resp.status != 200:
+        print >>stderr, "Error during GET: %s %s %s" % (resp.status,
+                                                        resp.reason,
+                                                        resp.read())
+    data = resp.read()
 
     if config['json']:
         print >>stdout, data

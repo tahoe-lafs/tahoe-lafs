@@ -1594,6 +1594,13 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         d.addCallback(run, "ls")
         d.addCallback(_check_empty_dir)
 
+        def _check_missing_dir((out,err)):
+            # TODO: check that rc==2
+            self.failUnlessEqual(out, "")
+            self.failUnlessEqual(err, "No such file or directory\n")
+        d.addCallback(run, "ls", "bogus")
+        d.addCallback(_check_missing_dir)
+
         files = []
         datas = []
         for i in range(10):
