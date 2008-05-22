@@ -1791,24 +1791,26 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         # recursive copy: setup
         dn = os.path.join(self.basedir, "dir1")
         os.makedirs(dn)
-        open(os.path.join(dn, "file1"), "wb").write("file1")
-        open(os.path.join(dn, "file2"), "wb").write("file2")
-        open(os.path.join(dn, "file3"), "wb").write("file3")
+        open(os.path.join(dn, "rfile1"), "wb").write("rfile1")
+        open(os.path.join(dn, "rfile2"), "wb").write("rfile2")
+        open(os.path.join(dn, "rfile3"), "wb").write("rfile3")
         sdn2 = os.path.join(dn, "subdir2")
         os.makedirs(sdn2)
-        open(os.path.join(dn, "file4"), "wb").write("file4")
-        open(os.path.join(dn, "file5"), "wb").write("file5")
+        open(os.path.join(sdn2, "rfile4"), "wb").write("rfile4")
+        open(os.path.join(sdn2, "rfile5"), "wb").write("rfile5")
 
         # from disk into tahoe
-        #d.addCallback(run, "cp", "-r", dn, "tahoe:dir1")
-        #d.addCallback(run, "ls")
-        #d.addCallback(_check_ls, ["dir1"])
-        #d.addCallback(run, "ls", "dir1")
-        #d.addCallback(_check_ls, ["file1", "file2", "file3", "subdir2"])
-        #d.addCallback(run, "ls", "tahoe:dir1/subdir2")
-        #d.addCallback(_check_ls, ["file4", "file5"])
-        #d.addCallback(run, "get", "dir1/subdir2/file4")
-        #d.addCallback(_check_stdout_against, data="file4")
+        d.addCallback(run, "cp", "--recursive", dn, "tahoe:dir1")
+        d.addCallback(run, "ls")
+        d.addCallback(_check_ls, ["dir1"])
+        d.addCallback(run, "ls", "dir1")
+        d.addCallback(_check_ls, ["rfile1", "rfile2", "rfile3", "subdir2"],
+                      ["rfile4", "rfile5"])
+        d.addCallback(run, "ls", "tahoe:dir1/subdir2")
+        d.addCallback(_check_ls, ["rfile4", "rfile5"],
+                      ["rfile1", "rfile2", "rfile3"])
+        d.addCallback(run, "get", "dir1/subdir2/rfile4")
+        d.addCallback(_check_stdout_against, data="rfile4")
 
         # tahoe_ls doesn't currently handle the error correctly: it tries to
         # JSON-parse a traceback.

@@ -125,6 +125,7 @@ class PutOptions(VDriveOptions):
 class CpOptions(VDriveOptions):
     optFlags = [
         ("recursive", "r", "Copy source directory recursively."),
+        ("verbose", "v", "Be noisy about what is happening."),
         ]
     def parseArgs(self, *args):
         if len(args) < 2:
