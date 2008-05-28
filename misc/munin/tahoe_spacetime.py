@@ -1,0 +1,100 @@
+#! /usr/bin/python
+
+# copy .rrd files from a remote munin master host, sum the 'df' stats from a
+# list of hosts, use them to estimate a rate-of-change for the past month,
+# then extrapolate to guess how many weeks/months/years of storage space we
+# have left, and output it to another munin graph
+
+import sys, os, time
+import rrdtool
+
+MUNIN_HOST = "munin.allmydata.com"
+PREFIX = "%s:/var/lib/munin/prodtahoe/" % MUNIN_HOST
+FILES = [ "prodtahoe%d.allmydata.com-df-_dev_sd%s3-g.rrd" % (a,b)
+          for a in (1,2,3,4,5)
+          for b in ("a", "b", "c", "d")
+          ]
+REMOTEFILES = [ PREFIX + f for f in FILES ]
+LOCALFILES = ["/var/lib/munin/prodtahoe/" + f for f in FILES ]
+WEBFILE = "/var/www/tahoe/spacetime.json"
+
+
+def rsync_rrd():
+    # copy the RRD files from your munin master host to a local one
+    cmd = "rsync %s rrds/" % (" ".join(REMOTEFILES))
+    rc = os.system(cmd)
+    assert rc == 0, rc
+
+def format_time(t):
+    return time.strftime("%b %d %H:%M", time.localtime(t))
+
+def predict_future(past_s):
+
+    start_df = []
+    end_df = []
+    durations = []
+
+    for fn in LOCALFILES:
+        d = rrdtool.fetch(fn, "AVERAGE", "-s", "-"+past_s, "-e", "-1hr")
+        # ((start, end, step), (name1, name2, ...), [(data1, data2, ..), ...])
+        (start_time, end_time ,step) = d[0]
+        #print format_time(start_time), " - ", format_time(end_time), step
+        names = d[1]
+        #for points in d[2]:
+        #    point = points[0]
+        #    print point
+        start_space = d[2][0][0]
+        # I don't know why, but the last few points are always bogus. Running
+        # 'rrdtool fetch' on the command line is usually ok.. I blame the python
+        # bindinds.
+        end_space = d[2][-4][0]
+        end_time = end_time - (4*step)
+        start_df.append(start_space)
+        end_df.append(end_space)
+        durations.append(end_time - start_time)
+
+    avg_start_df = sum(start_df) / len(start_df)
+    avg_end_df = sum(end_df) / len(end_df)
+    avg_duration = sum(durations) / len(durations)
+    #print avg_start_df, avg_end_df, avg_duration
+
+    rate = (avg_end_df - avg_start_df) / avg_duration
+    #print "Rate", rate, " %/s"
+    #print "measured over", avg_duration / 86400, "days"
+    remaining = 100 - avg_end_df
+    remaining_seconds = remaining / rate
+    #print "remaining seconds", remaining_seconds
+    remaining_days = remaining_seconds / 86400
+    #print "remaining days", remaining_days
+    return remaining_days
+
+def write_to_file(samples):
+    # write a JSON-formatted dictionary
+    f = open(WEBFILE + ".tmp", "w")
+    f.write("{ ")
+    f.write(", ".join(['"%s": %s' % (k, samples[k])
+                       for k in sorted(samples.keys())]))
+    f.write("}\n")
+    f.close()
+    os.rename(WEBFILE + ".tmp", WEBFILE)
+
+if len(sys.argv) > 1 and sys.argv[1] == "config":
+    print """\
+graph_title Tahoe Remaining Space Predictor
+graph_vlabel days remaining
+graph_category tahoe
+graph_info This graph shows the estimated number of days left until storage space is exhausted
+days_2wk.label days left (2wk sample)
+days_2wk.draw LINE2
+days_4wk.label days left (4wk sample)
+days_4wk.draw LINE2"""
+    sys.exit(0)
+
+#rsync_rrd()
+remaining_4wk = predict_future("4wk")
+remaining_2wk = predict_future("2wk")
+print "days_4wk.value", remaining_4wk
+print "days_2wk.value", remaining_2wk
+write_to_file({"remaining_2wk": remaining_2wk,
+               "remaining_4wk": remaining_4wk})
+
