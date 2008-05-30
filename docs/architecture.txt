@@ -51,6 +51,18 @@ connections to, but they cannot open connections to other nodes behind
 NAT boxes.  Therefore, the more nodes behind NAT boxes, the less the
 topology resembles the intended fully-connected topology.
 
+The introducer in nominally a single point of failure, in that clients who
+never see the introducer will be unable to connect to any storage servers.
+But once a client has been introduced to everybody, they do not need the
+introducer again until they are restarted. The danger of a SPOF is further
+reduced in other ways. First, the introducer is defined by a hostname and a
+private key, which are easy to move to a new host in case the original one
+suffers an unrecoverable hardware problem. Second, even if the private key is
+lost, clients can be reconfigured with a new introducer.furl that points to a
+new one. Finally, we have plans to decentralize introduction, allowing any
+node to tell a new client about all the others. With decentralized
+"gossip-based" introduction, simply knowing how to contact any one node will
+be enough to contact all of them.
 
 FILE ENCODING
 
