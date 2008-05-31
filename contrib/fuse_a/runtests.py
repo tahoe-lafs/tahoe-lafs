@@ -97,7 +97,7 @@ class SystemTest (object):
         '''This layer finds the appropriate tahoe executable.'''
         runtestpath = os.path.abspath(sys.argv[0])
         path = runtestpath
-        for expectedname in ('runtests.py', 'fuse', 'contrib'):
+        for expectedname in ('runtests.py', 'fuse_a', 'contrib'):
             path, name = os.path.split(path)
 
             if name != expectedname:
