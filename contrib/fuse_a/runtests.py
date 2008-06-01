@@ -212,8 +212,10 @@ class SystemTest (object):
         thispath = os.path.abspath(sys.argv[0])
         thisdir = os.path.dirname(thispath)
         fusescript = os.path.join(thisdir, 'tahoe_fuse.py')
+        proc = None
         try:
-            proc = subprocess.Popen([fusescript,
+            proc = subprocess.Popen(['python',
+                                     fusescript,
                                      mp,
                                      '-f',
                                      '--basedir', self.clientbase])
@@ -227,7 +229,7 @@ class SystemTest (object):
         finally:
             print '\n*** Cleaning up system test'
 
-            if proc.poll() is None:
+            if proc is not None and proc.poll() is None:
                 print 'Killing fuse interface.'
                 os.kill(proc.pid, signal.SIGTERM)
                 print 'Waiting for the fuse interface to exit.'
