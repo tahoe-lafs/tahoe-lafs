@@ -207,7 +207,7 @@ class SystemTest (object):
 
         return self.mount_fuse_layer(cap)
         
-    def mount_fuse_layer(self, fusebasecap, fusepause=2.0):
+    def mount_fuse_layer(self, fusebasecap):
         print 'Mounting fuse interface.'
 
         mp = os.path.join(self.testroot, 'mountpoint')
@@ -216,29 +216,38 @@ class SystemTest (object):
         thispath = os.path.abspath(sys.argv[0])
         thisdir = os.path.dirname(thispath)
         fusescript = os.path.join(thisdir, 'tahoe_fuse.py')
-        proc = None
+
+        # Even though --help says -f means "foreground operation",
+        # my version (ubuntu's python-fuse 1:0.2-pre3-3) still forks to
+        # the background...  So now we run tahoe_fuse.py and wait for
+        # the parent process to return.  We use fusermount -u to kill
+        # the forked daemon and unmount the test directory.
+
+        exitcode, output = gather_output(['python',
+                                          fusescript,
+                                          mp,
+                                          '--basedir', self.clientbase])
+
+        if exitcode != 0 or output:
+            tmpl = 'tahoe_fuse.py failed to launch:\n'
+            tmpl += 'Exit Status: %r\n'
+            tmpl += 'Output:\n%s\n'
+            raise self.SetupFailure(tmpl, exitcode, output)
+
         try:
-            proc = subprocess.Popen(['python',
-                                     fusescript,
-                                     mp,
-                                     '-f',
-                                     '--basedir', self.clientbase])
-
-            # The mount is verified by the test_layer, but we sleep to
-            # avoid race conditions against the first few tests.
-            time.sleep(fusepause)
-
             return self.run_test_layer(fusebasecap, mp)
                 
         finally:
-            print '\n*** Cleaning up system test'
+            print '\n*** Cleaning fuse mount and daemon process'
+            args = ['fusermount', '-u', mp]
+            ec, out = gather_output(args)
+            if exitcode != 0 or output:
+                tmpl = 'fusermount failed to unmount tahoe_fuse.py:\n'
+                tmpl += 'Arguments: %r\n'
+                tmpl += 'Exit Status: %r\n'
+                tmpl += 'Output:\n%s\n'
+                raise self.SetupFailure(tmpl, args, ec, out)
 
-            if proc is not None and proc.poll() is None:
-                print 'Killing fuse interface.'
-                os.kill(proc.pid, signal.SIGTERM)
-                print 'Waiting for the fuse interface to exit.'
-                proc.wait()
-            
     def run_test_layer(self, fbcap, mountpoint):
         total = failures = 0
         for name in sorted(dir(self)):
