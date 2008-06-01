@@ -162,14 +162,18 @@ class SystemTest (object):
         output = self.run_tahoe('create-client', '--basedir', base)
         self.check_tahoe_output(output, ExpectedCreationOutput, base)
 
+        webportpath = os.path.join(base, 'webport')
         if clientnum == 1:
             # The first client is special:
             self.clientbase = base
             self.port = random.randrange(1024, 2**15)
 
-            f = open(os.path.join(base, 'webport'), 'w')
+            f = open(webportpath, 'w')
             f.write('tcp:%d:interface=127.0.0.1\n' % self.port)
             f.close()
+        else:
+            os.remove(webportpath)
+            
 
         introfurl = os.path.join(introbase, 'introducer.furl')
 
