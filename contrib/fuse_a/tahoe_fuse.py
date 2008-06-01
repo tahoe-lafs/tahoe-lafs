@@ -43,7 +43,10 @@ except ImportError, e:
 Could not import simplejson, which is bundled with Tahoe.  Please
 update your PYTHONPATH environment variable to include the tahoe
 "support/lib/python<VERSION>/site-packages" directory.
-''')
+
+If you run this from the Tahoe source directory, use this command:
+PYTHONPATH="$PYTHONPATH:./support/lib/python%d.%d/site-packages/" python %s
+''' % (sys.version_info[:2] + (' '.join(sys.argv),)))
     
 
 try:
