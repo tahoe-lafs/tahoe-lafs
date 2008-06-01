@@ -17,17 +17,14 @@ Warts:
 
 
 Road-map:
-
 1. Add unit tests where possible with little code modification.
 2. Make unit tests pass for a variety of python-fuse module versions.
 3. Modify the design to make possible unit test coverage of larger portions of code.
 
-In parallel:
-*. Make system tests which launch a client, mount a fuse interface, and excercise the whole stack.
-
 Wishlist:
-- Reuse allmydata.uri to check/canonicalize uris.
+- Perhaps integrate cli aliases or root_dir.cap.
 - Research pkg_resources; see if it can replace the try-import-except-import-error pattern.
+- Switch to logging instead of homebrew logging.
 '''
 
 
