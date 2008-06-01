@@ -79,21 +79,26 @@ def main():
             except IndexError:
                 sys.argv = [sys.argv[0], '--help']
                 
-    print 'DEBUG:', sys.argv
-            
+
+    log_init(basedir)
+    log('Commandline: %r', sys.argv)
+
     fs = TahoeFS(basedir)
     fs.main()
 
 
 ### Utilities for debug:
-_logfile = None
-def log(msg, *args):
+_logfile = None # Private to log* functions.
+
+def log_init(confdir):
     global _logfile
-    if _logfile is None:
-        confdir = os.path.expanduser(TahoeConfigDir)
-        path = os.path.join(confdir, 'logs', 'tahoe_fuse.log')
-        _logfile = open(path, 'a')
-        _logfile.write('Log opened at: %s\n' % (time.strftime('%Y-%m-%d %H:%M:%S'),))
+    
+    logpath = os.path.join(confdir, 'logs', 'tahoe_fuse.log')
+    _logfile = open(logpath, 'a')
+    log('Log opened at: %s\n', time.strftime('%Y-%m-%d %H:%M:%S'))
+
+
+def log(msg, *args):
     _logfile.write((msg % args) + '\n')
     _logfile.flush()
     
