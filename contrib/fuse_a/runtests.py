@@ -7,10 +7,14 @@ Unit and system tests for tahoe-fuse.
 # operation fails, because this does not indicate a fuse interface
 # failure.
 
+# TODO: Unmount after tests regardless of failure or success!
+
 # TODO: Test mismatches between tahoe and fuse/posix.  What about nodes
 # with crazy names ('\0', unicode, '/', '..')?  Huuuuge files?
 # Huuuuge directories...  As tahoe approaches production quality, it'd
 # be nice if the fuse interface did so also by hardening against such cases.
+
+# FIXME: Only create / launch necessary nodes.  Do we still need an introducer and three nodes?
 
 # FIXME: This framework might be replaceable with twisted.trial,
 # especially the "layer" design, which is a bit cumbersome when
