@@ -3,12 +3,14 @@ import os
 from twisted.trial import unittest
 from twisted.python.failure import Failure
 from twisted.python import log
+from twisted.internet import defer
 from cStringIO import StringIO
 
-from allmydata import upload, encode, uri
+from allmydata import upload, encode, uri, storage
 from allmydata.interfaces import IFileURI
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
+from allmydata.util.testutil import ShouldFailMixin
 from foolscap import eventual
 
 MiB = 1024*1024
@@ -156,6 +158,26 @@ class FakeClient:
     def get_cancel_secret(self):
         return ""
 
+class GiganticUploadable(upload.FileHandle):
+    def __init__(self, size):
+        self._size = size
+        self._fp = 0
+
+    def get_encryption_key(self):
+        return defer.succeed("\x00" * 16)
+    def get_size(self):
+        return defer.succeed(self._size)
+    def read(self, length):
+        left = self._size - self._fp
+        length = min(left, length)
+        self._fp += length
+        if self._fp > 1000000:
+            # terminate the test early.
+            raise RuntimeError("we shouldn't be allowed to get this far")
+        return defer.succeed(["\x00" * length])
+    def close(self):
+        pass
+
 DATA = """
 Once upon a time, there was a beautiful princess named Buttercup. She lived
 in a magical land where every file was stored securely among millions of
@@ -178,7 +200,7 @@ def upload_filehandle(uploader, fh):
     u = upload.FileHandle(fh, convergence=None)
     return uploader.upload(u)
 
-class GoodServer(unittest.TestCase):
+class GoodServer(unittest.TestCase, ShouldFailMixin):
     def setUp(self):
         self.node = FakeClient(mode="good")
         self.u = upload.Uploader()
@@ -209,6 +231,27 @@ class GoodServer(unittest.TestCase):
 
     def get_data(self, size):
         return DATA[:size]
+
+    def test_too_large(self):
+        # we currently impose a sizelimit on uploaded files, because of
+        # limitations in the share format (see ticket #346 for details). The
+        # limit is set to ensure that no share is larger than 4GiB. Make sure
+        # that we reject files larger than that.
+        k = 3; happy = 7; n = 10
+        self.set_encoding_parameters(k, happy, n)
+        data1 = GiganticUploadable(k*4*1024*1024*1024)
+        d = self.shouldFail(storage.FileTooLargeError, "test_too_large-data1",
+                            "This file is too large to be uploaded (data_size)",
+                            self.u.upload, data1)
+        data2 = GiganticUploadable(k*4*1024*1024*1024-3)
+        d.addCallback(lambda res:
+                      self.shouldFail(storage.FileTooLargeError,
+                                      "test_too_large-data2",
+                                      "This file is too large to be uploaded (offsets)",
+                                      self.u.upload, data2))
+        # I don't know where the actual limit is.. it depends upon how large
+        # the hash trees wind up. It's somewhere close to k*4GiB-ln2(size).
+        return d
 
     def test_data_zero(self):
         data = self.get_data(SIZE_ZERO)

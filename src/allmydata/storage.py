@@ -1071,6 +1071,9 @@ def allocated_size(data_size, num_segments, num_share_hashes,
     uri_extension_starts_at = wbp._offsets['uri_extension']
     return uri_extension_starts_at + 4 + uri_extension_size
 
+class FileTooLargeError(Exception):
+    pass
+
 class WriteBucketProxy:
     implements(IStorageBucketWriter)
     def __init__(self, rref, data_size, segment_size, num_segments,
@@ -1080,6 +1083,9 @@ class WriteBucketProxy:
         self._segment_size = segment_size
         self._num_segments = num_segments
         self._nodeid = nodeid
+
+        if segment_size >= 2**32 or data_size >= 2**32:
+            raise FileTooLargeError("This file is too large to be uploaded (data_size).")
 
         effective_segments = mathutil.next_power_of_k(num_segments,2)
         self._segment_hash_size = (2*effective_segments - 1) * HASH_SIZE
@@ -1102,6 +1108,9 @@ class WriteBucketProxy:
         offsets['share_hashes'] = x
         x += self._share_hash_size
         offsets['uri_extension'] = x
+
+        if x >= 2**32:
+            raise FileTooLargeError("This file is too large to be uploaded (offsets).")
 
         offset_data = struct.pack(">LLLLLLLLL",
                                   1, # version number
