@@ -5,7 +5,7 @@ from itertools import count
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
-from allmydata.interfaces import IPublishStatus
+from allmydata.interfaces import IPublishStatus, FileTooLargeError
 from allmydata.util import base32, hashutil, mathutil, idlib, log
 from allmydata import hashtree, codec, storage
 from pycryptopp.cipher.aes import AES
@@ -136,6 +136,10 @@ class Publish:
         # 5: when enough responses are back, we're done
 
         self.log("starting publish, datalen is %s" % len(newdata))
+        if len(newdata) > self.MAX_SEGMENT_SIZE:
+            raise FileTooLargeError("SDMF is limited to one segment, and "
+                                    "%d > %d" % (len(newdata),
+                                                 self.MAX_SEGMENT_SIZE))
         self._status.set_size(len(newdata))
         self._status.set_status("Started")
         self._started = time.time()

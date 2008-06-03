@@ -10,7 +10,8 @@ from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash
 from allmydata.util.fileutil import make_dirs
 from allmydata.encode import NotEnoughSharesError
-from allmydata.interfaces import IURI, IMutableFileURI, IUploadable
+from allmydata.interfaces import IURI, IMutableFileURI, IUploadable, \
+     FileTooLargeError
 from foolscap.eventual import eventually, fireEventually
 from foolscap.logging import log
 import sha
@@ -339,6 +340,21 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_created)
         return d
 
+    def test_create_with_too_large_contents(self):
+        BIG = "a" * (Publish.MAX_SEGMENT_SIZE+1)
+        d = self.shouldFail(FileTooLargeError, "too_large",
+                            "SDMF is limited to one segment, and %d > %d" %
+                            (len(BIG), Publish.MAX_SEGMENT_SIZE),
+                            self.client.create_mutable_file, BIG)
+        d.addCallback(lambda res: self.client.create_mutable_file("small"))
+        def _created(n):
+            return self.shouldFail(FileTooLargeError, "too_large_2",
+                                   "SDMF is limited to one segment, and %d > %d" %
+                                   (len(BIG), Publish.MAX_SEGMENT_SIZE),
+                                   n.overwrite, BIG)
+        d.addCallback(_created)
+        return d
+
     def failUnlessCurrentSeqnumIs(self, n, expected_seqnum):
         d = n.get_servermap(MODE_READ)
         d.addCallback(lambda servermap: servermap.best_recoverable_version())
@@ -355,6 +371,8 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             return None
         def _error_modifier(old_contents):
             raise ValueError("oops")
+        def _toobig_modifier(old_contents):
+            return "b" * (Publish.MAX_SEGMENT_SIZE+1)
         calls = []
         def _ucw_error_modifier(old_contents):
             # simulate an UncoordinatedWriteError once
@@ -383,6 +401,14 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res:
                           self.shouldFail(ValueError, "error_modifier", None,
                                           n.modify, _error_modifier))
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
+
+            d.addCallback(lambda res:
+                          self.shouldFail(FileTooLargeError, "toobig_modifier",
+                                          "SDMF is limited to one segment",
+                                          n.modify, _toobig_modifier))
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
