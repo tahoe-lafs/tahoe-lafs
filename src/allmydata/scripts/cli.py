@@ -321,7 +321,8 @@ def webopen(config, stdout, stderr):
     nodeurl = config['node-url']
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    url = nodeurl + "uri/%s/" % urllib.quote(config['dir-cap'])
+    root_cap = config.aliases["tahoe"]
+    url = nodeurl + "uri/%s/" % urllib.quote(root_cap)
     if config['vdrive_pathname']:
         url += urllib.quote(config['vdrive_pathname'])
     webbrowser.open(url)
