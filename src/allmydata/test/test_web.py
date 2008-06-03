@@ -62,6 +62,7 @@ class FakeClient(service.MultiService):
         d.addCallback(lambda res: n)
         return d
 
+    MUTABLE_SIZELIMIT = FakeMutableFileNode.MUTABLE_SIZELIMIT
     def create_mutable_file(self, contents=""):
         n = FakeMutableFileNode(self)
         return n.create(contents)
@@ -288,12 +289,13 @@ class WebMixin(object):
                 res.trap(expected_failure)
                 if substring:
                     self.failUnless(substring in str(res),
-                                    "substring '%s' not in '%s'"
-                                    % (substring, str(res)))
+                                    "%s: substring '%s' not in '%s'"
+                                    % (which, substring, str(res)))
                 if response_substring:
                     self.failUnless(response_substring in res.value.response,
-                                    "response substring '%s' not in '%s'"
-                                    % (response_substring, res.value.response))
+                                    "%s: response substring '%s' not in '%s'"
+                                    % (which,
+                                       response_substring, res.value.response))
             else:
                 self.fail("%s was supposed to raise %s, not get '%s'" %
                           (which, expected_failure, res))
@@ -605,6 +607,15 @@ class Web(WebMixin, unittest.TestCase):
                       self.failUnlessMutableChildContentsAre(self._foo_node,
                                                              u"new.txt",
                                                              self.NEWFILE_CONTENTS))
+        return d
+
+    def test_PUT_NEWFILEURL_mutable_toobig(self):
+        d = self.shouldFail2(error.Error, "test_PUT_NEWFILEURL_mutable_toobig",
+                             "413 Request Entity Too Large",
+                             "SDMF is limited to one segment, and 10001 > 10000",
+                             self.PUT,
+                             self.public_url + "/foo/new.txt?mutable=true",
+                             "b" * (self.s.MUTABLE_SIZELIMIT+1))
         return d
 
     def test_PUT_NEWFILEURL_replace(self):
@@ -1052,6 +1063,17 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check4)
         return d
 
+    def test_POST_upload_no_link_mutable_toobig(self):
+        d = self.shouldFail2(error.Error,
+                             "test_POST_upload_no_link_mutable_toobig",
+                             "413 Request Entity Too Large",
+                             "SDMF is limited to one segment, and 10001 > 10000",
+                             self.POST,
+                             "/uri", t="upload", mutable="true",
+                             file=("new.txt",
+                                   "b" * (self.s.MUTABLE_SIZELIMIT+1)) )
+        return d
+
     def test_POST_upload_mutable(self):
         # this creates a mutable file
         d = self.POST(self.public_url + "/foo", t="upload", mutable="true",
@@ -1196,7 +1218,32 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnlessEqual(headers["content-type"], ["text/plain"])
         d.addCallback(_got_headers)
 
+        # make sure that size errors are displayed correctly for overwrite
+        d.addCallback(lambda res:
+                      self.shouldFail2(error.Error,
+                                       "test_POST_upload_mutable-toobig",
+                                       "413 Request Entity Too Large",
+                                       "SDMF is limited to one segment, and 10001 > 10000",
+                                       self.POST,
+                                       self.public_url + "/foo", t="upload",
+                                       mutable="true",
+                                       file=("new.txt",
+                                             "b" * (self.s.MUTABLE_SIZELIMIT+1)),
+                                       ))
+
         d.addErrback(self.dump_error)
+        return d
+
+    def test_POST_upload_mutable_toobig(self):
+        d = self.shouldFail2(error.Error,
+                             "test_POST_upload_no_link_mutable_toobig",
+                             "413 Request Entity Too Large",
+                             "SDMF is limited to one segment, and 10001 > 10000",
+                             self.POST,
+                             self.public_url + "/foo",
+                             t="upload", mutable="true",
+                             file=("new.txt",
+                                   "b" * (self.s.MUTABLE_SIZELIMIT+1)) )
         return d
 
     def dump_error(self, f):

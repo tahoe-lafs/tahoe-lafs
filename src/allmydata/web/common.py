@@ -4,7 +4,7 @@ from zope.interface import Interface
 from nevow import loaders, appserver
 from nevow.inevow import IRequest
 from nevow.util import resource_filename
-from allmydata.interfaces import ExistingChildError
+from allmydata.interfaces import ExistingChildError, FileTooLargeError
 
 class IClient(Interface):
     pass
@@ -114,6 +114,8 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
                                http.CONFLICT)
         elif f.check(WebError):
             return self.simple(ctx, f.value.text, f.value.code)
+        elif f.check(FileTooLargeError):
+            return self.simple(ctx, str(f.value), http.REQUEST_ENTITY_TOO_LARGE)
         elif f.check(server.UnsupportedMethod):
             # twisted.web.server.Request.render() has support for transforming
             # this into an appropriate 501 NOT_IMPLEMENTED or 405 NOT_ALLOWED

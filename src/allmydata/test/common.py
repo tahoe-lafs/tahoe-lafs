@@ -5,7 +5,8 @@ from twisted.internet import defer
 from twisted.python import failure
 from twisted.application import service
 from allmydata import uri, dirnode
-from allmydata.interfaces import IURI, IMutableFileNode, IFileNode
+from allmydata.interfaces import IURI, IMutableFileNode, IFileNode, \
+     FileTooLargeError
 from allmydata.encode import NotEnoughSharesError
 from allmydata.util import log
 
@@ -70,12 +71,18 @@ class FakeMutableFileNode:
     class-level dictionary."""
 
     implements(IMutableFileNode)
+    MUTABLE_SIZELIMIT = 10000
     all_contents = {}
+
     def __init__(self, client):
         self.client = client
         self.my_uri = make_mutable_file_uri()
         self.storage_index = self.my_uri.storage_index
     def create(self, initial_contents, key_generator=None):
+        if len(initial_contents) > self.MUTABLE_SIZELIMIT:
+            raise FileTooLargeError("SDMF is limited to one segment, and "
+                                    "%d > %d" % (len(initial_contents),
+                                                 self.MUTABLE_SIZELIMIT))
         self.all_contents[self.storage_index] = initial_contents
         return defer.succeed(self)
     def init_from_uri(self, myuri):
@@ -100,10 +107,15 @@ class FakeMutableFileNode:
     def download_best_version(self):
         return defer.succeed(self.all_contents[self.storage_index])
     def overwrite(self, new_contents):
+        if len(new_contents) > self.MUTABLE_SIZELIMIT:
+            raise FileTooLargeError("SDMF is limited to one segment, and "
+                                    "%d > %d" % (len(new_contents),
+                                                 self.MUTABLE_SIZELIMIT))
         assert not self.is_readonly()
         self.all_contents[self.storage_index] = new_contents
         return defer.succeed(None)
     def modify(self, modifier):
+        # this does not implement FileTooLargeError, but the real one does
         return defer.maybeDeferred(self._modify, modifier)
     def _modify(self, modifier):
         assert not self.is_readonly()
