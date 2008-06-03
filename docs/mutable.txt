@@ -78,9 +78,17 @@ versions of the file that different parties are trying to establish as the
 one true current contents. Each simultaneous writer counts as a "competing
 version", as does the previous version of the file. If the count "S" of these
 competing versions is larger than N/k, then the file runs the risk of being
-lost completely. If at least one of the writers remains running after the
-collision is detected, it will attempt to recover, but if S>(N/k) and all
+lost completely. [TODO] If at least one of the writers remains running after
+the collision is detected, it will attempt to recover, but if S>(N/k) and all
 writers crash after writing a few shares, the file will be lost.
+
+Note that Tahoe uses serialization internally to make sure that a single
+Tahoe node will not perform simultaneous modifications to a mutable file. It
+accomplishes this by using a weakref cache of the MutableFileNode (so that
+there will never be two distinct MutableFileNodes for the same file), and by
+forcing all mutable file operations to obtain a per-node lock before they
+run. The Prime Coordination Directive therefore applies to inter-node
+conflicts, not intra-node ones.
 
 
 == Small Distributed Mutable Files ==

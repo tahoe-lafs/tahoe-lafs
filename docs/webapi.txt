@@ -1,14 +1,13 @@
 
 = The Tahoe REST-ful Web API =
 
-This document has six sections:
-
-1.  the basic API for how to programmatically control your tahoe node
-2.  convenience methods
-3.  safety and security issues
-4.  features for controlling your tahoe node from a standard web browser
-5.  debugging and testing features
-6.  XML-RPC (coming soon)
+1. Enabling the web-API port
+2. Basic Concepts: GET, PUT, DELETE, POST
+3. URLs, Machine-Oriented Interfaces
+4. Browser Operations: Human-Oriented Interfaces
+5. Welcome / Debug / Status pages
+6. Safety and security issues -- names vs. URIs
+7. Concurrency Issues
 
 
 == Enabling the web-API port ==
@@ -800,7 +799,7 @@ GET /   (introducer status)
  clients over time.
 
 
-3. safety and security issues -- names vs. URIs
+== safety and security issues -- names vs. URIs ==
 
 Summary: use explicit file- and dir- caps whenever possible, to reduce the
 potential for surprises when the virtual drive is changed while you aren't
@@ -844,3 +843,45 @@ parent directory, so it isn't any harder to use the URI for this purpose.
 In general, use names if you want "whatever object (whether file or
 directory) is found by following this name (or sequence of names) when my
 request reaches the server". Use URIs if you want "this particular object".
+
+== Concurrency Issues ==
+
+Tahoe uses both mutable and immutable files. Mutable files can be created
+explicitly by doing an upload with ?mutable=true added, or implicitly by
+creating a new directory (since a directory is just a special way to
+interpret a given mutable file).
+
+Mutable files suffer from the same consistency-vs-availability tradeoff that
+all distributed data storage systems face. It is not possible to
+simultaneously achieve perfect consistency and perfect availability in the
+face of network partitions (servers being unreachable or faulty).
+
+Tahoe tries to achieve a reasonable compromise, but there is a basic rule in
+place, known as the Prime Coordination Directive: "Don't Do That". What this
+means is that if write-access to a mutable file is available to several
+parties, then those parties are responsible for coordinating their activities
+to avoid multiple simultaneous updates. This could be achieved by having
+these parties talk to each other and using some sort of locking mechanism, or
+by serializing all changes through a single writer.
+
+The consequences of performing uncoordinated writes can vary. Some of the
+writers may lose their changes, as somebody else wins the race condition. In
+many cases the file will be left in an "unhealthy" state, meaning that there
+are not as many redundant shares as we would like (reducing the reliability
+of the file against server failures). In the worst case, the file can be left
+in such an unhealthy state that no version is recoverable, even the old ones.
+It is this small possibility of data loss that prompts us to issue the Prime
+Coordination Directive.
+
+Tahoe nodes implement internal serialization to make sure that a single Tahoe
+node cannot conflict with itself. For example, it is safe to issue two
+directory modification requests to a single tahoe node's webapi server at the
+same time, because the Tahoe node will internally delay one of them until
+after the other has finished being applied. (This feature was introduced in
+Tahoe-1.1; back with Tahoe-1.0 the web client was responsible for serializing
+web requests themselves).
+
+For more details, please see the "Consistency vs Availability" and "The Prime
+Coordination Directive" sections of mutable.txt, in the same directory as
+this file.
+
