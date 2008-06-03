@@ -1,0 +1,66 @@
+= THIS PAGE DESCRIBES HISTORICAL ARCHITECTURE CHOICES: THE CURRENT CODE DOES NOT WORK AS DESCRIBED HERE. =
+
+When a file is uploaded, the encoded shares are sent to other peers. But to
+which ones? The PeerSelection algorithm is used to make this choice.
+
+In the old (May 2007) version, the verifierid is used to consistently-permute
+the set of all peers (by sorting the peers by HASH(verifierid+peerid)). Each
+file gets a different permutation, which (on average) will evenly distribute
+shares among the grid and avoid hotspots.
+
+This permutation places the peers around a 2^256^-sized ring, like the rim of
+a big clock. The 100-or-so shares are then placed around the same ring (at 0,
+1/100*2^256^, 2/100*2^256^, ... 99/100*2^256^). Imagine that we start at 0 with
+an empty basket in hand and proceed clockwise. When we come to a share, we
+pick it up and put it in the basket. When we come to a peer, we ask that peer
+if they will give us a lease for every share in our basket.
+
+The peer will grant us leases for some of those shares and reject others (if
+they are full or almost full). If they reject all our requests, we remove
+them from the ring, because they are full and thus unhelpful. Each share they
+accept is removed from the basket. The remainder stay in the basket as we
+continue walking clockwise.
+
+We keep walking, accumulating shares and distributing them to peers, until
+either we find a home for all shares, or there are no peers left in the ring
+(because they are all full). If we run out of peers before we run out of
+shares, the upload may be considered a failure, depending upon how many
+shares we were able to place. The current parameters try to place 100 shares,
+of which 25 must be retrievable to recover the file, and the peer selection
+algorithm is happy if it was able to place at least 75 shares. These numbers
+are adjustable: 25-out-of-100 means an expansion factor of 4x (every file in
+the grid consumes four times as much space when totalled across all
+StorageServers), but is highly reliable (the actual reliability is a binomial
+distribution function of the expected availability of the individual peers,
+but in general it goes up very quickly with the expansion factor).
+
+If the file has been uploaded before (or if two uploads are happening at the
+same time), a peer might already have shares for the same file we are
+proposing to send to them. In this case, those shares are removed from the
+list and assumed to be available (or will be soon). This reduces the number
+of uploads that must be performed.
+
+When downloading a file, the current release just asks all known peers for
+any shares they might have, chooses the minimal necessary subset, then starts
+downloading and processing those shares. A later release will use the full
+algorithm to reduce the number of queries that must be sent out. This
+algorithm uses the same consistent-hashing permutation as on upload, but
+instead of one walker with one basket, we have 100 walkers (one per share).
+They each proceed clockwise in parallel until they find a peer, and put that
+one on the "A" list: out of all peers, this one is the most likely to be the
+same one to which the share was originally uploaded. The next peer that each
+walker encounters is put on the "B" list, etc.
+
+All the "A" list peers are asked for any shares they might have. If enough of
+them can provide a share, the download phase begins and those shares are
+retrieved and decoded. If not, the "B" list peers are contacted, etc. This
+routine will eventually find all the peers that have shares, and will find
+them quickly if there is significant overlap between the set of peers that
+were present when the file was uploaded and the set of peers that are present
+as it is downloaded (i.e. if the "peerlist stability" is high). Some limits
+may be imposed in large grids to avoid querying a million peers; this
+provides a tradeoff between the work spent to discover that a file is
+unrecoverable and the probability that a retrieval will fail when it could
+have succeeded if we had just tried a little bit harder. The appropriate
+value of this tradeoff will depend upon the size of the grid, and will change
+over time.

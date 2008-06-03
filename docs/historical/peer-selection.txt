@@ -1,0 +1,28 @@
+When a file is uploaded, the encoded shares are sent to other peers. But to
+which ones? Likewise, when we want to download a file, which peers should we
+ask for shares? The "peer selection" algorithm is used to make these choices.
+
+During the first tahoe meeting, (actualy on the drive back home), we designed
+the now-abandoned "tahoe1" algorithm, which involved a "cabal" for each file,
+where the peers involved would check up on each other to make sure the data
+was still available. The big limitation was the expense of tracking which
+nodes were parts of which cabals.
+
+Formerly (until v0.6, ticket #132), we used the "tahoe3" algorithm (see
+peer-selection-tahoe3.txt), but now we use the "tahoe2" algorithm (see the
+PEER SELECTION section of docs/architecture.txt), which uses a permuted
+peerid list and packs the shares into the first 10 or so members of this
+list. (It is named "tahoe2" because it was designed before "tahoe3" was.)
+
+In the future, we might move to an algorithm known as "denver airport", which
+uses Chord-like routing to minimize the number of active connections.
+
+Different peer selection algorithms result in different properties:
+ * how well do we handle nodes leaving or joining the mesh (differences in the
+   peer list)?
+ * how many connections do we need to keep open?
+ * how many nodes must we speak to when uploading a file?
+ * if a file is unrecoverable, how long will it take for us to discover this
+   fact?
+ * how expensive is a file-checking operation?
+ * how well can we accomodate changes to encoding parameters?
