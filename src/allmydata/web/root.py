@@ -110,6 +110,7 @@ class Root(rend.Page):
     docFactory = getxmlfile("welcome.xhtml")
 
     child_uri = URIHandler()
+    child_cap = URIHandler()
     child_file = FileHandler()
     child_named = FileHandler()
 
