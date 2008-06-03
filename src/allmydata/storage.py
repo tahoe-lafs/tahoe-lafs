@@ -9,7 +9,7 @@ from twisted.internet import defer
 from zope.interface import implements
 from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
      RIBucketReader, IStorageBucketWriter, IStorageBucketReader, HASH_SIZE, \
-     BadWriteEnablerError, IStatsProducer
+     BadWriteEnablerError, IStatsProducer, FileTooLargeError
 from allmydata.util import base32, fileutil, idlib, mathutil, log
 from allmydata.util.assertutil import precondition, _assert
 import allmydata # for __version__
@@ -1070,9 +1070,6 @@ def allocated_size(data_size, num_segments, num_share_hashes,
                            uri_extension_size, None)
     uri_extension_starts_at = wbp._offsets['uri_extension']
     return uri_extension_starts_at + 4 + uri_extension_size
-
-class FileTooLargeError(Exception):
-    pass
 
 class WriteBucketProxy:
     implements(IStorageBucketWriter)

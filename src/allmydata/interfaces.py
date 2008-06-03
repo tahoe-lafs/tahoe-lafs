@@ -1867,3 +1867,8 @@ class RIKeyGenerator(RemoteInterface):
         @return: tuple(verifying_key, signing_key)
         """
         return TupleOf(str, str)
+
+
+class FileTooLargeError(Exception):
+    pass
+

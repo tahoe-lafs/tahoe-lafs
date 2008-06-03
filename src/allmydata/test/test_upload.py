@@ -6,8 +6,8 @@ from twisted.python import log
 from twisted.internet import defer
 from cStringIO import StringIO
 
-from allmydata import upload, encode, uri, storage
-from allmydata.interfaces import IFileURI
+from allmydata import upload, encode, uri
+from allmydata.interfaces import IFileURI, FileTooLargeError
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata.util.testutil import ShouldFailMixin
@@ -240,12 +240,12 @@ class GoodServer(unittest.TestCase, ShouldFailMixin):
         k = 3; happy = 7; n = 10
         self.set_encoding_parameters(k, happy, n)
         data1 = GiganticUploadable(k*4*1024*1024*1024)
-        d = self.shouldFail(storage.FileTooLargeError, "test_too_large-data1",
+        d = self.shouldFail(FileTooLargeError, "test_too_large-data1",
                             "This file is too large to be uploaded (data_size)",
                             self.u.upload, data1)
         data2 = GiganticUploadable(k*4*1024*1024*1024-3)
         d.addCallback(lambda res:
-                      self.shouldFail(storage.FileTooLargeError,
+                      self.shouldFail(FileTooLargeError,
                                       "test_too_large-data2",
                                       "This file is too large to be uploaded (offsets)",
                                       self.u.upload, data2))
