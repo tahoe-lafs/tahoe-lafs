@@ -27,6 +27,7 @@ class FakeIntroducerClient:
 
 class FakeClient(service.MultiService):
     nodeid = "fake_nodeid"
+    nickname = "fake_nickname"
     basedir = "fake_basedir"
     def get_versions(self):
         return {'allmydata': "fake",

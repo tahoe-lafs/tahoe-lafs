@@ -128,6 +128,8 @@ class Root(rend.Page):
         return str(allmydata)
     def data_my_nodeid(self, ctx, data):
         return idlib.nodeid_b2a(IClient(ctx).nodeid)
+    def data_my_nickname(self, ctx, data):
+        return IClient(ctx).nickname
 
     def render_services(self, ctx, data):
         ul = T.ul()
@@ -198,8 +200,8 @@ class Root(rend.Page):
 
     def render_service_row(self, ctx, data):
         (service_name, nodeid, rsc) = data
-        ctx.fillSlots("peerid", "%s %s" % (idlib.nodeid_b2a(nodeid),
-                                           rsc.nickname))
+        ctx.fillSlots("peerid", idlib.nodeid_b2a(nodeid))
+        ctx.fillSlots("nickname", rsc.nickname)
         if rsc.rref:
             rhost = rsc.remote_host
             if nodeid == IClient(ctx).nodeid:

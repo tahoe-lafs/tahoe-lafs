@@ -13,6 +13,7 @@
 <h2>Status of this Client</h2>
 
 <div>My nodeid: <span n:render="string" n:data="my_nodeid" /></div>
+<div>My nickname: <span n:render="string" n:data="my_nickname" /></div>
 <div>My versions: <span n:render="string" n:data="version" /></div>
 <div>Tahoe code imported from: <span n:render="string" n:data="import_path" /></div>
 <div n:render="services">Services Running:</div>
@@ -45,7 +46,8 @@
 <div>
 <table n:render="sequence" n:data="services" border="1">
   <tr n:pattern="header">
-    <td>PeerID / Nickname</td>
+    <td>PeerID</td>
+    <td>Nickname</td>
     <td>Connected?</td>
     <td>Since</td>
     <td>Announced</td>
@@ -54,6 +56,7 @@
   </tr>
   <tr n:pattern="item" n:render="service_row">
     <td><tt><n:slot name="peerid"/></tt></td>
+    <td><b><n:slot name="nickname"/></b></td>
     <td><tt><n:slot name="connected"/></tt></td>
     <td><tt><n:slot name="since"/></tt></td>
     <td><tt><n:slot name="announced"/></tt></td>
