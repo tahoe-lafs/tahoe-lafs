@@ -8,11 +8,12 @@ where the peers involved would check up on each other to make sure the data
 was still available. The big limitation was the expense of tracking which
 nodes were parts of which cabals.
 
-Formerly (until v0.6, ticket #132), we used the "tahoe3" algorithm (see
-peer-selection-tahoe3.txt), but now we use the "tahoe2" algorithm (see the
-PEER SELECTION section of docs/architecture.txt), which uses a permuted
-peerid list and packs the shares into the first 10 or so members of this
-list. (It is named "tahoe2" because it was designed before "tahoe3" was.)
+When we release 0.2.0, we used the "tahoe3" algorithm (see
+peer-selection-tahoe3.txt), but in v0.6 (ticket #132) we switched back to
+"tahoe2" (see the peer-selection-tahoe2.txt, and the PEER SELECTION section
+of docs/architecture.txt), which uses a permuted peerid list and packs the
+shares into the first 10 or so members of this list. (It is named "tahoe2"
+because it was designed before "tahoe3" was.)
 
 In the future, we might move to an algorithm known as "denver airport", which
 uses Chord-like routing to minimize the number of active connections.

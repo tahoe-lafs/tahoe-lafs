@@ -1,0 +1,56 @@
+= THIS PAGE DESCRIBES HISTORICAL DESIGN CHOICES. SEE docs/architecture.txt FOR CURRENT DOCUMENTATION =
+
+When a file is uploaded, the encoded shares are sent to other peers. But to
+which ones? The PeerSelection algorithm is used to make this choice.
+
+Early in 2007, we were planning to use the following "Tahoe Two" algorithm.
+By the time we released 0.2.0, we switched to "tahoe3", but when we released
+v0.6, we switched back (ticket #132).
+
+As in Tahoe Three, the verifierid is used to consistently-permute the set of
+all peers (by sorting the peers by HASH(verifierid+peerid)). Each file gets a
+different permutation, which (on average) will evenly distribute shares among
+the grid and avoid hotspots.
+
+With our basket of (usually 10) shares to distribute in hand, we start at the
+beginning of the list and ask each peer in turn if they are willing to hold
+on to one of our shares (the "lease request"). If they say yes, we remove
+that share from the basket and remember who agreed to host it. Then we go to
+the next peer in the list and ask them the same question about another share.
+If a peer says no, we remove them from the list. If a peer says that they
+already have one or more shares for this file, we remove those shares from
+the basket. If we reach the end of the list, we start again at the beginning.
+If we run out of peers before we run out of shares, we fail unless we've
+managed to place at least some number of the shares: the likely threshold is
+to attempt to place 10 shares (out of which we'll need 3 to recover the
+file), and be content if we can find homes for at least 7 of them.
+
+In small networks, this approach will loop around several times and place
+several shares with each node (e.g. in a 5-host network with plenty of space,
+each node will get 2 shares). In large networks with plenty of space, the
+shares will be placed with the first 10 peers in the permuted list. In large
+networks that are somewhat full, we'll need to traverse more of the list
+before we find homes for the shares. The average number of peers that we'll
+need to talk to is vaguely equal to 10 / (1-utilization), with a bunch of
+other terms that relate to the distribution of free space on the peers and
+the size of the shares being offered. Small files with small shares will fit
+anywhere, large files with large shares will only fit on certain peers, so
+the mesh may have free space but no holes large enough for a very large file,
+which might indicate that we should try again with a larger number of
+(smaller) shares.
+
+When it comes time to download, we compute a similar list of permuted
+peerids, and start asking for shares beginning with the start of the list.
+Each peer gives us a list of the shareids that they are holding. Eventually
+(depending upon how much churn the peerlist has experienced), we'll find
+holders for at least 3 shares, or we'll run out of peers. If the mesh is very
+large and we want to fail faster, we can establish an upper bound on how many
+peers we should talk to (perhaps by recording the permuted peerid of the last
+node to which we sent a share, or a count of the total number of peers we
+talked to during upload).
+
+I suspect that this approach handles churn more efficiently than tahoe3, but
+I haven't gotten my head around the math that could be used to show it. On
+the other hand, it takes a lot more round trips to find homes in small meshes
+(one per share, whereas tahoe three can do just one per node).
+
