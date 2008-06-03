@@ -2,7 +2,7 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 <svg
    xmlns:dc="http://purl.org/dc/elements/1.1/"
-   xmlns:cc="http://web.resource.org/cc/"
+   xmlns:cc="http://creativecommons.org/ns#"
    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
    xmlns:svg="http://www.w3.org/2000/svg"
    xmlns="http://www.w3.org/2000/svg"
@@ -12,11 +12,19 @@
    height="1052.3622047"
    id="svg2"
    sodipodi:version="0.32"
-   inkscape:version="0.44.1"
+   inkscape:version="0.46"
    sodipodi:docbase="/home/warner/work/tahoe-misc"
-   sodipodi:docname="file-encoding4.svg">
+   sodipodi:docname="file-encoding4.svg"
+   inkscape:output_extension="org.inkscape.output.svg.inkscape">
   <defs
      id="defs4">
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="0 : 526.18109 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_z="744.09448 : 526.18109 : 1"
+       inkscape:persp3d-origin="372.04724 : 350.78739 : 1"
+       id="perspective5442" />
     <marker
        inkscape:stockid="Arrow1Lend"
        orient="auto"
@@ -41,15 +49,16 @@
      objecttolerance="10"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.0116408"
-     inkscape:cx="361.42358"
-     inkscape:cy="705.38017"
+     inkscape:zoom="1.0814091"
+     inkscape:cx="327.67132"
+     inkscape:cy="590.71497"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
-     inkscape:window-width="900"
-     inkscape:window-height="756"
-     inkscape:window-x="333"
-     inkscape:window-y="168" />
+     inkscape:window-width="1680"
+     inkscape:window-height="1050"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     showgrid="false" />
   <metadata
      id="metadata7">
     <rdf:RDF>
@@ -439,15 +448,15 @@
          x="495.05698"
          y="240.97345">&quot;share root hash&quot;</tspan></text>
     <rect
-       style="fill:#d5f6ff;fill-opacity:1;stroke:black;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       style="fill:#d5f6ff;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        id="rect8042"
        width="372.43307"
        height="126.05428"
-       x="252.10855"
-       y="492.7576" />
+       x="258.43817"
+       y="492.44629" />
     <text
        xml:space="preserve"
-       style="font-size:24px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       style="font-size:24px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
        x="267.38785"
        y="521.40631"
        id="text8044"
@@ -455,82 +464,212 @@
          sodipodi:role="line"
          id="tspan8046"
          x="267.38785"
-         y="521.40631">URI</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
-       x="299.5795"
-       y="561.26575"
-       id="text8048"
-       sodipodi:linespacing="100%"><tspan
-         sodipodi:role="line"
-         id="tspan8050"
-         x="299.5795"
-         y="561.26575">fileid</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
-       x="295.2998"
-       y="596.57336"
-       id="text8052"
-       sodipodi:linespacing="100%"><tspan
-         sodipodi:role="line"
-         id="tspan8054"
-         x="295.2998"
-         y="596.57336">verifierid</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
-       x="439.73993"
-       y="598.7132"
-       id="text8056"
-       sodipodi:linespacing="100%"><tspan
-         sodipodi:role="line"
-         id="tspan8058"
-         x="439.73993"
-         y="598.7132">encryption key</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
-       x="430.11057"
-       y="558.05597"
-       id="text8060"
-       sodipodi:linespacing="100%"><tspan
-         sodipodi:role="line"
-         id="tspan8062"
-         x="430.11057"
-         y="558.05597">share root hash</tspan></text>
+         y="521.40631">URI Extension Block</tspan></text>
     <path
        style="fill:none;fill-rule:evenodd;stroke:black;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
-       d="M 491.09641,278.8051 L 506.07538,537.72738"
-       id="path8064" />
-    <rect
-       style="fill:none;fill-opacity:1;stroke:black;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
-       id="rect8066"
-       width="64.19561"
-       height="31.027878"
-       x="291.02008"
-       y="538.7973" />
-    <rect
-       y="576.24475"
-       x="291.02008"
-       height="27.818098"
-       width="93.083633"
-       id="rect8068"
-       style="fill:none;fill-opacity:1;stroke:black;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
-    <rect
-       style="fill:none;fill-opacity:1;stroke:black;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
-       id="rect8070"
-       width="162.62888"
-       height="31.027878"
-       x="420.48123"
-       y="536.65747" />
-    <rect
-       y="574.10492"
-       x="434.39029"
-       height="36.37751"
-       width="148.71983"
-       id="rect8072"
-       style="fill:none;fill-opacity:1;stroke:black;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+       d="M 491.09641,278.8051 L 505.57143,535.71157"
+       id="path8064"
+       sodipodi:nodetypes="cc" />
+    <g
+       id="g5534">
+      <text
+         sodipodi:linespacing="100%"
+         id="text8048"
+         y="560.19122"
+         x="296.70987"
+         style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         xml:space="preserve"><tspan
+           y="560.19122"
+           x="296.70987"
+           id="tspan8050"
+           sodipodi:role="line">file size</tspan></text>
+      <rect
+         y="538.7973"
+         x="291.02008"
+         height="31.027878"
+         width="84.953964"
+         id="rect8066"
+         style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+    </g>
+    <g
+       id="g5539"
+       transform="translate(-21.380944,3.5634906)">
+      <text
+         sodipodi:linespacing="100%"
+         id="text8052"
+         y="595.66229"
+         x="296.09039"
+         style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         xml:space="preserve"><tspan
+           y="595.66229"
+           x="296.09039"
+           id="tspan8054"
+           sodipodi:role="line">encoding parameters</tspan></text>
+      <rect
+         style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         id="rect8068"
+         width="205.77185"
+         height="29.795084"
+         x="291.02008"
+         y="576.24475" />
+    </g>
+    <g
+       id="g5529">
+      <text
+         sodipodi:linespacing="100%"
+         id="text8060"
+         y="557.45142"
+         x="430.06894"
+         style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         xml:space="preserve"><tspan
+           y="557.45142"
+           x="430.06894"
+           id="tspan8062"
+           sodipodi:role="line">share root hash</tspan></text>
+      <rect
+         y="536.65747"
+         x="420.48123"
+         height="31.027878"
+         width="162.62888"
+         id="rect8070"
+         style="fill:none;fill-opacity:1;stroke:black;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+    </g>
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot5444"
+       style="fill:black;stroke:none;stroke-opacity:1;stroke-width:1px;stroke-linejoin:miter;stroke-linecap:butt;fill-opacity:1;font-family:Courier 10 Pitch;font-style:normal;font-weight:normal;font-size:18px;font-stretch:normal;font-variant:normal;text-anchor:start;text-align:start;writing-mode:lr;line-height:100%"><flowRegion
+         id="flowRegion5446"><rect
+           id="rect5448"
+           width="440.86795"
+           height="206.59506"
+           x="212.52603"
+           y="478.04767" /></flowRegion><flowPara
+         id="flowPara5450"></flowPara></flowRoot>    <flowRoot
+       style="fill:black;stroke:none;stroke-opacity:1;stroke-width:1px;stroke-linejoin:miter;stroke-linecap:butt;fill-opacity:1;font-family:Courier 10 Pitch;font-style:normal;font-weight:normal;font-size:18px;font-stretch:normal;font-variant:normal;text-anchor:start;text-align:start;writing-mode:lr;line-height:100%"
+       id="flowRoot5452"
+       xml:space="preserve"><flowRegion
+         id="flowRegion5454"><rect
+           y="478.04767"
+           x="212.52603"
+           height="206.59506"
+           width="440.86795"
+           id="rect5456" /></flowRegion><flowPara
+         id="flowPara5458"></flowPara></flowRoot>    <rect
+       y="722.08801"
+       x="249.14307"
+       height="126.05428"
+       width="372.43307"
+       id="rect5460"
+       style="fill:#d5f6ff;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+    <text
+       sodipodi:linespacing="100%"
+       id="text5462"
+       y="750.73669"
+       x="264.42236"
+       style="font-size:24px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+       xml:space="preserve"><tspan
+         y="750.73669"
+         x="264.42236"
+         id="tspan5464"
+         sodipodi:role="line">URI / &quot;file read-cap&quot;</tspan></text>
+    <g
+       id="g5498">
+      <text
+         xml:space="preserve"
+         style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         x="471.72757"
+         y="789.75726"
+         id="text5478"
+         sodipodi:linespacing="100%"><tspan
+           sodipodi:role="line"
+           id="tspan5480"
+           x="471.72757"
+           y="789.75726">UEB hash</tspan></text>
+      <rect
+         style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         id="rect5486"
+         width="109.25024"
+         height="31.027878"
+         x="461.99792"
+         y="768.95331" />
+    </g>
+    <g
+       id="g5503">
+      <text
+         xml:space="preserve"
+         style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         x="275.49631"
+         y="792.89374"
+         id="text5474"
+         sodipodi:linespacing="100%"><tspan
+           sodipodi:role="line"
+           id="tspan5476"
+           x="275.49631"
+           y="792.89374">encryption key</tspan></text>
+      <rect
+         y="770.815"
+         x="268.32343"
+         height="36.37751"
+         width="148.71983"
+         id="rect5488"
+         style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+    </g>
+    <g
+       transform="translate(-97.251286,198.1785)"
+       id="g5490">
+      <path
+         transform="matrix(0.511994,0,0,0.511994,289.5084,379.3664)"
+         d="M 642.52774,196.10106 A 34.958466,34.073441 0 1 1 572.61081,196.10106 A 34.958466,34.073441 0 1 1 642.52774,196.10106 z"
+         sodipodi:ry="34.073441"
+         sodipodi:rx="34.958466"
+         sodipodi:cy="196.10106"
+         sodipodi:cx="607.56927"
+         id="path5492"
+         style="fill:#ffe6d5;fill-opacity:1;stroke:#000000;stroke-opacity:1"
+         sodipodi:type="arc" />
+      <text
+         sodipodi:linespacing="100%"
+         id="text5494"
+         y="483.09396"
+         x="591.47559"
+         style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         xml:space="preserve"><tspan
+           sodipodi:role="line"
+           id="tspan5496"
+           x="591.47559"
+           y="483.09396">SHA</tspan></text>
+    </g>
+    <path
+       id="path5508"
+       d="M 490.16032,618.22602 L 500.19251,660.16729"
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1"
+       sodipodi:nodetypes="cc" />
+    <path
+       sodipodi:nodetypes="cc"
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Lend);stroke-opacity:1"
+       d="M 506.13565,695.45603 L 516.96501,767.91304"
+       id="path5510" />
+    <g
+       id="g5524"
+       transform="translate(-7.8396793,-5.701585)">
+      <rect
+         style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         id="rect8072"
+         width="127.96149"
+         height="31.434599"
+         x="502.91043"
+         y="583.00134" />
+      <text
+         xml:space="preserve"
+         style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
+         x="507.92603"
+         y="603.99866"
+         id="text5520"
+         sodipodi:linespacing="100%"><tspan
+           sodipodi:role="line"
+           id="tspan5522"
+           x="507.92603"
+           y="603.99866">other hashes</tspan></text>
+    </g>
   </g>
 </svg>
