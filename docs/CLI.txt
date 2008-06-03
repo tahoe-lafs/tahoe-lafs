@@ -75,9 +75,6 @@ start using their changes.
 
 == Virtual Drive Manipulation ==
 
-[NOTE: This is a work-in-progress: none of this actually works yet].
-
-
 These commands let you exmaine a Tahoe virtual drive, providing basic
 list/upload/download/delete/rename/mkdir functionality. They can be used as
 primitives by other scripts. Most of these commands are fairly thin wrappers
@@ -91,9 +88,8 @@ a node on some other host, just create ~/.tahoe/ and copy that node's webapi
 URL into this file, and the CLI commands will contact that node instead of a
 local one.
 
-These commands also use ~/.tahoe/private/root_dir.cap to figure out which
-directory they ought to use a starting point. This is explained in more
-detail below.
+These commands also use a table of "aliases" to figure out which directory
+they ought to use a starting point. This is explained in more detail below.
 
 === Root Directories ===
 
@@ -115,24 +111,31 @@ directory, but instead each user's personal filesystem has a root that they
 use as a starting point for all their operations.
 
 In fact, each tahoe node remembers a list of starting points, named
-"aliases", in a file named ~/.tahoe/private/aliases . These are short strings
-that stand for a directory read- or write- cap. The default starting point
-uses an alias named "tahoe:", and for backwards compatibility can be stored
-in a file named ~/.tahoe/private/root_dir.cap .
+"aliases", in a file named ~/.tahoe/private/aliases . These aliases are short
+strings that stand in for a directory read- or write- cap. The default
+starting point uses an alias named "tahoe:".
 
-The Tahoe CLI commands use the same filename syntax as scp and rsync, an
+For backwards compatibility with Tahoe-1.0, if the "tahoe": alias is not
+found in ~/.tahoe/private/aliases, the CLI will use the contents of
+~/.tahoe/private/root_dir.cap instead. Tahoe-1.0 had only a single starting
+point, and stored it in this root_dir.cap file, so Tahoe-1.1 will use it if
+necessary. However, once you've set a "tahoe:" alias with "tahoe set-alias",
+that will override anything in the old root_dir.cap file.
+
+The Tahoe CLI commands use the same filename syntax as scp and rsync: an
 optional "alias:" prefix, followed by the pathname or filename. Many commands
 have arguments which supply a default tahoe: alias if you don't provide one
 yourself, but it is always safe to supply the alias. Some commands (like
 "tahoe cp") use the lack of an alias to mean that you want to refer to a
-local file, instead of something from the tahoe virtual filesystem. Another
-way to indicate this is to start the pathname with a dot, slash, or tilde.
+local file, instead of something from the tahoe virtual filesystem. [TODO]
+Another way to indicate this is to start the pathname with a dot, slash, or
+tilde.
 
 When you're dealing with your own personal filesystem, the "tahoe:" alias is
-all you need. But when you want to refer to something that isn't yet in your
-virtual drive, you need to refer to it by its URI. The way to do that is to
-add an alias to it, with the "tahoe add-alias" command. Once you've added an
-alias, you can use that alias as a prefix to the other commands.
+all you need. But when you want to refer to something that isn't yet attached
+to your virtual drive, you need to refer to it by its URI. The way to do that
+is to add an alias to it, with the "tahoe add-alias" command. Once you've
+added an alias, you can use that alias as a prefix to the other commands.
 
 The best way to get started with Tahoe is to create a node, start it, then
 use the following command to create a new directory and set it as your

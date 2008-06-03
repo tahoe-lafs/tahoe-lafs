@@ -11,8 +11,8 @@ class VDriveOptions(BaseOptions, usage.Options):
          "Look here to find out which Tahoe node should be used for all "
          "operations. The directory should either contain a full Tahoe node, "
          "or a file named node.url which points to some other Tahoe node. "
-         "It should also contain a file named root_dir.cap which contains "
-         "the root dirnode URI that should be used."
+         "It should also contain a file named private/aliases which contains "
+         "the mapping from alias name to root dirnode URI."
          ],
         ["node-url", "u", None,
          "URL of the tahoe node to use, a URL like \"http://127.0.0.1:8123\". "
@@ -91,6 +91,17 @@ class GetOptions(VDriveOptions):
     local filesystem. If LOCAL_FILE is omitted or '-', the contents of the file
     will be written to stdout."""
 
+    def getUsage(self, width=None):
+        t = VDriveOptions.getUsage(self, width)
+        t += """
+Examples:
+ % tahoe get FOO |less            # write to stdout
+ % tahoe get tahoe:FOO |less      # same
+ % tahoe get FOO bar              # write to local file
+ % tahoe get tahoe:FOO bar        # same
+"""
+        return t
+
 class PutOptions(VDriveOptions):
     optFlags = [
         ("mutable", "m", "Create a mutable file instead of an immutable one."),
@@ -119,8 +130,21 @@ class PutOptions(VDriveOptions):
         return "%s put LOCAL_FILE VDRIVE_FILE" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """Put a file into the virtual drive (copying the file's
-    contents from the local filesystem). LOCAL_FILE is required to be a
-    local file (it can't be stdin)."""
+    contents from the local filesystem). If LOCAL_FILE is missing or '-',
+    data will be copied from stdin. VDRIVE_FILE is assumed to start with
+    tahoe: unless otherwise specified."""
+
+    def getUsage(self, width=None):
+        t = VDriveOptions.getUsage(self, width)
+        t += """
+Examples:
+ % cat FILE > tahoe put           # create unlinked file from stdin
+ % cat FILE > tahoe put FOO       # create tahoe:FOO from stdin
+ % cat FILE > tahoe put tahoe:FOO # same
+ % tahoe put bar FOO              # copy local 'bar' to tahoe:FOO
+ % tahoe put bar tahoe:FOO        # same
+"""
+        return t
 
 class CpOptions(VDriveOptions):
     optFlags = [
