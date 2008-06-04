@@ -71,7 +71,9 @@ readonly_storage (optional): If this file is present (the contents do not
 matter), the node will run a storage server but will not accept any shares,
 making it effectively read-only. Use this for storage servers which are being
 decommissioned: the storage/ directory could be mounted read-only, while
-shares are moved to other servers.
+shares are moved to other servers. Note that this currently only affects
+immutable shares. Mutable shares (used for directories) will be written and
+modified anyway. See ticket #390 for the current status of this bug.
 
 sizelimit (optional): If present, this file establishes an upper bound (in
 bytes) on the amount of storage consumed by share data (data that your node
