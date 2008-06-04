@@ -254,7 +254,12 @@ class WebMixin(object):
             else:
                 form.append('Content-Disposition: form-data; name="%s"' % name)
             form.append('')
-            form.append(str(value))
+            if isinstance(value, unicode):
+                value = value.encode("utf-8")
+            else:
+                value = str(value)
+            assert isinstance(value, str)
+            form.append(value)
             form.append(sep)
         form[-1] += "--"
         body = "\r\n".join(form) + "\r\n"
@@ -975,7 +980,6 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_POST_upload_unicode(self):
         filename = u"n\u00e9wer.txt" # n e-acute w e r . t x t
-        target_url = self.public_url + "/foo/" + filename.encode("utf-8")
         d = self.POST(self.public_url + "/foo", t="upload",
                       file=(filename, self.NEWFILE_CONTENTS))
         fn = self._foo_node
@@ -983,6 +987,24 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(fn, filename,
                                                       self.NEWFILE_CONTENTS))
+        target_url = self.public_url + "/foo/" + filename.encode("utf-8")
+        d.addCallback(lambda res: self.GET(target_url))
+        d.addCallback(lambda contents: self.failUnlessEqual(contents,
+                                                            self.NEWFILE_CONTENTS,
+                                                            contents))
+        return d
+
+    def test_POST_upload_unicode_named(self):
+        filename = u"n\u00e9wer.txt" # n e-acute w e r . t x t
+        d = self.POST(self.public_url + "/foo", t="upload",
+                      name=filename,
+                      file=("overridden", self.NEWFILE_CONTENTS))
+        fn = self._foo_node
+        d.addCallback(self.failUnlessURIMatchesChild, fn, filename)
+        d.addCallback(lambda res:
+                      self.failUnlessChildContentsAre(fn, filename,
+                                                      self.NEWFILE_CONTENTS))
+        target_url = self.public_url + "/foo/" + filename.encode("utf-8")
         d.addCallback(lambda res: self.GET(target_url))
         d.addCallback(lambda contents: self.failUnlessEqual(contents,
                                                             self.NEWFILE_CONTENTS,

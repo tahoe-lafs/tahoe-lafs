@@ -234,6 +234,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         req = IRequest(ctx)
         charset = get_arg(req, "_charset", "utf-8")
         contents = req.fields["file"]
+        assert contents.filename is None or isinstance(contents.filename, str)
         name = get_arg(req, "name")
         name = name or contents.filename
         if name is not None:
@@ -241,6 +242,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         if not name:
             # this prohibts empty, missing, and all-whitespace filenames
             raise WebError("upload requires a name")
+        assert isinstance(name, str)
         name = name.decode(charset)
         if "/" in name:
             raise WebError("name= may not contain a slash", http.BAD_REQUEST)
