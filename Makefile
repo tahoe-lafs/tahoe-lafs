@@ -18,17 +18,17 @@ endif
 
 PLAT = $(strip $(shell python -c "import sys ; print sys.platform"))
 ifeq ($(PLAT),win32)
- # The platform is Windows with cygwin build tools and the native Python interpreter.
- SUPPORT = $(shell cygpath -w $(shell pwd))\support
- SUPPORTLIB := $(SUPPORT)\Lib\site-packages
- SRCPATH := $(shell cygpath -w $(shell pwd)/src)
- INNOSETUP := $(shell cygpath -au "$(PROGRAMFILES)/Inno Setup 5/Compil32.exe")
+	# The platform is Windows with cygwin build tools and the native Python interpreter.
+	SUPPORT = $(shell cygpath -w $(shell pwd))\support
+	SUPPORTLIB := $(SUPPORT)\Lib\site-packages
+	SRCPATH := $(shell cygpath -w $(shell pwd)/src)
+	INNOSETUP := $(shell cygpath -au "$(PROGRAMFILES)/Inno Setup 5/Compil32.exe")
 else
- PYVER=$(shell $(PYTHON) misc/pyver.py)
- SUPPORT = $(shell pwd)/support
- SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
- SRCPATH := $(shell pwd)/src
- CHECK_PYWIN32_DEP := 
+	PYVER=$(shell $(PYTHON) misc/pyver.py)
+	SUPPORT = $(shell pwd)/support
+	SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
+	SRCPATH := $(shell pwd)/src
+	CHECK_PYWIN32_DEP := 
 endif
 
 ifeq ($(PLAT),cygwin)
