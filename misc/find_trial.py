@@ -9,10 +9,10 @@ def find_exe(exename):
 
     This is a kludge.
 
-    @return: a list containing one element which is the path to the exename
-        (if it is thought to be executable), or else the first element being
-        sys.executable and the second element being the path to the
-        exename + ".py", or else return False if one can't be found
+    @return: a list containing one element which is the quoted path to the
+        exename (if it is thought to be executable), or else the first element
+        being quoted sys.executable and the second element being the quoted path
+        to the exename + ".py", or else return False if one can't be found
     """
     exes = which(exename)
     exe = exes and exes[0]
@@ -21,9 +21,9 @@ def find_exe(exename):
     if os.path.exists(exe):
         path, ext = os.path.splitext(exe)
         if ext.lower() in [".exe", ".bat",]:
-            cmd = [exe,]
+            cmd = ['"' + exe + '"',]
         else:
-            cmd = [sys.executable, exe,]
+            cmd = ['"' + sys.executable + '"', '"' + exe + '"',]
         return cmd
     else:
         return False
