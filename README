@@ -1,6 +1,8 @@
-Welcome to the Tahoe project, a secure, decentralized, fault-tolerant
+Welcome to the Tahoe project [1], a secure, decentralized, fault-tolerant
 filesystem.  All of the source code is available under a Free Software, Open
-Source licence.
+Source licence (or two).
 
 Please see docs/about.html for an introduction, docs/install.html for install
 instructions, docs/running.html for usage instructions.
+
+[1] http://allmydata.org

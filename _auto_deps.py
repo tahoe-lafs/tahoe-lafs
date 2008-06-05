@@ -1,5 +1,5 @@
 install_requires=["zfec >= 1.1.0",
-                  "foolscap >= 0.2.5",
+                  "foolscap[secure_connections] >= 0.2.8",
                   "simplejson >= 1.4",
 
                   # pycryptopp < 0.5 had a bug which, using a Microsoft
@@ -9,7 +9,7 @@ install_requires=["zfec >= 1.1.0",
                   "pycryptopp >= 0.5",
                   "nevow >= 0.6.0",
                   "zope.interface",
-                  "twisted >= 2.4.0",
+                  "Twisted >= 2.4.0",
 
                   # we require 0.6c8 to build, but can handle older versions
                   # to run

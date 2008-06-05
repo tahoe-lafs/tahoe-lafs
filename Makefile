@@ -22,7 +22,6 @@ ifeq ($(PLAT),win32)
  SUPPORT = $(shell cygpath -w $(shell pwd))\support
  SUPPORTLIB := $(SUPPORT)\Lib\site-packages
  SRCPATH := $(shell cygpath -w $(shell pwd)/src)
- CHECK_PYWIN32_DEP := check-pywin32-dep
  INNOSETUP := $(shell cygpath -au "$(PROGRAMFILES)/Inno Setup 5/Compil32.exe")
 else
  PYVER=$(shell $(PYTHON) misc/pyver.py)
@@ -48,8 +47,8 @@ else
         PP=PYTHONPATH="$(SUPPORTLIB)"
 endif
 
-TRIALCMD = $(shell $(PP) $(PYTHON) misc/find_trial.py)
-TRIAL=PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
+TRIALCMD = $(shell PATH=${PATH}:${PWD}/support/bin $(PP) $(PYTHON) misc/find_trial.py)
+TRIAL=PATH=${PATH}:${PWD}/support/bin PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 
 .PHONY: make-version build
 
@@ -113,7 +112,7 @@ endif
 
 # TESTING
 
-.PHONY: check-all-deps $(CHECK_PYWIN32_DEP) signal-error-deps signal-error-pywin32-dep test test-figleaf figleaf-output
+.PHONY: signal-error-deps test test-figleaf figleaf-output
 
 
 signal-error-deps:
@@ -124,37 +123,11 @@ signal-error-deps:
 	@echo
 	exit 1
 
-signal-error-pywin32-dep:
-	@echo
-	@echo
-	@echo "ERROR: the pywin32 dependency is not in place.  Please see docs/install.html for help on installing dependencies."
-	@echo
-	@echo
-	exit 1
-
-signal-error-pyopenssl-dep:
-	@echo
-	@echo
-	@echo "ERROR: the pyOpenSSL dependency is not in place (note that pyOpenSSL required OpenSSL).  Please see docs/install.html for help on installing dependencies."
-	@echo
-	@echo
-	exit 1
-
 check-auto-deps:
 	@$(PP) $(PYTHON) -c 'import _auto_deps ; _auto_deps.require_auto_deps()' || $(MAKE) signal-error-deps
 
-check-all-deps: check-deps check-auto-deps
-
-check-pywin32-dep:
-	@$(PP) $(PYTHON) -c 'import win32process' || $(MAKE) signal-error-pywin32-dep
-
-check-pyopenssl-dep:
-	@$(PP) $(PYTHON) -c 'import OpenSSL' || $(MAKE) signal-error-pyopenssl-dep
-
-check-deps: $(CHECK_PYWIN32_DEP) check-pyopenssl-dep
-
 .checked-deps:
-	$(MAKE) check-all-deps
+	$(MAKE) check-auto-deps
 	touch .checked-deps
 
 # you can use 'make test TEST=allmydata.test.test_introducer' to run just
