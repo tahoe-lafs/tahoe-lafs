@@ -101,6 +101,11 @@ def main(mountpoint, basedir):
     handler.loop_forever()
 
 if __name__ == '__main__':
-    [mountpoint] = sys.argv[1:]
     basedir = os.path.expanduser(TahoeConfigDir)
+    for i, arg in enumerate(sys.argv):
+        if arg == '--basedir':
+            basedir = sys.argv[i+1]
+            sys.argv[i:i+2] = []
+
+    [mountpoint] = sys.argv[1:]
     main(mountpoint, basedir)
