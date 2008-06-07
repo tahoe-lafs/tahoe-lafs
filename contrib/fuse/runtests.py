@@ -255,11 +255,11 @@ class SystemTest (object):
         return results
 
     def run_test_layer(self, fbcap, mp):
-        total = failures = 0
         testnames = [n for n in sorted(dir(self)) if n.startswith('test_')]
-        for name in testnames:
-            total += 1
-            print '\n*** Running test #%d: %s' % (total, name)
+
+        failures = 0
+        for testnum, name in enumerate(testnames):
+            print '\n*** Running test #%d: %s' % (testnum, name)
             try:
                 testcap = self.create_dirnode()
                 self.attach_node(fbcap, testcap, name)
@@ -274,7 +274,7 @@ class SystemTest (object):
                 print 'Error in test code...  Cleaning up.'
                 raise
 
-        return (failures, total)
+        return (failures, len(testnames))
 
 
     # Tests:
