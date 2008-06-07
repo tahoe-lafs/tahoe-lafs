@@ -102,9 +102,9 @@ class SystemTest (object):
         try:
             results = self.init_cli_layer()
             print '\n*** System Tests complete:'
-            for implpath, failures, total in reuslts:
-                print 'Implementation %r: %d failed out of %d.' % (implpath, failures, total)           
-        except self.SetupFailure, sfail:
+            for result in results:
+                print 'Implementation %s: %d failed out of %d.' % result           
+        except SetupFailure, sfail:
             print
             print sfail
             print '\n*** System Tests were not successfully completed.' 
