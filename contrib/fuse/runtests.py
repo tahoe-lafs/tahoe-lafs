@@ -245,7 +245,7 @@ class SystemTest (object):
                 print 'Unmounting implementation #%d' % (implnum,)
                 args = ['fusermount', '-u', mountpath]
                 ec, out = gather_output(args)
-                if exitcode != 0 or output:
+                if ec != 0 or out:
                     tmpl = 'fusermount failed to unmount:\n'
                     tmpl += 'Arguments: %r\n'
                     tmpl += 'Exit Status: %r\n'
