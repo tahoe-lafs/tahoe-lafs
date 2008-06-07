@@ -183,7 +183,8 @@ class SystemTest (object):
 
         introfurl = os.path.join(introbase, 'introducer.furl')
 
-        self.polling_operation(lambda : os.path.isfile(introfurl))
+        self.polling_operation(lambda : os.path.isfile(introfurl),
+                               'introducer.furl creation')
         shutil.copy(introfurl, base)
 
         # NOTE: We assume if tahoe exist with non-zero status, no separate
@@ -410,7 +411,7 @@ class SystemTest (object):
                                 replace = 'false')
         assert body.strip() == childcap, `status, dircap, childcap, childname`
 
-    def polling_operation(self, operation, timeout = 10.0, pollinterval = 0.2):
+    def polling_operation(self, operation, polldesc, timeout = 10.0, pollinterval = 0.2):
         totaltime = timeout # Fudging for edge-case SetupFailure description...
         
         totalattempts = int(timeout / pollinterval)
@@ -444,9 +445,10 @@ class SystemTest (object):
                 #print tmpl % (attempt+1, opdelay, realinterval)
                 time.sleep(realinterval)
 
-        tmpl = 'Timeout after waiting for creation of introducer.furl.\n'
+                
+        tmpl = 'Timeout while polling for: %s\n'
         tmpl += 'Waited %.2f seconds (%d polls).'
-        raise self.SetupFailure(tmpl, totaltime, attempt+1)
+        raise self.SetupFailure(tmpl, polldesc, totaltime, attempt+1)
 
     def warn(self, tmpl, *args):
         print ('Test Warning: ' + tmpl) % args
