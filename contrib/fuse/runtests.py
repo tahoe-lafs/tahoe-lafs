@@ -217,55 +217,37 @@ class SystemTest (object):
         results = []
 
         # Mount and test each implementation:
-        for implnum, implmod in enumerate([impl_a, impl_b]):
-            implpath = implmod.__file__
-            print '\n*** Mounting and Testing implementation #%d: %r' % (implnum, implpath)
+        for implnum, implmanklass in enumerate([Impl_A_ProcessManager, Impl_B_ProcessManager]):
+            implman = implmanklass(self.clientbase, mpbase)
+            print '\n*** Testing impl #%d: %r' % (implnum, implman.Name)
 
-            print 'Mounting implementation #%d: %r' % (implnum, implpath)
-            mountpath = os.path.join(mpbase, 'impl_%d' % (implnum,))
-            os.mkdir(mountpath)
-
-            exitcode, output = gather_output(['python',
-                                              implpath,
-                                              mountpath,
-                                              '--basedir', self.clientbase])
-
-            if exitcode != 0 or output:
-                tmpl = '%r failed to launch:\n'
-                tmpl += 'Exit Status: %r\n'
-                tmpl += 'Output:\n%s\n'
-                raise self.SetupFailure(tmpl, implpath, exitcode, output)
+            implman.setup()
 
             try:
-                failures, total = self.run_test_layer(fusebasecap, mountpath)
-                print '\n*** Test results for implementation %r: %d failed out of %d.' % (implpath, failures, total)           
-                results.append((implpath, failures, total))
+                failures, total = self.run_test_layer(fusebasecap, implman)
+                result = (implman.Name, failures, total)
+                tmpl = '\n*** Test Results implementation %s: %d failed out of %d.'
+                print tmpl % result
+                results.append(result)
 
             finally:
-                print 'Unmounting implementation #%d' % (implnum,)
-                args = ['fusermount', '-u', mountpath]
-                ec, out = gather_output(args)
-                if ec != 0 or out:
-                    tmpl = 'fusermount failed to unmount:\n'
-                    tmpl += 'Arguments: %r\n'
-                    tmpl += 'Exit Status: %r\n'
-                    tmpl += 'Output:\n%s\n'
-                    raise self.SetupFailure(tmpl, args, ec, out)
+                implman.cleanup()
 
         return results
 
-    def run_test_layer(self, fbcap, mp):
+    def run_test_layer(self, fbcap, iman):
         testnames = [n for n in sorted(dir(self)) if n.startswith('test_')]
 
         failures = 0
-        for testnum, name in enumerate(testnames):
-            print '\n*** Running test #%d: %s' % (testnum, name)
+        for testnum, testname in enumerate(testnames):
+            print '\n*** Running test #%d: %s' % (testnum, testname)
             try:
                 testcap = self.create_dirnode()
-                self.attach_node(fbcap, testcap, name)
+                dirname = '%s_%s' % (iman.Name, testname)
+                self.attach_node(fbcap, testcap, dirname)
                     
-                method = getattr(self, name)
-                method(testcap, testdir = os.path.join(mp, name))
+                method = getattr(self, testname)
+                method(testcap, testdir = os.path.join(iman.mountpath, dirname))
                 print 'Test succeeded.'
             except TestFailure, f:
                 print f
@@ -310,6 +292,7 @@ class SystemTest (object):
             
         listing = wrap_os_error(os.listdir, testdir)
         listing.sort()
+
         if listing != names:
             tmpl = 'Expected directory list containing %r but fuse gave %r'
             raise TestFailure(tmpl, names, listing)
@@ -483,6 +466,67 @@ class Impl_A_UnitTests (unittest.TestCase):
 
 
 ### Misc:
+class ImplProcessManager (object):
+    '''Subclasses must have Name and Mod class attributes.'''
+    def __init__(self, clientbase, mpbase):
+        self.clientbase = clientbase
+        self.mountpath = os.path.join(mpbase, self.Name)
+        self.script = self.Mod.__file__
+        os.mkdir(self.mountpath)
+
+    
+class Impl_A_ProcessManager (ImplProcessManager):
+    Name = 'impl_a'
+    Mod = impl_a
+    
+    def setup(self):
+        print 'Mounting implementation: %s' % (self.Name,)
+        exitcode, output = gather_output(['python',
+                                          self.script,
+                                          self.mountpath,
+                                          '--basedir', self.clientbase])
+
+        if exitcode != 0 or output:
+            tmpl = '%r failed to launch:\n'
+            tmpl += 'Exit Status: %r\n'
+            tmpl += 'Output:\n%s\n'
+            raise SetupFailure(tmpl, implpath, exitcode, output)
+
+    def cleanup(self):
+        print 'Unmounting implementation: %s' % (self.Name,)
+        args = ['fusermount', '-u', self.mountpath]
+        ec, out = gather_output(args)
+        if ec != 0 or out:
+            tmpl = 'fusermount failed to unmount:\n'
+            tmpl += 'Arguments: %r\n'
+            tmpl += 'Exit Status: %r\n'
+            tmpl += 'Output:\n%s\n'
+            raise SetupFailure(tmpl, args, ec, out)
+
+        
+class Impl_B_ProcessManager (ImplProcessManager):
+    Name = 'impl_b'
+    Mod = impl_b
+    
+    def setup(self):
+        print 'Mounting implementation: %s' % (self.Name,)
+        self.proc = subprocess.Popen(['python',
+                                      self.script,
+                                      self.mountpath,
+                                      '--basedir', self.clientbase])
+
+    def cleanup(self):
+        print 'Unmounting implementation: %s' % (self.Name,)
+        args = ['fusermount', '-u', self.mountpath]
+        ec, out = gather_output(args)
+        if ec != 0 or out:
+            tmpl = 'fusermount failed to unmount:\n'
+            tmpl += 'Arguments: %r\n'
+            tmpl += 'Exit Status: %r\n'
+            tmpl += 'Output:\n%s\n'
+            raise SetupFailure(tmpl, args, ec, out)
+
+        
 def gather_output(*args, **kwargs):
     '''
     This expects the child does not require input and that it closes
