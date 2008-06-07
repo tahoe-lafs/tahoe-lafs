@@ -27,16 +27,26 @@ import sys, os, shutil, unittest, subprocess
 import tempfile, re, time, signal, random, httplib
 import traceback
 
-import tahoe_fuse
+# Import fuse implementations:
+FuseDir = os.path.join('.', 'contrib', 'fuse')
+if not os.path.isdir(FuseDir):
+    raise SystemExit('''
+Could not find directory "%s".  Please run this script from the tahoe
+source base directory.
+''' % (FuseDir,))
+
+sys.path.append(os.path.join(FuseDir, 'impl_a'))
+import tahoe_fuse as impl_a
+
+sys.path.append(os.path.join(FuseDir, 'impl_b'))
+import pyfuse.tahoe as impl_b
 
 
 ### Main flow control:
-def main(args = sys.argv[1:]):
+def main(args = sys.argv):
     target = 'all'
-    if args:
-        if len(args) != 1:
-            raise SystemExit(Usage)
-        target = args[0]
+    if len(args) > 1:
+        target = args.pop(1)
 
     if target not in ('all', 'unit', 'system'):
         raise SystemExit(Usage)
@@ -90,8 +100,10 @@ class SystemTest (object):
         self.fullcleanup = fullcleanup
         print '\n*** Setting up system tests.'
         try:
-            failures, total = self.init_cli_layer()
-            print '\n*** System Tests complete: %d failed out of %d.' % (failures, total)           
+            results = self.init_cli_layer()
+            print '\n*** System Tests complete:'
+            for implpath, failures, total in reuslts:
+                print 'Implementation %r: %d failed out of %d.' % (implpath, failures, total)           
         except self.SetupFailure, sfail:
             print
             print sfail
@@ -99,17 +111,7 @@ class SystemTest (object):
 
     def init_cli_layer(self):
         '''This layer finds the appropriate tahoe executable.'''
-        runtestpath = os.path.abspath(sys.argv[0])
-        path = runtestpath
-        for expectedname in ('runtests.py', 'fuse_a', 'contrib'):
-            path, name = os.path.split(path)
-
-            if name != expectedname:
-                reason = 'Unexpected test script path: %r\n'
-                reason += 'The system test script must be run from the source directory.'
-                raise self.SetupFailure(reason, runtestpath)
-
-        self.cliexec = os.path.join(path, 'bin', 'tahoe')
+        self.cliexec = os.path.join('.', 'bin', 'tahoe')
         version = self.run_tahoe('--version')
         print 'Using %r with version:\n%s' % (self.cliexec, version.rstrip())
 
@@ -153,8 +155,8 @@ class SystemTest (object):
             self.stop_node(introbase)
         
     TotalClientsNeeded = 3
-    def launch_clients_layer(self, introbase, clientnum = 1):
-        if clientnum > self.TotalClientsNeeded:
+    def launch_clients_layer(self, introbase, clientnum = 0):
+        if clientnum >= self.TotalClientsNeeded:
             return self.create_test_dirnode_layer()
 
         tmpl = 'Launching client %d of %d.'
@@ -167,7 +169,7 @@ class SystemTest (object):
         self.check_tahoe_output(output, ExpectedCreationOutput, base)
 
         webportpath = os.path.join(base, 'webport')
-        if clientnum == 1:
+        if clientnum == 0:
             # The first client is special:
             self.clientbase = base
             self.port = random.randrange(1024, 2**15)
@@ -208,65 +210,68 @@ class SystemTest (object):
         return self.mount_fuse_layer(cap)
         
     def mount_fuse_layer(self, fusebasecap):
-        print 'Mounting fuse interface.'
+        mpbase = os.path.join(self.testroot, 'mountpoint')
+        os.mkdir(mpbase)
 
-        mp = os.path.join(self.testroot, 'mountpoint')
-        os.mkdir(mp)
+        results = []
 
-        thispath = os.path.abspath(sys.argv[0])
-        thisdir = os.path.dirname(thispath)
-        fusescript = os.path.join(thisdir, 'tahoe_fuse.py')
+        # Mount and test each implementation:
+        for implnum, implmod in enumerate([impl_a, impl_b]):
+            implpath = implmod.__file__
+            print '\n*** Mounting and Testing implementation #%d: %r' % (implnum, implpath)
 
-        # Even though --help says -f means "foreground operation",
-        # my version (ubuntu's python-fuse 1:0.2-pre3-3) still forks to
-        # the background...  So now we run tahoe_fuse.py and wait for
-        # the parent process to return.  We use fusermount -u to kill
-        # the forked daemon and unmount the test directory.
+            print 'Mounting implementation #%d: %r' % (implnum, implpath)
+            mountpath = os.path.join(mpbase, 'impl_%d' % (implnum,))
+            os.mkdir(mountpath)
 
-        exitcode, output = gather_output(['python',
-                                          fusescript,
-                                          mp,
-                                          '--basedir', self.clientbase])
+            exitcode, output = gather_output(['python',
+                                              implpath,
+                                              mountpath,
+                                              '--basedir', self.clientbase])
 
-        if exitcode != 0 or output:
-            tmpl = 'tahoe_fuse.py failed to launch:\n'
-            tmpl += 'Exit Status: %r\n'
-            tmpl += 'Output:\n%s\n'
-            raise self.SetupFailure(tmpl, exitcode, output)
-
-        try:
-            return self.run_test_layer(fusebasecap, mp)
-                
-        finally:
-            print '\n*** Cleaning fuse mount and daemon process'
-            args = ['fusermount', '-u', mp]
-            ec, out = gather_output(args)
             if exitcode != 0 or output:
-                tmpl = 'fusermount failed to unmount tahoe_fuse.py:\n'
-                tmpl += 'Arguments: %r\n'
+                tmpl = '%r failed to launch:\n'
                 tmpl += 'Exit Status: %r\n'
                 tmpl += 'Output:\n%s\n'
-                raise self.SetupFailure(tmpl, args, ec, out)
+                raise self.SetupFailure(tmpl, implpath, exitcode, output)
 
-    def run_test_layer(self, fbcap, mountpoint):
+            try:
+                failures, total = self.run_test_layer(fusebasecap, mountpath)
+                print '\n*** Test results for implementation %r: %d failed out of %d.' % (implpath, failures, total)           
+                results.append((implpath, failures, total))
+
+            finally:
+                print 'Unmounting implementation #%d' % (implnum,)
+                args = ['fusermount', '-u', mountpath]
+                ec, out = gather_output(args)
+                if exitcode != 0 or output:
+                    tmpl = 'fusermount failed to unmount:\n'
+                    tmpl += 'Arguments: %r\n'
+                    tmpl += 'Exit Status: %r\n'
+                    tmpl += 'Output:\n%s\n'
+                    raise self.SetupFailure(tmpl, args, ec, out)
+
+        return results
+
+    def run_test_layer(self, fbcap, mp):
         total = failures = 0
-        for name in sorted(dir(self)):
-            if name.startswith('test_'):
-                total += 1
-                print '\n*** Running test #%d: %s' % (total, name)
-                try:
-                    testcap = self.create_dirnode()
-                    self.attach_node(fbcap, testcap, name)
+        testnames = [n for n in sorted(dir(self)) if n.startswith('test_')]
+        for name in testnames:
+            total += 1
+            print '\n*** Running test #%d: %s' % (total, name)
+            try:
+                testcap = self.create_dirnode()
+                self.attach_node(fbcap, testcap, name)
                     
-                    method = getattr(self, name)
-                    method(testcap, testdir = os.path.join(mountpoint, name))
-                    print 'Test succeeded.'
-                except self.TestFailure, f:
-                    print f
-                    failures += 1
-                except:
-                    print 'Error in test code...  Cleaning up.'
-                    raise
+                method = getattr(self, name)
+                method(testcap, testdir = os.path.join(mp, name))
+                print 'Test succeeded.'
+            except self.TestFailure, f:
+                print f
+                failures += 1
+            except:
+                print 'Error in test code...  Cleaning up.'
+                raise
 
         return (failures, total)
 
@@ -461,7 +466,7 @@ class SystemTest (object):
             
 
 ### Unit Tests:
-class TestUtilFunctions (unittest.TestCase):
+class Impl_A_UnitTests (unittest.TestCase):
     '''Tests small stand-alone functions.'''
     def test_canonicalize_cap(self):
         iopairs = [('http://127.0.0.1:8123/uri/URI:DIR2:yar9nnzsho6czczieeesc65sry:upp1pmypwxits3w9izkszgo1zbdnsyk3nm6h7e19s7os7s6yhh9y',
@@ -470,7 +475,7 @@ class TestUtilFunctions (unittest.TestCase):
                     'URI:CHK:k7ktp1qr7szmt98s1y3ha61d9w:8tiy8drttp65u79pjn7hs31po83e514zifdejidyeo1ee8nsqfyy:3:12:242?filename=welcome.html')]
 
         for input, output in iopairs:
-            result = tahoe_fuse.canonicalize_cap(input)
+            result = impl_a.canonicalize_cap(input)
             self.failUnlessEqual(output, result, 'input == %r' % (input,))
                     
 
