@@ -267,7 +267,7 @@ class SystemTest (object):
                 method = getattr(self, name)
                 method(testcap, testdir = os.path.join(mp, name))
                 print 'Test succeeded.'
-            except self.TestFailure, f:
+            except TestFailure, f:
                 print f
                 failures += 1
             except:
@@ -279,13 +279,13 @@ class SystemTest (object):
 
     # Tests:
     def test_directory_existence(self, testcap, testdir):
-        if not os.path.isdir(testdir):
-            raise self.TestFailure('Attached test directory not found: %r', testdir)
+        if not wrap_os_error(os.path.isdir, testdir):
+            raise TestFailure('Attached test directory not found: %r', testdir)
             
     def test_empty_directory_listing(self, testcap, testdir):
         listing = os.listdir(testdir)
         if listing:
-            raise self.TestFailure('Expected empty directory, found: %r', listing)
+            raise TestFailure('Expected empty directory, found: %r', listing)
     
     def test_directory_listing(self, testcap, testdir):
         names = []
@@ -312,13 +312,13 @@ class SystemTest (object):
         listing.sort()
         if listing != names:
             tmpl = 'Expected directory list containing %r but fuse gave %r'
-            raise self.TestFailure(tmpl, names, listing)
+            raise TestFailure(tmpl, names, listing)
 
         for file, size in filesizes.items():
             st = os.stat(os.path.join(testdir, file))
             if st.st_size != size:
                 tmpl = 'Expected %r size of %r but fuse returned %r'
-                raise self.TestFailure(tmpl, file, size, st.st_size)
+                raise TestFailure(tmpl, file, size, st.st_size)
     
     def test_file_contents(self, testcap, testdir):
         name = 'hw.txt'
@@ -332,11 +332,11 @@ class SystemTest (object):
             found = open(path, 'r').read()
         except Exception, err:
             tmpl = 'Could not read file contents of %r: %r'
-            raise self.TestFailure(tmpl, path, err)
+            raise TestFailure(tmpl, path, err)
 
         if found != body:
             tmpl = 'Expected file contents %r but found %r'
-            raise self.TestFailure(tmpl, body, found)
+            raise TestFailure(tmpl, body, found)
         
             
     # Utilities:
@@ -349,7 +349,7 @@ class SystemTest (object):
             tmpl += 'Command arguments: %r\n'
             tmpl += 'Exit status: %r\n'
             tmpl += 'Output:\n%s\n[End of tahoe output.]\n'
-            raise self.SetupFailure(tmpl,
+            raise SetupFailure(tmpl,
                                     self.cliexec,
                                     realargs,
                                     status,
@@ -393,7 +393,7 @@ class SystemTest (object):
             tmpl += 'Request: %r %r\n'
             tmpl += 'Body:\n%s\n'
             tmpl += 'Response:\nStatus %r\nBody:\n%s'
-            raise self.SetupFailure(tmpl,
+            raise SetupFailure(tmpl,
                                     method, path,
                                     body or '',
                                     resp.status, body)
@@ -448,23 +448,23 @@ class SystemTest (object):
                 
         tmpl = 'Timeout while polling for: %s\n'
         tmpl += 'Waited %.2f seconds (%d polls).'
-        raise self.SetupFailure(tmpl, polldesc, totaltime, attempt+1)
+        raise SetupFailure(tmpl, polldesc, totaltime, attempt+1)
 
     def warn(self, tmpl, *args):
         print ('Test Warning: ' + tmpl) % args
 
 
-    # SystemTest Exceptions:
-    class Failure (Exception):
-        def __init__(self, tmpl, *args):
-            msg = self.Prefix + (tmpl % args)
-            Exception.__init__(self, msg)
+# SystemTest Exceptions:
+class Failure (Exception):
+    def __init__(self, tmpl, *args):
+        msg = self.Prefix + (tmpl % args)
+        Exception.__init__(self, msg)
     
-    class SetupFailure (Failure):
-        Prefix = 'Setup Failure - The test framework encountered an error:\n'
+class SetupFailure (Failure):
+    Prefix = 'Setup Failure - The test framework encountered an error:\n'
 
-    class TestFailure (Failure):
-        Prefix = 'TestFailure: '
+class TestFailure (Failure):
+    Prefix = 'TestFailure: '
             
 
 ### Unit Tests:
