@@ -283,7 +283,7 @@ class SystemTest (object):
             raise TestFailure('Attached test directory not found: %r', testdir)
             
     def test_empty_directory_listing(self, testcap, testdir):
-        listing = os.listdir(testdir)
+        listing = wrap_os_error(os.listdir, testdir)
         if listing:
             raise TestFailure('Expected empty directory, found: %r', listing)
     
@@ -308,14 +308,14 @@ class SystemTest (object):
 
         names.sort()
             
-        listing = os.listdir(testdir)
+        listing = wrap_os_error(os.listdir, testdir)
         listing.sort()
         if listing != names:
             tmpl = 'Expected directory list containing %r but fuse gave %r'
             raise TestFailure(tmpl, names, listing)
 
         for file, size in filesizes.items():
-            st = os.stat(os.path.join(testdir, file))
+            st = wrap_os_error(os.stat, os.path.join(testdir, file))
             if st.st_size != size:
                 tmpl = 'Expected %r size of %r but fuse returned %r'
                 raise TestFailure(tmpl, file, size, st.st_size)
@@ -496,6 +496,13 @@ def gather_output(*args, **kwargs):
     exitcode = p.wait()
     return (exitcode, output)
     
+
+def wrap_os_error(meth, *args):
+    try:
+        return meth(*args)
+    except os.error, e:
+        raise TestFailure('%s', e)
+
 
 ExpectedCreationOutput = r'(introducer|client) created in (?P<path>.*?)\n'
 ExpectedStartOutput = r'STARTING (?P<path>.*?)\n(introducer|client) node probably started'
