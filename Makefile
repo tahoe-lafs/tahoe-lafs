@@ -87,7 +87,22 @@ make-version:
 src/allmydata/_version.py:
 	$(MAKE) make-version
 
+# c.f. ticket #455, there is a problem in the intersection of setuptools,
+# twisted's setup.py, and nevow's setup.py . A Tahoe build, to satisfy its
+# dependencies, may try to build both Twisted and Nevow. If both of these
+# occur during the same invocation of 'setup.py develop', then the Nevow
+# build will fail with an "ImportError: No module named components". Running
+# the build a second time will succeed. Until there is a new version of
+# setuptools which properly sandboxes sys.modules (or a new version of nevow
+# which doesn't import twisted during its build, or a new version of twisted
+# which doesn't import itself during its build), we just build tahoe twice
+# and ignore the errors from the first pass.
+
 build: src/allmydata/_version.py
+	-$(MAKE) build-once
+	$(MAKE) build-once
+
+build-once:
 	mkdir -p "$(SUPPORTLIB)"
 	$(PP) $(PYTHON) ./setup.py develop --prefix="$(SUPPORT)"
 	chmod +x bin/tahoe
