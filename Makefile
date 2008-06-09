@@ -47,7 +47,7 @@ else
         PP=PYTHONPATH="$(SUPPORTLIB)"
 endif
 
-TRIALCMD = $(shell PATH=${PATH}:${PWD}/support/bin $(PP) $(PYTHON) misc/find_trial.py)
+TRIALCMD = $(shell PATH="${PATH}:${PWD}/support/bin" $(PP) $(PYTHON) misc/find_trial.py)
 TRIAL=PATH="${PATH}:${PWD}/support/bin" PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 
 .PHONY: make-version build
