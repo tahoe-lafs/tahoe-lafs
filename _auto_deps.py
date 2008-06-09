@@ -1,5 +1,5 @@
 install_requires=["zfec >= 1.1.0",
-                  "foolscap[secure_connections] >= 0.2.8",
+                  "foolscap >= 0.2.8",
                   "simplejson >= 1.4",
 
                   # pycryptopp < 0.5 had a bug which, using a Microsoft
