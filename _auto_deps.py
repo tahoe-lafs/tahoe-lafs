@@ -7,7 +7,7 @@ install_requires=["zfec >= 1.1.0",
                   # against certain older versions of Crypto++, would cause
                   # incorrect AES results.
                   "pycryptopp >= 0.5",
-                  "nevow >= 0.6.0",
+                  "Nevow >= 0.6.0",
                   "zope.interface",
                   "Twisted >= 2.4.0",
 
