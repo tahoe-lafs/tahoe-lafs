@@ -29,7 +29,7 @@ D: code
 
 N: Nathan Wilcox
 E: nejucomo@gmail.com
-D: unit tests, attack example, documentation, initial Linux FUSE interface
+D: unit tests, attack example, documentation, Linux FUSE interface
 
 N: Mike Booker
 D: documentation (README.win32)
@@ -40,3 +40,6 @@ D: make the provisioning page work in py2exe and py2app packages
 
 N: Paul Gerhardt
 D: don't emit "signal-error" to stdout when testing for error in make check-deps
+
+N: Armin Rigo
+D: Linux FUSE interface "b"
