@@ -1215,7 +1215,7 @@ class WriteBucketProxy:
         return self._rref.callRemote("close")
 
     def abort(self):
-        return self._rref.callRemote("abort")
+        return self._rref.callRemoteOnly("abort")
 
 class ReadBucketProxy:
     implements(IStorageBucketReader)
