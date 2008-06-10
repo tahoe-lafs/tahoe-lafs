@@ -261,6 +261,7 @@ class Server(unittest.TestCase):
         # while the buckets are open, they should not count as readable
         self.failUnlessEqual(ss.remote_get_buckets("vid"), {})
 
+        # close the buckets
         for i,wb in writers.items():
             wb.remote_write(0, "%25d" % i)
             wb.remote_close()
@@ -278,11 +279,10 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(set(writers.keys()), set([3,4]))
 
         # while those two buckets are open for writing, the server should
-        # tell new uploaders that they already exist (so that we don't try to
-        # upload into them a second time)
+        # refuse to offer them to uploaders
 
         already,writers = self.allocate(ss, "vid", [2,3,4,5], 75)
-        self.failUnlessEqual(already, set([0,1,2,3,4]))
+        self.failUnlessEqual(already, set([0,1,2]))
         self.failUnlessEqual(set(writers.keys()), set([5]))
 
     def test_sizelimits(self):
@@ -465,10 +465,18 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(writers), 5)
         already2,writers2 = ss.remote_allocate_buckets("si3", rs4, cs4,
                                                        sharenums, size, canary)
-        self.failUnlessEqual(len(already2), 5)
+        self.failUnlessEqual(len(already2), 0)
         self.failUnlessEqual(len(writers2), 0)
         for wb in writers.values():
             wb.remote_close()
+
+        leases = list(ss.get_leases("si3"))
+        self.failUnlessEqual(len(leases), 1)
+
+        already3,writers3 = ss.remote_allocate_buckets("si3", rs4, cs4,
+                                                       sharenums, size, canary)
+        self.failUnlessEqual(len(already3), 5)
+        self.failUnlessEqual(len(writers3), 0)
 
         leases = list(ss.get_leases("si3"))
         self.failUnlessEqual(len(leases), 2)

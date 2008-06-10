@@ -772,8 +772,7 @@ class StorageServer(service.MultiService, Referenceable):
         # they asked about: this will save them a lot of work. Add or update
         # leases for all of them: if they want us to hold shares for this
         # file, they'll want us to hold leases for this file.
-        for (shnum, fn) in chain(self._get_bucket_shares(storage_index),
-                                 self._get_incoming_shares(storage_index)):
+        for (shnum, fn) in self._get_bucket_shares(storage_index):
             alreadygot.add(shnum)
             sf = ShareFile(fn)
             sf.add_or_renew_lease(lease_info)
@@ -785,8 +784,14 @@ class StorageServer(service.MultiService, Referenceable):
         for shnum in sharenums:
             incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)
             finalhome = os.path.join(self.sharedir, si_dir, "%d" % shnum)
-            if os.path.exists(incominghome) or os.path.exists(finalhome):
+            if os.path.exists(finalhome):
                 # great! we already have it. easy.
+                pass
+            elif os.path.exists(incominghome):
+                # Note that we don't create BucketWriters for shnums that
+                # have a partial share (in incoming/), so if a second upload
+                # occurs while the first is still in progress, the second
+                # uploader will use different storage servers.
                 pass
             elif no_limits or remaining_space >= space_per_bucket:
                 # ok! we need to create the new share file.
