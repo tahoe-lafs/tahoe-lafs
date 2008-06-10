@@ -1,79 +1,83 @@
 = Known Issues =
 
-Below is a list of known issues in recent releases of Tahoe, and how to manage
-them.
+Below is a list of known issues in recent releases of Tahoe, and how
+to manage them.
 
 
 == issues in Tahoe v1.1.0, released 2008-06-10 ==
 
 === issue 1: server out of space when writing mutable file ===
 
-If a v1.0 or v1.1.0 storage server runs out of disk space then its attempts to
-write data to the local filesystem will fail.  For immutable files, this will
-not lead to any problem (the attempt to upload that share to that server will
-fail, the partially uploaded share will be deleted from the storage server's
-"incoming shares" directory, and the client will move on to using another
-storage server instead).
+If a v1.0 or v1.1.0 storage server runs out of disk space then its
+attempts to write data to the local filesystem will fail.  For
+immutable files, this will not lead to any problem (the attempt to
+upload that share to that server will fail, the partially uploaded
+share will be deleted from the storage server's "incoming shares"
+directory, and the client will move on to using another storage server
+instead).
 
-If the write was an attempt to modify an existing mutable file, however, a
-problem will result: when the attempt to write the new share fails due to
-insufficient disk space, then it will be aborted and the old share will be left
-in place.  If enough such old shares are left, then a subsequent read may get
-those old shares and see the file in its earlier state, which is a "rollback"
-failure.  With the default parameters (3-of-10), six old shares will be enough
-to potentially lead to a rollback failure.
+If the write was an attempt to modify an existing mutable file,
+however, a problem will result: when the attempt to write the new
+share fails due to insufficient disk space, then it will be aborted
+and the old share will be left in place.  If enough such old shares
+are left, then a subsequent read may get those old shares and see the
+file in its earlier state, which is a "rollback" failure.  With the
+default parameters (3-of-10), six old shares will be enough to
+potentially lead to a rollback failure.
 
 ==== how to manage it ====
 
-Make sure your Tahoe storage servers don't run out of disk space.  This means
-refusing storage requests before the disk fills up. There are a couple of ways
-to do that with v1.1.
+Make sure your Tahoe storage servers don't run out of disk space.
+This means refusing storage requests before the disk fills up. There
+are a couple of ways to do that with v1.1.
 
-First, there is a configuration option named "sizelimit" which will cause the
-storage server to do a "du" style recursive examination of its directories at
-startup, and then if the sum of the size of files found therein is greater than
-the "sizelimit" number, it will reject requests by clients to write new
-immutable shares.
+First, there is a configuration option named "sizelimit" which will
+cause the storage server to do a "du" style recursive examination of
+its directories at startup, and then if the sum of the size of files
+found therein is greater than the "sizelimit" number, it will reject
+requests by clients to write new immutable shares.
 
-However, that can take a long time (something on the order of a minute of
-examination of the filesystem for each 10 GB of data stored in the Tahoe
-server), and the Tahoe server will be unavailable to clients during that time.
+However, that can take a long time (something on the order of a minute
+of examination of the filesystem for each 10 GB of data stored in the
+Tahoe server), and the Tahoe server will be unavailable to clients
+during that time.
 
-Another option is to set the "readonly_storage" configuration option on the
-storage server before startup.  This will cause the storage server to reject
-all requests to upload new immutable shares.
+Another option is to set the "readonly_storage" configuration option
+on the storage server before startup.  This will cause the storage
+server to reject all requests to upload new immutable shares.
 
-Note that neither of these configurations affect mutable shares: even if
-sizelimit is configured and the storage server currently has greater space used
-than allowed, or even if readonly_storage is configured, servers will continue
-to accept new mutable shares and will continue to accept requests to overwrite
-existing mutable shares.
+Note that neither of these configurations affect mutable shares: even
+if sizelimit is configured and the storage server currently has
+greater space used than allowed, or even if readonly_storage is
+configured, servers will continue to accept new mutable shares and
+will continue to accept requests to overwrite existing mutable shares.
 
-Mutable files are typically used only for directories, and are usually much
-smaller than immutable files, so if you use one of these configurations to stop
-the influx of immutable files while there is still sufficient disk space to
-receive an influx of (much smaller) mutable files, you may be able to avoid the
-potential for "rollback" failure.
+Mutable files are typically used only for directories, and are usually
+much smaller than immutable files, so if you use one of these
+configurations to stop the influx of immutable files while there is
+still sufficient disk space to receive an influx of (much smaller)
+mutable files, you may be able to avoid the potential for "rollback"
+failure.
 
 A future version of Tahoe will include a fix for this issue.  Here is
-[http://allmydata.org/pipermail/tahoe-dev/2008-May/000630.html the mailing list
-discussion] about how that future version will work.
+[http://allmydata.org/pipermail/tahoe-dev/2008-May/000630.html the
+mailing list discussion] about how that future version will work.
 
 
 == issues in Tahoe v1.1.0 and v1.0.0 ==
 
-=== issue 2: pyOpenSSL and/or Twisted defect resulting false alarms in the unit tests ===
+=== issue 2: pyOpenSSL/Twisted defect causes false alarms in tests ===
 
-The combination of Twisted v8 and pyOpenSSL v0.7 causes the Tahoe v1.1 unit
-tests to fail, even though the behavior of Tahoe itself which is being tested is
-correct.
+The combination of Twisted v8 and pyOpenSSL v0.7 causes the Tahoe v1.1
+unit tests to fail, even though the behavior of Tahoe itself which is
+being tested is correct.
 
 ==== how to manage it ====
 
-If you are using Twisted v8 and pyOpenSSL v0.7, then please ignore the ERROR
-"Reactor was unclean" in test_system and test_introducer.  Downgrading to an
-older version of Twisted or pyOpenSSL will cause those false alarms to stop
-happening.
+If you are using Twisted v8 and pyOpenSSL v0.7, then please ignore
+ERROR "Reactor was unclean" in test_system and test_introducer.
+Downgrading to an older version of Twisted or pyOpenSSL will cause
+those false alarms to stop happening.
 
 
 == issues in Tahoe v1.0.0, released 2008-03-25 ==
@@ -82,73 +86,79 @@ happening.
 
 === issue 3: server out of space when writing mutable file ===
 
-In addition to the problems caused by insufficient disk space described above,
-v1.0 clients which are writing mutable files when the servers fail to write to
-their filesystem are likely to think the write succeeded, when it in fact
-failed. This can cause data loss.
+In addition to the problems caused by insufficient disk space
+described above, v1.0 clients which are writing mutable files when the
+servers fail to write to their filesystem are likely to think the
+write succeeded, when it in fact failed. This can cause data loss.
 
 ==== how to manage it ====
 
-Upgrade client to v1.1, or make sure that servers are always able to write to
-their local filesystem (including that there is space available) as described in
-"issue 1" above.
+Upgrade client to v1.1, or make sure that servers are always able to
+write to their local filesystem (including that there is space
+available) as described in "issue 1" above.
 
 
 === issue 4: server out of space when writing immutable file ===
 
-Tahoe v1.0 clients are using v1.0 servers which are unable to write to their
-filesystem during an immutable upload will correctly detect the first failure,
-but if they retry the upload without restarting the client, or if another client
-attempts to upload the same file, the second upload may appear to succeed when
-it hasn't, which can lead to data loss.
+Tahoe v1.0 clients are using v1.0 servers which are unable to write to
+their filesystem during an immutable upload will correctly detect the
+first failure, but if they retry the upload without restarting the
+client, or if another client attempts to upload the same file, the
+second upload may appear to succeed when it hasn't, which can lead to
+data loss.
 
 ==== how to manage it ====
 
-Upgrading either or both of the client and the server to v1.1 will fix this
-issue.  Also it can be avoided by ensuring that the servers are always able to
-write to their local filesystem (including that there is space available) as
-described in "issue 1" above.
+Upgrading either or both of the client and the server to v1.1 will fix
+this issue.  Also it can be avoided by ensuring that the servers are
+always able to write to their local filesystem (including that there
+is space available) as described in "issue 1" above.
 
 
-=== issue 5: large directories or mutable files in a specific range of sizes ===
+=== issue 5: large directories or mutable files of certain sizes ===
 
-If a client attempts to upload a large mutable file with a size greater than
-about 3,139,000 and less than or equal to 3,500,000 bytes then it will fail but
-appear to succeed, which can lead to data loss.
+If a client attempts to upload a large mutable file with a size
+greater than about 3,139,000 and less than or equal to 3,500,000 bytes
+then it will fail but appear to succeed, which can lead to data loss.
 
-(Mutable files larger than 3,500,000 are refused outright).  The symptom of the
-failure is very high memory usage (3 GB of memory) and 100% CPU for about 5
-minutes, before it appears to succeed, although it hasn't.
+(Mutable files larger than 3,500,000 are refused outright).  The
+symptom of the failure is very high memory usage (3 GB of memory) and
+100% CPU for about 5 minutes, before it appears to succeed, although
+it hasn't.
 
-Directories are stored in mutable files, and a directory of approximately 9000
-entries may fall into this range of mutable file sizes (depending on the size of
-the filenames or other metadata associated with the entries).
+Directories are stored in mutable files, and a directory of
+approximately 9000 entries may fall into this range of mutable file
+sizes (depending on the size of the filenames or other metadata
+associated with the entries).
 
 ==== how to manage it ====
 
-This was fixed in v1.1, under ticket #379.  If the client is upgraded to v1.1,
-then it will fail cleanly instead of falsely appearing to succeed when it tries
-to write a file whose size is in this range.  If the server is also upgraded to
-v1.1, then writes of mutable files whose size is in this range will succeed.
-(If the server is upgraded to v1.1 but the client is still v1.0 then the client
-will still suffer this failure.)
+This was fixed in v1.1, under ticket #379.  If the client is upgraded
+to v1.1, then it will fail cleanly instead of falsely appearing to
+succeed when it tries to write a file whose size is in this range.  If
+the server is also upgraded to v1.1, then writes of mutable files
+whose size is in this range will succeed.  (If the server is upgraded
+to v1.1 but the client is still v1.0 then the client will still suffer
+this failure.)
 
 
 === issue 6: pycryptopp defect resulting in data corruption ===
 
-Versions of pycryptopp earlier than pycryptopp-0.5.0 had a defect which, when
-compiled with some compilers, would cause AES-256 encryption and decryption to
-be computed incorrectly.  This could cause data corruption.  Tahoe v1.0
-required, and came with a bundled copy of, pycryptopp v0.3.
+Versions of pycryptopp earlier than pycryptopp-0.5.0 had a defect
+which, when compiled with some compilers, would cause AES-256
+encryption and decryption to be computed incorrectly.  This could
+cause data corruption.  Tahoe v1.0 required, and came with a bundled
+copy of, pycryptopp v0.3.
 
 ==== how to manage it ====
 
-You can detect whether pycryptopp-0.3 has this failure when it is compiled by
-your compiler.  Run the unit tests that come with pycryptopp-0.3: unpack the
-"pycryptopp-0.3.tar" file that comes in the Tahoe v1.0 {{{misc/dependencies}}}
-directory, cd into the resulting {{{pycryptopp-0.3.0}}} directory, and execute
-{{{python ./setup.py test}}}.  If the tests pass, then your compiler does not
-trigger this failure.
+You can detect whether pycryptopp-0.3 has this failure when it is
+compiled by your compiler.  Run the unit tests that come with
+pycryptopp-0.3: unpack the "pycryptopp-0.3.tar" file that comes in the
+Tahoe v1.0 {{{misc/dependencies}}} directory, cd into the resulting
+{{{pycryptopp-0.3.0}}} directory, and execute {{{python ./setup.py
+test}}}.  If the tests pass, then your compiler does not trigger this
+failure.
 
-Tahoe v1.1 requires, and comes with a bundled copy of, pycryptopp v0.5.1, which
-does not have this defect.
+Tahoe v1.1 requires, and comes with a bundled copy of, pycryptopp
+v0.5.1, which does not have this defect.
