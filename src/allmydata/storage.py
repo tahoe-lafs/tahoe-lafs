@@ -1,6 +1,5 @@
 import os, re, weakref, stat, struct, time
 from distutils.version import LooseVersion
-from itertools import chain
 
 from foolscap import Referenceable
 from twisted.application import service
