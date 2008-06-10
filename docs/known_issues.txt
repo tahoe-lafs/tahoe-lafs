@@ -64,15 +64,16 @@ discussion] about how that future version will work.
 
 === issue 2: pyOpenSSL and/or Twisted defect resulting false alarms in the unit tests ===
 
-The combination of Twisted v8.1.0 and pyOpenSSL v0.7 causes the Tahoe v1.1 unit
+The combination of Twisted v8 and pyOpenSSL v0.7 causes the Tahoe v1.1 unit
 tests to fail, even though the behavior of Tahoe itself which is being tested is
 correct.
 
 ==== how to manage it ====
 
-If you are using Twisted v8.1.0 and pyOpenSSL v0.7, then please ignore XYZ in
-XYZ.  Downgrading to an older version of Twisted or pyOpenSSL will cause those
-false alarms to stop happening.
+If you are using Twisted v8 and pyOpenSSL v0.7, then please ignore the ERROR
+"Reactor was unclean" in test_system and test_introducer.  Downgrading to an
+older version of Twisted or pyOpenSSL will cause those false alarms to stop
+happening.
 
 
 == issues in Tahoe v1.0.0, released 2008-03-25 ==
