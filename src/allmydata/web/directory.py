@@ -367,7 +367,7 @@ class DirectoryAsHTML(rend.Page):
     # The remainder of this class is to render the directory into
     # human+browser -oriented HTML.
     docFactory = getxmlfile("directory.xhtml")
-    #addSlash = True
+    addSlash = True
 
     def __init__(self, node):
         rend.Page.__init__(self)
