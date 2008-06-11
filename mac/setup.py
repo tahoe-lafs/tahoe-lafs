@@ -39,7 +39,7 @@ py2app_options = {
     }
 
 setup_args = {
-    'name': 'Allmydata Tahoe',
+    'name': 'Allmydata',
     'description': 'The various parts of the Allmydata Tahoe system',
     'author': 'Allmydata, Inc.',
     'app': [ 'allmydata_tahoe.py' ],

@@ -166,7 +166,7 @@ class App(object):
             tahoe_path = path_candidate + '/tahoe'
             try:
                 print 'trying to install "%s"' % (tahoe_path,)
-                bin_path = (sys.executable[:-6] + 'Allmydata Tahoe').replace(' ', '\\ ')
+                bin_path = (sys.executable[:-6] + 'Allmydata')
                 script = TAHOE_SCRIPT % { 'exe': bin_path }
                 f = file(tahoe_path, 'wb')
                 f.write(script)
@@ -192,7 +192,7 @@ MOUNT_ID = wx.NewId()
 
 class SplashFrame(wx.Frame):
     def __init__(self):
-        wx.Frame.__init__(self, None, -1, 'Allmydata Tahoe')
+        wx.Frame.__init__(self, None, -1, 'Allmydata')
 
         self.SetSizeHints(100, 100, 600, 800)
         self.SetIcon(amdicon.getIcon())
@@ -221,7 +221,7 @@ class SplashPanel(wx.Panel):
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.label = wx.StaticText(self, -1, 'Allmydata Tahoe')
+        self.label = wx.StaticText(self, -1, 'Allmydata')
         font = self.label.GetFont()
         font.SetPointSize(26)
         self.label.SetFont(font)
@@ -238,7 +238,7 @@ class SplashPanel(wx.Panel):
 
 class MountFrame(wx.Frame):
     def __init__(self, app):
-        wx.Frame.__init__(self, None, -1, 'Allmydata Tahoe Mount Filesystem')
+        wx.Frame.__init__(self, None, -1, 'Allmydata Mount Filesystem')
 
         self.SetSizeHints(100, 100, 600, 800)
         self.SetIcon(amdicon.getIcon())
@@ -270,7 +270,7 @@ class MountPanel(wx.Panel):
 
         self.caps = self.find_dir_caps()
 
-        self.label = wx.StaticText(self, -1, 'Allmydata Tahoe Mount Filesystem')
+        self.label = wx.StaticText(self, -1, 'Allmydata Mount Filesystem')
         self.mnt_label = wx.StaticText(self, -1, 'Mount')
         self.cap_choice = wx.Choice(self, -1, (120, 64), choices=self.caps.keys())
         root_dir = self.cap_choice.FindString('root_dir')
@@ -339,12 +339,12 @@ class MountPanel(wx.Panel):
     def do_mount(self, cap_name, mountpoint):
         log.msg('do_mount(%r, %r)' % (cap_name, mountpoint))
         log.msg('sys.exec = %r' % (sys.executable,))
-        if not sys.executable.endswith('Tahoe.app/Contents/MacOS/python'):
-            log.msg("can't find tahoe.app: sys.executable = %r" % (sys.executable,))
-            wx.MessageBox("Can't determine location of Allmydata Tahoe.app")
+        if not sys.executable.endswith('Allmydata.app/Contents/MacOS/python'):
+            log.msg("can't find allmydata.app: sys.executable = %r" % (sys.executable,))
+            wx.MessageBox("Can't determine location of Allmydata.app")
             self.parent.parent.Show(False)
             return
-        bin_path = sys.executable[:-6] + 'Allmydata Tahoe'
+        bin_path = sys.executable[:-6] + 'Allmydata'
         log.msg('%r exists: %r' % (bin_path, os.path.exists(bin_path),))
 
         foptions = []
@@ -406,7 +406,7 @@ class MacGuiApp(wx.App):
 
     def setup_dock_icon(self):
         self.tbicon = wx.TaskBarIcon()
-        #self.tbicon.SetIcon(amdicon.getIcon(), "Allmydata Tahoe")
+        #self.tbicon.SetIcon(amdicon.getIcon(), "Allmydata")
         wx.EVT_TASKBAR_RIGHT_UP(self.tbicon, self.on_dock_menu)
 
     def setup_app_menu(self, frame):
