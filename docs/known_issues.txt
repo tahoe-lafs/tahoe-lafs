@@ -142,7 +142,22 @@ to v1.1 but the client is still v1.0 then the client will still suffer
 this failure.)
 
 
-=== issue 6: pycryptopp defect resulting in data corruption ===
+=== issue 6: uploading files greater than 12 GiB ===
+
+If a Tahoe v1.0 client uploads a file greater than 12 GiB in size, the file will
+be silently corrupted so that it is not retrievable, but the client will think
+that it succeeded.  This is a "data loss" failure.
+
+==== how to manage it ====
+
+Don't upload files larger than 12 GiB.  If you have previously uploaded files of
+that size, assume that they have been corrupted and are not retrievable from the
+Tahoe storage grid.  Tahoe v1.1 clients will refuse to upload files larger than
+12 GiB with a clean failure.  A future release of Tahoe will remove this
+limitation so that larger files can be uploaded.
+
+
+=== issue 7: pycryptopp defect resulting in data corruption ===
 
 Versions of pycryptopp earlier than pycryptopp-0.5.0 had a defect
 which, when compiled with some compilers, would cause AES-256
@@ -161,7 +176,7 @@ test}}}.  If the tests pass, then your compiler does not trigger this
 failure.
 
 
-=== issue 7: potential disclosure of a file through embedded
+=== issue 8: potential disclosure of a file through embedded
 hyperlinks or JavaScript in that file ===
 
 If there is a file stored on a Tahoe storage grid, and that file gets
