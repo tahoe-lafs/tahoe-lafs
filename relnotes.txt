@@ -17,16 +17,6 @@ that it offers is visible at:
 http://allmydata.org/source/tahoe/trunk/docs/about.html
 
 
-This is the second release in the version 1 series.  We believe that
-this version of Tahoe is stable enough to rely on as a permanent store
-of valuable data.  The version 1 branch of Tahoe will be actively
-supported and maintained for the forseeable future, and future
-versions of Tahoe will retain the ability to read files and
-directories produced by Tahoe v1 for the forseeable future.
-
-The version 1 branch of Tahoe is used as the basis of the consumer
-backup product from Allmydata, Inc. -- http://allmydata.com .
-
 This is the successor to Allmydata.org "Tahoe" Least Authority
 Filesystem v1.0, which was released March 25, 2008 [1].  This release
 fixes several serious issues in Tahoe v1.0, and improves the user
@@ -36,10 +26,20 @@ for details.
 
 COMPATIBILITY
 
+The version 1 branch of Tahoe is used as the basis of the consumer
+backup product from Allmydata, Inc. -- http://allmydata.com .
+
 Tahoe v1.1 is fully compatible with Tahoe v1.0.  v1.1 clients produce
 files which can be read by v1.0 clients.  v1.1 clients can read files
 produced by clients of all versions >= v0.8.  v1.1 servers can serve
 v1.0 clients and v1.1 clients can use v1.0 servers.
+
+This is the second release in the version 1 series.  We believe that
+this version of Tahoe is stable enough to rely on as a permanent store
+of valuable data.  The version 1 branch of Tahoe will be actively
+supported and maintained for the forseeable future, and future
+versions of Tahoe will retain the ability to read files and
+directories produced by Tahoe v1 for the forseeable future.
 
 
 WHAT IS IT GOOD FOR?
