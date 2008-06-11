@@ -1,17 +1,17 @@
-User visible changes in Tahoe.                                   -*- outline -*-
+User visible changes in Tahoe.  -*- outline -*-
 
-* Release 1.1.0 (11-Jun-2008)
+* Release 1.1.0 (2008-06-11)
 
 ** CLI: new "alias" model
 
 The new CLI code uses an scp/rsync -like interface, in which directories in
-the Tahoe virtual drive are referenced by a colon-suffixed alias. The new
+the Tahoe storage grid are referenced by a colon-suffixed alias. The new
 commands look like:
  tahoe cp local.txt tahoe:virtual.txt
  tahoe ls work:subdir
 
 More functionality is available through the CLI: creating unlinked files and
-directories, recursive copy in or out of the virtual drive, hardlinks, and
+directories, recursive copy in or out of the storage grid, hardlinks, and
 retrieving the raw read- or write- caps through the 'ls' command. Please read
 docs/CLI.txt for complete details.
 
