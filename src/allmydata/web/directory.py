@@ -500,7 +500,7 @@ class DirectoryAsHTML(rend.Page):
 
         elif IDirectoryNode.providedBy(target):
             # directory
-            uri_link = "/uri/" + urllib.quote(target.get_uri())
+            uri_link = "/uri/" + urllib.quote(target.get_uri()) + "/"
             ctx.fillSlots("filename",
                           T.a(href=uri_link)[html.escape(name)])
             if target.is_readonly():
