@@ -8,22 +8,22 @@ to manage them.
 
 === issue 1: server out of space when writing mutable file ===
 
-If a v1.0 or v1.1.0 storage server runs out of disk space then its
-attempts to write data to the local filesystem will fail.  For
-immutable files, this will not lead to any problem (the attempt to
-upload that share to that server will fail, the partially uploaded
-share will be deleted from the storage server's "incoming shares"
-directory, and the client will move on to using another storage server
-instead).
+If a v1.0 or v1.1.0 storage server runs out of disk space or is
+otherwise unable to write to its local filesystem, then problems can
+ensue.  For immutable files, this will not lead to any problem (the
+attempt to upload that share to that server will fail, the partially
+uploaded share will be deleted from the storage server's "incoming
+shares" directory, and the client will move on to using another
+storage server instead).
 
 If the write was an attempt to modify an existing mutable file,
 however, a problem will result: when the attempt to write the new
-share fails due to insufficient disk space, then it will be aborted
-and the old share will be left in place.  If enough such old shares
-are left, then a subsequent read may get those old shares and see the
-file in its earlier state, which is a "rollback" failure.  With the
-default parameters (3-of-10), six old shares will be enough to
-potentially lead to a rollback failure.
+share fails (e.g. due to insufficient disk space), then it will be
+aborted and the old share will be left in place.  If enough such old
+shares are left, then a subsequent read may get those old shares and
+see the file in its earlier state, which is a "rollback" failure.
+With the default parameters (3-of-10), six old shares will be enough
+to potentially lead to a rollback failure.
 
 ==== how to manage it ====
 
