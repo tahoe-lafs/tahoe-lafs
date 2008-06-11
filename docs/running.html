@@ -29,24 +29,24 @@
     create a node.</p>
 
     <p>To construct an introducer, create a new base directory for it (the name
-    of the directory is up to you), cd into it, and run "<cite><bold>path-to-the-tahoe-bin-directory</bold>/tahoe
+    of the directory is up to you), cd into it, and run "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
     create-introducer .</cite>". Now start the introducer by running "<cite>tahoe
     start .</cite>". After it starts, there will be a file named
     <cite>introducer.furl</cite> in that base directory. This file contains
     the URL the nodes must use in order to connect to this
     introducer.</p>
 
-    <p>To construct a node run "<cite><bold>path-to-the-tahoe-bin-directory</bold>/tahoe create-client</cite>", which will
+    <p>To construct a node run "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe create-client</cite>", which will
     create <cite>~/.tahoe</cite> to be the node's base directory. Acquire a copy
     of the <cite>introducer.furl</cite> from the introducer and put it into this
-    directory, then run "<cite>tahoe start</cite>". After that, the node should
+    directory, then run "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe start</cite>". After that, the node should
     be off and running. The first thing it will do is connect to the introducer
     and get itself connected to all other nodes on the grid.  By default, a node
     will serve as a Storage Server, meaning that it offers its disk space to
     other nodes.  To configure other behavior,
     see <a href="configuration.txt">configuration.txt</a>.</p>
 
-    <p>To stop a running node run "<cite>tahoe stop</cite>".</p>
+    <p>To stop a running node run "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe stop</cite>".</p>
 
     <h2>Do Stuff With It</h2>
 
