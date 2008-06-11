@@ -91,7 +91,7 @@ local one.
 These commands also use a table of "aliases" to figure out which directory
 they ought to use a starting point. This is explained in more detail below.
 
-=== Root Directories ===
+=== Starting Directories ===
 
 As described in architecture.txt, the Tahoe distributed filesystem consists
 of a collection of directories and files, each of which has a "read-cap" or a
@@ -100,20 +100,26 @@ a name to a child file or directory, and this table is turned into a string
 and stored in a mutable file. The whole set of directory and file "nodes" are
 connected together into a directed graph.
 
-To treat this collection of dirnodes as a regular filesystem, you just need
-to choose a starting point: some specific directory that you refer to as your
-"root directory". We then refer to everything that can be reached from this
-starting point as your "personal filesystem". The "ls" command would list the
-contents of this root directory, the "ls dir1" command would look inside the
-root for a child named "dir1" and list its contents, "ls dir1/subdir2" would
-look two levels deep, etc. Note that there is no real global "root"
-directory, but instead each user's personal filesystem has a root that they
-use as a starting point for all their operations.
+To use this collection of files and directories, you need to choose a
+starting point: some specific directory that we will refer to as a
+"starting directory".  For a given starting directory, the "ls
+[STARTING_DIR]:" command would list the contents of this directory,
+the "ls [STARTING_DIR]:dir1" command would look inside this directory
+for a child named "dir1" and list its contents, "ls
+[STARTING_DIR]:dir1/subdir2" would look two levels deep, etc.
 
-In fact, each tahoe node remembers a list of starting points, named
-"aliases", in a file named ~/.tahoe/private/aliases . These aliases are short
-strings that stand in for a directory read- or write- cap. The default
-starting point uses an alias named "tahoe:".
+Note that there is no real global "root" directory, but instead each
+starting directory provides a different, possibly overlapping
+perspective on the graph of files and directories.
+
+Each tahoe node remembers a list of starting points, named "aliases",
+in a file named ~/.tahoe/private/aliases . These aliases are short
+strings that stand in for a directory read- or write- cap. If you use
+the command line "ls" without any "[STARTING_DIR]:" argument, then it
+will use the default alias, which is "tahoe", therefore "tahoe ls" has
+the same effect as "tahoe ls tahoe:".  The same goes for the other
+commands which can reasonably use a default alias: get, put, mkdir,
+mv, and rm.
 
 For backwards compatibility with Tahoe-1.0, if the "tahoe": alias is not
 found in ~/.tahoe/private/aliases, the CLI will use the contents of
@@ -122,20 +128,20 @@ point, and stored it in this root_dir.cap file, so Tahoe-1.1 will use it if
 necessary. However, once you've set a "tahoe:" alias with "tahoe set-alias",
 that will override anything in the old root_dir.cap file.
 
-The Tahoe CLI commands use the same filename syntax as scp and rsync: an
-optional "alias:" prefix, followed by the pathname or filename. Many commands
-have arguments which supply a default tahoe: alias if you don't provide one
-yourself, but it is always safe to supply the alias. Some commands (like
-"tahoe cp") use the lack of an alias to mean that you want to refer to a
-local file, instead of something from the tahoe virtual filesystem. [TODO]
-Another way to indicate this is to start the pathname with a dot, slash, or
-tilde.
+The Tahoe CLI commands use the same filename syntax as scp and rsync
+-- an optional "alias:" prefix, followed by the pathname or filename.
+Some commands (like "tahoe cp") use the lack of an alias to mean that
+you want to refer to a local file, instead of something from the tahoe
+virtual filesystem. [TODO] Another way to indicate this is to start
+the pathname with a dot, slash, or tilde.
 
-When you're dealing with your own personal filesystem, the "tahoe:" alias is
-all you need. But when you want to refer to something that isn't yet attached
-to your virtual drive, you need to refer to it by its URI. The way to do that
-is to add an alias to it, with the "tahoe add-alias" command. Once you've
-added an alias, you can use that alias as a prefix to the other commands.
+When you're dealing a single starting directory, the "tahoe:" alias is
+all you need. But when you want to refer to something that isn't yet
+attached to the graph rooted at that starting directory, you need to
+refer to it by its capability. The way to do that is either to use its
+capability directory as an argument on the command line, or to add an
+alias to it, with the "tahoe add-alias" command. Once you've added an
+alias, you can use that alias as an argument to commands.
 
 The best way to get started with Tahoe is to create a node, start it, then
 use the following command to create a new directory and set it as your
@@ -168,10 +174,14 @@ tahoe mkdir
  This creates a new empty unlinked directory, and prints its write-cap to
  stdout. The new directory is not attached to anything else.
 
-tahoe add-alias work DIRCAP
+tahoe add-alias fun DIRCAP
 
- This create an alias "work:" and configures it to use the given directory
- cap. Once this is done, "tahoe ls work:" will list the contents of this
+ An example would be:
+
+tahoe add-alias fun URI:DIR2:ovjy4yhylqlfoqg2vcze36dhde:4d4f47qko2xm5g7osgo2yyidi5m4muyo2vjjy53q4vjju2u55mfa
+
+ This create an alias "fun:" and configures it to use the given directory
+ cap. Once this is done, "tahoe ls fun:" will list the contents of this
  directory. Use "tahoe add-alias tahoe DIRCAP" to set the contents of the
  default "tahoe:" alias.
 
@@ -226,10 +236,10 @@ tahoe cp tahoe:uploaded.txt ~/downloaded.txt
  This downloads the named file from your tahoe root, and puts the result on
  your local filesystem.
 
-tahoe cp tahoe:uploaded.txt work:stuff.txt
+tahoe cp tahoe:uploaded.txt fun:stuff.txt
 
  This copies a file from your tahoe root to a different virtual directory,
- set up earlier with "tahoe add-alias work DIRCAP".
+ set up earlier with "tahoe add-alias fun DIRCAP".
 
 tahoe rm uploaded.txt
 tahoe rm tahoe:uploaded.txt
@@ -241,12 +251,12 @@ tahoe mv tahoe:uploaded.txt tahoe:renamed.txt
 
  These rename a file within your tahoe root directory.
 
-tahoe mv uploaded.txt work:
-tahoe mv tahoe:uploaded.txt work:
-tahoe mv tahoe:uploaded.txt work:uploaded.txt
+tahoe mv uploaded.txt fun:
+tahoe mv tahoe:uploaded.txt fun:
+tahoe mv tahoe:uploaded.txt fun:uploaded.txt
 
  These move a file from your tahoe root directory to the virtual directory
- set up earlier with "tahoe add-alias work DIRCAP"
+ set up earlier with "tahoe add-alias fun DIRCAP"
 
 
 
