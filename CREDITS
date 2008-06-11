@@ -43,3 +43,6 @@ D: don't emit "signal-error" to stdout when testing for error in make check-deps
 
 N: Armin Rigo
 D: Linux FUSE interface "b"
+
+N: Justin Boreta
+D: user testing and docs
