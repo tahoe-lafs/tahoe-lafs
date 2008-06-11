@@ -1,6 +1,6 @@
 ANNOUNCING Allmydata.org "Tahoe", the Least-Authority Filesystem, v1.1
 
-We are pleased to announce the release of version 1.1 of the "Tahoe"
+We are pleased to announce the release of version 1.1.0 of the "Tahoe"
 Least Authority Filesystem.
 
 The "Tahoe" Least Authority Filesystem is a secure, decentralized,
