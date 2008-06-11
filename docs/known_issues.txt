@@ -4,7 +4,7 @@ Below is a list of known issues in recent releases of Tahoe, and how
 to manage them.
 
 
-== issues in Tahoe v1.1.0, released 2008-06-10 ==
+== issues in Tahoe v1.1.0, released 2008-06-11 ==
 
 === issue 1: server out of space when writing mutable file ===
 
@@ -82,7 +82,7 @@ those false alarms to stop happening.
 
 == issues in Tahoe v1.0.0, released 2008-03-25 ==
 
-(Tahoe v1.0 was superceded by v1.1 which was released 2008-06-10.)
+(Tahoe v1.0 was superceded by v1.1 which was released 2008-06-11.)
 
 === issue 3: server out of space when writing mutable file ===
 
