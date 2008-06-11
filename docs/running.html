@@ -15,7 +15,7 @@
     have to install the Tahoe source code, as documented in <a
     href="install.html">install.html</a>.</p>
 
-    <p>The <cite>tahoe</cite> executable is used to create, start, and stop
+    <p>The <cite>tahoe</cite> executable in the <cite>bin</cite> directory is used to create, start, and stop
     nodes. Each node lives in a separate base directory in which you can add
     files to configure the node. Nodes also read and write files within that
     directory.</p>
@@ -29,14 +29,14 @@
     create a node.</p>
 
     <p>To construct an introducer, create a new base directory for it (the name
-    of the directory is up to you), cd into it, and run "<cite>tahoe
+    of the directory is up to you), cd into it, and run "<cite><bold>path-to-the-tahoe-bin-directory</bold>/tahoe
     create-introducer .</cite>". Now start the introducer by running "<cite>tahoe
     start .</cite>". After it starts, there will be a file named
     <cite>introducer.furl</cite> in that base directory. This file contains
     the URL the nodes must use in order to connect to this
     introducer.</p>
 
-    <p>To construct a node run "<cite>tahoe create-client</cite>", which will
+    <p>To construct a node run "<cite><bold>path-to-the-tahoe-bin-directory</bold>/tahoe create-client</cite>", which will
     create <cite>~/.tahoe</cite> to be the node's base directory. Acquire a copy
     of the <cite>introducer.furl</cite> from the introducer and put it into this
     directory, then run "<cite>tahoe start</cite>". After that, the node should
