@@ -160,5 +160,34 @@ Tahoe v1.0 {{{misc/dependencies}}} directory, cd into the resulting
 test}}}.  If the tests pass, then your compiler does not trigger this
 failure.
 
-Tahoe v1.1 requires, and comes with a bundled copy of, pycryptopp
-v0.5.1, which does not have this defect.
+
+=== issue 7: potential disclosure of a file through embedded
+hyperlinks or JavaScript in that file ===
+
+If there is a file stored on a Tahoe storage grid, and that file gets
+downloaded and displayed in a web browser, then JavaScript or
+hyperlinks within that file can leak the capability to that file to a
+third party, which means that third party gets access to the file.
+
+If there is JavaScript in the file, then it could deliberately leak
+the capability to the file out to some remote listener.
+
+If there are hyperlinks in the file, and they get followed, then
+whichever server they point to receives the capability to the
+file. Note that IMG tags are typically followed automatically by web
+browsers, so being careful which hyperlinks you click on is not
+sufficient to prevent this from happening.
+
+==== how to manage it ====
+
+For future versions of Tahoe, we are considering ways to close off
+this leakage of authority while preserving ease of use -- the
+discussion of this issue is ticket #127.
+
+For the present, a good work-around is that if you want to store and
+view a file on Tahoe and you want that file to remain private, then
+remove from that file any hyperlinks pointing to other people's
+servers and remove any JavaScript unless you are sure that the
+JavaScript is not written to maliciously leak access.
+
+
