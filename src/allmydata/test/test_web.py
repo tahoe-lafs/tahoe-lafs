@@ -1146,7 +1146,7 @@ class Web(WebMixin, unittest.TestCase):
         # differently
 
         d.addCallback(lambda res:
-                      self.GET(self.public_url + "/foo",
+                      self.GET(self.public_url + "/foo/",
                                followRedirect=True))
         def _check_page(res):
             # TODO: assert more about the contents
@@ -1174,7 +1174,7 @@ class Web(WebMixin, unittest.TestCase):
                              when_done=formwhendone,
                              followRedirect=False)
         d.addCallback(_parse_overwrite_form_and_submit)
-        d.addBoth(self.shouldRedirect, urllib.quote(self.public_url + "/foo"))
+        d.addBoth(self.shouldRedirect, urllib.quote(self.public_url + "/foo/"))
         d.addCallback(lambda res:
                       self.failUnlessMutableChildContentsAre(fn, u"new.txt",
                                                              EVEN_NEWER_CONTENTS))
