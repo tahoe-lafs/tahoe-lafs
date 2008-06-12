@@ -1,0 +1,119 @@
+User visible changes in Tahoe.  -*- outline -*-
+
+* Release 1.1.0 (2008-06-11)
+
+** CLI: new "alias" model
+
+The new CLI code uses an scp/rsync -like interface, in which directories in
+the Tahoe storage grid are referenced by a colon-suffixed alias. The new
+commands look like:
+ tahoe cp local.txt tahoe:virtual.txt
+ tahoe ls work:subdir
+
+More functionality is available through the CLI: creating unlinked files and
+directories, recursive copy in or out of the storage grid, hardlinks, and
+retrieving the raw read- or write- caps through the 'ls' command. Please read
+docs/CLI.txt for complete details.
+
+** webapi: new pages, new commands
+
+Several new pages were added to the web API:
+
+ /helper_status : to describe what a Helper is doing
+ /statistics : reports node uptime, CPU usage, other stats
+ /file : for easy file-download URLs, see #221
+ /cap == /uri : future compatibility
+
+The localdir=/localfile= and t=download operations were removed. These
+required special configuration to enable anyways, but this feature was a
+security problem, and was mostly obviated by the new "cp -r" command.
+
+Several new options to the GET command were added:
+
+ t=deep-size : add up the size of all immutable files reachable from the directory
+ t=deep-stats : return a JSON-encoded description of number of files, size
+                distribution, total size, etc
+
+POST is now preferred over PUT for most operations which cause side-effects.
+
+Most webapi calls now accept overwrite=, and default to overwrite=true .
+
+"POST /uri/DIRCAP/parent/child?t=mkdir" is now the preferred API to create
+multiple directories at once, rather than ...?t=mkdir-p .
+
+PUT to a mutable file ("PUT /uri/MUTABLEFILECAP", "PUT /uri/DIRCAP/child")
+will modify the file in-place.
+
+** more munin graphs in misc/munin/
+
+  tahoe-introstats
+  tahoe-rootdir-space
+  tahoe_estimate_files
+  mutable files published/retrieved
+  tahoe_cpu_watcher
+  tahoe_spacetime
+
+** New Dependencies
+
+  zfec 1.1.0
+  foolscap 0.2.8
+  pycryptopp 0.5
+  setuptools (now required at runtime)
+
+** New Mutable-File Code
+
+The mutable-file handling code (mostly used for directories) has been
+completely rewritten. The new scheme has a better API (with a modify()
+method) and is less likely to lose data when several uncoordinated writers
+change a file at the same time.
+
+In addition, a single Tahoe process will coordinate its own writes. If you
+make two concurrent directory-modifying webapi calls to a single tahoe node,
+it will internally make one of them wait for the other to complete. This
+prevents auto-collision (#391).
+
+The new mutable-file code also detects errors during publish better. Earlier
+releases might believe that a mutable file was published when in fact it
+failed.
+
+** other features
+
+The node now monitors its own CPU usage, as a percentage, measured every 60
+seconds. 1/5/15 minute moving averages are available on the /statistics web
+page and via the stats-gathering interface.
+
+Clients now accelerate reconnection to all servers after being offline
+(#374). When a client is offline for a long time, it scales back reconnection
+attempts to approximately once per hour, so it may take a while to make the
+first attempt, but once any attempt succeeds, the other server connections
+will be retried immediately.
+
+A new "offloaded KeyGenerator" facility can be configured, to move RSA key
+generation out from, say, a webapi node, into a separate process. RSA keys
+can take several seconds to create, and so a webapi node which is being used
+for directory creation will be unavailable for anything else during this
+time. The Key Generator process will pre-compute a small pool of keys, to
+speed things up further. This also takes better advantage of multi-core CPUs,
+or SMP hosts.
+
+The node will only use a potentially-slow "du -s" command at startup (to
+measure how much space has been used) if the "sizelimit" parameter has been
+configured (to limit how much space is used). Large storage servers should
+turn off sizelimit until a later release improves the space-management code,
+since "du -s" on a terabyte filesystem can take hours.
+
+The Introducer now allows new announcements to replace old ones, to avoid
+buildups of obsolete announcements.
+
+Immutable files are limited to about 12GiB (when using the default 3-of-10
+encoding), because larger files would be corrupted by the four-byte
+share-size field on the storage servers (#439). A later release will remove
+this limit. Earlier releases would allow >12GiB uploads, but the resulting
+file would be unretrievable.
+
+The docs/ directory has been rearranged, with old docs put in
+docs/historical/ and not-yet-implemented ones in docs/proposed/ .
+
+The Mac OS-X FUSE plugin has a significant bug fix: earlier versions would
+corrupt writes that used seek() instead of writing the file in linear order.
+The rsync tool is known to perform writes in this order. This has been fixed.
