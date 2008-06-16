@@ -29,6 +29,8 @@ class Bucket(unittest.TestCase):
 
     def bucket_writer_closed(self, bw, consumed):
         pass
+    def add_latency(self, category, latency):
+        pass
 
     def make_lease(self):
         owner_num = 0
@@ -57,7 +59,7 @@ class Bucket(unittest.TestCase):
         bw.remote_close()
 
         # now read from it
-        br = BucketReader(bw.finalhome)
+        br = BucketReader(self, bw.finalhome)
         self.failUnlessEqual(br.remote_read(0, 25), "a"*25)
         self.failUnlessEqual(br.remote_read(25, 25), "b"*25)
         self.failUnlessEqual(br.remote_read(50, 7), "c"*7)
@@ -91,6 +93,8 @@ class BucketProxy(unittest.TestCase):
         return (owner_num, renew_secret, cancel_secret, expiration_time)
 
     def bucket_writer_closed(self, bw, consumed):
+        pass
+    def add_latency(self, category, latency):
         pass
 
     def test_create(self):
@@ -147,7 +151,7 @@ class BucketProxy(unittest.TestCase):
 
         # now read everything back
         def _start_reading(res):
-            br = BucketReader(sharefname)
+            br = BucketReader(self, sharefname)
             rb = RemoteBucket()
             rb.target = br
             rbp = ReadBucketProxy(rb)
@@ -910,3 +914,66 @@ class MutableServer(unittest.TestCase):
         no_shares = read("si1", [], [(0,10)])
         self.failUnlessEqual(no_shares, {})
 
+class Stats(unittest.TestCase):
+
+    def setUp(self):
+        self.sparent = LoggingServiceParent()
+        self._lease_secret = itertools.count()
+    def tearDown(self):
+        return self.sparent.stopService()
+
+    def workdir(self, name):
+        basedir = os.path.join("storage", "Server", name)
+        return basedir
+
+    def create(self, name, sizelimit=None):
+        workdir = self.workdir(name)
+        ss = StorageServer(workdir, sizelimit)
+        ss.setServiceParent(self.sparent)
+        return ss
+
+    def test_latencies(self):
+        ss = self.create("test_latencies")
+        for i in range(10000):
+            ss.add_latency("allocate", 1.0 * i)
+        for i in range(1000):
+            ss.add_latency("renew", 1.0 * i)
+        for i in range(10):
+            ss.add_latency("cancel", 2.0 * i)
+        ss.add_latency("get", 5.0)
+
+        output = ss.get_latencies()
+
+        self.failUnlessEqual(sorted(output.keys()),
+                             sorted(["allocate", "renew", "cancel", "get"]))
+        self.failUnlessEqual(len(ss.latencies["allocate"]), 1000)
+        self.failUnless(abs(output["allocate"]["mean"] - 9500) < 1)
+        self.failUnless(abs(output["allocate"]["median"] - 9500) < 1)
+        self.failUnless(abs(output["allocate"]["90_percentile"] - 9900) < 1)
+        self.failUnless(abs(output["allocate"]["95_percentile"] - 9950) < 1)
+        self.failUnless(abs(output["allocate"]["99_percentile"] - 9990) < 1)
+        self.failUnless(abs(output["allocate"]["999_percentile"] - 9999) < 1)
+
+        self.failUnlessEqual(len(ss.latencies["renew"]), 1000)
+        self.failUnless(abs(output["renew"]["mean"] - 500) < 1)
+        self.failUnless(abs(output["renew"]["median"] - 500) < 1)
+        self.failUnless(abs(output["renew"]["90_percentile"] - 900) < 1)
+        self.failUnless(abs(output["renew"]["95_percentile"] - 950) < 1)
+        self.failUnless(abs(output["renew"]["99_percentile"] - 990) < 1)
+        self.failUnless(abs(output["renew"]["999_percentile"] - 999) < 1)
+
+        self.failUnlessEqual(len(ss.latencies["cancel"]), 10)
+        self.failUnless(abs(output["cancel"]["mean"] - 9) < 1)
+        self.failUnless(abs(output["cancel"]["median"] - 10) < 1)
+        self.failUnless(abs(output["cancel"]["90_percentile"] - 18) < 1)
+        self.failUnless(abs(output["cancel"]["95_percentile"] - 18) < 1)
+        self.failUnless(abs(output["cancel"]["99_percentile"] - 18) < 1)
+        self.failUnless(abs(output["cancel"]["999_percentile"] - 18) < 1)
+
+        self.failUnlessEqual(len(ss.latencies["get"]), 1)
+        self.failUnless(abs(output["get"]["mean"] - 5) < 1)
+        self.failUnless(abs(output["get"]["median"] - 5) < 1)
+        self.failUnless(abs(output["get"]["90_percentile"] - 5) < 1)
+        self.failUnless(abs(output["get"]["95_percentile"] - 5) < 1)
+        self.failUnless(abs(output["get"]["99_percentile"] - 5) < 1)
+        self.failUnless(abs(output["get"]["999_percentile"] - 5) < 1)
