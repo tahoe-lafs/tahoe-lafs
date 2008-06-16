@@ -31,6 +31,8 @@ class Bucket(unittest.TestCase):
         pass
     def add_latency(self, category, latency):
         pass
+    def count(self, name, delta=1):
+        pass
 
     def make_lease(self):
         owner_num = 0
@@ -95,6 +97,8 @@ class BucketProxy(unittest.TestCase):
     def bucket_writer_closed(self, bw, consumed):
         pass
     def add_latency(self, category, latency):
+        pass
+    def count(self, name, delta=1):
         pass
 
     def test_create(self):

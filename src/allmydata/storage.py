@@ -209,6 +209,7 @@ class BucketWriter(Referenceable):
             return
         self._sharefile.write_share_data(offset, data)
         self.ss.add_latency("write", time.time() - start)
+        self.ss.count("write")
 
     def remote_close(self):
         precondition(not self.closed)
@@ -229,6 +230,7 @@ class BucketWriter(Referenceable):
         filelen = os.stat(self.finalhome)[stat.ST_SIZE]
         self.ss.bucket_writer_closed(self, filelen)
         self.ss.add_latency("close", time.time() - start)
+        self.ss.count("close")
 
     def _disconnected(self):
         if not self.closed:
@@ -240,6 +242,7 @@ class BucketWriter(Referenceable):
         if not self.closed:
             self._canary.dontNotifyOnDisconnect(self._disconnect_marker)
         self._abort()
+        self.ss.count("abort")
 
     def _abort(self):
         if self.closed:
@@ -264,6 +267,7 @@ class BucketReader(Referenceable):
         start = time.time()
         data = self._share_file.read_share_data(offset, length)
         self.ss.add_latency("read", time.time() - start)
+        self.ss.count("read")
         return data
 
 
@@ -723,6 +727,10 @@ class StorageServer(service.MultiService, Referenceable):
                           "readv": [],
                           }
 
+    def count(self, name, delta=1):
+        if self.stats_provider:
+            self.stats_provider.count("storage_server." + name, delta)
+
     def add_latency(self, category, latency):
         a = self.latencies[category]
         a.append(latency)
@@ -778,6 +786,7 @@ class StorageServer(service.MultiService, Referenceable):
         stats = { 'storage_server.allocated': self.allocated_size(), }
         if self.consumed is not None:
             stats['storage_server.consumed'] = self.consumed
+        stats['storage_server.latencies'] = self.get_latencies()
         return stats
 
     def allocated_size(self):
@@ -797,6 +806,7 @@ class StorageServer(service.MultiService, Referenceable):
         # curried into the PersonalStorageServer instance that is dedicated
         # to a particular owner.
         start = time.time()
+        self.count("allocate")
         alreadygot = set()
         bucketwriters = {} # k: shnum, v: BucketWriter
         si_dir = storage_index_to_dir(storage_index)
@@ -865,6 +875,7 @@ class StorageServer(service.MultiService, Referenceable):
 
     def remote_renew_lease(self, storage_index, renew_secret):
         start = time.time()
+        self.count("renew")
         new_expire_time = time.time() + 31*24*60*60
         found_buckets = False
         for shnum, filename in self._get_bucket_shares(storage_index):
@@ -888,6 +899,7 @@ class StorageServer(service.MultiService, Referenceable):
 
     def remote_cancel_lease(self, storage_index, cancel_secret):
         start = time.time()
+        self.count("cancel")
         storagedir = os.path.join(self.sharedir, storage_index_to_dir(storage_index))
 
         remaining_files = 0
@@ -965,6 +977,7 @@ class StorageServer(service.MultiService, Referenceable):
 
     def remote_get_buckets(self, storage_index):
         start = time.time()
+        self.count("get")
         si_s = si_b2a(storage_index)
         log.msg("storage: get_buckets %s" % si_s)
         bucketreaders = {} # k: sharenum, v: BucketReader
@@ -995,6 +1008,7 @@ class StorageServer(service.MultiService, Referenceable):
                                                test_and_write_vectors,
                                                read_vector):
         start = time.time()
+        self.count("writev")
         si_s = si_b2a(storage_index)
         lp = log.msg("storage: slot_writev %s" % si_s)
         si_dir = storage_index_to_dir(storage_index)
@@ -1076,6 +1090,7 @@ class StorageServer(service.MultiService, Referenceable):
 
     def remote_slot_readv(self, storage_index, shares, readv):
         start = time.time()
+        self.count("readv")
         si_s = si_b2a(storage_index)
         lp = log.msg("storage: slot_readv %s %s" % (si_s, shares),
                      facility="tahoe.storage", level=log.OPERATIONAL)
