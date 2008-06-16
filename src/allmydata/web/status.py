@@ -961,13 +961,13 @@ class Statistics(rend.Page):
                 (files, bytes, abbreviate_size(bytes)))
 
     def render_publishes(self, ctx, data):
-        files = data["counters"].get("mutable.files_published")
+        files = data["counters"].get("mutable.files_published", 0)
         bytes = data["counters"].get("mutable.bytes_published", 0)
         return "%s files / %s bytes (%s)" % (files, bytes,
                                              abbreviate_size(bytes))
 
     def render_retrieves(self, ctx, data):
-        files = data["counters"].get("mutable.files_retrieved")
+        files = data["counters"].get("mutable.files_retrieved", 0)
         bytes = data["counters"].get("mutable.bytes_retrieved", 0)
         return "%s files / %s bytes (%s)" % (files, bytes,
                                              abbreviate_size(bytes))
