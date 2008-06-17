@@ -489,6 +489,16 @@ class Server(unittest.TestCase):
         leases = list(ss.get_leases("si3"))
         self.failUnlessEqual(len(leases), 2)
 
+    def test_readonly(self):
+        workdir = self.workdir("test_readonly")
+        ss = StorageServer(workdir, readonly_storage=True)
+        ss.setServiceParent(self.sparent)
+
+        canary = FakeCanary()
+        already,writers = self.allocate(ss, "vid", [0,1,2], 75)
+        self.failUnlessEqual(already, set())
+        self.failUnlessEqual(writers, {})
+
 
 
 class MutableServer(unittest.TestCase):
