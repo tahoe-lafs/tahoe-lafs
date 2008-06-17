@@ -301,7 +301,8 @@ show-version:
 	@echo $(VER)
 
 .PHONY: setup-deb deb-ARCH is-known-debian-arch
-.PHONY: deb-sid deb-feisty deb-edgy deb-etch
+.PHONY: deb-etch deb-sid
+.PHONY: deb-edgy deb-feisty deb-gutsy deb-hardy
 
 deb-sid:
 	$(MAKE) deb-ARCH ARCH=sid
@@ -316,9 +317,11 @@ deb-etch:
 # same with gutsy, the process has been nicely stable for a while now
 deb-gutsy:
 	$(MAKE) deb-ARCH ARCH=gutsy TAHOE_ARCH=feisty
+deb-hardy:
+	$(MAKE) deb-ARCH ARCH=hardy TAHOE_ARCH=feisty
 
 # we know how to handle the following debian architectures
-KNOWN_DEBIAN_ARCHES := sid feisty edgy etch gutsy
+KNOWN_DEBIAN_ARCHES := etch sid  edgy feisty gutsy hardy
 
 ifeq ($(findstring x-$(ARCH)-x,$(foreach arch,$(KNOWN_DEBIAN_ARCHES),"x-$(arch)-x")),)
 is-known-debian-arch:
@@ -354,8 +357,8 @@ deb-ARCH: is-known-debian-arch setup-deb
 	@echo "The newly built .deb packages are in the parent directory from here."
 
 .PHONY: increment-deb-version
-.PHONY: deb-sid-head deb-edgy-head deb-feisty-head
-.PHONY: deb-etch-head
+.PHONY: deb-edgy-head deb-feisty-head deb-gutsy-head deb-hardy-head
+.PHONY: deb-etch-head deb-sid-head
 
 # The buildbot runs the following targets after each change, to produce
 # up-to-date tahoe .debs. These steps do not create .debs for anything else.
@@ -380,6 +383,10 @@ deb-etch-head:
 	fakeroot debian/rules binary
 deb-gutsy-head:
 	$(MAKE) setup-deb ARCH=gutsy TAHOE_ARCH=feisty
+	$(MAKE) increment-deb-version
+	fakeroot debian/rules binary
+deb-hardy-head:
+	$(MAKE) setup-deb ARCH=hardy TAHOE_ARCH=feisty
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 
