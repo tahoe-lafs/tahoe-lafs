@@ -965,16 +965,6 @@ class StorageServer(service.MultiService, Referenceable):
             # Commonly caused by there being no buckets at all.
             pass
 
-    def _get_incoming_shares(self, storage_index):
-        incomingdir = os.path.join(self.incomingdir, storage_index_to_dir(storage_index))
-        try:
-            for f in os.listdir(incomingdir):
-                if NUM_RE.match(f):
-                    filename = os.path.join(incomingdir, f)
-                    yield (int(f), filename)
-        except OSError:
-            pass
-
     def remote_get_buckets(self, storage_index):
         start = time.time()
         self.count("get")
