@@ -1,0 +1,77 @@
+
+= Debian Support =
+
+One convenient way to deploy a Tahoe grid is via debian packages.
+
+== Building Debian Packages ==
+
+The Tahoe source tree comes with limited support for building debian packages
+on a variety of Debian and Ubuntu platforms. For each supported platform,
+there is a "deb-PLATFORM-head" target in the Makefile that will produce a
+debian package from a darcs checkout, using a version number that is derived
+from the most recent darcs tag, plus the total number of revisions present in
+the tree (e.g. "1.1-r2678").
+
+To create debian packages from a Tahoe tree, you will need some additional
+tools installed. The canonical list of these packages is in the
+"Build-Depends" clause of misc/sid/debian/control , and includes:
+
+ build-essential
+ debhelper
+ cdbs
+ python-central
+ python-setuptools
+ python
+ python-dev
+ python-twisted-core
+
+In addition, to use the "deb-PLATFORM-head" target, you will also need the
+"debchange" utility from the "devscripts" package, and the "fakeroot" package.
+
+Some recent platforms can be handled by using the targets for the previous
+release, for example if there is no "deb-hardy-head" target, try building
+"deb-gutsy-head" and see if the resulting package will work.
+
+Note that we haven't tried to build source packages (.orig.tar.gz + dsc) yet,
+and there are no such source packages in our APT repository.
+
+== Using Pre-Built Debian Packages ==
+
+The allmydata.org site hosts an APT repository with debian packages that are
+built after each checkin. The following wiki page describes this repository:
+
+ http://allmydata.org/trac/tahoe/wiki/DownloadDebianPackages
+
+The allmydata.org APT repository also includes debian packages of support
+libraries, like Foolscap, zfec, pycryptopp, and everything else you need that
+isn't already in debian.
+
+== Building From Source on Debian Systems ==
+
+Many of Tahoe's build dependencies can be satisfied by first installing
+certain debian packages: simplejson is one of these. Some debian/ubuntu
+platforms do not provide the necessary .egg-info metadata with their
+packages, so the Tahoe build process may not believe they are present. Some
+Tahoe dependencies are not present in most debian systems (such as foolscap
+and zfec): debs for these are made available in the APT repository described
+above.
+
+The Tahoe build process will acquire (via setuptools) most of the libraries
+that it needs to run and which are not already present in the build
+environment).
+
+We have observed occasional problems with this acquisition process. In some
+cases, setuptools will only be half-aware of an installed debian package,
+just enough to interfere with the automatic download+build of the dependency.
+For example, on some platforms, if Nevow-0.9.26 is installed via a debian
+package, setuptools will believe that it must download Nevow anyways, but it
+will insist upon downloading that specific 0.9.26 version. Since the current
+release of Nevow is 0.9.31, and 0.9.26 is no longer available for download,
+this will fail.
+
+The Tahoe source tree currently ships with a directory full of tarballs of
+dependent libraries (misc/dependencies/), to enable a "desert-island build".
+There are plans to remove these tarballs from the source repository (but
+still provide a way to get Tahoe source plus dependencies). This Nevow-0.9.26
+-type problem can be mitigated by putting the right dependency tarball in
+misc/dependencies/ .
