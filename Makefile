@@ -253,9 +253,9 @@ check-speed: .built
 	$(PYTHON) src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
 	$(PYTHON) bin/tahoe stop $(TESTCLIENTDIR)
 
-# This target also uses a pre-established client node, along with a long-term
-# directory that contains some well-known files. See the docstring in
-# src/allmydata/test/check_grid.py to see how to set this up.
+# The check-grid target also uses a pre-established client node, along with a
+# long-term directory that contains some well-known files. See the docstring
+# in src/allmydata/test/check_grid.py to see how to set this up.
 check-grid: .built
 	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
 	@echo "stopping any leftover client code"
