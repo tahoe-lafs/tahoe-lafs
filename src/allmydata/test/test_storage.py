@@ -889,6 +889,16 @@ class MutableServer(unittest.TestCase):
         self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
         reset()
 
+        # finally, test some operators against empty shares
+        answer = write("si1", secrets, {1: ([(10, 5, "eq", "11112"),
+                                             ],
+                                            [(0, "x"*100)],
+                                            None,
+                                            )}, [(10,5)])
+        self.failUnlessEqual(answer, (False, {0: ["11111"]}))
+        self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
+        reset()
+
     def test_readv(self):
         ss = self.create("test_readv")
         secrets = ( self.write_enabler("we1"),
