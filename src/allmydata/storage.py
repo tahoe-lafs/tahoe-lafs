@@ -1311,6 +1311,10 @@ class ReadBucketProxy:
         # TODO: for small shares, read the whole bucket in start()
         d = self._read(0, 0x24)
         d.addCallback(self._parse_offsets)
+        def _started(res):
+            self._started = True
+            return res
+        d.addCallback(_started)
         return d
 
     def _parse_offsets(self, data):
