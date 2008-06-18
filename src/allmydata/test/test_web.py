@@ -129,6 +129,7 @@ class WebMixin(object):
 
             foo.set_uri(u"empty", res[3][1].get_uri())
             sub_uri = res[4][1].get_uri()
+            self._sub_uri = sub_uri
             foo.set_uri(u"sub", sub_uri)
             sub = self.s.create_node_from_uri(sub_uri)
 
@@ -726,18 +727,43 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_GET_DIRURL(self):
         # the addSlash means we get a redirect here
+        # from /uri/$URI/foo/ , we need ../../../ to get back to the root
+        ROOT = "../../.."
         d = self.GET(self.public_url + "/foo", followRedirect=True)
         def _check(res):
+            self.failUnless(('<a href="%s">Return to Welcome page' % ROOT)
+                            in res, res)
             # the FILE reference points to a URI, but it should end in bar.txt
-            self.failUnless(re.search(r'<td>'
-                                      '<a href="[^"]+bar.txt">bar.txt</a>'
-                                      '</td>'
-                                      '\s+<td>FILE</td>'
-                                      '\s+<td>%d</td>' % len(self.BAR_CONTENTS)
-                                      , res))
+            bar_url = ("%s/file/%s/@@named=/bar.txt" %
+                       (ROOT, urllib.quote(self._bar_txt_uri)))
+            get_bar = "".join([r'<td>',
+                               r'<a href="%s">bar.txt</a>' % bar_url,
+                               r'</td>',
+                               r'\s+<td>FILE</td>',
+                               r'\s+<td>%d</td>' % len(self.BAR_CONTENTS),
+                               ])
+            self.failUnless(re.search(get_bar, res), res)
+            for line in res.split("\n"):
+                # find the line that contains the delete button for bar.txt
+                if ("form action" in line and
+                    'value="delete"' in line and
+                    'value="bar.txt"' in line):
+                    # the form target should use a relative URL
+                    foo_url = urllib.quote("%s/uri/%s/" % (ROOT, self._foo_uri))
+                    self.failUnless(('action="%s"' % foo_url) in line, line)
+                    # and the when_done= should too
+                    #done_url = urllib.quote(???)
+                    #self.failUnless(('name="when_done" value="%s"' % done_url)
+                    #                in line, line)
+                    break
+            else:
+                self.fail("unable to find delete-bar.txt line", res)
+
             # the DIR reference just points to a URI
-            self.failUnless(re.search(r'<td><a href="/uri/URI%3ADIR2%3A[^"]+">sub</a></td>'
-                                      '\s+<td>DIR</td>', res))
+            sub_url = ("%s/uri/%s/" % (ROOT, urllib.quote(self._sub_uri)))
+            get_sub = ((r'<td><a href="%s">sub</a></td>' % sub_url)
+                       + r'\s+<td>DIR</td>')
+            self.failUnless(re.search(get_sub, res), res)
         d.addCallback(_check)
 
         # look at a directory which is readonly
@@ -752,7 +778,7 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.GET(self.public_url, followRedirect=True))
         def _check3(res):
-            self.failUnless(re.search(r'<td><a href="/uri/URI%3ADIR2-RO%3A[^"]+">reedownlee</a>'
+            self.failUnless(re.search(r'<td><a href="[\.\/]+/uri/URI%3ADIR2-RO%3A[^"]+">reedownlee</a>'
                                       '</td>\s+<td>DIR-RO</td>', res))
         d.addCallback(_check3)
 
@@ -1166,15 +1192,25 @@ class Web(WebMixin, unittest.TestCase):
             formaction=mo.group(1)
             formwhendone=mo.group(2)
 
-            fileurl = "/uri/" + urllib.quote(self._mutable_uri)
-            self.failUnless(formaction.startswith(fileurl), formaction)
-            return self.POST(formaction,
+            fileurl = "../../../uri/" + urllib.quote(self._mutable_uri)
+            self.failUnlessEqual(formaction, fileurl)
+            # to POST, we need to absoluteify the URL
+            new_formaction = "/uri/%s" % urllib.quote(self._mutable_uri)
+            self.failUnlessEqual(formwhendone,
+                                 "../uri/%s/" % urllib.quote(self._foo_uri))
+            return self.POST(new_formaction,
                              t="upload",
                              file=("new.txt", EVEN_NEWER_CONTENTS),
                              when_done=formwhendone,
                              followRedirect=False)
         d.addCallback(_parse_overwrite_form_and_submit)
-        d.addBoth(self.shouldRedirect, urllib.quote(self.public_url + "/foo/"))
+        # This will redirect us to ../uri/$FOOURI, rather than
+        # ../uri/$PARENT/foo, but apparently twisted.web.client absolutifies
+        # the redirect for us, and remember that shouldRedirect prepends
+        # self.webish_url for us.
+        d.addBoth(self.shouldRedirect,
+                  "/uri/%s/" % urllib.quote(self._foo_uri),
+                  which="test_POST_upload_mutable.overwrite")
         d.addCallback(lambda res:
                       self.failUnlessMutableChildContentsAre(fn, u"new.txt",
                                                              EVEN_NEWER_CONTENTS))
@@ -1679,21 +1715,24 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
-    def shouldRedirect(self, res, target=None, statuscode=None):
+    def shouldRedirect(self, res, target=None, statuscode=None, which=""):
         """ If target is not None then the redirection has to go to target.  If
         statuscode is not None then the redirection has to be accomplished with
         that HTTP status code."""
         if not isinstance(res, failure.Failure):
-            self.fail("we were expecting to get redirected %s, not get an"
-                      " actual page: %s" % ((target is None) and "somewhere" or ("to " + target), res))
+            to_where = (target is None) and "somewhere" or ("to " + target)
+            self.fail("%s: we were expecting to get redirected %s, not get an"
+                      " actual page: %s" % (which, to_where, res))
         res.trap(error.PageRedirect)
         if statuscode is not None:
-            self.failUnlessEqual(res.value.status, statuscode)
+            self.failUnlessEqual(res.value.status, statuscode,
+                                 "%s: not a redirect" % which)
         if target is not None:
             # the PageRedirect does not seem to capture the uri= query arg
             # properly, so we can't check for it.
             realtarget = self.webish_url + target
-            self.failUnlessEqual(res.value.location, realtarget)
+            self.failUnlessEqual(res.value.location, realtarget,
+                                 "%s: wrong target" % which)
         return res.value.location
 
     def test_GET_URI_form(self):
@@ -1725,9 +1764,9 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_GET_rename_form(self):
         d = self.GET(self.public_url + "/foo?t=rename-form&name=bar.txt",
-                     followRedirect=True) # XXX [ ] todo: figure out why '.../foo' doesn't work
+                     followRedirect=True)
         def _check(res):
-            self.failUnless(re.search(r'name="when_done" value=".*%s/foo/' % (urllib.quote(self.public_url),), res), (r'name="when_done" value=".*%s/foo/' % (urllib.quote(self.public_url),), res,))
+            self.failUnless('name="when_done" value="."' in res, res)
             self.failUnless(re.search(r'name="from_name" value="bar\.txt"', res))
         d.addCallback(_check)
         return d

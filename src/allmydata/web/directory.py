@@ -385,9 +385,15 @@ class DirectoryAsHTML(rend.Page):
             header.append(" (readonly)")
         return ctx.tag[header]
 
-    def render_welcome(self, ctx, data):
-        depth = len(IRequest(ctx).path) + 2
+    def get_root(self, ctx):
+        req = IRequest(ctx)
+        # the addSlash=True gives us one extra (empty) segment
+        depth = len(req.prepath) + len(req.postpath) - 1
         link = "/".join([".."] * depth)
+        return link
+
+    def render_welcome(self, ctx, data):
+        link = self.get_root(ctx)
         return T.div[T.a(href=link)["Return to Welcome page"]]
 
     def data_children(self, ctx, data):
@@ -419,6 +425,8 @@ class DirectoryAsHTML(rend.Page):
         name = name.encode("utf-8")
         assert not isinstance(name, unicode)
 
+        root = self.get_root(ctx)
+        here = "%s/uri/%s/" % (root, urllib.quote(self.node.get_uri()))
         if self.node.is_readonly():
             delete = "-"
             rename = "-"
@@ -426,25 +434,31 @@ class DirectoryAsHTML(rend.Page):
             # this creates a button which will cause our child__delete method
             # to be invoked, which deletes the file and then redirects the
             # browser back to this directory
-            delete = T.form(action=url.here, method="post")[
+            delete = T.form(action=here, method="post")[
                 T.input(type='hidden', name='t', value='delete'),
                 T.input(type='hidden', name='name', value=name),
-                T.input(type='hidden', name='when_done', value=url.here),
+                T.input(type='hidden', name='when_done', value="."),
                 T.input(type='submit', value='del', name="del"),
                 ]
 
-            rename = T.form(action=url.here, method="get")[
+            rename = T.form(action=here, method="get")[
                 T.input(type='hidden', name='t', value='rename-form'),
                 T.input(type='hidden', name='name', value=name),
-                T.input(type='hidden', name='when_done', value=url.here),
+                T.input(type='hidden', name='when_done', value="."),
                 T.input(type='submit', value='rename', name="rename"),
                 ]
 
         ctx.fillSlots("delete", delete)
         ctx.fillSlots("rename", rename)
-        check = T.form(action=url.here.child(name), method="post")[
+        if IDirectoryNode.providedBy(target):
+            check_url = "%s/uri/%s/" % (root, urllib.quote(target.get_uri()))
+            check_done_url = "../../uri/%s/" % urllib.quote(self.node.get_uri())
+        else:
+            check_url = "%s/uri/%s" % (root, urllib.quote(target.get_uri()))
+            check_done_url = "../uri/%s/" % urllib.quote(self.node.get_uri())
+        check = T.form(action=check_url, method="post")[
             T.input(type='hidden', name='t', value='check'),
-            T.input(type='hidden', name='when_done', value=url.here),
+            T.input(type='hidden', name='when_done', value=check_done_url),
             T.input(type='submit', value='check', name="check"),
             ]
         ctx.fillSlots("overwrite",
@@ -475,7 +489,7 @@ class DirectoryAsHTML(rend.Page):
             # to prevent javascript in displayed .html files from stealing a
             # secret directory URI from the URL, send the browser to a URI-based
             # page that doesn't know about the directory at all
-            dlurl = "/file/%s/@@named=/%s" % (quoted_uri, urllib.quote(name))
+            dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, urllib.quote(name))
 
             ctx.fillSlots("filename",
                           T.a(href=dlurl)[html.escape(name)])
@@ -483,11 +497,11 @@ class DirectoryAsHTML(rend.Page):
 
             ctx.fillSlots("size", "?")
 
-            text_plain_url = "/file/%s/@@named=/foo.txt" % quoted_uri
+            text_plain_url = "%s/file/%s/@@named=/foo.txt" % (root, quoted_uri)
             text_plain_tag = T.a(href=text_plain_url)["text/plain"]
 
         elif IFileNode.providedBy(target):
-            dlurl = "/file/%s/@@named=/%s" % (quoted_uri, urllib.quote(name))
+            dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, urllib.quote(name))
 
             ctx.fillSlots("filename",
                           T.a(href=dlurl)[html.escape(name)])
@@ -495,13 +509,13 @@ class DirectoryAsHTML(rend.Page):
 
             ctx.fillSlots("size", target.get_size())
 
-            text_plain_url = "/file/%s/@@named=/foo.txt" % quoted_uri
+            text_plain_url = "%s/file/%s/@@named=/foo.txt" % (root, quoted_uri)
             text_plain_tag = T.a(href=text_plain_url)["text/plain"]
 
 
         elif IDirectoryNode.providedBy(target):
             # directory
-            uri_link = "/uri/" + urllib.quote(target.get_uri()) + "/"
+            uri_link = "%s/uri/%s/" % (root, urllib.quote(target.get_uri()))
             ctx.fillSlots("filename",
                           T.a(href=uri_link)[html.escape(name)])
             if target.is_readonly():
@@ -562,7 +576,7 @@ class DirectoryAsHTML(rend.Page):
                        enctype="multipart/form-data")[
             T.fieldset[
             T.input(type="hidden", name="t", value="mkdir"),
-            T.input(type="hidden", name="when_done", value=url.here),
+            T.input(type="hidden", name="when_done", value="."),
             T.legend(class_="freeform-form-label")["Create a new directory"],
             "New directory name: ",
             T.input(type="text", name="name"), " ",
@@ -573,7 +587,7 @@ class DirectoryAsHTML(rend.Page):
                         enctype="multipart/form-data")[
             T.fieldset[
             T.input(type="hidden", name="t", value="upload"),
-            T.input(type="hidden", name="when_done", value=url.here),
+            T.input(type="hidden", name="when_done", value="."),
             T.legend(class_="freeform-form-label")["Upload a file to this directory"],
             "Choose a file to upload: ",
             T.input(type="file", name="file", class_="freeform-input-file"),
@@ -587,7 +601,7 @@ class DirectoryAsHTML(rend.Page):
                         enctype="multipart/form-data")[
             T.fieldset[
             T.input(type="hidden", name="t", value="uri"),
-            T.input(type="hidden", name="when_done", value=url.here),
+            T.input(type="hidden", name="when_done", value="."),
             T.legend(class_="freeform-form-label")["Attach a file or directory"
                                                    " (by URI) to this"
                                                    " directory"],
@@ -604,12 +618,14 @@ class DirectoryAsHTML(rend.Page):
 
     def build_overwrite_form(self, ctx, name, target):
         if IMutableFileNode.providedBy(target) and not target.is_readonly():
-            action = "/uri/" + urllib.quote(target.get_uri())
+            root = self.get_root(ctx)
+            action = "%s/uri/%s" % (root, urllib.quote(target.get_uri()))
+            done_url = "../uri/%s/" % urllib.quote(self.node.get_uri())
             overwrite = T.form(action=action, method="post",
                                enctype="multipart/form-data")[
                 T.fieldset[
                 T.input(type="hidden", name="t", value="upload"),
-                T.input(type='hidden', name='when_done', value=url.here),
+                T.input(type='hidden', name='when_done', value=done_url),
                 T.legend(class_="freeform-form-label")["Overwrite"],
                 "Choose new file: ",
                 T.input(type="file", name="file", class_="freeform-input-file"),
@@ -692,7 +708,7 @@ class RenameForm(rend.Page):
         return ctx.tag[header]
 
     def render_when_done(self, ctx, data):
-        return T.input(type="hidden", name="when_done", value=url.here)
+        return T.input(type="hidden", name="when_done", value=".")
 
     def render_get_name(self, ctx, data):
         req = IRequest(ctx)
