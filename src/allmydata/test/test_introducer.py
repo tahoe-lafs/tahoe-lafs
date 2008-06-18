@@ -13,6 +13,7 @@ from allmydata.introducer.client import IntroducerClient
 from allmydata.introducer.server import IntroducerService
 # test compatibility with old introducer .tac files
 from allmydata.introducer import IntroducerNode
+from allmydata.introducer import old
 from allmydata.util import testutil, idlib
 
 class FakeNode(Referenceable):
@@ -22,7 +23,7 @@ class LoggingMultiService(service.MultiService):
     def log(self, msg, **kw):
         log.msg(msg, **kw)
 
-class TestIntroducerNode(testutil.SignalMixin, unittest.TestCase):
+class Node(testutil.SignalMixin, unittest.TestCase):
     def test_loadable(self):
         basedir = "introducer.IntroducerNode.test_loadable"
         os.mkdir(basedir)
@@ -34,7 +35,7 @@ class TestIntroducerNode(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(flushEventualQueue)
         return d
 
-class TestIntroducer(unittest.TestCase, testutil.PollMixin):
+class ServiceMixin:
     def setUp(self):
         self.parent = LoggingMultiService()
         self.parent.startService()
@@ -45,6 +46,7 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
         d.addCallback(flushEventualQueue)
         return d
 
+class Introducer(ServiceMixin, unittest.TestCase, testutil.PollMixin):
 
     def test_create(self):
         ic = IntroducerClient(None, "introducer.furl", "my_nickname",
@@ -73,9 +75,10 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
         self.failUnlessEqual(len(i.get_announcements()), 2)
         self.failUnlessEqual(len(i.get_subscribers()), 0)
 
+class SystemTestMixin(ServiceMixin, testutil.PollMixin):
 
-    def test_system(self):
-
+    def setUp(self):
+        ServiceMixin.setUp(self)
         self.central_tub = tub = Tub()
         #tub.setOption("logLocalFailures", True)
         #tub.setOption("logRemoteFailures", True)
@@ -84,12 +87,25 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
         portnum = l.getPortnum()
         tub.setLocation("localhost:%d" % portnum)
 
+class SystemTest(SystemTestMixin, unittest.TestCase):
+
+    def test_system(self):
         i = IntroducerService()
         i.setServiceParent(self.parent)
-        introducer_furl = tub.registerReference(i)
+        self.introducer_furl = self.central_tub.registerReference(i)
+        return self.do_system_test()
+
+    def test_system_oldserver(self):
+        i = old.IntroducerService_V1()
+        i.setServiceParent(self.parent)
+        self.introducer_furl = self.central_tub.registerReference(i)
+        return self.do_system_test()
+
+    def do_system_test(self):
+
         NUMCLIENTS = 5
-        # we have 5 clients who publish themselves, and an extra one which
-        # does not. When the connections are fully established, all six nodes
+        # we have 5 clients who publish themselves, and an extra one does
+        # which not. When the connections are fully established, all six nodes
         # should have 5 connections each.
 
         clients = []
@@ -105,8 +121,11 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
 
             n = FakeNode()
             log.msg("creating client %d: %s" % (i, tub.getShortTubID()))
-            c = IntroducerClient(tub, introducer_furl,
-                                 "nickname-%d" % i, "version", "oldest")
+            client_class = IntroducerClient
+            if i == 0:
+                client_class = old.IntroducerClient_V1
+            c = client_class(tub, self.introducer_furl,
+                             "nickname-%d" % i, "version", "oldest")
             if i < NUMCLIENTS:
                 node_furl = tub.registerReference(n)
                 c.publish(node_furl, "storage", "ri_name")
@@ -207,4 +226,3 @@ class TestIntroducer(unittest.TestCase, testutil.PollMixin):
                 self.failIf(c.connected_to_introducer())
         d.addCallback(_check4)
         return d
-
