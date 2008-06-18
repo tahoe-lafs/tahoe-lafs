@@ -233,13 +233,13 @@ check-memory-once: .built
 	$(PP) \
 	 $(PYTHON) src/allmydata/test/check_memory.py $(MODE)
 
-# this target uses a pre-established client node to run a canned set of
-# performance tests against a test network that is also pre-established
-# (probably on a remote machine). Provide it with the path to a local
-# directory where this client node has been created (and populated with the
-# necessary FURLs of the test network). This target will start that client
-# with the current code and then run the tests. Afterwards it will stop the
-# client.
+# The check-speed target uses a pre-established client node to run a canned
+# set of performance tests against a test network that is also
+# pre-established (probably on a remote machine). Provide it with the path to
+# a local directory where this client node has been created (and populated
+# with the necessary FURLs of the test network). This target will start that
+# client with the current code and then run the tests. Afterwards it will
+# stop the client.
 #
 # The 'sleep 5' is in there to give the new client a chance to connect to its
 # storageservers, since check_speed.py has no good way of doing that itself.
