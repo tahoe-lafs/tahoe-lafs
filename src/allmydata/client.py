@@ -17,7 +17,7 @@ from allmydata.download import Downloader
 from allmydata.checker import Checker
 from allmydata.offloaded import Helper
 from allmydata.control import ControlServer
-from allmydata.introducer import IntroducerClient
+from allmydata.introducer.client import IntroducerClient
 from allmydata.util import hashutil, base32, testutil
 from allmydata.filenode import FileNode
 from allmydata.dirnode import NewDirectoryNode

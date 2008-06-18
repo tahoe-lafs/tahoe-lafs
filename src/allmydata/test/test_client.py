@@ -5,11 +5,12 @@ from twisted.application import service
 from twisted.python import log
 
 import allmydata
-from allmydata import client, introducer
+from allmydata import client
+from allmydata.introducer.client import IntroducerClient
 from allmydata.util import base32, testutil
 from foolscap.eventual import flushEventualQueue
 
-class FakeIntroducerClient(introducer.IntroducerClient):
+class FakeIntroducerClient(IntroducerClient):
     def __init__(self):
         self._connections = set()
     def add_peer(self, nodeid):

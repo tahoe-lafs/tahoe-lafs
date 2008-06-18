@@ -9,7 +9,7 @@ from twisted.internet.error import ConnectionDone, ConnectionLost
 from twisted.application import service
 import allmydata
 from allmydata import client, uri, download, upload, storage, offloaded
-from allmydata.introducer import IntroducerNode
+from allmydata.introducer.server import IntroducerNode
 from allmydata.util import deferredutil, fileutil, idlib, mathutil, testutil
 from allmydata.util import log
 from allmydata.scripts import runner, cli

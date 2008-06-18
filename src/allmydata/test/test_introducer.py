@@ -9,7 +9,10 @@ from twisted.python import log
 from foolscap import Tub, Referenceable
 from foolscap.eventual import fireEventually, flushEventualQueue
 from twisted.application import service
-from allmydata.introducer import IntroducerClient, IntroducerService, IntroducerNode
+from allmydata.introducer.client import IntroducerClient
+from allmydata.introducer.server import IntroducerService
+# test compatibility with old introducer .tac files
+from allmydata.introducer import IntroducerNode
 from allmydata.util import testutil, idlib
 
 class FakeNode(Referenceable):
