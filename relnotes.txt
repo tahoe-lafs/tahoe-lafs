@@ -80,9 +80,9 @@ Licence, version 1.0.  The Transitive Grace Period Public Licence says
 that you may distribute proprietary derived works of Tahoe without
 releasing the source code of that derived work for up to twelve
 months, after which time you are obligated to release the source code
-of the derived work under the Transitive Grace Period Public Licence.
-See the file "COPYING.TGPPL.html" [7] for the terms of the Transitive
-Grace Period Public Licence, version 1.0.
+of the derived work under the Transitive Grace Period Public
+Licence. See the file "COPYING.TGPPL.html" [7] for the terms of the
+Transitive Grace Period Public Licence, version 1.0.
 
 (You may choose to use this package under the terms of either licence,
 at your option.)
