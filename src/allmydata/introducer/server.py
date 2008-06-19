@@ -4,8 +4,9 @@ from zope.interface import implements
 from twisted.application import service
 from foolscap import Referenceable
 from allmydata import node
-from allmydata.interfaces import RIIntroducerPublisherAndSubscriberService
 from allmydata.util import log
+from allmydata.introducer.interfaces import \
+     RIIntroducerPublisherAndSubscriberService
 from allmydata.introducer.common import make_index
 
 class IntroducerNode(node.Node):

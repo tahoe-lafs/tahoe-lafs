@@ -4,7 +4,8 @@ from base64 import b32decode
 from zope.interface import implements
 from twisted.application import service
 from foolscap import Referenceable
-from allmydata.interfaces import RIIntroducerSubscriberClient, IIntroducerClient
+from allmydata.introducer.interfaces import RIIntroducerSubscriberClient, \
+     IIntroducerClient
 from allmydata.util import log, idlib
 from allmydata.introducer.common import make_index
 
