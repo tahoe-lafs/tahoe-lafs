@@ -258,12 +258,7 @@ check-speed: .built
 # in src/allmydata/test/check_grid.py to see how to set this up.
 check-grid: .built
 	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
-	@echo "stopping any leftover client code"
-	-$(PYTHON) bin/tahoe stop $(TESTCLIENTDIR)
-	$(PYTHON) bin/tahoe start $(TESTCLIENTDIR)
-	sleep 5
-	$(PYTHON) src/allmydata/test/check_grid.py $(TESTCLIENTDIR)
-	$(PYTHON) bin/tahoe stop $(TESTCLIENTDIR)
+	$(PYTHON) src/allmydata/test/check_grid.py $(TESTCLIENTDIR) bin/tahoe
 
 # 'make repl' is a simple-to-type command to get a Python interpreter loop
 # from which you can type 'import allmydata'
