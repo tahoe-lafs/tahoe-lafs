@@ -13,7 +13,7 @@ by the Account Server's signature on a "membership card", which binds a
 specific pubkey to an account number and declares that this pair is a valid
 account.
 
-Each Storage Server which participages in the AS's domain will have the AS's
+Each Storage Server which participates in the AS's domain will have the AS's
 pubkey in its list of valid AS keys, and will thus accept membership cards
 that were signed by that AS. If the SS accepts multiple ASs, then it will
 give each a distinct number, and leases will be labled with an (AS#,Account#)
@@ -131,16 +131,34 @@ Actually, let's merge the two, and put the type in the limitations dict.
  'furl_to': (string): Used only on furlification messages. This requests the
             recipient to create an object which implements the given access,
             then send a FURL which references this object to an
-            RIFURLReceiver.furl() call at the given 'furl_to' FURL:
+            RIFURLReceiver.furl() call at the given 'furl_to' FURL.
+
+            To reduce the number of extra roundtrips, both foolscap calls
+            include an extra (ignored) argument that will carry the object
+            being referenced by the FURL, used to pre-load the recipient's
+            foolscap table. In addition, the response message will contain a
+            nonce, to allow the same beneficiary to be used for multiple
+            messages:
+
+             def process(limitations, nonce, ignored):
                facet = create_storage_facet(limitations)
                facet_furl = tub.registerReference(facet)
                d = tub.getReference(limitations['furl_to'])
-               d.addCallback(lambda rref: rref.furl(facet_furl))
+               d.addCallback(lambda rref: rref.furl(facet_furl, nonce, facet))
+
+            The server must always send the facet/facet_furl to the furl_to
+            beneficiary, and never to the 'ignored' argument (even though for
+            well-behaved clients these will both refer to the same target).
+            This is to prevent a rogue server from echoing a client's signed
+            message to some other server, to try to steal the client's
+            authority.
+
             The facet_furl should be persistent, so to reduce storage space,
             facet_furl should contain an HMAC'ed list of all limitations, and
             create_storage_facet() should be deferred until the client
             actually tries to use the furl. This leads to 150-200 byte base32
             swissnums.
+
  'delegate_key': (binary string, a DSA pubkey). Used only on delegation
                  messages. This requests all observers to accept messages
                  signed by the given public key and to apply the associated
@@ -155,7 +173,7 @@ structure.
 The actual message will then look like:
 
 def make_message(privkey, limitations):
-  message_to_sign = "".join([ netstring(k) + netstring(v) 
+  message_to_sign = "".join([ netstring(k) + netstring(v)
                               for k,v in limitations ])
   signature = privkey.sign(message_to_sign)
   pubkey = privkey.get_public_key()
@@ -185,12 +203,20 @@ When a client learns about a new storage server, they create a new receiver
 object (and stash the peerid in it), and submit the following message to the
 RIStorageServerWelcome.get_personal_facet() method:
 
+ class Receiver(foolscap.Referenceable):
+   def remote_furl(self, facet_furl, nonce, ignored_facet):
+     self.stash = facet_furl
+ receiver = Receiver()
+ nonce = make_nonce()
  mymsg = make_message(client_privkey, {'furl_to': receiver_furl})
- send(membership_card, mymsg)
+ send([membership_card, mymsg], nonce, receiver)
 
-(note that the receiver_furl will probably not have a routeable address, but
+Note that the receiver_furl will probably not have a routeable address, but
 this won't matter because the client is already attached, so foolscap can use
-the existing connection.)
+the existing connection. The receiver should use facet_furl in preference to
+ignored_facet for consistency, but (unlike the server's use of receiver_furl)
+there is no security risk in using ignored_facet (since both are coming from
+the same source).
 
 The server will validate the cert chain (see below) and wind up with a
 complete list of limitations that are to be applied to the facet it will
