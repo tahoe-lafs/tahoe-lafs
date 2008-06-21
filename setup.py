@@ -109,7 +109,7 @@ setup_requires.append('pyutil >= 1.3.16') # used by the Windows installer builde
 # darcs history.
 # http://pypi.python.org/pypi/darcsver
 if 'darcsver' in sys.argv[1:]:
-    setup_requires.append('darcsver >= 1.1.2')
+    setup_requires.append('darcsver >= 1.1.5')
 
 # setuptools_darcs is required to produce complete distributions (such as with
 # "sdist" or "bdist_egg"), unless there is a PKG-INFO file present which shows
