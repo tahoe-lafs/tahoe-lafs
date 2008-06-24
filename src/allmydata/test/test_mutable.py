@@ -806,7 +806,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
     def setUp(self):
         # publish a file and create shares, which can then be manipulated
         # later.
-        self.CONTENTS = "New contents go here"
+        self.CONTENTS = "New contents go here" * 1000
         num_peers = 20
         self._client = FakeClient(num_peers)
         self._storage = self._client._storage
@@ -880,7 +880,8 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
 
 
     def _test_corrupt_all(self, offset, substring,
-                          should_succeed=False, corrupt_early=True):
+                          should_succeed=False, corrupt_early=True,
+                          failure_checker=None):
         d = defer.succeed(None)
         if corrupt_early:
             d.addCallback(corrupt, self._storage, offset)
@@ -897,14 +898,16 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
                     self.failUnless(substring in "".join(allproblems))
                 return servermap
             if should_succeed:
-                d1 = self._fn.download_best_version()
+                d1 = self._fn.download_version(servermap, ver)
                 d1.addCallback(lambda new_contents:
                                self.failUnlessEqual(new_contents, self.CONTENTS))
             else:
                 d1 = self.shouldFail(NotEnoughSharesError,
                                      "_corrupt_all(offset=%s)" % (offset,),
                                      substring,
-                                     self._fn.download_best_version)
+                                     self._fn.download_version, servermap, ver)
+            if failure_checker:
+                d1.addCallback(failure_checker)
             d1.addCallback(lambda res: servermap)
             return d1
         d.addCallback(_do_retrieve)
@@ -986,6 +989,37 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         # a corrupted privkey won't even be noticed by the reader, only by a
         # writer.
         return self._test_corrupt_all("enc_privkey", None, should_succeed=True)
+
+
+    def test_corrupt_all_seqnum_late(self):
+        # corrupting the seqnum between mapupdate and retrieve should result
+        # in NotEnoughSharesError, since each share will look invalid
+        def _check(res):
+            f = res[0]
+            self.failUnless(f.check(NotEnoughSharesError))
+            self.failUnless("someone wrote to the data since we read the servermap" in str(f))
+        return self._test_corrupt_all(1, "ran out of peers",
+                                      corrupt_early=False,
+                                      failure_checker=_check)
+
+    def test_corrupt_all_block_hash_tree_late(self):
+        def _check(res):
+            f = res[0]
+            self.failUnless(f.check(NotEnoughSharesError))
+        return self._test_corrupt_all("block_hash_tree",
+                                      "block hash tree failure",
+                                      corrupt_early=False,
+                                      failure_checker=_check)
+
+
+    def test_corrupt_all_block_late(self):
+        def _check(res):
+            f = res[0]
+            self.failUnless(f.check(NotEnoughSharesError))
+        return self._test_corrupt_all("share_data", "block hash tree failure",
+                                      corrupt_early=False,
+                                      failure_checker=_check)
+
 
     def test_basic_pubkey_at_end(self):
         # we corrupt the pubkey in all but the last 'k' shares, allowing the

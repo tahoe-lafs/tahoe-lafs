@@ -76,6 +76,9 @@ class ShouldFailMixin:
                     self.failUnless(substring in str(res),
                                     "%s: substring '%s' not in '%s'"
                                     % (which, substring, str(res)))
+                # return the Failure for further analysis, but in a form that
+                # doesn't make the Deferred chain think that we failed.
+                return [res]
             else:
                 self.fail("%s was supposed to raise %s, not get '%s'" %
                           (which, expected_failure, res))
