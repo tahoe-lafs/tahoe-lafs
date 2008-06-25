@@ -786,7 +786,9 @@ class StorageServer(service.MultiService, Referenceable):
         stats = { 'storage_server.allocated': self.allocated_size(), }
         if self.consumed is not None:
             stats['storage_server.consumed'] = self.consumed
-        stats['storage_server.latencies'] = self.get_latencies()
+        for category,ld in self.get_latencies().items():
+            for name,v in ld.items():
+                stats['storage_server.latencies.%s.%s' % (category, name)] = v
         return stats
 
     def allocated_size(self):
