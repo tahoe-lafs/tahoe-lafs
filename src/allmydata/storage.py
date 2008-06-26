@@ -218,10 +218,28 @@ class BucketWriter(Referenceable):
         fileutil.make_dirs(os.path.dirname(self.finalhome))
         fileutil.rename(self.incominghome, self.finalhome)
         try:
+            # self.incominghome is like storage/shares/incoming/ab/abcde/4 .
+            # We try to delete the parent (.../ab/abcde) to avoid leaving
+            # these directories lying around forever, but the delete might
+            # fail if we're working on another share for the same storage
+            # index (like ab/abcde/5). The alternative approach would be to
+            # use a hierarchy of objects (PrefixHolder, BucketHolder,
+            # ShareWriter), each of which is responsible for a single
+            # directory on disk, and have them use reference counting of
+            # their children to know when they should do the rmdir. This
+            # approach is simpler, but relies on os.rmdir refusing to delete
+            # a non-empty directory. Do *not* use fileutil.rm_dir() here!
             os.rmdir(os.path.dirname(self.incominghome))
+            # we also delete the grandparent (prefix) directory, .../ab ,
+            # again to avoid leaving directories lying around. This might
+            # fail if there is another bucket open that shares a prefix (like
+            # ab/abfff).
             os.rmdir(os.path.dirname(os.path.dirname(self.incominghome)))
-            os.rmdir(os.path.dirname(os.path.dirname(os.path.dirname(self.incominghome))))
+            # we leave the great-grandparent (incoming/) directory in place.
         except EnvironmentError:
+            # ignore the "can't rmdir because the directory is not empty"
+            # exceptions, those are normal consequences of the
+            # above-mentioned conditions.
             pass
         self._sharefile = None
         self.closed = True
