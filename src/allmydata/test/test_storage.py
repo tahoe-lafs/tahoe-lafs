@@ -275,8 +275,13 @@ class Server(unittest.TestCase):
         for i,wb in writers.items():
             wb.remote_write(0, "%10d" % i)
             wb.remote_close()
-        incomingdir = os.path.dirname(os.path.dirname(os.path.dirname(wb.incominghome)))
-        self.failIf(os.path.exists(incomingdir))
+        incoming_share_dir = wb.incominghome
+        incoming_bucket_dir = os.path.dirname(incoming_share_dir)
+        incoming_prefix_dir = os.path.dirname(incoming_bucket_dir)
+        incoming_dir = os.path.dirname(incoming_prefix_dir)
+        self.failIf(os.path.exists(incoming_bucket_dir))
+        self.failIf(os.path.exists(incoming_prefix_dir))
+        self.failUnless(os.path.exists(incoming_dir))
 
     def test_allocate(self):
         ss = self.create("test_allocate")
