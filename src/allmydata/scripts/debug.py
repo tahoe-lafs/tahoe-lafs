@@ -449,8 +449,15 @@ def catalog_shares(config, out=sys.stdout, err=sys.stderr):
     now = time.time()
     for d in config.nodedirs:
         d = os.path.join(os.path.expanduser(d), "storage/shares")
-        if os.path.exists(d):
-            for abbrevdir in os.listdir(d):
+        try:
+            abbrevs = os.listdir(d)
+        except EnvironmentError:
+            # ignore nodes that have storage turned off altogether
+            pass
+        else:
+            for abbrevdir in abbrevs:
+                if abbrevdir == "incoming":
+                    continue
                 abbrevdir = os.path.join(d, abbrevdir)
                 for si_s in os.listdir(abbrevdir):
                     si_dir = os.path.join(abbrevdir, si_s)
