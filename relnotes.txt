@@ -1,6 +1,16 @@
-ANNOUNCING Allmydata.org "Tahoe", the Least-Authority Filesystem, v1.1
+*** INTERIM relnotes.txt file
 
-We are pleased to announce the release of version 1.1.0 of the "Tahoe"
+This file is being edited.  Eventually it will contain the release notes for the
+Tahoe v1.2 release.  Today, it contains the historical copy of the Tahoe 1.1
+release notes, edited with incremental changes towards making it into the Tahoe
+1.2 release notes.
+
+***
+
+
+ANNOUNCING Allmydata.org "Tahoe", the Least-Authority Filesystem, v1.2
+
+We are pleased to announce the release of version 1.2.0 of the "Tahoe"
 Least Authority Filesystem.
 
 The "Tahoe" Least Authority Filesystem is a secure, decentralized,
@@ -18,7 +28,7 @@ http://allmydata.org/source/tahoe/trunk/docs/about.html
 
 
 This is the successor to Allmydata.org "Tahoe" Least Authority
-Filesystem v1.0, which was released March 25, 2008 [1].  This release
+Filesystem v1.1, which was released June 11, 2008 [1].  XXX update the following sentence This release
 fixes several serious issues in Tahoe v1.0, and improves the user
 interfaces.  See the known_issues.txt file [2] and the NEWS file [3]
 for details.
@@ -118,7 +128,7 @@ on behalf of the allmydata.org team
 June 11, 2008
 San Francisco, California, USA
 
-[1] http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=2348
+[1] http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=2716
 [2] http://allmydata.org/trac/tahoe/browser/docs/known_issues.txt
 [3] http://allmydata.org/trac/tahoe/browser/docs/NEWS
 [4] http://allmydata.org/trac/tahoe/wiki/Dev
