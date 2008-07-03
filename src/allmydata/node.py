@@ -2,12 +2,13 @@
 import datetime, os.path, re, types
 from base64 import b32decode, b32encode
 
-from twisted.python import log
+from twisted.python import log as tahoe_log
 from twisted.application import service
 from twisted.internet import defer, reactor
 from foolscap import Tub, eventual
+import foolscap.logging.log
 from allmydata import get_package_versions_string
-from allmydata.util import log as tahoe_log
+from allmydata.util import log
 from allmydata.util import fileutil, iputil, observer, humanreadable
 from allmydata.util.assertutil import precondition
 
@@ -174,12 +175,12 @@ class Node(service.MultiService):
 
     def _service_startup_failed(self, failure):
         self.log('_startService() failed')
-        log.err(failure)
+        tahoe_log.err(failure)
         print "Node._startService failed, aborting"
         print failure
         #reactor.stop() # for unknown reasons, reactor.stop() isn't working.  [ ] TODO
         self.log('calling os.abort()')
-        log.msg('calling os.abort()')
+        tahoe_log.msg('calling os.abort()')
         print "calling os.abort()"
         os.abort()
 
@@ -201,11 +202,11 @@ class Node(service.MultiService):
     def setup_logging(self):
         # we replace the formatTime() method of the log observer that twistd
         # set up for us, with a method that uses better timestamps.
-        for o in log.theLogPublisher.observers:
+        for o in tahoe_log.theLogPublisher.observers:
             # o might be a FileLogObserver's .emit method
             if type(o) is type(self.setup_logging): # bound method
                 ob = o.im_self
-                if isinstance(ob, log.FileLogObserver):
+                if isinstance(ob, tahoe_log.FileLogObserver):
                     newmeth = types.UnboundMethodType(formatTimeTahoeStyle, ob, ob.__class__)
                     ob.formatTime = newmeth
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
@@ -215,9 +216,11 @@ class Node(service.MultiService):
         self.tub.setOption("log-gatherer-furlfile",
                            os.path.join(self.basedir, "log_gatherer.furl"))
         self.tub.setOption("bridge-twisted-logs", True)
+        incident_dir = os.path.join(self.basedir, "logs", "incidents")
+        foolscap.logging.log.setLogDir(incident_dir)
 
     def log(self, *args, **kwargs):
-        return tahoe_log.msg(*args, **kwargs)
+        return log.msg(*args, **kwargs)
 
     def old_log(self, msg, src="", args=(), **kw):
         if src:
@@ -230,8 +233,8 @@ class Node(service.MultiService):
             except TypeError, e:
                 msg = "ERROR: output string '%s' contained invalid %% expansion, error: %s, args: %s\n" % (`msg`, e, `args`)
         msg = self.short_nodeid + ": " + humanreadable.hr(msg)
-        return log.callWithContext({"system":logsrc},
-                                   tahoe_log.msg, msg, **kw)
+        return tahoe_log.callWithContext({"system":logsrc},
+                                         tahoe_log.msg, msg, **kw)
 
     def _setup_tub(self, local_addresses):
         # we can't get a dynamically-assigned portnum until our Tub is
