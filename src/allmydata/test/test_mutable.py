@@ -878,6 +878,54 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_retrieved)
         return d
 
+    def test_all_shares_vanished(self):
+        d = self.make_servermap()
+        def _remove_shares(servermap):
+            for shares in self._storage._peers.values():
+                shares.clear()
+            d1 = self.shouldFail(NotEnoughSharesError,
+                                 "test_all_shares_vanished",
+                                 "ran out of peers",
+                                 self.do_download, servermap)
+            return d1
+        d.addCallback(_remove_shares)
+        return d
+
+    def test_no_servers(self):
+        c2 = FakeClient(0)
+        self._fn._client = c2
+        # if there are no servers, then a MODE_READ servermap should come
+        # back empty
+        d = self.make_servermap()
+        def _check_servermap(servermap):
+            self.failUnlessEqual(servermap.best_recoverable_version(), None)
+            self.failIf(servermap.recoverable_versions())
+            self.failIf(servermap.unrecoverable_versions())
+            self.failIf(servermap.all_peers())
+        d.addCallback(_check_servermap)
+        return d
+    test_no_servers.timeout = 15
+
+    def test_no_servers_download(self):
+        c2 = FakeClient(0)
+        self._fn._client = c2
+        d = self.shouldFail(UnrecoverableFileError,
+                            "test_no_servers_download",
+                            "no recoverable versions",
+                            self._fn.download_best_version)
+        def _restore(res):
+            # a failed download that occurs while we aren't connected to
+            # anybody should not prevent a subsequent download from working.
+            # This isn't quite the webapi-driven test that #463 wants, but it
+            # should be close enough.
+            self._fn._client = self._client
+            return self._fn.download_best_version()
+        def _retrieved(new_contents):
+            self.failUnlessEqual(new_contents, self.CONTENTS)
+        d.addCallback(_restore)
+        d.addCallback(_retrieved)
+        return d
+    test_no_servers_download.timeout = 15
 
     def _test_corrupt_all(self, offset, substring,
                           should_succeed=False, corrupt_early=True,
@@ -1613,6 +1661,18 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
                             "Ran out of non-bad servers",
                             self.client.create_mutable_file, "contents")
         return d
+
+    def test_publish_no_servers(self):
+        # no servers at all: the publish should fail
+        basedir = os.path.join("mutable/CollidingWrites/publish_no_servers")
+        self.client = LessFakeClient(basedir, 0)
+        d = self.shouldFail(NotEnoughServersError,
+                            "test_publish_no_servers",
+                            "Ran out of non-bad servers",
+                            self.client.create_mutable_file, "contents")
+        return d
+    test_publish_no_servers.timeout = 30
+
 
     def test_privkey_query_error(self):
         # when a servermap is updated with MODE_WRITE, it tries to get the
