@@ -6,7 +6,7 @@ from twisted.python import log as tahoe_log
 from twisted.application import service
 from twisted.internet import defer, reactor
 from foolscap import Tub, eventual
-#import foolscap.logging.log
+import foolscap.logging.log
 from allmydata import get_package_versions_string
 from allmydata.util import log
 from allmydata.util import fileutil, iputil, observer, humanreadable
@@ -218,7 +218,7 @@ class Node(service.MultiService):
         self.tub.setOption("bridge-twisted-logs", True)
         incident_dir = os.path.join(self.basedir, "logs", "incidents")
         # this doesn't quite work yet: unit tests fail
-        #foolscap.logging.log.setLogDir(incident_dir)
+        foolscap.logging.log.setLogDir(incident_dir)
 
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
