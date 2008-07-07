@@ -12,6 +12,7 @@ class DumpOptions(usage.Options):
 
 def dump_share(config, out=sys.stdout, err=sys.stderr):
     from allmydata import uri, storage
+    from allmydata.util import base32
 
     # check the version, to see if we have a mutable or immutable share
     print >>out, "share filename: %s" % config['filename']
@@ -60,6 +61,18 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
         print >>out, "LEFTOVER:"
         for k in sorted(leftover):
             print >>out, "%20s: %s" % (k, unpacked[k])
+
+    # the storage index isn't stored in the share itself, so we depend upon
+    # knowing the parent directory name to get it
+    pieces = config['filename'].split(os.sep)
+    if len(pieces) >= 2 and base32.could_be_base32_encoded(pieces[-2]):
+        storage_index = base32.a2b(pieces[-2])
+        uri_extension_hash = base32.a2b(unpacked["UEB_hash"])
+        u = uri.CHKFileVerifierURI(storage_index, uri_extension_hash,
+                                   unpacked["needed_shares"],
+                                   unpacked["total_shares"], unpacked["size"])
+        verify_cap = u.to_string()
+        print >>out, "%20s: %s" % ("verify-cap", verify_cap)
 
     sizes = {}
     sizes['data'] = bp._data_size
@@ -145,7 +158,8 @@ def dump_mutable_share(config, out, err):
 def dump_SDMF_share(offset, length, config, out, err):
     from allmydata.mutable.layout import unpack_share
     from allmydata.mutable.common import NeedMoreDataError
-    from allmydata.util import base32
+    from allmydata.util import base32, hashutil
+    from allmydata.uri import SSKVerifierURI
 
     f = open(config['filename'], "rb")
     f.seek(offset)
@@ -182,6 +196,16 @@ def dump_SDMF_share(offset, length, config, out, err):
                                       for hid in share_hash_chain.keys()]))
     print >>out, "  share_hash_chain: %s" % share_hash_ids
     print >>out, "  block_hash_tree: %d nodes" % len(block_hash_tree)
+
+    # the storage index isn't stored in the share itself, so we depend upon
+    # knowing the parent directory name to get it
+    pieces = config['filename'].split(os.sep)
+    if len(pieces) >= 2 and base32.could_be_base32_encoded(pieces[-2]):
+        storage_index = base32.a2b(pieces[-2])
+        fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey)
+        u = SSKVerifierURI(storage_index, fingerprint)
+        verify_cap = u.to_string()
+        print >>out, "  verify-cap:", verify_cap
 
     print >>out
 

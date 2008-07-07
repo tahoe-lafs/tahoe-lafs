@@ -11,7 +11,7 @@ import allmydata
 from allmydata import client, uri, download, upload, storage, offloaded
 from allmydata.introducer.server import IntroducerNode
 from allmydata.util import deferredutil, fileutil, idlib, mathutil, testutil
-from allmydata.util import log
+from allmydata.util import log, base32
 from allmydata.scripts import runner, cli
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
 from allmydata.mutable.common import NotMutableError
@@ -677,6 +677,9 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
                 # now
                 self.failUnless("  share_hash_chain: " in output)
                 self.failUnless("  block_hash_tree: 1 nodes\n" in output)
+                expected = ("  verify-cap: URI:SSK-Verifier:%s:" %
+                            base32.b2a(storage_index))
+                self.failUnless(expected in output)
             except unittest.FailTest:
                 print
                 print "dump-share output was:"
@@ -1458,6 +1461,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
                     "crypttext_hash", "crypttext_root_hash",
                     "share_root_hash", "UEB_hash"):
             self.failUnless("%s: " % key in output, key)
+        self.failUnless("  verify-cap: URI:CHK-Verifier:" in output)
 
         # now use its storage index to find the other shares using the
         # 'find-shares' tool
