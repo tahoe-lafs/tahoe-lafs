@@ -396,8 +396,22 @@ class IFilesystemNode(Interface):
         it holds a share for the file or directory.
         """
 
-    def check():
-        """Perform a file check. See IChecker.check for details."""
+    def check(verify=False, repair=False):
+        """Perform a file check. See IChecker.check for details.
+
+        The default mode is named 'check' and simply asks each server whether
+        or not it has a share, and believes the answers. If verify=True, this
+        switches into the 'verify' mode, in which every byte of every share
+        is retrieved, and all hashes are verified. This uses much more
+        network and disk bandwidth than simple checking, especially for large
+        files, but will catch disk errors.
+
+        The default repair=False argument means that files which are not
+        perfectly healthy will be reported, but not fixed. When repair=True,
+        the node will attempt to repair the file first. The results will
+        indicate the initial status of the file in either case. If repair was
+        attempted, the results will indicate that too.
+        """
 
     def is_readonly():
         """Return True if this reference provides mutable access to the given
@@ -1383,7 +1397,7 @@ class IUploader(Interface):
         """TODO: how should this work?"""
 
 class IChecker(Interface):
-    def check(uri_to_check):
+    def check(uri_to_check, repair=False):
         """Accepts an IVerifierURI, and checks upon the health of its target.
 
         For now, uri_to_check must be an IVerifierURI. In the future we
@@ -1411,7 +1425,7 @@ class IChecker(Interface):
         and the node will initialize it properly the next time it is started.
         """
 
-    def verify(uri_to_check):
+    def verify(uri_to_check, repair=False):
         """Accepts an IVerifierURI, and verifies the crypttext of the target.
 
         This is a more-intensive form of checking. For verification, the
