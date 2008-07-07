@@ -461,6 +461,12 @@ class ServermapUpdater:
             self._queries_outstanding.add(peerid)
             self._do_query(ss, peerid, self._storage_index, self._read_size)
 
+        if not peerlist:
+            # there is nobody to ask, so we need to short-circuit the state
+            # machine.
+            d = defer.maybeDeferred(self._check_for_done, None)
+            d.addErrback(self._fatal_error)
+
         # control flow beyond this point: state machine. Receiving responses
         # from queries is the input. We might send out more queries, or we
         # might produce a result.
