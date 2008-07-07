@@ -22,7 +22,7 @@ from allmydata.web.common import abbreviate_size, IClient, getxmlfile, \
 
 class URIHandler(RenderMixin, rend.Page):
     # I live at /uri . There are several operations defined on /uri itself,
-    # mostly involed with creation of unlinked files and directories.
+    # mostly involved with creation of unlinked files and directories.
 
     def render_GET(self, ctx):
         req = IRequest(ctx)
