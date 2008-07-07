@@ -186,7 +186,7 @@ class ServerMap:
 
     def shares_available(self):
         """Return a dict that maps verinfo to tuples of
-        (num_distinct_shares, k) tuples."""
+        (num_distinct_shares, k, N) tuples."""
         versionmap = self.make_versionmap()
         all_shares = {}
         for verinfo, shares in versionmap.items():
@@ -195,7 +195,7 @@ class ServerMap:
                 s.add(shnum)
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
              offsets_tuple) = verinfo
-            all_shares[verinfo] = (len(s), k)
+            all_shares[verinfo] = (len(s), k, N)
         return all_shares
 
     def highest_seqnum(self):

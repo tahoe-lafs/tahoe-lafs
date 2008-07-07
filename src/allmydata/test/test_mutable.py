@@ -646,7 +646,7 @@ class Servermap(unittest.TestCase):
         self.failIfEqual(best, None)
         self.failUnlessEqual(sm.recoverable_versions(), set([best]))
         self.failUnlessEqual(len(sm.shares_available()), 1)
-        self.failUnlessEqual(sm.shares_available()[best], (num_shares, 3))
+        self.failUnlessEqual(sm.shares_available()[best], (num_shares, 3, 10))
         shnum, peerids = sm.make_sharemap().items()[0]
         peerid = list(peerids)[0]
         self.failUnlessEqual(sm.version_on_peer(peerid, shnum), best)
@@ -770,7 +770,7 @@ class Servermap(unittest.TestCase):
         best = sm.best_recoverable_version()
         self.failUnlessEqual(best, None)
         self.failUnlessEqual(len(sm.shares_available()), 1)
-        self.failUnlessEqual(sm.shares_available().values()[0], (2,3) )
+        self.failUnlessEqual(sm.shares_available().values()[0], (2,3,10) )
         return sm
 
     def test_not_quite_enough_shares(self):
