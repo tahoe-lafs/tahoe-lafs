@@ -19,6 +19,7 @@ from common import MODE_READ, MODE_WRITE, UnrecoverableFileError, \
      ResponseCache, UncoordinatedWriteError
 from servermap import ServerMap, ServermapUpdater
 from retrieve import Retrieve
+from checker import MutableChecker
 
 
 class BackoffAgent:
@@ -235,9 +236,9 @@ class MutableFileNode:
 
     #################################
 
-    def check(self):
-        verifier = self.get_verifier()
-        return self._client.getServiceNamed("checker").check(verifier)
+    def check(self, verify=False, repair=False):
+        checker = MutableChecker(self)
+        return checker.check(verify, repair)
 
     # allow the use of IDownloadTarget
     def download(self, target):

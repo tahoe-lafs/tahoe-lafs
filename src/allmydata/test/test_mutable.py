@@ -20,7 +20,7 @@ from allmydata.mutable.node import MutableFileNode, BackoffAgent
 from allmydata.mutable.common import DictOfSets, ResponseCache, \
      MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, \
      NeedMoreDataError, UnrecoverableFileError, UncoordinatedWriteError, \
-     NotEnoughServersError
+     NotEnoughServersError, CorruptShareError
 from allmydata.mutable.retrieve import Retrieve
 from allmydata.mutable.publish import Publish
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
@@ -223,7 +223,7 @@ def flip_bit(original, byte_offset):
             chr(ord(original[byte_offset]) ^ 0x01) +
             original[byte_offset+1:])
 
-def corrupt(res, s, offset, shnums_to_corrupt=None):
+def corrupt(res, s, offset, shnums_to_corrupt=None, offset_offset=0):
     # if shnums_to_corrupt is None, corrupt all shares. Otherwise it is a
     # list of shnums to corrupt.
     for peerid in s._peers:
@@ -250,7 +250,7 @@ def corrupt(res, s, offset, shnums_to_corrupt=None):
                 real_offset = o[offset1]
             else:
                 real_offset = offset1
-            real_offset = int(real_offset) + offset2
+            real_offset = int(real_offset) + offset2 + offset_offset
             assert isinstance(real_offset, int), offset
             shares[shnum] = flip_bit(data, real_offset)
     return res
@@ -1119,6 +1119,131 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
 
+class CheckerMixin:
+    def check_good(self, r, where):
+        self.failUnless(r['healthy'], where)
+        self.failIf(r['problems'], where)
+        return r
+
+    def check_bad(self, r, where):
+        self.failIf(r['healthy'], where)
+        return r
+
+    def check_expected_failure(self, r, expected_exception, substring, where):
+        for (peerid, storage_index, shnum, f) in r['problems']:
+            if f.check(expected_exception):
+                self.failUnless(substring in str(f),
+                                "%s: substring '%s' not in '%s'" %
+                                (where, substring, str(f)))
+                return
+        self.fail("%s: didn't see expected exception %s in problems %s" %
+                  (where, expected_exception, r['problems']))
+
+
+class Checker(unittest.TestCase, CheckerMixin):
+    def setUp(self):
+        # publish a file and create shares, which can then be manipulated
+        # later.
+        self.CONTENTS = "New contents go here" * 1000
+        num_peers = 20
+        self._client = FakeClient(num_peers)
+        self._storage = self._client._storage
+        d = self._client.create_mutable_file(self.CONTENTS)
+        def _created(node):
+            self._fn = node
+        d.addCallback(_created)
+        return d
+
+
+    def test_check_good(self):
+        d = self._fn.check()
+        d.addCallback(self.check_good, "test_check_good")
+        return d
+
+    def test_check_no_shares(self):
+        for shares in self._storage._peers.values():
+            shares.clear()
+        d = self._fn.check()
+        d.addCallback(self.check_bad, "test_check_no_shares")
+        return d
+
+    def test_check_not_enough_shares(self):
+        for shares in self._storage._peers.values():
+            for shnum in shares.keys():
+                if shnum > 0:
+                    del shares[shnum]
+        d = self._fn.check()
+        d.addCallback(self.check_bad, "test_check_not_enough_shares")
+        return d
+
+    def test_check_all_bad_sig(self):
+        corrupt(None, self._storage, 1) # bad sig
+        d = self._fn.check()
+        d.addCallback(self.check_bad, "test_check_all_bad_sig")
+        return d
+
+    def test_check_all_bad_blocks(self):
+        corrupt(None, self._storage, "share_data", [9]) # bad blocks
+        # the Checker won't notice this.. it doesn't look at actual data
+        d = self._fn.check()
+        d.addCallback(self.check_good, "test_check_all_bad_blocks")
+        return d
+
+    def test_verify_good(self):
+        d = self._fn.check(verify=True)
+        d.addCallback(self.check_good, "test_verify_good")
+        return d
+
+    def test_verify_all_bad_sig(self):
+        corrupt(None, self._storage, 1) # bad sig
+        d = self._fn.check(verify=True)
+        d.addCallback(self.check_bad, "test_verify_all_bad_sig")
+        return d
+
+    def test_verify_one_bad_sig(self):
+        corrupt(None, self._storage, 1, [9]) # bad sig
+        d = self._fn.check(verify=True)
+        d.addCallback(self.check_bad, "test_verify_one_bad_sig")
+        return d
+
+    def test_verify_one_bad_block(self):
+        corrupt(None, self._storage, "share_data", [9]) # bad blocks
+        # the Verifier *will* notice this, since it examines every byte
+        d = self._fn.check(verify=True)
+        d.addCallback(self.check_bad, "test_verify_one_bad_block")
+        d.addCallback(self.check_expected_failure,
+                      CorruptShareError, "block hash tree failure",
+                      "test_verify_one_bad_block")
+        return d
+
+    def test_verify_one_bad_sharehash(self):
+        corrupt(None, self._storage, "share_hash_chain", [9], 5)
+        d = self._fn.check(verify=True)
+        d.addCallback(self.check_bad, "test_verify_one_bad_sharehash")
+        d.addCallback(self.check_expected_failure,
+                      CorruptShareError, "corrupt hashes",
+                      "test_verify_one_bad_sharehash")
+        return d
+
+    def test_verify_one_bad_encprivkey(self):
+        corrupt(None, self._storage, "enc_privkey", [9]) # bad privkey
+        d = self._fn.check(verify=True)
+        d.addCallback(self.check_bad, "test_verify_one_bad_encprivkey")
+        d.addCallback(self.check_expected_failure,
+                      CorruptShareError, "invalid privkey",
+                      "test_verify_one_bad_encprivkey")
+        return d
+
+    def test_verify_one_bad_encprivkey_uncheckable(self):
+        corrupt(None, self._storage, "enc_privkey", [9]) # bad privkey
+        readonly_fn = self._fn.get_readonly()
+        # a read-only node has no way to validate the privkey
+        d = readonly_fn.check(verify=True)
+        d.addCallback(self.check_good,
+                      "test_verify_one_bad_encprivkey_uncheckable")
+        return d
+
+
 class MultipleEncodings(unittest.TestCase):
     def setUp(self):
         self.CONTENTS = "New contents go here"
@@ -1261,7 +1386,7 @@ class MultipleEncodings(unittest.TestCase):
         d.addCallback(_retrieved)
         return d
 
-class MultipleVersions(unittest.TestCase):
+class MultipleVersions(unittest.TestCase, CheckerMixin):
     def setUp(self):
         self.CONTENTS = ["Contents 0",
                          "Contents 1",
@@ -1324,6 +1449,10 @@ class MultipleVersions(unittest.TestCase):
         self._set_versions(dict([(i,2) for i in (0,2,4,6,8)]))
         d = self._fn.download_best_version()
         d.addCallback(lambda res: self.failUnlessEqual(res, self.CONTENTS[4]))
+        # and the checker should report problems
+        d.addCallback(lambda res: self._fn.check())
+        d.addCallback(self.check_bad, "test_multiple_versions")
+
         # but if everything is at version 2, that's what we should download
         d.addCallback(lambda res:
                       self._set_versions(dict([(i,2) for i in range(10)])))
