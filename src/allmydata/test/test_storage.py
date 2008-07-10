@@ -8,7 +8,7 @@ from allmydata import interfaces
 from allmydata.util import fileutil, hashutil
 from allmydata.storage import BucketWriter, BucketReader, \
      WriteBucketProxy, ReadBucketProxy, StorageServer, MutableShareFile, \
-     storage_index_to_dir, DataTooLargeError
+     storage_index_to_dir, DataTooLargeError, LeaseInfo
 from allmydata.interfaces import BadWriteEnablerError
 from allmydata.test.common import LoggingServiceParent
 
@@ -56,7 +56,8 @@ class Bucket(unittest.TestCase):
         renew_secret = os.urandom(32)
         cancel_secret = os.urandom(32)
         expiration_time = time.time() + 5000
-        return (owner_num, renew_secret, cancel_secret, expiration_time)
+        return LeaseInfo(owner_num, renew_secret, cancel_secret,
+                         expiration_time, "\x00" * 20)
 
     def test_create(self):
         incoming, final = self.make_workdir("test_create")
@@ -109,7 +110,8 @@ class BucketProxy(unittest.TestCase):
         renew_secret = os.urandom(32)
         cancel_secret = os.urandom(32)
         expiration_time = time.time() + 5000
-        return (owner_num, renew_secret, cancel_secret, expiration_time)
+        return LeaseInfo(owner_num, renew_secret, cancel_secret,
+                         expiration_time, "\x00" * 20)
 
     def bucket_writer_closed(self, bw, consumed):
         pass
@@ -228,6 +230,7 @@ class Server(unittest.TestCase):
         workdir = self.workdir(name)
         ss = StorageServer(workdir, sizelimit,
                            stats_provider=FakeStatsProvider())
+        ss.setNodeID("\x00" * 20)
         ss.setServiceParent(self.sparent)
         return ss
 
@@ -450,7 +453,7 @@ class Server(unittest.TestCase):
 
         leases = list(ss.get_leases("si0"))
         self.failUnlessEqual(len(leases), 1)
-        self.failUnlessEqual(set([l[1] for l in leases]), set([rs0]))
+        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs0]))
 
         rs1,cs1 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
                    hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
@@ -469,7 +472,7 @@ class Server(unittest.TestCase):
 
         leases = list(ss.get_leases("si1"))
         self.failUnlessEqual(len(leases), 2)
-        self.failUnlessEqual(set([l[1] for l in leases]), set([rs1, rs2]))
+        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2]))
 
         # check that si0 is readable
         readers = ss.remote_get_buckets("si0")
@@ -505,7 +508,7 @@ class Server(unittest.TestCase):
 
         leases = list(ss.get_leases("si1"))
         self.failUnlessEqual(len(leases), 1)
-        self.failUnlessEqual(set([l[1] for l in leases]), set([rs2]))
+        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs2]))
 
         ss.remote_renew_lease("si1", rs2)
         # cancelling the second should make it go away
@@ -549,6 +552,7 @@ class Server(unittest.TestCase):
     def test_readonly(self):
         workdir = self.workdir("test_readonly")
         ss = StorageServer(workdir, readonly_storage=True)
+        ss.setNodeID("\x00" * 20)
         ss.setServiceParent(self.sparent)
 
         canary = FakeCanary()
@@ -560,6 +564,7 @@ class Server(unittest.TestCase):
         # discard is really only used for other tests, but we test it anyways
         workdir = self.workdir("test_discard")
         ss = StorageServer(workdir, discard_storage=True)
+        ss.setNodeID("\x00" * 20)
         ss.setServiceParent(self.sparent)
 
         canary = FakeCanary()
@@ -594,7 +599,7 @@ class MutableServer(unittest.TestCase):
         workdir = self.workdir(name)
         ss = StorageServer(workdir, sizelimit)
         ss.setServiceParent(self.sparent)
-        ss.setNodeID("\x00" * 32)
+        ss.setNodeID("\x00" * 20)
         return ss
 
     def test_create(self):
@@ -925,17 +930,28 @@ class MutableServer(unittest.TestCase):
                                       1: ["1"*10],
                                       2: ["2"*10]})
 
-    def compare_leases_without_timestamps(self, a, b):
-        self.failUnlessEqual(len(a), len(b))
-        for i in range(len(a)):
-            (num_a, (ownerid_a, expiration_time_a,
-                   renew_secret_a, cancel_secret_a, nodeid_a)) = a[i]
-            (num_b, (ownerid_b, expiration_time_b,
-                   renew_secret_b, cancel_secret_b, nodeid_b)) = b[i]
-            self.failUnlessEqual( (num_a, ownerid_a, renew_secret_a,
-                                   cancel_secret_a, nodeid_a),
-                                  (num_b, ownerid_b, renew_secret_b,
-                                   cancel_secret_b, nodeid_b) )
+    def compare_leases_without_timestamps(self, leases_a, leases_b):
+        self.failUnlessEqual(len(leases_a), len(leases_b))
+        for i in range(len(leases_a)):
+            num_a, a = leases_a[i]
+            num_b, b = leases_b[i]
+            self.failUnlessEqual(num_a, num_b)
+            self.failUnlessEqual(a.owner_num,       b.owner_num)
+            self.failUnlessEqual(a.renew_secret,    b.renew_secret)
+            self.failUnlessEqual(a.cancel_secret,   b.cancel_secret)
+            self.failUnlessEqual(a.nodeid,          b.nodeid)
+
+    def compare_leases(self, leases_a, leases_b):
+        self.failUnlessEqual(len(leases_a), len(leases_b))
+        for i in range(len(leases_a)):
+            num_a, a = leases_a[i]
+            num_b, b = leases_b[i]
+            self.failUnlessEqual(num_a, num_b)
+            self.failUnlessEqual(a.owner_num,       b.owner_num)
+            self.failUnlessEqual(a.renew_secret,    b.renew_secret)
+            self.failUnlessEqual(a.cancel_secret,   b.cancel_secret)
+            self.failUnlessEqual(a.nodeid,          b.nodeid)
+            self.failUnlessEqual(a.expiration_time, b.expiration_time)
 
     def test_leases(self):
         ss = self.create("test_leases", sizelimit=1000*1000)
@@ -1002,20 +1018,25 @@ class MutableServer(unittest.TestCase):
         all_leases = s0.debug_get_leases()
         # renewing with a bogus token should prompt an error message
 
-        # TODO: examine the exception thus raised, make sure the old nodeid
-        # is present, to provide for share migration
-        self.failUnlessRaises(IndexError,
-                              ss.remote_renew_lease, "si1",
-                              secrets(20)[1])
+        # examine the exception thus raised, make sure the old nodeid is
+        # present, to provide for share migration
+        e = self.failUnlessRaises(IndexError,
+                                  ss.remote_renew_lease, "si1",
+                                  secrets(20)[1])
+        e_s = str(e)
+        self.failUnless("Unable to renew non-existent lease" in e_s)
+        self.failUnless("I have leases accepted by nodeids:" in e_s)
+        self.failUnless("nodeids: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' ." in e_s)
+
         # same for cancelling
         self.failUnlessRaises(IndexError,
                               ss.remote_cancel_lease, "si1",
                               secrets(20)[2])
-        self.failUnlessEqual(all_leases, s0.debug_get_leases())
+        self.compare_leases(all_leases, s0.debug_get_leases())
 
         # reading shares should not modify the timestamp
         read("si1", [], [(0,200)])
-        self.failUnlessEqual(all_leases, s0.debug_get_leases())
+        self.compare_leases(all_leases, s0.debug_get_leases())
 
         write("si1", secrets(0),
               {0: ([], [(200, "make me bigger")], None)}, [])
@@ -1056,6 +1077,43 @@ class MutableServer(unittest.TestCase):
         self.failUnlessRaises(IndexError,
                               ss.remote_cancel_lease, "si2", "nonsecret")
 
+    def test_update_write_enabler(self):
+        ss = self.create("test_update_write_enabler", sizelimit=1000*1000)
+        secrets = ( self.write_enabler("we1"),
+                    self.renew_secret("we1-0"),
+                    self.cancel_secret("we1-0") )
+        old_write_enabler = secrets[0]
+        new_write_enabler = self.write_enabler("we2")
+        new_secrets = (new_write_enabler, secrets[1], secrets[2])
+
+        data = "".join([ ("%d" % i) * 10 for i in range(10) ])
+        write = ss.remote_slot_testv_and_readv_and_writev
+        read = ss.remote_slot_readv
+        update_write_enabler = ss.remote_update_write_enabler
+
+        rc = write("si1", secrets, {0: ([], [(0,data)], None)}, [])
+        self.failUnlessEqual(rc, (True, {}))
+
+        rc = write("si1", secrets, {0: ([], [(1,data)], None)}, [])
+        self.failUnlessEqual(rc[0], True)
+
+        f = self.failUnlessRaises(BadWriteEnablerError,
+                                  write, "si1", new_secrets,
+                                  {}, [])
+        self.failUnless("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'." in f, f)
+        ss.setNodeID("\xff" * 20)
+
+        rc = update_write_enabler("si1", old_write_enabler, new_write_enabler)
+        self.failUnlessEqual(rc, None)
+
+        f = self.failUnlessRaises(BadWriteEnablerError,
+                                  write, "si1", secrets,
+                                  {}, [])
+        self.failUnless("The write enabler was recorded by nodeid '77777777777777777777777777777777'." in f, f)
+
+        rc = write("si1", new_secrets, {0: ([], [(2,data)], None)}, [])
+        self.failUnlessEqual(rc[0], True)
+
 
 class Stats(unittest.TestCase):
 
@@ -1072,6 +1130,7 @@ class Stats(unittest.TestCase):
     def create(self, name, sizelimit=None):
         workdir = self.workdir(name)
         ss = StorageServer(workdir, sizelimit)
+        ss.setNodeID("\x00" * 20)
         ss.setServiceParent(self.sparent)
         return ss
 

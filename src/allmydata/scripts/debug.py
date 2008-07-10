@@ -88,10 +88,9 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
     leases = list(f.iter_leases())
     if leases:
         for i,lease in enumerate(leases):
-            (owner_num, renew_secret, cancel_secret, expiration_time) = lease
-            when = format_expiration_time(expiration_time)
-            print >>out, " Lease #%d: owner=%d, expire in %s" % (i, owner_num,
-                                                                 when)
+            when = format_expiration_time(lease.expiration_time)
+            print >>out, " Lease #%d: owner=%d, expire in %s" \
+                  % (i, lease.owner_num, when)
     else:
         print >>out, " No leases."
 
@@ -137,15 +136,15 @@ def dump_mutable_share(config, out, err):
     print >>out, " container_size: %d" % container_size
     print >>out, " data_length: %d" % data_length
     if leases:
-        for (leasenum, (oid,et,rs,cs,anid)) in leases:
+        for (leasenum, lease) in leases:
             print >>out
             print >>out, " Lease #%d:" % leasenum
-            print >>out, "  ownerid: %d" % oid
-            when = format_expiration_time(et)
+            print >>out, "  ownerid: %d" % lease.owner_num
+            when = format_expiration_time(lease.expiration_time)
             print >>out, "  expires in %s" % when
-            print >>out, "  renew_secret: %s" % base32.b2a(rs)
-            print >>out, "  cancel_secret: %s" % base32.b2a(cs)
-            print >>out, "  secrets are for nodeid: %s" % idlib.nodeid_b2a(anid)
+            print >>out, "  renew_secret: %s" % base32.b2a(lease.renew_secret)
+            print >>out, "  cancel_secret: %s" % base32.b2a(lease.cancel_secret)
+            print >>out, "  secrets are for nodeid: %s" % idlib.nodeid_b2a(lease.nodeid)
     else:
         print >>out, "No leases."
     print >>out
@@ -402,10 +401,8 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out, err):
         extra_lease_offset = m._read_extra_lease_offset(f)
         container_size = extra_lease_offset - m.DATA_OFFSET
         leases = list(m._enumerate_leases(f))
-        expiration_time = min( [expiration_time
-                                for (leasenum,
-                                     (ownerid, expiration_time, rs, cs, nodeid))
-                                in leases] )
+        expiration_time = min( [lease[1].expiration_time
+                                for lease in leases] )
         expiration = max(0, expiration_time - now)
 
         share_type = "unknown"
@@ -448,9 +445,8 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out, err):
         length = struct.unpack(">L", sf.read_share_data(seek, 4))[0]
         seek += 4
         UEB_data = sf.read_share_data(seek, length)
-        expiration_time = min( [expiration_time
-                                for (ownerid, rs, cs, expiration_time)
-                                in sf.iter_leases()] )
+        expiration_time = min( [lease.expiration_time
+                                for lease in sf.iter_leases()] )
         expiration = max(0, expiration_time - now)
 
         unpacked = uri.unpack_extension_readable(UEB_data)

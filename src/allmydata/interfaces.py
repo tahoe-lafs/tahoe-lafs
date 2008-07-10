@@ -21,6 +21,7 @@ URIExtensionData = StringConstraint(1000)
 Number = IntegerConstraint(8) # 2**(8*8) == 16EiB ~= 18e18 ~= 18 exabytes
 Offset = Number
 ReadSize = int # the 'int' constraint is 2**31 == 2Gib -- large files are processed in not-so-large increments
+WriteEnablerSecret = Hash # used to protect mutable bucket modifications
 LeaseRenewSecret = Hash # used to protect bucket lease renewal requests
 LeaseCancelSecret = Hash # used to protect bucket lease cancellation requests
 
@@ -110,11 +111,21 @@ class RIStorageServer(RemoteInterface):
         return TupleOf(SetOf(int, maxLength=MAX_BUCKETS),
                        DictOf(int, RIBucketWriter, maxKeys=MAX_BUCKETS))
 
+    def add_lease(storage_index=StorageIndex,
+                  renew_secret=LeaseRenewSecret,
+                  cancel_secret=LeaseCancelSecret):
+        """
+        Add a new lease on the given bucket. If the renew_secret matches an
+        existing lease, that lease will be renewed instead.
+        """
+        return None
+
     def renew_lease(storage_index=StorageIndex, renew_secret=LeaseRenewSecret):
         """
         Renew the lease on a given bucket. Some networks will use this, some
         will not.
         """
+        return None
 
     def cancel_lease(storage_index=StorageIndex,
                      cancel_secret=LeaseCancelSecret):
@@ -122,6 +133,7 @@ class RIStorageServer(RemoteInterface):
         Cancel the lease on a given bucket. If this was the last lease on the
         bucket, the bucket will be deleted.
         """
+        return None
 
     def get_buckets(storage_index=StorageIndex):
         return DictOf(int, RIBucketReader, maxKeys=MAX_BUCKETS)
@@ -136,7 +148,9 @@ class RIStorageServer(RemoteInterface):
         return DictOf(int, ReadData) # shnum -> results
 
     def slot_testv_and_readv_and_writev(storage_index=StorageIndex,
-                                        secrets=TupleOf(Hash, Hash, Hash),
+                                        secrets=TupleOf(WriteEnablerSecret,
+                                                        LeaseRenewSecret,
+                                                        LeaseCancelSecret),
                                         tw_vectors=TestAndWriteVectorsForShares,
                                         r_vector=ReadVector,
                                         ):
@@ -200,8 +214,9 @@ class RIStorageServer(RemoteInterface):
         for each element of the read vector.
 
         If the write_enabler is wrong, this will raise BadWriteEnablerError.
-        To enable share migration, the exception will have the nodeid used
-        for the old write enabler embedded in it, in the following string::
+        To enable share migration (using update_write_enabler), the exception
+        will have the nodeid used for the old write enabler embedded in it,
+        in the following string::
 
          The write enabler was recorded by nodeid '%s'.
 
@@ -210,6 +225,24 @@ class RIStorageServer(RemoteInterface):
 
         """
         return TupleOf(bool, DictOf(int, ReadData))
+
+    def update_write_enabler(storage_index=StorageIndex,
+                             old_write_enabler=WriteEnablerSecret,
+                             new_write_enabler=WriteEnablerSecret):
+        """
+        Replace the write-enabler on a given bucket. This is used when a
+        share has been moved from one server to another, causing the secret
+        (which is scoped to a given server's nodeid) to become invalid. The
+        client discovers this when it gets a BadWriteEnablerError, and the
+        string body of the exception will contain a message that includes the
+        nodeid that was used for the old secret.
+
+        The client should compute the old write-enabler secret, and send it
+        in conjunction with the new one. The server will then update the
+        share to record the new write-enabler instead of the old one. The
+        client can then retry its writev call.
+        """
+        return None
 
 class IStorageBucketWriter(Interface):
     def put_block(segmentnum=int, data=ShareData):
