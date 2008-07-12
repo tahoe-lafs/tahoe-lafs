@@ -20,8 +20,6 @@ SERVERS = 40
 K = 3
 N = 10
 
-MAXSHARESIZE = 2**34 / K
-
 def go(permutedpeerlist):
     servers = [ Server() for x in range(SERVERS) ]
     servers.sort(cmp=lambda x,y: cmp(x.si, y.si))
@@ -29,7 +27,7 @@ def go(permutedpeerlist):
     tick = 0
     fullservers = 0
     while True:
-        nextsharesize = random.randrange(40, MAXSHARESIZE)
+        nextsharesize = (2 ** random.randrange(8, 31)) / K
         if permutedpeerlist:
             random.shuffle(servers)
         else:
@@ -56,20 +54,43 @@ def go(permutedpeerlist):
 
         tick += 1
 
+def div_ceil(n, d):
+    """
+    The smallest integer k such that k*d >= n.
+    """
+    return (n/d) + (n%d != 0)
+
+DESIRED_COLUMNS = 70
+
 def test(permutedpeerlist, iters):
-    # the i'th element of the filledat list is how many servers got full on the tick numbered 4500 + i * 9
-    filledat = [0] * 77
+    # The i'th element of the filledat list is how many servers got full when the i'th file was uploaded.
+    filledat = []
     for test in range(iters):
         servers = go(permutedpeerlist)
         for server in servers:
-            fidx = (server.full_at_tick - 4500) / 9
-            if fidx >= len(filledat):
-                filledat.extend([0]*(fidx-len(filledat)+1))
+            fidx = server.full_at_tick
+            filledat.extend([0]*(fidx-len(filledat)+1))
             filledat[fidx] += 1
 
-    # the i'th element of the fullat list is how many servers were full by the tick numbered 4500 + i * 9 (on average)
-    fullat = [0] * 77
-    for idx, num in enumerate(filledat):
+    startfiles = 0
+    while filledat[startfiles] == 0:
+        startfiles += 1
+    filespercolumn = div_ceil(len(filledat) - startfiles, (DESIRED_COLUMNS - 3))
+
+    # The i'th element of the compressedfilledat list is how many servers got full when the filespercolumn files starting at startfiles + i were uploaded.
+    compressedfilledat = []
+    idx = startfiles
+    while idx < len(filledat):
+        compressedfilledat.append(0)
+        for i in range(filespercolumn):
+            compressedfilledat[-1] += filledat[idx]
+            idx += 1
+            if idx >= len(filledat):
+                break
+
+    # The i'th element of the fullat list is how many servers were full by the tick numbered startfiles + i * filespercolumn (on average).
+    fullat = [0] * len(compressedfilledat)
+    for idx, num in enumerate(compressedfilledat):
         for fidx in range(idx, len(fullat)):
             fullat[fidx] += num
 
@@ -79,7 +100,7 @@ def test(permutedpeerlist, iters):
     # Now print it out as an ascii art graph.
     import sys
     for serversfull in range(40, 0, -1):
-        sys.stdout.write("%2d" % serversfull)
+        sys.stdout.write("%2d " % serversfull)
         for numfull in fullat:
             if int(numfull) == serversfull:
                 sys.stdout.write("*")
@@ -90,8 +111,9 @@ def test(permutedpeerlist, iters):
     sys.stdout.write(" ^-- servers full\n")
     idx = 0
     while idx < len(fullat):
-        sys.stdout.write("%d--^ " % (4500 + idx * 9))
-        idx += 8
+        nextmark  = "%d--^ " % (startfiles + idx * filespercolumn)
+        sys.stdout.write(nextmark)
+        idx += len(nextmark)
 
     sys.stdout.write("\nfiles uploaded --> \n")
 
