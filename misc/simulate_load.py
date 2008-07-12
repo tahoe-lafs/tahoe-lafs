@@ -20,6 +20,9 @@ SERVERS = 40
 K = 3
 N = 10
 
+def make_up_a_file_size():
+    return (2 ** random.randrange(8, 31))
+
 def go(permutedpeerlist):
     servers = [ Server() for x in range(SERVERS) ]
     servers.sort(cmp=lambda x,y: cmp(x.si, y.si))
@@ -27,7 +30,7 @@ def go(permutedpeerlist):
     tick = 0
     fullservers = 0
     while True:
-        nextsharesize = (2 ** random.randrange(8, 31)) / K
+        nextsharesize = make_up_a_file_size() / K
         if permutedpeerlist:
             random.shuffle(servers)
         else:
@@ -36,7 +39,7 @@ def go(permutedpeerlist):
             servers = servers[rot:] + servers[:rot]
 
         i = 0
-        sharestoput = K
+        sharestoput = N
         while sharestoput:
             server = servers[i]
             if server.used + nextsharesize < server.max:
@@ -62,6 +65,9 @@ def div_ceil(n, d):
 
 DESIRED_COLUMNS = 70
 
+START_FILES = 137000
+STOP_FILES = 144000
+
 def test(permutedpeerlist, iters):
     # The i'th element of the filledat list is how many servers got full when the i'th file was uploaded.
     filledat = []
@@ -76,6 +82,10 @@ def test(permutedpeerlist, iters):
     while filledat[startfiles] == 0:
         startfiles += 1
     filespercolumn = div_ceil(len(filledat) - startfiles, (DESIRED_COLUMNS - 3))
+
+    # to make comparisons between runs line up:
+    startfiles = START_FILES
+    filespercolumn = div_ceil(STOP_FILES - startfiles, (DESIRED_COLUMNS - 3))
 
     # The i'th element of the compressedfilledat list is how many servers got full when the filespercolumn files starting at startfiles + i were uploaded.
     compressedfilledat = []
