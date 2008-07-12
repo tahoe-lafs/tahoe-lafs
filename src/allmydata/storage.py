@@ -821,10 +821,11 @@ class StorageServer(service.MultiService, Referenceable):
     def get_latencies(self):
         """Return a dict, indexed by category, that contains a dict of
         latency numbers for each category. Each dict will contain the
-        following keys: mean, median, 1_percentile, 10_percentile,
-        90_percentile, 95_percentile, 99_percentile, 999_percentile. If no
-        samples have been collected for the given category, then that
-        category name will not be present in the return value."""
+        following keys: mean, 01_0_percentile, 10_0_percentile,
+        50_0_percentile (median), 90_0_percentile, 95_0_percentile,
+        99_0_percentile, 99_9_percentile. If no samples have been collected
+        for the given category, then that category name will not be present
+        in the return value."""
         # note that Amazon's Dynamo paper says they use 99.9% percentile.
         output = {}
         for category in self.latencies:
@@ -835,13 +836,13 @@ class StorageServer(service.MultiService, Referenceable):
             samples.sort()
             count = len(samples)
             stats["mean"] = sum(samples) / count
-            stats["1_percentile"] = samples[int(0.01 * count)]
-            stats["10_percentile"] = samples[int(0.1 * count)]
-            stats["median"] = samples[int(0.5 * count)]
-            stats["90_percentile"] = samples[int(0.9 * count)]
-            stats["95_percentile"] = samples[int(0.95 * count)]
-            stats["99_percentile"] = samples[int(0.99 * count)]
-            stats["999_percentile"] = samples[int(0.999 * count)]
+            stats["01_0_percentile"] = samples[int(0.01 * count)]
+            stats["10_0_percentile"] = samples[int(0.1 * count)]
+            stats["50_0_percentile"] = samples[int(0.5 * count)]
+            stats["90_0_percentile"] = samples[int(0.9 * count)]
+            stats["95_0_percentile"] = samples[int(0.95 * count)]
+            stats["99_0_percentile"] = samples[int(0.99 * count)]
+            stats["99_9_percentile"] = samples[int(0.999 * count)]
             output[category] = stats
         return output
 
