@@ -496,6 +496,8 @@ class FileDownloader:
 
     def resumeProducing(self):
         if self._paused:
+            paused_for = time.time() - self._paused_at
+            self._results.timings['paused'] += paused_for
             p = self._paused
             self._paused = None
             eventually(p.callback, None)
@@ -505,8 +507,7 @@ class FileDownloader:
     def stopProducing(self):
         self.log("Download.stopProducing")
         self._stopped = True
-        paused_for = time.time() - self._paused_at
-        self._results.timings['paused'] += paused_for
+        self.resumeProducing()
         if self._status:
             self._status.set_stopped(True)
             self._status.set_active(False)

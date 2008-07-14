@@ -1175,6 +1175,9 @@ class IDecoder(Interface):
         """
 
 class IDownloadTarget(Interface):
+    # Note that if the IDownloadTarget is also an IConsumable, the downloader
+    # will register itself as a producer. This allows the target to invoke
+    # downloader.pauseProducing, resumeProducing, and stopProducing.
     def open(size):
         """Called before any calls to write() or close(). If an error
         occurs before any data is available, fail() may be called without
