@@ -1,0 +1,85 @@
+#!/usr/bin/python
+
+# retrieve a latency statistic for a given operation and percentile from a
+# set of storage servers.
+
+# the OPERATION value should come from the following list:
+#   allocate:   allocate_buckets, first step to upload an immutable file
+#    write: write data to an immutable share
+#    close: finish writing to an immutable share
+#    cancel: abandon a partial immutable share
+#   get: get_buckets, first step to download an immutable file
+#    read: read data from an immutable share
+#   writev: slot_testv_and_readv_and_writev, modify/create a directory
+#   readv: read a directory (or mutable file)
+
+# the PERCENTILE value should come from the following list:
+#  01_0:   1%
+#  10_0:  10%
+#  50_0:  50% (median)
+#  90_0:  90%
+#  99_0:  99%
+#  99_9:  99.9%
+#  mean:
+
+# To use this, create a symlink from
+# /etc/munin/plugins/tahoe_server_latency_OPERATION_PERCENTILE to this
+# script. For example:
+
+# ln -s /usr/share/doc/allmydata-tahoe/munin/tahoe_server_latency_ \
+#  /etc/munin/plugins/tahoe_server_latency_allocate_99_9
+
+# Also, you will need to put a list of node statistics URLs in the plugin's
+# environment, by adding a stanza like the following to a file in
+# /etc/munin/plugin-conf.d/, such as /etc/munin/plugin-conf.d/tahoe_latencies:
+#
+# [tahoe_server_latency*]
+# env.url_storage1 http://localhost:9011/statistics?t=json
+# env.url_storage2 http://localhost:9012/statistics?t=json
+# env.url_storage3 http://localhost:9013/statistics?t=json
+# env.url_storage4 http://localhost:9014/statistics?t=json
+
+# of course, these URLs must match the webports you have configured into the
+# storage nodes.
+
+import os, sys
+import urllib
+import simplejson
+
+node_urls = []
+for k,v in os.environ.items():
+    if k.startswith("url_"):
+        nodename = k[len("url_"):]
+        node_urls.append( (nodename, v) )
+node_urls.sort()
+
+configinfo = \
+"""graph_title Tahoe Server Latency
+graph_vlabel seconds
+graph_category tahoe
+graph_info This graph shows server-side latency for storage operations
+"""
+
+for nodename, url in node_urls:
+    configinfo += "%s.label %s\n" % (nodename, nodename)
+    configinfo += "%s.draw LINE2\n" % (nodename,)
+
+
+if len(sys.argv) > 1:
+    if sys.argv[1] == "config":
+        print configinfo.rstrip()
+        sys.exit(0)
+
+for nodename, url in node_urls:
+    data = simplejson.loads(urllib.urlopen(url).read())
+    my_name = os.path.basename(sys.argv[0])
+    PREFIX = "tahoe_server_latency_"
+    assert my_name.startswith(PREFIX)
+    my_name = my_name[len(PREFIX):]
+    (operation, percentile) = my_name.split("_", 1)
+    if percentile != "mean":
+        percentile = percentile + "_percentile"
+    key = "storage_server.latencies.%s.%s" % (operation, percentile)
+    value = data["stats"][key]
+    print "%s.value %s" % (nodename, value)
+
