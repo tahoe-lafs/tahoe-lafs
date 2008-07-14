@@ -1,11 +1,11 @@
 #! /usr/bin/env python
 
 # Allmydata Tahoe -- secure, distributed storage grid
-# 
+#
 # Copyright (C) 2008 Allmydata, Inc.
-# 
+#
 # This file is part of tahoe.
-# 
+#
 # See the docs/about.html file for licensing information.
 
 import os, re, sys
@@ -40,10 +40,10 @@ trove_classifiers=[
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Environment :: Web Environment",
-    "License :: OSI Approved :: GNU General Public License (GPL)", 
+    "License :: OSI Approved :: GNU General Public License (GPL)",
     "License :: DFSG approved",
     "License :: Other/Proprietary License",
-    "Intended Audience :: Developers", 
+    "Intended Audience :: Developers",
     "Intended Audience :: End Users/Desktop",
     "Intended Audience :: System Administrators",
     "Operating System :: Microsoft",
@@ -53,19 +53,19 @@ trove_classifiers=[
     "Operating System :: POSIX",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows :: Windows NT/2000",
-    "Operating System :: OS Independent", 
-    "Natural Language :: English", 
-    "Programming Language :: C", 
-    "Programming Language :: Python", 
+    "Operating System :: OS Independent",
+    "Natural Language :: English",
+    "Programming Language :: C",
+    "Programming Language :: Python",
     "Topic :: Utilities",
     "Topic :: System :: Systems Administration",
     "Topic :: System :: Filesystems",
     "Topic :: System :: Distributed Computing",
     "Topic :: Software Development :: Libraries",
     "Topic :: Communications :: Usenet News",
-    "Topic :: System :: Archiving :: Backup", 
-    "Topic :: System :: Archiving :: Mirroring", 
-    "Topic :: System :: Archiving", 
+    "Topic :: System :: Archiving :: Backup",
+    "Topic :: System :: Archiving :: Mirroring",
+    "Topic :: System :: Archiving",
     ]
 
 
@@ -85,12 +85,12 @@ else:
         raise RuntimeError("if %s.py exists, it is required to be well-formed" % (VERSIONFILE,))
 
 LONG_DESCRIPTION=\
-"""Welcome to the Tahoe project, a secure, decentralized, fault-tolerant 
-filesystem.  All of the source code is available under a Free Software, Open 
+"""Welcome to the Tahoe project, a secure, decentralized, fault-tolerant
+filesystem.  All of the source code is available under a Free Software, Open
 Source licence.
 
-This filesystem is encrypted and spread over multiple peers in such a way that 
-it remains available even when some of the peers are unavailable, 
+This filesystem is encrypted and spread over multiple peers in such a way that
+it remains available even when some of the peers are unavailable,
 malfunctioning, or malicious."""
 
 miscdeps=os.path.join(os.getcwd(), 'misc', 'dependencies')
