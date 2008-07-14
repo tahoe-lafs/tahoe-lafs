@@ -9,6 +9,38 @@ import time
 STAT_VALIDITY = 300 # 5min limit on reporting stats
 
 PLUGINS = {
+    # LOAD AVERAGE
+    'tahoe_runtime_load_avg':
+        { 'statid': 'load_monitor.avg_load',
+          'category': 'stats',
+          'configheader': '\n'.join(['graph_title Tahoe Runtime Load Average',
+                                     'graph_vlabel load',
+                                     'graph_category tahoe',
+                                     'graph_info This graph shows average reactor delay',
+                                     ]),
+          'graph_config': '\n'.join(['%(name)s.label %(name)s',
+                                     '%(name)s.draw LINE1',
+                                     ]),
+          'graph_render': '\n'.join(['%(name)s.value %(value)s',
+                                     ]),
+        },
+
+    'tahoe_runtime_load_peak':
+        { 'statid': 'load_monitor.max_load',
+          'category': 'stats',
+          'configheader': '\n'.join(['graph_title Tahoe Runtime Load Peak',
+                                     'graph_vlabel load',
+                                     'graph_category tahoe',
+                                     'graph_info This graph shows peak reactor delay',
+                                     ]),
+          'graph_config': '\n'.join(['%(name)s.label %(name)s',
+                                     '%(name)s.draw LINE1',
+                                     ]),
+          'graph_render': '\n'.join(['%(name)s.value %(value)s',
+                                     ]),
+        },
+
+    # STORAGE ALLOCATION (BYTES)
     'tahoe_storage_consumed':
         { 'statid': 'storage_server.consumed',
           'category': 'stats',
@@ -24,6 +56,7 @@ PLUGINS = {
           'graph_render': '\n'.join(['%(name)s.value %(value)s',
                                      ]),
         },
+
     'tahoe_storage_allocated':
         { 'statid': 'storage_server.allocated',
           'category': 'stats',
@@ -32,35 +65,6 @@ PLUGINS = {
                                      'graph_category tahoe_storage_server',
                                      'graph_info This graph shows space allocated',
                                      'graph_args --base 1024',
-                                     ]),
-          'graph_config': '\n'.join(['%(name)s.label %(name)s',
-                                     '%(name)s.draw LINE1',
-                                     ]),
-          'graph_render': '\n'.join(['%(name)s.value %(value)s',
-                                     ]),
-        },
-
-    'tahoe_runtime_load_avg':
-        { 'statid': 'load_monitor.avg_load',
-          'category': 'stats',
-          'configheader': '\n'.join(['graph_title Tahoe Runtime Load Average',
-                                     'graph_vlabel load',
-                                     'graph_category tahoe',
-                                     'graph_info This graph shows average reactor delay',
-                                     ]),
-          'graph_config': '\n'.join(['%(name)s.label %(name)s',
-                                     '%(name)s.draw LINE1',
-                                     ]),
-          'graph_render': '\n'.join(['%(name)s.value %(value)s',
-                                     ]),
-        },
-    'tahoe_runtime_load_peak':
-        { 'statid': 'load_monitor.max_load',
-          'category': 'stats',
-          'configheader': '\n'.join(['graph_title Tahoe Runtime Load Peak',
-                                     'graph_vlabel load',
-                                     'graph_category tahoe',
-                                     'graph_info This graph shows peak reactor delay',
                                      ]),
           'graph_config': '\n'.join(['%(name)s.label %(name)s',
                                      '%(name)s.draw LINE1',
@@ -83,6 +87,7 @@ PLUGINS = {
           'graph_render': '\n'.join(['%(name)s.value %(value)s',
                                      ]),
         },
+
     'tahoe_storage_bytes_freed':
         { 'statid': 'storage_server.bytes_freed',
           'category': 'counters',
@@ -98,6 +103,8 @@ PLUGINS = {
                                      ]),
         },
 
+
+    # HELPER
     'tahoe_helper_incoming_files':
         { 'statid': 'chk_upload_helper.incoming_count',
           'category': 'stats',
@@ -280,6 +287,7 @@ PLUGINS = {
                                      ]),
         },
 
+    # WEBAPI
     'tahoe_uploader_bytes_uploaded':
         { 'statid': 'uploader.bytes_uploaded',
           'category': 'counters',
