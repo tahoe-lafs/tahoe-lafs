@@ -21,7 +21,7 @@
 
 # Also, you will need to put a list of node statistics URLs in the plugin's
 # environment, by adding a stanza like the following to a file in
-# /etc/munin/plugin-conf.d/, such as /etc/munin/plugin-conf.d/tahoe_latencies:
+# /etc/munin/plugin-conf.d/, such as /etc/munin/plugin-conf.d/tahoe_operations:
 #
 # [tahoe_server_operations*]
 # env.url_storage1 http://localhost:9011/statistics?t=json
