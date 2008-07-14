@@ -9,6 +9,9 @@ include /usr/share/cdbs/1/class/python-distutils.mk
 
 STAGING_DIR=$(CURDIR)/debian/allmydata-tahoe
 
+# to add files to /usr/share/doc/, edit ./allmydata-tahoe.docs
+DEB_COMPRESS_EXCLUDE := "munin/"
+
 # we overwrite the setuptools-generated /usr/bin/tahoe (located in
 # support/bin/tahoe after a 'make build') with a different version, because
 # the setuptools form (using "entry points") insists upon .egg-info -visible
