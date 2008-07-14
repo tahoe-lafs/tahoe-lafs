@@ -1,3 +1,8 @@
-docs/*.txt
-docs/*.svg
-docs/testgrid
+COPYING.GPL
+COPYING.TGPPL.html
+CREDITS
+NEWS
+README
+relnotes.txt
+misc/munin
+docs
