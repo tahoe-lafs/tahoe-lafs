@@ -955,29 +955,6 @@ class FileDownloader:
         return self._status
 
 
-class LiteralDownloader:
-    def __init__(self, client, u, downloadable):
-        self._uri = IFileURI(u)
-        assert isinstance(self._uri, uri.LiteralFileURI)
-        self._downloadable = downloadable
-        self._status = s = DownloadStatus()
-        s.set_storage_index(None)
-        s.set_helper(False)
-        s.set_status("Done")
-        s.set_active(False)
-        s.set_progress(1.0)
-
-    def start(self):
-        data = self._uri.data
-        self._status.set_size(len(data))
-        self._downloadable.open(len(data))
-        self._downloadable.write(data)
-        self._downloadable.close()
-        return defer.maybeDeferred(self._downloadable.finish)
-
-    def get_download_status(self):
-        return self._status
-
 class FileName:
     implements(IDownloadTarget)
     def __init__(self, filename):
@@ -1044,6 +1021,8 @@ class FileHandle:
 class Downloader(service.MultiService):
     """I am a service that allows file downloading.
     """
+    # TODO: in fact, this service only downloads immutable files (URI:CHK:).
+    # It is scheduled to go away, to be replaced by filenode.download()
     implements(IDownloader)
     name = "downloader"
     MAX_DOWNLOAD_STATUSES = 10
@@ -1063,18 +1042,13 @@ class Downloader(service.MultiService):
         assert t.write
         assert t.close
 
-
-        if isinstance(u, uri.LiteralFileURI):
-            dl = LiteralDownloader(self.parent, u, t)
-        elif isinstance(u, uri.CHKFileURI):
-            if self.stats_provider:
-                # these counters are meant for network traffic, and don't
-                # include LIT files
-                self.stats_provider.count('downloader.files_downloaded', 1)
-                self.stats_provider.count('downloader.bytes_downloaded', u.get_size())
-            dl = FileDownloader(self.parent, u, t)
-        else:
-            raise RuntimeError("I don't know how to download a %s" % u)
+        assert isinstance(u, uri.CHKFileURI)
+        if self.stats_provider:
+            # these counters are meant for network traffic, and don't
+            # include LIT files
+            self.stats_provider.count('downloader.files_downloaded', 1)
+            self.stats_provider.count('downloader.bytes_downloaded', u.get_size())
+        dl = FileDownloader(self.parent, u, t)
         self._add_download(dl)
         d = dl.start()
         return d
