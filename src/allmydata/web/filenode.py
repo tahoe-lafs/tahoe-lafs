@@ -15,6 +15,7 @@ from allmydata.util import log
 
 from allmydata.web.common import text_plain, WebError, IClient, RenderMixin, \
      boolean_of_arg, get_arg, should_create_intermediate_directories
+from allmydata.web.checker_results import CheckerResults
 
 class ReplaceMeMixin:
 
@@ -244,12 +245,7 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
     def _POST_check(self, req):
         d = self.node.check()
-        def _done(res):
-            log.msg("checked %s, results %s" % (self.node, res),
-                    facility="tahoe.webish", level=log.NOISY)
-            return str(res)
-        d.addCallback(_done)
-        # TODO: results
+        d.addCallback(lambda res: CheckerResults(res))
         return d
 
     def render_DELETE(self, ctx):

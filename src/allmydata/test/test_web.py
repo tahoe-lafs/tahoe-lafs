@@ -1397,12 +1397,53 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_POST_FILEURL_check(self):
-        d = self.POST(self.public_url + "/foo/bar.txt", t="check")
+        bar_url = self.public_url + "/foo/bar.txt"
+        d = self.POST(bar_url, t="check")
         def _check(res):
-            # this currently just returns "None". You'd only really use it
-            # with a when_done= redirect.
-            self.failUnlessEqual(res, "None")
+            self.failUnless("Healthy!" in res)
         d.addCallback(_check)
+        redir_url = "http://allmydata.org/TARGET"
+        def _check2(statuscode, target):
+            self.failUnlessEqual(statuscode, str(http.FOUND))
+            self.failUnlessEqual(target, redir_url)
+        d.addCallback(lambda res:
+                      self.shouldRedirect2("test_POST_FILEURL_check",
+                                           _check2,
+                                           self.POST, bar_url,
+                                           t="check",
+                                           when_done=redir_url))
+        d.addCallback(lambda res:
+                      self.POST(bar_url, t="check", return_to=redir_url))
+        def _check3(res):
+            self.failUnless("Healthy!" in res)
+            self.failUnless("Return to parent directory" in res)
+            self.failUnless(redir_url in res)
+        d.addCallback(_check3)
+        return d
+
+    def test_POST_DIRURL_check(self):
+        foo_url = self.public_url + "/foo/"
+        d = self.POST(foo_url, t="check")
+        def _check(res):
+            self.failUnless("Healthy!" in res)
+        d.addCallback(_check)
+        redir_url = "http://allmydata.org/TARGET"
+        def _check2(statuscode, target):
+            self.failUnlessEqual(statuscode, str(http.FOUND))
+            self.failUnlessEqual(target, redir_url)
+        d.addCallback(lambda res:
+                      self.shouldRedirect2("test_POST_DIRURL_check",
+                                           _check2,
+                                           self.POST, foo_url,
+                                           t="check",
+                                           when_done=redir_url))
+        d.addCallback(lambda res:
+                      self.POST(foo_url, t="check", return_to=redir_url))
+        def _check3(res):
+            self.failUnless("Healthy!" in res)
+            self.failUnless("Return to parent directory" in res)
+            self.failUnless(redir_url in res)
+        d.addCallback(_check3)
         return d
 
     def test_POST_FILEURL_bad_t(self):

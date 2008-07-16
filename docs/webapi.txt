@@ -646,8 +646,17 @@ POST $URL?t=check
 
   This triggers the FileChecker to determine the current "health" of the
   given file or directory, by counting how many shares are available. The
-  results will be displayed on the directory page containing this file.
+  page that is returned will display the results. This can be used as a "show
+  me detailed information about this file" page.
 
+  If a when_done=url argument is provided, the return value will be a redirect
+  to that URL instead of the checker results.
+
+  If a return_to=url argument is provided, the returned page will include a
+  link to the given URL entitled "Return to the parent directory".
+
+  If a verify=true argument is provided, the node will perform a more
+  intensive check, downloading and verifying every single bit of every share.
 
 GET $DIRURL?t=manifest
 

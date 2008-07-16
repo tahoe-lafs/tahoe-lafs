@@ -1484,16 +1484,15 @@ class ICheckerResults(Interface):
         """Return a bool, True if the file is fully healthy, False if it is
         damaged in any way."""
 
-    def html_summary():
-        """Return a short string, with a single <span> element, that
-        describes summarized results of the check. This will be displayed on
-        the web-interface directory page, in a narrow column, showing stored
-        results for all files at the same time."""
+    def get_storage_index_string():
+        """Return a string with the abbreviated storage index."""
+    def get_mutability_string():
+        """Return a string with 'mutable' or 'immutable'."""
 
-    def html():
-        """Return a string, with a single <div> element that describes the
-        detailed results of the check/verify operation. This string will be
-        displayed on a page all by itself."""
+    def to_string():
+        """Return a string that describes the detailed results of the
+        check/verify operation. This string will be displayed on a page all
+        by itself."""
 
     # The old checker results (for only immutable files) were described
     # with this:

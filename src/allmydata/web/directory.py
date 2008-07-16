@@ -11,7 +11,7 @@ from nevow.inevow import IRequest
 
 from foolscap.eventual import fireEventually
 
-from allmydata.util import log, base32
+from allmydata.util import base32
 from allmydata.uri import from_string_verifier, from_string_dirnode, \
      CHKFileVerifierURI
 from allmydata.interfaces import IDirectoryNode, IFileNode, IMutableFileNode, \
@@ -21,6 +21,7 @@ from allmydata.web.common import text_plain, WebError, IClient, \
      getxmlfile, RenderMixin
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
+from allmydata.web.checker_results import CheckerResults
 
 class BlockingFileError(Exception):
     # TODO: catch and transform
@@ -330,12 +331,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def _POST_check(self, req):
         # check this directory
         d = self.node.check()
-        def _done(res):
-            log.msg("checked %s, results %s" % (self.node, res),
-                    facility="tahoe.webish", level=log.NOISY)
-            return str(res)
-        d.addCallback(_done)
-        # TODO: results
+        d.addCallback(lambda res: CheckerResults(res))
         return d
 
     def _POST_set_children(self, req):
@@ -458,7 +454,7 @@ class DirectoryAsHTML(rend.Page):
             check_done_url = "../uri/%s/" % urllib.quote(self.node.get_uri())
         check = T.form(action=check_url, method="post")[
             T.input(type='hidden', name='t', value='check'),
-            T.input(type='hidden', name='when_done', value=check_done_url),
+            T.input(type='hidden', name='return_to', value=check_done_url),
             T.input(type='submit', value='check', name="check"),
             ]
         ctx.fillSlots("overwrite",

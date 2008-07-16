@@ -28,19 +28,20 @@ class Results:
     def is_healthy(self):
         return self.healthy
 
-    def html_summary(self):
-        if self.healthy:
-            return "<span>healthy</span>"
-        return "<span>NOT HEALTHY</span>"
+    def get_storage_index_string(self):
+        return self.storage_index_s
 
-    def html(self):
-        s = "<div>\n"
-        s += "<h1>Checker Results for Immutable SI=%s</h1>\n" % self.storage_index_s
+    def get_mutability_string(self):
+        if self.storage_index:
+            return "immutable"
+        return "literal"
+
+    def to_string(self):
+        s = ""
         if self.healthy:
-            s += "<h2>Healthy!</h2>\n"
+            s += "Healthy!\n"
         else:
-            s += "<h2>Not Healthy!</h2>\n"
-        s += "</div>\n"
+            s += "Not Healthy!\n"
         return s
 
 

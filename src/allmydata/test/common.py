@@ -27,8 +27,11 @@ class FakeCHKFileNode:
         return self.my_uri
     def get_verifier(self):
         return IURI(self.my_uri).get_verifier()
-    def check(self):
-        return defer.succeed(None)
+    def check(self, verify=False, repair=False):
+        r = checker.Results(None)
+        r.healthy = True
+        r.problems = []
+        return defer.succeed(r)
     def is_mutable(self):
         return False
     def is_readonly(self):
