@@ -43,12 +43,17 @@ for k,v in os.environ.items():
         node_urls.append( (nodename, v) )
 node_urls.sort()
 
+my_name = os.path.basename(sys.argv[0])
+PREFIX = "tahoe_server_operations_"
+assert my_name.startswith(PREFIX)
+operation = my_name[len(PREFIX):]
+
 configinfo = \
-"""graph_title Tahoe Server Operations
+"""graph_title Tahoe Server '%(operation)s' Operations
 graph_vlabel ops per second
 graph_category tahoe
-graph_info This graph shows server-side storage operation rates
-"""
+graph_info This graph shows how many '%(operation)s' operations take place on the storage server
+""" % {'operation': operation}
 
 for nodename, url in node_urls:
     configinfo += "%s.label %s\n" % (nodename, nodename)
@@ -64,10 +69,6 @@ if len(sys.argv) > 1:
 
 for nodename, url in node_urls:
     data = simplejson.loads(urllib.urlopen(url).read())
-    my_name = os.path.basename(sys.argv[0])
-    PREFIX = "tahoe_server_operations_"
-    assert my_name.startswith(PREFIX)
-    operation = my_name[len(PREFIX):]
     key = "storage_server.%s" % operation
     value = data["counters"][key]
     print "%s.value %s" % (nodename, value)

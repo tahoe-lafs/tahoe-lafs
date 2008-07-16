@@ -53,12 +53,23 @@ for k,v in os.environ.items():
         node_urls.append( (nodename, v) )
 node_urls.sort()
 
+my_name = os.path.basename(sys.argv[0])
+PREFIX = "tahoe_server_latency_"
+assert my_name.startswith(PREFIX)
+my_name = my_name[len(PREFIX):]
+(operation, percentile) = my_name.split("_", 1)
+if percentile == "mean":
+    what = "mean"
+else:
+    what = percentile.replace("_", ".") + "th percentile"
+
 configinfo = \
-"""graph_title Tahoe Server Latency
+"""graph_title Tahoe Server '%(operation)s' Latency
 graph_vlabel seconds
 graph_category tahoe
-graph_info This graph shows server-side latency for storage operations
-"""
+graph_info This graph shows how long '%(operation)s' operations took on the storage server, the %(what)s delay between message receipt and response generation, calculated over the last thousand operations.
+""" % {'operation': operation,
+       'what': what}
 
 for nodename, url in node_urls:
     configinfo += "%s.label %s\n" % (nodename, nodename)
@@ -72,14 +83,11 @@ if len(sys.argv) > 1:
 
 for nodename, url in node_urls:
     data = simplejson.loads(urllib.urlopen(url).read())
-    my_name = os.path.basename(sys.argv[0])
-    PREFIX = "tahoe_server_latency_"
-    assert my_name.startswith(PREFIX)
-    my_name = my_name[len(PREFIX):]
-    (operation, percentile) = my_name.split("_", 1)
-    if percentile != "mean":
-        percentile = percentile + "_percentile"
-    key = "storage_server.latencies.%s.%s" % (operation, percentile)
+    if percentile == "mean":
+        p_key = "mean"
+    else:
+        p_key = percentile + "_percentile"
+    key = "storage_server.latencies.%s.%s" % (operation, p_key)
     value = data["stats"][key]
     print "%s.value %s" % (nodename, value)
 
