@@ -5,7 +5,8 @@ from cStringIO import StringIO
 from twisted.internet import defer, reactor, protocol, error
 from twisted.application import service, internet
 from twisted.web import client as tw_client
-from allmydata import client, introducer, upload
+from allmydata import client, introducer
+from allmydata.immutable import upload
 from allmydata.scripts import create_node
 from allmydata.util import testutil, fileutil
 import foolscap

@@ -4,12 +4,13 @@ from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python import failure
-from allmydata import uri, download, storage
+from allmydata import uri, storage
+from allmydata.immutable import download
+from allmydata.immutable.encode import NotEnoughSharesError
 from allmydata.util import base32, testutil, idlib
 from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash
 from allmydata.util.fileutil import make_dirs
-from allmydata.encode import NotEnoughSharesError
 from allmydata.interfaces import IURI, IMutableFileURI, IUploadable, \
      FileTooLargeError
 from foolscap.eventual import eventually, fireEventually

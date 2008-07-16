@@ -9,8 +9,9 @@ have the share, we believe them.
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import log
+from allmydata import storage
 from allmydata.interfaces import IVerifierURI, ICheckerResults
-from allmydata import download, storage
+from allmydata.immutable import download
 from allmydata.util import hashutil, base32
 
 class Results:

@@ -12,7 +12,8 @@ from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
      bucket_cancel_secret_hash, plaintext_hasher, \
      storage_index_hash, plaintext_segment_hasher, convergence_hasher
-from allmydata import encode, storage, hashtree, uri
+from allmydata import storage, hashtree, uri
+from allmydata.immutable import encode
 from allmydata.util import base32, idlib, mathutil
 from allmydata.util.assertutil import precondition
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
@@ -38,6 +39,9 @@ class TooFullError(Exception):
 
 class UploadResults(Copyable, RemoteCopy):
     implements(IUploadResults)
+    # note: don't change this string, it needs to match the value used on the
+    # helper, and it does *not* need to match the fully-qualified
+    # package/module/class name
     typeToCopy = "allmydata.upload.UploadResults.tahoe.allmydata.com"
     copytype = typeToCopy
 

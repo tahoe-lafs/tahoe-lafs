@@ -4,7 +4,7 @@ from twisted.web import http
 from twisted.internet import defer
 from nevow import rend, url, tags as T
 from nevow.inevow import IRequest
-from allmydata.upload import FileHandle
+from allmydata.immutable.upload import FileHandle
 from allmydata.web.common import IClient, getxmlfile, get_arg, boolean_of_arg
 from allmydata.web import status
 

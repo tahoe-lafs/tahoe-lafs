@@ -4,10 +4,11 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
 from twisted.application import service
-from allmydata import uri, dirnode, checker
+from allmydata import uri, dirnode
 from allmydata.interfaces import IURI, IMutableFileNode, IFileNode, \
      FileTooLargeError
-from allmydata.encode import NotEnoughSharesError
+from allmydata.immutable import checker
+from allmydata.immutable.encode import NotEnoughSharesError
 from allmydata.util import log
 
 class FakeCHKFileNode:

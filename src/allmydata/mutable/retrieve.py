@@ -8,7 +8,7 @@ from foolscap.eventual import eventually, fireEventually
 from allmydata.interfaces import IRetrieveStatus
 from allmydata.util import hashutil, idlib, log
 from allmydata import hashtree, codec, storage
-from allmydata.encode import NotEnoughSharesError
+from allmydata.immutable.encode import NotEnoughSharesError
 from pycryptopp.cipher.aes import AES
 
 from common import DictOfSets, CorruptShareError, UncoordinatedWriteError

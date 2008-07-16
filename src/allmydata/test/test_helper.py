@@ -6,7 +6,8 @@ from twisted.application import service
 from foolscap import Tub, eventual
 from foolscap.logging import log
 
-from allmydata import offloaded, storage, upload
+from allmydata import offloaded, storage
+from allmydata.immutable import upload
 from allmydata.util import hashutil, fileutil, mathutil
 from pycryptopp.cipher.aes import AES
 

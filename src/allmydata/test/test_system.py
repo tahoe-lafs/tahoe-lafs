@@ -8,8 +8,8 @@ from twisted.internet import threads # CLI tests use deferToThread
 from twisted.internet.error import ConnectionDone, ConnectionLost
 from twisted.application import service
 import allmydata
-from allmydata import client, uri, download, upload, storage, offloaded, \
-     filenode
+from allmydata import client, uri, storage, offloaded
+from allmydata.immutable import download, upload, filenode
 from allmydata.introducer.server import IntroducerNode
 from allmydata.util import fileutil, idlib, mathutil, testutil
 from allmydata.util import log, base32

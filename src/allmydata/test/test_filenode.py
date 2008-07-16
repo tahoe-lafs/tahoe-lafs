@@ -1,6 +1,7 @@
 
 from twisted.trial import unittest
-from allmydata import filenode, uri, download
+from allmydata import uri
+from allmydata.immutable import filenode, download
 from allmydata.mutable.node import MutableFileNode
 from allmydata.util import hashutil
 

@@ -5,7 +5,8 @@ from twisted.internet import defer, reactor
 from twisted.internet.interfaces import IConsumer
 from twisted.python.failure import Failure
 from foolscap import eventual
-from allmydata import encode, upload, download, hashtree, uri
+from allmydata import hashtree, uri
+from allmydata.immutable import encode, upload, download
 from allmydata.util import hashutil, testutil
 from allmydata.util.assertutil import _assert
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader

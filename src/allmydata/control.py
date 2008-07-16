@@ -6,7 +6,7 @@ from twisted.internet import defer
 from foolscap import Referenceable
 from allmydata.interfaces import RIControlClient
 from allmydata.util import testutil, fileutil, mathutil
-from allmydata import upload, download
+from allmydata.immutable import upload, download
 from twisted.python import log
 
 def get_memory_usage():

@@ -10,7 +10,7 @@ from allmydata.interfaces import IMutableFileNode, IMutableFileURI, ICheckable
 from allmydata.util import hashutil
 from allmydata.util.assertutil import precondition
 from allmydata.uri import WriteableSSKFileURI
-from allmydata.encode import NotEnoughSharesError
+from allmydata.immutable.encode import NotEnoughSharesError
 from pycryptopp.publickey import rsa
 from pycryptopp.cipher.aes import AES
 

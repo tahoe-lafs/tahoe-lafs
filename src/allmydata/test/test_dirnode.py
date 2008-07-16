@@ -2,7 +2,8 @@
 import time
 from zope.interface import implements
 from twisted.trial import unittest
-from allmydata import uri, dirnode, upload
+from allmydata import uri, dirnode
+from allmydata.immutable import upload
 from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
      INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode, ExistingChildError
 from allmydata.util import hashutil, testutil

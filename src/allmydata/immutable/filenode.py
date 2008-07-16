@@ -3,8 +3,8 @@ from zope.interface import implements
 from twisted.internet import defer
 from allmydata.interfaces import IFileNode, IFileURI, IURI, ICheckable
 from allmydata import uri
-from allmydata.checker import SimpleCHKFileChecker, SimpleCHKFileVerifier, \
-     Results
+from allmydata.immutable.checker import Results, \
+     SimpleCHKFileChecker, SimpleCHKFileVerifier
 
 class FileNode:
     implements(IFileNode, ICheckable)

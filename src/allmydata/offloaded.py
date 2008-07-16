@@ -5,7 +5,8 @@ from twisted.application import service
 from twisted.internet import defer
 from foolscap import Referenceable
 from foolscap.eventual import eventually
-from allmydata import upload, interfaces, storage, uri
+from allmydata import interfaces, storage, uri
+from allmydata.immutable import upload
 from allmydata.util import idlib, log, observer, fileutil, hashutil
 
 

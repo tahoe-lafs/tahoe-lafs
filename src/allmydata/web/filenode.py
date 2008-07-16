@@ -8,9 +8,9 @@ from twisted.internet import defer
 from nevow import url, rend
 from nevow.inevow import IRequest
 
-from allmydata.upload import FileHandle
 from allmydata.interfaces import IDownloadTarget, ExistingChildError
 from allmydata.mutable.common import MODE_READ
+from allmydata.immutable.upload import FileHandle
 from allmydata.util import log
 
 from allmydata.web.common import text_plain, WebError, IClient, RenderMixin, \

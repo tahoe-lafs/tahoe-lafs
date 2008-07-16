@@ -6,7 +6,8 @@ from twisted.python import log
 from twisted.internet import defer
 from cStringIO import StringIO
 
-from allmydata import upload, encode, uri
+from allmydata import uri
+from allmydata.immutable import upload, encode
 from allmydata.interfaces import IFileURI, FileTooLargeError
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed

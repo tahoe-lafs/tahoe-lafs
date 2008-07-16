@@ -5,7 +5,8 @@ from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.web import client, error, http
 from twisted.python import failure, log
-from allmydata import interfaces, provisioning, uri, webish, upload, download
+from allmydata import interfaces, provisioning, uri, webish
+from allmydata.immutable import upload, download
 from allmydata.web import status, common
 from allmydata.util import fileutil
 from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, \
