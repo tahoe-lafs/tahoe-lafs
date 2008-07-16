@@ -50,9 +50,11 @@ class Node(unittest.TestCase):
         v = fn1.get_verifier()
         self.failUnlessEqual(v, None)
 
-        self.failUnlessEqual(fn1.check(), None)
-        target = download.Data()
-        d = fn1.download(target)
+        d = fn1.check()
+        def _check_checker_results(cr):
+            self.failUnless(cr.is_healthy())
+        d.addCallback(_check_checker_results)
+        d.addCallback(lambda res: fn1.download(download.Data()))
         def _check(res):
             self.failUnlessEqual(res, DATA)
         d.addCallback(_check)

@@ -112,7 +112,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
         d = self.client.create_empty_dirnode()
         d.addCallback(lambda dn: dn.check())
         def _done(res):
-            pass
+            self.failUnless(res.is_healthy())
         d.addCallback(_done)
         return d
 

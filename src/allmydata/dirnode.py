@@ -8,7 +8,7 @@ from allmydata.mutable.common import NotMutableError
 from allmydata.mutable.node import MutableFileNode
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
      IURI, IFileNode, IMutableFileURI, IVerifierURI, IFilesystemNode, \
-     ExistingChildError
+     ExistingChildError, ICheckable
 from allmydata.util import hashutil, mathutil
 from allmydata.util.hashutil import netstring
 from allmydata.util.limiter import ConcurrencyLimiter
@@ -112,7 +112,7 @@ class Adder:
         return new_contents
 
 class NewDirectoryNode:
-    implements(IDirectoryNode)
+    implements(IDirectoryNode, ICheckable)
     filenode_class = MutableFileNode
 
     def __init__(self, client):
@@ -242,9 +242,9 @@ class NewDirectoryNode:
     def get_verifier(self):
         return self._uri.get_verifier().to_string()
 
-    def check(self):
+    def check(self, verify=False, repair=False):
         """Perform a file check. See IChecker.check for details."""
-        return defer.succeed(None) # TODO
+        return self._node.check(verify, repair)
 
     def list(self):
         """I return a Deferred that fires with a dictionary mapping child

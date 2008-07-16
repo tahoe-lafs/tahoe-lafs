@@ -14,12 +14,12 @@ import allmydata
 from allmydata.storage import StorageServer
 from allmydata.upload import Uploader
 from allmydata.download import Downloader
-from allmydata.checker import Checker
 from allmydata.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import hashutil, base32, testutil
-from allmydata.filenode import FileNode
+from allmydata.filenode import FileNode, LiteralFileNode
+from allmydata.uri import LiteralFileURI
 from allmydata.dirnode import NewDirectoryNode
 from allmydata.mutable.node import MutableFileNode, MutableWatcher
 from allmydata.stats import StatsProvider
@@ -173,7 +173,6 @@ class Client(node.Node, testutil.PollMixin):
         self._node_cache = weakref.WeakValueDictionary() # uri -> node
         self.add_service(Uploader(helper_furl, self.stats_provider))
         self.add_service(Downloader(self.stats_provider))
-        self.add_service(Checker())
         self.add_service(MutableWatcher(self.stats_provider))
         def _publish(res):
             # we publish an empty object so that the introducer can count how
@@ -302,8 +301,10 @@ class Client(node.Node, testutil.PollMixin):
                 # new-style dirnodes
                 node = NewDirectoryNode(self).init_from_uri(u)
             elif IFileURI.providedBy(u):
-                # CHK
-                node = FileNode(u, self)
+                if isinstance(u, LiteralFileURI):
+                    node = LiteralFileNode(u, self) # LIT
+                else:
+                    node = FileNode(u, self) # CHK
             else:
                 assert IMutableFileURI.providedBy(u), u
                 node = MutableFileNode(self).init_from_uri(u)

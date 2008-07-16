@@ -8,9 +8,10 @@ from twisted.internet import threads # CLI tests use deferToThread
 from twisted.internet.error import ConnectionDone, ConnectionLost
 from twisted.application import service
 import allmydata
-from allmydata import client, uri, download, upload, storage, offloaded
+from allmydata import client, uri, download, upload, storage, offloaded, \
+     filenode
 from allmydata.introducer.server import IntroducerNode
-from allmydata.util import deferredutil, fileutil, idlib, mathutil, testutil
+from allmydata.util import fileutil, idlib, mathutil, testutil
 from allmydata.util import log, base32
 from allmydata.scripts import runner, cli
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
@@ -913,7 +914,6 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         # P/s2-rw/
         # P/test_put/  (empty)
         d.addCallback(self._test_checker)
-        d.addCallback(self._test_verifier)
         d.addCallback(self._grab_stats)
         return d
     test_vdrive.timeout = 1100
@@ -1394,7 +1394,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         d.addCallback(lambda res: self.GET("statistics"))
         def _got_stats(res):
             self.failUnless("Node Statistics" in res)
-            self.failUnless("  'downloader.files_downloaded': 8," in res)
+            self.failUnless("  'downloader.files_downloaded': 5," in res, res)
         d.addCallback(_got_stats)
         d.addCallback(lambda res: self.GET("statistics?t=json"))
         def _got_stats_json(res):
@@ -1877,96 +1877,37 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         return d
 
     def _test_checker(self, res):
-        d = self._private_node.build_manifest()
-        d.addCallback(self._test_checker_2)
-        return d
+        ut = upload.Data("too big to be literal" * 200, convergence=None)
+        d = self._personal_node.add_file(u"big file", ut)
 
-    def _test_checker_2(self, manifest):
-        checker1 = self.clients[1].getServiceNamed("checker")
-        self.failUnlessEqual(checker1.checker_results_for(None), [])
-        self.failUnlessEqual(checker1.checker_results_for(list(manifest)[0]),
-                             [])
-        dl = []
-        starting_time = time.time()
-        for si in manifest:
-            dl.append(checker1.check(si))
-        d = deferredutil.DeferredListShouldSucceed(dl)
+        d.addCallback(lambda res: self._personal_node.check())
+        def _check_dirnode_results(r):
+            self.failUnless(r.is_healthy())
+        d.addCallback(_check_dirnode_results)
+        d.addCallback(lambda res: self._personal_node.check(verify=True))
+        d.addCallback(_check_dirnode_results)
 
-        def _check_checker_results(res):
-            for i in res:
-                if type(i) is bool:
-                    self.failUnless(i is True)
-                else:
-                    (needed, total, found, sharemap) = i
-                    self.failUnlessEqual(needed, 3)
-                    self.failUnlessEqual(total, 10)
-                    self.failUnlessEqual(found, total)
-                    self.failUnlessEqual(len(sharemap.keys()), 10)
-                    peers = set()
-                    for shpeers in sharemap.values():
-                        peers.update(shpeers)
-                    self.failUnlessEqual(len(peers), self.numclients)
-        d.addCallback(_check_checker_results)
+        d.addCallback(lambda res: self._personal_node.get(u"big file"))
+        def _got_chk_filenode(n):
+            self.failUnless(isinstance(n, filenode.FileNode))
+            d = n.check()
+            def _check_filenode_results(r):
+                self.failUnless(r.is_healthy())
+            d.addCallback(_check_filenode_results)
+            d.addCallback(lambda res: n.check(verify=True))
+            d.addCallback(_check_filenode_results)
+            return d
+        d.addCallback(_got_chk_filenode)
 
-        def _check_stored_results(res):
-            finish_time = time.time()
-            all_results = []
-            for si in manifest:
-                results = checker1.checker_results_for(si)
-                if not results:
-                    # TODO: implement checker for mutable files and implement tests of that checker
-                    continue
-                self.failUnlessEqual(len(results), 1)
-                when, those_results = results[0]
-                self.failUnless(isinstance(when, (int, float)))
-                self.failUnless(starting_time <= when <= finish_time)
-                all_results.append(those_results)
-            _check_checker_results(all_results)
-        d.addCallback(_check_stored_results)
-
-        d.addCallback(self._test_checker_3)
-        return d
-
-    def _test_checker_3(self, res):
-        # check one file, through FileNode.check()
-        d = self._private_node.get_child_at_path(u"personal/sekrit data")
-        d.addCallback(lambda n: n.check())
-        def _checked(results):
-            # 'sekrit data' is small, and fits in a LiteralFileNode, so
-            # checking it is trivial and always returns True
-            self.failUnlessEqual(results, True)
-        d.addCallback(_checked)
-
-        c0 = self.clients[1]
-        n = c0.create_node_from_uri(self._root_directory_uri)
-        d.addCallback(lambda res: n.get_child_at_path(u"subdir1/mydata567"))
-        d.addCallback(lambda n: n.check())
-        def _checked2(results):
-            # mydata567 is large and lives in a CHK
-            (needed, total, found, sharemap) = results
-            self.failUnlessEqual(needed, 3)
-            self.failUnlessEqual(total, 10)
-            self.failUnlessEqual(found, 10)
-            self.failUnlessEqual(len(sharemap), 10)
-            for shnum in range(10):
-                self.failUnlessEqual(len(sharemap[shnum]), 1)
-        d.addCallback(_checked2)
-        return d
-
-
-    def _test_verifier(self, res):
-        checker1 = self.clients[1].getServiceNamed("checker")
-        d = self._private_node.build_manifest()
-        def _check_all(manifest):
-            dl = []
-            for si in manifest:
-                dl.append(checker1.verify(si))
-            return deferredutil.DeferredListShouldSucceed(dl)
-        d.addCallback(_check_all)
-        def _done(res):
-            for i in res:
-                self.failUnless(i is True)
-        d.addCallback(_done)
-        d.addCallback(lambda res: checker1.verify(None))
-        d.addCallback(self.failUnlessEqual, True)
+        d.addCallback(lambda res: self._personal_node.get(u"sekrit data"))
+        def _got_lit_filenode(n):
+            self.failUnless(isinstance(n, filenode.LiteralFileNode))
+            d = n.check()
+            def _check_filenode_results(r):
+                self.failUnless(r.is_healthy())
+            d.addCallback(_check_filenode_results)
+            d.addCallback(lambda res: n.check(verify=True))
+            d.addCallback(_check_filenode_results)
+            return d
+        d.addCallback(_got_lit_filenode)
         return d

@@ -6,13 +6,42 @@ This does no verification of the shares whatsoever. If the peer claims to
 have the share, we believe them.
 """
 
-import time, os.path
+from zope.interface import implements
 from twisted.internet import defer
-from twisted.application import service
 from twisted.python import log
-from allmydata.interfaces import IVerifierURI
-from allmydata import uri, download, storage
-from allmydata.util import hashutil
+from allmydata.interfaces import IVerifierURI, ICheckerResults
+from allmydata import download, storage
+from allmydata.util import hashutil, base32
+
+class Results:
+    implements(ICheckerResults)
+
+    def __init__(self, storage_index):
+        # storage_index might be None for, say, LIT files
+        self.storage_index = storage_index
+        if storage_index is None:
+            self.storage_index_s = "<none>"
+        else:
+            self.storage_index_s = base32.b2a(storage_index)[:6]
+
+    def is_healthy(self):
+        return self.healthy
+
+    def html_summary(self):
+        if self.healthy:
+            return "<span>healthy</span>"
+        return "<span>NOT HEALTHY</span>"
+
+    def html(self):
+        s = "<div>\n"
+        s += "<h1>Checker Results for Immutable SI=%s</h1>\n" % self.storage_index_s
+        if self.healthy:
+            s += "<h2>Healthy!</h2>\n"
+        else:
+            s += "<h2>Not Healthy!</h2>\n"
+        s += "</div>\n"
+        return s
+
 
 class SimpleCHKFileChecker:
     """Return a list of (needed, total, found, sharemap), where sharemap maps
@@ -21,7 +50,7 @@ class SimpleCHKFileChecker:
     def __init__(self, peer_getter, uri_to_check):
         self.peer_getter = peer_getter
         self.found_shares = set()
-        self.uri_to_check = uri_to_check
+        self.uri_to_check = IVerifierURI(uri_to_check)
         self.sharemap = {}
 
     '''
@@ -65,17 +94,22 @@ class SimpleCHKFileChecker:
 
     def _done(self, res):
         u = self.uri_to_check
-        return (u.needed_shares, u.total_shares, len(self.found_shares),
-                self.sharemap)
+        r = Results(self.uri_to_check.storage_index)
+        r.healthy = bool(len(self.found_shares) >= u.needed_shares)
+        r.stuff = (u.needed_shares, u.total_shares, len(self.found_shares),
+                   self.sharemap)
+        return r
 
 class VerifyingOutput:
-    def __init__(self, total_length):
+    def __init__(self, total_length, results):
         self._crypttext_hasher = hashutil.crypttext_hasher()
         self.length = 0
         self.total_length = total_length
         self._segment_number = 0
         self._crypttext_hash_tree = None
         self._opened = False
+        self._results = results
+        results.healthy = False
 
     def setup_hashtrees(self, plaintext_hashtree, crypttext_hashtree):
         self._crypttext_hash_tree = crypttext_hashtree
@@ -96,7 +130,8 @@ class VerifyingOutput:
         self.crypttext_hash = self._crypttext_hasher.digest()
 
     def finish(self):
-        return True
+        self._results.healthy = True
+        return self._results
 
 
 class SimpleCHKFileVerifier(download.FileDownloader):
@@ -118,7 +153,8 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         self._si_s = storage.si_b2a(self._storage_index)
         self.init_logging()
 
-        self._output = VerifyingOutput(self._size)
+        r = Results(self._storage_index)
+        self._output = VerifyingOutput(self._size, r)
         self._paused = False
         self._stopped = False
 
@@ -165,75 +201,4 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         d.addCallback(self._download_all_segments)
         d.addCallback(self._done)
         return d
-
-
-class SQLiteCheckerResults:
-    def __init__(self, results_file):
-        pass
-    def add_results(self, uri_to_check, when, results):
-        pass
-    def get_results_for(self, uri_to_check):
-        return []
-
-class InMemoryCheckerResults:
-    def __init__(self):
-        self.results = {} # indexed by uri
-    def add_results(self, uri_to_check, when, results):
-        if uri_to_check not in self.results:
-            self.results[uri_to_check] = []
-        self.results[uri_to_check].append( (when, results) )
-    def get_results_for(self, uri_to_check):
-        return self.results.get(uri_to_check, [])
-
-class Checker(service.MultiService):
-    """I am a service that helps perform file checks.
-    """
-    name = "checker"
-    def __init__(self):
-        service.MultiService.__init__(self)
-        self.results = None
-
-    def startService(self):
-        service.MultiService.startService(self)
-        if self.parent:
-            results_file = os.path.join(self.parent.basedir,
-                                        "checker_results.db")
-            if os.path.exists(results_file):
-                self.results = SQLiteCheckerResults(results_file)
-            else:
-                self.results = InMemoryCheckerResults()
-
-    def check(self, uri_to_check):
-        if uri_to_check is None:
-            return defer.succeed(True)
-        uri_to_check = IVerifierURI(uri_to_check)
-        if isinstance(uri_to_check, uri.CHKFileVerifierURI):
-            peer_getter = self.parent.get_permuted_peers
-            c = SimpleCHKFileChecker(peer_getter, uri_to_check)
-            d = c.check()
-        else:
-            return defer.succeed(True)  # TODO I don't know how to check, but I'm pretending to succeed.
-
-        def _done(res):
-            # TODO: handle exceptions too, record something useful about them
-            if self.results:
-                self.results.add_results(uri_to_check, time.time(), res)
-            return res
-        d.addCallback(_done)
-        return d
-
-    def verify(self, uri_to_verify):
-        if uri_to_verify is None:
-            return defer.succeed(True)
-        uri_to_verify = IVerifierURI(uri_to_verify)
-        if isinstance(uri_to_verify, uri.CHKFileVerifierURI):
-            v = SimpleCHKFileVerifier(self.parent, uri_to_verify)
-            return v.start()
-        else:
-            return defer.succeed(True)  # TODO I don't know how to verify, but I'm pretending to succeed.
-
-    def checker_results_for(self, uri_to_check):
-        if uri_to_check and self.results:
-            return self.results.get_results_for(IVerifierURI(uri_to_check))
-        return []
 

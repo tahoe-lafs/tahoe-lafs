@@ -1,9 +1,11 @@
 
 import struct
+from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
 from allmydata import hashtree
-from allmydata.util import hashutil
+from allmydata.util import hashutil, base32
+from allmydata.interfaces import ICheckerResults
 
 from common import MODE_CHECK, CorruptShareError
 from servermap import ServerMap, ServermapUpdater
@@ -136,13 +138,38 @@ class MutableChecker:
         pass
 
     def _return_results(self, res):
-        r = {}
-        r['healthy'] = self.healthy
-        r['problems'] = self.problems
+        r = Results(self._storage_index)
+        r.healthy = self.healthy
+        r.problems = self.problems
         return r
 
 
     def add_problem(self, shnum, peerid, what):
         self.healthy = False
         self.problems.append( (peerid, self._storage_index, shnum, what) )
+
+class Results:
+    implements(ICheckerResults)
+
+    def __init__(self, storage_index):
+        self.storage_index = storage_index
+        self.storage_index_s = base32.b2a(storage_index)[:6]
+
+    def is_healthy(self):
+        return self.healthy
+
+    def html_summary(self):
+        if self.healthy:
+            return "<span>healthy</span>"
+        return "<span>NOT HEALTHY</span>"
+
+    def html(self):
+        s = "<div>\n"
+        s += "<h1>Checker Results for Mutable SI=%s</h1>\n" % self.storage_index_s
+        if self.healthy:
+            s += "<h2>Healthy!</h2>\n"
+        else:
+            s += "<h2>Not Healthy!</h2>\n"
+        s += "</div>\n"
+        return s
 

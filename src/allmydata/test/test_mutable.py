@@ -1121,23 +1121,23 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
 
 class CheckerMixin:
     def check_good(self, r, where):
-        self.failUnless(r['healthy'], where)
-        self.failIf(r['problems'], where)
+        self.failUnless(r.healthy, where)
+        self.failIf(r.problems, where)
         return r
 
     def check_bad(self, r, where):
-        self.failIf(r['healthy'], where)
+        self.failIf(r.healthy, where)
         return r
 
     def check_expected_failure(self, r, expected_exception, substring, where):
-        for (peerid, storage_index, shnum, f) in r['problems']:
+        for (peerid, storage_index, shnum, f) in r.problems:
             if f.check(expected_exception):
                 self.failUnless(substring in str(f),
                                 "%s: substring '%s' not in '%s'" %
                                 (where, substring, str(f)))
                 return
         self.fail("%s: didn't see expected exception %s in problems %s" %
-                  (where, expected_exception, r['problems']))
+                  (where, expected_exception, r.problems))
 
 
 class Checker(unittest.TestCase, CheckerMixin):

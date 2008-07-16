@@ -1063,13 +1063,15 @@ class Downloader(service.MultiService):
         assert t.write
         assert t.close
 
-        if self.stats_provider:
-            self.stats_provider.count('downloader.files_downloaded', 1)
-            self.stats_provider.count('downloader.bytes_downloaded', u.get_size())
 
         if isinstance(u, uri.LiteralFileURI):
             dl = LiteralDownloader(self.parent, u, t)
         elif isinstance(u, uri.CHKFileURI):
+            if self.stats_provider:
+                # these counters are meant for network traffic, and don't
+                # include LIT files
+                self.stats_provider.count('downloader.files_downloaded', 1)
+                self.stats_provider.count('downloader.bytes_downloaded', u.get_size())
             dl = FileDownloader(self.parent, u, t)
         else:
             raise RuntimeError("I don't know how to download a %s" % u)

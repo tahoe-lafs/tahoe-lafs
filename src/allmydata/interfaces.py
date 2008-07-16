@@ -1432,66 +1432,82 @@ class IUploader(Interface):
     def upload_ssk(write_capability, new_version, uploadable):
         """TODO: how should this work?"""
 
-class IChecker(Interface):
-    def check(uri_to_check, repair=False):
-        """Accepts an IVerifierURI, and checks upon the health of its target.
+class ICheckable(Interface):
+    def check(verify=False, repair=False):
+        """Check upon my health, optionally repairing any problems.
 
-        For now, uri_to_check must be an IVerifierURI. In the future we
-        expect to relax that to be anything that can be adapted to
-        IVerifierURI (like read-only or read-write dirnode/filenode URIs).
+        This returns a Deferred that fires with an instance that provides
+        ICheckerResults.
 
-        This returns a Deferred. For dirnodes, this fires with either True or
-        False (dirnodes are not distributed, so their health is a boolean).
+        Filenodes and dirnodes (which provide IFilesystemNode) are also
+        checkable. Instances that represent verifier-caps will be checkable
+        but not downloadable. Some objects (like LIT files) do not actually
+        live in the grid, and their checkers indicate a healthy result.
 
-        For filenodes, this fires with a tuple of (needed_shares,
-        total_shares, found_shares, sharemap). The first three are ints. The
-        basic health of the file is found_shares / needed_shares: if less
-        than 1.0, the file is unrecoverable.
+        If verify=False, a relatively lightweight check will be performed: I
+        will ask all servers if they have a share for me, and I will believe
+        whatever they say. If there are at least N distinct shares on the
+        grid, my results will indicate r.is_healthy()==True. This requires a
+        roundtrip to each server, but does not transfer very much data, so
+        the network bandwidth is fairly low.
 
-        The sharemap has a key for each sharenum. The value is a list of
-        (binary) nodeids who hold that share. If two shares are kept on the
-        same nodeid, they will fail as a pair, and overall reliability is
-        decreased.
+        If verify=True, a more resource-intensive check will be performed:
+        every share will be downloaded, and the hashes will be validated on
+        every bit. I will ignore any shares that failed their hash checks. If
+        there are at least N distinct valid shares on the grid, my results
+        will indicate r.is_healthy()==True. This requires N/k times as much
+        download bandwidth (and server disk IO) as a regular download. If a
+        storage server is holding a corrupt share, or is experiencing memory
+        failures during retrieval, or is malicious or buggy, then
+        verification will detect the problem, but checking will not.
 
-        The IChecker instance remembers the results of the check. By default,
-        these results are stashed in RAM (and are forgotten at shutdown). If
-        a file named 'checker_results.db' exists in the node's basedir, it is
-        used as a sqlite database of results, making them persistent across
-        runs. To start using this feature, just 'touch checker_results.db',
-        and the node will initialize it properly the next time it is started.
+        If repair=True, then a non-healthy result will cause an immediate
+        repair operation, to generate and upload new shares. After repair,
+        the file will be as healthy as we can make it. Details about what
+        sort of repair is done will be put in the checker results. My
+        Deferred will not fire until the repair is complete.
+
+        TODO: any problems seen during checking will be reported to the
+        health-manager.furl, a centralized object which is responsible for
+        figuring out why files are unhealthy so corrective action can be
+        taken.
         """
 
-    def verify(uri_to_check, repair=False):
-        """Accepts an IVerifierURI, and verifies the crypttext of the target.
+class ICheckerResults(Interface):
+    """I contain the detailed results of a check/verify/repair operation.
 
-        This is a more-intensive form of checking. For verification, the
-        file's crypttext contents are retrieved, and the associated hash
-        checks are performed. If a storage server is holding a corrupted
-        share, verification will detect the problem, but checking will not.
-        This returns a Deferred that fires with True if the crypttext hashes
-        look good, and will probably raise an exception if anything goes
-        wrong.
+    The IFilesystemNode.check()/verify()/repair() methods all return
+    instances that provide ICheckerResults.
+    """
 
-        For dirnodes, 'verify' is the same as 'check', so the Deferred will
-        fire with True or False.
+    def is_healthy():
+        """Return a bool, True if the file is fully healthy, False if it is
+        damaged in any way."""
 
-        Verification currently only uses a minimal subset of peers, so a lot
-        of share corruption will not be caught by it. We expect to improve
-        this in the future.
-        """
+    def html_summary():
+        """Return a short string, with a single <span> element, that
+        describes summarized results of the check. This will be displayed on
+        the web-interface directory page, in a narrow column, showing stored
+        results for all files at the same time."""
 
-    def checker_results_for(uri_to_check):
-        """Accepts an IVerifierURI, and returns a list of previously recorded
-        checker results. This method performs no checking itself: it merely
-        reports the results of checks that have taken place in the past.
+    def html():
+        """Return a string, with a single <div> element that describes the
+        detailed results of the check/verify operation. This string will be
+        displayed on a page all by itself."""
 
-        Each element of the list is a two-entry tuple: (when, results).
-        The 'when' values are timestamps (float seconds since epoch), and the
-        results are as defined in the check() method.
+    # The old checker results (for only immutable files) were described
+    # with this:
+    #    For filenodes, this fires with a tuple of (needed_shares,
+    #    total_shares, found_shares, sharemap). The first three are ints. The
+    #    basic health of the file is found_shares / needed_shares: if less
+    #    than 1.0, the file is unrecoverable.
+    #
+    #    The sharemap has a key for each sharenum. The value is a list of
+    #    (binary) nodeids who hold that share. If two shares are kept on the
+    #    same nodeid, they will fail as a pair, and overall reliability is
+    #    decreased.
 
-        Note: at the moment, this is specified to return synchronously. We
-        might need to back away from this in the future.
-        """
+
 
 class IClient(Interface):
     def upload(uploadable):

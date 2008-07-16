@@ -535,34 +535,7 @@ class DirectoryAsHTML(rend.Page):
 
         ctx.fillSlots("data", childdata)
 
-        try:
-            checker = IClient(ctx).getServiceNamed("checker")
-        except KeyError:
-            checker = None
-        if checker:
-            d = defer.maybeDeferred(checker.checker_results_for,
-                                    target.get_verifier())
-            def _got(checker_results):
-                recent_results = reversed(checker_results[-5:])
-                if IFileNode.providedBy(target):
-                    results = ("[" +
-                               ", ".join(["%d/%d" % (found, needed)
-                                          for (when,
-                                               (needed, total, found, sharemap))
-                                          in recent_results]) +
-                               "]")
-                elif IDirectoryNode.providedBy(target):
-                    results = ("[" +
-                               "".join([{True:"+",False:"-"}[res]
-                                        for (when, res) in recent_results]) +
-                               "]")
-                else:
-                    results = "%d results" % len(checker_results)
-                return results
-            d.addCallback(_got)
-            results = d
-        else:
-            results = "--"
+        results = "--"
         # TODO: include a link to see more results, including timestamps
         # TODO: use a sparkline
         ctx.fillSlots("checker_results", results)

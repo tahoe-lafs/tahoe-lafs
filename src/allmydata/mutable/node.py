@@ -6,7 +6,7 @@ from zope.interface import implements
 from twisted.internet import defer, reactor
 from twisted.python import log
 from foolscap.eventual import eventually
-from allmydata.interfaces import IMutableFileNode, IMutableFileURI
+from allmydata.interfaces import IMutableFileNode, IMutableFileURI, ICheckable
 from allmydata.util import hashutil
 from allmydata.util.assertutil import precondition
 from allmydata.uri import WriteableSSKFileURI
@@ -47,7 +47,7 @@ class BackoffAgent:
 # use client.create_mutable_file() to make one of these
 
 class MutableFileNode:
-    implements(IMutableFileNode)
+    implements(IMutableFileNode, ICheckable)
     SIGNATURE_KEY_SIZE = 2048
     DEFAULT_ENCODING = (3, 10)
 

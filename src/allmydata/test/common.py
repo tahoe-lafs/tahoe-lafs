@@ -4,7 +4,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
 from twisted.application import service
-from allmydata import uri, dirnode
+from allmydata import uri, dirnode, checker
 from allmydata.interfaces import IURI, IMutableFileNode, IFileNode, \
      FileTooLargeError
 from allmydata.encode import NotEnoughSharesError
@@ -103,6 +103,12 @@ class FakeMutableFileNode:
         return "\x00"*16
     def get_size(self):
         return "?" # TODO: see mutable.MutableFileNode.get_size
+
+    def check(self, verify=False, repair=False):
+        r = checker.Results(None)
+        r.healthy = True
+        r.problems = []
+        return defer.succeed(r)
 
     def download_best_version(self):
         return defer.succeed(self.all_contents[self.storage_index])
