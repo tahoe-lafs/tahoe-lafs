@@ -7,10 +7,16 @@ DEB_PYTHON_SYSTEM=pycentral
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
 
-STAGING_DIR=$(CURDIR)/debian/allmydata-tahoe
+# this ought to be the name of the package that we're building, which is
+# different on each tahoe branch. debian/control is the master: whatever
+# package is listed in there will be built.
+DEBNAME := $(firstword $(DEB_PACKAGES))
 
-# to add files to /usr/share/doc/, edit ./allmydata-tahoe.docs
-DEB_COMPRESS_EXCLUDE := "munin/"
+STAGING_DIR := $(CURDIR)/debian/$(DEBNAME)
+
+DEB_INSTALL_DOCS_ALL := COPYING.GPL COPYING.TGPPL.html CREDITS \
+ NEWS README relnotes.txt docs
+
 
 # we overwrite the setuptools-generated /usr/bin/tahoe (located in
 # support/bin/tahoe after a 'make build') with a different version, because
@@ -22,7 +28,7 @@ DEB_COMPRESS_EXCLUDE := "munin/"
 # this build, we copy it from the setuptools-generated /usr/bin/tahoe, then
 # add other code to the generated file.
 
-install/allmydata-tahoe::
+install/$(DEBNAME)::
 	mkdir -pm755 $(STAGING_DIR)
 	python setup.py install --root=$(STAGING_DIR)
 
@@ -31,6 +37,9 @@ install/allmydata-tahoe::
 	echo "runner.run()" >>$(STAGING_DIR)/usr/bin/tahoe.new
 	chmod +x $(STAGING_DIR)/usr/bin/tahoe.new
 	mv $(STAGING_DIR)/usr/bin/tahoe.new $(STAGING_DIR)/usr/bin/tahoe
+
+	dh_install misc/munin/* usr/share/$(DEBNAME)/munin
+	chmod +x $(STAGING_DIR)/usr/share/$(DEBNAME)/munin/*
 
 	dh_pycentral
 
