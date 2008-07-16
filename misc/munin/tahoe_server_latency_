@@ -64,7 +64,7 @@ else:
     what = percentile.replace("_", ".") + "th percentile"
 
 configinfo = \
-"""graph_title Tahoe Server '%(operation)s' Latency
+"""graph_title Tahoe Server '%(operation)s' Latency (%(what)s)
 graph_vlabel seconds
 graph_category tahoe
 graph_info This graph shows how long '%(operation)s' operations took on the storage server, the %(what)s delay between message receipt and response generation, calculated over the last thousand operations.
