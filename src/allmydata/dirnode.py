@@ -535,46 +535,42 @@ class NewDirectoryNode:
         return d
 
     def deep_check(self, verify=False, repair=False):
+        # shallow-check each object first, then traverse children
         results = DeepCheckResults()
         found = set()
-        found.add(self.get_verifier())
-
         limiter = ConcurrencyLimiter(10)
 
-        d = self._add_check_from_node(self, results, limiter, verify, repair)
-        d.addCallback(lambda res:
-                      self._add_deepcheck_from_dirnode(self,
-                                                       found, results, limiter,
-                                                       verify, repair))
+        d = self._add_deepcheck_from_node(self, results, found, limiter,
+                                          verify, repair)
         d.addCallback(lambda res: results)
         return d
 
-    def _add_check_from_node(self, node, results, limiter, verify, repair):
+    def _add_deepcheck_from_node(self, node, results, found, limiter,
+                                 verify, repair):
+        verifier = node.get_verifier()
+        if verifier in found:
+            # avoid loops
+            return None
+        found.add(verifier)
+
         d = limiter.add(node.check, verify, repair)
         d.addCallback(results.add_check)
+
+        if IDirectoryNode.providedBy(node):
+            d.addCallback(lambda res: node.list())
+            def _got_children(children):
+                dl = []
+                for name, (child, metadata) in children.iteritems():
+                    d2 = self._add_deepcheck_from_node(child,
+                                                       results, limiter,
+                                                       verify, repair)
+                    if d2:
+                        dl.append(d1)
+                if dl:
+                    return defer.DeferredList(dl)
+            d.addCallback(_got_children)
         return d
 
-    def _add_deepcheck_from_dirnode(self, node, found, results, limiter,
-                                    verify, repair):
-        d = limiter.add(node.list)
-        def _got_list(children):
-            dl = []
-            for name, (child, metadata) in children.iteritems():
-                verifier = child.get_verifier()
-                if verifier in found:
-                    # avoid loops
-                    continue
-                dl.append(self._add_check_from_node(child,
-                                                    results, limiter,
-                                                    verify, repair))
-                if IDirectoryNode.providedBy(child):
-                    dl.append(self._add_deepcheck_from_node(child, found,
-                                                            results, limiter,
-                                                            verify, repair))
-            if dl:
-                return defer.DeferredList(dl)
-        d.addCallback(_got_list)
-        return d
 
 class DeepStats:
     def __init__(self):
