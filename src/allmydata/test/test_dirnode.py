@@ -2,8 +2,9 @@
 import time
 from zope.interface import implements
 from twisted.trial import unittest
+from twisted.internet import defer
 from allmydata import uri, dirnode
-from allmydata.immutable import upload
+from allmydata.immutable import upload, checker
 from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
      INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode, ExistingChildError
 from allmydata.util import hashutil, testutil
@@ -30,6 +31,12 @@ class Marker:
         return self.nodeuri
     def get_verifier(self):
         return self.verifieruri
+
+    def check(self, verify=False, repair=False):
+        r = checker.Results(None)
+        r.healthy = True
+        r.problems = []
+        return defer.succeed(r)
 
 # dirnode requires three methods from the client: upload(),
 # create_node_from_uri(), and create_empty_dirnode(). Of these, upload() is
@@ -118,10 +125,22 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
         return d
 
     def _test_deepcheck_create(self):
+        # create a small tree with a loop, and some non-directories
+        #  root/
+        #  root/subdir/
+        #  root/subdir/file1
+        #  root/subdir/link -> root
         d = self.client.create_empty_dirnode()
         def _created_root(rootnode):
             self._rootnode = rootnode
+            return rootnode.create_empty_directory(u"subdir")
         d.addCallback(_created_root)
+        def _created_subdir(subdir):
+            self._subdir = subdir
+            d = subdir.add_file(u"file1", upload.Data("data", None))
+            d.addCallback(lambda res: subdir.set_node(u"link", self._rootnode))
+            return d
+        d.addCallback(_created_subdir)
         def _done(res):
             return self._rootnode
         d.addCallback(_done)
@@ -131,8 +150,8 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
         d = self._test_deepcheck_create()
         d.addCallback(lambda rootnode: rootnode.deep_check())
         def _check_results(r):
-            self.failUnlessEqual(r.count_objects_checked(), 1)
-            self.failUnlessEqual(r.count_objects_healthy(), 1)
+            self.failUnlessEqual(r.count_objects_checked(), 3)
+            self.failUnlessEqual(r.count_objects_healthy(), 3)
             self.failUnlessEqual(r.count_repairs_attempted(), 0)
             self.failUnlessEqual(r.count_repairs_successful(), 0)
             self.failUnlessEqual(len(r.get_server_problems()), 0)

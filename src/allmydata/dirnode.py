@@ -561,13 +561,13 @@ class NewDirectoryNode:
             def _got_children(children):
                 dl = []
                 for name, (child, metadata) in children.iteritems():
-                    d2 = self._add_deepcheck_from_node(child,
-                                                       results, limiter,
+                    d2 = self._add_deepcheck_from_node(child, results,
+                                                       found, limiter,
                                                        verify, repair)
                     if d2:
-                        dl.append(d1)
+                        dl.append(d2)
                 if dl:
-                    return defer.DeferredList(dl)
+                    return defer.DeferredList(dl, fireOnOneErrback=True)
             d.addCallback(_got_children)
         return d
 
