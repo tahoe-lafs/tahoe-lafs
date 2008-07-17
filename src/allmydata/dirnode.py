@@ -9,6 +9,7 @@ from allmydata.mutable.node import MutableFileNode
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
      IURI, IFileNode, IMutableFileURI, IVerifierURI, IFilesystemNode, \
      ExistingChildError, ICheckable
+from allmydata.immutable.checker import DeepCheckResults
 from allmydata.util import hashutil, mathutil
 from allmydata.util.hashutil import netstring
 from allmydata.util.limiter import ConcurrencyLimiter
@@ -528,6 +529,48 @@ class NewDirectoryNode:
                         stats.add("count-immutable-files")
                         stats.add("size-immutable-files", size)
                         stats.max("largest-immutable-file", size)
+            if dl:
+                return defer.DeferredList(dl)
+        d.addCallback(_got_list)
+        return d
+
+    def deep_check(self, verify=False, repair=False):
+        results = DeepCheckResults()
+        found = set()
+        found.add(self.get_verifier())
+
+        limiter = ConcurrencyLimiter(10)
+
+        d = self._add_check_from_node(self, results, limiter, verify, repair)
+        d.addCallback(lambda res:
+                      self._add_deepcheck_from_dirnode(self,
+                                                       found, results, limiter,
+                                                       verify, repair))
+        d.addCallback(lambda res: results)
+        return d
+
+    def _add_check_from_node(self, node, results, limiter, verify, repair):
+        d = limiter.add(node.check, verify, repair)
+        d.addCallback(results.add_check)
+        return d
+
+    def _add_deepcheck_from_dirnode(self, node, found, results, limiter,
+                                    verify, repair):
+        d = limiter.add(node.list)
+        def _got_list(children):
+            dl = []
+            for name, (child, metadata) in children.iteritems():
+                verifier = child.get_verifier()
+                if verifier in found:
+                    # avoid loops
+                    continue
+                dl.append(self._add_check_from_node(child,
+                                                    results, limiter,
+                                                    verify, repair))
+                if IDirectoryNode.providedBy(child):
+                    dl.append(self._add_deepcheck_from_node(child, found,
+                                                            results, limiter,
+                                                            verify, repair))
             if dl:
                 return defer.DeferredList(dl)
         d.addCallback(_got_list)

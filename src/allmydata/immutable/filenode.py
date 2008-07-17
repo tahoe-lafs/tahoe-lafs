@@ -3,7 +3,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from allmydata.interfaces import IFileNode, IFileURI, IURI, ICheckable
 from allmydata import uri
-from allmydata.immutable.checker import Results, \
+from allmydata.immutable.checker import Results, DeepCheckResults, \
      SimpleCHKFileChecker, SimpleCHKFileVerifier
 
 class FileNode:
@@ -51,6 +51,15 @@ class FileNode:
             peer_getter = self._client.get_permuted_peers
             v = SimpleCHKFileChecker(peer_getter, vcap)
             return v.check()
+
+    def deep_check(self, verify=False, repair=False):
+        d = self.check(verify, repair)
+        def _done(r):
+            dr = DeepCheckResults()
+            dr.add_check(r)
+            return dr
+        d.addCallback(_done)
+        return d
 
     def download(self, target):
         downloader = self._client.getServiceNamed("downloader")

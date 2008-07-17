@@ -117,6 +117,29 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
         d.addCallback(_done)
         return d
 
+    def _test_deepcheck_create(self):
+        d = self.client.create_empty_dirnode()
+        def _created_root(rootnode):
+            self._rootnode = rootnode
+        d.addCallback(_created_root)
+        def _done(res):
+            return self._rootnode
+        d.addCallback(_done)
+        return d
+
+    def test_deepcheck(self):
+        d = self._test_deepcheck_create()
+        d.addCallback(lambda rootnode: rootnode.deep_check())
+        def _check_results(r):
+            self.failUnlessEqual(r.count_objects_checked(), 1)
+            self.failUnlessEqual(r.count_objects_healthy(), 1)
+            self.failUnlessEqual(r.count_repairs_attempted(), 0)
+            self.failUnlessEqual(r.count_repairs_successful(), 0)
+            self.failUnlessEqual(len(r.get_server_problems()), 0)
+            self.failUnlessEqual(len(r.get_problems()), 0)
+        d.addCallback(_check_results)
+        return d
+
     def test_readonly(self):
         fileuri = make_chk_file_uri(1234)
         filenode = self.client.create_node_from_uri(fileuri)

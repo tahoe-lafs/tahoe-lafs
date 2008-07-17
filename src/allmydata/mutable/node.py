@@ -11,6 +11,7 @@ from allmydata.util import hashutil
 from allmydata.util.assertutil import precondition
 from allmydata.uri import WriteableSSKFileURI
 from allmydata.immutable.encode import NotEnoughSharesError
+from allmydata.immutable.checker import DeepCheckResults
 from pycryptopp.publickey import rsa
 from pycryptopp.cipher.aes import AES
 
@@ -239,6 +240,15 @@ class MutableFileNode:
     def check(self, verify=False, repair=False):
         checker = MutableChecker(self)
         return checker.check(verify, repair)
+
+    def deep_check(self, verify=False, repair=False):
+        d = self.check(verify, repair)
+        def _done(r):
+            dr = DeepCheckResults()
+            dr.add_check(r)
+            return dr
+        d.addCallback(_done)
+        return d
 
     # allow the use of IDownloadTarget
     def download(self, target):

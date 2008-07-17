@@ -1473,6 +1473,15 @@ class ICheckable(Interface):
         taken.
         """
 
+    def deep_check(verify=False, repair=False):
+        """Check upon the health of me and everything I can reach.
+
+        This is a recursive form of check(), useable on dirnodes. (it can be
+        called safely on filenodes too, but only checks the one object).
+
+        I return a Deferred that fires with an IDeepCheckResults object.
+        """
+
 class ICheckerResults(Interface):
     """I contain the detailed results of a check/verify/repair operation.
 
@@ -1506,6 +1515,27 @@ class ICheckerResults(Interface):
     #    same nodeid, they will fail as a pair, and overall reliability is
     #    decreased.
 
+class IDeepCheckResults(Interface):
+    """I contain the results of a deep-check operation.
+
+    This is returned by a call to ICheckable.deep_check().
+    """
+
+    def count_objects_checked():
+        """Return the number of objects that were checked."""
+    def count_objects_healthy():
+        """Return the number of objects that were fully healthy."""
+    def count_repairs_attempted():
+        """Return the number of repair operations that were attempted."""
+    def count_repairs_successful():
+        """Return the number of repair operations that succeeded in bringing
+        the object back up to full health."""
+    def get_server_problems():
+        """Return a dict, mapping server nodeid to a count of how many
+        problems involved that server."""
+    def get_problems():
+        """Return a list of ICheckerResults, one for each object that
+        was not fully healthy."""
 
 
 class IClient(Interface):

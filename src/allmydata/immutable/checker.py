@@ -10,7 +10,8 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import log
 from allmydata import storage
-from allmydata.interfaces import IVerifierURI, ICheckerResults
+from allmydata.interfaces import IVerifierURI, \
+     ICheckerResults, IDeepCheckResults
 from allmydata.immutable import download
 from allmydata.util import hashutil, base32
 
@@ -43,6 +44,42 @@ class Results:
         else:
             s += "Not Healthy!\n"
         return s
+
+class DeepCheckResults:
+    implements(IDeepCheckResults)
+
+    def __init__(self):
+        self.objects_checked = 0
+        self.objects_healthy = 0
+        self.repairs_attempted = 0
+        self.repairs_successful = 0
+        self.problems = []
+        self.server_problems = {}
+
+    def add_check(self, r):
+        self.objects_checked += 1
+        if r.is_healthy:
+            self.objects_healthy += 1
+        else:
+            self.problems.append(r)
+
+    def add_repair(self, is_successful):
+        self.repairs_attempted += 1
+        if is_successful:
+            self.repairs_successful += 1
+
+    def count_objects_checked(self):
+        return self.objects_checked
+    def count_objects_healthy(self):
+        return self.objects_healthy
+    def count_repairs_attempted(self):
+        return self.repairs_attempted
+    def count_repairs_successful(self):
+        return self.repairs_successful
+    def get_server_problems(self):
+        return self.server_problems
+    def get_problems(self):
+        return self.problems
 
 
 class SimpleCHKFileChecker:
