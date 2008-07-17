@@ -21,7 +21,7 @@ from allmydata.web.common import text_plain, WebError, IClient, \
      getxmlfile, RenderMixin
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
-from allmydata.web.checker_results import CheckerResults
+from allmydata.web.checker_results import CheckerResults, DeepCheckResults
 
 class BlockingFileError(Exception):
     # TODO: catch and transform
@@ -182,6 +182,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d = self._POST_rename(req)
         elif t == "check":
             d = self._POST_check(req)
+        elif t == "deep-check":
+            d = self._POST_deep_check(req)
         elif t == "set_children":
             # TODO: docs
             d = self._POST_set_children(req)
@@ -332,6 +334,12 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         # check this directory
         d = self.node.check()
         d.addCallback(lambda res: CheckerResults(res))
+        return d
+
+    def _POST_deep_check(self, req):
+        # check this directory and everything reachable from it
+        d = self.node.deep_check()
+        d.addCallback(lambda res: DeepCheckResults(res))
         return d
 
     def _POST_set_children(self, req):
@@ -539,8 +547,24 @@ class DirectoryAsHTML(rend.Page):
         return ctx.tag
 
     def render_forms(self, ctx, data):
+        forms = []
+        deep_check = T.form(action=".", method="post",
+                            enctype="multipart/form-data")[
+            T.fieldset[
+            T.input(type="hidden", name="t", value="deep-check"),
+            T.input(type="hidden", name="return_to", value="."),
+            T.legend(class_="freeform-form-label")["Run a deep-check operation (EXPENSIVE)"],
+            T.input(type="submit", value="Deep-Check"),
+            " ",
+            "Verify every bit? (EVEN MORE EXPENSIVE):",
+            T.input(type="checkbox", name="verify"),
+            ]]
+        forms.append(T.div(class_="freeform-form")[deep_check])
+
         if self.node.is_readonly():
-            return T.div["No upload forms: directory is read-only"]
+            forms.append(T.div["No upload forms: directory is read-only"])
+            return forms
+
         mkdir = T.form(action=".", method="post",
                        enctype="multipart/form-data")[
             T.fieldset[
@@ -551,6 +575,7 @@ class DirectoryAsHTML(rend.Page):
             T.input(type="text", name="name"), " ",
             T.input(type="submit", value="Create"),
             ]]
+        forms.append(T.div(class_="freeform-form")[mkdir])
 
         upload = T.form(action=".", method="post",
                         enctype="multipart/form-data")[
@@ -565,6 +590,7 @@ class DirectoryAsHTML(rend.Page):
             " Mutable?:",
             T.input(type="checkbox", name="mutable"),
             ]]
+        forms.append(T.div(class_="freeform-form")[upload])
 
         mount = T.form(action=".", method="post",
                         enctype="multipart/form-data")[
@@ -580,10 +606,8 @@ class DirectoryAsHTML(rend.Page):
             T.input(type="text", name="uri"), " ",
             T.input(type="submit", value="Attach"),
             ]]
-        return [T.div(class_="freeform-form")[mkdir],
-                T.div(class_="freeform-form")[upload],
-                T.div(class_="freeform-form")[mount],
-                ]
+        forms.append(T.div(class_="freeform-form")[mount])
+        return forms
 
     def build_overwrite_form(self, ctx, name, target):
         if IMutableFileNode.providedBy(target) and not target.is_readonly():

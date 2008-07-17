@@ -51,6 +51,7 @@ class MutableFileNode:
     implements(IMutableFileNode, ICheckable)
     SIGNATURE_KEY_SIZE = 2048
     DEFAULT_ENCODING = (3, 10)
+    checker_class = MutableChecker
 
     def __init__(self, client):
         self._client = client
@@ -217,6 +218,9 @@ class MutableFileNode:
     def get_verifier(self):
         return IMutableFileURI(self._uri).get_verifier()
 
+    def get_storage_index(self):
+        return self._uri.storage_index
+
     def _do_serialized(self, cb, *args, **kwargs):
         # note: to avoid deadlock, this callable is *not* allowed to invoke
         # other serialized methods within this (or any other)
@@ -238,13 +242,13 @@ class MutableFileNode:
     #################################
 
     def check(self, verify=False, repair=False):
-        checker = MutableChecker(self)
+        checker = self.checker_class(self)
         return checker.check(verify, repair)
 
     def deep_check(self, verify=False, repair=False):
         d = self.check(verify, repair)
         def _done(r):
-            dr = DeepCheckResults()
+            dr = DeepCheckResults(self.get_storage_index())
             dr.add_check(r)
             return dr
         d.addCallback(_done)

@@ -6,7 +6,7 @@ from twisted.python import failure
 from twisted.application import service
 from allmydata import uri, dirnode
 from allmydata.interfaces import IURI, IMutableFileNode, IFileNode, \
-     FileTooLargeError
+     FileTooLargeError, ICheckable
 from allmydata.immutable import checker
 from allmydata.immutable.encode import NotEnoughSharesError
 from allmydata.util import log
@@ -74,7 +74,7 @@ class FakeMutableFileNode:
     """I provide IMutableFileNode, but all of my data is stored in a
     class-level dictionary."""
 
-    implements(IMutableFileNode)
+    implements(IMutableFileNode, ICheckable)
     MUTABLE_SIZELIMIT = 10000
     all_contents = {}
 
@@ -108,11 +108,23 @@ class FakeMutableFileNode:
     def get_size(self):
         return "?" # TODO: see mutable.MutableFileNode.get_size
 
+    def get_storage_index(self):
+        return self.storage_index
+
     def check(self, verify=False, repair=False):
         r = checker.Results(None)
         r.healthy = True
         r.problems = []
         return defer.succeed(r)
+
+    def deep_check(self, verify=False, repair=False):
+        d = self.check(verify, repair)
+        def _done(r):
+            dr = DeepCheckResults(self.storage_index)
+            dr.add_check(r)
+            return dr
+        d.addCallback(_done)
+        return d
 
     def download_best_version(self):
         return defer.succeed(self.all_contents[self.storage_index])

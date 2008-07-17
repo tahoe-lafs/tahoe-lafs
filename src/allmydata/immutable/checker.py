@@ -48,13 +48,22 @@ class Results:
 class DeepCheckResults:
     implements(IDeepCheckResults)
 
-    def __init__(self):
+    def __init__(self, root_storage_index):
+        self.root_storage_index = root_storage_index
+        if root_storage_index is None:
+            self.root_storage_index_s = "<none>"
+        else:
+            self.root_storage_index_s = base32.b2a(root_storage_index)[:6]
+
         self.objects_checked = 0
         self.objects_healthy = 0
         self.repairs_attempted = 0
         self.repairs_successful = 0
         self.problems = []
         self.server_problems = {}
+
+    def get_root_storage_index_string(self):
+        return self.root_storage_index_s
 
     def add_check(self, r):
         self.objects_checked += 1
@@ -86,10 +95,12 @@ class SimpleCHKFileChecker:
     """Return a list of (needed, total, found, sharemap), where sharemap maps
     share number to a list of (binary) nodeids of the shareholders."""
 
-    def __init__(self, peer_getter, uri_to_check):
-        self.peer_getter = peer_getter
+    def __init__(self, client, storage_index, needed_shares, total_shares):
+        self.peer_getter = client.get_permuted_peers
+        self.needed_shares = needed_shares
+        self.total_shares = total_shares
         self.found_shares = set()
-        self.uri_to_check = IVerifierURI(uri_to_check)
+        self.storage_index = storage_index
         self.sharemap = {}
 
     '''
@@ -103,8 +114,8 @@ class SimpleCHKFileChecker:
         return len(found)
     '''
 
-    def check(self):
-        d = self._get_all_shareholders(self.uri_to_check.storage_index)
+    def start(self):
+        d = self._get_all_shareholders(self.storage_index)
         d.addCallback(self._done)
         return d
 
@@ -132,11 +143,10 @@ class SimpleCHKFileChecker:
         pass
 
     def _done(self, res):
-        u = self.uri_to_check
-        r = Results(self.uri_to_check.storage_index)
-        r.healthy = bool(len(self.found_shares) >= u.needed_shares)
-        r.stuff = (u.needed_shares, u.total_shares, len(self.found_shares),
-                   self.sharemap)
+        r = Results(self.storage_index)
+        r.healthy = bool(len(self.found_shares) >= self.total_shares)
+        r.stuff = (self.needed_shares, self.total_shares,
+                   len(self.found_shares), self.sharemap)
         return r
 
 class VerifyingOutput:
@@ -179,15 +189,14 @@ class SimpleCHKFileVerifier(download.FileDownloader):
     # remaining shareholders, and it cannot verify the plaintext.
     check_plaintext_hash = False
 
-    def __init__(self, client, u):
+    def __init__(self, client, storage_index, k, N, size, ueb_hash):
         self._client = client
 
-        u = IVerifierURI(u)
-        self._storage_index = u.storage_index
-        self._uri_extension_hash = u.uri_extension_hash
-        self._total_shares = u.total_shares
-        self._size = u.size
-        self._num_needed_shares = u.needed_shares
+        self._storage_index = storage_index
+        self._uri_extension_hash = ueb_hash
+        self._total_shares = N
+        self._size = size
+        self._num_needed_shares = k
 
         self._si_s = storage.si_b2a(self._storage_index)
         self.init_logging()

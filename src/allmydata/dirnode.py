@@ -536,7 +536,8 @@ class NewDirectoryNode:
 
     def deep_check(self, verify=False, repair=False):
         # shallow-check each object first, then traverse children
-        results = DeepCheckResults()
+        root_si = self._node.get_storage_index()
+        results = DeepCheckResults(root_si)
         found = set()
         limiter = ConcurrencyLimiter(10)
 

@@ -1446,6 +1446,33 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check3)
         return d
 
+    def test_POST_DIRURL_deepcheck(self):
+        d = self.POST(self.public_url, t="deep-check")
+        def _check(res):
+            self.failUnless("Objects Checked: <span>8</span>" in res)
+            self.failUnless("Objects Healthy: <span>8</span>" in res)
+            self.failUnless("Repairs Attempted: <span>0</span>" in res)
+            self.failUnless("Repairs Successful: <span>0</span>" in res)
+        d.addCallback(_check)
+        redir_url = "http://allmydata.org/TARGET"
+        def _check2(statuscode, target):
+            self.failUnlessEqual(statuscode, str(http.FOUND))
+            self.failUnlessEqual(target, redir_url)
+        d.addCallback(lambda res:
+                      self.shouldRedirect2("test_POST_DIRURL_check",
+                                           _check2,
+                                           self.POST, self.public_url,
+                                           t="deep-check",
+                                           when_done=redir_url))
+        d.addCallback(lambda res:
+                      self.POST(self.public_url, t="deep-check",
+                                return_to=redir_url))
+        def _check3(res):
+            self.failUnless("Return to parent directory" in res)
+            self.failUnless(redir_url in res)
+        d.addCallback(_check3)
+        return d
+
     def test_POST_FILEURL_bad_t(self):
         d = self.shouldFail2(error.Error, "POST_bad_t", "400 Bad Request",
                              "POST to file: bad t=bogus",

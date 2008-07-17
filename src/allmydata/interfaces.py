@@ -1521,6 +1521,9 @@ class IDeepCheckResults(Interface):
     This is returned by a call to ICheckable.deep_check().
     """
 
+    def get_root_storage_index_string():
+        """Return the storage index (abbreviated human-readable string) of
+        the first object checked."""
     def count_objects_checked():
         """Return the number of objects that were checked."""
     def count_objects_healthy():

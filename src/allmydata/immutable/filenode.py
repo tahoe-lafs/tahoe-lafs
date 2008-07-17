@@ -8,9 +8,12 @@ from allmydata.immutable.checker import Results, DeepCheckResults, \
 
 class FileNode:
     implements(IFileNode, ICheckable)
+    checker_class = SimpleCHKFileChecker
+    verifier_class = SimpleCHKFileVerifier
 
     def __init__(self, uri, client):
         u = IFileURI(uri)
+        self.u = u
         self.uri = u.to_string()
         self._client = client
 
@@ -27,7 +30,7 @@ class FileNode:
         return self.uri
 
     def get_size(self):
-        return IFileURI(self.uri).get_size()
+        return self.u.get_size()
 
     def __hash__(self):
         return hash((self.__class__, self.uri))
@@ -39,23 +42,26 @@ class FileNode:
         return cmp(self.uri, them.uri)
 
     def get_verifier(self):
-        return IFileURI(self.uri).get_verifier()
+        return self.u.get_verifier()
 
     def check(self, verify=False, repair=False):
         assert repair is False  # not implemented yet
-        vcap = self.get_verifier()
+        storage_index = self.u.storage_index
+        k = self.u.needed_shares
+        N = self.u.total_shares
+        size = self.u.size
+        ueb_hash = self.u.uri_extension_hash
         if verify:
-            v = SimpleCHKFileVerifier(self._client, vcap)
-            return v.start()
+            v = self.verifier_class(self._client,
+                                    storage_index, k, N, size, ueb_hash)
         else:
-            peer_getter = self._client.get_permuted_peers
-            v = SimpleCHKFileChecker(peer_getter, vcap)
-            return v.check()
+            v = self.checker_class(self._client, storage_index, k, N)
+        return v.start()
 
     def deep_check(self, verify=False, repair=False):
         d = self.check(verify, repair)
         def _done(r):
-            dr = DeepCheckResults()
+            dr = DeepCheckResults(self.get_verifier().storage_index)
             dr.add_check(r)
             return dr
         d.addCallback(_done)
@@ -113,6 +119,15 @@ class LiteralFileNode:
         r.healthy = True
         r.problems = []
         return defer.succeed(r)
+
+    def deep_check(self, verify=False, repair=False):
+        d = self.check(verify, repair)
+        def _done(r):
+            dr = DeepCheckResults(None)
+            dr.add_check(r)
+            return dr
+        d.addCallback(_done)
+        return d
 
     def download(self, target):
         # note that this does not update the stats_provider

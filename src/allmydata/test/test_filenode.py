@@ -1,7 +1,8 @@
 
 from twisted.trial import unittest
+from twisted.internet import defer
 from allmydata import uri
-from allmydata.immutable import filenode, download
+from allmydata.immutable import filenode, download, checker
 from allmydata.mutable.node import MutableFileNode
 from allmydata.util import hashutil
 
@@ -31,6 +32,7 @@ class Node(unittest.TestCase):
         v = fn1.get_verifier()
         self.failUnless(isinstance(v, uri.CHKFileVerifierURI))
 
+
     def test_literal_filenode(self):
         DATA = "I am a short file."
         u = uri.LiteralFileURI(data=DATA)
@@ -51,17 +53,14 @@ class Node(unittest.TestCase):
         v = fn1.get_verifier()
         self.failUnlessEqual(v, None)
 
-        d = fn1.check()
-        def _check_checker_results(cr):
-            self.failUnless(cr.is_healthy())
-        d.addCallback(_check_checker_results)
-        d.addCallback(lambda res: fn1.download(download.Data()))
+        d = fn1.download(download.Data())
         def _check(res):
             self.failUnlessEqual(res, DATA)
         d.addCallback(_check)
 
         d.addCallback(lambda res: fn1.download_to_data())
         d.addCallback(_check)
+
         return d
 
     def test_mutable_filenode(self):
@@ -109,3 +108,100 @@ class Node(unittest.TestCase):
         v = n.get_verifier()
         self.failUnless(isinstance(v, uri.SSKVerifierURI))
 
+class Checker(unittest.TestCase):
+    def test_chk_filenode(self):
+        u = uri.CHKFileURI(key="\x00"*16,
+                           uri_extension_hash="\x00"*32,
+                           needed_shares=3,
+                           total_shares=10,
+                           size=1000)
+        c = None
+        fn1 = filenode.FileNode(u, c)
+
+        fn1.checker_class = FakeImmutableChecker
+        fn1.verifier_class = FakeImmutableVerifier
+
+        d = fn1.check()
+        def _check_checker_results(cr):
+            self.failUnless(cr.is_healthy())
+        d.addCallback(_check_checker_results)
+
+        d.addCallback(lambda res: fn1.check(verify=True))
+        d.addCallback(_check_checker_results)
+
+        d.addCallback(lambda res: fn1.deep_check())
+        def _check_deepcheck_results(dcr):
+            self.failIf(dcr.get_problems())
+        d.addCallback(_check_deepcheck_results)
+        return d
+
+    def test_literal_filenode(self):
+        DATA = "I am a short file."
+        u = uri.LiteralFileURI(data=DATA)
+        c = None
+        fn1 = filenode.LiteralFileNode(u, c)
+
+        d = fn1.check()
+        def _check_checker_results(cr):
+            self.failUnless(cr.is_healthy())
+        d.addCallback(_check_checker_results)
+
+        d.addCallback(lambda res: fn1.check(verify=True))
+        d.addCallback(_check_checker_results)
+
+        d.addCallback(lambda res: fn1.deep_check())
+        def _check_deepcheck_results(dcr):
+            self.failIf(dcr.get_problems())
+        d.addCallback(_check_deepcheck_results)
+
+        return d
+
+    def test_mutable_filenode(self):
+        client = None
+        wk = "\x00"*16
+        fp = "\x00"*32
+        rk = hashutil.ssk_readkey_hash(wk)
+        si = hashutil.ssk_storage_index_hash(rk)
+
+        u = uri.WriteableSSKFileURI("\x00"*16, "\x00"*32)
+        n = MutableFileNode(client).init_from_uri(u)
+
+        n.checker_class = FakeMutableChecker
+
+        d = n.check()
+        def _check_checker_results(cr):
+            self.failUnless(cr.is_healthy())
+        d.addCallback(_check_checker_results)
+
+        d.addCallback(lambda res: n.check(verify=True))
+        d.addCallback(_check_checker_results)
+
+        d.addCallback(lambda res: n.deep_check())
+        def _check_deepcheck_results(dcr):
+            self.failIf(dcr.get_problems())
+        d.addCallback(_check_deepcheck_results)
+        return d
+
+class FakeMutableChecker:
+    def __init__(self, node):
+        self.r = checker.Results(node.get_storage_index())
+        self.r.healthy = True
+        self.r.problems = []
+
+    def check(self, verify, repair):
+        return defer.succeed(self.r)
+
+class FakeImmutableChecker:
+    def __init__(self, client, storage_index, needed_shares, total_shares):
+        self.r = checker.Results(storage_index)
+        self.r.healthy = True
+        self.r.problems = []
+
+    def start(self):
+        return defer.succeed(self.r)
+
+def FakeImmutableVerifier(client,
+                          storage_index, needed_shares, total_shares, size,
+                          ueb_hash):
+    return FakeImmutableChecker(client,
+                                storage_index, needed_shares, total_shares)
