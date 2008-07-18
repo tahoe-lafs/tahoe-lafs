@@ -120,7 +120,7 @@ class FakeMutableFileNode:
     def deep_check(self, verify=False, repair=False):
         d = self.check(verify, repair)
         def _done(r):
-            dr = DeepCheckResults(self.storage_index)
+            dr = checker.DeepCheckResults(self.storage_index)
             dr.add_check(r)
             return dr
         d.addCallback(_done)

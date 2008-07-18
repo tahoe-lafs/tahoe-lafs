@@ -10,8 +10,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import log
 from allmydata import storage
-from allmydata.interfaces import IVerifierURI, \
-     ICheckerResults, IDeepCheckResults
+from allmydata.interfaces import ICheckerResults, IDeepCheckResults
 from allmydata.immutable import download
 from allmydata.util import hashutil, base32
 

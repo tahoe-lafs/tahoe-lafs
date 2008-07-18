@@ -218,9 +218,6 @@ class MutableFileNode:
     def get_verifier(self):
         return IMutableFileURI(self._uri).get_verifier()
 
-    def get_storage_index(self):
-        return self._uri.storage_index
-
     def _do_serialized(self, cb, *args, **kwargs):
         # note: to avoid deadlock, this callable is *not* allowed to invoke
         # other serialized methods within this (or any other)
