@@ -6,7 +6,8 @@ from zope.interface import implements
 from twisted.internet import defer, reactor
 from twisted.python import log
 from foolscap.eventual import eventually
-from allmydata.interfaces import IMutableFileNode, IMutableFileURI, ICheckable
+from allmydata.interfaces import IMutableFileNode, IMutableFileURI, \
+     ICheckable, ICheckerResults
 from allmydata.util import hashutil
 from allmydata.util.assertutil import precondition
 from allmydata.uri import WriteableSSKFileURI
@@ -21,6 +22,7 @@ from common import MODE_READ, MODE_WRITE, UnrecoverableFileError, \
 from servermap import ServerMap, ServermapUpdater
 from retrieve import Retrieve
 from checker import MutableChecker
+from repair import Repairer
 
 
 class BackoffAgent:
@@ -186,6 +188,8 @@ class MutableFileNode:
     def get_total_shares(self):
         return self._total_shares
 
+    ####################################
+    # IFilesystemNode
 
     def get_uri(self):
         return self._uri.to_string()
@@ -237,6 +241,7 @@ class MutableFileNode:
         return d
 
     #################################
+    # ICheckable
 
     def check(self, verify=False, repair=False):
         checker = self.checker_class(self)
@@ -250,6 +255,19 @@ class MutableFileNode:
             return dr
         d.addCallback(_done)
         return d
+
+    #################################
+    # IRepairable
+
+    def repair(self, checker_results):
+        assert ICheckerResults(checker_results)
+        r = Repairer(self, checker_results)
+        d = r.start()
+        return d
+
+
+    #################################
+    # IMutableFileNode
 
     # allow the use of IDownloadTarget
     def download(self, target):

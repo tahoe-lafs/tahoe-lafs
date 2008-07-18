@@ -4,6 +4,7 @@ from common import NeedMoreDataError
 
 PREFIX = ">BQ32s16s" # each version has a different prefix
 SIGNED_PREFIX = ">BQ32s16s BBQQ" # this is covered by the signature
+SIGNED_PREFIX_LENGTH = struct.calcsize(SIGNED_PREFIX)
 HEADER = ">BQ32s16s BBQQ LLLLQQ" # includes offsets
 HEADER_LENGTH = struct.calcsize(HEADER)
 
@@ -24,7 +25,7 @@ def unpack_header(data):
 
 def unpack_prefix_and_signature(data):
     assert len(data) >= HEADER_LENGTH, len(data)
-    prefix = data[:struct.calcsize(SIGNED_PREFIX)]
+    prefix = data[:SIGNED_PREFIX_LENGTH]
 
     (version,
      seqnum,

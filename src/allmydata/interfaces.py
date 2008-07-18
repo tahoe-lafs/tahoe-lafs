@@ -1541,10 +1541,19 @@ class IDeepCheckResults(Interface):
         was not fully healthy."""
 
 class IRepairable(Interface):
-    def repair():
+    def repair(checker_results):
         """Attempt to repair the given object. Returns a Deferred that fires
         with a IRepairResults object.
+
+        I must be called with an object that implements ICheckerResults, as
+        proof that you have actually discovered a problem with this file. I
+        will use the data in the checker results to guide the repair process,
+        such as which servers provided bad data and should therefore be
+        avoided.
         """
+
+class IRepairResults(Interface):
+    """I contain the results of a repair operation."""
 
 
 class IClient(Interface):

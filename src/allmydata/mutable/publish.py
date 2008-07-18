@@ -225,10 +225,18 @@ class Publish:
         # use later.
         self.connections = {}
 
+        self.bad_share_checkstrings = {}
+
         # we use the servermap to populate the initial goal: this way we will
         # try to update each existing share in place.
         for (peerid, shnum) in self._servermap.servermap:
             self.goal.add( (peerid, shnum) )
+            self.connections[peerid] = self._servermap.connections[peerid]
+        # then we add in all the shares that were bad (corrupted, bad
+        # signatures, etc). We want to replace these.
+        for (peerid, shnum, old_checkstring) in self._servermap.bad_shares:
+            self.goal.add( (peerid, shnum) )
+            self.bad_share_checkstrings[ (peerid, shnum) ] = old_checkstring
             self.connections[peerid] = self._servermap.connections[peerid]
 
         # create the shares. We'll discard these as they are delivered. SMDF:
@@ -558,6 +566,10 @@ class Publish:
                 old_checkstring = pack_checkstring(old_seqnum,
                                                    old_root_hash,
                                                    old_salt)
+                testv = (0, len(old_checkstring), "eq", old_checkstring)
+
+            elif key in self.bad_share_checkstrings:
+                old_checkstring = self.bad_share_checkstrings[key]
                 testv = (0, len(old_checkstring), "eq", old_checkstring)
 
             else:

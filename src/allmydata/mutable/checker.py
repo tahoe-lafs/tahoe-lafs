@@ -1,5 +1,4 @@
 
-import struct
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
@@ -9,7 +8,7 @@ from allmydata.interfaces import ICheckerResults
 
 from common import MODE_CHECK, CorruptShareError
 from servermap import ServerMap, ServermapUpdater
-from layout import unpack_share, SIGNED_PREFIX
+from layout import unpack_share, SIGNED_PREFIX_LENGTH
 
 class MutableChecker:
 
@@ -18,9 +17,11 @@ class MutableChecker:
         self.healthy = True
         self.problems = []
         self._storage_index = self._node.get_storage_index()
+        self.results = Results(self._storage_index)
 
     def check(self, verify=False, repair=False):
         servermap = ServerMap()
+        self.results.servermap = servermap
         self.do_verify = verify
         self.do_repair = repair
         u = ServermapUpdater(self._node, servermap, MODE_CHECK)
@@ -85,11 +86,13 @@ class MutableChecker:
             except CorruptShareError:
                 f = failure.Failure()
                 self.add_problem(shnum, peerid, f)
+                prefix = data[:SIGNED_PREFIX_LENGTH]
+                self.results.servermap.mark_bad_share(peerid, shnum, prefix)
 
     def check_prefix(self, peerid, shnum, data):
         (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
          offsets_tuple) = self.best_version
-        got_prefix = data[:struct.calcsize(SIGNED_PREFIX)]
+        got_prefix = data[:SIGNED_PREFIX_LENGTH]
         if got_prefix != prefix:
             raise CorruptShareError(peerid, shnum,
                                     "prefix mismatch: share changed while we were reading it")
@@ -135,18 +138,29 @@ class MutableChecker:
             return
         if not self.do_repair:
             return
-        pass
+        self.results.repair_attempted = True
+        d = self._node.repair(self)
+        def _repair_finished(repair_results):
+            self.results.repair_succeeded = True
+            self.results.repair_results = repair_results
+        def _repair_error(f):
+            # I'm not sure if I want to pass through a failure or not.
+            self.results.repair_succeeded = False
+            self.results.repair_failure = f
+            return f
+        d.addCallbacks(_repair_finished, _repair_error)
+        return d
 
     def _return_results(self, res):
-        r = Results(self._storage_index)
-        r.healthy = self.healthy
-        r.problems = self.problems
-        return r
+        self.results.healthy = self.healthy
+        self.results.problems = self.problems
+        return self.results
 
 
     def add_problem(self, shnum, peerid, what):
         self.healthy = False
         self.problems.append( (peerid, self._storage_index, shnum, what) )
+
 
 class Results:
     implements(ICheckerResults)
@@ -154,6 +168,7 @@ class Results:
     def __init__(self, storage_index):
         self.storage_index = storage_index
         self.storage_index_s = base32.b2a(storage_index)[:6]
+        self.repair_attempted = False
 
     def is_healthy(self):
         return self.healthy

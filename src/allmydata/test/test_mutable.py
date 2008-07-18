@@ -723,7 +723,7 @@ class Servermap(unittest.TestCase):
             for (shnum, peerid, timestamp) in shares:
                 if shnum < 5:
                     self._corrupted.add( (peerid, shnum) )
-                    sm.mark_bad_share(peerid, shnum)
+                    sm.mark_bad_share(peerid, shnum, "")
             return self.update_servermap(sm, MODE_WRITE)
         d.addCallback(_made_map)
         def _check_map(sm):

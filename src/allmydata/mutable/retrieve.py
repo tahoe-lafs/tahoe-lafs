@@ -249,7 +249,7 @@ class Retrieve:
                 f = failure.Failure()
                 self.log("bad share: %s %s" % (f, f.value), level=log.WEIRD)
                 self.remove_peer(peerid)
-                self.servermap.mark_bad_share(peerid, shnum)
+                self.servermap.mark_bad_share(peerid, shnum, prefix)
                 self._bad_shares.add( (peerid, shnum) )
                 self._status.problems[peerid] = f
                 self._last_failure = f

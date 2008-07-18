@@ -12,7 +12,8 @@ from pycryptopp.publickey import rsa
 
 from common import MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, \
      DictOfSets, CorruptShareError, NeedMoreDataError
-from layout import unpack_prefix_and_signature, unpack_header, unpack_share
+from layout import unpack_prefix_and_signature, unpack_header, unpack_share, \
+     SIGNED_PREFIX_LENGTH
 
 class UpdateStatus:
     implements(IServermapUpdaterStatus)
@@ -114,25 +115,28 @@ class ServerMap:
         self.connections = {}
         self.unreachable_peers = set() # peerids that didn't respond to queries
         self.problems = [] # mostly for debugging
-        self.bad_shares = set()
+        self.bad_shares = {} # maps (peerid,shnum) to old checkstring
         self.last_update_mode = None
         self.last_update_time = 0
 
-    def mark_bad_share(self, peerid, shnum):
-        """This share was found to be bad, not in the checkstring or
-        signature, but deeper in the share, detected at retrieve time. Remove
-        it from our list of useful shares, and remember that it is bad so we
-        don't add it back again later.
+    def mark_bad_share(self, peerid, shnum, checkstring):
+        """This share was found to be bad, either in the checkstring or
+        signature (detected during mapupdate), or deeper in the share
+        (detected at retrieve time). Remove it from our list of useful
+        shares, and remember that it is bad so we don't add it back again
+        later. We record the share's old checkstring (which might be
+        corrupted or badly signed) so that a repair operation can do the
+        test-and-set using it as a reference.
         """
-        key = (peerid, shnum)
-        self.bad_shares.add(key)
+        key = (peerid, shnum) # record checkstring
+        self.bad_shares[key] = checkstring
         self.servermap.pop(key, None)
 
     def add_new_share(self, peerid, shnum, verinfo, timestamp):
         """We've written a new share out, replacing any that was there
         before."""
         key = (peerid, shnum)
-        self.bad_shares.discard(key)
+        self.bad_shares.pop(key, None)
         self.servermap[key] = (verinfo, timestamp)
 
     def dump(self, out=sys.stdout):
@@ -532,6 +536,8 @@ class ServermapUpdater:
                          parent=lp, level=log.WEIRD)
                 self._bad_peers.add(peerid)
                 self._last_failure = f
+                checkstring = data[:SIGNED_PREFIX_LENGTH]
+                self._servermap.mark_bad_share(peerid, shnum, checkstring)
                 self._servermap.problems.append(f)
                 pass
 
