@@ -1540,6 +1540,12 @@ class IDeepCheckResults(Interface):
         """Return a list of ICheckerResults, one for each object that
         was not fully healthy."""
 
+class IRepairable(Interface):
+    def repair():
+        """Attempt to repair the given object. Returns a Deferred that fires
+        with a IRepairResults object.
+        """
+
 
 class IClient(Interface):
     def upload(uploadable):
