@@ -157,8 +157,19 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         t = get_arg(req, "t", "").strip()
         if not t:
             # just get the contents
-            filename = get_arg(req, "filename", self.name) or "unknown"
             save_to_file = boolean_of_arg(get_arg(req, "save", "False"))
+            # the filename arrives as part of the URL or in a form input
+            # element, and will be sent back in a Content-Disposition header.
+            # Different browsers use various character sets for this name,
+            # sometimes depending upon how language environment is
+            # configured. Firefox sends the equivalent of
+            # urllib.quote(name.encode("utf-8")), while IE7 sometimes does
+            # latin-1. Browsers cannot agree on how to interpret the name
+            # they see in the Content-Disposition header either, despite some
+            # 11-year old standards (RFC2231) that explain how to do it
+            # properly. So we assume that at least the browser will agree
+            # with itself, and echo back the same bytes that we were given.
+            filename = get_arg(req, "filename", self.name) or "unknown"
             return FileDownloader(self.node, filename, save_to_file)
         if t == "json":
             return FileJSONMetadata(ctx, self.node)
@@ -294,12 +305,13 @@ class WebDownloadTarget:
             self._req.setHeader("content-encoding", self._content_encoding)
         self._req.setHeader("content-length", str(size))
         if self._save_to_filename is not None:
-            # tell the browser to save the file rather display it
-            # TODO: indicate charset of filename= properly
-            filename = self._save_to_filename.encode("utf-8")
+            # tell the browser to save the file rather display it we don't
+            # try to encode the filename, instead we echo back the exact same
+            # bytes we were given in the URL. See the comment in
+            # FileNodeHandler.render_GET for the sad details.
+            filename = self._save_to_filename
             self._req.setHeader("content-disposition",
-                                'attachment; filename="%s"'
-                                % filename)
+                                'attachment; filename="%s"' % filename)
 
     def write(self, data):
         self._req.write(data)

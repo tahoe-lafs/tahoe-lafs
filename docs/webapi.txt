@@ -443,6 +443,12 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME
  most browsers will refuse to display it inline). "true", "t", "1", and other
  case-insensitive equivalents are all treated the same.
 
+ Character-set handling in URLs and HTTP headers is a dubious art[1]. For
+ maximum compatibility, Tahoe simply copies the bytes from the filename=
+ argument into the Content-Disposition header's filename= parameter, without
+ trying to interpret them in any particular way.
+
+
 GET /named/$FILECAP/FILENAME
 
  This is an alternate download form which makes it easier to get the correct
@@ -910,3 +916,57 @@ For more details, please see the "Consistency vs Availability" and "The Prime
 Coordination Directive" sections of mutable.txt, in the same directory as
 this file.
 
+
+[1]: URLs and HTTP and UTF-8, Oh My
+
+ HTTP does not provide a mechanism to specify the character set used to
+ encode non-ascii names in URLs (rfc2396#2.1). We prefer the convention that
+ the filename= argument shall be a URL-encoded UTF-8 encoded unicode object.
+ For example, suppose we want to provoke the server into using a filename of
+ "f i a n c e-acute e" (i.e. F I A N C U+00E9 E). The UTF-8 encoding of this
+ is 0x66 0x69 0x61 0x6e 0x63 0xc3 0xa9 0x65 (or "fianc\xC3\xA9e", as python's
+ repr() function would show). To encode this into a URL, the non-printable
+ characters must be escaped with the urlencode '%XX' mechansim, giving us
+ "fianc%C3%A9e". Thus, the first line of the HTTP request will be "GET
+ /uri/CAP...?save=true&filename=fianc%C3%A9e HTTP/1.1". Not all browsers
+ provide this: IE7 uses the Latin-1 encoding, which is fianc%E9e.
+
+ The response header will need to indicate a non-ASCII filename. The actual
+ mechanism to do this is not clear. For ASCII filenames, the response header
+ would look like:
+
+  Content-Disposition: attachment; filename="english.txt"
+
+ If Tahoe were to enforce the utf-8 convention, it would need to decode the
+ URL argument into a unicode string, and then encode it back into a sequence
+ of bytes when creating the response header. One possibility would be to use
+ unencoded utf-8. Developers suggest that IE7 might accept this:
+
+  #1: Content-Disposition: attachment; filename="fianc\xC3\xA9e"
+    (note, the last four bytes of that line, not including the newline, are
+    0xC3 0xA9 0x65 0x22)
+
+ RFC2231#4 (dated 1997): suggests that the following might work, and some
+ developers (http://markmail.org/message/dsjyokgl7hv64ig3) have reported that
+ it is supported by firefox (but not IE7):
+
+  #2: Content-Disposition: attachment; filename*=utf-8''fianc%C3%A9e
+
+ My reading of RFC2616#19.5.1 (which defines Content-Disposition) says that
+ the filename= parameter is defined to be wrapped in quotes (presumeably to
+ allow spaces without breaking the parsing of subsequent parameters), which
+ would give us:
+
+  #3: Content-Disposition: attachment; filename*=utf-8''"fianc%C3%A9e"
+
+ However this is contrary to the examples in the email thread listed above.
+
+ Developers report that IE7 (when it is configured for UTF-8 URL encoding,
+ which is not the default in asian countries), will accept:
+
+  #4: Content-Disposition: attachment; filename=fianc%C3%A9e
+
+ However, for maximum compatibility, Tahoe simply copies bytes from the URL
+ into the response header, rather than enforcing the utf-8 convention. This
+ means it does not try to decode the filename from the URL argument, nor does
+ it encode the filename into the response header.
