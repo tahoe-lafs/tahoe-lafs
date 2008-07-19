@@ -220,6 +220,7 @@ class WebMixin(object):
                              self._bar_txt_uri)
 
     def GET(self, urlpath, followRedirect=False):
+        assert not isinstance(urlpath, unicode)
         url = self.webish_url + urlpath
         return client.getPage(url, method="GET", followRedirect=followRedirect)
 
@@ -508,6 +509,14 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(base2 + "/@@name=/blah.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
+        save_url = base + "?save=true&filename=blah.txt"
+        d.addCallback(lambda res: self.GET(save_url))
+        d.addCallback(self.failUnlessIsBarDotTxt) # TODO: check headers
+        u_filename = u"n\u00e9wer.txt" # n e-acute w e r . t x t
+        u_fn_e = urllib.quote(u_filename.encode("utf-8"))
+        u_url = base + "?save=true&filename=" + u_fn_e
+        d.addCallback(lambda res: self.GET(u_url))
+        d.addCallback(self.failUnlessIsBarDotTxt) # TODO: check headers
         return d
 
     def test_PUT_FILEURL_named_bad(self):
