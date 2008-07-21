@@ -4,8 +4,8 @@
 default: build
 
 PYTHON=python
-PATHSEP=$(shell python -c 'import os ; print os.pathsep')
-OSSEP=$(shell python -c 'import os ; print os.sep')
+PATHSEP=$(shell $(PYTHON) -c 'import os ; print os.pathsep')
+OSSEP=$(shell $(PYTHON) -c 'import os ; print os.sep')
 
 REACTOR=
 
@@ -16,7 +16,7 @@ ifneq ($(LIBRARY_DIRS),)
 LIBRARY_DIRS_ARG = -L$(LIBRARY_DIRS)
 endif
 
-PLAT = $(strip $(shell python -c "import sys ; print sys.platform"))
+PLAT = $(strip $(shell $(PYTHON) -c "import sys ; print sys.platform"))
 ifeq ($(PLAT),win32)
 	# The platform is Windows with cygwin build tools and the native Python interpreter.
 	SUPPORT = $(shell cygpath -w $(shell pwd))\support
@@ -263,7 +263,7 @@ check-grid: .built
 # 'make repl' is a simple-to-type command to get a Python interpreter loop
 # from which you can type 'import allmydata'
 repl:
-	$(PP) python
+	$(PP) $(PYTHON)
 
 test-darcs-boringfile:
 	$(MAKE)
