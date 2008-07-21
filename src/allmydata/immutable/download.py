@@ -18,11 +18,16 @@ class HaveAllPeersError(Exception):
     # we use this to jump out of the loop
     pass
 
-class BadURIExtensionHashValue(Exception):
+class IntegrityCheckError(Exception):
     pass
-class BadPlaintextHashValue(Exception):
+
+class BadURIExtensionHashValue(IntegrityCheckError):
     pass
-class BadCrypttextHashValue(Exception):
+class BadURIExtension(IntegrityCheckError):
+    pass
+class BadPlaintextHashValue(IntegrityCheckError):
+    pass
+class BadCrypttextHashValue(IntegrityCheckError):
     pass
 
 class DownloadStopped(Exception):
@@ -731,10 +736,13 @@ class FileDownloader:
         return d
 
     def _get_crypttext_hashtrees(self, res):
-        # crypttext hashes are optional too
+        # Ciphertext hash tree root is mandatory, so that there is at
+        # most one ciphertext that matches this read-cap or
+        # verify-cap.  The integrity check on the shares is not
+        # sufficient to prevent the original encoder from creating
+        # some shares of file A and other shares of file B.
         if "crypttext_root_hash" not in self._uri_extension_data:
-            self._crypttext_hashtree = None
-            return
+            raise BadURIExtension("URI Extension block did not have the ciphertext hash tree root")
         def _validate_crypttext_hashtree(proposal, bucket):
             if proposal[0] != self._uri_extension_data['crypttext_root_hash']:
                 self._fetch_failures["crypttext_hashroot"] += 1

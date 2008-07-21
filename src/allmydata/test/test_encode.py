@@ -428,6 +428,15 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
                 uri_extension['crypttext_root_hash'] = badtree[0]
                 return uri_extension
             d.addCallback(_corrupt_crypttext_hashes)
+        elif "omit_crypttext_root_hash" in recover_mode:
+            # make it as though the crypttext hash tree root had not
+            # been in the UEB
+            def _remove_crypttext_hashes(uri_extension):
+                assert isinstance(uri_extension, dict)
+                assert 'crypttext_root_hash' in uri_extension
+                del uri_extension['crypttext_root_hash']
+                return uri_extension
+            d.addCallback(_remove_crypttext_hashes)
 
         d.addCallback(fd._got_uri_extension)
 
@@ -636,6 +645,19 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         d.addBoth(_done)
         return d
 
+    def test_omitted_crypttext_hashes_failure(self):
+        # Test that the downloader requires a Merkle Tree over the
+        # ciphertext (per http://crisp.cs.du.edu/?q=node/88 -- the
+        # problem that checking the integrity of the shares could let
+        # more than one immutable file match the same read-cap).
+        modemap = dict([(i, "good") for i in range(0, 10)])
+        d = self.send_and_recover((4,8,10), bucket_modes=modemap,
+                                  recover_mode=("omit_crypttext_root_hash"))
+        def _done(res):
+            self.failUnless(isinstance(res, Failure))
+            self.failUnless(res.check(download.BadURIExtension), res)
+        d.addBoth(_done)
+        return d
 
     def OFF_test_bad_plaintext(self):
         # faking a decryption failure is easier: just corrupt the key
