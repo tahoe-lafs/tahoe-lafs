@@ -6,7 +6,34 @@ to manage them.
 
 == issues in Tahoe v1.1.0, released 2008-06-11 ==
 
-=== issue 1: server out of space when writing mutable file ===
+=== issue 9: more than one file can match an immutable file cap ===
+
+In Tahoe v1.0 and v1.1.0, a flaw in the cryptographic integrity check
+makes it possible for the original uploader of an immutable file to
+produce more than one immutable file matching the same capability, so
+that different downloads using the same capability could result in
+different files.  This flaw can be exploited only by the original
+uploader of an immutable file, which means that it is not a severe
+vulnerability.  You can still rely on the integrity check to make sure
+that the file you download with a given capability is a file that the
+original uploader intended.  The flaw is that the integrity check does
+not also provide the guarantee that the original uploader could have
+uploaded only one file per capability.
+
+==== how to manage it ====
+
+This was fixed in Tahoe v1.1.1, released 2008-07-21, under ticket
+#491.  Upgrade to that release of Tahoe and then you can rely on the
+property that there is only one file that you can download using a
+given capability.  If you are still using Tahoe v1.0.0 or v1.1.0, then
+remember that the original uploader could produce multiple files that
+match the same capability, so for example if someone gives you a
+capability, and you use it to download a file, and you give that
+capability to your friend, and he uses it to download a file, you and
+your friend could get different files.
+
+
+=== issue 8: server out of space when writing mutable file ===
 
 If a v1.0 or v1.1.0 storage server runs out of disk space or is
 otherwise unable to write to its local filesystem, then problems can
@@ -64,9 +91,7 @@ A future version of Tahoe will include a fix for this issue.  Here is
 mailing list discussion] about how that future version will work.
 
 
-== issues in Tahoe v1.1.0 and v1.0.0 ==
-
-=== issue 2: pyOpenSSL/Twisted defect causes false alarms in tests ===
+=== issue 7: pyOpenSSL/Twisted defect causes false alarms in tests ===
 
 The combination of Twisted v8 and pyOpenSSL v0.7 causes the Tahoe v1.1
 unit tests to fail, even though the behavior of Tahoe itself which is
@@ -84,7 +109,7 @@ those false alarms to stop happening.
 
 (Tahoe v1.0 was superceded by v1.1 which was released 2008-06-11.)
 
-=== issue 3: server out of space when writing mutable file ===
+=== issue 6: server out of space when writing mutable file ===
 
 In addition to the problems caused by insufficient disk space
 described above, v1.0 clients which are writing mutable files when the
@@ -98,7 +123,7 @@ write to their local filesystem (including that there is space
 available) as described in "issue 1" above.
 
 
-=== issue 4: server out of space when writing immutable file ===
+=== issue 5: server out of space when writing immutable file ===
 
 Tahoe v1.0 clients are using v1.0 servers which are unable to write to
 their filesystem during an immutable upload will correctly detect the
@@ -115,7 +140,7 @@ always able to write to their local filesystem (including that there
 is space available) as described in "issue 1" above.
 
 
-=== issue 5: large directories or mutable files of certain sizes ===
+=== issue 4: large directories or mutable files of certain sizes ===
 
 If a client attempts to upload a large mutable file with a size
 greater than about 3,139,000 and less than or equal to 3,500,000 bytes
@@ -142,7 +167,7 @@ to v1.1 but the client is still v1.0 then the client will still suffer
 this failure.)
 
 
-=== issue 6: uploading files greater than 12 GiB ===
+=== issue 3: uploading files greater than 12 GiB ===
 
 If a Tahoe v1.0 client uploads a file greater than 12 GiB in size, the file will
 be silently corrupted so that it is not retrievable, but the client will think
@@ -157,7 +182,7 @@ Tahoe storage grid.  Tahoe v1.1 clients will refuse to upload files larger than
 limitation so that larger files can be uploaded.
 
 
-=== issue 7: pycryptopp defect resulting in data corruption ===
+=== issue 2: pycryptopp defect resulting in data corruption ===
 
 Versions of pycryptopp earlier than pycryptopp-0.5.0 had a defect
 which, when compiled with some compilers, would cause AES-256
@@ -176,7 +201,7 @@ test}}}.  If the tests pass, then your compiler does not trigger this
 failure.
 
 
-=== issue 8: potential disclosure of a file through embedded
+=== issue 1: potential disclosure of a file through embedded
 hyperlinks or JavaScript in that file ===
 
 If there is a file stored on a Tahoe storage grid, and that file gets
@@ -204,5 +229,3 @@ view a file on Tahoe and you want that file to remain private, then
 remove from that file any hyperlinks pointing to other people's
 servers and remove any JavaScript unless you are sure that the
 JavaScript is not written to maliciously leak access.
-
-
