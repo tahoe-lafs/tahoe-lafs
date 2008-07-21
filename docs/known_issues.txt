@@ -14,11 +14,11 @@ produce more than one immutable file matching the same capability, so
 that different downloads using the same capability could result in
 different files.  This flaw can be exploited only by the original
 uploader of an immutable file, which means that it is not a severe
-vulnerability.  You can still rely on the integrity check to make sure
+vulnerability: you can still rely on the integrity check to make sure
 that the file you download with a given capability is a file that the
-original uploader intended.  The flaw is that the integrity check does
-not also provide the guarantee that the original uploader could have
-uploaded only one file per capability.
+original uploader intended.  The only issue is that you can't assume
+that every time you use the same capability to download a file you'll
+get the same file.
 
 ==== how to manage it ====
 
