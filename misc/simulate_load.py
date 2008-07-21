@@ -3,11 +3,13 @@
 
 import random
 
+SERVER_CAPACITY = 10**12
+
 class Server:
     def __init__(self):
         self.si = random.randrange(0, 2**31)
         self.used = 0
-        self.max = 2**40
+        self.max = SERVER_CAPACITY
         self.full_at_tick = None
 
     def __repr__(self):
@@ -16,7 +18,7 @@ class Server:
         else:
             return "<%s %s>" % (self.__class__.__name__, self.si)
 
-SERVERS = 40
+SERVERS = 4
 K = 3
 N = 10
 
@@ -27,6 +29,7 @@ def go(permutedpeerlist):
     servers = [ Server() for x in range(SERVERS) ]
     servers.sort(cmp=lambda x,y: cmp(x.si, y.si))
 
+    doubled_up_shares = 0
     tick = 0
     fullservers = 0
     while True:
@@ -39,21 +42,27 @@ def go(permutedpeerlist):
             servers = servers[rot:] + servers[:rot]
 
         i = 0
+        wrapped = False
         sharestoput = N
         while sharestoput:
             server = servers[i]
             if server.used + nextsharesize < server.max:
                 server.used += nextsharesize
                 sharestoput -= 1
+                if wrapped:
+                    doubled_up_shares += 1
             else:
                 if server.full_at_tick is None:
                     server.full_at_tick = tick
                     fullservers += 1
                     if fullservers == len(servers):
                         # print "Couldn't place share -- all servers full.  Stopping."
-                        return servers
+                        return (servers, doubled_up_shares)
 
-            i = (i + 1) % len(servers)
+            i += 1
+            if i == len(servers):
+                wrapped = True
+                i = 0
 
         tick += 1
 
@@ -72,7 +81,8 @@ def test(permutedpeerlist, iters):
     # The i'th element of the filledat list is how many servers got full when the i'th file was uploaded.
     filledat = []
     for test in range(iters):
-        servers = go(permutedpeerlist)
+        (servers, doubled_up_shares) = go(permutedpeerlist)
+        print "doubled_up_shares: ", doubled_up_shares
         for server in servers:
             fidx = server.full_at_tick
             filledat.extend([0]*(fidx-len(filledat)+1))
@@ -84,8 +94,8 @@ def test(permutedpeerlist, iters):
     filespercolumn = div_ceil(len(filledat) - startfiles, (DESIRED_COLUMNS - 3))
 
     # to make comparisons between runs line up:
-    startfiles = START_FILES
-    filespercolumn = div_ceil(STOP_FILES - startfiles, (DESIRED_COLUMNS - 3))
+    # startfiles = START_FILES
+    # filespercolumn = div_ceil(STOP_FILES - startfiles, (DESIRED_COLUMNS - 3))
 
     # The i'th element of the compressedfilledat list is how many servers got full when the filespercolumn files starting at startfiles + i were uploaded.
     compressedfilledat = []
