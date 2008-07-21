@@ -344,3 +344,14 @@ figured out how to define a "grid id" yet, but I think the DSA parameters
 should be part of that identifier. In practical terms, this might mean that
 the Introducer tells each node what parameters to use, or perhaps the node
 could have a config file which specifies them instead.
+
+The shares MUST have a ciphertext hash of some sort (probably a merkle tree
+over the blocks, and/or a flat hash of the ciphertext), just like immutable
+files do. Without this, a malicious publisher could produce some shares that
+result in file A, and other shares that result in file B, and upload both of
+them (incorporating both into the share hash tree). The result would be a
+read-cap that would sometimes resolve to file A, and sometimes to file B,
+depending upon which servers were used for the download. By including a
+ciphertext hash in the SDMF data structure, the publisher must commit to just
+a single ciphertext, closing this hole. See ticket #492 for more details.
+
