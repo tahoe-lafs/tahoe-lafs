@@ -152,6 +152,25 @@ use the following command to create a new directory and set it as your
 After that you can use "tahoe ls tahoe:" and "tahoe cp local.txt tahoe:",
 and both will refer to the directory that you've just created.
 
+==== SECURITY NOTE: For users of shared systems ====
+
+Remember that command-line arguments are visible to other users (through the
+'ps' command, or the windows Process Explorer tool), so if you are using a
+tahoe node on a shared host, your login neighbors will be able to see (and
+capture) any directory caps that you set up with the "tahoe add-alias"
+command. To avoid this, bypass add-alias and edit the NODEDIR/private/aliases
+file directly, by adding a line like this:
+
+ fun: URI:DIR2:ovjy4yhylqlfoqg2vcze36dhde:4d4f47qko2xm5g7osgo2yyidi5m4muyo2vjjy53q4vjju2u55mfa
+
+By entering the dircap through the editor, the command-line arguments are
+bypassed, and other users will not be able to see them. Once you've added the
+alias, no other secrets are passed through the command line, so this
+vulnerability becomes less significant: they can still see your filenames and
+other arguments you type there, but not the caps that Tahoe uses to permit
+access to your files and directories.
+
+
 === Command Syntax Summary ===
 
 tahoe add-alias alias cap
@@ -178,7 +197,7 @@ tahoe add-alias fun DIRCAP
 
  An example would be:
 
-tahoe add-alias fun URI:DIR2:ovjy4yhylqlfoqg2vcze36dhde:4d4f47qko2xm5g7osgo2yyidi5m4muyo2vjjy53q4vjju2u55mfa
+  tahoe add-alias fun URI:DIR2:ovjy4yhylqlfoqg2vcze36dhde:4d4f47qko2xm5g7osgo2yyidi5m4muyo2vjjy53q4vjju2u55mfa
 
  This create an alias "fun:" and configures it to use the given directory
  cap. Once this is done, "tahoe ls fun:" will list the contents of this
