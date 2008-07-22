@@ -6,7 +6,7 @@ to manage them.
 
 == issues in Tahoe v1.1.0, released 2008-06-11 ==
 
-=== issue 9: more than one file can match an immutable file cap ===
+=== issue 10: more than one file can match an immutable file cap ===
 
 In Tahoe v1.0 and v1.1.0, a flaw in the cryptographic integrity check
 makes it possible for the original uploader of an immutable file to
@@ -31,6 +31,29 @@ match the same capability, so for example if someone gives you a
 capability, and you use it to download a file, and you give that
 capability to your friend, and he uses it to download a file, you and
 your friend could get different files.
+
+
+=== issue 9: command-line arguments are leaked to other processes ===
+
+Remember that command-line arguments are visible to other users
+(through the 'ps' command, or the windows Process Explorer tool), so
+if you are using a Tahoe node on a shared host, other users on that
+host will be able to see (and capture) any directory caps that you set
+up with the "tahoe add-alias" command.
+
+==== how to manage it ====
+
+Bypass add-alias and edit the NODEDIR/private/aliases file directly,
+by adding a line like this:
+
+fun: URI:DIR2:ovjy4yhylqlfoqg2vcze36dhde:4d4f47qko2xm5g7osgo2yyidi5m4muyo2vjjy53q4vjju2u55mfa
+
+By entering the dircap through the editor, the command-line arguments are
+bypassed, and other users will not be able to see them. Once you've added the
+alias, no other secrets are passed through the command line, so this
+vulnerability becomes less significant: they can still see your filenames and
+other arguments you type there, but not the caps that Tahoe uses to permit
+access to your files and directories.
 
 
 === issue 8: server out of space when writing mutable file ===
