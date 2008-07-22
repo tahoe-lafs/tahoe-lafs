@@ -1,39 +1,15 @@
 = Known Issues =
 
-Below is a list of known issues in recent releases of Tahoe, and how
-to manage them.
+Below is a list of known issues in recent releases of allmydata.org
+Tahoe, the Least-Authority Filesystem, and how to manage them.  The
+current version of this file can be found at
+
+http://allmydata.org/source/tahoe/trunk/docs/known_issues.txt
 
 
-== issues in Tahoe v1.1.0, released 2008-06-11 ==
+== issues in Tahoe v1.2.0, released 2008-06-21 ==
 
-=== issue 10: more than one file can match an immutable file cap ===
-
-In Tahoe v1.0 and v1.1.0, a flaw in the cryptographic integrity check
-makes it possible for the original uploader of an immutable file to
-produce more than one immutable file matching the same capability, so
-that different downloads using the same capability could result in
-different files.  This flaw can be exploited only by the original
-uploader of an immutable file, which means that it is not a severe
-vulnerability: you can still rely on the integrity check to make sure
-that the file you download with a given capability is a file that the
-original uploader intended.  The only issue is that you can't assume
-that every time you use the same capability to download a file you'll
-get the same file.
-
-==== how to manage it ====
-
-This was fixed in Tahoe v1.1.1, released 2008-07-21, under ticket
-#491.  Upgrade to that release of Tahoe and then you can rely on the
-property that there is only one file that you can download using a
-given capability.  If you are still using Tahoe v1.0.0 or v1.1.0, then
-remember that the original uploader could produce multiple files that
-match the same capability, so for example if someone gives you a
-capability, and you use it to download a file, and you give that
-capability to your friend, and he uses it to download a file, you and
-your friend could get different files.
-
-
-=== issue 9: command-line arguments are leaked to other processes ===
+=== issue 10: command-line arguments are leaked to other processes ===
 
 Remember that command-line arguments are visible to other users
 (through the 'ps' command, or the windows Process Explorer tool), so
@@ -54,6 +30,35 @@ alias, no other secrets are passed through the command line, so this
 vulnerability becomes less significant: they can still see your filenames and
 other arguments you type there, but not the caps that Tahoe uses to permit
 access to your files and directories.
+
+
+== issues in Tahoe v1.1.0, released 2008-06-11 ==
+
+=== issue 9: more than one file can match an immutable file cap ===
+
+In Tahoe v1.0 and v1.1.0, a flaw in the cryptographic integrity check
+makes it possible for the original uploader of an immutable file to
+produce more than one immutable file matching the same capability, so
+that different downloads using the same capability could result in
+different files.  This flaw can be exploited only by the original
+uploader of an immutable file, which means that it is not a severe
+vulnerability: you can still rely on the integrity check to make sure
+that the file you download with a given capability is a file that the
+original uploader intended.  The only issue is that you can't assume
+that every time you use the same capability to download a file you'll
+get the same file.
+
+==== how to manage it ====
+
+This was fixed in Tahoe v1.2.0, released 2008-07-21, under ticket
+#491.  Upgrade to that release of Tahoe and then you can rely on the
+property that there is only one file that you can download using a
+given capability.  If you are still using Tahoe v1.0.0 or v1.1.0, then
+remember that the original uploader could produce multiple files that
+match the same capability, so for example if someone gives you a
+capability, and you use it to download a file, and you give that
+capability to your friend, and he uses it to download a file, you and
+your friend could get different files.
 
 
 === issue 8: server out of space when writing mutable file ===
