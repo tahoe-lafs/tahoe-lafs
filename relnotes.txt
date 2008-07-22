@@ -1,13 +1,3 @@
-*** INTERIM relnotes.txt file
-
-This file is being edited.  Eventually it will contain the release notes for the
-Tahoe v1.2 release.  Today, it contains the historical copy of the Tahoe 1.1
-release notes, edited with incremental changes towards making it into the Tahoe
-1.2 release notes.
-
-***
-
-
 ANNOUNCING Allmydata.org "Tahoe", the Least-Authority Filesystem, v1.2
 
 We are pleased to announce the release of version 1.2.0 of the "Tahoe"
@@ -28,10 +18,12 @@ http://allmydata.org/source/tahoe/trunk/docs/about.html
 
 
 This is the successor to Allmydata.org "Tahoe" Least Authority
-Filesystem v1.1, which was released June 11, 2008 [1].  XXX update the following sentence This release
-fixes several serious issues in Tahoe v1.0, and improves the user
-interfaces.  See the known_issues.txt file [2] and the NEWS file [3]
-for details.
+Filesystem v1.1, which was released June 11, 2008 [1].  This release
+fixes a security issue in Tahoe v1.1, fixes a few small issues in the
+web interface, adds a "check health" operation for mutable files, and
+adds logging/operations/deployment improvements.
+
+See the known_issues.txt file [2] and the NEWS file [3] for details.
 
 
 COMPATIBILITY
@@ -39,12 +31,12 @@ COMPATIBILITY
 The version 1 branch of Tahoe is used as the basis of the consumer
 backup product from Allmydata, Inc. -- http://allmydata.com .
 
-Tahoe v1.1 is fully compatible with Tahoe v1.0.  v1.1 clients produce
-files which can be read by v1.0 clients.  v1.1 clients can read files
-produced by clients of all versions >= v0.8.  v1.1 servers can serve
-v1.0 clients and v1.1 clients can use v1.0 servers.
+Tahoe v1.2 is fully compatible with Tahoe v1.0.  v1.2 clients produce
+files which can be read by v1.0 clients.  v1.2 clients can read files
+produced by clients of all versions >= v0.8.  v1.2 servers can serve
+v1.0 clients and v1.2 clients can use v1.0 servers.
 
-This is the second release in the version 1 series.  We believe that
+This is the third release in the version 1 series.  We believe that
 this version of Tahoe is stable enough to rely on as a permanent store
 of valuable data.  The version 1 branch of Tahoe will be actively
 supported and maintained for the forseeable future, and future
@@ -64,9 +56,8 @@ Because this software is the product of less than two years of active
 development, we do not categorically recommend it for the storage of
 data which is extremely confidential or precious.  However, we believe
 that the combination of erasure coding, strong encryption, and careful
-engineering makes the use of this software a much safer alternative
-than common alternatives, such as RAID, or traditional backup onto a
-remote server, removable drive, or tape.
+engineering make Tahoe safer than common alternatives, such as RAID,
+or traditional backup onto a remote server, removable drive, or tape.
 
 This software comes with extensive unit tests [4], and there are no
 known security flaws which would compromise confidentiality or data
@@ -75,8 +66,7 @@ known_issues.txt file [2].)
 
 This release of Tahoe is suitable for the "friendnet" use case [5] --
 it is easy to create a filesystem spread over the computers of you and
-your friends so that you can share files and disk space with one
-another.
+your friends so that you can share disk space and share files.
 
 
 LICENCE
@@ -115,22 +105,23 @@ project.  The wiki Dev page [12] contains resources for hackers.
 
 SPONSORSHIP
 
-Tahoe is sponsored by Allmydata, Inc. [13], a provider of consumer
+Tahoe is sponsored by Allmydata, Inc. [13], a provider of commercial
 backup services.  Allmydata, Inc. contributes hardware, software,
 ideas, bug reports, suggestions, demands, and money (employing several
 allmydata.org Tahoe hackers and instructing them to spend part of
-their work time on this free-software project).  We are eternally
-grateful!
+their work time on this free-software project).  Also they distribute
+customized t-shirts just for some of our favorite contributors.  We
+are eternally grateful!
 
 
 Zooko O'Whielacronx
 on behalf of the allmydata.org team
-June 11, 2008
-San Francisco, California, USA
+July 21, 2008
+Boulder, Colorado, USA
 
 [1] http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=2716
 [2] http://allmydata.org/trac/tahoe/browser/docs/known_issues.txt
-[3] http://allmydata.org/trac/tahoe/browser/docs/NEWS
+[3] http://allmydata.org/trac/tahoe/browser/NEWS
 [4] http://allmydata.org/trac/tahoe/wiki/Dev
 [5] http://allmydata.org/trac/tahoe/wiki/UseCases
 [6] http://allmydata.org/trac/tahoe/browser/COPYING.GPL
