@@ -226,24 +226,6 @@ class RIStorageServer(RemoteInterface):
         """
         return TupleOf(bool, DictOf(int, ReadData))
 
-    def update_write_enabler(storage_index=StorageIndex,
-                             old_write_enabler=WriteEnablerSecret,
-                             new_write_enabler=WriteEnablerSecret):
-        """
-        Replace the write-enabler on a given bucket. This is used when a
-        share has been moved from one server to another, causing the secret
-        (which is scoped to a given server's nodeid) to become invalid. The
-        client discovers this when it gets a BadWriteEnablerError, and the
-        string body of the exception will contain a message that includes the
-        nodeid that was used for the old secret.
-
-        The client should compute the old write-enabler secret, and send it
-        in conjunction with the new one. The server will then update the
-        share to record the new write-enabler instead of the old one. The
-        client can then retry its writev call.
-        """
-        return None
-
 class IStorageBucketWriter(Interface):
     def put_block(segmentnum=int, data=ShareData):
         """@param data: For most segments, this data will be 'blocksize'

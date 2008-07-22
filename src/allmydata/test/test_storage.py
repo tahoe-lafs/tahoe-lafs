@@ -1077,43 +1077,6 @@ class MutableServer(unittest.TestCase):
         self.failUnlessRaises(IndexError,
                               ss.remote_cancel_lease, "si2", "nonsecret")
 
-    def test_update_write_enabler(self):
-        ss = self.create("test_update_write_enabler", sizelimit=1000*1000)
-        secrets = ( self.write_enabler("we1"),
-                    self.renew_secret("we1-0"),
-                    self.cancel_secret("we1-0") )
-        old_write_enabler = secrets[0]
-        new_write_enabler = self.write_enabler("we2")
-        new_secrets = (new_write_enabler, secrets[1], secrets[2])
-
-        data = "".join([ ("%d" % i) * 10 for i in range(10) ])
-        write = ss.remote_slot_testv_and_readv_and_writev
-        read = ss.remote_slot_readv
-        update_write_enabler = ss.remote_update_write_enabler
-
-        rc = write("si1", secrets, {0: ([], [(0,data)], None)}, [])
-        self.failUnlessEqual(rc, (True, {}))
-
-        rc = write("si1", secrets, {0: ([], [(1,data)], None)}, [])
-        self.failUnlessEqual(rc[0], True)
-
-        f = self.failUnlessRaises(BadWriteEnablerError,
-                                  write, "si1", new_secrets,
-                                  {}, [])
-        self.failUnless("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'." in f, f)
-        ss.setNodeID("\xff" * 20)
-
-        rc = update_write_enabler("si1", old_write_enabler, new_write_enabler)
-        self.failUnlessEqual(rc, None)
-
-        f = self.failUnlessRaises(BadWriteEnablerError,
-                                  write, "si1", secrets,
-                                  {}, [])
-        self.failUnless("The write enabler was recorded by nodeid '77777777777777777777777777777777'." in f, f)
-
-        rc = write("si1", new_secrets, {0: ([], [(2,data)], None)}, [])
-        self.failUnlessEqual(rc[0], True)
-
 
 class Stats(unittest.TestCase):
 

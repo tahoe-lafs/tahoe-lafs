@@ -700,16 +700,6 @@ class MutableShareFile:
                   (idlib.nodeid_b2a(write_enabler_nodeid),)
             raise BadWriteEnablerError(msg)
 
-    def update_write_enabler(self, old_write_enabler, new_write_enabler,
-                             my_nodeid, si_s):
-        self.check_write_enabler(old_write_enabler, si_s)
-        f = open(self.home, 'rb+')
-        f.seek(0)
-        header = struct.pack(">32s20s32s",
-                             self.MAGIC, my_nodeid, new_write_enabler)
-        f.write(header)
-        f.close()
-
     def check_testv(self, testv):
         test_good = True
         f = open(self.home, 'rb+')
@@ -1198,15 +1188,6 @@ class StorageServer(service.MultiService, Referenceable):
                 facility="tahoe.storage", level=log.NOISY, parent=lp)
         self.add_latency("readv", time.time() - start)
         return datavs
-
-    def remote_update_write_enabler(self, storage_index,
-                                    old_write_enabler, new_write_enabler):
-        si_s = si_b2a(storage_index)
-        for sf in self._iter_share_files(storage_index):
-            if not isinstance(sf, MutableShareFile):
-                continue
-            sf.update_write_enabler(old_write_enabler, new_write_enabler,
-                                    self.my_nodeid, si_s)
 
 
 # the code before here runs on the storage server, not the client
