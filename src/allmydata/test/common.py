@@ -4,12 +4,21 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
 from twisted.application import service
-from allmydata import uri, dirnode
+from foolscap.eventual import flushEventualQueue
+from allmydata import uri, dirnode, client
+from allmydata.introducer.server import IntroducerNode
 from allmydata.interfaces import IURI, IMutableFileNode, IFileNode, \
      FileTooLargeError, ICheckable
 from allmydata.immutable import checker
 from allmydata.immutable.encode import NotEnoughSharesError
-from allmydata.util import log
+from allmydata.util import log, testutil, fileutil
+
+def flush_but_dont_ignore(res):
+    d = flushEventualQueue()
+    def _done(ignored):
+        return res
+    d.addCallback(_done)
+    return d
 
 class FakeCHKFileNode:
     """I provide IFileNode, but all of my data is stored in a class-level
@@ -179,3 +188,89 @@ class FakeDirectoryNode(dirnode.NewDirectoryNode):
 class LoggingServiceParent(service.MultiService):
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
+
+
+class SystemTestMixin(testutil.SignalMixin, testutil.PollMixin,
+                      testutil.StallMixin):
+
+    def setUp(self):
+        self.sparent = service.MultiService()
+        self.sparent.startService()
+    def tearDown(self):
+        log.msg("shutting down SystemTest services")
+        d = self.sparent.stopService()
+        d.addBoth(flush_but_dont_ignore)
+        return d
+
+    def getdir(self, subdir):
+        return os.path.join(self.basedir, subdir)
+
+    def add_service(self, s):
+        s.setServiceParent(self.sparent)
+        return s
+
+    def set_up_nodes(self, NUMCLIENTS=5):
+        self.numclients = NUMCLIENTS
+        iv_dir = self.getdir("introducer")
+        if not os.path.isdir(iv_dir):
+            fileutil.make_dirs(iv_dir)
+        f = open(os.path.join(iv_dir, "webport"), "w")
+        f.write("tcp:0:interface=127.0.0.1\n")
+        f.close()
+        iv = IntroducerNode(basedir=iv_dir)
+        self.introducer = self.add_service(iv)
+        d = self.introducer.when_tub_ready()
+        d.addCallback(self._set_up_nodes_2)
+        return d
+
+    def _set_up_nodes_2(self, res):
+        q = self.introducer
+        self.introducer_furl = q.introducer_url
+        self.clients = []
+        basedirs = []
+        for i in range(self.numclients):
+            basedir = self.getdir("client%d" % i)
+            basedirs.append(basedir)
+            fileutil.make_dirs(basedir)
+            if i == 0:
+                # client[0] runs a webserver and a helper, no key_generator
+                open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
+                open(os.path.join(basedir, "sizelimit"), "w").write("10GB\n")
+            open(os.path.join(basedir, "introducer.furl"), "w").write(self.introducer_furl)
+
+        # start client[0], wait for it's tub to be ready (at which point it
+        # will have registered the helper furl).
+        c = self.add_service(client.Client(basedir=basedirs[0]))
+        self.clients.append(c)
+        d = c.when_tub_ready()
+        def _ready(res):
+            # this starts the rest of the clients
+            for i in range(1, self.numclients):
+                c = self.add_service(client.Client(basedir=basedirs[i]))
+                self.clients.append(c)
+            log.msg("STARTING")
+            return self.wait_for_connections()
+        d.addCallback(_ready)
+        def _connected(res):
+            log.msg("CONNECTED")
+            # now find out where the web port was
+            l = self.clients[0].getServiceNamed("webish").listener
+            port = l._port.getHost().port
+            self.webish_url = "http://localhost:%d/" % port
+        d.addCallback(_connected)
+        return d
+
+    def _check_connections(self):
+        for c in self.clients:
+            ic = c.introducer_client
+            if not ic.connected_to_introducer():
+                return False
+            if len(ic.get_all_peerids()) != self.numclients:
+                return False
+        return True
+
+    def wait_for_connections(self, ignored=None):
+        # TODO: replace this with something that takes a list of peerids and
+        # fires when they've all been heard from, instead of using a count
+        # and a threshold
+        return self.poll(self._check_connections, timeout=200)
