@@ -52,6 +52,12 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
     def setUp(self):
         self.sparent = service.MultiService()
         self.sparent.startService()
+
+        self.stats_gatherer = None
+        self.stats_gatherer_furl = None
+        self.key_generator_svc = None
+        self.key_generator_furl = None
+
     def tearDown(self):
         log.msg("shutting down SystemTest services")
         d = self.sparent.stopService()
@@ -65,7 +71,8 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         s.setServiceParent(self.sparent)
         return s
 
-    def set_up_nodes(self, NUMCLIENTS=5):
+    def set_up_nodes(self, NUMCLIENTS=5,
+                     use_stats_gatherer=False, use_key_generator=False):
         self.numclients = NUMCLIENTS
         iv_dir = self.getdir("introducer")
         if not os.path.isdir(iv_dir):
@@ -77,10 +84,13 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         self.introducer = self.add_service(iv)
         d = self.introducer.when_tub_ready()
         d.addCallback(self._get_introducer_web)
-        d.addCallback(self._set_up_stats_gatherer)
-        d.addCallback(self._set_up_key_generator)
+        if use_stats_gatherer:
+            d.addCallback(self._set_up_stats_gatherer)
+        if use_key_generator:
+            d.addCallback(self._set_up_key_generator)
         d.addCallback(self._set_up_nodes_2)
-        d.addCallback(self._grab_stats)
+        if use_stats_gatherer:
+            d.addCallback(self._grab_stats)
         return d
 
     def _get_introducer_web(self, res):
@@ -137,10 +147,12 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
             if i == 3:
                 # client[3] runs a webserver and uses a helper, uses key_generator
                 open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
-                kgf = "%s\n" % (self.key_generator_furl,)
-                open(os.path.join(basedir, "key_generator.furl"), "w").write(kgf)
+                if self.key_generator_furl:
+                    kgf = "%s\n" % (self.key_generator_furl,)
+                    open(os.path.join(basedir, "key_generator.furl"), "w").write(kgf)
             open(os.path.join(basedir, "introducer.furl"), "w").write(self.introducer_furl)
-            open(os.path.join(basedir, "stats_gatherer.furl"), "w").write(self.stats_gatherer_furl)
+            if self.stats_gatherer_furl:
+                open(os.path.join(basedir, "stats_gatherer.furl"), "w").write(self.stats_gatherer_furl)
 
         # start client[0], wait for it's tub to be ready (at which point it
         # will have registered the helper furl).
@@ -616,7 +628,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
         NEWDATA = "new contents yay"
         NEWERDATA = "this is getting old"
 
-        d = self.set_up_nodes()
+        d = self.set_up_nodes(use_key_generator=True)
 
         def _create_mutable(res):
             c = self.clients[0]
@@ -872,7 +884,7 @@ class SystemTest(testutil.SignalMixin, testutil.PollMixin, testutil.StallMixin,
     def test_vdrive(self):
         self.basedir = "system/SystemTest/test_vdrive"
         self.data = LARGE_DATA
-        d = self.set_up_nodes()
+        d = self.set_up_nodes(use_stats_gatherer=True)
         d.addCallback(self._test_introweb)
         d.addCallback(self.log, "starting publish")
         d.addCallback(self._do_publish1)
