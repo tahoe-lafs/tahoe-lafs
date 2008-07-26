@@ -892,6 +892,7 @@ class HelperStatus(rend.Page):
         return rend.Page.renderHTTP(self, ctx)
 
     def render_JSON(self, ctx):
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         try:
             h = IClient(ctx).getServiceNamed("helper")
         except KeyError:
@@ -937,6 +938,7 @@ class Statistics(rend.Page):
             stats = provider.get_stats()
         t = get_arg(inevow.IRequest(ctx), "t")
         if t == "json":
+            inevow.IRequest(ctx).setHeader("content-type", "text/plain")
             return simplejson.dumps(stats, indent=1)
         # is there a better way to provide 'data' to all rendering methods?
         self.original = stats
