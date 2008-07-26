@@ -754,6 +754,45 @@ GET /status/
  that describes file sizes, servers that were involved, and the time consumed
  in each phase of the operation.
 
+ A GET of /status/?t=json will contain a machine-readable subset of the same
+ data. It returns a JSON-encoded dictionary. The only key defined at this
+ time is "active", with a value that is a list of operation dictionaries, one
+ for each active operation. Once an operation is completed, it will no longer
+ appear in data["active"] .
+
+ Each op-dict contains a "type" key, one of "upload", "download",
+ "mapupdate", "publish", or "retrieve" (the first two are for immutable
+ files, while the latter three are for mutable files and directories).
+
+ The "upload" op-dict will contain the following keys:
+
+   type (string): "upload"
+   storage-index-string (string): a base32-encoded storage index
+   total-size (int): total size of the file
+   status (string): current status of the operation
+   progress-hash (float): 1.0 when the file has been hashed
+   progress-ciphertext (float): 1.0 when the file has been encrypted.
+   progress-encode-push (float): 1.0 when the file has been encoded and
+                                 pushed to the storage servers. For helper
+                                 uploads, the ciphertext value climbs to 1.0
+                                 first, then encoding starts. For unassisted
+                                 uploads, ciphertext and encode-push progress
+                                 will climb at the same pace.
+
+ The "download" op-dict will contain the following keys:
+
+   type (string): "download"
+   storage-index-string (string): a base32-encoded storage index
+   total-size (int): total size of the file
+   status (string): current status of the operation
+   progress (float): 1.0 when the file has been fully downloaded
+
+ Front-ends which want to report progress information are advised to simply
+ average together all the progress-* indicators. A slightly more accurate
+ value can be found by ignoring the progress-hash value (since the current
+ implementation hashes synchronously, so clients will probably never see
+ progress-hash!=1.0).
+
 GET /provisioning/
 
  This page provides a basic tool to predict the likely storage and bandwidth

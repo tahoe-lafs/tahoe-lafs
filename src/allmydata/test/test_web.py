@@ -438,6 +438,15 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnless('"publish-%d"' % pub_num in res, res)
             self.failUnless('"retrieve-%d"' % ret_num in res, res)
         d.addCallback(_check)
+        d.addCallback(lambda res: self.GET("/status/?t=json"))
+        def _check_json(res):
+            data = simplejson.loads(res)
+            self.failUnless(isinstance(data, dict))
+            active = data["active"]
+            # TODO: test more. We need a way to fake an active operation
+            # here.
+        d.addCallback(_check_json)
+
         d.addCallback(lambda res: self.GET("/status/down-%d" % dl_num))
         def _check_dl(res):
             self.failUnless("File Download Status" in res, res)

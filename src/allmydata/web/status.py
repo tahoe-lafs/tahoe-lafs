@@ -772,6 +772,41 @@ class Status(rend.Page):
     docFactory = getxmlfile("status.xhtml")
     addSlash = True
 
+    def renderHTTP(self, ctx):
+        t = get_arg(inevow.IRequest(ctx), "t")
+        if t == "json":
+            return self.json(ctx)
+        return rend.Page.renderHTTP(self, ctx)
+
+    def json(self, ctx):
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        client = IClient(ctx)
+        data = {}
+        data["active"] = active = []
+        for s in self.data_active_operations(ctx, None):
+            si_s = base32.b2a_or_none(s.get_storage_index())
+            size = s.get_size()
+            status = s.get_status()
+            if IUploadStatus.providedBy(s):
+                h,c,e = s.get_progress()
+                active.append({"type": "upload",
+                               "storage-index-string": si_s,
+                               "total-size": size,
+                               "status": status,
+                               "progress-hash": h,
+                               "progress-ciphertext": c,
+                               "progress-encode-push": e,
+                               })
+            elif IDownloadStatus.providedBy(s):
+                active.append({"type": "download",
+                               "storage-index-string": si_s,
+                               "total-size": size,
+                               "status": status,
+                               "progress": s.get_progress(),
+                               })
+
+        return simplejson.dumps(data, indent=1)
+
     def _get_all_statuses(self, client):
         return itertools.chain(client.list_all_upload_statuses(),
                                client.list_all_download_statuses(),
