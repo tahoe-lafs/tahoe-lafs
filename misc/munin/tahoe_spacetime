@@ -44,10 +44,14 @@ def predict_future(past_s):
         #    point = points[0]
         #    print point
         start_space = d[2][0][0]
+        if start_space is None:
+            return None
         # I don't know why, but the last few points are always bogus. Running
         # 'rrdtool fetch' on the command line is usually ok.. I blame the python
         # bindinds.
         end_space = d[2][-4][0]
+        if end_space is None:
+            return None
         end_time = end_time - (4*step)
         start_df.append(start_space)
         end_df.append(end_space)
@@ -91,10 +95,14 @@ days_4wk.draw LINE2"""
     sys.exit(0)
 
 #rsync_rrd()
+samples = {}
 remaining_4wk = predict_future("4wk")
+if remaining_4wk is not None:
+    print "days_4wk.value", remaining_4wk
+    samples["remaining_4wk"] = remaining_4wk
 remaining_2wk = predict_future("2wk")
-print "days_4wk.value", remaining_4wk
-print "days_2wk.value", remaining_2wk
-write_to_file({"remaining_2wk": remaining_2wk,
-               "remaining_4wk": remaining_4wk})
+if remaining_2wk is not None:
+    print "days_2wk.value", remaining_2wk
+    samples["remaining_2wk"] = remaining_2wk
+write_to_file(samples)
 
