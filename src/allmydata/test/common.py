@@ -225,14 +225,14 @@ class SystemTestMixin(testutil.SignalMixin, testutil.PollMixin,
         iv_dir = self.getdir("introducer")
         if not os.path.isdir(iv_dir):
             fileutil.make_dirs(iv_dir)
-        f = open(os.path.join(iv_dir, "webport"), "w")
-        f.write("tcp:0:interface=127.0.0.1\n")
-        f.close()
-        if SYSTEM_TEST_CERTS:
-            os.mkdir(os.path.join(iv_dir, "private"))
-            f = open(os.path.join(iv_dir, "private", "node.pem"), "w")
-            f.write(SYSTEM_TEST_CERTS[0])
+            f = open(os.path.join(iv_dir, "webport"), "w")
+            f.write("tcp:0:interface=127.0.0.1\n")
             f.close()
+            if SYSTEM_TEST_CERTS:
+                os.mkdir(os.path.join(iv_dir, "private"))
+                f = open(os.path.join(iv_dir, "private", "node.pem"), "w")
+                f.write(SYSTEM_TEST_CERTS[0])
+                f.close()
         iv = IntroducerNode(basedir=iv_dir)
         self.introducer = self.add_service(iv)
         d = self.introducer.when_tub_ready()
