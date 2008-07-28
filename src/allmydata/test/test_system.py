@@ -1,6 +1,5 @@
-
 from base64 import b32encode
-import os, sys, time, re, simplejson
+import os, random, sys, time, re, simplejson
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -9,7 +8,7 @@ from twisted.internet.error import ConnectionDone, ConnectionLost
 import allmydata
 from allmydata import uri, storage, offloaded
 from allmydata.immutable import download, upload, filenode
-from allmydata.util import idlib, mathutil
+from allmydata.util import idlib, mathutil, testutil
 from allmydata.util import log, base32
 from allmydata.scripts import runner, cli
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
@@ -1708,8 +1707,122 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         return d
 
 
-class Fast(SystemTestMixin, unittest.TestCase):
-    # this is the beginning of a faster system-test framework
-    def test_setup(self):
-        self.basedir = "system/Fast/test_foo"
-        return self.set_up_nodes(5)
+class Checker(SystemTestMixin, unittest.TestCase):
+    def setUp(self):
+        self.basedir = "system/SystemTest/Checker"
+        TEST_DATA="\x02"*1000
+
+        d = defer.maybeDeferred(SystemTestMixin.setUp, self)
+        d.addCallback(lambda x: self.set_up_nodes())
+
+        def _upload_a_file(ignored):
+            d2 = self.clients[0].upload(upload.Data(TEST_DATA, convergence=""))
+            d2.addCallback(lambda u: self.clients[0].create_node_from_uri(u.uri))
+            return d2
+        d.addCallback(_upload_a_file)
+
+        def _stash_it(filenode):
+            self.filenode = filenode
+        d.addCallback(_stash_it)
+        return d
+
+    def _find_shares(self, unused=None):
+        shares = {} # k: (i, sharenum), v: data
+
+        for i, c in enumerate(self.clients):
+            sharedir = c.getServiceNamed("storage").sharedir
+            for (dirp, dirns, fns) in os.walk(sharedir):
+                for fn in fns:
+                    try:
+                        sharenum = int(fn)
+                    except TypeError:
+                        # Whoops, I guess that's not a share file then.
+                        pass
+                    else:
+                        data = open(os.path.join(sharedir, dirp, fn), "r").read()
+                        shares[(i, sharenum)] = data
+
+        return shares
+
+    def _replace_shares(self, newshares):
+        for i, c in enumerate(self.clients):
+            sharedir = c.getServiceNamed("storage").sharedir
+            for (dirp, dirns, fns) in os.walk(sharedir):
+                for fn in fns:
+                    try:
+                        sharenum = int(fn)
+                    except TypeError:
+                        # Whoops, I guess that's not a share file then.
+                        pass
+                    else:
+                        pathtosharefile = os.path.join(sharedir, dirp, fn)
+                        os.unlink(pathtosharefile)
+                        newdata = newshares.get((i, sharenum))
+                        if newdata is not None:
+                            open(pathtosharefile, "w").write(newdata)
+
+    def _corrupt_a_share(self, unused=None):
+        """ Exactly one bit of exactly one share on disk will be flipped (randomly selected). """
+        shares = self._find_shares()
+        ks = shares.keys()
+        k = random.choice(ks)
+        data = shares[k]
+        shares[k]  = testutil.flip_one_bit(shares[k])
+        self._replace_shares(shares)
+
+    def test_test_code(self):
+        # The following process of stashing the shares, running
+        # _replace_shares, and asserting that the new set of shares equals the
+        # old is more to test this test code than to test the Tahoe code...
+        d = defer.succeed(None)
+        d.addCallback(self._find_shares)
+        stash = [None]
+        def _stash_it(res):
+            stash[0] = res
+            return res
+
+        d.addCallback(_stash_it)
+        d.addCallback(self._replace_shares)
+
+        def _compare(res):
+            oldshares = stash[0]
+            self.failUnless(isinstance(oldshares, dict), oldshares)
+            self.failUnlessEqual(oldshares, res)
+
+        d.addCallback(self._find_shares)
+        d.addCallback(_compare)
+
+        d.addCallback(lambda ignore: self._replace_shares({}))
+        d.addCallback(self._find_shares)
+        d.addCallback(lambda x: self.failUnlessEqual(x, {}))
+
+        return d
+
+    def test_check_without_verify(self):
+        """ Check says the file is healthy when none of the shares have been
+        touched.  It says that the file is unhealthy when all of them have
+        been removed. It says that the file is healthy if one bit of one share
+        has been flipped."""
+        d = defer.succeed(self.filenode)
+        def _check1(filenode):
+            d2 = filenode.check(verify=False, repair=False)
+            d2.addCallback(lambda checkres: self.failUnless(checkres.is_healthy()))
+            return d2
+        d.addCallback(_check1)
+
+        d.addCallback(self._corrupt_a_share)
+        def _check2(ignored):
+            d2 = self.filenode.check(verify=False, repair=False)
+            d2.addCallback(lambda checkres: self.failUnless(checkres.is_healthy()))
+            return d2
+        d.addCallback(_check2)
+        return d
+
+        d.addCallback(lambda ignore: self._replace_shares({}))
+        def _check3(ignored):
+            d2 = self.filenode.check(verify=False, repair=False)
+            d2.addCallback(lambda checkres: self.failIf(checkres.is_healthy()))
+            return d2
+        d.addCallback(_check3)
+
+        return d
