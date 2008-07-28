@@ -1,4 +1,5 @@
 import os, signal, time
+from random import randrange
 
 from twisted.internet import reactor, defer, task
 from twisted.python import failure
@@ -11,6 +12,13 @@ def flip_bit(good, which):
     else:
         pieces = good[:which], good[which:which+1], good[which+1:]
     return pieces[0] + chr(ord(pieces[1]) ^ 0x01) + pieces[2]
+
+def flip_one_bit(s):
+    # flip one random bit of the string s
+    i = randrange(0, len(s))
+    result = s[:i] + chr(ord(s[i])^(0x01<<randrange(0, 8))) + s[i+1:]
+    assert result != s, "Internal error -- flip_one_bit() produced the same string as its input: %s == %s" % (result, s)
+    return result
 
 class SignalMixin:
     # This class is necessary for any code which wants to use Processes
