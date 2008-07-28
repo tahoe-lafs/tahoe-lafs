@@ -456,13 +456,13 @@ class FileDownloader:
         self._results.timings["cumulative_decrypt"] = 0.0
         self._results.timings["paused"] = 0.0
 
+        self._paused = False
+        self._stopped = False
         if IConsumer.providedBy(downloadable):
             downloadable.registerProducer(self, True)
         self._downloadable = downloadable
         self._output = Output(downloadable, u.key, self._size, self._log_number,
                               self._status)
-        self._paused = False
-        self._stopped = False
 
         self.active_buckets = {} # k: shnum, v: bucket
         self._share_buckets = [] # list of (sharenum, bucket) tuples
