@@ -25,7 +25,7 @@ else
 	ifeq ($(PLAT),linux2)
 		# This is to work-around #402, and anyway the poll reactor is probably better on Linux, if
 		# we have a lot of open fds.
-		ifneq ($(REACTOR),)
+		ifeq ($(REACTOR),)
 			REACTOR := poll
 		endif
 	endif
