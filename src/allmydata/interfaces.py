@@ -74,14 +74,17 @@ class RIStorageServer(RemoteInterface):
     __remote_name__ = "RIStorageServer.tahoe.allmydata.com"
 
     def get_versions():
-        """Return a tuple of (my_version, oldest_supported) strings.
-        Each string can be parsed by an allmydata.util.version.Version
-        instance, and then compared. The first goal is to make sure that
-        nodes are not confused by speaking to an incompatible peer. The
-        second goal is to enable the development of backwards-compatibility
-        code.
+        """
+        Return a tuple of (my_version, oldest_supported) strings.  Each string can be parsed by
+        a pyutil.version_class.Version instance or a distutils.version.LooseVersion instance,
+        and then compared. The first goal is to make sure that nodes are not confused by
+        speaking to an incompatible peer. The second goal is to enable the development of
+        backwards-compatibility code.
 
-        This method is likely to change in incompatible ways until we get the
+        The meaning of the oldest_supported element is that if you treat this storage server as
+        though it were of that version, then you will not be disappointed.
+
+        The precise meaning of this method might change in incompatible ways until we get the
         whole compatibility scheme nailed down.
         """
         return TupleOf(str, str)

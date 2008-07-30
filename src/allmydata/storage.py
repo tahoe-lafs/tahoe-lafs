@@ -759,7 +759,9 @@ class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer, IStatsProducer)
     name = 'storage'
 
-    OLDEST_SUPPORTED_VERSION = LooseVersion("0.8.0")
+    # This means that if a client treats me as though I were a 1.0.0 storage server, they will
+    # not be disappointed.
+    OLDEST_SUPPORTED_VERSION = LooseVersion("1.0.0")
 
     def __init__(self, storedir, sizelimit=None,
                  discard_storage=False, readonly_storage=False,

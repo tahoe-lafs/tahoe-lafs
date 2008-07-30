@@ -46,8 +46,9 @@ class Client(node.Node, testutil.PollMixin):
     NODETYPE = "client"
     SUICIDE_PREVENTION_HOTLINE_FILE = "suicide_prevention_hotline"
 
-    # we're pretty narrow-minded right now
-    OLDEST_SUPPORTED_VERSION = allmydata.__version__
+    # This means that if a storage server treats me as though I were a
+    # 1.0.0 storage client, it will work as they expect.
+    OLDEST_SUPPORTED_VERSION = "1.0.0"
 
     # this is a tuple of (needed, desired, total, max_segment_size). 'needed'
     # is the number of shares required to reconstruct a file. 'desired' means
