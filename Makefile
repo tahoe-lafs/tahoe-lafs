@@ -39,7 +39,7 @@ endif
 ifneq ($(REACTOR),)
 	REACTOROPT := --reactor=$(REACTOR)
 else
-	REACTOROPT := --reactor=poll
+	REACTOROPT :=
 endif
 
 ifneq ($(PYTHONPATH),)
