@@ -29,6 +29,13 @@ else
 			REACTOR := poll
 		endif
 	endif
+	ifeq ($(PLAT),cygwin)
+		# The cygwin select reactor seems to run out of fds in unit tests -- it writes "filedescriptor
+		# out of range in select()".  Setting reactor=poll fixes that.
+		ifeq ($(REACTOR),)
+			REACTOR := poll
+		endif
+	endif
 	PYVER=$(shell $(PYTHON) misc/pyver.py)
 	SUPPORT = $(shell pwd)/support
 	SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
