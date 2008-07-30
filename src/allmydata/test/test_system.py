@@ -1709,7 +1709,9 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
 class Checker(SystemTestMixin, unittest.TestCase):
     def setUp(self):
-        self.basedir = "system/SystemTest/Checker"
+        # Set self.basedir to a temp dir which has the name of the current test method in its
+        # name.
+        self.basedir = self.mktemp()
         TEST_DATA="\x02"*1000
 
         d = defer.maybeDeferred(SystemTestMixin.setUp, self)
