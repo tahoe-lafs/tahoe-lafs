@@ -1800,6 +1800,13 @@ class Checker(SystemTestMixin, unittest.TestCase):
 
         return d
 
+    def _count_reads(self):
+        sum_of_read_counts = 0
+        for client in self.clients:
+            counters = client.stats_provider.get_stats()['counters']
+            sum_of_read_counts += counters.get('storage_server.read', 0)
+        return sum_of_read_counts
+
     def test_check_without_verify(self):
         """ Check says the file is healthy when none of the shares have been
         touched.  It says that the file is unhealthy when all of them have
@@ -1807,23 +1814,43 @@ class Checker(SystemTestMixin, unittest.TestCase):
         has been flipped."""
         d = defer.succeed(self.filenode)
         def _check1(filenode):
+            before_check_reads = self._count_reads()
+
             d2 = filenode.check(verify=False, repair=False)
-            d2.addCallback(lambda checkres: self.failUnless(checkres.is_healthy()))
+            def _after_check(checkresults):
+                after_check_reads = self._count_reads()
+                self.failIf(after_check_reads - before_check_reads > 0, after_check_reads - before_check_reads)
+                self.failUnless(checkresults.is_healthy())
+
+            d2.addCallback(_after_check)
             return d2
         d.addCallback(_check1)
 
         d.addCallback(self._corrupt_a_share)
         def _check2(ignored):
+            before_check_reads = self._count_reads()
             d2 = self.filenode.check(verify=False, repair=False)
-            d2.addCallback(lambda checkres: self.failUnless(checkres.is_healthy()))
+
+            def _after_check(checkresults):
+                after_check_reads = self._count_reads()
+                self.failIf(after_check_reads - before_check_reads > 0, after_check_reads - before_check_reads)
+
+            d2.addCallback(_after_check)
             return d2
         d.addCallback(_check2)
         return d
 
         d.addCallback(lambda ignore: self._replace_shares({}))
         def _check3(ignored):
+            before_check_reads = self._count_reads()
             d2 = self.filenode.check(verify=False, repair=False)
-            d2.addCallback(lambda checkres: self.failIf(checkres.is_healthy()))
+
+            def _after_check(checkresults):
+                after_check_reads = self._count_reads()
+                self.failIf(after_check_reads - before_check_reads > 0, after_check_reads - before_check_reads)
+                self.failIf(checkresults.is_healthy())
+
+            d2.addCallback(_after_check)
             return d2
         d.addCallback(_check3)
 
