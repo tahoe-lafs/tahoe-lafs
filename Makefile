@@ -7,8 +7,6 @@ PYTHON=python
 PATHSEP=$(shell $(PYTHON) -c 'import os ; print os.pathsep')
 OSSEP=$(shell $(PYTHON) -c 'import os ; print os.sep')
 
-REACTOR=
-
 ifneq ($(INCLUDE_DIRS),)
 INCLUDE_DIRS_ARG = -I$(INCLUDE_DIRS)
 endif
@@ -31,14 +29,10 @@ else
 	CHECK_PYWIN32_DEP := 
 endif
 
-ifeq ($(PLAT),cygwin)
-REACTOR = poll
-endif
-
 ifneq ($(REACTOR),)
 	REACTOROPT := --reactor=$(REACTOR)
 else
-	REACTOROPT := 
+	REACTOROPT := --reactor=poll
 endif
 
 ifneq ($(PYTHONPATH),)
