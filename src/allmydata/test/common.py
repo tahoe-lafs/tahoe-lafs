@@ -194,8 +194,7 @@ class LoggingServiceParent(service.MultiService):
         return log.msg(*args, **kwargs)
 
 
-class SystemTestMixin(testutil.SignalMixin, testutil.PollMixin,
-                      testutil.StallMixin):
+class SystemTestMixin(testutil.PollMixin, testutil.StallMixin):
 
     def setUp(self):
         self.sparent = service.MultiService()
