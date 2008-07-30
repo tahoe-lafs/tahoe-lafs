@@ -22,6 +22,13 @@ ifeq ($(PLAT),win32)
 	SRCPATH := $(shell cygpath -w $(shell pwd)/src)
 	INNOSETUP := $(shell cygpath -au "$(PROGRAMFILES)/Inno Setup 5/Compil32.exe")
 else
+	ifeq ($(PLAT),linux2)
+		# This is to work-around #402, and anyway the poll reactor is probably better on Linux, if
+		# we have a lot of open fds.
+		ifneq ($(REACTOR),)
+			REACTOR := poll
+		endif
+	endif
 	PYVER=$(shell $(PYTHON) misc/pyver.py)
 	SUPPORT = $(shell pwd)/support
 	SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
