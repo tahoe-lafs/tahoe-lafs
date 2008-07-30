@@ -56,7 +56,7 @@ else
 endif
 
 TRIALCMD = $(shell PATH="${PATH}:${PWD}/support/bin" $(PP) $(PYTHON) misc/find_trial.py)
-TRIAL=PATH="${PATH}:${PWD}/support/bin" PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
+TRIAL=PATH="${PATH}:${PWD}/support/bin" PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT) $(TRIALOPT)
 
 .PHONY: make-version build
 
