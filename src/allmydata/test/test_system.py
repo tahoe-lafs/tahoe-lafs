@@ -1,5 +1,5 @@
 from base64 import b32encode
-import os, random, sys, time, re, simplejson
+import os, random, struct, sys, time, re, simplejson
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -1712,7 +1712,7 @@ class Checker(SystemTestMixin, unittest.TestCase):
         # Set self.basedir to a temp dir which has the name of the current test method in its
         # name.
         self.basedir = self.mktemp()
-        TEST_DATA="\x02"*1000
+        TEST_DATA="\x02"*(upload.Uploader.URI_LIT_SIZE_THRESHOLD+1)
 
         d = defer.maybeDeferred(SystemTestMixin.setUp, self)
         d.addCallback(lambda x: self.set_up_nodes())
@@ -1764,12 +1764,21 @@ class Checker(SystemTestMixin, unittest.TestCase):
                             open(pathtosharefile, "w").write(newdata)
 
     def _corrupt_a_share(self, unused=None):
-        """ Exactly one bit of exactly one share on disk will be flipped (randomly selected). """
+        """ Exactly one bit of exactly one share on disk will be flipped (randomly selected from
+        among the bits of the 'share data' -- the verifiable bits)."""
+
         shares = self._find_shares()
         ks = shares.keys()
         k = random.choice(ks)
         data = shares[k]
-        shares[k]  = testutil.flip_one_bit(shares[k])
+
+        (version, size, num_leases) = struct.unpack(">LLL", data[:0xc])
+        sharedata = data[0xc:0xc+size]
+
+        corruptedsharedata = testutil.flip_one_bit(sharedata)
+        corrupteddata = data[:0xc]+corruptedsharedata+data[0xc+size:]
+        shares[k] = corrupteddata
+
         self._replace_shares(shares)
 
     def test_test_code(self):
@@ -1855,3 +1864,39 @@ class Checker(SystemTestMixin, unittest.TestCase):
         d.addCallback(_check3)
 
         return d
+
+    def test_check_with_verify(self):
+        """ Check says the file is healthy when none of the shares have been touched.  It says
+        that the file is unhealthy if one bit of one share has been flipped."""
+        DELTA_READS = 10 * 2 # N == 10
+        d = defer.succeed(self.filenode)
+        def _check1(filenode):
+            before_check_reads = self._count_reads()
+
+            d2 = filenode.check(verify=True, repair=False)
+            def _after_check(checkresults):
+                after_check_reads = self._count_reads()
+                # print "delta was ", after_check_reads - before_check_reads
+                self.failIf(after_check_reads - before_check_reads > DELTA_READS)
+                self.failUnless(checkresults.is_healthy())
+
+            d2.addCallback(_after_check)
+            return d2
+        d.addCallback(_check1)
+
+        d.addCallback(self._corrupt_a_share)
+        def _check2(ignored):
+            before_check_reads = self._count_reads()
+            d2 = self.filenode.check(verify=True, repair=False)
+
+            def _after_check(checkresults):
+                after_check_reads = self._count_reads()
+                # print "delta was ", after_check_reads - before_check_reads
+                self.failIf(after_check_reads - before_check_reads > DELTA_READS)
+                self.failIf(checkresults.is_healthy())
+
+            d2.addCallback(_after_check)
+            return d2
+        d.addCallback(_check2)
+        return d
+    test_check_with_verify.todo = "We haven't implemented a verifier this thorough yet."
