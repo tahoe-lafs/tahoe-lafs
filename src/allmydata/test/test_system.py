@@ -10,7 +10,7 @@ from allmydata import uri, storage, offloaded
 from allmydata.immutable import download, upload, filenode
 from allmydata.util import idlib, mathutil, testutil
 from allmydata.util import log, base32
-from allmydata.scripts import runner, cli
+from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable import layout as mutable_layout
@@ -1337,9 +1337,10 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         f.write(private_uri)
         f.close()
 
-        def run(ignored, verb, *args):
+        def run(ignored, verb, *args, **kwargs):
+            stdin = kwargs.get("stdin", "")
             newargs = [verb] + nodeargs + list(args)
-            return self._run_cli(newargs)
+            return self._run_cli(newargs, stdin=stdin)
 
         def _check_ls((out,err), expected_children, unexpected_children=[]):
             self.failUnlessEqual(err, "")
@@ -1436,30 +1437,12 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d.addCallback(run, "get", "tahoe:file3")
         d.addCallback(_check_stdout_against, 3)
 
-        def _put_from_stdin(res, data, *args):
-            args = nodeargs + list(args)
-            o = cli.PutOptions()
-            o.parseOptions(args)
-            stdin = StringIO(data)
-            stdout, stderr = StringIO(), StringIO()
-            o.stdin = stdin
-            o.stdout = stdout
-            o.stderr = stderr
-            d = threads.deferToThread(cli.put, o)
-            def _done(res):
-                return stdout.getvalue(), stderr.getvalue()
-            d.addCallback(_done)
-            return d
-
         #  tahoe put FOO
         STDIN_DATA = "This is the file to upload from stdin."
-        d.addCallback(_put_from_stdin,
-                      STDIN_DATA,
-                      "tahoe-file-stdin")
+        d.addCallback(run, "put", "tahoe-file-stdin", stdin=STDIN_DATA)
         #  tahoe put tahoe:FOO
-        d.addCallback(_put_from_stdin,
-                      "Other file from stdin.",
-                      "tahoe:from-stdin")
+        d.addCallback(run, "put", "tahoe:from-stdin",
+                      stdin="Other file from stdin.")
 
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, ["tahoe-file0", "file2", "file3", "subdir",
@@ -1662,10 +1645,11 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
         return d
 
-    def _run_cli(self, argv):
+    def _run_cli(self, argv, stdin=""):
         #print "CLI:", argv
         stdout, stderr = StringIO(), StringIO()
         d = threads.deferToThread(runner.runner, argv, run_by_human=False,
+                                  stdin=StringIO(stdin),
                                   stdout=stdout, stderr=stderr)
         def _done(res):
             return stdout.getvalue(), stderr.getvalue()
