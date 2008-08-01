@@ -12,12 +12,12 @@ from allmydata.scripts import tahoe_ls, tahoe_get, tahoe_put, tahoe_rm
 from allmydata.scripts.common import DEFAULT_ALIAS
 _hush_pyflakes = [tahoe_ls, tahoe_get, tahoe_put, tahoe_rm]
 
-from allmydata.scripts import cli, debug
-
-# this test case only looks at argument-processing and simple stuff.
-# test_system contains all the CLI tests that actually use a real node.
+from allmydata.scripts import cli, debug, runner
+from allmydata.test.common import SystemTestMixin
+from twisted.internet import threads # CLI tests use deferToThread
 
 class CLI(unittest.TestCase):
+    # this test case only looks at argument-processing and simple stuff.
     def test_options(self):
         fileutil.rm_dir("cli/test_options")
         fileutil.make_dirs("cli/test_options")
@@ -216,3 +216,68 @@ class CLI(unittest.TestCase):
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
+
+class Put(SystemTestMixin, unittest.TestCase):
+
+    def do_cli(self, verb, *args, **kwargs):
+        nodeargs = [
+            "--node-directory", self.getdir("client0"),
+            ]
+        argv = [verb] + nodeargs + list(args)
+        stdin = kwargs.get("stdin", "")
+        stdout, stderr = StringIO(), StringIO()
+        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
+                                  stdin=StringIO(stdin),
+                                  stdout=stdout, stderr=stderr)
+        def _done(res):
+            return stdout.getvalue(), stderr.getvalue()
+        d.addCallback(_done)
+        return d
+
+    def test_put_immutable(self):
+        self.basedir = self.mktemp()
+        DATA = "data" * 100
+        d = self.set_up_nodes()
+        d.addCallback(lambda res: self.do_cli("put", stdin=DATA))
+        def _uploaded(res):
+            (stdout, stderr) = res
+            self.failUnlessEqual(stderr,
+                                 "waiting for file data on stdin..\n200 OK\n")
+            readcap = stdout
+            self.failUnless(readcap.startswith("URI:CHK:"))
+            return readcap
+        d.addCallback(_uploaded)
+        d.addCallback(lambda readcap: self.do_cli("get", readcap))
+        def _downloaded(res):
+            (stdout, stderr) = res
+            self.failUnlessEqual(stderr, "")
+            self.failUnlessEqual(stdout, DATA)
+        d.addCallback(_downloaded)
+        return d
+
+    def test_put_mutable(self):
+        self.basedir = self.mktemp()
+        DATA = "data" * 100
+        DATA2 = "two" * 100
+        d = self.set_up_nodes()
+        d.addCallback(lambda res: self.do_cli("put", "--mutable", stdin=DATA))
+        def _created(res):
+            (stdout, stderr) = res
+            self.failUnlessEqual(stderr,
+                                 "waiting for file data on stdin..\n200 OK\n")
+            self.filecap = stdout
+            self.failUnless(self.filecap.startswith("URI:SSK:"))
+        d.addCallback(_created)
+        d.addCallback(lambda res: self.do_cli("get", self.filecap))
+        d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA))
+        d.addCallback(lambda res: self.do_cli("put", self.filecap, stdin=DATA2))
+        def _replaced(res):
+            (stdout, stderr) = res
+            self.failUnlessEqual(stderr,
+                                 "waiting for file data on stdin..\n200 OK\n")
+            self.failUnlessEqual(self.filecap, stdout)
+        d.addCallback(_replaced)
+        d.addCallback(lambda res: self.do_cli("get", self.filecap))
+        d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA2))
+        return d
+    test_put_mutable.todo = "put MUTABLE still fails, ticket #441"
