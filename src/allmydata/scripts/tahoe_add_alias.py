@@ -3,7 +3,12 @@ import os.path
 from allmydata import uri
 from allmydata.scripts.common import get_aliases
 
-def add_alias(nodedir, alias, cap, stdout, stderr):
+def add_alias(options):
+    nodedir = options['node-directory']
+    alias = options.alias
+    cap = options.cap
+    stdout = options.stdout
+    stderr = options.stderr
     aliasfile = os.path.join(nodedir, "private", "aliases")
     cap = uri.from_string_dirnode(cap).to_string()
     assert ":" not in alias
@@ -15,7 +20,10 @@ def add_alias(nodedir, alias, cap, stdout, stderr):
     print >>stdout, "Alias '%s' added" % (alias,)
     return 0
 
-def list_aliases(nodedir, stdout, stderr):
+def list_aliases(options):
+    nodedir = options['node-directory']
+    stdout = options.stdout
+    stderr = options.stderr
     aliases = get_aliases(nodedir)
     alias_names = sorted(aliases.keys())
     max_width = max([len(name) for name in alias_names] + [0])

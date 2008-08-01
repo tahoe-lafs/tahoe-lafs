@@ -23,8 +23,10 @@ class Options(BaseOptions, usage.Options):
         if not hasattr(self, 'subOptions'):
             raise usage.UsageError("must specify a command")
 
-def runner(argv, run_by_human=True, stdout=sys.stdout, stderr=sys.stderr,
-                 install_node_control=True, additional_commands=None):
+def runner(argv,
+           run_by_human=True,
+           stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr,
+           install_node_control=True, additional_commands=None):
 
     config = Options()
     if install_node_control:
@@ -53,6 +55,10 @@ def runner(argv, run_by_human=True, stdout=sys.stdout, stderr=sys.stderr,
     if config['quiet']:
         stdout = StringIO()
 
+    so.stdout = stdout
+    so.stderr = stderr
+    so.stdin = stdin
+
     rc = 0
     if command in create_node.dispatch:
         for basedir in so.basedirs:
@@ -63,7 +69,7 @@ def runner(argv, run_by_human=True, stdout=sys.stdout, stderr=sys.stderr,
     elif command in debug.dispatch:
         rc = debug.dispatch[command](so, stdout, stderr)
     elif command in cli.dispatch:
-        rc = cli.dispatch[command](so, stdout, stderr)
+        rc = cli.dispatch[command](so)
     elif command in keygen.dispatch:
         rc = keygen.dispatch[command](so, stdout, stderr)
     elif command in ac_dispatch:

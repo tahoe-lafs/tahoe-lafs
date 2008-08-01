@@ -4,7 +4,13 @@ import simplejson
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
 from allmydata.scripts.common_http import do_http
 
-def list(nodeurl, aliases, where, config, stdout, stderr):
+def list(options):
+    nodeurl = options['node-url']
+    aliases = options.aliases
+    where = options.where
+    stdout = options.stdout
+    stderr = options.stderr
+
     if not nodeurl.endswith("/"):
         nodeurl += "/"
     if where.endswith("/"):
@@ -26,7 +32,7 @@ def list(nodeurl, aliases, where, config, stdout, stderr):
                                                         resp.read())
     data = resp.read()
 
-    if config['json']:
+    if options['json']:
         print >>stdout, data
         return
 
@@ -90,16 +96,16 @@ def list(nodeurl, aliases, where, config, stdout, stderr):
         uri = rw_uri or ro_uri
 
         line = []
-        if config["long"]:
+        if options["long"]:
             line.append(t0+t1+t2+t3)
             line.append(size)
             line.append(ctime_s)
-        if not config["classify"]:
+        if not options["classify"]:
             classify = ""
         line.append(name + classify)
-        if config["uri"]:
+        if options["uri"]:
             line.append(uri)
-        if config["readonly-uri"]:
+        if options["readonly-uri"]:
             line.append(ro_uri or "-")
 
         rows.append(line)

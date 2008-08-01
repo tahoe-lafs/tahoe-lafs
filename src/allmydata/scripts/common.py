@@ -4,6 +4,11 @@ from twisted.python import usage
 
 
 class BaseOptions:
+    # unit tests can override these to point at StringIO instances
+    stdin = sys.stdin
+    stdout = sys.stdout
+    stderr = sys.stderr
+
     optFlags = [
         ["quiet", "q", "Operate silently."],
         ["version", "V", "Display version numbers and exit."],

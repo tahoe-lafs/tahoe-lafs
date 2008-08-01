@@ -3,7 +3,14 @@ import urllib
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
 from allmydata.scripts.common_http import do_http
 
-def get(nodeurl, aliases, from_file, to_file, stdout, stderr):
+def get(options):
+    nodeurl = options['node-url']
+    aliases = options.aliases
+    from_file = options.from_file
+    to_file = options.to_file
+    stdout = options.stdout
+    stderr = options.stderr
+
     if nodeurl[-1] != "/":
         nodeurl += "/"
     rootcap, path = get_alias(aliases, from_file, DEFAULT_ALIAS)

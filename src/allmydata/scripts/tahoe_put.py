@@ -4,13 +4,25 @@ import urllib
 from allmydata.scripts.common_http import do_http
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
 
-def put(nodeurl, aliases, from_file, to_file, mutable,
-        verbosity, stdin, stdout, stderr):
+def put(options):
     """
     @param verbosity: 0, 1, or 2, meaning quiet, verbose, or very verbose
 
     @return: a Deferred which eventually fires with the exit code
     """
+    nodeurl = options['node-url']
+    aliases = options.aliases
+    from_file = options.from_file
+    to_file = options.to_file
+    mutable = options['mutable']
+    if options['quiet']:
+        verbosity = 0
+    else:
+        verbosity = 2
+    stdin = options.stdin
+    stdout = options.stdout
+    stderr = options.stderr
+
     if nodeurl[-1] != "/":
         nodeurl += "/"
     if to_file:

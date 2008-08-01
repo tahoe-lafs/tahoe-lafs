@@ -397,29 +397,31 @@ class TahoeDirectoryTarget:
         POST(url, body)
 
 class Copier:
-    def __init__(self, nodeurl, config, aliases,
-                 verbosity, stdout, stderr,
-                 progressfunc=None):
+
+    def do_copy(self, options, progressfunc=None):
+        if options['quiet']:
+            verbosity = 0
+        else:
+            verbosity = 2
+
+        nodeurl = options['node-url']
         if nodeurl[-1] != "/":
             nodeurl += "/"
         self.nodeurl = nodeurl
         self.progressfunc = progressfunc
-        self.config = config
-        self.aliases = aliases
+        self.options = options
+        self.aliases = options.aliases
         self.verbosity = verbosity
-        if config["verbose"] and not self.progressfunc:
+        self.stdout = options.stdout
+        self.stderr = options.stderr
+        if options["verbose"] and not self.progressfunc:
             def progress(message):
-                print >>stderr, message
+                print >>self.stderr, message
             self.progressfunc = progress
-        self.stdout = stdout
-        self.stderr = stderr
         self.cache = {}
-
-    def to_stderr(self, text):
-        print >>self.stderr, text
-
-    def do_copy(self, source_specs, destination_spec):
-        recursive = self.config["recursive"]
+        source_specs = options.sources
+        destination_spec = options.destination
+        recursive = self.options["recursive"]
 
         target = self.get_target_info(destination_spec)
 
@@ -469,6 +471,9 @@ class Copier:
 
         self.to_stderr("unknown target")
         return 1
+
+    def to_stderr(self, text):
+        print >>self.stderr, text
 
     def get_target_info(self, destination_spec):
         rootcap, path = get_alias(self.aliases, destination_spec, None)
@@ -705,7 +710,5 @@ class Copier:
         return graphs
 
 
-def copy(nodeurl, config, aliases, sources, destination,
-         verbosity, stdout, stderr):
-    c = Copier(nodeurl, config, aliases, verbosity, stdout, stderr)
-    return c.do_copy(sources, destination)
+def copy(options):
+    return Copier().do_copy(options)

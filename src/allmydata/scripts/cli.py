@@ -204,131 +204,78 @@ subCommands = [
     ["repl", None, ReplOptions, "Open a python interpreter"],
     ]
 
-def mkdir(config, stdout, stderr):
+def mkdir(options):
     from allmydata.scripts import tahoe_mkdir
-    rc = tahoe_mkdir.mkdir(config['node-url'],
-                           config.aliases,
-                           config.where,
-                           stdout, stderr)
+    rc = tahoe_mkdir.mkdir(options)
     return rc
 
-def add_alias(config, stdout, stderr):
+def add_alias(options):
     from allmydata.scripts import tahoe_add_alias
-    rc = tahoe_add_alias.add_alias(config['node-directory'],
-                                   config.alias,
-                                   config.cap,
-                                   stdout, stderr)
+    rc = tahoe_add_alias.add_alias(options)
     return rc
 
-def list_aliases(config, stdout, stderr):
+def list_aliases(options):
     from allmydata.scripts import tahoe_add_alias
-    rc = tahoe_add_alias.list_aliases(config['node-directory'],
-                                      stdout, stderr)
+    rc = tahoe_add_alias.list_aliases(options)
     return rc
 
-def list(config, stdout, stderr):
+def list(options):
     from allmydata.scripts import tahoe_ls
-    rc = tahoe_ls.list(config['node-url'],
-                       config.aliases,
-                       config.where,
-                       config,
-                       stdout, stderr)
+    rc = tahoe_ls.list(options)
     return rc
 
-def get(config, stdout, stderr):
+def get(options):
     from allmydata.scripts import tahoe_get
-    rc = tahoe_get.get(config['node-url'],
-                       config.aliases,
-                       config.from_file,
-                       config.to_file,
-                       stdout, stderr)
+    rc = tahoe_get.get(options)
     if rc == 0:
-        if config.to_file is None:
+        if options.to_file is None:
             # be quiet, since the file being written to stdout should be
             # proof enough that it worked, unless the user is unlucky
             # enough to have picked an empty file
             pass
         else:
-            print >>stderr, "%s retrieved and written to %s" % \
-                  (config.from_file, config.to_file)
+            print >>options.stderr, "%s retrieved and written to %s" % \
+                  (options.from_file, options.to_file)
     return rc
 
-def put(config, stdout, stderr, stdin=sys.stdin):
+def put(options):
     from allmydata.scripts import tahoe_put
-    if config['quiet']:
-        verbosity = 0
-    else:
-        verbosity = 2
-    rc = tahoe_put.put(config['node-url'],
-                       config.aliases,
-                       config.from_file,
-                       config.to_file,
-                       config['mutable'],
-                       verbosity,
-                       stdin, stdout, stderr)
+    rc = tahoe_put.put(options)
     return rc
 
-def cp(config, stdout, stderr):
+def cp(options):
     from allmydata.scripts import tahoe_cp
-    if config['quiet']:
-        verbosity = 0
-    else:
-        verbosity = 2
-    rc = tahoe_cp.copy(config['node-url'],
-                       config,
-                       config.aliases,
-                       config.sources,
-                       config.destination,
-                       verbosity,
-                       stdout, stderr)
+    rc = tahoe_cp.copy(options)
     return rc
 
-def rm(config, stdout, stderr):
+def rm(options):
     from allmydata.scripts import tahoe_rm
-    if config['quiet']:
-        verbosity = 0
-    else:
-        verbosity = 2
-    rc = tahoe_rm.rm(config['node-url'],
-                     config.aliases,
-                     config.where,
-                     verbosity,
-                     stdout, stderr)
+    rc = tahoe_rm.rm(options)
     return rc
 
-def mv(config, stdout, stderr):
+def mv(options):
     from allmydata.scripts import tahoe_mv
-    rc = tahoe_mv.mv(config['node-url'],
-                     config.aliases,
-                     config.from_file,
-                     config.to_file,
-                     stdout, stderr,
-                     mode="move")
+    rc = tahoe_mv.mv(options, mode="move")
     return rc
 
-def ln(config, stdout, stderr):
+def ln(options):
     from allmydata.scripts import tahoe_mv
-    rc = tahoe_mv.mv(config['node-url'],
-                     config.aliases,
-                     config.from_file,
-                     config.to_file,
-                     stdout, stderr,
-                     mode="link")
+    rc = tahoe_mv.mv(options, mode="link")
     return rc
 
-def webopen(config, stdout, stderr):
+def webopen(options):
     import urllib, webbrowser
-    nodeurl = config['node-url']
+    nodeurl = options['node-url']
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    root_cap = config.aliases["tahoe"]
+    root_cap = options.aliases["tahoe"]
     url = nodeurl + "uri/%s/" % urllib.quote(root_cap)
-    if config['vdrive_pathname']:
-        url += urllib.quote(config['vdrive_pathname'])
+    if options['vdrive_pathname']:
+        url += urllib.quote(options['vdrive_pathname'])
     webbrowser.open(url)
     return 0
 
-def repl(config, stdout, stderr):
+def repl(options):
     import code
     return code.interact()
 

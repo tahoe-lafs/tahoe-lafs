@@ -3,7 +3,12 @@ import urllib
 from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS
 
-def mkdir(nodeurl, aliases, where, stdout, stderr):
+def mkdir(options):
+    nodeurl = options['node-url']
+    aliases = options.aliases
+    where = options.where
+    stdout = options.stdout
+    stderr = options.stderr
     if not nodeurl.endswith("/"):
         nodeurl += "/"
     if where:

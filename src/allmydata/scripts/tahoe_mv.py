@@ -7,7 +7,14 @@ from allmydata.scripts.common_http import do_http
 
 # this script is used for both 'mv' and 'ln'
 
-def mv(nodeurl, aliases, from_file, to_file, stdout, stderr, mode="move"):
+def mv(options, mode="move"):
+    nodeurl = options['node-url']
+    aliases = options.aliases
+    from_file = options.from_file
+    to_file = options.to_file
+    stdout = options.stdout
+    stderr = options.stderr
+
     if nodeurl[-1] != "/":
         nodeurl += "/"
     rootcap, path = get_alias(aliases, from_file, DEFAULT_ALIAS)

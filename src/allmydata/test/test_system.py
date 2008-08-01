@@ -1344,9 +1344,9 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         def _check_ls((out,err), expected_children, unexpected_children=[]):
             self.failUnlessEqual(err, "")
             for s in expected_children:
-                self.failUnless(s in out, s)
+                self.failUnless(s in out, (s,out))
             for s in unexpected_children:
-                self.failIf(s in out, s)
+                self.failIf(s in out, (s,out))
 
         def _check_ls_root((out,err)):
             self.failUnless("personal" in out)
@@ -1442,8 +1442,10 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             o.parseOptions(args)
             stdin = StringIO(data)
             stdout, stderr = StringIO(), StringIO()
-            d = threads.deferToThread(cli.put, o,
-                                      stdout=stdout, stderr=stderr, stdin=stdin)
+            o.stdin = stdin
+            o.stdout = stdout
+            o.stderr = stderr
+            d = threads.deferToThread(cli.put, o)
             def _done(res):
                 return stdout.getvalue(), stderr.getvalue()
             d.addCallback(_done)
