@@ -217,8 +217,7 @@ class CLI(unittest.TestCase):
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
-class CreateAlias(SystemTestMixin, unittest.TestCase):
-
+class CLITestMixin:
     def do_cli(self, verb, *args, **kwargs):
         nodeargs = [
             "--node-directory", self.getdir("client0"),
@@ -233,6 +232,8 @@ class CreateAlias(SystemTestMixin, unittest.TestCase):
             return stdout.getvalue(), stderr.getvalue()
         d.addCallback(_done)
         return d
+
+class CreateAlias(SystemTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_create(self):
         self.basedir = os.path.dirname(self.mktemp())
@@ -247,22 +248,7 @@ class CreateAlias(SystemTestMixin, unittest.TestCase):
         d.addCallback(_done)
         return d
 
-class Put(SystemTestMixin, unittest.TestCase):
-
-    def do_cli(self, verb, *args, **kwargs):
-        nodeargs = [
-            "--node-directory", self.getdir("client0"),
-            ]
-        argv = [verb] + nodeargs + list(args)
-        stdin = kwargs.get("stdin", "")
-        stdout, stderr = StringIO(), StringIO()
-        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
-                                  stdin=StringIO(stdin),
-                                  stdout=stdout, stderr=stderr)
-        def _done(res):
-            return stdout.getvalue(), stderr.getvalue()
-        d.addCallback(_done)
-        return d
+class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_unlinked_immutable_stdin(self):
         # tahoe get `echo DATA | tahoe put`
