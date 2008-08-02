@@ -260,8 +260,8 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("put", stdin=DATA))
         def _uploaded(res):
             (stdout, stderr) = res
-            self.failUnlessEqual(stderr,
-                                 "waiting for file data on stdin..\n200 OK\n")
+            self.failUnless("waiting for file data on stdin.." in stderr)
+            self.failUnless("200 OK" in stderr)
             self.readcap = stdout
             self.failUnless(self.readcap.startswith("URI:CHK:"))
         d.addCallback(_uploaded)
@@ -289,7 +289,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         abs_fn = os.path.abspath(rel_fn)
         # we make the file small enough to fit in a LIT file, for speed
         f = open(rel_fn, "w")
-        f.write("short file\n")
+        f.write("short file")
         f.close()
         d = self.set_up_nodes()
         d.addCallback(lambda res: self.do_cli("put", rel_fn))
@@ -320,8 +320,8 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         rel_fn = os.path.join(self.basedir, "DATAFILE")
         abs_fn = os.path.abspath(rel_fn)
         # we make the file small enough to fit in a LIT file, for speed
-        DATA = "short file\n"
-        DATA2 = "short file two\n"
+        DATA = "short file"
+        DATA2 = "short file two"
         f = open(rel_fn, "w")
         f.write(DATA)
         f.close()
@@ -412,8 +412,8 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("put", "--mutable", stdin=DATA))
         def _created(res):
             (stdout, stderr) = res
-            self.failUnlessEqual(stderr,
-                                 "waiting for file data on stdin..\n200 OK\n")
+            self.failUnless("waiting for file data on stdin.." in stderr)
+            self.failUnless("200 OK" in stderr)
             self.filecap = stdout
             self.failUnless(self.filecap.startswith("URI:SSK:"))
         d.addCallback(_created)
@@ -423,8 +423,8 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("put", "-", self.filecap, stdin=DATA2))
         def _replaced(res):
             (stdout, stderr) = res
-            self.failUnlessEqual(stderr,
-                                 "waiting for file data on stdin..\n200 OK\n")
+            self.failUnless("waiting for file data on stdin.." in stderr)
+            self.failUnless("200 OK" in stderr)
             self.failUnlessEqual(self.filecap, stdout)
         d.addCallback(_replaced)
         d.addCallback(lambda res: self.do_cli("get", self.filecap))
@@ -433,7 +433,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("put", rel_fn, self.filecap))
         def _replaced2(res):
             (stdout, stderr) = res
-            self.failUnlessEqual(stderr, "200 OK\n")
+            self.failUnless("200 OK" in stderr)
             self.failUnlessEqual(self.filecap, stdout)
         d.addCallback(_replaced2)
         d.addCallback(lambda res: self.do_cli("get", self.filecap))
