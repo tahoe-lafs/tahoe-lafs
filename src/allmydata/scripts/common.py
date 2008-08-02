@@ -104,6 +104,7 @@ def get_alias(aliases, path, default):
     # If default=None, then an empty alias is indicated by returning
     # DefaultAliasMarker. We special-case "URI:" to make it easy to access
     # specific files/directories by their read-cap.
+    path = path.strip()
     if path.startswith("URI:"):
         # The only way to get a sub-path is to use URI:blah:./foo, and we
         # strip out the :./ sequence.

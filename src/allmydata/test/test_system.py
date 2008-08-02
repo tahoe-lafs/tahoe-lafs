@@ -1439,9 +1439,9 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
         #  tahoe put FOO
         STDIN_DATA = "This is the file to upload from stdin."
-        d.addCallback(run, "put", "tahoe-file-stdin", stdin=STDIN_DATA)
+        d.addCallback(run, "put", "-", "tahoe-file-stdin", stdin=STDIN_DATA)
         #  tahoe put tahoe:FOO
-        d.addCallback(run, "put", "tahoe:from-stdin",
+        d.addCallback(run, "put", "-", "tahoe:from-stdin",
                       stdin="Other file from stdin.")
 
         d.addCallback(run, "ls")

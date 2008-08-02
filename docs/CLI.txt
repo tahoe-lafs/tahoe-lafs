@@ -178,8 +178,12 @@ tahoe list-aliases
 tahoe mkdir
 tahoe mkdir [alias:]path
 tahoe ls [alias:][path]
-tahoe put [localfrom:-]
-tahoe put [localfrom:-] [alias:]to
+tahoe put [--mutable] [localfrom:-]
+tahoe put [--mutable] [localfrom:-] [alias:]to
+tahoe put [--mutable] [localfrom:-] [alias:]subdir/to
+tahoe put [--mutable] [localfrom:-] dircap:to
+tahoe put [--mutable] [localfrom:-] dircap:./subdir/to
+tahoe put [localfrom:-] mutable-file-writecap
 tahoe get [alias:]from [localto:-]
 tahoe cp [-r] [alias:]frompath [alias:]topath
 tahoe rm [alias:]what
@@ -235,13 +239,42 @@ tahoe put /tmp/file.txt
 tahoe put ~/file.txt
 
  These upload the local file into the grid, and prints the new read-cap to
- stdout. The uploaded file is not attached to any directory.
+ stdout. The uploaded file is not attached to any directory. All one-argument
+ forms of "tahoe put" perform an unlinked upload.
+
+tahoe put -
+tahoe put
+
+ These also perform an unlinked upload, but the data to be uploaded is taken
+ from stdin.
 
 tahoe put file.txt uploaded.txt
 tahoe put file.txt tahoe:uploaded.txt
 
  These upload the local file and add it to your root with the name
  "uploaded.txt"
+
+tahoe put file.txt subdir/foo.txt
+tahoe put - subdir/foo.txt
+tahoe put file.txt tahoe:subdir/foo.txt
+tahoe put file.txt DIRCAP:./foo.txt
+tahoe put file.txt DIRCAP:./subdir/foo.txt
+
+ These upload the named file and attach them to a subdirectory of the given
+ root directory, under the name "foo.txt". Note that to use a directory
+ write-cap instead of an alias, you must use ":./" as a separator, rather
+ than ":", to help the CLI parser figure out where the dircap ends. When the
+ source file is named "-", the contents are taken from stdin.
+
+tahoe put file.txt --mutable
+
+ Create a new mutable file, fill it with the contents of file.txt, and print
+ the new write-cap to stdout.
+
+tahoe put file.txt MUTABLE-FILE-WRITECAP
+
+ Replace the contents of the given mutable file with the contents of file.txt
+ and prints the same write-cap to stdout.
 
 tahoe cp file.txt tahoe:uploaded.txt
 tahoe cp file.txt tahoe:

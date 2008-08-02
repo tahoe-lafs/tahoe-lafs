@@ -264,7 +264,10 @@ class Put(SystemTestMixin, unittest.TestCase):
         d.addCallback(_done)
         return d
 
-    def test_put_immutable(self):
+    def test_unlinked_immutable_stdin(self):
+        # tahoe get `echo DATA | tahoe put`
+        # tahoe get `echo DATA | tahoe put -`
+
         self.basedir = self.mktemp()
         DATA = "data" * 100
         d = self.set_up_nodes()
@@ -273,23 +276,153 @@ class Put(SystemTestMixin, unittest.TestCase):
             (stdout, stderr) = res
             self.failUnlessEqual(stderr,
                                  "waiting for file data on stdin..\n200 OK\n")
-            readcap = stdout
-            self.failUnless(readcap.startswith("URI:CHK:"))
-            return readcap
+            self.readcap = stdout
+            self.failUnless(self.readcap.startswith("URI:CHK:"))
         d.addCallback(_uploaded)
-        d.addCallback(lambda readcap: self.do_cli("get", readcap))
+        d.addCallback(lambda res: self.do_cli("get", self.readcap))
         def _downloaded(res):
             (stdout, stderr) = res
             self.failUnlessEqual(stderr, "")
             self.failUnlessEqual(stdout, DATA)
         d.addCallback(_downloaded)
+        d.addCallback(lambda res: self.do_cli("put", "-", stdin=DATA))
+        d.addCallback(lambda (stdout,stderr):
+                      self.failUnlessEqual(stdout, self.readcap))
         return d
 
-    def test_put_mutable(self):
-        self.basedir = self.mktemp()
+    def test_unlinked_immutable_from_file(self):
+        # tahoe put file.txt
+        # tahoe put ./file.txt
+        # tahoe put /tmp/file.txt
+        # tahoe put ~/file.txt
+        self.basedir = os.path.dirname(self.mktemp())
+        # this will be "allmydata.test.test_cli/Put/test_put_from_file/RANDOM"
+        # and the RANDOM directory will exist. Raw mktemp returns a filename.
+
+        rel_fn = os.path.join(self.basedir, "DATAFILE")
+        abs_fn = os.path.abspath(rel_fn)
+        # we make the file small enough to fit in a LIT file, for speed
+        f = open(rel_fn, "w")
+        f.write("short file\n")
+        f.close()
+        d = self.set_up_nodes()
+        d.addCallback(lambda res: self.do_cli("put", rel_fn))
+        def _uploaded((stdout,stderr)):
+            readcap = stdout
+            self.failUnless(readcap.startswith("URI:LIT:"))
+            self.readcap = readcap
+        d.addCallback(_uploaded)
+        d.addCallback(lambda res: self.do_cli("put", "./" + rel_fn))
+        d.addCallback(lambda (stdout,stderr):
+                      self.failUnlessEqual(stdout, self.readcap))
+        d.addCallback(lambda res: self.do_cli("put", abs_fn))
+        d.addCallback(lambda (stdout,stderr):
+                      self.failUnlessEqual(stdout, self.readcap))
+        # we just have to assume that ~ is handled properly
+        return d
+
+    def test_immutable_from_file(self):
+        # tahoe put file.txt uploaded.txt
+        # tahoe - uploaded.txt
+        # tahoe put file.txt subdir/uploaded.txt
+        # tahoe put file.txt tahoe:uploaded.txt
+        # tahoe put file.txt tahoe:subdir/uploaded.txt
+        # tahoe put file.txt DIRCAP:./uploaded.txt
+        # tahoe put file.txt DIRCAP:./subdir/uploaded.txt
+        self.basedir = os.path.dirname(self.mktemp())
+
+        rel_fn = os.path.join(self.basedir, "DATAFILE")
+        abs_fn = os.path.abspath(rel_fn)
+        # we make the file small enough to fit in a LIT file, for speed
+        DATA = "short file\n"
+        DATA2 = "short file two\n"
+        f = open(rel_fn, "w")
+        f.write(DATA)
+        f.close()
+
+        d = self.set_up_nodes()
+        d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
+
+        d.addCallback(lambda res:
+                      self.do_cli("put", rel_fn, "uploaded.txt"))
+        def _uploaded((stdout,stderr)):
+            readcap = stdout.strip()
+            self.failUnless(readcap.startswith("URI:LIT:"))
+            self.failUnless("201 Created" in stderr, stderr)
+            self.readcap = readcap
+        d.addCallback(_uploaded)
+        d.addCallback(lambda res:
+                      self.do_cli("get", "tahoe:uploaded.txt"))
+        d.addCallback(lambda (stdout,stderr):
+                      self.failUnlessEqual(stdout, DATA))
+
+        d.addCallback(lambda res:
+                      self.do_cli("put", "-", "uploaded.txt", stdin=DATA2))
+        def _replaced((stdout,stderr)):
+            readcap = stdout.strip()
+            self.failUnless(readcap.startswith("URI:LIT:"))
+            self.failUnless("200 OK" in stderr, stderr)
+        d.addCallback(_replaced)
+
+        d.addCallback(lambda res:
+                      self.do_cli("put", rel_fn, "subdir/uploaded2.txt"))
+        d.addCallback(lambda res: self.do_cli("get", "subdir/uploaded2.txt"))
+        d.addCallback(lambda (stdout,stderr):
+                      self.failUnlessEqual(stdout, DATA))
+
+        d.addCallback(lambda res:
+                      self.do_cli("put", rel_fn, "tahoe:uploaded3.txt"))
+        d.addCallback(lambda res: self.do_cli("get", "tahoe:uploaded3.txt"))
+        d.addCallback(lambda (stdout,stderr):
+                      self.failUnlessEqual(stdout, DATA))
+
+        d.addCallback(lambda res:
+                      self.do_cli("put", rel_fn, "tahoe:subdir/uploaded4.txt"))
+        d.addCallback(lambda res:
+                      self.do_cli("get", "tahoe:subdir/uploaded4.txt"))
+        d.addCallback(lambda (stdout,stderr):
+                      self.failUnlessEqual(stdout, DATA))
+
+        def _get_dircap(res):
+            self.dircap = get_aliases(self.getdir("client0"))["tahoe"]
+        d.addCallback(_get_dircap)
+
+        d.addCallback(lambda res:
+                      self.do_cli("put", rel_fn,
+                                  self.dircap+":./uploaded5.txt"))
+        d.addCallback(lambda res:
+                      self.do_cli("get", "tahoe:uploaded5.txt"))
+        d.addCallback(lambda (stdout,stderr):
+                      self.failUnlessEqual(stdout, DATA))
+
+        d.addCallback(lambda res:
+                      self.do_cli("put", rel_fn,
+                                  self.dircap+":./subdir/uploaded6.txt"))
+        d.addCallback(lambda res:
+                      self.do_cli("get", "tahoe:subdir/uploaded6.txt"))
+        d.addCallback(lambda (stdout,stderr):
+                      self.failUnlessEqual(stdout, DATA))
+
+        return d
+
+    def test_mutable_unlinked(self):
+        # FILECAP = `echo DATA | tahoe put --mutable`
+        # tahoe get FILECAP, compare against DATA
+        # echo DATA2 | tahoe put - FILECAP
+        # tahoe get FILECAP, compare against DATA2
+        # tahoe put file.txt FILECAP
+        self.basedir = os.path.dirname(self.mktemp())
         DATA = "data" * 100
         DATA2 = "two" * 100
+        rel_fn = os.path.join(self.basedir, "DATAFILE")
+        abs_fn = os.path.abspath(rel_fn)
+        DATA3 = "three" * 100
+        f = open(rel_fn, "w")
+        f.write(DATA3)
+        f.close()
+
         d = self.set_up_nodes()
+
         d.addCallback(lambda res: self.do_cli("put", "--mutable", stdin=DATA))
         def _created(res):
             (stdout, stderr) = res
@@ -300,7 +433,8 @@ class Put(SystemTestMixin, unittest.TestCase):
         d.addCallback(_created)
         d.addCallback(lambda res: self.do_cli("get", self.filecap))
         d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA))
-        d.addCallback(lambda res: self.do_cli("put", self.filecap, stdin=DATA2))
+
+        d.addCallback(lambda res: self.do_cli("put", "-", self.filecap, stdin=DATA2))
         def _replaced(res):
             (stdout, stderr) = res
             self.failUnlessEqual(stderr,
@@ -309,5 +443,20 @@ class Put(SystemTestMixin, unittest.TestCase):
         d.addCallback(_replaced)
         d.addCallback(lambda res: self.do_cli("get", self.filecap))
         d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA2))
+
+        d.addCallback(lambda res: self.do_cli("put", rel_fn, self.filecap))
+        def _replaced2(res):
+            (stdout, stderr) = res
+            self.failUnlessEqual(stderr, "200 OK\n")
+            self.failUnlessEqual(self.filecap, stdout)
+        d.addCallback(_replaced2)
+        d.addCallback(lambda res: self.do_cli("get", self.filecap))
+        d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA3))
+
         return d
-    test_put_mutable.todo = "put MUTABLE still fails, ticket #441"
+
+    def test_mutable(self):
+        # tahoe put --mutable file.txt uploaded.txt
+        # tahoe put - uploaded.txt  # should modify-in-place
+        pass # TODO
+

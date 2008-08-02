@@ -113,8 +113,9 @@ class PutOptions(VDriveOptions):
 
     def parseArgs(self, arg1=None, arg2=None):
         # cat FILE > tahoe put           # create unlinked file from stdin
-        # cat FILE > tahoe put FOO       # create tahoe:FOO from stdin
-        # cat FILE > tahoe put tahoe:FOO # same
+        # cat FILE > tahoe put -         # same
+        # tahoe put bar                  # create unlinked file from local 'bar'
+        # cat FILE > tahoe put - FOO     # create tahoe:FOO from stdin
         # tahoe put bar FOO              # copy local 'bar' to tahoe:FOO
         # tahoe put bar tahoe:FOO        # same
 
@@ -122,11 +123,11 @@ class PutOptions(VDriveOptions):
             self.from_file = arg1
             self.to_file = arg2
         elif arg1 is not None and arg2 is None:
-            self.from_file = None
-            self.to_file = arg1
+            self.from_file = arg1 # might be "-"
+            self.to_file = None
         else:
-            self.from_file = arg1
-            self.to_file = arg2
+            self.from_file = None
+            self.to_file = None
         if self.from_file == "-":
             self.from_file = None
 
@@ -134,19 +135,22 @@ class PutOptions(VDriveOptions):
         return "%s put LOCAL_FILE VDRIVE_FILE" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """Put a file into the virtual drive (copying the file's
-    contents from the local filesystem). If LOCAL_FILE is missing or '-',
-    data will be copied from stdin. VDRIVE_FILE is assumed to start with
-    tahoe: unless otherwise specified."""
+    contents from the local filesystem). If VDRIVE_FILE is missing, upload
+    the file but do not link it into a directory: prints the new filecap to
+    stdout. If LOCAL_FILE is missing or '-', data will be copied from stdin.
+    VDRIVE_FILE is assumed to start with tahoe: unless otherwise specified."""
 
     def getUsage(self, width=None):
         t = VDriveOptions.getUsage(self, width)
         t += """
 Examples:
- % cat FILE > tahoe put           # create unlinked file from stdin
- % cat FILE > tahoe put FOO       # create tahoe:FOO from stdin
- % cat FILE > tahoe put tahoe:FOO # same
- % tahoe put bar FOO              # copy local 'bar' to tahoe:FOO
- % tahoe put bar tahoe:FOO        # same
+ % cat FILE > tahoe put                # create unlinked file from stdin
+ % cat FILE > tahoe -                  # same
+ % tahoe put bar                       # create unlinked file from local 'bar'
+ % cat FILE > tahoe put - FOO          # create tahoe:FOO from stdin
+ % tahoe put bar FOO                   # copy local 'bar' to tahoe:FOO
+ % tahoe put bar tahoe:FOO             # same
+ % tahoe put bar MUTABLE-FILE-WRITECAP # modify the mutable file in-place
 """
         return t
 
