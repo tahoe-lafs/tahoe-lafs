@@ -183,10 +183,10 @@ class GridTester:
         self.put_mutable("recentlog", "Recent Mutable Log Header\n\n")
 
     def put(self, fn, data):
-        self.cli("put", "testgrid:"+fn, stdin=data, ignore_stderr=True)
+        self.cli("put", "-", "testgrid:"+fn, stdin=data, ignore_stderr=True)
 
     def put_mutable(self, fn, data):
-        self.cli("put", "--mutable", "testgrid:"+fn,
+        self.cli("put", "--mutable", "-", "testgrid:"+fn,
                  stdin=data, ignore_stderr=True)
 
     def update(self, fn):
