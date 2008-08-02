@@ -199,10 +199,14 @@ tahoe add-alias fun DIRCAP
 
   tahoe add-alias fun URI:DIR2:ovjy4yhylqlfoqg2vcze36dhde:4d4f47qko2xm5g7osgo2yyidi5m4muyo2vjjy53q4vjju2u55mfa
 
- This create an alias "fun:" and configures it to use the given directory
+ This creates an alias "fun:" and configures it to use the given directory
  cap. Once this is done, "tahoe ls fun:" will list the contents of this
  directory. Use "tahoe add-alias tahoe DIRCAP" to set the contents of the
  default "tahoe:" alias.
+
+tahoe create-alias fun
+
+ This combines 'tahoe mkdir' and 'tahoe add-alias' into a single step.
 
 tahoe list-aliases
 

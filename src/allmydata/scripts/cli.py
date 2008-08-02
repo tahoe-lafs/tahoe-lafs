@@ -56,6 +56,10 @@ class AddAliasOptions(VDriveOptions):
         self.alias = alias
         self.cap = cap
 
+class CreateAliasOptions(VDriveOptions):
+    def parseArgs(self, alias):
+        self.alias = alias
+
 class ListAliasOptions(VDriveOptions):
     pass
 
@@ -192,6 +196,7 @@ class ReplOptions(usage.Options):
 subCommands = [
     ["mkdir", None, MakeDirectoryOptions, "Create a new directory"],
     ["add-alias", None, AddAliasOptions, "Add a new alias cap"],
+    ["create-alias", None, CreateAliasOptions, "Create a new alias cap"],
     ["list-aliases", None, ListAliasOptions, "List all alias caps"],
     ["ls", None, ListOptions, "List a directory"],
     ["get", None, GetOptions, "Retrieve a file from the virtual drive."],
@@ -212,6 +217,11 @@ def mkdir(options):
 def add_alias(options):
     from allmydata.scripts import tahoe_add_alias
     rc = tahoe_add_alias.add_alias(options)
+    return rc
+
+def create_alias(options):
+    from allmydata.scripts import tahoe_add_alias
+    rc = tahoe_add_alias.create_alias(options)
     return rc
 
 def list_aliases(options):
@@ -282,6 +292,7 @@ def repl(options):
 dispatch = {
     "mkdir": mkdir,
     "add-alias": add_alias,
+    "create-alias": create_alias,
     "list-aliases": list_aliases,
     "ls": list,
     "get": get,

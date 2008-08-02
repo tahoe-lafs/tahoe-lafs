@@ -1,4 +1,5 @@
 
+import os.path
 from twisted.trial import unittest
 from cStringIO import StringIO
 import urllib
@@ -9,7 +10,7 @@ from allmydata import uri
 # at least import the CLI scripts, even if we don't have any real tests for
 # them yet.
 from allmydata.scripts import tahoe_ls, tahoe_get, tahoe_put, tahoe_rm
-from allmydata.scripts.common import DEFAULT_ALIAS
+from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases
 _hush_pyflakes = [tahoe_ls, tahoe_get, tahoe_put, tahoe_rm]
 
 from allmydata.scripts import cli, debug, runner
@@ -216,6 +217,35 @@ class CLI(unittest.TestCase):
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
+class CreateAlias(SystemTestMixin, unittest.TestCase):
+
+    def do_cli(self, verb, *args, **kwargs):
+        nodeargs = [
+            "--node-directory", self.getdir("client0"),
+            ]
+        argv = [verb] + nodeargs + list(args)
+        stdin = kwargs.get("stdin", "")
+        stdout, stderr = StringIO(), StringIO()
+        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
+                                  stdin=StringIO(stdin),
+                                  stdout=stdout, stderr=stderr)
+        def _done(res):
+            return stdout.getvalue(), stderr.getvalue()
+        d.addCallback(_done)
+        return d
+
+    def test_create(self):
+        self.basedir = os.path.dirname(self.mktemp())
+        d = self.set_up_nodes()
+        d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
+        def _done((stdout,stderr)):
+            self.failUnless("Alias 'tahoe' created" in stdout)
+            self.failIf(stderr)
+            aliases = get_aliases(self.getdir("client0"))
+            self.failUnless("tahoe" in aliases)
+            self.failUnless(aliases["tahoe"].startswith("URI:DIR2:"))
+        d.addCallback(_done)
+        return d
 
 class Put(SystemTestMixin, unittest.TestCase):
 

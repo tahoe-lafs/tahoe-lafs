@@ -1,6 +1,7 @@
 
 import os.path
 from allmydata import uri
+from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_aliases
 
 def add_alias(options):
@@ -18,6 +19,33 @@ def add_alias(options):
     f.write("%s: %s\n" % (alias, cap))
     f.close()
     print >>stdout, "Alias '%s' added" % (alias,)
+    return 0
+
+def create_alias(options):
+    # mkdir+add_alias
+    nodedir = options['node-directory']
+    alias = options.alias
+    stdout = options.stdout
+    stderr = options.stderr
+    aliasfile = os.path.join(nodedir, "private", "aliases")
+    assert ":" not in alias
+    assert " " not in alias
+
+    nodeurl = options['node-url']
+    if not nodeurl.endswith("/"):
+        nodeurl += "/"
+    url = nodeurl + "uri?t=mkdir"
+    resp = do_http("POST", url)
+    rc = check_http_error(resp, stderr)
+    if rc:
+        return rc
+    new_uri = resp.read().strip()
+
+    # probably check for others..
+    f = open(aliasfile, "a")
+    f.write("%s: %s\n" % (alias, new_uri))
+    f.close()
+    print >>stdout, "Alias '%s' created" % (alias,)
     return 0
 
 def list_aliases(options):
