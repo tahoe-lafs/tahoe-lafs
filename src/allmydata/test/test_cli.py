@@ -442,7 +442,32 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         return d
 
     def test_mutable(self):
-        # tahoe put --mutable file.txt uploaded.txt
-        # tahoe put - uploaded.txt  # should modify-in-place
-        pass # TODO
+        # echo DATA1 | tahoe put --mutable - uploaded.txt
+        # echo DATA2 | tahoe put - uploaded.txt # should modify-in-place
+        # tahoe get uploaded.txt, compare against DATA2
+
+        self.basedir = os.path.dirname(self.mktemp())
+        DATA1 = "data" * 100
+        fn1 = os.path.join(self.basedir, "DATA1")
+        f = open(fn1, "w")
+        f.write(DATA1)
+        f.close()
+        DATA2 = "two" * 100
+        fn2 = os.path.join(self.basedir, "DATA2")
+        f = open(fn2, "w")
+        f.write(DATA2)
+        f.close()
+
+        d = self.set_up_nodes()
+        d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
+        d.addCallback(lambda res:
+                      self.do_cli("put", "--mutable", fn1, "tahoe:uploaded.txt"))
+        d.addCallback(lambda res:
+                      self.do_cli("put", fn2, "tahoe:uploaded.txt"))
+        d.addCallback(lambda res:
+                      self.do_cli("get", "tahoe:uploaded.txt"))
+        d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA2))
+        return d
+
+
 
