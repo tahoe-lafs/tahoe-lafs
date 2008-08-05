@@ -12,7 +12,7 @@ from formless import webform
 import allmydata # to display import path
 from allmydata import get_package_versions_string
 from allmydata import provisioning
-from allmydata.util import idlib
+from allmydata.util import idlib, log
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status
 from allmydata.web.common import abbreviate_size, IClient, getxmlfile, \
@@ -104,6 +104,15 @@ class FileHandler(rend.Page):
         raise WebError("/file must be followed by a file-cap and a name",
                        http.NOT_FOUND)
 
+class IncidentReporter(RenderMixin, rend.Page):
+    def render_POST(self, ctx):
+        req = IRequest(ctx)
+        log.msg(format="User reports incident through web page: %(details)s",
+                details=get_arg(req, "details", ""),
+                level=log.WEIRD)
+        req.setHeader("content-type", "text/plain")
+        return "Thank you for your report!"
+
 class Root(rend.Page):
 
     addSlash = True
@@ -121,6 +130,8 @@ class Root(rend.Page):
     child_status = status.Status()
     child_helper_status = status.HelperStatus()
     child_statistics = status.Statistics()
+
+    child_report_incident = IncidentReporter()
 
     def data_version(self, ctx, data):
         return get_package_versions_string()
@@ -279,3 +290,15 @@ class Root(rend.Page):
             ]]
         return T.div[form]
 
+    def render_incident_button(self, ctx, data):
+        # this button triggers a foolscap-logging "incident"
+        form = T.form(action="report_incident", method="post",
+                      enctype="multipart/form-data")[
+            T.fieldset[
+            T.legend(class_="freeform-form-label")["Report an Incident"],
+            T.input(type="hidden", name="t", value="report-incident"),
+            "What went wrong?: ",
+            T.input(type="text", name="details"), " ",
+            T.input(type="submit", value="Report!"),
+            ]]
+        return T.div[form]
