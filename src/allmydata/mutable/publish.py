@@ -11,7 +11,7 @@ from allmydata import hashtree, codec, storage
 from pycryptopp.cipher.aes import AES
 from foolscap.eventual import eventually
 
-from common import MODE_WRITE, DictOfSets, \
+from common import MODE_WRITE, MODE_CHECK, DictOfSets, \
      UncoordinatedWriteError, NotEnoughServersError
 from servermap import ServerMap
 from layout import pack_prefix, pack_share, unpack_header, pack_checkstring, \
@@ -153,7 +153,7 @@ class Publish:
         # servermap was updated in MODE_WRITE, so we can depend upon the
         # peerlist computed by that process instead of computing our own.
         if self._servermap:
-            assert self._servermap.last_update_mode == MODE_WRITE
+            assert self._servermap.last_update_mode in (MODE_WRITE, MODE_CHECK)
             # we will push a version that is one larger than anything present
             # in the grid, according to the servermap.
             self._new_seqnum = self._servermap.highest_seqnum() + 1

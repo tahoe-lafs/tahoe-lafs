@@ -12,7 +12,7 @@ from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash
 from allmydata.util.fileutil import make_dirs
 from allmydata.interfaces import IURI, IMutableFileURI, IUploadable, \
-     FileTooLargeError
+     FileTooLargeError, IRepairResults
 from foolscap.eventual import eventually, fireEventually
 from foolscap.logging import log
 import sha
@@ -1242,6 +1242,66 @@ class Checker(unittest.TestCase, CheckerMixin):
         d = readonly_fn.check(verify=True)
         d.addCallback(self.check_good,
                       "test_verify_one_bad_encprivkey_uncheckable")
+        return d
+
+class Repair(unittest.TestCase, CheckerMixin):
+    def setUp(self):
+        # publish a file and create shares, which can then be manipulated
+        # later.
+        self.CONTENTS = "New contents go here" * 1000
+        num_peers = 20
+        self._client = FakeClient(num_peers)
+        self._storage = self._client._storage
+        d = self._client.create_mutable_file(self.CONTENTS)
+        def _created(node):
+            self._fn = node
+        d.addCallback(_created)
+        return d
+
+    def get_shares(self, s):
+        all_shares = {} # maps (peerid, shnum) to share data
+        for peerid in s._peers:
+            shares = s._peers[peerid]
+            for shnum in shares:
+                data = shares[shnum]
+                all_shares[ (peerid, shnum) ] = data
+        return all_shares
+
+    def test_repair_nop(self):
+        initial_shares = self.get_shares(self._storage)
+
+        d = self._fn.check()
+        d.addCallback(self._fn.repair)
+        def _check_results(rres):
+            self.failUnless(IRepairResults.providedBy(rres))
+            # TODO: examine results
+
+            new_shares = self.get_shares(self._storage)
+            # all shares should be in the same place as before
+            self.failUnlessEqual(set(initial_shares.keys()),
+                                 set(new_shares.keys()))
+            # but they should all be at a newer seqnum. The IV will be
+            # different, so the roothash will be too.
+            for key in initial_shares:
+                (version0,
+                 seqnum0,
+                 root_hash0,
+                 IV0,
+                 k0, N0, segsize0, datalen0,
+                 o0) = unpack_header(initial_shares[key])
+                (version1,
+                 seqnum1,
+                 root_hash1,
+                 IV1,
+                 k1, N1, segsize1, datalen1,
+                 o1) = unpack_header(new_shares[key])
+                self.failUnlessEqual(version0, version1)
+                self.failUnlessEqual(seqnum0+1, seqnum1)
+                self.failUnlessEqual(k0, k1)
+                self.failUnlessEqual(N0, N1)
+                self.failUnlessEqual(segsize0, segsize1)
+                self.failUnlessEqual(datalen0, datalen1)
+        d.addCallback(_check_results)
         return d
 
 
