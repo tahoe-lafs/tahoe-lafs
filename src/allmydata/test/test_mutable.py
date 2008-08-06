@@ -1308,6 +1308,10 @@ class Repair(unittest.TestCase, PublishMixin):
             # TODO: examine results
 
             new_shares = self.get_shares(self._storage)
+            # TODO: this really shouldn't change anything. When we implement
+            # a "minimal-bandwidth" repairer", change this test to assert:
+            #self.failUnlessEqual(new_shares, initial_shares)
+
             # all shares should be in the same place as before
             self.failUnlessEqual(set(self.initial_shares.keys()),
                                  set(new_shares.keys()))
