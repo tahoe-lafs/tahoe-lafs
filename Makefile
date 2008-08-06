@@ -55,10 +55,12 @@ else
         PP=PYTHONPATH="$(SUPPORTLIB)"
 endif
 
-# Escape any quote chars in PATH.  Note that if they are already escaped then
-# the following subst will screw it up and weird parsing errors will
-# eventually result.
-PATH := $(subst ",\",${PATH})
+# Delete any quote chars in PATH.  Note that if the chars were escaped
+# (preceded by a back-slash) then the following subst will screw it up and
+# weird parsing errors will eventually result.
+
+PATH := $(subst ",,${PATH})
+PATH := $(subst ',,$(PATH))
 
 TRIALCMD = $(shell PATH="$(PATH):${PWD}/support/bin" $(PP) $(PYTHON) misc/find_trial.py)
 ifeq ($(TRIALCMD),)
