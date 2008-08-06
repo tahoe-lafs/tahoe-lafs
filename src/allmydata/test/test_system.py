@@ -19,7 +19,7 @@ from twisted.python.failure import Failure
 from twisted.web.client import getPage
 from twisted.web.error import Error
 
-from allmydata.test.common import SystemTestMixin
+from allmydata.test.common import SystemTestMixin, ShareManglingMixin
 
 LARGE_DATA = """
 This is some data to publish to the virtual drive, which needs to be large
@@ -1693,7 +1693,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         return d
 
 
-class Checker(SystemTestMixin, unittest.TestCase):
+class Checker(ShareManglingMixin, unittest.TestCase):
     def setUp(self):
         # Set self.basedir to a temp dir which has the name of the current test method in its
         # name.
@@ -1714,46 +1714,11 @@ class Checker(SystemTestMixin, unittest.TestCase):
         d.addCallback(_stash_it)
         return d
 
-    def _find_shares(self, unused=None):
-        shares = {} # k: (i, sharenum), v: data
-
-        for i, c in enumerate(self.clients):
-            sharedir = c.getServiceNamed("storage").sharedir
-            for (dirp, dirns, fns) in os.walk(sharedir):
-                for fn in fns:
-                    try:
-                        sharenum = int(fn)
-                    except TypeError:
-                        # Whoops, I guess that's not a share file then.
-                        pass
-                    else:
-                        data = open(os.path.join(sharedir, dirp, fn), "r").read()
-                        shares[(i, sharenum)] = data
-
-        return shares
-
-    def _replace_shares(self, newshares):
-        for i, c in enumerate(self.clients):
-            sharedir = c.getServiceNamed("storage").sharedir
-            for (dirp, dirns, fns) in os.walk(sharedir):
-                for fn in fns:
-                    try:
-                        sharenum = int(fn)
-                    except TypeError:
-                        # Whoops, I guess that's not a share file then.
-                        pass
-                    else:
-                        pathtosharefile = os.path.join(sharedir, dirp, fn)
-                        os.unlink(pathtosharefile)
-                        newdata = newshares.get((i, sharenum))
-                        if newdata is not None:
-                            open(pathtosharefile, "w").write(newdata)
-
     def _corrupt_a_share(self, unused=None):
         """ Exactly one bit of exactly one share on disk will be flipped (randomly selected from
         among the bits of the 'share data' -- the verifiable bits)."""
 
-        shares = self._find_shares()
+        shares = self.find_shares()
         ks = shares.keys()
         k = random.choice(ks)
         data = shares[k]
@@ -1765,32 +1730,32 @@ class Checker(SystemTestMixin, unittest.TestCase):
         corrupteddata = data[:0xc]+corruptedsharedata+data[0xc+size:]
         shares[k] = corrupteddata
 
-        self._replace_shares(shares)
+        self.replace_shares(shares)
 
     def test_test_code(self):
         # The following process of stashing the shares, running
-        # _replace_shares, and asserting that the new set of shares equals the
+        # replace_shares, and asserting that the new set of shares equals the
         # old is more to test this test code than to test the Tahoe code...
         d = defer.succeed(None)
-        d.addCallback(self._find_shares)
+        d.addCallback(self.find_shares)
         stash = [None]
         def _stash_it(res):
             stash[0] = res
             return res
 
         d.addCallback(_stash_it)
-        d.addCallback(self._replace_shares)
+        d.addCallback(self.replace_shares)
 
         def _compare(res):
             oldshares = stash[0]
             self.failUnless(isinstance(oldshares, dict), oldshares)
             self.failUnlessEqual(oldshares, res)
 
-        d.addCallback(self._find_shares)
+        d.addCallback(self.find_shares)
         d.addCallback(_compare)
 
-        d.addCallback(lambda ignore: self._replace_shares({}))
-        d.addCallback(self._find_shares)
+        d.addCallback(lambda ignore: self.replace_shares({}))
+        d.addCallback(self.find_shares)
         d.addCallback(lambda x: self.failUnlessEqual(x, {}))
 
         return d
@@ -1835,7 +1800,7 @@ class Checker(SystemTestMixin, unittest.TestCase):
         d.addCallback(_check2)
         return d
 
-        d.addCallback(lambda ignore: self._replace_shares({}))
+        d.addCallback(lambda ignore: self.replace_shares({}))
         def _check3(ignored):
             before_check_reads = self._count_reads()
             d2 = self.filenode.check(verify=False, repair=False)

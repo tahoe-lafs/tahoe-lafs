@@ -745,3 +745,48 @@ N8L+bvLd4BU9g6hRS8b59lQ6GNjryx2bUnCVtLcey4Jd
 
 # To disable the pre-computed tub certs, uncomment this line.
 #SYSTEM_TEST_CERTS = []
+
+class ShareManglingMixin(SystemTestMixin):
+
+    def find_shares(self, unused=None):
+        """Locate shares on disk. Returns a dict that maps
+        (clientnum,sharenum) to a string that contains the share container
+        (copied directly from the disk, containing leases etc). You can
+        modify this dict and then call replace_shares() to modify the shares.
+        """
+        shares = {} # k: (i, sharenum), v: data
+
+        for i, c in enumerate(self.clients):
+            sharedir = c.getServiceNamed("storage").sharedir
+            for (dirp, dirns, fns) in os.walk(sharedir):
+                for fn in fns:
+                    try:
+                        sharenum = int(fn)
+                    except TypeError:
+                        # Whoops, I guess that's not a share file then.
+                        pass
+                    else:
+                        data = open(os.path.join(sharedir, dirp, fn), "r").read()
+                        shares[(i, sharenum)] = data
+
+        return shares
+
+    def replace_shares(self, newshares):
+        """Replace shares on disk. Takes a dictionary in the same form
+        as find_shares() returns."""
+
+        for i, c in enumerate(self.clients):
+            sharedir = c.getServiceNamed("storage").sharedir
+            for (dirp, dirns, fns) in os.walk(sharedir):
+                for fn in fns:
+                    try:
+                        sharenum = int(fn)
+                    except TypeError:
+                        # Whoops, I guess that's not a share file then.
+                        pass
+                    else:
+                        pathtosharefile = os.path.join(sharedir, dirp, fn)
+                        os.unlink(pathtosharefile)
+                        newdata = newshares.get((i, sharenum))
+                        if newdata is not None:
+                            open(pathtosharefile, "w").write(newdata)
