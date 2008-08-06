@@ -365,6 +365,9 @@ client.create_mutable_file(), and later recreated from URIs with
 client.create_node_from_uri(). Instances of this class will contain a URI and
 a reference to the client (for peer selection and connection).
 
+NOTE: this section is out of date. Please see src/allmydata/interfaces.py
+(the section on IMutableFilesystemNode) for more accurate information.
+
 The methods of MutableFileNode are:
 
  * download_to_data() -> [deferred] newdata, NotEnoughSharesError
