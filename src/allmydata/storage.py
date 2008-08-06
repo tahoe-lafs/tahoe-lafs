@@ -865,6 +865,23 @@ class StorageServer(service.MultiService, Referenceable):
         for category,ld in self.get_latencies().items():
             for name,v in ld.items():
                 stats['storage_server.latencies.%s.%s' % (category, name)] = v
+        try:
+            s = os.statvfs(self.storedir)
+            disk_total = s.f_bsize * s.f_blocks
+            disk_used = s.f_bsize * (s.f_blocks - s.f_bfree)
+            # spacetime predictors should look at the slope of disk_used.
+            disk_avail = s.f_bsize * s.f_bavail # available to non-root users
+            # TODO: include our local policy here: if we stop accepting
+            # shares when the available space drops below 1GB, then include
+            # that fact in disk_avail.
+            #
+            # spacetime predictors should use disk_avail / (d(disk_used)/dt)
+            stats["storage_server.disk_total"] = disk_total
+            stats["storage_server.disk_used"] = disk_used
+            stats["storage_server.disk_avail"] = disk_avail
+        except AttributeError:
+            # os.statvfs is only available on unix
+            pass
         return stats
 
     def allocated_size(self):
