@@ -57,14 +57,19 @@ def read_pids_txt():
             name = parts[1]
         else:
             name = pidthing
+        pid = None
         try:
             pid = int(pidthing)
         except ValueError:
             pidfile = os.path.expanduser(pidthing)
             if os.path.isdir(pidfile):
                 pidfile = os.path.join(pidfile, "twistd.pid")
-            pid = int(open(pidfile, "r").read().strip())
-        processes.append( (pid, name) )
+            try:
+                pid = int(open(pidfile, "r").read().strip())
+            except EnvironmentError:
+                pass
+        if pid is not None:
+            processes.append( (pid, name) )
     return processes
 
 Averages = ListOf( TupleOf(str, float, float, float) )
