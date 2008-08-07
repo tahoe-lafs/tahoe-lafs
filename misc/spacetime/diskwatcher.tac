@@ -160,10 +160,9 @@ class DiskWatcher(service.MultiService, resource.Resource):
             growth = self.growth(timespan)
             print name, total_avail_space, growth
             if growth is not None:
-                try:
+                timeleft = None
+                if growth > 0:
                     timeleft = total_avail_space / growth
-                except ZeroDivisionError:
-                    timeleft = None
                 timespans.append( (name, timespan, growth, timeleft) )
         return timespans
 
