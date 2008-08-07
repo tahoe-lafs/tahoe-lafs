@@ -24,7 +24,8 @@ results). Each line should be in the form:
 import os.path, pprint, time, urllib
 from datetime import timedelta
 from twisted.application import internet, service, strports
-from twisted.web import server, resource, http
+from twisted.web import server, resource, http, client
+from twisted.internet import defer
 from twisted.python import log
 import simplejson
 from axiom.attributes import AND
@@ -100,25 +101,50 @@ class DiskWatcher(service.MultiService, resource.Resource):
 
     def poll(self):
         log.msg("polling..")
+        return self.poll_synchronous()
+        #return self.poll_asynchronous()
+
+    def poll_asynchronous(self):
+        # this didn't actually seem to work any better than poll_synchronous:
+        # logs are more noisy, and I got frequent DNS failures. But with a
+        # lot of servers to query, this is probably the better way to go.
+        dl = []
+        for url in self.get_urls():
+            when = extime.Time()
+            d = client.getPage(url)
+            d.addCallback(self.got_response, when, url)
+            dl.append(d)
+        d = defer.DeferredList(dl)
+        def _done(res):
+            fetched = len([1 for (success, value) in res if success])
+            log.msg("fetched %d of %d" % (fetched, len(dl)))
+        d.addCallback(_done)
+        return d
+
+    def poll_synchronous(self):
         attempts = 0
         fetched = 0
         for url in self.get_urls():
             attempts += 1
             try:
                 when = extime.Time()
-                data = simplejson.load(urllib.urlopen(url))
-                total = data[u"stats"][u"storage_server.disk_total"]
-                used = data[u"stats"][u"storage_server.disk_used"]
-                avail = data[u"stats"][u"storage_server.disk_avail"]
-                #print "%s : total=%s, used=%s, avail=%s" % (url,
-                #                                            total, used, avail)
-                s = Sample(store=self.store,
-                           url=unicode(url), when=when, used=used, avail=avail)
+                data_json = urllib.urlopen(url).read()
+                self.got_response(data_json, when, url)
                 fetched += 1
             except:
                 log.msg("error while fetching: %s" % url)
                 log.err()
         log.msg("fetched %d of %d" % (fetched, attempts))
+
+    def got_response(self, data_json, when, url):
+        data = simplejson.loads(data_json)
+        total = data[u"stats"][u"storage_server.disk_total"]
+        used = data[u"stats"][u"storage_server.disk_used"]
+        avail = data[u"stats"][u"storage_server.disk_avail"]
+        print "%s : total=%s, used=%s, avail=%s" % (url,
+                                                    total, used, avail)
+        Sample(store=self.store,
+               url=unicode(url), when=when, used=used, avail=avail)
 
     def calculate(self):
         timespans = []
