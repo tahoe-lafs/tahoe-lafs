@@ -67,10 +67,7 @@ TRIALCMD = $(shell PATH="$(PATH):${PWD}/support/bin" $(PP) $(PYTHON) misc/find_t
 ifeq ($(TRIALCMD),)
 $(error Could not find trial.  It comes with twisted.)
 endif
-TRIAL=PATH="$(PATH):${PWD}/support/bin" PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
-
-TRIALCMD = $(shell PATH="${PATH}:${PWD}/support/bin" $(PP) $(PYTHON) misc/find_trial.py)
-TRIAL=PATH="${PATH}:${PWD}/support/bin" PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT) $(TRIALOPT)
+TRIAL=PATH="$(PATH):${PWD}/support/bin" PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT) $(TRIALOPT)
 
 .PHONY: make-version build
 
