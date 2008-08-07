@@ -197,6 +197,7 @@ class CPUWatcher(service.MultiService, resource.Resource, Referenceable):
                 while len(self.history[pid]) > max_history+1:
                     self.history[pid].pop(0)
             except:
+                log.msg("error reading process %s (%s), ignoring" % (pid, name))
                 log.err()
         pickle.dump(self.history, open("history.pickle", "wb"))
         for (pid, name) in processes:
