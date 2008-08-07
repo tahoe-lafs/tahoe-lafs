@@ -52,10 +52,14 @@ expansion = float(N) / k
 
 ideal = expansion * deepsize["all"]
 overhead = (total - ideal) / ideal
-print "overhead.value %f" % (100.0 * overhead)
+if overhead > 0:
+    # until all the storage-servers come online, this number will be nonsense
+    print "overhead.value %f" % (100.0 * overhead)
 
-effective_expansion = total / deepsize["all"]
-print "effective_expansion.value %f" % effective_expansion
+    # same for this one
+    effective_expansion = total / deepsize["all"]
+    print "effective_expansion.value %f" % effective_expansion
 
+# this value remains valid, though
 inactive_savings = (deepsize["all"] - deepsize["active"]) / deepsize["active"]
 print "inactive.value %f" % (100.0 * inactive_savings)
