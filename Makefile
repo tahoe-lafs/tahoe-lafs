@@ -61,10 +61,11 @@ endif
 
 PATH := $(subst ",,${PATH})
 PATH := $(subst ',,$(PATH))
+# ' "  # emacs syntax-highlighter gets confused by the bare quotes above
 
 TRIALCMD = $(shell PATH="$(PATH):${PWD}/support/bin" $(PP) $(PYTHON) misc/find_trial.py)
 ifeq ($(TRIALCMD),)
-$(error Couldn't find trial.  It comes with twisted.)
+$(error Could not find trial.  It comes with twisted.)
 endif
 TRIAL=PATH="$(PATH):${PWD}/support/bin" PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT)
 
