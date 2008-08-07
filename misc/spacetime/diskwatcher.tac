@@ -21,7 +21,7 @@ results). Each line should be in the form:
 #  built-in graphs on web interface
 
 
-import os.path, pprint, time, urllib
+import os.path, urllib
 from datetime import timedelta
 from twisted.application import internet, service, strports
 from twisted.web import server, resource, http, client
