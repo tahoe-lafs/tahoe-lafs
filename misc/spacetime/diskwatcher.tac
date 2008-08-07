@@ -60,10 +60,10 @@ MONTH = 30*DAY
 YEAR = 365*DAY
 
 class DiskWatcher(service.MultiService, resource.Resource):
-    POLL_INTERVAL = 60#1*HOUR
-    AVERAGES = {"60s": 60,
-                "5m": 5*60,
-                "30m": 30*60,
+    POLL_INTERVAL = 1*HOUR
+    AVERAGES = {#"60s": 60,
+                #"5m": 5*60,
+                #"30m": 30*60,
                 "1hr": 1*HOUR,
                 "1day": 1*DAY,
                 "2wk": 2*WEEK,
