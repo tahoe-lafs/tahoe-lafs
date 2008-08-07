@@ -2,11 +2,15 @@
 
 """
 Run this tool with twistd in its own directory, with a file named 'urls.txt'
-describing which nodes to query. It will request disk-usage numbers from the
-nodes once per hour (or slower), and store them in a local database. It will
-compute usage-per-unit time values over several time ranges and make them
-available through an HTTP query (using ./webport). It will also provide an
-estimate of how much time is left before the grid's storage is exhausted.
+describing which nodes to query. Make sure to copy diskwatcher.py into the
+same directory. It will request disk-usage numbers from the nodes once per
+hour (or slower), and store them in a local database. It will compute
+usage-per-unit time values over several time ranges and make them available
+through an HTTP query (using ./webport). It will also provide an estimate of
+how much time is left before the grid's storage is exhausted.
+
+There are munin plugins (named tahoe_doomsday and tahoe_diskusage) to graph
+the values this tool computes.
 
 Each line of urls.txt points to a single node. Each node should have its own
 dedicated disk: if multiple nodes share a disk, only list one of them in

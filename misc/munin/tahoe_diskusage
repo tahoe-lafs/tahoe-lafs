@@ -1,0 +1,39 @@
+#! /usr/bin/python
+
+# This is a munin plugin which pulls data from the server in
+# misc/spacetime/diskwatcher.tac . It produces a graph of how much disk space
+# is being used per unit time. The plugin should be configured with env_url=
+# pointing at the diskwatcher.tac webport.
+
+import os, sys, urllib, simplejson
+
+if len(sys.argv) > 1 and sys.argv[1] == "config":
+    print """\
+graph_title Tahoe Disk Usage Measurement
+graph_vlabel bytes per second
+graph_category tahoe
+graph_info This graph shows the estimated disk usage per unit time, totalled across all storage servers
+rate_1hr.label (one hour sample)
+rate_1hr.draw LINE1
+rate_1day.label (one day sample)
+rate_1day.draw LINE1
+rate_2wk.label (two week sample)
+rate_2wk.draw LINE2
+rate_4wk.label (four week sample)
+rate_4wk.draw LINE2"""
+    sys.exit(0)
+
+url = os.environ["url"]
+timespans = simplejson.load(urllib.urlopen(url))
+
+data = dict([(name, growth)
+             for (name, timespan, growth, timeleft) in timespans])
+# growth is in bytes per second
+if "1hr" in data:
+    print "rate_1hr.value", data["1hr"]
+if "1day" in data:
+    print "rate_1hr.value", data["1day"]
+if "2wk" in data:
+    print "rate_1hr.value", data["2wk"]
+if "4wk" in data:
+    print "rate_1hr.value", data["4wk"]

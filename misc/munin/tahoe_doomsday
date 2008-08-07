@@ -1,0 +1,40 @@
+#! /usr/bin/python
+
+# This is a munin plugin which pulls data from the server in
+# misc/spacetime/diskwatcher.tac . It produces a graph of how much time is
+# left before the grid fills up. The plugin should be configured with
+# env_url= pointing at the diskwatcher.tac webport.
+
+import os, sys, urllib, simplejson
+
+if len(sys.argv) > 1 and sys.argv[1] == "config":
+    print """\
+graph_title Tahoe Remaining Space Predictor
+graph_vlabel days remaining
+graph_category tahoe
+graph_info This graph shows the estimated number of days left until storage space is exhausted
+days_1hr.label days left (one hour sample)
+days_1hr.draw LINE1
+days_1day.label days left (one day sample)
+days_1day.draw LINE1
+days_2wk.label days left (two week sample)
+days_2wk.draw LINE2
+days_4wk.label days left (four week sample)
+days_4wk.draw LINE2"""
+    sys.exit(0)
+
+url = os.environ["url"]
+timespans = simplejson.load(urllib.urlopen(url))
+
+data = dict([(name, timeleft)
+             for (name, timespan, growth, timeleft) in timespans])
+# timeleft is in seconds
+DAY = 24*60*60
+if "1hr" in data:
+    print "days_1hr.value", data["1hr"]/DAY
+if "1day" in data:
+    print "days_1hr.value", data["1day"]/DAY
+if "2wk" in data:
+    print "days_1hr.value", data["2wk"]/DAY
+if "4wk" in data:
+    print "days_1hr.value", data["4wk"]/DAY

@@ -15,7 +15,8 @@ DEBNAME := $(firstword $(DEB_PACKAGES))
 STAGING_DIR := $(CURDIR)/debian/$(DEBNAME)
 
 DEB_INSTALL_DOCS_ALL := COPYING.GPL COPYING.TGPPL.html CREDITS \
- NEWS README relnotes.txt docs
+ NEWS README relnotes.txt docs misc/spacetime
+DEB_COMPRESS_EXCLUDE := .tac
 
 
 # we overwrite the setuptools-generated /usr/bin/tahoe (located in
