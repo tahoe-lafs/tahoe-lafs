@@ -24,7 +24,7 @@ rate_4wk.draw LINE2"""
     sys.exit(0)
 
 url = os.environ["url"]
-timespans = simplejson.load(urllib.urlopen(url))
+timespans = simplejson.load(urllib.urlopen(url))["rates"]
 
 data = dict([(name, growth)
              for (name, timespan, growth, timeleft) in timespans])

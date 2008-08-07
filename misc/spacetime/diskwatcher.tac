@@ -150,7 +150,7 @@ class DiskWatcher(service.MultiService, resource.Resource):
         Sample(store=self.store,
                url=unicode(url), when=when, used=used, avail=avail)
 
-    def calculate(self):
+    def calculate_growth_timeleft(self):
         timespans = []
         total_avail_space = self.find_total_avail_space()
         pairs = [ (timespan,name)
@@ -182,6 +182,23 @@ class DiskWatcher(service.MultiService, resource.Resource):
             if latest:
                 total_avail_space += latest[0].avail
         return total_avail_space
+
+    def find_total_used_space(self):
+        # this returns the sum of disk-used stats for all servers that 1) are
+        # listed in urls.txt and 2) have responded recently.
+        now = extime.Time()
+        recent = now - timedelta(seconds=2*self.POLL_INTERVAL)
+        total_used_space = 0
+        for url in self.get_urls():
+            url = unicode(url)
+            latest = list(self.store.query(Sample,
+                                           AND(Sample.url == url,
+                                               Sample.when > recent),
+                                           sort=Sample.when.descending,
+                                           limit=1))
+            if latest:
+                total_used_space += latest[0].used
+        return total_used_space
 
 
     def growth(self, timespan):
@@ -268,12 +285,15 @@ class DiskWatcher(service.MultiService, resource.Resource):
         data = ""
         if t == "html":
             data = ""
-            for (name, timespan, growth, timeleft) in self.calculate():
+            for (name, timespan, growth, timeleft) in self.calculate_growth_timeleft():
                 data += "%f bytes per second, %s remaining (over %s)\n" % \
                         (growth, self.abbreviate_time(timeleft), name)
+            used = self.find_total_used_space()
+            data += "total used: %d bytes\n" % used
         elif t == "json":
-            current = self.calculate()
-            #data = str(current) + "\n" # isn't that convenient? almost.
+            current = {"rates": self.calculate_growth_timeleft(),
+                       "used": self.find_total_used_space(),
+                       }
             data = simplejson.dumps(current, indent=True)
         else:
             req.setResponseCode(http.BAD_REQUEST)
