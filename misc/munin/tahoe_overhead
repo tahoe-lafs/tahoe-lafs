@@ -1,0 +1,61 @@
+#! /usr/bin/python
+
+# This is a munin plugin which pulls total-used data from the server in
+# misc/spacetime/diskwatcher.tac, and a total-deep-size number from custom
+# PHP database-querying scripts on a different server. It produces a graph of
+# how much garbage/overhead is present in the grid: the ratio of total-used
+# over (total-deep-size*N/k), expressed as a percentage. No overhead would be
+# 0, using twice as much space as we'd prefer would be 100. This is the
+# percentage which could be saved if we made GC work perfectly and reduced
+# other forms of overhead to zero. This script assumes 3-of-10.
+
+# A second graph is produced with how much of the total-deep-size number
+# would be saved if we removed data from inactive accounts. This is also on a
+# percentage scale.
+
+# A separate number (without a graph) is produced with the "effective
+# expansion factor". If there were no overhead, with 3-of-10, this would be
+# 3.33 .
+
+# Overhead is caused by the following problems (in order of size):
+#  uncollected garbage: files that are no longer referenced but not yet deleted
+#  inactive accounts: files that are referenced by cancelled accounts
+#  share storage overhead: bucket directories
+#  filesystem overhead: 4kB minimum block sizes
+#  share overhead: hashes, pubkeys, lease information
+
+# This plugin should be configured with env_diskwatcher_url= pointing at the
+# diskwatcher.tac webport, and env_deepsize_url= pointing at the PHP script.
+
+import os, sys, urllib, simplejson
+
+if len(sys.argv) > 1 and sys.argv[1] == "config":
+    print """\
+graph_title Tahoe Overhead Calculator
+graph_vlabel Percentage
+graph_category tahoe
+graph_info This graph shows the estimated amount of storage overhead (ratio of actual disk usage to ideal disk usage). The 'overhead' number is how much space we could save if we implemented GC, and the 'inactive' number is how much additional space we could save if we could delete data for cancelled accounts.
+overhead.label disk usage overhead
+overhead.draw LINE2
+inactive.label inactive account usage
+inactive.draw LINE1
+effective_expansion.label Effective Expansion Factor
+effective_expansion.graph no"""
+    sys.exit(0)
+
+diskwatcher_url = os.environ["diskwatcher_url"]
+total = simplejson.load(urllib.urlopen(diskwatcher_url))["used"]
+deepsize_url = os.environ["deepsize_url"]
+deepsize = simplejson.load(urllib.urlopen(deepsize_url))
+k = 3; N = 10
+expansion = float(N) / k
+
+ideal = expansion * deepsize["all"]
+overhead = (total - ideal) / ideal
+print "overhead.value %f" % (100.0 * overhead)
+
+effective_expansion = total / deepsize["all"]
+print "effective_expansion.value %f" % effective_expansion
+
+inactive_savings = (deepsize["all"] - deepsize["active"]) / deepsize["active"]
+print "inactive.value %f" % (100.0 * inactive_savings)
