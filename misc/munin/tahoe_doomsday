@@ -33,8 +33,8 @@ DAY = 24*60*60
 if "1hr" in data:
     print "days_1hr.value", data["1hr"]/DAY
 if "1day" in data:
-    print "days_1hr.value", data["1day"]/DAY
+    print "days_1day.value", data["1day"]/DAY
 if "2wk" in data:
-    print "days_1hr.value", data["2wk"]/DAY
+    print "days_2wk.value", data["2wk"]/DAY
 if "4wk" in data:
-    print "days_1hr.value", data["4wk"]/DAY
+    print "days_4wk.value", data["4wk"]/DAY
