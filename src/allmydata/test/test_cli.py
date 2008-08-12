@@ -66,12 +66,12 @@ class CLI(unittest.TestCase):
         self.failUnlessEqual(o.where, "subdir")
 
     def _dump_cap(self, *args):
-        out,err = StringIO(), StringIO()
         config = debug.DumpCapOptions()
+        config.stdout,config.stderr = StringIO(), StringIO()
         config.parseOptions(args)
-        debug.dump_cap(config, out, err)
-        self.failIf(err.getvalue())
-        output = out.getvalue()
+        debug.dump_cap(config)
+        self.failIf(config.stderr.getvalue())
+        output = config.stdout.getvalue()
         return output
 
     def test_dump_cap_chk(self):
