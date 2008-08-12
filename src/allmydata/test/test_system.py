@@ -438,7 +438,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             log.msg(" for clients[%d]" % client_num)
 
             out,err = StringIO(), StringIO()
-            rc = runner.runner(["dump-share",
+            rc = runner.runner(["debug", "dump-share",
                                 filename],
                                stdout=out, stderr=err)
             output = out.getvalue()
@@ -1233,7 +1233,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         log.msg("test_system.SystemTest._test_runner using %s" % filename)
 
         out,err = StringIO(), StringIO()
-        rc = runner.runner(["dump-share",
+        rc = runner.runner(["debug", "dump-share",
                             filename],
                            stdout=out, stderr=err)
         output = out.getvalue()
@@ -1263,7 +1263,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         storagedir, storage_index_s = os.path.split(sharedir)
         out,err = StringIO(), StringIO()
         nodedirs = [self.getdir("client%d" % i) for i in range(self.numclients)]
-        cmd = ["find-shares", storage_index_s] + nodedirs
+        cmd = ["debug", "find-shares", storage_index_s] + nodedirs
         rc = runner.runner(cmd, stdout=out, stderr=err)
         self.failUnlessEqual(rc, 0)
         out.seek(0)
@@ -1273,7 +1273,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         # also exercise the 'catalog-shares' tool
         out,err = StringIO(), StringIO()
         nodedirs = [self.getdir("client%d" % i) for i in range(self.numclients)]
-        cmd = ["catalog-shares"] + nodedirs
+        cmd = ["debug", "catalog-shares"] + nodedirs
         rc = runner.runner(cmd, stdout=out, stderr=err)
         self.failUnlessEqual(rc, 0)
         out.seek(0)

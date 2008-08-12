@@ -5,7 +5,21 @@ import sys, struct, time, os
 from twisted.python import usage
 
 class DumpOptions(usage.Options):
-    """tahoe dump-share SHARE_FILENAME"""
+    def getSynopsis(self):
+        return "Usage: tahoe debug dump-share SHARE_FILENAME"
+
+    def getUsage(self, width=None):
+        t = usage.Options.getUsage(self, width)
+        t += """
+Print lots of information about the given share, by parsing the share's
+contents. This includes share type, lease information, encoding parameters,
+hash-tree roots, public keys, and segment sizes. This command also emits a
+verify-cap for the file that uses the share.
+
+ tahoe debug dump-share testgrid/node-3/storage/shares/4v/4vozh77tsrw7mdhnj7qvp5ky74/0
+
+"""
+        return t
 
     def parseArgs(self, filename):
         self['filename'] = filename
@@ -211,13 +225,38 @@ def dump_SDMF_share(offset, length, config, out, err):
 
 
 class DumpCapOptions(usage.Options):
+    def getSynopsis(self):
+        return "Usage: tahoe debug dump-cap [options] FILECAP"
     optParameters = [
-        ["nodeid", "n", None, "storage server nodeid (ascii), to construct WE and secrets."],
-        ["client-secret", "c", None, "client's base secret (ascii), to construct secrets"],
-        ["client-dir", "d", None, "client's base directory, from which a -c secret will be read"],
+        ["nodeid", "n",
+         None, "storage server nodeid (ascii), to construct WE and secrets."],
+        ["client-secret", "c", None,
+         "client's base secret (ascii), to construct secrets"],
+        ["client-dir", "d", None,
+         "client's base directory, from which a -c secret will be read"],
         ]
     def parseArgs(self, cap):
         self.cap = cap
+
+    def getUsage(self, width=None):
+        t = usage.Options.getUsage(self, width)
+        t += """
+Print information about the given cap-string (aka: URI, file-cap, dir-cap,
+read-cap, write-cap). The URI string is parsed and unpacked. This prints the
+type of the cap, its storage index, and any derived keys.
+
+ tahoe debug dump-cap URI:SSK-Verifier:4vozh77tsrw7mdhnj7qvp5ky74:q7f3dwz76sjys4kqfdt3ocur2pay3a6rftnkqmi2uxu3vqsdsofq
+
+This may be useful to determine if a read-cap and a write-cap refer to the
+same time, or to extract the storage-index from a file-cap (to then use with
+find-shares)
+
+If additional information is provided (storage server nodeid and/or client
+base secret), this command will compute the shared secrets used for the
+write-enabler and for lease-renewal.
+"""
+        return t
+
 
 def dump_cap(config, out=sys.stdout, err=sys.stderr):
     from allmydata import uri
@@ -337,9 +376,25 @@ def dump_uri_instance(u, nodeid, secret, out, err, show_header=True):
         print >>out, "unknown cap type"
 
 class FindSharesOptions(usage.Options):
+    def getSynopsis(self):
+        return "Usage: tahoe debug find-shares STORAGE_INDEX NODEDIRS.."
     def parseArgs(self, storage_index_s, *nodedirs):
         self.si_s = storage_index_s
         self.nodedirs = nodedirs
+    def getUsage(self, width=None):
+        t = usage.Options.getUsage(self, width)
+        t += """
+Locate all shares for the given storage index. This command looks through one
+or more node directories to find the shares. It returns a list of filenames,
+one per line, for each share file found.
+
+ tahoe debug find-shares 4vozh77tsrw7mdhnj7qvp5ky74 testgrid/node-*
+
+It may be useful during testing, when running a test grid in which all the
+nodes are on a local disk. The share files thus located can be counted,
+examined (with dump-share), or corrupted/deleted to test checker/repairer.
+"""
+        return t
 
 def find_shares(config, out=sys.stdout, err=sys.stderr):
     """Given a storage index and a list of node directories, emit a list of
@@ -367,20 +422,37 @@ def find_shares(config, out=sys.stdout, err=sys.stderr):
 
 class CatalogSharesOptions(usage.Options):
     """
-    Run this as 'catalog-shares NODEDIRS..', and it will emit a line to stdout
-    for each share it finds:
-
-      CHK $SI $k/$N $filesize $UEB_hash $expiration $abspath_sharefile
-      SDMF $SI $k/$N $filesize $seqnum/$roothash $expiration $abspath_sharefile
-      UNKNOWN $abspath_sharefile
-
-    It may be useful to build up a catalog of shares from many storage servers
-    and then sort the results. If you see shares with the same SI but different
-    parameters/filesize/UEB_hash, then something is wrong.
 
     """
     def parseArgs(self, *nodedirs):
         self.nodedirs = nodedirs
+        if not nodedirs:
+            raise usage.UsageError("must specify at least one node directory")
+
+    def getSynopsis(self):
+        return "Usage: tahoe debug catalog-shares NODEDIRS.."
+
+    def getUsage(self, width=None):
+        t = usage.Options.getUsage(self, width)
+        t += """
+Locate all shares in the given node directories, and emit a one-line summary
+of each share. Run it like this:
+
+ tahoe debug catalog-shares testgrid/node-* >allshares.txt
+
+The lines it emits will look like the following:
+
+ CHK $SI $k/$N $filesize $UEB_hash $expiration $abspath_sharefile
+ SDMF $SI $k/$N $filesize $seqnum/$roothash $expiration $abspath_sharefile
+ UNKNOWN $abspath_sharefile
+
+This command can be used to build up a catalog of shares from many storage
+servers and then sort the results to compare all shares for the same file. If
+you see shares with the same SI but different parameters/filesize/UEB_hash,
+then something is wrong. The misc/find-share/anomalies.py script may be
+useful for purpose.
+"""
+        return t
 
 def describe_share(abs_sharefile, si_s, shnum_s, now, out, err):
     from allmydata import uri, storage
@@ -490,18 +562,51 @@ def catalog_shares(config, out=sys.stdout, err=sys.stderr):
     return 0
 
 
+class DebugCommand(usage.Options):
+    subCommands = [
+        ["dump-share", None, DumpOptions,
+         "Unpack and display the contents of a share (uri_extension and leases)."],
+        ["dump-cap", None, DumpCapOptions, "Unpack a read-cap or write-cap"],
+        ["find-shares", None, FindSharesOptions, "Locate sharefiles in node dirs"],
+        ["catalog-shares", None, CatalogSharesOptions, "Describe shares in node dirs"],
+        ]
+    def postOptions(self):
+        if not hasattr(self, 'subOptions'):
+            raise usage.UsageError("must specify a subcommand")
+    def getSynopsis(self):
+        return "Usage: tahoe debug SUBCOMMAND"
+    def getUsage(self, width=None):
+        #t = usage.Options.getUsage(self, width)
+        t = """
+Subcommands:
+    tahoe debug dump-share      Unpack and display the contents of a share
+    tahoe debug dump-cap        Unpack a read-cap or write-cap
+    tahoe debug find-shares     Locate sharefiles in node directories
+    tahoe debug catalog-shares  Describe all shares in node dirs
 
-subCommands = [
-    ["dump-share", None, DumpOptions,
-     "Unpack and display the contents of a share (uri_extension and leases)."],
-    ["dump-cap", None, DumpCapOptions, "Unpack a read-cap or write-cap"],
-    ["find-shares", None, FindSharesOptions, "Locate sharefiles in node dirs"],
-    ["catalog-shares", None, CatalogSharesOptions, "Describe shares in node dirs"],
-    ]
+Please run e.g. 'tahoe debug dump-share --help' for more details on each
+subcommand.
+"""
+        return t
 
-dispatch = {
+subDispatch = {
     "dump-share": dump_share,
     "dump-cap": dump_cap,
     "find-shares": find_shares,
     "catalog-shares": catalog_shares,
+    }
+
+
+def do_debug(options):
+    so = options.subOptions
+    f = subDispatch[options.subCommand]
+    return f(so, options.stdout, options.stderr)
+
+
+subCommands = [
+    ["debug", None, DebugCommand, "debug subcommands: use 'tahoe debug' for a list"],
+    ]
+
+dispatch = {
+    "debug": do_debug,
     }

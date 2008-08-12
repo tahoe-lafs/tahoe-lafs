@@ -326,24 +326,33 @@ tahoe mv tahoe:uploaded.txt fun:uploaded.txt
 
 == Debugging ==
 
-"tahoe find-shares STORAGEINDEX NODEDIRS.." will look through one or more
-storage nodes for the share files that are providing storage for the given
-storage index.
+For a list of all debugging commands, use "tahoe debug".
 
-"tahoe catalog-shares NODEDIRS.." will look through one or more storage nodes
-and locate every single share they contain. It produces a report on stdout
-with one line per share, describing what kind of share it is, the storage
-index, the size of the file is used for, etc. It may be useful to concatenate
-these reports from all storage hosts and use it to look for anomalies.
+"tahoe debug find-shares STORAGEINDEX NODEDIRS.." will look through one or
+more storage nodes for the share files that are providing storage for the
+given storage index.
 
-"tahoe dump-share SHAREFILE" will take the name of a single share file (as
-found by "tahoe find-shares") and print a summary of its contents to stdout.
-This includes a list of leases, summaries of the hash tree, and information
-from the UEB (URI Extension Block). For mutable file shares, it will describe
-which version (seqnum and root-hash) is being stored in this share.
+"tahoe debug catalog-shares NODEDIRS.." will look through one or more storage
+nodes and locate every single share they contain. It produces a report on
+stdout with one line per share, describing what kind of share it is, the
+storage index, the size of the file is used for, etc. It may be useful to
+concatenate these reports from all storage hosts and use it to look for
+anomalies.
 
-"tahoe dump-cap CAP" will take a URI (a file read-cap, or a directory read-
-or write- cap) and unpack it into separate pieces. The most useful aspect of
-this command is to reveal the storage index for any given URI. This can be
-used to locate the share files that are holding the encoded+encrypted data
-for this file.
+"tahoe debug dump-share SHAREFILE" will take the name of a single share file
+(as found by "tahoe find-shares") and print a summary of its contents to
+stdout. This includes a list of leases, summaries of the hash tree, and
+information from the UEB (URI Extension Block). For mutable file shares, it
+will describe which version (seqnum and root-hash) is being stored in this
+share.
+
+"tahoe debug dump-cap CAP" will take a URI (a file read-cap, or a directory
+read- or write- cap) and unpack it into separate pieces. The most useful
+aspect of this command is to reveal the storage index for any given URI. This
+can be used to locate the share files that are holding the encoded+encrypted
+data for this file.
+
+"tahoe repl" will launch an interactive python interpreter in which the Tahoe
+packages and modules are available on sys.path (e.g. by using 'import
+allmydata'). This is most useful from a source tree: it simply sets the
+PYTHONPATH correctly and runs the 'python' executable.

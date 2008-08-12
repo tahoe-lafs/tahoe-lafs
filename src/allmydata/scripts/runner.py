@@ -43,10 +43,11 @@ def runner(argv,
     except usage.error, e:
         if not run_by_human:
             raise
-        print "%s:  %s" % (sys.argv[0], e)
-        print
-        c = getattr(config, 'subOptions', config)
+        c = config
+        while hasattr(c, 'subOptions'):
+            c = c.subOptions
         print str(c)
+        print "%s:  %s" % (sys.argv[0], e)
         return 1
 
     command = config.subCommand
@@ -67,7 +68,7 @@ def runner(argv,
     elif command in startstop_node.dispatch:
         rc = startstop_node.dispatch[command](so, stdout, stderr)
     elif command in debug.dispatch:
-        rc = debug.dispatch[command](so, stdout, stderr)
+        rc = debug.dispatch[command](so)
     elif command in cli.dispatch:
         rc = cli.dispatch[command](so)
     elif command in keygen.dispatch:
