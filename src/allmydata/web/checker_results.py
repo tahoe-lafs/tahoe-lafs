@@ -2,7 +2,6 @@
 from nevow import rend, inevow, tags as T
 from allmydata.web.common import getxmlfile, get_arg
 from allmydata.interfaces import ICheckerResults, IDeepCheckResults
-from allmydata.util import base32
 
 class CheckerResults(rend.Page):
     docFactory = getxmlfile("checker-results.xhtml")
