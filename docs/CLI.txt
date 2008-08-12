@@ -352,7 +352,7 @@ aspect of this command is to reveal the storage index for any given URI. This
 can be used to locate the share files that are holding the encoded+encrypted
 data for this file.
 
-"tahoe repl" will launch an interactive python interpreter in which the Tahoe
-packages and modules are available on sys.path (e.g. by using 'import
+"tahoe debug repl" will launch an interactive python interpreter in which the
+Tahoe packages and modules are available on sys.path (e.g. by using 'import
 allmydata'). This is most useful from a source tree: it simply sets the
 PYTHONPATH correctly and runs the 'python' executable.

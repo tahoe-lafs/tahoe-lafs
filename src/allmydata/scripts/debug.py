@@ -562,6 +562,14 @@ def catalog_shares(config, out=sys.stdout, err=sys.stderr):
     return 0
 
 
+class ReplOptions(usage.Options):
+    pass
+
+def repl(options, out=sys.stdout, err=sys.stderr):
+    import code
+    return code.interact()
+
+
 class DebugCommand(usage.Options):
     subCommands = [
         ["dump-share", None, DumpOptions,
@@ -569,6 +577,7 @@ class DebugCommand(usage.Options):
         ["dump-cap", None, DumpCapOptions, "Unpack a read-cap or write-cap"],
         ["find-shares", None, FindSharesOptions, "Locate sharefiles in node dirs"],
         ["catalog-shares", None, CatalogSharesOptions, "Describe shares in node dirs"],
+        ["repl", None, ReplOptions, "Open a python interpreter"],
         ]
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
@@ -594,6 +603,7 @@ subDispatch = {
     "dump-cap": dump_cap,
     "find-shares": find_shares,
     "catalog-shares": catalog_shares,
+    "repl": repl,
     }
 
 

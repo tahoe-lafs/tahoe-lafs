@@ -194,9 +194,6 @@ class WebopenOptions(VDriveOptions):
 
     longdesc = """Opens a webbrowser to the contents of some portion of the virtual drive."""
 
-class ReplOptions(usage.Options):
-    pass
-
 subCommands = [
     ["mkdir", None, MakeDirectoryOptions, "Create a new directory"],
     ["add-alias", None, AddAliasOptions, "Add a new alias cap"],
@@ -210,7 +207,6 @@ subCommands = [
     ["mv", None, MvOptions, "Move a file within the virtual drive."],
     ["ln", None, LnOptions, "Make an additional link to an existing file."],
     ["webopen", None, WebopenOptions, "Open a webbrowser to the root_dir"],
-    ["repl", None, ReplOptions, "Open a python interpreter"],
     ]
 
 def mkdir(options):
@@ -297,10 +293,6 @@ def webopen(options, opener=None):
     opener(url)
     return 0
 
-def repl(options):
-    import code
-    return code.interact()
-
 dispatch = {
     "mkdir": mkdir,
     "add-alias": add_alias,
@@ -314,6 +306,5 @@ dispatch = {
     "mv": mv,
     "ln": ln,
     "webopen": webopen,
-    "repl": repl,
     }
 
