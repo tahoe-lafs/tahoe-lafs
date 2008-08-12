@@ -209,16 +209,20 @@ class ServerMap:
         seqnums.append(0)
         return max(seqnums)
 
+    def summarize_version(self, verinfo):
+        """Take a versionid, return a string that describes it."""
+        (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
+         offsets_tuple) = verinfo
+        return "seq%d-%s" % (seqnum, base32.b2a(root_hash)[:4])
+
     def summarize_versions(self):
         """Return a string describing which versions we know about."""
         versionmap = self.make_versionmap()
         bits = []
         for (verinfo, shares) in versionmap.items():
-            (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
-             offsets_tuple) = verinfo
+            vstr = self.summarize_version(verinfo)
             shnums = set([shnum for (shnum, peerid, timestamp) in shares])
-            bits.append("%d*seq%d-%s" %
-                        (len(shnums), seqnum, base32.b2a(root_hash)[:4]))
+            bits.append("%d*%s" % (len(shnums), vstr))
         return "/".join(bits)
 
     def recoverable_versions(self):
