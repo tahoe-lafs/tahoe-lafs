@@ -438,7 +438,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             log.msg(" for clients[%d]" % client_num)
 
             out,err = StringIO(), StringIO()
-            rc = runner.runner(["debug", "dump-share",
+            rc = runner.runner(["debug", "dump-share", "--offsets",
                                 filename],
                                stdout=out, stderr=err)
             output = out.getvalue()
@@ -1233,7 +1233,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         log.msg("test_system.SystemTest._test_runner using %s" % filename)
 
         out,err = StringIO(), StringIO()
-        rc = runner.runner(["debug", "dump-share",
+        rc = runner.runner(["debug", "dump-share", "--offsets",
                             filename],
                            stdout=out, stderr=err)
         output = out.getvalue()

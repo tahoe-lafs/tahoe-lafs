@@ -8,6 +8,10 @@ class DumpOptions(usage.Options):
     def getSynopsis(self):
         return "Usage: tahoe debug dump-share SHARE_FILENAME"
 
+    optFlags = [
+        ["offsets", None, "Display a table of section offsets"],
+        ]
+
     def getUsage(self, width=None):
         t = usage.Options.getUsage(self, width)
         t += """
@@ -106,7 +110,20 @@ def dump_immutable_share(options):
     for k in sorted(sizes):
         print >>out, "%20s: %s" % (k, sizes[k])
 
+    if options['offsets']:
+        print >>out
+        print >>out, " Section Offsets:"
+        print >>out, "%20s: %s" % ("share data", f._data_offset)
+        for k in ["data", "plaintext_hash_tree", "crypttext_hash_tree",
+                  "block_hashes", "share_hashes", "uri_extension"]:
+            name = {"data": "block data"}.get(k,k)
+            offset = f._data_offset + offsets[k]
+            print >>out, "  %20s: %s   (0x%x)" % (name, offset, offset)
+        print >>out, "%20s: %s" % ("leases", f._lease_offset)
+
+
     # display lease information too
+    print >>out
     leases = list(f.iter_leases())
     if leases:
         for i,lease in enumerate(leases):
@@ -173,15 +190,17 @@ def dump_mutable_share(options):
     print >>out
 
     if share_type == "SDMF":
-        dump_SDMF_share(m.DATA_OFFSET, data_length, options)
+        dump_SDMF_share(m, data_length, options)
 
     return 0
 
-def dump_SDMF_share(offset, length, options):
-    from allmydata.mutable.layout import unpack_share
+def dump_SDMF_share(m, length, options):
+    from allmydata.mutable.layout import unpack_share, unpack_header
     from allmydata.mutable.common import NeedMoreDataError
     from allmydata.util import base32, hashutil
     from allmydata.uri import SSKVerifierURI
+
+    offset = m.DATA_OFFSET
 
     out = options.stdout
 
@@ -204,6 +223,8 @@ def dump_SDMF_share(offset, length, options):
     (seqnum, root_hash, IV, k, N, segsize, datalen,
      pubkey, signature, share_hash_chain, block_hash_tree,
      share_data, enc_privkey) = pieces
+    (ig_version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,
+     ig_datalen, offsets) = unpack_header(data)
 
     print >>out, " SDMF contents:"
     print >>out, "  seqnum: %d" % seqnum
@@ -230,6 +251,30 @@ def dump_SDMF_share(offset, length, options):
         u = SSKVerifierURI(storage_index, fingerprint)
         verify_cap = u.to_string()
         print >>out, "  verify-cap:", verify_cap
+
+    if options['offsets']:
+        # NOTE: this offset-calculation code is fragile, and needs to be
+        # merged with MutableShareFile's internals.
+        print >>out
+        print >>out, " Section Offsets:"
+        def printoffset(name, value, shift=0):
+            print >>out, "%s%20s: %s   (0x%x)" % (" "*shift, name, value, value)
+        printoffset("first lease", m.HEADER_SIZE)
+        printoffset("share data", m.DATA_OFFSET)
+        o_seqnum = m.DATA_OFFSET + struct.calcsize(">B")
+        printoffset("seqnum", o_seqnum, 2)
+        o_root_hash = m.DATA_OFFSET + struct.calcsize(">BQ")
+        printoffset("root_hash", o_root_hash, 2)
+        for k in ["signature", "share_hash_chain", "block_hash_tree",
+                  "share_data",
+                  "enc_privkey", "EOF"]:
+            name = {"share_data": "block data",
+                    "EOF": "end of share data"}.get(k,k)
+            offset = m.DATA_OFFSET + offsets[k]
+            printoffset(name, offset, 2)
+        f = open(options['filename'], "rb")
+        printoffset("extra leases", m._read_extra_lease_offset(f) + 4)
+        f.close()
 
     print >>out
 
