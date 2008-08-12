@@ -10,7 +10,7 @@ from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
      IURI, IFileNode, IMutableFileURI, IVerifierURI, IFilesystemNode, \
      ExistingChildError, ICheckable
 from allmydata.immutable.checker import DeepCheckResults
-from allmydata.util import hashutil, mathutil
+from allmydata.util import hashutil, mathutil, base32, log
 from allmydata.util.hashutil import netstring
 from allmydata.util.limiter import ConcurrencyLimiter
 from allmydata.uri import NewDirectoryURI
@@ -537,13 +537,19 @@ class NewDirectoryNode:
     def deep_check(self, verify=False, repair=False):
         # shallow-check each object first, then traverse children
         root_si = self._node.get_storage_index()
+        self._lp = log.msg(format="deep-check starting (%(si)s),"
+                           " verify=%(verify)s, repair=%(repair)s",
+                           si=base32.b2a(root_si), verify=verify, repair=repair)
         results = DeepCheckResults(root_si)
         found = set()
         limiter = ConcurrencyLimiter(10)
 
         d = self._add_deepcheck_from_node(self, results, found, limiter,
                                           verify, repair)
-        d.addCallback(lambda res: results)
+        def _done(res):
+            log.msg("deep-check done", parent=self._lp)
+            return results
+        d.addCallback(_done)
         return d
 
     def _add_deepcheck_from_node(self, node, results, found, limiter,
