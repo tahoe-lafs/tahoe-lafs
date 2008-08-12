@@ -189,7 +189,11 @@ class MutableChecker:
             report.append("Corrupt Shares:")
             for (peerid, shnum, f) in sorted(self.bad_shares):
                 s = "%s-sh%d" % (idlib.shortnodeid_b2a(peerid), shnum)
-                report.append(" %s: %s" % (s, f))
+                if f.check(CorruptShareError):
+                    ft = f.value.reason
+                else:
+                    ft = str(f)
+                report.append(" %s: %s" % (s, ft))
                 p = (peerid, self._storage_index, shnum, f)
                 self.results.problems.append(p)
 
