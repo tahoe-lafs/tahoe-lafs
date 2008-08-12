@@ -266,6 +266,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.client.create_mutable_file()
         def _created(n):
             self.failUnless(isinstance(n, FastMutableFileNode))
+            self.failUnlessEqual(n.get_storage_index(), n._storage_index)
             peer0 = self.client._peerids[0]
             shnums = self.client._storage._peers[peer0].keys()
             self.failUnlessEqual(len(shnums), 1)

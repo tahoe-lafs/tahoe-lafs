@@ -242,6 +242,8 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             u_v = n.get_verifier()
             self.failUnless(u_v.startswith("URI:DIR2-Verifier:"), u_v)
             self.expected_manifest.append(u_v)
+            expected_si = n._uri._filenode_uri.storage_index
+            self.failUnlessEqual(n.get_storage_index(), expected_si)
 
             d = n.list()
             d.addCallback(lambda res: self.failUnlessEqual(res, {}))

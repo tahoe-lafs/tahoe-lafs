@@ -243,6 +243,9 @@ class NewDirectoryNode:
     def get_verifier(self):
         return self._uri.get_verifier().to_string()
 
+    def get_storage_index(self):
+        return self._uri._filenode_uri.storage_index
+
     def check(self, verify=False, repair=False):
         """Perform a file check. See IChecker.check for details."""
         return self._node.check(verify, repair)

@@ -44,6 +44,9 @@ class FileNode:
     def get_verifier(self):
         return self.u.get_verifier()
 
+    def get_storage_index(self):
+        return self.u.storage_index
+
     def check(self, verify=False, repair=False):
         assert repair is False  # not implemented yet
         storage_index = self.u.storage_index
@@ -111,6 +114,9 @@ class LiteralFileNode:
         return cmp(self.uri, them.uri)
 
     def get_verifier(self):
+        return None
+
+    def get_storage_index(self):
         return None
 
     def check(self, verify=False, repair=False):

@@ -414,6 +414,11 @@ class IFilesystemNode(Interface):
         it holds a share for the file or directory.
         """
 
+    def get_storage_index():
+        """Return a string with the (binary) storage index in use on this
+        download. This may be None if there is no storage index (i.e. LIT
+        files)."""
+
     def check(verify=False, repair=False):
         """Perform a file check. See IChecker.check for details.
 

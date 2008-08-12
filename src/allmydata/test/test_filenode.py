@@ -27,6 +27,7 @@ class Node(unittest.TestCase):
         self.failUnlessEqual(fn1.is_mutable(), False)
         self.failUnlessEqual(fn1.get_readonly_uri(), u.to_string())
         self.failUnlessEqual(fn1.get_size(), 1000)
+        self.failUnlessEqual(fn1.get_storage_index(), u.storage_index)
         d = {}
         d[fn1] = 1 # exercise __hash__
         v = fn1.get_verifier()
@@ -47,6 +48,7 @@ class Node(unittest.TestCase):
         self.failUnlessEqual(fn1.is_mutable(), False)
         self.failUnlessEqual(fn1.get_readonly_uri(), u.to_string())
         self.failUnlessEqual(fn1.get_size(), len(DATA))
+        self.failUnlessEqual(fn1.get_storage_index(), None)
         d = {}
         d[fn1] = 1 # exercise __hash__
 
