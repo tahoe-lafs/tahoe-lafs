@@ -25,8 +25,7 @@ verify-cap for the file that uses the share.
         self['filename'] = filename
 
 def dump_share(options):
-    from allmydata import uri, storage
-    from allmydata.util import base32
+    from allmydata import storage
 
     out = options.stdout
 
@@ -39,6 +38,13 @@ def dump_share(options):
     if prefix == storage.MutableShareFile.MAGIC:
         return dump_mutable_share(options)
     # otherwise assume it's immutable
+    return dump_immutable_share(options)
+
+def dump_immutable_share(options):
+    from allmydata import uri, storage
+    from allmydata.util import base32
+
+    out = options.stdout
     f = storage.ShareFile(options['filename'])
     # use a ReadBucketProxy to parse the bucket and find the uri extension
     bp = storage.ReadBucketProxy(None)
