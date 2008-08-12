@@ -212,6 +212,8 @@ class Results:
     def is_healthy(self):
         return self.healthy
 
+    def get_storage_index(self):
+        return self.storage_index
     def get_storage_index_string(self):
         return self.storage_index_s
 

@@ -18,7 +18,7 @@
 <h2>Problems:</h2>
 
 <ul n:render="sequence" n:data="problems">
-  <li n:pattern="item" />
+  <li n:pattern="item" n:render="problem"/>
   <li n:pattern="empty">None</li>
 </ul>
 
@@ -27,6 +27,24 @@
   <li>Repairs Attempted: <span n:render="data" n:data="repairs_attempted" /></li>
   <li>Repairs Successful: <span n:render="data" n:data="repairs_successful" /></li>
 </ul>
+
+<h2>Objects Checked</h2>
+<div>
+<table n:render="sequence" n:data="all_objects" border="1">
+  <tr n:pattern="header">
+    <td>Storage Index</td>
+    <td>Healthy?</td>
+  </tr>
+  <tr n:pattern="item" n:render="object">
+    <td><n:slot name="storage_index"/></td>
+    <td><n:slot name="healthy"/></td>
+  </tr>
+
+  <tr n:pattern="empty"><td>no objects?</td></tr>
+
+</table>
+</div>
+
 
 <div n:render="return" />
 

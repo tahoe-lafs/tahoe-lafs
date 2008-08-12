@@ -2,6 +2,7 @@
 from nevow import rend, inevow, tags as T
 from allmydata.web.common import getxmlfile, get_arg
 from allmydata.interfaces import ICheckerResults, IDeepCheckResults
+from allmydata.util import base32
 
 class CheckerResults(rend.Page):
     docFactory = getxmlfile("checker-results.xhtml")
@@ -48,6 +49,23 @@ class DeepCheckResults(rend.Page):
     def data_problems(self, ctx, data):
         for cr in self.r.get_problems():
             yield cr
+    def render_problem(self, ctx, data):
+        cr = data
+        text = cr.get_storage_index_string()
+        text += ": "
+        text += cr.status_report
+        return ctx.tag[text]
+
+    def data_all_objects(self, ctx, data):
+        r = self.r.get_all_results()
+        for storage_index in sorted(r.keys()):
+            yield r[storage_index]
+
+    def render_object(self, ctx, data):
+        r = data
+        ctx.fillSlots("storage_index", r.get_storage_index_string())
+        ctx.fillSlots("healthy", str(r.is_healthy()))
+        return ctx.tag
 
     def render_return(self, ctx, data):
         req = inevow.IRequest(ctx)

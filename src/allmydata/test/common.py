@@ -12,6 +12,8 @@ from allmydata.interfaces import IURI, IMutableFileNode, IFileNode, \
      FileTooLargeError, ICheckable
 from allmydata.immutable import checker
 from allmydata.immutable.encode import NotEnoughSharesError
+from allmydata.mutable.checker import Results as MutableCheckerResults
+from allmydata.mutable.common import CorruptShareError
 from allmydata.util import log, testutil, fileutil
 from allmydata.stats import PickleStatsGatherer
 from allmydata.key_generator import KeyGeneratorService
@@ -29,10 +31,12 @@ class FakeCHKFileNode:
     dictionary."""
     implements(IFileNode)
     all_contents = {}
+    bad_shares = {}
 
     def __init__(self, u, client):
         self.client = client
         self.my_uri = u.to_string()
+        self.storage_index = u.storage_index
 
     def get_uri(self):
         return self.my_uri
@@ -42,8 +46,13 @@ class FakeCHKFileNode:
         return IURI(self.my_uri).get_verifier()
     def check(self, verify=False, repair=False):
         r = checker.Results(None)
-        r.healthy = True
-        r.problems = []
+        is_bad = self.bad_shares.get(self.storage_index, None)
+        if is_bad:
+             r.healthy = False
+             r.problems = failure.Failure(CorruptShareError(is_bad))
+        else:
+             r.healthy = True
+             r.problems = []
         return defer.succeed(r)
     def is_mutable(self):
         return False
@@ -90,6 +99,7 @@ class FakeMutableFileNode:
     implements(IMutableFileNode, ICheckable)
     MUTABLE_SIZELIMIT = 10000
     all_contents = {}
+    bad_shares = {}
 
     def __init__(self, client):
         self.client = client
@@ -125,9 +135,16 @@ class FakeMutableFileNode:
         return self.storage_index
 
     def check(self, verify=False, repair=False):
-        r = checker.Results(None)
-        r.healthy = True
-        r.problems = []
+        r = MutableCheckerResults(self.storage_index)
+        is_bad = self.bad_shares.get(self.storage_index, None)
+        if is_bad:
+             r.healthy = False
+             r.problems = failure.Failure(CorruptShareError("peerid",
+                                                            0, # shnum
+                                                            is_bad))
+        else:
+             r.healthy = True
+             r.problems = []
         return defer.succeed(r)
 
     def deep_check(self, verify=False, repair=False):

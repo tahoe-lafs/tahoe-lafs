@@ -1478,8 +1478,10 @@ class ICheckerResults(Interface):
         """Return a bool, True if the file is fully healthy, False if it is
         damaged in any way."""
 
+    def get_storage_index():
+        """Return a string with the (binary) storage index."""
     def get_storage_index_string():
-        """Return a string with the abbreviated storage index."""
+        """Return a string with the (printable) abbreviated storage index."""
     def get_mutability_string():
         """Return a string with 'mutable' or 'immutable'."""
 
@@ -1524,6 +1526,9 @@ class IDeepCheckResults(Interface):
     def get_problems():
         """Return a list of ICheckerResults, one for each object that
         was not fully healthy."""
+    def get_all_results():
+        """Return a dict mapping storage_index (a binary string) to an
+        ICheckerResults instance, one for each object that was checked."""
 
 class IRepairable(Interface):
     def repair(checker_results):

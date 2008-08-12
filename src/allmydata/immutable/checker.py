@@ -28,6 +28,9 @@ class Results:
     def is_healthy(self):
         return self.healthy
 
+    def get_storage_index(self):
+        return self.storage_index
+
     def get_storage_index_string(self):
         return self.storage_index_s
 
@@ -59,6 +62,7 @@ class DeepCheckResults:
         self.repairs_attempted = 0
         self.repairs_successful = 0
         self.problems = []
+        self.all_results = {}
         self.server_problems = {}
 
     def get_root_storage_index_string(self):
@@ -66,10 +70,11 @@ class DeepCheckResults:
 
     def add_check(self, r):
         self.objects_checked += 1
-        if r.is_healthy:
+        if r.is_healthy():
             self.objects_healthy += 1
         else:
             self.problems.append(r)
+        self.all_results[r.get_storage_index()] = r
 
     def add_repair(self, is_successful):
         self.repairs_attempted += 1
@@ -88,7 +93,8 @@ class DeepCheckResults:
         return self.server_problems
     def get_problems(self):
         return self.problems
-
+    def get_all_results(self):
+        return self.all_results
 
 class SimpleCHKFileChecker:
     """Return a list of (needed, total, found, sharemap), where sharemap maps
