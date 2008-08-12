@@ -1693,7 +1693,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         return d
 
 
-class Checker(ShareManglingMixin, unittest.TestCase):
+class ImmutableChecker(ShareManglingMixin, unittest.TestCase):
     def setUp(self):
         # Set self.basedir to a temp dir which has the name of the current test method in its
         # name.
