@@ -189,8 +189,8 @@ class LnOptions(VDriveOptions):
         return "%s ln FROM TO" % (os.path.basename(sys.argv[0]),)
 
 class WebopenOptions(VDriveOptions):
-    def parseArgs(self, vdrive_pathname=""):
-        self['vdrive_pathname'] = vdrive_pathname
+    def parseArgs(self, where=""):
+        self.where = where
 
     longdesc = """Opens a webbrowser to the contents of some portion of the virtual drive."""
 
@@ -277,16 +277,24 @@ def ln(options):
     rc = tahoe_mv.mv(options, mode="link")
     return rc
 
-def webopen(options):
+def webopen(options, opener=None):
     import urllib, webbrowser
+    from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
     nodeurl = options['node-url']
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    root_cap = options.aliases["tahoe"]
-    url = nodeurl + "uri/%s/" % urllib.quote(root_cap)
-    if options['vdrive_pathname']:
-        url += urllib.quote(options['vdrive_pathname'])
-    webbrowser.open(url)
+    where = options.where
+    if where.endswith("/"):
+        where = where[:-1]
+    rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
+    url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+    if path:
+        url += "/" + escape_path(path)
+    if url[-1] != "/":
+        url += "/"
+    if opener is None:
+        opener = webbrowser.open
+    opener(url)
     return 0
 
 def repl(options):

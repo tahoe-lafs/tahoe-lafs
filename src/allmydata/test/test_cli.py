@@ -235,6 +235,16 @@ class CLITestMixin:
 
 class CreateAlias(SystemTestMixin, CLITestMixin, unittest.TestCase):
 
+    def _test_webopen(self, args, expected_url):
+        woo = cli.WebopenOptions()
+        all_args = ["--node-directory", self.getdir("client0")] + list(args)
+        woo.parseOptions(all_args)
+        urls = []
+        rc = cli.webopen(woo, urls.append)
+        self.failUnlessEqual(rc, 0)
+        self.failUnlessEqual(len(urls), 1)
+        self.failUnlessEqual(urls[0], expected_url)
+
     def test_create(self):
         self.basedir = os.path.dirname(self.mktemp())
         d = self.set_up_nodes()
@@ -246,6 +256,27 @@ class CreateAlias(SystemTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless("tahoe" in aliases)
             self.failUnless(aliases["tahoe"].startswith("URI:DIR2:"))
         d.addCallback(_done)
+        d.addCallback(lambda res: self.do_cli("create-alias", "two"))
+        def _stash_urls(res):
+            aliases = get_aliases(self.getdir("client0"))
+            node_url_file = os.path.join(self.getdir("client0"), "node.url")
+            nodeurl = open(node_url_file, "r").read().strip()
+            uribase = nodeurl + "uri/"
+            self.tahoe_url = uribase + urllib.quote(aliases["tahoe"]) + "/"
+            self.tahoe_subdir_url = self.tahoe_url + "subdir/"
+            self.two_url = uribase + urllib.quote(aliases["two"]) + "/"
+        d.addCallback(_stash_urls)
+
+        d.addCallback(lambda res: self._test_webopen([], self.tahoe_url))
+        d.addCallback(lambda res: self._test_webopen(["/"], self.tahoe_url))
+        d.addCallback(lambda res: self._test_webopen(["tahoe:"], self.tahoe_url))
+        d.addCallback(lambda res: self._test_webopen(["tahoe:/"], self.tahoe_url))
+        d.addCallback(lambda res: self._test_webopen(["tahoe:subdir"],
+                                                     self.tahoe_subdir_url))
+        d.addCallback(lambda res: self._test_webopen(["tahoe:subdir/"],
+                                                     self.tahoe_subdir_url))
+        d.addCallback(lambda res: self._test_webopen(["two:"], self.two_url))
+
         return d
 
 class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
