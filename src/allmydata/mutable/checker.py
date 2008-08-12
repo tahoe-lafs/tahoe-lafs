@@ -3,7 +3,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
 from allmydata import hashtree
-from allmydata.util import hashutil, base32
+from allmydata.util import hashutil, base32, idlib
 from allmydata.interfaces import ICheckerResults
 
 from common import MODE_CHECK, CorruptShareError
@@ -14,22 +14,22 @@ class MutableChecker:
 
     def __init__(self, node):
         self._node = node
-        self.healthy = True
-        self.problems = []
+        self.bad_shares = [] # list of (nodeid,shnum,failure)
         self._storage_index = self._node.get_storage_index()
         self.results = Results(self._storage_index)
+        self.need_repair = False
 
     def check(self, verify=False, repair=False):
         servermap = ServerMap()
         self.results.servermap = servermap
-        self.do_verify = verify
-        self.do_repair = repair
         u = ServermapUpdater(self._node, servermap, MODE_CHECK)
         d = u.update()
         d.addCallback(self._got_mapupdate_results)
         if verify:
             d.addCallback(self._verify_all_shares)
-        d.addCallback(self._maybe_do_repair)
+        if repair:
+            d.addCallback(self._maybe_do_repair)
+        d.addCallback(self._generate_results)
         d.addCallback(self._return_results)
         return d
 
@@ -38,19 +38,19 @@ class MutableChecker:
         # has at least N distinct shares, and there are no unrecoverable
         # versions: all existing shares will be for the same version.
         self.best_version = None
-        if servermap.unrecoverable_versions():
-            self.healthy = False
         num_recoverable = len(servermap.recoverable_versions())
-        if num_recoverable == 0:
-            self.healthy = False
-        else:
-            if num_recoverable > 1:
-                self.healthy = False
+        if num_recoverable:
             self.best_version = servermap.best_recoverable_version()
+
+        if servermap.unrecoverable_versions():
+            self.need_repair = True
+        if num_recoverable != 1:
+            self.need_repair = True
+        if self.best_version:
             available_shares = servermap.shares_available()
             (num_distinct_shares, k, N) = available_shares[self.best_version]
             if num_distinct_shares < N:
-                self.healthy = False
+                self.need_repair = True
 
         return servermap
 
@@ -85,7 +85,8 @@ class MutableChecker:
                 self._got_results_one_share(shnum, peerid, data)
             except CorruptShareError:
                 f = failure.Failure()
-                self.add_problem(shnum, peerid, f)
+                self.need_repair = True
+                self.bad_shares.append( (peerid, shnum, f) )
                 prefix = data[:SIGNED_PREFIX_LENGTH]
                 self.results.servermap.mark_bad_share(peerid, shnum, prefix)
 
@@ -134,9 +135,7 @@ class MutableChecker:
                 raise CorruptShareError(peerid, shnum, "invalid privkey")
 
     def _maybe_do_repair(self, res):
-        if self.healthy:
-            return
-        if not self.do_repair:
+        if not self.need_repair:
             return
         self.results.repair_attempted = True
         d = self._node.repair(self)
@@ -151,15 +150,53 @@ class MutableChecker:
         d.addCallbacks(_repair_finished, _repair_error)
         return d
 
+    def _generate_results(self, res):
+        self.results.healthy = True
+        smap = self.results.servermap
+        report = []
+        vmap = smap.make_versionmap()
+        recoverable = smap.recoverable_versions()
+        unrecoverable = smap.unrecoverable_versions()
+        if recoverable:
+            report.append("Recoverable Versions: " +
+                          "/".join(["%d*%s" % (len(vmap[v]),
+                                               smap.summarize_version(v))
+                                    for v in recoverable]))
+        if unrecoverable:
+            report.append("Unrecoverable Versions: " +
+                          "/".join(["%d*%s" % (len(vmap[v]),
+                                               smap.summarize_version(v))
+                                    for v in unrecoverable]))
+        if smap.unrecoverable_versions():
+            self.results.healthy = False
+            report.append("Unhealthy: some versions are unrecoverable")
+        if len(recoverable) == 0:
+            self.results.healthy = False
+            report.append("Unhealthy: no versions are recoverable")
+        if len(recoverable) > 1:
+            self.results.healthy = False
+            report.append("Unhealthy: there are multiple recoverable versions")
+        if self.best_version:
+            report.append("Best Recoverable Version: " +
+                          smap.summarize_version(self.best_version))
+            available_shares = smap.shares_available()
+            (num_distinct_shares, k, N) = available_shares[self.best_version]
+            if num_distinct_shares < N:
+                self.results.healthy = False
+                report.append("Unhealthy: best recoverable version has only %d shares (encoding is %d-of-%d)"
+                              % (num_distinct_shares, k, N))
+        if self.bad_shares:
+            report.append("Corrupt Shares:")
+            for (peerid, shnum, f) in sorted(self.bad_shares):
+                s = "%s-sh%d" % (idlib.shortnodeid_b2a(peerid), shnum)
+                report.append(" %s: %s" % (s, f))
+                p = (peerid, self._storage_index, shnum, f)
+                self.results.problems.append(p)
+
+        self.results.status_report = "\n".join(report) + "\n"
+
     def _return_results(self, res):
-        self.results.healthy = self.healthy
-        self.results.problems = self.problems
         return self.results
-
-
-    def add_problem(self, shnum, peerid, what):
-        self.healthy = False
-        self.problems.append( (peerid, self._storage_index, shnum, what) )
 
 
 class Results:
@@ -169,6 +206,8 @@ class Results:
         self.storage_index = storage_index
         self.storage_index_s = base32.b2a(storage_index)[:6]
         self.repair_attempted = False
+        self.status_report = "[not generated yet]" # string
+        self.problems = [] # list of (peerid, storage_index, shnum, failure)
 
     def is_healthy(self):
         return self.healthy
@@ -185,5 +224,8 @@ class Results:
             s += "Healthy!\n"
         else:
             s += "Not Healthy!\n"
+        s += "\n"
+        s += self.status_report
+        s += "\n"
         return s
 
