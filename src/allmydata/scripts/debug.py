@@ -1,7 +1,7 @@
 
 # do not import any allmydata modules at this level. Do that from inside
 # individual functions instead.
-import sys, struct, time, os
+import struct, time, os
 from twisted.python import usage
 
 class DumpOptions(usage.Options):
@@ -24,20 +24,22 @@ verify-cap for the file that uses the share.
     def parseArgs(self, filename):
         self['filename'] = filename
 
-def dump_share(config, out=sys.stdout, err=sys.stderr):
+def dump_share(options):
     from allmydata import uri, storage
     from allmydata.util import base32
 
-    # check the version, to see if we have a mutable or immutable share
-    print >>out, "share filename: %s" % config['filename']
+    out = options.stdout
 
-    f = open(config['filename'], "rb")
+    # check the version, to see if we have a mutable or immutable share
+    print >>out, "share filename: %s" % options['filename']
+
+    f = open(options['filename'], "rb")
     prefix = f.read(32)
     f.close()
     if prefix == storage.MutableShareFile.MAGIC:
-        return dump_mutable_share(config, out, err)
+        return dump_mutable_share(options)
     # otherwise assume it's immutable
-    f = storage.ShareFile(config['filename'])
+    f = storage.ShareFile(options['filename'])
     # use a ReadBucketProxy to parse the bucket and find the uri extension
     bp = storage.ReadBucketProxy(None)
     offsets = bp._parse_offsets(f.read_share_data(0, 0x24))
@@ -78,7 +80,7 @@ def dump_share(config, out=sys.stdout, err=sys.stderr):
 
     # the storage index isn't stored in the share itself, so we depend upon
     # knowing the parent directory name to get it
-    pieces = config['filename'].split(os.sep)
+    pieces = options['filename'].split(os.sep)
     if len(pieces) >= 2 and base32.could_be_base32_encoded(pieces[-2]):
         storage_index = base32.a2b(pieces[-2])
         uri_extension_hash = base32.a2b(unpacked["UEB_hash"])
@@ -122,11 +124,12 @@ def format_expiration_time(expiration_time):
     return when
 
 
-def dump_mutable_share(config, out, err):
+def dump_mutable_share(options):
     from allmydata import storage
     from allmydata.util import base32, idlib
-    m = storage.MutableShareFile(config['filename'])
-    f = open(config['filename'], "rb")
+    out = options.stdout
+    m = storage.MutableShareFile(options['filename'])
+    f = open(options['filename'], "rb")
     WE, nodeid = m._read_write_enabler_and_nodeid(f)
     num_extra_leases = m._read_num_extra_leases(f)
     data_length = m._read_data_length(f)
@@ -164,17 +167,19 @@ def dump_mutable_share(config, out, err):
     print >>out
 
     if share_type == "SDMF":
-        dump_SDMF_share(m.DATA_OFFSET, data_length, config, out, err)
+        dump_SDMF_share(m.DATA_OFFSET, data_length, options)
 
     return 0
 
-def dump_SDMF_share(offset, length, config, out, err):
+def dump_SDMF_share(offset, length, options):
     from allmydata.mutable.layout import unpack_share
     from allmydata.mutable.common import NeedMoreDataError
     from allmydata.util import base32, hashutil
     from allmydata.uri import SSKVerifierURI
 
-    f = open(config['filename'], "rb")
+    out = options.stdout
+
+    f = open(options['filename'], "rb")
     f.seek(offset)
     data = f.read(min(length, 2000))
     f.close()
@@ -184,7 +189,7 @@ def dump_SDMF_share(offset, length, config, out, err):
     except NeedMoreDataError, e:
         # retry once with the larger size
         size = e.needed_bytes
-        f = open(config['filename'], "rb")
+        f = open(options['filename'], "rb")
         f.seek(offset)
         data = f.read(min(length, size))
         f.close()
@@ -212,7 +217,7 @@ def dump_SDMF_share(offset, length, config, out, err):
 
     # the storage index isn't stored in the share itself, so we depend upon
     # knowing the parent directory name to get it
-    pieces = config['filename'].split(os.sep)
+    pieces = options['filename'].split(os.sep)
     if len(pieces) >= 2 and base32.could_be_base32_encoded(pieces[-2]):
         storage_index = base32.a2b(pieces[-2])
         fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey)
@@ -258,21 +263,22 @@ write-enabler and for lease-renewal.
         return t
 
 
-def dump_cap(config, out=sys.stdout, err=sys.stderr):
+def dump_cap(options):
     from allmydata import uri
     from allmydata.util import base32
     from base64 import b32decode
     import urlparse, urllib
 
-    cap = config.cap
+    out = options.stdout
+    cap = options.cap
     nodeid = None
-    if config['nodeid']:
-        nodeid = b32decode(config['nodeid'].upper())
+    if options['nodeid']:
+        nodeid = b32decode(options['nodeid'].upper())
     secret = None
-    if config['client-secret']:
-        secret = base32.a2b(config['client-secret'])
-    elif config['client-dir']:
-        secretfile = os.path.join(config['client-dir'], "private", "secret")
+    if options['client-secret']:
+        secret = base32.a2b(options['client-secret'])
+    elif options['client-dir']:
+        secretfile = os.path.join(options['client-dir'], "private", "secret")
         try:
             secret = base32.a2b(open(secretfile, "r").read().strip())
         except EnvironmentError:
@@ -286,7 +292,7 @@ def dump_cap(config, out=sys.stdout, err=sys.stderr):
     u = uri.from_string(cap)
 
     print >>out
-    dump_uri_instance(u, nodeid, secret, out, err)
+    dump_uri_instance(u, nodeid, secret, out)
 
 def _dump_secrets(storage_index, secret, nodeid, out):
     from allmydata.util import hashutil
@@ -308,7 +314,7 @@ def _dump_secrets(storage_index, secret, nodeid, out):
             cancel = hashutil.bucket_cancel_secret_hash(fcs, nodeid)
             print >>out, " lease cancel secret:", base32.b2a(cancel)
 
-def dump_uri_instance(u, nodeid, secret, out, err, show_header=True):
+def dump_uri_instance(u, nodeid, secret, out, show_header=True):
     from allmydata import storage, uri
     from allmydata.util import base32, hashutil
 
@@ -363,15 +369,15 @@ def dump_uri_instance(u, nodeid, secret, out, err, show_header=True):
     elif isinstance(u, uri.NewDirectoryURI):
         if show_header:
             print >>out, "Directory Writeable URI:"
-        dump_uri_instance(u._filenode_uri, nodeid, secret, out, err, False)
+        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
     elif isinstance(u, uri.ReadonlyNewDirectoryURI):
         if show_header:
             print >>out, "Directory Read-only URI:"
-        dump_uri_instance(u._filenode_uri, nodeid, secret, out, err, False)
+        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
     elif isinstance(u, uri.NewDirectoryURIVerifier):
         if show_header:
             print >>out, "Directory Verifier URI:"
-        dump_uri_instance(u._filenode_uri, nodeid, secret, out, err, False)
+        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
     else:
         print >>out, "unknown cap type"
 
@@ -396,7 +402,7 @@ examined (with dump-share), or corrupted/deleted to test checker/repairer.
 """
         return t
 
-def find_shares(config, out=sys.stdout, err=sys.stderr):
+def find_shares(options):
     """Given a storage index and a list of node directories, emit a list of
     all matching shares to stdout, one per line. For example:
 
@@ -410,8 +416,9 @@ def find_shares(config, out=sys.stdout, err=sys.stderr):
     """
     from allmydata import storage
 
-    sharedir = storage.storage_index_to_dir(storage.si_a2b(config.si_s))
-    for d in config.nodedirs:
+    out = options.stdout
+    sharedir = storage.storage_index_to_dir(storage.si_a2b(options.si_s))
+    for d in options.nodedirs:
         d = os.path.join(os.path.expanduser(d), "storage/shares", sharedir)
         if os.path.exists(d):
             for shnum in os.listdir(d):
@@ -454,7 +461,7 @@ useful for purpose.
 """
         return t
 
-def describe_share(abs_sharefile, si_s, shnum_s, now, out, err):
+def describe_share(abs_sharefile, si_s, shnum_s, now, out):
     from allmydata import uri, storage
     from allmydata.mutable.layout import unpack_share
     from allmydata.mutable.common import NeedMoreDataError
@@ -537,9 +544,10 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out, err):
     f.close()
 
 
-def catalog_shares(config, out=sys.stdout, err=sys.stderr):
+def catalog_shares(options):
+    out = options.stdout
     now = time.time()
-    for d in config.nodedirs:
+    for d in options.nodedirs:
         d = os.path.join(os.path.expanduser(d), "storage/shares")
         try:
             abbrevs = os.listdir(d)
@@ -557,15 +565,14 @@ def catalog_shares(config, out=sys.stdout, err=sys.stderr):
                         abs_sharefile = os.path.join(si_dir, shnum_s)
                         abs_sharefile = os.path.abspath(abs_sharefile)
                         assert os.path.isfile(abs_sharefile)
-                        describe_share(abs_sharefile, si_s, shnum_s, now,
-                                       out, err)
+                        describe_share(abs_sharefile, si_s, shnum_s, now, out)
     return 0
 
 
 class ReplOptions(usage.Options):
     pass
 
-def repl(options, out=sys.stdout, err=sys.stderr):
+def repl(options):
     import code
     return code.interact()
 
@@ -609,8 +616,10 @@ subDispatch = {
 
 def do_debug(options):
     so = options.subOptions
+    so.stdout = options.stdout
+    so.stderr = options.stderr
     f = subDispatch[options.subCommand]
-    return f(so, options.stdout, options.stderr)
+    return f(so)
 
 
 subCommands = [
