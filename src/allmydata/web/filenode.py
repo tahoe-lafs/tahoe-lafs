@@ -9,7 +9,6 @@ from nevow import url, rend
 from nevow.inevow import IRequest
 
 from allmydata.interfaces import IDownloadTarget, ExistingChildError
-from allmydata.mutable.common import MODE_READ
 from allmydata.immutable.upload import FileHandle
 from allmydata.util import log
 
@@ -184,18 +183,18 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         t = get_arg(req, "t", "").strip()
         if t:
             raise WebError("GET file: bad t=%s" % t)
+        # if we have a filename, use it to get the content-type
+        filename = get_arg(req, "filename", self.name) or "unknown"
+        gte = static.getTypeAndEncoding
+        ctype, encoding = gte(filename,
+                              static.File.contentTypes,
+                              static.File.contentEncodings,
+                              defaultType="text/plain")
+        req.setHeader("content-type", ctype)
+        if encoding:
+            req.setHeader("content-encoding", encoding)
         if self.node.is_mutable():
-            # update the servermap to get the size of this file without
-            # downloading the full contents.
-            d = self.node.get_servermap(MODE_READ)
-            def _got_servermap(smap):
-                ver = smap.best_recoverable_version()
-                if not ver:
-                    raise WebError("Unable to recover this file",
-                                   http.NOT_FOUND)
-                length = smap.size_of_version(ver)
-                return length
-            d.addCallback(_got_servermap)
+            d = self.node.get_size_of_best_version()
         # otherwise, we can get the size from the URI
         else:
             d = defer.succeed(self.node.get_size())
