@@ -1,4 +1,5 @@
 
+import time
 from nevow import rend, inevow, tags as T
 from allmydata.web.common import getxmlfile, get_arg
 from allmydata.interfaces import ICheckerResults, IDeepCheckResults
@@ -72,3 +73,8 @@ class DeepCheckResults(rend.Page):
         if return_to:
             return T.div[T.a(href=return_to)["Return to parent directory"]]
         return ""
+
+    def render_runtime(self, ctx, data):
+        req = inevow.IRequest(ctx)
+        runtime = time.time() - req.processing_started_timestamp
+        return ctx.tag["runtime: %s seconds" % runtime]

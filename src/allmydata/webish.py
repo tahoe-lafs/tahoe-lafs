@@ -1,4 +1,5 @@
 
+import time
 from twisted.application import service, strports, internet
 from twisted.web import http
 from twisted.internet import defer
@@ -75,6 +76,7 @@ class MyRequest(appserver.NevowRequest):
 ##                      self.channel.transport.loseConnection()
 ##                      return
 ##                  raise
+        self.processing_started_timestamp = time.time()
         self.process()
 
     def _logger(self):
