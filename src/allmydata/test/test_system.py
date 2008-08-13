@@ -1,5 +1,5 @@
 from base64 import b32encode
-import os, random, struct, sys, time, re, simplejson
+import os, random, struct, sys, time, re, simplejson, urllib
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -1851,3 +1851,71 @@ class ImmutableChecker(ShareManglingMixin, unittest.TestCase):
         d.addCallback(_check2)
         return d
     test_check_with_verify.todo = "We haven't implemented a verifier this thorough yet."
+
+class MutableChecker(SystemTestMixin, unittest.TestCase):
+
+    def _run_cli(self, argv):
+        stdout, stderr = StringIO(), StringIO()
+        runner.runner(argv, run_by_human=False, stdout=stdout, stderr=stderr)
+        return stdout.getvalue()
+
+    def test_good(self):
+        self.basedir = self.mktemp()
+        d = self.set_up_nodes()
+        CONTENTS = "a little bit of data"
+        d.addCallback(lambda res: self.clients[0].create_mutable_file(CONTENTS))
+        def _created(node):
+            self.node = node
+            si = self.node.get_storage_index()
+        d.addCallback(_created)
+        # now make sure the webapi verifier sees no problems
+        def _do_check(res):
+            url = (self.webish_url +
+                   "uri/%s" % urllib.quote(self.node.get_uri()) +
+                   "?t=check&verify=true")
+            return getPage(url, method="POST")
+        d.addCallback(_do_check)
+        def _got_results(out):
+            self.failUnless("<pre>Healthy!" in out, out)
+            self.failIf("Not Healthy!" in out, out)
+            self.failIf("Unhealthy" in out, out)
+            self.failIf("Corrupt Shares" in out, out)
+        d.addCallback(_got_results)
+        return d
+
+    def test_corrupt(self):
+        self.basedir = self.mktemp()
+        d = self.set_up_nodes()
+        CONTENTS = "a little bit of data"
+        d.addCallback(lambda res: self.clients[0].create_mutable_file(CONTENTS))
+        def _created(node):
+            self.node = node
+            si = self.node.get_storage_index()
+            out = self._run_cli(["debug", "find-shares", base32.b2a(si),
+                                self.clients[1].basedir])
+            files = out.split("\n")
+            # corrupt one of them, using the CLI debug command
+            f = files[0]
+            shnum = os.path.basename(f)
+            nodeid = self.clients[1].nodeid
+            nodeid_prefix = idlib.shortnodeid_b2a(nodeid)
+            self.corrupt_shareid = "%s-sh%s" % (nodeid_prefix, shnum)
+            out = self._run_cli(["debug", "corrupt-share", files[0]])
+        d.addCallback(_created)
+        # now make sure the webapi verifier notices it
+        def _do_check(res):
+            url = (self.webish_url +
+                   "uri/%s" % urllib.quote(self.node.get_uri()) +
+                   "?t=check&verify=true")
+            return getPage(url, method="POST")
+        d.addCallback(_do_check)
+        def _got_results(out):
+            self.failUnless("Not Healthy!" in out, out)
+            self.failUnless("Unhealthy: best recoverable version has only 9 shares (encoding is 3-of-10)" in out, out)
+            shid_re = (r"Corrupt Shares:\s+%s: block hash tree failure" %
+                       self.corrupt_shareid)
+            self.failUnless(re.search(shid_re, out), out)
+
+        d.addCallback(_got_results)
+        return d
+

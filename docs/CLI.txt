@@ -356,3 +356,7 @@ data for this file.
 Tahoe packages and modules are available on sys.path (e.g. by using 'import
 allmydata'). This is most useful from a source tree: it simply sets the
 PYTHONPATH correctly and runs the 'python' executable.
+
+"tahoe debug corrupt-share SHAREFILE" will flip a bit in the given sharefile.
+This can be used to test the client-side verification/repair code. Obviously
+this command should not be used during normal operation.

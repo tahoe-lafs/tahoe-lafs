@@ -619,6 +619,83 @@ def catalog_shares(options):
                         describe_share(abs_sharefile, si_s, shnum_s, now, out)
     return 0
 
+class CorruptShareOptions(usage.Options):
+    def getSynopsis(self):
+        return "Usage: tahoe debug corrupt-share SHARE_FILENAME"
+
+    optParameters = [
+        ["offset", "o", "block-random", "Which bit to flip."],
+        ]
+
+    def getUsage(self, width=None):
+        t = usage.Options.getUsage(self, width)
+        t += """
+Corrupt the given share by flipping a bit. This will cause a
+verifying/downloading client to log an integrity-check failure incident, and
+downloads will proceed with a different share.
+
+The --offset parameter controls which bit should be flipped. The default is
+to flip a single random bit of the block data.
+
+ tahoe debug corrupt-share testgrid/node-3/storage/shares/4v/4vozh77tsrw7mdhnj7qvp5ky74/0
+
+Obviously, this command should not be used in normal operation.
+"""
+        return t
+    def parseArgs(self, filename):
+        self['filename'] = filename
+
+def corrupt_share(options):
+    import random
+    from allmydata import storage
+    from allmydata.mutable.layout import unpack_header
+    out = options.stdout
+    fn = options['filename']
+    assert options["offset"] == "block-random", "other offsets not implemented"
+    # first, what kind of share is it?
+
+    def flip_bit(start, end):
+        offset = random.randrange(start, end)
+        bit = random.randrange(0, 8)
+        print >>out, "[%d..%d):  %d.b%d" % (start, end, offset, bit)
+        f = open(fn, "rb+")
+        f.seek(offset)
+        d = f.read(1)
+        d = chr(ord(d) ^ 0x01)
+        f.seek(offset)
+        f.write(d)
+        f.close()
+
+    f = open(fn, "rb")
+    prefix = f.read(32)
+    f.close()
+    if prefix == storage.MutableShareFile.MAGIC:
+        # mutable
+        m = storage.MutableShareFile(fn)
+        f = open(fn, "rb")
+        f.seek(m.DATA_OFFSET)
+        data = f.read(2000)
+        # make sure this slot contains an SMDF share
+        assert data[0] == "\x00", "non-SDMF mutable shares not supported"
+        f.close()
+
+        (version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,
+         ig_datalen, offsets) = unpack_header(data)
+
+        assert version == 0, "we only handle v0 SDMF files"
+        start = m.DATA_OFFSET + offsets["share_data"]
+        end = m.DATA_OFFSET + offsets["enc_privkey"]
+        flip_bit(start, end)
+    else:
+        # otherwise assume it's immutable
+        f = storage.ShareFile(fn)
+        bp = storage.ReadBucketProxy(None)
+        offsets = bp._parse_offsets(f.read_share_data(0, 0x24))
+        start = f._data_offset + offsets["data"]
+        end = f._data_offset + offsets["plaintext_hash_tree"]
+        flip_bit(start, end)
+
+
 
 class ReplOptions(usage.Options):
     pass
@@ -635,6 +712,7 @@ class DebugCommand(usage.Options):
         ["dump-cap", None, DumpCapOptions, "Unpack a read-cap or write-cap"],
         ["find-shares", None, FindSharesOptions, "Locate sharefiles in node dirs"],
         ["catalog-shares", None, CatalogSharesOptions, "Describe shares in node dirs"],
+        ["corrupt-share", None, CorruptShareOptions, "Corrupt a share"],
         ["repl", None, ReplOptions, "Open a python interpreter"],
         ]
     def postOptions(self):
@@ -650,6 +728,7 @@ Subcommands:
     tahoe debug dump-cap        Unpack a read-cap or write-cap
     tahoe debug find-shares     Locate sharefiles in node directories
     tahoe debug catalog-shares  Describe all shares in node dirs
+    tahoe debug corrupt-share   Corrupt a share by flipping a bit.
 
 Please run e.g. 'tahoe debug dump-share --help' for more details on each
 subcommand.
@@ -661,6 +740,7 @@ subDispatch = {
     "dump-cap": dump_cap,
     "find-shares": find_shares,
     "catalog-shares": catalog_shares,
+    "corrupt-share": corrupt_share,
     "repl": repl,
     }
 

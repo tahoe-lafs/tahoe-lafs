@@ -339,8 +339,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def _POST_deep_check(self, req):
         # check this directory and everything reachable from it
         verify = boolean_of_arg(get_arg(req, "verify", "false"))
-        #repair = boolean_of_arg(get_arg(req, "repair", "false"))
-        repair = False # make sure it works first
+        repair = boolean_of_arg(get_arg(req, "repair", "false"))
         d = self.node.deep_check(verify, repair)
         d.addCallback(lambda res: DeepCheckResults(res))
         return d

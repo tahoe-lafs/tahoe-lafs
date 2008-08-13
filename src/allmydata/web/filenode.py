@@ -255,7 +255,9 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         return d
 
     def _POST_check(self, req):
-        d = self.node.check()
+        verify = boolean_of_arg(get_arg(req, "verify", "false"))
+        repair = boolean_of_arg(get_arg(req, "repair", "false"))
+        d = self.node.check(verify, repair)
         d.addCallback(lambda res: CheckerResults(res))
         return d
 
