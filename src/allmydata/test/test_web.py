@@ -227,7 +227,7 @@ class WebMixin(object):
     def HEAD(self, urlpath):
         # this requires some surgery, because twisted.web.client doesn't want
         # to give us back the response headers.
-        factory = HTTPClientHEADFactory(urlpath)
+        factory = HTTPClientHEADFactory(urlpath, method="HEAD")
         reactor.connectTCP("localhost", self.webish_port, factory)
         return factory.deferred
 
