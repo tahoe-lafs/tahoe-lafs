@@ -24,6 +24,7 @@ class Results:
             self.storage_index_s = "<none>"
         else:
             self.storage_index_s = base32.b2a(storage_index)[:6]
+        self.status_report = "[not generated yet]" # string
 
     def is_healthy(self):
         return self.healthy
@@ -45,6 +46,9 @@ class Results:
             s += "Healthy!\n"
         else:
             s += "Not Healthy!\n"
+        s += "\n"
+        s += self.status_report
+        s += "\n"
         return s
 
 class DeepCheckResults:
@@ -149,9 +153,17 @@ class SimpleCHKFileChecker:
 
     def _done(self, res):
         r = Results(self.storage_index)
+        report = []
         r.healthy = bool(len(self.found_shares) >= self.total_shares)
         r.stuff = (self.needed_shares, self.total_shares,
                    len(self.found_shares), self.sharemap)
+        if len(self.found_shares) < self.total_shares:
+            wanted = set(range(self.total_shares))
+            missing = wanted - self.found_shares
+            report.append("Missing shares: %s" %
+                          ",".join(["sh%d" % shnum
+                                    for shnum in sorted(missing)]))
+        r.status_report = "\n".join(report) + "\n"
         return r
 
 class VerifyingOutput:
