@@ -306,6 +306,9 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: self.failUnlessIdentical(res, None))
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
+            d.addCallback(lambda res: n.get_size_of_best_version())
+            d.addCallback(lambda size:
+                          self.failUnlessEqual(size, len("contents 1")))
             d.addCallback(lambda res: n.overwrite("contents 2"))
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))

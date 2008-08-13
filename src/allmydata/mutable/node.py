@@ -310,6 +310,16 @@ class MutableFileNode:
             raise UnrecoverableFileError("no recoverable versions")
         return self._try_once_to_download_version(servermap, goal)
 
+    def get_size_of_best_version(self):
+        d = self.get_servermap(MODE_READ)
+        def _got_servermap(smap):
+            ver = smap.best_recoverable_version()
+            if not ver:
+                raise UnrecoverableFileError("no recoverable version")
+            return smap.size_of_version(ver)
+        d.addCallback(_got_servermap)
+        return d
+
     def overwrite(self, new_contents):
         return self._do_serialized(self._overwrite, new_contents)
     def _overwrite(self, new_contents):

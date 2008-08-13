@@ -539,6 +539,13 @@ class IMutableFileNode(IFileNode, IMutableFilesystemNode):
         UnrecoverableFileError.
         """
 
+    def get_size_of_best_version():
+        """Find the size of the version that would be downloaded with
+        download_best_version(), without actually downloading the whole file.
+
+        I return a Deferred that fires with an integer.
+        """
+
     def overwrite(new_contents):
         """Unconditionally replace the contents of the mutable file with new
         ones. This simply chains get_servermap(MODE_WRITE) and upload(). This

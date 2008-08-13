@@ -130,6 +130,8 @@ class FakeMutableFileNode:
         return "\x00"*16
     def get_size(self):
         return "?" # TODO: see mutable.MutableFileNode.get_size
+    def get_size_of_best_version(self):
+        return defer.succeed(len(self.all_contents[self.storage_index]))
 
     def get_storage_index(self):
         return self.storage_index
