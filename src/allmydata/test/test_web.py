@@ -99,6 +99,18 @@ class HTTPClientHEADFactory(client.HTTPClientFactory):
         client.HTTPClientFactory.__init__(self, *args, **kwargs)
         self.deferred.addCallback(lambda res: self.response_headers)
 
+    def noPage(self, reason):
+        # Twisted-2.5.0 and earlier had a bug, in which they would raise an
+        # exception when the response to a HEAD request had no body (when in
+        # fact they are defined to never have a body). This was fixed in
+        # Twisted-8.0 . To work around this, we catch the
+        # PartialDownloadError and make it disappear.
+        if (reason.check(client.PartialDownloadError)
+            and self.method.upper() == "HEAD"):
+            self.page("")
+            return
+        return client.HTTPClientFactory.noPage(self, reason)
+
 
 class WebMixin(object):
     def setUp(self):
