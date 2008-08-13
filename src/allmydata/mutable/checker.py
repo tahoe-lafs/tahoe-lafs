@@ -3,7 +3,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
 from allmydata import hashtree
-from allmydata.util import hashutil, base32, idlib
+from allmydata.util import hashutil, base32, idlib, log
 from allmydata.interfaces import ICheckerResults
 
 from common import MODE_CHECK, CorruptShareError
@@ -196,6 +196,14 @@ class MutableChecker:
                 report.append(" %s: %s" % (s, ft))
                 p = (peerid, self._storage_index, shnum, f)
                 self.results.problems.append(p)
+                msg = ("CorruptShareError during mutable verify, "
+                       "peerid=%(peerid)s, si=%(si)s, shnum=%(shnum)d, "
+                       "where=%(where)s")
+                log.msg(format=msg, peerid=idlib.nodeid_b2a(peerid),
+                        si=base32.b2a(self._storage_index),
+                        shnum=shnum,
+                        where=ft,
+                        level=log.WEIRD)
 
         self.results.status_report = "\n".join(report) + "\n"
 
