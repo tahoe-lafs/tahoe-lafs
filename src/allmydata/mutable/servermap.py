@@ -514,7 +514,8 @@ class ServermapUpdater:
         self._must_query.discard(peerid)
         self._queries_completed += 1
         if not self._running:
-            self.log("but we're not running, so we'll ignore it", parent=lp)
+            self.log("but we're not running, so we'll ignore it", parent=lp,
+                     level=log.NOISY)
             self._status.add_per_server_time(peerid, "late", started, elapsed)
             return
         self._status.add_per_server_time(peerid, "query", started, elapsed)
@@ -570,12 +571,13 @@ class ServermapUpdater:
             d.addErrback(self._fatal_error)
 
         # all done!
-        self.log("_got_results done", parent=lp)
+        self.log("_got_results done", parent=lp, level=log.NOISY)
 
     def _got_results_one_share(self, shnum, data, peerid, lp):
         self.log(format="_got_results: got shnum #%(shnum)d from peerid %(peerid)s",
                  shnum=shnum,
                  peerid=idlib.shortnodeid_b2a(peerid),
+                 level=log.NOISY,
                  parent=lp)
 
         # this might raise NeedMoreDataError, if the pubkey and signature
@@ -751,7 +753,7 @@ class ServermapUpdater:
             # a share, so we must continue to wait. No additional queries are
             # required at this time.
             self.log("%d 'must query' peers left" % len(self._must_query),
-                     parent=lp)
+                     level=log.NOISY, parent=lp)
             return
 
         if (not self._queries_outstanding and not self.extra_peers):
@@ -789,11 +791,11 @@ class ServermapUpdater:
                 self.log(format="%(completed)d completed, %(query)d to query: need more",
                          completed=self._queries_completed,
                          query=self.num_peers_to_query,
-                         parent=lp)
+                         level=log.NOISY, parent=lp)
                 return self._send_more_queries(MAX_IN_FLIGHT)
             if not recoverable_versions:
                 self.log("no recoverable versions: need more",
-                         parent=lp)
+                         level=log.NOISY, parent=lp)
                 return self._send_more_queries(MAX_IN_FLIGHT)
             highest_recoverable = max(recoverable_versions)
             highest_recoverable_seqnum = highest_recoverable[0]
@@ -803,7 +805,8 @@ class ServermapUpdater:
                     # don't yet see enough shares to recover it. Try harder.
                     # TODO: consider sending more queries.
                     # TODO: consider limiting the search distance
-                    self.log("evidence of higher seqnum: need more")
+                    self.log("evidence of higher seqnum: need more",
+                             level=log.UNUSUAL, parent=lp)
                     return self._send_more_queries(MAX_IN_FLIGHT)
             # all the unrecoverable versions were old or concurrent with a
             # recoverable version. Good enough.
@@ -817,7 +820,8 @@ class ServermapUpdater:
             # every server in the world.
 
             if not recoverable_versions:
-                self.log("no recoverable versions: need more", parent=lp)
+                self.log("no recoverable versions: need more", parent=lp,
+                         level=log.NOISY)
                 return self._send_more_queries(MAX_IN_FLIGHT)
 
             last_found = -1
@@ -841,7 +845,7 @@ class ServermapUpdater:
                         if num_not_found >= self.EPSILON:
                             self.log("found our boundary, %s" %
                                      "".join(states),
-                                     parent=lp)
+                                     parent=lp, level=log.NOISY)
                             found_boundary = True
                             break
 
@@ -864,11 +868,11 @@ class ServermapUpdater:
                 if last_not_responded == -1:
                     # we're done
                     self.log("have all our answers",
-                             parent=lp)
+                             parent=lp, level=log.NOISY)
                     # .. unless we're still waiting on the privkey
                     if self._need_privkey:
                         self.log("but we're still waiting for the privkey",
-                                 parent=lp)
+                                 parent=lp, level=log.NOISY)
                         # if we found the boundary but we haven't yet found
                         # the privkey, we may need to look further. If
                         # somehow all the privkeys were corrupted (but the
@@ -881,13 +885,14 @@ class ServermapUpdater:
 
             # if we hit here, we didn't find our boundary, so we're still
             # waiting for peers
-            self.log("no boundary yet, %s" % "".join(states), parent=lp)
+            self.log("no boundary yet, %s" % "".join(states), parent=lp,
+                     level=log.NOISY)
             return self._send_more_queries(MAX_IN_FLIGHT)
 
         # otherwise, keep up to 5 queries in flight. TODO: this is pretty
         # arbitrary, really I want this to be something like k -
         # max(known_version_sharecounts) + some extra
-        self.log("catchall: need more", parent=lp)
+        self.log("catchall: need more", parent=lp, level=log.NOISY)
         return self._send_more_queries(MAX_IN_FLIGHT)
 
     def _send_more_queries(self, num_outstanding):
