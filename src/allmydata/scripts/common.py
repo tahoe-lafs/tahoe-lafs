@@ -86,7 +86,7 @@ def get_aliases(nodedir):
         f = open(aliasfile, "r")
         for line in f.readlines():
             line = line.strip()
-            if line.startswith("#"):
+            if line.startswith("#") or not line:
                 continue
             name, cap = line.split(":", 1)
             # normalize it: remove http: prefix, urldecode
