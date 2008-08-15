@@ -20,6 +20,13 @@ if hasattr(sys, 'frozen'):
     install_requires=[]
 
 def require_auto_deps():
+    """
+    The purpose of this function is to raise a pkg_resources exception if any of the
+    requirements can't be imported.  This is just to give earlier and more explicit error
+    messages, as opposed to waiting until the source code tries to import some module from one
+    of these packages and gets an ImportError.  This function gets called from
+    src/allmydata/__init__.py .
+    """
     import pkg_resources
     for requirement in install_requires:
         try:
