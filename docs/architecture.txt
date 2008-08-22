@@ -313,6 +313,8 @@ creation of a "virtual CD" as easily as dragging a folder onto a user icon.
 
 LEASES, REFRESHING, GARBAGE COLLECTION, QUOTAS
 
+THIS SECTION IS OUT OF DATE.  Since we wrote this we've changed our minds about how we intend to implement these features.  Neither the old design, documented below, nor the new one, documented on the tahoe-dev mailing list and the wiki and the issue tracker, have actually been implemented yet.
+
 Shares are uploaded to a storage server, but they do not necessarily stay
 there forever. We are anticipating three main share-lifetime management modes
 for Tahoe: 1) per-share leases which expire, 2) per-account timers which
@@ -401,7 +403,10 @@ each lease is always set to zero). In addition, many features have not been
 implemented yet: the client should claim leases on files which are added to
 the vdrive by linking (as opposed to uploading), and the client should cancel
 leases on files which are removed from the vdrive, but neither has been
-written yet. This means that shares are not ever deleted in this release.
+written yet. This means that shares are not ever deleted in this
+release. (Note, however, that if read-cap to a file is deleted then it will no
+longer be possible to decrypt that file, even if the shares which contain
+the erasure-coded ciphertext still exist.)
 
 
 FILE REPAIRER
