@@ -243,12 +243,12 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         num = self._client.log("SimpleCHKFileVerifier(%s): starting" % prefix)
         self._log_number = num
 
-    def log(self, msg, parent=None):
-        if parent is None:
-            parent = self._log_number
+    def log(self, msg, *args, **kwargs):
+        if not kwargs.get('parent'):
+            kwargs['parent'] = self._log_number
         return self._client.log("SimpleCHKFileVerifier(%s): %s"
                                 % (self._log_prefix, msg),
-                                parent=parent)
+                                *args, **kwargs)
 
 
     def start(self):
