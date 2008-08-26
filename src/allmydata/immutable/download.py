@@ -4,6 +4,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer, IConsumer
 from twisted.application import service
+from foolscap import DeadReferenceError
 from foolscap.eventual import eventually
 
 from allmydata.util import base32, mathutil, hashutil, log
@@ -264,10 +265,10 @@ class BlockDownloader:
         self.results = results
         self._log_number = self.parent.log("starting block %d" % blocknum)
 
-    def log(self, msg, parent=None):
-        if parent is None:
-            parent = self._log_number
-        return self.parent.log(msg, parent=parent)
+    def log(self, *args, **kwargs):
+        if "parent" not in kwargs:
+            kwargs["parent"] = self._log_number
+        return self.parent.log(*args, **kwargs)
 
     def start(self, segnum):
         lognum = self.log("get_block(segnum=%d)" % segnum)
@@ -288,8 +289,11 @@ class BlockDownloader:
         self.parent.hold_block(self.blocknum, data)
 
     def _got_block_error(self, f, lognum):
-        self.log("BlockDownloader[%d] got error: %s" % (self.blocknum, f),
-                 parent=lognum)
+        level = log.WEIRD
+        if f.check(DeadReferenceError):
+            level = log.UNUSUAL
+        self.log("BlockDownloader[%d] got error" % self.blocknum,
+                 failure=f, level=level, parent=lognum)
         if self.results:
             peerid = self.vbucket.bucket.get_peerid()
             self.results.server_problems[peerid] = str(f)
@@ -311,10 +315,10 @@ class SegmentDownloader:
         self._log_number = self.parent.log("starting segment %d" %
                                            segmentnumber)
 
-    def log(self, msg, parent=None):
-        if parent is None:
-            parent = self._log_number
-        return self.parent.log(msg, parent=parent)
+    def log(self, *args, **kwargs):
+        if "parent" not in kwargs:
+            kwargs["parent"] = self._log_number
+        return self.parent.log(*args, **kwargs)
 
     def start(self):
         return self._download()
@@ -588,7 +592,10 @@ class FileDownloader:
         self._share_buckets.append( (sharenum, bucket) )
 
     def _got_error(self, f):
-        self._client.log("Somebody failed. -- %s" % (f,))
+        level = log.WEIRD
+        if f.check(DeadReferenceError):
+            level = log.UNUSUAL
+        self._client.log("Error during get_buckets", failure=f, level=level)
 
     def bucket_failed(self, vbucket):
         shnum = vbucket.sharenum
@@ -656,8 +663,12 @@ class FileDownloader:
         d.addCallback(lambda res: getattr(bucket, methname)(*args))
         d.addCallback(validatorfunc, bucket)
         def _bad(f):
-            self.log("%s from vbucket %s failed:" % (name, bucket),
-                     failure=f, level=log.WEIRD)
+            level = log.WEIRD
+            if f.check(DeadReferenceError):
+                level = log.UNUSUAL
+            self.log(format="operation %(op)s from vbucket %(vbucket)s failed",
+                     op=name, vbucket=str(bucket),
+                     failure=f, level=level)
             if not sources:
                 raise NotEnoughSharesError("ran out of peers, last error was %s"
                                           % (f,))

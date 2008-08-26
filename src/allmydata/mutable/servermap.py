@@ -360,6 +360,8 @@ class ServermapUpdater:
     def log(self, *args, **kwargs):
         if "parent" not in kwargs:
             kwargs["parent"] = self._log_number
+        if "facility" not in kwargs:
+            kwargs["facility"] = "tahoe.mutable.mapupdate"
         return log.msg(*args, **kwargs)
 
     def update(self):
@@ -537,8 +539,8 @@ class ServermapUpdater:
             except CorruptShareError, e:
                 # log it and give the other shares a chance to be processed
                 f = failure.Failure()
-                self.log("bad share: %s %s" % (f, f.value),
-                         parent=lp, level=log.WEIRD)
+                self.log(format="bad share: %(f_value)s", f_value=str(f.value),
+                         failure=f, parent=lp, level=log.WEIRD)
                 self._bad_peers.add(peerid)
                 self._last_failure = f
                 checkstring = data[:SIGNED_PREFIX_LENGTH]
@@ -689,7 +691,8 @@ class ServermapUpdater:
 
 
     def _query_failed(self, f, peerid):
-        self.log("error during query: %s %s" % (f, f.value), level=log.WEIRD)
+        self.log(format="error during query: %(f_value)s",
+                 f_value=str(f.value), failure=f, level=log.WEIRD)
         if not self._running:
             return
         self._must_query.discard(peerid)
@@ -716,7 +719,8 @@ class ServermapUpdater:
 
     def _privkey_query_failed(self, f, peerid, shnum, lp):
         self._queries_outstanding.discard(peerid)
-        self.log("error during privkey query: %s %s" % (f, f.value),
+        self.log(format="error during privkey query: %(f_value)s",
+                 f_value=str(f.value), failure=f,
                  parent=lp, level=log.WEIRD)
         if not self._running:
             return

@@ -117,6 +117,8 @@ class Publish:
     def log(self, *args, **kwargs):
         if 'parent' not in kwargs:
             kwargs['parent'] = self._log_number
+        if "facility" not in kwargs:
+            kwargs["facility"] = "tahoe.mutable.publish"
         return log.msg(*args, **kwargs)
 
     def publish(self, newdata):
@@ -239,7 +241,7 @@ class Publish:
             self.bad_share_checkstrings[ (peerid, shnum) ] = old_checkstring
             self.connections[peerid] = self._servermap.connections[peerid]
 
-        # create the shares. We'll discard these as they are delivered. SMDF:
+        # create the shares. We'll discard these as they are delivered. SDMF:
         # we're allowed to hold everything in memory.
 
         self._status.timings["setup"] = time.time() - self._started
@@ -268,7 +270,7 @@ class Publish:
         assert self.num_segments in [0, 1,] # SDMF restrictions
 
     def _fatal_error(self, f):
-        self.log("error during loop", failure=f, level=log.SCARY)
+        self.log("error during loop", failure=f, level=log.UNUSUAL)
         self._done(f)
 
     def _update_status(self):

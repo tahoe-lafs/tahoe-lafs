@@ -4,6 +4,7 @@ from itertools import count
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
+from foolscap import DeadReferenceError
 from foolscap.eventual import eventually, fireEventually
 from allmydata.interfaces import IRetrieveStatus
 from allmydata.util import hashutil, idlib, log
@@ -113,6 +114,8 @@ class Retrieve:
     def log(self, *args, **kwargs):
         if "parent" not in kwargs:
             kwargs["parent"] = self._log_number
+        if "facility" not in kwargs:
+            kwargs["facility"] = "tahoe.mutable.retrieve"
         return log.msg(*args, **kwargs)
 
     def download(self):
@@ -247,7 +250,8 @@ class Retrieve:
             except CorruptShareError, e:
                 # log it and give the other shares a chance to be processed
                 f = failure.Failure()
-                self.log("bad share: %s %s" % (f, f.value), level=log.WEIRD)
+                self.log(format="bad share: %(f_value)s",
+                         f_value=str(f.value), failure=f, level=log.WEIRD)
                 self.remove_peer(peerid)
                 self.servermap.mark_bad_share(peerid, shnum, prefix)
                 self._bad_shares.add( (peerid, shnum) )
@@ -301,7 +305,11 @@ class Retrieve:
             return
         self._last_failure = f
         self.remove_peer(peerid)
-        self.log("error during query: %s %s" % (f, f.value), level=log.WEIRD)
+        level = log.WEIRD
+        if f.check(DeadReferenceError):
+            level = log.UNUSUAL
+        self.log(format="error during query: %(f_value)s",
+                 f_value=str(f.value), failure=f, level=level)
 
     def _check_for_done(self, res):
         # exit paths:
