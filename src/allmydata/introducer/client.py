@@ -123,7 +123,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._introducer_reconnector = rc
         def connect_failed(failure):
             self.log("Initial Introducer connection failed: perhaps it's down",
-                     level=log.WEIRD, failure=failure)
+                     level=log.WEIRD, failure=failure, umid="c5MqUQ")
         d = self._tub.getReference(self.introducer_furl)
         d.addErrback(connect_failed)
 
@@ -175,7 +175,7 @@ class IntroducerClient(service.Service, Referenceable):
                 self._subscriptions.add(service_name)
                 d = self._publisher.callRemote("subscribe", self, service_name)
                 d.addErrback(log.err, facility="tahoe.introducer",
-                             level=log.WEIRD)
+                             level=log.WEIRD, umid="2uMScQ")
 
     def _maybe_publish(self):
         if not self._publisher:
@@ -185,7 +185,7 @@ class IntroducerClient(service.Service, Referenceable):
         for ann in self._published_announcements:
             d = self._publisher.callRemote("publish", ann)
             d.addErrback(log.err, facility="tahoe.introducer",
-                         level=log.WEIRD)
+                         level=log.WEIRD, umid="xs9pVQ")
 
 
 
@@ -195,7 +195,7 @@ class IntroducerClient(service.Service, Referenceable):
             (furl, service_name, ri_name, nickname, ver, oldest) = ann
             if service_name not in self._subscribed_service_names:
                 self.log("announcement for a service we don't care about [%s]"
-                         % (service_name,), level=log.WEIRD)
+                         % (service_name,), level=log.UNUSUAL, umid="dIpGNA")
                 continue
             if ann in self._received_announcements:
                 self.log("ignoring old announcement: %s" % (ann,),

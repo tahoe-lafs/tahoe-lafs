@@ -121,7 +121,8 @@ class Output:
             # download, not so scary
             self.log("download stopped", level=log.UNUSUAL)
         else:
-            self.log("download failed!", failure=why, level=log.SCARY)
+            self.log("download failed!", failure=why,
+                     level=log.SCARY, umid="lp1vaQ")
         self.downloadable.fail(why)
 
     def close(self):
@@ -293,7 +294,7 @@ class BlockDownloader:
         if f.check(DeadReferenceError):
             level = log.UNUSUAL
         self.log("BlockDownloader[%d] got error" % self.blocknum,
-                 failure=f, level=level, parent=lognum)
+                 failure=f, level=level, parent=lognum, umid="5Z4uHQ")
         if self.results:
             peerid = self.vbucket.bucket.get_peerid()
             self.results.server_problems[peerid] = str(f)
@@ -595,7 +596,8 @@ class FileDownloader:
         level = log.WEIRD
         if f.check(DeadReferenceError):
             level = log.UNUSUAL
-        self._client.log("Error during get_buckets", failure=f, level=level)
+        self._client.log("Error during get_buckets", failure=f, level=level,
+                         umid="3uuBUQ")
 
     def bucket_failed(self, vbucket):
         shnum = vbucket.sharenum
@@ -643,7 +645,7 @@ class FileDownloader:
                        (bucket,
                         base32.b2a(self._uri_extension_hash),
                         base32.b2a(h)))
-                self.log(msg, level=log.SCARY)
+                self.log(msg, level=log.SCARY, umid="jnkTtQ")
                 raise BadURIExtensionHashValue(msg)
             return self._unpack_uri_extension_data(proposal)
         return self._obtain_validated_thing(None,
@@ -668,7 +670,7 @@ class FileDownloader:
                 level = log.UNUSUAL
             self.log(format="operation %(op)s from vbucket %(vbucket)s failed",
                      op=name, vbucket=str(bucket),
-                     failure=f, level=level)
+                     failure=f, level=level, umid="JGXxBA")
             if not sources:
                 raise NotEnoughSharesError("ran out of peers, last error was %s"
                                           % (f,))

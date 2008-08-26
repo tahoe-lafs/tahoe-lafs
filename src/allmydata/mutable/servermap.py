@@ -540,7 +540,7 @@ class ServermapUpdater:
                 # log it and give the other shares a chance to be processed
                 f = failure.Failure()
                 self.log(format="bad share: %(f_value)s", f_value=str(f.value),
-                         failure=f, parent=lp, level=log.WEIRD)
+                         failure=f, parent=lp, level=log.WEIRD, umid="h5llHg")
                 self._bad_peers.add(peerid)
                 self._last_failure = f
                 checkstring = data[:SIGNED_PREFIX_LENGTH]
@@ -676,7 +676,7 @@ class ServermapUpdater:
         if alleged_writekey != self._node.get_writekey():
             self.log("invalid privkey from %s shnum %d" %
                      (idlib.nodeid_b2a(peerid)[:8], shnum),
-                     parent=lp, level=log.WEIRD)
+                     parent=lp, level=log.WEIRD, umid="aJVccw")
             return
 
         # it's good
@@ -692,7 +692,8 @@ class ServermapUpdater:
 
     def _query_failed(self, f, peerid):
         self.log(format="error during query: %(f_value)s",
-                 f_value=str(f.value), failure=f, level=log.WEIRD)
+                 f_value=str(f.value), failure=f,
+                 level=log.WEIRD, umid="IHXuQg")
         if not self._running:
             return
         self._must_query.discard(peerid)
@@ -711,7 +712,8 @@ class ServermapUpdater:
         if not self._need_privkey:
             return
         if shnum not in datavs:
-            self.log("privkey wasn't there when we asked it", level=log.WEIRD)
+            self.log("privkey wasn't there when we asked it",
+                     level=log.WEIRD, umid="VA9uDQ")
             return
         datav = datavs[shnum]
         enc_privkey = datav[0]
@@ -721,7 +723,7 @@ class ServermapUpdater:
         self._queries_outstanding.discard(peerid)
         self.log(format="error during privkey query: %(f_value)s",
                  f_value=str(f.value), failure=f,
-                 parent=lp, level=log.WEIRD)
+                 parent=lp, level=log.WEIRD, umid="McoJ5w")
         if not self._running:
             return
         self._queries_outstanding.discard(peerid)
@@ -942,7 +944,7 @@ class ServermapUpdater:
         eventually(self._done_deferred.callback, self._servermap)
 
     def _fatal_error(self, f):
-        self.log("fatal error", failure=f, level=log.WEIRD)
+        self.log("fatal error", failure=f, level=log.WEIRD, umid="1cNvlw")
         self._done_deferred.errback(f)
 
 

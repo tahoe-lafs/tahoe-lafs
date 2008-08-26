@@ -665,7 +665,7 @@ class Publish:
         if surprise_shares:
             self.log("they had shares %s that we didn't know about" %
                      (list(surprise_shares),),
-                     parent=lp, level=log.WEIRD)
+                     parent=lp, level=log.WEIRD, umid="un9CSQ")
             self.surprised = True
 
         if not wrote:
@@ -685,7 +685,7 @@ class Publish:
             # bother adding to self.bad_peers .
 
             self.log("our testv failed, so the write did not happen",
-                     parent=lp, level=log.WEIRD)
+                     parent=lp, level=log.WEIRD, umid="8sc26g")
             self.surprised = True
             self.bad_peers.add(peerid) # don't ask them again
             # use the checkstring to add information to the log message
@@ -741,7 +741,8 @@ class Publish:
         self._status.timings["total"] = now - self._started
         self._status.set_active(False)
         if isinstance(res, failure.Failure):
-            self.log("Publish done, with failure", failure=res, level=log.WEIRD)
+            self.log("Publish done, with failure", failure=res,
+                     level=log.WEIRD, umid="nRsR9Q")
             self._status.set_status("Failed")
         elif self.surprised:
             self.log("Publish done, UncoordinatedWriteError", level=log.UNUSUAL)

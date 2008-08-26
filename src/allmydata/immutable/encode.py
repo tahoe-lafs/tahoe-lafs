@@ -404,7 +404,8 @@ class Encoder(object):
                 # non-tail segments should be the full segment size
                 if length != input_chunk_size:
                     log.msg("non-tail segment should be full segment size: %d!=%d"
-                            % (length, input_chunk_size), level=log.BAD)
+                            % (length, input_chunk_size),
+                            level=log.BAD, umid="jNk5Yw")
                 precondition(length == input_chunk_size,
                              "length=%d != input_chunk_size=%d" %
                              (length, input_chunk_size))
@@ -486,7 +487,7 @@ class Encoder(object):
         else:
             # even more UNUSUAL
             self.log("they weren't in our list of landlords", parent=ln,
-                     level=log.WEIRD)
+                     level=log.WEIRD, umid="TQGFRw")
         if len(self.landlords) < self.shares_of_happiness:
             msg = "lost too many shareholders during upload: %s" % why
             raise NotEnoughSharesError(msg)

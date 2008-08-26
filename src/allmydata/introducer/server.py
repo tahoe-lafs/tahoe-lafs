@@ -31,7 +31,8 @@ class IntroducerNode(node.Node):
             self.log(" introducer is at %s" % self.introducer_url)
             self.write_config("introducer.furl", self.introducer_url + "\n")
         d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
+        d.addErrback(log.err, facility="tahoe.init",
+                     level=log.BAD, umid="UaNs9A")
 
     def init_web(self, webport):
         self.log("init_web(webport=%s)", args=(webport,))

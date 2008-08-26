@@ -111,7 +111,8 @@ class Client(node.Node, testutil.PollMixin):
             # nodes that want to upload and download will need storage servers
             ic.subscribe_to("storage")
         d.addCallback(_start_introducer_client)
-        d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
+        d.addErrback(log.err, facility="tahoe.init",
+                     level=log.BAD, umid="URyI5w")
 
     def init_stats_provider(self):
         gatherer_furl = self.get_config('stats_gatherer.furl')
@@ -165,7 +166,8 @@ class Client(node.Node, testutil.PollMixin):
             ri_name = RIStorageServer.__remote_name__
             self.introducer_client.publish(furl, "storage", ri_name)
         d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
+        d.addErrback(log.err, facility="tahoe.init",
+                     level=log.BAD, umid="aLGBKw")
 
     def init_client(self):
         helper_furl = self.get_config("helper.furl")
@@ -185,7 +187,8 @@ class Client(node.Node, testutil.PollMixin):
             self.introducer_client.publish(furl, "stub_client", ri_name)
         d = self.when_tub_ready()
         d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
+        d.addErrback(log.err, facility="tahoe.init",
+                     level=log.BAD, umid="OEHq3g")
 
     def init_control(self):
         d = self.when_tub_ready()
@@ -195,7 +198,8 @@ class Client(node.Node, testutil.PollMixin):
             control_url = self.tub.registerReference(c)
             self.write_private_config("control.furl", control_url + "\n")
         d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
+        d.addErrback(log.err, facility="tahoe.init",
+                     level=log.BAD, umid="d3tNXA")
 
     def init_helper(self):
         d = self.when_tub_ready()
@@ -211,14 +215,16 @@ class Client(node.Node, testutil.PollMixin):
                                            "private", "helper.furl")
             self.tub.registerReference(h, furlFile=helper_furlfile)
         d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
+        d.addErrback(log.err, facility="tahoe.init",
+                     level=log.BAD, umid="K0mW5w")
 
     def init_key_gen(self, key_gen_furl):
         d = self.when_tub_ready()
         def _subscribe(self):
             self.tub.connectTo(key_gen_furl, self._got_key_generator)
         d.addCallback(_subscribe)
-        d.addErrback(log.err, facility="tahoe.init", level=log.BAD)
+        d.addErrback(log.err, facility="tahoe.init",
+                     level=log.BAD, umid="z9DMzw")
 
     def _got_key_generator(self, key_generator):
         self._key_generator = key_generator

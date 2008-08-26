@@ -206,7 +206,7 @@ class Retrieve:
                      shnum=shnum,
                      peerid=idlib.shortnodeid_b2a(peerid),
                      failure=f,
-                     level=log.WEIRD)
+                     level=log.WEIRD, umid="W0xnQA")
         d.addErrback(_oops)
         d.addBoth(self._check_for_done)
         # any error during _check_for_done means the download fails. If the
@@ -251,7 +251,8 @@ class Retrieve:
                 # log it and give the other shares a chance to be processed
                 f = failure.Failure()
                 self.log(format="bad share: %(f_value)s",
-                         f_value=str(f.value), failure=f, level=log.WEIRD)
+                         f_value=str(f.value), failure=f,
+                         level=log.WEIRD, umid="7fzWZw")
                 self.remove_peer(peerid)
                 self.servermap.mark_bad_share(peerid, shnum, prefix)
                 self._bad_shares.add( (peerid, shnum) )
@@ -309,7 +310,7 @@ class Retrieve:
         if f.check(DeadReferenceError):
             level = log.UNUSUAL
         self.log(format="error during query: %(f_value)s",
-                 f_value=str(f.value), failure=f, level=level)
+                 f_value=str(f.value), failure=f, level=level, umid="gOJB5g")
 
     def _check_for_done(self, res):
         # exit paths:
@@ -411,14 +412,14 @@ class Retrieve:
                     "bad": len(self._bad_shares),
                     }
             self.log(format=format,
-                     level=log.WEIRD, **args)
+                     level=log.WEIRD, umid="ezTfjw", **args)
             err = NotEnoughSharesError("%s, last failure: %s" %
                                       (format % args, self._last_failure))
             if self._bad_shares:
                 self.log("We found some bad shares this pass. You should "
                          "update the servermap and try again to check "
                          "more peers",
-                         level=log.WEIRD)
+                         level=log.WEIRD, umid="EFkOlA")
                 err.servermap = self.servermap
             raise err
 

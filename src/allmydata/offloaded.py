@@ -101,7 +101,7 @@ class CHKCheckerAndUEBFetcher:
     def _ueb_error(self, f):
         # an error means the file is unavailable, but the overall check
         # shouldn't fail.
-        self.log("UEB fetch failed", failure=f, level=log.WEIRD)
+        self.log("UEB fetch failed", failure=f, level=log.WEIRD, umid="sJLKVg")
         return None
 
     def _done(self, res):
@@ -598,7 +598,7 @@ class Helper(Referenceable, service.MultiService):
         d.addCallback(_checked)
         def _err(f):
             self.log("error while checking for chk-already-in-grid",
-                     failure=f, level=log.WEIRD, parent=lp)
+                     failure=f, level=log.WEIRD, parent=lp, umid="jDtxZg")
             return f
         d.addErrback(_err)
         return d

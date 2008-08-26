@@ -109,7 +109,7 @@ class IncidentReporter(RenderMixin, rend.Page):
         req = IRequest(ctx)
         log.msg(format="User reports incident through web page: %(details)s",
                 details=get_arg(req, "details", ""),
-                level=log.WEIRD)
+                level=log.WEIRD, umid="LkD9Pw")
         req.setHeader("content-type", "text/plain")
         return "Thank you for your report!"
 

@@ -694,7 +694,7 @@ class MutableShareFile:
             self.log(format="bad write enabler on SI %(si)s,"
                      " recorded by nodeid %(nodeid)s",
                      facility="tahoe.storage",
-                     level=log.WEIRD,
+                     level=log.WEIRD, umid="cE1eBQ",
                      si=si_s, nodeid=idlib.nodeid_b2a(write_enabler_nodeid))
             msg = "The write enabler was recorded by nodeid '%s'." % \
                   (idlib.nodeid_b2a(write_enabler_nodeid),)

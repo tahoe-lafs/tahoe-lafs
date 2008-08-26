@@ -203,7 +203,7 @@ class MutableChecker:
                         si=base32.b2a(self._storage_index),
                         shnum=shnum,
                         where=ft,
-                        level=log.WEIRD)
+                        level=log.WEIRD, umid="EkK8QA")
 
         self.results.status_report = "\n".join(report) + "\n"
 
