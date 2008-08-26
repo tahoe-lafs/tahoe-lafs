@@ -101,13 +101,14 @@ class ServerMap:
 
     @ivar connections: maps peerid to a RemoteReference
 
-    @ivar bad_shares: a sequence of (peerid, shnum) tuples, describing
+    @ivar bad_shares: dict with keys of (peerid, shnum) tuples, describing
                       shares that I should ignore (because a previous user of
                       the servermap determined that they were invalid). The
                       updater only locates a certain number of shares: if
                       some of these turn out to have integrity problems and
                       are unusable, the caller will need to mark those shares
                       as bad, then re-update the servermap, then try again.
+                      The dict maps (peerid, shnum) tuple to old checkstring.
     """
 
     def __init__(self):
@@ -349,6 +350,9 @@ class ServermapUpdater:
         self._need_privkey = False
         if mode == MODE_WRITE and not self._node._privkey:
             self._need_privkey = True
+        # check+repair: repair requires the privkey, so if we didn't happen
+        # to ask for it during the check, we'll have problems doing the
+        # publish.
 
         prefix = storage.si_b2a(self._storage_index)[:5]
         self._log_number = log.msg(format="SharemapUpdater(%(si)s): starting (%(mode)s)",

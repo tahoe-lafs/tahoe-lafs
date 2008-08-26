@@ -5,6 +5,9 @@ from allmydata.interfaces import IRepairResults
 class RepairResults:
     implements(IRepairResults)
 
+    def to_string(self):
+        return ""
+
 class MustForceRepairError(Exception):
     pass
 
@@ -76,8 +79,14 @@ class Repairer:
         # servermap.bad_shares . Publish knows that it should try and replace
         # these.
 
+        # I chose to use the retrieve phase to ensure that the privkey is
+        # available, to avoid the extra roundtrip that would occur if we,
+        # say, added an smap.get_privkey() method.
+
+        assert self.node.get_writekey() # repair currently requires a writecap
+
         best_version = smap.best_recoverable_version()
-        d = self.node.download_version(smap, best_version)
+        d = self.node.download_version(smap, best_version, fetch_privkey=True)
         d.addCallback(self.node.upload, smap)
         d.addCallback(self.get_results)
         return d

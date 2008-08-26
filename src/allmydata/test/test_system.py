@@ -1915,7 +1915,73 @@ class MutableChecker(SystemTestMixin, unittest.TestCase):
             shid_re = (r"Corrupt Shares:\s+%s: block hash tree failure" %
                        self.corrupt_shareid)
             self.failUnless(re.search(shid_re, out), out)
-
         d.addCallback(_got_results)
+
+        # now make sure the webapi repairer can fix it
+        def _do_repair(res):
+            url = (self.webish_url +
+                   "uri/%s" % urllib.quote(self.node.get_uri()) +
+                   "?t=check&verify=true&repair=true")
+            return getPage(url, method="POST")
+        d.addCallback(_do_repair)
+        def _got_repair_results(out):
+            self.failUnless("Repair attempted and successful" in out)
+        d.addCallback(_got_repair_results)
+        d.addCallback(_do_check)
+        def _got_postrepair_results(out):
+            self.failIf("Not Healthy!" in out, out)
+            self.failUnless("Recoverable Versions: 10*seq" in out)
+        d.addCallback(_got_postrepair_results)
+
+        return d
+
+    def test_delete_share(self):
+        self.basedir = self.mktemp()
+        d = self.set_up_nodes()
+        CONTENTS = "a little bit of data"
+        d.addCallback(lambda res: self.clients[0].create_mutable_file(CONTENTS))
+        def _created(node):
+            self.node = node
+            si = self.node.get_storage_index()
+            out = self._run_cli(["debug", "find-shares", base32.b2a(si),
+                                self.clients[1].basedir])
+            files = out.split("\n")
+            # corrupt one of them, using the CLI debug command
+            f = files[0]
+            shnum = os.path.basename(f)
+            nodeid = self.clients[1].nodeid
+            nodeid_prefix = idlib.shortnodeid_b2a(nodeid)
+            self.corrupt_shareid = "%s-sh%s" % (nodeid_prefix, shnum)
+            os.unlink(files[0])
+        d.addCallback(_created)
+        # now make sure the webapi checker notices it
+        def _do_check(res):
+            url = (self.webish_url +
+                   "uri/%s" % urllib.quote(self.node.get_uri()) +
+                   "?t=check&verify=false")
+            return getPage(url, method="POST")
+        d.addCallback(_do_check)
+        def _got_results(out):
+            self.failUnless("Not Healthy!" in out, out)
+            self.failUnless("Unhealthy: best recoverable version has only 9 shares (encoding is 3-of-10)" in out, out)
+            self.failIf("Corrupt Shares" in out, out)
+        d.addCallback(_got_results)
+
+        # now make sure the webapi repairer can fix it
+        def _do_repair(res):
+            url = (self.webish_url +
+                   "uri/%s" % urllib.quote(self.node.get_uri()) +
+                   "?t=check&verify=false&repair=true")
+            return getPage(url, method="POST")
+        d.addCallback(_do_repair)
+        def _got_repair_results(out):
+            self.failUnless("Repair attempted and successful" in out)
+        d.addCallback(_got_repair_results)
+        d.addCallback(_do_check)
+        def _got_postrepair_results(out):
+            self.failIf("Not Healthy!" in out, out)
+            self.failUnless("Recoverable Versions: 10*seq" in out)
+        d.addCallback(_got_postrepair_results)
+
         return d
 

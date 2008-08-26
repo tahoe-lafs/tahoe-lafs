@@ -11,6 +11,7 @@ from allmydata.util import hashutil, idlib, log
 from allmydata import hashtree, codec, storage
 from allmydata.immutable.encode import NotEnoughSharesError
 from pycryptopp.cipher.aes import AES
+from pycryptopp.publickey import rsa
 
 from common import DictOfSets, CorruptShareError, UncoordinatedWriteError
 from layout import SIGNED_PREFIX, unpack_share_data
@@ -81,7 +82,7 @@ class Retrieve:
     # Retrieve object will remain tied to a specific version of the file, and
     # will use a single ServerMap instance.
 
-    def __init__(self, filenode, servermap, verinfo):
+    def __init__(self, filenode, servermap, verinfo, fetch_privkey=False):
         self._node = filenode
         assert self._node._pubkey
         self._storage_index = filenode.get_storage_index()
@@ -97,6 +98,12 @@ class Retrieve:
         self.servermap = servermap
         assert self._node._pubkey
         self.verinfo = verinfo
+        # during repair, we may be called upon to grab the private key, since
+        # it wasn't picked up during a verify=False checker run, and we'll
+        # need it for repair to generate the a new version.
+        self._need_privkey = fetch_privkey
+        if self._node._privkey:
+            self._need_privkey = False
 
         self._status = RetrieveStatus()
         self._status.set_storage_index(self._storage_index)
@@ -166,16 +173,24 @@ class Retrieve:
         (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
          offsets_tuple) = self.verinfo
         offsets = dict(offsets_tuple)
+
         # we read the checkstring, to make sure that the data we grab is from
-        # the right version. We also read the data, and the hashes necessary
-        # to validate them (share_hash_chain, block_hash_tree, share_data).
-        # We don't read the signature or the pubkey, since that was handled
-        # during the servermap phase, and we'll be comparing the share hash
-        # chain against the roothash that was validated back then.
-        readv = [ (0, struct.calcsize(SIGNED_PREFIX)),
-                  (offsets['share_hash_chain'],
-                   offsets['enc_privkey'] - offsets['share_hash_chain']),
-                  ]
+        # the right version.
+        readv = [ (0, struct.calcsize(SIGNED_PREFIX)) ]
+
+        # We also read the data, and the hashes necessary to validate them
+        # (share_hash_chain, block_hash_tree, share_data). We don't read the
+        # signature or the pubkey, since that was handled during the
+        # servermap phase, and we'll be comparing the share hash chain
+        # against the roothash that was validated back then.
+
+        readv.append( (offsets['share_hash_chain'],
+                       offsets['enc_privkey'] - offsets['share_hash_chain'] ) )
+
+        # if we need the private key (for repair), we also fetch that
+        if self._need_privkey:
+            readv.append( (offsets['enc_privkey'],
+                           offsets['EOF'] - offsets['enc_privkey']) )
 
         m = Marker()
         self._outstanding_queries[m] = (peerid, shnum, started)
@@ -243,7 +258,7 @@ class Retrieve:
         # shares if we get them.. seems better than an assert().
 
         for shnum,datav in datavs.items():
-            (prefix, hash_and_data) = datav
+            (prefix, hash_and_data) = datav[:2]
             try:
                 self._got_results_one_share(shnum, peerid,
                                             prefix, hash_and_data)
@@ -259,6 +274,9 @@ class Retrieve:
                 self._status.problems[peerid] = f
                 self._last_failure = f
                 pass
+            if self._need_privkey and len(datav) > 2:
+                lp = None
+                self._try_to_validate_privkey(datav[2], peerid, shnum, lp)
         # all done!
 
     def _got_results_one_share(self, shnum, peerid,
@@ -296,6 +314,25 @@ class Retrieve:
         # self.shares
         self.shares[shnum] = share_data
 
+    def _try_to_validate_privkey(self, enc_privkey, peerid, shnum, lp):
+
+        alleged_privkey_s = self._node._decrypt_privkey(enc_privkey)
+        alleged_writekey = hashutil.ssk_writekey_hash(alleged_privkey_s)
+        if alleged_writekey != self._node.get_writekey():
+            self.log("invalid privkey from %s shnum %d" %
+                     (idlib.nodeid_b2a(peerid)[:8], shnum),
+                     parent=lp, level=log.WEIRD, umid="YIw4tA")
+            return
+
+        # it's good
+        self.log("got valid privkey from shnum %d on peerid %s" %
+                 (shnum, idlib.shortnodeid_b2a(peerid)),
+                 parent=lp)
+        privkey = rsa.create_signing_key_from_string(alleged_privkey_s)
+        self._node._populate_encprivkey(enc_privkey)
+        self._node._populate_privkey(privkey)
+        self._need_privkey = False
+
     def _query_failed(self, f, marker, peerid):
         self.log(format="query to [%(peerid)s] failed",
                  peerid=idlib.shortnodeid_b2a(peerid),
@@ -332,6 +369,15 @@ class Retrieve:
         if len(self.shares) < k:
             # we don't have enough shares yet
             return self._maybe_send_more_queries(k)
+        if self._need_privkey:
+            # we got k shares, but none of them had a valid privkey. TODO:
+            # look further. Adding code to do this is a bit complicated, and
+            # I want to avoid that complication, and this should be pretty
+            # rare (k shares with bitflips in the enc_privkey but not in the
+            # data blocks). If we actually do get here, the subsequent repair
+            # will fail for lack of a privkey.
+            self.log("got k shares but still need_privkey, bummer",
+                     level=log.WEIRD, umid="MdRHPA")
 
         # we have enough to finish. All the shares have had their hashes
         # checked, so if something fails at this point, we don't know how

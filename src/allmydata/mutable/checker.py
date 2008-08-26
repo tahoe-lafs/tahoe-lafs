@@ -27,9 +27,9 @@ class MutableChecker:
         d.addCallback(self._got_mapupdate_results)
         if verify:
             d.addCallback(self._verify_all_shares)
+        d.addCallback(self._generate_results)
         if repair:
             d.addCallback(self._maybe_do_repair)
-        d.addCallback(self._generate_results)
         d.addCallback(self._return_results)
         return d
 
@@ -134,22 +134,6 @@ class MutableChecker:
             if alleged_writekey != self._node.get_writekey():
                 raise CorruptShareError(peerid, shnum, "invalid privkey")
 
-    def _maybe_do_repair(self, res):
-        if not self.need_repair:
-            return
-        self.results.repair_attempted = True
-        d = self._node.repair(self)
-        def _repair_finished(repair_results):
-            self.results.repair_succeeded = True
-            self.results.repair_results = repair_results
-        def _repair_error(f):
-            # I'm not sure if I want to pass through a failure or not.
-            self.results.repair_succeeded = False
-            self.results.repair_failure = f
-            return f
-        d.addCallbacks(_repair_finished, _repair_error)
-        return d
-
     def _generate_results(self, res):
         self.results.healthy = True
         smap = self.results.servermap
@@ -207,6 +191,22 @@ class MutableChecker:
 
         self.results.status_report = "\n".join(report) + "\n"
 
+    def _maybe_do_repair(self, res):
+        if not self.need_repair:
+            return
+        self.results.repair_attempted = True
+        d = self._node.repair(self.results)
+        def _repair_finished(repair_results):
+            self.results.repair_succeeded = True
+            self.results.repair_results = repair_results
+        def _repair_error(f):
+            # I'm not sure if I want to pass through a failure or not.
+            self.results.repair_succeeded = False
+            self.results.repair_failure = f
+            return f
+        d.addCallbacks(_repair_finished, _repair_error)
+        return d
+
     def _return_results(self, res):
         return self.results
 
@@ -219,6 +219,7 @@ class Results:
         self.storage_index_s = base32.b2a(storage_index)[:6]
         self.repair_attempted = False
         self.status_report = "[not generated yet]" # string
+        self.repair_report = None
         self.problems = [] # list of (peerid, storage_index, shnum, failure)
 
     def is_healthy(self):
@@ -241,5 +242,14 @@ class Results:
         s += "\n"
         s += self.status_report
         s += "\n"
+        if self.repair_attempted:
+            s += "Repair attempted "
+            if self.repair_succeeded:
+                s += "and successful\n"
+            else:
+                s += "and failed\n"
+            s += "\n"
+            s += self.repair_results.to_string()
+            s += "\n"
         return s
 

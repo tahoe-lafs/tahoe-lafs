@@ -408,11 +408,12 @@ class MutableFileNode:
         self._client.notify_mapupdate(u.get_status())
         return u.update()
 
-    def download_version(self, servermap, version):
+    def download_version(self, servermap, version, fetch_privkey=False):
         return self._do_serialized(self._try_once_to_download_version,
-                                   servermap, version)
-    def _try_once_to_download_version(self, servermap, version):
-        r = Retrieve(self, servermap, version)
+                                   servermap, version, fetch_privkey)
+    def _try_once_to_download_version(self, servermap, version,
+                                      fetch_privkey=False):
+        r = Retrieve(self, servermap, version, fetch_privkey)
         self._client.notify_retrieve(r.get_status())
         return r.download()
 
