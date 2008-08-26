@@ -576,18 +576,7 @@ class Publish:
 
             else:
                 # add a testv that requires the share not exist
-                #testv = (0, 1, 'eq', "")
-
-                # Unfortunately, foolscap-0.2.5 has a bug in the way inbound
-                # constraints are handled. If the same object is referenced
-                # multiple times inside the arguments, foolscap emits a
-                # 'reference' token instead of a distinct copy of the
-                # argument. The bug is that these 'reference' tokens are not
-                # accepted by the inbound constraint code. To work around
-                # this, we need to prevent python from interning the
-                # (constant) tuple, by creating a new copy of this vector
-                # each time. This bug is fixed in later versions of foolscap.
-                testv = tuple([0, 1, 'eq', ""])
+                testv = (0, 1, 'eq', "")
 
             testvs = [testv]
             # the write vector is simply the share
