@@ -1,0 +1,52 @@
+#!/usr/bin/python
+
+"""Create a short probably-unique string for use as a umid= argument in a
+Foolscap log() call, to make it easier to locate the source code that
+generated the message. The main text of the log message is frequently
+unhelpful for this, and python doesn't make it cheap to compile in the
+filename and line number of logging calls.
+
+Given a message-unique-ID like 'aXoWcA', make your logging call look like:
+
+ log.msg('OMG badness', level=log.WEIRD, umid='aXoWcA')
+
+Then later, if this message actually occurs, you can grep your source tree
+for aXoWcA to locate the code that caused it.
+
+Just stick to the convention that 'umid=' is reserved for this job. It is a
+good idea to make all the logging statements that could provoke an Incident
+(i.e. those at level=log.WEIRD or higher) have umid= arguments, to make it
+easier to write classifier functions for the incident-gatherer.
+
+"""
+
+#The following elisp code may be useful:
+
+# (defun insert-umid ()
+#   (interactive)
+#   (insert ", umid=\"")
+#   (call-process "make_umid" nil t)
+#   (delete-char -1)
+#   (insert "\"")
+# )
+# (global-set-key (kbd "C-\`") 'insert-umid)
+
+
+import os, base64, sys
+
+def make_id():
+    while True:
+        m = os.urandom(4) # this gives 6-character message ids
+        m = base64.b64encode(m)
+        if "/" in m or "+" in m:
+            continue
+        m = m.replace("=", "")
+        break
+    return m
+
+count = 1
+if len(sys.argv) > 1:
+    count = int(sys.argv[1])
+for i in range(count):
+    print make_id()
+
