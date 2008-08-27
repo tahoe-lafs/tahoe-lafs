@@ -13,6 +13,7 @@ graph_title Tahoe Disk Usage Measurement
 graph_vlabel bytes per second
 graph_category tahoe
 graph_info This graph shows the estimated disk usage per unit time, totalled across all storage servers
+graph_args --lower-limit 0 --rigid
 rate_1hr.label (one hour sample)
 rate_1hr.draw LINE1
 rate_1day.label (one day sample)
