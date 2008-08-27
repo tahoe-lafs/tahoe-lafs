@@ -9,7 +9,7 @@ import os, sys, urllib, simplejson
 
 if len(sys.argv) > 1 and sys.argv[1] == "config":
     print """\
-graph_title Tahoe Remaining Space Predictor
+graph_title Tahoe Remaining Time Predictor
 graph_vlabel days remaining
 graph_category tahoe
 graph_info This graph shows the estimated number of days left until storage space is exhausted
