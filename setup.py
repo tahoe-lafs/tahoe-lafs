@@ -25,6 +25,7 @@ else:
     use_setuptools(download_delay=0, min_version="0.6c8")
 
 from setuptools import Extension, find_packages, setup
+from setuptools.command import sdist
 
 # Make the dependency-version-requirement, which is used by the Makefile at
 # build-time, also available to the app at runtime:
@@ -93,17 +94,19 @@ This filesystem is encrypted and spread over multiple peers in such a way that
 it remains available even when some of the peers are unavailable,
 malfunctioning, or malicious."""
 
-miscdeps=os.path.join(os.getcwd(), 'misc', 'dependencies')
-dependency_links=[os.path.join(miscdeps, t) for t in os.listdir(miscdeps) if t.endswith(".tar")]
+# For Desert Island builds, assume that the user has extracted the dependency
+# tarball into a directory named 'misc/dependencies'.
+dependency_links=[os.path.join(os.getcwd(), 'misc', 'dependencies')]
 
 # By adding a web page to the dependency_links we are able to put new packages
 # up there and have them be automatically discovered by existing copies of the
 # tahoe source when that source was built.
 dependency_links.append("http://allmydata.org/trac/tahoe/wiki/Dependencies")
 
+# Default setup_requires are pyutil for the Windows installer builder(see
+# misc/sub-ver.py) and Twisted for the tests.
+#setup_requires = ['pyutil >= 1.3.16', 'Twisted >= 2.4.0']
 setup_requires = []
-setup_requires.append('pyutil >= 1.3.16') # used by the Windows installer builder, see misc/sub-ver.py
-
 # darcsver is needed only if you want "./setup.py darcsver" to write a new
 # version stamp in src/allmydata/_version.py, with a version number derived from
 # darcs history.
@@ -118,6 +121,45 @@ if 'darcsver' in sys.argv[1:]:
 if not os.path.exists('PKG-INFO'):
     setup_requires.append('setuptools_darcs >= 1.1.0')
 
+class MySdist(sdist.sdist):
+    """ A hook in the sdist command so that we can determine whether this the
+    tarball should be 'SUMO' or not, i.e. whether or not to include the
+    external dependency tarballs.
+    """
+
+    # Add our own sumo option to the sdist command, which toggles the
+    # external dependencies being included in the sdist.
+    user_options = sdist.sdist.user_options + \
+        [('sumo', 's', "create a 'sumo' sdist which includes the external " \
+          "dependencies")]
+    boolean_options = ['sumo']
+
+    def initialize_options(self):
+        sdist.sdist.initialize_options(self)
+        self.sumo = None
+
+    def run(self):
+        self.run_command('egg_info')
+        ei_cmd = self.get_finalized_command('egg_info')
+        self.filelist = ei_cmd.filelist
+        self.filelist.append(os.path.join(ei_cmd.egg_info,'SOURCES.txt'))
+
+        # If '--sumo' wasn't specified in the arguments, do not include
+        # the external dependency tarballs in the sdist.
+        if not self.sumo:
+            self.filelist.exclude_pattern(None, prefix='misc/dependencies')
+
+        print self.filelist.files
+        self.check_readme()
+        self.check_metadata()
+        self.make_distribution()
+
+        dist_files = getattr(self.distribution,'dist_files',[])
+        for file in self.archive_files:
+            data = ('sdist', '', file)
+            if data not in dist_files:
+                dist_files.append(data)
+
 import _auto_deps
 
 setup(name='allmydata-tahoe',
@@ -128,6 +170,7 @@ setup(name='allmydata-tahoe',
       author_email='tahoe-dev@allmydata.org',
       url='http://allmydata.org/',
       license='GNU GPL',
+      cmdclass={'sdist': MySdist},
       package_dir = {'':'src'},
       packages=find_packages("src"),
       classifiers=trove_classifiers,
