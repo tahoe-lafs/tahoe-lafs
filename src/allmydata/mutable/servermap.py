@@ -4,6 +4,7 @@ from zope.interface import implements
 from itertools import count
 from twisted.internet import defer
 from twisted.python import failure
+from foolscap import DeadReferenceError
 from foolscap.eventual import eventually
 from allmydata.util import base32, hashutil, idlib, log
 from allmydata import storage
@@ -695,11 +696,14 @@ class ServermapUpdater:
 
 
     def _query_failed(self, f, peerid):
-        self.log(format="error during query: %(f_value)s",
-                 f_value=str(f.value), failure=f,
-                 level=log.WEIRD, umid="IHXuQg")
         if not self._running:
             return
+        level = log.WEIRD
+        if f.check(DeadReferenceError):
+            level = log.UNUSUAL
+        self.log(format="error during query: %(f_value)s",
+                 f_value=str(f.value), failure=f,
+                 level=level, umid="IHXuQg")
         self._must_query.discard(peerid)
         self._queries_outstanding.discard(peerid)
         self._bad_peers.add(peerid)
@@ -725,12 +729,14 @@ class ServermapUpdater:
 
     def _privkey_query_failed(self, f, peerid, shnum, lp):
         self._queries_outstanding.discard(peerid)
-        self.log(format="error during privkey query: %(f_value)s",
-                 f_value=str(f.value), failure=f,
-                 parent=lp, level=log.WEIRD, umid="McoJ5w")
         if not self._running:
             return
-        self._queries_outstanding.discard(peerid)
+        level = log.WEIRD
+        if f.check(DeadReferenceError):
+            level = log.UNUSUAL
+        self.log(format="error during privkey query: %(f_value)s",
+                 f_value=str(f.value), failure=f,
+                 parent=lp, level=level, umid="McoJ5w")
         self._servermap.problems.append(f)
         self._last_failure = f
 
