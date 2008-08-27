@@ -46,3 +46,7 @@ D: Linux FUSE interface "b"
 
 N: Justin Boreta
 D: user testing and docs
+
+N: Chris Galvan
+D: packaging
+E: cgalvan@enthought.com
