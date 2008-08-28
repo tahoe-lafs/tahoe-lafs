@@ -23,7 +23,14 @@ import _auto_deps
 _auto_deps.require_auto_deps()
 
 def get_package_versions():
-    import OpenSSL, allmydata, foolscap, nevow, pycryptopp, simplejson, twisted, zfec
+    import OpenSSL, allmydata, foolscap, nevow, pycryptopp, simplejson, twisted, zfec, sys
+
+    from distutils.version import LooseVersion
+    try:
+        pyver = LooseVersion('.'.join([str(c) for c in sys.version_info]))
+    except:
+        pyver = sys.version
+
     setuptools_version = "unavailable"
     try:
         import setuptools
@@ -40,12 +47,13 @@ def get_package_versions():
         'simplejson': simplejson.__version__,
         'twisted': twisted.__version__,
         'zfec': zfec.__version__,
+        'python': pyver,
         }
 
 def get_package_versions_string():
     versions = get_package_versions()
     res = []
-    for p in ["allmydata", "foolscap", "pycryptopp", "zfec", "twisted", "nevow"]:
+    for p in ["allmydata", "foolscap", "pycryptopp", "zfec", "twisted", "nevow", "python"]:
         if versions.has_key(p):
             res.append(str(p) + ": " + str(versions[p]))
             del versions[p]
