@@ -1,0 +1,13 @@
+* update doc files: relnotes.txt, CREDITS, docs/known_issues.txt, NEWS
+* make tag
+* make sure buildbot is green
+* make sure other people aren't committing at that moment
+* push tag along with some other patch to trigger buildslaves
+* make sure buildbot is green
+* make sure debs got built and uploaded properly
+* make sure a sumo sdist tarball got built and uploaded properly
+* send out relnotes.txt
+ x  + tahoe-announce@lists.allmydata.org, tahoe-dev@lists.allmydata.org, p2p-hackers@lists.zooko.com, lwn@lwn.net, cap-talk@mail.eros-os.org, cryptography@metzdown.com, twisted-python@twistedmatrix.com
+* update Wiki: front page news, news, old news, parade of release notes
+* update pypi, freshmeat, launchpad
+* symlink the release tarball on allmydata.org
