@@ -152,7 +152,7 @@ class DiskWatcher(service.MultiService, resource.Resource):
 
     def calculate_growth_timeleft(self):
         timespans = []
-        total_avail_space = self.find_total_avail_space()
+        total_avail_space = self.find_total_available_space()
         pairs = [ (timespan,name)
                   for name,timespan in self.AVERAGES.items() ]
         pairs.sort()
@@ -166,7 +166,7 @@ class DiskWatcher(service.MultiService, resource.Resource):
                 timespans.append( (name, timespan, growth, timeleft) )
         return timespans
 
-    def find_total_avail_space(self):
+    def find_total_available_space(self):
         # this returns the sum of disk-avail stats for all servers that 1)
         # are listed in urls.txt and 2) have responded recently.
         now = extime.Time()
@@ -293,6 +293,7 @@ class DiskWatcher(service.MultiService, resource.Resource):
         elif t == "json":
             current = {"rates": self.calculate_growth_timeleft(),
                        "used": self.find_total_used_space(),
+                       "available": self.find_total_available_space(),
                        }
             data = simplejson.dumps(current, indent=True)
         else:
