@@ -25,10 +25,10 @@ _auto_deps.require_auto_deps()
 def get_package_versions():
     import OpenSSL, allmydata, foolscap, nevow, pycryptopp, simplejson, twisted, zfec, sys
 
-    from distutils.version import LooseVersion
     try:
-        pyver = LooseVersion('.'.join([str(c) for c in sys.version_info]))
+        pyver = '.'.join([str(c) for c in sys.version_info])
     except:
+        # This will probably never happen, but if it does:
         pyver = sys.version
 
     setuptools_version = "unavailable"
