@@ -11,7 +11,7 @@ build:
 
 diskimage:
 	mv dist Allmydata-$(VERSION)
-	hdiutil create -ov -srcfolder Allmydata-$(VERSION) allmydata-rw.dmg
+	hdiutil create -verbose -ov -srcfolder Allmydata-$(VERSION) allmydata-rw.dmg
 	hdiutil convert -ov allmydata-rw.dmg -format UDRO -o allmydata-ro.dmg
 	hdiutil convert -ov allmydata-ro.dmg -format UDZO -o Allmydata-$(VERSION).dmg
 	hdiutil internet-enable -yes Allmydata-$(VERSION).dmg
