@@ -64,9 +64,6 @@ PATH := $(subst ',,$(PATH))
 # ' "  # emacs syntax-highlighter gets confused by the bare quotes above
 
 TRIALCMD = $(shell PATH="$(PATH):${PWD}/support/bin" $(PP) $(PYTHON) misc/find_trial.py)
-ifeq ($(TRIALCMD),)
-$(error Could not find trial.  It comes with twisted.)
-endif
 TRIAL=PATH="$(PATH):${PWD}/support/bin" PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT) $(TRIALOPT)
 
 .PHONY: make-version build
