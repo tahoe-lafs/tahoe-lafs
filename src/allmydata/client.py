@@ -256,6 +256,8 @@ class Client(node.Node, testutil.PollMixin):
 
     def get_all_peerids(self):
         return self.introducer_client.get_all_peerids()
+    def get_nickname_for_peerid(self, peerid):
+        return self.introducer_client.get_nickname_for_peerid(peerid)
 
     def get_permuted_peers(self, service_name, key):
         """

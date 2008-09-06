@@ -152,6 +152,9 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 self.failUnlessEqual(len(c.get_all_peerids()), NUMCLIENTS)
                 self.failUnlessEqual(len(c.get_all_connections_for("storage")),
                                      NUMCLIENTS)
+                nodeid0 = b32decode(tubs[clients[0]].tubID.upper())
+                self.failUnlessEqual(c.get_nickname_for_peerid(nodeid0),
+                                     "nickname-0")
         d.addCallback(_check1)
 
         origin_c = clients[0]

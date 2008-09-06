@@ -247,6 +247,14 @@ class IntroducerClient_V1(service.Service, Referenceable):
                           for (peerid, service_name, rref)
                           in self._connections])
 
+    def get_nickname_for_peerid(self, peerid):
+        for k in self._connectors:
+            (peerid0, svcname0) = k
+            if peerid0 == peerid:
+                rsc = self._connectors[k]
+                return rsc.nickname
+        return None
+
     def get_all_connections_for(self, service_name):
         return frozenset([c
                           for c in self._connections
