@@ -683,6 +683,7 @@ POST $URL?t=deep-check
 GET $DIRURL?t=manifest
 
   Return an HTML-formatted manifest of the given directory, for debugging.
+  This is a table of verifier-caps.
 
 GET $DIRURL?t=deep-size
 
