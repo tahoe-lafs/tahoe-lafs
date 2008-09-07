@@ -12,7 +12,8 @@ from allmydata.util import hashutil
 from allmydata.util.assertutil import precondition
 from allmydata.uri import WriteableSSKFileURI
 from allmydata.immutable.encode import NotEnoughSharesError
-from allmydata.immutable.checker import DeepCheckResults
+from allmydata.checker_results import DeepCheckResults, \
+     DeepCheckAndRepairResults
 from pycryptopp.publickey import rsa
 from pycryptopp.cipher.aes import AES
 
@@ -21,7 +22,7 @@ from common import MODE_READ, MODE_WRITE, UnrecoverableFileError, \
      ResponseCache, UncoordinatedWriteError
 from servermap import ServerMap, ServermapUpdater
 from retrieve import Retrieve
-from checker import MutableChecker
+from checker import MutableChecker, MutableCheckAndRepairer
 from repair import Repairer
 
 
@@ -54,6 +55,7 @@ class MutableFileNode:
     SIGNATURE_KEY_SIZE = 2048
     DEFAULT_ENCODING = (3, 10)
     checker_class = MutableChecker
+    check_and_repairer_class = MutableCheckAndRepairer
 
     def __init__(self, client):
         self._client = client
@@ -243,15 +245,29 @@ class MutableFileNode:
     #################################
     # ICheckable
 
-    def check(self, verify=False, repair=False):
+    def check(self, verify=False):
         checker = self.checker_class(self)
-        return checker.check(verify, repair)
+        return checker.check(verify)
 
-    def deep_check(self, verify=False, repair=False):
-        d = self.check(verify, repair)
+    def check_and_repair(self, verify=False):
+        checker = self.check_and_repairer_class(self)
+        return checker.check(verify)
+
+    def deep_check(self, verify=False):
+        # deep-check on a filenode only gets one result
+        d = self.check(verify)
         def _done(r):
             dr = DeepCheckResults(self.get_storage_index())
-            dr.add_check(r)
+            dr.add_check(r, [])
+            return dr
+        d.addCallback(_done)
+        return d
+
+    def deep_check_and_repair(self, verify=False):
+        d = self.check_and_repair(verify)
+        def _done(r):
+            dr = DeepCheckAndRepairResults(self.get_storage_index())
+            dr.add_check_and_repair(r, [])
             return dr
         d.addCallback(_done)
         return d

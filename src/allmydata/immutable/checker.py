@@ -6,99 +6,12 @@ This does no verification of the shares whatsoever. If the peer claims to
 have the share, we believe them.
 """
 
-from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import log
 from allmydata import storage
-from allmydata.interfaces import ICheckerResults, IDeepCheckResults
+from allmydata.checker_results import CheckerResults
 from allmydata.immutable import download
-from allmydata.util import hashutil, base32
-
-class Results:
-    implements(ICheckerResults)
-
-    def __init__(self, storage_index):
-        # storage_index might be None for, say, LIT files
-        self.storage_index = storage_index
-        if storage_index is None:
-            self.storage_index_s = "<none>"
-        else:
-            self.storage_index_s = base32.b2a(storage_index)[:6]
-        self.status_report = "[not generated yet]" # string
-
-    def is_healthy(self):
-        return self.healthy
-
-    def get_storage_index(self):
-        return self.storage_index
-
-    def get_storage_index_string(self):
-        return self.storage_index_s
-
-    def get_mutability_string(self):
-        if self.storage_index:
-            return "immutable"
-        return "literal"
-
-    def to_string(self):
-        s = ""
-        if self.healthy:
-            s += "Healthy!\n"
-        else:
-            s += "Not Healthy!\n"
-        s += "\n"
-        s += self.status_report
-        s += "\n"
-        return s
-
-class DeepCheckResults:
-    implements(IDeepCheckResults)
-
-    def __init__(self, root_storage_index):
-        self.root_storage_index = root_storage_index
-        if root_storage_index is None:
-            self.root_storage_index_s = "<none>"
-        else:
-            self.root_storage_index_s = base32.b2a(root_storage_index)[:6]
-
-        self.objects_checked = 0
-        self.objects_healthy = 0
-        self.repairs_attempted = 0
-        self.repairs_successful = 0
-        self.problems = []
-        self.all_results = {}
-        self.server_problems = {}
-
-    def get_root_storage_index_string(self):
-        return self.root_storage_index_s
-
-    def add_check(self, r):
-        self.objects_checked += 1
-        if r.is_healthy():
-            self.objects_healthy += 1
-        else:
-            self.problems.append(r)
-        self.all_results[r.get_storage_index()] = r
-
-    def add_repair(self, is_successful):
-        self.repairs_attempted += 1
-        if is_successful:
-            self.repairs_successful += 1
-
-    def count_objects_checked(self):
-        return self.objects_checked
-    def count_objects_healthy(self):
-        return self.objects_healthy
-    def count_repairs_attempted(self):
-        return self.repairs_attempted
-    def count_repairs_successful(self):
-        return self.repairs_successful
-    def get_server_problems(self):
-        return self.server_problems
-    def get_problems(self):
-        return self.problems
-    def get_all_results(self):
-        return self.all_results
+from allmydata.util import hashutil
 
 class SimpleCHKFileChecker:
     """Return a list of (needed, total, found, sharemap), where sharemap maps
@@ -152,18 +65,25 @@ class SimpleCHKFileChecker:
         pass
 
     def _done(self, res):
-        r = Results(self.storage_index)
+        r = CheckerResults(self.storage_index)
         report = []
-        r.healthy = bool(len(self.found_shares) >= self.total_shares)
-        r.stuff = (self.needed_shares, self.total_shares,
-                   len(self.found_shares), self.sharemap)
+        r.set_healthy(bool(len(self.found_shares) >= self.total_shares))
+        data = {"count-shares-good": len(self.found_shares),
+                "count-shares-needed": self.needed_shares,
+                "count-shares-expected": self.total_shares,
+                }
+        # TODO: count-good-shares-hosts, count-corrupt-shares,
+        # list-corrupt-shares, servers-responding, sharemap
+        #r.stuff = (self.needed_shares, self.total_shares,
+        #            len(self.found_shares), self.sharemap)
         if len(self.found_shares) < self.total_shares:
             wanted = set(range(self.total_shares))
             missing = wanted - self.found_shares
             report.append("Missing shares: %s" %
                           ",".join(["sh%d" % shnum
                                     for shnum in sorted(missing)]))
-        r.status_report = "\n".join(report) + "\n"
+        r.set_report(report)
+        # TODO: r.set_summary(summary)
         return r
 
 class VerifyingOutput:
@@ -175,7 +95,7 @@ class VerifyingOutput:
         self._crypttext_hash_tree = None
         self._opened = False
         self._results = results
-        results.healthy = False
+        results.set_healthy(False)
 
     def setup_hashtrees(self, plaintext_hashtree, crypttext_hashtree):
         self._crypttext_hash_tree = crypttext_hashtree
@@ -196,8 +116,10 @@ class VerifyingOutput:
         self.crypttext_hash = self._crypttext_hasher.digest()
 
     def finish(self):
-        self._results.healthy = True
-        return self._results
+        self._results.set_healthy(True)
+        # the return value of finish() is passed out of FileDownloader._done,
+        # but SimpleCHKFileVerifier overrides this with the CheckerResults
+        # instance instead.
 
 
 class SimpleCHKFileVerifier(download.FileDownloader):
@@ -218,7 +140,7 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         self._si_s = storage.si_b2a(self._storage_index)
         self.init_logging()
 
-        r = Results(self._storage_index)
+        self._check_results = r = CheckerResults(self._storage_index)
         self._output = VerifyingOutput(self._size, r)
         self._paused = False
         self._stopped = False
@@ -265,5 +187,6 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         # once we know that, we can download blocks from everybody
         d.addCallback(self._download_all_segments)
         d.addCallback(self._done)
+        d.addCallback(lambda ignored: self._check_results)
         return d
 

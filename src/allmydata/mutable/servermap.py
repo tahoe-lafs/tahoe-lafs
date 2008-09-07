@@ -121,6 +121,17 @@ class ServerMap:
         self.last_update_mode = None
         self.last_update_time = 0
 
+    def copy(self):
+        s = ServerMap()
+        s.servermap = self.servermap.copy() # tuple->tuple
+        s.connections = self.connections.copy() # str->RemoteReference
+        s.unreachable_peers = set(self.unreachable_peers)
+        s.problems = self.problems[:]
+        s.bad_shares = self.bad_shares.copy() # tuple->str
+        s.last_update_mode = self.last_update_mode
+        s.last_update_time = self.last_update_time
+        return s
+
     def mark_bad_share(self, peerid, shnum, checkstring):
         """This share was found to be bad, either in the checkstring or
         signature (detected during mapupdate), or deeper in the share
@@ -161,6 +172,13 @@ class ServerMap:
         return set([peerid
                     for (peerid, shnum)
                     in self.servermap])
+
+    def all_peers_for_version(self, verinfo):
+        """Return a set of peerids that hold shares for the given version."""
+        return set([peerid
+                    for ( (peerid, shnum), (verinfo2, timestamp) )
+                    in self.servermap.items()
+                    if verinfo == verinfo2])
 
     def make_sharemap(self):
         """Return a dict that maps shnum to a set of peerds that hold it."""

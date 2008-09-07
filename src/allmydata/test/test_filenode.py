@@ -2,7 +2,8 @@
 from twisted.trial import unittest
 from twisted.internet import defer
 from allmydata import uri
-from allmydata.immutable import filenode, download, checker
+from allmydata.immutable import filenode, download
+from allmydata.checker_results import CheckerResults, CheckAndRepairResults
 from allmydata.mutable.node import MutableFileNode
 from allmydata.util import hashutil
 
@@ -131,10 +132,21 @@ class Checker(unittest.TestCase):
         d.addCallback(lambda res: fn1.check(verify=True))
         d.addCallback(_check_checker_results)
 
+        # TODO: check-and-repair
+
         d.addCallback(lambda res: fn1.deep_check())
         def _check_deepcheck_results(dcr):
-            self.failIf(dcr.get_problems())
+            c = dcr.get_counters()
+            self.failUnlessEqual(c["count-objects-checked"], 1)
+            self.failUnlessEqual(c["count-objects-healthy"], 1)
+            self.failUnlessEqual(c["count-objects-unhealthy"], 0)
+            self.failUnlessEqual(c["count-corrupt-shares"], 0)
+            self.failIf(dcr.get_corrupt_shares())
         d.addCallback(_check_deepcheck_results)
+
+        d.addCallback(lambda res: fn1.deep_check(verify=True))
+        d.addCallback(_check_deepcheck_results)
+
         return d
 
     def test_literal_filenode(self):
@@ -145,7 +157,7 @@ class Checker(unittest.TestCase):
 
         d = fn1.check()
         def _check_checker_results(cr):
-            self.failUnless(cr.is_healthy())
+            self.failUnlessEqual(cr, None)
         d.addCallback(_check_checker_results)
 
         d.addCallback(lambda res: fn1.check(verify=True))
@@ -153,7 +165,15 @@ class Checker(unittest.TestCase):
 
         d.addCallback(lambda res: fn1.deep_check())
         def _check_deepcheck_results(dcr):
-            self.failIf(dcr.get_problems())
+            c = dcr.get_counters()
+            self.failUnlessEqual(c["count-objects-checked"], 0)
+            self.failUnlessEqual(c["count-objects-healthy"], 0)
+            self.failUnlessEqual(c["count-objects-unhealthy"], 0)
+            self.failUnlessEqual(c["count-corrupt-shares"], 0)
+            self.failIf(dcr.get_corrupt_shares())
+        d.addCallback(_check_deepcheck_results)
+
+        d.addCallback(lambda res: fn1.deep_check(verify=True))
         d.addCallback(_check_deepcheck_results)
 
         return d
@@ -169,6 +189,7 @@ class Checker(unittest.TestCase):
         n = MutableFileNode(client).init_from_uri(u)
 
         n.checker_class = FakeMutableChecker
+        n.check_and_repairer_class = FakeMutableCheckAndRepairer
 
         d = n.check()
         def _check_checker_results(cr):
@@ -180,24 +201,41 @@ class Checker(unittest.TestCase):
 
         d.addCallback(lambda res: n.deep_check())
         def _check_deepcheck_results(dcr):
-            self.failIf(dcr.get_problems())
+            c = dcr.get_counters()
+            self.failUnlessEqual(c["count-objects-checked"], 1)
+            self.failUnlessEqual(c["count-objects-healthy"], 1)
+            self.failUnlessEqual(c["count-objects-unhealthy"], 0)
+            self.failUnlessEqual(c["count-corrupt-shares"], 0)
+            self.failIf(dcr.get_corrupt_shares())
         d.addCallback(_check_deepcheck_results)
+
+        d.addCallback(lambda res: n.deep_check(verify=True))
+        d.addCallback(_check_deepcheck_results)
+
         return d
 
 class FakeMutableChecker:
     def __init__(self, node):
-        self.r = checker.Results(node.get_storage_index())
-        self.r.healthy = True
-        self.r.problems = []
+        self.r = CheckerResults(node.get_storage_index())
+        self.r.set_healthy(True)
 
-    def check(self, verify, repair):
+    def check(self, verify):
+        return defer.succeed(self.r)
+
+class FakeMutableCheckAndRepairer:
+    def __init__(self, node):
+        cr = CheckerResults(node.get_storage_index())
+        cr.set_healthy(True)
+        self.r = CheckAndRepairResults(node.get_storage_index())
+        self.r.pre_repair_results = self.r.post_repair_results = cr
+
+    def check(self, verify):
         return defer.succeed(self.r)
 
 class FakeImmutableChecker:
     def __init__(self, client, storage_index, needed_shares, total_shares):
-        self.r = checker.Results(storage_index)
-        self.r.healthy = True
-        self.r.problems = []
+        self.r = CheckerResults(storage_index)
+        self.r.set_healthy(True)
 
     def start(self):
         return defer.succeed(self.r)

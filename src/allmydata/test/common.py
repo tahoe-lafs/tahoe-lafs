@@ -10,9 +10,9 @@ from allmydata import uri, dirnode, client
 from allmydata.introducer.server import IntroducerNode
 from allmydata.interfaces import IURI, IMutableFileNode, IFileNode, \
      FileTooLargeError, ICheckable
-from allmydata.immutable import checker
 from allmydata.immutable.encode import NotEnoughSharesError
-from allmydata.mutable.checker import Results as MutableCheckerResults
+from allmydata.checker_results import CheckerResults, CheckAndRepairResults, \
+     DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.mutable.common import CorruptShareError
 from allmydata.util import log, testutil, fileutil
 from allmydata.stats import PickleStatsGatherer
@@ -44,16 +44,27 @@ class FakeCHKFileNode:
         return self.my_uri
     def get_verifier(self):
         return IURI(self.my_uri).get_verifier()
-    def check(self, verify=False, repair=False):
-        r = checker.Results(None)
+    def check(self, verify=False):
+        r = CheckerResults(self.storage_index)
         is_bad = self.bad_shares.get(self.storage_index, None)
+        data = {}
         if is_bad:
-             r.healthy = False
+             r.set_healthy(False)
              r.problems = failure.Failure(CorruptShareError(is_bad))
         else:
-             r.healthy = True
+             r.set_healthy(True)
              r.problems = []
+        r.set_data(data)
         return defer.succeed(r)
+    def check_and_repair(self, verify=False):
+        d = self.check(verify)
+        def _got(cr):
+            r = CheckAndRepairResults(self.storage_index)
+            r.pre_repair_results = r.post_repair_results = cr
+            return r
+        d.addCallback(_got)
+        return d
+
     def is_mutable(self):
         return False
     def is_readonly(self):
@@ -136,24 +147,45 @@ class FakeMutableFileNode:
     def get_storage_index(self):
         return self.storage_index
 
-    def check(self, verify=False, repair=False):
-        r = MutableCheckerResults(self.storage_index)
+    def check(self, verify=False):
+        r = CheckerResults(self.storage_index)
         is_bad = self.bad_shares.get(self.storage_index, None)
+        data = {}
+        data["list-corrupt-shares"] = []
         if is_bad:
-             r.healthy = False
+             r.set_healthy(False)
              r.problems = failure.Failure(CorruptShareError("peerid",
                                                             0, # shnum
                                                             is_bad))
         else:
-             r.healthy = True
+             r.set_healthy(True)
              r.problems = []
+        r.set_data(data)
         return defer.succeed(r)
 
-    def deep_check(self, verify=False, repair=False):
-        d = self.check(verify, repair)
+    def check_and_repair(self, verify=False):
+        d = self.check(verify)
+        def _got(cr):
+            r = CheckAndRepairResults(self.storage_index)
+            r.pre_repair_results = r.post_repair_results = cr
+            return r
+        d.addCallback(_got)
+        return d
+
+    def deep_check(self, verify=False):
+        d = self.check(verify)
         def _done(r):
-            dr = checker.DeepCheckResults(self.storage_index)
-            dr.add_check(r)
+            dr = DeepCheckResults(self.storage_index)
+            dr.add_check(r, [])
+            return dr
+        d.addCallback(_done)
+        return d
+
+    def deep_check_and_repair(self, verify=False):
+        d = self.check_and_repair(verify)
+        def _done(r):
+            dr = DeepCheckAndRepairResults(self.storage_index)
+            dr.add_check(r, [])
             return dr
         d.addCallback(_done)
         return d

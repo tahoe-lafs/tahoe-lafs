@@ -10,43 +10,69 @@
 
 <h1>Deep-Check Results for root SI=<span n:render="root_storage_index" /></h1>
 
+<p>Counters:</p>
 <ul>
   <li>Objects Checked: <span n:render="data" n:data="objects_checked" /></li>
   <li>Objects Healthy: <span n:render="data" n:data="objects_healthy" /></li>
+  <li>Objects Unhealthy: <span n:render="data" n:data="objects_unhealthy" /></li>
+  <li>Corrupt Shares: <span n:render="data" n:data="count_corrupt_shares" /></li>
+
 </ul>
 
-<h2>Problems:</h2>
+<div n:render="problems_p">
+<h2>Files/Directories That Had Problems:</h2>
 
 <ul n:render="sequence" n:data="problems">
   <li n:pattern="item" n:render="problem"/>
   <li n:pattern="empty">None</li>
 </ul>
-
-<h2>Repair Results:</h2>
-<ul>
-  <li>Repairs Attempted: <span n:render="data" n:data="repairs_attempted" /></li>
-  <li>Repairs Successful: <span n:render="data" n:data="repairs_successful" /></li>
-</ul>
-
-<h2>Objects Checked</h2>
-<div>
-<table n:render="sequence" n:data="all_objects" border="1">
-  <tr n:pattern="header">
-    <td>Storage Index</td>
-    <td>Healthy?</td>
-  </tr>
-  <tr n:pattern="item" n:render="object">
-    <td><n:slot name="storage_index"/></td>
-    <td><n:slot name="healthy"/></td>
-  </tr>
-
-  <tr n:pattern="empty"><td>no objects?</td></tr>
-
-</table>
 </div>
 
 
+<div n:render="servers_with_corrupt_shares_p">
+<h2>Servers on which corrupt shares were found</h2>
+<ul n:render="sequence" n:data="servers_with_corrupt_shares">
+  <li n:pattern="item" n:render="server_problem"/>
+  <li n:pattern="empty">None</li>
+</ul>
+</div>
+
+<div n:render="corrupt_shares_p">
+<h2>Corrupt Shares</h2>
+<p>If repair fails, these shares need to be manually inspected and removed.</p>
+<table n:render="sequence" n:data="corrupt_shares" border="1">
+  <tr n:pattern="header">
+    <td>Server</td>
+    <td>Server Nickname</td>
+    <td>Storage Index</td>
+    <td>Share Number</td>
+  </tr>
+  <tr n:pattern="item" n:render="share_problem">
+    <td><n:slot name="serverid"/></td>
+    <td><n:slot name="nickname"/></td>
+    <td><n:slot name="si"/></td>
+    <td><n:slot name="shnum"/></td>
+  </tr>
+</table>
+</div>
+
 <div n:render="return" />
+
+<div>
+<h2>All Results</h2>
+<table n:render="sequence" n:data="all_objects" border="1">
+  <tr n:pattern="header">
+    <td>Relative Path</td>
+    <td>Healthy</td>
+    <td>Summary</td>
+  </tr>
+  <tr n:pattern="item" n:render="object">
+    <td><n:slot name="path"/></td>
+    <td><n:slot name="healthy"/></td>
+    <td><n:slot name="summary"/></td>
+  </tr>
+</table>
+</div>
 
 <div n:render="runtime" />
 

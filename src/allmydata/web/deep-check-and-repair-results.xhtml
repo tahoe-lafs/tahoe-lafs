@@ -1,0 +1,89 @@
+<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+  <head>
+    <title>AllMyData - Tahoe - Deep Check Results</title>
+    <!-- <link href="http://www.allmydata.com/common/css/styles.css"
+          rel="stylesheet" type="text/css"/> -->
+    <link href="/webform_css" rel="stylesheet" type="text/css"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  </head>
+  <body>
+
+<h1>Deep-Check-And-Repair Results for root
+    SI=<span n:render="root_storage_index" /></h1>
+
+<p>Counters:</p>
+<ul>
+  <li>Objects Checked: <span n:render="data" n:data="objects_checked" /></li>
+
+  <li>Objects Healthy (before repair): <span n:render="data" n:data="objects_healthy" /></li>
+  <li>Objects Unhealthy (before repair): <span n:render="data" n:data="objects_unhealthy" /></li>
+  <li>Corrupt Shares (before repair): <span n:render="data" n:data="corrupt_shares" /></li>
+
+  <li>Repairs Attempted: <span n:render="data" n:data="repairs_attempted" /></li>
+  <li>Repairs Successful: <span n:render="data" n:data="repairs_successful" /></li>
+  <li>Repairs Unsuccessful: <span n:render="data" n:data="repairs_unsuccessful" /></li>
+
+  <li>Objects Healthy (after repair): <span n:render="data" n:data="objects_healthy_post" /></li>
+  <li>Objects Unhealthy (after repair): <span n:render="data" n:data="objects_unhealthy_post" /></li>
+  <li>Corrupt Shares (after repair): <span n:render="data" n:data="corrupt_shares_post" /></li>
+
+</ul>
+
+<div n:render="pre_repair_problems_p">
+<h2>Files/Directories That Had Problems:</h2>
+
+<ul n:render="sequence" n:data="pre_repair_problems">
+  <li n:pattern="item" n:render="problem"/>
+  <li n:pattern="empty">None</li>
+</ul>
+</div>
+
+
+<div n:render="post_repair_problems_p">
+<h2>Files/Directories That Still Have Problems:</h2>
+<ul n:render="sequence" n:data="post_repair_problems">
+  <li n:pattern="item" n:render="problem"/>
+  <li n:pattern="empty">None</li>
+</ul>
+</div>
+
+<div n:render="servers_with_corrupt_shares_p">
+<h2>Servers on which corrupt shares were found</h2>
+<ul n:render="sequence" n:data="servers_with_corrupt_shares">
+  <li n:pattern="item" n:render="server_problem"/>
+  <li n:pattern="empty">None</li>
+</ul>
+</div>
+
+<div n:render="remaining_corrupt_shares_p">
+<h2>Remaining Corrupt Shares</h2>
+<p>These shares need to be manually inspected and removed.</p>
+<ul n:render="sequence" n:data="post_repair_corrupt_shares">
+  <li n:pattern="item" n:render="share_problem"/>
+  <li n:pattern="empty">None</li>
+</ul>
+</div>
+
+<div n:render="return" />
+
+<div>
+<table n:render="sequence" n:data="all_objects">
+  <tr n:pattern="header">
+    <td>Relative Path</td>
+    <td>Healthy</td>
+    <td>Post-Repair</td>
+    <td>Summary</td>
+  </tr>
+  <tr n:pattern="item" n:render="object">
+    <td><n:slot name="path"/></td>
+    <td><n:slot name="healthy_pre_repair"/></td>
+    <td><n:slot name="healthy_post_repair"/></td>
+    <td><n:slot name="summary"/></td>
+  </tr>
+</table>
+</div>
+
+<div n:render="runtime" />
+
+  </body>
+</html>

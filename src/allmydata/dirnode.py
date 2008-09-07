@@ -9,7 +9,8 @@ from allmydata.mutable.node import MutableFileNode
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
      IURI, IFileNode, IMutableFileURI, IVerifierURI, IFilesystemNode, \
      ExistingChildError, ICheckable
-from allmydata.immutable.checker import DeepCheckResults
+from allmydata.checker_results import DeepCheckResults, \
+     DeepCheckAndRepairResults
 from allmydata.util import hashutil, mathutil, base32, log
 from allmydata.util.hashutil import netstring
 from allmydata.util.limiter import ConcurrencyLimiter
@@ -246,9 +247,11 @@ class NewDirectoryNode:
     def get_storage_index(self):
         return self._uri._filenode_uri.storage_index
 
-    def check(self, verify=False, repair=False):
+    def check(self, verify=False):
         """Perform a file check. See IChecker.check for details."""
-        return self._node.check(verify, repair)
+        return self._node.check(verify)
+    def check_and_repair(self, verify=False):
+        return self._node.check_and_repair(verify)
 
     def list(self):
         """I return a Deferred that fires with a dictionary mapping child
@@ -537,17 +540,25 @@ class NewDirectoryNode:
         d.addCallback(_got_list)
         return d
 
-    def deep_check(self, verify=False, repair=False):
+    def deep_check(self, verify=False):
+        return self.deep_check_base(verify, False)
+    def deep_check_and_repair(self, verify=False):
+        return self.deep_check_base(verify, True)
+
+    def deep_check_base(self, verify, repair):
         # shallow-check each object first, then traverse children
         root_si = self._node.get_storage_index()
         self._lp = log.msg(format="deep-check starting (%(si)s),"
                            " verify=%(verify)s, repair=%(repair)s",
                            si=base32.b2a(root_si), verify=verify, repair=repair)
-        results = DeepCheckResults(root_si)
+        if repair:
+            results = DeepCheckAndRepairResults(root_si)
+        else:
+            results = DeepCheckResults(root_si)
         found = set()
         limiter = ConcurrencyLimiter(10)
 
-        d = self._add_deepcheck_from_node(self, results, found, limiter,
+        d = self._add_deepcheck_from_node([], self, results, found, limiter,
                                           verify, repair)
         def _done(res):
             log.msg("deep-check done", parent=self._lp)
@@ -555,7 +566,7 @@ class NewDirectoryNode:
         d.addCallback(_done)
         return d
 
-    def _add_deepcheck_from_node(self, node, results, found, limiter,
+    def _add_deepcheck_from_node(self, path, node, results, found, limiter,
                                  verify, repair):
         verifier = node.get_verifier()
         if verifier in found:
@@ -563,15 +574,25 @@ class NewDirectoryNode:
             return None
         found.add(verifier)
 
-        d = limiter.add(node.check, verify, repair)
-        d.addCallback(results.add_check)
+        if repair:
+            d = limiter.add(node.check_and_repair, verify)
+            d.addCallback(results.add_check_and_repair, path)
+        else:
+            d = limiter.add(node.check, verify)
+            d.addCallback(results.add_check, path)
+
+        # TODO: stats: split the DeepStats.foo calls out of
+        # _add_deepstats_from_node into a separate non-recursing method, call
+        # it from both here and _add_deepstats_from_node.
 
         if IDirectoryNode.providedBy(node):
             d.addCallback(lambda res: node.list())
             def _got_children(children):
                 dl = []
                 for name, (child, metadata) in children.iteritems():
-                    d2 = self._add_deepcheck_from_node(child, results,
+                    childpath = path + [name]
+                    d2 = self._add_deepcheck_from_node(childpath, child,
+                                                       results,
                                                        found, limiter,
                                                        verify, repair)
                     if d2:

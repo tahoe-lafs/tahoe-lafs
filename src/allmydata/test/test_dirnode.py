@@ -4,12 +4,14 @@ from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
 from allmydata import uri, dirnode
-from allmydata.immutable import upload, checker
+from allmydata.immutable import upload
 from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
-     INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode, ExistingChildError
+     INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode, \
+     ExistingChildError, IDeepCheckResults, IDeepCheckAndRepairResults
 from allmydata.util import hashutil, testutil
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
      FakeDirectoryNode, create_chk_filenode
+from allmydata.checker_results import CheckerResults, CheckAndRepairResults
 
 # to test dirnode.py, we want to construct a tree of real DirectoryNodes that
 # contain pointers to fake files. We start with a fake MutableFileNode that
@@ -32,11 +34,19 @@ class Marker:
     def get_verifier(self):
         return self.verifieruri
 
-    def check(self, verify=False, repair=False):
-        r = checker.Results(None)
-        r.healthy = True
-        r.problems = []
+    def check(self, verify=False):
+        r = CheckerResults(None)
+        r.set_healthy(True)
         return defer.succeed(r)
+
+    def check_and_repair(self, verify=False):
+        d = self.check(verify)
+        def _got(cr):
+            r = CheckAndRepairResults(None)
+            r.pre_repair_results = r.post_repair_results = cr
+            return r
+        d.addCallback(_got)
+        return d
 
 # dirnode requires three methods from the client: upload(),
 # create_node_from_uri(), and create_empty_dirnode(). Of these, upload() is
@@ -150,12 +160,40 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
         d = self._test_deepcheck_create()
         d.addCallback(lambda rootnode: rootnode.deep_check())
         def _check_results(r):
-            self.failUnlessEqual(r.count_objects_checked(), 3)
-            self.failUnlessEqual(r.count_objects_healthy(), 3)
-            self.failUnlessEqual(r.count_repairs_attempted(), 0)
-            self.failUnlessEqual(r.count_repairs_successful(), 0)
-            self.failUnlessEqual(len(r.get_server_problems()), 0)
-            self.failUnlessEqual(len(r.get_problems()), 0)
+            self.failUnless(IDeepCheckResults.providedBy(r))
+            c = r.get_counters()
+            self.failUnlessEqual(c,
+                                 {"count-objects-checked": 3,
+                                  "count-objects-healthy": 3,
+                                  "count-objects-unhealthy": 0,
+                                  "count-corrupt-shares": 0,
+                                  })
+            self.failIf(r.get_corrupt_shares())
+            self.failUnlessEqual(len(r.get_all_results()), 3)
+        d.addCallback(_check_results)
+        return d
+
+    def test_deepcheck_and_repair(self):
+        d = self._test_deepcheck_create()
+        d.addCallback(lambda rootnode: rootnode.deep_check_and_repair())
+        def _check_results(r):
+            self.failUnless(IDeepCheckAndRepairResults.providedBy(r))
+            c = r.get_counters()
+            self.failUnlessEqual(c,
+                                 {"count-objects-checked": 3,
+                                  "count-objects-healthy-pre-repair": 3,
+                                  "count-objects-unhealthy-pre-repair": 0,
+                                  "count-corrupt-shares-pre-repair": 0,
+                                  "count-objects-healthy-post-repair": 3,
+                                  "count-objects-unhealthy-post-repair": 0,
+                                  "count-corrupt-shares-post-repair": 0,
+                                  "count-repairs-attempted": 0,
+                                  "count-repairs-successful": 0,
+                                  "count-repairs-unsuccessful": 0,
+                                  })
+            self.failIf(r.get_corrupt_shares())
+            self.failIf(r.get_remaining_corrupt_shares())
+            self.failUnlessEqual(len(r.get_all_results()), 3)
         d.addCallback(_check_results)
         return d
 
@@ -169,12 +207,14 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
         d.addCallback(lambda rootnode: self._mark_file_bad(rootnode))
         d.addCallback(lambda rootnode: rootnode.deep_check())
         def _check_results(r):
-            self.failUnlessEqual(r.count_objects_checked(), 3)
-            self.failUnlessEqual(r.count_objects_healthy(), 2)
-            self.failUnlessEqual(r.count_repairs_attempted(), 0)
-            self.failUnlessEqual(r.count_repairs_successful(), 0)
-            self.failUnlessEqual(len(r.get_server_problems()), 0)
-            self.failUnlessEqual(len(r.get_problems()), 1)
+            c = r.get_counters()
+            self.failUnlessEqual(c,
+                                 {"count-objects-checked": 3,
+                                  "count-objects-healthy": 2,
+                                  "count-objects-unhealthy": 1,
+                                  "count-corrupt-shares": 0,
+                                  })
+            #self.failUnlessEqual(len(r.get_problems()), 1) # TODO
         d.addCallback(_check_results)
         return d
 

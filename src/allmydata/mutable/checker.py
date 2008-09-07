@@ -1,10 +1,9 @@
 
-from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
 from allmydata import hashtree
 from allmydata.util import hashutil, base32, idlib, log
-from allmydata.interfaces import ICheckerResults
+from allmydata.checker_results import CheckAndRepairResults, CheckerResults
 
 from common import MODE_CHECK, CorruptShareError
 from servermap import ServerMap, ServermapUpdater
@@ -16,21 +15,19 @@ class MutableChecker:
         self._node = node
         self.bad_shares = [] # list of (nodeid,shnum,failure)
         self._storage_index = self._node.get_storage_index()
-        self.results = Results(self._storage_index)
+        self.results = CheckerResults(self._storage_index)
         self.need_repair = False
 
-    def check(self, verify=False, repair=False):
+    def check(self, verify=False):
         servermap = ServerMap()
-        self.results.servermap = servermap
         u = ServermapUpdater(self._node, servermap, MODE_CHECK)
         d = u.update()
         d.addCallback(self._got_mapupdate_results)
         if verify:
             d.addCallback(self._verify_all_shares)
-        d.addCallback(self._generate_results)
-        if repair:
-            d.addCallback(self._maybe_do_repair)
-        d.addCallback(self._return_results)
+        d.addCallback(lambda res: servermap)
+        d.addCallback(self._fill_checker_results, self.results)
+        d.addCallback(lambda res: self.results)
         return d
 
     def _got_mapupdate_results(self, servermap):
@@ -68,7 +65,7 @@ class MutableChecker:
         for (shnum, peerid, timestamp) in shares:
             ss = servermap.connections[peerid]
             d = self._do_read(ss, peerid, self._storage_index, [shnum], readv)
-            d.addCallback(self._got_answer, peerid)
+            d.addCallback(self._got_answer, peerid, servermap)
             dl.append(d)
         return defer.DeferredList(dl, fireOnOneErrback=True)
 
@@ -78,7 +75,7 @@ class MutableChecker:
         d = ss.callRemote("slot_readv", storage_index, shnums, readv)
         return d
 
-    def _got_answer(self, datavs, peerid):
+    def _got_answer(self, datavs, peerid, servermap):
         for shnum,datav in datavs.items():
             data = datav[0]
             try:
@@ -88,7 +85,7 @@ class MutableChecker:
                 self.need_repair = True
                 self.bad_shares.append( (peerid, shnum, f) )
                 prefix = data[:SIGNED_PREFIX_LENGTH]
-                self.results.servermap.mark_bad_share(peerid, shnum, prefix)
+                servermap.mark_bad_share(peerid, shnum, prefix)
 
     def check_prefix(self, peerid, shnum, data):
         (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
@@ -134,13 +131,34 @@ class MutableChecker:
             if alleged_writekey != self._node.get_writekey():
                 raise CorruptShareError(peerid, shnum, "invalid privkey")
 
-    def _generate_results(self, res):
-        self.results.healthy = True
-        smap = self.results.servermap
+    def _count_shares(self, smap, version):
+        available_shares = smap.shares_available()
+        (num_distinct_shares, k, N) = available_shares[version]
+        counters = {}
+        counters["count-shares-good"] = num_distinct_shares
+        counters["count-shares-needed"] = k
+        counters["count-shares-expected"] = N
+        good_hosts = smap.all_peers_for_version(version)
+        counters["count-good-share-hosts"] = good_hosts
+        vmap = smap.make_versionmap()
+        counters["count-wrong-shares"] = sum([len(shares)
+                                          for verinfo,shares in vmap.items()
+                                          if verinfo != version])
+
+        return counters
+
+    def _fill_checker_results(self, smap, r):
+        r.set_servermap(smap.copy())
+        healthy = True
+        data = {}
         report = []
+        summary = []
         vmap = smap.make_versionmap()
         recoverable = smap.recoverable_versions()
         unrecoverable = smap.unrecoverable_versions()
+        data["count-recoverable-versions"] = len(recoverable)
+        data["count-unrecoverable-versions"] = len(unrecoverable)
+
         if recoverable:
             report.append("Recoverable Versions: " +
                           "/".join(["%d*%s" % (len(vmap[v]),
@@ -152,34 +170,65 @@ class MutableChecker:
                                                smap.summarize_version(v))
                                     for v in unrecoverable]))
         if smap.unrecoverable_versions():
-            self.results.healthy = False
+            healthy = False
+            summary.append("some versions are unrecoverable")
             report.append("Unhealthy: some versions are unrecoverable")
         if len(recoverable) == 0:
-            self.results.healthy = False
+            healthy = False
+            summary.append("no versions are recoverable")
             report.append("Unhealthy: no versions are recoverable")
         if len(recoverable) > 1:
-            self.results.healthy = False
+            healthy = False
+            summary.append("multiple versions are recoverable")
             report.append("Unhealthy: there are multiple recoverable versions")
-        if self.best_version:
+
+        if recoverable:
+            best_version = smap.best_recoverable_version()
             report.append("Best Recoverable Version: " +
-                          smap.summarize_version(self.best_version))
-            available_shares = smap.shares_available()
-            (num_distinct_shares, k, N) = available_shares[self.best_version]
-            if num_distinct_shares < N:
-                self.results.healthy = False
-                report.append("Unhealthy: best recoverable version has only %d shares (encoding is %d-of-%d)"
-                              % (num_distinct_shares, k, N))
+                          smap.summarize_version(best_version))
+            counters = self._count_shares(smap, best_version)
+            data.update(counters)
+            if counters["count-shares-good"] < counters["count-shares-expected"]:
+                healthy = False
+                report.append("Unhealthy: best version has only %d shares "
+                              "(encoding is %d-of-%d)"
+                              % (counters["count-shares-good"],
+                                 counters["count-shares-needed"],
+                                 counters["count-shares-expected"]))
+                summary.append("%d shares (enc %d-of-%d)"
+                               % (counters["count-shares-good"],
+                                  counters["count-shares-needed"],
+                                  counters["count-shares-expected"]))
+        elif unrecoverable:
+            healthy = False
+            # find a k and N from somewhere
+            first = list(unrecoverable)[0]
+            # not exactly the best version, but that doesn't matter too much
+            data.update(self._count_shares(smap, first))
+        else:
+            # couldn't find anything at all
+            data["count-shares-good"] = 0
+            data["count-shares-needed"] = 3 # arbitrary defaults
+            data["count-shares-expected"] = 10
+            data["count-good-share-hosts"] = 0
+            data["count-wrong-shares"] = 0
+
         if self.bad_shares:
+            data["count-corrupt-shares"] = len(self.bad_shares)
+            data["list-corrupt-shares"] = locators = []
             report.append("Corrupt Shares:")
+            summary.append("Corrupt Shares:")
             for (peerid, shnum, f) in sorted(self.bad_shares):
+                locators.append( (peerid, self._storage_index, shnum) )
                 s = "%s-sh%d" % (idlib.shortnodeid_b2a(peerid), shnum)
                 if f.check(CorruptShareError):
                     ft = f.value.reason
                 else:
                     ft = str(f)
                 report.append(" %s: %s" % (s, ft))
+                summary.append(s)
                 p = (peerid, self._storage_index, shnum, f)
-                self.results.problems.append(p)
+                r.problems.append(p)
                 msg = ("CorruptShareError during mutable verify, "
                        "peerid=%(peerid)s, si=%(si)s, shnum=%(shnum)d, "
                        "where=%(where)s")
@@ -188,68 +237,52 @@ class MutableChecker:
                         shnum=shnum,
                         where=ft,
                         level=log.WEIRD, umid="EkK8QA")
+        else:
+            data["count-corrupt-shares"] = 0
+            data["list-corrupt-shares"] = []
 
-        self.results.status_report = "\n".join(report) + "\n"
+        # TODO: servers-responding, sharemap
 
-    def _maybe_do_repair(self, res):
+        r.set_healthy(healthy)
+        r.set_needs_rebalancing(False) # TODO
+        r.set_data(data)
+        if healthy:
+            r.set_summary("Healthy")
+        else:
+            r.set_summary("Unhealthy: " + " ".join(summary))
+        r.set_report(report)
+
+
+class MutableCheckAndRepairer(MutableChecker):
+    def __init__(self, node):
+        MutableChecker.__init__(self, node)
+        self.cr_results = CheckAndRepairResults(self._storage_index)
+        self.cr_results.pre_repair_results = self.results
+        self.need_repair = False
+
+    def check(self, verify=False):
+        d = MutableChecker.check(self, verify)
+        d.addCallback(self._maybe_repair)
+        d.addCallback(lambda res: self.cr_results)
+        return d
+
+    def _maybe_repair(self, res):
         if not self.need_repair:
+            self.cr_results.post_repair_results = self.results
             return
-        self.results.repair_attempted = True
+        self.cr_results.repair_attempted = True
         d = self._node.repair(self.results)
         def _repair_finished(repair_results):
-            self.results.repair_succeeded = True
-            self.results.repair_results = repair_results
+            self.cr_results.repair_successful = True
+            r = CheckerResults(self._storage_index)
+            self.cr_results.post_repair_results = r
+            self._fill_checker_results(repair_results.servermap, r)
+            self.cr_results.repair_results = repair_results # TODO?
         def _repair_error(f):
             # I'm not sure if I want to pass through a failure or not.
-            self.results.repair_succeeded = False
-            self.results.repair_failure = f
+            self.cr_results.repair_successful = False
+            self.cr_results.repair_failure = f # TODO?
+            #self.cr_results.post_repair_results = ??
             return f
         d.addCallbacks(_repair_finished, _repair_error)
         return d
-
-    def _return_results(self, res):
-        return self.results
-
-
-class Results:
-    implements(ICheckerResults)
-
-    def __init__(self, storage_index):
-        self.storage_index = storage_index
-        self.storage_index_s = base32.b2a(storage_index)[:6]
-        self.repair_attempted = False
-        self.status_report = "[not generated yet]" # string
-        self.repair_report = None
-        self.problems = [] # list of (peerid, storage_index, shnum, failure)
-
-    def is_healthy(self):
-        return self.healthy
-
-    def get_storage_index(self):
-        return self.storage_index
-    def get_storage_index_string(self):
-        return self.storage_index_s
-
-    def get_mutability_string(self):
-        return "mutable"
-
-    def to_string(self):
-        s = ""
-        if self.healthy:
-            s += "Healthy!\n"
-        else:
-            s += "Not Healthy!\n"
-        s += "\n"
-        s += self.status_report
-        s += "\n"
-        if self.repair_attempted:
-            s += "Repair attempted "
-            if self.repair_succeeded:
-                s += "and successful\n"
-            else:
-                s += "and failed\n"
-            s += "\n"
-            s += self.repair_results.to_string()
-            s += "\n"
-        return s
-

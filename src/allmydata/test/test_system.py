@@ -1683,11 +1683,11 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         def _got_lit_filenode(n):
             self.failUnless(isinstance(n, filenode.LiteralFileNode))
             d = n.check()
-            def _check_filenode_results(r):
-                self.failUnless(r.is_healthy())
-            d.addCallback(_check_filenode_results)
+            def _check_lit_filenode_results(r):
+                self.failUnlessEqual(r, None)
+            d.addCallback(_check_lit_filenode_results)
             d.addCallback(lambda res: n.check(verify=True))
-            d.addCallback(_check_filenode_results)
+            d.addCallback(_check_lit_filenode_results)
             return d
         d.addCallback(_got_lit_filenode)
         return d
@@ -1776,7 +1776,7 @@ class ImmutableChecker(ShareManglingMixin, unittest.TestCase):
         def _check1(filenode):
             before_check_reads = self._count_reads()
 
-            d2 = filenode.check(verify=False, repair=False)
+            d2 = filenode.check(verify=False)
             def _after_check(checkresults):
                 after_check_reads = self._count_reads()
                 self.failIf(after_check_reads - before_check_reads > 0, after_check_reads - before_check_reads)
@@ -1789,7 +1789,7 @@ class ImmutableChecker(ShareManglingMixin, unittest.TestCase):
         d.addCallback(self._corrupt_a_share)
         def _check2(ignored):
             before_check_reads = self._count_reads()
-            d2 = self.filenode.check(verify=False, repair=False)
+            d2 = self.filenode.check(verify=False)
 
             def _after_check(checkresults):
                 after_check_reads = self._count_reads()
@@ -1803,7 +1803,7 @@ class ImmutableChecker(ShareManglingMixin, unittest.TestCase):
         d.addCallback(lambda ignore: self.replace_shares({}))
         def _check3(ignored):
             before_check_reads = self._count_reads()
-            d2 = self.filenode.check(verify=False, repair=False)
+            d2 = self.filenode.check(verify=False)
 
             def _after_check(checkresults):
                 after_check_reads = self._count_reads()
@@ -1824,7 +1824,7 @@ class ImmutableChecker(ShareManglingMixin, unittest.TestCase):
         def _check1(filenode):
             before_check_reads = self._count_reads()
 
-            d2 = filenode.check(verify=True, repair=False)
+            d2 = filenode.check(verify=True)
             def _after_check(checkresults):
                 after_check_reads = self._count_reads()
                 # print "delta was ", after_check_reads - before_check_reads
@@ -1838,7 +1838,7 @@ class ImmutableChecker(ShareManglingMixin, unittest.TestCase):
         d.addCallback(self._corrupt_a_share)
         def _check2(ignored):
             before_check_reads = self._count_reads()
-            d2 = self.filenode.check(verify=True, repair=False)
+            d2 = self.filenode.check(verify=True)
 
             def _after_check(checkresults):
                 after_check_reads = self._count_reads()
@@ -1876,7 +1876,8 @@ class MutableChecker(SystemTestMixin, unittest.TestCase):
             return getPage(url, method="POST")
         d.addCallback(_do_check)
         def _got_results(out):
-            self.failUnless("<pre>Healthy!" in out, out)
+            self.failUnless("<div>Healthy!</div>" in out, out)
+            self.failUnless("Recoverable Versions: 10*seq1-" in out, out)
             self.failIf("Not Healthy!" in out, out)
             self.failIf("Unhealthy" in out, out)
             self.failIf("Corrupt Shares" in out, out)
@@ -1911,10 +1912,8 @@ class MutableChecker(SystemTestMixin, unittest.TestCase):
         d.addCallback(_do_check)
         def _got_results(out):
             self.failUnless("Not Healthy!" in out, out)
-            self.failUnless("Unhealthy: best recoverable version has only 9 shares (encoding is 3-of-10)" in out, out)
-            shid_re = (r"Corrupt Shares:\s+%s: block hash tree failure" %
-                       self.corrupt_shareid)
-            self.failUnless(re.search(shid_re, out), out)
+            self.failUnless("Unhealthy: best version has only 9 shares (encoding is 3-of-10)" in out, out)
+            self.failUnless("Corrupt Shares:" in out, out)
         d.addCallback(_got_results)
 
         # now make sure the webapi repairer can fix it
@@ -1925,12 +1924,12 @@ class MutableChecker(SystemTestMixin, unittest.TestCase):
             return getPage(url, method="POST")
         d.addCallback(_do_repair)
         def _got_repair_results(out):
-            self.failUnless("Repair attempted and successful" in out)
+            self.failUnless("<div>Repair successful</div>" in out, out)
         d.addCallback(_got_repair_results)
         d.addCallback(_do_check)
         def _got_postrepair_results(out):
             self.failIf("Not Healthy!" in out, out)
-            self.failUnless("Recoverable Versions: 10*seq" in out)
+            self.failUnless("Recoverable Versions: 10*seq" in out, out)
         d.addCallback(_got_postrepair_results)
 
         return d
@@ -1963,7 +1962,7 @@ class MutableChecker(SystemTestMixin, unittest.TestCase):
         d.addCallback(_do_check)
         def _got_results(out):
             self.failUnless("Not Healthy!" in out, out)
-            self.failUnless("Unhealthy: best recoverable version has only 9 shares (encoding is 3-of-10)" in out, out)
+            self.failUnless("Unhealthy: best version has only 9 shares (encoding is 3-of-10)" in out, out)
             self.failIf("Corrupt Shares" in out, out)
         d.addCallback(_got_results)
 
@@ -1975,7 +1974,7 @@ class MutableChecker(SystemTestMixin, unittest.TestCase):
             return getPage(url, method="POST")
         d.addCallback(_do_repair)
         def _got_repair_results(out):
-            self.failUnless("Repair attempted and successful" in out)
+            self.failUnless("Repair successful" in out)
         d.addCallback(_got_repair_results)
         d.addCallback(_do_check)
         def _got_postrepair_results(out):

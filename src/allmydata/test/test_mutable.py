@@ -1179,12 +1179,11 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
 
 class CheckerMixin:
     def check_good(self, r, where):
-        self.failUnless(r.healthy, where)
-        self.failIf(r.problems, where)
+        self.failUnless(r.is_healthy(), where)
         return r
 
     def check_bad(self, r, where):
-        self.failIf(r.healthy, where)
+        self.failIf(r.is_healthy(), where)
         return r
 
     def check_expected_failure(self, r, expected_exception, substring, where):

@@ -3,8 +3,10 @@ from zope.interface import implements
 from twisted.internet import defer
 from allmydata.interfaces import IFileNode, IFileURI, IURI, ICheckable
 from allmydata import uri
-from allmydata.immutable.checker import Results, DeepCheckResults, \
-     SimpleCHKFileChecker, SimpleCHKFileVerifier
+from allmydata.immutable.checker import SimpleCHKFileChecker, \
+     SimpleCHKFileVerifier
+from allmydata.checker_results import DeepCheckResults, \
+     DeepCheckAndRepairResults
 
 class FileNode:
     implements(IFileNode, ICheckable)
@@ -47,8 +49,7 @@ class FileNode:
     def get_storage_index(self):
         return self.u.storage_index
 
-    def check(self, verify=False, repair=False):
-        assert repair is False  # not implemented yet
+    def check(self, verify=False):
         storage_index = self.u.storage_index
         k = self.u.needed_shares
         N = self.u.total_shares
@@ -61,11 +62,23 @@ class FileNode:
             v = self.checker_class(self._client, storage_index, k, N)
         return v.start()
 
-    def deep_check(self, verify=False, repair=False):
-        d = self.check(verify, repair)
+    def check_and_repair(self, verify=False):
+        raise NotImplementedError("not implemented yet")
+
+    def deep_check(self, verify=False):
+        d = self.check(verify)
         def _done(r):
             dr = DeepCheckResults(self.get_verifier().storage_index)
-            dr.add_check(r)
+            dr.add_check(r, [])
+            return dr
+        d.addCallback(_done)
+        return d
+
+    def deep_check_and_repair(self, verify=False):
+        d = self.check_and_repair(verify)
+        def _done(r):
+            dr = DeepCheckAndRepairResults(self.get_verifier().storage_index)
+            dr.add_check_and_repair(r, [])
             return dr
         d.addCallback(_done)
         return d
@@ -120,20 +133,13 @@ class LiteralFileNode:
         return None
 
     def check(self, verify=False, repair=False):
-        # neither verify= nor repair= affect LIT files
-        r = Results(None)
-        r.healthy = True
-        r.problems = []
-        return defer.succeed(r)
+        # neither verify= nor repair= affect LIT files, and the check returns
+        # no results.
+        return defer.succeed(None)
 
     def deep_check(self, verify=False, repair=False):
-        d = self.check(verify, repair)
-        def _done(r):
-            dr = DeepCheckResults(None)
-            dr.add_check(r)
-            return dr
-        d.addCallback(_done)
-        return d
+        dr = DeepCheckResults(None)
+        return defer.succeed(dr)
 
     def download(self, target):
         # note that this does not update the stats_provider

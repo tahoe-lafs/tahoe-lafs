@@ -1451,6 +1451,31 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check3)
         return d
 
+    def test_POST_FILEURL_check_and_repair(self):
+        bar_url = self.public_url + "/foo/bar.txt"
+        d = self.POST(bar_url, t="check", repair="true")
+        def _check(res):
+            self.failUnless("Healthy!" in res)
+        d.addCallback(_check)
+        redir_url = "http://allmydata.org/TARGET"
+        def _check2(statuscode, target):
+            self.failUnlessEqual(statuscode, str(http.FOUND))
+            self.failUnlessEqual(target, redir_url)
+        d.addCallback(lambda res:
+                      self.shouldRedirect2("test_POST_FILEURL_check_and_repair",
+                                           _check2,
+                                           self.POST, bar_url,
+                                           t="check", repair="true",
+                                           when_done=redir_url))
+        d.addCallback(lambda res:
+                      self.POST(bar_url, t="check", return_to=redir_url))
+        def _check3(res):
+            self.failUnless("Healthy!" in res)
+            self.failUnless("Return to parent directory" in res)
+            self.failUnless(redir_url in res)
+        d.addCallback(_check3)
+        return d
+
     def test_POST_DIRURL_check(self):
         foo_url = self.public_url + "/foo/"
         d = self.POST(foo_url, t="check")
@@ -1476,13 +1501,72 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check3)
         return d
 
+    def test_POST_DIRURL_check_and_repair(self):
+        foo_url = self.public_url + "/foo/"
+        d = self.POST(foo_url, t="check", repair="true")
+        def _check(res):
+            self.failUnless("Healthy!" in res)
+        d.addCallback(_check)
+        redir_url = "http://allmydata.org/TARGET"
+        def _check2(statuscode, target):
+            self.failUnlessEqual(statuscode, str(http.FOUND))
+            self.failUnlessEqual(target, redir_url)
+        d.addCallback(lambda res:
+                      self.shouldRedirect2("test_POST_DIRURL_check_and_repair",
+                                           _check2,
+                                           self.POST, foo_url,
+                                           t="check", repair="true",
+                                           when_done=redir_url))
+        d.addCallback(lambda res:
+                      self.POST(foo_url, t="check", return_to=redir_url))
+        def _check3(res):
+            self.failUnless("Healthy!" in res)
+            self.failUnless("Return to parent directory" in res)
+            self.failUnless(redir_url in res)
+        d.addCallback(_check3)
+        return d
+
     def test_POST_DIRURL_deepcheck(self):
         d = self.POST(self.public_url, t="deep-check")
         def _check(res):
             self.failUnless("Objects Checked: <span>8</span>" in res)
             self.failUnless("Objects Healthy: <span>8</span>" in res)
+        d.addCallback(_check)
+        redir_url = "http://allmydata.org/TARGET"
+        def _check2(statuscode, target):
+            self.failUnlessEqual(statuscode, str(http.FOUND))
+            self.failUnlessEqual(target, redir_url)
+        d.addCallback(lambda res:
+                      self.shouldRedirect2("test_POST_DIRURL_check",
+                                           _check2,
+                                           self.POST, self.public_url,
+                                           t="deep-check",
+                                           when_done=redir_url))
+        d.addCallback(lambda res:
+                      self.POST(self.public_url, t="deep-check",
+                                return_to=redir_url))
+        def _check3(res):
+            self.failUnless("Return to parent directory" in res)
+            self.failUnless(redir_url in res)
+        d.addCallback(_check3)
+        return d
+
+    def test_POST_DIRURL_deepcheck_and_repair(self):
+        d = self.POST(self.public_url, t="deep-check", repair="true")
+        def _check(res):
+            self.failUnless("Objects Checked: <span>8</span>" in res)
+
+            self.failUnless("Objects Healthy (before repair): <span>8</span>" in res)
+            self.failUnless("Objects Unhealthy (before repair): <span>0</span>" in res)
+            self.failUnless("Corrupt Shares (before repair): <span>0</span>" in res)
+
             self.failUnless("Repairs Attempted: <span>0</span>" in res)
             self.failUnless("Repairs Successful: <span>0</span>" in res)
+            self.failUnless("Repairs Unsuccessful: <span>0</span>" in res)
+
+            self.failUnless("Objects Healthy (after repair): <span>8</span>" in res)
+            self.failUnless("Objects Unhealthy (after repair): <span>0</span>" in res)
+            self.failUnless("Corrupt Shares (after repair): <span>0</span>" in res)
         d.addCallback(_check)
         redir_url = "http://allmydata.org/TARGET"
         def _check2(statuscode, target):

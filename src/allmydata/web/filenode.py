@@ -14,7 +14,7 @@ from allmydata.util import log
 
 from allmydata.web.common import text_plain, WebError, IClient, RenderMixin, \
      boolean_of_arg, get_arg, should_create_intermediate_directories
-from allmydata.web.checker_results import CheckerResults
+from allmydata.web.checker_results import CheckerResults, CheckAndRepairResults
 
 class ReplaceMeMixin:
 
@@ -256,8 +256,12 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def _POST_check(self, req):
         verify = boolean_of_arg(get_arg(req, "verify", "false"))
         repair = boolean_of_arg(get_arg(req, "repair", "false"))
-        d = self.node.check(verify, repair)
-        d.addCallback(lambda res: CheckerResults(res))
+        if repair:
+            d = self.node.check_and_repair(verify)
+            d.addCallback(lambda res: CheckAndRepairResults(res))
+        else:
+            d = self.node.check(verify)
+            d.addCallback(lambda res: CheckerResults(res))
         return d
 
     def render_DELETE(self, ctx):

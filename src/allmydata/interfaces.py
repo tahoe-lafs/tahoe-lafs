@@ -1430,16 +1430,18 @@ class IUploader(Interface):
         """TODO: how should this work?"""
 
 class ICheckable(Interface):
-    def check(verify=False, repair=False):
+    def check(verify=False):
         """Check upon my health, optionally repairing any problems.
 
         This returns a Deferred that fires with an instance that provides
-        ICheckerResults.
+        ICheckerResults, or None if the object is non-distributed (i.e. LIT
+        files).
 
         Filenodes and dirnodes (which provide IFilesystemNode) are also
         checkable. Instances that represent verifier-caps will be checkable
         but not downloadable. Some objects (like LIT files) do not actually
-        live in the grid, and their checkers indicate a healthy result.
+        live in the grid, and their checkers return None (non-distributed
+        files are always healthy).
 
         If verify=False, a relatively lightweight check will be performed: I
         will ask all servers if they have a share for me, and I will believe
@@ -1470,7 +1472,19 @@ class ICheckable(Interface):
         taken.
         """
 
-    def deep_check(verify=False, repair=False):
+    def check_and_repair(verify=False):
+        """Like check(), but if the file/directory is not healthy, attempt to
+        repair the damage.
+
+        This returns a Deferred which fires with a tuple of (pre, post), each
+        is either None or an ICheckerResults instance. For non-distributed
+        files (i.e. a LIT file) both are None. Otherwise, 'pre' is an
+        ICheckerResults representing the state of the object before any
+        repair attempt is made. If the file was unhealthy and repair was
+        attempted, 'post' will be another ICheckerResults instance with the
+        state of the object after repair."""
+
+    def deep_check(verify=False):
         """Check upon the health of me and everything I can reach.
 
         This is a recursive form of check(), useable on dirnodes. (it can be
@@ -1479,40 +1493,118 @@ class ICheckable(Interface):
         I return a Deferred that fires with an IDeepCheckResults object.
         """
 
+    def deep_check_and_repair(verify=False):
+        """Check upon the health of me and everything I can reach. Repair
+        anything that isn't healthy.
+
+        This is a recursive form of check_and_repair(), useable on dirnodes.
+        (it can be called safely on filenodes too, but only checks/repairs
+        the one object).
+
+        I return a Deferred that fires with an IDeepCheckAndRepairResults
+        object.
+        """
+
 class ICheckerResults(Interface):
-    """I contain the detailed results of a check/verify/repair operation.
-
-    The IFilesystemNode.check()/verify()/repair() methods all return
-    instances that provide ICheckerResults.
+    """I contain the detailed results of a check/verify operation.
     """
-
-    def is_healthy():
-        """Return a bool, True if the file is fully healthy, False if it is
-        damaged in any way."""
 
     def get_storage_index():
         """Return a string with the (binary) storage index."""
     def get_storage_index_string():
         """Return a string with the (printable) abbreviated storage index."""
-    def get_mutability_string():
-        """Return a string with 'mutable' or 'immutable'."""
 
-    def to_string():
-        """Return a string that describes the detailed results of the
-        check/verify operation. This string will be displayed on a page all
-        by itself."""
+    def is_healthy():
+        """Return a boolean, True if the file/dir is fully healthy, False if
+        it is damaged in any way. Non-distributed LIT files always return
+        True."""
 
-    # The old checker results (for only immutable files) were described
-    # with this:
-    #    For filenodes, this fires with a tuple of (needed_shares,
-    #    total_shares, found_shares, sharemap). The first three are ints. The
-    #    basic health of the file is found_shares / needed_shares: if less
-    #    than 1.0, the file is unrecoverable.
-    #
-    #    The sharemap has a key for each sharenum. The value is a list of
-    #    (binary) nodeids who hold that share. If two shares are kept on the
-    #    same nodeid, they will fail as a pair, and overall reliability is
-    #    decreased.
+    def needs_rebalancing():
+        """Return a boolean, True if the file/dir's reliability could be
+        improved by moving shares to new servers. Non-distributed LIT files
+        always returne False."""
+
+
+    def get_data():
+        """Return a dictionary that describes the state of the file/dir.
+        Non-distributed LIT files always return an empty dictionary. Normal
+        files and directories return a dictionary with the following keys
+        (note that these use base32-encoded strings rather than binary ones)
+        (also note that for mutable files, these counts are for the 'best'
+        version)::
+
+         count-shares-good: the number of distinct good shares that were found
+         count-shares-needed: 'k', the number of shares required for recovery
+         count-shares-expected: 'N', the number of total shares generated
+         count-good-share-hosts: the number of distinct storage servers with
+                                 good shares. If this number is less than
+                                 count-shares-good, then some shares are
+                                 doubled up, increasing the correlation of
+                                 failures. This indicates that one or more
+                                 shares should be moved to an otherwise unused
+                                 server, if one is available.
+         count-corrupt-shares: the number of shares with integrity failures
+         list-corrupt-shares: a list of 'share locators', one for each share
+                              that was found to be corrupt. Each share
+                              locator is a list of (serverid, storage_index,
+                              sharenum).
+         servers-responding: list of base32-encoded storage server identifiers,
+                             one for each server which responded to the share
+                             query.
+         sharemap: dict mapping share identifier to list of serverids
+                   (base32-encoded strings). This indicates which servers are
+                   holding which shares. For immutable files, the shareid is
+                   an integer (the share number, from 0 to N-1). For
+                   immutable files, it is a string of the form
+                   'seq%d-%s-sh%d', containing the sequence number, the
+                   roothash, and the share number.
+
+        Mutable files will add the following keys::
+
+         count-wrong-shares: the number of shares for versions other than
+                             the 'best' one (highest sequence number, highest
+                             roothash). These are either old ...
+
+         count-recoverable-versions: the number of recoverable versions of
+                                     the file. For a healthy file, this will
+                                     equal 1.
+
+         count-unrecoverable-versions: the number of unrecoverable versions
+                                       of the file. For a healthy file, this
+                                       will be 0.
+
+        """
+
+    def get_summary():
+        """Return a string with a brief (one-line) summary of the results."""
+
+    def get_report():
+        """Return a list of strings with more detailed results."""
+
+class ICheckAndRepairResults(Interface):
+    """I contain the detailed results of a check/verify/repair operation.
+
+    The IFilesystemNode.check()/verify()/repair() methods all return
+    instances that provide ICheckAndRepairResults.
+    """
+
+    def get_storage_index():
+        """Return a string with the (binary) storage index."""
+    def get_storage_index_string():
+        """Return a string with the (printable) abbreviated storage index."""
+    def get_repair_attempted():
+        """Return a boolean, True if a repair was attempted."""
+    def get_repair_successful():
+        """Return a boolean, True if repair was attempted and the file/dir
+        was fully healthy afterwards."""
+    def get_pre_repair_results():
+        """Return an ICheckerResults instance that describes the state of the
+        file/dir before any repair was attempted."""
+    def get_post_repair_results():
+        """Return an ICheckerResults instance that describes the state of the
+        file/dir after any repair was attempted. If no repair was attempted,
+        the pre-repair and post-repair results will be identical."""
+
 
 class IDeepCheckResults(Interface):
     """I contain the results of a deep-check operation.
@@ -1523,24 +1615,86 @@ class IDeepCheckResults(Interface):
     def get_root_storage_index_string():
         """Return the storage index (abbreviated human-readable string) of
         the first object checked."""
-    def count_objects_checked():
-        """Return the number of objects that were checked."""
-    def count_objects_healthy():
-        """Return the number of objects that were fully healthy."""
-    def count_repairs_attempted():
-        """Return the number of repair operations that were attempted."""
-    def count_repairs_successful():
-        """Return the number of repair operations that succeeded in bringing
-        the object back up to full health."""
-    def get_server_problems():
-        """Return a dict, mapping server nodeid to a count of how many
-        problems involved that server."""
-    def get_problems():
-        """Return a list of ICheckerResults, one for each object that
-        was not fully healthy."""
+    def get_counters():
+        """Return a dictionary with the following keys::
+
+             count-objects-checked: count of how many objects were checked
+             count-objects-healthy: how many of those objects were completely
+                                    healthy
+             count-objects-unhealthy: how many were damaged in some way
+             count-corrupt-shares: how many shares were found to have
+                                   corruption, summed over all objects
+                                   examined
+        """
+
+    def get_corrupt_shares():
+        """Return a set of (serverid, storage_index, sharenum) for all shares
+        that were found to be corrupt. Both serverid and storage_index are
+        binary.
+        """
     def get_all_results():
-        """Return a dict mapping storage_index (a binary string) to an
-        ICheckerResults instance, one for each object that was checked."""
+        """Return a dictionary mapping pathname (a tuple of strings, ready to
+        be slash-joined) to an ICheckerResults instance, one for each object
+        that was checked."""
+
+class IDeepCheckAndRepairResults(Interface):
+    """I contain the results of a deep-check-and-repair operation.
+
+    This is returned by a call to ICheckable.deep_check_and_repair().
+    """
+
+    def get_root_storage_index_string():
+        """Return the storage index (abbreviated human-readable string) of
+        the first object checked."""
+    def get_counters():
+        """Return a dictionary with the following keys::
+
+             count-objects-checked: count of how many objects were checked
+             count-objects-healthy-pre-repair: how many of those objects were
+                                               completely healthy (before any
+                                               repair)
+             count-objects-unhealthy-pre-repair: how many were damaged in
+                                                 some way
+             count-objects-healthy-post-repair: how many of those objects were
+                                                completely healthy (after any
+                                                repair)
+             count-objects-unhealthy-post-repair: how many were damaged in
+                                                  some way
+             count-repairs-attempted: repairs were attempted on this many
+                                      objects. The count-repairs- keys will
+                                      always be provided, however unless
+                                      repair=true is present, they will all
+                                      be zero.
+             count-repairs-successful: how many repairs resulted in healthy
+                                       objects
+             count-repairs-unsuccessful: how many repairs resulted did not
+                                         results in completely healthy objects
+             count-corrupt-shares-pre-repair: how many shares were found to
+                                              have corruption, summed over all
+                                              objects examined (before any
+                                              repair)
+             count-corrupt-shares-post-repair: how many shares were found to
+                                               have corruption, summed over all
+                                               objects examined (after any
+                                               repair)
+        """
+
+    def get_corrupt_shares():
+        """Return a set of (serverid, storage_index, sharenum) for all shares
+        that were found to be corrupt before any repair was attempted. Both
+        serverid and storage_index are binary.
+        """
+    def get_remaining_corrupt_shares():
+        """Return a set of (serverid, storage_index, sharenum) for all shares
+        that were found to be corrupt after any repair was completed. Both
+        serverid and storage_index are binary. These are shares that need
+        manual inspection and probably deletion.
+        """
+    def get_all_results():
+        """Return a dictionary mapping pathname (a tuple of strings, ready to
+        be slash-joined) to an ICheckAndRepairResults instance, one for each
+        object that was checked."""
+
 
 class IRepairable(Interface):
     def repair(checker_results):
@@ -1551,7 +1705,16 @@ class IRepairable(Interface):
         proof that you have actually discovered a problem with this file. I
         will use the data in the checker results to guide the repair process,
         such as which servers provided bad data and should therefore be
-        avoided.
+        avoided. The ICheckerResults object is inside the
+        ICheckAndRepairResults object, which is returned by the
+        ICheckable.check() method::
+
+         d = filenode.check(repair=False)
+         def _got_results(check_and_repair_results):
+             check_results = check_and_repair_results.get_pre_repair_results()
+             return filenode.repair(check_results)
+         d.addCallback(_got_results)
+         return d
         """
 
 class IRepairResults(Interface):
