@@ -17,16 +17,17 @@ diskimage:
 	hdiutil internet-enable -yes Allmydata-$(VERSION).dmg
 	rm -r Allmydata-$(VERSION) allmydata-rw.dmg allmydata-ro.dmg
 
-ifdef UPLOAD_DEST
+ifdef UPLOAD_DEST_FURLFILE
+# N.B.: xfer-client.py requires foolscap, so we hack up PYTHONPATH to improve
+# the chances of finding it (using the one that we just built)
 upload:
-	mkdir $(VERSION)
-	cp Allmydata-$(VERSION).dmg $(VERSION)/
-	chmod -R go+rx $(VERSION)/
-	rsync -av $(VERSION) $(UPLOAD_DEST)
-	rm -r $(VERSION)
+	chmod a+r Allmydata-$(VERSION).dmg
+	PYTHONPATH=$(PYTHONPATH):../support/lib/python2.5/site-packages \
+	 python ../misc/xfer-client.py --furlfile $(UPLOAD_DEST_FURLFILE) \
+	 Allmydata-$(VERSION).dmg
 else
 upload:
-	$(error UPLOAD_DEST must be set when using upload target. e.g. make upload UPLOAD_DEST=amduser@svn.allmydata.com:/home/amduser/public_html/dist/tahoe/mac-blah/)
+	$(error UPLOAD_DEST_FURLFILE must be set when using upload target. e.g. make upload UPLOAD_DEST_FURLFILE=~/.upload.furl)
 endif
 
 cleanup:
