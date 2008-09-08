@@ -165,12 +165,19 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         num = self._client.log("SimpleCHKFileVerifier(%s): starting" % prefix)
         self._log_number = num
 
-    def log(self, msg, *args, **kwargs):
-        if not kwargs.get('parent'):
+    def log(self, *args, **kwargs):
+        if not "parent" in kwargs:
             kwargs['parent'] = self._log_number
-        return self._client.log("SimpleCHKFileVerifier(%s): %s"
-                                % (self._log_prefix, msg),
-                                *args, **kwargs)
+        # add a prefix to the message, regardless of how it is expressed
+        prefix = "SimpleCHKFileVerifier(%s): " % self._log_prefix
+        if "format" in kwargs:
+            kwargs["format"] = prefix + kwargs["format"]
+        elif "message" in kwargs:
+            kwargs["message"] = prefix + kwargs["message"]
+        elif args:
+            m = prefix + args[0]
+            args = (m,) + args[1:]
+        return self._client.log(*args, **kwargs)
 
 
     def start(self):
