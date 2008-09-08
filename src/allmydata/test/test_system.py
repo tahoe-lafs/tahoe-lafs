@@ -770,9 +770,9 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d.addCallback(lambda subdir2: subdir2.add_file(u"mydata992", ut))
         return d
 
-    def log(self, res, msg, **kwargs):
-        # print "MSG: %s  RES: %s" % (msg, res)
-        log.msg(msg, **kwargs)
+    def log(self, res, *args, **kwargs):
+        # print "MSG: %s  RES: %s" % (msg, args)
+        log.msg(*args, **kwargs)
         return res
 
     def _do_publish_private(self, res):
