@@ -735,7 +735,8 @@ class IDirectoryNode(IMutableFilesystemNode):
         """I add a child at the specific name. I return a Deferred that fires
         when the operation finishes. This Deferred will fire with the child
         node that was just added. I will replace any existing child of the
-        same name. The child name must be a unicode string.
+        same name. The child name must be a unicode string. The 'child'
+        instance must be an instance providing IDirectoryNode or IFileNode.
 
         If metadata= is provided, I will use it as the metadata for the named
         edge. This will replace any existing metadata. If metadata= is left
