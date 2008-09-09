@@ -11,7 +11,9 @@ from allmydata.immutable import download, upload, filenode
 from allmydata.util import idlib, mathutil, testutil
 from allmydata.util import log, base32
 from allmydata.scripts import runner
-from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI
+from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI, \
+     ICheckerResults, ICheckAndRepairResults, IDeepCheckResults, \
+     IDeepCheckAndRepairResults
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable import layout as mutable_layout
 from foolscap import DeadReferenceError
@@ -1984,3 +1986,152 @@ class MutableChecker(SystemTestMixin, unittest.TestCase):
 
         return d
 
+class DeepCheck(SystemTestMixin, unittest.TestCase):
+    # construct a small directory tree (with one dir, one immutable file, one
+    # mutable file, one LIT file, and a loop), and then check it in various
+    # ways.
+
+    def set_up_tree(self, ignored):
+        # 2.9s
+        c0 = self.clients[0]
+        d = c0.create_empty_dirnode()
+        def _created_root(n):
+            self.root = n
+            self.root_uri = n.get_uri()
+        d.addCallback(_created_root)
+        d.addCallback(lambda ign: c0.create_mutable_file("mutable file contents"))
+        d.addCallback(lambda n: self.root.set_node(u"mutable", n))
+        def _created_mutable(n):
+            self.mutable = n
+            self.mutable_uri = n.get_uri()
+        d.addCallback(_created_mutable)
+
+        large = upload.Data("Lots of data\n" * 1000, None)
+        d.addCallback(lambda ign: self.root.add_file(u"large", large))
+        def _created_large(n):
+            self.large = n
+            self.large_uri = n.get_uri()
+        d.addCallback(_created_large)
+
+        small = upload.Data("Small enough for a LIT", None)
+        d.addCallback(lambda ign: self.root.add_file(u"small", small))
+        def _created_small(n):
+            self.small = n
+            self.small_uri = n.get_uri()
+        d.addCallback(_created_small)
+
+        d.addCallback(lambda ign: self.root.set_node(u"loop", self.root))
+        return d
+
+    def check_is_healthy(self, cr, where):
+        self.failUnless(ICheckerResults.providedBy(cr))
+        self.failUnless(cr.is_healthy())
+
+    def check_and_repair_is_healthy(self, cr, where):
+        self.failUnless(ICheckAndRepairResults.providedBy(cr), where)
+        self.failUnless(cr.get_pre_repair_results().is_healthy(), where)
+        self.failUnless(cr.get_post_repair_results().is_healthy(), where)
+        self.failIf(cr.get_repair_attempted(), where)
+
+    def deep_check_is_healthy(self, cr, num_healthy, where):
+        self.failUnless(IDeepCheckResults.providedBy(cr))
+        self.failUnlessEqual(cr.get_counters()["count-objects-healthy"],
+                             num_healthy, where)
+
+    def deep_check_and_repair_is_healthy(self, cr, num_healthy, where):
+        self.failUnless(IDeepCheckAndRepairResults.providedBy(cr), where)
+        c = cr.get_counters()
+        self.failUnlessEqual(c["count-objects-healthy-pre-repair"],
+                             num_healthy, where)
+        self.failUnlessEqual(c["count-objects-healthy-post-repair"],
+                             num_healthy, where)
+        self.failUnlessEqual(c["count-repairs-attempted"], 0, where)
+
+    def test_good(self):
+        self.basedir = self.mktemp()
+        d = self.set_up_nodes()
+        d.addCallback(self.set_up_tree)
+
+        # check the individual items
+        d.addCallback(lambda ign: self.root.check())
+        d.addCallback(self.check_is_healthy, "root")
+        d.addCallback(lambda ign: self.mutable.check())
+        d.addCallback(self.check_is_healthy, "mutable")
+        d.addCallback(lambda ign: self.large.check())
+        d.addCallback(self.check_is_healthy, "large")
+        d.addCallback(lambda ign: self.small.check())
+        d.addCallback(self.failUnlessEqual, None, "small")
+
+        # and again with verify=True
+        d.addCallback(lambda ign: self.root.check(verify=True))
+        d.addCallback(self.check_is_healthy, "root")
+        d.addCallback(lambda ign: self.mutable.check(verify=True))
+        d.addCallback(self.check_is_healthy, "mutable")
+        d.addCallback(lambda ign: self.large.check(verify=True))
+        d.addCallback(self.check_is_healthy, "large")
+        d.addCallback(lambda ign: self.small.check(verify=True))
+        d.addCallback(self.failUnlessEqual, None, "small")
+
+        # and check_and_repair(), which should be a nop
+        d.addCallback(lambda ign: self.root.check_and_repair())
+        d.addCallback(self.check_and_repair_is_healthy, "root")
+        d.addCallback(lambda ign: self.mutable.check_and_repair())
+        d.addCallback(self.check_and_repair_is_healthy, "mutable")
+        d.addCallback(lambda ign: self.large.check_and_repair())
+        d.addCallback(self.check_and_repair_is_healthy, "large")
+        d.addCallback(lambda ign: self.small.check_and_repair())
+        d.addCallback(self.failUnlessEqual, None, "small")
+
+        # check_and_repair(verify=True)
+        d.addCallback(lambda ign: self.root.check_and_repair(verify=True))
+        d.addCallback(self.check_and_repair_is_healthy, "root")
+        d.addCallback(lambda ign: self.mutable.check_and_repair(verify=True))
+        d.addCallback(self.check_and_repair_is_healthy, "mutable")
+        d.addCallback(lambda ign: self.large.check_and_repair(verify=True))
+        d.addCallback(self.check_and_repair_is_healthy, "large")
+        d.addCallback(lambda ign: self.small.check_and_repair(verify=True))
+        d.addCallback(self.failUnlessEqual, None, "small")
+
+
+        # now deep-check on everything. It should be safe to use deep-check
+        # on anything, even a regular file.
+        d.addCallback(lambda ign: self.root.deep_check())
+        d.addCallback(self.deep_check_is_healthy, 3, "root")
+        d.addCallback(lambda ign: self.mutable.deep_check())
+        d.addCallback(self.deep_check_is_healthy, 1, "mutable")
+        d.addCallback(lambda ign: self.large.deep_check())
+        d.addCallback(self.deep_check_is_healthy, 1, "large")
+        d.addCallback(lambda ign: self.small.deep_check())
+        d.addCallback(self.deep_check_is_healthy, 0, "small")
+
+        # deep-check verify=True
+        d.addCallback(lambda ign: self.root.deep_check(verify=True))
+        d.addCallback(self.deep_check_is_healthy, 3, "root")
+        d.addCallback(lambda ign: self.mutable.deep_check(verify=True))
+        d.addCallback(self.deep_check_is_healthy, 1, "mutable")
+        d.addCallback(lambda ign: self.large.deep_check(verify=True))
+        d.addCallback(self.deep_check_is_healthy, 1, "large")
+        d.addCallback(lambda ign: self.small.deep_check(verify=True))
+        d.addCallback(self.deep_check_is_healthy, 0, "small")
+
+        # deep-check-and-repair
+        d.addCallback(lambda ign: self.root.deep_check_and_repair())
+        d.addCallback(self.deep_check_and_repair_is_healthy, 3, "root")
+        d.addCallback(lambda ign: self.mutable.deep_check_and_repair())
+        d.addCallback(self.deep_check_and_repair_is_healthy, 1, "mutable")
+        d.addCallback(lambda ign: self.large.deep_check_and_repair())
+        d.addCallback(self.deep_check_and_repair_is_healthy, 1, "large")
+        d.addCallback(lambda ign: self.small.deep_check_and_repair())
+        d.addCallback(self.deep_check_and_repair_is_healthy, 0, "small")
+
+        # deep-check-and-repair, verify=True
+        d.addCallback(lambda ign: self.root.deep_check_and_repair(verify=True))
+        d.addCallback(self.deep_check_and_repair_is_healthy, 3, "root")
+        d.addCallback(lambda ign: self.mutable.deep_check_and_repair(verify=True))
+        d.addCallback(self.deep_check_and_repair_is_healthy, 1, "mutable")
+        d.addCallback(lambda ign: self.large.deep_check_and_repair(verify=True))
+        d.addCallback(self.deep_check_and_repair_is_healthy, 1, "large")
+        d.addCallback(lambda ign: self.small.deep_check_and_repair(verify=True))
+        d.addCallback(self.deep_check_and_repair_is_healthy, 0, "small")
+
+        return d

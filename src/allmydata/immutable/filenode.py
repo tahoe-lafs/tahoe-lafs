@@ -63,7 +63,17 @@ class FileNode:
         return v.start()
 
     def check_and_repair(self, verify=False):
-        raise NotImplementedError("not implemented yet")
+        # this is a stub, to allow the deep-check tests to pass.
+        #raise NotImplementedError("not implemented yet")
+        from allmydata.checker_results import CheckAndRepairResults
+        cr = CheckAndRepairResults(self.u.storage_index)
+        d = self.check(verify)
+        def _done(r):
+            cr.pre_repair_results = cr.post_repair_results = r
+            cr.repair_attempted = False
+            return cr
+        d.addCallback(_done)
+        return d
 
     def deep_check(self, verify=False):
         d = self.check(verify)
@@ -132,13 +142,20 @@ class LiteralFileNode:
     def get_storage_index(self):
         return None
 
-    def check(self, verify=False, repair=False):
+    def check(self, verify=False):
         # neither verify= nor repair= affect LIT files, and the check returns
         # no results.
         return defer.succeed(None)
 
-    def deep_check(self, verify=False, repair=False):
+    def check_and_repair(self, verify=False):
+        return defer.succeed(None)
+
+    def deep_check(self, verify=False):
         dr = DeepCheckResults(None)
+        return defer.succeed(dr)
+
+    def deep_check_and_repair(self, verify=False):
+        dr = DeepCheckAndRepairResults(None)
         return defer.succeed(dr)
 
     def download(self, target):
