@@ -567,10 +567,17 @@ class DirectoryAsHTML(rend.Page):
             T.input(type="hidden", name="t", value="deep-check"),
             T.input(type="hidden", name="return_to", value="."),
             T.legend(class_="freeform-form-label")["Run a deep-check operation (EXPENSIVE)"],
-            T.input(type="submit", value="Deep-Check"),
-            " ",
+            T.div[
             "Verify every bit? (EVEN MORE EXPENSIVE):",
             T.input(type="checkbox", name="verify"),
+            ],
+            T.div["Repair any problems?: ",
+                  T.input(type="checkbox", name="repair")],
+            T.div["Emit results in JSON format?: ",
+                  T.input(type="checkbox", name="output", value="JSON")],
+
+            T.input(type="submit", value="Deep-Check"),
+
             ]]
         forms.append(T.div(class_="freeform-form")[deep_check])
 

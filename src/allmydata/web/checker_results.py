@@ -47,7 +47,8 @@ class ResultsBase:
                                    for serverid in d["servers-responding"]]
         sharemap = {}
         for (shareid, serverids) in d["sharemap"].items():
-            sharemap[shareid] = [base32.b2a(serverid) for serverid in serverids]
+            sharemap[shareid] = [idlib.nodeid_b2a(serverid)
+                                 for serverid in serverids]
         r["sharemap"] = sharemap
 
         r["count-wrong-shares"] = d["count-wrong-shares"]
@@ -62,12 +63,17 @@ class ResultsBase:
         assert isinstance(s, (list, tuple))
         return [html.escape(w) for w in s]
 
-class LiteralCheckerResults(rend.Page):
+    def want_json(self, ctx):
+        output = get_arg(inevow.IRequest(ctx), "output", "").lower()
+        if output.lower() == "json":
+            return True
+        return False
+
+class LiteralCheckerResults(rend.Page, ResultsBase):
     docFactory = getxmlfile("literal-checker-results.xhtml")
 
     def renderHTTP(self, ctx):
-        t = get_arg(inevow.IRequest(ctx), "output", "")
-        if t.lower() == "json":
+        if self.want_json(ctx):
             return self.json(ctx)
         return rend.Page.renderHTTP(self, ctx)
 
@@ -85,8 +91,7 @@ class CheckerResults(rend.Page, ResultsBase):
         self.r = ICheckerResults(results)
 
     def renderHTTP(self, ctx):
-        t = get_arg(inevow.IRequest(ctx), "output", "")
-        if t.lower() == "json":
+        if self.want_json(ctx):
             return self.json(ctx)
         return rend.Page.renderHTTP(self, ctx)
 
@@ -121,8 +126,7 @@ class CheckAndRepairResults(rend.Page, ResultsBase):
         self.r = ICheckAndRepairResults(results)
 
     def renderHTTP(self, ctx):
-        t = get_arg(inevow.IRequest(ctx), "output", None)
-        if t == "json":
+        if self.want_json(ctx):
             return self.json(ctx)
         return rend.Page.renderHTTP(self, ctx)
 
@@ -173,8 +177,7 @@ class DeepCheckResults(rend.Page, ResultsBase):
         self.r = results
 
     def renderHTTP(self, ctx):
-        t = get_arg(inevow.IRequest(ctx), "output", None)
-        if t == "json":
+        if self.want_json(ctx):
             return self.json(ctx)
         return rend.Page.renderHTTP(self, ctx)
 
@@ -187,8 +190,8 @@ class DeepCheckResults(rend.Page, ResultsBase):
         data["count-objects-healthy"] = c["count-objects-healthy"]
         data["count-objects-unhealthy"] = c["count-objects-unhealthy"]
         data["count-corrupt-shares"] = c["count-corrupt-shares"]
-        data["list-corrupt-shares"] = [ (idlib.b2a(serverid),
-                                         idlib.b2a(storage_index),
+        data["list-corrupt-shares"] = [ (idlib.nodeid_b2a(serverid),
+                                         base32.b2a(storage_index),
                                          shnum)
                                         for (serverid, storage_index, shnum)
                                         in self.r.get_corrupt_shares() ]
@@ -306,8 +309,7 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase):
         self.r = results
 
     def renderHTTP(self, ctx):
-        t = get_arg(inevow.IRequest(ctx), "output", None)
-        if t == "json":
+        if self.want_json(ctx):
             return self.json(ctx)
         return rend.Page.renderHTTP(self, ctx)
 
@@ -330,13 +332,13 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase):
         data["count-corrupt-shares-pre-repair"] = c["count-corrupt-shares-pre-repair"]
         data["count-corrupt-shares-post-repair"] = c["count-corrupt-shares-pre-repair"]
 
-        data["list-corrupt-shares"] = [ (idlib.b2a(serverid),
-                                         idlib.b2a(storage_index),
+        data["list-corrupt-shares"] = [ (idlib.nodeid_b2a(serverid),
+                                         base32.b2a(storage_index),
                                          shnum)
                                         for (serverid, storage_index, shnum)
                                         in self.r.get_corrupt_shares() ]
-        data["list-remaining-corrupt-shares"] = [ (idlib.b2a(serverid),
-                                                   idlib.b2a(storage_index),
+        data["list-remaining-corrupt-shares"] = [ (idlib.nodeid_b2a(serverid),
+                                                   base32.b2a(storage_index),
                                                    shnum)
                                                   for (serverid, storage_index, shnum)
                                                   in self.r.get_remaining_corrupt_shares() ]
