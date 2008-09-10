@@ -2106,10 +2106,14 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         # s["size-directories"]
         self.failUnlessEqual(s["largest-directory-children"], 4)
         self.failUnlessEqual(s["largest-immutable-file"], 13000)
-        self.failUnlessEqual(s["size-files-histogram"],
-                             [(11, 31, 1),
-                              (10001, 31622, 1),
-                              ])
+        # to re-use this function for both the local dirnode.deep_stats() and
+        # the webapi t=deep-stats, we coerce the result into a list of
+        # tuples. dirnode.deep_stats() returns a list of tuples, but JSON
+        # only knows about lists., so t=deep-stats returns a list of lists.
+        histogram = [tuple(stuff) for stuff in s["size-files-histogram"]]
+        self.failUnlessEqual(histogram, [(11, 31, 1),
+                                         (10001, 31622, 1),
+                                         ])
         self.failUnlessEqual(s["size-immutable-files"], 13000)
         self.failUnlessEqual(s["size-literal-files"], 22)
 
@@ -2203,9 +2207,12 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
 
     def web_json(self, n, **kwargs):
         kwargs["output"] = "json"
+        return self.web(n, "POST", **kwargs)
+
+    def web(self, n, method="GET", **kwargs):
         url = (self.webish_url + "uri/%s" % urllib.quote(n.get_uri())
                + "?" + "&".join(["%s=%s" % (k,v) for (k,v) in kwargs.items()]))
-        d = getPage(url, method="POST")
+        d = getPage(url, method=method)
         def _decode(s):
             try:
                 data = simplejson.loads(s)
@@ -2291,8 +2298,15 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         self.failUnlessEqual(data["storage-index"], "", where)
         self.failUnlessEqual(data["results"]["healthy"], True, where)
 
+    def json_check_stats(self, data, where):
+        self.check_stats(data)
+
     def do_test_web(self, ignored):
         d = defer.succeed(None)
+
+        # stats
+        d.addCallback(lambda ign: self.web(self.root, t="deep-stats"))
+        d.addCallback(self.json_check_stats, "deep-stats")
 
         # check, no verify
         d.addCallback(lambda ign: self.web_json(self.root, t="check"))
