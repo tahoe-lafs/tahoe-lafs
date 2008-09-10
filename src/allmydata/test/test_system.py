@@ -2304,7 +2304,6 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.web_json(self.root, t="check", repair="true", verify="true"))
         d.addCallback(self.json_check_and_repair_is_healthy, self.root, "root")
-        return d
         d.addCallback(lambda ign:
                       self.web_json(self.mutable, t="check", repair="true", verify="true"))
         d.addCallback(self.json_check_and_repair_is_healthy, self.mutable, "mutable")
