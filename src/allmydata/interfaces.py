@@ -1648,6 +1648,10 @@ class IDeepCheckResults(Interface):
         be slash-joined) to an ICheckerResults instance, one for each object
         that was checked."""
 
+    def get_stats():
+        """Return a dictionary with the same keys as
+        IDirectoryNode.deep_stats()."""
+
 class IDeepCheckAndRepairResults(Interface):
     """I contain the results of a deep-check-and-repair operation.
 
@@ -1689,6 +1693,10 @@ class IDeepCheckAndRepairResults(Interface):
                                                objects examined (after any
                                                repair)
         """
+
+    def get_stats():
+        """Return a dictionary with the same keys as
+        IDirectoryNode.deep_stats()."""
 
     def get_corrupt_shares():
         """Return a set of (serverid, storage_index, sharenum) for all shares

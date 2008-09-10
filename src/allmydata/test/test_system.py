@@ -2271,6 +2271,7 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         self.failUnlessEqual(data["count-corrupt-shares"], 0, where)
         self.failUnlessEqual(data["list-corrupt-shares"], [], where)
         self.failUnlessEqual(data["list-unhealthy-files"], [], where)
+        self.json_check_stats(data["stats"], where)
 
     def json_full_deepcheck_and_repair_is_healthy(self, data, n, where):
         self.failUnlessEqual(data["root-storage-index"],

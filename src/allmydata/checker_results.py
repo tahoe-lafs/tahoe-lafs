@@ -91,6 +91,10 @@ class DeepResultsBase:
         self.objects_unhealthy = 0
         self.corrupt_shares = []
         self.all_results = {}
+        self.stats = {}
+
+    def update_stats(self, new_stats):
+        self.stats.update(new_stats)
 
     def get_root_storage_index_string(self):
         return self.root_storage_index_s
@@ -100,6 +104,9 @@ class DeepResultsBase:
 
     def get_all_results(self):
         return self.all_results
+
+    def get_stats(self):
+        return self.stats
 
 
 class DeepCheckResults(DeepResultsBase):

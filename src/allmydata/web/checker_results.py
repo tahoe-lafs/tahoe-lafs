@@ -196,6 +196,7 @@ class DeepCheckResults(rend.Page, ResultsBase):
                                          for (path_t, r)
                                          in self.r.get_all_results().items()
                                          if not r.is_healthy() ]
+        data["stats"] = self.r.get_stats()
         return simplejson.dumps(data, indent=1)
 
     def render_root_storage_index(self, ctx, data):
@@ -344,6 +345,7 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase):
                                          for (path_t, r)
                                          in self.r.get_all_results().items()
                                          if not r.get_pre_repair_results().is_healthy() ]
+        data["stats"] = self.r.get_stats()
         return simplejson.dumps(data, indent=1)
 
     def render_root_storage_index(self, ctx, data):

@@ -765,6 +765,8 @@ POST $URL?t=deep-check
                          invoked. The 'check-results' field is the same as
                          that returned by t=check&output=JSON, described
                          above.
+   stats: a dictionary with the same keys as the t=deep-stats command
+          (described below)
 
 POST $URL?t=check&repair=true
 
@@ -840,6 +842,8 @@ POST $URL?t=deep-check&repair=true
                          invoked. The 'check-results' field is the same as
                          that returned by t=check&repair=true&output=JSON,
                          described above.
+   stats: a dictionary with the same keys as the t=deep-stats command
+          (described below)
 
 GET $DIRURL?t=manifest
 
