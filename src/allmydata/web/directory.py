@@ -21,8 +21,8 @@ from allmydata.web.common import text_plain, WebError, IClient, \
      getxmlfile, RenderMixin
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
-from allmydata.web.checker_results import CheckerResults, DeepCheckResults, \
-     DeepCheckAndRepairResults
+from allmydata.web.checker_results import CheckerResults, \
+     CheckAndRepairResults, DeepCheckResults, DeepCheckAndRepairResults
 
 class BlockingFileError(Exception):
     # TODO: catch and transform
@@ -333,8 +333,14 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
     def _POST_check(self, req):
         # check this directory
-        d = self.node.check()
-        d.addCallback(lambda res: CheckerResults(res))
+        verify = boolean_of_arg(get_arg(req, "verify", "false"))
+        repair = boolean_of_arg(get_arg(req, "repair", "false"))
+        if repair:
+            d = self.node.check_and_repair(verify)
+            d.addCallback(lambda res: CheckAndRepairResults(res))
+        else:
+            d = self.node.check(verify)
+            d.addCallback(lambda res: CheckerResults(res))
         return d
 
     def _POST_deep_check(self, req):

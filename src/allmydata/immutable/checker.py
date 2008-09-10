@@ -89,10 +89,9 @@ class SimpleCHKFileChecker:
         sharemap = {}
         for (shnum,nodeids) in self.sharemap.items():
             hosts.update(nodeids)
-            sharemap[shnum] = [idlib.nodeid_b2a(nodeid) for nodeid in nodeids]
+            sharemap[shnum] = nodeids
         data["count-good-share-hosts"] = len(hosts)
-        data["servers-responding"] = [base32.b2a(serverid)
-                                      for serverid in self.responded]
+        data["servers-responding"] = list(self.responded)
         data["sharemap"] = sharemap
 
         r.set_data(data)

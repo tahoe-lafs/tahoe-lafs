@@ -1549,16 +1549,16 @@ class ICheckerResults(Interface):
                               that was found to be corrupt. Each share
                               locator is a list of (serverid, storage_index,
                               sharenum).
-         servers-responding: list of base32-encoded storage server identifiers,
+         servers-responding: list of (binary) storage server identifiers,
                              one for each server which responded to the share
                              query.
          sharemap: dict mapping share identifier to list of serverids
-                   (base32-encoded strings). This indicates which servers are
-                   holding which shares. For immutable files, the shareid is
-                   an integer (the share number, from 0 to N-1). For
-                   immutable files, it is a string of the form
-                   'seq%d-%s-sh%d', containing the sequence number, the
-                   roothash, and the share number.
+                   (binary strings). This indicates which servers are holding
+                   which shares. For immutable files, the shareid is an
+                   integer (the share number, from 0 to N-1). For immutable
+                   files, it is a string of the form 'seq%d-%s-sh%d',
+                   containing the sequence number, the roothash, and the
+                   share number.
 
         The following keys are most relevant for mutable files, but immutable
         files will provide sensible values too::
@@ -1606,7 +1606,8 @@ class ICheckAndRepairResults(Interface):
         """Return a boolean, True if a repair was attempted."""
     def get_repair_successful():
         """Return a boolean, True if repair was attempted and the file/dir
-        was fully healthy afterwards."""
+        was fully healthy afterwards. False if no repair was attempted or if
+        a repair attempt failed."""
     def get_pre_repair_results():
         """Return an ICheckerResults instance that describes the state of the
         file/dir before any repair was attempted."""

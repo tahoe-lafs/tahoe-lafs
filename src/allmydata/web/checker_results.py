@@ -1,5 +1,6 @@
 
 import time
+import simplejson
 from nevow import rend, inevow, tags as T
 from twisted.web import html
 from allmydata.web.common import getxmlfile, get_arg, IClient
@@ -11,17 +12,88 @@ class ResultsBase:
     def _render_results(self, cr):
         assert ICheckerResults(cr)
         return T.pre["\n".join(self._html(cr.get_report()))] # TODO: more
+
+    def _json_check_and_repair_results(self, r):
+        data = {}
+        data["storage-index"] = r.get_storage_index_string()
+        data["repair-attempted"] = r.get_repair_attempted()
+        data["repair-successful"] = r.get_repair_successful()
+        pre = r.get_pre_repair_results()
+        data["pre-repair-results"] = self._json_check_results(pre)
+        post = r.get_post_repair_results()
+        data["post-repair-results"] = self._json_check_results(post)
+        return data
+
+    def _json_check_results(self, r):
+        data = {}
+        data["storage-index"] = r.get_storage_index_string()
+        data["results"] = self._json_check_counts(r.get_data())
+        data["results"]["needs-rebalancing"] = r.needs_rebalancing()
+        data["results"]["healthy"] = r.is_healthy()
+        return data
+
+    def _json_check_counts(self, d):
+        r = {}
+        r["count-shares-good"] = d["count-shares-good"]
+        r["count-shares-needed"] = d["count-shares-needed"]
+        r["count-shares-expected"] = d["count-shares-expected"]
+        r["count-good-share-hosts"] = d["count-good-share-hosts"]
+        r["count-corrupt-shares"] = d["count-corrupt-shares"]
+        r["list-corrupt-shares"] = [ (idlib.nodeid_b2a(serverid),
+                                      base32.b2a(si), shnum)
+                                     for (serverid, si, shnum)
+                                     in d["list-corrupt-shares"] ]
+        r["servers-responding"] = [idlib.nodeid_b2a(serverid)
+                                   for serverid in d["servers-responding"]]
+        sharemap = {}
+        for (shareid, serverids) in d["sharemap"].items():
+            sharemap[shareid] = [base32.b2a(serverid) for serverid in serverids]
+        r["sharemap"] = sharemap
+
+        r["count-wrong-shares"] = d["count-wrong-shares"]
+        r["count-recoverable-versions"] = d["count-recoverable-versions"]
+        r["count-unrecoverable-versions"] = d["count-unrecoverable-versions"]
+
+        return r
+
     def _html(self, s):
         if isinstance(s, (str, unicode)):
             return html.escape(s)
         assert isinstance(s, (list, tuple))
         return [html.escape(w) for w in s]
 
+class LiteralCheckerResults(rend.Page):
+    docFactory = getxmlfile("literal-checker-results.xhtml")
+
+    def renderHTTP(self, ctx):
+        t = get_arg(inevow.IRequest(ctx), "output", "")
+        if t.lower() == "json":
+            return self.json(ctx)
+        return rend.Page.renderHTTP(self, ctx)
+
+    def json(self, ctx):
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        data = {"storage-index": "",
+                "results": {"healthy": True},
+                }
+        return simplejson.dumps(data, indent=1)
+
 class CheckerResults(rend.Page, ResultsBase):
     docFactory = getxmlfile("checker-results.xhtml")
 
     def __init__(self, results):
         self.r = ICheckerResults(results)
+
+    def renderHTTP(self, ctx):
+        t = get_arg(inevow.IRequest(ctx), "output", "")
+        if t.lower() == "json":
+            return self.json(ctx)
+        return rend.Page.renderHTTP(self, ctx)
+
+    def json(self, ctx):
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        data = self._json_check_results(self.r)
+        return simplejson.dumps(data, indent=1)
 
     def render_storage_index(self, ctx, data):
         return self.r.get_storage_index_string()
@@ -47,6 +119,17 @@ class CheckAndRepairResults(rend.Page, ResultsBase):
 
     def __init__(self, results):
         self.r = ICheckAndRepairResults(results)
+
+    def renderHTTP(self, ctx):
+        t = get_arg(inevow.IRequest(ctx), "output", None)
+        if t == "json":
+            return self.json(ctx)
+        return rend.Page.renderHTTP(self, ctx)
+
+    def json(self, ctx):
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        data = self._json_check_and_repair_results(self.r)
+        return simplejson.dumps(data, indent=1)
 
     def render_storage_index(self, ctx, data):
         return self.r.get_storage_index_string()
@@ -88,6 +171,32 @@ class DeepCheckResults(rend.Page, ResultsBase):
     def __init__(self, results):
         assert IDeepCheckResults(results)
         self.r = results
+
+    def renderHTTP(self, ctx):
+        t = get_arg(inevow.IRequest(ctx), "output", None)
+        if t == "json":
+            return self.json(ctx)
+        return rend.Page.renderHTTP(self, ctx)
+
+    def json(self, ctx):
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        data = {}
+        data["root-storage-index"] = self.r.get_root_storage_index_string()
+        c = self.r.get_counters()
+        data["count-objects-checked"] = c["count-objects-checked"]
+        data["count-objects-healthy"] = c["count-objects-healthy"]
+        data["count-objects-unhealthy"] = c["count-objects-unhealthy"]
+        data["count-corrupt-shares"] = c["count-corrupt-shares"]
+        data["list-corrupt-shares"] = [ (idlib.b2a(serverid),
+                                         idlib.b2a(storage_index),
+                                         shnum)
+                                        for (serverid, storage_index, shnum)
+                                        in self.r.get_corrupt_shares() ]
+        data["list-unhealthy-files"] = [ (path_t, self._json_check_results(r))
+                                         for (path_t, r)
+                                         in self.r.get_all_results().items()
+                                         if not r.is_healthy() ]
+        return simplejson.dumps(data, indent=1)
 
     def render_root_storage_index(self, ctx, data):
         return self.r.get_root_storage_index_string()
@@ -194,6 +303,48 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase):
     def __init__(self, results):
         assert IDeepCheckAndRepairResults(results)
         self.r = results
+
+    def renderHTTP(self, ctx):
+        t = get_arg(inevow.IRequest(ctx), "output", None)
+        if t == "json":
+            return self.json(ctx)
+        return rend.Page.renderHTTP(self, ctx)
+
+    def json(self, ctx):
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        data = {}
+        data["root-storage-index"] = self.r.get_root_storage_index_string()
+        c = self.r.get_counters()
+        data["count-objects-checked"] = c["count-objects-checked"]
+
+        data["count-objects-healthy-pre-repair"] = c["count-objects-healthy-pre-repair"]
+        data["count-objects-unhealthy-pre-repair"] = c["count-objects-unhealthy-pre-repair"]
+        data["count-objects-healthy-post-repair"] = c["count-objects-healthy-post-repair"]
+        data["count-objects-unhealthy-post-repair"] = c["count-objects-unhealthy-post-repair"]
+
+        data["count-repairs-attempted"] = c["count-repairs-attempted"]
+        data["count-repairs-successful"] = c["count-repairs-successful"]
+        data["count-repairs-unsuccessful"] = c["count-repairs-unsuccessful"]
+
+        data["count-corrupt-shares-pre-repair"] = c["count-corrupt-shares-pre-repair"]
+        data["count-corrupt-shares-post-repair"] = c["count-corrupt-shares-pre-repair"]
+
+        data["list-corrupt-shares"] = [ (idlib.b2a(serverid),
+                                         idlib.b2a(storage_index),
+                                         shnum)
+                                        for (serverid, storage_index, shnum)
+                                        in self.r.get_corrupt_shares() ]
+        data["list-remaining-corrupt-shares"] = [ (idlib.b2a(serverid),
+                                                   idlib.b2a(storage_index),
+                                                   shnum)
+                                                  for (serverid, storage_index, shnum)
+                                                  in self.r.get_remaining_corrupt_shares() ]
+
+        data["list-unhealthy-files"] = [ (path_t, self._json_check_results(r))
+                                         for (path_t, r)
+                                         in self.r.get_all_results().items()
+                                         if not r.get_pre_repair_results().is_healthy() ]
+        return simplejson.dumps(data, indent=1)
 
     def render_root_storage_index(self, ctx, data):
         return self.r.get_root_storage_index_string()

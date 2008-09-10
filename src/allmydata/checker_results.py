@@ -68,6 +68,8 @@ class CheckAndRepairResults:
     def get_repair_attempted(self):
         return self.repair_attempted
     def get_repair_successful(self):
+        if not self.repair_attempted:
+            return False
         return self.repair_successful
     def get_pre_repair_results(self):
         return self.pre_repair_results

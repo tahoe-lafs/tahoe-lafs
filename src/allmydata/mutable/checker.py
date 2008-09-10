@@ -250,10 +250,9 @@ class MutableChecker:
                 shareid = "%s-sh%d" % (smap.summarize_version(verinfo), shnum)
                 if shareid not in sharemap:
                     sharemap[shareid] = []
-                sharemap[shareid].append(base32.b2a(peerid))
+                sharemap[shareid].append(peerid)
         data["sharemap"] = sharemap
-        data["servers-responding"] = [base32.b2a(serverid)
-                                      for serverid in smap.reachable_peers]
+        data["servers-responding"] = list(smap.reachable_peers)
 
         r.set_healthy(healthy)
         r.set_needs_rebalancing(needs_rebalancing)

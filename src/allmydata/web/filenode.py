@@ -10,11 +10,13 @@ from nevow.inevow import IRequest
 
 from allmydata.interfaces import IDownloadTarget, ExistingChildError
 from allmydata.immutable.upload import FileHandle
+from allmydata.immutable.filenode import LiteralFileNode
 from allmydata.util import log
 
 from allmydata.web.common import text_plain, WebError, IClient, RenderMixin, \
      boolean_of_arg, get_arg, should_create_intermediate_directories
-from allmydata.web.checker_results import CheckerResults, CheckAndRepairResults
+from allmydata.web.checker_results import CheckerResults, \
+     CheckAndRepairResults, LiteralCheckerResults
 
 class ReplaceMeMixin:
 
@@ -256,6 +258,8 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def _POST_check(self, req):
         verify = boolean_of_arg(get_arg(req, "verify", "false"))
         repair = boolean_of_arg(get_arg(req, "repair", "false"))
+        if isinstance(self.node, LiteralFileNode):
+            return defer.succeed(LiteralCheckerResults())
         if repair:
             d = self.node.check_and_repair(verify)
             d.addCallback(lambda res: CheckAndRepairResults(res))

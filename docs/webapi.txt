@@ -664,6 +664,64 @@ POST $URL?t=check
   If a verify=true argument is provided, the node will perform a more
   intensive check, downloading and verifying every single bit of every share.
 
+  If an output=JSON argument is provided, the response will be
+  machine-readable JSON instead of human-oriented HTML. The data is a
+  dictionary with the following keys:
+
+   storage-index: a base32-encoded string with the objects's storage index,
+                  or an empty string for LIT files
+   results: a dictionary that describes the state of the file. For LIT files,
+            this dictionary has only the 'healthy' key, which will always be
+            True. For distributed files, this dictionary has the following
+            keys:
+     count-shares-good: the number of good shares that were found
+     count-shares-needed: 'k', the number of shares required for recovery
+     count-shares-expected: 'N', the number of total shares generated
+     count-good-share-hosts: the number of distinct storage servers with
+                             good shares. If this number is less than
+                             count-shares-good, then some shares are doubled
+                             up, increasing the correlation of failures. This
+                             indicates that one or more shares should be
+                             moved to an otherwise unused server, if one is
+                             available.
+     count-wrong-shares: for mutable files, the number of shares for
+                         versions other than the 'best' one (highest
+                         sequence number, highest roothash). These are
+                         either old ...
+     count-recoverable-versions: for mutable files, the number of
+                                 recoverable versions of the file. For
+                                 a healthy file, this will equal 1.
+     count-unrecoverable-versions: for mutable files, the number of
+                                   unrecoverable versions of the file.
+                                   For a healthy file, this will be 0.
+     count-corrupt-shares: the number of shares with integrity failures
+     list-corrupt-shares: a list of "share locators", one for each share
+                          that was found to be corrupt. Each share locator
+                          is a list of (serverid, storage_index, sharenum).
+     needs-rebalancing: (bool) True if there are multiple shares on a single
+                        storage server, indicating a reduction in reliability
+                        that could be resolved by moving shares to new
+                        servers.
+     servers-responding: list of base32-encoded storage server identifiers,
+                         one for each server which responded to the share
+                         query.
+     healthy: (bool) True if the file is completely healthy, False otherwise.
+              Healthy files have at least N good shares. Overlapping shares
+              (indicated by count-good-share-hosts < count-shares-good) do not
+              currently cause a file to be marked unhealthy. If there are at
+              least N good shares, then corrupt shares do not cause the file to
+              be marked unhealthy, although the corrupt shares will be listed
+              in the results (list-corrupt-shares) and should be manually
+              removed to wasting time in subsequent downloads (as the
+              downloader rediscovers the corruption and uses alternate shares).
+     sharemap: dict mapping share identifier to list of serverids
+               (base32-encoded strings). This indicates which servers are
+               holding which shares. For immutable files, the shareid is
+               an integer (the share number, from 0 to N-1). For
+               immutable files, it is a string of the form
+               'seq%d-%s-sh%d', containing the sequence number, the
+               roothash, and the share number.
+
 POST $URL?t=deep-check
 
   This triggers a recursive walk of all files and directories reachable from
@@ -678,7 +736,110 @@ POST $URL?t=deep-check
   This accepts the same verify=, when_done=, and return_to= arguments as
   t=check.
 
-  Be aware that this can take a long time: perhaps a second per object.
+  Be aware that this can take a long time: perhaps a second per object. No
+  progress information is currently provided: the server will be silent until
+  the full tree has been traversed, then will emit the complete response.
+
+  If an output=JSON argument is provided, the response will be
+  machine-readable JSON instead of human-oriented HTML. The data is a
+  dictionary with the following keys:
+
+   root-storage-index: a base32-encoded string with the storage index of the
+                       starting point of the deep-check operation
+   count-objects-checked: count of how many objects were checked. Note that
+                          non-distributed objects (i.e. small immutable LIT
+                          files) are not checked, since for these objects,
+                          the data is contained entirely in the URI.
+   count-objects-healthy: how many of those objects were completely healthy
+   count-objects-unhealthy: how many were damaged in some way
+   count-corrupt-shares: how many shares were found to have corruption,
+                         summed over all objects examined
+   list-corrupt-shares: a list of "share identifiers", one for each share
+                        that was found to be corrupt. Each share identifier
+                        is a list of (serverid, storage_index, sharenum).
+   list-unhealthy-files: a list of (pathname, check-results) tuples, for
+                         each file that was not fully healthy. 'pathname' is
+                         a list of strings (which can be joined by "/"
+                         characters to turn it into a single string),
+                         relative to the directory on which deep-check was
+                         invoked. The 'check-results' field is the same as
+                         that returned by t=check&output=JSON, described
+                         above.
+
+POST $URL?t=check&repair=true
+
+  This performs a health check of the given file or directory, and if the
+  checker determines that the object is not healthy (some shares are missing
+  or corrupted), it will perform a "repair". During repair, any missing
+  shares will be regenerated and uploaded to new servers.
+
+  This accepts the same when_done=URL, return_to=URL, and verify=true
+  arguments as t=check. When an output=JSON argument is provided, the
+  machine-readable JSON response will contain the following keys:
+
+   storage-index: a base32-encoded string with the objects's storage index,
+                  or an empty string for LIT files
+   repair-attempted: (bool) True if repair was attempted
+   repair-successful: (bool) True if repair was attempted and the file was
+                      fully healthy afterwards. False if no repair was
+                      attempted, or if a repair attempt failed.
+   pre-repair-results: a dictionary that describes the state of the file
+                       before any repair was performed. This contains exactly
+                       the same keys as the 'results' value of the t=check
+                       response, described above.
+   post-repair-results: a dictionary that describes the state of the file
+                        after any repair was performed. If no repair was
+                        performed, post-repair-results and pre-repair-results
+                        will be the same. This contains exactly the same keys
+                        as the 'results' value of the t=check response,
+                        described above.
+
+POST $URL?t=deep-check&repair=true
+
+  This triggers a recursive walk of all files and directories, performing a
+  t=check&repair=true on each one.
+
+  This accepts the same when_done=URL, return_to=URL, and verify=true
+  arguments as t=deep-check. When an output=JSON argument is provided, the
+  response will contain the following keys:
+
+   root-storage-index: a base32-encoded string with the storage index of the
+                       starting point of the deep-check operation
+   count-objects-checked: count of how many objects were checked
+
+   count-objects-healthy-pre-repair: how many of those objects were completely
+                                     healthy, before any repair
+   count-objects-unhealthy-pre-repair: how many were damaged in some way
+   count-objects-healthy-post-repair: how many of those objects were completely
+                                       healthy, after any repair
+   count-objects-unhealthy-post-repair: how many were damaged in some way
+
+   count-repairs-attempted: repairs were attempted on this many objects.
+   count-repairs-successful: how many repairs resulted in healthy objects
+   count-repairs-unsuccessful: how many repairs resulted did not results in
+                               completely healthy objects
+   count-corrupt-shares-pre-repair: how many shares were found to have
+                                    corruption, summed over all objects
+                                    examined, before any repair
+   count-corrupt-shares-post-repair: how many shares were found to have
+                                     corruption, summed over all objects
+                                     examined, after any repair
+   list-corrupt-shares: a list of "share identifiers", one for each share
+                        that was found to be corrupt (before any repair).
+                        Each share identifier is a list of (serverid,
+                        storage_index, sharenum).
+   list-remaining-corrupt-shares: like list-corrupt-shares, but mutable shares
+                                  that were successfully repaired are not
+                                  included. These are shares that need
+                                  manual processing. Since immutable shares
+                                  cannot be modified by clients, all corruption
+                                  in immutable shares will be listed here.
+   list-unhealthy-files: a list of (pathname, check-results) tuples, for
+                         each file that was not fully healthy. 'pathname' is
+                         relative to the directory on which deep-check was
+                         invoked. The 'check-results' field is the same as
+                         that returned by t=check&repair=true&output=JSON,
+                         described above.
 
 GET $DIRURL?t=manifest
 

@@ -2043,9 +2043,16 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         self.failUnlessEqual(d["list-corrupt-shares"], [], where)
         if not incomplete:
             self.failUnlessEqual(sorted(d["servers-responding"]),
-                                 sorted([idlib.nodeid_b2a(c.nodeid)
-                                         for c in self.clients]), where)
+                                 sorted([c.nodeid for c in self.clients]),
+                                 where)
             self.failUnless("sharemap" in d, where)
+            all_serverids = set()
+            for (shareid, serverids) in d["sharemap"].items():
+                all_serverids.update(serverids)
+            self.failUnlessEqual(sorted(all_serverids),
+                                 sorted([c.nodeid for c in self.clients]),
+                                 where)
+
         self.failUnlessEqual(d["count-wrong-shares"], 0, where)
         self.failUnlessEqual(d["count-recoverable-versions"], 1, where)
         self.failUnlessEqual(d["count-unrecoverable-versions"], 0, where)
@@ -2078,6 +2085,7 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         d = self.set_up_nodes()
         d.addCallback(self.set_up_tree)
         d.addCallback(self.do_test_good)
+        d.addCallback(self.do_test_web)
         return d
 
     def do_test_good(self, ignored):
@@ -2165,5 +2173,121 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         d.addCallback(self.deep_check_and_repair_is_healthy, 1, "large")
         d.addCallback(lambda ign: self.small.deep_check_and_repair(verify=True))
         d.addCallback(self.deep_check_and_repair_is_healthy, 0, "small")
+
+        return d
+
+    def web_json(self, n, **kwargs):
+        kwargs["output"] = "json"
+        url = (self.webish_url + "uri/%s" % urllib.quote(n.get_uri())
+               + "?" + "&".join(["%s=%s" % (k,v) for (k,v) in kwargs.items()]))
+        d = getPage(url, method="POST")
+        def _decode(s):
+            try:
+                data = simplejson.loads(s)
+            except ValueError:
+                self.fail("%s (%s): not JSON: '%s'" % (where, url, s))
+            return data
+        d.addCallback(_decode)
+        return d
+
+    def json_check_is_healthy(self, data, n, where, incomplete=False):
+
+        self.failUnlessEqual(data["storage-index"],
+                             base32.b2a(n.get_storage_index()), where)
+        r = data["results"]
+        self.failUnlessEqual(r["healthy"], True, where)
+        needs_rebalancing = bool( len(self.clients) < 10 )
+        if not incomplete:
+            self.failUnlessEqual(r["needs-rebalancing"], needs_rebalancing, where)
+        self.failUnlessEqual(r["count-shares-good"], 10, where)
+        self.failUnlessEqual(r["count-shares-needed"], 3, where)
+        self.failUnlessEqual(r["count-shares-expected"], 10, where)
+        if not incomplete:
+            self.failUnlessEqual(r["count-good-share-hosts"], len(self.clients), where)
+        self.failUnlessEqual(r["count-corrupt-shares"], 0, where)
+        self.failUnlessEqual(r["list-corrupt-shares"], [], where)
+        if not incomplete:
+            self.failUnlessEqual(sorted(r["servers-responding"]),
+                                 sorted([idlib.nodeid_b2a(c.nodeid)
+                                         for c in self.clients]), where)
+            self.failUnless("sharemap" in r, where)
+            all_serverids = set()
+            for (shareid, serverids_s) in r["sharemap"].items():
+                all_serverids.update(serverids_s)
+            self.failUnlessEqual(sorted(all_serverids),
+                                 sorted([idlib.nodeid_b2a(c.nodeid)
+                                         for c in self.clients]), where)
+        self.failUnlessEqual(r["count-wrong-shares"], 0, where)
+        self.failUnlessEqual(r["count-recoverable-versions"], 1, where)
+        self.failUnlessEqual(r["count-unrecoverable-versions"], 0, where)
+
+    def json_check_and_repair_is_healthy(self, data, n, where, incomplete=False):
+        self.failUnlessEqual(data["storage-index"],
+                             base32.b2a(n.get_storage_index()), where)
+        self.failUnlessEqual(data["repair-attempted"], False, where)
+        self.json_check_is_healthy(data["pre-repair-results"],
+                                   n, where, incomplete)
+        self.json_check_is_healthy(data["post-repair-results"],
+                                   n, where, incomplete)
+
+    def json_check_lit(self, data, n, where):
+        self.failUnlessEqual(data["storage-index"], "", where)
+        self.failUnlessEqual(data["results"]["healthy"], True, where)
+
+    def do_test_web(self, ignored):
+        d = defer.succeed(None)
+
+        # check, no verify
+        d.addCallback(lambda ign: self.web_json(self.root, t="check"))
+        d.addCallback(self.json_check_is_healthy, self.root, "root")
+        d.addCallback(lambda ign: self.web_json(self.mutable, t="check"))
+        d.addCallback(self.json_check_is_healthy, self.mutable, "mutable")
+        d.addCallback(lambda ign: self.web_json(self.large, t="check"))
+        d.addCallback(self.json_check_is_healthy, self.large, "large")
+        d.addCallback(lambda ign: self.web_json(self.small, t="check"))
+        d.addCallback(self.json_check_lit, self.small, "small")
+
+        # check and verify
+        d.addCallback(lambda ign:
+                      self.web_json(self.root, t="check", verify="true"))
+        d.addCallback(self.json_check_is_healthy, self.root, "root")
+        d.addCallback(lambda ign:
+                      self.web_json(self.mutable, t="check", verify="true"))
+        d.addCallback(self.json_check_is_healthy, self.mutable, "mutable")
+        d.addCallback(lambda ign:
+                      self.web_json(self.large, t="check", verify="true"))
+        d.addCallback(self.json_check_is_healthy, self.large, "large", incomplete=True)
+        d.addCallback(lambda ign:
+                      self.web_json(self.small, t="check", verify="true"))
+        d.addCallback(self.json_check_lit, self.small, "small")
+
+        # check and repair, no verify
+        d.addCallback(lambda ign:
+                      self.web_json(self.root, t="check", repair="true"))
+        d.addCallback(self.json_check_and_repair_is_healthy, self.root, "root")
+        d.addCallback(lambda ign:
+                      self.web_json(self.mutable, t="check", repair="true"))
+        d.addCallback(self.json_check_and_repair_is_healthy, self.mutable, "mutable")
+        d.addCallback(lambda ign:
+                      self.web_json(self.large, t="check", repair="true"))
+        d.addCallback(self.json_check_and_repair_is_healthy, self.large, "large")
+        d.addCallback(lambda ign:
+                      self.web_json(self.small, t="check", repair="true"))
+        d.addCallback(self.json_check_lit, self.small, "small")
+
+        # check+verify+repair
+        d.addCallback(lambda ign:
+                      self.web_json(self.root, t="check", repair="true", verify="true"))
+        d.addCallback(self.json_check_and_repair_is_healthy, self.root, "root")
+        return d
+        d.addCallback(lambda ign:
+                      self.web_json(self.mutable, t="check", repair="true", verify="true"))
+        d.addCallback(self.json_check_and_repair_is_healthy, self.mutable, "mutable")
+        d.addCallback(lambda ign:
+                      self.web_json(self.large, t="check", repair="true", verify="true"))
+        d.addCallback(self.json_check_and_repair_is_healthy, self.large, "large", incomplete=True)
+        d.addCallback(lambda ign:
+                      self.web_json(self.small, t="check", repair="true", verify="true"))
+        d.addCallback(self.json_check_lit, self.small, "small")
 
         return d
