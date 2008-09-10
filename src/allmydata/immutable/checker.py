@@ -141,7 +141,6 @@ class VerifyingOutput:
 
     def finish(self):
         self._results.set_healthy(True)
-        self._results.set_needs_rebalancing(False) # TODO: wrong
         # the return value of finish() is passed out of FileDownloader._done,
         # but SimpleCHKFileVerifier overrides this with the CheckerResults
         # instance instead.
@@ -166,6 +165,9 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         self.init_logging()
 
         self._check_results = r = CheckerResults(self._storage_index)
+        r.set_data({"count-shares-needed": k,
+                    "count-shares-expected": N,
+                    })
         self._output = VerifyingOutput(self._size, r)
         self._paused = False
         self._stopped = False
@@ -219,6 +221,25 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         # once we know that, we can download blocks from everybody
         d.addCallback(self._download_all_segments)
         d.addCallback(self._done)
-        d.addCallback(lambda ignored: self._check_results)
+        d.addCallback(self._verify_done)
         return d
 
+    def _verify_done(self, ignored):
+        # TODO: The following results are just stubs, and need to be replaced
+        # with actual values. These exist to make things like deep-check not
+        # fail.
+        self._check_results.set_needs_rebalancing(False)
+        N = self._total_shares
+        data = {
+            "count-shares-good": N,
+            "count-good-share-hosts": N,
+            "count-corrupt-shares": 0,
+            "list-corrupt-shares": [],
+            "servers-responding": [],
+            "sharemap": {},
+            "count-wrong-shares": 0,
+            "count-recoverable-versions": 1,
+            "count-unrecoverable-versions": 0,
+            }
+        self._check_results.set_data(data)
+        return self._check_results

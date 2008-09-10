@@ -2023,7 +2023,7 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.root.set_node(u"loop", self.root))
         return d
 
-    def check_is_healthy(self, cr, n, where):
+    def check_is_healthy(self, cr, n, where, incomplete=False):
         self.failUnless(ICheckerResults.providedBy(cr), where)
         self.failUnless(cr.is_healthy(), where)
         self.failUnlessEqual(cr.get_storage_index(), n.get_storage_index(),
@@ -2031,29 +2031,32 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         self.failUnlessEqual(cr.get_storage_index_string(),
                              base32.b2a(n.get_storage_index()), where)
         needs_rebalancing = bool( len(self.clients) < 10 )
-        self.failUnlessEqual(cr.needs_rebalancing(), needs_rebalancing, where)
+        if not incomplete:
+            self.failUnlessEqual(cr.needs_rebalancing(), needs_rebalancing, where)
         d = cr.get_data()
         self.failUnlessEqual(d["count-shares-good"], 10, where)
         self.failUnlessEqual(d["count-shares-needed"], 3, where)
         self.failUnlessEqual(d["count-shares-expected"], 10, where)
-        self.failUnlessEqual(d["count-good-share-hosts"], len(self.clients), where)
+        if not incomplete:
+            self.failUnlessEqual(d["count-good-share-hosts"], len(self.clients), where)
         self.failUnlessEqual(d["count-corrupt-shares"], 0, where)
         self.failUnlessEqual(d["list-corrupt-shares"], [], where)
-        self.failUnlessEqual(sorted(d["servers-responding"]),
-                             sorted([idlib.nodeid_b2a(c.nodeid)
-                                     for c in self.clients]), where)
-        self.failUnless("sharemap" in d, where)
+        if not incomplete:
+            self.failUnlessEqual(sorted(d["servers-responding"]),
+                                 sorted([idlib.nodeid_b2a(c.nodeid)
+                                         for c in self.clients]), where)
+            self.failUnless("sharemap" in d, where)
         self.failUnlessEqual(d["count-wrong-shares"], 0, where)
         self.failUnlessEqual(d["count-recoverable-versions"], 1, where)
         self.failUnlessEqual(d["count-unrecoverable-versions"], 0, where)
 
 
-    def check_and_repair_is_healthy(self, cr, n, where):
+    def check_and_repair_is_healthy(self, cr, n, where, incomplete=False):
         self.failUnless(ICheckAndRepairResults.providedBy(cr), where)
         self.failUnless(cr.get_pre_repair_results().is_healthy(), where)
-        #self.check_is_healthy(cr.get_pre_repair_results(), n, where)
+        self.check_is_healthy(cr.get_pre_repair_results(), n, where, incomplete)
         self.failUnless(cr.get_post_repair_results().is_healthy(), where)
-        #self.check_is_healthy(cr.get_post_repair_results(), n, where)
+        self.check_is_healthy(cr.get_post_repair_results(), n, where, incomplete)
         self.failIf(cr.get_repair_attempted(), where)
 
     def deep_check_is_healthy(self, cr, num_healthy, where):
@@ -2094,8 +2097,9 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         d.addCallback(self.check_is_healthy, self.root, "root")
         d.addCallback(lambda ign: self.mutable.check(verify=True))
         d.addCallback(self.check_is_healthy, self.mutable, "mutable")
-        #d.addCallback(lambda ign: self.large.check(verify=True))
-        #d.addCallback(self.check_is_healthy, self.large, "large")
+        d.addCallback(lambda ign: self.large.check(verify=True))
+        d.addCallback(self.check_is_healthy, self.large, "large",
+                      incomplete=True)
         d.addCallback(lambda ign: self.small.check(verify=True))
         d.addCallback(self.failUnlessEqual, None, "small")
 
@@ -2115,7 +2119,8 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.mutable.check_and_repair(verify=True))
         d.addCallback(self.check_and_repair_is_healthy, self.mutable, "mutable")
         d.addCallback(lambda ign: self.large.check_and_repair(verify=True))
-        d.addCallback(self.check_and_repair_is_healthy, self.large, "large")
+        d.addCallback(self.check_and_repair_is_healthy, self.large, "large",
+                      incomplete=True)
         d.addCallback(lambda ign: self.small.check_and_repair(verify=True))
         d.addCallback(self.failUnlessEqual, None, "small")
 
