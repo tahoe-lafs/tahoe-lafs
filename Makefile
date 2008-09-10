@@ -41,6 +41,7 @@ else
 	SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
 	SRCPATH := $(shell pwd)/src
 	CHECK_PYWIN32_DEP := 
+	SITEDIRARG = --site-dirs=/var/lib/python-support/$(PYVER)
 endif
 
 ifneq ($(REACTOR),)
@@ -118,9 +119,15 @@ build: src/allmydata/_version.py
 	-$(MAKE) build-once
 	$(MAKE) build-once
 
+# setuptools has a bug (Issue17, see tahoe #229 for details) that causes it
+# to mishandle dependencies that are installed in non-site-directories,
+# including the /var/lib/ place that debian's python-support system uses. We
+# add this debian/ubuntu-specific directory (via $SITEDIRARG) to the setup.py
+# command line to work around this. Some day this will probably be fixed in
+# setuptools.
 build-once:
 	mkdir -p "$(SUPPORTLIB)"
-	$(PP) $(PYTHON) ./setup.py develop --prefix="$(SUPPORT)"
+	$(PP) $(PYTHON) ./setup.py develop --prefix="$(SUPPORT)" $(SITEDIRARG)
 	chmod +x bin/tahoe
 	touch .built
 
