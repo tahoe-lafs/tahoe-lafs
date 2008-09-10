@@ -8,7 +8,7 @@ from twisted.python import failure, log
 from allmydata import interfaces, provisioning, uri, webish
 from allmydata.immutable import upload, download
 from allmydata.web import status, common
-from allmydata.util import fileutil, idlib
+from allmydata.util import fileutil
 from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, \
      FakeMutableFileNode, create_chk_filenode
 from allmydata.interfaces import IURI, INewDirectoryURI, \

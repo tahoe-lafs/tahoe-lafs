@@ -11,7 +11,7 @@ from twisted.python import log
 from allmydata import storage
 from allmydata.checker_results import CheckerResults
 from allmydata.immutable import download
-from allmydata.util import hashutil, idlib, base32
+from allmydata.util import hashutil
 
 class SimpleCHKFileChecker:
     """Return a list of (needed, total, found, sharemap), where sharemap maps

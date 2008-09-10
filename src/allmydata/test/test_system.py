@@ -2185,7 +2185,7 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
             try:
                 data = simplejson.loads(s)
             except ValueError:
-                self.fail("%s (%s): not JSON: '%s'" % (where, url, s))
+                self.fail("%s: not JSON: '%s'" % (url, s))
             return data
         d.addCallback(_decode)
         return d
