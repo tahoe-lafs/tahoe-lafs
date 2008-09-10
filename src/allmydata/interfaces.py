@@ -1560,11 +1560,20 @@ class ICheckerResults(Interface):
                    'seq%d-%s-sh%d', containing the sequence number, the
                    roothash, and the share number.
 
-        Mutable files will add the following keys::
+        The following keys are most relevant for mutable files, but immutable
+        files will provide sensible values too::
 
-         count-wrong-shares: the number of shares for versions other than
-                             the 'best' one (highest sequence number, highest
-                             roothash). These are either old ...
+         count-wrong-shares: the number of shares for versions other than the
+                             'best' one (which is defined as being the
+                             recoverable version with the highest sequence
+                             number, then the highest roothash). These are
+                             either leftover shares from an older version
+                             (perhaps on a server that was offline when an
+                             update occurred), shares from an unrecoverable
+                             newer version, or shares from an alternate
+                             current version that results from an
+                             uncoordinated write collision. For a healthy
+                             file, this will equal 0.
 
          count-recoverable-versions: the number of recoverable versions of
                                      the file. For a healthy file, this will

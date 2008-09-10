@@ -2043,6 +2043,9 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
                              sorted([idlib.nodeid_b2a(c.nodeid)
                                      for c in self.clients]), where)
         #self.failUnless("sharemap" in d)
+        self.failUnlessEqual(d["count-wrong-shares"], 0, where)
+        self.failUnlessEqual(d["count-recoverable-versions"], 1, where)
+        self.failUnlessEqual(d["count-unrecoverable-versions"], 0, where)
 
 
     def check_and_repair_is_healthy(self, cr, where):
