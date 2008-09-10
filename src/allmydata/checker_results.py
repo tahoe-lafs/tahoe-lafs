@@ -84,7 +84,7 @@ class DeepResultsBase:
         if root_storage_index is None:
             self.root_storage_index_s = "<none>"
         else:
-            self.root_storage_index_s = base32.b2a(root_storage_index)[:6]
+            self.root_storage_index_s = base32.b2a(root_storage_index)
 
         self.objects_checked = 0
         self.objects_healthy = 0

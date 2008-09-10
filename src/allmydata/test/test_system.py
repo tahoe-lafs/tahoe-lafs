@@ -2255,6 +2255,38 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         self.json_check_is_healthy(data["post-repair-results"],
                                    n, where, incomplete)
 
+    def json_full_deepcheck_is_healthy(self, data, n, where):
+        self.failUnlessEqual(data["root-storage-index"],
+                             base32.b2a(n.get_storage_index()), where)
+        self.failUnlessEqual(data["count-objects-checked"], 3, where)
+        self.failUnlessEqual(data["count-objects-healthy"], 3, where)
+        self.failUnlessEqual(data["count-objects-unhealthy"], 0, where)
+        self.failUnlessEqual(data["count-corrupt-shares"], 0, where)
+        self.failUnlessEqual(data["list-corrupt-shares"], [], where)
+        self.failUnlessEqual(data["list-unhealthy-files"], [], where)
+
+    def json_full_deepcheck_and_repair_is_healthy(self, data, n, where):
+        self.failUnlessEqual(data["root-storage-index"],
+                             base32.b2a(n.get_storage_index()), where)
+        self.failUnlessEqual(data["count-objects-checked"], 3, where)
+
+        self.failUnlessEqual(data["count-objects-healthy-pre-repair"], 3, where)
+        self.failUnlessEqual(data["count-objects-unhealthy-pre-repair"], 0, where)
+        self.failUnlessEqual(data["count-corrupt-shares-pre-repair"], 0, where)
+
+        self.failUnlessEqual(data["count-objects-healthy-post-repair"], 3, where)
+        self.failUnlessEqual(data["count-objects-unhealthy-post-repair"], 0, where)
+        self.failUnlessEqual(data["count-corrupt-shares-post-repair"], 0, where)
+
+        self.failUnlessEqual(data["list-corrupt-shares"], [], where)
+        self.failUnlessEqual(data["list-remaining-corrupt-shares"], [], where)
+        self.failUnlessEqual(data["list-unhealthy-files"], [], where)
+
+        self.failUnlessEqual(data["count-repairs-attempted"], 0, where)
+        self.failUnlessEqual(data["count-repairs-successful"], 0, where)
+        self.failUnlessEqual(data["count-repairs-unsuccessful"], 0, where)
+
+
     def json_check_lit(self, data, n, where):
         self.failUnlessEqual(data["storage-index"], "", where)
         self.failUnlessEqual(data["results"]["healthy"], True, where)
@@ -2313,5 +2345,20 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.web_json(self.small, t="check", repair="true", verify="true"))
         d.addCallback(self.json_check_lit, self.small, "small")
+
+        # now run a deep-check. When done through the web, this can only be
+        # run on a directory.
+        d.addCallback(lambda ign:
+                      self.web_json(self.root, t="deep-check"))
+        d.addCallback(self.json_full_deepcheck_is_healthy, self.root, "root")
+        d.addCallback(lambda ign:
+                      self.web_json(self.root, t="deep-check", verify="true"))
+        d.addCallback(self.json_full_deepcheck_is_healthy, self.root, "root")
+        d.addCallback(lambda ign:
+                      self.web_json(self.root, t="deep-check", repair="true"))
+        d.addCallback(self.json_full_deepcheck_and_repair_is_healthy, self.root, "root")
+        d.addCallback(lambda ign:
+                      self.web_json(self.root, t="deep-check", verify="true", repair="true"))
+        d.addCallback(self.json_full_deepcheck_and_repair_is_healthy, self.root, "root")
 
         return d
