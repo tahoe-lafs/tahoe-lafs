@@ -2084,9 +2084,34 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         self.basedir = self.mktemp()
         d = self.set_up_nodes()
         d.addCallback(self.set_up_tree)
+        d.addCallback(self.do_stats)
         d.addCallback(self.do_test_good)
         d.addCallback(self.do_test_web)
         return d
+
+    def do_stats(self, ignored):
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self.root.deep_stats())
+        d.addCallback(self.check_stats)
+        return d
+
+    def check_stats(self, s):
+        self.failUnlessEqual(s["count-directories"], 1)
+        self.failUnlessEqual(s["count-files"], 3)
+        self.failUnlessEqual(s["count-immutable-files"], 1)
+        self.failUnlessEqual(s["count-literal-files"], 1)
+        self.failUnlessEqual(s["count-mutable-files"], 1)
+        # don't check directories: their size will vary
+        # s["largest-directory"]
+        # s["size-directories"]
+        self.failUnlessEqual(s["largest-directory-children"], 4)
+        self.failUnlessEqual(s["largest-immutable-file"], 13000)
+        self.failUnlessEqual(s["size-files-histogram"],
+                             [(11, 31, 1),
+                              (10001, 31622, 1),
+                              ])
+        self.failUnlessEqual(s["size-immutable-files"], 13000)
+        self.failUnlessEqual(s["size-literal-files"], 22)
 
     def do_test_good(self, ignored):
         d = defer.succeed(None)
