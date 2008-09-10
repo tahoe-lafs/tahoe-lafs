@@ -2023,9 +2023,27 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.root.set_node(u"loop", self.root))
         return d
 
-    def check_is_healthy(self, cr, where):
-        self.failUnless(ICheckerResults.providedBy(cr))
-        self.failUnless(cr.is_healthy())
+    def check_is_healthy(self, cr, n, where):
+        self.failUnless(ICheckerResults.providedBy(cr), where)
+        self.failUnless(cr.is_healthy(), where)
+        self.failUnlessEqual(cr.get_storage_index(), n.get_storage_index(),
+                             where)
+        self.failUnlessEqual(cr.get_storage_index_string(),
+                             base32.b2a(n.get_storage_index()), where)
+        needs_rebalancing = bool( len(self.clients) < 10 )
+        self.failUnlessEqual(cr.needs_rebalancing(), needs_rebalancing, where)
+        d = cr.get_data()
+        self.failUnlessEqual(d["count-shares-good"], 10, where)
+        self.failUnlessEqual(d["count-shares-needed"], 3, where)
+        self.failUnlessEqual(d["count-shares-expected"], 10, where)
+        self.failUnlessEqual(d["count-good-share-hosts"], len(self.clients), where)
+        self.failUnlessEqual(d["count-corrupt-shares"], 0, where)
+        self.failUnlessEqual(d["list-corrupt-shares"], [], where)
+        self.failUnlessEqual(sorted(d["servers-responding"]),
+                             sorted([idlib.nodeid_b2a(c.nodeid)
+                                     for c in self.clients]), where)
+        #self.failUnless("sharemap" in d)
+
 
     def check_and_repair_is_healthy(self, cr, where):
         self.failUnless(ICheckAndRepairResults.providedBy(cr), where)
@@ -2051,24 +2069,28 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         self.basedir = self.mktemp()
         d = self.set_up_nodes()
         d.addCallback(self.set_up_tree)
+        d.addCallback(self.do_test_good)
+        return d
 
+    def do_test_good(self, ignored):
+        d = defer.succeed(None)
         # check the individual items
         d.addCallback(lambda ign: self.root.check())
-        d.addCallback(self.check_is_healthy, "root")
+        d.addCallback(self.check_is_healthy, self.root, "root")
         d.addCallback(lambda ign: self.mutable.check())
-        d.addCallback(self.check_is_healthy, "mutable")
+        d.addCallback(self.check_is_healthy, self.mutable, "mutable")
         d.addCallback(lambda ign: self.large.check())
-        d.addCallback(self.check_is_healthy, "large")
+        d.addCallback(self.check_is_healthy, self.large, "large")
         d.addCallback(lambda ign: self.small.check())
         d.addCallback(self.failUnlessEqual, None, "small")
 
         # and again with verify=True
         d.addCallback(lambda ign: self.root.check(verify=True))
-        d.addCallback(self.check_is_healthy, "root")
+        d.addCallback(self.check_is_healthy, self.root, "root")
         d.addCallback(lambda ign: self.mutable.check(verify=True))
-        d.addCallback(self.check_is_healthy, "mutable")
-        d.addCallback(lambda ign: self.large.check(verify=True))
-        d.addCallback(self.check_is_healthy, "large")
+        d.addCallback(self.check_is_healthy, self.mutable, "mutable")
+        #d.addCallback(lambda ign: self.large.check(verify=True))
+        #d.addCallback(self.check_is_healthy, self.large, "large")
         d.addCallback(lambda ign: self.small.check(verify=True))
         d.addCallback(self.failUnlessEqual, None, "small")
 

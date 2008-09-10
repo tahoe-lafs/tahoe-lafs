@@ -116,6 +116,7 @@ class ServerMap:
         self.servermap = {}
         self.connections = {}
         self.unreachable_peers = set() # peerids that didn't respond to queries
+        self.reachable_peers = set() # peerids that did respond to queries
         self.problems = [] # mostly for debugging
         self.bad_shares = {} # maps (peerid,shnum) to old checkstring
         self.last_update_mode = None
@@ -126,6 +127,7 @@ class ServerMap:
         s.servermap = self.servermap.copy() # tuple->tuple
         s.connections = self.connections.copy() # str->RemoteReference
         s.unreachable_peers = set(self.unreachable_peers)
+        s.reachable_peers = set(self.reachable_peers)
         s.problems = self.problems[:]
         s.bad_shares = self.bad_shares.copy() # tuple->str
         s.last_update_mode = self.last_update_mode
@@ -350,6 +352,8 @@ class ServermapUpdater:
         self._status.set_progress(0.0)
         self._status.set_mode(mode)
 
+        self._servers_responded = set()
+
         # how much data should we read?
         #  * if we only need the checkstring, then [0:75]
         #  * if we need to validate the checkstring sig, then [543ish:799ish]
@@ -536,6 +540,7 @@ class ServermapUpdater:
         now = time.time()
         elapsed = now - started
         self._queries_outstanding.discard(peerid)
+        self._servermap.reachable_peers.add(peerid)
         self._must_query.discard(peerid)
         self._queries_completed += 1
         if not self._running:
@@ -726,7 +731,10 @@ class ServermapUpdater:
         self._queries_outstanding.discard(peerid)
         self._bad_peers.add(peerid)
         self._servermap.problems.append(f)
-        self._servermap.unreachable_peers.add(peerid) # TODO: overkill?
+        # a peerid could be in both ServerMap.reachable_peers and
+        # .unreachable_peers if they responded to our query, but then an
+        # exception was raised in _got_results.
+        self._servermap.unreachable_peers.add(peerid)
         self._queries_completed += 1
         self._last_failure = f
 

@@ -11,7 +11,7 @@ from twisted.python import log
 from allmydata import storage
 from allmydata.checker_results import CheckerResults
 from allmydata.immutable import download
-from allmydata.util import hashutil
+from allmydata.util import hashutil, idlib, base32
 
 class SimpleCHKFileChecker:
     """Return a list of (needed, total, found, sharemap), where sharemap maps
@@ -24,6 +24,7 @@ class SimpleCHKFileChecker:
         self.found_shares = set()
         self.storage_index = storage_index
         self.sharemap = {}
+        self.responded = set()
 
     '''
     def check_synchronously(self, si):
@@ -57,6 +58,7 @@ class SimpleCHKFileChecker:
             if k not in self.sharemap:
                 self.sharemap[k] = []
             self.sharemap[k].append(peerid)
+        self.responded.add(peerid)
 
     def _got_error(self, f):
         if f.check(KeyError):
@@ -67,13 +69,35 @@ class SimpleCHKFileChecker:
     def _done(self, res):
         r = CheckerResults(self.storage_index)
         report = []
-        r.set_healthy(bool(len(self.found_shares) >= self.total_shares))
+        healthy = bool(len(self.found_shares) >= self.total_shares)
+        r.set_healthy(healthy)
         data = {"count-shares-good": len(self.found_shares),
                 "count-shares-needed": self.needed_shares,
                 "count-shares-expected": self.total_shares,
+                "count-wrong-shares": 0,
                 }
-        # TODO: count-good-shares-hosts, count-corrupt-shares,
-        # list-corrupt-shares, servers-responding, sharemap
+        if healthy:
+            data["count-recoverable-versions"] = 1
+            data["count-unrecoverable-versions"] = 0
+        else:
+            data["count-recoverable-versions"] = 0
+            data["count-unrecoverable-versions"] = 1
+
+        data["count-corrupt-shares"] = 0 # non-verifier doesn't see corruption
+        data["list-corrupt-shares"] = []
+        hosts = set()
+        sharemap = {}
+        for (shnum,nodeids) in self.sharemap.items():
+            hosts.update(nodeids)
+            sharemap[shnum] = [idlib.nodeid_b2a(nodeid) for nodeid in nodeids]
+        data["count-good-share-hosts"] = len(hosts)
+        data["servers-responding"] = [base32.b2a(serverid)
+                                      for serverid in self.responded]
+        data["sharemap"] = sharemap
+
+        r.set_data(data)
+        r.set_needs_rebalancing(bool( len(self.found_shares) > len(hosts) ))
+
         #r.stuff = (self.needed_shares, self.total_shares,
         #            len(self.found_shares), self.sharemap)
         if len(self.found_shares) < self.total_shares:
@@ -117,6 +141,7 @@ class VerifyingOutput:
 
     def finish(self):
         self._results.set_healthy(True)
+        self._results.set_needs_rebalancing(False) # TODO: wrong
         # the return value of finish() is passed out of FileDownloader._done,
         # but SimpleCHKFileVerifier overrides this with the CheckerResults
         # instance instead.

@@ -17,6 +17,7 @@ class MutableChecker:
         self._storage_index = self._node.get_storage_index()
         self.results = CheckerResults(self._storage_index)
         self.need_repair = False
+        self.responded = set() # set of (binary) nodeids
 
     def check(self, verify=False):
         servermap = ServerMap()
@@ -139,7 +140,7 @@ class MutableChecker:
         counters["count-shares-needed"] = k
         counters["count-shares-expected"] = N
         good_hosts = smap.all_peers_for_version(version)
-        counters["count-good-share-hosts"] = good_hosts
+        counters["count-good-share-hosts"] = len(good_hosts)
         vmap = smap.make_versionmap()
         counters["count-wrong-shares"] = sum([len(shares)
                                           for verinfo,shares in vmap.items()
@@ -182,29 +183,31 @@ class MutableChecker:
             summary.append("multiple versions are recoverable")
             report.append("Unhealthy: there are multiple recoverable versions")
 
+        needs_rebalancing = False
         if recoverable:
             best_version = smap.best_recoverable_version()
             report.append("Best Recoverable Version: " +
                           smap.summarize_version(best_version))
             counters = self._count_shares(smap, best_version)
             data.update(counters)
-            if counters["count-shares-good"] < counters["count-shares-expected"]:
+            s = counters["count-shares-good"]
+            k = counters["count-shares-needed"]
+            N = counters["count-shares-expected"]
+            if s < k:
                 healthy = False
                 report.append("Unhealthy: best version has only %d shares "
-                              "(encoding is %d-of-%d)"
-                              % (counters["count-shares-good"],
-                                 counters["count-shares-needed"],
-                                 counters["count-shares-expected"]))
-                summary.append("%d shares (enc %d-of-%d)"
-                               % (counters["count-shares-good"],
-                                  counters["count-shares-needed"],
-                                  counters["count-shares-expected"]))
+                              "(encoding is %d-of-%d)" % (s, k, N))
+                summary.append("%d shares (enc %d-of-%d)" % (s, k, N))
+            hosts = smap.all_peers_for_version(best_version)
+            needs_rebalancing = bool( len(hosts) < N )
         elif unrecoverable:
             healthy = False
             # find a k and N from somewhere
             first = list(unrecoverable)[0]
             # not exactly the best version, but that doesn't matter too much
             data.update(self._count_shares(smap, first))
+            # leave needs_rebalancing=False: the file being unrecoverable is
+            # the bigger problem
         else:
             # couldn't find anything at all
             data["count-shares-good"] = 0
@@ -241,10 +244,12 @@ class MutableChecker:
             data["count-corrupt-shares"] = 0
             data["list-corrupt-shares"] = []
 
-        # TODO: servers-responding, sharemap
+        # TODO: sharemap
+        data["servers-responding"] = [base32.b2a(serverid)
+                                      for serverid in smap.reachable_peers]
 
         r.set_healthy(healthy)
-        r.set_needs_rebalancing(False) # TODO
+        r.set_needs_rebalancing(needs_rebalancing)
         r.set_data(data)
         if healthy:
             r.set_summary("Healthy")
