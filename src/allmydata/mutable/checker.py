@@ -193,7 +193,7 @@ class MutableChecker:
             s = counters["count-shares-good"]
             k = counters["count-shares-needed"]
             N = counters["count-shares-expected"]
-            if s < k:
+            if s < N:
                 healthy = False
                 report.append("Unhealthy: best version has only %d shares "
                               "(encoding is %d-of-%d)" % (s, k, N))
