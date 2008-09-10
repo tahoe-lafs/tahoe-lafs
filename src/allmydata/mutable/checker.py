@@ -244,7 +244,14 @@ class MutableChecker:
             data["count-corrupt-shares"] = 0
             data["list-corrupt-shares"] = []
 
-        # TODO: sharemap
+        sharemap = {}
+        for verinfo in vmap:
+            for (shnum, peerid, timestamp) in vmap[verinfo]:
+                shareid = "%s-sh%d" % (smap.summarize_version(verinfo), shnum)
+                if shareid not in sharemap:
+                    sharemap[shareid] = []
+                sharemap[shareid].append(base32.b2a(peerid))
+        data["sharemap"] = sharemap
         data["servers-responding"] = [base32.b2a(serverid)
                                       for serverid in smap.reachable_peers]
 

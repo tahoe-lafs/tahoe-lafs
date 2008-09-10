@@ -2042,16 +2042,18 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         self.failUnlessEqual(sorted(d["servers-responding"]),
                              sorted([idlib.nodeid_b2a(c.nodeid)
                                      for c in self.clients]), where)
-        #self.failUnless("sharemap" in d)
+        self.failUnless("sharemap" in d, where)
         self.failUnlessEqual(d["count-wrong-shares"], 0, where)
         self.failUnlessEqual(d["count-recoverable-versions"], 1, where)
         self.failUnlessEqual(d["count-unrecoverable-versions"], 0, where)
 
 
-    def check_and_repair_is_healthy(self, cr, where):
+    def check_and_repair_is_healthy(self, cr, n, where):
         self.failUnless(ICheckAndRepairResults.providedBy(cr), where)
         self.failUnless(cr.get_pre_repair_results().is_healthy(), where)
+        #self.check_is_healthy(cr.get_pre_repair_results(), n, where)
         self.failUnless(cr.get_post_repair_results().is_healthy(), where)
+        #self.check_is_healthy(cr.get_post_repair_results(), n, where)
         self.failIf(cr.get_repair_attempted(), where)
 
     def deep_check_is_healthy(self, cr, num_healthy, where):
@@ -2099,21 +2101,21 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
 
         # and check_and_repair(), which should be a nop
         d.addCallback(lambda ign: self.root.check_and_repair())
-        d.addCallback(self.check_and_repair_is_healthy, "root")
+        d.addCallback(self.check_and_repair_is_healthy, self.root, "root")
         d.addCallback(lambda ign: self.mutable.check_and_repair())
-        d.addCallback(self.check_and_repair_is_healthy, "mutable")
+        d.addCallback(self.check_and_repair_is_healthy, self.mutable, "mutable")
         d.addCallback(lambda ign: self.large.check_and_repair())
-        d.addCallback(self.check_and_repair_is_healthy, "large")
+        d.addCallback(self.check_and_repair_is_healthy, self.large, "large")
         d.addCallback(lambda ign: self.small.check_and_repair())
         d.addCallback(self.failUnlessEqual, None, "small")
 
         # check_and_repair(verify=True)
         d.addCallback(lambda ign: self.root.check_and_repair(verify=True))
-        d.addCallback(self.check_and_repair_is_healthy, "root")
+        d.addCallback(self.check_and_repair_is_healthy, self.root, "root")
         d.addCallback(lambda ign: self.mutable.check_and_repair(verify=True))
-        d.addCallback(self.check_and_repair_is_healthy, "mutable")
+        d.addCallback(self.check_and_repair_is_healthy, self.mutable, "mutable")
         d.addCallback(lambda ign: self.large.check_and_repair(verify=True))
-        d.addCallback(self.check_and_repair_is_healthy, "large")
+        d.addCallback(self.check_and_repair_is_healthy, self.large, "large")
         d.addCallback(lambda ign: self.small.check_and_repair(verify=True))
         d.addCallback(self.failUnlessEqual, None, "small")
 
