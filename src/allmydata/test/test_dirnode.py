@@ -25,8 +25,7 @@ class Marker:
         self.nodeuri = nodeuri
         si = hashutil.tagged_hash("tag1", nodeuri)[:16]
         fp = hashutil.tagged_hash("tag2", nodeuri)
-        self.verifieruri = uri.SSKVerifierURI(storage_index=si,
-                                              fingerprint=fp).to_string()
+        self.verifieruri = uri.SSKVerifierURI(storage_index=si, fingerprint=fp)
     def get_uri(self):
         return self.nodeuri
     def get_readonly_uri(self):
@@ -279,7 +278,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             self.failUnless(u.startswith("URI:DIR2:"), u)
             u_ro = n.get_readonly_uri()
             self.failUnless(u_ro.startswith("URI:DIR2-RO:"), u_ro)
-            u_v = n.get_verifier()
+            u_v = n.get_verifier().to_string()
             self.failUnless(u_v.startswith("URI:DIR2-Verifier:"), u_v)
             self.expected_manifest.append(u_v)
             expected_si = n._uri._filenode_uri.storage_index
@@ -292,8 +291,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             fake_file_uri = make_mutable_file_uri()
             other_file_uri = make_mutable_file_uri()
             m = Marker(fake_file_uri)
-            ffu_v = m.get_verifier()
-            assert isinstance(ffu_v, str)
+            ffu_v = m.get_verifier().to_string()
             self.expected_manifest.append(ffu_v)
             d.addCallback(lambda res: n.set_uri(u"child", fake_file_uri))
             d.addCallback(lambda res:
@@ -312,7 +310,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             def _created(subdir):
                 self.failUnless(isinstance(subdir, FakeDirectoryNode))
                 self.subdir = subdir
-                new_v = subdir.get_verifier()
+                new_v = subdir.get_verifier().to_string()
                 assert isinstance(new_v, str)
                 self.expected_manifest.append(new_v)
             d.addCallback(_created)

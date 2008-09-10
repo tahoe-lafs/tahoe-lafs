@@ -242,7 +242,7 @@ class NewDirectoryNode:
         return self._uri.get_readonly().to_string()
 
     def get_verifier(self):
-        return self._uri.get_verifier().to_string()
+        return self._uri.get_verifier()
 
     def get_storage_index(self):
         return self._uri._filenode_uri.storage_index
