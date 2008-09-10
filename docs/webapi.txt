@@ -729,9 +729,9 @@ POST $URL?t=deep-check
   page will contain a summary of the results, including details on any
   file/directory that was not fully healthy.
 
-  t=deep-check is most useful to invoke on a directory. If invoked on a file,
-  it will just check that single object. The recursive walker will deal with
-  loops safely.
+  t=deep-check can only be invoked on a directory. An error (400 BAD_REQUEST)
+  will be signalled if it is invoked on a file. The recursive walker will
+  deal with loops safely.
 
   This accepts the same verify=, when_done=, and return_to= arguments as
   t=check.
@@ -800,6 +800,10 @@ POST $URL?t=deep-check&repair=true
 
   This triggers a recursive walk of all files and directories, performing a
   t=check&repair=true on each one.
+
+  Like t=deep-check without the repair= argument, this can only be invoked on
+  a directory. An error (400 BAD_REQUEST) will be signalled if it is invoked
+  on a file. The recursive walker will deal with loops safely.
 
   This accepts the same when_done=URL, return_to=URL, and verify=true
   arguments as t=deep-check. When an output=JSON argument is provided, the

@@ -134,19 +134,6 @@ class Checker(unittest.TestCase):
 
         # TODO: check-and-repair
 
-        d.addCallback(lambda res: fn1.deep_check())
-        def _check_deepcheck_results(dcr):
-            c = dcr.get_counters()
-            self.failUnlessEqual(c["count-objects-checked"], 1)
-            self.failUnlessEqual(c["count-objects-healthy"], 1)
-            self.failUnlessEqual(c["count-objects-unhealthy"], 0)
-            self.failUnlessEqual(c["count-corrupt-shares"], 0)
-            self.failIf(dcr.get_corrupt_shares())
-        d.addCallback(_check_deepcheck_results)
-
-        d.addCallback(lambda res: fn1.deep_check(verify=True))
-        d.addCallback(_check_deepcheck_results)
-
         return d
 
     def test_literal_filenode(self):
@@ -162,19 +149,6 @@ class Checker(unittest.TestCase):
 
         d.addCallback(lambda res: fn1.check(verify=True))
         d.addCallback(_check_checker_results)
-
-        d.addCallback(lambda res: fn1.deep_check())
-        def _check_deepcheck_results(dcr):
-            c = dcr.get_counters()
-            self.failUnlessEqual(c["count-objects-checked"], 0)
-            self.failUnlessEqual(c["count-objects-healthy"], 0)
-            self.failUnlessEqual(c["count-objects-unhealthy"], 0)
-            self.failUnlessEqual(c["count-corrupt-shares"], 0)
-            self.failIf(dcr.get_corrupt_shares())
-        d.addCallback(_check_deepcheck_results)
-
-        d.addCallback(lambda res: fn1.deep_check(verify=True))
-        d.addCallback(_check_deepcheck_results)
 
         return d
 
@@ -198,19 +172,6 @@ class Checker(unittest.TestCase):
 
         d.addCallback(lambda res: n.check(verify=True))
         d.addCallback(_check_checker_results)
-
-        d.addCallback(lambda res: n.deep_check())
-        def _check_deepcheck_results(dcr):
-            c = dcr.get_counters()
-            self.failUnlessEqual(c["count-objects-checked"], 1)
-            self.failUnlessEqual(c["count-objects-healthy"], 1)
-            self.failUnlessEqual(c["count-objects-unhealthy"], 0)
-            self.failUnlessEqual(c["count-corrupt-shares"], 0)
-            self.failIf(dcr.get_corrupt_shares())
-        d.addCallback(_check_deepcheck_results)
-
-        d.addCallback(lambda res: n.deep_check(verify=True))
-        d.addCallback(_check_deepcheck_results)
 
         return d
 

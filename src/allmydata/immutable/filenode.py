@@ -5,8 +5,6 @@ from allmydata.interfaces import IFileNode, IFileURI, IURI, ICheckable
 from allmydata import uri
 from allmydata.immutable.checker import SimpleCHKFileChecker, \
      SimpleCHKFileVerifier
-from allmydata.checker_results import DeepCheckResults, \
-     DeepCheckAndRepairResults
 
 class FileNode:
     implements(IFileNode, ICheckable)
@@ -75,24 +73,6 @@ class FileNode:
         d.addCallback(_done)
         return d
 
-    def deep_check(self, verify=False):
-        d = self.check(verify)
-        def _done(r):
-            dr = DeepCheckResults(self.get_verifier().storage_index)
-            dr.add_check(r, [])
-            return dr
-        d.addCallback(_done)
-        return d
-
-    def deep_check_and_repair(self, verify=False):
-        d = self.check_and_repair(verify)
-        def _done(r):
-            dr = DeepCheckAndRepairResults(self.get_verifier().storage_index)
-            dr.add_check_and_repair(r, [])
-            return dr
-        d.addCallback(_done)
-        return d
-
     def download(self, target):
         downloader = self._client.getServiceNamed("downloader")
         return downloader.download(self.uri, target)
@@ -149,14 +129,6 @@ class LiteralFileNode:
 
     def check_and_repair(self, verify=False):
         return defer.succeed(None)
-
-    def deep_check(self, verify=False):
-        dr = DeepCheckResults(None)
-        return defer.succeed(dr)
-
-    def deep_check_and_repair(self, verify=False):
-        dr = DeepCheckAndRepairResults(None)
-        return defer.succeed(dr)
 
     def download(self, target):
         # note that this does not update the stats_provider

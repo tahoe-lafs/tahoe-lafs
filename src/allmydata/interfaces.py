@@ -1485,11 +1485,11 @@ class ICheckable(Interface):
         attempted, 'post' will be another ICheckerResults instance with the
         state of the object after repair."""
 
+class IDeepCheckable(Interface):
     def deep_check(verify=False):
         """Check upon the health of me and everything I can reach.
 
-        This is a recursive form of check(), useable on dirnodes. (it can be
-        called safely on filenodes too, but only checks the one object).
+        This is a recursive form of check(), useable only on dirnodes.
 
         I return a Deferred that fires with an IDeepCheckResults object.
         """
@@ -1498,9 +1498,8 @@ class ICheckable(Interface):
         """Check upon the health of me and everything I can reach. Repair
         anything that isn't healthy.
 
-        This is a recursive form of check_and_repair(), useable on dirnodes.
-        (it can be called safely on filenodes too, but only checks/repairs
-        the one object).
+        This is a recursive form of check_and_repair(), useable only on
+        dirnodes.
 
         I return a Deferred that fires with an IDeepCheckAndRepairResults
         object.

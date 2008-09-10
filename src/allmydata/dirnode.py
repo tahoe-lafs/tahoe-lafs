@@ -8,7 +8,7 @@ from allmydata.mutable.common import NotMutableError
 from allmydata.mutable.node import MutableFileNode
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
      IURI, IFileNode, IMutableFileURI, IFilesystemNode, \
-     ExistingChildError, ICheckable
+     ExistingChildError, ICheckable, IDeepCheckable
 from allmydata.checker_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.util import hashutil, mathutil, base32, log
@@ -114,7 +114,7 @@ class Adder:
         return new_contents
 
 class NewDirectoryNode:
-    implements(IDirectoryNode, ICheckable)
+    implements(IDirectoryNode, ICheckable, IDeepCheckable)
     filenode_class = MutableFileNode
 
     def __init__(self, client):

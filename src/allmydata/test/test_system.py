@@ -2162,46 +2162,15 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         d.addCallback(self.failUnlessEqual, None, "small")
 
 
-        # now deep-check on everything. It should be safe to use deep-check
-        # on anything, even a regular file.
+        # now deep-check the root, with various verify= and repair= options
         d.addCallback(lambda ign: self.root.deep_check())
         d.addCallback(self.deep_check_is_healthy, 3, "root")
-        d.addCallback(lambda ign: self.mutable.deep_check())
-        d.addCallback(self.deep_check_is_healthy, 1, "mutable")
-        d.addCallback(lambda ign: self.large.deep_check())
-        d.addCallback(self.deep_check_is_healthy, 1, "large")
-        d.addCallback(lambda ign: self.small.deep_check())
-        d.addCallback(self.deep_check_is_healthy, 0, "small")
-
-        # deep-check verify=True
         d.addCallback(lambda ign: self.root.deep_check(verify=True))
         d.addCallback(self.deep_check_is_healthy, 3, "root")
-        d.addCallback(lambda ign: self.mutable.deep_check(verify=True))
-        d.addCallback(self.deep_check_is_healthy, 1, "mutable")
-        d.addCallback(lambda ign: self.large.deep_check(verify=True))
-        d.addCallback(self.deep_check_is_healthy, 1, "large")
-        d.addCallback(lambda ign: self.small.deep_check(verify=True))
-        d.addCallback(self.deep_check_is_healthy, 0, "small")
-
-        # deep-check-and-repair
         d.addCallback(lambda ign: self.root.deep_check_and_repair())
         d.addCallback(self.deep_check_and_repair_is_healthy, 3, "root")
-        d.addCallback(lambda ign: self.mutable.deep_check_and_repair())
-        d.addCallback(self.deep_check_and_repair_is_healthy, 1, "mutable")
-        d.addCallback(lambda ign: self.large.deep_check_and_repair())
-        d.addCallback(self.deep_check_and_repair_is_healthy, 1, "large")
-        d.addCallback(lambda ign: self.small.deep_check_and_repair())
-        d.addCallback(self.deep_check_and_repair_is_healthy, 0, "small")
-
-        # deep-check-and-repair, verify=True
         d.addCallback(lambda ign: self.root.deep_check_and_repair(verify=True))
         d.addCallback(self.deep_check_and_repair_is_healthy, 3, "root")
-        d.addCallback(lambda ign: self.mutable.deep_check_and_repair(verify=True))
-        d.addCallback(self.deep_check_and_repair_is_healthy, 1, "mutable")
-        d.addCallback(lambda ign: self.large.deep_check_and_repair(verify=True))
-        d.addCallback(self.deep_check_and_repair_is_healthy, 1, "large")
-        d.addCallback(lambda ign: self.small.deep_check_and_repair(verify=True))
-        d.addCallback(self.deep_check_and_repair_is_healthy, 0, "small")
 
         return d
 
@@ -2361,8 +2330,7 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
                       self.web_json(self.small, t="check", repair="true", verify="true"))
         d.addCallback(self.json_check_lit, self.small, "small")
 
-        # now run a deep-check. When done through the web, this can only be
-        # run on a directory.
+        # now run a deep-check, with various verify= and repair= flags
         d.addCallback(lambda ign:
                       self.web_json(self.root, t="deep-check"))
         d.addCallback(self.json_full_deepcheck_is_healthy, self.root, "root")
