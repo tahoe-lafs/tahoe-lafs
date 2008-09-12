@@ -238,6 +238,41 @@ class ShowPythonPath(Command):
         # Find a way to do this all the time.
         print "PYTHONPATH=%s" % os.environ["PYTHONPATH"]
 
+class RunWithPythonPath(Command):
+    description = "Run a subcommand with PYTHONPATH set appropriately"
+
+    user_options = [ ("python", "p",
+                      "Treat command string as arguments to a python executable"),
+                     ("command=", "c", "Command to be run"),
+                     ("directory=", "d", "Directory to run the command in"),
+                     ]
+    boolean_options = ["python"]
+
+    def initialize_options(self):
+        self.command = None
+        self.python = False
+        self.directory = None
+    def finalize_options(self):
+        pass
+    def run(self):
+        # os.environ['PYTHONPATH'] is already set by add_tahoe_paths, so we
+        # just need to exec() their command. We must require the command to
+        # be safe to split on whitespace, and have --python and --directory
+        # to make it easier to achieve this.
+        command = []
+        if self.python:
+            command.append(sys.executable)
+        if self.command:
+            command.extend(self.command.split())
+        if not command:
+            raise RuntimeError("The --command argument is mandatory")
+        if self.directory:
+            os.chdir(self.directory)
+        if self.verbose:
+            print "command =", " ".join(command)
+        rc = subprocess.call(command)
+        sys.exit(rc)
+
 class CheckAutoDeps(Command):
     user_options = []
     def initialize_options(self):
@@ -385,6 +420,7 @@ setup(name='allmydata-tahoe',
       license='GNU GPL',
       cmdclass={"show_supportlib": ShowSupportLib,
                 "show_pythonpath": ShowPythonPath,
+                "run_with_pythonpath": RunWithPythonPath,
                 "check_auto_deps": CheckAutoDeps,
                 "build_tahoe": BuildTahoe,
                 "trial": Trial,
