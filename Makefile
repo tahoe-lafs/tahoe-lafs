@@ -4,15 +4,9 @@
 default: build
 
 PYTHON=python
-PATHSEP=$(shell $(PYTHON) -c 'import os ; print os.pathsep')
-OSSEP=$(shell $(PYTHON) -c 'import os ; print os.sep')
 
-ifneq ($(INCLUDE_DIRS),)
-INCLUDE_DIRS_ARG = -I$(INCLUDE_DIRS)
-endif
-ifneq ($(LIBRARY_DIRS),)
-LIBRARY_DIRS_ARG = -L$(LIBRARY_DIRS)
-endif
+# setup.py will extend sys.path to include our support/lib/... directory
+# itself. It will also create it in the beginning of the 'develop' command.
 
 PLAT = $(strip $(shell $(PYTHON) -c "import sys ; print sys.platform"))
 ifeq ($(PLAT),win32)
@@ -22,20 +16,6 @@ ifeq ($(PLAT),win32)
 	SRCPATH := $(shell cygpath -w $(shell pwd)/src)
 	INNOSETUP := $(shell cygpath -au "$(PROGRAMFILES)/Inno Setup 5/Compil32.exe")
 else
-	ifeq ($(PLAT),linux2)
-		# This is to work-around #402, and anyway the poll reactor is probably better on Linux, if
-		# we have a lot of open fds.
-		ifeq ($(REACTOR),)
-			REACTOR := poll
-		endif
-	endif
-	ifeq ($(PLAT),cygwin)
-		# The cygwin select reactor seems to run out of fds in unit tests -- it writes "filedescriptor
-		# out of range in select()".  Setting reactor=poll fixes that.
-		ifeq ($(REACTOR),)
-			REACTOR := poll
-		endif
-	endif
 	PYVER=$(shell $(PYTHON) misc/pyver.py)
 	SUPPORT = $(shell pwd)/support
 	SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
@@ -44,28 +24,7 @@ else
 	SITEDIRARG = --site-dirs=/var/lib/python-support/$(PYVER)
 endif
 
-ifneq ($(REACTOR),)
-	REACTOROPT := --reactor=$(REACTOR)
-else
-	REACTOROPT :=
-endif
-
-ifneq ($(PYTHONPATH),)
-        PP=PYTHONPATH="$(PYTHONPATH)$(PATHSEP)$(SUPPORTLIB)"
-else
-        PP=PYTHONPATH="$(SUPPORTLIB)"
-endif
-
-# Delete any quote chars in PATH.  Note that if the chars were escaped
-# (preceded by a back-slash) then the following subst will screw it up and
-# weird parsing errors will eventually result.
-
-PATH := $(subst ",,${PATH})
-PATH := $(subst ',,$(PATH))
-# ' "  # emacs syntax-highlighter gets confused by the bare quotes above
-
-TRIALCMD = $(shell PATH="$(PATH):${PWD}/support/bin" $(PP) $(PYTHON) misc/find_trial.py)
-TRIAL=PATH="$(PATH):${PWD}/support/bin" PYTHONUNBUFFERED=1 $(TRIALCMD) --rterrors $(REACTOROPT) $(TRIALOPT)
+PP=$(shell $(PYTHON) setup.py -q show_pythonpath)
 
 .PHONY: make-version build
 
@@ -73,7 +32,7 @@ TRIAL=PATH="$(PATH):${PWD}/support/bin" PYTHONUNBUFFERED=1 $(TRIALCMD) --rterror
 # http://pypi.python.org/pypi/darcsver It is necessary only if you want to
 # automatically produce a new _version.py file from the current darcs history.
 make-version:
-	$(PP) $(PYTHON) ./setup.py darcsver --count-all-patches
+	$(PYTHON) ./setup.py darcsver --count-all-patches
 
 # We want src/allmydata/_version.py to be up-to-date, but it's a fairly
 # expensive operation (about 6 seconds on a just-before-0.7.0 tree, probably
@@ -126,8 +85,7 @@ build: src/allmydata/_version.py
 # command line to work around this. Some day this will probably be fixed in
 # setuptools.
 build-once:
-	mkdir -p "$(SUPPORTLIB)"
-	$(PP) $(PYTHON) ./setup.py develop --prefix="$(SUPPORT)" $(SITEDIRARG)
+	$(PYTHON) setup.py build_tahoe
 	chmod +x bin/tahoe
 	touch .built
 
@@ -139,12 +97,10 @@ build-once:
 install: src/allmydata/_version.py
 ifdef PREFIX
 	mkdir -p $(PREFIX)
-	$(PP) $(PYTHON) ./setup.py install \
-           --single-version-externally-managed \
+	$(PYTHON) ./setup.py install --single-version-externally-managed \
            --prefix=$(PREFIX) --record=./tahoe.files
 else
-	$(PP) $(PYTHON) ./setup.py install \
-           --single-version-externally-managed
+	$(PYTHON) ./setup.py install --single-version-externally-managed
 endif
 
 
@@ -177,18 +133,18 @@ TEST=allmydata
 # suppress the ansi color sequences
 
 test: build src/allmydata/_version.py
-	$(PP) $(TRIAL) $(TRIALARGS) $(TEST)
+	$(PYTHON) setup.py trial -a "$(TRIALARGS) $(TEST)"
 
 quicktest: .built .checked-deps
-	$(PP) $(TRIAL) $(TRIALARGS) $(TEST)
+	$(PYTHON) setup.py trial -a "$(TRIALARGS) $(TEST)"
 
 test-figleaf: build src/allmydata/_version.py
 	rm -f .figleaf
-	$(PP) $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
+	$(PYTHON) setup.py trial -a "--reporter=bwverbose-figleaf $(TEST)"
 
 quicktest-figleaf: src/allmydata/_version.py
 	rm -f .figleaf
-	$(PP) $(TRIAL) --reporter=bwverbose-figleaf $(TEST)
+	$(PYTHON) setup.py trial -a "--reporter=bwverbose-figleaf $(TEST)"
 
 figleaf-output:
 	$(PP) \
