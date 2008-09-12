@@ -4,6 +4,7 @@
 default: build
 
 PYTHON=python
+export PYTHON
 
 # setup.py will extend sys.path to include our support/lib/... directory
 # itself. It will also create it in the beginning of the 'develop' command.
@@ -360,7 +361,7 @@ deb-hardy-head:
 windows-exe: .built
 	$(RUNPP) -c "$(MAKE) -C windows windows-exe"
 
-windows-installer: windows-exe
+windows-installer:
 	$(RUNPP) -c "$(MAKE) -C windows windows-installer"
 
 windows-installer-upload:
