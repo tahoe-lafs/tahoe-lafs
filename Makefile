@@ -8,23 +8,8 @@ PYTHON=python
 # setup.py will extend sys.path to include our support/lib/... directory
 # itself. It will also create it in the beginning of the 'develop' command.
 
-PLAT = $(strip $(shell $(PYTHON) -c "import sys ; print sys.platform"))
-ifeq ($(PLAT),win32)
-	# The platform is Windows with cygwin build tools and the native Python interpreter.
-	SUPPORT = $(shell cygpath -w $(shell pwd))\support
-	SUPPORTLIB := $(SUPPORT)\Lib\site-packages
-	SRCPATH := $(shell cygpath -w $(shell pwd)/src)
-	INNOSETUP := $(shell cygpath -au "$(PROGRAMFILES)/Inno Setup 5/Compil32.exe")
-else
-	PYVER=$(shell $(PYTHON) misc/pyver.py)
-	SUPPORT = $(shell pwd)/support
-	SUPPORTLIB = $(SUPPORT)/lib/$(PYVER)/site-packages
-	SRCPATH := $(shell pwd)/src
-	CHECK_PYWIN32_DEP := 
-	SITEDIRARG = --site-dirs=/var/lib/python-support/$(PYVER)
-endif
-
 PP=$(shell $(PYTHON) setup.py -q show_pythonpath)
+RUNPP=$(PYTHON) setup.py run_with_pythonpath
 
 .PHONY: make-version build
 
@@ -147,8 +132,7 @@ quicktest-figleaf: src/allmydata/_version.py
 	$(PYTHON) setup.py trial -a "--reporter=bwverbose-figleaf $(TEST)"
 
 figleaf-output:
-	$(PP) \
-	 $(PYTHON) misc/figleaf2html -d coverage-html -r src -x misc/figleaf.excludes
+	$(RUNPP) -p -c "misc/figleaf2html -d coverage-html -r src -x misc/figleaf.excludes"
 	@echo "now point your browser at coverage-html/index.html"
 
 # after doing test-figleaf and figleaf-output, point your browser at
@@ -177,7 +161,7 @@ upload-figleaf:
 endif
 
 .figleaf.el: .figleaf
-	$(PP) $(PYTHON) misc/figleaf2el.py .figleaf src
+	$(RUNPP) -p -c "misc/figleaf2el.py .figleaf src"
 
 pyflakes:
 	$(PYTHON) -OOu `which pyflakes` src/allmydata |sort |uniq
@@ -192,25 +176,17 @@ count-lines:
 
 check-memory: .built
 	rm -rf _test_memory
-	$(PP) \
-	 $(PYTHON) src/allmydata/test/check_memory.py upload
-	$(PP) \
-	 $(PYTHON) src/allmydata/test/check_memory.py upload-self
-	$(PP) \
-	 $(PYTHON) src/allmydata/test/check_memory.py upload-POST
-	$(PP) \
-	 $(PYTHON) src/allmydata/test/check_memory.py download
-	$(PP) \
-	 $(PYTHON) src/allmydata/test/check_memory.py download-GET
-	$(PP) \
-	 $(PYTHON) src/allmydata/test/check_memory.py download-GET-slow
-	$(PP) \
-	 $(PYTHON) src/allmydata/test/check_memory.py receive
+	$(RUNPP) -p -c "src/allmydata/test/check_memory.py upload"
+	$(RUNPP) -p -c "src/allmydata/test/check_memory.py upload-self"
+	$(RUNPP) -p -c "src/allmydata/test/check_memory.py upload-POST"
+	$(RUNPP) -p -c "src/allmydata/test/check_memory.py download"
+	$(RUNPP) -p -c "src/allmydata/test/check_memory.py download-GET"
+	$(RUNPP) -p -c "src/allmydata/test/check_memory.py download-GET-slow"
+	$(RUNPP) -p -c "src/allmydata/test/check_memory.py receive"
 
 check-memory-once: .built
 	rm -rf _test_memory
-	$(PP) \
-	 $(PYTHON) src/allmydata/test/check_memory.py $(MODE)
+	$(RUNPP) -p -c "src/allmydata/test/check_memory.py $(MODE)"
 
 # The check-speed target uses a pre-established client node to run a canned
 # set of performance tests against a test network that is also
@@ -242,7 +218,7 @@ check-grid: .built
 # 'make repl' is a simple-to-type command to get a Python interpreter loop
 # from which you can type 'import allmydata'
 repl:
-	$(PP) $(PYTHON)
+	$(RUNPP) -p
 
 test-darcs-boringfile:
 	$(MAKE)
@@ -285,6 +261,8 @@ DEBCOMMENTS="'make deb' build"
 
 show-version:
 	@echo $(VER)
+show-pp:
+	@echo $(PP)
 
 .PHONY: setup-deb deb-ARCH is-known-debian-arch
 .PHONY: deb-etch deb-sid
@@ -380,22 +358,21 @@ deb-hardy-head:
 .PHONY: windows-exe windows-installer windows-installer-upload
 
 windows-exe: .built
-	cd windows && $(PP) $(PYTHON) setup.py py2exe
+	$(RUNPP) -c "$(MAKE) -C windows windows-exe"
 
 windows-installer: windows-exe
-	$(PP) $(PYTHON) misc/sub-ver.py windows/installer.tmpl >windows/installer.iss
-	cd windows && "$(INNOSETUP)" /cc installer.iss
+	$(RUNPP) -c "$(MAKE) -C windows windows-installer"
 
 windows-installer-upload:
-	chmod -R o+rx windows/dist/installer
-	rsync -av -e /usr/bin/ssh windows/dist/installer/ amduser@dev:/home/amduser/public_html/dist/tahoe/windows/
+	$(RUNPP) -c "$(MAKE) -C windows windows-installer-upload"
+
 
 # These targets provide for mac native builds
 .PHONY: mac-exe mac-upload mac-cleanup mac-dbg
 
 mac-exe: .built
 	$(MAKE) -C mac clean
-	VERSION=$(VER) $(PP) $(MAKE) -C mac build
+	VERSION=$(VER) $(RUNPP) -c "$(MAKE) -C mac build"
 
 mac-dist:
 	VERSION=$(VER) $(MAKE) -C mac diskimage
@@ -412,4 +389,4 @@ mac-dbg:
 # This target runs a stats gatherer server
 .PHONY: stats-gatherer-run
 stats-gatherer-run:
-	cd stats_gatherer && $(PP) $(PYTHON) ../src/allmydata/stats.py
+	$(RUNPP) -d stats_gatherer -p ../src/allmydata/stats.py
