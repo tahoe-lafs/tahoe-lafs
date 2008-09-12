@@ -5,10 +5,23 @@ import errno, sys, os
 where = os.path.realpath(sys.argv[0])
 base = os.path.dirname(os.path.dirname(where))
 
+whoami = '''\
+I am a "bin/tahoe" executable who is only for the convenience of running
+Tahoe from its source distribution -- I work only when invoked as the "tahoe"
+script that lives in the "bin/" subdirectory of a Tahoe source code
+distribution, and only if you have already run "make".
+'''
+
 # look for Tahoe.home .
 homemarker = os.path.join(base, "Tahoe.home")
 if not os.path.exists(homemarker):
-    print "I am a \"bin/tahoe\" executable who is only for the convenience of running Tahoe from its source distribution -- I work only when run from the \"bin/\" subdirectory of a Tahoe source code distribution, and only if you have already run \"make\".  I just tried to run and found that I am not in the bin/ subdirectory of a Tahoe source distribution, so I am stopping now.  To run Tahoe when it is installed, please execute my brother, also named \"tahoe\", who gets installed into the appropriate place for executables when you run \"make install\"."
+    print whoami
+    print '''\
+I just tried to run and found that I am not living in such a directory, so I
+am stopping now. To run Tahoe after it has been is installed, please execute
+my brother, also named "tahoe", who gets installed into the appropriate place
+for executables when you run "make install" (perhaps as /usr/bin/tahoe).
+'''
     sys.exit(1)
 
 # we've found our home. Put the tahoe support/lib etc. in our PYTHONPATH.
@@ -34,10 +47,18 @@ try:
     os.execve(executable, [executable] + sys.argv[1:], os.environ)
 except (OSError, IOError), le:
     if le.args[0] == errno.ENOENT:
-        print "I am a \"bin/tahoe\" executable who is only for the convenience of running Tahoe from its source distribution -- I work only when run from the \"bin/\" subdirectory of a Tahoe source code distribution, and only if you have already run \"make\".  I just tried to run and could not find my brother, named \"../support/bin/tahoe\".  To run Tahoe when it is installed, please execute my brother, also named \"tahoe\", who gets installed into the appropriate place for executables when you run \"make install\"."
+        print whoami
+        print '''\
+I just tried to run and could not find my brother, named
+"../support/bin/tahoe". To run Tahoe when it is installed, please execute my
+brother, also named "tahoe", who gets installed into the appropriate place
+for executables when you run "make install" (perhaps as /usr/bin/tahoe).
+'''
         raise
 except Exception, le:
-    print "I am a \"bin/tahoe\" executable who is only for the convenience of running Tahoe from its source distribution -- I work only when run from the \"bin/\" subdirectory of a Tahoe source code distribution, and only if you have already run \"make\".  I just tried to invoke my brother, named \"../support/bin/tahoe\" and got an exception."
+    print whoami
+    print '''\
+I just tried to invoke my brother, named "../support/bin/tahoe" and got an
+exception.
+'''
     raise
-
-
