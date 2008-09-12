@@ -3,12 +3,19 @@
 # control it, since 'PYTHON=foo make windows-exe' doesn't seem to override
 # the default.
 
+# We also get $(PYTHONPATH) from our parent, which is critical for py2exe to
+# find the tahoe code. Invoking this Makefile directly won't work.
+
 INNOSETUP := $(shell cygpath -au "$(PROGRAMFILES)/Inno Setup 5/Compil32.exe")
 
-windows-exe:
-	$(PYTHON) setup.py py2exe
+.PHONY: windows-exe windows-installer windows-installer-upload
 
-windows-installer:
+windows-exe.stamp:
+	$(PYTHON) setup.py py2exe
+	touch windows-exe.stamp
+windows-exe: windows-exe.stamp
+
+windows-installer: windows-exe.stamp
 	$(PYTHON) ../misc/sub-ver.py installer.tmpl >installer.iss
 	"$(INNOSETUP)" /cc installer.iss
 
