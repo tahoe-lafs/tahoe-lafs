@@ -238,6 +238,17 @@ class ShowPythonPath(Command):
         # Find a way to do this all the time.
         print "PYTHONPATH=%s" % os.environ["PYTHONPATH"]
 
+class CheckAutoDeps(Command):
+    user_options = []
+    def initialize_options(self):
+        pass
+    def finalize_options(self):
+        pass
+    def run(self):
+        import _auto_deps
+        _auto_deps.require_auto_deps()
+
+
 class BuildTahoe(Command):
     user_options = []
     def initialize_options(self):
@@ -374,6 +385,7 @@ setup(name='allmydata-tahoe',
       license='GNU GPL',
       cmdclass={"show_supportlib": ShowSupportLib,
                 "show_pythonpath": ShowPythonPath,
+                "check_auto_deps": CheckAutoDeps,
                 "build_tahoe": BuildTahoe,
                 "trial": Trial,
                 "sdist": MySdist,

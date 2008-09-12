@@ -118,7 +118,7 @@ signal-error-deps:
 	exit 1
 
 check-auto-deps:
-	@$(PP) $(PYTHON) -c 'import _auto_deps ; _auto_deps.require_auto_deps()' || $(MAKE) signal-error-deps
+	$(PYTHON) setup.py -q check_auto_deps || $(MAKE) signal-error-deps
 
 .checked-deps:
 	$(MAKE) check-auto-deps
