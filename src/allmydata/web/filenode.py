@@ -398,7 +398,7 @@ def FileJSONMetadata(ctx, filenode):
     if rw_uri:
         data[1]['rw_uri'] = rw_uri
     data[1]['mutable'] = filenode.is_mutable()
-    return text_plain(simplejson.dumps(data, indent=1), ctx)
+    return text_plain(simplejson.dumps(data, indent=1) + "\n", ctx)
 
 def FileURI(ctx, filenode):
     return text_plain(filenode.get_uri(), ctx)

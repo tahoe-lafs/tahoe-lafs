@@ -692,7 +692,7 @@ def DirectoryJSONMetadata(ctx, dirnode):
             contents['rw_uri'] = drw_uri
         contents['mutable'] = dirnode.is_mutable()
         data = ("dirnode", contents)
-        return simplejson.dumps(data, indent=1)
+        return simplejson.dumps(data, indent=1) + "\n"
     d.addCallback(_got)
     d.addCallback(text_plain, ctx)
     return d

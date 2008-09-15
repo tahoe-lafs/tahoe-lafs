@@ -805,7 +805,7 @@ class Status(rend.Page):
                                "progress": s.get_progress(),
                                })
 
-        return simplejson.dumps(data, indent=1)
+        return simplejson.dumps(data, indent=1) + "\n"
 
     def _get_all_statuses(self, client):
         return itertools.chain(client.list_all_upload_statuses(),
@@ -931,10 +931,10 @@ class HelperStatus(rend.Page):
         try:
             h = IClient(ctx).getServiceNamed("helper")
         except KeyError:
-            return simplejson.dumps({})
+            return simplejson.dumps({}) + "\n"
 
         stats = h.get_stats()
-        return simplejson.dumps(stats, indent=1)
+        return simplejson.dumps(stats, indent=1) + "\n"
 
     def render_active_uploads(self, ctx, data):
         return data["chk_upload_helper.active_uploads"]
@@ -974,7 +974,7 @@ class Statistics(rend.Page):
         t = get_arg(inevow.IRequest(ctx), "t")
         if t == "json":
             inevow.IRequest(ctx).setHeader("content-type", "text/plain")
-            return simplejson.dumps(stats, indent=1)
+            return simplejson.dumps(stats, indent=1) + "\n"
         # is there a better way to provide 'data' to all rendering methods?
         self.original = stats
         return rend.Page.renderHTTP(self, ctx)

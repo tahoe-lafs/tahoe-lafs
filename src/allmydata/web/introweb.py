@@ -36,7 +36,7 @@ class IntroducerRoot(rend.Page):
             announcement_summary[service_name] += 1
         res["announcement_summary"] = announcement_summary
 
-        return simplejson.dumps(res, indent=1)
+        return simplejson.dumps(res, indent=1) + "\n"
 
     def data_version(self, ctx, data):
         return get_package_versions_string()

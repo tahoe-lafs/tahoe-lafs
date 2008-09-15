@@ -82,7 +82,7 @@ class LiteralCheckerResults(rend.Page, ResultsBase):
         data = {"storage-index": "",
                 "results": {"healthy": True},
                 }
-        return simplejson.dumps(data, indent=1)
+        return simplejson.dumps(data, indent=1) + "\n"
 
 class CheckerResults(rend.Page, ResultsBase):
     docFactory = getxmlfile("checker-results.xhtml")
@@ -98,7 +98,7 @@ class CheckerResults(rend.Page, ResultsBase):
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         data = self._json_check_results(self.r)
-        return simplejson.dumps(data, indent=1)
+        return simplejson.dumps(data, indent=1) + "\n"
 
     def render_storage_index(self, ctx, data):
         return self.r.get_storage_index_string()
@@ -133,7 +133,7 @@ class CheckAndRepairResults(rend.Page, ResultsBase):
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         data = self._json_check_and_repair_results(self.r)
-        return simplejson.dumps(data, indent=1)
+        return simplejson.dumps(data, indent=1) + "\n"
 
     def render_storage_index(self, ctx, data):
         return self.r.get_storage_index_string()
@@ -200,7 +200,7 @@ class DeepCheckResults(rend.Page, ResultsBase):
                                          in self.r.get_all_results().items()
                                          if not r.is_healthy() ]
         data["stats"] = self.r.get_stats()
-        return simplejson.dumps(data, indent=1)
+        return simplejson.dumps(data, indent=1) + "\n"
 
     def render_root_storage_index(self, ctx, data):
         return self.r.get_root_storage_index_string()
@@ -348,7 +348,7 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase):
                                          in self.r.get_all_results().items()
                                          if not r.get_pre_repair_results().is_healthy() ]
         data["stats"] = self.r.get_stats()
-        return simplejson.dumps(data, indent=1)
+        return simplejson.dumps(data, indent=1) + "\n"
 
     def render_root_storage_index(self, ctx, data):
         return self.r.get_root_storage_index_string()
