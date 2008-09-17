@@ -251,7 +251,7 @@ find-trailing-spaces:
 # support/lib/ directory is gone.
 
 fetch-and-unpack-deps:
-	test -f tahoe-deps.tar.gz || wget http://allmydata.org/source/tahoe/tarballs/tahoe-deps.tar.gz
+	test -f tahoe-deps.tar.gz || wget http://allmydata.org/source/tahoe/deps/tahoe-deps.tar.gz
 	rm -rf tahoe-deps
 	tar xf tahoe-deps.tar.gz
 
