@@ -8,7 +8,7 @@
 #
 # See the docs/about.html file for licensing information.
 
-import os, re, sys, subprocess
+import os, re, sys, stat, subprocess
 
 ##### sys.path management
 
@@ -284,6 +284,14 @@ class BuildTahoe(Command):
     def finalize_options(self):
         pass
     def run(self):
+        # chmod +x bin/tahoe
+        bin_tahoe = os.path.join("bin", "tahoe")
+        old_mode = stat.S_IMODE(os.stat(bin_tahoe)[stat.ST_MODE])
+        new_mode = old_mode | (stat.S_IXUSR | stat.S_IRUSR |
+                               stat.S_IXGRP | stat.S_IRGRP |
+                               stat.S_IXOTH | stat.S_IROTH )
+        os.chmod(bin_tahoe, new_mode)
+
         # 'setup.py develop --prefix SUPPORT' will complain if SUPPORTLIB is
         # not on PYTHONPATH, because it thinks you are installing to a place
         # that will not be searched at runtime (which is true, except that we

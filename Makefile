@@ -72,7 +72,6 @@ build: src/allmydata/_version.py
 # setuptools.
 build-once:
 	$(PYTHON) setup.py build_tahoe
-	chmod +x bin/tahoe
 	touch .built
 
 # 'make install' will do the following:
