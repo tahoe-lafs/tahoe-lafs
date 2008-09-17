@@ -251,7 +251,8 @@ find-trailing-spaces:
 # support/lib/ directory is gone.
 
 test-desert-island:
-	wget http://allmydata.org/source/tahoe/tarballs/tahoe-deps.tar.gz
+	test -f tahoe-deps.tar.gz || wget http://allmydata.org/source/tahoe/tarballs/tahoe-deps.tar.gz
+	rm -rf tahoe-deps
 	tar xf tahoe-deps.tar.gz
 	$(MAKE) 2>&1 | tee make.out
 	$(PYTHON) misc/check-build.py make.out no-downloads
