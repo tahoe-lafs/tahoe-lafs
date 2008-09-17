@@ -11,4 +11,4 @@
  x  + tahoe-announce@lists.allmydata.org, tahoe-dev@lists.allmydata.org, p2p-hackers@lists.zooko.com, lwn@lwn.net, cap-talk@mail.eros-os.org, cryptography@metzdown.com, twisted-python@twistedmatrix.com
 * update Wiki: front page news, news, old news, parade of release notes
 * update pypi, freshmeat, launchpad
-* symlink the release tarball on allmydata.org
+* symlink the release tarball on allmydata.org: /var/www/source/tahoe/releases/
