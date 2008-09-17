@@ -83,3 +83,5 @@ allmydata_tahoe.egg-info$
 ^misc/dependencies/build($|/)
 ^misc/dependencies/temp($|/)
 
+^tahoe-deps($|/)
+^tahoe-deps\.tar\.gz$
