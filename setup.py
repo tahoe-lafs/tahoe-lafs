@@ -118,7 +118,7 @@ else:
     # install_requires.
     use_setuptools(download_delay=0, min_version="0.6c8")
 
-from setuptools import Extension, find_packages, setup
+from setuptools import find_packages, setup
 from setuptools.command import sdist
 from distutils.core import Command
 
