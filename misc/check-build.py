@@ -8,10 +8,16 @@ good = True
 build_out = sys.argv[1]
 mode = sys.argv[2]
 
+print
+
 for line in open(build_out, "r"):
-    if mode == "no-downloads" and "downloading" in line.lower():
-        print line,
-        good = False
+    if mode == "no-downloads":
+        # when setup_requires= uses misc/dependencies/setuptools-0.6c8.egg,
+        # it causes a "Downloading: misc/dependencies/.." line to be emitted,
+        # which doesn't count as a network download.
+        if line.startswith("Reading ") or line.startswith("Downloading http:"):
+            print line,
+            good = False
 if good:
     if mode == "no-downloads":
         print "Good: build did not try to download any files"
