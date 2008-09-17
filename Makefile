@@ -58,11 +58,11 @@ src/allmydata/_version.py:
 # setuptools which properly sandboxes sys.modules (or a new version of nevow
 # which doesn't import twisted during its build, or a new version of twisted
 # which doesn't import itself during its build), we just build tahoe twice
-# and ignore the errors from the first pass.
+# and ignore the errors from the first pass. Updated 16-Sep-2008: now we need
+# three invocations.
 
 build: src/allmydata/_version.py
-	-$(MAKE) build-once
-	$(MAKE) build-once
+	$(MAKE) build-once || $(MAKE) build-once || $(MAKE) build-once
 
 # setuptools has a bug (Issue17, see tahoe #229 for details) that causes it
 # to mishandle dependencies that are installed in non-site-directories,
