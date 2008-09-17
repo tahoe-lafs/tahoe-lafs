@@ -1,4 +1,5 @@
 * update doc files: relnotes.txt, CREDITS, docs/known_issues.txt, NEWS
+* change docs/install.html to point to just the tahoe-1.3.0.zip source code file, or else to point to a directory which contains only tahoe-1.3.0.* source code files
 * make tag
 * make sure buildbot is green
 * make sure other people aren't committing at that moment
