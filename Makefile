@@ -250,10 +250,13 @@ find-trailing-spaces:
 # as it ran. Invoke this on a new tree, or after a 'clean', to make sure the
 # support/lib/ directory is gone.
 
-test-desert-island:
+fetch-and-unpack-deps:
 	test -f tahoe-deps.tar.gz || wget http://allmydata.org/source/tahoe/tarballs/tahoe-deps.tar.gz
 	rm -rf tahoe-deps
 	tar xf tahoe-deps.tar.gz
+
+test-desert-island:
+	$(MAKE) fetch-and-unpack-deps
 	$(MAKE) 2>&1 | tee make.out
 	$(PYTHON) misc/check-build.py make.out no-downloads
 
@@ -263,6 +266,8 @@ test-desert-island:
 tarballs:
 	$(MAKE) make-version
 	$(PYTHON) setup.py sdist --formats=bztar,gztar,zip
+	$(PYTHON) setup.py sdist --sumo --formats=bztar,gztar,zip
+
 upload-tarballs:
 	for f in dist/allmydata-tahoe-*; do \
 	 xfer-client --furlfile ~/.tahoe-tarball-upload.furl $$f; \

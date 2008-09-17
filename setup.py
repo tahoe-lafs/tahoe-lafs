@@ -363,41 +363,47 @@ class Trial(Command):
 class MySdist(sdist.sdist):
     """ A hook in the sdist command so that we can determine whether this the
     tarball should be 'SUMO' or not, i.e. whether or not to include the
-    external dependency tarballs.
+    external dependency tarballs. Note that we always include
+    misc/dependencies/* in the tarball; --sumo controls whether tahoe-deps/*
+    is included as well.
     """
 
-    # Add our own sumo option to the sdist command, which toggles the
-    # external dependencies being included in the sdist.
     user_options = sdist.sdist.user_options + \
-        [('sumo', 's', "create a 'sumo' sdist which includes the external " \
-          "dependencies")]
+        [('sumo', 's',
+          "create a 'sumo' sdist which includes the contents of tahoe-deps/*"),
+         ]
     boolean_options = ['sumo']
 
     def initialize_options(self):
         sdist.sdist.initialize_options(self)
-        self.sumo = None
+        self.sumo = False
 
-    def run(self):
-        self.run_command('egg_info')
-        ei_cmd = self.get_finalized_command('egg_info')
-        self.filelist = ei_cmd.filelist
-        self.filelist.append(os.path.join(ei_cmd.egg_info,'SOURCES.txt'))
+    def make_distribution(self):
+        # add our extra files to the list just before building the
+        # tarball/zipfile. We override make_distribution() instead of run()
+        # because setuptools.command.sdist.run() does not lend itself to
+        # easy/robust subclassing (the code we need to add goes right smack
+        # in the middle of a 12-line method). If this were the distutils
+        # version, we'd override get_file_list().
 
-        # If '--sumo' wasn't specified in the arguments, do not include
-        # the external dependency tarballs in the sdist.
-        if not self.sumo:
-            self.filelist.exclude_pattern(None, prefix='misc/dependencies')
+        if self.sumo:
+            # If '--sumo' was specified, include tahoe-deps/* in the sdist.
+            # We assume that the user has fetched the tahoe-deps.tar.gz
+            # tarball and unpacked it already.
+            self.filelist.extend([os.path.join("tahoe-deps", fn)
+                                  for fn in os.listdir("tahoe-deps")])
+            # In addition, we want the tarball/zipfile to have -SUMO in the
+            # name, and the unpacked directory to have -SUMO too. The easiest
+            # way to do this is to patch self.distribution and override the
+            # get_fullname() method. (an alternative is to modify
+            # self.distribution.metadata.version, but that also affects the
+            # contents of PKG-INFO).
+            fullname = self.distribution.get_fullname()
+            def get_fullname():
+                return fullname + "-SUMO"
+            self.distribution.get_fullname = get_fullname
 
-        print self.filelist.files
-        self.check_readme()
-        self.check_metadata()
-        self.make_distribution()
-
-        dist_files = getattr(self.distribution,'dist_files',[])
-        for file in self.archive_files:
-            data = ('sdist', '', file)
-            if data not in dist_files:
-                dist_files.append(data)
+        return sdist.sdist.make_distribution(self)
 
 # Tahoe's dependencies are managed by the find_links= entry in setup.cfg and
 # the _auto_deps.install_requires list, which is used in the call to setup()
