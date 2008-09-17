@@ -245,6 +245,18 @@ clean:
 find-trailing-spaces:
 	$(PYTHON) misc/find-trailing-spaces.py -r src
 
+# The test-desert-island target grabs the tahoe-deps tarball, unpacks it,
+# does a build, then asserts that the build did not try to download anything
+# as it ran. Invoke this on a new tree, or after a 'clean', to make sure the
+# support/lib/ directory is gone.
+
+test-desert-island:
+	wget http://allmydata.org/source/tahoe/tarballs/tahoe-deps.tar.gz
+	tar xf tahoe-deps.tar.gz
+	$(MAKE) 2>&1 | tee make.out
+	$(PYTHON) misc/check-build.py make.out no-downloads
+
+
 # TARBALL GENERATION
 .PHONY: tarballs upload-tarballs
 tarballs:
