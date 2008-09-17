@@ -1,5 +1,5 @@
 
-DEFAULT_SERVER_URL = 'https://beta.allmydata.com/'
+DEFAULT_SERVER_URL = 'https://www.allmydata.com/'
 
 BACKEND = 'native_client.php'
 ACCOUNT_PAGE = 'account'
@@ -227,7 +227,7 @@ class ConfWizApp(wx.App):
 class WizardFrame(wx.Frame):
     def __init__(self, app, panel_class):
         #title = 'Allmydata Config Wizard'
-        title = 'Setup - Allmydata 3.0'
+        title = 'Setup - Allmydata 3.1.2'
         wx.Frame.__init__(self, None, -1, title)
         self.app = app
         self.SetIcon(amdlogo.getIcon())
