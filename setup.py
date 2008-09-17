@@ -189,19 +189,12 @@ This filesystem is encrypted and spread over multiple peers in such a way that
 it remains available even when some of the peers are unavailable,
 malfunctioning, or malicious."""
 
-# For Desert Island builds, assume that the user has extracted the dependency
-# tarball into a directory named 'misc/dependencies'.
-dependency_links=[os.path.join(os.getcwd(), 'misc', 'dependencies')]
-
-# By adding a web page to the dependency_links we are able to put new packages
-# up there and have them be automatically discovered by existing copies of the
-# tahoe source when that source was built.
-dependency_links.append("http://allmydata.org/trac/tahoe/wiki/Dependencies")
 
 # Default setup_requires are pyutil for the Windows installer builder(see
 # misc/sub-ver.py) and Twisted for the tests.
 #setup_requires = ['pyutil >= 1.3.16', 'Twisted >= 2.4.0']
 setup_requires = []
+
 # darcsver is needed only if you want "./setup.py darcsver" to write a new
 # version stamp in src/allmydata/_version.py, with a version number derived from
 # darcs history.
@@ -406,8 +399,9 @@ class MySdist(sdist.sdist):
             if data not in dist_files:
                 dist_files.append(data)
 
-# get a list of the libraries that we depend upon, for use in the call to
-# setup() at the end of this file
+# Tahoe's dependencies are managed by the find_links= entry in setup.cfg and
+# the _auto_deps.install_requires list, which is used in the call to setup()
+# at the end of this file
 from _auto_deps import install_requires
 
 setup(name='allmydata-tahoe',
@@ -433,7 +427,6 @@ setup(name='allmydata-tahoe',
       install_requires=install_requires,
       include_package_data=True,
       setup_requires=setup_requires,
-      dependency_links=dependency_links,
       entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
       zip_safe=False, # We prefer unzipped for easier access.
       )
