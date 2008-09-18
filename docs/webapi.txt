@@ -459,6 +459,25 @@ GET /named/$FILECAP/FILENAME
  this form can *only* be used with file caps; it is an error to use a
  directory cap after the /named/ prefix.
 
+=== Get Information About A File Or Directory (as HTML) ===
+
+GET /uri/$FILECAP?t=info
+GET /uri/$DIRCAP/?t=info
+GET /uri/$DIRCAP/[SUBDIRS../]SUBDIR/?t=info
+GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=info
+
+  This returns a human-oriented HTML page with more detail about the selected
+  file or directory object. This page contains the following items:
+
+   object size
+   storage index
+   JSON representation
+   raw contents (text/plain)
+   access caps (URIs): verify-cap, read-cap, write-cap (for mutable objects)
+   check/verify/repair form
+   deep-check/deep-size/deep-stats/manifest (for directories)
+   replace-conents form (for mutable files)
+
 === Creating a Directory ===
 
 POST /uri?t=mkdir

@@ -14,13 +14,7 @@
 <div><a href=".">Refresh this view</a></div>
 <div n:render="welcome" />
 
-<div>Other representations of this directory:
-<a href="?t=manifest">manifest</a>,
-<a href="?t=deep-size">total size</a>,
-<a href="?t=uri">URI</a>,
-<a href="?t=readonly-uri">read-only URI</a>,
-<a href="?t=json">JSON</a>
-</div>
+<div><a href="?t=info">More info on this directory</a></div>
 
 <div>
 <table n:render="sequence" n:data="children" border="1">
@@ -29,25 +23,18 @@
     <td>Type</td>
     <td>Size</td>
     <td>Times</td>
-    <td>other representations</td>
     <td></td>
     <td></td>
     <td></td>
-    <td></td>
-    <td>Checker Results</td>
   </tr>
   <tr n:pattern="item" n:render="row">
     <td><n:slot name="filename"/></td>
     <td><n:slot name="type"/></td>
     <td><n:slot name="size"/></td>
     <td><n:slot name="times"/></td>
-    <td><n:slot name="data"/></td>
     <td><n:slot name="delete"/></td>
-    <td><n:slot name="overwrite"/></td>
     <td><n:slot name="rename"/></td>
-
-    <td><n:slot name="check"/></td>
-    <td><n:slot name="checker_results"/></td>
+    <td><n:slot name="info"/></td>
   </tr>
 
   <tr n:pattern="empty"><td>directory is empty!</td></tr>

@@ -1200,51 +1200,17 @@ class Web(WebMixin, unittest.TestCase):
                                                              NEW2_CONTENTS))
 
         # finally list the directory, since mutable files are displayed
-        # differently
+        # slightly differently
 
         d.addCallback(lambda res:
                       self.GET(self.public_url + "/foo/",
                                followRedirect=True))
         def _check_page(res):
             # TODO: assert more about the contents
-            self.failUnless("Overwrite" in res)
-            self.failUnless("Choose new file:" in res)
+            self.failUnless("SSK" in res)
             return res
         d.addCallback(_check_page)
 
-        # test that clicking on the "overwrite" button works
-        EVEN_NEWER_CONTENTS = NEWER_CONTENTS + "even newer\n"
-        def _parse_overwrite_form_and_submit(res):
-
-            OVERWRITE_FORM_RE=re.compile('<form action="([^"]*)" method="post" .*<input type="hidden" name="t" value="upload" /><input type="hidden" name="when_done" value="([^"]*)" />', re.I)
-            mo = OVERWRITE_FORM_RE.search(res)
-            self.failUnless(mo, "overwrite form not found in '" + res +
-                            "', in which the overwrite form was not found")
-            formaction=mo.group(1)
-            formwhendone=mo.group(2)
-
-            fileurl = "../../../uri/" + urllib.quote(self._mutable_uri)
-            self.failUnlessEqual(formaction, fileurl)
-            # to POST, we need to absoluteify the URL
-            new_formaction = "/uri/%s" % urllib.quote(self._mutable_uri)
-            self.failUnlessEqual(formwhendone,
-                                 "../uri/%s/" % urllib.quote(self._foo_uri))
-            return self.POST(new_formaction,
-                             t="upload",
-                             file=("new.txt", EVEN_NEWER_CONTENTS),
-                             when_done=formwhendone,
-                             followRedirect=False)
-        d.addCallback(_parse_overwrite_form_and_submit)
-        # This will redirect us to ../uri/$FOOURI, rather than
-        # ../uri/$PARENT/foo, but apparently twisted.web.client absolutifies
-        # the redirect for us, and remember that shouldRedirect prepends
-        # self.webish_url for us.
-        d.addBoth(self.shouldRedirect,
-                  "/uri/%s/" % urllib.quote(self._foo_uri),
-                  which="test_POST_upload_mutable.overwrite")
-        d.addCallback(lambda res:
-                      self.failUnlessMutableChildContentsAre(fn, u"new.txt",
-                                                             EVEN_NEWER_CONTENTS))
         d.addCallback(lambda res: self._foo_node.get(u"new.txt"))
         def _got3(newnode):
             self.failUnless(IMutableFileNode.providedBy(newnode))
@@ -1297,14 +1263,14 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.GET("/uri/%s" % urllib.quote(self._mutable_uri)))
         d.addCallback(lambda res:
-                      self.failUnlessEqual(res, EVEN_NEWER_CONTENTS))
+                      self.failUnlessEqual(res, NEW2_CONTENTS))
 
         # and that HEAD computes the size correctly
         d.addCallback(lambda res:
                       self.HEAD(self.public_url + "/foo/new.txt"))
         def _got_headers(headers):
             self.failUnlessEqual(headers["content-length"][0],
-                                 str(len(EVEN_NEWER_CONTENTS)))
+                                 str(len(NEW2_CONTENTS)))
             self.failUnlessEqual(headers["content-type"], ["text/plain"])
         d.addCallback(_got_headers)
 

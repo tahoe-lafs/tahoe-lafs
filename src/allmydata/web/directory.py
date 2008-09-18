@@ -23,6 +23,7 @@ from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
 from allmydata.web.checker_results import CheckerResults, \
      CheckAndRepairResults, DeepCheckResults, DeepCheckAndRepairResults
+from allmydata.web.info import MoreInfo
 
 class BlockingFileError(Exception):
     # TODO: catch and transform
@@ -131,6 +132,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
         if t == "json":
             return DirectoryJSONMetadata(ctx, self.node)
+        if t == "info":
+            return MoreInfo(self.node)
         if t == "uri":
             return DirectoryURI(ctx, self.node)
         if t == "readonly-uri":
@@ -467,20 +470,6 @@ class DirectoryAsHTML(rend.Page):
 
         ctx.fillSlots("delete", delete)
         ctx.fillSlots("rename", rename)
-        if IDirectoryNode.providedBy(target):
-            check_url = "%s/uri/%s/" % (root, urllib.quote(target.get_uri()))
-            check_done_url = "../../uri/%s/" % urllib.quote(self.node.get_uri())
-        else:
-            check_url = "%s/uri/%s" % (root, urllib.quote(target.get_uri()))
-            check_done_url = "../uri/%s/" % urllib.quote(self.node.get_uri())
-        check = T.form(action=check_url, method="post")[
-            T.input(type='hidden', name='t', value='check'),
-            T.input(type='hidden', name='return_to', value=check_done_url),
-            T.input(type='submit', value='check', name="check"),
-            ]
-        ctx.fillSlots("overwrite",
-                      self.build_overwrite_form(ctx, name, target))
-        ctx.fillSlots("check", check)
 
         times = []
         TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
@@ -515,7 +504,7 @@ class DirectoryAsHTML(rend.Page):
             ctx.fillSlots("size", "?")
 
             text_plain_url = "%s/file/%s/@@named=/foo.txt" % (root, quoted_uri)
-            text_plain_tag = T.a(href=text_plain_url)["text/plain"]
+            info_link = "%s?t=info" % name
 
         elif IFileNode.providedBy(target):
             dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, urllib.quote(name))
@@ -527,8 +516,7 @@ class DirectoryAsHTML(rend.Page):
             ctx.fillSlots("size", target.get_size())
 
             text_plain_url = "%s/file/%s/@@named=/foo.txt" % (root, quoted_uri)
-            text_plain_tag = T.a(href=text_plain_url)["text/plain"]
-
+            info_link = "%s?t=info" % name
 
         elif IDirectoryNode.providedBy(target):
             # directory
@@ -541,45 +529,14 @@ class DirectoryAsHTML(rend.Page):
                 dirtype = "DIR"
             ctx.fillSlots("type", dirtype)
             ctx.fillSlots("size", "-")
-            text_plain_tag = None
+            info_link = "%s/?t=info" % name
 
-        childdata = [T.a(href="%s?t=json" % name)["JSON"], ", ",
-                     T.a(href="%s?t=uri" % name)["URI"], ", ",
-                     T.a(href="%s?t=readonly-uri" % name)["readonly-URI"],
-                     ]
-        if text_plain_tag:
-            childdata.extend([", ", text_plain_tag])
-
-        ctx.fillSlots("data", childdata)
-
-        results = "--"
-        # TODO: include a link to see more results, including timestamps
-        # TODO: use a sparkline
-        ctx.fillSlots("checker_results", results)
+        ctx.fillSlots("info", T.a(href=info_link)["More Info"])
 
         return ctx.tag
 
     def render_forms(self, ctx, data):
         forms = []
-        deep_check = T.form(action=".", method="post",
-                            enctype="multipart/form-data")[
-            T.fieldset[
-            T.input(type="hidden", name="t", value="deep-check"),
-            T.input(type="hidden", name="return_to", value="."),
-            T.legend(class_="freeform-form-label")["Run a deep-check operation (EXPENSIVE)"],
-            T.div[
-            "Verify every bit? (EVEN MORE EXPENSIVE):",
-            T.input(type="checkbox", name="verify"),
-            ],
-            T.div["Repair any problems?: ",
-                  T.input(type="checkbox", name="repair")],
-            T.div["Emit results in JSON format?: ",
-                  T.input(type="checkbox", name="output", value="JSON")],
-
-            T.input(type="submit", value="Deep-Check"),
-
-            ]]
-        forms.append(T.div(class_="freeform-form")[deep_check])
 
         if self.node.is_readonly():
             forms.append(T.div["No upload forms: directory is read-only"])
@@ -629,26 +586,6 @@ class DirectoryAsHTML(rend.Page):
         forms.append(T.div(class_="freeform-form")[mount])
         return forms
 
-    def build_overwrite_form(self, ctx, name, target):
-        if IMutableFileNode.providedBy(target) and not target.is_readonly():
-            root = self.get_root(ctx)
-            action = "%s/uri/%s" % (root, urllib.quote(target.get_uri()))
-            done_url = "../uri/%s/" % urllib.quote(self.node.get_uri())
-            overwrite = T.form(action=action, method="post",
-                               enctype="multipart/form-data")[
-                T.fieldset[
-                T.input(type="hidden", name="t", value="upload"),
-                T.input(type='hidden', name='when_done', value=done_url),
-                T.legend(class_="freeform-form-label")["Overwrite"],
-                "Choose new file: ",
-                T.input(type="file", name="file", class_="freeform-input-file"),
-                " ",
-                T.input(type="submit", value="Overwrite")
-                ]]
-            return [T.div(class_="freeform-form")[overwrite],]
-        else:
-            return []
-
     def render_results(self, ctx, data):
         req = IRequest(ctx)
         return get_arg(req, "results", "")
@@ -696,6 +633,8 @@ def DirectoryJSONMetadata(ctx, dirnode):
     d.addCallback(_got)
     d.addCallback(text_plain, ctx)
     return d
+
+
 
 def DirectoryURI(ctx, dirnode):
     return text_plain(dirnode.get_uri(), ctx)

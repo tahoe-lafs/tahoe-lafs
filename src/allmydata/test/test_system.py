@@ -1986,10 +1986,10 @@ class MutableChecker(SystemTestMixin, unittest.TestCase):
 
         return d
 
-class DeepCheck(SystemTestMixin, unittest.TestCase):
+class DeepCheckWeb(SystemTestMixin, unittest.TestCase):
     # construct a small directory tree (with one dir, one immutable file, one
-    # mutable file, one LIT file, and a loop), and then check it in various
-    # ways.
+    # mutable file, one LIT file, and a loop), and then check/examine it in
+    # various ways.
 
     def set_up_tree(self, ignored):
         # 2.9s
@@ -2176,19 +2176,23 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
 
     def web_json(self, n, **kwargs):
         kwargs["output"] = "json"
-        return self.web(n, "POST", **kwargs)
+        d = self.web(n, "POST", **kwargs)
+        d.addCallback(self.decode_json)
+        return d
+
+    def decode_json(self, (s,url)):
+        try:
+            data = simplejson.loads(s)
+        except ValueError:
+            self.fail("%s: not JSON: '%s'" % (url, s))
+        return data
 
     def web(self, n, method="GET", **kwargs):
+        # returns (data, url)
         url = (self.webish_url + "uri/%s" % urllib.quote(n.get_uri())
                + "?" + "&".join(["%s=%s" % (k,v) for (k,v) in kwargs.items()]))
         d = getPage(url, method=method)
-        def _decode(s):
-            try:
-                data = simplejson.loads(s)
-            except ValueError:
-                self.fail("%s: not JSON: '%s'" % (url, s))
-            return data
-        d.addCallback(_decode)
+        d.addCallback(lambda data: (data,url))
         return d
 
     def json_check_is_healthy(self, data, n, where, incomplete=False):
@@ -2276,6 +2280,7 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
 
         # stats
         d.addCallback(lambda ign: self.web(self.root, t="deep-stats"))
+        d.addCallback(self.decode_json)
         d.addCallback(self.json_check_stats, "deep-stats")
 
         # check, no verify
@@ -2343,5 +2348,12 @@ class DeepCheck(SystemTestMixin, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.web_json(self.root, t="deep-check", verify="true", repair="true"))
         d.addCallback(self.json_full_deepcheck_and_repair_is_healthy, self.root, "root")
+
+        # now look at t=info
+        d.addCallback(lambda ign: self.web(self.root, t="info"))
+        # TODO: examine the output
+        d.addCallback(lambda ign: self.web(self.mutable, t="info"))
+        d.addCallback(lambda ign: self.web(self.large, t="info"))
+        d.addCallback(lambda ign: self.web(self.small, t="info"))
 
         return d
