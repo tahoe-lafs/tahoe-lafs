@@ -111,13 +111,52 @@ cleaner.
 
 ** Packaging
 
- require foolscap[secure_connections] to require pyopenssl
-  use pollreactor
- SUMO tarballs
- tahoe-deps.tar.gz
- setup.py build_tahoe
- setup.py trial
-  should allow tests to run when twisted was auto-installed
+The Tahoe dependencies have been extended to require the
+"[secure_connections]" feature from Foolscap, which will cause pyOpenSSL to
+be required and/or installed. If OpenSSL and its development headers are
+already installed on your system, this can occur automatically. Tahoe now
+uses pollreactor (instead of the default selectreactor) to work around a bug
+between pyOpenSSL and the most recent release of Twisted (8.1.0). This bug
+only affects unit tests (hang during shutdown), and should not impact regular
+use.
+
+The Tahoe source code tarballs now come in two different forms: regular and
+"sumo". The regular tarball contains just Tahoe, nothing else. When building
+from the regular tarball, the build process will download any unmet
+dependencies from the internet (starting with the index at PyPI) so it can
+build and install them. The "sumo" tarball contains copies of all the
+libraries that Tahoe requires (foolscap, twisted, zfec, etc), so using the
+"sumo" tarball should not require any internet access during the build
+process. This can be useful if you want to build Tahoe while on an airplane,
+a desert island, or other bandwidth-limited environments.
+
+Similarly, allmydata.org now hosts a "tahoe-deps" tarball which contains the
+latest versions of all these dependencies. This tarball, located at
+http://allmydata.org/source/tahoe/deps/tahoe-deps.tar.gz, can be unpacked in
+the tahoe source tree (or in its parent directory), and the build process
+should satisfy its downloading needs from it instead of reaching out to PyPI.
+This can be useful if you want to build Tahoe from a darcs checkout while on
+that airplane or desert island.
+
+The previous two changes ("sumo" tarballs and the "tahoe-deps" bundle), most
+of the files have been removed from misc/dependencies/ . This brings the
+regular Tahoe tarball down to 2MB (compressed), and the darcs checkout
+(without history) to about 7.6MB. A full darcs checkout will still be fairly
+large (because of the historical patches which included the dependent
+libraries), but a 'lazy' one should now be small.
+
+The default "make" target is now an alias for "setup.py build_tahoe", which
+itself is a wrapper around "setup.py develop --prefix support/lib", with some
+extra work before and after. Most of the complicated platform-dependent code
+in the Makefile was rewritten in Python and moved into setup.py, simplifying
+things considerably.
+
+Likewise, the "make test" target now delegates most of its work to "setup.py
+trial", which takes care of getting PYTHONPATH configured to access the tahoe
+code (and dependencies) that gets put in support/lib/ by the build_tahoe
+step. This should allow unit tests to be run even when trial (which is part
+of Twisted) wasn't already installed (in this case, trial gets installed to
+support/bin because Twisted is a dependency of Tahoe).
 
 ** Grid Management Tools
 
