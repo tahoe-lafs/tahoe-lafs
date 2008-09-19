@@ -4,7 +4,8 @@ from twisted.trial import unittest
 from cStringIO import StringIO
 import urllib
 
-from allmydata.util import fileutil, hashutil
+from pycryptopp.publickey import ecdsa
+from allmydata.util import fileutil, hashutil, base32
 from allmydata import uri
 
 # at least import the CLI scripts, even if we don't have any real tests for
@@ -500,5 +501,35 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA2))
         return d
 
+class Admin(unittest.TestCase):
+    def do_cli(self, *args, **kwargs):
+        argv = list(args)
+        stdin = kwargs.get("stdin", "")
+        stdout, stderr = StringIO(), StringIO()
+        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
+                                  stdin=StringIO(stdin),
+                                  stdout=stdout, stderr=stderr)
+        def _done(res):
+            return stdout.getvalue(), stderr.getvalue()
+        d.addCallback(_done)
+        return d
 
+    def test_generate_keypair(self):
+        d = self.do_cli("admin", "generate-keypair")
+        def _done( (stdout, stderr) ):
+            lines = stdout.split("\n")
+            privkey_line = lines[0].strip()
+            pubkey_line = lines[1].strip()
+            sk_header = "private: priv-v0-"
+            vk_header = "public: pub-v0-"
+            self.failUnless(privkey_line.startswith(sk_header), privkey_line)
+            self.failUnless(pubkey_line.startswith(vk_header), pubkey_line)
+            privkey_b = base32.a2b(privkey_line[len(sk_header):])
+            pubkey_b = base32.a2b(pubkey_line[len(vk_header):])
+            sk = ecdsa.create_signing_key_from_string(privkey_b)
+            vk = ecdsa.create_verifying_key_from_string(pubkey_b)
+            self.failUnlessEqual(sk.get_verifying_key().serialize(),
+                                 vk.serialize())
+        d.addCallback(_done)
+        return d
 

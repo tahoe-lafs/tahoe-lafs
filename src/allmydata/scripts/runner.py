@@ -4,12 +4,13 @@ from cStringIO import StringIO
 from twisted.python import usage
 
 from allmydata.scripts.common import BaseOptions
-import debug, create_node, startstop_node, cli, keygen
+import debug, create_node, startstop_node, cli, keygen, admin
 
 _general_commands = ( create_node.subCommands
                     + keygen.subCommands
                     + debug.subCommands
                     + cli.subCommands
+                    + admin.subCommands
                     )
 
 class Options(BaseOptions, usage.Options):
@@ -69,6 +70,8 @@ def runner(argv,
         rc = startstop_node.dispatch[command](so, stdout, stderr)
     elif command in debug.dispatch:
         rc = debug.dispatch[command](so)
+    elif command in admin.dispatch:
+        rc = admin.dispatch[command](so)
     elif command in cli.dispatch:
         rc = cli.dispatch[command](so)
     elif command in keygen.dispatch:
