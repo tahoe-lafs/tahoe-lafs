@@ -160,19 +160,54 @@ support/bin because Twisted is a dependency of Tahoe).
 
 ** Grid Management Tools
 
-stats
- include disk-free information
+Several tools have been added or updated in the misc/ directory, mostly munin
+plugins that can be used to monitor a storage grid.
 
-disk-watcher daemon, uses axiom
-spacetime munin plugins: space-used, space-left, time-left/doomsday
-tahoe_overhead plugin
+The misc/spacetime/ directory contains a "disk watcher" daemon (startable
+with 'tahoe start'), which can be configured with a set of HTTP URLs
+(pointing at the webapi '/statistics' page of a bunch of storage servers),
+and will periodically fetch disk-used/disk-available information from all the
+servers. It keeps this information in an Axiom database (a sqlite-based
+library available from divmod.org). The daemon computes time-averaged rates
+of disk usage, as well as a prediction of how much time is left before the
+grid is completely full.
 
-** other
+The misc/munin/ directory contains a new set of munin plugins
+(tahoe_diskleft, tahoe_diskusage, tahoe_doomsday) which talk to the
+disk-watcher and provide graphs of its calculations.
 
-storage declares oldest-supported-version = 1.0
+To support the disk-watcher, the Tahoe statistics component (visible through
+the webapi at the /statistics/ URL) now includes disk-used and disk-available
+information. Both are derived through an equivalent of the unix 'df' command
+(i.e. they ask the kernel for the number of free blocks on the partition that
+encloses the BASEDIR/storage directory). In the future, the disk-available
+number will be further influenced by the local storage policy: if that policy
+says that the server should refuse new shares when less than 5GB is left on
+the partition, then "disk-available" will report zero even though the kernel
+sees 5GB remaining.
 
-bugs fixed
- download self._paused
+The 'tahoe_overhead' munin plugin interacts with an allmydata.com-specific
+server which reports the total of the 'deep-size' reports for all active user
+accounts, compares this with the disk-watcher data, to report on overhead
+percentages. This provides information on how much space could be recovered
+once Tahoe implements some form of garbage collection.
+
+** Other Changes
+
+Clients now declare their "oldest-supported version" to be 1.0.0 . This is
+part of a backwards-compatibility system that has not yet been fully
+specified. Previous releases declared their oldest-supported-version to be
+the same as their current version number.
+
+Several bugs have been fixed, including one that would cause an exception (in
+the logs) if a webapi download operation was cancelled (by closing the TCP
+connection, or pushing the "stop" button in a web browser).
+
+Tahoe now uses Foolscap "Incidents", writing an "incident report" file to
+logs/incidents/ each time something weird occurs. These reports are available
+to an "incident gatherer" through the flogtool command. For more details,
+please see the Foolscap logging documentation.
+
 
 * Release 1.2.0 (2008-07-21)
 
