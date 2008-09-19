@@ -364,7 +364,7 @@ class Trial(Command):
             print "PYTHONPATH=%s %s" % (os.environ["PYTHONPATH"],
                                         " ".join(sys.argv))
         else:
-            print "(run with -vv for trial command-line details)"
+            print "(run setup.py with -vv for trial command-line details)"
         trial.run() # this does sys.exit
         # NEVER REACHED
 
