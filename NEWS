@@ -1,5 +1,140 @@
 User visible changes in Tahoe.  -*- outline -*-
 
+* Release 1.3.0 (?)
+
+** Checker/Verifier/Repairer
+
+The focus of this release has been improving the functionality and the
+usability of code which checks/verifies/repairs files and directories.
+"Checking" is the act of asking storage servers whether they have a share for
+the given file or directory: if there are not enough shares available, the
+file/directory will be unrecoverable. "Verifying" is the act of downloading
+or cryptographically asserting that the server's share is undamaged: it
+requires more work (bandwidth and CPU) than checking, but can catch problems
+that simple checking cannot. "Repair" is the act of replacing missing/damaged
+shares with new ones.
+
+For mutable files (and therefore directories), missing shares can be
+regenerated, and corrupted shares can be repaired in place. For immutable
+files, missing shares are regenerated, and corrupted shares are handled by
+uploading new shares to other servers. The storage server protocol does not
+allow clients to change or remove immutable shares, so if persistent
+corruption is detected, the user and the storage server operator must work
+together to remove the damaged share. Note that corrupted shares indicate
+hardware failures, serious software bugs, or malice on the part of the
+storage server operator, so a corrupted share should be considered highly
+unusual. The "incident gatherer" mechanism will automatically report share
+corruption to a pre-configured incident gatherer service.
+
+By periodically checking/repairing all files and directories, objects in the
+Tahoe filesystem remain resistant to recoverability failures due to missing
+and/or broken servers.
+
+This release includes a webapi mechanism to initiate checks on individual
+files and directories (with or without verification, and with or without
+automatic repair). A related mechanism is used to initiate a "deep-check" on
+a directory: recursively traversing the directory and its children, checking
+(and/or verifying/repairing) everything underneath. Both mechanisms can be
+run with an "output=JSON" argument, to obtain machine-readable check/repair
+status results. These results include a copy of the filesystem statistics
+from the "deep-stats" operation (including total number of files, size
+histogram, etc).
+
+The client web interface now features some extra buttons to initiate check
+and deep-check operations. When these operations finish, they display a
+results page that summarizes any problems that were encountered.
+
+** CLI Changes
+
+This release adds the 'tahoe create-alias' command, which is a combination of
+'tahoe mkdir' and 'tahoe add-alias'. This also allows you to start using a
+new tahoe directory without exposing its URI in the argv list, which is
+publically visible (through the process table) on most unix systems.
+
+The single-argument form of "tahoe put" was changed to create an unlinked
+file. I.e. "tahoe put bar.txt" will take the contents of a local "bar.txt"
+file, upload them to the grid, and print the resulting read-cap; the file
+will not be attached to any directories. This seemed a bit more useful than
+the previous behavior (copy stdin, upload to the grid, attach the resulting
+file into your default tahoe: alias in a child named 'bar.txt').
+
+"tahoe put" was also fixed to handle mutable files correctly: "tahoe put
+bar.txt URI:SSK:..." will read the contents of the local bar.txt and use them
+to replace the contents of the given mutable file.
+
+The "tahoe webopen" command was modified to accept aliases. This means "tahoe
+webopen tahoe:" will cause your web browser to open to a "wui" page that
+gives access to the directory associated with the default "tahoe:" alias.
+
+Many esoteric debugging commands were moved down into a "debug" subcommand:
+
+ tahoe debug dump-cap
+ tahoe debug dump-share
+ tahoe debug find-shares
+ tahoe debug catalog-shares
+ tahoe debug corrupt-share
+
+The last command ("tahoe debug corrupt-share") flips a random bit of the
+given local sharefile. This is used to test the file verifying/repairing, and
+obviously should not be used on user data.
+
+** Web changes
+
+The top-level status page (/status) now has a machine-readable form, via
+"/status/?t=json". This includes information about the currently-active
+uploads and downloads, which may be useful for frontends that wish to display
+progress information. There is no easy way to correlate the activities
+displayed here with recent webapi requests, however.
+
+The welcome page now has a "Report Incident" button, which is tied into the
+"Incident Gatherer" machinery. If the node is attached to an incident
+gatherer (via log_gatherer.furl), then pushing this button will cause an
+Incident to be signalled: this means recent log events are aggregated and
+sent in a bundle to the gatherer. The user can push this button after
+something strange takes place (and they can provide a short message to go
+along with it), and the relevant data will be delivered to a centralized
+incident-gatherer for later processing by operations staff.
+
+The "HEAD" method should now work correctly, in addition to the usual "GET",
+"PUT", and "POST" methods. "HEAD" is supposed to return exactly the same
+headers as "GET" would, but without any of the actual response body data. For
+mutable files, this now does a brief mapupdate (to figure out the size of the
+file that would be returned), without actually retrieve the file's contents.
+
+Each file and directory now has a "Show More Info" web page, which contains
+much of the information that was crammed into the directory page before. This
+includes readonly URIs, storage index strings, object type, buttons to
+control checking/verifying/repairing, and deep-check/deep-stats buttons (for
+directories). For mutable files, the "replace contents" upload form has been
+moved here too. As a result, the directory page is now much simpler and
+cleaner.
+
+** Packaging
+
+ require foolscap[secure_connections] to require pyopenssl
+  use pollreactor
+ SUMO tarballs
+ tahoe-deps.tar.gz
+ setup.py build_tahoe
+ setup.py trial
+  should allow tests to run when twisted was auto-installed
+
+** Grid Management Tools
+
+stats
+ include disk-free information
+
+disk-watcher daemon, uses axiom
+spacetime munin plugins: space-used, space-left, time-left/doomsday
+tahoe_overhead plugin
+
+** other
+
+storage declares oldest-supported-version = 1.0
+
+bugs fixed
+ download self._paused
+
 * Release 1.2.0 (2008-07-21)
 
 ** Security
