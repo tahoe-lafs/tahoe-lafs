@@ -515,6 +515,11 @@ class Admin(unittest.TestCase):
         return d
 
     def test_generate_keypair(self):
+        import sys
+        if sys.platform == "darwin":
+            # pycryptopp-0.5.7's ECDSA is broken on OS-X, it raises a C++
+            # exception, which halts the whole process. So skip this test.
+            raise unittest.SkipTest("pycryptopp-0.5.7's ECDSA raises a C++ exception on OS-X")
         d = self.do_cli("admin", "generate-keypair")
         def _done( (stdout, stderr) ):
             lines = stdout.split("\n")
