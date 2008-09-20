@@ -206,10 +206,30 @@ but a few notes are worth stating here:
    "flogtool dump --verbose" output, as well as being available to other
    tools. The umid= argument should be passed this way.
 
+ * use log.err for the catch-all addErrback that gets attached to the end of
+   any given Deferred chain. When used in conjunction with LOGTOTWISTED=1,
+   log.err() will tell Twisted about the error-nature of the log message,
+   causing Trial to flunk the test (with an "ERROR" indication that prints a
+   copy of the Failure, including a traceback). Don't use log.err for events
+   that are BAD but handled (like hash failures: since these are often
+   deliberately provoked by test code, they should not cause test failures):
+   use log.msg(level=BAD) for those instead.
+
 
 == Log Messages During Unit Tests ==
 
-To get detailed log message out of unit tests, run the tests like this:
+If a test is failing and you aren't sure why, start by enabling
+FLOGTOTWISTED=1 like this:
+
+ make test FLOGTOTWISTED=1
+
+With FLOGTOTWISTED=1, sufficiently-important log events will be written into
+_trial_temp/test.log, which may give you more ideas about why the test is
+failing.
+
+
+If that isn't enough, look at the detailed foolscap logging messages instead,
+by running the tests like this:
 
  make test FLOGFILE=flog.out.bz2 FLOGLEVEL=1 FLOGTWISTED=1
 
