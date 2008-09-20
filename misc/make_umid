@@ -20,17 +20,20 @@ easier to write classifier functions for the incident-gatherer.
 
 """
 
-#The following elisp code may be useful:
+'''
+The following elisp code may be useful:
 
-# (defun insert-umid ()
-#   (interactive)
-#   (insert ", umid=\"")
-#   (call-process "make_umid" nil t)
-#   (delete-char -1)
-#   (insert "\"")
-# )
-# (global-set-key (kbd "C-\`") 'insert-umid)
+ (defun insert-umid ()
+   (interactive)
+   (insert ", umid=\"")
+   (call-process "make_umid" nil t)
+   (delete-char -1)
+   (insert "\"")
+ )
+ (global-set-key (kbd "C-\`") 'insert-umid)
+'''
 
+# '   # emacs gets confused by the odd number of single-quotes there
 
 import os, base64, sys
 
