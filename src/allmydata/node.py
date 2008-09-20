@@ -15,13 +15,13 @@ from allmydata.util.assertutil import precondition
 # Just to get their versions:
 import allmydata, pycryptopp, zfec
 
-from foolscap.logging.publish import LogPublisher
+from foolscap.logging import app_versions
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports. Our __version__ attributes are actually instances of a "Version"
 # class, so convert them into strings first.
-LogPublisher.versions['allmydata'] = str(allmydata.__version__)
-LogPublisher.versions['zfec'] = str(zfec.__version__)
-LogPublisher.versions['pycryptopp'] = str(pycryptopp.__version__)
+app_versions.add_version('allmydata', str(allmydata.__version__))
+app_versions.add_version('zfec', str(zfec.__version__))
+app_versions.add_version('pycryptopp', str(pycryptopp.__version__))
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
 ADDR_RE=re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
@@ -89,6 +89,10 @@ class Node(service.MultiService):
         self.setup_logging()
         self.log("Node constructed. " + get_package_versions_string())
         iputil.increase_rlimits()
+
+    def get_app_versions(self):
+        # TODO: merge this with allmydata.get_package_versions
+        return dict(app_versions.versions)
 
     def get_config(self, name, required=False):
         """Get the (string) contents of a config file, or None if the file
