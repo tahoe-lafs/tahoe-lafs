@@ -65,9 +65,11 @@ class Client(node.Node, testutil.PollMixin):
         node.Node.__init__(self, basedir)
         self.started_timestamp = time.time()
         self.logSource="Client"
-        self.nickname = self.get_config("nickname")
-        if self.nickname is None:
-            self.nickname = "<unspecified>"
+        nickname_utf8 = self.get_config("nickname")
+        if nickname_utf8:
+            self.nickname = nickname_utf8.decode("utf-8")
+        else:
+            self.nickname = u"<unspecified>"
         self.init_introducer_client()
         self.init_stats_provider()
         self.init_lease_secret()

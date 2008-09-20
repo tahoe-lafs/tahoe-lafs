@@ -91,7 +91,7 @@ class IntroducerClient(service.Service, Referenceable):
         self._tub = tub
         self.introducer_furl = introducer_furl
 
-        self._nickname = nickname
+        self._nickname = nickname.encode("utf-8")
         self._my_version = my_version
         self._oldest_supported = oldest_supported
 
