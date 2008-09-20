@@ -2,7 +2,7 @@
 import datetime, os.path, re, types
 from base64 import b32decode, b32encode
 
-from twisted.python import log as tahoe_log
+from twisted.python import log as twlog
 from twisted.application import service
 from twisted.internet import defer, reactor
 from foolscap import Tub, eventual
@@ -175,12 +175,12 @@ class Node(service.MultiService):
 
     def _service_startup_failed(self, failure):
         self.log('_startService() failed')
-        tahoe_log.err(failure)
+        log.err(failure)
         print "Node._startService failed, aborting"
         print failure
         #reactor.stop() # for unknown reasons, reactor.stop() isn't working.  [ ] TODO
         self.log('calling os.abort()')
-        tahoe_log.msg('calling os.abort()')
+        twlog.msg('calling os.abort()') # make sure it gets into twistd.log
         print "calling os.abort()"
         os.abort()
 
@@ -202,11 +202,11 @@ class Node(service.MultiService):
     def setup_logging(self):
         # we replace the formatTime() method of the log observer that twistd
         # set up for us, with a method that uses better timestamps.
-        for o in tahoe_log.theLogPublisher.observers:
+        for o in twlog.theLogPublisher.observers:
             # o might be a FileLogObserver's .emit method
             if type(o) is type(self.setup_logging): # bound method
                 ob = o.im_self
-                if isinstance(ob, tahoe_log.FileLogObserver):
+                if isinstance(ob, twlog.FileLogObserver):
                     newmeth = types.UnboundMethodType(formatTimeTahoeStyle, ob, ob.__class__)
                     ob.formatTime = newmeth
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
@@ -234,8 +234,8 @@ class Node(service.MultiService):
             except TypeError, e:
                 msg = "ERROR: output string '%s' contained invalid %% expansion, error: %s, args: %s\n" % (`msg`, e, `args`)
         msg = self.short_nodeid + ": " + humanreadable.hr(msg)
-        return tahoe_log.callWithContext({"system":logsrc},
-                                         tahoe_log.msg, msg, **kw)
+        return twlog.callWithContext({"system":logsrc},
+                                     twlog.msg, msg, **kw)
 
     def _setup_tub(self, local_addresses):
         # we can't get a dynamically-assigned portnum until our Tub is

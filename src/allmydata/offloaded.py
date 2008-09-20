@@ -3,7 +3,7 @@ import os, stat, time, weakref
 from zope.interface import implements
 from twisted.application import service
 from twisted.internet import defer
-from foolscap import Referenceable
+from foolscap import Referenceable, DeadReferenceError
 from foolscap.eventual import eventually
 from allmydata import interfaces, storage, uri
 from allmydata.immutable import upload
@@ -73,8 +73,8 @@ class CHKCheckerAndUEBFetcher:
                                 for bucket in buckets.values() ] )
 
     def _got_error(self, f):
-        if f.check(KeyError):
-            pass
+        if f.check(DeadReferenceError):
+            return
         log.err(f, parent=self._logparent)
         pass
 

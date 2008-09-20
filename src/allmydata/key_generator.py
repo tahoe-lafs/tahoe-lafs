@@ -6,7 +6,7 @@ import foolscap
 from zope.interface import implements
 from twisted.internet import reactor
 from twisted.application import service
-from twisted.python import log
+from allmydata.util import log
 
 from pycryptopp.publickey import rsa
 from allmydata.interfaces import RIKeyGenerator

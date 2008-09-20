@@ -11,7 +11,7 @@ Tests useful in assertion checking, prints out nicely formated messages too.
 
 from humanreadable import hr
 
-from twisted.python import log
+from allmydata.util import log
 
 def _assert(___cond=False, *___args, **___kwargs):
     if ___cond:

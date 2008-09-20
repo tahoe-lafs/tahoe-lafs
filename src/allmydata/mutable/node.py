@@ -4,11 +4,10 @@ from twisted.application import service
 
 from zope.interface import implements
 from twisted.internet import defer, reactor
-from twisted.python import log
 from foolscap.eventual import eventually
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI, \
      ICheckable, ICheckerResults
-from allmydata.util import hashutil
+from allmydata.util import hashutil, log
 from allmydata.util.assertutil import precondition
 from allmydata.uri import WriteableSSKFileURI
 from allmydata.immutable.encode import NotEnoughSharesError
