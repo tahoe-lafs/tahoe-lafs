@@ -16,7 +16,7 @@ from foolscap.logging import app_versions
 
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
-for thing, things_version in get_package_versions():
+for thing, things_version in get_package_versions().iteritems():
     app_versions.add_version(thing, str(things_version))
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
