@@ -6,19 +6,17 @@ from allmydata import uri
 from allmydata.immutable.checker import SimpleCHKFileChecker, \
      SimpleCHKFileVerifier
 
-class FileNode:
+class ImmutableFileNode(object):
     implements(IFileNode, ICheckable)
     checker_class = SimpleCHKFileChecker
     verifier_class = SimpleCHKFileVerifier
 
     def __init__(self, uri, client):
-        u = IFileURI(uri)
-        self.u = u
-        self.uri = u.to_string()
+        self.u = IFileURI(uri)
         self._client = client
 
-    def get_uri(self):
-        return self.uri
+    def get_readonly_uri(self):
+        return self.get_uri()
 
     def is_mutable(self):
         return False
@@ -26,20 +24,30 @@ class FileNode:
     def is_readonly(self):
         return True
 
-    def get_readonly_uri(self):
-        return self.uri
+    def __hash__(self):
+        return self.u.__hash__()
+    def __eq__(self, other):
+        if IFileNode.providedBy(other):
+            return self.u.__eq__(other.u)
+        else:
+            return False
+    def __ne__(self, other):
+        if IFileNode.providedBy(other):
+            return self.u.__eq__(other.u)
+        else:
+            return True
+
+class FileNode(ImmutableFileNode):
+    checker_class = SimpleCHKFileChecker
+
+    def __init__(self, uri, client):
+        ImmutableFileNode.__init__(self, uri, client)
+
+    def get_uri(self):
+        return self.u.to_string()
 
     def get_size(self):
         return self.u.get_size()
-
-    def __hash__(self):
-        return hash((self.__class__, self.uri))
-    def __cmp__(self, them):
-        if cmp(type(self), type(them)):
-            return cmp(type(self), type(them))
-        if cmp(self.__class__, them.__class__):
-            return cmp(self.__class__, them.__class__)
-        return cmp(self.uri, them.uri)
 
     def get_verifier(self):
         return self.u.get_verifier()
@@ -75,46 +83,24 @@ class FileNode:
 
     def download(self, target):
         downloader = self._client.getServiceNamed("downloader")
-        return downloader.download(self.uri, target)
+        return downloader.download(self.get_uri(), target)
 
     def download_to_data(self):
         downloader = self._client.getServiceNamed("downloader")
-        return downloader.download_to_data(self.uri)
+        return downloader.download_to_data(self.get_uri())
 
 
 
-class LiteralFileNode:
-    implements(IFileNode, ICheckable)
+class LiteralFileNode(ImmutableFileNode):
 
-    def __init__(self, my_uri, client):
-        u = IFileURI(my_uri)
-        assert isinstance(u, uri.LiteralFileURI)
-        self.uri = u.to_string()
-        self._client = client
+    def __init__(self, uri, client):
+        ImmutableFileNode.__init__(self, uri, client)
 
     def get_uri(self):
-        return self.uri
-
-    def is_mutable(self):
-        return False
-
-    def is_readonly(self):
-        return True
-
-    def get_readonly_uri(self):
-        return self.uri
+        return self.u.to_string()
 
     def get_size(self):
-        return len(IURI(self.uri).data)
-
-    def __hash__(self):
-        return hash((self.__class__, self.uri))
-    def __cmp__(self, them):
-        if cmp(type(self), type(them)):
-            return cmp(type(self), type(them))
-        if cmp(self.__class__, them.__class__):
-            return cmp(self.__class__, them.__class__)
-        return cmp(self.uri, them.uri)
+        return len(self.u.data)
 
     def get_verifier(self):
         return None
@@ -132,12 +118,12 @@ class LiteralFileNode:
 
     def download(self, target):
         # note that this does not update the stats_provider
-        data = IURI(self.uri).data
+        data = self.u.data
         target.open(len(data))
         target.write(data)
         target.close()
         return defer.maybeDeferred(target.finish)
 
     def download_to_data(self):
-        data = IURI(self.uri).data
+        data = self.u.data
         return defer.succeed(data)

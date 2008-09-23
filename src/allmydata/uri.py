@@ -24,13 +24,17 @@ OPTIONALHTTPLEAD=r'(?:https?://(?:127.0.0.1|localhost):8123/uri/)?'
 
 class _BaseURI:
     def __hash__(self):
-        return hash((self.__class__, self.to_string()))
-    def __cmp__(self, them):
-        if cmp(type(self), type(them)):
-            return cmp(type(self), type(them))
-        if cmp(self.__class__, them.__class__):
-            return cmp(self.__class__, them.__class__)
-        return cmp(self.to_string(), them.to_string())
+        return self.to_string().__hash__()
+    def __eq__(self, them):
+        if isinstance(them, _BaseURI):
+            return self.to_string() == them.to_string()
+        else:
+            return False
+    def __ne__(self, them):
+        if isinstance(them, _BaseURI):
+            return self.to_string() != them.to_string()
+        else:
+            return True
     def to_human_encoding(self):
         return 'http://127.0.0.1:8123/uri/'+self.to_string()
 
