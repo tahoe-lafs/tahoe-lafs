@@ -36,9 +36,11 @@ def get_linux_distro():
 
     http://refspecs.freestandards.org/LSB_3.2.0/LSB-Core-generic/LSB-Core-generic/lsbrelease.html
 
-    If executing "lsb_release" raises no exception, and returns exit code 0,
-    then return a two-tuple containing the information that lsb_release emitted
-    as strings.
+    If executing "lsb_release" raises no exception, and returns exit code 0, and
+    both the "distributor id" and "release" results are non-empty after being
+    stripped of whitespace, then return a two-tuple containing the information
+    that lsb_release emitted, as strings.  Else, invoke platform.dist() and
+    return the first two elements of the tuple returned by that function.
 
     Returns a tuple (distname,version). Distname is what LSB calls a
     "distributor id", e.g. "Ubuntu".  Version is what LSB calls a "release",
@@ -68,7 +70,10 @@ def get_linux_distro():
     except EnvironmentError:
         pass
 
-    return (_distname, _version)
+    if _distname and _version:
+        return (_distname, _version)
+    else:
+        return platform.dist()[:2]
 
 def get_platform():
     # Our version of platform.platform(), telling us both less and more than the
