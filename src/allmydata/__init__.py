@@ -22,16 +22,27 @@ import _auto_deps
 _auto_deps.require_auto_deps()
 
 import platform, re, subprocess
-_distributor_id_cmdline_re = re.compile("(?:Distributor ID)?:?\s*(.*)", re.I)
-_release_cmdline_re = re.compile("(?:Release)?:?\s*(.*)", re.I)
+_distributor_id_cmdline_re = re.compile("(?:Distributor ID:)\s*(.*)", re.I)
+_release_cmdline_re = re.compile("(?:Release:)\s*(.*)", re.I)
 
-_distributor_id_file_re = re.compile("(?:DISTRIB_ID.*=)?\s*(.*)", re.I)
-_release_file_re = re.compile("(?:DISTRIB_RELEASE.*=)?\s*(.*)", re.I)
+_distributor_id_file_re = re.compile("(?:DISTRIB_ID\s*=)\s*(.*)", re.I)
+_release_file_re = re.compile("(?:DISTRIB_RELEASE\s*=)\s*(.*)", re.I)
 
 def get_linux_distro():
     """ Tries to determine the name of the Linux OS distribution name.
 
-    The function tries to execute "lsb_release", as standardized in 2001:
+    First, try to parse a file named "/etc/lsb-release".  If it exists, and
+    contains the "DISTRIB_ID=" line and the "DISTRIB_RELEASE=" line, then return
+    the strings parsed from that file.  The reason we try this first is because
+    it is faster than the official method of invoking "lsb_release" (which takes
+    half a second on my high-performance Athlon64 Ubuntu workstation).  Also
+    because some distributions (at least Debian/Ubuntu) have /etc/lsb-release in
+    the "base-files" package (Priority: required) but /usr/bin/lsb_release in
+    the "lsb-release" package (Priority: important), so it is possible that
+    /etc/lsb-release is there even if /usr/bin/lsb_release isn't.
+
+    If parsing /etc/lsb-release doesn't work, then try to execute "lsb_release",
+    as standardized in 2001:
 
     http://refspecs.freestandards.org/LSB_1.0.0/gLSB/lsbrelease.html
 
@@ -42,15 +53,7 @@ def get_linux_distro():
     If executing "lsb_release" raises no exception, and returns exit code 0, and
     both the "distributor id" and "release" results are non-empty after being
     stripped of whitespace, then return a two-tuple containing the information
-    that lsb_release emitted, as strings.  Why do we execute lsb_release as our
-    first strategy?  Because it is the standard.
-
-    If executing "lsb_release" doesn't work, then try to parse a file named
-    /etc/lsb-release to get the same information.  Why do that?  Because some
-    distributions (at least Debian/Ubuntu) have /etc/lsb-release in the
-    "base-files" package (Priority: required) but /usr/bin/lsb_release in the
-    "lsb-release" package (Priority: important), so it is possible that
-    /etc/lsb-release is there even if /usr/bin/lsb_release isn't.
+    that lsb_release emitted, as strings.
 
     If that doesn't work, then invoke platform.dist() and return the first two
     elements of the tuple returned by that function.
@@ -66,25 +69,6 @@ def get_linux_distro():
     """
     _distname = None
     _version = None
-    try:
-        p = subprocess.Popen(["lsb_release", "--id"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        rc = p.wait()
-        if rc == 0:
-            m = _distributor_id_cmdline_re.search(p.stdout.read())
-            if m:
-                _distname = m.group(1).strip()
-
-        p = subprocess.Popen(["lsb_release", "--release"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        rc = p.wait()
-        if rc == 0:
-            m = _release_cmdline_re.search(p.stdout.read())
-            if m:
-                _version = m.group(1).strip()
-    except EnvironmentError:
-        pass
-
-    if _distname and _version:
-        return (_distname, _version)
 
     try:
         etclsbrel = open("/etc/lsb-release", "rU")
@@ -92,14 +76,34 @@ def get_linux_distro():
             m = _distributor_id_file_re.search(line)
             if m:
                 _distname = m.group(1).strip()
+                if _distname and _version:
+                    return (_distname, _version)
             m = _release_file_re.search(line)
             if m:
                 _version = m.group(1).strip()
+                if _distname and _version:
+                    return (_distname, _version)
     except EnvironmentError:
             pass
 
-    if _distname and _version:
-        return (_distname, _version)
+    try:
+        p = subprocess.Popen(["lsb_release", "--all"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        rc = p.wait()
+        if rc == 0:
+            for line in p.stdout.readlines():
+                m = _distributor_id_cmdline_re.search(line)
+                if m:
+                    _distname = m.group(1).strip()
+                    if _distname and _version:
+                        return (_distname, _version)
+
+                m = _release_cmdline_re.search(p.stdout.read())
+                if m:
+                    _version = m.group(1).strip()
+                    if _distname and _version:
+                        return (_distname, _version)
+    except EnvironmentError:
+        pass
 
     return platform.dist()[:2]
 
