@@ -1,8 +1,7 @@
 
 from zope.interface import implements
 from twisted.internet import defer
-from allmydata.interfaces import IFileNode, IFileURI, IURI, ICheckable
-from allmydata import uri
+from allmydata.interfaces import IFileNode, IFileURI, ICheckable
 from allmydata.immutable.checker import SimpleCHKFileChecker, \
      SimpleCHKFileVerifier
 
