@@ -7,21 +7,17 @@ from twisted.application import service
 from twisted.internet import defer, reactor
 from foolscap import Tub, eventual
 import foolscap.logging.log
-from allmydata import get_package_versions_string
+from allmydata import get_package_versions, get_package_versions_string
 from allmydata.util import log
 from allmydata.util import fileutil, iputil, observer, humanreadable
 from allmydata.util.assertutil import precondition
 
-# Just to get their versions:
-import allmydata, pycryptopp, zfec
-
 from foolscap.logging import app_versions
+
 # Add our application versions to the data that Foolscap's LogPublisher
-# reports. Our __version__ attributes are actually instances of a "Version"
-# class, so convert them into strings first.
-app_versions.add_version('allmydata', str(allmydata.__version__))
-app_versions.add_version('zfec', str(zfec.__version__))
-app_versions.add_version('pycryptopp', str(pycryptopp.__version__))
+# reports.
+for thing, things_version in get_package_versions():
+    app_versions.add_version(thing, str(things_version))
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
 ADDR_RE=re.compile("^([1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*)(:([1-9][0-9]*))?$")
