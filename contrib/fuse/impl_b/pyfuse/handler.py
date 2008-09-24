@@ -1,5 +1,5 @@
 from kernel import *
-import os, errno, sys, stat
+import os, errno, sys
 
 def fuse_mount(mountpoint, opts=None):
     if not isinstance(mountpoint, str):
@@ -7,7 +7,10 @@ def fuse_mount(mountpoint, opts=None):
     if opts is not None and not isinstance(opts, str):
         raise TypeError
     import dl
-    fuse = dl.open('libfuse.so')
+    try:
+        fuse = dl.open('libfuse.so')
+    except dl.error:
+        fuse = dl.open('libfuse.so.2')
     if fuse.sym('fuse_mount_compat22'):
         fnname = 'fuse_mount_compat22'
     else:
@@ -59,9 +62,16 @@ class Handler(object):
 
     def loop_forever(self):
         while True:
-            msg = os.read(self.fd, FUSE_MAX_IN)
+            try:
+                msg = os.read(self.fd, FUSE_MAX_IN)
+            except OSError, ose:
+                if ose.errno == errno.ENODEV:
+                    # on hardy, at least, this is what happens upon fusermount -u
+                    #raise EOFError("out-kernel connection closed")
+                    return
             if not msg:
-                raise EOFError("out-kernel connection closed")
+                #raise EOFError("out-kernel connection closed")
+                return
             self.handle_message(msg)
 
     def handle_message(self, msg):
