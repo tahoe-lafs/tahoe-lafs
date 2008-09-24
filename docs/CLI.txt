@@ -178,7 +178,7 @@ tahoe list-aliases
 tahoe mkdir
 tahoe mkdir [alias:]path
 tahoe ls [alias:][path]
-tahoe webopen [alias:]path
+tahoe webopen [alias:][path]
 tahoe put [--mutable] [localfrom:-]
 tahoe put [--mutable] [localfrom:-] [alias:]to
 tahoe put [--mutable] [localfrom:-] [alias:]subdir/to
@@ -234,12 +234,15 @@ tahoe ls subdir
 
  This lists a subdirectory of your filesystem.
 
+tahoe webopen
 tahoe webopen tahoe:
 tahoe webopen tahoe:subdir/
+tahoe webopen subdir/
 
  This uses the python 'webbrowser' module to cause a local web browser to
  open to the web page for the given directory. This page offers interfaces to
- add, dowlonad, rename, and delete files in the directory.
+ add, dowlonad, rename, and delete files in the directory. If not given an
+ alias or path, opens "tahoe:", the root dir of the default alias.
 
 tahoe put file.txt
 tahoe put ./file.txt

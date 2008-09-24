@@ -189,8 +189,11 @@ class LnOptions(VDriveOptions):
         return "%s ln FROM TO" % (os.path.basename(sys.argv[0]),)
 
 class WebopenOptions(VDriveOptions):
-    def parseArgs(self, vdrive_pathname=""):
-        self['vdrive_pathname'] = vdrive_pathname
+    def parseArgs(self, where=None):
+        self.where = where
+
+    def getSynopsis(self):
+        return "%s webopen [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """Opens a webbrowser to the contents of some portion of the virtual drive."""
 
@@ -274,16 +277,9 @@ def ln(options):
     return rc
 
 def webopen(options, opener=None):
-    import urllib, webbrowser
-    nodeurl = config['node-url']
-    if nodeurl[-1] != "/":
-        nodeurl += "/"
-    root_cap = config.aliases["tahoe"]
-    url = nodeurl + "uri/%s/" % urllib.quote(root_cap)
-    if config['vdrive_pathname']:
-        url += urllib.quote(config['vdrive_pathname'])
-    webbrowser.open(url)
-    return 0
+    from allmydata.scripts import tahoe_webopen
+    rc = tahoe_webopen.webopen(options, opener=opener)
+    return rc
 
 dispatch = {
     "mkdir": mkdir,

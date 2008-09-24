@@ -1,17 +1,21 @@
 
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
+import urllib
 
-def webopen(nodeurl, aliases, where, stdout, stderr):
-    import urllib, webbrowser
+def webopen(options, opener=None):
+    nodeurl = options['node-url']
     if not nodeurl.endswith("/"):
         nodeurl += "/"
-    if where.endswith("/"):
-        where = where[:-1]
-    rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
+    where = options.where
+    if where is None:
+        where = 'tahoe:'
+    rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
     url = nodeurl + "uri/%s" % urllib.quote(rootcap)
     if path:
-        # move where.endswith check here?
         url += "/" + escape_path(path)
-    webbrowser.open(url)
+    if not opener:
+        import webbrowser
+        opener = webbrowser.open
+    opener(url)
     return 0
 
