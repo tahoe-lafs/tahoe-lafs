@@ -1836,21 +1836,6 @@ class Web(WebMixin, unittest.TestCase):
                   )
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"bar.txt"))
-        d.addCallback(lambda res: self.POST(self.public_url, t="rename",
-                      from_name="foo/bar.txt", to_name='george.txt'))
-        d.addBoth(self.shouldFail, error.Error,
-                  "test_POST_rename_file_slash_fail",
-                  "400 Bad Request",
-                  "from_name= may not contain a slash",
-                  )
-        d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self.public_root, u"foo"))
-        d.addCallback(lambda res:
-                      self.failIfNodeHasChild(self.public_root, u"george.txt"))
-        d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self._foo_node, u"bar.txt"))
-        d.addCallback(lambda res: self.GET(self.public_url + "/foo?t=json"))
-        d.addCallback(self.failUnlessIsFooJSON)
         return d
 
     def test_POST_rename_dir(self):

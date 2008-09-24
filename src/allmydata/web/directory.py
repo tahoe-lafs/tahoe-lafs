@@ -324,10 +324,12 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             assert isinstance(to_name, unicode)
         if not from_name or not to_name:
             raise WebError("rename requires from_name and to_name")
-        for k,v in [ ('from_name', from_name), ('to_name', to_name) ]:
-            if v and "/" in v:
-                raise WebError("%s= may not contain a slash" % k,
-                               http.BAD_REQUEST)
+
+        # allow from_name to contain slashes, so they can fix names that were
+        # accidentally created with them. But disallow them in to_name, to
+        # discourage the practice.
+        if "/" in to_name:
+            raise WebError("to_name= may not contain a slash", http.BAD_REQUEST)
 
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
         d = self.node.move_child_to(from_name, self.node, to_name, replace)
@@ -444,6 +446,7 @@ class DirectoryAsHTML(rend.Page):
         name, (target, metadata) = data
         name = name.encode("utf-8")
         assert not isinstance(name, unicode)
+        nameurl = urllib.quote(name, safe="") # encode any slashes too
 
         root = self.get_root(ctx)
         here = "%s/uri/%s/" % (root, urllib.quote(self.node.get_uri()))
@@ -495,7 +498,7 @@ class DirectoryAsHTML(rend.Page):
             # to prevent javascript in displayed .html files from stealing a
             # secret directory URI from the URL, send the browser to a URI-based
             # page that doesn't know about the directory at all
-            dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, urllib.quote(name))
+            dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, nameurl)
 
             ctx.fillSlots("filename",
                           T.a(href=dlurl)[html.escape(name)])
@@ -504,10 +507,10 @@ class DirectoryAsHTML(rend.Page):
             ctx.fillSlots("size", "?")
 
             text_plain_url = "%s/file/%s/@@named=/foo.txt" % (root, quoted_uri)
-            info_link = "%s?t=info" % name
+            info_link = "%s?t=info" % nameurl
 
         elif IFileNode.providedBy(target):
-            dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, urllib.quote(name))
+            dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, nameurl)
 
             ctx.fillSlots("filename",
                           T.a(href=dlurl)[html.escape(name)])
@@ -516,7 +519,7 @@ class DirectoryAsHTML(rend.Page):
             ctx.fillSlots("size", target.get_size())
 
             text_plain_url = "%s/file/%s/@@named=/foo.txt" % (root, quoted_uri)
-            info_link = "%s?t=info" % name
+            info_link = "%s?t=info" % nameurl
 
         elif IDirectoryNode.providedBy(target):
             # directory
@@ -529,7 +532,7 @@ class DirectoryAsHTML(rend.Page):
                 dirtype = "DIR"
             ctx.fillSlots("type", dirtype)
             ctx.fillSlots("size", "-")
-            info_link = "%s/?t=info" % name
+            info_link = "%s/?t=info" % nameurl
 
         ctx.fillSlots("info", T.a(href=info_link)["More Info"])
 
