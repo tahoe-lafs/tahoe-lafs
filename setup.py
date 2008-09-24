@@ -125,12 +125,7 @@ from distutils.core import Command
 # Make the dependency-version-requirement, which is used by the Makefile at
 # build-time, also available to the app at runtime:
 import shutil
-try:
-    shutil.copyfile("_auto_deps.py", os.path.join("src", "allmydata", "_auto_deps.py"))
-except EnvironmentError:
-    # Nevermind then -- perhaps it is already in place and in any case we can do
-    # without it.
-    pass
+shutil.copyfile("_auto_deps.py", os.path.join("src", "allmydata", "_auto_deps.py"))
 
 trove_classifiers=[
     "Development Status :: 5 - Production/Stable",
