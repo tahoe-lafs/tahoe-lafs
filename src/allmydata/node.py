@@ -56,6 +56,22 @@ class Node(service.MultiService):
         self.tub = Tub(certFile=certfile)
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)
+
+        # see #521 for a discussion of how to pick these timeout values. Using
+        # 30 minutes means we'll disconnect after 22 to 68 minutes of
+        # inactivity. Receiving data will reset this timeout, however if we
+        # have more than 22min of data in the outbound queue (such as 800kB
+        # in two pipelined segments of 10 shares each) and the far end has no
+        # need to contact us, our ping might be delayed, so we may disconnect
+        # them by accident.
+        keepalive_timeout_s = self.get_config("keepalive_timeout")
+        if keepalive_timeout_s:
+            self.tub.setOption("keepaliveTimeout", int(keepalive_timeout_s))
+        disconnect_timeout_s = self.get_config("disconnect_timeout")
+        if disconnect_timeout_s:
+            # N.B.: this is in seconds, so use "1800" to get 30min
+            self.tub.setOption("disconnectTimeout", int(disconnect_timeout_s))
+
         self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
         self.write_config("my_nodeid", b32encode(self.nodeid).lower() + "\n")
         self.short_nodeid = b32encode(self.nodeid).lower()[:8] # ready for printing

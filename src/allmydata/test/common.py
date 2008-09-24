@@ -347,20 +347,25 @@ class SystemTestMixin(testutil.PollMixin, testutil.StallMixin):
                 f.write(SYSTEM_TEST_CERTS[i+1])
                 f.close()
 
+            def write(name, value):
+                open(os.path.join(basedir, name), "w").write(value+"\n")
             if i == 0:
                 # client[0] runs a webserver and a helper, no key_generator
-                open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
-                open(os.path.join(basedir, "run_helper"), "w").write("yes\n")
-                open(os.path.join(basedir, "sizelimit"), "w").write("10GB\n")
+                write("webport", "tcp:0:interface=127.0.0.1")
+                write("run_helper", "yes")
+                write("sizelimit", "10GB")
+                write("keepalive_timeout", "600")
             if i == 3:
-                # client[3] runs a webserver and uses a helper, uses key_generator
-                open(os.path.join(basedir, "webport"), "w").write("tcp:0:interface=127.0.0.1")
+                # client[3] runs a webserver and uses a helper, uses
+                # key_generator
+                write("webport", "tcp:0:interface=127.0.0.1")
+                write("disconnect_timeout", "1800")
                 if self.key_generator_furl:
                     kgf = "%s\n" % (self.key_generator_furl,)
-                    open(os.path.join(basedir, "key_generator.furl"), "w").write(kgf)
-            open(os.path.join(basedir, "introducer.furl"), "w").write(self.introducer_furl)
+                    write("key_generator.furl", kgf)
+            write("introducer.furl", self.introducer_furl)
             if self.stats_gatherer_furl:
-                open(os.path.join(basedir, "stats_gatherer.furl"), "w").write(self.stats_gatherer_furl)
+                write("stats_gatherer.furl", self.stats_gatherer_furl)
 
         # start client[0], wait for it's tub to be ready (at which point it
         # will have registered the helper furl).

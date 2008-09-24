@@ -57,6 +57,25 @@ specification, like:
 Lines that do not provide a port number will use the same client.port as the
 automatically-discovered addresses.
 
+keepalive_timeout (optional): If present, this is treated as an integral
+number of seconds, and sets the Foolscap "keepalive timer" to that value. For
+each connection to another node, if nothing has been heard for a while, we
+will attempt to provoke the other end into saying something. The duration of
+silence that passes before sending the PING will be between KT and 2*KT. This
+is mainly intended to keep NAT boxes from expiring idle TCP sessions, but
+also gives TCP's long-duration keepalive/disconnect timers some traffic to
+work with. The default value is 240 (i.e. 4 minutes).
+
+disconnect_timeout (optional): If present, this is treated as an integral
+number of seconds, and sets the Foolscap "disconnect timer" to that value.
+For each connection to another node, if nothing has been heard for a while,
+we will drop the connection. The duration of silence that passes before
+dropping the connection will be between DT-2*KT and 2*DT+2*KT (please see
+ticket #521 for more details). If we are sending a large amount of data to
+the other end (which takes more than DT-2*KT to deliver), we might
+incorrectly drop the connection. The default behavior (when this file does
+not exist) is to disable the disconnect timer.
+
 authorized_keys.SSHPORT (optional): This enables an SSH-based interactive
 Python shell, which can be used to inspect the internal state of the node,
 for debugging.  To cause the node to accept SSH connections on port 8022,
