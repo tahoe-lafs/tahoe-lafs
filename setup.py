@@ -300,6 +300,10 @@ class BuildTahoe(Command):
         if sys.platform == "linux2":
             # workaround for tahoe #229 / setuptools #17, on debian
             command.extend(["--site-dirs", "/var/lib/python-support/" + pyver])
+        elif sys.platform == "darwin":
+            # this probably only applies to leopard 10.5, possibly only 10.5.5
+            sd = "/System/Library/Frameworks/Python.framework/Versions/2.5/Extras/lib/python"
+            command.extend(["--site-dirs", sd])
         print "Command:", " ".join(command)
         rc = subprocess.call(command)
         if rc < 0:
