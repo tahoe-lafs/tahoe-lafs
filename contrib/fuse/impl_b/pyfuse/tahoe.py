@@ -30,15 +30,19 @@ class TahoeConnection:
         self._init_url()
 
     def _init_url(self):
-        f = open(os.path.join(self.confdir, 'webport'), 'r')
-        contents = f.read()
-        f.close()
-
-        fields = contents.split(':')
-        proto, port = fields[:2]
-        assert proto == 'tcp'
-        port = int(port)
-        self.url = 'http://localhost:%d' % (port,)
+        if os.path.exists(os.path.join(self.confdir, 'node.url')):
+            self.url = file(os.path.join(self.confdir, 'node.url'), 'rb').read().strip()
+            if not self.url.endswith('/'):
+                self.url += '/'
+        else:
+            f = open(os.path.join(self.confdir, 'webport'), 'r')
+            contents = f.read()
+            f.close()
+            fields = contents.split(':')
+            proto, port = fields[:2]
+            assert proto == 'tcp'
+            port = int(port)
+            self.url = 'http://localhost:%d/' % (port,)
 
     def get_root(self):
         # For now we just use the same default as the CLI:
@@ -61,7 +65,7 @@ class TahoeNode:
         return simplejson.loads(json)
 
     def _open(self, postfix=''):
-        url = '%s/uri/%s%s' % (self.conn.url, self.uri, postfix)
+        url = '%suri/%s%s' % (self.conn.url, self.uri, postfix)
         log('*** Fetching: %r', url)
         return urllib.urlopen(url)
 

@@ -162,15 +162,19 @@ class TahoeFS (fuse.Fuse):
         self._init_rootdir()
 
     def _init_url(self):
-        f = open(os.path.join(self.confdir, 'webport'), 'r')
-        contents = f.read()
-        f.close()
-
-        fields = contents.split(':')
-        proto, port = fields[:2]
-        assert proto == 'tcp'
-        port = int(port)
-        self.url = 'http://localhost:%d' % (port,)
+        if os.path.exists(os.path.join(self.confdir, 'node.url')):
+            self.url = file(os.path.join(self.confdir, 'node.url'), 'rb').read().strip()
+            if not self.url.endswith('/'):
+                self.url += '/'
+        else:
+            f = open(os.path.join(self.confdir, 'webport'), 'r')
+            contents = f.read()
+            f.close()
+            fields = contents.split(':')
+            proto, port = fields[:2]
+            assert proto == 'tcp'
+            port = int(port)
+            self.url = 'http://localhost:%d' % (port,)
 
     def _init_rootdir(self):
         # For now we just use the same default as the CLI:
@@ -334,9 +338,11 @@ class TahoeNode (object):
             return TahoeFile(baseurl, uri)
         
     def __init__(self, baseurl, uri):
+        if not baseurl.endswith('/'):
+            baseurl += '/'
         self.burl = baseurl
         self.uri = uri
-        self.fullurl = '%s/uri/%s' % (self.burl, self.uri)
+        self.fullurl = '%suri/%s' % (self.burl, self.uri)
         self.inode = TahoeNode.NextInode
         TahoeNode.NextInode += 1
 
