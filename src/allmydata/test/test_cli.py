@@ -263,20 +263,25 @@ class CreateAlias(SystemTestMixin, CLITestMixin, unittest.TestCase):
             node_url_file = os.path.join(self.getdir("client0"), "node.url")
             nodeurl = open(node_url_file, "r").read().strip()
             uribase = nodeurl + "uri/"
-            self.tahoe_url = uribase + urllib.quote(aliases["tahoe"]) + "/"
-            self.tahoe_subdir_url = self.tahoe_url + "subdir/"
-            self.two_url = uribase + urllib.quote(aliases["two"]) + "/"
+            self.tahoe_url = uribase + urllib.quote(aliases["tahoe"])
+            self.tahoe_subdir_url = self.tahoe_url + "/subdir"
+            self.two_url = uribase + urllib.quote(aliases["two"])
         d.addCallback(_stash_urls)
 
-        d.addCallback(lambda res: self._test_webopen([], self.tahoe_url))
-        d.addCallback(lambda res: self._test_webopen(["/"], self.tahoe_url))
-        d.addCallback(lambda res: self._test_webopen(["tahoe:"], self.tahoe_url))
-        d.addCallback(lambda res: self._test_webopen(["tahoe:/"], self.tahoe_url))
-        d.addCallback(lambda res: self._test_webopen(["tahoe:subdir"],
-                                                     self.tahoe_subdir_url))
-        d.addCallback(lambda res: self._test_webopen(["tahoe:subdir/"],
-                                                     self.tahoe_subdir_url))
-        d.addCallback(lambda res: self._test_webopen(["two:"], self.two_url))
+        def _test_urls(junk):
+            self._test_webopen([], self.tahoe_url)
+            self._test_webopen(["/"], self.tahoe_url)
+            self._test_webopen(["tahoe:"], self.tahoe_url)
+            self._test_webopen(["tahoe:/"], self.tahoe_url)
+            self._test_webopen(["tahoe:subdir"], self.tahoe_subdir_url)
+            self._test_webopen(["tahoe:subdir/"], self.tahoe_subdir_url + '/')
+            self._test_webopen(["tahoe:subdir/file"], self.tahoe_subdir_url + '/file')
+            # if "file" is indeed a file, then the url produced by webopen in this
+            # case is disallowed by the webui. but by design, webopen passes through
+            # the mistake from the user to the resultant webopened url
+            self._test_webopen(["tahoe:subdir/file/"], self.tahoe_subdir_url + '/file/')
+            self._test_webopen(["two:"], self.two_url)
+        d.addCallback(_test_urls)
 
         return d
 

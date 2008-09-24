@@ -189,7 +189,7 @@ class LnOptions(VDriveOptions):
         return "%s ln FROM TO" % (os.path.basename(sys.argv[0]),)
 
 class WebopenOptions(VDriveOptions):
-    def parseArgs(self, where=None):
+    def parseArgs(self, where=''):
         self.where = where
 
     def getSynopsis(self):
