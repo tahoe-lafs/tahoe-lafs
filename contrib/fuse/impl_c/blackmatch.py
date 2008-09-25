@@ -17,7 +17,6 @@ import os
 #import pprint
 import errno
 import stat
-import struct
 # pull in some spaghetti to make this stuff work without fuse-py being installed
 try:
     import _find_fuse_parts
@@ -63,12 +62,6 @@ class TahoeFuseOptions(usage.Options):
         ["cache-timeout", None, 20,
          "Time, in seconds, to cache directory data."],
         ]
-    optFlags = [
-        ["auto-fsid", None,
-         "Set the volume fsid to be a hash of the mounted root_cap. This provides "
-         "a stable identity to the filesystem upon remount, which is useful e.g. "
-         "in support of aliases to files within the filesystem."],
-         ]
 
     def __init__(self):
         usage.Options.__init__(self)
@@ -910,12 +903,6 @@ def main(argv):
     logfile.close()
     logfile = file(fname, 'ab')
     log('\n'+(24*'_')+'init'+(24*'_')+'\n')
-
-    if config['auto-fsid']:
-        # note, macfuse docs state '32bit int' implementation says '< 0xFFFFFF'
-        h = 0xFFFFFF & struct.unpack('i', sha.new(root_uri).digest()[:4])[0]
-        log('using auto-allocated fsid: %d' % h)
-        config.fuse_options.append('fsid=%d'%h)
 
     if not os.path.exists(config.mountpoint):
         raise OSError(2, 'No such file or directory: "%s"' % (config.mountpoint,))
