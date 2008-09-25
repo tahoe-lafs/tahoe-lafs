@@ -27,8 +27,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
         return d
 
     def _delete_a_share(self, unused=None):
-        """ Exactly one bit of exactly one share on disk will be flipped (randomly selected from
-        among the bits of the 'share data' -- the verifiable bits)."""
+        """ Delete one share. """
 
         shares = self.find_shares()
         ks = shares.keys()
@@ -39,7 +38,8 @@ class Test(ShareManglingMixin, unittest.TestCase):
         return unused
 
     def _corrupt_a_share(self, unused=None):
-        """ Delete one share. """
+        """ Exactly one bit of exactly one share on disk will be flipped (randomly selected from
+        among the bits of the 'share data' -- the verifiable bits)."""
 
         shares = self.find_shares()
         ks = shares.keys()
