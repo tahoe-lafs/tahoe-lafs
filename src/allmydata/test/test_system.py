@@ -1,5 +1,5 @@
 from base64 import b32encode
-import os, random, struct, sys, time, re, simplejson, urllib
+import os, sys, time, re, simplejson, urllib
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -8,7 +8,7 @@ from twisted.internet.error import ConnectionDone, ConnectionLost
 import allmydata
 from allmydata import uri, storage, offloaded
 from allmydata.immutable import download, upload, filenode
-from allmydata.util import idlib, mathutil, testutil
+from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI, \
@@ -21,7 +21,7 @@ from twisted.python.failure import Failure
 from twisted.web.client import getPage
 from twisted.web.error import Error
 
-from allmydata.test.common import SystemTestMixin, ShareManglingMixin
+from allmydata.test.common import SystemTestMixin
 
 LARGE_DATA = """
 This is some data to publish to the virtual drive, which needs to be large
