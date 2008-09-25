@@ -10,6 +10,7 @@ class StartOptions(BasedirMixin, usage.Options):
         ]
     optFlags = [
         ["profile", "p", "whether to run under the Python profiler, putting results in \"profiling_results.prof\""],
+        ["syslog", None, "tell the node to log to syslog, not a file"],
         ]
 
 class StopOptions(BasedirMixin, usage.Options):
@@ -26,6 +27,7 @@ class RestartOptions(BasedirMixin, usage.Options):
          "instead of complaining that you should have used 'start' instead "
          "of 'restart'"],
         ["profile", "p", "whether to run under the Python profiler, putting results in \"profiling_results.prof\""],
+        ["syslog", None, "tell the node to log to syslog, not a file"],
         ]
 
 class RunOptions(usage.Options):
@@ -33,7 +35,7 @@ class RunOptions(usage.Options):
         ["basedir", "C", None, "which directory to run the node in, CWD by default"],
         ]
 
-def do_start(basedir, profile=False, out=sys.stdout, err=sys.stderr):
+def do_start(basedir, opts, out=sys.stdout, err=sys.stderr):
     print >>out, "STARTING", basedir
     if not os.path.isdir(basedir):
         print >>err, "%s does not look like a directory at all" % basedir
@@ -73,10 +75,12 @@ def do_start(basedir, profile=False, out=sys.stdout, err=sys.stderr):
         sys.exit(1)
 
     cmd.extend(["-y", tac])
-    if nodetype in ("client", "introducer"):
+    if opts["syslog"]:
+        cmd.append("--syslog")
+    elif nodetype in ("client", "introducer"):
         fileutil.make_dirs(os.path.join(basedir, "logs"))
         cmd.extend(["--logfile", os.path.join("logs", "twistd.log")])
-    if profile:
+    if opts["profile"]:
         cmd.extend(["--profile=profiling_results.prof", "--savestats",])
     curdir = os.getcwd()
     try:
@@ -147,7 +151,7 @@ def do_stop(basedir, out=sys.stdout, err=sys.stderr):
 def start(config, stdout, stderr):
     rc = 0
     for basedir in config['basedirs']:
-        rc = do_start(basedir, config['profile'], stdout, stderr) or rc
+        rc = do_start(basedir, config, stdout, stderr) or rc
     return rc
 
 def stop(config, stdout, stderr):
@@ -167,7 +171,7 @@ def restart(config, stdout, stderr):
         print >>stderr, "not restarting"
         return rc
     for basedir in config['basedirs']:
-        rc = do_start(basedir, config['profile'], stdout, stderr) or rc
+        rc = do_start(basedir, config, stdout, stderr) or rc
     return rc
 
 def run(config, stdout, stderr):
