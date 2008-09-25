@@ -280,6 +280,56 @@ class MountFrame(wx.Frame):
     def on_close(self, event):
         self.Show(False)
 
+
+def check_mount(proc):
+    message = [ 'pid: %s' % (proc.pid,),
+                'ret: %s' % (proc.returncode,),
+                'stdout:\n%s' % (proc.stdout.read(),),
+                'stderr:\n%s' % (proc.stderr.read(),),
+                ]
+    log.msg('\n'.join(['spawned process:'] + message))
+
+def mount_filesystem(basedir, alias_name, mountpoint, display_name=None, timeout=None):
+    log.msg('mount_filesystem(%r,%r,%r,%r)' % (basedir, alias_name, mountpoint, display_name))
+    log.msg('sys.exec = %r' % (sys.executable,))
+    if not sys.executable.endswith('Allmydata.app/Contents/MacOS/python'):
+        log.msg("can't find allmydata.app: sys.executable = %r" % (sys.executable,))
+        wx.MessageBox("Can't determine location of Allmydata.app")
+        return False
+    bin_path = sys.executable[:-6] + 'Allmydata'
+    log.msg('%r exists: %r' % (bin_path, os.path.exists(bin_path),))
+
+    foptions = []
+    foptions.append('-olocal') # required to display in Finder on leopard
+
+    if display_name is None:
+        display_name = alias_name
+    foptions.append('-ovolname=%s' % (display_name,))
+
+    if timeout is None:
+        timeout = DEFAULT_FUSE_TIMEOUT
+    if timeout:
+        foptions.append('-odaemon_timeout=%d' % (timeout,))
+
+    icns_path = os.path.join(basedir, 'private', alias_name+'.icns')
+    if not os.path.exists(icns_path):
+        icns_path = os.path.normpath(os.path.join(os.path.dirname(sys.executable),
+                                                  '../Resources/allmydata.icns'))
+        log.msg('set icns_path=%s' % (icns_path,))
+        log.msg('icns_path exists: %s' % os.path.exists(icns_path))
+    if os.path.exists(icns_path):
+        foptions.append('-ovolicon=%s' % (icns_path,))
+
+    command = [bin_path, 'fuse', '--alias', alias_name] + foptions + [mountpoint]
+    log.msg('spawning command %r' % (command,))
+    proc = subprocess.Popen(command,
+                            cwd=basedir,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    log.msg('spawned process, pid %s' % (proc.pid,))
+    wx.FutureCall(4096, check_mount, proc)
+    return True
+
 class MountPanel(wx.Panel):
     def __init__(self, parent, on_close, app):
         wx.Panel.__init__(self, parent, -1)
@@ -339,6 +389,15 @@ class MountPanel(wx.Panel):
 
     def do_mount(self, alias_name, mountpoint):
         log.msg('do_mount(%r, %r)' % (alias_name, mountpoint))
+        # XXX this needs a referential cleanup
+        timeout = self.app.config['daemon-timeout']
+        ok = mount_filesystem(self.app.basedir, alias_name, mountpoint, timeout=timeout)
+        if ok and self.app.config['auto-open']:
+            wx.FutureCall(2048, open_finder, mountpoint)
+        self.parent.parent.Show(False)
+
+    def old_do_mount(self, alias_name, mountpoint):
+        log.msg('do_mount(%r, %r)' % (alias_name, mountpoint))
         log.msg('sys.exec = %r' % (sys.executable,))
         if not sys.executable.endswith('Allmydata.app/Contents/MacOS/python'):
             log.msg("can't find allmydata.app: sys.executable = %r" % (sys.executable,))
@@ -384,19 +443,59 @@ class MountPanel(wx.Panel):
                     ]
         log.msg('\n'.join(['spawned process:'] + message))
 
+def open_finder(path):
+    proc = subprocess.Popen(['/usr/bin/open', path],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+
 class MacGuiApp(wx.App):
+    config = {
+        'auto-mount': True,
+        'auto-open': True,
+        'show-webopen': False,
+        'daemon-timeout': DEFAULT_FUSE_TIMEOUT,
+        }
+
     def __init__(self, app):
         self.app = app
+        self.load_config()
         wx.App.__init__(self)
+    # XXX should have a table of all mounted filesystems, so that can unmount on quit
+
+    def load_config(self):
+        log.msg('load_config')
+        confdir = os.path.join(self.app.basedir, 'gui.conf')
+        config = {}
+        config.update(self.config)
+        for k in self.config:
+            f = os.path.join(confdir, k)
+            if os.path.exists(f):
+                val = file(f, 'rb').read().strip()
+                if type(self.config[k]) == bool:
+                    if val.lower() in ['y', 'yes', 'true', 'on', '1']:
+                        val = True
+                    else:
+                        val = False
+                elif type(self.config[k]) == int:
+                    val = int(val)
+                config[k] = val
+        self.config = config
+        #log.msg('loaded config: %r' % (self.config,)) # XXX
 
     def OnInit(self):
+        log.msg('OnInit')
         try:
             self.frame = SplashFrame()
             self.frame.CenterOnScreen()
             self.frame.Show(True)
             self.SetTopWindow(self.frame)
 
+            # self.load_config()
+
             wx.FutureCall(4096, self.on_timer, None)
+
+            # XXX clean up this ref
+            self.app.config = self.config
 
             self.mount_frame = MountFrame(self.app)
 
@@ -411,6 +510,18 @@ class MacGuiApp(wx.App):
 
     def on_timer(self, event):
         self.frame.Show(False)
+        self.perhaps_automount()
+
+    def perhaps_automount(self):
+        if self.config['auto-mount']:
+            mountpoint = os.path.expanduser('~/.tahoe/mnt/__auto__')
+            if not os.path.isdir(mountpoint):
+                os.makedirs(mountpoint)
+            timeout = self.config['daemon-timeout']
+            mount_filesystem(self.app.basedir, 'tahoe', mountpoint, 'Allmydata', timeout)
+            if self.config['auto-open']:
+                assert os.path.isdir(mountpoint)
+                wx.FutureCall(2048, open_finder, mountpoint)
 
     def setup_dock_icon(self):
         self.tbicon = wx.TaskBarIcon()
@@ -420,8 +531,9 @@ class MacGuiApp(wx.App):
     def setup_app_menu(self, frame):
         menubar = wx.MenuBar()
         file_menu = wx.Menu()
-        item = file_menu.Append(WEBOPEN_ID, text='Open Web Root')
-        frame.Bind(wx.EVT_MENU, self.on_webopen, item)
+        if self.config['show-webopen']:
+            item = file_menu.Append(WEBOPEN_ID, text='Open Web Root')
+            frame.Bind(wx.EVT_MENU, self.on_webopen, item)
         item = file_menu.Append(ACCOUNT_PAGE_ID, text='Open Account Page')
         frame.Bind(wx.EVT_MENU, self.on_account_page, item)
         item = file_menu.Append(MOUNT_ID, text='Mount Filesystem')
@@ -437,8 +549,9 @@ class MacGuiApp(wx.App):
         dock_menu = wx.Menu()
         item = dock_menu.Append(wx.NewId(), text='About')
         self.tbicon.Bind(wx.EVT_MENU, self.on_about, item)
-        item = dock_menu.Append(WEBOPEN_ID, text='Open Web Root')
-        self.tbicon.Bind(wx.EVT_MENU, self.on_webopen, item)
+        if self.config['show-webopen']:
+            item = dock_menu.Append(WEBOPEN_ID, text='Open Web Root')
+            self.tbicon.Bind(wx.EVT_MENU, self.on_webopen, item)
         item = dock_menu.Append(ACCOUNT_PAGE_ID, text='Open Account Page')
         self.tbicon.Bind(wx.EVT_MENU, self.on_account_page, item)
         item = dock_menu.Append(MOUNT_ID, text='Mount Filesystem')
@@ -449,6 +562,7 @@ class MacGuiApp(wx.App):
         self.frame.Show(True)
 
     def on_quit(self, event):
+        #XXX unmount mounted (automounted!) filesystems
         self.ExitMainLoop()
 
     def on_webopen(self, event):
