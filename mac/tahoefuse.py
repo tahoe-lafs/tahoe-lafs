@@ -6,11 +6,15 @@ from allmydata.scripts.common_http import do_http as do_http_req
 from allmydata.util.hashutil import tagged_hash
 from allmydata.util.assertutil import precondition
 from allmydata.util import base32
+from allmydata.scripts.common import get_aliases
+
+from twisted.python import usage
 
 import base64
 import sha
 import sys
 import os
+#import pprint
 import errno
 import stat
 # pull in some spaghetti to make this stuff work without fuse-py being installed
@@ -27,6 +31,8 @@ import traceback
 import simplejson
 import urllib
 
+VERSIONSTR="0.6"
+
 USAGE = 'usage: tahoe fuse [dir_cap_name] [fuse_options] mountpoint'
 DEFAULT_DIRECTORY_VALIDITY=26
 
@@ -37,6 +43,44 @@ if not hasattr(fuse, '__version__'):
 fuse.fuse_python_api = (0, 2)
 fuse.feature_assert('stateful_files', 'has_init')
 
+class TahoeFuseOptions(usage.Options):
+    optParameters = [
+        ["node-directory", None, "~/.tahoe",
+         "Look here to find out which Tahoe node should be used for all "
+         "operations. The directory should either contain a full Tahoe node, "
+         "or a file named node.url which points to some other Tahoe node. "
+         "It should also contain a file named private/aliases which contains "
+         "the mapping from alias name to root dirnode URI."
+         ],
+        ["node-url", None, None,
+         "URL of the tahoe node to use, a URL like \"http://127.0.0.1:8123\". "
+         "This overrides the URL found in the --node-directory ."],
+        ["alias", None, None,
+         "Which alias should be mounted."],
+        ["root-uri", None, None,
+         "Which root directory uri should be mounted."],
+        ["cache-timeout", None, 20,
+         "Time, in seconds, to cache directory data."],
+        ]
+
+    def __init__(self):
+        usage.Options.__init__(self)
+        self.fuse_options = []
+        self.mountpoint = None
+
+    def opt_option(self, fuse_option):
+        """
+        Pass mount options directly to fuse.  See below.
+        """
+        self.fuse_options.append(fuse_option)
+        
+    opt_o = opt_option
+
+    def parseArgs(self, mountpoint=''):
+        self.mountpoint = mountpoint
+
+    def getSynopsis(self):
+        return "%s [options] mountpoint" % (os.path.basename(sys.argv[0]),)
 
 logfile = file('tfuse.log', 'ab')
 
@@ -404,25 +448,16 @@ class TahoeFuse(fuse.Fuse):
 
 def launch_tahoe_fuse(tfs, argv):
     sys.argv = ['tahoe fuse'] + list(argv)
-    server = TahoeFuse(tfs, version="%prog " + fuse.__version__,
-                       usage=USAGE,
+    log('setting sys.argv=%r' % (sys.argv,))
+    config = TahoeFuseOptions()
+    server = TahoeFuse(tfs, version="%prog " +VERSIONSTR+", fuse "+ fuse.__version__,
+                       usage=config.getSynopsis(),
                        dash_s_do='setsingle')
     server.parse(errex=1)
     server.main()
 
-
-def getbasedir(cap_name='root_dir'):
-    fname = os.path.expanduser("~/.tahoe/private/%s.cap" % (cap_name,))
-    if os.path.exists(fname):
-        f = file(fname, 'rb')
-        bd = f.read().strip()
-        f.close()
-        return bd
-    else:
-        return None
-
-def getnodeurl():
-    f = file(os.path.expanduser("~/.tahoe/node.url"), 'rb')
+def getnodeurl(nodedir):
+    f = file(os.path.expanduser(os.path.join(nodedir, "node.url")), 'rb')
     nu = f.read().strip()
     f.close()
     if nu[-1] != "/":
@@ -435,6 +470,19 @@ def fingerprint(uri):
     return base64.b32encode(sha.new(uri).digest()).lower()[:6]
 
 class TStat(fuse.Stat):
+    # in fuse 0.2, these are set by fuse.Stat.__init__
+    # in fuse 0.2-pre3 (hardy) they are not. badness unsues if they're missing
+    st_mode  = None
+    st_ino   = 0
+    st_dev   = 0
+    st_nlink = None
+    st_uid   = 0
+    st_gid   = 0
+    st_size  = 0
+    st_atime = 0
+    st_mtime = 0
+    st_ctime = 0
+
     fields = [ 'st_mode', 'st_ino', 'st_dev', 'st_nlink', 'st_uid', 'st_gid', 'st_size',
                'st_atime', 'st_mtime', 'st_ctime', ]
     def __init__(self, metadata, **kwargs):
@@ -450,18 +498,10 @@ class TStat(fuse.Stat):
         fuse.Stat.__init__(self, **kwargs)
 
     def __repr__(self):
-        return "<Stat%r>" % {
-            'st_mode': self.st_mode,
-            'st_ino': self.st_ino,
-            'st_dev': self.st_dev,
-            'st_nlink': self.st_nlink,
-            'st_uid': self.st_uid,
-            'st_gid': self.st_gid,
-            'st_size': self.st_size,
-            'st_atime': self.st_atime,
-            'st_mtime': self.st_mtime,
-            'st_ctime': self.st_ctime,
-            }
+        d = {}
+        for f in self.fields:
+            d[f] = getattr(self, f, None)
+        return "<Stat%r>" % (d,)
 
 class Directory(object):
     def __init__(self, tfs, ro_uri, rw_uri):
@@ -612,13 +652,15 @@ class File(object):
         return True
 
 class TFS(object):
-    def __init__(self, nodeurl, root_uri, cache_validity_period=DEFAULT_DIRECTORY_VALIDITY):
+    def __init__(self, nodedir, nodeurl, root_uri, 
+                       cache_validity_period=DEFAULT_DIRECTORY_VALIDITY):
         self.cache_validity = cache_validity_period
         self.nodeurl = nodeurl
         self.root_uri = root_uri
         self.dirs = {}
 
-        self.cache = FileCache(nodeurl, os.path.expanduser('~/.tahoe/_cache'))
+        cachedir = os.path.expanduser(os.path.join(nodedir, '_cache'))
+        self.cache = FileCache(nodeurl, cachedir)
         ro_uri = NewDirectoryURI.init_from_string(self.root_uri).get_readonly()
         self.root = Directory(self, ro_uri, self.root_uri)
         self.root.maybe_refresh('<root>')
@@ -815,46 +857,66 @@ def main(argv):
     if not argv:
         argv = ['--help']
     if len(argv) == 1 and argv[0] in ['-h', '--help', '--version']:
+        config = TahoeFuseOptions()
+        print >> sys.stderr, config
+        print >> sys.stderr, 'fuse usage follows:'
         launch_tahoe_fuse(None, argv)
         return -2
 
-    if not argv[0].startswith('-') and len(argv) > 1:
-        cap_name = argv[0]
-        basedir = getbasedir(cap_name)
-        if basedir is None:
-            print 'root dir named "%s" not found.' % (cap_name,)
-            return -2
-        argv = argv[1:]
+    config = TahoeFuseOptions()
+    try:
+        #print 'parsing', argv
+        config.parseOptions(argv)
+    except usage.error, e:
+        print config
+        print e
+        return -1
+
+    if config['alias']:
+        alias = config['alias']
+        #print 'looking for aliases in', config['node-directory']
+        aliases = get_aliases(os.path.expanduser(config['node-directory']))
+        if alias not in aliases:
+            raise usage.error('Alias %r not found' % (alias,))
+        root_uri = aliases[alias]
+    elif config['root-uri']:
+        root_uri = config['root-uri']
+        alias = 'root-uri'
+        # test the uri for structural validity:
+        try:
+            NewDirectoryURI.init_from_string(root_uri)
+        except:
+            raise usage.error('root-uri must be a valid directory uri (not %r)' % (root_uri,))
     else:
-        basedir = getbasedir() # default 'root_dir'
-        cap_name = 'root_dir'
+        raise usage.error('At least one of --alias or --root-uri must be specified')
+
+
+    nodedir = config['node-directory']
+    nodeurl = config['node-url']
+    if not nodeurl:
+        nodeurl = getnodeurl(nodedir)
 
     # switch to named log file.
     global logfile
-    fname = 'tfuse.%s.log' % (cap_name,)
+    fname = 'tfuse.%s.log' % (alias,)
     log('switching to %s' % (fname,))
     logfile.close()
     logfile = file(fname, 'ab')
+    log('\n'+(24*'_')+'init'+(24*'_')+'\n')
 
-    if argv[-1].startswith('-'):
-        print 'mountpoint not given'
-        return -2
-    mountpoint = os.path.abspath(argv[-1])
-    if not os.path.exists(mountpoint):
-        #raise OSError(2, 'No such file or directory: "%s"' % (mountpoint,))
-        print 'No such file or directory: "%s"' % (mountpoint,)
-        return -2
+    if not os.path.exists(config.mountpoint):
+        raise OSError(2, 'No such file or directory: "%s"' % (config.mountpoint,))
 
-    nodeurl = getnodeurl()
-
-    tfs = TFS(nodeurl, basedir)
+    cache_timeout = float(config['cache-timeout'])
+    tfs = TFS(nodedir, nodeurl, root_uri, cache_timeout)
     print tfs.pprint()
 
     # make tfs instance accesible to print_tree() for dbg
     global _tfs
     _tfs = tfs
 
-    launch_tahoe_fuse(tfs, argv)
+    args = [ '-o'+opt for opt in config.fuse_options ] + [config.mountpoint]
+    launch_tahoe_fuse(tfs, args)
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    sys.exit(main(sys.argv[1:]))
