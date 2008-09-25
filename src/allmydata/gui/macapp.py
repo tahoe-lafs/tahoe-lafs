@@ -17,7 +17,7 @@ from twisted.python import log, logfile
 import allmydata
 from allmydata import client
 from allmydata.gui.confwiz import ConfWizApp, ACCOUNT_PAGE, DEFAULT_SERVER_URL
-from allmydata.uri import NewDirectoryURI
+from allmydata.scripts.common import get_aliases
 import amdicon
 
 DEFAULT_FUSE_TIMEOUT = 300
@@ -268,26 +268,26 @@ class MountPanel(wx.Panel):
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.caps = self.find_dir_caps()
+        self.aliases = get_aliases(self.app.basedir)
 
         self.label = wx.StaticText(self, -1, 'Allmydata Mount Filesystem')
         self.mnt_label = wx.StaticText(self, -1, 'Mount')
-        self.cap_choice = wx.Choice(self, -1, (120, 64), choices=self.caps.keys())
-        root_dir = self.cap_choice.FindString('root_dir')
+        self.alias_choice = wx.Choice(self, -1, (120, 64), choices=self.aliases.keys())
+        root_dir = self.alias_choice.FindString('tahoe')
         if root_dir != -1:
-            self.cap_choice.SetSelection(root_dir)
+            self.alias_choice.SetSelection(root_dir)
         self.at_label = wx.StaticText(self, -1, 'at')
         self.mountpoint = wx.TextCtrl(self, -1, 'choose a mount dir', size=(256,22))
         self.mnt_browse = wx.Button(self, -1, 'Browse')
         mount_sizer = wx.BoxSizer(wx.HORIZONTAL)
         mount_sizer.Add(self.mnt_label, 0, wx.ALL, 4)
-        mount_sizer.Add(self.cap_choice, 0, wx.ALL, 4)
+        mount_sizer.Add(self.alias_choice, 0, wx.ALL, 4)
         mount_sizer.Add(self.at_label, 0, wx.ALL, 4)
         mount_sizer.Add(self.mountpoint, 0, wx.ALL, 4)
         mount_sizer.Add(self.mnt_browse, 0, wx.ALL, 4)
         self.mount = wx.Button(self, -1, 'Mount')
         self.Bind(wx.EVT_BUTTON, self.on_mount, self.mount)
-        #self.Bind(wx.EVT_CHOICE, self.on_choice, self.cap_choice)
+        #self.Bind(wx.EVT_CHOICE, self.on_choice, self.alias_choice)
         self.Bind(wx.EVT_BUTTON, self.on_mnt_browse, self.mnt_browse)
         self.sizer.Add(self.label, 0, wx.CENTER | wx.ALL, 2)
         self.sizer.Add(wx.Size(28,28), 1, wx.EXPAND | wx.ALL, 2)
@@ -296,25 +296,6 @@ class MountPanel(wx.Panel):
         self.sizer.Add(self.mount, 0, wx.CENTER | wx.ALL, 2)
         self.SetSizer(self.sizer)
         self.SetAutoLayout(True)
-
-    def find_dir_caps(self):
-        priv_dir = os.path.join(self.app.basedir, 'private')
-        fs = os.listdir(priv_dir)
-        caps = {}
-        for f in fs:
-            if not f.endswith('.cap'):
-                continue
-            try:
-                log.msg('reading: %r' % (f,))
-                fh = file(os.path.join(priv_dir, f), 'rb')
-                cap = fh.read().strip()
-                fh.close()
-                uri = NewDirectoryURI.init_from_string(cap)
-                caps[f[:-4]] = cap
-            except:
-                log.msg('failed to read dir cap from "%s"' % (f,))
-                log.err()
-        return caps
 
     #def on_choice(self, event):
         #choice = event.GetString()
@@ -325,8 +306,8 @@ class MountPanel(wx.Panel):
         if not os.path.isdir(mountpoint):
             wx.MessageBox(u'"%s" is not a directory' % (mountpoint,))
         else:
-            cap_name = self.cap_choice.GetStringSelection()
-            self.do_mount(cap_name, mountpoint)
+            alias_name = self.alias_choice.GetStringSelection()
+            self.do_mount(alias_name, mountpoint)
 
     def on_mnt_browse(self, event):
         dlg = wx.DirDialog(self, "Choose a Mountpoint Directory:",
@@ -336,8 +317,8 @@ class MountPanel(wx.Panel):
             self.mountpoint.SetValue(mountpoint)
         dlg.Destroy()
 
-    def do_mount(self, cap_name, mountpoint):
-        log.msg('do_mount(%r, %r)' % (cap_name, mountpoint))
+    def do_mount(self, alias_name, mountpoint):
+        log.msg('do_mount(%r, %r)' % (alias_name, mountpoint))
         log.msg('sys.exec = %r' % (sys.executable,))
         if not sys.executable.endswith('Allmydata.app/Contents/MacOS/python'):
             log.msg("can't find allmydata.app: sys.executable = %r" % (sys.executable,))
@@ -348,18 +329,24 @@ class MountPanel(wx.Panel):
         log.msg('%r exists: %r' % (bin_path, os.path.exists(bin_path),))
 
         foptions = []
-        foptions.append('-ovolname=%s' % (cap_name,))
+        foptions.append('-ovolname=%s' % (alias_name,))
+        foptions.append('-olocal')
 
         timeout = DEFAULT_FUSE_TIMEOUT
         # [ ] TODO: make this configurable
         if timeout:
             foptions.append('-odaemon_timeout=%d' % (timeout,))
 
-        icns_path = os.path.join(self.app.basedir, 'private', cap_name+'.icns')
+        icns_path = os.path.join(self.app.basedir, 'private', alias_name+'.icns')
+        if not os.path.exists(icns_path):
+            icns_path = os.path.normpath(os.path.join(os.path.dirname(sys.executable),
+                                                      '../Resources/allmydata.icns'))
+            log.msg('set icns_path=%s' % (icns_path,))
+            log.msg('icns_path exists: %s' % os.path.exists(icns_path))
         if os.path.exists(icns_path):
             foptions.append('-ovolicon=%s' % (icns_path,))
 
-        command = [bin_path, 'fuse', cap_name] + foptions + [mountpoint]
+        command = [bin_path, 'fuse', '--alias', alias_name] + foptions + [mountpoint]
         log.msg('spawning command %r' % (command,))
         proc = subprocess.Popen(command,
                                 cwd=self.app.basedir,
