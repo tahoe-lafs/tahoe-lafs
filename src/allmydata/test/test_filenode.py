@@ -111,31 +111,7 @@ class Node(unittest.TestCase):
         v = n.get_verifier()
         self.failUnless(isinstance(v, uri.SSKVerifierURI))
 
-class Checker(unittest.TestCase):
-    def test_chk_filenode(self):
-        u = uri.CHKFileURI(key="\x00"*16,
-                           uri_extension_hash="\x00"*32,
-                           needed_shares=3,
-                           total_shares=10,
-                           size=1000)
-        c = None
-        fn1 = filenode.FileNode(u, c)
-
-        fn1.checker_class = FakeImmutableChecker
-        fn1.verifier_class = FakeImmutableVerifier
-
-        d = fn1.check()
-        def _check_checker_results(cr):
-            self.failUnless(cr.is_healthy())
-        d.addCallback(_check_checker_results)
-
-        d.addCallback(lambda res: fn1.check(verify=True))
-        d.addCallback(_check_checker_results)
-
-        # TODO: check-and-repair
-
-        return d
-
+class LiteralChecker(unittest.TestCase):
     def test_literal_filenode(self):
         DATA = "I am a short file."
         u = uri.LiteralFileURI(data=DATA)
@@ -150,35 +126,3 @@ class Checker(unittest.TestCase):
         d.addCallback(_check_checker_results)
 
         return d
-
-class FakeMutableChecker:
-    def __init__(self, node):
-        self.r = CheckerResults(node.get_storage_index())
-        self.r.set_healthy(True)
-
-    def check(self, verify):
-        return defer.succeed(self.r)
-
-class FakeMutableCheckAndRepairer:
-    def __init__(self, node):
-        cr = CheckerResults(node.get_storage_index())
-        cr.set_healthy(True)
-        self.r = CheckAndRepairResults(node.get_storage_index())
-        self.r.pre_repair_results = self.r.post_repair_results = cr
-
-    def check(self, verify):
-        return defer.succeed(self.r)
-
-class FakeImmutableChecker:
-    def __init__(self, client, storage_index, needed_shares, total_shares):
-        self.r = CheckerResults(storage_index)
-        self.r.set_healthy(True)
-
-    def start(self):
-        return defer.succeed(self.r)
-
-def FakeImmutableVerifier(client,
-                          storage_index, needed_shares, total_shares, size,
-                          ueb_hash):
-    return FakeImmutableChecker(client,
-                                storage_index, needed_shares, total_shares)

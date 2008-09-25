@@ -1477,13 +1477,8 @@ class ICheckable(Interface):
         """Like check(), but if the file/directory is not healthy, attempt to
         repair the damage.
 
-        This returns a Deferred which fires with a tuple of (pre, post), each
-        is either None or an ICheckerResults instance. For non-distributed
-        files (i.e. a LIT file) both are None. Otherwise, 'pre' is an
-        ICheckerResults representing the state of the object before any
-        repair attempt is made. If the file was unhealthy and repair was
-        attempted, 'post' will be another ICheckerResults instance with the
-        state of the object after repair."""
+        This returns a Deferred which fires with an instance of
+        ICheckAndRepairResults."""
 
 class IDeepCheckable(Interface):
     def deep_check(verify=False):
