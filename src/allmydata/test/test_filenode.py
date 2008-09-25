@@ -1,9 +1,7 @@
 
 from twisted.trial import unittest
-from twisted.internet import defer
 from allmydata import uri
 from allmydata.immutable import filenode, download
-from allmydata.checker_results import CheckerResults, CheckAndRepairResults
 from allmydata.mutable.node import MutableFileNode
 from allmydata.util import hashutil
 
