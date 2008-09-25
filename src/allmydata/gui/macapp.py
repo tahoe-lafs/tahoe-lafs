@@ -19,6 +19,7 @@ from allmydata import client
 from allmydata.gui.confwiz import ConfWizApp, ACCOUNT_PAGE, DEFAULT_SERVER_URL
 from allmydata.scripts.common import get_aliases
 import amdicon
+import amdlogo
 
 DEFAULT_FUSE_TIMEOUT = 300
 
@@ -192,7 +193,8 @@ MOUNT_ID = wx.NewId()
 
 class SplashFrame(wx.Frame):
     def __init__(self):
-        wx.Frame.__init__(self, None, -1, 'Allmydata')
+        no_resz = wx.DEFAULT_FRAME_STYLE & ~ (wx.MINIMIZE_BOX|wx.RESIZE_BORDER|wx.MAXIMIZE_BOX)
+        wx.Frame.__init__(self, None, -1, 'Allmydata', style=no_resz)
 
         self.SetSizeHints(100, 100, 600, 800)
         self.SetIcon(amdicon.getIcon())
@@ -219,19 +221,37 @@ class SplashPanel(wx.Panel):
         wx.Panel.__init__(self, parent, -1)
         self.parent = parent
 
+        hbox = wx.BoxSizer(wx.HORIZONTAL)
+        vbox = wx.BoxSizer(wx.VERTICAL)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
+        self.icon = wx.StaticBitmap(self, -1, amdlogo.getBitmap())
         self.label = wx.StaticText(self, -1, 'Allmydata')
-        font = self.label.GetFont()
-        font.SetPointSize(26)
-        self.label.SetFont(font)
-        self.ver_label = wx.StaticText(self, -1, str(allmydata.__version__))
-        self.ok = wx.Button(self, -1, 'Ok')
-        self.Bind(wx.EVT_BUTTON, on_close, self.ok)
-        self.sizer.Add(self.label, 0, wx.CENTER | wx.ALL, 2)
-        self.sizer.Add(self.ver_label, 0, wx.CENTER | wx.ALL, 2)
-        self.sizer.Add(wx.Size(42,42), 1, wx.EXPAND | wx.ALL, 2)
-        self.sizer.Add(self.ok, 0, wx.CENTER | wx.ALL, 2)
+        bigfont = self.label.GetFont()
+        bigfont.SetPointSize(26)
+        smlfont = self.label.GetFont()
+        smlfont.SetPointSize(10)
+        self.label.SetFont(bigfont)
+        ver = "Version 3.0 (%s)" % (allmydata.__version__,)
+        self.ver_label = wx.StaticText(self, -1, ver)
+        self.ver_label.SetFont(smlfont)
+        copy = u"Copyright \N{COPYRIGHT SIGN} 2004-2008 Allmydata Inc.,"
+        self.copy_label = wx.StaticText(self, -1, copy)
+        self.copy_label.SetFont(smlfont)
+        self.res_label = wx.StaticText(self, -1, "All Rights Reserved.")
+        self.res_label.SetFont(smlfont)
+        ##self.ok = wx.Button(self, -1, 'Ok')
+        ##self.Bind(wx.EVT_BUTTON, on_close, self.ok)
+        hbox.Add(self.icon, 0, wx.CENTER | wx.ALL, 2)
+        vbox.Add(self.label, 0, wx.CENTER | wx.ALL, 2)
+        vbox.Add(self.ver_label, 0, wx.CENTER | wx.ALL, 2)
+        hbox.Add(vbox)
+        self.sizer.Add(hbox)
+        self.sizer.Add(wx.Size(8,8), 1, wx.EXPAND | wx.ALL, 2)
+        self.sizer.Add(self.copy_label, 0, wx.CENTER | wx.ALL, 2)
+        self.sizer.Add(self.res_label, 0, wx.CENTER | wx.ALL, 2)
+        #self.sizer.Add(wx.Size(42,42), 1, wx.EXPAND | wx.ALL, 2)
+        ##self.sizer.Add(self.ok, 0, wx.CENTER | wx.ALL, 2)
         self.SetSizer(self.sizer)
         self.SetAutoLayout(True)
 
@@ -372,6 +392,7 @@ class MacGuiApp(wx.App):
     def OnInit(self):
         try:
             self.frame = SplashFrame()
+            self.frame.CenterOnScreen()
             self.frame.Show(True)
             self.SetTopWindow(self.frame)
 
