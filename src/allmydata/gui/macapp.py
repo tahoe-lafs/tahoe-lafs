@@ -133,21 +133,17 @@ class App(object):
         self.reactor_shutdown.wait()
         log.msg('reactor shut down')
 
-    def webopen(self):
-        if self.files_exist(['node.url', 'private/root_dir.cap']):
-            def read_file(f):
-                fh = file(f, 'rb')
-                contents = fh.read().strip()
-                fh.close()
-                return contents
-            nodeurl = read_file(os.path.join(self.basedir, 'node.url'))
+    def webopen(self, alias=None):
+        log.msg('webopen: %r' % (alias,))
+        if alias is None:
+            alias = 'tahoe'
+        root_uri = get_aliases(self.basedir).get(alias)
+        if root_uri:
+            nodeurl = file(os.path.join(self.basedir, 'node.url'), 'rb').read().strip()
             if nodeurl[-1] != "/":
                 nodeurl += "/"
-            root_dir = read_file(os.path.join(self.basedir, 'private/root_dir.cap'))
-            url = nodeurl + "uri/%s/" % urllib.quote(root_dir)
+            url = nodeurl + "uri/%s/" % urllib.quote(root_uri)
             webbrowser.open(url)
-        else:
-            print 'files missing, not opening initial webish root page'
 
     def maybe_install_tahoe_script(self):
         path_candidates = ['/usr/local/bin', '~/bin', '~/Library/bin']
@@ -532,8 +528,18 @@ class MacGuiApp(wx.App):
         menubar = wx.MenuBar()
         file_menu = wx.Menu()
         if self.config['show-webopen']:
-            item = file_menu.Append(WEBOPEN_ID, text='Open Web Root')
-            frame.Bind(wx.EVT_MENU, self.on_webopen, item)
+            webopen_menu = wx.Menu()
+            # XXX should promote to mac app inst var
+            aliases = get_aliases(self.app.basedir)
+            self.webopen_menu_ids = {}
+            for alias in aliases:
+                mid = wx.NewId()
+                self.webopen_menu_ids[mid] = alias
+                item = webopen_menu.Append(mid, alias)
+                frame.Bind(wx.EVT_MENU, self.on_webopen, item)
+            #log.msg('menu ids: %r' % (self.webopen_menu_ids,))
+            file_menu.AppendMenu(WEBOPEN_ID, 'Open Web UI', webopen_menu)
+        self.aliases = get_aliases(self.app.basedir)
         item = file_menu.Append(ACCOUNT_PAGE_ID, text='Open Account Page')
         frame.Bind(wx.EVT_MENU, self.on_account_page, item)
         item = file_menu.Append(MOUNT_ID, text='Mount Filesystem')
@@ -566,7 +572,9 @@ class MacGuiApp(wx.App):
         self.ExitMainLoop()
 
     def on_webopen(self, event):
-        self.app.webopen()
+        alias = self.webopen_menu_ids.get(event.GetId())
+        #log.msg('on_webopen() alias=%r' % (alias,))
+        self.app.webopen(alias)
 
     def on_account_page(self, event):
         webbrowser.open(DEFAULT_SERVER_URL + ACCOUNT_PAGE)
