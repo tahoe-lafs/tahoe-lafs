@@ -242,10 +242,6 @@ class Test(ShareManglingMixin, unittest.TestCase):
                 self.failIf(prerepairres.is_healthy())
                 self.failUnless(postrepairres.is_healthy())
 
-                # Now we inspect the filesystem to make sure that it is really there.
-                shares = self.find_shares()
-                self.failIf(len(shares) < 10)
-
             d2.addCallback(_after_repair)
             return d2
         d.addCallback(_repair_from_corruption)
