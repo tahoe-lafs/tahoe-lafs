@@ -49,6 +49,8 @@ sys.path.append(os.path.join(FuseDir, 'impl_a'))
 import tahoe_fuse as impl_a
 sys.path.append(os.path.join(FuseDir, 'impl_b'))
 import pyfuse.tahoe as impl_b
+sys.path.append(os.path.join(FuseDir, 'impl_c'))
+import blackmatch as impl_c
 
 ### config info about each impl, including which make sense to run
 implementations = {
@@ -60,6 +62,11 @@ implementations = {
                    mount_args=['--basedir', '%(nodedir)s', '%(mountpath)s', ],
                    mount_wait=False,
                    tests=['read', ]),
+    'impl_c': dict(module=impl_c,
+                   mount_args=['--cache-timeout', '0', '--root-uri', '%(root-uri)s',
+                               '--node-directory', '%(nodedir)s', '%(mountpath)s', ],
+                   mount_wait=True,
+                   tests=['read', 'write', ]),
     }
 
 #if sys.platform == 'darwin':

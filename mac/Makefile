@@ -7,6 +7,7 @@ dist: build diskimage upload cleanup
 
 build:
 	rsync -av ` sw_vers -productVersion | sed -e 's/^\(10\.[0-9]*\)\..*$$/\1/' `/ ./
+	ln -sf ../contrib/fuse/impl_c/blackmatch.py tahoefuse.py
 	python setup.py py2app --no-chdir
 
 diskimage:
