@@ -92,11 +92,15 @@ class Node(service.MultiService):
         for f in os.listdir(self.basedir):
             if f.startswith(AUTHKEYSFILEBASE):
                 keyfile = os.path.join(self.basedir, f)
-                portnum = int(f[len(AUTHKEYSFILEBASE):])
-                from allmydata import manhole
-                m = manhole.AuthorizedKeysManhole(portnum, keyfile)
-                m.setServiceParent(self)
-                self.log("AuthorizedKeysManhole listening on %d" % portnum)
+                try:
+                    portnum = int(f[len(AUTHKEYSFILEBASE):])
+                except ValueError:
+                    self.log("AuthorizedKeysManhole malformed file name %s" % (f,))
+                else:
+                    from allmydata import manhole
+                    m = manhole.AuthorizedKeysManhole(portnum, keyfile)
+                    m.setServiceParent(self)
+                    self.log("AuthorizedKeysManhole listening on %d" % portnum)
 
         self.setup_logging()
         self.log("Node constructed. " + get_package_versions_string())
