@@ -198,7 +198,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
         d = defer.succeed(self.filenode)
         d.addCallback(self._delete_a_share)
 
-        def _repair(filenode):
+        def _repair_from_deletion(filenode):
             before_repair_reads = self._count_reads()
             before_repair_allocates = self._count_allocates()
 
@@ -221,6 +221,34 @@ class Test(ShareManglingMixin, unittest.TestCase):
 
             d2.addCallback(_after_repair)
             return d2
-        d.addCallback(_repair)
+        d.addCallback(_repair_from_deletion)
+
+        d.addCallback(self._corrupt_a_share)
+
+        def _repair_from_corruption(filenode):
+            before_repair_reads = self._count_reads()
+            before_repair_allocates = self._count_allocates()
+
+            d2 = filenode.check_and_repair(verify=False)
+            def _after_repair(checkandrepairresults):
+                prerepairres = checkandrepairresults.get_pre_repair_results()
+                postrepairres = checkandrepairresults.get_post_repair_results()
+                after_repair_reads = self._count_reads()
+                after_repair_allocates = self._count_allocates()
+
+                # print "delta was ", after_repair_reads - before_repair_reads, after_repair_allocates - before_repair_allocates
+                self.failIf(after_repair_reads - before_repair_reads > DELTA_READS)
+                self.failIf(after_repair_allocates - before_repair_allocates > DELTA_ALLOCATES)
+                self.failIf(prerepairres.is_healthy())
+                self.failUnless(postrepairres.is_healthy())
+
+                # Now we inspect the filesystem to make sure that it is really there.
+                shares = self.find_shares()
+                self.failIf(len(shares) < 10)
+
+            d2.addCallback(_after_repair)
+            return d2
+        d.addCallback(_repair_from_corruption)
+
         return d
-    test_repair.todo = "We haven't implemented a checker yet."
+    test_repair.todo = "We haven't implemented a repairer yet."
