@@ -108,8 +108,6 @@ class LiteralFileNode(ImmutableFileNode):
         return None
 
     def check(self, verify=False):
-        # neither verify= nor repair= affect LIT files, and the check returns
-        # no results.
         return defer.succeed(None)
 
     def check_and_repair(self, verify=False):

@@ -139,8 +139,7 @@ class Checker(unittest.TestCase):
     def test_literal_filenode(self):
         DATA = "I am a short file."
         u = uri.LiteralFileURI(data=DATA)
-        c = None
-        fn1 = filenode.LiteralFileNode(u, c)
+        fn1 = filenode.LiteralFileNode(u, None)
 
         d = fn1.check()
         def _check_checker_results(cr):
@@ -148,29 +147,6 @@ class Checker(unittest.TestCase):
         d.addCallback(_check_checker_results)
 
         d.addCallback(lambda res: fn1.check(verify=True))
-        d.addCallback(_check_checker_results)
-
-        return d
-
-    def test_mutable_filenode(self):
-        client = None
-        wk = "\x00"*16
-        fp = "\x00"*32
-        rk = hashutil.ssk_readkey_hash(wk)
-        si = hashutil.ssk_storage_index_hash(rk)
-
-        u = uri.WriteableSSKFileURI("\x00"*16, "\x00"*32)
-        n = MutableFileNode(client).init_from_uri(u)
-
-        n.checker_class = FakeMutableChecker
-        n.check_and_repairer_class = FakeMutableCheckAndRepairer
-
-        d = n.check()
-        def _check_checker_results(cr):
-            self.failUnless(cr.is_healthy())
-        d.addCallback(_check_checker_results)
-
-        d.addCallback(lambda res: n.check(verify=True))
         d.addCallback(_check_checker_results)
 
         return d
