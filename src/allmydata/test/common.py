@@ -827,7 +827,7 @@ class ShareManglingMixin(SystemTestMixin):
 
         return shares
 
-    def replace_shares(self, newshares):
+    def replace_shares(self, newshares, storage_index):
         """Replace shares on disk. Takes a dictionary in the same form
         as find_shares() returns."""
 
@@ -843,9 +843,12 @@ class ShareManglingMixin(SystemTestMixin):
                     else:
                         pathtosharefile = os.path.join(sharedir, dirp, fn)
                         os.unlink(pathtosharefile)
-                        newdata = newshares.get((i, sharenum))
-                        if newdata is not None:
-                            open(pathtosharefile, "w").write(newdata)
+            for ((clientnum, sharenum), newdata) in newshares.iteritems():
+                if clientnum == i:
+                    fullsharedirp=os.path.join(sharedir, storage_index[:2], storage_index)
+                    fileutil.make_dirs(fullsharedirp)
+                    wf = open(os.path.join(fullsharedirp, str(sharenum)), "w")
+                    wf.write(newdata)
 
 class ShouldFailMixin:
     def shouldFail(self, expected_failure, which, substring,

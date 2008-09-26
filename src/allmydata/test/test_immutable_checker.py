@@ -1,6 +1,7 @@
-from allmydata.immutable import upload
+from allmydata.immutable import encode, upload
 from allmydata.test.common import SystemTestMixin, ShareManglingMixin
 from allmydata.util import testutil
+from allmydata.interfaces import IURI
 from twisted.internet import defer
 from twisted.trial import unittest
 import random, struct
@@ -19,7 +20,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
         def _upload_a_file(ignored):
             d2 = self.clients[0].upload(upload.Data(TEST_DATA, convergence=""))
             def _after_upload(u):
-                self.uri = u.uri
+                self.uri = IURI(u.uri)
                 return self.clients[0].create_node_from_uri(self.uri)
             d2.addCallback(_after_upload)
             return d2
@@ -49,7 +50,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
         else:
             k = random.choice(ks)
         del shares[k]
-        self.replace_shares(shares)
+        self.replace_shares(shares, storage_index=self.uri.storage_index)
 
         return unused
 
@@ -69,7 +70,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
         corrupteddata = data[:0xc]+corruptedsharedata+data[0xc+size:]
         shares[k] = corrupteddata
 
-        self.replace_shares(shares)
+        self.replace_shares(shares, storage_index=self.uri.storage_index)
 
         return unused
 
@@ -85,7 +86,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
             return res
 
         d.addCallback(_stash_it)
-        d.addCallback(self.replace_shares)
+        d.addCallback(self.replace_shares, storage_index=self.uri.storage_index)
 
         def _compare(res):
             oldshares = stash[0]
@@ -95,10 +96,43 @@ class Test(ShareManglingMixin, unittest.TestCase):
         d.addCallback(self.find_shares)
         d.addCallback(_compare)
 
-        d.addCallback(lambda ignore: self.replace_shares({}))
+        d.addCallback(lambda ignore: self.replace_shares({}, storage_index=self.uri.storage_index))
         d.addCallback(self.find_shares)
         d.addCallback(lambda x: self.failUnlessEqual(x, {}))
 
+        # The following process of deleting 8 of the shares and asserting that you can't
+        # download it is more to test this test code than to test the Tahoe code...
+        def _then_delete_8(unused=None):
+            self.replace_shares(stash[0], storage_index=self.uri.storage_index)
+            for sharenum in range(2, 10):
+                self._delete_a_share()
+        d.addCallback(_then_delete_8)
+
+        def _then_download(unused=None):
+            self.downloader = self.clients[1].getServiceNamed("downloader")
+            d = self.downloader.download_to_data(self.uri)
+
+            def _after_download_callb(result):
+                self.fail() # should have gotten an errback instead
+                return result
+            def _after_download_errb(failure):
+                failure.trap(encode.NotEnoughSharesError)
+                return None # success!
+            d.addCallbacks(_after_download_callb, _after_download_errb)
+        d.addCallback(_then_download)
+
+        # The following process of leaving 8 of the shares deleted and asserting that you can't
+        # repair it is more to test this test code than to test the Tahoe code...
+        def _then_repair(unused=None):
+            d2 = self.filenode.check_and_repair(verify=False)
+            def _after_repair(checkandrepairresults):
+                prerepairres = checkandrepairresults.get_pre_repair_results()
+                postrepairres = checkandrepairresults.get_post_repair_results()
+                self.failIf(prerepairres.is_healthy())
+                self.failIf(postrepairres.is_healthy())
+            d2.addCallback(_after_repair)
+            return d2
+        d.addCallback(_then_repair)
         return d
 
     def _count_reads(self):
@@ -148,7 +182,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
         d.addCallback(_check2)
         return d
 
-        d.addCallback(lambda ignore: self.replace_shares({}))
+        d.addCallback(lambda ignore: self.replace_shares({}, storage_index=self.uri.storage_index))
         def _check3(ignored):
             before_check_reads = self._count_reads()
             d2 = self.filenode.check(verify=False)
@@ -239,7 +273,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
                 # assert that it succeeds at downloading and has the right contents.  This can't
                 # work unless it has already repaired the previously-deleted share #2.
                 for sharenum in range(3, 10):
-                    self._delete_a_share(sharenum)
+                    self._delete_a_share(sharenum=sharenum)
 
                 return self._download_and_check_plaintext()
 
