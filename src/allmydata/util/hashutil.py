@@ -1,5 +1,6 @@
 from pycryptopp.hash.sha256 import SHA256
 import os
+from allmydata.util.netstring import netstring
 
 # Be very very cautious when modifying this file. Almost any change will
 # cause a compatibility break, invalidating all outstanding URIs and making
@@ -14,10 +15,6 @@ CRYPTO_VAL_SIZE=32
 
 class IntegrityCheckError(Exception):
     pass
-
-def netstring(s):
-    assert isinstance(s, str), s # no unicode here
-    return "%d:%s," % (len(s), s,)
 
 class _SHA256d_Hasher:
     # use SHA-256d, as defined by Ferguson and Schneier: hash the output
