@@ -12,6 +12,10 @@ class Netstring(unittest.TestCase):
         self.failUnlessRaises(ValueError, split_netstring, a, 3)
         self.failUnlessRaises(ValueError, split_netstring, a+" extra", 2)
         self.failUnlessRaises(ValueError, split_netstring, a+" extra", 2, False)
+        self.failUnlessEqual(split_netstring(a+"++", 2, required_trailer="++"),
+                             ("hello", "world"))
+        self.failUnlessRaises(ValueError,
+                              split_netstring, a+"+", 2, required_trailer="not")
 
     def test_extra(self):
         a = netstring("hello")
