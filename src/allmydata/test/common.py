@@ -14,6 +14,7 @@ from allmydata.immutable.encode import NotEnoughSharesError
 from allmydata.checker_results import CheckerResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.mutable.common import CorruptShareError
+from allmydata.storage import storage_index_to_dir
 from allmydata.util import log, testutil, fileutil
 from allmydata.stats import PickleStatsGatherer
 from allmydata.key_generator import KeyGeneratorService
@@ -845,7 +846,7 @@ class ShareManglingMixin(SystemTestMixin):
                         os.unlink(pathtosharefile)
             for ((clientnum, sharenum), newdata) in newshares.iteritems():
                 if clientnum == i:
-                    fullsharedirp=os.path.join(sharedir, storage_index[:2], storage_index)
+                    fullsharedirp=os.path.join(sharedir, storage_index_to_dir(storage_index))
                     fileutil.make_dirs(fullsharedirp)
                     wf = open(os.path.join(fullsharedirp, str(sharenum)), "w")
                     wf.write(newdata)
