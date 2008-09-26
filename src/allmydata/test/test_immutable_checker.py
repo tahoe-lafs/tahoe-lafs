@@ -5,19 +5,23 @@ from twisted.internet import defer
 from twisted.trial import unittest
 import random, struct
 
+TEST_DATA="\x02"*(upload.Uploader.URI_LIT_SIZE_THRESHOLD+1)
+
 class Test(ShareManglingMixin, unittest.TestCase):
     def setUp(self):
         # Set self.basedir to a temp dir which has the name of the current test method in its
         # name.
         self.basedir = self.mktemp()
-        TEST_DATA="\x02"*(upload.Uploader.URI_LIT_SIZE_THRESHOLD+1)
 
         d = defer.maybeDeferred(SystemTestMixin.setUp, self)
         d.addCallback(lambda x: self.set_up_nodes())
 
         def _upload_a_file(ignored):
             d2 = self.clients[0].upload(upload.Data(TEST_DATA, convergence=""))
-            d2.addCallback(lambda u: self.clients[0].create_node_from_uri(u.uri))
+            def _after_upload(u):
+                self.uri = u.uri
+                return self.clients[0].create_node_from_uri(self.uri)
+            d2.addCallback(_after_upload)
             return d2
         d.addCallback(_upload_a_file)
 
@@ -26,12 +30,24 @@ class Test(ShareManglingMixin, unittest.TestCase):
         d.addCallback(_stash_it)
         return d
 
-    def _delete_a_share(self, unused=None):
+    def _download_and_check_plaintext(self, unused=None):
+        self.downloader = self.clients[1].getServiceNamed("downloader")
+        d = self.downloader.download_to_data(self.uri)
+
+        def _after_download(result):
+            self.failUnlessEqual(result, TEST_DATA)
+        d.addCallback(_after_download)
+        return d
+
+    def _delete_a_share(self, unused=None, sharenum=None):
         """ Delete one share. """
 
         shares = self.find_shares()
         ks = shares.keys()
-        k = random.choice(ks)
+        if sharenum is not None:
+            k = [ key for key in shares.keys() if key[1] == sharenum][0]
+        else:
+            k = random.choice(ks)
         del shares[k]
         self.replace_shares(shares)
 
@@ -196,9 +212,9 @@ class Test(ShareManglingMixin, unittest.TestCase):
         DELTA_ALLOCATES = 1
 
         d = defer.succeed(self.filenode)
-        d.addCallback(self._delete_a_share)
+        d.addCallback(self._delete_a_share, sharenum=2)
 
-        def _repair_from_deletion(filenode):
+        def _repair_from_deletion_of_1(filenode):
             before_repair_reads = self._count_reads()
             before_repair_allocates = self._count_allocates()
 
@@ -215,14 +231,51 @@ class Test(ShareManglingMixin, unittest.TestCase):
                 self.failIf(prerepairres.is_healthy())
                 self.failUnless(postrepairres.is_healthy())
 
-                # Now we inspect the filesystem to make sure that it is really there.
+                # Now we inspect the filesystem to make sure that it has 10 shares.
                 shares = self.find_shares()
                 self.failIf(len(shares) < 10)
 
+                # Now we delete seven of the other shares, then try to download the file and
+                # assert that it succeeds at downloading and has the right contents.  This can't
+                # work unless it has already repaired the previously-deleted share #2.
+                for sharenum in range(3, 10):
+                    self._delete_a_share(sharenum)
+
+                return self._download_and_check_plaintext()
+
             d2.addCallback(_after_repair)
             return d2
-        d.addCallback(_repair_from_deletion)
+        d.addCallback(_repair_from_deletion_of_1)
 
+        # Now we repair again to get all of those 7 back...
+        def _repair_from_deletion_of_7(filenode):
+            before_repair_reads = self._count_reads()
+            before_repair_allocates = self._count_allocates()
+
+            d2 = filenode.check_and_repair(verify=False)
+            def _after_repair(checkandrepairresults):
+                prerepairres = checkandrepairresults.get_pre_repair_results()
+                postrepairres = checkandrepairresults.get_post_repair_results()
+                after_repair_reads = self._count_reads()
+                after_repair_allocates = self._count_allocates()
+
+                # print "delta was ", after_repair_reads - before_repair_reads, after_repair_allocates - before_repair_allocates
+                self.failIf(after_repair_reads - before_repair_reads > DELTA_READS)
+                self.failIf(after_repair_allocates - before_repair_allocates > (DELTA_ALLOCATES*7))
+                self.failIf(prerepairres.is_healthy())
+                self.failUnless(postrepairres.is_healthy())
+
+                # Now we inspect the filesystem to make sure that it has 10 shares.
+                shares = self.find_shares()
+                self.failIf(len(shares) < 10)
+
+                return self._download_and_check_plaintext()
+
+            d2.addCallback(_after_repair)
+            return d2
+        d.addCallback(_repair_from_deletion_of_7)
+
+        # Now we corrupt a share...
         d.addCallback(self._corrupt_a_share)
 
         def _repair_from_corruption(filenode):
@@ -241,6 +294,8 @@ class Test(ShareManglingMixin, unittest.TestCase):
                 self.failIf(after_repair_allocates - before_repair_allocates > DELTA_ALLOCATES)
                 self.failIf(prerepairres.is_healthy())
                 self.failUnless(postrepairres.is_healthy())
+
+                return self._download_and_check_plaintext()
 
             d2.addCallback(_after_repair)
             return d2
