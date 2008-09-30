@@ -197,7 +197,7 @@ class WebMixin(object):
     def failUnlessIsBarJSON(self, res):
         data = simplejson.loads(res)
         self.failUnless(isinstance(data, list))
-        self.failUnlessEqual(data[0], "filenode")
+        self.failUnlessEqual(data[0], u"filenode")
         self.failUnless(isinstance(data[1], dict))
         self.failIf(data[1]["mutable"])
         self.failIf("rw_uri" in data[1]) # immutable
@@ -214,11 +214,13 @@ class WebMixin(object):
         self.failUnlessEqual(data[1]["rw_uri"], self._foo_uri)
         self.failUnlessEqual(data[1]["ro_uri"], self._foo_readonly_uri)
 
-        kidnames = sorted(data[1]["children"])
+        kidnames = sorted([unicode(n) for n in data[1]["children"]])
         self.failUnlessEqual(kidnames,
                              [u"bar.txt", u"blockingfile", u"empty",
                               u"n\u00fc.txt", u"sub"])
-        kids = data[1]["children"]
+        kids = dict( [(unicode(name),value)
+                      for (name,value)
+                      in data[1]["children"].iteritems()] )
         self.failUnlessEqual(kids[u"sub"][0], "dirnode")
         self.failUnless("metadata" in kids[u"sub"][1])
         self.failUnless("ctime" in kids[u"sub"][1]["metadata"])
@@ -1226,7 +1228,9 @@ class Web(WebMixin, unittest.TestCase):
         def _check_page_json(res):
             parsed = simplejson.loads(res)
             self.failUnlessEqual(parsed[0], "dirnode")
-            children = parsed[1]["children"]
+            children = dict( [(unicode(name),value)
+                              for (name,value)
+                              in parsed[1]["children"].iteritems()] )
             self.failUnless("new.txt" in children)
             new_json = children["new.txt"]
             self.failUnlessEqual(new_json[0], "filenode")

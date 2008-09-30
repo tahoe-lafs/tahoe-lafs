@@ -372,6 +372,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             raise
         cs = []
         for name, (file_or_dir, mddict) in children.iteritems():
+            name = unicode(name) # simplejson-2.0.1 returns str *or* unicode
             cap = str(mddict.get('rw_uri') or mddict.get('ro_uri'))
             cs.append((name, cap, mddict.get('metadata')))
         d = self.node.set_children(cs, replace)

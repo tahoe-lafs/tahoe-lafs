@@ -25,8 +25,8 @@ def mv(options, mode="move"):
     data = urllib.urlopen(from_url + "?t=json").read()
     nodetype, attrs = simplejson.loads(data)
     cap = attrs.get("rw_uri") or attrs["ro_uri"]
-    # simplejson always returns unicode, but we know that it's really just an
-    # ASCII file-cap.
+    # simplejson sometimes returns unicode, but we know that it's really just
+    # an ASCII file-cap.
     cap = str(cap)
 
     # now get the target

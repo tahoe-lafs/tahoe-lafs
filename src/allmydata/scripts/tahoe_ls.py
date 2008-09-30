@@ -53,6 +53,7 @@ def list(options):
     rows = []
 
     for name in childnames:
+        name = unicode(name)
         child = children[name]
         childtype = child[0]
         ctime = child[1]["metadata"].get("ctime")

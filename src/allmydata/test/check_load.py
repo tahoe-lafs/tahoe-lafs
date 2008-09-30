@@ -115,7 +115,10 @@ def listdir(nodeurl, root, vdrive_pathname):
     assert nodetype == "dirnode"
     global directories_read
     directories_read += 1
-    return d['children']
+    children = dict( [(unicode(name),value)
+                      for (name,value)
+                      in d["children"].iteritems()] )
+    return children
 
 
 def choose_random_descendant(server_url, root, pathname=""):

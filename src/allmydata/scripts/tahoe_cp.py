@@ -222,7 +222,9 @@ class TahoeDirectorySource:
         nodetype, d = parsed
         assert nodetype == "dirnode"
         self.mutable = d.get("mutable", False) # older nodes don't provide it
-        self.children_d = d["children"]
+        self.children_d = dict( [(unicode(name),value)
+                                 for (name,value)
+                                 in d["children"].iteritems()] )
         self.children = None
 
     def init_from_parsed(self, parsed):
@@ -230,7 +232,9 @@ class TahoeDirectorySource:
         self.writecap = ascii_or_none(d.get("rw_uri"))
         self.readcap = ascii_or_none(d.get("ro_uri"))
         self.mutable = d.get("mutable", False) # older nodes don't provide it
-        self.children_d = d["children"]
+        self.children_d = dict( [(unicode(name),value)
+                                 for (name,value)
+                                 in d["children"].iteritems()] )
         self.children = None
 
     def populate(self, recurse):
@@ -294,7 +298,9 @@ class TahoeDirectoryTarget:
         self.writecap = ascii_or_none(d.get("rw_uri"))
         self.readcap = ascii_or_none(d.get("ro_uri"))
         self.mutable = d.get("mutable", False) # older nodes don't provide it
-        self.children_d = d["children"]
+        self.children_d = dict( [(unicode(name),value)
+                                 for (name,value)
+                                 in d["children"].iteritems()] )
         self.children = None
 
     def init_from_grid(self, writecap, readcap):
@@ -308,7 +314,9 @@ class TahoeDirectoryTarget:
         nodetype, d = parsed
         assert nodetype == "dirnode"
         self.mutable = d.get("mutable", False) # older nodes don't provide it
-        self.children_d = d["children"]
+        self.children_d = dict( [(unicode(name),value)
+                                 for (name,value)
+                                 in d["children"].iteritems()] )
         self.children = None
 
     def just_created(self, writecap):
