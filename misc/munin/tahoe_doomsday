@@ -27,7 +27,8 @@ url = os.environ["url"]
 timespans = simplejson.load(urllib.urlopen(url))["rates"]
 
 data = dict([(name, timeleft)
-             for (name, timespan, growth, timeleft) in timespans])
+             for (name, timespan, growth, timeleft) in timespans
+             if timeleft])
 # timeleft is in seconds
 DAY = 24*60*60
 if "1hr" in data:
