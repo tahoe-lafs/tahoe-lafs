@@ -105,17 +105,19 @@ class DiskWatcher(service.MultiService, resource.Resource):
 
     def poll(self):
         log.msg("polling..")
-        return self.poll_synchronous()
-        #return self.poll_asynchronous()
+        #return self.poll_synchronous()
+        return self.poll_asynchronous()
 
     def poll_asynchronous(self):
         # this didn't actually seem to work any better than poll_synchronous:
         # logs are more noisy, and I got frequent DNS failures. But with a
-        # lot of servers to query, this is probably the better way to go.
+        # lot of servers to query, this is probably the better way to go. A
+        # significant advantage of this approach is that we can use a
+        # timeout= argument to tolerate hanging servers.
         dl = []
         for url in self.get_urls():
             when = extime.Time()
-            d = client.getPage(url)
+            d = client.getPage(url, timeout=60)
             d.addCallback(self.got_response, when, url)
             dl.append(d)
         d = defer.DeferredList(dl)
@@ -132,6 +134,8 @@ class DiskWatcher(service.MultiService, resource.Resource):
             attempts += 1
             try:
                 when = extime.Time()
+                # if a server accepts the connection and then hangs, this
+                # will block forever
                 data_json = urllib.urlopen(url).read()
                 self.got_response(data_json, when, url)
                 fetched += 1

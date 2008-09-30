@@ -7,7 +7,7 @@ from axiom.item import Item
 from axiom.attributes import text, integer, timestamp
 
 class Sample(Item):
-    url = text()
+    url = text(indexed=True)
     when = timestamp(indexed=True)
     used = integer()
     avail = integer()
