@@ -1,5 +1,5 @@
 
-import datetime, os.path, re, types
+import datetime, os.path, re, types, ConfigParser
 from base64 import b32decode, b32encode
 
 from twisted.python import log as twlog
@@ -38,6 +38,12 @@ such as private keys.  On Unix-like systems, the permissions on this directory
 are set to disallow users other than its owner from reading the contents of
 the files.   See the 'configuration.txt' documentation file for details."""
 
+class _None: # used as a marker in get_config()
+    pass
+
+class MissingConfigEntry(Exception):
+    pass
+
 class Node(service.MultiService):
     # this implements common functionality of both Client nodes and Introducer
     # nodes.
@@ -49,25 +55,110 @@ class Node(service.MultiService):
     def __init__(self, basedir="."):
         service.MultiService.__init__(self)
         self.basedir = os.path.abspath(basedir)
+        self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
         self._tub_ready_observerlist = observer.OneShotObserverList()
         fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
         open(os.path.join(self.basedir, "private", "README"), "w").write(PRIV_README)
+
+        # creates self.config, populates from distinct files if necessary
+        self.read_config()
+
+        nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
+        self.nickname = nickname_utf8.decode("utf-8")
+
+        self.create_tub()
+        self.logSource="Node"
+
+        self.setup_ssh()
+        self.setup_logging()
+        self.log("Node constructed. " + get_package_versions_string())
+        iputil.increase_rlimits()
+
+    def get_config(self, section, option, default=_None, boolean=False):
+        try:
+            if boolean:
+                return self.config.getboolean(section, option)
+            return self.config.get(section, option)
+        except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
+            if default is _None:
+                fn = os.path.join(self.basedir, "tahoe.cfg")
+                raise MissingConfigEntry("%s is missing the [%s]%s entry"
+                                         % (fn, section, option))
+            return default
+
+    def set_config(self, section, option, value):
+        if not self.config.has_section(section):
+            self.config.add_section(section)
+        self.config.set(section, option, value)
+        assert self.config.get(section, option) == value
+
+    def read_config(self):
+        self.config = ConfigParser.SafeConfigParser()
+        self.config.read([os.path.join(self.basedir, "tahoe.cfg")])
+        self.read_old_config_files()
+
+    def read_old_config_files(self):
+        # backwards-compatibility: individual files will override the
+        # contents of tahoe.cfg
+        copy = self._copy_config_from_file
+
+        copy("nickname", "node", "nickname")
+        copy("webport", "node", "web.port")
+
+        cfg_tubport = self.get_config("node", "tub.port", "")
+        if not cfg_tubport:
+            # For 'tub.port', tahoe.cfg overrides the individual file on
+            # disk. So only read self._portnumfile is tahoe.cfg doesn't
+            # provide a value.
+            try:
+                file_tubport = open(self._portnumfile, "rU").read().strip()
+                self.set_config("node", "tub.port", file_tubport)
+            except EnvironmentError:
+                pass
+
+        try:
+            addresses = []
+            ipfile = os.path.join(self.basedir, self.LOCAL_IP_FILE)
+            tubport = int(self.get_config("node", "tub.port", "0"))
+            for addrline in open(ipfile, "rU"):
+                mo = ADDR_RE.search(addrline)
+                if mo:
+                    (addr, dummy, aportnum,) = mo.groups()
+                    if aportnum is None:
+                        aportnum = tubport
+                    addresses.append("%s:%d" % (addr, int(aportnum),))
+            self.set_config("node", "advertised_ip_addresses",
+                            ",".join(addresses))
+        except EnvironmentError:
+            pass
+        copy("keepalive_timeout", "node", "timeout.keepalive")
+        copy("disconnect_timeout", "node", "timeout.disconnect")
+        AUTHKEYSFILEBASE = "authorized_keys."
+        for f in os.listdir(self.basedir):
+            if f.startswith(AUTHKEYSFILEBASE):
+                keyfile = os.path.join(self.basedir, f)
+                portnum = int(f[len(AUTHKEYSFILEBASE):])
+                self.set_config("node", "ssh.port", str(portnum))
+                self.set_config("node", "ssh.authorized_keys_file", keyfile)
+                # only allow one
+                break
+
+    def _copy_config_from_file(self, config_filename, section, keyname):
+        s = self.get_config_from_file(config_filename)
+        if s is not None:
+            self.set_config(section, keyname, s)
+
+    def create_tub(self):
         certfile = os.path.join(self.basedir, "private", self.CERTFILE)
         self.tub = Tub(certFile=certfile)
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)
 
-        # see #521 for a discussion of how to pick these timeout values. Using
-        # 30 minutes means we'll disconnect after 22 to 68 minutes of
-        # inactivity. Receiving data will reset this timeout, however if we
-        # have more than 22min of data in the outbound queue (such as 800kB
-        # in two pipelined segments of 10 shares each) and the far end has no
-        # need to contact us, our ping might be delayed, so we may disconnect
-        # them by accident.
-        keepalive_timeout_s = self.get_config("keepalive_timeout")
+        # see #521 for a discussion of how to pick these timeout values.
+        keepalive_timeout_s = self.get_config("node", "timeout.keepalive", "")
         if keepalive_timeout_s:
             self.tub.setOption("keepaliveTimeout", int(keepalive_timeout_s))
-        disconnect_timeout_s = self.get_config("disconnect_timeout")
+        disconnect_timeout_s = self.get_config("node", "timeout.disconnect", "")
         if disconnect_timeout_s:
             # N.B.: this is in seconds, so use "1800" to get 30min
             self.tub.setOption("disconnectTimeout", int(disconnect_timeout_s))
@@ -75,42 +166,28 @@ class Node(service.MultiService):
         self.nodeid = b32decode(self.tub.tubID.upper()) # binary format
         self.write_config("my_nodeid", b32encode(self.nodeid).lower() + "\n")
         self.short_nodeid = b32encode(self.nodeid).lower()[:8] # ready for printing
-        assert self.PORTNUMFILE, "Your node.Node subclass must provide PORTNUMFILE"
-        self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
-        try:
-            portnum = int(open(self._portnumfile, "rU").read())
-        except (EnvironmentError, ValueError):
-            portnum = 0
-        self.tub.listenOn("tcp:%d" % portnum)
+
+        tubport = self.get_config("node", "tub.port", "tcp:0")
+        self.tub.listenOn(tubport)
         # we must wait until our service has started before we can find out
         # our IP address and thus do tub.setLocation, and we can't register
         # any services with the Tub until after that point
         self.tub.setServiceParent(self)
-        self.logSource="Node"
 
-        AUTHKEYSFILEBASE = "authorized_keys."
-        for f in os.listdir(self.basedir):
-            if f.startswith(AUTHKEYSFILEBASE):
-                keyfile = os.path.join(self.basedir, f)
-                try:
-                    portnum = int(f[len(AUTHKEYSFILEBASE):])
-                except ValueError:
-                    self.log("AuthorizedKeysManhole malformed file name %s" % (f,))
-                else:
-                    from allmydata import manhole
-                    m = manhole.AuthorizedKeysManhole(portnum, keyfile)
-                    m.setServiceParent(self)
-                    self.log("AuthorizedKeysManhole listening on %d" % portnum)
-
-        self.setup_logging()
-        self.log("Node constructed. " + get_package_versions_string())
-        iputil.increase_rlimits()
+    def setup_ssh(self):
+        ssh_port = self.get_config("node", "ssh.port", "")
+        if ssh_port:
+            ssh_keyfile = self.get_config("node", "ssh.authorized_keys_file")
+            from allmydata import manhole
+            m = manhole.AuthorizedKeysManhole(ssh_port, ssh_keyfile)
+            m.setServiceParent(self)
+            self.log("AuthorizedKeysManhole listening on %s" % ssh_port)
 
     def get_app_versions(self):
         # TODO: merge this with allmydata.get_package_versions
         return dict(app_versions.versions)
 
-    def get_config(self, name, required=False):
+    def get_config_from_file(self, name, required=False):
         """Get the (string) contents of a config file, or None if the file
         did not exist. If required=True, raise an exception rather than
         returning None. Any leading or trailing whitespace will be stripped
@@ -144,7 +221,7 @@ class Node(service.MultiService):
         which is expected to return a string.
         """
         privname = os.path.join("private", name)
-        value = self.get_config(privname)
+        value = self.get_config_from_file(privname)
         if value is None:
             if isinstance(default, (str, unicode)):
                 value = default
@@ -233,6 +310,10 @@ class Node(service.MultiService):
 
         self.tub.setOption("logport-furlfile",
                            os.path.join(self.basedir, "private","logport.furl"))
+        lgfurl = self.get_config("node", "log_gatherer.furl", "")
+        if lgfurl:
+            # this is in addition to the contents of log-gatherer-furlfile
+            self.tub.setOption("log-gatherer-furl", lgfurl)
         self.tub.setOption("log-gatherer-furlfile",
                            os.path.join(self.basedir, "log_gatherer.furl"))
         self.tub.setOption("bridge-twisted-logs", True)
@@ -265,21 +346,11 @@ class Node(service.MultiService):
         # record which port we're listening on, so we can grab the same one next time
         open(self._portnumfile, "w").write("%d\n" % portnum)
 
-        local_addresses = [ "%s:%d" % (addr, portnum,) for addr in local_addresses ]
-
-        addresses = []
-        try:
-            for addrline in open(os.path.join(self.basedir, self.LOCAL_IP_FILE), "rU"):
-                mo = ADDR_RE.search(addrline)
-                if mo:
-                    (addr, dummy, aportnum,) = mo.groups()
-                    if aportnum is None:
-                        aportnum = portnum
-                    addresses.append("%s:%d" % (addr, int(aportnum),))
-        except EnvironmentError:
-            pass
-
-        addresses.extend(local_addresses)
+        addresses = [ "%s:%d" % (addr, portnum,) for addr in local_addresses ]
+        extra_addresses = self.get_config("node", "advertised_ip_addresses", "")
+        if extra_addresses:
+            extra_addresses = extra_addresses.split(",")
+            addresses.extend(extra_addresses)
 
         location = ",".join(addresses)
         self.log("Tub location set to %s" % location)

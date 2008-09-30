@@ -153,9 +153,9 @@ class StatsProvider(foolscap.Referenceable, service.MultiService):
         if self.node and self.gatherer_furl:
             d = self.node.when_tub_ready()
             def connect(junk):
-                nickname = self.node.get_config('nickname')
+                nickname_utf8 = self.node.nickname.encode("utf-8")
                 self.node.tub.connectTo(self.gatherer_furl,
-                                        self._connected, nickname)
+                                        self._connected, nickname_utf8)
             d.addCallback(connect)
         service.MultiService.startService(self)
 

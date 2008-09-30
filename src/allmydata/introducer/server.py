@@ -15,8 +15,9 @@ class IntroducerNode(node.Node):
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
+        self.read_config()
         self.init_introducer()
-        webport = self.get_config("webport")
+        webport = self.get_config("node", "web.port", None)
         if webport:
             self.init_web(webport) # strports string
 

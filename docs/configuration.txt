@@ -1,7 +1,7 @@
 
 = Configuring a Tahoe node =
 
-A Tahoe node is configured by writing files to its base directory. These
+A Tahoe node is configured by writing to files in its base directory. These
 files are read by the node when it starts, so each time you change them, you
 need to restart the node.
 
@@ -12,138 +12,235 @@ This document contains a complete list of the config files that are examined
 by the client node, as well as the state files that you'll observe in its
 base directory.
 
+The main file is named 'tahoe.cfg', which is an ".INI"-style configuration
+file (parsed by the Python stdlib 'ConfigParser' module: "[name]" section
+markers, lines with "key.subkey: value", rfc822-style continuations). There
+are other files that contain information which does not easily fit into this
+format. The 'tahoe create-client' command will create an initial tahoe.cfg
+file for you. After creation, the node will never modify the 'tahoe.cfg'
+file: all persistent state is put in other files.
+
+The item descriptions below use the following types:
+
+ boolean: one of (True, yes, on, 1, False, off, no, 0), case-insensitive
+ strports string: a Twisted listening-port specification string, like "tcp:80"
+                  or "tcp:8123:interface=127.0.0.1". For a full scription of
+                  the format, see
+                  http://twistedmatrix.com/documents/current/api/twisted.application.strports.html
+ FURL string: a Foolscap endpoint identifier, like
+              pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm
+
+
+== Overall Node Configuration ==
+
+This section controls the network behavior of the node overall: which ports
+and IP addresses are used, when connections are timed out, etc. This
+configuration is independent of the services that the node is offering: the
+same controls are used for client and introducer nodes.
+
+[node]
+
+nickname = (UTF-8 string, optional)
+
+ This value will be displayed in management tools as this node's "nickname".
+ If not provided, the nickname will be set to "<unspecified>". This string
+ shall be a UTF-8 encoded unicode string.
+
+web.port = (strports string, optional)
+
+ This controls where the node's webserver should listen, providing filesystem
+ access and node status as defined in webapi.txt . This file contains a
+ Twisted "strports" specification such as "8123" or
+ "tcp:8123:interface=127.0.0.1". The 'tahoe create-client' command sets the
+ web.port to "tcp:8123:interface=127.0.0.1" by default, and is overridable by
+ the "--webport" option. You can make it use SSL by writing
+ "ssl:8123:privateKey=mykey.pem:certKey=cert.pem" instead.
+
+ If this is not provided, the node will not run a web server.
+
+tub.port = (integer, optional)
+
+ This controls which port the node uses to accept Foolscap connections from
+ other nodes. If not provided, the node will ask the kernel for any available
+ port. The port will be written to a separate file (named client.port or
+ introducer.port), so that subsequent runs will re-use the same port.
+
+advertised_ip_addresses = (comma-separated host[:port] string, optional)
+
+ The node normally uses tools like 'ifconfig' to determine the set of IP
+ addresses on which it can be reached from nodes both near and far. The node
+ introduces itself to the rest of the grid with a FURL that contains a series
+ of (ipaddr, port) pairs which other nodes will use to contact this one. By
+ providing this file, you can add to this list. This can be useful if your
+ node is running behind a firewall, but you have created a port-forwarding to
+ allow the outside world to access it. Each line must have a dotted-quad IP
+ address and an optional :portnum specification, like:
+
+  123.45.67.89
+  44.55.66.77:8098
+
+ Lines that do not provide a port number will use the same client.port as the
+ automatically-discovered addresses.
+
+log_gatherer.furl = (FURL, optional)
+
+ If provided, this contains a single FURL string which is used to contact a
+ 'log gatherer', which will be granted access to the logport. This can be
+ used by centralized storage meshes to gather operational logs in a single
+ place. Note that when an old-style BASEDIR/log_gatherer.furl file exists
+ (see 'Backwards Compatibility Files', below), both are used. (for most other
+ items, the separate config file overrides the entry in tahoe.cfg)
+
+timeout.keepalive = (integer in seconds, optional)
+timeout.disconnect = (integer in seconds, optional)
+
+ If timeout.keepalive is provided, it is treated as an integral number of
+ seconds, and sets the Foolscap "keepalive timer" to that value. For each
+ connection to another node, if nothing has been heard for a while, we will
+ attempt to provoke the other end into saying something. The duration of
+ silence that passes before sending the PING will be between KT and 2*KT.
+ This is mainly intended to keep NAT boxes from expiring idle TCP sessions,
+ but also gives TCP's long-duration keepalive/disconnect timers some traffic
+ to work with. The default value is 240 (i.e. 4 minutes).
+
+ If timeout.disconnect is provided, this is treated as an integral number of
+ seconds, and sets the Foolscap "disconnect timer" to that value. For each
+ connection to another node, if nothing has been heard for a while, we will
+ drop the connection. The duration of silence that passes before dropping the
+ connection will be between DT-2*KT and 2*DT+2*KT (please see ticket #521 for
+ more details). If we are sending a large amount of data to the other end
+ (which takes more than DT-2*KT to deliver), we might incorrectly drop the
+ connection. The default behavior (when this value is not provided) is to
+ disable the disconnect timer.
+
+ See ticket #521 for a discussion of how to pick these timeout values. Using
+ 30 minutes means we'll disconnect after 22 to 68 minutes of inactivity.
+ Receiving data will reset this timeout, however if we have more than 22min
+ of data in the outbound queue (such as 800kB in two pipelined segments of 10
+ shares each) and the far end has no need to contact us, our ping might be
+ delayed, so we may disconnect them by accident.
+
+ssh.port = (strports string, optional)
+ssh.authorized_keys_file = (filename, optional)
+
+ This enables an SSH-based interactive Python shell, which can be used to
+ inspect the internal state of the node, for debugging. To cause the node to
+ accept SSH connections on port 8022 from the same keys as the rest of your
+ account, use:
+
+   [tub]
+   ssh.port = 8022
+   ssh.authorized_keys_file = ~/.ssh/authorized_keys
+
 == Client Configuration ==
 
-introducer.furl (mandatory): This FURL tells the client how to connect to the
-introducer. Each Tahoe grid is defined by an introducer. The introducer's
-furl is created by the introducer node and written into its base directory
-when it starts, whereupon it should be published to everyone who wishes to
-attach a client to that grid
+[client]
+introducer.furl = (FURL string, mandatory)
 
-nickname (optional): The contents of this file will be displayed in
-management tools as this node's "nickname". If the file doesn't exist, the
-nickname will be set to "<unspecified>". This file shall be a UTF-8 encoded
-unicode string.
+ This FURL tells the client how to connect to the introducer. Each Tahoe grid
+ is defined by an introducer. The introducer's furl is created by the
+ introducer node and written into its base directory when it starts,
+ whereupon it should be published to everyone who wishes to attach a client
+ to that grid
 
-webport (optional): This controls where the client's webserver should listen,
-providing filesystem access as defined in webapi.txt . This file contains a
-Twisted "strports" specification (as defined in
-http://twistedmatrix.com/documents/current/api/twisted.application.strports.html
-) such as "8123" or "tcp:8123:interface=127.0.0.1".  The 'tahoe create-client'
-command sets the webport to "tcp:8123:interface=127.0.0.1" by default, and is
-overridable by the "--webport" option.  You can make it use SSL by writing
-"ssl:8123:privateKey=mykey.pem:certKey=cert.pem" instead.
+helper.furl = (FURL string, optional)
 
-helper.furl (optional): If present, the node will attempt to connect to and
-use the given helper for uploads. See docs/helper.txt for details.
+ If provided, the node will attempt to connect to and use the given helper
+ for uploads. See docs/helper.txt for details.
 
-client.port (optional): This controls which port the node listens on. If not
-provided, the node will ask the kernel for any available port, and write it
-to this file so that subsequent runs will re-use the same port.
+key_generator.furl = (FURL string, optional)
 
-advertised_ip_addresses (optional): The node normally uses tools like
-'ifconfig' to determine the set of IP addresses on which it can be reached
-from nodes both near and far. The node introduces itself to the rest of the
-grid with a FURL that contains a series of (ipaddr, port) pairs which other
-nodes will use to contact this one. By providing this file, you can add to
-this list. This can be useful if your node is running behind a firewall, but
-you have created a port-forwarding to allow the outside world to access it.
-Each line must have a dotted-quad IP address and an optional :portnum
-specification, like:
+ If provided, the node will attempt to connect to and use the given
+ key-generator service, using RSA keys from the external process rather than
+ generating its own.
 
- 123.45.67.89
- 44.55.66.77:8098
+stats_gatherer.furl = (FURL string, optional)
 
-Lines that do not provide a port number will use the same client.port as the
-automatically-discovered addresses.
+ If provided, the node will connect to the given stats gatherer and provide
+ it with operational statistics.
 
-keepalive_timeout (optional): If present, this is treated as an integral
-number of seconds, and sets the Foolscap "keepalive timer" to that value. For
-each connection to another node, if nothing has been heard for a while, we
-will attempt to provoke the other end into saying something. The duration of
-silence that passes before sending the PING will be between KT and 2*KT. This
-is mainly intended to keep NAT boxes from expiring idle TCP sessions, but
-also gives TCP's long-duration keepalive/disconnect timers some traffic to
-work with. The default value is 240 (i.e. 4 minutes).
 
-disconnect_timeout (optional): If present, this is treated as an integral
-number of seconds, and sets the Foolscap "disconnect timer" to that value.
-For each connection to another node, if nothing has been heard for a while,
-we will drop the connection. The duration of silence that passes before
-dropping the connection will be between DT-2*KT and 2*DT+2*KT (please see
-ticket #521 for more details). If we are sending a large amount of data to
-the other end (which takes more than DT-2*KT to deliver), we might
-incorrectly drop the connection. The default behavior (when this file does
-not exist) is to disable the disconnect timer.
+== Storage Server Configuration ==
 
-authorized_keys.SSHPORT (optional): This enables an SSH-based interactive
-Python shell, which can be used to inspect the internal state of the node,
-for debugging.  To cause the node to accept SSH connections on port 8022,
-symlink "authorized_keys.8022" to your ~/.ssh/authorized_keys file, and it
-will accept the same keys as the rest of your account.
+[storage]
+enabled = (boolean, optional)
 
-no_storage (optional): If this file is present (the contents do not matter),
-the node will not run a storage server, meaning that no shares will be stored
-on this node. Use this for clients who do not wish to provide storage
+ If this is True, the node will run a storage server, offering space to other
+ clients. If it is False, the node will not run a storage server, meaning
+ that no shares will be stored on this node. Use False this for clients who
+ do not wish to provide storage service. The default value is True.
+
+readonly = (boolean, optional)
+
+ If True, the node will run a storage server but will not accept any shares,
+ making it effectively read-only. Use this for storage servers which are
+ being decommissioned: the storage/ directory could be mounted read-only,
+ while shares are moved to other servers. Note that this currently only
+ affects immutable shares. Mutable shares (used for directories) will be
+ written and modified anyway. See ticket #390 for the current status of this
+ bug. The default value is False.
+
+sizelimit = (str, optional)
+
+ If provided, this value establishes an upper bound (in bytes) on the amount
+ of storage consumed by share data (data that your node holds on behalf of
+ clients that are uploading files to the grid). To avoid providing more than
+ 100MB of data to other clients, set this key to "100MB". Note that this is a
+ fairly loose bound, and the node may occasionally use slightly more storage
+ than this. To enforce a stronger (and possibly more reliable) limit, use a
+ symlink to place the 'storage/' directory on a separate size-limited
+ filesystem, and/or use per-user OS/filesystem quotas. If a size limit is
+ specified then Tahoe will do a "du" at startup (traversing all the storage
+ and summing the sizes of the files), which can take a long time if there are
+ a lot of shares stored.
+
+ This string contains a number, with an optional case-insensitive scale
+ suffix like "K" or "M" or "G", and an optional "B" suffix. So "100MB",
+ "100M", "100000000B", "100000000", and "100000kb" all mean the same thing.
+
+
+== Running A Helper ==
+
+A "helper" is a regular client node that also offers the "upload helper"
 service.
 
-readonly_storage (optional): If this file is present (the contents do not
-matter), the node will run a storage server but will not accept any shares,
-making it effectively read-only. Use this for storage servers which are being
-decommissioned: the storage/ directory could be mounted read-only, while
-shares are moved to other servers. Note that this currently only affects
-immutable shares. Mutable shares (used for directories) will be written and
-modified anyway. See ticket #390 for the current status of this bug.
+[helper]
+enabled = (boolean, optional)
 
-sizelimit (optional): If present, this file establishes an upper bound (in
-bytes) on the amount of storage consumed by share data (data that your node
-holds on behalf of clients that are uploading files to the grid). To avoid
-providing more than 100MB of data to other clients, write "100000000" into
-this file. Note that this is a fairly loose bound, and the node may
-occasionally use slightly more storage than this. To enforce a stronger (and
-possibly more reliable) limit, use a symlink to place the 'storage/'
-directory on a separate size-limited filesystem, and/or use per-user
-OS/filesystem quotas.  If a size limit is specified then Tahoe will do a "du"
-at startup (traversing all the storage and summing the sizes of the files),
-which can take a long time if there are a lot of shares stored.
+ If True, the node will run a helper (see docs/helper.txt for details). The
+ helper's contact FURL will be placed in private/helper.furl, from which it
+ can be copied to any clients which wish to use it. Clearly nodes should not
+ both run a helper and attempt to use one: do not create both helper.furl and
+ run_helper in the same node. The default is False.
 
-private/root_dir.cap (optional): The command-line tools will read a directory
-cap out of this file and use it, if you don't specify a '--dir-cap' option or
-if you specify '--dir-cap=root'.
 
-private/convergence (automatically generated): An added secret for encrypting
-immutable files. Everyone who has this same string in their private/convergence
-file encrypts their immutable files in the same way when uploading them.  This
-causes identical files to "converge" -- to share the same storage space since
-they have identical ciphertext -- which conserves space and optimizes upload
-time, but it also exposes files to the possibility of a brute-force attack by
-people who know that string.  In this attack, if the attacker can guess most of
-the contents of a file, then they can use brute-force to learn the remaining
-contents.
+== Running An Introducer ==
 
-So the set of people who know your private/convergence string is the set of
-people who converge their storage space with you when you and they upload
-identical immutable files, and it is also the set of people who could mount such
-an attack.
+The introducer node uses a different '.tac' file (named introducer.tac), and
+pays attention to the "[node]" section, but not the others.
 
-The content of the private/convergence file is a base-32 encoded string.  If the
-file doesn't exist, then when the Tahoe client starts up it will generate a
-random 256-bit string and write the base-32 encoding of this string into the
-file.  If you want to converge your immutable files with as many people as
-possible, put the empty string (so that private/convergence is a zero-length
-file).
+The Introducer node maintains some different state than regular client
+nodes.
 
-log_gatherer.furl : if present, this file is used to contact a 'log
-gatherer', which will be granted access to the logport. This can be used by
-centralized storage meshes to gather operational logs in a single place.
+BASEDIR/introducer.furl : This is generated the first time the introducer
+node is started, and used again on subsequent runs, to give the introduction
+service a persistent long-term identity. This file should be published and
+copied into new client nodes before they are started for the first time.
 
-run_helper : if present and not empty, the node will run a helper (see
-docs/helper.txt for details). The helper's contact FURL will be placed in
-private/helper.furl, from which it can be copied to any clients which wish to
-use it. Clearly nodes should not both run a helper and attempt to use one: do
-not create both helper.furl and run_helper in the same node.
 
-== Node State ==
+== Other Files in BASEDIR ==
+
+Some configuration is not kept in tahoe.cfg, for the following reasons:
+
+ * it is generated by the node at startup, e.g. encryption keys. The node
+   never writes to tahoe.cfg
+ * it is generated by user action, e.g. the 'tahoe create-alias' command
+
+In addition, non-configuration persistent state is kept in the node's base
+directory, next to the configuration knobs.
+
+This section describes these other files.
+
 
 private/node.pem : This contains an SSL private-key certificate. The node
 generates this the first time it is started, and re-uses it on subsequent
@@ -179,29 +276,32 @@ private/helper.furl : if the node is running a helper (for use by other
 clients), its contact FURL will be placed here. See docs/helper.txt for more
 details.
 
-== Introducer configuration ==
+private/root_dir.cap (optional): The command-line tools will read a directory
+cap out of this file and use it, if you don't specify a '--dir-cap' option or
+if you specify '--dir-cap=root'.
 
-Introducer nodes use the same 'advertised_ip_addresses' file as client
-nodes. They also use 'authorized_keys.SSHPORT'.
+private/convergence (automatically generated): An added secret for encrypting
+immutable files. Everyone who has this same string in their
+private/convergence file encrypts their immutable files in the same way when
+uploading them. This causes identical files to "converge" -- to share the
+same storage space since they have identical ciphertext -- which conserves
+space and optimizes upload time, but it also exposes files to the possibility
+of a brute-force attack by people who know that string. In this attack, if
+the attacker can guess most of the contents of a file, then they can use
+brute-force to learn the remaining contents.
 
-There are no additional configuration parameters for the introducer.
+So the set of people who know your private/convergence string is the set of
+people who converge their storage space with you when you and they upload
+identical immutable files, and it is also the set of people who could mount
+such an attack.
 
+The content of the private/convergence file is a base-32 encoded string. If
+the file doesn't exist, then when the Tahoe client starts up it will generate
+a random 256-bit string and write the base-32 encoding of this string into
+the file. If you want to converge your immutable files with as many people as
+possible, put the empty string (so that private/convergence is a zero-length
+file).
 
-== Introducer state ==
-
-The Introducer node maintains some different state than regular client
-nodes.
-
-introducer.furl : This is generated the first time the introducer node is
-started, and used again on subsequent runs, to give the introduction service
-a persistent long-term identity. This file should be published and copied
-into new client nodes before they are started for the first time.
-
-introducer.port : this serves exactly the same purpose as 'client.port', but
-has a different name to make it clear what kind of node is being run.
-
-introducer.tac : this file is like client.tac but defines an
-introducer node instead of a client node.
 
 == Other files ==
 
@@ -220,3 +320,66 @@ node. This NodeID is the same string that gets displayed on the web page (in
 the "which peers am I connected to" list), and the shortened form (the first
 characters) is recorded in various log messages.
 
+
+== Backwards Compatibility Files ==
+
+Tahoe releases before 1.3.0 had no 'tahoe.cfg' file, and used distinct files
+for each item listed below. For each configuration knob, if the distinct file
+exists, it will take precedence over the corresponding item in tahoe.cfg .
+
+
+[node]nickname : BASEDIR/nickname
+[node]web.port : BASEDIR/webport
+[node]tub.port : BASEDIR/client.port  (for Clients, not Introducers)
+[node]tub.port : BASEDIR/introducer.port  (for Introducers, not Clients)
+      (note that, unlike other keys, tahoe.cfg overrides the *.port file)
+[node]advertised_ip_addresses : BASEDIR/advertised_ip_addresses (one per line)
+[node]log_gatherer.furl : BASEDIR/log_gatherer.furl (one per line)
+[node]timeout.keepalive : BASEDIR/keepalive_timeout
+[node]timeout.disconnect : BASEDIR/disconnect_timeout
+[node]ssh.port : BASEDIR/authorized_keys.SSHPORT
+[node]ssh.authorized_keys_file : BASEDIR/authorized_keys.SSHPORT
+[client]introducer.furl : BASEDIR/introducer.furl
+[client]helper.furl : BASEDIR/helper.furl
+[client]key_generator.furl : BASEDIR/key_generator.furl
+[client]stats_gatherer.furl : BASEDIR/stats_gatherer.furl
+[storage]enabled : BASEDIR/no_storage (False if no_storage exists)
+[storage]readonly : BASEDIR/readonly_storage (True if readonly_storage exists)
+[storage]sizelimit : BASEDIR/sizelimit
+[storage]debug_discard : BASEDIR/debug_discard_storage
+[helper]enabled : BASEDIR/run_helper (True if run_helper exists)
+
+Note: the functionality of [node]ssh.port and [node]ssh.authorized_keys_file
+were previously combined, controlled by the presence of a
+BASEDIR/authorized_keys.SSHPORT file, in which the suffix of the filename
+indicated which port the ssh server should listen on.
+
+
+== Example ==
+
+The following is a sample tahoe.cfg file, containing values for all keys
+described above. Note that this is not a recommended configuration (most of
+these are not the default values), merely a legal one.
+
+[node]
+port = 34912
+advertised_ip_addresses = 123.45.67.89,44.55.66.77:8098
+log_gatherer.furl = pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm
+timeout.keepalive = 240
+timeout.disconnect = 1800
+ssh.port = 8022
+ssh.authorized_keys_file = ~/.ssh/authorized_keys
+
+[client]
+introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tahoe.example:44801/ii3uumo
+nickname = Bob's Tahoe Node
+web.port = 8123
+helper.furl = pb://ggti5ssoklj4y7eok5c3xkmj@helper.tahoe.example:7054/kk8lhr
+
+[storage]
+no_storage = False
+readonly_storage = True
+sizelimit = 10000000000
+
+[helper]
+run_helper = True

@@ -65,22 +65,16 @@ class Client(node.Node, testutil.PollMixin):
         node.Node.__init__(self, basedir)
         self.started_timestamp = time.time()
         self.logSource="Client"
-        nickname_utf8 = self.get_config("nickname")
-        if nickname_utf8:
-            self.nickname = nickname_utf8.decode("utf-8")
-        else:
-            self.nickname = u"<unspecified>"
         self.init_introducer_client()
         self.init_stats_provider()
         self.init_lease_secret()
         self.init_storage()
         self.init_control()
-        run_helper = self.get_config("run_helper")
-        if run_helper:
+        if self.get_config("helper", "enabled", False, boolean=True):
             self.init_helper()
         self.init_client()
         self._key_generator = None
-        key_gen_furl = self.get_config('key_generator.furl')
+        key_gen_furl = self.get_config("client", "key_generator.furl", None)
         if key_gen_furl:
             self.init_key_gen(key_gen_furl)
         # ControlServer and Helper are attached after Tub startup
@@ -93,12 +87,29 @@ class Client(node.Node, testutil.PollMixin):
             hotline = TimerService(1.0, self._check_hotline, hotline_file)
             hotline.setServiceParent(self)
 
-        webport = self.get_config("webport")
+        webport = self.get_config("node", "web.port", None)
         if webport:
             self.init_web(webport) # strports string
 
+    def read_old_config_files(self):
+        node.Node.read_old_config_files(self)
+        copy = self._copy_config_from_file
+        copy("introducer.furl", "client", "introducer.furl")
+        copy("helper.furl", "client", "helper.furl")
+        copy("key_generator.furl", "client", "key_generator.furl")
+        copy("stats_gatherer.furl", "client", "stats_gatherer.furl")
+        if os.path.exists(os.path.join(self.basedir, "no_storage")):
+            self.set_config("storage", "enabled", "false")
+        if os.path.exists(os.path.join(self.basedir, "readonly_storage")):
+            self.set_config("storage", "readonly", "true")
+        copy("sizelimit", "storage", "sizelimit")
+        if os.path.exists(os.path.join(self.basedir, "debug_discard_storage")):
+            self.set_config("storage", "debug_discard", "true")
+        if os.path.exists(os.path.join(self.basedir, "run_helper")):
+            self.set_config("helper", "enabled", "true")
+
     def init_introducer_client(self):
-        self.introducer_furl = self.get_config("introducer.furl", required=True)
+        self.introducer_furl = self.get_config("client", "introducer.furl")
         ic = IntroducerClient(self.tub, self.introducer_furl,
                               self.nickname,
                               str(allmydata.__version__),
@@ -117,7 +128,7 @@ class Client(node.Node, testutil.PollMixin):
                      level=log.BAD, umid="URyI5w")
 
     def init_stats_provider(self):
-        gatherer_furl = self.get_config('stats_gatherer.furl')
+        gatherer_furl = self.get_config("client", "stats_gatherer.furl", None)
         self.stats_provider = StatsProvider(self, gatherer_furl)
         self.add_service(self.stats_provider)
         self.stats_provider.register_producer(self)
@@ -131,15 +142,14 @@ class Client(node.Node, testutil.PollMixin):
 
     def init_storage(self):
         # should we run a storage server (and publish it for others to use)?
-        provide_storage = (self.get_config("no_storage") is None)
-        if not provide_storage:
+        if not self.get_config("storage", "enabled", True, boolean=True):
             return
-        readonly_storage = (self.get_config("readonly_storage") is not None)
+        readonly = self.get_config("storage", "readonly", False, boolean=True)
 
         storedir = os.path.join(self.basedir, self.STOREDIR)
-        sizelimit = None
 
-        data = self.get_config("sizelimit")
+        sizelimit = None
+        data = self.get_config("storage", "sizelimit", None)
         if data:
             m = re.match(r"^(\d+)([kKmMgG]?[bB]?)$", data)
             if not m:
@@ -155,9 +165,9 @@ class Client(node.Node, testutil.PollMixin):
                               "G": 1000 * 1000 * 1000,
                               }[suffix]
                 sizelimit = int(number) * multiplier
-        discard_storage = self.get_config("debug_discard_storage") is not None
-        ss = StorageServer(storedir, sizelimit,
-                           discard_storage, readonly_storage,
+        discard = self.get_config("storage", "debug_discard", False,
+                                  boolean=True)
+        ss = StorageServer(storedir, sizelimit, discard, readonly,
                            self.stats_provider)
         self.add_service(ss)
         d = self.when_tub_ready()
@@ -172,7 +182,7 @@ class Client(node.Node, testutil.PollMixin):
                      level=log.BAD, umid="aLGBKw")
 
     def init_client(self):
-        helper_furl = self.get_config("helper.furl")
+        helper_furl = self.get_config("client", "helper.furl", None)
         convergence_s = self.get_or_create_private_config('convergence', _make_secret)
         self.convergence = base32.a2b(convergence_s)
         self._node_cache = weakref.WeakValueDictionary() # uri -> node
@@ -241,8 +251,6 @@ class Client(node.Node, testutil.PollMixin):
         from allmydata.webish import WebishServer
         nodeurl_path = os.path.join(self.basedir, "node.url")
         ws = WebishServer(webport, nodeurl_path)
-        if self.get_config("webport_allow_localfile") is not None:
-            ws.allow_local_access(True)
         self.add_service(ws)
 
     def _check_hotline(self, hotline_file):
