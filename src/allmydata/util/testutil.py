@@ -46,7 +46,7 @@ class PollComplete(Exception):
 
 class PollMixin:
 
-    def poll(self, check_f, pollinterval=0.01, timeout=None):
+    def poll(self, check_f, pollinterval=0.01, timeout=100):
         # Return a Deferred, then call check_f periodically until it returns
         # True, at which point the Deferred will fire.. If check_f raises an
         # exception, the Deferred will errback. If the check_f does not
@@ -66,7 +66,7 @@ class PollMixin:
 
     def _poll(self, check_f, cutoff):
         if cutoff is not None and time.time() > cutoff:
-            raise TimeoutError()
+            raise TimeoutError("PollMixin never saw %s return True" % check_f)
         if check_f():
             raise PollComplete()
 
