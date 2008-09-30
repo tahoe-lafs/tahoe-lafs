@@ -46,6 +46,35 @@ class TestCase(unittest.TestCase, testutil.SignalMixin):
         d.addCallback(_check_addresses)
         return d
 
+    def test_advertised_ip_addresses2(self):
+        basedir = "test_node/test_advertised_ip_addresses2"
+        fileutil.make_dirs(basedir)
+
+        n = TestNode(basedir)
+        n.setServiceParent(self.parent)
+        d = n.when_tub_ready()
+        # this lets the 'port' file get written
+        d.addCallback(lambda res: n.disownServiceParent())
+        def _new_node(res):
+            f = open(os.path.join(basedir, 'advertised_ip_addresses'),'w')
+            f.write('1.2.3.4\n')
+            f.write("6.7.8.9\n")
+            f.close()
+            n2 = self.node = TestNode(basedir)
+            n2.setServiceParent(self.parent)
+            return n2.when_tub_ready()
+        d.addCallback(_new_node)
+
+        def _check_addresses(ignored_result):
+            portfile = os.path.join(basedir, self.node.PORTNUMFILE)
+            port = int(open(portfile, "r").read().strip())
+            furl = self.node.tub.registerReference(n)
+            self.failUnless(("1.2.3.4:%d" % port) in furl, furl)
+            self.failUnless(("6.7.8.9:%d" % port) in furl, furl)
+
+        d.addCallback(_check_addresses)
+        return d
+
     def test_timestamp(self):
         # this modified logger doesn't seem to get used during the tests,
         # probably because we don't modify the LogObserver that trial
