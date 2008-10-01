@@ -199,7 +199,8 @@ class CPUWatcher(service.MultiService, resource.Resource, Referenceable):
             except:
                 log.msg("error reading process %s (%s), ignoring" % (pid, name))
                 log.err()
-        pickle.dump(self.history, open("history.pickle", "wb"))
+        pickle.dump(self.history, open("history.pickle.tmp", "wb"))
+        os.rename("history.pickle.tmp", "history.pickle")
         for (pid, name) in processes:
             row = [name]
             for avg in self.AVERAGES:
