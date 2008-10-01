@@ -14,14 +14,20 @@ base32-encoded text.
 """
         return t
 
-def generate_keypair(options):
+def make_keypair():
     from pycryptopp.publickey import ecdsa
     from allmydata.util import base32
-    out = options.stdout
     privkey = ecdsa.generate(192)
-    print >>out, "private: priv-v0-%s" % base32.b2a(privkey.serialize())
+    privkey_vs = "priv-v0-%s" % base32.b2a(privkey.serialize())
     pubkey = privkey.get_verifying_key()
-    print >>out, "public: pub-v0-%s" % base32.b2a(pubkey.serialize())
+    pubkey_vs = "pub-v0-%s" % base32.b2a(pubkey.serialize())
+    return privkey_vs, pubkey_vs
+
+def print_keypair(options):
+    out = options.stdout
+    privkey_vs, pubkey_vs = make_keypair()
+    print >>out, "private:", privkey_vs
+    print >>out, "public:", pubkey_vs
 
 class AdminCommand(usage.Options):
     subCommands = [
@@ -46,7 +52,7 @@ each subcommand.
         return t
 
 subDispatch = {
-    "generate-keypair": generate_keypair,
+    "generate-keypair": print_keypair,
     }
 
 def do_admin(options):
