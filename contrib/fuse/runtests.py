@@ -426,6 +426,29 @@ class SystemTest (object):
             tmpl = 'Expected file contents %r but found %r'
             raise TestFailure(tmpl, body, found)
 
+    def get_file(self, dircap, path):
+        body = self.webapi_call('GET', '/uri/%s/%s' % (dircap, path))
+        return body
+
+    def test_write_small_file(self, testcap, testdir):
+        name = 'smallfile.txt'
+        body = 'this is a small file'
+
+        try:
+            path = os.path.join(testdir, name)
+            f = file(path, 'w')
+            f.write(body)
+            f.close()
+        except Exception, err:
+            tmpl = 'Could not write file contents at %r: %r'
+            raise TestFailure(tmpl, path, err)
+
+        uploaded_body = self.get_file(testcap, name)
+
+        if uploaded_body != body:
+            tmpl = 'Expected file contents %r but found %r'
+            raise TestFailure(tmpl, body, uploaded_body)
+
 
     # Utilities:
     def run_tahoe(self, *args):
