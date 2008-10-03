@@ -201,9 +201,11 @@ class TahoeFS (fuse.Fuse):
             return self.rootdir.resolve_path(parts)
     
     def _get_contents(self, path):
-        node = self._get_node(path)
-        contents = node.open().read()
-        self.filecontents[path] = contents
+        contents = self.filecontents.get(path)
+        if contents is None:
+            node = self._get_node(path)
+            contents = node.open().read()
+            self.filecontents[path] = contents
         return contents
     
     @trace_calls
