@@ -492,6 +492,46 @@ class SystemTest (object):
         self._check_write(testcap, name, body)
 
 
+    def test_write_random_scatter(self, testcap, testdir):
+        sz = 2**20
+        name = 'random_scatter'
+        body = os.urandom(sz)
+
+        def rsize(sz=sz):
+            return min(int(random.paretovariate(.25)), sz/12)
+
+        # first chop up whole file into random sized chunks
+        slices = []
+        posn = 0
+        while posn < sz:
+            size = rsize()
+            slices.append( (posn, body[posn:posn+size]) )
+            posn += size
+        random.shuffle(slices) # and randomise their order
+
+        try:
+            path = os.path.join(testdir, name)
+            f = file(path, 'w')
+        except Exception, err:
+            tmpl = 'Could not open file for write at %r: %r'
+            raise TestFailure(tmpl, path, err)
+        try:
+            # write all slices: we hence know entire file is ultimately written
+            # write random excerpts: this provides for mixed and varied overlaps
+            for posn,slice in slices:
+                f.seek(posn)
+                f.write(slice)
+                rposn = random.randint(0,sz)
+                f.seek(rposn)
+                f.write(body[rposn:rposn+rsize()])
+            f.close()
+        except Exception, err:
+            tmpl = 'Could not write to file %r: %r'
+            raise TestFailure(tmpl, path, err)
+
+        self._check_write(testcap, name, body)
+
+
     # Utilities:
     def run_tahoe(self, *args):
         realargs = ('tahoe',) + args
