@@ -24,7 +24,7 @@ Unit and system tests for tahoe-fuse.
 # using the grid fs).
 
 import sys, os, shutil, unittest, subprocess
-import tempfile, re, time, random, httplib
+import tempfile, re, time, random, httplib, urllib
 
 from twisted.python import usage
 
@@ -95,6 +95,8 @@ class FuseTestsOptions(usage.Options):
     optFlags = [
         ["debug-wait", None, 
          "Causes the test system to pause at various points, to facilitate debugging"],
+        ["web-open", None,
+         "Opens a web browser to the web ui at the start of each impl's tests"],
          ]
 
     def postOptions(self):
@@ -181,10 +183,18 @@ class SystemTest (object):
             print sfail
             print '\n*** System Tests were not successfully completed.' 
 
-    def maybe_wait(self, msg='waiting'):
-        if self.config['debug-wait']:
+    def maybe_wait(self, msg='waiting', or_if_webopen=False):
+        if self.config['debug-wait'] or or_if_webopen and self.config['web-open']:
             print msg
             raw_input()
+
+    def maybe_webopen(self, where=None):
+        if self.config['web-open']:
+            import webbrowser
+            url = self.weburl
+            if where is not None:
+                url += urllib.quote(where)
+            webbrowser.open(url)
 
     def init_cli_layer(self):
         '''This layer finds the appropriate tahoe executable.'''
@@ -243,7 +253,7 @@ class SystemTest (object):
         if clientnum >= self.TotalClientsNeeded:
             self.maybe_wait('waiting (launched clients)')
             ret = self.create_test_dirnode_layer()
-            self.maybe_wait('waiting (ran tests)')
+            self.maybe_wait('waiting (ran tests)', or_if_webopen=True)
             return ret
 
         tmpl = 'Launching client %d of %d.'
@@ -264,7 +274,8 @@ class SystemTest (object):
             f = open(webportpath, 'w')
             f.write('tcp:%d:interface=127.0.0.1\n' % self.port)
             f.close()
-            print "http://127.0.0.1:%d/" % (self.port,)
+            self.weburl = "http://127.0.0.1:%d/" % (self.port,)
+            print self.weburl
         else:
             os.remove(webportpath)
 
@@ -324,6 +335,7 @@ class SystemTest (object):
         return results
 
     def run_test_layer(self, root_uri, iman):
+        self.maybe_webopen('uri/'+root_uri)
         failures = 0
         testnum = 0
         numtests = 0
