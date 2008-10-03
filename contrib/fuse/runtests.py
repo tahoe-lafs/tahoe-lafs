@@ -449,6 +449,39 @@ class SystemTest (object):
             tmpl = 'Expected file contents %r but found %r'
             raise TestFailure(tmpl, body, uploaded_body)
 
+    def test_write_tiny_file(self, testcap, testdir):
+        self._write_test_linear(testcap, testdir, name='tiny.junk', bs=2**9, sz=2**9)
+
+    def test_write_linear_small_writes(self, testcap, testdir):
+        self._write_test_linear(testcap, testdir, name='large_linear.junk', bs=2**9, sz=2**20)
+
+    def test_write_linear_large_writes(self, testcap, testdir):
+        # at least on the mac, large io block sizes are reduced to 64k writes through fuse
+        self._write_test_linear(testcap, testdir, name='small_linear.junk', bs=2**18, sz=2**20)
+
+    def _write_test_linear(self, testcap, testdir, name, bs, sz):
+        body = os.urandom(sz)
+        try:
+            path = os.path.join(testdir, name)
+            f = file(path, 'w')
+        except Exception, err:
+            tmpl = 'Could not open file for write at %r: %r'
+            raise TestFailure(tmpl, path, err)
+        try:
+            for posn in range(0,sz,bs):
+                f.write(body[posn:posn+bs])
+            f.close()
+        except Exception, err:
+            tmpl = 'Could not write to file %r: %r'
+            raise TestFailure(tmpl, path, err)
+
+        self._check_write(testcap, name, body)
+
+    def _check_write(self, testcap, name, expected_body):
+        uploaded_body = self.get_file(testcap, name)
+        if uploaded_body != expected_body:
+            tmpl = 'Expected file contents %r but found %r'
+            raise TestFailure(tmpl, expected_body, uploaded_body)
 
     # Utilities:
     def run_tahoe(self, *args):
