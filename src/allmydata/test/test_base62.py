@@ -18,9 +18,9 @@ class T(unittest.TestCase):
         assert base62.num_octets_that_encode_to_this_many_chars(chars) == octets, "%s != %s <- %s" % (octets, base62.num_octets_that_encode_to_this_many_chars(chars), chars)
 
     def _test_ende(self, bs):
-        as=base62.b2a(bs)
-        bs2=base62.a2b(as)
-        assert bs2 == bs, "bs2: %s:%s, bs: %s:%s, as: %s:%s" % (len(bs2), `bs2`, len(bs), `bs`, len(as), `as`)
+        ascii=base62.b2a(bs)
+        bs2=base62.a2b(ascii)
+        assert bs2 == bs, "bs2: %s:%s, bs: %s:%s, ascii: %s:%s" % (len(bs2), `bs2`, len(bs), `bs`, len(ascii), `ascii`)
 
     def test_num_octets_that_encode_to_this_many_chars(self):
         return self._test_num_octets_that_encode_to_this_many_chars(2, 1)

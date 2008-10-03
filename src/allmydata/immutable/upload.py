@@ -76,11 +76,10 @@ class PeerTracker:
         self._storageserver = storage_server # to an RIStorageServer
         self.buckets = {} # k: shareid, v: IRemoteBucketWriter
         self.sharesize = sharesize
-        as = storage.allocated_size(sharesize,
-                                    num_segments,
-                                    num_share_hashes,
-                                    EXTENSION_SIZE)
-        self.allocated_size = as
+        self.allocated_size = storage.allocated_size(sharesize,
+                                                     num_segments,
+                                                     num_share_hashes,
+                                                     EXTENSION_SIZE)
 
         self.blocksize = blocksize
         self.num_segments = num_segments
