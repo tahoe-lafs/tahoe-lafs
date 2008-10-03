@@ -464,6 +464,34 @@ class SystemTest (object):
             tmpl = 'Expected file contents %r but found %r'
             raise TestFailure(tmpl, expected_body, uploaded_body)
 
+    def test_write_overlapping_small_writes(self, testcap, testdir):
+        self._write_test_overlap(testcap, testdir, name='large_overlap', bs=2**9, sz=2**20)
+
+    def test_write_overlapping_large_writes(self, testcap, testdir):
+        self._write_test_overlap(testcap, testdir, name='small_overlap', bs=2**18, sz=2**20)
+
+    def _write_test_overlap(self, testcap, testdir, name, bs, sz):
+        body = os.urandom(sz)
+        try:
+            path = os.path.join(testdir, name)
+            f = file(path, 'w')
+        except Exception, err:
+            tmpl = 'Could not open file for write at %r: %r'
+            raise TestFailure(tmpl, path, err)
+        try:
+            for posn in range(0,sz,bs):
+                start = max(0, posn-bs)
+                end = min(sz, posn+bs)
+                f.seek(start)
+                f.write(body[start:end])
+            f.close()
+        except Exception, err:
+            tmpl = 'Could not write to file %r: %r'
+            raise TestFailure(tmpl, path, err)
+
+        self._check_write(testcap, name, body)
+
+
     # Utilities:
     def run_tahoe(self, *args):
         realargs = ('tahoe',) + args
