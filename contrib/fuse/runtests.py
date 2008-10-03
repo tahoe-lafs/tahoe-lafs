@@ -430,25 +430,6 @@ class SystemTest (object):
         body = self.webapi_call('GET', '/uri/%s/%s' % (dircap, path))
         return body
 
-    def test_write_small_file(self, testcap, testdir):
-        name = 'smallfile.txt'
-        body = 'this is a small file'
-
-        try:
-            path = os.path.join(testdir, name)
-            f = file(path, 'w')
-            f.write(body)
-            f.close()
-        except Exception, err:
-            tmpl = 'Could not write file contents at %r: %r'
-            raise TestFailure(tmpl, path, err)
-
-        uploaded_body = self.get_file(testcap, name)
-
-        if uploaded_body != body:
-            tmpl = 'Expected file contents %r but found %r'
-            raise TestFailure(tmpl, body, uploaded_body)
-
     def test_write_tiny_file(self, testcap, testdir):
         self._write_test_linear(testcap, testdir, name='tiny.junk', bs=2**9, sz=2**9)
 
