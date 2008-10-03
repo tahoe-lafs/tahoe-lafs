@@ -297,11 +297,11 @@ class NewDirectoryNode:
         The path can be either a single string (slash-separated) or a list of
         path-name elements.
         """
-        d = self.get_child_and_metdadata_at_path(path)
+        d = self.get_child_and_metadata_at_path(path)
         d.addCallback(lambda (node, metadata): node)
         return d
 
-    def get_child_and_metdadata_at_path(self, path):
+    def get_child_and_metadata_at_path(self, path):
         """Transform a child path into an IDirectoryNode or IFileNode and
         a metadata dictionary from the last edge that was traversed.
         """
@@ -319,7 +319,7 @@ class NewDirectoryNode:
         if remaining_path:
             d = self.get(childname)
             d.addCallback(lambda node:
-                          node.get_child_and_metdadata_at_path(remaining_path))
+                          node.get_child_and_metadata_at_path(remaining_path))
             return d
         d = self.get_child_and_metadata(childname)
         return d

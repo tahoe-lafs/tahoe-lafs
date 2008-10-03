@@ -381,10 +381,10 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             d.addCallback(lambda res:
                           self.shouldFail(KeyError, "gcamap-no",
                                           "'nope'",
-                                          n.get_child_and_metdadata_at_path,
+                                          n.get_child_and_metadata_at_path,
                                           u"subdir/nope"))
             d.addCallback(lambda res:
-                          n.get_child_and_metdadata_at_path(u""))
+                          n.get_child_and_metadata_at_path(u""))
             def _check_child_and_metadata1(res):
                 child, metadata = res
                 self.failUnless(isinstance(child, FakeDirectoryNode))
@@ -392,7 +392,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                 self.failUnlessEqual(sorted(metadata.keys()), [])
             d.addCallback(_check_child_and_metadata1)
             d.addCallback(lambda res:
-                          n.get_child_and_metdadata_at_path(u"child"))
+                          n.get_child_and_metadata_at_path(u"child"))
 
             def _check_child_and_metadata2(res):
                 child, metadata = res
@@ -403,7 +403,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             d.addCallback(_check_child_and_metadata2)
 
             d.addCallback(lambda res:
-                          n.get_child_and_metdadata_at_path(u"subdir/subsubdir"))
+                          n.get_child_and_metadata_at_path(u"subdir/subsubdir"))
             def _check_child_and_metadata3(res):
                 child, metadata = res
                 self.failUnless(isinstance(child, FakeDirectoryNode))
