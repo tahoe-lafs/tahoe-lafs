@@ -703,6 +703,15 @@ class IDirectoryNode(IMutableFilesystemNode):
         path-name elements. All elements must be unicode strings.
         """
 
+    def get_child_and_metadata_at_path(path):
+        """Transform a child path into an IDirectoryNode/IFileNode and
+        metadata.
+
+        I am like get_child_at_path(), but my Deferred fires with a tuple of
+        (node, metadata). The metadata comes from the last edge. If the path
+        is empty, the metadata will be an empty dictionary.
+        """
+
     def set_uri(name, child_uri, metadata=None, overwrite=True):
         """I add a child (by URI) at the specific name. I return a Deferred
         that fires when the operation finishes. If overwrite= is True, I will

@@ -361,6 +361,10 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             def _add_subsubdir(res):
                 return self.subdir.create_empty_directory(u"subsubdir")
             d.addCallback(_add_subsubdir)
+            # /
+            # /child = mutable
+            # /subdir = directory
+            # /subdir/subsubdir = directory
             d.addCallback(lambda res: n.get_child_at_path(u"subdir/subsubdir"))
             d.addCallback(lambda subsubdir:
                           self.failUnless(isinstance(subsubdir,
@@ -373,6 +377,39 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             d.addCallback(lambda metadata:
                           self.failUnlessEqual(sorted(metadata.keys()),
                                                ["ctime", "mtime"]))
+
+            d.addCallback(lambda res:
+                          self.shouldFail(KeyError, "gcamap-no",
+                                          "'nope'",
+                                          n.get_child_and_metdadata_at_path,
+                                          u"subdir/nope"))
+            d.addCallback(lambda res:
+                          n.get_child_and_metdadata_at_path(u""))
+            def _check_child_and_metadata1(res):
+                child, metadata = res
+                self.failUnless(isinstance(child, FakeDirectoryNode))
+                # edge-metadata needs at least one path segment
+                self.failUnlessEqual(sorted(metadata.keys()), [])
+            d.addCallback(_check_child_and_metadata1)
+            d.addCallback(lambda res:
+                          n.get_child_and_metdadata_at_path(u"child"))
+
+            def _check_child_and_metadata2(res):
+                child, metadata = res
+                self.failUnlessEqual(child.get_uri(),
+                                     fake_file_uri.to_string())
+                self.failUnlessEqual(sorted(metadata.keys()),
+                                     ["ctime", "mtime"])
+            d.addCallback(_check_child_and_metadata2)
+
+            d.addCallback(lambda res:
+                          n.get_child_and_metdadata_at_path(u"subdir/subsubdir"))
+            def _check_child_and_metadata3(res):
+                child, metadata = res
+                self.failUnless(isinstance(child, FakeDirectoryNode))
+                self.failUnlessEqual(sorted(metadata.keys()),
+                                     ["ctime", "mtime"])
+            d.addCallback(_check_child_and_metadata3)
 
             # set_uri + metadata
             # it should be possible to add a child without any metadata

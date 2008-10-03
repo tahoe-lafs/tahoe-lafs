@@ -248,12 +248,27 @@ class NewDirectoryNode:
             raise KeyError(name)
         return child[0]
 
+    def _get_with_metadata(self, children, name):
+        child = children.get(name)
+        if child is None:
+            raise KeyError(name)
+        return child
+
     def get(self, name):
         """I return a Deferred that fires with the named child node,
         which is either an IFileNode or an IDirectoryNode."""
         assert isinstance(name, unicode)
         d = self._read()
         d.addCallback(self._get, name)
+        return d
+
+    def get_child_and_metadata(self, name):
+        """I return a Deferred that fires with the (node, metadata) pair for
+        the named child. The node is either an IFileNode or an
+        IDirectoryNode, and the metadata is a dictionary."""
+        assert isinstance(name, unicode)
+        d = self._read()
+        d.addCallback(self._get_with_metadata, name)
         return d
 
     def get_metadata_for(self, name):
@@ -282,9 +297,17 @@ class NewDirectoryNode:
         The path can be either a single string (slash-separated) or a list of
         path-name elements.
         """
+        d = self.get_child_and_metdadata_at_path(path)
+        d.addCallback(lambda (node, metadata): node)
+        return d
+
+    def get_child_and_metdadata_at_path(self, path):
+        """Transform a child path into an IDirectoryNode or IFileNode and
+        a metadata dictionary from the last edge that was traversed.
+        """
 
         if not path:
-            return defer.succeed(self)
+            return defer.succeed((self, {}))
         if isinstance(path, (list, tuple)):
             pass
         else:
@@ -293,11 +316,12 @@ class NewDirectoryNode:
             assert isinstance(p, unicode)
         childname = path[0]
         remaining_path = path[1:]
-        d = self.get(childname)
         if remaining_path:
-            def _got(node):
-                return node.get_child_at_path(remaining_path)
-            d.addCallback(_got)
+            d = self.get(childname)
+            d.addCallback(lambda node:
+                          node.get_child_and_metdadata_at_path(remaining_path))
+            return d
+        d = self.get_child_and_metadata(childname)
         return d
 
     def set_uri(self, name, child_uri, metadata=None, overwrite=True):
