@@ -16,7 +16,7 @@ nodes.
 The middle layer is the decentralized filesystem: a directed graph in
 which the intermediate nodes are directories and the leaf nodes are
 files. The leaf nodes contain only the file data -- they contain no
-metadata about the file other than the length.  The edges leading to
+metadata about the file other than the length in bytes.  The edges leading to
 leaf nodes have metadata attached to them about the file they point
 to.  Therefore, the same file may be associated with different
 metadata if it is dereferenced through different edges.
@@ -274,41 +274,34 @@ in the same facility, so the helper-to-storage-server bandwidth is huge.
 See "helper.txt" for details about the upload helper.
 
 
-VDRIVE and DIRNODES: THE VIRTUAL DRIVE LAYER
+THE FILESYSTEM LAYER
 
-The "virtual drive" layer is responsible for mapping human-meaningful
+The "filesystem" layer is responsible for mapping human-meaningful
 pathnames (directories and filenames) to pieces of data. The actual bytes
-inside these files are referenced by capability, but the "vdrive" is where
-the directory names, file names, and metadata are kept.
+inside these files are referenced by capability, but the filesystem layer is
+where the directory names, file names, and metadata are kept.
 
-In the current release, the virtual drive is a graph of "dirnodes". Each
-dirnode represents a single directory, and thus contains a table of named
-children. These children are either other dirnodes or actual files. All
-children are referenced by their capability. Each client creates a "private
-vdrive" dirnode at startup. The clients also receive access to a "global
-vdrive" dirnode from the central introducer/vdrive server, which is shared
-between all clients and serves as an easy demonstration of having multiple
-writers for a single dirnode.
+The filesystem layer is a graph of directories. Each directory contains a table
+of named children. These children are either other directories or files. All
+children are referenced by their capability.
 
-The dirnode itself has two forms of capability: one is read-write and the
-other is read-only. The table of children inside the dirnode has a read-write
-and read-only capability for each child. If you have a read-only capability
-for a given dirnode, you will not be able to access the read-write capability
-of the children.  This results in "transitively read-only" dirnode access.
+A directory has two forms of capability: read-write caps and read-only caps. The
+table of children inside the directory has a read-write and read-only capability
+for each child. If you have a read-only capability for a given directory, you will
+not be able to access the read-write capability of its children.  This results
+in "transitively read-only" directory access.
 
 By having two different capabilities, you can choose which you want to share
 with someone else. If you create a new directory and share the read-write
 capability for it with a friend, then you will both be able to modify its
 contents. If instead you give them the read-only capability, then they will
 *not* be able to modify the contents. Any capability that you receive can be
-attached to any dirnode that you can modify, so very powerful
+linked in to any directory that you can modify, so very powerful
 shared+published directory structures can be built from these components.
 
 This structure enable individual users to have their own personal space, with
 links to spaces that are shared with specific other users, and other spaces
-that are globally visible. Eventually the application layer will present
-these pieces in a way that allows the sharing of a specific file or the
-creation of a "virtual CD" as easily as dragging a folder onto a user icon.
+that are globally visible.
 
 
 LEASES, REFRESHING, GARBAGE COLLECTION, QUOTAS
@@ -468,7 +461,7 @@ but can accomplish none of the following three attacks:
     not granted them access
  2) violate consistency: the attacker convinces you that the wrong data is
     actually the data you were intending to retrieve
- 3) violate mutability: the attacker gets to modify a dirnode (either the
+ 3) violate mutability: the attacker gets to modify a directory (either the
     pathnames or the file contents) to which you have not given them
     mutability rights
 
@@ -510,8 +503,8 @@ A likely enhancement is the ability to use distinct encryption keys for each
 file, avoiding the file-correlation attacks at the expense of increased
 storage consumption. This is known as "non-convergent" encoding.
 
-The capability-based security model is used throughout this project. dirnode
-operations are expressed in terms of distinct read and write capabilities.
+The capability-based security model is used throughout this project. Directory
+operations are expressed in terms of distinct read- and write- capabilities.
 Knowing the read-capability of a file is equivalent to the ability to read
 the corresponding data. The capability to validate the correctness of a file
 is strictly weaker than the read-capability (possession of read-capability
@@ -519,11 +512,12 @@ automatically grants you possession of validate-capability, but not vice
 versa). These capabilities may be expressly delegated (irrevocably) by simply
 transferring the relevant secrets. 
 
-The application layer can provide whatever security/access model is desired,
-but we expect the first few to also follow capability discipline: rather than
-user accounts with passwords, each user will get a write-cap to their private
-dirnode, and the presentation layer will give them the ability to break off
-pieces of this vdrive for delegation or sharing with others on demand.
+The application layer can provide whatever access model is desired, built on
+top of this capability access model.  The first big user of this system so far
+is allmydata.com.  The allmydata.com access model currently works like a normal
+web site, using username and password to give a user access to her virtual
+drive.  In addition, allmydata.com users can share individual files (using a
+file sharing interface built on top of the immutable file read capabilities).
 
 
 RELIABILITY
