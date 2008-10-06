@@ -1,0 +1,48 @@
+= Tahoe FTP Frontend =
+
+All Tahoe client nodes can run a frontend FTP server, allowing regular FTP
+clients to access the virtual filesystem.
+
+Since Tahoe does not use user accounts or passwords, the FTP server must be
+configured with a way to translate USER+PASS into a root directory cap. Two
+mechanisms are provided. The first is a simple flat file with one account per
+line. The second is an HTTP-based login mechanism, backed by simple PHP
+script and a database. The latter form is used by allmydata.com to provide
+secure access to customer rootcaps.
+
+== Configuring an Account File ==
+
+To configure the first form, create a file (probably in
+BASEDIR/private/ftp.accounts) in which each non-comment/non-blank line is a
+space-separated line of (USERNAME, PASSWORD, ROOTCAP), like so:
+
+ % cat BASEDIR/private/ftp.accounts
+ # This is a password file, (username, password, rootcap)
+ alice password URI:DIR2:ioej8xmzrwilg772gzj4fhdg7a:wtiizszzz2rgmczv4wl6bqvbv33ag4kvbr6prz3u6w3geixa6m6a
+ bob sekrit URI:DIR2:6bdmeitystckbl9yqlw7g56f4e:serp5ioqxnh34mlbmzwvkp3odehsyrr7eytt5f64we3k9hhcrcja
+
+Then add the following lines to the BASEDIR/tahoe.cfg file:
+
+ [ftpd]
+ enabled = true
+ ftp.port = 8021
+ ftp.accounts.file = private/ftp.accounts
+
+The FTP server will listen on the given port number. The ftp.accounts.file
+pathname will be interpreted relative to the node's BASEDIR.
+
+== Configuring an Account Server ==
+
+Determine the URL of the account server, say https://example.com/login . Then
+add the following lines to BASEDIR/tahoe.cfg:
+
+ [ftpd]
+ enabled = true
+ ftp.port = 8021
+ ftp.accounts.url = https://example.com/login
+
+== Dependencies ==
+
+The FTP server requires Twisted's "vfs" component, which is not included in
+the Twisted-8.1.0 release. If there is no newer release available, it may be
+necessary to run Twisted from the SVN trunk to obtain this component.

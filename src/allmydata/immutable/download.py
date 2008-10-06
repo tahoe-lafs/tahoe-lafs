@@ -7,7 +7,7 @@ from twisted.application import service
 from foolscap import DeadReferenceError
 from foolscap.eventual import eventually
 
-from allmydata.util import base32, mathutil, hashutil, log
+from allmydata.util import base32, mathutil, hashutil, log, observer
 from allmydata.util.assertutil import _assert
 from allmydata import codec, hashtree, storage, uri
 from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, \
@@ -1038,6 +1038,37 @@ class FileHandle:
         pass
     def finish(self):
         return self._filehandle
+
+class ConsumerAdapter:
+    implements(IDownloadTarget, IConsumer)
+    def __init__(self, consumer):
+        self._consumer = consumer
+        self._when_finished = observer.OneShotObserverList()
+
+    def when_finished(self):
+        return self._when_finished.when_fired()
+
+    def registerProducer(self, producer, streaming):
+        print "REG"
+        self._consumer.registerProducer(producer, streaming)
+    def unregisterProducer(self):
+        print "UNREG"
+        self._consumer.unregisterProducer()
+
+    def open(self, size):
+        pass
+    def write(self, data):
+        self._consumer.write(data)
+    def close(self):
+        self._when_finished.fire(None)
+
+    def fail(self, why):
+        self._when_finished.fire(why)
+    def register_canceller(self, cb):
+        pass
+    def finish(self):
+        return None
+
 
 class Downloader(service.MultiService):
     """I am a service that allows file downloading.

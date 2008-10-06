@@ -78,6 +78,7 @@ class Client(node.Node, testutil.PollMixin):
         if key_gen_furl:
             self.init_key_gen(key_gen_furl)
         # ControlServer and Helper are attached after Tub startup
+        self.init_ftp_server()
 
         hotline_file = os.path.join(self.basedir,
                                     self.SUICIDE_PREVENTION_HOTLINE_FILE)
@@ -252,6 +253,17 @@ class Client(node.Node, testutil.PollMixin):
         nodeurl_path = os.path.join(self.basedir, "node.url")
         ws = WebishServer(webport, nodeurl_path)
         self.add_service(ws)
+
+    def init_ftp_server(self):
+        if not self.get_config("ftpd", "enabled", False, boolean=True):
+            return
+        portstr = self.get_config("ftpd", "ftp.port", "8021")
+        accountfile = self.get_config("ftpd", "ftp.accounts.file", None)
+        accounturl = self.get_config("ftpd", "ftp.accounts.url", None)
+
+        from allmydata import ftpd
+        s = ftpd.FTPServer(self, portstr, accountfile, accounturl)
+        s.setServiceParent(self)
 
     def _check_hotline(self, hotline_file):
         if os.path.exists(hotline_file):

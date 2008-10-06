@@ -1,6 +1,7 @@
 
 from zope.interface import implements
 from twisted.internet import defer
+from twisted.internet.interfaces import IPushProducer, IConsumer
 from allmydata.interfaces import IFileNode, IFileURI, ICheckable
 from allmydata.immutable.checker import SimpleCHKFileChecker, \
      SimpleCHKFileVerifier
@@ -88,7 +89,14 @@ class FileNode(ImmutableFileNode):
         downloader = self._client.getServiceNamed("downloader")
         return downloader.download_to_data(self.get_uri())
 
-
+class LiteralProducer:
+    implements(IPushProducer)
+    def resumeProducing(self):
+        print "LIT RESUME"
+        pass
+    def stopProducing(self):
+        print "LIT STOP"
+        pass
 
 class LiteralFileNode(ImmutableFileNode):
 
@@ -116,8 +124,12 @@ class LiteralFileNode(ImmutableFileNode):
     def download(self, target):
         # note that this does not update the stats_provider
         data = self.u.data
+        if IConsumer.providedBy(target):
+            target.registerProducer(LiteralProducer(), True)
         target.open(len(data))
         target.write(data)
+        if IConsumer.providedBy(target):
+            target.unregisterProducer()
         target.close()
         return defer.maybeDeferred(target.finish)
 
