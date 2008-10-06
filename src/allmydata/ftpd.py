@@ -6,9 +6,7 @@ from twisted.application import service, strports
 from twisted.internet import defer
 from twisted.internet.interfaces import IConsumer
 from twisted.protocols import ftp
-from twisted.cred import portal, checkers
-from twisted.vfs import pathutils
-from twisted.vfs.backends import osfs
+from twisted.cred import error, portal, checkers, credentials
 from twisted.python import log
 
 from allmydata.interfaces import IDirectoryNode, ExistingChildError
@@ -322,43 +320,67 @@ class Handler:
         return d
 
 
-from twisted.vfs.adapters import ftp as vftp # register the IFTPShell adapter
-_hush_pyflakes = [vftp]
-fs = pathutils.FileSystem(osfs.OSDirectory("/tmp/ftp-test"))
+class FTPAvatarID:
+    def __init__(self, username, rootcap):
+        self.username = username
+        self.rootcap = rootcap
+
+class AccountFileChecker:
+    implements(checkers.ICredentialsChecker)
+    credentialInterfaces = (credentials.IUsernamePassword,
+                            credentials.IUsernameHashedPassword)
+    def __init__(self, client, accountfile):
+        self.client = client
+        self.passwords = {}
+        self.rootcaps = {}
+        for line in open(os.path.expanduser(accountfile), "r"):
+            line = line.strip()
+            if line.startswith("#") or not line:
+                continue
+            name, passwd, rootcap = line.split()
+            self.passwords[name] = passwd
+            self.rootcaps[name] = rootcap
+
+    def _cbPasswordMatch(self, matched, username):
+        if matched:
+            return FTPAvatarID(username, self.rootcaps[username])
+        raise error.UnauthorizedLogin
+
+    def requestAvatarId(self, credentials):
+        if credentials.username in self.passwords:
+            d = defer.maybeDeferred(credentials.checkPassword,
+                                    self.passwords[credentials.username])
+            d.addCallback(self._cbPasswordMatch, str(credentials.username))
+            return d
+        return defer.fail(error.UnauthorizedLogin())
 
 class Dispatcher:
     implements(portal.IRealm)
-    def __init__(self, client, accounts):
+    def __init__(self, client):
         self.client = client
-        self.accounts = accounts
+
     def requestAvatar(self, avatarID, mind, interface):
         assert interface == ftp.IFTPShell
         print "REQUEST", avatarID, mind, interface
-        pw, rootcap = self.accounts[avatarID]
-        rootnode = self.client.create_node_from_uri(rootcap)
+        rootnode = self.client.create_node_from_uri(avatarID.rootcap)
         convergence = self.client.convergence
-        s = Handler(self.client, rootnode, avatarID, convergence)
+        s = Handler(self.client, rootnode, avatarID.username, convergence)
         return (interface, s, None)
 
 
 class FTPServer(service.MultiService):
     def __init__(self, client, portstr, accountfile, accounturl):
         service.MultiService.__init__(self)
-        self.client = client
 
-        assert not accounturl, "Not implemented yet"
-        assert accountfile, "Need accountfile"
-        self.accounts = {}
-        c = checkers.InMemoryUsernamePasswordDatabaseDontUse()
-        for line in open(os.path.expanduser(accountfile), "r"):
-            line = line.strip()
-            if line.startswith("#") or not line:
-                continue
-            name, passwd, rootcap = line.split()
-            self.accounts[name] = (passwd,rootcap)
-            c.addUser(name, passwd)
+        if accountfile:
+            c = AccountFileChecker(self, accountfile)
+        elif accounturl:
+            raise NotImplementedError("account URL not yet implemented")
+        else:
+            # we could leave this anonymous, with just the /uri/CAP form
+            raise RuntimeError("must provide some translation")
 
-        r = Dispatcher(client, self.accounts)
+        r = Dispatcher(client)
         p = portal.Portal(r)
         p.registerChecker(c)
         f = ftp.FTPFactory(p)
