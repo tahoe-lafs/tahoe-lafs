@@ -8,10 +8,12 @@ from twisted.internet.interfaces import IConsumer
 from twisted.protocols import ftp
 from twisted.cred import error, portal, checkers, credentials
 from twisted.python import log
+from twisted.web.client import getPage
 
 from allmydata.interfaces import IDirectoryNode, ExistingChildError
 from allmydata.immutable.download import ConsumerAdapter
 from allmydata.immutable.upload import FileHandle
+from allmydata.util import base32
 
 class ReadFile:
     implements(ftp.IReadFile)
@@ -354,6 +356,56 @@ class AccountFileChecker:
             return d
         return defer.fail(error.UnauthorizedLogin())
 
+class AccountURLChecker:
+    implements(checkers.ICredentialsChecker)
+    credentialInterfaces = (credentials.IUsernamePassword,)
+
+    def __init__(self, client, auth_url):
+        self.client = client
+        self.auth_url = auth_url
+
+    def _cbPasswordMatch(self, rootcap, username):
+        return FTPAvatarID(username, rootcap)
+
+    def post_form(self, username, password):
+        sepbase = base32.b2a(os.urandom(4))
+        sep = "--" + sepbase
+        form = []
+        form.append(sep)
+        fields = {"action": "authenticate",
+                  "email": username,
+                  "passwd": password,
+                  }
+        for name, value in fields.iteritems():
+            form.append('Content-Disposition: form-data; name="%s"' % name)
+            form.append('')
+            assert isinstance(value, str)
+            form.append(value)
+            form.append(sep)
+        form[-1] += "--"
+        body = "\r\n".join(form) + "\r\n"
+        headers = {"content-type": "multipart/form-data; boundary=%s" % sepbase,
+                   }
+        return getPage(self.auth_url, method="POST",
+                       postdata=body, headers=headers,
+                       followRedirect=True, timeout=30)
+
+    def _parse_response(self, res):
+        rootcap = res.strip()
+        if rootcap == "0":
+            raise error.UnauthorizedLogin
+        return rootcap
+
+    def requestAvatarId(self, credentials):
+        # construct a POST to the login form. While this could theoretically
+        # be done with something like the stdlib 'email' package, I can't
+        # figure out how, so we just slam together a form manually.
+        d = self.post_form(credentials.username, credentials.password)
+        d.addCallback(self._parse_response)
+        d.addCallback(self._cbPasswordMatch, str(credentials.username))
+        return d
+
+
 class Dispatcher:
     implements(portal.IRealm)
     def __init__(self, client):
@@ -375,7 +427,7 @@ class FTPServer(service.MultiService):
         if accountfile:
             c = AccountFileChecker(self, accountfile)
         elif accounturl:
-            raise NotImplementedError("account URL not yet implemented")
+            c = AccountURLChecker(self, accounturl)
         else:
             # we could leave this anonymous, with just the /uri/CAP form
             raise RuntimeError("must provide some translation")
