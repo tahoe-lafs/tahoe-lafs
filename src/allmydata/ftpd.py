@@ -20,12 +20,8 @@ class ReadFile:
     def __init__(self, node):
         self.node = node
     def send(self, consumer):
-        print "SEND", consumer
         ad = ConsumerAdapter(consumer)
         d = self.node.download(ad)
-        def _downloaded(res):
-            print "DONE"
-        d.addCallback(_downloaded)
         return d # when consumed
 
 class FileWriter:
@@ -37,8 +33,6 @@ class FileWriter:
 
     def registerProducer(self, producer, streaming):
         self.producer = producer
-        print "producer", producer
-        print "streaming", streaming
         if not streaming:
             raise NotImplementedError("Non-streaming producer not supported.")
         # we write the data to a temporary file, since Tahoe can't do
@@ -55,18 +49,13 @@ class FileWriter:
         # transfer is indeed complete, whereas for us it is just starting.
         # Some clients will do an immediate LIST to see if the file was
         # really uploaded.
-        print "UPLOAD STSARTING"
         u = FileHandle(self.f, self.convergence)
         d = self.parent.add_file(self.childname, u)
-        def _done(res):
-            print "UPLOAD DONE", res
-        d.addCallback(_done)
         # by patching twisted.protocols.ftp.DTP._unregConsumer to pass this
         # Deferred back, we can obtain the async-upload that we desire.
         return d
 
     def write(self, data):
-        print "write(%d)" % len(data)
         # if streaming==True, then the sender/producer is in charge. We are
         # allowed to call self.producer.pauseProducing() when we have too
         # much data and want them to stop, but they might not listen to us.
@@ -87,11 +76,9 @@ class WriteFile:
         self.childname = childname
         self.convergence = convergence
     def receive(self):
-        print "RECEIVE"
         try:
             c = FileWriter(self.parent, self.childname, self.convergence)
         except:
-            print "PROBLEM"
             log.err()
             raise
         return defer.succeed(c)
@@ -108,7 +95,6 @@ class Handler:
         self.convergence = convergence
 
     def makeDirectory(self, path):
-        print "MAKEDIR", path
         d = self._get_root(path)
         d.addCallback(lambda (root,path):
                       self._get_or_create_directories(root, path))
@@ -138,7 +124,6 @@ class Handler:
         childname = path[-1]
         d = self._get_root(path)
         def _got_root((root, path)):
-            print "GOT ROOT", root, path
             if not path:
                 raise NoParentError
             return root.get_child_at_path(path[:-1])
@@ -155,10 +140,8 @@ class Handler:
             raise ftp.PermissionDeniedError("cannot delete root directory")
         d.addErrback(_convert_error)
         def _got_parent( (parent, childname) ):
-            print "GOT PARENT", parent
             d = parent.get(childname)
             def _got_child(child):
-                print "GOT HILD", child
                 if must_be_directory and not IDirectoryNode.providedBy(child):
                     raise ftp.IsNotADirectoryError("rmdir called on a file")
                 if must_be_file and IDirectoryNode.providedBy(child):
@@ -171,15 +154,12 @@ class Handler:
         return d
 
     def removeDirectory(self, path):
-        print "RMDIR", path
         return self._remove_thing(path, must_be_directory=True)
 
     def removeFile(self, path):
-        print "RM", path
         return self._remove_thing(path, must_be_file=True)
 
     def rename(self, fromPath, toPath):
-        print "MV", fromPath, toPath
         # the target directory must already exist
         d = self._get_parent(fromPath)
         def _got_from_parent( (fromparent, childname) ):
@@ -194,7 +174,6 @@ class Handler:
         return d
 
     def access(self, path):
-        print "ACCESS", path
         # we allow access to everything that exists. We are required to raise
         # an error for paths that don't exist: FTP clients (at least ncftp)
         # uses this to decide whether to mkdir or not.
@@ -235,7 +214,6 @@ class Handler:
         return d
 
     def _populate_row(self, keys, (childnode, metadata)):
-        print childnode.get_uri(), metadata
         values = []
         isdir = bool(IDirectoryNode.providedBy(childnode))
         for key in keys:
@@ -263,7 +241,6 @@ class Handler:
 
     def stat(self, path, keys=()):
         # for files only, I think
-        print "STAT", path, keys
         d = self._get_node_and_metadata_for_path(path)
         def _render((node,metadata)):
             assert not IDirectoryNode.providedBy(node)
@@ -273,7 +250,6 @@ class Handler:
         return d
 
     def list(self, path, keys=()):
-        print "LIST", repr(path), repr(keys)
         # the interface claims that path is a list of unicodes, but in
         # practice it is not
         d = self._get_node_and_metadata_for_path(path)
@@ -290,28 +266,24 @@ class Handler:
                 # bytestring
                 results.append( (name.encode("utf-8"),
                                  self._populate_row(keys, childnode) ) )
-            print repr(results)
             return results
         d.addCallback(_render)
         d.addErrback(self._convert_error)
         return d
 
     def openForReading(self, path):
-        print "OPEN-READ", path
         d = self._get_node_and_metadata_for_path(path)
         d.addCallback(lambda (node,metadata): ReadFile(node))
         d.addErrback(self._convert_error)
         return d
 
     def openForWriting(self, path):
-        print "OPEN-WRITE", path
         path = [unicode(p) for p in path]
         if not path:
             raise ftp.PermissionDeniedError("cannot STOR to root directory")
         childname = path[-1]
         d = self._get_root(path)
         def _got_root((root, path)):
-            print "GOT ROOT", root, path
             if not path:
                 raise ftp.PermissionDeniedError("cannot STOR to root directory")
             return root.get_child_at_path(path[:-1])
@@ -413,7 +385,6 @@ class Dispatcher:
 
     def requestAvatar(self, avatarID, mind, interface):
         assert interface == ftp.IFTPShell
-        print "REQUEST", avatarID, mind, interface
         rootnode = self.client.create_node_from_uri(avatarID.rootcap)
         convergence = self.client.convergence
         s = Handler(self.client, rootnode, avatarID.username, convergence)
