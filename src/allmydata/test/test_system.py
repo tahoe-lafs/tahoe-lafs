@@ -1,10 +1,12 @@
 from base64 import b32encode
 import os, sys, time, re, simplejson, urllib
 from cStringIO import StringIO
+from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet import threads # CLI tests use deferToThread
 from twisted.internet.error import ConnectionDone, ConnectionLost
+from twisted.internet.interfaces import IConsumer, IPushProducer
 import allmydata
 from allmydata import uri, storage, offloaded
 from allmydata.immutable import download, upload, filenode
@@ -41,6 +43,21 @@ class CountingDataUploadable(upload.Data):
                 self.interrupt_after_d.callback(self)
         return upload.Data.read(self, length)
 
+class GrabEverythingConsumer:
+    implements(IConsumer)
+
+    def __init__(self):
+        self.contents = ""
+
+    def registerProducer(self, producer, streaming):
+        assert streaming
+        assert IPushProducer.providedBy(producer)
+
+    def write(self, data):
+        self.contents += data
+
+    def unregisterProducer(self):
+        pass
 
 class SystemTest(SystemTestMixin, unittest.TestCase):
 
@@ -158,6 +175,14 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             newdata = open(target_filename2, "rb").read()
             self.failUnlessEqual(newdata, DATA)
         d.addCallback(_download_to_filehandle_done)
+
+        consumer = GrabEverythingConsumer()
+        ct = download.ConsumerAdapter(consumer)
+        d.addCallback(lambda res:
+                      self.downloader.download(self.uri, ct))
+        def _download_to_consumer_done(ign):
+            self.failUnlessEqual(consumer.contents, DATA)
+        d.addCallback(_download_to_consumer_done)
 
         def _download_nonexistent_uri(res):
             baduri = self.mangle_uri(self.uri)

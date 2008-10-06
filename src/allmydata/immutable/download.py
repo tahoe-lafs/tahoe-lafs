@@ -1046,13 +1046,13 @@ class ConsumerAdapter:
         self._when_finished = observer.OneShotObserverList()
 
     def when_finished(self):
+        # I think this is unused, along with self._when_finished . But I need
+        # to trace the error paths to be sure.
         return self._when_finished.when_fired()
 
     def registerProducer(self, producer, streaming):
-        print "REG"
         self._consumer.registerProducer(producer, streaming)
     def unregisterProducer(self):
-        print "UNREG"
         self._consumer.unregisterProducer()
 
     def open(self, size):

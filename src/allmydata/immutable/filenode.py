@@ -92,10 +92,8 @@ class FileNode(ImmutableFileNode):
 class LiteralProducer:
     implements(IPushProducer)
     def resumeProducing(self):
-        print "LIT RESUME"
         pass
     def stopProducing(self):
-        print "LIT STOP"
         pass
 
 class LiteralFileNode(ImmutableFileNode):
