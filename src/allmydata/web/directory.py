@@ -716,7 +716,15 @@ class Manifest(rend.Page):
 
     def render_row(self, ctx, (path, cap)):
         ctx.fillSlots("path", self.slashify_path(path))
-        ctx.fillSlots("cap", cap)
+        root = get_root(ctx)
+        # TODO: we need a clean consistent way to get the type of a cap string
+        if cap.startswith("URI:CHK") or cap.startswith("URI:SSK"):
+            nameurl = urllib.quote(path[-1].encode("utf-8"))
+            uri_link = "%s/file/%s/@@named=/%s" % (root, urllib.quote(cap),
+                                                   nameurl)
+        else:
+            uri_link = "%s/uri/%s" % (root, urllib.quote(cap))
+        ctx.fillSlots("cap", T.a(href=uri_link)[cap])
         return ctx.tag
 
 def DeepSize(ctx, dirnode):
