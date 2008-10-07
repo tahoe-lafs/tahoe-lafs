@@ -503,8 +503,8 @@ class NewDirectoryNode:
 
 
     def build_manifest(self):
-        """Return a frozenset of verifier-capability strings for all nodes
-        (directories and files) reachable from this one."""
+        """Return a list of (path, cap) tuples, for all nodes (directories
+        and files) reachable from this one."""
         return self.deep_traverse(ManifestWalker())
 
     def deep_stats(self):
@@ -521,17 +521,13 @@ class NewDirectoryNode:
 
 class ManifestWalker:
     def __init__(self):
-        self.manifest = set()
+        self.manifest = []
     def add_node(self, node, path):
-        v = node.get_verifier()
-        # LIT files have no verify-cap, so don't add them
-        if v:
-            assert not isinstance(v, str), "ICK: %s %s" % (v, node)
-            self.manifest.add(v.to_string())
+        self.manifest.append( (tuple(path), node.get_uri()) )
     def enter_directory(self, parent, children):
         pass
     def finish(self):
-        return frozenset(self.manifest)
+        return self.manifest
 
 
 class DeepStats:

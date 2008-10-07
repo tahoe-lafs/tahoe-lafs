@@ -793,9 +793,10 @@ class IDirectoryNode(IMutableFilesystemNode):
         operation finishes. The child name must be a unicode string."""
 
     def build_manifest():
-        """Return a Deferred that fires with a frozenset of
-        verifier-capability strings for all nodes (directories and files)
-        reachable from this one."""
+        """Return a Deferred that fires with a list of (path, cap) tuples for
+        nodes (directories and files) reachable from this one. 'path' will be
+        a tuple of unicode strings. The origin dirnode will be represented by
+        an empty path tuple."""
 
     def deep_stats():
         """Return a Deferred that fires with a dictionary of statistics

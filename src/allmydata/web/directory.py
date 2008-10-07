@@ -6,7 +6,7 @@ import time
 from twisted.internet import defer
 from twisted.python.failure import Failure
 from twisted.web import http, html
-from nevow import url, rend, tags as T
+from nevow import url, rend, inevow, tags as T
 from nevow.inevow import IRequest
 
 from foolscap.eventual import fireEventually
@@ -676,6 +676,36 @@ class RenameForm(rend.Page):
 class Manifest(rend.Page):
     docFactory = getxmlfile("manifest.xhtml")
 
+    def renderHTTP(self, ctx):
+        output = get_arg(inevow.IRequest(ctx), "output", "html").lower()
+        if output == "text":
+            return self.text(ctx)
+        if output == "json":
+            return self.json(ctx)
+        return rend.Page.renderHTTP(self, ctx)
+
+    def slashify_path(self, path):
+        if not path:
+            return ""
+        return "/".join([p.encode("utf-8") for p in path])
+
+    def text(self, ctx):
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        d = self.original.build_manifest()
+        def _render_text(manifest):
+            lines = []
+            for (path, cap) in manifest:
+                lines.append(self.slashify_path(path) + " " + cap)
+            return "\n".join(lines) + "\n"
+        d.addCallback(_render_text)
+        return d
+
+    def json(self, ctx):
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        d = self.original.build_manifest()
+        d.addCallback(lambda manifest: simplejson.dumps(manifest))
+        return d
+
     def render_title(self, ctx):
         return T.title["Manifest of SI=%s" % abbreviated_dirnode(self.original)]
 
@@ -685,8 +715,9 @@ class Manifest(rend.Page):
     def data_items(self, ctx, data):
         return self.original.build_manifest()
 
-    def render_row(self, ctx, refresh_cap):
-        ctx.fillSlots("refresh_capability", refresh_cap)
+    def render_row(self, ctx, (path, cap)):
+        ctx.fillSlots("path", self.slashify_path(path))
+        ctx.fillSlots("cap", cap)
         return ctx.tag
 
 def DeepSize(ctx, dirnode):

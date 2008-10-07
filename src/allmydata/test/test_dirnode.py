@@ -280,7 +280,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             self.failUnless(u_ro.startswith("URI:DIR2-RO:"), u_ro)
             u_v = n.get_verifier().to_string()
             self.failUnless(u_v.startswith("URI:DIR2-Verifier:"), u_v)
-            self.expected_manifest.append(u_v)
+            self.expected_manifest.append( ((), u) )
             expected_si = n._uri._filenode_uri.storage_index
             self.failUnlessEqual(n.get_storage_index(), expected_si)
 
@@ -292,7 +292,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
             other_file_uri = make_mutable_file_uri()
             m = Marker(fake_file_uri)
             ffu_v = m.get_verifier().to_string()
-            self.expected_manifest.append(ffu_v)
+            self.expected_manifest.append( ((u"child",) , m.get_uri()) )
             d.addCallback(lambda res: n.set_uri(u"child", fake_file_uri))
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "set_uri-no",
@@ -312,7 +312,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                 self.subdir = subdir
                 new_v = subdir.get_verifier().to_string()
                 assert isinstance(new_v, str)
-                self.expected_manifest.append(new_v)
+                self.expected_manifest.append( ((u"subdir",), subdir.get_uri()) )
             d.addCallback(_created)
 
             d.addCallback(lambda res:

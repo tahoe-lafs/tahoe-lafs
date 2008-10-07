@@ -928,13 +928,14 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
             d1.addCallback(lambda res: home.build_manifest())
             d1.addCallback(self.log, "manifest")
-            #  four items:
+            #  five items:
+            # P/
             # P/personal/
             # P/personal/sekrit data
             # P/s2-rw  (same as P/s2-ro)
             # P/s2-rw/mydata992 (same as P/s2-rw/mydata992)
             d1.addCallback(lambda manifest:
-                           self.failUnlessEqual(len(manifest), 4))
+                           self.failUnlessEqual(len(manifest), 5))
             d1.addCallback(lambda res: home.deep_stats())
             def _check_stats(stats):
                 expected = {"count-immutable-files": 1,

@@ -13,10 +13,12 @@
 
 <table n:render="sequence" n:data="items" border="1">
   <tr n:pattern="header">
-    <td>Refresh Capabilities</td>
+    <td>Path</td>
+    <td>cap</td>
   </tr>
   <tr n:pattern="item" n:render="row">
-    <td><n:slot name="refresh_capability"/></td>
+    <td><n:slot name="path"/></td>
+    <td><n:slot name="cap"/></td>
   </tr>
 
   <tr n:pattern="empty"><td>no items in the manifest!</td></tr>

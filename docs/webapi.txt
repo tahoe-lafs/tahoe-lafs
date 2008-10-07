@@ -871,7 +871,17 @@ POST $URL?t=deep-check&repair=true
 GET $DIRURL?t=manifest
 
   Return an HTML-formatted manifest of the given directory, for debugging.
-  This is a table of verifier-caps.
+  This is a table of (path, filecap/dircap), for every object reachable from
+  the starting directory. The path will be slash-joined, and the
+  filecap/dircap will contain a link to the object in question. This page
+  gives immediate access to every object in the virtual filesystem subtree.
+
+  If output=text is added to the query args, the results will be a text/plain
+  list, with one file/dir per line, slash-separated, with the filecap/dircap
+  separated by a space.
+
+  If output=JSON is added to the queryargs, then the results will be a
+  JSON-formatted list of (path, cap) tuples, where path is a list of strings.
 
 GET $DIRURL?t=deep-size
 

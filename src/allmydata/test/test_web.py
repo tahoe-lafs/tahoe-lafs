@@ -831,10 +831,33 @@ class Web(WebMixin, unittest.TestCase):
         return d
 
     def test_GET_DIRURL_manifest(self):
-        d = self.GET(self.public_url + "/foo?t=manifest", followRedirect=True)
-        def _got(manifest):
-            self.failUnless("Refresh Capabilities" in manifest)
-        d.addCallback(_got)
+        def getman(ignored, suffix, followRedirect=False):
+            return self.GET(self.public_url + "/foo" + suffix,
+                            followRedirect=followRedirect)
+        d = defer.succeed(None)
+        d.addCallback(getman, "?t=manifest", followRedirect=True)
+        def _got_html(manifest):
+            self.failUnless("Manifest of SI=" in manifest)
+            self.failUnless("<td>sub</td>" in manifest)
+            self.failUnless(self._sub_uri in manifest)
+            self.failUnless("<td>sub/baz.txt</td>" in manifest)
+        d.addCallback(_got_html)
+        d.addCallback(getman, "/?t=manifest")
+        d.addCallback(_got_html)
+        d.addCallback(getman, "/?t=manifest&output=text")
+        def _got_text(manifest):
+            self.failUnless("\nsub " + self._sub_uri + "\n" in manifest)
+            self.failUnless("\nsub/baz.txt URI:CHK:" in manifest)
+        d.addCallback(_got_text)
+        d.addCallback(getman, "/?t=manifest&output=JSON")
+        def _got_json(manifest):
+            data = simplejson.loads(manifest)
+            got = {}
+            for (path_list, cap) in data:
+                got[tuple(path_list)] = cap
+            self.failUnlessEqual(got[(u"sub",)], self._sub_uri)
+            self.failUnless((u"sub",u"baz.txt") in got)
+        d.addCallback(_got_json)
         return d
 
     def test_GET_DIRURL_deepsize(self):

@@ -230,6 +230,13 @@ class MoreInfo(rend.Page):
             T.fieldset[
             T.input(type="hidden", name="t", value="manifest"),
             T.legend(class_="freeform-form-label")["Run a manifest operation (EXPENSIVE)"],
+            T.div["Output Format: ",
+                  T.select(name="output")
+                  [ T.option(value="html", selected="true")["HTML"],
+                    T.option(value="text")["text"],
+                    T.option(value="json")["JSON"],
+                    ],
+                  ],
             T.input(type="submit", value="Manifest"),
             ]]
         return ctx.tag[manifest]
