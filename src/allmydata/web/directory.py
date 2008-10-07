@@ -12,8 +12,7 @@ from nevow.inevow import IRequest
 from foolscap.eventual import fireEventually
 
 from allmydata.util import base32
-from allmydata.uri import from_string_verifier, from_string_dirnode, \
-     CHKFileVerifierURI
+from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IMutableFileNode, \
      ExistingChildError
 from allmydata.web.common import text_plain, WebError, IClient, \
