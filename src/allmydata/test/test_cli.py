@@ -4,8 +4,7 @@ from twisted.trial import unittest
 from cStringIO import StringIO
 import urllib
 
-from pycryptopp.publickey import ecdsa
-from allmydata.util import fileutil, hashutil, base32
+from allmydata.util import fileutil, hashutil
 from allmydata import uri
 
 # at least import the CLI scripts, even if we don't have any real tests for
