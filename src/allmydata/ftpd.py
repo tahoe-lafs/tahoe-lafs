@@ -7,7 +7,6 @@ from twisted.internet import defer
 from twisted.internet.interfaces import IConsumer
 from twisted.protocols import ftp
 from twisted.cred import error, portal, checkers, credentials
-from twisted.python import log
 from twisted.web.client import getPage
 
 from allmydata.interfaces import IDirectoryNode, ExistingChildError
