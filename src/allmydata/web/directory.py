@@ -385,6 +385,13 @@ def abbreviated_dirnode(dirnode):
     si_s = base32.b2a(si)
     return si_s[:6]
 
+def get_root(ctx):
+    req = IRequest(ctx)
+    # the addSlash=True gives us one extra (empty) segment
+    depth = len(req.prepath) + len(req.postpath) - 1
+    link = "/".join([".."] * depth)
+    return link
+
 class DirectoryAsHTML(rend.Page):
     # The remainder of this class is to render the directory into
     # human+browser -oriented HTML.
@@ -407,15 +414,8 @@ class DirectoryAsHTML(rend.Page):
             header.append(" (readonly)")
         return ctx.tag[header]
 
-    def get_root(self, ctx):
-        req = IRequest(ctx)
-        # the addSlash=True gives us one extra (empty) segment
-        depth = len(req.prepath) + len(req.postpath) - 1
-        link = "/".join([".."] * depth)
-        return link
-
     def render_welcome(self, ctx, data):
-        link = self.get_root(ctx)
+        link = get_root(ctx)
         return T.div[T.a(href=link)["Return to Welcome page"]]
 
     def data_children(self, ctx, data):
@@ -448,7 +448,7 @@ class DirectoryAsHTML(rend.Page):
         assert not isinstance(name, unicode)
         nameurl = urllib.quote(name, safe="") # encode any slashes too
 
-        root = self.get_root(ctx)
+        root = get_root(ctx)
         here = "%s/uri/%s/" % (root, urllib.quote(self.node.get_uri()))
         if self.node.is_readonly():
             delete = "-"
