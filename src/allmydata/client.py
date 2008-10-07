@@ -255,15 +255,14 @@ class Client(node.Node, testutil.PollMixin):
         self.add_service(ws)
 
     def init_ftp_server(self):
-        if not self.get_config("ftpd", "enabled", False, boolean=True):
-            return
-        portstr = self.get_config("ftpd", "ftp.port", "8021")
-        accountfile = self.get_config("ftpd", "ftp.accounts.file", None)
-        accounturl = self.get_config("ftpd", "ftp.accounts.url", None)
+        if self.get_config("ftpd", "enabled", False, boolean=True):
+            accountfile = self.get_config("ftpd", "ftp.accounts.file", None)
+            accounturl = self.get_config("ftpd", "ftp.accounts.url", None)
+            ftp_portstr = self.get_config("ftpd", "ftp.port", "8021")
 
-        from allmydata import ftpd
-        s = ftpd.FTPServer(self, portstr, accountfile, accounturl)
-        s.setServiceParent(self)
+            from allmydata import ftpd
+            s = ftpd.FTPServer(self, accountfile, accounturl, ftp_portstr)
+            s.setServiceParent(self)
 
     def _check_hotline(self, hotline_file):
         if os.path.exists(hotline_file):

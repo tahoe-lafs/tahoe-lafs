@@ -26,62 +26,39 @@ class ReadFile:
 
 class FileWriter:
     implements(IConsumer)
-    def __init__(self, parent, childname, convergence):
-        self.parent = parent
-        self.childname = childname
-        self.convergence = convergence
 
     def registerProducer(self, producer, streaming):
-        self.producer = producer
         if not streaming:
             raise NotImplementedError("Non-streaming producer not supported.")
         # we write the data to a temporary file, since Tahoe can't do
         # streaming upload yet.
         self.f = tempfile.TemporaryFile()
         return None
-    def unregisterProducer(self):
-        # now we do the upload.
 
-        # bummer: unregisterProducer is run synchronously. twisted's FTP
-        # server (twisted.protocols.ftp.DTP._unregConsumer:454) ignores our
-        # return value, and sends the 226 Transfer Complete right after
-        # unregisterProducer returns. The client will believe that the
-        # transfer is indeed complete, whereas for us it is just starting.
-        # Some clients will do an immediate LIST to see if the file was
-        # really uploaded.
-        u = FileHandle(self.f, self.convergence)
-        d = self.parent.add_file(self.childname, u)
-        # by patching twisted.protocols.ftp.DTP._unregConsumer to pass this
-        # Deferred back, we can obtain the async-upload that we desire.
-        return d
+    def unregisterProducer(self):
+        # the upload actually happens in WriteFile.close()
+        pass
 
     def write(self, data):
-        # if streaming==True, then the sender/producer is in charge. We are
-        # allowed to call self.producer.pauseProducing() when we have too
-        # much data and want them to stop, but they might not listen to us.
-        # We must then call self.producer.resumeProducing() when we can
-        # accomodate more.
-        #
-        # if streaming==False, then we (the consumer) are in charge. We must
-        # keep calling p.resumeProducing() (which will prompt them to call
-        # our .write again) until they finish.
-        #
-        # If we experience an error, call p.stopProducing().
         self.f.write(data)
 
 class WriteFile:
     implements(ftp.IWriteFile)
+
     def __init__(self, parent, childname, convergence):
         self.parent = parent
         self.childname = childname
         self.convergence = convergence
+
     def receive(self):
-        try:
-            c = FileWriter(self.parent, self.childname, self.convergence)
-        except:
-            log.err()
-            raise
-        return defer.succeed(c)
+        self.c = FileWriter()
+        return defer.succeed(self.c)
+
+    def close(self):
+        u = FileHandle(self.c.f, self.convergence)
+        d = self.parent.add_file(self.childname, u)
+        return d
+
 
 class NoParentError(Exception):
     pass
@@ -392,7 +369,7 @@ class Dispatcher:
 
 
 class FTPServer(service.MultiService):
-    def __init__(self, client, portstr, accountfile, accounturl):
+    def __init__(self, client, accountfile, accounturl, ftp_portstr):
         service.MultiService.__init__(self)
 
         if accountfile:
@@ -408,5 +385,5 @@ class FTPServer(service.MultiService):
         p.registerChecker(c)
         f = ftp.FTPFactory(p)
 
-        s = strports.service(portstr, f)
+        s = strports.service(ftp_portstr, f)
         s.setServiceParent(self)
