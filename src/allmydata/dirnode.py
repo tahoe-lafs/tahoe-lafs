@@ -480,7 +480,7 @@ class NewDirectoryNode:
     def _deep_traverse_dirnode(self, node, path, walker, found, limiter):
         # process this directory, then walk its children
         d = limiter.add(walker.add_node, node, path)
-        d.addCallback(lambda ignored: node.list())
+        d.addCallback(lambda ignored: limiter.add(node.list))
         d.addCallback(self._deep_traverse_dirnode_children, node, path,
                       walker, found, limiter)
         return d
