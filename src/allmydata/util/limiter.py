@@ -13,6 +13,10 @@ class ConcurrencyLimiter:
         self.pending = []
         self.active = 0
 
+    def __repr__(self):
+        return "<Limiter with %d/%d/%d>" % (self.active, len(self.pending),
+                                            self.limit)
+
     def add(self, cb, *args, **kwargs):
         d = defer.Deferred()
         task = (cb, args, kwargs, d)
