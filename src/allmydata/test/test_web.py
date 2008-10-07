@@ -839,9 +839,11 @@ class Web(WebMixin, unittest.TestCase):
 
     def test_GET_DIRURL_deepsize(self):
         d = self.GET(self.public_url + "/foo?t=deep-size", followRedirect=True)
-        def _got(manifest):
-            self.failUnless(re.search(r'^\d+$', manifest), manifest)
-            self.failUnlessEqual("57", manifest)
+        def _got(res):
+            self.failUnless(re.search(r'^\d+$', res), res)
+            size = int(res)
+            # with directories, the size varies. I've seen 1967 to 1979
+            self.failUnless(abs(size-1973) < 10, size)
         d.addCallback(_got)
         return d
 

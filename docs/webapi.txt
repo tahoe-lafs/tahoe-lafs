@@ -876,11 +876,11 @@ GET $DIRURL?t=manifest
 GET $DIRURL?t=deep-size
 
   Return a number (in bytes) containing the sum of the filesize of all
-  immutable files reachable from the given directory. This is a rough lower
-  bound of the total space consumed by this subtree. It does not include
-  space consumed by directories or immutable files, nor does it take
-  expansion or encoding overhead into account. Later versions of the code may
-  improve this estimate upwards.
+  directories and immutable files reachable from the given directory. This is
+  a rough lower bound of the total space consumed by this subtree. It does
+  not include space consumed by mutable files, nor does it take expansion or
+  encoding overhead into account. Later versions of the code may improve this
+  estimate upwards.
 
 GET $DIRURL?t=deep-stats
 

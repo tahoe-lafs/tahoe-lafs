@@ -690,13 +690,11 @@ class Manifest(rend.Page):
         return ctx.tag
 
 def DeepSize(ctx, dirnode):
-    d = dirnode.build_manifest()
-    def _measure_size(manifest):
-        total = 0
-        for verifiercap in manifest:
-            u = from_string_verifier(verifiercap)
-            if isinstance(u, CHKFileVerifierURI):
-                total += u.size
+    d = dirnode.deep_stats()
+    def _measure_size(stats):
+        total = (stats.get("size-immutable-files", 0)
+                 + stats.get("size-mutable-files", 0)
+                 + stats.get("size-directories", 0))
         return str(total)
     d.addCallback(_measure_size)
     d.addCallback(text_plain, ctx)
