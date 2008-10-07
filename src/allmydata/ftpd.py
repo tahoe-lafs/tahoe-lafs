@@ -380,6 +380,10 @@ class FTPServer(service.MultiService):
             # we could leave this anonymous, with just the /uri/CAP form
             raise RuntimeError("must provide some translation")
 
+        # make sure we're using a patched Twisted that uses IWriteFile.close:
+        # see docs/ftp.txt for details.
+        assert "close" in ftp.IWriteFile.names(), "your twisted is lacking"
+
         r = Dispatcher(client)
         p = portal.Portal(r)
         p.registerChecker(c)
