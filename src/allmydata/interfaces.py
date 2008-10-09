@@ -14,7 +14,7 @@ FURL = StringConstraint(1000)
 StorageIndex = StringConstraint(16)
 URI = StringConstraint(300) # kind of arbitrary
 
-MAX_BUCKETS = 200  # per peer
+MAX_BUCKETS = 256  # per peer -- zfec offers at most 256 shares per file
 
 ShareData = StringConstraint(None)
 URIExtensionData = StringConstraint(1000)
@@ -236,23 +236,22 @@ class IStorageBucketWriter(Interface):
         @return: a Deferred that fires (with None) when the operation completes
         """
 
-    def put_plaintext_hashes(hashes=ListOf(Hash, maxLength=2**20)):
+    def put_plaintext_hashes(hashes=ListOf(Hash)):
         """
         @return: a Deferred that fires (with None) when the operation completes
         """
 
-    def put_crypttext_hashes(hashes=ListOf(Hash, maxLength=2**20)):
+    def put_crypttext_hashes(hashes=ListOf(Hash)):
         """
         @return: a Deferred that fires (with None) when the operation completes
         """
 
-    def put_block_hashes(blockhashes=ListOf(Hash, maxLength=2**20)):
+    def put_block_hashes(blockhashes=ListOf(Hash)):
         """
         @return: a Deferred that fires (with None) when the operation completes
         """
 
-    def put_share_hashes(sharehashes=ListOf(TupleOf(int, Hash),
-                                            maxLength=2**20)):
+    def put_share_hashes(sharehashes=ListOf(TupleOf(int, Hash))):
         """
         @return: a Deferred that fires (with None) when the operation completes
         """
@@ -293,22 +292,22 @@ class IStorageBucketReader(Interface):
 
     def get_plaintext_hashes():
         """
-        @return: ListOf(Hash, maxLength=2**20)
+        @return: ListOf(Hash)
         """
 
     def get_crypttext_hashes():
         """
-        @return: ListOf(Hash, maxLength=2**20)
+        @return: ListOf(Hash)
         """
 
     def get_block_hashes():
         """
-        @return: ListOf(Hash, maxLength=2**20)
+        @return: ListOf(Hash)
         """
 
     def get_share_hashes():
         """
-        @return: ListOf(TupleOf(int, Hash), maxLength=2**20)
+        @return: ListOf(TupleOf(int, Hash))
         """
 
     def get_uri_extension():
