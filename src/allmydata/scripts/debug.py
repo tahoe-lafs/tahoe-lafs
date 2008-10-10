@@ -651,6 +651,7 @@ def corrupt_share(options):
     import random
     from allmydata import storage
     from allmydata.mutable.layout import unpack_header
+    from allmydata.immutable.layout import ReadBucketProxy
     out = options.stdout
     fn = options['filename']
     assert options["offset"] == "block-random", "other offsets not implemented"
