@@ -9,7 +9,8 @@ from allmydata.util import fileutil, hashutil
 from allmydata.storage import BucketWriter, BucketReader, \
      StorageServer, MutableShareFile, \
      storage_index_to_dir, DataTooLargeError, LeaseInfo
-from allmydata.immutable.layout import WriteBucketProxy, ReadBucketProxy
+from allmydata.immutable.layout import WriteBucketProxy, WriteBucketProxy_v2, \
+     ReadBucketProxy
 from allmydata.interfaces import BadWriteEnablerError
 from allmydata.test.common import LoggingServiceParent
 
@@ -131,7 +132,7 @@ class BucketProxy(unittest.TestCase):
                               uri_extension_size=500, nodeid=None)
         self.failUnless(interfaces.IStorageBucketWriter.providedBy(bp))
 
-    def test_readwrite(self):
+    def _do_test_readwrite(self, header_size, wbp_class, rbp_class):
         # Let's pretend each share has 100 bytes of data, and that there are
         # 4 segments (25 bytes each), and 8 shares total. So the three
         # per-segment merkle trees (plaintext_hash_tree, crypttext_hash_tree,
@@ -141,6 +142,9 @@ class BucketProxy(unittest.TestCase):
         # long. That should make the whole share:
         #
         # 0x24 + 100 + 7*32 + 7*32 + 7*32 + 3*(2+32) + 4+500 = 1414 bytes long
+        # 0x44 + 100 + 7*32 + 7*32 + 7*32 + 3*(2+32) + 4+500 = 1446 bytes long
+
+        sharesize = header_size + 100 + 7*32 + 7*32 + 7*32 + 3*(2+32) + 4+500
 
         plaintext_hashes = [hashutil.tagged_hash("plain", "bar%d" % i)
                             for i in range(7)]
@@ -152,14 +156,14 @@ class BucketProxy(unittest.TestCase):
                         for i in (1,9,13)]
         uri_extension = "s" + "E"*498 + "e"
 
-        bw, rb, sharefname = self.make_bucket("test_readwrite", 1414)
-        bp = WriteBucketProxy(rb,
-                              data_size=95,
-                              segment_size=25,
-                              num_segments=4,
-                              num_share_hashes=3,
-                              uri_extension_size=len(uri_extension),
-                              nodeid=None)
+        bw, rb, sharefname = self.make_bucket("test_readwrite", sharesize)
+        bp = wbp_class(rb,
+                       data_size=95,
+                       segment_size=25,
+                       num_segments=4,
+                       num_share_hashes=3,
+                       uri_extension_size=len(uri_extension),
+                       nodeid=None)
 
         d = bp.start()
         d.addCallback(lambda res: bp.put_block(0, "a"*25))
@@ -178,7 +182,7 @@ class BucketProxy(unittest.TestCase):
             br = BucketReader(self, sharefname)
             rb = RemoteBucket()
             rb.target = br
-            rbp = ReadBucketProxy(rb, peerid="abc")
+            rbp = rbp_class(rb, peerid="abc")
             self.failUnless("to peer" in repr(rbp))
             self.failUnless(interfaces.IStorageBucketReader.providedBy(rbp))
 
@@ -213,7 +217,11 @@ class BucketProxy(unittest.TestCase):
 
         return d
 
+    def test_readwrite_v1(self):
+        return self._do_test_readwrite(0x24, WriteBucketProxy, ReadBucketProxy)
 
+    def test_readwrite_v2(self):
+        return self._do_test_readwrite(0x44, WriteBucketProxy_v2, ReadBucketProxy)
 
 class Server(unittest.TestCase):
 
