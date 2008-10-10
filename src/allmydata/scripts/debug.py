@@ -53,10 +53,12 @@ def dump_immutable_share(options):
     f = storage.ShareFile(options['filename'])
     # use a ReadBucketProxy to parse the bucket and find the uri extension
     bp = ReadBucketProxy(None)
-    offsets = bp._parse_offsets(f.read_share_data(0, 0x24))
+    offsets = bp._parse_offsets(f.read_share_data(0, 0x44))
+    print >>out, "%20s: %d" % ("version", bp._version)
     seek = offsets['uri_extension']
-    length = struct.unpack(">L", f.read_share_data(seek, 4))[0]
-    seek += 4
+    length = struct.unpack(bp._fieldstruct,
+                           f.read_share_data(seek, bp._fieldsize))[0]
+    seek += bp._fieldsize
     UEB_data = f.read_share_data(seek, length)
 
     unpacked = uri.unpack_extension_readable(UEB_data)
