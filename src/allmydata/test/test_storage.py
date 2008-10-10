@@ -7,8 +7,9 @@ import itertools
 from allmydata import interfaces
 from allmydata.util import fileutil, hashutil
 from allmydata.storage import BucketWriter, BucketReader, \
-     WriteBucketProxy, ReadBucketProxy, StorageServer, MutableShareFile, \
+     StorageServer, MutableShareFile, \
      storage_index_to_dir, DataTooLargeError, LeaseInfo
+from allmydata.immutable.layout import WriteBucketProxy, ReadBucketProxy
 from allmydata.interfaces import BadWriteEnablerError
 from allmydata.test.common import LoggingServiceParent
 

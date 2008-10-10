@@ -47,11 +47,12 @@ def dump_share(options):
 def dump_immutable_share(options):
     from allmydata import uri, storage
     from allmydata.util import base32
+    from allmydata.immutable.layout import ReadBucketProxy
 
     out = options.stdout
     f = storage.ShareFile(options['filename'])
     # use a ReadBucketProxy to parse the bucket and find the uri extension
-    bp = storage.ReadBucketProxy(None)
+    bp = ReadBucketProxy(None)
     offsets = bp._parse_offsets(f.read_share_data(0, 0x24))
     seek = offsets['uri_extension']
     length = struct.unpack(">L", f.read_share_data(seek, 4))[0]
@@ -516,6 +517,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
     from allmydata import uri, storage
     from allmydata.mutable.layout import unpack_share
     from allmydata.mutable.common import NeedMoreDataError
+    from allmydata.immutable.layout import ReadBucketProxy
     from allmydata.util import base32
     import struct
 
@@ -569,7 +571,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
 
         sf = storage.ShareFile(abs_sharefile)
         # use a ReadBucketProxy to parse the bucket and find the uri extension
-        bp = storage.ReadBucketProxy(None)
+        bp = ReadBucketProxy(None)
         offsets = bp._parse_offsets(sf.read_share_data(0, 0x24))
         seek = offsets['uri_extension']
         length = struct.unpack(">L", sf.read_share_data(seek, 4))[0]
@@ -689,7 +691,7 @@ def corrupt_share(options):
     else:
         # otherwise assume it's immutable
         f = storage.ShareFile(fn)
-        bp = storage.ReadBucketProxy(None)
+        bp = ReadBucketProxy(None)
         offsets = bp._parse_offsets(f.read_share_data(0, 0x24))
         start = f._data_offset + offsets["data"]
         end = f._data_offset + offsets["plaintext_hash_tree"]

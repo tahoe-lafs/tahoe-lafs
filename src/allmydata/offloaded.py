@@ -7,6 +7,7 @@ from foolscap import Referenceable, DeadReferenceError
 from foolscap.eventual import eventually
 from allmydata import interfaces, storage, uri
 from allmydata.immutable import upload
+from allmydata.immutable.layout import ReadBucketProxy
 from allmydata.util import idlib, log, observer, fileutil, hashutil
 
 
@@ -85,8 +86,7 @@ class CHKCheckerAndUEBFetcher:
             self.log("no readers, so no UEB", level=log.NOISY)
             return
         b,peerid = self._readers.pop()
-        rbp = storage.ReadBucketProxy(b, peerid,
-                                      storage.si_b2a(self._storage_index))
+        rbp = ReadBucketProxy(b, peerid, storage.si_b2a(self._storage_index))
         d = rbp.startIfNecessary()
         d.addCallback(lambda res: rbp.get_uri_extension())
         d.addCallback(self._got_uri_extension)

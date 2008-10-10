@@ -12,6 +12,7 @@ from allmydata.util.assertutil import _assert
 from allmydata import codec, hashtree, storage, uri
 from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, \
      IDownloadStatus, IDownloadResults
+from allmydata.immutable import layout
 from allmydata.immutable.encode import NotEnoughSharesError
 from pycryptopp.cipher.aes import AES
 
@@ -580,7 +581,7 @@ class FileDownloader:
                                     (self._responses_received,
                                      self._queries_sent))
         for sharenum, bucket in buckets.iteritems():
-            b = storage.ReadBucketProxy(bucket, peerid, self._si_s)
+            b = layout.ReadBucketProxy(bucket, peerid, self._si_s)
             self.add_share_bucket(sharenum, b)
             self._uri_extension_sources.append(b)
             if self._results:

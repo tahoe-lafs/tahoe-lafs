@@ -18,6 +18,7 @@ from allmydata.util import base32, idlib, mathutil
 from allmydata.util.assertutil import precondition
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus
+from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
 from cStringIO import StringIO
@@ -76,10 +77,10 @@ class PeerTracker:
         self._storageserver = storage_server # to an RIStorageServer
         self.buckets = {} # k: shareid, v: IRemoteBucketWriter
         self.sharesize = sharesize
-        self.allocated_size = storage.allocated_size(sharesize,
-                                                     num_segments,
-                                                     num_share_hashes,
-                                                     EXTENSION_SIZE)
+        self.allocated_size = layout.allocated_size(sharesize,
+                                                    num_segments,
+                                                    num_share_hashes,
+                                                    EXTENSION_SIZE)
 
         self.blocksize = blocksize
         self.num_segments = num_segments
@@ -109,12 +110,12 @@ class PeerTracker:
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
         b = {}
         for sharenum, rref in buckets.iteritems():
-            bp = storage.WriteBucketProxy(rref, self.sharesize,
-                                          self.blocksize,
-                                          self.num_segments,
-                                          self.num_share_hashes,
-                                          EXTENSION_SIZE,
-                                          self.peerid)
+            bp = layout.WriteBucketProxy(rref, self.sharesize,
+                                         self.blocksize,
+                                         self.num_segments,
+                                         self.num_share_hashes,
+                                         EXTENSION_SIZE,
+                                         self.peerid)
             b[sharenum] = bp
         self.buckets.update(b)
         return (alreadygot, set(b.keys()))
