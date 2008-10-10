@@ -132,7 +132,7 @@ class BucketProxy(unittest.TestCase):
                               uri_extension_size=500, nodeid=None)
         self.failUnless(interfaces.IStorageBucketWriter.providedBy(bp))
 
-    def _do_test_readwrite(self, header_size, wbp_class, rbp_class):
+    def _do_test_readwrite(self, name, header_size, wbp_class, rbp_class):
         # Let's pretend each share has 100 bytes of data, and that there are
         # 4 segments (25 bytes each), and 8 shares total. So the three
         # per-segment merkle trees (plaintext_hash_tree, crypttext_hash_tree,
@@ -156,7 +156,7 @@ class BucketProxy(unittest.TestCase):
                         for i in (1,9,13)]
         uri_extension = "s" + "E"*498 + "e"
 
-        bw, rb, sharefname = self.make_bucket("test_readwrite", sharesize)
+        bw, rb, sharefname = self.make_bucket(name, sharesize)
         bp = wbp_class(rb,
                        data_size=95,
                        segment_size=25,
@@ -218,10 +218,12 @@ class BucketProxy(unittest.TestCase):
         return d
 
     def test_readwrite_v1(self):
-        return self._do_test_readwrite(0x24, WriteBucketProxy, ReadBucketProxy)
+        return self._do_test_readwrite("test_readwrite_v1",
+                                       0x24, WriteBucketProxy, ReadBucketProxy)
 
     def test_readwrite_v2(self):
-        return self._do_test_readwrite(0x44, WriteBucketProxy_v2, ReadBucketProxy)
+        return self._do_test_readwrite("test_readwrite_v2",
+                                       0x44, WriteBucketProxy_v2, ReadBucketProxy)
 
 class Server(unittest.TestCase):
 
