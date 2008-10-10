@@ -118,8 +118,8 @@ class ShareFile:
 
     def write_share_data(self, offset, data):
         length = len(data)
-        precondition(offset >= 0)
-        precondition(offset+length <= self._size)
+        precondition(offset >= 0, offset)
+        precondition(offset+length <= self._size, offset+length, self._size)
         f = open(self.home, 'rb+')
         real_offset = self._data_offset+offset
         f.seek(real_offset)
