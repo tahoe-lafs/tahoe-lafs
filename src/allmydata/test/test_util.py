@@ -1,14 +1,14 @@
 
 def foo(): pass # keep the line number constant
 
-import os
+import os, time
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python import failure
 
 from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, testutil, deferredutil
-from allmydata.util import limiter
+from allmydata.util import limiter, time_format
 
 class Base32(unittest.TestCase):
     def test_b2a_matches_Pythons(self):
@@ -517,3 +517,27 @@ class Limiter(unittest.TestCase):
                 self.failUnless( (i, str(i)) in self.calls)
         d.addCallback(_all_done)
         return d
+
+class TimeFormat(unittest.TestCase):
+    def test_epoch(self):
+        s = time_format.iso_utc_time_to_localseconds("1970-01-01T00:00:01")
+        self.failUnlessEqual(s, 1.0)
+        s = time_format.iso_utc_time_to_localseconds("1970-01-01_00:00:01")
+        self.failUnlessEqual(s, 1.0)
+        s = time_format.iso_utc_time_to_localseconds("1970-01-01 00:00:01")
+        self.failUnlessEqual(s, 1.0)
+
+        self.failUnlessEqual(time_format.iso_utc(1.0), "1970-01-01_00:00:01")
+        self.failUnlessEqual(time_format.iso_utc(1.0, sep=" "),
+                             "1970-01-01 00:00:01")
+        now = time.time()
+        def my_time():
+            return 1.0
+        self.failUnlessEqual(time_format.iso_utc(t=my_time),
+                             "1970-01-01_00:00:01")
+        e = self.failUnlessRaises(ValueError,
+                                  time_format.iso_utc_time_to_localseconds,
+                                  "invalid timestring")
+        self.failUnless("not a complete ISO8601 timestamp" in str(e))
+        s = time_format.iso_utc_time_to_localseconds("1970-01-01_00:00:01.500")
+        self.failUnlessEqual(s, 1.5)
