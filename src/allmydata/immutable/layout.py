@@ -9,9 +9,9 @@ from allmydata.util.assertutil import _assert, precondition
 
 
 """
-Share data is written into a single file. At the start of the file, there is
-a series of four-byte big-endian offset values, which indicate where each
-section starts. Each offset is measured from the beginning of the file.
+Share data is written in a file. At the start of the file, there is a series of four-byte
+big-endian offset values, which indicate where each section starts. Each offset is measured from
+the beginning of the share data.
 
 0x00: version number (=00 00 00 01)
 0x04: segment size

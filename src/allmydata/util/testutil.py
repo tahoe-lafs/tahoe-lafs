@@ -4,6 +4,8 @@ from random import randrange
 from twisted.internet import reactor, defer, task
 from twisted.python import failure
 
+def insecurerandstr(n):
+    return ''.join(map(chr, map(randrange, [0]*n, [256]*n)))
 
 def flip_bit(good, which):
     # flip the low-order bit of good[which]
@@ -13,9 +15,12 @@ def flip_bit(good, which):
         pieces = good[:which], good[which:which+1], good[which+1:]
     return pieces[0] + chr(ord(pieces[1]) ^ 0x01) + pieces[2]
 
-def flip_one_bit(s):
-    # flip one random bit of the string s
-    i = randrange(0, len(s))
+def flip_one_bit(s, offset=0, size=None):
+    """ flip one random bit of the string s, in a byte greater than or equal to offset and less
+    than offset+size. """
+    if size is None:
+        size=len(s)
+    i = randrange(offset, offset+size)
     result = s[:i] + chr(ord(s[i])^(0x01<<randrange(0, 8))) + s[i+1:]
     assert result != s, "Internal error -- flip_one_bit() produced the same string as its input: %s == %s" % (result, s)
     return result

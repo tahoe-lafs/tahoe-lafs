@@ -353,8 +353,8 @@ class BucketReader(Referenceable):
 # 9   ??        n*92    extra leases
 
 
-assert struct.calcsize("L"), 4
-assert struct.calcsize("Q"), 8
+assert struct.calcsize("L"), 4 # The struct module doc says that L's are 4 bytes in size.
+assert struct.calcsize("Q"), 8 # The struct module doc says that Q's are 8 bytes in size (at least with big-endian ordering).
 
 class MutableShareFile:
 
@@ -1205,6 +1205,3 @@ class StorageServer(service.MultiService, Referenceable):
                 facility="tahoe.storage", level=log.NOISY, parent=lp)
         self.add_latency("readv", time.time() - start)
         return datavs
-
-
-# the code before here runs on the storage server, not the client

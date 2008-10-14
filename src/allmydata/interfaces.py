@@ -34,6 +34,7 @@ class RIStubClient(RemoteInterface):
     RemoteInterface for the StubClient."""
 
 class RIBucketWriter(RemoteInterface):
+    """ Objects of this kind live on the server side. """
     def write(offset=Offset, data=ShareData):
         return None
 
@@ -230,6 +231,9 @@ class RIStorageServer(RemoteInterface):
         return TupleOf(bool, DictOf(int, ReadData))
 
 class IStorageBucketWriter(Interface):
+    """
+    Objects of this kind live on the client side.
+    """
     def put_block(segmentnum=int, data=ShareData):
         """@param data: For most segments, this data will be 'blocksize'
         bytes in length. The last segment might be shorter.
