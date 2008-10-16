@@ -134,7 +134,7 @@ class EEXIST(TFSIOError):
         TFSIOError.__init__(self, errno.EEXIST, msg)
 
 def logargsretexc(meth):
-    def inner(self, *args, **kwargs):
+    def inner_logargsretexc(self, *args, **kwargs):
         log("%s(%r, %r)" % (meth, args, kwargs))
         try:
             ret = meth(self, *args, **kwargs)
@@ -143,11 +143,11 @@ def logargsretexc(meth):
             raise
         log("ret: %r" % (ret, ))
         return ret
-    inner.__name__ = '<logwrap(%s)>' % (meth,)
-    return inner
+    inner_logargsretexc.__name__ = '<logwrap(%s)>' % (meth,)
+    return inner_logargsretexc
 
 def logexc(meth):
-    def inner(self, *args, **kwargs):
+    def inner_logexc(self, *args, **kwargs):
         try:
             ret = meth(self, *args, **kwargs)
         except TFSIOError, tie:
@@ -157,16 +157,18 @@ def logexc(meth):
             log('exception:\n%s' % (traceback.format_exc(),))
             raise
         return ret
-    inner.__name__ = '<logwrap(%s)>' % (meth,)
-    return inner
+    inner_logexc.__name__ = '<logwrap(%s)>' % (meth,)
+    return inner_logexc
 
 def log_exc():
     log('exception:\n%s' % (traceback.format_exc(),))
 
 class TahoeFuseFile(object):
 
-    def __init__(self, path, flags, *mode):
+    #def __init__(self, path, flags, *mode):
+    def __init__(self, tfs, path, flags, *mode):
         log("TFF: __init__(%r, %r, %r)" % (path, flags, mode))
+        self.tfs = tfs
 
         self._path = path # for tahoe put
         try:
@@ -284,16 +286,15 @@ class TahoeFuse(fuse.Fuse):
         log("TF: __init__(%r, %r)" % (args, kw))
 
         self.tfs = tfs
-        _tfs_ = tfs
-        class MyFuseFile(TahoeFuseFile):
-            tfs = _tfs_
-        self.file_class = MyFuseFile
-        log("TF: file_class: %r" % (self.file_class,))
+        #_tfs_ = tfs
+        #class MyFuseFile(TahoeFuseFile):
+            #tfs = _tfs_
+        #self.file_class = MyFuseFile
+        #log("TF: file_class: %r" % (self.file_class,))
+
+        self.files = {}
 
         fuse.Fuse.__init__(self, *args, **kw)
-
-        #import thread
-        #thread.start_new_thread(self.launch_reactor, ())
 
     def log(self, msg):
         log("<TF> %s" % (msg, ))
@@ -402,24 +403,24 @@ class TahoeFuse(fuse.Fuse):
 
     @logexc
     def readdir(self, path, offset):
-        log('readdir(%r, %r)' % (path, offset))
+        self.log('readdir(%r, %r)' % (path, offset))
         node = self.tfs.get_path(path)
         if node is None:
             return -errno.ENOENT
         dirlist = ['.', '..'] + node.children.keys()
-        log('dirlist = %r' % (dirlist,))
+        self.log('dirlist = %r' % (dirlist,))
         return [fuse.Direntry(d) for d in dirlist]
 
     @logexc
     def getattr(self, path):
-        log('getattr(%r)' % (path,))
+        self.log('getattr(%r)' % (path,))
 
         if path == '/':
             # we don't have any metadata for the root (no edge leading to it)
             mode = (stat.S_IFDIR | 755)
             mtime = self.tfs.root.mtime
             s = TStat({}, st_mode=mode, st_nlink=1, st_mtime=mtime)
-            log('getattr(%r) -> %r' % (path, s))
+            self.log('getattr(%r) -> %r' % (path, s))
             return s
             
         parent, name, child = self.tfs.get_parent_name_and_child(path)
@@ -445,6 +446,70 @@ class TahoeFuse(fuse.Fuse):
     def mkdir(self, path, mode):
         self.log("mkdir(%r, %r)" % (path, mode))
         self.tfs.mkdir(path)
+
+    ##################################################################
+    # file methods
+
+    def open(self, path, flags):
+        self.log('open(%r, %r)' % (path, flags, ))
+        if path in self.files:
+            # XXX todo [ ] should consider concurrent open files of differing modes
+            return
+        else:
+            tffobj = TahoeFuseFile(self.tfs, path, flags)
+            self.files[path] = tffobj
+
+    def create(self, path, flags, mode):
+        self.log('create(%r, %r, %r)' % (path, flags, mode))
+        if path in self.files:
+            # XXX todo [ ] should consider concurrent open files of differing modes
+            return
+        else:
+            tffobj = TahoeFuseFile(self.tfs, path, flags, mode)
+            self.files[path] = tffobj
+
+    def _get_file(self, path):
+        if not path in self.files:
+            raise ENOENT('No such file or directory: %s' % (path,))
+        return self.files[path]
+
+    ##
+
+    def read(self, path, size, offset):
+        self.log('read(%r, %r, %r)' % (path, size, offset, ))
+        return self._get_file(path).read(size, offset)
+
+    @logexc
+    def write(self, path, buf, offset):
+        self.log("write(%r, -%s-, %r)" % (path, len(buf), offset))
+        return self._get_file(path).write(buf, offset)
+
+    @logexc
+    def release(self, path, flags):
+        self.log("release(%r, %r)" % (path, flags,))
+        self._get_file(path).release(flags)
+        del self.files[path]
+
+    @logexc
+    def fsync(self, path, isfsyncfile):
+        self.log("fsync(%r, %r)" % (path, isfsyncfile,))
+        return self._get_file(path).fsync(isfsyncfile)
+
+    @logexc
+    def flush(self, path):
+        self.log("flush(%r)" % (path,))
+        return self._get_file(path).flush()
+
+    @logexc
+    def fgetattr(self, path):
+        self.log("fgetattr(%r)" % (path,))
+        return self._get_file(path).fgetattr()
+
+    @logexc
+    def ftruncate(self, path, len):
+        self.log("ftruncate(%r, %r)" % (path, len,))
+        return self._get_file(path).ftruncate(len)
+
 
 def launch_tahoe_fuse(tfs, argv):
     sys.argv = ['tahoe fuse'] + list(argv)
