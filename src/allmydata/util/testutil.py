@@ -19,7 +19,7 @@ def flip_one_bit(s, offset=0, size=None):
     """ flip one random bit of the string s, in a byte greater than or equal to offset and less
     than offset+size. """
     if size is None:
-        size=len(s)
+        size=len(s)-offset
     i = randrange(offset, offset+size)
     result = s[:i] + chr(ord(s[i])^(0x01<<randrange(0, 8))) + s[i+1:]
     assert result != s, "Internal error -- flip_one_bit() produced the same string as its input: %s == %s" % (result, s)
