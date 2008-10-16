@@ -25,6 +25,7 @@ Unit and system tests for tahoe-fuse.
 
 import sys, os, shutil, unittest, subprocess
 import tempfile, re, time, random, httplib, urllib
+#import traceback
 
 from twisted.python import usage
 
@@ -57,16 +58,16 @@ implementations = {
     'impl_a': dict(module=impl_a,
                    mount_args=['--basedir', '%(nodedir)s', '%(mountpath)s', ],
                    mount_wait=True,
-                   tests=['read', ]),
+                   suites=['read', ]),
     'impl_b': dict(module=impl_b,
                    mount_args=['--basedir', '%(nodedir)s', '%(mountpath)s', ],
                    mount_wait=False,
-                   tests=['read', ]),
+                   suites=['read', ]),
     'impl_c': dict(module=impl_c,
                    mount_args=['--cache-timeout', '0', '--root-uri', '%(root-uri)s',
                                '--node-directory', '%(nodedir)s', '%(mountpath)s', ],
                    mount_wait=True,
-                   tests=['read', 'write', ]),
+                   suites=['read', 'write', ]),
     }
 
 #if sys.platform == 'darwin':
@@ -81,8 +82,11 @@ class FuseTestsOptions(usage.Options):
         ["implementations", None, "all",
          "Comma separated list of implementations to test, or 'all'"
          ],
-        ["tests", None, "all",
-         "Comma separated list of test sets to run, or 'all'"
+        ["suites", None, "all",
+         "Comma separated list of test suites to run, or 'all'"
+         ],
+        ["tests", None, None,
+         "Comma separated list of specific tests to run"
          ],
         ["path-to-tahoe", None, "../../bin/tahoe",
          "Which 'tahoe' script to use to create test nodes"],
@@ -93,22 +97,26 @@ class FuseTestsOptions(usage.Options):
          # can handle without leaking un-umount-able fuse processes.
         ]
     optFlags = [
-        ["debug-wait", None, 
+        ["debug-wait", None,
          "Causes the test system to pause at various points, to facilitate debugging"],
         ["web-open", None,
          "Opens a web browser to the web ui at the start of each impl's tests"],
          ]
 
     def postOptions(self):
-        if self['tests'] == 'all':
-            self.tests = ['read', 'write']
+        if self['suites'] == 'all':
+            self.suites = ['read', 'write']
             # [ ] todo: deduce this from looking for test_ in dir(self)
         else:
-            self.tests = map(str.strip, self['tests'].split(','))
+            self.suites = map(str.strip, self['suites'].split(','))
         if self['implementations'] == 'all':
             self.implementations = implementations.keys()
         else:
             self.implementations = map(str.strip, self['implementations'].split(','))
+        if self['tests']:
+            self.tests = map(str.strip, self['tests'].split(','))
+        else:
+            self.tests = None
 
 ### Main flow control:
 def main(args):
@@ -339,13 +347,15 @@ class SystemTest (object):
         failures = 0
         testnum = 0
         numtests = 0
-        tests = list(set(self.config.tests).intersection(set(iman.tests)))
+        if self.config.tests:
+            tests = self.config.tests
+        else:
+            tests = list(set(self.config.suites).intersection(set(iman.suites)))
         self.maybe_wait('waiting (about to run tests)')
         for test in tests:
-            print 'running %r tests' % (test,)
-            testnames = [n for n in sorted(dir(self)) if n.startswith('test_'+test+'_')]
+            testnames = [n for n in sorted(dir(self)) if n.startswith('test_'+test)]
             numtests += len(testnames)
-            print 'found methods:', testnames
+            print 'running %s %r tests' % (len(testnames), test,)
             for testname in testnames:
                 testnum += 1
                 print '\n*** Running test #%d: %s' % (testnum, testname)
@@ -358,6 +368,7 @@ class SystemTest (object):
                     print 'Test succeeded.'
                 except TestFailure, f:
                     print f
+                    #print traceback.format_exc()
                     failures += 1
                 except:
                     print 'Error in test code...  Cleaning up.'
@@ -693,13 +704,13 @@ class Impl_A_UnitTests (unittest.TestCase):
 class ImplProcessManager(object):
     debug_wait = False
 
-    def __init__(self, name, module, mount_args, mount_wait, tests):
+    def __init__(self, name, module, mount_args, mount_wait, suites):
         self.name = name
         self.module = module
         self.script = module.__file__
         self.mount_args = mount_args
         self.mount_wait = mount_wait
-        self.tests = tests
+        self.suites = suites
 
     def maybe_wait(self, msg='waiting'):
         if self.debug_wait:
