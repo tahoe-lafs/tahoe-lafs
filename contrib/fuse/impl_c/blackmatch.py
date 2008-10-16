@@ -1347,6 +1347,25 @@ class TRPC(object):
         log('shutdown() closing keepalive %s' % (self.keepalive,))
         self.keepalive.close()
 
+# (cut-n-pasted here due to an ImportError / some py2app linkage issues)
+#from twisted.scripts._twistd_unix import daemonize
+def daemonize():
+    # See http://www.erlenstar.demon.co.uk/unix/faq_toc.html#TOC16
+    if os.fork():   # launch child and...
+        os._exit(0) # kill off parent
+    os.setsid()
+    if os.fork():   # launch child and...
+        os._exit(0) # kill off parent again.
+    os.umask(077)
+    null=os.open('/dev/null', os.O_RDWR)
+    for i in range(3):
+        try:
+            os.dup2(null, i)
+        except OSError, e:
+            if e.errno != errno.EBADF:
+                raise
+    os.close(null)
+
 def main(argv):
     log("main(%s)" % (argv,))
 
@@ -1447,7 +1466,6 @@ def main(argv):
         log('\n'+(24*'_')+'init (server)'+(24*'_')+'\n')
 
         log('daemonizing')
-        from twisted.scripts._twistd_unix import daemonize
         daemonize()
 
         cache_timeout = float(config['cache-timeout'])
@@ -1481,12 +1499,10 @@ def main(argv):
         wait_at_most = 8
         while not os.path.exists(socket_path):
             log('waiting for appearance of %r' % (socket_path,))
-            print 'waiting...'
             time.sleep(1)
             if time.time() - waiting_since > wait_at_most:
                 log('%r did not appear within %ss' % (socket_path, wait_at_most))
                 raise IOError(2, 'no socket %s' % (socket_path,))
-            print 'running...'
         #print 'launched server'
         trpc = TRPC(socket_path)
 
