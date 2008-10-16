@@ -542,6 +542,49 @@ class SystemTest (object):
 
         self._check_write(testcap, name, body)
 
+    def test_write_partial_overwrite(self, testcap, testdir):
+        name = 'partial_overwrite'
+        body = '_'*132
+        overwrite = '^'*8
+        position = 26
+
+        def write_file(path, mode, contents, position=None):
+            try:
+                f = file(path, mode)
+                if position is not None:
+                    f.seek(position)
+                f.write(contents)
+                f.close()
+            except Exception, err:
+                tmpl = 'Could not write to file %r: %r'
+                raise TestFailure(tmpl, path, err)
+
+        def read_file(path):
+            try:
+                f = file(path, 'rb')
+                contents = f.read()
+                f.close()
+            except Exception, err:
+                tmpl = 'Could not read file %r: %r'
+                raise TestFailure(tmpl, path, err)
+            return contents
+
+        path = os.path.join(testdir, name)
+        #write_file(path, 'w', body)
+
+        cap = self.webapi_call('PUT', '/uri', body)
+        self.attach_node(testcap, cap, name)
+
+        contents = read_file(path)
+        if contents != body:
+            raise TestFailure('File contents mismatch (%r) %r v.s. %r', path, contents, body)
+
+        write_file(path, 'r+', overwrite, position)
+        contents = read_file(path)
+        expected = body[:position] + overwrite + body[position+len(overwrite):]
+        if contents != expected:
+            raise TestFailure('File contents mismatch (%r) %r v.s. %r', path, contents, expected)
+
 
     # Utilities:
     def run_tahoe(self, *args):
