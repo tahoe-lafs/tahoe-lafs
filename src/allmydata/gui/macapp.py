@@ -466,7 +466,7 @@ class MacGuiApp(wx.App):
             mountpoint = os.path.join(self.nodedir, 'mnt/__auto__')
             if not os.path.isdir(mountpoint):
                 os.makedirs(mountpoint)
-            self.mount_filesystem(self.nodedir, 'tahoe', mountpoint, 'Allmydata')
+            self.mount_filesystem('tahoe', mountpoint, 'Allmydata')
 
     def webopen(self, alias=None):
         log.msg('webopen: %r' % (alias,))
@@ -500,7 +500,7 @@ class MacGuiApp(wx.App):
         # figure out options for fuse_main
         foptions = []
         foptions.append('-olocal') # required to display in Finder on leopard
-        foptions.append('-ofstypename=allmydata') # shown in 'get info'
+        #foptions.append('-ofstypename=allmydata') # shown in 'get info'
         if display_name is None:
             display_name = alias_name
         foptions.append('-ovolname=%s' % (display_name,))
@@ -529,7 +529,7 @@ class MacGuiApp(wx.App):
 
         # open finder, if configured to do so
         if self.config['auto-open']:
-            wx.FutureCall(2048, self.sync_run_cmd, ['/usr/bin/open', mountpoint])
+            wx.FutureCall(4096, self.sync_run_cmd, ['/usr/bin/open', mountpoint])
         return True
 
     def unmount_filesystems(self):
