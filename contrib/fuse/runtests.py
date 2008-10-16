@@ -68,6 +68,12 @@ implementations = {
                                '--node-directory', '%(nodedir)s', '%(mountpath)s', ],
                    mount_wait=True,
                    suites=['read', 'write', ]),
+    'impl_c_no_split': dict(module=impl_c,
+                   mount_args=['--cache-timeout', '0', '--root-uri', '%(root-uri)s',
+                               '--no-split',
+                               '--node-directory', '%(nodedir)s', '%(mountpath)s', ],
+                   mount_wait=True,
+                   suites=['read', 'write', ]),
     }
 
 if sys.platform == 'darwin':
