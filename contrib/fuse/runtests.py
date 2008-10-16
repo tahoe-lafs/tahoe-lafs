@@ -70,9 +70,9 @@ implementations = {
                    suites=['read', 'write', ]),
     }
 
-#if sys.platform == 'darwin':
-    #del implementations['impl_a']
-    #del implementations['impl_b']
+if sys.platform == 'darwin':
+    del implementations['impl_a']
+    del implementations['impl_b']
 
 class FuseTestsOptions(usage.Options):
     optParameters = [
