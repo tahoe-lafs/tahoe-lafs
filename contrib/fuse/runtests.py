@@ -141,7 +141,7 @@ def main(args):
         run_unit_tests([args[0]])
 
     if test_type in ('both', 'system'):
-        run_system_test(config)
+        return run_system_test(config)
 
 
 def run_unit_tests(argv):
@@ -154,7 +154,7 @@ def run_unit_tests(argv):
 
 
 def run_system_test(config):
-    SystemTest(config).run()
+    return SystemTest(config).run()
 
 
 ### System Testing:
@@ -190,12 +190,21 @@ class SystemTest (object):
         try:
             results = self.init_cli_layer()
             print '\n*** System Tests complete:'
+            total_failures = 0
             for result in results:
+                impl_name, failures, total = result
+                total_failures += failures
                 print 'Implementation %s: %d failed out of %d.' % result           
+            if total_failures:
+                print '%s total failures' % total_failures
+                return 1
+            else:
+                return 0
         except SetupFailure, sfail:
             print
             print sfail
             print '\n*** System Tests were not successfully completed.' 
+            return 1
 
     def maybe_wait(self, msg='waiting', or_if_webopen=False):
         if self.config['debug-wait'] or or_if_webopen and self.config['web-open']:
@@ -836,4 +845,4 @@ ExpectedStartOutput = r'STARTING (?P<path>.*?)\n(introducer|client) node probabl
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    sys.exit(main(sys.argv))
