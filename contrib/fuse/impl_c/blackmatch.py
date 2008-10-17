@@ -1497,18 +1497,21 @@ def main(argv):
         log('daemonizing')
         daemonize()
 
-        cache_timeout = float(config['cache-timeout'])
-        tfs = TFS(nodedir, nodeurl, root_uri, cache_timeout)
-        #print tfs.pprint()
+        try:
+            cache_timeout = float(config['cache-timeout'])
+            tfs = TFS(nodedir, nodeurl, root_uri, cache_timeout)
+            #print tfs.pprint()
 
-        # make tfs instance accesible to print_tree() for dbg
-        _tfs = tfs
+            # make tfs instance accesible to print_tree() for dbg
+            _tfs = tfs
 
-        log('launching tfs server')
-        tfuse = TahoeFuseBase(tfs)
-        tfs_server = TFSServer(socket_path, tfuse)
-        tfs_server.run()
-        log('tfs server ran, exiting')
+            log('launching tfs server')
+            tfuse = TahoeFuseBase(tfs)
+            tfs_server = TFSServer(socket_path, tfuse)
+            tfs_server.run()
+            log('tfs server ran, exiting')
+        except:
+            log('exception: ' + traceback.format_exc())
 
     #
     # Client
