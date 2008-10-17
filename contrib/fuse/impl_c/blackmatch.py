@@ -105,9 +105,12 @@ def log(msg):
 
 fuse.flog = log
 
-def unicode_to_utf8(u):
-    precondition(isinstance(u, unicode), repr(u))
-    return u.encode('utf-8')
+def unicode_to_utf8_or_str(u):
+    if isinstance(u, unicode):
+        return u.encode('utf-8')
+    else:
+        precondition(isinstance(u, str), repr(u))
+        return u
 
 def do_http(method, url, body=''):
     resp = do_http_req(method, url, body)
@@ -834,7 +837,7 @@ class Directory(object):
         assert nodetype == 'dirnode'
         self.children.clear()
         for cname,details in d['children'].items():
-            cname = unicode_to_utf8(cname)
+            cname = unicode_to_utf8_or_str(cname)
             ctype, cattrs = details
             metadata = cattrs.get('metadata', {})
             if ctype == 'dirnode':
@@ -1142,7 +1145,7 @@ def print_tree():
 def unmarshal(obj):
     if obj is None or isinstance(obj, int) or isinstance(obj, long) or isinstance(obj, float):
         return obj
-    elif isinstance(obj, unicode):
+    elif isinstance(obj, unicode) or isinstance(obj, str):
         #log('unmarshal(%r)' % (obj,))
         return base64.b64decode(obj)
     elif isinstance(obj, list):
