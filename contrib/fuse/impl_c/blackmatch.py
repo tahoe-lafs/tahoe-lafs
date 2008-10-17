@@ -177,11 +177,35 @@ def logexc(meth):
 def log_exc():
     log('exception:\n%s' % (traceback.format_exc(),))
 
+def repr_mode(mode=None):
+    if mode is None:
+        return 'none'
+    fields = ['S_ENFMT', 'S_IFBLK', 'S_IFCHR', 'S_IFDIR', 'S_IFIFO', 'S_IFLNK', 'S_IFREG', 'S_IFSOCK', 'S_IRGRP', 'S_IROTH', 'S_IRUSR', 'S_IRWXG', 'S_IRWXO', 'S_IRWXU', 'S_ISGID', 'S_ISUID', 'S_ISVTX', 'S_IWGRP', 'S_IWOTH', 'S_IWUSR', 'S_IXGRP', 'S_IXOTH', 'S_IXUSR']
+    ret = []
+    for field in fields:
+        fval = getattr(stat, field)
+        if (mode & fval) == fval:
+            ret.append(field)
+    return '|'.join(ret)
+
+def repr_flags(flags=None):
+    if flags is None:
+        return 'none'
+    fields = ['O_WRONLY', 'O_RDWR', 'O_NONBLOCK', 'O_APPEND', 'O_CREAT', 'O_TRUNC', 'O_EXCL', 'O_SHLOCK', 'O_EXLOCK', 'O_NOFOLLOW']
+    ret = []
+    for field in fields:
+        fval = getattr(os, field)
+        if (flags & fval) == fval:
+            ret.append(field)
+    if not ret:
+        ret = ['O_RDONLY']
+    return '|'.join(ret)
+
 class TahoeFuseFile(object):
 
     #def __init__(self, path, flags, *mode):
     def __init__(self, tfs, path, flags, *mode):
-        log("TFF: __init__(%r, %r, %r)" % (path, flags, mode))
+        log("TFF: __init__(%r, %r:%s, %r:%s)" % (path, flags, repr_flags(flags), mode, repr_mode(*mode)))
         self.tfs = tfs
 
         self._path = path # for tahoe put
@@ -202,6 +226,11 @@ class TahoeFuseFile(object):
                     log('TFF: [%s] open() for write: existing file node lists %s' % (self.name, self.fname, ))
                 else:
                     log('TFF: [%s] open() for write: existing file node lists no tmp_file, using new %s' % (self.name, self.fname, ))
+                if mode != (0600,):
+                    log('TFF: [%s] changing mode %s(%s) to 0600' % (self.name, repr_mode(*mode), mode))
+                    mode = (0600,)
+                log('TFF: [%s] opening(%s) with flags %s(%s), mode %s(%s)' % (self.name, self.fname, repr_flags(flags|os.O_CREAT), flags|os.O_CREAT, repr_mode(*mode), mode))
+                #self.file = os.fdopen(os.open(self.fname, flags|os.O_CREAT, *mode), m)
                 self.file = os.fdopen(os.open(self.fname, flags|os.O_CREAT, *mode), m)
                 self.fd = self.file.fileno()
                 log('TFF: opened(%s) for write' % self.fname)
