@@ -291,7 +291,8 @@ class SystemTest (object):
             self.weburl = "http://127.0.0.1:%d/" % (self.port,)
             print self.weburl
         else:
-            os.remove(webportpath)
+            if os.path.exists(webportpath):
+                os.remove(webportpath)
 
         introfurl = os.path.join(introbase, 'introducer.furl')
 
