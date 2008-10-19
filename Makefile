@@ -123,6 +123,9 @@ test: build src/allmydata/_version.py
 quicktest: .built .checked-deps
 	$(PYTHON) setup.py trial -a "$(TRIALARGS) $(TEST)"
 
+fuse-test: .built .checked-deps
+	$(RUNPP) -d contrib/fuse -p -c runtests.py
+
 test-figleaf: build src/allmydata/_version.py
 	rm -f .figleaf
 	$(PYTHON) setup.py trial -a "--reporter=bwverbose-figleaf $(TEST)"
