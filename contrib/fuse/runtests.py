@@ -60,6 +60,7 @@ implementations = {
                    mount_wait=True,
                    suites=['read', ]),
     'impl_b': dict(module=impl_b,
+                   todo=True,
                    mount_args=['--basedir', '%(nodedir)s', '%(mountpath)s', ],
                    mount_wait=False,
                    suites=['read', ]),
@@ -190,13 +191,16 @@ class SystemTest (object):
         try:
             results = self.init_cli_layer()
             print '\n*** System Tests complete:'
-            total_failures = 0
+            total_failures = todo_failures = 0
             for result in results:
                 impl_name, failures, total = result
-                total_failures += failures
+                if implementations[impl_name].get('todo'):
+                    todo_failures += failures
+                else:
+                    total_failures += failures
                 print 'Implementation %s: %d failed out of %d.' % result           
             if total_failures:
-                print '%s total failures' % total_failures
+                print '%s total failures, %s todo' % (total_failures, todo_failures)
                 return 1
             else:
                 return 0
@@ -763,13 +767,14 @@ class Impl_A_UnitTests (unittest.TestCase):
 class ImplProcessManager(object):
     debug_wait = False
 
-    def __init__(self, name, module, mount_args, mount_wait, suites):
+    def __init__(self, name, module, mount_args, mount_wait, suites, todo=False):
         self.name = name
         self.module = module
         self.script = module.__file__
         self.mount_args = mount_args
         self.mount_wait = mount_wait
         self.suites = suites
+        self.todo = todo
 
     def maybe_wait(self, msg='waiting'):
         if self.debug_wait:
