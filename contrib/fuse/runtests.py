@@ -159,6 +159,12 @@ def run_unit_tests(argv):
 def run_system_test(config):
     return SystemTest(config).run()
 
+def drepr(obj):
+    r = repr(obj)
+    if len(r) > 200:
+        return r[:100] + ' ... ' + r[-100:]
+    else:
+        return r
 
 ### System Testing:
 class SystemTest (object):
@@ -449,6 +455,37 @@ class SystemTest (object):
             tmpl = 'Expected file contents %r but found %r'
             raise TestFailure(tmpl, body, found)
 
+    def test_read_in_random_order(self, testcap, testdir):
+        sz = 2**20
+        bs = 2**10
+        assert(sz % bs == 0)
+        name = 'random_read_order'
+        body = os.urandom(sz)
+
+        cap = self.webapi_call('PUT', '/uri', body)
+        self.attach_node(testcap, cap, name)
+
+        # XXX this should also do a test where sz%bs != 0, so that it correctly tests
+        # the edge case where the last read is a 'short' block
+        path = os.path.join(testdir, name)
+        fsize = os.path.getsize(path)
+        if fsize != len(body):
+            tmpl = 'Expected file size %s but found %s'
+            raise TestFailure(tmpl, len(body), fsize)
+
+        f = open(path, 'r')
+        posns = range(0,sz,bs)
+        random.shuffle(posns)
+        data = [None] * (sz/bs)
+        for p in posns:
+            f.seek(p)
+            data[p/bs] = f.read(bs)
+        found = ''.join(data)
+
+        if found != body:
+            tmpl = 'Expected file contents %s but found %s'
+            raise TestFailure(tmpl, drepr(body), drepr(found))
+
     def get_file(self, dircap, path):
         body = self.webapi_call('GET', '/uri/%s/%s' % (dircap, path))
         return body
@@ -483,12 +520,6 @@ class SystemTest (object):
 
     def _check_write(self, testcap, name, expected_body):
         uploaded_body = self.get_file(testcap, name)
-        def drepr(obj):
-            r = repr(obj)
-            if len(r) > 200:
-                return r[:100] + ' ... ' + r[-100:]
-            else:
-                return r
         if uploaded_body != expected_body:
             tmpl = 'Expected file contents %s but found %s'
             raise TestFailure(tmpl, drepr(expected_body), drepr(uploaded_body))
