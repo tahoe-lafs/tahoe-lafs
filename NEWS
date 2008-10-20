@@ -24,7 +24,7 @@ together to remove the damaged share. Note that corrupted shares indicate
 hardware failures, serious software bugs, or malice on the part of the
 storage server operator, so a corrupted share should be considered highly
 unusual. The "incident gatherer" mechanism will automatically report share
-corruption to a pre-configured incident gatherer service.
+corruption to an incident gatherer service, if one is pre-configured.
 
 By periodically checking/repairing all files and directories, objects in the
 Tahoe filesystem remain resistant to recoverability failures due to missing
@@ -43,6 +43,19 @@ histogram, etc).
 The client web interface now features some extra buttons to initiate check
 and deep-check operations. When these operations finish, they display a
 results page that summarizes any problems that were encountered.
+
+** Configuration Changes: single INI-format tahoe.cfg file
+
+The Tahoe node is now configured with a single INI-format file, named
+"tahoe.cfg", in the node's base directory. The previous
+multiple-separate-files are still read for backwards compatibility, but new
+directives will only be added to tahoe.cfg . The "tahoe create-client"
+command will create a tahoe.cfg for you, with sample values commented out.
+(ticket #518)
+
+tahoe.cfg now has controls for the foolscap "keepalive" and "disconnect"
+timeouts (#521).
+
 
 ** CLI Changes
 
@@ -64,7 +77,8 @@ to replace the contents of the given mutable file.
 
 The "tahoe webopen" command was modified to accept aliases. This means "tahoe
 webopen tahoe:" will cause your web browser to open to a "wui" page that
-gives access to the directory associated with the default "tahoe:" alias.
+gives access to the directory associated with the default "tahoe:" alias. It
+should also accept leading slashes, like "tahoe webopen tahoe:/stuff".
 
 Many esoteric debugging commands were moved down into a "debug" subcommand:
 
@@ -75,8 +89,8 @@ Many esoteric debugging commands were moved down into a "debug" subcommand:
  tahoe debug corrupt-share
 
 The last command ("tahoe debug corrupt-share") flips a random bit of the
-given local sharefile. This is used to test the file verifying/repairing, and
-obviously should not be used on user data.
+given local sharefile. This is used to test the file verifying/repairing
+code, and obviously should not be used on user data.
 
 ** Web changes
 
@@ -99,7 +113,8 @@ The "HEAD" method should now work correctly, in addition to the usual "GET",
 "PUT", and "POST" methods. "HEAD" is supposed to return exactly the same
 headers as "GET" would, but without any of the actual response body data. For
 mutable files, this now does a brief mapupdate (to figure out the size of the
-file that would be returned), without actually retrieve the file's contents.
+file that would be returned), without actually retrieving the file's
+contents.
 
 Each file and directory now has a "Show More Info" web page, which contains
 much of the information that was crammed into the directory page before. This
@@ -107,18 +122,28 @@ includes readonly URIs, storage index strings, object type, buttons to
 control checking/verifying/repairing, and deep-check/deep-stats buttons (for
 directories). For mutable files, the "replace contents" upload form has been
 moved here too. As a result, the directory page is now much simpler and
-cleaner.
+cleaner, and several potentially-misleading links (like t=uri) are now gone.
+
+The "t=manifest" webapi command now generates a table of (path,cap), instead
+of creating a set of verifycaps. The table is available in several formats:
+use output=html, output=text, or output=json to choose one.
+
+Slashes are discouraged in Tahoe file/directory names, since they cause
+problems when accessing the filesystem through the webapi. However, there are
+a couple of accidental ways to generate such names. This release tries to
+make it easier to correct such mistakes by escaping slashes in several
+places, allowing slashes in the t=info and t=delete commands, and in the
+source (but not the target) of a t=rename command.
 
 ** Packaging
 
-The Tahoe dependencies have been extended to require the
-"[secure_connections]" feature from Foolscap, which will cause pyOpenSSL to
-be required and/or installed. If OpenSSL and its development headers are
-already installed on your system, this can occur automatically. Tahoe now
-uses pollreactor (instead of the default selectreactor) to work around a bug
-between pyOpenSSL and the most recent release of Twisted (8.1.0). This bug
-only affects unit tests (hang during shutdown), and should not impact regular
-use.
+Tahoe's dependencies have been extended to require the "[secure_connections]"
+feature from Foolscap, which will cause pyOpenSSL to be required and/or
+installed. If OpenSSL and its development headers are already installed on
+your system, this can occur automatically. Tahoe now uses pollreactor
+(instead of the default selectreactor) to work around a bug between pyOpenSSL
+and the most recent release of Twisted (8.1.0). This bug only affects unit
+tests (hang during shutdown), and should not impact regular use.
 
 The Tahoe source code tarballs now come in two different forms: regular and
 "sumo". The regular tarball contains just Tahoe, nothing else. When building
@@ -138,12 +163,12 @@ should satisfy its downloading needs from it instead of reaching out to PyPI.
 This can be useful if you want to build Tahoe from a darcs checkout while on
 that airplane or desert island.
 
-The previous two changes ("sumo" tarballs and the "tahoe-deps" bundle), most
-of the files have been removed from misc/dependencies/ . This brings the
-regular Tahoe tarball down to 2MB (compressed), and the darcs checkout
-(without history) to about 7.6MB. A full darcs checkout will still be fairly
-large (because of the historical patches which included the dependent
-libraries), but a 'lazy' one should now be small.
+Because of the previous two changes ("sumo" tarballs and the "tahoe-deps"
+bundle), most of the files have been removed from misc/dependencies/ . This
+brings the regular Tahoe tarball down to 2MB (compressed), and the darcs
+checkout (without history) to about 7.6MB. A full darcs checkout will still
+be fairly large (because of the historical patches which included the
+dependent libraries), but a 'lazy' one should now be small.
 
 The default "make" target is now an alias for "setup.py build_tahoe", which
 itself is a wrapper around "setup.py develop --prefix support/lib", with some
@@ -157,6 +182,20 @@ code (and dependencies) that gets put in support/lib/ by the build_tahoe
 step. This should allow unit tests to be run even when trial (which is part
 of Twisted) wasn't already installed (in this case, trial gets installed to
 support/bin because Twisted is a dependency of Tahoe).
+
+Tahoe itself is now compatible with the recently-released Python 2.6 . Most
+of its dependencies are too, however the most recent release of Nevow
+(0.9.31) has an unused function that uses 'with' as a variable name, which
+runs afoul of the new 'with' reserved word in 2.6, so to run Tahoe against
+python2.6 you will need to install Nevow from its SVN trunk, or comment out
+the offending function.
+
+Tahoe is now compatible with simplejson-2.0.x . The previous release assumed
+that simplejson.loads always returned unicode strings, which is no longer the
+case in 2.0.x .
+
+setup.py now includes /System/Library in site-dirs when building on a Mac,
+which should help it find previously-installed libraries like Twisted (#229)
 
 ** Grid Management Tools
 
@@ -199,15 +238,48 @@ part of a backwards-compatibility system that has not yet been fully
 specified. Previous releases declared their oldest-supported-version to be
 the same as their current version number.
 
+The version strings (as displayed on the Welcome web page, and included in
+logs) now includes a platform identifer (frequently including a linux
+distribution name, processor architecture, etc).
+
 Several bugs have been fixed, including one that would cause an exception (in
 the logs) if a webapi download operation was cancelled (by closing the TCP
 connection, or pushing the "stop" button in a web browser).
 
+The 12GiB (approximate) immutable-file-size limitation is slowly being
+lifted. This release knows how to handle so-called "v2 immutable shares",
+which permit immutable files of up to about 18 EiB (about 3*10^14). These v2
+shares are not yet created by default, so that files created with tahoe-1.3.0
+can still be read by earlier versions. In the subsequent release we will
+switch to generating v2 shares, so that files created with tahoe-1.4.0 can be
+read by tahoe-1.3.0 and later. Note that the storage server must also be
+changed to support files larger than 12GiB, and that these changes have not
+yet been implemented. (ticket #346)
+
 Tahoe now uses Foolscap "Incidents", writing an "incident report" file to
 logs/incidents/ each time something weird occurs. These reports are available
 to an "incident gatherer" through the flogtool command. For more details,
-please see the Foolscap logging documentation.
+please see the Foolscap logging documentation. An incident-classifying plugin
+function is provided in misc/incident-gatherer/classify_tahoe.py .
 
+The 'nickname' setting is now defined to be a UTF-8 -encoded string, allowing
+non-ascii nicknames.
+
+The 'tahoe start' command will now pass a --syslog argument through to
+twistd, making it easier to launch non-Tahoe nodes (like the cpu-watcher) and
+have them log to syslogd instead of a local file. This is useful when running
+a Tahoe node out of a USB flash drive.
+
+Tahoe now includes an experimental FTP server. When configured with a
+suitable method to translate username+password into a root directory cap, it
+provides simple access to the virtual filesystem. Remember that FTP is
+completely unencrypted: passwords, filenames, and file contents are all sent
+over the wire in cleartext, so FTP should only be used on a local (127.0.0.1)
+connection. This feature is still in development: there are no unit tests
+yet, and behavior with respect to Unicode filenames is uncertain. Please see
+docs/ftp.txt for configuration details. (#512)
+
+The Mac GUI in src/allmydata/gui/ has been improved.
 
 * Release 1.2.0 (2008-07-21)
 
