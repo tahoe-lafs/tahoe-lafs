@@ -108,6 +108,8 @@ class FuseTestsOptions(usage.Options):
          "Causes the test system to pause at various points, to facilitate debugging"],
         ["web-open", None,
          "Opens a web browser to the web ui at the start of each impl's tests"],
+        ["no-cleanup", False,
+         "Prevents the cleanup of the working directories, to allow analysis thereof"],
          ]
 
     def postOptions(self):
@@ -163,9 +165,6 @@ class SystemTest (object):
     def __init__(self, config):
         self.config = config
 
-        # These members represent configuration:
-        self.fullcleanup = False # FIXME: Make this a commandline option.
-
         # These members represent test state:
         self.cliexec = None
         self.testroot = None
@@ -179,14 +178,7 @@ class SystemTest (object):
     # exception unwinding to do cleanup properly.  Each "layer" invokes
     # a deeper layer, and each layer does its own cleanup upon exit.
 
-    def run(self, fullcleanup = False):
-        '''
-        If full_cleanup, delete all temporary state.
-        Else:  If there is an error do not delete basedirs.
-
-        Set to False if you wish to analyze a failure.
-        '''
-        self.fullcleanup = fullcleanup
+    def run(self):
         print '\n*** Setting up system tests.'
         try:
             results = self.init_cli_layer()
@@ -244,7 +236,7 @@ class SystemTest (object):
         try:
             return self.launch_introducer_layer()
         finally:
-            if self.fullcleanup:
+            if not self.config['no-cleanup']:
                 print 'Cleaning up test root directory.'
                 try:
                     shutil.rmtree(self.testroot)
