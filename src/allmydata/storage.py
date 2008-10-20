@@ -236,6 +236,7 @@ class BucketWriter(Referenceable):
         fileutil.make_dirs(os.path.dirname(incominghome))
         # Also construct the metadata.
         f = open(incominghome, 'wb')
+        precondition(size < 2**32) # v1 container format: 4-byte size field
         f.write(struct.pack(">LLL", 1, size, 0))
         f.close()
         self._sharefile = ShareFile(incominghome)
