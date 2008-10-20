@@ -468,19 +468,27 @@ class SystemTest (object):
         # XXX this should also do a test where sz%bs != 0, so that it correctly tests
         # the edge case where the last read is a 'short' block
         path = os.path.join(testdir, name)
-        fsize = os.path.getsize(path)
-        if fsize != len(body):
-            tmpl = 'Expected file size %s but found %s'
-            raise TestFailure(tmpl, len(body), fsize)
+        try:
+            fsize = os.path.getsize(path)
+            if fsize != len(body):
+                tmpl = 'Expected file size %s but found %s'
+                raise TestFailure(tmpl, len(body), fsize)
+        except Exception, err:
+            tmpl = 'Could not read file size for %r: %r'
+            raise TestFailure(tmpl, path, err)
 
-        f = open(path, 'r')
-        posns = range(0,sz,bs)
-        random.shuffle(posns)
-        data = [None] * (sz/bs)
-        for p in posns:
-            f.seek(p)
-            data[p/bs] = f.read(bs)
-        found = ''.join(data)
+        try:
+            f = open(path, 'r')
+            posns = range(0,sz,bs)
+            random.shuffle(posns)
+            data = [None] * (sz/bs)
+            for p in posns:
+                f.seek(p)
+                data[p/bs] = f.read(bs)
+            found = ''.join(data)
+        except Exception, err:
+            tmpl = 'Could not read file %r: %r'
+            raise TestFailure(tmpl, path, err)
 
         if found != body:
             tmpl = 'Expected file contents %s but found %s'
