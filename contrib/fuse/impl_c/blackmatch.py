@@ -194,11 +194,13 @@ def repr_mode(mode=None):
 def repr_flags(flags=None):
     if flags is None:
         return 'none'
-    fields = ['O_WRONLY', 'O_RDWR', 'O_NONBLOCK', 'O_APPEND', 'O_CREAT', 'O_TRUNC', 'O_EXCL', 'O_SHLOCK', 'O_EXLOCK', 'O_NOFOLLOW']
+    fields = [ 'O_APPEND', 'O_CREAT', 'O_DIRECT', 'O_DIRECTORY', 'O_EXCL', 'O_EXLOCK',
+               'O_LARGEFILE', 'O_NDELAY', 'O_NOCTTY', 'O_NOFOLLOW', 'O_NONBLOCK', 'O_RDWR',
+               'O_SHLOCK', 'O_SYNC', 'O_TRUNC', 'O_WRONLY', ]
     ret = []
     for field in fields:
-        fval = getattr(os, field)
-        if (flags & fval) == fval:
+        fval = getattr(os, field, None)
+        if fval is not None and (flags & fval) == fval:
             ret.append(field)
     if not ret:
         ret = ['O_RDONLY']
