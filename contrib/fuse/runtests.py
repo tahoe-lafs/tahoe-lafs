@@ -491,9 +491,15 @@ class SystemTest (object):
 
     def _check_write(self, testcap, name, expected_body):
         uploaded_body = self.get_file(testcap, name)
+        def drepr(obj):
+            r = repr(obj)
+            if len(r) > 200:
+                return r[:100] + ' ... ' + r[-100:]
+            else:
+                return r
         if uploaded_body != expected_body:
-            tmpl = 'Expected file contents %r but found %r'
-            raise TestFailure(tmpl, expected_body, uploaded_body)
+            tmpl = 'Expected file contents %s but found %s'
+            raise TestFailure(tmpl, drepr(expected_body), drepr(uploaded_body))
 
     def test_write_overlapping_small_writes(self, testcap, testdir):
         self._write_test_overlap(testcap, testdir, name='large_overlap', bs=2**9, sz=2**20)
