@@ -81,6 +81,10 @@ if sys.platform == 'darwin':
     del implementations['impl_a']
     del implementations['impl_b']
 
+default_catch_up_pause = 0
+if sys.platform == 'linux2':
+    default_catch_up_pause = 2
+
 class FuseTestsOptions(usage.Options):
     optParameters = [
         ["test-type", None, "both",
@@ -102,6 +106,8 @@ class FuseTestsOptions(usage.Options):
          # Note; this is '/tmp' because on leopard, tempfile.mkdtemp creates
          # directories in a location which leads paths to exceed what macfuse
          # can handle without leaking un-umount-able fuse processes.
+        ["catch-up-pause", None, str(default_catch_up_pause),
+         "Pause between tahoe operations and fuse tests thereon"],
         ]
     optFlags = [
         ["debug-wait", None,
@@ -126,6 +132,7 @@ class FuseTestsOptions(usage.Options):
             self.tests = map(str.strip, self['tests'].split(','))
         else:
             self.tests = None
+        self.catch_up_pause = float(self['catch-up-pause'])
 
 ### Main flow control:
 def main(args):
@@ -220,6 +227,9 @@ class SystemTest (object):
             if where is not None:
                 url += urllib.quote(where)
             webbrowser.open(url)
+
+    def maybe_pause(self):
+        time.sleep(self.config.catch_up_pause)
 
     def init_cli_layer(self):
         '''This layer finds the appropriate tahoe executable.'''
@@ -524,6 +534,7 @@ class SystemTest (object):
             tmpl = 'Could not write to file %r: %r'
             raise TestFailure(tmpl, path, err)
 
+        self.maybe_pause()
         self._check_write(testcap, name, body)
 
     def _check_write(self, testcap, name, expected_body):
@@ -557,6 +568,7 @@ class SystemTest (object):
             tmpl = 'Could not write to file %r: %r'
             raise TestFailure(tmpl, path, err)
 
+        self.maybe_pause()
         self._check_write(testcap, name, body)
 
 
@@ -597,6 +609,7 @@ class SystemTest (object):
             tmpl = 'Could not write to file %r: %r'
             raise TestFailure(tmpl, path, err)
 
+        self.maybe_pause()
         self._check_write(testcap, name, body)
 
     def test_write_partial_overwrite(self, testcap, testdir):
@@ -631,6 +644,7 @@ class SystemTest (object):
 
         cap = self.webapi_call('PUT', '/uri', body)
         self.attach_node(testcap, cap, name)
+        self.maybe_pause()
 
         contents = read_file(path)
         if contents != body:
