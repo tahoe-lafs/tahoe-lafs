@@ -162,7 +162,7 @@ def run_system_test(config):
 def drepr(obj):
     r = repr(obj)
     if len(r) > 200:
-        return r[:100] + ' ... ' + r[-100:]
+        return '%s ... %s [%d]' % (r[:100], r[-100:], len(r))
     else:
         return r
 
