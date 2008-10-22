@@ -131,6 +131,7 @@ class WebishServer(service.MultiService):
         self.site.requestFactory = MyRequest
         if self.root.child_operations:
             self.site.remember(self.root.child_operations, IOpHandleTable)
+            self.root.child_operations.setServiceParent(self)
         s = strports.service(webport, site)
         s.setServiceParent(self)
         self.listener = s # stash it so the tests can query for the portnum

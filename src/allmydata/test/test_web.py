@@ -2150,11 +2150,71 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
                                   client.getPage, url, method="DELETE")
         return d
 
-    def test_bad_ophandle(self):
+    def test_ophandle_bad(self):
         url = self.webish_url + "/operations/bogus?t=status"
-        d = self.shouldHTTPError2("test_bad_ophandle", 400, "400 Bad Request",
+        d = self.shouldHTTPError2("test_ophandle_bad", 404, "404 Not Found",
                                   "unknown/expired handle 'bogus'",
                                   client.getPage, url)
+        return d
+
+    def test_ophandle_cancel(self):
+        d = self.POST(self.public_url + "/foo/?t=start-manifest&ophandle=128",
+                      followRedirect=True)
+        d.addCallback(lambda ignored:
+                      self.GET("/operations/128?t=status&output=JSON"))
+        def _check1(res):
+            data = simplejson.loads(res)
+            self.failUnless("finished" in data, res)
+            monitor = self.ws.root.child_operations.handles["128"][0]
+            d = self.POST("/operations/128?t=cancel&output=JSON")
+            def _check2(res):
+                data = simplejson.loads(res)
+                self.failUnless("finished" in data, res)
+                # t=cancel causes the handle to be forgotten
+                self.failUnless(monitor.is_cancelled())
+            d.addCallback(_check2)
+            return d
+        d.addCallback(_check1)
+        d.addCallback(lambda ignored:
+                      self.shouldHTTPError2("test_ophandle_cancel",
+                                            404, "404 Not Found",
+                                            "unknown/expired handle '128'",
+                                            self.GET,
+                                            "/operations/128?t=status&output=JSON"))
+        return d
+
+    def test_ophandle_retainfor(self):
+        d = self.POST(self.public_url + "/foo/?t=start-manifest&ophandle=129&retain-for=60",
+                      followRedirect=True)
+        d.addCallback(lambda ignored:
+                      self.GET("/operations/129?t=status&output=JSON&retain-for=0"))
+        def _check1(res):
+            data = simplejson.loads(res)
+            self.failUnless("finished" in data, res)
+        d.addCallback(_check1)
+        # the retain-for=0 will cause the handle to be expired very soon
+        d.addCallback(self.stall, 2.0)
+        d.addCallback(lambda ignored:
+                      self.shouldHTTPError2("test_ophandle_retainfor",
+                                            404, "404 Not Found",
+                                            "unknown/expired handle '129'",
+                                            self.GET,
+                                            "/operations/129?t=status&output=JSON"))
+        return d
+
+    def test_ophandle_release_after_complete(self):
+        d = self.POST(self.public_url + "/foo/?t=start-manifest&ophandle=130",
+                      followRedirect=True)
+        d.addCallback(self.wait_for_operation, "130")
+        d.addCallback(lambda ignored:
+                      self.GET("/operations/130?t=status&output=JSON&release-after-complete=true"))
+        # the release-after-complete=true will cause the handle to be expired
+        d.addCallback(lambda ignored:
+                      self.shouldHTTPError2("test_ophandle_release_after_complete",
+                                            404, "404 Not Found",
+                                            "unknown/expired handle '130'",
+                                            self.GET,
+                                            "/operations/130?t=status&output=JSON"))
         return d
 
     def test_incident(self):

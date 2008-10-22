@@ -1,24 +1,65 @@
 
+import time
 from zope.interface import implements
 from nevow import rend, url, tags as T
 from nevow.inevow import IRequest
-from twisted.web import html
+from twisted.internet import reactor
+from twisted.web.http import NOT_FOUND
+from twisted.web.html import escape
+from twisted.application import service
 
-from allmydata.web.common import IOpHandleTable, get_root, get_arg, WebError
+from allmydata.web.common import IOpHandleTable, WebError, \
+     get_root, get_arg, boolean_of_arg
 
-class OphandleTable(rend.Page):
+MINUTE = 60
+HOUR = 60*MINUTE
+
+(MONITOR, RENDERER, WHEN_ADDED) = range(3)
+
+class OphandleTable(rend.Page, service.Service):
     implements(IOpHandleTable)
 
+    UNCOLLECTED_HANDLE_LIFETIME = 1*HOUR
+    COLLECTED_HANDLE_LIFETIME = 10*MINUTE
+
     def __init__(self):
-        self.monitors = {}
-        self.handles = {}
+        # both of these are indexed by ophandle
+        self.handles = {} # tuple of (monitor, renderer, when_added)
+        self.timers = {}
 
-    def add_monitor(self, ophandle, monitor, renderer):
-        self.monitors[ophandle] = monitor
-        self.handles[ophandle] = renderer
-        # TODO: expiration
+    def stopService(self):
+        for t in self.timers.values():
+            if t.active():
+                t.cancel()
+        del self.handles # this is not restartable
+        del self.timers
+        return service.Service.stopService(self)
 
-    def redirect_to(self, ophandle, ctx):
+    def add_monitor(self, ctx, monitor, renderer):
+        ophandle = get_arg(ctx, "ophandle")
+        assert ophandle
+        now = time.time()
+        self.handles[ophandle] = (monitor, renderer, now)
+        retain_for = get_arg(ctx, "retain-for", None)
+        if retain_for is not None:
+            self._set_timer(ophandle, int(retain_for))
+        monitor.when_done().addBoth(self._operation_complete, ophandle)
+
+    def _operation_complete(self, res, ophandle):
+        if ophandle in self.handles:
+            if ophandle not in self.timers:
+                # the client has not provided a retain-for= value for this
+                # handle, so we set our own.
+                now = time.time()
+                added = self.handles[ophandle][WHEN_ADDED]
+                when = max(self.UNCOLLECTED_HANDLE_LIFETIME, now - added)
+                self._set_timer(ophandle, when)
+            # if we already have a timer, the client must have provided the
+            # retain-for= value, so don't touch it.
+
+    def redirect_to(self, ctx):
+        ophandle = get_arg(ctx, "ophandle")
+        assert ophandle
         target = get_root(ctx) + "/operations/" + ophandle + "?t=status"
         output = get_arg(ctx, "output")
         if output:
@@ -28,14 +69,41 @@ class OphandleTable(rend.Page):
     def childFactory(self, ctx, name):
         ophandle = name
         if ophandle not in self.handles:
-            raise WebError("unknown/expired handle '%s'" %html.escape(ophandle))
+            raise WebError("unknown/expired handle '%s'" % escape(ophandle),
+                           NOT_FOUND)
+        (monitor, renderer, when_added) = self.handles[ophandle]
+
         t = get_arg(ctx, "t", "status")
         if t == "cancel":
-            monitor = self.monitors[ophandle]
             monitor.cancel()
-            # return the status anyways
+            # return the status anyways, but release the handle
+            self._release_ophandle(ophandle)
 
-        return self.handles[ophandle]
+        else:
+            retain_for = get_arg(ctx, "retain-for", None)
+            if retain_for is not None:
+                self._set_timer(ophandle, int(retain_for))
+
+            if monitor.is_finished():
+                if boolean_of_arg(get_arg(ctx, "release-after-complete", "false")):
+                    self._release_ophandle(ophandle)
+                if retain_for is None:
+                    # this GET is collecting the ophandle, so change its timer
+                    self._set_timer(ophandle, self.COLLECTED_HANDLE_LIFETIME)
+
+        return renderer
+
+    def _set_timer(self, ophandle, when):
+        if ophandle in self.timers and self.timers[ophandle].active():
+            self.timers[ophandle].cancel()
+        t = reactor.callLater(when, self._release_ophandle, ophandle)
+        self.timers[ophandle] = t
+
+    def _release_ophandle(self, ophandle):
+        if ophandle in self.timers and self.timers[ophandle].active():
+            self.timers[ophandle].cancel()
+        self.timers.pop(ophandle, None)
+        self.handles.pop(ophandle, None)
 
 class ReloadMixin:
 

@@ -118,11 +118,14 @@ class Root(rend.Page):
     addSlash = True
     docFactory = getxmlfile("welcome.xhtml")
 
+    def __init__(self, original=None):
+        rend.Page.__init__(self, original)
+        self.child_operations = operations.OphandleTable()
+
     child_uri = URIHandler()
     child_cap = URIHandler()
     child_file = FileHandler()
     child_named = FileHandler()
-    child_operations = operations.OphandleTable()
 
     child_webform_css = webform.defaultCSS
     child_tahoe_css = nevow_File(resource_filename('allmydata.web', 'tahoe.css'))

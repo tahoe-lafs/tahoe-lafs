@@ -353,10 +353,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
     def _start_operation(self, monitor, renderer, ctx):
         table = IOpHandleTable(ctx)
-        ophandle = get_arg(ctx, "ophandle")
-        assert ophandle
-        table.add_monitor(ophandle, monitor, renderer)
-        return table.redirect_to(ophandle, ctx)
+        table.add_monitor(ctx, monitor, renderer)
+        return table.redirect_to(ctx)
 
     def _POST_start_deep_check(self, ctx):
         # check this directory and everything reachable from it

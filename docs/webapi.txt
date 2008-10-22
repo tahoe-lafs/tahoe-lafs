@@ -219,7 +219,9 @@ POST /operations/$HANDLE?t=cancel
  This terminates the operation, and returns an HTML page explaining what was
  cancelled. If the operation handle has already expired (see below), this
  POST will return a 404, which indicates that the operation is no longer
- running (either it was completed or terminated).
+ running (either it was completed or terminated). The response body will be
+ the same as a t=status on this operation handle, and the handle will be
+ expired immediately afterwards.
 
 The operation handle will eventually expire, to avoid consuming an unbounded
 amount of memory. The handle's time-to-live can be reset at any time, by
