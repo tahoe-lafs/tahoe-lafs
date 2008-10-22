@@ -796,15 +796,18 @@ class IDirectoryNode(IMutableFilesystemNode):
         operation finishes. The child name must be a unicode string."""
 
     def build_manifest():
-        """Return a Deferred that fires with a list of (path, cap) tuples for
-        nodes (directories and files) reachable from this one. 'path' will be
-        a tuple of unicode strings. The origin dirnode will be represented by
-        an empty path tuple."""
+        """Return a Monitor. The Monitor's results will be a list of (path,
+        cap) tuples for nodes (directories and files) reachable from this
+        one. 'path' will be a tuple of unicode strings. The origin dirnode
+        will be represented by an empty path tuple. The Monitor will also
+        have an .origin_si attribute with the (binary) storage index of the
+        starting point.
+        """
 
-    def deep_stats():
-        """Return a Deferred that fires with a dictionary of statistics
-        computed by examining all nodes (directories and files) reachable
-        from this one, with the following keys::
+    def start_deep_stats():
+        """Return a Monitor, examining all nodes (directories and files)
+        reachable from this one. The Monitor's results will be a dictionary
+        with the following keys::
 
            count-immutable-files: count of how many CHK files are in the set
            count-mutable-files: same, for mutable files (does not include
@@ -827,6 +830,9 @@ class IDirectoryNode(IMutableFilesystemNode):
 
         size-mutable-files is not yet implemented, because it would involve
         even more queries than deep_stats does.
+
+        The Monitor will also have an .origin_si attribute with the (binary)
+        storage index of the starting point.
 
         This operation will visit every directory node underneath this one,
         and can take a long time to run. On a typical workstation with good
@@ -1494,23 +1500,24 @@ class ICheckable(Interface):
         ICheckAndRepairResults."""
 
 class IDeepCheckable(Interface):
-    def deep_check(verify=False):
+    def start_deep_check(verify=False):
         """Check upon the health of me and everything I can reach.
 
         This is a recursive form of check(), useable only on dirnodes.
 
-        I return a Deferred that fires with an IDeepCheckResults object.
+        I return a Monitor, with results that are an IDeepCheckResults
+        object.
         """
 
-    def deep_check_and_repair(verify=False):
+    def start_deep_check_and_repair(verify=False):
         """Check upon the health of me and everything I can reach. Repair
         anything that isn't healthy.
 
         This is a recursive form of check_and_repair(), useable only on
         dirnodes.
 
-        I return a Deferred that fires with an IDeepCheckAndRepairResults
-        object.
+        I return a Monitor, with results that are an
+        IDeepCheckAndRepairResults object.
         """
 
 class ICheckerResults(Interface):

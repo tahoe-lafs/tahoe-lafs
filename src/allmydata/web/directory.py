@@ -15,14 +15,17 @@ from allmydata.util import base32
 from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IMutableFileNode, \
      ExistingChildError
-from allmydata.web.common import text_plain, WebError, IClient, \
-     boolean_of_arg, get_arg, should_create_intermediate_directories, \
+from allmydata.web.common import text_plain, WebError, \
+     IClient, IOpHandleTable, NeedOperationHandleError, \
+     boolean_of_arg, get_arg, get_root, \
+     should_create_intermediate_directories, \
      getxmlfile, RenderMixin
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
 from allmydata.web.checker_results import CheckerResults, \
      CheckAndRepairResults, DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.web.info import MoreInfo
+from allmydata.web.operations import ReloadMixin
 
 class BlockingFileError(Exception):
     # TODO: catch and transform
@@ -137,12 +140,6 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             return DirectoryURI(ctx, self.node)
         if t == "readonly-uri":
             return DirectoryReadonlyURI(ctx, self.node)
-        if t == "manifest":
-            return Manifest(self.node)
-        if t == "deep-size":
-            return DeepSize(ctx, self.node)
-        if t == "deep-stats":
-            return DeepStats(ctx, self.node)
         if t == 'rename-form':
             return RenameForm(self.node)
 
@@ -170,6 +167,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def render_POST(self, ctx):
         req = IRequest(ctx)
         t = get_arg(req, "t", "").strip()
+
         if t == "mkdir":
             d = self._POST_mkdir(req)
         elif t == "mkdir-p":
@@ -185,8 +183,14 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d = self._POST_rename(req)
         elif t == "check":
             d = self._POST_check(req)
-        elif t == "deep-check":
-            d = self._POST_deep_check(req)
+        elif t == "start-deep-check":
+            d = self._POST_start_deep_check(ctx)
+        elif t == "start-manifest":
+            d = self._POST_start_manifest(ctx)
+        elif t == "start-deep-size":
+            d = self._POST_start_deep_size(ctx)
+        elif t == "start-deep-stats":
+            d = self._POST_start_deep_stats(ctx)
         elif t == "set_children":
             # TODO: docs
             d = self._POST_set_children(req)
@@ -347,17 +351,47 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d.addCallback(lambda res: CheckerResults(res))
         return d
 
-    def _POST_deep_check(self, req):
+    def _start_operation(self, monitor, renderer, ctx):
+        table = IOpHandleTable(ctx)
+        ophandle = get_arg(ctx, "ophandle")
+        assert ophandle
+        table.add_monitor(ophandle, monitor, renderer)
+        return table.redirect_to(ophandle, ctx)
+
+    def _POST_start_deep_check(self, ctx):
         # check this directory and everything reachable from it
-        verify = boolean_of_arg(get_arg(req, "verify", "false"))
-        repair = boolean_of_arg(get_arg(req, "repair", "false"))
+        if not get_arg(ctx, "ophandle"):
+            raise NeedOperationHandleError("slow operation requires ophandle=")
+        verify = boolean_of_arg(get_arg(ctx, "verify", "false"))
+        repair = boolean_of_arg(get_arg(ctx, "repair", "false"))
         if repair:
-            d = self.node.deep_check_and_repair(verify)
-            d.addCallback(lambda res: DeepCheckAndRepairResults(res))
+            monitor = self.node.start_deep_check_and_repair(verify)
+            renderer = DeepCheckAndRepairResults(monitor)
         else:
-            d = self.node.deep_check(verify)
-            d.addCallback(lambda res: DeepCheckResults(res))
-        return d
+            monitor = self.node.start_deep_check(verify)
+            renderer = DeepCheckResults(monitor)
+        return self._start_operation(monitor, renderer, ctx)
+
+    def _POST_start_manifest(self, ctx):
+        if not get_arg(ctx, "ophandle"):
+            raise NeedOperationHandleError("slow operation requires ophandle=")
+        monitor = self.node.build_manifest()
+        renderer = ManifestResults(monitor)
+        return self._start_operation(monitor, renderer, ctx)
+
+    def _POST_start_deep_size(self, ctx):
+        if not get_arg(ctx, "ophandle"):
+            raise NeedOperationHandleError("slow operation requires ophandle=")
+        monitor = self.node.start_deep_stats()
+        renderer = DeepSizeResults(monitor)
+        return self._start_operation(monitor, renderer, ctx)
+
+    def _POST_start_deep_stats(self, ctx):
+        if not get_arg(ctx, "ophandle"):
+            raise NeedOperationHandleError("slow operation requires ophandle=")
+        monitor = self.node.start_deep_stats()
+        renderer = DeepStatsResults(monitor)
+        return self._start_operation(monitor, renderer, ctx)
 
     def _POST_set_children(self, req):
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
@@ -384,13 +418,6 @@ def abbreviated_dirnode(dirnode):
     si = u.get_filenode_uri().storage_index
     si_s = base32.b2a(si)
     return si_s[:6]
-
-def get_root(ctx):
-    req = IRequest(ctx)
-    # the addSlash=True gives us one extra (empty) segment
-    depth = len(req.prepath) + len(req.postpath) - 1
-    link = "/".join([".."] * depth)
-    return link
 
 class DirectoryAsHTML(rend.Page):
     # The remainder of this class is to render the directory into
@@ -672,8 +699,11 @@ class RenameForm(rend.Page):
         return ctx.tag
 
 
-class Manifest(rend.Page):
+class ManifestResults(rend.Page, ReloadMixin):
     docFactory = getxmlfile("manifest.xhtml")
+
+    def __init__(self, monitor):
+        self.monitor = monitor
 
     def renderHTTP(self, ctx):
         output = get_arg(inevow.IRequest(ctx), "output", "html").lower()
@@ -690,29 +720,35 @@ class Manifest(rend.Page):
 
     def text(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
-        d = self.original.build_manifest()
-        def _render_text(manifest):
-            lines = []
-            for (path, cap) in manifest:
-                lines.append(self.slashify_path(path) + " " + cap)
-            return "\n".join(lines) + "\n"
-        d.addCallback(_render_text)
-        return d
+        lines = []
+        if self.monitor.is_finished():
+            lines.append("finished: yes")
+        else:
+            lines.append("finished: no")
+        for (path, cap) in self.monitor.get_status():
+            lines.append(self.slashify_path(path) + " " + cap)
+        return "\n".join(lines) + "\n"
 
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
-        d = self.original.build_manifest()
-        d.addCallback(lambda manifest: simplejson.dumps(manifest))
-        return d
+        m = self.monitor
+        status = {"manifest": m.get_status(),
+                  "finished": m.is_finished(),
+                  "origin": base32.b2a(m.origin_si),
+                  }
+        return simplejson.dumps(status, indent=1)
+
+    def _si_abbrev(self):
+        return base32.b2a(self.monitor.origin_si)[:6]
 
     def render_title(self, ctx):
-        return T.title["Manifest of SI=%s" % abbreviated_dirnode(self.original)]
+        return T.title["Manifest of SI=%s" % self._si_abbrev()]
 
     def render_header(self, ctx):
-        return T.p["Manifest of SI=%s" % abbreviated_dirnode(self.original)]
+        return T.p["Manifest of SI=%s" % self._si_abbrev()]
 
     def data_items(self, ctx, data):
-        return self.original.build_manifest()
+        return self.monitor.get_status()
 
     def render_row(self, ctx, (path, cap)):
         ctx.fillSlots("path", self.slashify_path(path))
@@ -727,19 +763,40 @@ class Manifest(rend.Page):
         ctx.fillSlots("cap", T.a(href=uri_link)[cap])
         return ctx.tag
 
-def DeepSize(ctx, dirnode):
-    d = dirnode.deep_stats()
-    def _measure_size(stats):
-        total = (stats.get("size-immutable-files", 0)
-                 + stats.get("size-mutable-files", 0)
-                 + stats.get("size-directories", 0))
-        return str(total)
-    d.addCallback(_measure_size)
-    d.addCallback(text_plain, ctx)
-    return d
+class DeepSizeResults(rend.Page):
+    def __init__(self, monitor):
+        self.monitor = monitor
 
-def DeepStats(ctx, dirnode):
-    d = dirnode.deep_stats()
-    d.addCallback(simplejson.dumps, indent=1)
-    d.addCallback(text_plain, ctx)
-    return d
+    def renderHTTP(self, ctx):
+        output = get_arg(inevow.IRequest(ctx), "output", "html").lower()
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        if output == "json":
+            return self.json(ctx)
+        # plain text
+        if self.monitor.is_finished():
+            output = "finished: true\n"
+            stats = self.monitor.get_status()
+            total = (stats.get("size-immutable-files", 0)
+                     + stats.get("size-mutable-files", 0)
+                     + stats.get("size-directories", 0))
+            output += "size: %d\n" % total
+        else:
+            output = "finished: false\n"
+        return output
+
+    def json(self, ctx):
+        status = {"finished": self.monitor.is_finished(),
+                  "size": self.monitor.get_status(),
+                  }
+        return simplejson.dumps(status)
+
+class DeepStatsResults(rend.Page):
+    def __init__(self, monitor):
+        self.monitor = monitor
+
+    def renderHTTP(self, ctx):
+        # JSON only
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        s = self.monitor.get_status().copy()
+        s["finished"] = self.monitor.is_finished()
+        return simplejson.dumps(s, indent=1)

@@ -23,7 +23,7 @@ from twisted.python.failure import Failure
 from twisted.web.client import getPage
 from twisted.web.error import Error
 
-from allmydata.test.common import SystemTestMixin
+from allmydata.test.common import SystemTestMixin, WebErrorMixin
 
 LARGE_DATA = """
 This is some data to publish to the virtual drive, which needs to be large
@@ -644,7 +644,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             d1.addCallback(lambda res: dnode.set_node(u"see recursive", dnode))
             d1.addCallback(lambda res: dnode.has_child(u"see recursive"))
             d1.addCallback(lambda answer: self.failUnlessEqual(answer, True))
-            d1.addCallback(lambda res: dnode.build_manifest())
+            d1.addCallback(lambda res: dnode.build_manifest().when_done())
             d1.addCallback(lambda manifest:
                            self.failUnlessEqual(len(manifest), 1))
             return d1
@@ -926,7 +926,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             d1.addCallback(lambda res:
                            home.move_child_to(u"sekrit data", personal))
 
-            d1.addCallback(lambda res: home.build_manifest())
+            d1.addCallback(lambda res: home.build_manifest().when_done())
             d1.addCallback(self.log, "manifest")
             #  five items:
             # P/
@@ -936,7 +936,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             # P/s2-rw/mydata992 (same as P/s2-rw/mydata992)
             d1.addCallback(lambda manifest:
                            self.failUnlessEqual(len(manifest), 5))
-            d1.addCallback(lambda res: home.deep_stats())
+            d1.addCallback(lambda res: home.start_deep_stats().when_done())
             def _check_stats(stats):
                 expected = {"count-immutable-files": 1,
                             "count-mutable-files": 0,
@@ -1721,7 +1721,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         return d
 
 
-class MutableChecker(SystemTestMixin, unittest.TestCase):
+class MutableChecker(SystemTestMixin, unittest.TestCase, WebErrorMixin):
 
     def _run_cli(self, argv):
         stdout, stderr = StringIO(), StringIO()
@@ -1751,6 +1751,7 @@ class MutableChecker(SystemTestMixin, unittest.TestCase):
             self.failIf("Unhealthy" in out, out)
             self.failIf("Corrupt Shares" in out, out)
         d.addCallback(_got_results)
+        d.addErrback(self.explain_web_error)
         return d
 
     def test_corrupt(self):
@@ -1800,6 +1801,7 @@ class MutableChecker(SystemTestMixin, unittest.TestCase):
             self.failIf("Not Healthy!" in out, out)
             self.failUnless("Recoverable Versions: 10*seq" in out, out)
         d.addCallback(_got_postrepair_results)
+        d.addErrback(self.explain_web_error)
 
         return d
 
@@ -1850,10 +1852,11 @@ class MutableChecker(SystemTestMixin, unittest.TestCase):
             self.failIf("Not Healthy!" in out, out)
             self.failUnless("Recoverable Versions: 10*seq" in out)
         d.addCallback(_got_postrepair_results)
+        d.addErrback(self.explain_web_error)
 
         return d
 
-class DeepCheckWeb(SystemTestMixin, unittest.TestCase):
+class DeepCheckWeb(SystemTestMixin, unittest.TestCase, WebErrorMixin):
     # construct a small directory tree (with one dir, one immutable file, one
     # mutable file, one LIT file, and a loop), and then check/examine it in
     # various ways.
@@ -1954,11 +1957,12 @@ class DeepCheckWeb(SystemTestMixin, unittest.TestCase):
         d.addCallback(self.do_stats)
         d.addCallback(self.do_test_good)
         d.addCallback(self.do_test_web)
+        d.addErrback(self.explain_web_error)
         return d
 
     def do_stats(self, ignored):
         d = defer.succeed(None)
-        d.addCallback(lambda ign: self.root.deep_stats())
+        d.addCallback(lambda ign: self.root.start_deep_stats().when_done())
         d.addCallback(self.check_stats)
         return d
 
@@ -1973,10 +1977,11 @@ class DeepCheckWeb(SystemTestMixin, unittest.TestCase):
         # s["size-directories"]
         self.failUnlessEqual(s["largest-directory-children"], 4)
         self.failUnlessEqual(s["largest-immutable-file"], 13000)
-        # to re-use this function for both the local dirnode.deep_stats() and
-        # the webapi t=deep-stats, we coerce the result into a list of
-        # tuples. dirnode.deep_stats() returns a list of tuples, but JSON
-        # only knows about lists., so t=deep-stats returns a list of lists.
+        # to re-use this function for both the local
+        # dirnode.start_deep_stats() and the webapi t=start-deep-stats, we
+        # coerce the result into a list of tuples. dirnode.start_deep_stats()
+        # returns a list of tuples, but JSON only knows about lists., so
+        # t=start-deep-stats returns a list of lists.
         histogram = [tuple(stuff) for stuff in s["size-files-histogram"]]
         self.failUnlessEqual(histogram, [(11, 31, 1),
                                          (10001, 31622, 1),
@@ -2030,13 +2035,17 @@ class DeepCheckWeb(SystemTestMixin, unittest.TestCase):
 
 
         # now deep-check the root, with various verify= and repair= options
-        d.addCallback(lambda ign: self.root.deep_check())
+        d.addCallback(lambda ign:
+                      self.root.start_deep_check().when_done())
         d.addCallback(self.deep_check_is_healthy, 3, "root")
-        d.addCallback(lambda ign: self.root.deep_check(verify=True))
+        d.addCallback(lambda ign:
+                      self.root.start_deep_check(verify=True).when_done())
         d.addCallback(self.deep_check_is_healthy, 3, "root")
-        d.addCallback(lambda ign: self.root.deep_check_and_repair())
+        d.addCallback(lambda ign:
+                      self.root.start_deep_check_and_repair().when_done())
         d.addCallback(self.deep_check_and_repair_is_healthy, 3, "root")
-        d.addCallback(lambda ign: self.root.deep_check_and_repair(verify=True))
+        d.addCallback(lambda ign:
+                      self.root.start_deep_check_and_repair(verify=True).when_done())
         d.addCallback(self.deep_check_and_repair_is_healthy, 3, "root")
 
         return d
@@ -2060,6 +2069,47 @@ class DeepCheckWeb(SystemTestMixin, unittest.TestCase):
                + "?" + "&".join(["%s=%s" % (k,v) for (k,v) in kwargs.items()]))
         d = getPage(url, method=method)
         d.addCallback(lambda data: (data,url))
+        return d
+
+    def wait_for_operation(self, ignored, ophandle):
+        url = self.webish_url + "operations/" + ophandle
+        url += "?t=status&output=JSON"
+        d = getPage(url)
+        def _got(res):
+            try:
+                data = simplejson.loads(res)
+            except ValueError:
+                self.fail("%s: not JSON: '%s'" % (url, res))
+            if not data["finished"]:
+                d = self.stall(delay=1.0)
+                d.addCallback(self.wait_for_operation, ophandle)
+                return d
+            return data
+        d.addCallback(_got)
+        return d
+
+    def get_operation_results(self, ignored, ophandle, output=None):
+        url = self.webish_url + "operations/" + ophandle
+        url += "?t=status"
+        if output:
+            url += "&output=" + output
+        d = getPage(url)
+        def _got(res):
+            if output and output.lower() == "json":
+                try:
+                    return simplejson.loads(res)
+                except ValueError:
+                    self.fail("%s: not JSON: '%s'" % (url, res))
+            return res
+        d.addCallback(_got)
+        return d
+
+    def slow_web(self, n, output=None, **kwargs):
+        # use ophandle=
+        handle = base32.b2a(os.urandom(4))
+        d = self.web(n, "POST", ophandle=handle, **kwargs)
+        d.addCallback(self.wait_for_operation, handle)
+        d.addCallback(self.get_operation_results, handle, output=output)
         return d
 
     def json_check_is_healthy(self, data, n, where, incomplete=False):
@@ -2146,8 +2196,9 @@ class DeepCheckWeb(SystemTestMixin, unittest.TestCase):
         d = defer.succeed(None)
 
         # stats
-        d.addCallback(lambda ign: self.web(self.root, t="deep-stats"))
-        d.addCallback(self.decode_json)
+        d.addCallback(lambda ign:
+                      self.slow_web(self.root,
+                                    t="start-deep-stats", output="json"))
         d.addCallback(self.json_check_stats, "deep-stats")
 
         # check, no verify
@@ -2204,16 +2255,18 @@ class DeepCheckWeb(SystemTestMixin, unittest.TestCase):
 
         # now run a deep-check, with various verify= and repair= flags
         d.addCallback(lambda ign:
-                      self.web_json(self.root, t="deep-check"))
+                      self.slow_web(self.root, t="start-deep-check", output="json"))
         d.addCallback(self.json_full_deepcheck_is_healthy, self.root, "root")
         d.addCallback(lambda ign:
-                      self.web_json(self.root, t="deep-check", verify="true"))
+                      self.slow_web(self.root, t="start-deep-check", verify="true",
+                                    output="json"))
         d.addCallback(self.json_full_deepcheck_is_healthy, self.root, "root")
         d.addCallback(lambda ign:
-                      self.web_json(self.root, t="deep-check", repair="true"))
+                      self.slow_web(self.root, t="start-deep-check", repair="true",
+                                    output="json"))
         d.addCallback(self.json_full_deepcheck_and_repair_is_healthy, self.root, "root")
         d.addCallback(lambda ign:
-                      self.web_json(self.root, t="deep-check", verify="true", repair="true"))
+                      self.slow_web(self.root, t="start-deep-check", verify="true", repair="true", output="json"))
         d.addCallback(self.json_full_deepcheck_and_repair_is_healthy, self.root, "root")
 
         # now look at t=info

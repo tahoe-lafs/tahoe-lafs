@@ -11,6 +11,7 @@ from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
      ExistingChildError, ICheckable, IDeepCheckable
 from allmydata.checker_results import DeepCheckResults, \
      DeepCheckAndRepairResults
+from allmydata.monitor import Monitor
 from allmydata.util import hashutil, mathutil, base32, log
 from allmydata.util.hashutil import netstring
 from allmydata.util.limiter import ConcurrencyLimiter
@@ -471,14 +472,19 @@ class NewDirectoryNode:
         # requires a Deferred. We use a ConcurrencyLimiter to make sure the
         # fan-out doesn't cause problems.
 
+        monitor = Monitor()
+        walker.set_monitor(monitor)
+
         found = set([self.get_verifier()])
         limiter = ConcurrencyLimiter(10)
         d = self._deep_traverse_dirnode(self, [], walker, found, limiter)
         d.addCallback(lambda ignored: walker.finish())
-        return d
+        d.addBoth(monitor.finish)
+        return monitor
 
     def _deep_traverse_dirnode(self, node, path, walker, found, limiter):
         # process this directory, then walk its children
+        # TODO: check monitor.is_cancelled()
         d = limiter.add(walker.add_node, node, path)
         d.addCallback(lambda ignored: limiter.add(node.list))
         d.addCallback(self._deep_traverse_dirnode_children, node, path,
@@ -503,25 +509,32 @@ class NewDirectoryNode:
 
 
     def build_manifest(self):
-        """Return a list of (path, cap) tuples, for all nodes (directories
-        and files) reachable from this one."""
-        return self.deep_traverse(ManifestWalker())
+        """Return a Monitor, with a ['status'] that will be a list of (path,
+        cap) tuples, for all nodes (directories and files) reachable from
+        this one."""
+        walker = ManifestWalker(self)
+        return self.deep_traverse(walker)
 
-    def deep_stats(self):
+    def start_deep_stats(self):
         # Since deep_traverse tracks verifier caps, we avoid double-counting
         # children for which we've got both a write-cap and a read-cap
-        return self.deep_traverse(DeepStats())
+        return self.deep_traverse(DeepStats(self))
 
-    def deep_check(self, verify=False):
+    def start_deep_check(self, verify=False):
         return self.deep_traverse(DeepChecker(self, verify, repair=False))
 
-    def deep_check_and_repair(self, verify=False):
+    def start_deep_check_and_repair(self, verify=False):
         return self.deep_traverse(DeepChecker(self, verify, repair=True))
 
 
 class ManifestWalker:
-    def __init__(self):
+    def __init__(self, origin):
         self.manifest = []
+        self.origin = origin
+    def set_monitor(self, monitor):
+        self.monitor = monitor
+        monitor.origin_si = self.origin.get_storage_index()
+        monitor.set_status(self.manifest)
     def add_node(self, node, path):
         self.manifest.append( (tuple(path), node.get_uri()) )
     def enter_directory(self, parent, children):
@@ -531,7 +544,8 @@ class ManifestWalker:
 
 
 class DeepStats:
-    def __init__(self):
+    def __init__(self, origin):
+        self.origin = origin
         self.stats = {}
         for k in ["count-immutable-files",
                   "count-mutable-files",
@@ -553,6 +567,11 @@ class DeepStats:
             self.histograms[k] = {} # maps (min,max) to count
         self.buckets = [ (0,0), (1,3)]
         self.root = math.sqrt(10)
+
+    def set_monitor(self, monitor):
+        self.monitor = monitor
+        monitor.origin_si = self.origin.get_storage_index()
+        monitor.set_status(self.stats)
 
     def add_node(self, node, childpath):
         if IDirectoryNode.providedBy(node):
@@ -636,7 +655,11 @@ class DeepChecker:
             self._results = DeepCheckAndRepairResults(root_si)
         else:
             self._results = DeepCheckResults(root_si)
-        self._stats = DeepStats()
+        self._stats = DeepStats(root)
+
+    def set_monitor(self, monitor):
+        self.monitor = monitor
+        monitor.set_status(self._results)
 
     def add_node(self, node, childpath):
         if self._repair:

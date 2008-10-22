@@ -8,7 +8,7 @@ from twisted.python import failure, log
 from allmydata import interfaces, provisioning, uri, webish
 from allmydata.immutable import upload, download
 from allmydata.web import status, common
-from allmydata.util import fileutil
+from allmydata.util import fileutil, testutil
 from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, \
      FakeMutableFileNode, create_chk_filenode
 from allmydata.interfaces import IURI, INewDirectoryURI, \
@@ -362,7 +362,7 @@ class WebMixin(object):
         return d
 
 
-class Web(WebMixin, unittest.TestCase):
+class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
     def test_create(self):
         pass
 
@@ -830,28 +830,40 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
-    def test_GET_DIRURL_manifest(self):
-        def getman(ignored, suffix, followRedirect=False):
-            return self.GET(self.public_url + "/foo" + suffix,
-                            followRedirect=followRedirect)
+
+    def test_POST_DIRURL_manifest_no_ophandle(self):
+        d = self.shouldFail2(error.Error,
+                             "test_POST_DIRURL_manifest_no_ophandle",
+                             "400 Bad Request",
+                             "slow operation requires ophandle=",
+                             self.POST, self.public_url, t="start-manifest")
+        return d
+
+    def test_POST_DIRURL_manifest(self):
         d = defer.succeed(None)
-        d.addCallback(getman, "?t=manifest", followRedirect=True)
+        def getman(ignored, output):
+            d = self.POST(self.public_url + "/foo/?t=start-manifest&ophandle=125",
+                          followRedirect=True)
+            d.addCallback(self.wait_for_operation, "125")
+            d.addCallback(self.get_operation_results, "125", output)
+            return d
+        d.addCallback(getman, None)
         def _got_html(manifest):
             self.failUnless("Manifest of SI=" in manifest)
             self.failUnless("<td>sub</td>" in manifest)
             self.failUnless(self._sub_uri in manifest)
             self.failUnless("<td>sub/baz.txt</td>" in manifest)
         d.addCallback(_got_html)
-        d.addCallback(getman, "/?t=manifest")
+        d.addCallback(getman, "html")
         d.addCallback(_got_html)
-        d.addCallback(getman, "/?t=manifest&output=text")
+        d.addCallback(getman, "text")
         def _got_text(manifest):
             self.failUnless("\nsub " + self._sub_uri + "\n" in manifest)
             self.failUnless("\nsub/baz.txt URI:CHK:" in manifest)
         d.addCallback(_got_text)
-        d.addCallback(getman, "/?t=manifest&output=JSON")
+        d.addCallback(getman, "JSON")
         def _got_json(manifest):
-            data = simplejson.loads(manifest)
+            data = manifest["manifest"]
             got = {}
             for (path_list, cap) in data:
                 got[tuple(path_list)] = cap
@@ -860,20 +872,48 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_got_json)
         return d
 
-    def test_GET_DIRURL_deepsize(self):
-        d = self.GET(self.public_url + "/foo?t=deep-size", followRedirect=True)
-        def _got(res):
-            self.failUnless(re.search(r'^\d+$', res), res)
-            size = int(res)
-            # with directories, the size varies.
-            self.failUnless(size > 1000)
-        d.addCallback(_got)
+    def test_POST_DIRURL_deepsize_no_ophandle(self):
+        d = self.shouldFail2(error.Error,
+                             "test_POST_DIRURL_deepsize_no_ophandle",
+                             "400 Bad Request",
+                             "slow operation requires ophandle=",
+                             self.POST, self.public_url, t="start-deep-size")
         return d
 
-    def test_GET_DIRURL_deepstats(self):
-        d = self.GET(self.public_url + "/foo?t=deep-stats", followRedirect=True)
-        def _got(stats_json):
-            stats = simplejson.loads(stats_json)
+    def test_POST_DIRURL_deepsize(self):
+        d = self.POST(self.public_url + "/foo/?t=start-deep-size&ophandle=126",
+                      followRedirect=True)
+        d.addCallback(self.wait_for_operation, "126")
+        d.addCallback(self.get_operation_results, "126", "json")
+        def _got_json(data):
+            self.failUnlessEqual(data["finished"], True)
+            size = data["size"]
+            self.failUnless(size > 1000)
+        d.addCallback(_got_json)
+        d.addCallback(self.get_operation_results, "126", "text")
+        def _got_text(res):
+            mo = re.search(r'^size: (\d+)$', res, re.M)
+            self.failUnless(mo, res)
+            size = int(mo.group(1))
+            # with directories, the size varies.
+            self.failUnless(size > 1000)
+        d.addCallback(_got_text)
+        return d
+
+    def test_POST_DIRURL_deepstats_no_ophandle(self):
+        d = self.shouldFail2(error.Error,
+                             "test_POST_DIRURL_deepstats_no_ophandle",
+                             "400 Bad Request",
+                             "slow operation requires ophandle=",
+                             self.POST, self.public_url, t="start-deep-stats")
+        return d
+
+    def test_POST_DIRURL_deepstats(self):
+        d = self.POST(self.public_url + "/foo/?t=start-deep-stats&ophandle=127",
+                      followRedirect=True)
+        d.addCallback(self.wait_for_operation, "127")
+        d.addCallback(self.get_operation_results, "127", "json")
+        def _got_json(stats):
             expected = {"count-immutable-files": 3,
                         "count-mutable-files": 0,
                         "count-literal-files": 0,
@@ -892,7 +932,7 @@ class Web(WebMixin, unittest.TestCase):
                                      (k, stats[k], v))
             self.failUnlessEqual(stats["size-files-histogram"],
                                  [ [11, 31, 3] ])
-        d.addCallback(_got)
+        d.addCallback(_got_json)
         return d
 
     def test_GET_DIRURL_uri(self):
@@ -1521,34 +1561,80 @@ class Web(WebMixin, unittest.TestCase):
         d.addCallback(_check3)
         return d
 
+    def wait_for_operation(self, ignored, ophandle):
+        url = "/operations/" + ophandle
+        url += "?t=status&output=JSON"
+        d = self.GET(url)
+        def _got(res):
+            data = simplejson.loads(res)
+            if not data["finished"]:
+                d = self.stall(delay=1.0)
+                d.addCallback(self.wait_for_operation, ophandle)
+                return d
+            return data
+        d.addCallback(_got)
+        return d
+
+    def get_operation_results(self, ignored, ophandle, output=None):
+        url = "/operations/" + ophandle
+        url += "?t=status"
+        if output:
+            url += "&output=" + output
+        d = self.GET(url)
+        def _got(res):
+            if output and output.lower() == "json":
+                return simplejson.loads(res)
+            return res
+        d.addCallback(_got)
+        return d
+
+    def test_POST_DIRURL_deepcheck_no_ophandle(self):
+        d = self.shouldFail2(error.Error,
+                             "test_POST_DIRURL_deepcheck_no_ophandle",
+                             "400 Bad Request",
+                             "slow operation requires ophandle=",
+                             self.POST, self.public_url, t="start-deep-check")
+        return d
+
     def test_POST_DIRURL_deepcheck(self):
-        d = self.POST(self.public_url, t="deep-check")
-        def _check(res):
+        def _check_redirect(statuscode, target):
+            self.failUnlessEqual(statuscode, str(http.FOUND))
+            self.failUnless(target.endswith("/operations/123?t=status"))
+        d = self.shouldRedirect2("test_POST_DIRURL_deepcheck", _check_redirect,
+                                 self.POST, self.public_url,
+                                 t="start-deep-check", ophandle="123")
+        d.addCallback(self.wait_for_operation, "123")
+        def _check_json(data):
+            self.failUnlessEqual(data["finished"], True)
+            self.failUnlessEqual(data["count-objects-checked"], 8)
+            self.failUnlessEqual(data["count-objects-healthy"], 8)
+        d.addCallback(_check_json)
+        d.addCallback(self.get_operation_results, "123", "html")
+        def _check_html(res):
             self.failUnless("Objects Checked: <span>8</span>" in res)
             self.failUnless("Objects Healthy: <span>8</span>" in res)
-        d.addCallback(_check)
-        redir_url = "http://allmydata.org/TARGET"
-        def _check2(statuscode, target):
-            self.failUnlessEqual(statuscode, str(http.FOUND))
-            self.failUnlessEqual(target, redir_url)
-        d.addCallback(lambda res:
-                      self.shouldRedirect2("test_POST_DIRURL_check",
-                                           _check2,
-                                           self.POST, self.public_url,
-                                           t="deep-check",
-                                           when_done=redir_url))
-        d.addCallback(lambda res:
-                      self.POST(self.public_url, t="deep-check",
-                                return_to=redir_url))
-        def _check3(res):
-            self.failUnless("Return to parent directory" in res)
-            self.failUnless(redir_url in res)
-        d.addCallback(_check3)
+        d.addCallback(_check_html)
         return d
 
     def test_POST_DIRURL_deepcheck_and_repair(self):
-        d = self.POST(self.public_url, t="deep-check", repair="true")
-        def _check(res):
+        d = self.POST(self.public_url, t="start-deep-check", repair="true",
+                      ophandle="124", output="json", followRedirect=True)
+        d.addCallback(self.wait_for_operation, "124")
+        def _check_json(data):
+            self.failUnlessEqual(data["finished"], True)
+            self.failUnlessEqual(data["count-objects-checked"], 8)
+            self.failUnlessEqual(data["count-objects-healthy-pre-repair"], 8)
+            self.failUnlessEqual(data["count-objects-unhealthy-pre-repair"], 0)
+            self.failUnlessEqual(data["count-corrupt-shares-pre-repair"], 0)
+            self.failUnlessEqual(data["count-repairs-attempted"], 0)
+            self.failUnlessEqual(data["count-repairs-successful"], 0)
+            self.failUnlessEqual(data["count-repairs-unsuccessful"], 0)
+            self.failUnlessEqual(data["count-objects-healthy-post-repair"], 8)
+            self.failUnlessEqual(data["count-objects-unhealthy-post-repair"], 0)
+            self.failUnlessEqual(data["count-corrupt-shares-post-repair"], 0)
+        d.addCallback(_check_json)
+        d.addCallback(self.get_operation_results, "124", "html")
+        def _check_html(res):
             self.failUnless("Objects Checked: <span>8</span>" in res)
 
             self.failUnless("Objects Healthy (before repair): <span>8</span>" in res)
@@ -1562,24 +1648,7 @@ class Web(WebMixin, unittest.TestCase):
             self.failUnless("Objects Healthy (after repair): <span>8</span>" in res)
             self.failUnless("Objects Unhealthy (after repair): <span>0</span>" in res)
             self.failUnless("Corrupt Shares (after repair): <span>0</span>" in res)
-        d.addCallback(_check)
-        redir_url = "http://allmydata.org/TARGET"
-        def _check2(statuscode, target):
-            self.failUnlessEqual(statuscode, str(http.FOUND))
-            self.failUnlessEqual(target, redir_url)
-        d.addCallback(lambda res:
-                      self.shouldRedirect2("test_POST_DIRURL_check",
-                                           _check2,
-                                           self.POST, self.public_url,
-                                           t="deep-check",
-                                           when_done=redir_url))
-        d.addCallback(lambda res:
-                      self.POST(self.public_url, t="deep-check",
-                                return_to=redir_url))
-        def _check3(res):
-            self.failUnless("Return to parent directory" in res)
-            self.failUnless(redir_url in res)
-        d.addCallback(_check3)
+        d.addCallback(_check_html)
         return d
 
     def test_POST_FILEURL_bad_t(self):

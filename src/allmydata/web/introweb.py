@@ -14,6 +14,8 @@ class IntroducerRoot(rend.Page):
     addSlash = True
     docFactory = getxmlfile("introducer.xhtml")
 
+    child_operations = None
+
     def renderHTTP(self, ctx):
         t = get_arg(inevow.IRequest(ctx), "t")
         if t == "json":

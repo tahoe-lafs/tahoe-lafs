@@ -1,5 +1,5 @@
 
-import urllib
+import os, urllib
 
 from twisted.internet import defer
 from nevow import rend, tags as T
@@ -184,10 +184,11 @@ class MoreInfo(rend.Page):
         return ""
 
     def render_deep_check_form(self, ctx, data):
+        ophandle = base32.b2a(os.urandom(8))
         deep_check = T.form(action=".", method="post",
                             enctype="multipart/form-data")[
             T.fieldset[
-            T.input(type="hidden", name="t", value="deep-check"),
+            T.input(type="hidden", name="t", value="start-deep-check"),
             T.input(type="hidden", name="return_to", value="."),
             T.legend(class_="freeform-form-label")["Run a deep-check operation (EXPENSIVE)"],
             T.div[
@@ -199,36 +200,42 @@ class MoreInfo(rend.Page):
             T.div["Emit results in JSON format?: ",
                   T.input(type="checkbox", name="output", value="JSON")],
 
+            T.input(type="hidden", name="ophandle", value=ophandle),
             T.input(type="submit", value="Deep-Check"),
 
             ]]
         return ctx.tag[deep_check]
 
     def render_deep_size_form(self, ctx, data):
-        deep_size = T.form(action=".", method="get",
+        ophandle = base32.b2a(os.urandom(8))
+        deep_size = T.form(action=".", method="post",
                             enctype="multipart/form-data")[
             T.fieldset[
-            T.input(type="hidden", name="t", value="deep-size"),
+            T.input(type="hidden", name="t", value="start-deep-size"),
             T.legend(class_="freeform-form-label")["Run a deep-size operation (EXPENSIVE)"],
+            T.input(type="hidden", name="ophandle", value=ophandle),
             T.input(type="submit", value="Deep-Size"),
             ]]
         return ctx.tag[deep_size]
 
     def render_deep_stats_form(self, ctx, data):
-        deep_stats = T.form(action=".", method="get",
+        ophandle = base32.b2a(os.urandom(8))
+        deep_stats = T.form(action=".", method="post",
                             enctype="multipart/form-data")[
             T.fieldset[
-            T.input(type="hidden", name="t", value="deep-stats"),
+            T.input(type="hidden", name="t", value="start-deep-stats"),
             T.legend(class_="freeform-form-label")["Run a deep-stats operation (EXPENSIVE)"],
+            T.input(type="hidden", name="ophandle", value=ophandle),
             T.input(type="submit", value="Deep-Stats"),
             ]]
         return ctx.tag[deep_stats]
 
     def render_manifest_form(self, ctx, data):
-        manifest = T.form(action=".", method="get",
+        ophandle = base32.b2a(os.urandom(8))
+        manifest = T.form(action=".", method="post",
                             enctype="multipart/form-data")[
             T.fieldset[
-            T.input(type="hidden", name="t", value="manifest"),
+            T.input(type="hidden", name="t", value="start-manifest"),
             T.legend(class_="freeform-form-label")["Run a manifest operation (EXPENSIVE)"],
             T.div["Output Format: ",
                   T.select(name="output")
@@ -237,6 +244,7 @@ class MoreInfo(rend.Page):
                     T.option(value="json")["JSON"],
                     ],
                   ],
+            T.input(type="hidden", name="ophandle", value=ophandle),
             T.input(type="submit", value="Manifest"),
             ]]
         return ctx.tag[manifest]

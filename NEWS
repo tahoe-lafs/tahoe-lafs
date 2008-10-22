@@ -42,7 +42,10 @@ histogram, etc).
 
 The client web interface now features some extra buttons to initiate check
 and deep-check operations. When these operations finish, they display a
-results page that summarizes any problems that were encountered.
+results page that summarizes any problems that were encountered. All
+long-running deep-traversal operations, including deep-check, use a
+start-and-poll mechanism, to avoid depending upon a single long-lived HTTP
+connection. docs/webapi.txt has details.
 
 ** Configuration Changes: single INI-format tahoe.cfg file
 
@@ -94,6 +97,21 @@ code, and obviously should not be used on user data.
 
 ** Web changes
 
+All deep-traversal operations (start-manifest, start-deep-size,
+start-deep-stats, start-deep-check) now use a start-and-poll approach,
+instead of using a single (fragile) long-running synchronous HTTP connection.
+All these "start-" operations use POST instead of GET. The old "GET
+manifest", "GET deep-size", and "POST deep-check" operations have been
+removed.
+
+The new "POST start-manifest" operation, when it finally completes, results
+in a table of (path,cap), instead of the list of verifycaps produced by the
+old "GET manifest". The table is available in several formats: use
+output=html, output=text, or output=json to choose one.
+
+The "return_to=" and "when_done=" arguments have been removed from the
+t=check and deep-check operations.
+
 The top-level status page (/status) now has a machine-readable form, via
 "/status/?t=json". This includes information about the currently-active
 uploads and downloads, which may be useful for frontends that wish to display
@@ -123,10 +141,6 @@ control checking/verifying/repairing, and deep-check/deep-stats buttons (for
 directories). For mutable files, the "replace contents" upload form has been
 moved here too. As a result, the directory page is now much simpler and
 cleaner, and several potentially-misleading links (like t=uri) are now gone.
-
-The "t=manifest" webapi command now generates a table of (path,cap), instead
-of creating a set of verifycaps. The table is available in several formats:
-use output=html, output=text, or output=json to choose one.
 
 Slashes are discouraged in Tahoe file/directory names, since they cause
 problems when accessing the filesystem through the webapi. However, there are

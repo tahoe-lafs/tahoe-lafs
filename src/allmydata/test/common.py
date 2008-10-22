@@ -4,6 +4,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
 from twisted.application import service
+from twisted.web.error import Error as WebError
 from foolscap import Tub
 from foolscap.eventual import flushEventualQueue, fireEventually
 from allmydata import uri, dirnode, client
@@ -890,3 +891,14 @@ class ShouldFailMixin:
                           (which, expected_failure, res))
         d.addBoth(done)
         return d
+
+class WebErrorMixin:
+    def explain_web_error(self, f):
+        # an error on the server side causes the client-side getPage() to
+        # return a failure(t.web.error.Error), and its str() doesn't show the
+        # response body, which is where the useful information lives. Attach
+        # this method as an errback handler, and it will reveal the hidden
+        # message.
+        f.trap(WebError)
+        print "Web Error:", f.value, ":", f.value.response
+        return f

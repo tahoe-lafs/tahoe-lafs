@@ -7,7 +7,7 @@ from nevow import appserver, inevow
 from allmydata.util import log
 
 from allmydata.web import introweb, root
-from allmydata.web.common import IClient, MyExceptionHandler
+from allmydata.web.common import IClient, IOpHandleTable, MyExceptionHandler
 
 # we must override twisted.web.http.Request.requestReceived with a version
 # that doesn't use cgi.parse_multipart() . Since we actually use Nevow, we
@@ -119,7 +119,6 @@ class MyRequest(appserver.NevowRequest):
                 )
 
 
-
 class WebishServer(service.MultiService):
     name = "webish"
     root_class = root.Root
@@ -130,6 +129,8 @@ class WebishServer(service.MultiService):
         self.root = self.root_class()
         self.site = site = appserver.NevowSite(self.root)
         self.site.requestFactory = MyRequest
+        if self.root.child_operations:
+            self.site.remember(self.root.child_operations, IOpHandleTable)
         s = strports.service(webport, site)
         s.setServiceParent(self)
         self.listener = s # stash it so the tests can query for the portnum

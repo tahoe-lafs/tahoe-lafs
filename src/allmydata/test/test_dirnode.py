@@ -157,7 +157,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
 
     def test_deepcheck(self):
         d = self._test_deepcheck_create()
-        d.addCallback(lambda rootnode: rootnode.deep_check())
+        d.addCallback(lambda rootnode: rootnode.start_deep_check().when_done())
         def _check_results(r):
             self.failUnless(IDeepCheckResults.providedBy(r))
             c = r.get_counters()
@@ -174,7 +174,8 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
 
     def test_deepcheck_and_repair(self):
         d = self._test_deepcheck_create()
-        d.addCallback(lambda rootnode: rootnode.deep_check_and_repair())
+        d.addCallback(lambda rootnode:
+                      rootnode.start_deep_check_and_repair().when_done())
         def _check_results(r):
             self.failUnless(IDeepCheckAndRepairResults.providedBy(r))
             c = r.get_counters()
@@ -204,7 +205,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
     def test_deepcheck_problems(self):
         d = self._test_deepcheck_create()
         d.addCallback(lambda rootnode: self._mark_file_bad(rootnode))
-        d.addCallback(lambda rootnode: rootnode.deep_check())
+        d.addCallback(lambda rootnode: rootnode.start_deep_check().when_done())
         def _check_results(r):
             c = r.get_counters()
             self.failUnlessEqual(c,
@@ -326,13 +327,13 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                           self.failUnlessEqual(sorted(children.keys()),
                                                sorted([u"child", u"subdir"])))
 
-            d.addCallback(lambda res: n.build_manifest())
+            d.addCallback(lambda res: n.build_manifest().when_done())
             def _check_manifest(manifest):
                 self.failUnlessEqual(sorted(manifest),
                                      sorted(self.expected_manifest))
             d.addCallback(_check_manifest)
 
-            d.addCallback(lambda res: n.deep_stats())
+            d.addCallback(lambda res: n.start_deep_stats().when_done())
             def _check_deepstats(stats):
                 self.failUnless(isinstance(stats, dict))
                 expected = {"count-immutable-files": 0,
@@ -689,7 +690,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
 
 class DeepStats(unittest.TestCase):
     def test_stats(self):
-        ds = dirnode.DeepStats()
+        ds = dirnode.DeepStats(None)
         ds.add("count-files")
         ds.add("size-immutable-files", 123)
         ds.histogram("size-files-histogram", 123)
@@ -714,7 +715,7 @@ class DeepStats(unittest.TestCase):
         self.failUnlessEqual(s["size-files-histogram"],
                              [ (101, 316, 1), (317, 1000, 1) ])
 
-        ds = dirnode.DeepStats()
+        ds = dirnode.DeepStats(None)
         for i in range(1, 1100):
             ds.histogram("size-files-histogram", i)
         ds.histogram("size-files-histogram", 4*1000*1000*1000*1000) # 4TB

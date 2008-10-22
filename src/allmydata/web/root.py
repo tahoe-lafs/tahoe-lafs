@@ -14,10 +14,9 @@ from allmydata import get_package_versions_string
 from allmydata import provisioning
 from allmydata.util import idlib, log
 from allmydata.interfaces import IFileNode
-from allmydata.web import filenode, directory, unlinked, status
-from allmydata.web.common import abbreviate_size, IClient, getxmlfile, \
-     WebError, get_arg, RenderMixin
-
+from allmydata.web import filenode, directory, unlinked, status, operations
+from allmydata.web.common import abbreviate_size, IClient, \
+     getxmlfile, WebError, get_arg, RenderMixin
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -113,6 +112,7 @@ class IncidentReporter(RenderMixin, rend.Page):
         req.setHeader("content-type", "text/plain")
         return "Thank you for your report!"
 
+
 class Root(rend.Page):
 
     addSlash = True
@@ -122,6 +122,7 @@ class Root(rend.Page):
     child_cap = URIHandler()
     child_file = FileHandler()
     child_named = FileHandler()
+    child_operations = operations.OphandleTable()
 
     child_webform_css = webform.defaultCSS
     child_tahoe_css = nevow_File(resource_filename('allmydata.web', 'tahoe.css'))

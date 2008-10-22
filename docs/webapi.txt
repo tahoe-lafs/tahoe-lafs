@@ -184,6 +184,67 @@ for you. If you don't know the cap, you can't access the file. This allows
 the security properties of Tahoe caps to be extended across the webapi
 interface.
 
+== Slow Operations, Progress, and Cancelling ==
+
+Certain operations can be expected to take a long time. The "t=deep-check",
+described below, will recursively visit every file and directory reachable
+from a given starting point, which can take minutes or even hours for
+extremely large directory structures. A single long-running HTTP request is a
+fragile thing: proxies, NAT boxes, browsers, and users may all grow impatient
+with waiting and give up on the connection.
+
+For this reason, long-running operations have an "operation handle", which
+can be used to poll for status/progress messages while the operation
+proceeds. This handle can also be used to cancel the operation. These handles
+are created by the client, and passed in as a an "ophandle=" query argument
+to the POST or PUT request which starts the operation. The following
+operations can then be used to retrieve status:
+
+GET /operations/$HANDLE?t=status&output=HTML
+GET /operations/$HANDLE?t=status&output=JSON
+
+ These two retrieve the current status of the given operation. Each operation
+ presents a different sort of information, but in general the page retrieved
+ will indicate:
+
+  * whether the operation is complete, or if it is still running
+  * how much of the operation is complete, and how much is left, if possible
+
+ The HTML form will include a meta-refresh tag, which will cause a regular
+ web browser to reload the status page about 30 seconds later. This tag will
+ be removed once the operation has completed.
+
+POST /operations/$HANDLE?t=cancel
+
+ This terminates the operation, and returns an HTML page explaining what was
+ cancelled. If the operation handle has already expired (see below), this
+ POST will return a 404, which indicates that the operation is no longer
+ running (either it was completed or terminated).
+
+The operation handle will eventually expire, to avoid consuming an unbounded
+amount of memory. The handle's time-to-live can be reset at any time, by
+passing a retain-for= argument (with a count of seconds) to either the
+initial POST that starts the operation, or the subsequent 'GET t=status'
+request which asks about the operation. For example, if a 'GET
+/operations/$HANDLE?t=status&output=JSON&retain-for=600' query is performed,
+the handle will remain active for 600 seconds (10 minutes) after the GET was
+received.
+
+In addition, if the GET t=status includes a release-after-complete=True
+argument, and the operation has completed, the operation handle will be
+released immediately.
+
+If a retain-for= argument is not used, the default handle lifetimes are:
+
+ * handles will remain valid at least until their operation finishes
+ * uncollected handles for finished operations (i.e. handles for operations
+   which have finished but for which the t=status page has not been accessed
+   since completion) will remain valid for one hour, or for the total time
+   consumed by the operation, whichever is greater.
+ * collected handles (i.e. the t=status page has been retrieved at least once
+   since the operation completed) will remain valid for ten minutes.
+
+
 == Programmatic Operations ==
 
 Now that we know how to build URLs that refer to files and directories in a
@@ -674,12 +735,6 @@ POST $URL?t=check
   page that is returned will display the results. This can be used as a "show
   me detailed information about this file" page.
 
-  If a when_done=url argument is provided, the return value will be a redirect
-  to that URL instead of the checker results.
-
-  If a return_to=url argument is provided, the returned page will include a
-  link to the given URL entitled "Return to the parent directory".
-
   If a verify=true argument is provided, the node will perform a more
   intensive check, downloading and verifying every single bit of every share.
 
@@ -741,28 +796,37 @@ POST $URL?t=check
                'seq%d-%s-sh%d', containing the sequence number, the
                roothash, and the share number.
 
-POST $URL?t=deep-check
+POST $URL?t=start-deep-check    (must add &ophandle=XYZ)
 
-  This triggers a recursive walk of all files and directories reachable from
+  This initiates a recursive walk of all files and directories reachable from
   the target, performing a check on each one just like t=check. The result
   page will contain a summary of the results, including details on any
   file/directory that was not fully healthy.
 
-  t=deep-check can only be invoked on a directory. An error (400 BAD_REQUEST)
-  will be signalled if it is invoked on a file. The recursive walker will
-  deal with loops safely.
+  t=start-deep-check can only be invoked on a directory. An error (400
+  BAD_REQUEST) will be signalled if it is invoked on a file. The recursive
+  walker will deal with loops safely.
 
-  This accepts the same verify=, when_done=, and return_to= arguments as
-  t=check.
+  This accepts the same verify= argument as t=check.
 
-  Be aware that this can take a long time: perhaps a second per object. No
-  progress information is currently provided: the server will be silent until
-  the full tree has been traversed, then will emit the complete response.
+  Since this operation can take a long time (perhaps a second per object),
+  the ophandle= argument is required (see "Slow Operations, Progress, and
+  Cancelling" above). The response to this POST will be a redirect to the
+  corresponding /operations/$HANDLE?t=status page (with output=HTML or
+  output=JSON to match the output= argument given to the POST). The
+  deep-check operation will continue to run in the background, and the
+  /operations page should be used to find out when the operation is done.
 
-  If an output=JSON argument is provided, the response will be
-  machine-readable JSON instead of human-oriented HTML. The data is a
-  dictionary with the following keys:
+  The HTML /operations/$HANDLE?t=status page for incomplete operations will
+  contain a meta-refresh tag, set to 30 seconds, so that a browser which uses
+  deep-check will automatically poll until the operation has completed. (TODO)
 
+  The JSON page (/options/$HANDLE?t=status&output=JSON) will contain a
+  machine-readable JSON dictionary with the following keys:
+
+   finished: a boolean, True if the operation is complete, else False. Some
+             of the remaining keys may not be present until the operation
+             is complete.
    root-storage-index: a base32-encoded string with the storage index of the
                        starting point of the deep-check operation
    count-objects-checked: count of how many objects were checked. Note that
@@ -794,9 +858,9 @@ POST $URL?t=check&repair=true
   or corrupted), it will perform a "repair". During repair, any missing
   shares will be regenerated and uploaded to new servers.
 
-  This accepts the same when_done=URL, return_to=URL, and verify=true
-  arguments as t=check. When an output=JSON argument is provided, the
-  machine-readable JSON response will contain the following keys:
+  This accepts the same verify=true argument as t=check. When an output=JSON
+  argument is provided, the machine-readable JSON response will contain the
+  following keys:
 
    storage-index: a base32-encoded string with the objects's storage index,
                   or an empty string for LIT files
@@ -815,19 +879,20 @@ POST $URL?t=check&repair=true
                         as the 'results' value of the t=check response,
                         described above.
 
-POST $URL?t=deep-check&repair=true
+POST $URL?t=start-deep-check&repair=true    (must add &ophandle=XYZ)
 
   This triggers a recursive walk of all files and directories, performing a
   t=check&repair=true on each one.
 
-  Like t=deep-check without the repair= argument, this can only be invoked on
-  a directory. An error (400 BAD_REQUEST) will be signalled if it is invoked
-  on a file. The recursive walker will deal with loops safely.
+  Like t=start-deep-check without the repair= argument, this can only be
+  invoked on a directory. An error (400 BAD_REQUEST) will be signalled if it
+  is invoked on a file. The recursive walker will deal with loops safely.
 
-  This accepts the same when_done=URL, return_to=URL, and verify=true
-  arguments as t=deep-check. When an output=JSON argument is provided, the
-  response will contain the following keys:
+  This accepts the same verify=true argument as t=start-deep-check. It uses
+  the same ophandle= mechanism as start-deep-check. When an output=JSON
+  argument is provided, the response will contain the following keys:
 
+   finished: (bool) True if the operation has completed, else False
    root-storage-index: a base32-encoded string with the storage index of the
                        starting point of the deep-check operation
    count-objects-checked: count of how many objects were checked
@@ -868,35 +933,52 @@ POST $URL?t=deep-check&repair=true
    stats: a dictionary with the same keys as the t=deep-stats command
           (described below)
 
-GET $DIRURL?t=manifest
+POST $DIRURL?t=start-manifest    (must add &ophandle=XYZ)
 
-  Return an HTML-formatted manifest of the given directory, for debugging.
-  This is a table of (path, filecap/dircap), for every object reachable from
-  the starting directory. The path will be slash-joined, and the
-  filecap/dircap will contain a link to the object in question. This page
+  This operation generates a "manfest" of the given directory tree, mostly
+  for debugging. This is a table of (path, filecap/dircap), for every object
+  reachable from the starting directory. The path will be slash-joined, and
+  the filecap/dircap will contain a link to the object in question. This page
   gives immediate access to every object in the virtual filesystem subtree.
 
+  This operation uses the same ophandle= mechanism as deep-check. The
+  corresponding /operations/$HANDLE?t=status page has three different forms.
+  The default is output=HTML.
+
   If output=text is added to the query args, the results will be a text/plain
-  list, with one file/dir per line, slash-separated, with the filecap/dircap
-  separated by a space.
+  list. The first line is special: it is either "finished: yes" or "finished:
+  no"; if the operation is not finished, you must periodically reload the
+  page until it completes. The rest of the results are a plaintext list, with
+  one file/dir per line, slash-separated, with the filecap/dircap separated
+  by a space.
 
   If output=JSON is added to the queryargs, then the results will be a
-  JSON-formatted list of (path, cap) tuples, where path is a list of strings.
+  JSON-formatted dictionary with three keys:
 
-GET $DIRURL?t=deep-size
+   finished (bool): if False then you must reload the page until True
+   origin_si (str): the storage index of the starting point
+   manifest: list of (path, cap) tuples, where path is a list of strings.
 
-  Return a number (in bytes) containing the sum of the filesize of all
-  directories and immutable files reachable from the given directory. This is
-  a rough lower bound of the total space consumed by this subtree. It does
-  not include space consumed by mutable files, nor does it take expansion or
-  encoding overhead into account. Later versions of the code may improve this
-  estimate upwards.
+POST $DIRURL?t=start-deep-size    (must add &ophandle=XYZ)
 
-GET $DIRURL?t=deep-stats
+  This operation generates a number (in bytes) containing the sum of the
+  filesize of all directories and immutable files reachable from the given
+  directory. This is a rough lower bound of the total space consumed by this
+  subtree. It does not include space consumed by mutable files, nor does it
+  take expansion or encoding overhead into account. Later versions of the
+  code may improve this estimate upwards.
 
-  Return a JSON-encoded dictionary that lists interesting statistics about
-  the set of all files and directories reachable from the given directory:
+POST $DIRURL?t=start-deep-stats    (must add &ophandle=XYZ)
 
+  This operation performs a recursive walk of all files and directories
+  reachable from the given directory, and generates a collection of
+  statistics about those objects.
+
+  The result (obtained from the /operations/$OPHANDLE page) is a
+  JSON-serialized dictionary with the following keys (note that some of these
+  keys may be missing until 'finished' is True):
+
+   finished: (bool) True if the operation has finished, else False
    count-immutable-files: count of how many CHK files are in the set
    count-mutable-files: same, for mutable files (does not include directories)
    count-literal-files: same, for LIT files (data contained inside the URI)

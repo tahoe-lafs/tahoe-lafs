@@ -4,8 +4,8 @@ import simplejson
 from nevow import rend, inevow, tags as T
 from twisted.web import html
 from allmydata.web.common import getxmlfile, get_arg, IClient
-from allmydata.interfaces import ICheckAndRepairResults, ICheckerResults, \
-     IDeepCheckResults, IDeepCheckAndRepairResults
+from allmydata.web.operations import ReloadMixin
+from allmydata.interfaces import ICheckAndRepairResults, ICheckerResults
 from allmydata.util import base32, idlib
 
 class ResultsBase:
@@ -169,12 +169,13 @@ class CheckAndRepairResults(rend.Page, ResultsBase):
             return T.div[T.a(href=return_to)["Return to parent directory"]]
         return ""
 
-class DeepCheckResults(rend.Page, ResultsBase):
+class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
     docFactory = getxmlfile("deep-check-results.xhtml")
 
-    def __init__(self, results):
-        assert IDeepCheckResults(results)
-        self.r = results
+    def __init__(self, monitor):
+        #assert IDeepCheckResults(results)
+        #self.r = results
+        self.monitor = monitor
 
     def renderHTTP(self, ctx):
         if self.want_json(ctx):
@@ -184,8 +185,10 @@ class DeepCheckResults(rend.Page, ResultsBase):
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         data = {}
-        data["root-storage-index"] = self.r.get_root_storage_index_string()
-        c = self.r.get_counters()
+        data["finished"] = self.monitor.is_finished()
+        res = self.monitor.get_status()
+        data["root-storage-index"] = res.get_root_storage_index_string()
+        c = res.get_counters()
         data["count-objects-checked"] = c["count-objects-checked"]
         data["count-objects-healthy"] = c["count-objects-healthy"]
         data["count-objects-unhealthy"] = c["count-objects-unhealthy"]
@@ -194,35 +197,35 @@ class DeepCheckResults(rend.Page, ResultsBase):
                                          base32.b2a(storage_index),
                                          shnum)
                                         for (serverid, storage_index, shnum)
-                                        in self.r.get_corrupt_shares() ]
+                                        in res.get_corrupt_shares() ]
         data["list-unhealthy-files"] = [ (path_t, self._json_check_results(r))
                                          for (path_t, r)
-                                         in self.r.get_all_results().items()
+                                         in res.get_all_results().items()
                                          if not r.is_healthy() ]
-        data["stats"] = self.r.get_stats()
+        data["stats"] = res.get_stats()
         return simplejson.dumps(data, indent=1) + "\n"
 
     def render_root_storage_index(self, ctx, data):
-        return self.r.get_root_storage_index_string()
+        return self.monitor.get_status().get_root_storage_index_string()
 
     def data_objects_checked(self, ctx, data):
-        return self.r.get_counters()["count-objects-checked"]
+        return self.monitor.get_status().get_counters()["count-objects-checked"]
     def data_objects_healthy(self, ctx, data):
-        return self.r.get_counters()["count-objects-healthy"]
+        return self.monitor.get_status().get_counters()["count-objects-healthy"]
     def data_objects_unhealthy(self, ctx, data):
-        return self.r.get_counters()["count-objects-unhealthy"]
+        return self.monitor.get_status().get_counters()["count-objects-unhealthy"]
 
     def data_count_corrupt_shares(self, ctx, data):
-        return self.r.get_counters()["count-corrupt-shares"]
+        return self.monitor.get_status().get_counters()["count-corrupt-shares"]
 
     def render_problems_p(self, ctx, data):
-        c = self.r.get_counters()
+        c = self.monitor.get_status().get_counters()
         if c["count-objects-unhealthy"]:
             return ctx.tag
         return ""
 
     def data_problems(self, ctx, data):
-        all_objects = self.r.get_all_results()
+        all_objects = self.monitor.get_status().get_all_results()
         for path in sorted(all_objects.keys()):
             cr = all_objects[path]
             assert ICheckerResults.providedBy(cr)
@@ -240,14 +243,14 @@ class DeepCheckResults(rend.Page, ResultsBase):
 
 
     def render_servers_with_corrupt_shares_p(self, ctx, data):
-        if self.r.get_counters()["count-corrupt-shares"]:
+        if self.monitor.get_status().get_counters()["count-corrupt-shares"]:
             return ctx.tag
         return ""
 
     def data_servers_with_corrupt_shares(self, ctx, data):
         servers = [serverid
                    for (serverid, storage_index, sharenum)
-                   in self.r.get_corrupt_shares()]
+                   in self.monitor.get_status().get_corrupt_shares()]
         servers.sort()
         return servers
 
@@ -262,11 +265,11 @@ class DeepCheckResults(rend.Page, ResultsBase):
 
 
     def render_corrupt_shares_p(self, ctx, data):
-        if self.r.get_counters()["count-corrupt-shares"]:
+        if self.monitor.get_status().get_counters()["count-corrupt-shares"]:
             return ctx.tag
         return ""
     def data_corrupt_shares(self, ctx, data):
-        return self.r.get_corrupt_shares()
+        return self.monitor.get_status().get_corrupt_shares()
     def render_share_problem(self, ctx, data):
         serverid, storage_index, sharenum = data
         nickname = IClient(ctx).get_nickname_for_peerid(serverid)
@@ -285,7 +288,7 @@ class DeepCheckResults(rend.Page, ResultsBase):
         return ""
 
     def data_all_objects(self, ctx, data):
-        r = self.r.get_all_results()
+        r = self.monitor.get_status().get_all_results()
         for path in sorted(r.keys()):
             yield (path, r[path])
 
@@ -301,12 +304,13 @@ class DeepCheckResults(rend.Page, ResultsBase):
         runtime = time.time() - req.processing_started_timestamp
         return ctx.tag["runtime: %s seconds" % runtime]
 
-class DeepCheckAndRepairResults(rend.Page, ResultsBase):
+class DeepCheckAndRepairResults(rend.Page, ResultsBase, ReloadMixin):
     docFactory = getxmlfile("deep-check-and-repair-results.xhtml")
 
-    def __init__(self, results):
-        assert IDeepCheckAndRepairResults(results)
-        self.r = results
+    def __init__(self, monitor):
+        #assert IDeepCheckAndRepairResults(results)
+        #self.r = results
+        self.monitor = monitor
 
     def renderHTTP(self, ctx):
         if self.want_json(ctx):
@@ -315,9 +319,11 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase):
 
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        res = self.monitor.get_status()
         data = {}
-        data["root-storage-index"] = self.r.get_root_storage_index_string()
-        c = self.r.get_counters()
+        data["finished"] = self.monitor.is_finished()
+        data["root-storage-index"] = res.get_root_storage_index_string()
+        c = res.get_counters()
         data["count-objects-checked"] = c["count-objects-checked"]
 
         data["count-objects-healthy-pre-repair"] = c["count-objects-healthy-pre-repair"]
@@ -336,55 +342,55 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase):
                                          base32.b2a(storage_index),
                                          shnum)
                                         for (serverid, storage_index, shnum)
-                                        in self.r.get_corrupt_shares() ]
+                                        in res.get_corrupt_shares() ]
         data["list-remaining-corrupt-shares"] = [ (idlib.nodeid_b2a(serverid),
                                                    base32.b2a(storage_index),
                                                    shnum)
                                                   for (serverid, storage_index, shnum)
-                                                  in self.r.get_remaining_corrupt_shares() ]
+                                                  in res.get_remaining_corrupt_shares() ]
 
         data["list-unhealthy-files"] = [ (path_t, self._json_check_results(r))
                                          for (path_t, r)
-                                         in self.r.get_all_results().items()
+                                         in res.get_all_results().items()
                                          if not r.get_pre_repair_results().is_healthy() ]
-        data["stats"] = self.r.get_stats()
+        data["stats"] = res.get_stats()
         return simplejson.dumps(data, indent=1) + "\n"
 
     def render_root_storage_index(self, ctx, data):
-        return self.r.get_root_storage_index_string()
+        return self.monitor.get_status().get_root_storage_index_string()
 
     def data_objects_checked(self, ctx, data):
-        return self.r.get_counters()["count-objects-checked"]
+        return self.monitor.get_status().get_counters()["count-objects-checked"]
 
     def data_objects_healthy(self, ctx, data):
-        return self.r.get_counters()["count-objects-healthy-pre-repair"]
+        return self.monitor.get_status().get_counters()["count-objects-healthy-pre-repair"]
     def data_objects_unhealthy(self, ctx, data):
-        return self.r.get_counters()["count-objects-unhealthy-pre-repair"]
+        return self.monitor.get_status().get_counters()["count-objects-unhealthy-pre-repair"]
     def data_corrupt_shares(self, ctx, data):
-        return self.r.get_counters()["count-corrupt-shares-pre-repair"]
+        return self.monitor.get_status().get_counters()["count-corrupt-shares-pre-repair"]
 
     def data_repairs_attempted(self, ctx, data):
-        return self.r.get_counters()["count-repairs-attempted"]
+        return self.monitor.get_status().get_counters()["count-repairs-attempted"]
     def data_repairs_successful(self, ctx, data):
-        return self.r.get_counters()["count-repairs-successful"]
+        return self.monitor.get_status().get_counters()["count-repairs-successful"]
     def data_repairs_unsuccessful(self, ctx, data):
-        return self.r.get_counters()["count-repairs-unsuccessful"]
+        return self.monitor.get_status().get_counters()["count-repairs-unsuccessful"]
 
     def data_objects_healthy_post(self, ctx, data):
-        return self.r.get_counters()["count-objects-healthy-post-repair"]
+        return self.monitor.get_status().get_counters()["count-objects-healthy-post-repair"]
     def data_objects_unhealthy_post(self, ctx, data):
-        return self.r.get_counters()["count-objects-unhealthy-post-repair"]
+        return self.monitor.get_status().get_counters()["count-objects-unhealthy-post-repair"]
     def data_corrupt_shares_post(self, ctx, data):
-        return self.r.get_counters()["count-corrupt-shares-post-repair"]
+        return self.monitor.get_status().get_counters()["count-corrupt-shares-post-repair"]
 
     def render_pre_repair_problems_p(self, ctx, data):
-        c = self.r.get_counters()
+        c = self.monitor.get_status().get_counters()
         if c["count-objects-unhealthy-pre-repair"]:
             return ctx.tag
         return ""
 
     def data_pre_repair_problems(self, ctx, data):
-        all_objects = self.r.get_all_results()
+        all_objects = self.monitor.get_status().get_all_results()
         for path in sorted(all_objects.keys()):
             r = all_objects[path]
             assert ICheckAndRepairResults.providedBy(r)
@@ -397,14 +403,14 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase):
         return ["/".join(self._html(path)), ": ", self._html(cr.get_summary())]
 
     def render_post_repair_problems_p(self, ctx, data):
-        c = self.r.get_counters()
+        c = self.monitor.get_status().get_counters()
         if (c["count-objects-unhealthy-post-repair"]
             or c["count-corrupt-shares-post-repair"]):
             return ctx.tag
         return ""
 
     def data_post_repair_problems(self, ctx, data):
-        all_objects = self.r.get_all_results()
+        all_objects = self.monitor.get_status().get_all_results()
         for path in sorted(all_objects.keys()):
             r = all_objects[path]
             assert ICheckAndRepairResults.providedBy(r)
@@ -413,7 +419,7 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase):
                 yield path, cr
 
     def render_servers_with_corrupt_shares_p(self, ctx, data):
-        if self.r.get_counters()["count-corrupt-shares-pre-repair"]:
+        if self.monitor.get_status().get_counters()["count-corrupt-shares-pre-repair"]:
             return ctx.tag
         return ""
     def data_servers_with_corrupt_shares(self, ctx, data):
@@ -423,7 +429,7 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase):
 
 
     def render_remaining_corrupt_shares_p(self, ctx, data):
-        if self.r.get_counters()["count-corrupt-shares-post-repair"]:
+        if self.monitor.get_status().get_counters()["count-corrupt-shares-post-repair"]:
             return ctx.tag
         return ""
     def data_post_repair_corrupt_shares(self, ctx, data):
@@ -441,7 +447,7 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase):
         return ""
 
     def data_all_objects(self, ctx, data):
-        r = self.r.get_all_results()
+        r = self.monitor.get_status().get_all_results()
         for path in sorted(r.keys()):
             yield (path, r[path])
 

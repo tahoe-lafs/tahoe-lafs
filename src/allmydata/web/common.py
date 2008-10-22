@@ -8,7 +8,8 @@ from allmydata.interfaces import ExistingChildError, FileTooLargeError
 
 class IClient(Interface):
     pass
-
+class IOpHandleTable(Interface):
+    pass
 
 def getxmlfile(name):
     return loaders.xmlfile(resource_filename('allmydata.web', '%s' % name))
@@ -18,13 +19,21 @@ def boolean_of_arg(arg):
     assert arg.lower() in ("true", "t", "1", "false", "f", "0", "on", "off")
     return arg.lower() in ("true", "t", "1", "on")
 
-def get_arg(req, argname, default=None, multiple=False):
+def get_root(ctx_or_req):
+    req = IRequest(ctx_or_req)
+    # the addSlash=True gives us one extra (empty) segment
+    depth = len(req.prepath) + len(req.postpath) - 1
+    link = "/".join([".."] * depth)
+    return link
+
+def get_arg(ctx_or_req, argname, default=None, multiple=False):
     """Extract an argument from either the query args (req.args) or the form
     body fields (req.fields). If multiple=False, this returns a single value
     (or the default, which defaults to None), and the query args take
     precedence. If multiple=True, this returns a tuple of arguments (possibly
     empty), starting with all those in the query args.
     """
+    req = IRequest(ctx_or_req)
     results = []
     if argname in req.args:
         results.extend(req.args[argname])
@@ -103,6 +112,7 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
         if isinstance(text, unicode):
             text = text.encode("utf-8")
         req.write(text)
+        # TODO: consider putting the requested URL here
         req.finishRequest(False)
 
     def renderHTTP_exception(self, ctx, f):
@@ -127,6 +137,9 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
                                http.NOT_IMPLEMENTED)
         super = appserver.DefaultExceptionHandler
         return super.renderHTTP_exception(self, ctx, f)
+
+class NeedOperationHandleError(WebError):
+    pass
 
 class RenderMixin:
 
