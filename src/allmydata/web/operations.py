@@ -106,6 +106,16 @@ class OphandleTable(rend.Page, service.Service):
         self.handles.pop(ophandle, None)
 
 class ReloadMixin:
+    REFRESH_TIME = 1*MINUTE
+
+    def render_refresh(self, ctx, data):
+        if self.monitor.is_finished():
+            return ""
+        # dreid suggests ctx.tag(**dict([("http-equiv", "refresh")]))
+        # but I can't tell if he's joking or not
+        ctx.tag.attributes["http-equiv"] = "refresh"
+        ctx.tag.attributes["content"] = str(self.REFRESH_TIME)
+        return ctx.tag
 
     def render_reload(self, ctx, data):
         if self.monitor.is_finished():

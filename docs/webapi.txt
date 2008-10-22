@@ -211,7 +211,7 @@ GET /operations/$HANDLE?t=status&output=JSON
   * how much of the operation is complete, and how much is left, if possible
 
  The HTML form will include a meta-refresh tag, which will cause a regular
- web browser to reload the status page about 30 seconds later. This tag will
+ web browser to reload the status page about 60 seconds later. This tag will
  be removed once the operation has completed.
 
 POST /operations/$HANDLE?t=cancel
@@ -820,8 +820,8 @@ POST $URL?t=start-deep-check    (must add &ophandle=XYZ)
   /operations page should be used to find out when the operation is done.
 
   The HTML /operations/$HANDLE?t=status page for incomplete operations will
-  contain a meta-refresh tag, set to 30 seconds, so that a browser which uses
-  deep-check will automatically poll until the operation has completed. (TODO)
+  contain a meta-refresh tag, set to 60 seconds, so that a browser which uses
+  deep-check will automatically poll until the operation has completed.
 
   The JSON page (/options/$HANDLE?t=status&output=JSON) will contain a
   machine-readable JSON dictionary with the following keys:
