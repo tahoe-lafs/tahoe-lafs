@@ -422,23 +422,6 @@ class IFilesystemNode(Interface):
         download. This may be None if there is no storage index (i.e. LIT
         files)."""
 
-    def check(verify=False, repair=False):
-        """Perform a file check. See IChecker.check for details.
-
-        The default mode is named 'check' and simply asks each server whether
-        or not it has a share, and believes the answers. If verify=True, this
-        switches into the 'verify' mode, in which every byte of every share
-        is retrieved, and all hashes are verified. This uses much more
-        network and disk bandwidth than simple checking, especially for large
-        files, but will catch disk errors.
-
-        The default repair=False argument means that files which are not
-        perfectly healthy will be reported, but not fixed. When repair=True,
-        the node will attempt to repair the file first. The results will
-        indicate the initial status of the file in either case. If repair was
-        attempted, the results will indicate that too.
-        """
-
     def is_readonly():
         """Return True if this reference provides mutable access to the given
         file or directory (i.e. if you can modify it), or False if not. Note
@@ -1450,12 +1433,16 @@ class IUploader(Interface):
         """TODO: how should this work?"""
 
 class ICheckable(Interface):
-    def check(verify=False):
+    def check(monitor, verify=False):
         """Check upon my health, optionally repairing any problems.
 
         This returns a Deferred that fires with an instance that provides
         ICheckerResults, or None if the object is non-distributed (i.e. LIT
         files).
+
+        The monitor will be checked periodically to see if the operation has
+        been cancelled. If so, no new queries will be sent, and the Deferred
+        will fire (with a OperationCancelledError) immediately.
 
         Filenodes and dirnodes (which provide IFilesystemNode) are also
         checkable. Instances that represent verifier-caps will be checkable
@@ -1480,21 +1467,21 @@ class ICheckable(Interface):
         failures during retrieval, or is malicious or buggy, then
         verification will detect the problem, but checking will not.
 
-        If repair=True, then a non-healthy result will cause an immediate
-        repair operation, to generate and upload new shares. After repair,
-        the file will be as healthy as we can make it. Details about what
-        sort of repair is done will be put in the checker results. My
-        Deferred will not fire until the repair is complete.
-
         TODO: any problems seen during checking will be reported to the
         health-manager.furl, a centralized object which is responsible for
         figuring out why files are unhealthy so corrective action can be
         taken.
         """
 
-    def check_and_repair(verify=False):
+    def check_and_repair(monitor, verify=False):
         """Like check(), but if the file/directory is not healthy, attempt to
         repair the damage.
+
+        Any non-healthy result will cause an immediate repair operation, to
+        generate and upload new shares. After repair, the file will be as
+        healthy as we can make it. Details about what sort of repair is done
+        will be put in the check-and-repair results. The Deferred will not
+        fire until the repair is complete.
 
         This returns a Deferred which fires with an instance of
         ICheckAndRepairResults."""

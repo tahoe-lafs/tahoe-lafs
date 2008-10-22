@@ -224,11 +224,11 @@ class NewDirectoryNode:
     def get_storage_index(self):
         return self._uri._filenode_uri.storage_index
 
-    def check(self, verify=False):
+    def check(self, monitor, verify=False):
         """Perform a file check. See IChecker.check for details."""
-        return self._node.check(verify)
-    def check_and_repair(self, verify=False):
-        return self._node.check_and_repair(verify)
+        return self._node.check(monitor, verify)
+    def check_and_repair(self, monitor, verify=False):
+        return self._node.check_and_repair(monitor, verify)
 
     def list(self):
         """I return a Deferred that fires with a dictionary mapping child
@@ -669,10 +669,10 @@ class DeepChecker:
 
     def add_node(self, node, childpath):
         if self._repair:
-            d = node.check_and_repair(self._verify)
+            d = node.check_and_repair(self.monitor, self._verify)
             d.addCallback(self._results.add_check_and_repair, childpath)
         else:
-            d = node.check(self._verify)
+            d = node.check(self.monitor, self._verify)
             d.addCallback(self._results.add_check, childpath)
         d.addCallback(lambda ignored: self._stats.add_node(node, childpath))
         return d

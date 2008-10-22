@@ -15,6 +15,7 @@ from allmydata.util import base32
 from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IMutableFileNode, \
      ExistingChildError
+from allmydata.monitor import Monitor
 from allmydata.web.common import text_plain, WebError, \
      IClient, IOpHandleTable, NeedOperationHandleError, \
      boolean_of_arg, get_arg, get_root, \
@@ -344,10 +345,10 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         verify = boolean_of_arg(get_arg(req, "verify", "false"))
         repair = boolean_of_arg(get_arg(req, "repair", "false"))
         if repair:
-            d = self.node.check_and_repair(verify)
+            d = self.node.check_and_repair(Monitor(), verify)
             d.addCallback(lambda res: CheckAndRepairResults(res))
         else:
-            d = self.node.check(verify)
+            d = self.node.check(Monitor(), verify)
             d.addCallback(lambda res: CheckerResults(res))
         return d
 

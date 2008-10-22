@@ -9,6 +9,7 @@ from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
      INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode, \
      ExistingChildError, IDeepCheckResults, IDeepCheckAndRepairResults
 from allmydata.util import hashutil, testutil
+from allmydata.monitor import Monitor
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
      FakeDirectoryNode, create_chk_filenode
 from allmydata.checker_results import CheckerResults, CheckAndRepairResults
@@ -127,7 +128,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
 
     def test_check(self):
         d = self.client.create_empty_dirnode()
-        d.addCallback(lambda dn: dn.check())
+        d.addCallback(lambda dn: dn.check(Monitor()))
         def _done(res):
             self.failUnless(res.is_healthy())
         d.addCallback(_done)

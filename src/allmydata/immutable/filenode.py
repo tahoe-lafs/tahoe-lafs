@@ -55,7 +55,7 @@ class FileNode(ImmutableFileNode):
     def get_storage_index(self):
         return self.u.storage_index
 
-    def check(self, verify=False):
+    def check(self, monitor, verify=False):
         storage_index = self.u.storage_index
         k = self.u.needed_shares
         N = self.u.total_shares
@@ -68,7 +68,7 @@ class FileNode(ImmutableFileNode):
             v = self.checker_class(self._client, storage_index, k, N)
         return v.start()
 
-    def check_and_repair(self, verify=False):
+    def check_and_repair(self, monitor, verify=False):
         # this is a stub, to allow the deep-check tests to pass.
         #raise NotImplementedError("not implemented yet")
         from allmydata.checker_results import CheckAndRepairResults
@@ -113,10 +113,10 @@ class LiteralFileNode(ImmutableFileNode):
     def get_storage_index(self):
         return None
 
-    def check(self, verify=False):
+    def check(self, monitor, verify=False):
         return defer.succeed(None)
 
-    def check_and_repair(self, verify=False):
+    def check_and_repair(self, monitor, verify=False):
         return defer.succeed(None)
 
     def download(self, target):

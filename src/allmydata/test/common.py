@@ -46,7 +46,7 @@ class FakeCHKFileNode:
         return self.my_uri
     def get_verifier(self):
         return IURI(self.my_uri).get_verifier()
-    def check(self, verify=False):
+    def check(self, monitor, verify=False):
         r = CheckerResults(self.storage_index)
         is_bad = self.bad_shares.get(self.storage_index, None)
         data = {}
@@ -58,7 +58,7 @@ class FakeCHKFileNode:
              r.problems = []
         r.set_data(data)
         return defer.succeed(r)
-    def check_and_repair(self, verify=False):
+    def check_and_repair(self, monitor, verify=False):
         d = self.check(verify)
         def _got(cr):
             r = CheckAndRepairResults(self.storage_index)
@@ -149,7 +149,7 @@ class FakeMutableFileNode:
     def get_storage_index(self):
         return self.storage_index
 
-    def check(self, verify=False):
+    def check(self, monitor, verify=False):
         r = CheckerResults(self.storage_index)
         is_bad = self.bad_shares.get(self.storage_index, None)
         data = {}
@@ -165,7 +165,7 @@ class FakeMutableFileNode:
         r.set_data(data)
         return defer.succeed(r)
 
-    def check_and_repair(self, verify=False):
+    def check_and_repair(self, monitor, verify=False):
         d = self.check(verify)
         def _got(cr):
             r = CheckAndRepairResults(self.storage_index)

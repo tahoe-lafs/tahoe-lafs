@@ -11,8 +11,9 @@ from layout import unpack_share, SIGNED_PREFIX_LENGTH
 
 class MutableChecker:
 
-    def __init__(self, node):
+    def __init__(self, node, monitor):
         self._node = node
+        self._monitor = monitor
         self.bad_shares = [] # list of (nodeid,shnum,failure)
         self._storage_index = self._node.get_storage_index()
         self.results = CheckerResults(self._storage_index)
@@ -21,7 +22,7 @@ class MutableChecker:
 
     def check(self, verify=False):
         servermap = ServerMap()
-        u = ServermapUpdater(self._node, servermap, MODE_CHECK)
+        u = ServermapUpdater(self._node, self._monitor, servermap, MODE_CHECK)
         d = u.update()
         d.addCallback(self._got_mapupdate_results)
         if verify:
@@ -35,6 +36,7 @@ class MutableChecker:
         # the file is healthy if there is exactly one recoverable version, it
         # has at least N distinct shares, and there are no unrecoverable
         # versions: all existing shares will be for the same version.
+        self._monitor.raise_if_cancelled()
         self.best_version = None
         num_recoverable = len(servermap.recoverable_versions())
         if num_recoverable:
@@ -68,7 +70,7 @@ class MutableChecker:
             d = self._do_read(ss, peerid, self._storage_index, [shnum], readv)
             d.addCallback(self._got_answer, peerid, servermap)
             dl.append(d)
-        return defer.DeferredList(dl, fireOnOneErrback=True)
+        return defer.DeferredList(dl, fireOnOneErrback=True, consumeErrors=True)
 
     def _do_read(self, ss, peerid, storage_index, shnums, readv):
         # isolate the callRemote to a separate method, so tests can subclass
@@ -149,6 +151,7 @@ class MutableChecker:
         return counters
 
     def _fill_checker_results(self, smap, r):
+        self._monitor.raise_if_cancelled()
         r.set_servermap(smap.copy())
         healthy = True
         data = {}
@@ -265,8 +268,8 @@ class MutableChecker:
 
 
 class MutableCheckAndRepairer(MutableChecker):
-    def __init__(self, node):
-        MutableChecker.__init__(self, node)
+    def __init__(self, node, monitor):
+        MutableChecker.__init__(self, node, monitor)
         self.cr_results = CheckAndRepairResults(self._storage_index)
         self.cr_results.pre_repair_results = self.results
         self.need_repair = False
@@ -278,6 +281,7 @@ class MutableCheckAndRepairer(MutableChecker):
         return d
 
     def _maybe_repair(self, res):
+        self._monitor.raise_if_cancelled()
         if not self.need_repair:
             self.cr_results.post_repair_results = self.results
             return

@@ -9,6 +9,7 @@ from nevow import url, rend
 from nevow.inevow import IRequest
 
 from allmydata.interfaces import IDownloadTarget, ExistingChildError
+from allmydata.monitor import Monitor
 from allmydata.immutable.upload import FileHandle
 from allmydata.immutable.filenode import LiteralFileNode
 from allmydata.util import log
@@ -264,10 +265,10 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         if isinstance(self.node, LiteralFileNode):
             return defer.succeed(LiteralCheckerResults())
         if repair:
-            d = self.node.check_and_repair(verify)
+            d = self.node.check_and_repair(Monitor(), verify)
             d.addCallback(lambda res: CheckAndRepairResults(res))
         else:
-            d = self.node.check(verify)
+            d = self.node.check(Monitor(), verify)
             d.addCallback(lambda res: CheckerResults(res))
         return d
 

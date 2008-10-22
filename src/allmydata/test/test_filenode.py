@@ -1,6 +1,7 @@
 
 from twisted.trial import unittest
 from allmydata import uri
+from allmydata.monitor import Monitor
 from allmydata.immutable import filenode, download
 from allmydata.mutable.node import MutableFileNode
 from allmydata.util import hashutil
@@ -115,12 +116,12 @@ class LiteralChecker(unittest.TestCase):
         u = uri.LiteralFileURI(data=DATA)
         fn1 = filenode.LiteralFileNode(u, None)
 
-        d = fn1.check()
+        d = fn1.check(Monitor())
         def _check_checker_results(cr):
             self.failUnlessEqual(cr, None)
         d.addCallback(_check_checker_results)
 
-        d.addCallback(lambda res: fn1.check(verify=True))
+        d.addCallback(lambda res: fn1.check(Monitor(), verify=True))
         d.addCallback(_check_checker_results)
 
         return d

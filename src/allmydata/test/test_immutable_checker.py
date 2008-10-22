@@ -1,6 +1,7 @@
 from allmydata.immutable import encode, upload
 from allmydata.test.common import SystemTestMixin, ShareManglingMixin
 from allmydata.util import testutil
+from allmydata.monitor import Monitor
 from allmydata.interfaces import IURI
 from twisted.internet import defer
 from twisted.trial import unittest
@@ -280,7 +281,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
         # The following process of leaving 8 of the shares deleted and asserting that you can't
         # repair it is more to test this test code than to test the Tahoe code...
         def _then_repair(unused=None):
-            d2 = self.filenode.check_and_repair(verify=False)
+            d2 = self.filenode.check_and_repair(Monitor(), verify=False)
             def _after_repair(checkandrepairresults):
                 prerepairres = checkandrepairresults.get_pre_repair_results()
                 postrepairres = checkandrepairresults.get_post_repair_results()
@@ -323,7 +324,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
         def _check1(filenode):
             before_check_reads = self._count_reads()
 
-            d2 = filenode.check(verify=False)
+            d2 = filenode.check(Monitor(), verify=False)
             def _after_check(checkresults):
                 after_check_reads = self._count_reads()
                 self.failIf(after_check_reads - before_check_reads > 0, after_check_reads - before_check_reads)
@@ -336,7 +337,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
         d.addCallback(lambda ignore: self.replace_shares({}, storage_index=self.uri.storage_index))
         def _check2(ignored):
             before_check_reads = self._count_reads()
-            d2 = self.filenode.check(verify=False)
+            d2 = self.filenode.check(Monitor(), verify=False)
 
             def _after_check(checkresults):
                 after_check_reads = self._count_reads()
@@ -360,7 +361,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
         def _check1(filenode):
             before_check_reads = self._count_reads()
 
-            d2 = filenode.check(verify=True)
+            d2 = filenode.check(Monitor(), verify=True)
             def _after_check(checkresults):
                 after_check_reads = self._count_reads()
                 # print "delta was ", after_check_reads - before_check_reads
@@ -380,7 +381,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
 
         def _check2(ignored):
             before_check_reads = self._count_reads()
-            d2 = self.filenode.check(verify=True)
+            d2 = self.filenode.check(Monitor(), verify=True)
 
             def _after_check(checkresults):
                 after_check_reads = self._count_reads()
@@ -435,7 +436,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
             before_repair_reads = self._count_reads()
             before_repair_allocates = self._count_allocates()
 
-            d2 = filenode.check_and_repair(verify=False)
+            d2 = filenode.check_and_repair(Monitor(), verify=False)
             def _after_repair(checkandrepairresults):
                 prerepairres = checkandrepairresults.get_pre_repair_results()
                 postrepairres = checkandrepairresults.get_post_repair_results()
@@ -469,7 +470,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
             before_repair_reads = self._count_reads()
             before_repair_allocates = self._count_allocates()
 
-            d2 = filenode.check_and_repair(verify=False)
+            d2 = filenode.check_and_repair(Monitor(), verify=False)
             def _after_repair(checkandrepairresults):
                 prerepairres = checkandrepairresults.get_pre_repair_results()
                 postrepairres = checkandrepairresults.get_post_repair_results()
@@ -496,7 +497,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
             before_repair_reads = self._count_reads()
             before_repair_allocates = self._count_allocates()
 
-            d2 = filenode.check_and_repair(verify=False)
+            d2 = filenode.check_and_repair(Monitor(), verify=False)
             def _after_repair(checkandrepairresults):
                 prerepairres = checkandrepairresults.get_pre_repair_results()
                 postrepairres = checkandrepairresults.get_post_repair_results()

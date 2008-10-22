@@ -10,6 +10,7 @@ from allmydata.interfaces import IMutableFileNode, IMutableFileURI, \
 from allmydata.util import hashutil, log
 from allmydata.util.assertutil import precondition
 from allmydata.uri import WriteableSSKFileURI
+from allmydata.monitor import Monitor
 from allmydata.immutable.encode import NotEnoughSharesError
 from pycryptopp.publickey import rsa
 from pycryptopp.cipher.aes import AES
@@ -242,12 +243,12 @@ class MutableFileNode:
     #################################
     # ICheckable
 
-    def check(self, verify=False):
-        checker = self.checker_class(self)
+    def check(self, monitor, verify=False):
+        checker = self.checker_class(self, monitor)
         return checker.check(verify)
 
-    def check_and_repair(self, verify=False):
-        checker = self.check_and_repairer_class(self)
+    def check_and_repair(self, monitor, verify=False):
+        checker = self.check_and_repairer_class(self, monitor)
         return checker.check(verify)
 
     #################################
@@ -398,7 +399,7 @@ class MutableFileNode:
         servermap = ServerMap()
         return self._update_servermap(servermap, mode)
     def _update_servermap(self, servermap, mode):
-        u = ServermapUpdater(self, servermap, mode)
+        u = ServermapUpdater(self, Monitor(), servermap, mode)
         self._client.notify_mapupdate(u.get_status())
         return u.update()
 

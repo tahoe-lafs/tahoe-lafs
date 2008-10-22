@@ -333,13 +333,14 @@ class ServerMap:
 
 
 class ServermapUpdater:
-    def __init__(self, filenode, servermap, mode=MODE_READ):
+    def __init__(self, filenode, monitor, servermap, mode=MODE_READ):
         """I update a servermap, locating a sufficient number of useful
         shares and remembering where they are located.
 
         """
 
         self._node = filenode
+        self._monitor = monitor
         self._servermap = servermap
         self.mode = mode
         self._running = True

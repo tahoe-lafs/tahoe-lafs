@@ -16,7 +16,7 @@ from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI, \
      ICheckerResults, ICheckAndRepairResults, IDeepCheckResults, \
      IDeepCheckAndRepairResults
-from allmydata.monitor import OperationCancelledError
+from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable import layout as mutable_layout
 from foolscap import DeadReferenceError
@@ -1689,21 +1689,21 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         ut = upload.Data("too big to be literal" * 200, convergence=None)
         d = self._personal_node.add_file(u"big file", ut)
 
-        d.addCallback(lambda res: self._personal_node.check())
+        d.addCallback(lambda res: self._personal_node.check(Monitor()))
         def _check_dirnode_results(r):
             self.failUnless(r.is_healthy())
         d.addCallback(_check_dirnode_results)
-        d.addCallback(lambda res: self._personal_node.check(verify=True))
+        d.addCallback(lambda res: self._personal_node.check(Monitor(), verify=True))
         d.addCallback(_check_dirnode_results)
 
         d.addCallback(lambda res: self._personal_node.get(u"big file"))
         def _got_chk_filenode(n):
             self.failUnless(isinstance(n, filenode.FileNode))
-            d = n.check()
+            d = n.check(Monitor())
             def _check_filenode_results(r):
                 self.failUnless(r.is_healthy())
             d.addCallback(_check_filenode_results)
-            d.addCallback(lambda res: n.check(verify=True))
+            d.addCallback(lambda res: n.check(Monitor(), verify=True))
             d.addCallback(_check_filenode_results)
             return d
         d.addCallback(_got_chk_filenode)
@@ -1711,11 +1711,11 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d.addCallback(lambda res: self._personal_node.get(u"sekrit data"))
         def _got_lit_filenode(n):
             self.failUnless(isinstance(n, filenode.LiteralFileNode))
-            d = n.check()
+            d = n.check(Monitor())
             def _check_lit_filenode_results(r):
                 self.failUnlessEqual(r, None)
             d.addCallback(_check_lit_filenode_results)
-            d.addCallback(lambda res: n.check(verify=True))
+            d.addCallback(lambda res: n.check(Monitor(), verify=True))
             d.addCallback(_check_lit_filenode_results)
             return d
         d.addCallback(_got_lit_filenode)
@@ -1993,45 +1993,45 @@ class DeepCheckWeb(SystemTestMixin, unittest.TestCase, WebErrorMixin):
     def do_test_good(self, ignored):
         d = defer.succeed(None)
         # check the individual items
-        d.addCallback(lambda ign: self.root.check())
+        d.addCallback(lambda ign: self.root.check(Monitor()))
         d.addCallback(self.check_is_healthy, self.root, "root")
-        d.addCallback(lambda ign: self.mutable.check())
+        d.addCallback(lambda ign: self.mutable.check(Monitor()))
         d.addCallback(self.check_is_healthy, self.mutable, "mutable")
-        d.addCallback(lambda ign: self.large.check())
+        d.addCallback(lambda ign: self.large.check(Monitor()))
         d.addCallback(self.check_is_healthy, self.large, "large")
-        d.addCallback(lambda ign: self.small.check())
+        d.addCallback(lambda ign: self.small.check(Monitor()))
         d.addCallback(self.failUnlessEqual, None, "small")
 
         # and again with verify=True
-        d.addCallback(lambda ign: self.root.check(verify=True))
+        d.addCallback(lambda ign: self.root.check(Monitor(), verify=True))
         d.addCallback(self.check_is_healthy, self.root, "root")
-        d.addCallback(lambda ign: self.mutable.check(verify=True))
+        d.addCallback(lambda ign: self.mutable.check(Monitor(), verify=True))
         d.addCallback(self.check_is_healthy, self.mutable, "mutable")
-        d.addCallback(lambda ign: self.large.check(verify=True))
+        d.addCallback(lambda ign: self.large.check(Monitor(), verify=True))
         d.addCallback(self.check_is_healthy, self.large, "large",
                       incomplete=True)
-        d.addCallback(lambda ign: self.small.check(verify=True))
+        d.addCallback(lambda ign: self.small.check(Monitor(), verify=True))
         d.addCallback(self.failUnlessEqual, None, "small")
 
         # and check_and_repair(), which should be a nop
-        d.addCallback(lambda ign: self.root.check_and_repair())
+        d.addCallback(lambda ign: self.root.check_and_repair(Monitor()))
         d.addCallback(self.check_and_repair_is_healthy, self.root, "root")
-        d.addCallback(lambda ign: self.mutable.check_and_repair())
+        d.addCallback(lambda ign: self.mutable.check_and_repair(Monitor()))
         d.addCallback(self.check_and_repair_is_healthy, self.mutable, "mutable")
-        d.addCallback(lambda ign: self.large.check_and_repair())
+        d.addCallback(lambda ign: self.large.check_and_repair(Monitor()))
         d.addCallback(self.check_and_repair_is_healthy, self.large, "large")
-        d.addCallback(lambda ign: self.small.check_and_repair())
+        d.addCallback(lambda ign: self.small.check_and_repair(Monitor()))
         d.addCallback(self.failUnlessEqual, None, "small")
 
         # check_and_repair(verify=True)
-        d.addCallback(lambda ign: self.root.check_and_repair(verify=True))
+        d.addCallback(lambda ign: self.root.check_and_repair(Monitor(), verify=True))
         d.addCallback(self.check_and_repair_is_healthy, self.root, "root")
-        d.addCallback(lambda ign: self.mutable.check_and_repair(verify=True))
+        d.addCallback(lambda ign: self.mutable.check_and_repair(Monitor(), verify=True))
         d.addCallback(self.check_and_repair_is_healthy, self.mutable, "mutable")
-        d.addCallback(lambda ign: self.large.check_and_repair(verify=True))
+        d.addCallback(lambda ign: self.large.check_and_repair(Monitor(), verify=True))
         d.addCallback(self.check_and_repair_is_healthy, self.large, "large",
                       incomplete=True)
-        d.addCallback(lambda ign: self.small.check_and_repair(verify=True))
+        d.addCallback(lambda ign: self.small.check_and_repair(Monitor(), verify=True))
         d.addCallback(self.failUnlessEqual, None, "small")
 
 

@@ -13,6 +13,7 @@ from allmydata.util.hashutil import tagged_hash
 from allmydata.util.fileutil import make_dirs
 from allmydata.interfaces import IURI, IMutableFileURI, IUploadable, \
      FileTooLargeError, IRepairResults
+from allmydata.monitor import Monitor
 from allmydata.test.common import ShouldFailMixin
 from foolscap.eventual import eventually, fireEventually
 from foolscap.logging import log
@@ -698,12 +699,12 @@ class Servermap(unittest.TestCase, PublishMixin):
     def make_servermap(self, mode=MODE_CHECK, fn=None):
         if fn is None:
             fn = self._fn
-        smu = ServermapUpdater(fn, ServerMap(), mode)
+        smu = ServermapUpdater(fn, Monitor(), ServerMap(), mode)
         d = smu.update()
         return d
 
     def update_servermap(self, oldmap, mode=MODE_CHECK):
-        smu = ServermapUpdater(self._fn, oldmap, mode)
+        smu = ServermapUpdater(self._fn, Monitor(), oldmap, mode)
         d = smu.update()
         return d
 
@@ -877,7 +878,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
     def make_servermap(self, mode=MODE_READ, oldmap=None):
         if oldmap is None:
             oldmap = ServerMap()
-        smu = ServermapUpdater(self._fn, oldmap, mode)
+        smu = ServermapUpdater(self._fn, Monitor(), oldmap, mode)
         d = smu.update()
         return d
 
@@ -1203,14 +1204,14 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
 
 
     def test_check_good(self):
-        d = self._fn.check()
+        d = self._fn.check(Monitor())
         d.addCallback(self.check_good, "test_check_good")
         return d
 
     def test_check_no_shares(self):
         for shares in self._storage._peers.values():
             shares.clear()
-        d = self._fn.check()
+        d = self._fn.check(Monitor())
         d.addCallback(self.check_bad, "test_check_no_shares")
         return d
 
@@ -1219,44 +1220,44 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
             for shnum in shares.keys():
                 if shnum > 0:
                     del shares[shnum]
-        d = self._fn.check()
+        d = self._fn.check(Monitor())
         d.addCallback(self.check_bad, "test_check_not_enough_shares")
         return d
 
     def test_check_all_bad_sig(self):
         corrupt(None, self._storage, 1) # bad sig
-        d = self._fn.check()
+        d = self._fn.check(Monitor())
         d.addCallback(self.check_bad, "test_check_all_bad_sig")
         return d
 
     def test_check_all_bad_blocks(self):
         corrupt(None, self._storage, "share_data", [9]) # bad blocks
         # the Checker won't notice this.. it doesn't look at actual data
-        d = self._fn.check()
+        d = self._fn.check(Monitor())
         d.addCallback(self.check_good, "test_check_all_bad_blocks")
         return d
 
     def test_verify_good(self):
-        d = self._fn.check(verify=True)
+        d = self._fn.check(Monitor(), verify=True)
         d.addCallback(self.check_good, "test_verify_good")
         return d
 
     def test_verify_all_bad_sig(self):
         corrupt(None, self._storage, 1) # bad sig
-        d = self._fn.check(verify=True)
+        d = self._fn.check(Monitor(), verify=True)
         d.addCallback(self.check_bad, "test_verify_all_bad_sig")
         return d
 
     def test_verify_one_bad_sig(self):
         corrupt(None, self._storage, 1, [9]) # bad sig
-        d = self._fn.check(verify=True)
+        d = self._fn.check(Monitor(), verify=True)
         d.addCallback(self.check_bad, "test_verify_one_bad_sig")
         return d
 
     def test_verify_one_bad_block(self):
         corrupt(None, self._storage, "share_data", [9]) # bad blocks
         # the Verifier *will* notice this, since it examines every byte
-        d = self._fn.check(verify=True)
+        d = self._fn.check(Monitor(), verify=True)
         d.addCallback(self.check_bad, "test_verify_one_bad_block")
         d.addCallback(self.check_expected_failure,
                       CorruptShareError, "block hash tree failure",
@@ -1265,7 +1266,7 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
 
     def test_verify_one_bad_sharehash(self):
         corrupt(None, self._storage, "share_hash_chain", [9], 5)
-        d = self._fn.check(verify=True)
+        d = self._fn.check(Monitor(), verify=True)
         d.addCallback(self.check_bad, "test_verify_one_bad_sharehash")
         d.addCallback(self.check_expected_failure,
                       CorruptShareError, "corrupt hashes",
@@ -1274,7 +1275,7 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
 
     def test_verify_one_bad_encprivkey(self):
         corrupt(None, self._storage, "enc_privkey", [9]) # bad privkey
-        d = self._fn.check(verify=True)
+        d = self._fn.check(Monitor(), verify=True)
         d.addCallback(self.check_bad, "test_verify_one_bad_encprivkey")
         d.addCallback(self.check_expected_failure,
                       CorruptShareError, "invalid privkey",
@@ -1285,7 +1286,7 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
         corrupt(None, self._storage, "enc_privkey", [9]) # bad privkey
         readonly_fn = self._fn.get_readonly()
         # a read-only node has no way to validate the privkey
-        d = readonly_fn.check(verify=True)
+        d = readonly_fn.check(Monitor(), verify=True)
         d.addCallback(self.check_good,
                       "test_verify_one_bad_encprivkey_uncheckable")
         return d
@@ -1308,7 +1309,7 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         self.old_shares = []
         d = self.publish_one()
         d.addCallback(self.copy_shares)
-        d.addCallback(lambda res: self._fn.check())
+        d.addCallback(lambda res: self._fn.check(Monitor()))
         d.addCallback(lambda check_results: self._fn.repair(check_results))
         def _check_results(rres):
             self.failUnless(IRepairResults.providedBy(rres))
@@ -1363,7 +1364,7 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
                       self._set_versions({0:3,2:3,4:3,6:3,8:3,
                                           1:4,3:4,5:4,7:4,9:4}))
         d.addCallback(self.copy_shares)
-        d.addCallback(lambda res: self._fn.check())
+        d.addCallback(lambda res: self._fn.check(Monitor()))
         def _try_repair(check_results):
             ex = "There were multiple recoverable versions with identical seqnums, so force=True must be passed to the repair() operation"
             d2 = self.shouldFail(MustForceRepairError, "test_merge", ex,
@@ -1451,7 +1452,7 @@ class MultipleEncodings(unittest.TestCase):
     def make_servermap(self, mode=MODE_READ, oldmap=None):
         if oldmap is None:
             oldmap = ServerMap()
-        smu = ServermapUpdater(self._fn, oldmap, mode)
+        smu = ServermapUpdater(self._fn, Monitor(), oldmap, mode)
         d = smu.update()
         return d
 
@@ -1563,7 +1564,7 @@ class MultipleVersions(unittest.TestCase, PublishMixin, CheckerMixin):
         d = self._fn.download_best_version()
         d.addCallback(lambda res: self.failUnlessEqual(res, self.CONTENTS[4]))
         # and the checker should report problems
-        d.addCallback(lambda res: self._fn.check())
+        d.addCallback(lambda res: self._fn.check(Monitor()))
         d.addCallback(self.check_bad, "test_multiple_versions")
 
         # but if everything is at version 2, that's what we should download
