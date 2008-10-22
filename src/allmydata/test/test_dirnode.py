@@ -34,12 +34,12 @@ class Marker:
     def get_verifier(self):
         return self.verifieruri
 
-    def check(self, verify=False):
+    def check(self, monitor, verify=False):
         r = CheckerResults(None)
         r.set_healthy(True)
         return defer.succeed(r)
 
-    def check_and_repair(self, verify=False):
+    def check_and_repair(self, monitor, verify=False):
         d = self.check(verify)
         def _got(cr):
             r = CheckAndRepairResults(None)
