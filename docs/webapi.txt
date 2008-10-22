@@ -968,6 +968,11 @@ POST $DIRURL?t=start-deep-size    (must add &ophandle=XYZ)
   take expansion or encoding overhead into account. Later versions of the
   code may improve this estimate upwards.
 
+  The t=status output consists of two lines of text:
+
+   finished: yes
+   size: 1234
+
 POST $DIRURL?t=start-deep-stats    (must add &ophandle=XYZ)
 
   This operation performs a recursive walk of all files and directories
