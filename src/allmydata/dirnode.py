@@ -477,22 +477,27 @@ class NewDirectoryNode:
 
         found = set([self.get_verifier()])
         limiter = ConcurrencyLimiter(10)
-        d = self._deep_traverse_dirnode(self, [], walker, found, limiter)
+        d = self._deep_traverse_dirnode(self, [],
+                                        walker, monitor, found, limiter)
         d.addCallback(lambda ignored: walker.finish())
         d.addBoth(monitor.finish)
+        d.addErrback(lambda f: None)
+
         return monitor
 
-    def _deep_traverse_dirnode(self, node, path, walker, found, limiter):
+    def _deep_traverse_dirnode(self, node, path,
+                               walker, monitor, found, limiter):
         # process this directory, then walk its children
-        # TODO: check monitor.is_cancelled()
+        monitor.raise_if_cancelled()
         d = limiter.add(walker.add_node, node, path)
         d.addCallback(lambda ignored: limiter.add(node.list))
         d.addCallback(self._deep_traverse_dirnode_children, node, path,
-                      walker, found, limiter)
+                      walker, monitor, found, limiter)
         return d
 
     def _deep_traverse_dirnode_children(self, children, parent, path,
-                                        walker, found, limiter):
+                                        walker, monitor, found, limiter):
+        monitor.raise_if_cancelled()
         dl = [limiter.add(walker.enter_directory, parent, children)]
         for name, (child, metadata) in children.iteritems():
             verifier = child.get_verifier()
@@ -502,10 +507,11 @@ class NewDirectoryNode:
             childpath = path + [name]
             if IDirectoryNode.providedBy(child):
                 dl.append(self._deep_traverse_dirnode(child, childpath,
-                                                      walker, found, limiter))
+                                                      walker, monitor,
+                                                      found, limiter))
             else:
                 dl.append(limiter.add(walker.add_node, child, childpath))
-        return defer.DeferredList(dl, fireOnOneErrback=True)
+        return defer.DeferredList(dl, fireOnOneErrback=True, consumeErrors=True)
 
 
     def build_manifest(self):

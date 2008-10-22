@@ -16,6 +16,7 @@ from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI, \
      ICheckerResults, ICheckAndRepairResults, IDeepCheckResults, \
      IDeepCheckAndRepairResults
+from allmydata.monitor import OperationCancelledError
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable import layout as mutable_layout
 from foolscap import DeadReferenceError
@@ -2047,6 +2048,23 @@ class DeepCheckWeb(SystemTestMixin, unittest.TestCase, WebErrorMixin):
         d.addCallback(lambda ign:
                       self.root.start_deep_check_and_repair(verify=True).when_done())
         d.addCallback(self.deep_check_and_repair_is_healthy, 3, "root")
+
+        # and finally, start a deep-check, but then cancel it.
+        d.addCallback(lambda ign: self.root.start_deep_check())
+        def _checking(monitor):
+            monitor.cancel()
+            d = monitor.when_done()
+            # this should fire as soon as the next dirnode.list finishes.
+            # TODO: add a counter to measure how many list() calls are made,
+            # assert that no more than one gets to run before the cancel()
+            # takes effect.
+            def _finished_normally(res):
+                self.fail("this was supposed to fail, not finish normally")
+            def _cancelled(f):
+                f.trap(OperationCancelledError)
+            d.addCallbacks(_finished_normally, _cancelled)
+            return d
+        d.addCallback(_checking)
 
         return d
 

@@ -32,6 +32,11 @@ class IMonitor(Interface):
         operation code should stop creating new work, and attempt to stop any
         work already in progress."""
 
+    def raise_if_cancelled(self):
+        """Raise OperationCancelledError if the operation has been cancelled.
+        Operation code that has a robust error-handling path can simply call
+        this periodically."""
+
     def set_status(self, status):
         """Sets the Monitor's 'status' object to an arbitrary value.
         Different operations will store different sorts of status information
@@ -69,6 +74,9 @@ class IMonitor(Interface):
 
     #   get_status() is useful too, but it is operation-specific
 
+class OperationCancelledError(Exception):
+    pass
+
 class Monitor:
     implements(IMonitor)
 
@@ -80,6 +88,10 @@ class Monitor:
 
     def is_cancelled(self):
         return self.cancelled
+
+    def raise_if_cancelled(self):
+        if self.cancelled:
+            raise OperationCancelledError()
 
     def is_finished(self):
         return self.finished
