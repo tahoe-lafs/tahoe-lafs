@@ -131,7 +131,12 @@ class MoreInfo(rend.Page):
         return ""
 
     def render_check_form(self, ctx, data):
-        check = T.form(action=".", method="post",
+        node = self.original
+        quoted_uri = urllib.quote(node.get_uri())
+        target = self.get_root(ctx) + "/uri/" + quoted_uri
+        if IDirectoryNode.providedBy(node):
+            target += "/"
+        check = T.form(action=target, method="post",
                        enctype="multipart/form-data")[
             T.fieldset[
             T.input(type="hidden", name="t", value="check"),
