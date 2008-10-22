@@ -721,10 +721,8 @@ class ManifestResults(rend.Page, ReloadMixin):
     def text(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         lines = []
-        if self.monitor.is_finished():
-            lines.append("finished: yes")
-        else:
-            lines.append("finished: no")
+        is_finished = self.monitor.is_finished()
+        lines.append("finished: " + {True: "yes", False: "no"}[is_finished])
         for (path, cap) in self.monitor.get_status():
             lines.append(self.slashify_path(path) + " " + cap)
         return "\n".join(lines) + "\n"
@@ -773,15 +771,14 @@ class DeepSizeResults(rend.Page):
         if output == "json":
             return self.json(ctx)
         # plain text
-        if self.monitor.is_finished():
-            output = "finished: true\n"
+        is_finished = self.monitor.is_finished()
+        output = "finished: " + {True: "yes", False: "no"}[is_finished] + "\n"
+        if is_finished:
             stats = self.monitor.get_status()
             total = (stats.get("size-immutable-files", 0)
                      + stats.get("size-mutable-files", 0)
                      + stats.get("size-directories", 0))
             output += "size: %d\n" % total
-        else:
-            output = "finished: false\n"
         return output
 
     def json(self, ctx):

@@ -100,21 +100,3 @@ class Monitor:
         return self.status
     def set_status(self, status):
         self.status = status
-
-class MonitorTable:
-    def __init__(self):
-        self.handles = {} # maps ophandle (an arbitrary string) to a Monitor
-        # TODO: all timeouts, handle lifetime, retain-for=, etc, goes here.
-        # self.handles should probably be a WeakValueDictionary, and we need
-        # a table of timers, and operations which have finished should be
-        # handled slightly differently.
-
-    def get_monitor(self, handle):
-        return self.handles.get(handle)
-
-    def add_monitor(self, handle, monitor):
-        self.handles[handle] = monitor
-
-    def delete_monitor(self, handle):
-        if handle in self.handles:
-            del self.handles[handle]

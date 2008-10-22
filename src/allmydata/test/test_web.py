@@ -2150,6 +2150,21 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
                                   client.getPage, url, method="DELETE")
         return d
 
+    def test_bad_ophandle(self):
+        url = self.webish_url + "/operations/bogus?t=status"
+        d = self.shouldHTTPError2("test_bad_ophandle", 400, "400 Bad Request",
+                                  "unknown/expired handle 'bogus'",
+                                  client.getPage, url)
+        return d
+
+    def test_incident(self):
+        d = self.POST("/report_incident", details="eek")
+        def _done(res):
+            self.failUnless("Thank you for your report!" in res, res)
+        d.addCallback(_done)
+        return d
+
+
 class Util(unittest.TestCase):
     def test_abbreviate_time(self):
         self.failUnlessEqual(common.abbreviate_time(None), "")
