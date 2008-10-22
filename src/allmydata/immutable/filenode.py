@@ -56,6 +56,9 @@ class FileNode(ImmutableFileNode):
         return self.u.storage_index
 
     def check(self, monitor, verify=False):
+        # TODO: pass the Monitor to SimpleCHKFileChecker or
+        # SimpleCHKFileVerifier, have it call monitor.raise_if_cancelled()
+        # before sending each request.
         storage_index = self.u.storage_index
         k = self.u.needed_shares
         N = self.u.total_shares
