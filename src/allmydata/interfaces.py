@@ -1556,7 +1556,7 @@ class ICheckerResults(Interface):
          sharemap: dict mapping share identifier to list of serverids
                    (binary strings). This indicates which servers are holding
                    which shares. For immutable files, the shareid is an
-                   integer (the share number, from 0 to N-1). For immutable
+                   integer (the share number, from 0 to N-1). For mutable
                    files, it is a string of the form 'seq%d-%s-sh%d',
                    containing the sequence number, the roothash, and the
                    share number.
