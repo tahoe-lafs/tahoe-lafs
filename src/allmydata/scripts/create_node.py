@@ -9,8 +9,8 @@ class CreateClientOptions(BasedirMixin, usage.Options):
         # we provide create-client -time options for the most common
         # configuration knobs. The rest can be controlled by editing
         # tahoe.cfg before node startup.
-        ("nickname", "n", "", "nickname for this node"),
-        ("introducer", "i", "", "introducer FURL to use"),
+        ("nickname", "n", None, "nickname for this node"),
+        ("introducer", "i", None, "introducer FURL to use"),
         ("webport", "p", "tcp:8123:interface=127.0.0.1",
          "which TCP port to run the HTTP interface on. Use 'none' to disable."),
         ]
