@@ -328,6 +328,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             assert isinstance(to_name, unicode)
         if not from_name or not to_name:
             raise WebError("rename requires from_name and to_name")
+        if from_name == to_name:
+            return defer.succeed("redundant rename")
 
         # allow from_name to contain slashes, so they can fix names that were
         # accidentally created with them. But disallow them in to_name, to

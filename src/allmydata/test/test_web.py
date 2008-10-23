@@ -1887,6 +1887,17 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(self.failUnlessIsBarJSON)
         return d
 
+    def test_POST_rename_file_redundant(self):
+        d = self.POST(self.public_url + "/foo", t="rename",
+                      from_name="bar.txt", to_name='bar.txt')
+        d.addCallback(lambda res:
+                      self.failUnlessNodeHasChild(self._foo_node, u"bar.txt"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt?t=json"))
+        d.addCallback(self.failUnlessIsBarJSON)
+        return d
+
     def test_POST_rename_file_replace(self):
         # rename a file and replace a directory with it
         d = self.POST(self.public_url + "/foo", t="rename",
