@@ -60,10 +60,10 @@ class OphandleTable(rend.Page, service.Service):
     def redirect_to(self, ctx):
         ophandle = get_arg(ctx, "ophandle")
         assert ophandle
-        target = get_root(ctx) + "/operations/" + ophandle + "?t=status"
+        target = get_root(ctx) + "/operations/" + ophandle
         output = get_arg(ctx, "output")
         if output:
-            target = target + "&output=%s" % output
+            target = target + "?output=%s" % output
         return url.URL.fromString(target)
 
     def childFactory(self, ctx, name):
@@ -73,8 +73,9 @@ class OphandleTable(rend.Page, service.Service):
                            NOT_FOUND)
         (monitor, renderer, when_added) = self.handles[ophandle]
 
+        request = IRequest(ctx)
         t = get_arg(ctx, "t", "status")
-        if t == "cancel":
+        if t == "cancel" and request.method == "POST":
             monitor.cancel()
             # return the status anyways, but release the handle
             self._release_ophandle(ophandle)
@@ -124,7 +125,7 @@ class ReloadMixin:
         # url.gethere would break a proxy, so the correct thing to do is
         # req.path[-1] + queryargs
         ophandle = req.prepath[-1]
-        reload_target = ophandle + "?t=status&output=html"
+        reload_target = ophandle + "?output=html"
         cancel_target = ophandle + "?t=cancel"
         cancel_button = T.form(action=cancel_target, method="POST",
                                enctype="multipart/form-data")[

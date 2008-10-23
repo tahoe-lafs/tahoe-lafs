@@ -854,6 +854,11 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
             self.failUnless(self._sub_uri in manifest)
             self.failUnless("<td>sub/baz.txt</td>" in manifest)
         d.addCallback(_got_html)
+
+        # both t=status and unadorned GET should be identical
+        d.addCallback(lambda res: self.GET("/operations/125"))
+        d.addCallback(_got_html)
+
         d.addCallback(getman, "html")
         d.addCallback(_got_html)
         d.addCallback(getman, "text")
@@ -1599,7 +1604,7 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
     def test_POST_DIRURL_deepcheck(self):
         def _check_redirect(statuscode, target):
             self.failUnlessEqual(statuscode, str(http.FOUND))
-            self.failUnless(target.endswith("/operations/123?t=status"))
+            self.failUnless(target.endswith("/operations/123"))
         d = self.shouldRedirect2("test_POST_DIRURL_deepcheck", _check_redirect,
                                  self.POST, self.public_url,
                                  t="start-deep-check", ophandle="123")

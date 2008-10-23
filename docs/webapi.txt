@@ -200,8 +200,8 @@ are created by the client, and passed in as a an "ophandle=" query argument
 to the POST or PUT request which starts the operation. The following
 operations can then be used to retrieve status:
 
-GET /operations/$HANDLE?t=status&output=HTML
-GET /operations/$HANDLE?t=status&output=JSON
+GET /operations/$HANDLE?output=HTML   (with or without t=status)
+GET /operations/$HANDLE?output=JSON   (same)
 
  These two retrieve the current status of the given operation. Each operation
  presents a different sort of information, but in general the page retrieved
@@ -220,30 +220,30 @@ POST /operations/$HANDLE?t=cancel
  cancelled. If the operation handle has already expired (see below), this
  POST will return a 404, which indicates that the operation is no longer
  running (either it was completed or terminated). The response body will be
- the same as a t=status on this operation handle, and the handle will be
- expired immediately afterwards.
+ the same as a GET /operations/$HANDLE on this operation handle, and the
+ handle will be expired immediately afterwards.
 
 The operation handle will eventually expire, to avoid consuming an unbounded
 amount of memory. The handle's time-to-live can be reset at any time, by
 passing a retain-for= argument (with a count of seconds) to either the
-initial POST that starts the operation, or the subsequent 'GET t=status'
-request which asks about the operation. For example, if a 'GET
-/operations/$HANDLE?t=status&output=JSON&retain-for=600' query is performed,
-the handle will remain active for 600 seconds (10 minutes) after the GET was
+initial POST that starts the operation, or the subsequent GET request which
+asks about the operation. For example, if a 'GET
+/operations/$HANDLE?output=JSON&retain-for=600' query is performed, the
+handle will remain active for 600 seconds (10 minutes) after the GET was
 received.
 
-In addition, if the GET t=status includes a release-after-complete=True
-argument, and the operation has completed, the operation handle will be
-released immediately.
+In addition, if the GET includes a release-after-complete=True argument, and
+the operation has completed, the operation handle will be released
+immediately.
 
 If a retain-for= argument is not used, the default handle lifetimes are:
 
  * handles will remain valid at least until their operation finishes
  * uncollected handles for finished operations (i.e. handles for operations
-   which have finished but for which the t=status page has not been accessed
-   since completion) will remain valid for one hour, or for the total time
-   consumed by the operation, whichever is greater.
- * collected handles (i.e. the t=status page has been retrieved at least once
+   which have finished but for which the GET page has not been accessed since
+   completion) will remain valid for one hour, or for the total time consumed
+   by the operation, whichever is greater.
+ * collected handles (i.e. the GET page has been retrieved at least once
    since the operation completed) will remain valid for ten minutes.
 
 
@@ -819,11 +819,11 @@ POST $URL?t=start-deep-check    (must add &ophandle=XYZ)
   deep-check operation will continue to run in the background, and the
   /operations page should be used to find out when the operation is done.
 
-  The HTML /operations/$HANDLE?t=status page for incomplete operations will
-  contain a meta-refresh tag, set to 60 seconds, so that a browser which uses
+  The HTML /operations/$HANDLE page for incomplete operations will contain a
+  meta-refresh tag, set to 60 seconds, so that a browser which uses
   deep-check will automatically poll until the operation has completed.
 
-  The JSON page (/options/$HANDLE?t=status&output=JSON) will contain a
+  The JSON page (/options/$HANDLE?output=JSON) will contain a
   machine-readable JSON dictionary with the following keys:
 
    finished: a boolean, True if the operation is complete, else False. Some
@@ -944,8 +944,8 @@ POST $DIRURL?t=start-manifest    (must add &ophandle=XYZ)
   gives immediate access to every object in the virtual filesystem subtree.
 
   This operation uses the same ophandle= mechanism as deep-check. The
-  corresponding /operations/$HANDLE?t=status page has three different forms.
-  The default is output=HTML.
+  corresponding /operations/$HANDLE page has three different forms. The
+  default is output=HTML.
 
   If output=text is added to the query args, the results will be a text/plain
   list. The first line is special: it is either "finished: yes" or "finished:
@@ -970,7 +970,7 @@ POST $DIRURL?t=start-deep-size    (must add &ophandle=XYZ)
   take expansion or encoding overhead into account. Later versions of the
   code may improve this estimate upwards.
 
-  The t=status output consists of two lines of text:
+  The /operations/$HANDLE status output consists of two lines of text:
 
    finished: yes
    size: 1234
