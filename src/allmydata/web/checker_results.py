@@ -365,7 +365,11 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
 
     def render_object(self, ctx, data):
         path, r = data
-        ctx.fillSlots("path", "/".join(self._html(path)))
+        if path:
+            pathstring = "/".join(self._html(path))
+        else:
+            pathstring = "<root>"
+        ctx.fillSlots("path", pathstring)
         ctx.fillSlots("healthy", str(r.is_healthy()))
         storage_index = r.get_storage_index()
         ctx.fillSlots("storage_index", self._render_si_link(ctx, storage_index))
