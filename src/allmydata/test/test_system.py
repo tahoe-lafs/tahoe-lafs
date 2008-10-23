@@ -1746,7 +1746,7 @@ class MutableChecker(SystemTestMixin, unittest.TestCase, WebErrorMixin):
             return getPage(url, method="POST")
         d.addCallback(_do_check)
         def _got_results(out):
-            self.failUnless("<div>Healthy!</div>" in out, out)
+            self.failUnless("<span>Healthy!</span>" in out, out)
             self.failUnless("Recoverable Versions: 10*seq1-" in out, out)
             self.failIf("Not Healthy!" in out, out)
             self.failIf("Unhealthy" in out, out)
