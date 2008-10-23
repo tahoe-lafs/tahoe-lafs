@@ -2,16 +2,71 @@
 import time
 import simplejson
 from nevow import rend, inevow, tags as T
-from twisted.web import html
-from allmydata.web.common import getxmlfile, get_arg, IClient
+from twisted.web import http, html
+from allmydata.web.common import getxmlfile, get_arg, get_root, \
+     IClient, WebError
 from allmydata.web.operations import ReloadMixin
 from allmydata.interfaces import ICheckAndRepairResults, ICheckerResults
 from allmydata.util import base32, idlib
 
 class ResultsBase:
-    def _render_results(self, cr):
+    def _render_results(self, ctx, cr):
         assert ICheckerResults(cr)
-        return T.pre["\n".join(self._html(cr.get_report()))] # TODO: more
+        c = IClient(ctx)
+        data = cr.get_data()
+        r = []
+        def add(name, value):
+            r.append(T.li[name + ": ", value])
+
+        add("Report", T.pre["\n".join(self._html(cr.get_report()))])
+        add("Share Counts",
+            "need %d-of-%d, have %d" % (data["count-shares-needed"],
+                                        data["count-shares-expected"],
+                                        data["count-shares-good"]))
+        add("Hosts with good shares", data["count-good-share-hosts"])
+
+        if data["list-corrupt-shares"]:
+            badsharemap = []
+            for (serverid, si, shnum) in data["list-corrupt-shares"]:
+                nickname = c.get_nickname_for_peerid(serverid)
+                badsharemap.append(T.tr[T.td["sh#%d" % shnum],
+                                        T.td[T.tt[base32.b2a(serverid)],
+                                             " (", nickname, ")"],
+                                        ])
+            add("Corrupt shares", T.table(border="1")[badsharemap])
+        else:
+            add("Corrupt shares", "none")
+
+        add("Wrong Shares", data["count-wrong-shares"])
+
+        sharemap = []
+        servers = {}
+        for shareid in sorted(data["sharemap"].keys()):
+            serverids = data["sharemap"][shareid]
+            for i,serverid in enumerate(serverids):
+                servers[serverid] = servers.get(serverid,0) + 1
+                shareid_s = ""
+                if i == 0:
+                    shareid_s = shareid
+                nickname = c.get_nickname_for_peerid(serverid)
+                sharemap.append(T.tr[T.td[shareid_s],
+                                     T.td[T.tt[base32.b2a(serverid)],
+                                          " (", nickname, ")"],
+                                     ])
+        add("Good Shares", T.table(border="1")[sharemap])
+
+        add("Recoverable Versions", data["count-recoverable-versions"])
+        add("Unrecoverable Versions", data["count-unrecoverable-versions"])
+
+        servermap = []
+        for serverid in sorted(servers.keys()):
+            nickname = c.get_nickname_for_peerid(serverid)
+            servermap.append(T.tr[T.td[T.tt[base32.b2a(serverid)],
+                                       " (", nickname, ")"],
+                                  T.td["*" * servers[serverid]] ])
+        add("Share Balancing", T.table(border="1")[servermap])
+
+        return T.ul[r]
 
     def _json_check_and_repair_results(self, r):
         data = {}
@@ -69,6 +124,17 @@ class ResultsBase:
             return True
         return False
 
+    def _render_si_link(self, ctx, storage_index):
+        si_s = base32.b2a(storage_index)
+        root = get_root(ctx)
+        req = inevow.IRequest(ctx)
+        ophandle = req.prepath[-1]
+        target = "%s/operations/%s/%s" % (get_root(ctx), ophandle, si_s)
+        output = get_arg(ctx, "output")
+        if output:
+            target = target + "?output=%s" % output
+        return T.a(href=target)[si_s]
+
 class LiteralCheckerResults(rend.Page, ResultsBase):
     docFactory = getxmlfile("literal-checker-results.xhtml")
 
@@ -84,33 +150,15 @@ class LiteralCheckerResults(rend.Page, ResultsBase):
                 }
         return simplejson.dumps(data, indent=1) + "\n"
 
-class CheckerResults(rend.Page, ResultsBase):
-    docFactory = getxmlfile("checker-results.xhtml")
-
-    def __init__(self, results):
-        self.r = ICheckerResults(results)
+class CheckerBase:
 
     def renderHTTP(self, ctx):
         if self.want_json(ctx):
             return self.json(ctx)
         return rend.Page.renderHTTP(self, ctx)
 
-    def json(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
-        data = self._json_check_results(self.r)
-        return simplejson.dumps(data, indent=1) + "\n"
-
     def render_storage_index(self, ctx, data):
         return self.r.get_storage_index_string()
-
-    def render_healthy(self, ctx, data):
-        if self.r.is_healthy():
-            return ctx.tag["Healthy!"]
-        return ctx.tag["Not Healthy!:", self._html(self.r.get_summary())]
-
-    def render_results(self, ctx, data):
-        cr = self._render_results(self.r)
-        return ctx.tag[cr]
 
     def render_return(self, ctx, data):
         req = inevow.IRequest(ctx)
@@ -119,30 +167,47 @@ class CheckerResults(rend.Page, ResultsBase):
             return T.div[T.a(href=return_to)["Return to parent directory"]]
         return ""
 
-class CheckAndRepairResults(rend.Page, ResultsBase):
+class CheckerResults(CheckerBase, rend.Page, ResultsBase):
+    docFactory = getxmlfile("checker-results.xhtml")
+
+    def __init__(self, results):
+        self.r = ICheckerResults(results)
+
+    def json(self, ctx):
+        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        data = self._json_check_results(self.r)
+        return simplejson.dumps(data, indent=1) + "\n"
+
+    def render_healthy(self, ctx, data):
+        if self.r.is_healthy():
+            return ctx.tag["Healthy!"]
+        return ctx.tag["Not Healthy!: ", self._html(self.r.get_summary())]
+
+    def render_rebalance(self, ctx, data):
+        if self.r.needs_rebalancing():
+            return ctx.tag["(needs rebalancing)"]
+        return ctx.tag["(does not need rebalancing)"]
+
+    def render_results(self, ctx, data):
+        cr = self._render_results(ctx, self.r)
+        return ctx.tag[cr]
+
+class CheckAndRepairResults(CheckerBase, rend.Page, ResultsBase):
     docFactory = getxmlfile("check-and-repair-results.xhtml")
 
     def __init__(self, results):
         self.r = ICheckAndRepairResults(results)
-
-    def renderHTTP(self, ctx):
-        if self.want_json(ctx):
-            return self.json(ctx)
-        return rend.Page.renderHTTP(self, ctx)
 
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         data = self._json_check_and_repair_results(self.r)
         return simplejson.dumps(data, indent=1) + "\n"
 
-    def render_storage_index(self, ctx, data):
-        return self.r.get_storage_index_string()
-
     def render_healthy(self, ctx, data):
         cr = self.r.get_post_repair_results()
         if cr.is_healthy():
             return ctx.tag["Healthy!"]
-        return ctx.tag["Not Healthy!:", self._html(cr.get_summary())]
+        return ctx.tag["Not Healthy!: ", self._html(cr.get_summary())]
 
     def render_repair_results(self, ctx, data):
         if self.r.get_repair_attempted():
@@ -153,29 +218,35 @@ class CheckAndRepairResults(rend.Page, ResultsBase):
         return ctx.tag["No repair necessary"]
 
     def render_post_repair_results(self, ctx, data):
-        cr = self._render_results(self.r.get_post_repair_results())
+        cr = self._render_results(ctx, self.r.get_post_repair_results())
         return ctx.tag[cr]
 
     def render_maybe_pre_repair_results(self, ctx, data):
         if self.r.get_repair_attempted():
-            cr = self._render_results(self.r.get_pre_repair_results())
+            cr = self._render_results(ctx, self.r.get_pre_repair_results())
             return ctx.tag[T.div["Pre-Repair Checker Results:"], cr]
         return ""
 
-    def render_return(self, ctx, data):
-        req = inevow.IRequest(ctx)
-        return_to = get_arg(req, "return_to", None)
-        if return_to:
-            return T.div[T.a(href=return_to)["Return to parent directory"]]
-        return ""
 
 class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
     docFactory = getxmlfile("deep-check-results.xhtml")
 
     def __init__(self, monitor):
-        #assert IDeepCheckResults(results)
-        #self.r = results
         self.monitor = monitor
+
+    def childFactory(self, ctx, name):
+        if not name:
+            return self
+        # /operation/$OPHANDLE/$STORAGEINDEX provides detailed information
+        # about a specific file or directory that was checked
+        si = base32.a2b(name)
+        r = self.monitor.get_status()
+        try:
+            return CheckerResults(r.get_results_for_storage_index(si))
+        except KeyError:
+            raise WebError("No detailed results for SI %s" % html.escape(name),
+                           http.NOT_FOUND)
+        return rend.Page.childFactory(self, ctx, name)
 
     def renderHTTP(self, ctx):
         if self.want_json(ctx):
@@ -276,7 +347,7 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
         ctx.fillSlots("serverid", idlib.shortnodeid_b2a(serverid))
         if nickname:
             ctx.fillSlots("nickname", self._html(nickname))
-        ctx.fillSlots("si", base32.b2a(storage_index))
+        ctx.fillSlots("si", self._render_si_link(ctx, storage_index))
         ctx.fillSlots("shnum", str(sharenum))
         return ctx.tag
 
@@ -296,6 +367,8 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
         path, r = data
         ctx.fillSlots("path", "/".join(self._html(path)))
         ctx.fillSlots("healthy", str(r.is_healthy()))
+        storage_index = r.get_storage_index()
+        ctx.fillSlots("storage_index", self._render_si_link(ctx, storage_index))
         ctx.fillSlots("summary", self._html(r.get_summary()))
         return ctx.tag
 

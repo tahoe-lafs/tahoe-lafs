@@ -1649,6 +1649,11 @@ class IDeepCheckResults(Interface):
         be slash-joined) to an ICheckerResults instance, one for each object
         that was checked."""
 
+    def get_results_for_storage_index(storage_index):
+        """Retrive the ICheckerResults instance for the given (binary)
+        storage index. Raises KeyError if there are no results for that
+        storage index."""
+
     def get_stats():
         """Return a dictionary with the same keys as
         IDirectoryNode.deep_stats()."""

@@ -50,13 +50,26 @@ class FakeCHKFileNode:
         r = CheckerResults(self.storage_index)
         is_bad = self.bad_shares.get(self.storage_index, None)
         data = {}
+        data["count-shares-needed"] = 3
+        data["count-shares-expected"] = 10
+        data["count-good-share-hosts"] = 10
+        data["count-wrong-shares"] = 0
+        nodeid = "\x00"*20
+        data["list-corrupt-shares"] = []
+        data["sharemap"] = {1: [nodeid]}
+        data["count-recoverable-versions"] = 1
+        data["count-unrecoverable-versions"] = 0
         if is_bad:
              r.set_healthy(False)
+             data["count-shares-good"] = 9
+             data["list-corrupt-shares"] = [(nodeid, self.storage_index, 0)]
              r.problems = failure.Failure(CorruptShareError(is_bad))
         else:
              r.set_healthy(True)
+             data["count-shares-good"] = 10
              r.problems = []
         r.set_data(data)
+        r.set_needs_rebalancing(False)
         return defer.succeed(r)
     def check_and_repair(self, monitor, verify=False):
         d = self.check(verify)
@@ -153,16 +166,27 @@ class FakeMutableFileNode:
         r = CheckerResults(self.storage_index)
         is_bad = self.bad_shares.get(self.storage_index, None)
         data = {}
+        data["count-shares-needed"] = 3
+        data["count-shares-expected"] = 10
+        data["count-good-share-hosts"] = 10
+        data["count-wrong-shares"] = 0
         data["list-corrupt-shares"] = []
+        nodeid = "\x00"*20
+        data["sharemap"] = {"seq1-abcd-sh0": [nodeid]}
+        data["count-recoverable-versions"] = 1
+        data["count-unrecoverable-versions"] = 0
         if is_bad:
              r.set_healthy(False)
+             data["count-shares-good"] = 9
              r.problems = failure.Failure(CorruptShareError("peerid",
                                                             0, # shnum
                                                             is_bad))
         else:
              r.set_healthy(True)
+             data["count-shares-good"] = 10
              r.problems = []
         r.set_data(data)
+        r.set_needs_rebalancing(False)
         return defer.succeed(r)
 
     def check_and_repair(self, monitor, verify=False):

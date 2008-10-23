@@ -48,6 +48,9 @@ class FakeClient(service.MultiService):
     def connected_to_introducer(self):
         return False
 
+    def get_nickname_for_peerid(self, peerid):
+        return u"John Doe"
+
     def create_node_from_uri(self, auri):
         u = uri.from_string(auri)
         if (INewDirectoryURI.providedBy(u)

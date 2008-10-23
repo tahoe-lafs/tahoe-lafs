@@ -67,11 +67,13 @@
   <tr n:pattern="header">
     <td>Relative Path</td>
     <td>Healthy</td>
+    <td>Storage Index</td>
     <td>Summary</td>
   </tr>
   <tr n:pattern="item" n:render="object">
     <td><n:slot name="path"/></td>
     <td><n:slot name="healthy"/></td>
+    <td><tt><n:slot name="storage_index"/></tt></td>
     <td><n:slot name="summary"/></td>
   </tr>
 </table>

@@ -91,6 +91,7 @@ class DeepResultsBase:
         self.objects_unhealthy = 0
         self.corrupt_shares = []
         self.all_results = {}
+        self.all_results_by_storage_index = {}
         self.stats = {}
 
     def update_stats(self, new_stats):
@@ -104,6 +105,9 @@ class DeepResultsBase:
 
     def get_all_results(self):
         return self.all_results
+
+    def get_results_for_storage_index(self, storage_index):
+        return self.all_results_by_storage_index[storage_index]
 
     def get_stats(self):
         return self.stats
@@ -123,6 +127,7 @@ class DeepCheckResults(DeepResultsBase):
         else:
             self.objects_unhealthy += 1
         self.all_results[tuple(path)] = r
+        self.all_results_by_storage_index[r.get_storage_index()] = r
         self.corrupt_shares.extend(r.get_data()["list-corrupt-shares"])
 
     def get_counters(self):
@@ -171,6 +176,7 @@ class DeepCheckAndRepairResults(DeepResultsBase):
         else:
             self.objects_unhealthy_post_repair += 1
         self.all_results[tuple(path)] = r
+        self.all_results_by_storage_index[r.get_storage_index()] = r
         self.corrupt_shares_post_repair.extend(post_repair.get_data()["list-corrupt-shares"])
 
     def get_counters(self):
