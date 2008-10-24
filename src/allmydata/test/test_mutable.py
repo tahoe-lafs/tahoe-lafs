@@ -1399,6 +1399,36 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         d.addCallback(_check_smap)
         return d
 
+    def test_non_merge(self):
+        self.old_shares = []
+        d = self.publish_multiple()
+        # repair should not refuse a repair that doesn't need to merge. In
+        # this case, we combine v2 with v3. The repair should ignore v2 and
+        # copy v3 into a new v5.
+        d.addCallback(lambda res:
+                      self._set_versions({0:2,2:2,4:2,6:2,8:2,
+                                          1:3,3:3,5:3,7:3,9:3}))
+        d.addCallback(lambda res: self._fn.check(Monitor()))
+        d.addCallback(lambda check_results: self._fn.repair(check_results))
+        # this should give us 10 shares of v3
+        def _check_repair_results(rres):
+            pass # TODO
+        d.addCallback(_check_repair_results)
+        d.addCallback(lambda res: self._fn.get_servermap(MODE_CHECK))
+        def _check_smap(smap):
+            self.failUnlessEqual(len(smap.recoverable_versions()), 1)
+            self.failIf(smap.unrecoverable_versions())
+            # now, which should have won?
+            roothash_s4a = self.get_roothash_for(3)
+            expected_contents = self.CONTENTS[3]
+            new_versionid = smap.best_recoverable_version()
+            self.failUnlessEqual(new_versionid[0], 5) # seqnum 5
+            d2 = self._fn.download_version(smap, new_versionid)
+            d2.addCallback(self.failUnlessEqual, expected_contents)
+            return d2
+        d.addCallback(_check_smap)
+        return d
+
     def get_roothash_for(self, index):
         # return the roothash for the first share we see in the saved set
         shares = self._copied_shares[index]

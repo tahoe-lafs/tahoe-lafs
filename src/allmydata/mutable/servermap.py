@@ -329,7 +329,12 @@ class ServerMap:
         # same seqnum, meaning that MutableFileNode.read_best_version is not
         # giving you the whole story, and that using its data to do a
         # subsequent publish will lose information.
-        return bool(len(self.recoverable_versions()) > 1)
+        recoverable_seqnums = [verinfo[0]
+                               for verinfo in self.recoverable_versions()]
+        for seqnum in recoverable_seqnums:
+            if recoverable_seqnums.count(seqnum) > 1:
+                return True
+        return False
 
 
 class ServermapUpdater:
