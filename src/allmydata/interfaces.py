@@ -55,6 +55,18 @@ class RIBucketReader(RemoteInterface):
     def read(offset=Offset, length=ReadSize):
         return ShareData
 
+    def advise_corrupt_share(reason=str):
+        """Clients who discover hash failures in shares that they have
+        downloaded from me will use this method to inform me about the
+        failures. I will record their concern so that my operator can
+        manually inspect the shares in question. I return None.
+
+        This is a wrapper around RIStorageServer.advise_corrupt_share(),
+        which is tied to a specific share, and therefore does not need the
+        extra share-identifying arguments. Please see that method for full
+        documentation.
+        """
+
 TestVector = ListOf(TupleOf(Offset, ReadSize, str, str))
 # elements are (offset, length, operator, specimen)
 # operator is one of "lt, le, eq, ne, ge, gt"
@@ -229,6 +241,23 @@ class RIStorageServer(RemoteInterface):
 
         """
         return TupleOf(bool, DictOf(int, ReadData))
+
+    def advise_corrupt_share(share_type=str, storage_index=StorageIndex,
+                             shnum=int, reason=str):
+        """Clients who discover hash failures in shares that they have
+        downloaded from me will use this method to inform me about the
+        failures. I will record their concern so that my operator can
+        manually inspect the shares in question. I return None.
+
+        'share_type' is either 'mutable' or 'immutable'. 'storage_index' is a
+        (binary) storage index string, and 'shnum' is the integer share
+        number. 'reason' is a human-readable explanation of the problem,
+        probably including some expected hash values and the computed ones
+        which did not match. Corruption advisories for mutable shares should
+        include a hash of the public key (the same value that appears in the
+        mutable-file verify-cap), since the current share format does not
+        store that on disk.
+        """
 
 class IStorageBucketWriter(Interface):
     """

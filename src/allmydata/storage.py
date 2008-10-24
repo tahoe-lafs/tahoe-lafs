@@ -7,7 +7,7 @@ from twisted.application import service
 from zope.interface import implements
 from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
      RIBucketReader, BadWriteEnablerError, IStatsProducer
-from allmydata.util import base32, fileutil, idlib, log
+from allmydata.util import base32, fileutil, idlib, log, time_format
 from allmydata.util.assertutil import precondition
 import allmydata # for __version__
 
@@ -322,9 +322,11 @@ class BucketWriter(Referenceable):
 class BucketReader(Referenceable):
     implements(RIBucketReader)
 
-    def __init__(self, ss, sharefname):
+    def __init__(self, ss, sharefname, storage_index=None, shnum=None):
         self.ss = ss
         self._share_file = ShareFile(sharefname)
+        self.storage_index = storage_index
+        self.shnum = shnum
 
     def remote_read(self, offset, length):
         start = time.time()
@@ -333,6 +335,11 @@ class BucketReader(Referenceable):
         self.ss.count("read")
         return data
 
+    def remote_advise_corrupt_share(self, reason):
+        return self.ss.remote_advise_corrupt_share("immutable",
+                                                   self.storage_index,
+                                                   self.shnum,
+                                                   reason)
 
 # the MutableShareFile is like the ShareFile, but used for mutable data. It
 # has a different layout. See docs/mutable.txt for more details.
@@ -770,6 +777,9 @@ class StorageServer(service.MultiService, Referenceable):
         sharedir = os.path.join(storedir, "shares")
         fileutil.make_dirs(sharedir)
         self.sharedir = sharedir
+        # we don't actually create the corruption-advisory dir until necessary
+        self.corruption_advisory_dir = os.path.join(storedir,
+                                                    "corruption-advisories")
         self.sizelimit = sizelimit
         self.no_storage = discard_storage
         self.readonly_storage = readonly_storage
@@ -1075,7 +1085,8 @@ class StorageServer(service.MultiService, Referenceable):
         log.msg("storage: get_buckets %s" % si_s)
         bucketreaders = {} # k: sharenum, v: BucketReader
         for shnum, filename in self._get_bucket_shares(storage_index):
-            bucketreaders[shnum] = BucketReader(self, filename)
+            bucketreaders[shnum] = BucketReader(self, filename,
+                                                storage_index, shnum)
         self.add_latency("get", time.time() - start)
         return bucketreaders
 
@@ -1206,3 +1217,25 @@ class StorageServer(service.MultiService, Referenceable):
                 facility="tahoe.storage", level=log.NOISY, parent=lp)
         self.add_latency("readv", time.time() - start)
         return datavs
+
+    def remote_advise_corrupt_share(self, share_type, storage_index, shnum,
+                                    reason):
+        fileutil.make_dirs(self.corruption_advisory_dir)
+        now = time_format.iso_utc(sep="T")
+        si_s = base32.b2a(storage_index)
+        fn = os.path.join(self.corruption_advisory_dir,
+                          "%s--%s-%d" % (now, si_s, shnum))
+        f = open(fn, "w")
+        f.write("report: Share Corruption\n")
+        f.write("type: %s\n" % share_type)
+        f.write("storage_index: %s\n" % si_s)
+        f.write("share_number: %d\n" % shnum)
+        f.write("\n")
+        f.write(reason)
+        f.write("\n")
+        f.close()
+        log.msg(format=("client claims corruption in (%(share_type)s) " +
+                        "%(si)s-%(shnum)d: %(reason)s"),
+                share_type=share_type, si=si_s, shnum=shnum, reason=reason,
+                level=log.SCARY, umid="SGx2fA")
+        return None

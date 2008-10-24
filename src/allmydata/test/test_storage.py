@@ -5,7 +5,7 @@ from twisted.internet import defer
 import time, os.path, stat
 import itertools
 from allmydata import interfaces
-from allmydata.util import fileutil, hashutil
+from allmydata.util import fileutil, hashutil, base32
 from allmydata.storage import BucketWriter, BucketReader, \
      StorageServer, MutableShareFile, \
      storage_index_to_dir, DataTooLargeError, LeaseInfo
@@ -591,6 +591,51 @@ class Server(unittest.TestCase):
         b = ss.remote_get_buckets("vid")
         self.failUnlessEqual(set(b.keys()), set([0,1,2]))
         self.failUnlessEqual(b[0].remote_read(0, 25), "\x00" * 25)
+
+    def test_advise_corruption(self):
+        workdir = self.workdir("test_advise_corruption")
+        ss = StorageServer(workdir, discard_storage=True)
+        ss.setNodeID("\x00" * 20)
+        ss.setServiceParent(self.sparent)
+
+        si0_s = base32.b2a("si0")
+        ss.remote_advise_corrupt_share("immutable", "si0", 0,
+                                       "This share smells funny.\n")
+        reportdir = os.path.join(workdir, "corruption-advisories")
+        reports = os.listdir(reportdir)
+        self.failUnlessEqual(len(reports), 1)
+        report_si0 = reports[0]
+        self.failUnless(si0_s in report_si0, report_si0)
+        f = open(os.path.join(reportdir, report_si0), "r")
+        report = f.read()
+        f.close()
+        self.failUnless("type: immutable" in report)
+        self.failUnless(("storage_index: %s" % si0_s) in report)
+        self.failUnless("share_number: 0" in report)
+        self.failUnless("This share smells funny." in report)
+
+        # test the RIBucketWriter version too
+        si1_s = base32.b2a("si1")
+        already,writers = self.allocate(ss, "si1", [1], 75)
+        self.failUnlessEqual(already, set())
+        self.failUnlessEqual(set(writers.keys()), set([1]))
+        writers[1].remote_write(0, "data")
+        writers[1].remote_close()
+
+        b = ss.remote_get_buckets("si1")
+        self.failUnlessEqual(set(b.keys()), set([1]))
+        b[1].remote_advise_corrupt_share("This share tastes like dust.\n")
+
+        reports = os.listdir(reportdir)
+        self.failUnlessEqual(len(reports), 2)
+        report_si1 = [r for r in reports if si1_s in r][0]
+        f = open(os.path.join(reportdir, report_si1), "r")
+        report = f.read()
+        f.close()
+        self.failUnless("type: immutable" in report)
+        self.failUnless(("storage_index: %s" % si1_s) in report)
+        self.failUnless("share_number: 1" in report)
+        self.failUnless("This share tastes like dust." in report)
 
 
 
