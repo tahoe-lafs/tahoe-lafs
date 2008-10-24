@@ -90,6 +90,8 @@ class MutableChecker:
                 self.bad_shares.append( (peerid, shnum, f) )
                 prefix = data[:SIGNED_PREFIX_LENGTH]
                 servermap.mark_bad_share(peerid, shnum, prefix)
+                ss = servermap.connections[peerid]
+                self.notify_server_corruption(ss, shnum, str(f.value))
 
     def check_prefix(self, peerid, shnum, data):
         (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
@@ -134,6 +136,10 @@ class MutableChecker:
             alleged_writekey = hashutil.ssk_writekey_hash(alleged_privkey_s)
             if alleged_writekey != self._node.get_writekey():
                 raise CorruptShareError(peerid, shnum, "invalid privkey")
+
+    def notify_server_corruption(self, ss, shnum, reason):
+        ss.callRemoteOnly("advise_corrupt_share",
+                          "mutable", self._storage_index, shnum, reason)
 
     def _count_shares(self, smap, version):
         available_shares = smap.shares_available()

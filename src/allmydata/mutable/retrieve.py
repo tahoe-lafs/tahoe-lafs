@@ -268,6 +268,7 @@ class Retrieve:
                 self.log(format="bad share: %(f_value)s",
                          f_value=str(f.value), failure=f,
                          level=log.WEIRD, umid="7fzWZw")
+                self.notify_server_corruption(peerid, shnum, str(e))
                 self.remove_peer(peerid)
                 self.servermap.mark_bad_share(peerid, shnum, prefix)
                 self._bad_shares.add( (peerid, shnum) )
@@ -278,6 +279,11 @@ class Retrieve:
                 lp = None
                 self._try_to_validate_privkey(datav[2], peerid, shnum, lp)
         # all done!
+
+    def notify_server_corruption(self, peerid, shnum, reason):
+        ss = self.servermap.connections[peerid]
+        ss.callRemoteOnly("advise_corrupt_share",
+                          "mutable", self._storage_index, shnum, reason)
 
     def _got_results_one_share(self, shnum, peerid,
                                got_prefix, got_hash_and_data):

@@ -575,6 +575,7 @@ class ServermapUpdater:
                 f = failure.Failure()
                 self.log(format="bad share: %(f_value)s", f_value=str(f.value),
                          failure=f, parent=lp, level=log.WEIRD, umid="h5llHg")
+                self.notify_server_corruption(peerid, shnum, str(e))
                 self._bad_peers.add(peerid)
                 self._last_failure = f
                 checkstring = data[:SIGNED_PREFIX_LENGTH]
@@ -608,6 +609,11 @@ class ServermapUpdater:
 
         # all done!
         self.log("_got_results done", parent=lp, level=log.NOISY)
+
+    def notify_server_corruption(self, peerid, shnum, reason):
+        ss = self._servermap.connections[peerid]
+        ss.callRemoteOnly("advise_corrupt_share",
+                          "mutable", self._storage_index, shnum, reason)
 
     def _got_results_one_share(self, shnum, data, peerid, lp):
         self.log(format="_got_results: got shnum #%(shnum)d from peerid %(peerid)s",

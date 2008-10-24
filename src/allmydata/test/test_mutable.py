@@ -117,6 +117,13 @@ class FakeStorageServer:
         d = fireEventually()
         d.addCallback(lambda res: _call())
         return d
+    def callRemoteOnly(self, methname, *args, **kwargs):
+        d = self.callRemote(methname, *args, **kwargs)
+        d.addBoth(lambda ignore: None)
+        pass
+
+    def advise_corrupt_share(self, share_type, storage_index, shnum, reason):
+        pass
 
     def slot_readv(self, storage_index, shnums, readv):
         d = self.storage.read(self.peerid, storage_index)
