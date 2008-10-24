@@ -1640,10 +1640,16 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
             self.failUnless("Objects Checked: <span>8</span>" in res)
             self.failUnless("Objects Healthy: <span>8</span>" in res)
         d.addCallback(_check_html)
+
+        d.addCallback(lambda res:
+                      self.GET("/operations/123/"))
+        d.addCallback(_check_html) # should be the same as without the slash
+
         d.addCallback(lambda res:
                       self.shouldFail2(error.Error, "one", "404 Not Found",
                                        "No detailed results for SI bogus",
                                        self.GET, "/operations/123/bogus"))
+
         foo_si = self._foo_node.get_storage_index()
         foo_si_s = base32.b2a(foo_si)
         d.addCallback(lambda res:
