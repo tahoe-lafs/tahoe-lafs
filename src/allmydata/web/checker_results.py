@@ -246,7 +246,6 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
         except KeyError:
             raise WebError("No detailed results for SI %s" % html.escape(name),
                            http.NOT_FOUND)
-        return rend.Page.childFactory(self, ctx, name)
 
     def renderHTTP(self, ctx):
         if self.want_json(ctx):
