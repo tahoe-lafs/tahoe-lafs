@@ -57,6 +57,7 @@ class FakeCHKFileNode:
         nodeid = "\x00"*20
         data["list-corrupt-shares"] = []
         data["sharemap"] = {1: [nodeid]}
+        data["servers-responding"] = [nodeid]
         data["count-recoverable-versions"] = 1
         data["count-unrecoverable-versions"] = 0
         if is_bad:
@@ -173,6 +174,7 @@ class FakeMutableFileNode:
         data["list-corrupt-shares"] = []
         nodeid = "\x00"*20
         data["sharemap"] = {"seq1-abcd-sh0": [nodeid]}
+        data["servers-responding"] = [nodeid]
         data["count-recoverable-versions"] = 1
         data["count-unrecoverable-versions"] = 0
         if is_bad:

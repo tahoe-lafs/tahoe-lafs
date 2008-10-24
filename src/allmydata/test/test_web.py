@@ -8,7 +8,7 @@ from twisted.python import failure, log
 from allmydata import interfaces, provisioning, uri, webish
 from allmydata.immutable import upload, download
 from allmydata.web import status, common
-from allmydata.util import fileutil, testutil
+from allmydata.util import fileutil, testutil, base32
 from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, \
      FakeMutableFileNode, create_chk_filenode
 from allmydata.interfaces import IURI, INewDirectoryURI, \
@@ -1492,6 +1492,15 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
             self.failUnless("Return to parent directory" in res)
             self.failUnless(redir_url in res)
         d.addCallback(_check3)
+
+        d.addCallback(lambda res:
+                      self.POST(bar_url, t="check", output="JSON"))
+        def _check_json(res):
+            data = simplejson.loads(res)
+            self.failUnless("storage-index" in data)
+            self.failUnless(data["results"]["healthy"])
+        d.addCallback(_check_json)
+
         return d
 
     def test_POST_FILEURL_check_and_repair(self):
@@ -1542,6 +1551,15 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
             self.failUnless("Return to parent directory" in res)
             self.failUnless(redir_url in res)
         d.addCallback(_check3)
+
+        d.addCallback(lambda res:
+                      self.POST(foo_url, t="check", output="JSON"))
+        def _check_json(res):
+            data = simplejson.loads(res)
+            self.failUnless("storage-index" in data)
+            self.failUnless(data["results"]["healthy"])
+        d.addCallback(_check_json)
+
         return d
 
     def test_POST_DIRURL_check_and_repair(self):
@@ -1622,6 +1640,19 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
             self.failUnless("Objects Checked: <span>8</span>" in res)
             self.failUnless("Objects Healthy: <span>8</span>" in res)
         d.addCallback(_check_html)
+        d.addCallback(lambda res:
+                      self.shouldFail2(error.Error, "one", "404 Not Found",
+                                       "No detailed results for SI bogus",
+                                       self.GET, "/operations/123/bogus"))
+        foo_si = self._foo_node.get_storage_index()
+        foo_si_s = base32.b2a(foo_si)
+        d.addCallback(lambda res:
+                      self.GET("/operations/123/%s?output=JSON" % foo_si_s))
+        def _check_foo_json(res):
+            data = simplejson.loads(res)
+            self.failUnlessEqual(data["storage-index"], foo_si_s)
+            self.failUnless(data["results"]["healthy"])
+        d.addCallback(_check_foo_json)
         return d
 
     def test_POST_DIRURL_deepcheck_and_repair(self):
