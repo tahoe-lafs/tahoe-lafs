@@ -19,7 +19,7 @@ DEFAULT_DIR     = "misc/dependencies/"
 DEFAULT_URL     = "file:"+DEFAULT_DIR
 
 md5_data = {
-    'setuptools-0.6c10dev.egg': '56ae866722988be6859e5e611b84e970',
+    'setuptools-0.6c10dev.egg': 'caa2735c28de4361dbfbdbf1a1bbc87a',
 }
 
 import sys, os
@@ -39,7 +39,7 @@ def _validate_md5(egg_name, data):
 
 def use_setuptools(
     version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir,
-    min_version=None, download_delay=15
+    min_version="0.6c10dev", download_delay=15
 ):
     """Automatically find/download setuptools and make it available on sys.path
 
