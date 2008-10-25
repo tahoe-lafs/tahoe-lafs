@@ -1,19 +1,20 @@
-install_requires=["zfec >= 1.1.0",
-                  "foolscap[secure_connections] >= 0.3.1",
-                  "simplejson >= 1.4",
+install_requires=[
+                  # we require 0.6c8 to build, but can handle older versions
+                  # to run
+                  "setuptools >= 0.6a9",
 
                   # pycryptopp < 0.5 had a bug which, using a Microsoft
                   # compiler, or using some versions of g++ while linking
                   # against certain older versions of Crypto++, would cause
                   # incorrect AES results.
                   "pycryptopp >= 0.5",
-                  "Nevow >= 0.6.0",
+                  "zfec >= 1.1.0",
+                  "simplejson >= 1.4",
+
                   "zope.interface",
                   "Twisted >= 2.4.0",
-
-                  # we require 0.6c8 to build, but can handle older versions
-                  # to run
-                  "setuptools >= 0.6a9",
+                  "foolscap[secure_connections] >= 0.3.1",
+                  "Nevow >= 0.6.0",
                   ]
 import sys
 if hasattr(sys, 'frozen'):
