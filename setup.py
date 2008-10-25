@@ -188,10 +188,11 @@ it remains available even when some of the peers are unavailable,
 malfunctioning, or malicious."""
 
 
-# Default setup_requires are pyutil for the Windows installer builder(see
-# misc/sub-ver.py) and Twisted for the tests.
-#setup_requires = ['pyutil >= 1.3.16', 'Twisted >= 2.4.0']
 setup_requires = []
+
+# Nevow requires Twisted to setup, but doesn't declare that requirement in a way that enables
+# setuptools to satisfy that requirement before Nevow's setup.py tried to "import twisted".
+setup_requires.append('Twisted >= 2.4.0')
 
 # darcsver is needed only if you want "./setup.py darcsver" to write a new
 # version stamp in src/allmydata/_version.py, with a version number derived from
