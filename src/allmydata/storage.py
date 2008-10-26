@@ -1223,8 +1223,9 @@ class StorageServer(service.MultiService, Referenceable):
         fileutil.make_dirs(self.corruption_advisory_dir)
         now = time_format.iso_utc(sep="T")
         si_s = base32.b2a(storage_index)
+        # windows can't handle colons in the filename
         fn = os.path.join(self.corruption_advisory_dir,
-                          "%s--%s-%d" % (now, si_s, shnum))
+                          "%s--%s-%d" % (now, si_s, shnum)).replace(":","")
         f = open(fn, "w")
         f.write("report: Share Corruption\n")
         f.write("type: %s\n" % share_type)
