@@ -653,6 +653,9 @@ class ExistingChildError(Exception):
     """A directory node was asked to add or replace a child that already
     exists, and overwrite= was set to False."""
 
+class NoSuchChildError(Exception):
+    """A directory node was asked to fetch a child which does not exist."""
+
 class IDirectoryNode(IMutableFilesystemNode):
     """I represent a name-to-child mapping, holding the tahoe equivalent of a
     directory. All child names are unicode strings, and all children are some
@@ -691,13 +694,15 @@ class IDirectoryNode(IMutableFilesystemNode):
     def get(name):
         """I return a Deferred that fires with a specific named child node,
         either an IFileNode or an IDirectoryNode. The child name must be a
-        unicode string."""
+        unicode string. I raise NoSuchChildError if I do not have a child by
+        that name."""
 
     def get_metadata_for(name):
         """I return a Deferred that fires with the metadata dictionary for a
         specific named child node. This metadata is stored in the *edge*, not
         in the child, so it is attached to the parent dirnode rather than the
-        child dir-or-file-node. The child name must be a unicode string."""
+        child dir-or-file-node. The child name must be a unicode string. I
+        raise NoSuchChildError if I do not have a child by that name."""
 
     def set_metadata_for(name, metadata):
         """I replace any existing metadata for the named child with the new
@@ -705,14 +710,15 @@ class IDirectoryNode(IMutableFilesystemNode):
         stored in the *edge*, not in the child, so it is attached to the
         parent dirnode rather than the child dir-or-file-node. I return a
         Deferred (that fires with this dirnode) when the operation is
-        complete."""
+        complete. I raise NoSuchChildError if I do not have a child by that
+        name."""
 
     def get_child_at_path(path):
         """Transform a child path into an IDirectoryNode or IFileNode.
 
         I perform a recursive series of 'get' operations to find the named
         descendant node. I return a Deferred that fires with the node, or
-        errbacks with IndexError if the node could not be found.
+        errbacks with NoSuchChildError if the node could not be found.
 
         The path can be either a single string (slash-separated) or a list of
         path-name elements. All elements must be unicode strings.
@@ -792,7 +798,8 @@ class IDirectoryNode(IMutableFilesystemNode):
     def delete(name):
         """I remove the child at the specific name. I return a Deferred that
         fires when the operation finishes. The child name must be a unicode
-        string."""
+        string. I raise NoSuchChildError if I do not have a child by that
+        name."""
 
     def create_empty_directory(name, overwrite=True):
         """I create and attach an empty directory at the given name. The
@@ -805,7 +812,8 @@ class IDirectoryNode(IMutableFilesystemNode):
         is referenced by name. On the new parent, the child will live under
         'new_child_name', which defaults to 'current_child_name'. TODO: what
         should we do about metadata? I return a Deferred that fires when the
-        operation finishes. The child name must be a unicode string."""
+        operation finishes. The child name must be a unicode string. I raise
+        NoSuchChildError if I do not have a child by that name."""
 
     def build_manifest():
         """Return a Monitor. The Monitor's results will be a list of (path,

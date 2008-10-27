@@ -8,7 +8,7 @@ from allmydata.mutable.common import NotMutableError
 from allmydata.mutable.node import MutableFileNode
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
      IURI, IFileNode, IMutableFileURI, IFilesystemNode, \
-     ExistingChildError, ICheckable, IDeepCheckable
+     ExistingChildError, NoSuchChildError, ICheckable, IDeepCheckable
 from allmydata.checker_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
@@ -28,7 +28,7 @@ class Deleter:
         children = self.node._unpack_contents(old_contents)
         if self.name not in children:
             if self.must_exist:
-                raise KeyError(self.name)
+                raise NoSuchChildError(self.name)
             self.old_child = None
             return None
         self.old_child, metadata = children[self.name]
@@ -44,6 +44,8 @@ class MetadataSetter:
 
     def modify(self, old_contents):
         children = self.node._unpack_contents(old_contents)
+        if self.name not in children:
+            raise NoSuchChildError(self.name)
         children[self.name] = (children[self.name][0], self.metadata)
         new_contents = self.node._pack_contents(children)
         return new_contents
@@ -246,13 +248,13 @@ class NewDirectoryNode:
     def _get(self, children, name):
         child = children.get(name)
         if child is None:
-            raise KeyError(name)
+            raise NoSuchChildError(name)
         return child[0]
 
     def _get_with_metadata(self, children, name):
         child = children.get(name)
         if child is None:
-            raise KeyError(name)
+            raise NoSuchChildError(name)
         return child
 
     def get(self, name):

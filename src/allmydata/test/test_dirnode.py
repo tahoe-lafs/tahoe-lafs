@@ -7,7 +7,8 @@ from allmydata import uri, dirnode
 from allmydata.immutable import upload
 from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
      INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode, \
-     ExistingChildError, IDeepCheckResults, IDeepCheckAndRepairResults
+     ExistingChildError, NoSuchChildError, \
+     IDeepCheckResults, IDeepCheckAndRepairResults
 from allmydata.util import hashutil, testutil
 from allmydata.monitor import Monitor
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
@@ -104,7 +105,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                 self.failUnless(u"child" in children)
             d.addCallback(_check1)
             d.addCallback(lambda res:
-                          self.shouldFail(KeyError, "get bogus", None,
+                          self.shouldFail(NoSuchChildError, "get bogus", None,
                                           dn.get, u"bogus"))
             def _corrupt(res):
                 filenode = dn._node
@@ -381,8 +382,8 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                                                ["ctime", "mtime"]))
 
             d.addCallback(lambda res:
-                          self.shouldFail(KeyError, "gcamap-no",
-                                          "'nope'",
+                          self.shouldFail(NoSuchChildError, "gcamap-no",
+                                          "nope",
                                           n.get_child_and_metadata_at_path,
                                           u"subdir/nope"))
             d.addCallback(lambda res:

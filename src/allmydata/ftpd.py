@@ -9,7 +9,8 @@ from twisted.protocols import ftp
 from twisted.cred import error, portal, checkers, credentials
 from twisted.web.client import getPage
 
-from allmydata.interfaces import IDirectoryNode, ExistingChildError
+from allmydata.interfaces import IDirectoryNode, ExistingChildError, \
+     NoSuchChildError
 from allmydata.immutable.download import ConsumerAdapter
 from allmydata.immutable.upload import FileHandle
 from allmydata.util import base32
@@ -86,7 +87,7 @@ class Handler:
             return defer.succeed(node)
         d = node.get(path[0])
         def _maybe_create(f):
-            f.trap(KeyError)
+            f.trap(NoSuchChildError)
             return node.create_empty_directory(path[0])
         d.addErrback(_maybe_create)
         d.addCallback(self._get_or_create_directories, path[1:])
@@ -159,7 +160,7 @@ class Handler:
         return d
 
     def _convert_error(self, f):
-        if f.check(KeyError):
+        if f.check(NoSuchChildError):
             childname = f.value.args[0].encode("utf-8")
             msg = "'%s' doesn't exist" % childname
             raise ftp.FileNotFoundError(msg)

@@ -14,7 +14,7 @@ from foolscap.eventual import fireEventually
 from allmydata.util import base32
 from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IMutableFileNode, \
-     ExistingChildError
+     ExistingChildError, NoSuchChildError
 from allmydata.monitor import Monitor
 from allmydata.web.common import text_plain, WebError, \
      IClient, IOpHandleTable, NeedOperationHandleError, \
@@ -72,7 +72,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         t = get_arg(req, "t", "").strip()
         if isinstance(node_or_failure, Failure):
             f = node_or_failure
-            f.trap(KeyError)
+            f.trap(NoSuchChildError)
             # No child by this name. What should we do about it?
             if DEBUG: print "no child", name
             if DEBUG: print "postpath", req.postpath
@@ -235,7 +235,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             return defer.succeed(node)
         d = node.get(path[0])
         def _maybe_create(f):
-            f.trap(KeyError)
+            f.trap(NoSuchChildError)
             return node.create_empty_directory(path[0])
         d.addErrback(_maybe_create)
         d.addCallback(self._get_or_create_directories, path[1:])
@@ -268,7 +268,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         def _maybe_got_node(node_or_failure):
             if isinstance(node_or_failure, Failure):
                 f = node_or_failure
-                f.trap(KeyError)
+                f.trap(NoSuchChildError)
                 # create a placeholder which will see POST t=upload
                 return PlaceHolderNodeHandler(self.node, name)
             else:

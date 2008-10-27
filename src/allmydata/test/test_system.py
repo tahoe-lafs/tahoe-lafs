@@ -15,7 +15,7 @@ from allmydata.util import log, base32
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI, \
      ICheckerResults, ICheckAndRepairResults, IDeepCheckResults, \
-     IDeepCheckAndRepairResults
+     IDeepCheckAndRepairResults, NoSuchChildError
 from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable import layout as mutable_layout
@@ -900,7 +900,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
             d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "set_uri(nope)", None, dirnode.set_uri, u"hopeless", self.uri))
 
-            d1.addCallback(lambda res: self.shouldFail2(KeyError, "get(missing)", "'missing'", dirnode.get, u"missing"))
+            d1.addCallback(lambda res: self.shouldFail2(NoSuchChildError, "get(missing)", "missing", dirnode.get, u"missing"))
 
             personal = self._personal_node
             d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mv from readonly", None, dirnode.move_child_to, u"mydata992", personal, u"nope"))
