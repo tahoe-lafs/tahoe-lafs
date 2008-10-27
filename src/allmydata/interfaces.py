@@ -547,11 +547,11 @@ class IMutableFileNode(IFileNode, IMutableFilesystemNode):
         available, then this will be the most recent version that has been
         uploaded.
 
-        I return a Deferred that fires with a (contents, servermap) pair. The
-        servermap is updated with MODE_READ. The contents will be the version
-        of the file indicated by servermap.best_recoverable_version(). If no
-        version is recoverable, the Deferred will errback with
-        UnrecoverableFileError.
+        I update an internal servermap with MODE_READ, determine which
+        version of the file is indicated by
+        servermap.best_recoverable_version(), and return a Deferred that
+        fires with its contents. If no version is recoverable, the Deferred
+        will errback with UnrecoverableFileError.
         """
 
     def get_size_of_best_version():
