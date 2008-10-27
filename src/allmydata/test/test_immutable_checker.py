@@ -1,8 +1,8 @@
-from allmydata.immutable import encode, upload
+from allmydata.immutable import upload
 from allmydata.test.common import SystemTestMixin, ShareManglingMixin
 from allmydata.util import testutil
 from allmydata.monitor import Monitor
-from allmydata.interfaces import IURI
+from allmydata.interfaces import IURI, NotEnoughSharesError
 from twisted.internet import defer
 from twisted.trial import unittest
 import random, struct
@@ -273,7 +273,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
                 self.fail() # should have gotten an errback instead
                 return result
             def _after_download_errb(failure):
-                failure.trap(encode.NotEnoughSharesError)
+                failure.trap(NotEnoughSharesError)
                 return None # success!
             d.addCallbacks(_after_download_callb, _after_download_errb)
         d.addCallback(_then_download)

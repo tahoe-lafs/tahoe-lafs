@@ -11,9 +11,8 @@ from allmydata.util import base32, mathutil, hashutil, log, observer
 from allmydata.util.assertutil import _assert
 from allmydata import codec, hashtree, storage, uri
 from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, \
-     IDownloadStatus, IDownloadResults
+     IDownloadStatus, IDownloadResults, NotEnoughSharesError
 from allmydata.immutable import layout
-from allmydata.immutable.encode import NotEnoughSharesError
 from pycryptopp.cipher.aes import AES
 
 class HaveAllPeersError(Exception):

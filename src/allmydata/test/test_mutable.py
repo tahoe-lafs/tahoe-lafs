@@ -6,13 +6,12 @@ from twisted.internet import defer, reactor
 from twisted.python import failure
 from allmydata import uri, storage
 from allmydata.immutable import download
-from allmydata.immutable.encode import NotEnoughSharesError
 from allmydata.util import base32, testutil, idlib
 from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash
 from allmydata.util.fileutil import make_dirs
 from allmydata.interfaces import IURI, IMutableFileURI, IUploadable, \
-     FileTooLargeError, IRepairResults
+     FileTooLargeError, NotEnoughSharesError, IRepairResults
 from allmydata.monitor import Monitor
 from allmydata.test.common import ShouldFailMixin
 from foolscap.eventual import eventually, fireEventually

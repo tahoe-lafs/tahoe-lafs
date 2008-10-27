@@ -649,6 +649,9 @@ class IMutableFileNode(IFileNode, IMutableFilesystemNode):
         writer-visible data using this writekey.
         """
 
+class NotEnoughSharesError(Exception):
+    servermap = None
+
 class ExistingChildError(Exception):
     """A directory node was asked to add or replace a child that already
     exists, and overwrite= was set to False."""

@@ -6,12 +6,11 @@ from zope.interface import implements
 from twisted.internet import defer, reactor
 from foolscap.eventual import eventually
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI, \
-     ICheckable, ICheckerResults
+     ICheckable, ICheckerResults, NotEnoughSharesError
 from allmydata.util import hashutil, log
 from allmydata.util.assertutil import precondition
 from allmydata.uri import WriteableSSKFileURI
 from allmydata.monitor import Monitor
-from allmydata.immutable.encode import NotEnoughSharesError
 from pycryptopp.publickey import rsa
 from pycryptopp.cipher.aes import AES
 

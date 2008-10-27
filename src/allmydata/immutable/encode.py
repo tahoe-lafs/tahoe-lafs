@@ -10,7 +10,7 @@ from allmydata.util import mathutil, hashutil, base32, log
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder, IStorageBucketWriter, \
-     IEncryptedUploadable, IUploadStatus
+     IEncryptedUploadable, IUploadStatus, NotEnoughSharesError
 
 """
 The goal of the encoder is to turn the original file into a series of
@@ -59,10 +59,6 @@ hash tree that is necessary to validate their share. The root of the share
 hash tree is put into the URI.
 
 """
-
-class NotEnoughSharesError(Exception):
-    servermap = None
-    pass
 
 class UploadAborted(Exception):
     pass

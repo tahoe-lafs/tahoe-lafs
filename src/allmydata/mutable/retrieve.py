@@ -6,10 +6,9 @@ from twisted.internet import defer
 from twisted.python import failure
 from foolscap import DeadReferenceError
 from foolscap.eventual import eventually, fireEventually
-from allmydata.interfaces import IRetrieveStatus
+from allmydata.interfaces import IRetrieveStatus, NotEnoughSharesError
 from allmydata.util import hashutil, idlib, log
 from allmydata import hashtree, codec, storage
-from allmydata.immutable.encode import NotEnoughSharesError
 from pycryptopp.cipher.aes import AES
 from pycryptopp.publickey import rsa
 

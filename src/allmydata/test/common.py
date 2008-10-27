@@ -10,8 +10,7 @@ from foolscap.eventual import flushEventualQueue, fireEventually
 from allmydata import uri, dirnode, client
 from allmydata.introducer.server import IntroducerNode
 from allmydata.interfaces import IURI, IMutableFileNode, IFileNode, \
-     FileTooLargeError, ICheckable
-from allmydata.immutable.encode import NotEnoughSharesError
+     FileTooLargeError, NotEnoughSharesError, ICheckable
 from allmydata.checker_results import CheckerResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.mutable.common import CorruptShareError

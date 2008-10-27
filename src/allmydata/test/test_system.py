@@ -15,7 +15,7 @@ from allmydata.util import log, base32
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI, \
      ICheckerResults, ICheckAndRepairResults, IDeepCheckResults, \
-     IDeepCheckAndRepairResults, NoSuchChildError
+     IDeepCheckAndRepairResults, NoSuchChildError, NotEnoughSharesError
 from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable import layout as mutable_layout
@@ -194,7 +194,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 log.msg("finished downloading non-existend URI",
                         level=log.UNUSUAL, facility="tahoe.tests")
                 self.failUnless(isinstance(res, Failure))
-                self.failUnless(res.check(download.NotEnoughSharesError),
+                self.failUnless(res.check(NotEnoughSharesError),
                                 "expected NotEnoughSharesError, got %s" % res)
                 # TODO: files that have zero peers should get a special kind
                 # of NotEnoughSharesError, which can be used to suggest that

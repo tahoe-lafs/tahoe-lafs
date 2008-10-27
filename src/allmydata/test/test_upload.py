@@ -7,8 +7,8 @@ from twisted.internet import defer
 from cStringIO import StringIO
 
 from allmydata import uri
-from allmydata.immutable import upload, encode
-from allmydata.interfaces import IFileURI, FileTooLargeError
+from allmydata.immutable import upload
+from allmydata.interfaces import IFileURI, FileTooLargeError, NotEnoughSharesError
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata.util.testutil import ShouldFailMixin
@@ -347,7 +347,7 @@ class FullServer(unittest.TestCase):
         self.u.parent = self.node
 
     def _should_fail(self, f):
-        self.failUnless(isinstance(f, Failure) and f.check(encode.NotEnoughSharesError), f)
+        self.failUnless(isinstance(f, Failure) and f.check(NotEnoughSharesError), f)
 
     def test_data_large(self):
         data = DATA

@@ -9,7 +9,7 @@ from allmydata import hashtree, uri
 from allmydata.immutable import encode, upload, download
 from allmydata.util import hashutil, testutil
 from allmydata.util.assertutil import _assert
-from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader
+from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, NotEnoughSharesError
 
 class LostPeerError(Exception):
     pass
@@ -455,7 +455,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.send_and_recover((4,8,10), AVAILABLE_SHARES=2)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(download.NotEnoughSharesError))
+            self.failUnless(res.check(NotEnoughSharesError))
         d.addBoth(_done)
         return d
 
@@ -527,7 +527,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(download.NotEnoughSharesError))
+            self.failUnless(res.check(NotEnoughSharesError))
         d.addBoth(_done)
         return d
 
@@ -550,7 +550,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(download.NotEnoughSharesError))
+            self.failUnless(res.check(NotEnoughSharesError))
         d.addBoth(_done)
         return d
 
@@ -680,7 +680,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(download.NotEnoughSharesError))
+            self.failUnless(res.check(NotEnoughSharesError))
         d.addBoth(_done)
         return d
 
@@ -703,7 +703,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(download.NotEnoughSharesError))
+            self.failUnless(res.check(NotEnoughSharesError))
         d.addBoth(_done)
         return d
 
@@ -732,7 +732,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(encode.NotEnoughSharesError), res)
+            self.failUnless(res.check(NotEnoughSharesError), res)
         d.addBoth(_done)
         return d
 
@@ -743,7 +743,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(encode.NotEnoughSharesError))
+            self.failUnless(res.check(NotEnoughSharesError))
         d.addBoth(_done)
         return d
 
