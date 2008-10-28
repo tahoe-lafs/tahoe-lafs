@@ -1,14 +1,12 @@
 
 import simplejson
 
-from zope.interface import implements
-from twisted.internet.interfaces import IConsumer
-from twisted.web import http, static, resource, server
+from twisted.web import http, static
 from twisted.internet import defer
 from nevow import url, rend
 from nevow.inevow import IRequest
 
-from allmydata.interfaces import IDownloadTarget, ExistingChildError
+from allmydata.interfaces import ExistingChildError
 from allmydata.monitor import Monitor
 from allmydata.immutable.upload import FileHandle
 from allmydata.immutable.filenode import LiteralFileNode
@@ -109,6 +107,9 @@ class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         t = get_arg(req, "t", "").strip()
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
         assert self.parentnode and self.name
+        if req.getHeader("content-range"):
+            raise WebError("Content-Range in PUT not yet supported",
+                           http.NOT_IMPLEMENTED)
         if not t:
             return self.replace_me_with_a_child(ctx, replace)
         if t == "uri":
@@ -160,7 +161,6 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         t = get_arg(req, "t", "").strip()
         if not t:
             # just get the contents
-            save_to_file = boolean_of_arg(get_arg(req, "save", "False"))
             # the filename arrives as part of the URL or in a form input
             # element, and will be sent back in a Content-Disposition header.
             # Different browsers use various character sets for this name,
@@ -173,7 +173,13 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             # properly. So we assume that at least the browser will agree
             # with itself, and echo back the same bytes that we were given.
             filename = get_arg(req, "filename", self.name) or "unknown"
-            return FileDownloader(self.node, filename, save_to_file)
+            if self.node.is_mutable():
+                # some day: d = self.node.get_best_version()
+                d = makeMutableDownloadable(self.node)
+            else:
+                d = defer.succeed(self.node)
+            d.addCallback(lambda dn: FileDownloader(dn, filename))
+            return d
         if t == "json":
             return FileJSONMetadata(ctx, self.node)
         if t == "info":
@@ -189,25 +195,13 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         t = get_arg(req, "t", "").strip()
         if t:
             raise WebError("GET file: bad t=%s" % t)
-        # if we have a filename, use it to get the content-type
         filename = get_arg(req, "filename", self.name) or "unknown"
-        gte = static.getTypeAndEncoding
-        ctype, encoding = gte(filename,
-                              static.File.contentTypes,
-                              static.File.contentEncodings,
-                              defaultType="text/plain")
-        req.setHeader("content-type", ctype)
-        if encoding:
-            req.setHeader("content-encoding", encoding)
         if self.node.is_mutable():
-            d = self.node.get_size_of_best_version()
-        # otherwise, we can get the size from the URI
+            # some day: d = self.node.get_best_version()
+            d = makeMutableDownloadable(self.node)
         else:
-            d = defer.succeed(self.node.get_size())
-        def _got_length(length):
-            req.setHeader("content-length", length)
-            return ""
-        d.addCallback(_got_length)
+            d = defer.succeed(self.node)
+        d.addCallback(lambda dn: FileDownloader(dn, filename))
         return d
 
     def render_PUT(self, ctx):
@@ -295,71 +289,33 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         d.addCallback(lambda res: self.node.get_uri())
         return d
 
-
-class WebDownloadTarget:
-    implements(IDownloadTarget, IConsumer)
-    def __init__(self, req, content_type, content_encoding, save_to_filename):
-        self._req = req
-        self._content_type = content_type
-        self._content_encoding = content_encoding
-        self._opened = False
-        self._producer = None
-        self._save_to_filename = save_to_filename
-
-    def registerProducer(self, producer, streaming):
-        self._req.registerProducer(producer, streaming)
-    def unregisterProducer(self):
-        self._req.unregisterProducer()
-
-    def open(self, size):
-        self._opened = True
-        self._req.setHeader("content-type", self._content_type)
-        if self._content_encoding:
-            self._req.setHeader("content-encoding", self._content_encoding)
-        self._req.setHeader("content-length", str(size))
-        if self._save_to_filename is not None:
-            # tell the browser to save the file rather display it we don't
-            # try to encode the filename, instead we echo back the exact same
-            # bytes we were given in the URL. See the comment in
-            # FileNodeHandler.render_GET for the sad details.
-            filename = self._save_to_filename
-            self._req.setHeader("content-disposition",
-                                'attachment; filename="%s"' % filename)
-
-    def write(self, data):
-        self._req.write(data)
-    def close(self):
-        self._req.finish()
-
-    def fail(self, why):
-        if self._opened:
-            # The content-type is already set, and the response code
-            # has already been sent, so we can't provide a clean error
-            # indication. We can emit text (which a browser might interpret
-            # as something else), and if we sent a Size header, they might
-            # notice that we've truncated the data. Keep the error message
-            # small to improve the chances of having our error response be
-            # shorter than the intended results.
-            #
-            # We don't have a lot of options, unfortunately.
-            self._req.write("problem during download\n")
+class MutableDownloadable:
+    #implements(IDownloadable)
+    def __init__(self, size, node):
+        self.size = size
+        self.node = node
+    def get_size(self):
+        return self.size
+    def read(self, consumer, offset=0, size=None):
+        d = self.node.download_best_version()
+        d.addCallback(self._got_data, consumer, offset, size)
+        return d
+    def _got_data(self, contents, consumer, offset, size):
+        start = offset
+        if size is not None:
+            end = offset+size
         else:
-            # We haven't written anything yet, so we can provide a sensible
-            # error message.
-            msg = str(why.type)
-            msg.replace("\n", "|")
-            self._req.setResponseCode(http.GONE, msg)
-            self._req.setHeader("content-type", "text/plain")
-            # TODO: HTML-formatted exception?
-            self._req.write(str(why))
-        self._req.finish()
+            end = self.size
+        # SDMF: we can write the whole file in one big chunk
+        consumer.write(contents[start:end])
+        return consumer
 
-    def register_canceller(self, cb):
-        pass
-    def finish(self):
-        pass
+def makeMutableDownloadable(n):
+    d = defer.maybeDeferred(n.get_size_of_best_version)
+    d.addCallback(MutableDownloadable, n)
+    return d
 
-class FileDownloader(resource.Resource):
+class FileDownloader(rend.Page):
     # since we override the rendering process (to let the tahoe Downloader
     # drive things), we must inherit from regular old twisted.web.resource
     # instead of nevow.rend.Page . Nevow will use adapters to wrap a
@@ -368,25 +324,81 @@ class FileDownloader(resource.Resource):
     # that wrapper would allow us to return a Deferred from render(), which
     # might could simplify the implementation of WebDownloadTarget.
 
-    def __init__(self, filenode, filename, save_to_file):
-        resource.Resource.__init__(self)
+    def __init__(self, filenode, filename):
+        rend.Page.__init__(self)
         self.filenode = filenode
         self.filename = filename
-        self.save_to_file = save_to_file
-    def render(self, req):
+
+    def renderHTTP(self, ctx):
+        req = IRequest(ctx)
         gte = static.getTypeAndEncoding
         ctype, encoding = gte(self.filename,
                               static.File.contentTypes,
                               static.File.contentEncodings,
                               defaultType="text/plain")
+        req.setHeader("content-type", ctype)
+        if encoding:
+            req.setHeader("content-encoding", encoding)
+
         save_to_filename = None
-        if self.save_to_file:
-            save_to_filename = self.filename
-        wdt = WebDownloadTarget(req, ctype, encoding, save_to_filename)
-        d = self.filenode.download(wdt)
-        # exceptions during download are handled by the WebDownloadTarget
-        d.addErrback(lambda why: None)
-        return server.NOT_DONE_YET
+        if boolean_of_arg(get_arg(req, "save", "False")):
+            # tell the browser to save the file rather display it we don't
+            # try to encode the filename, instead we echo back the exact same
+            # bytes we were given in the URL. See the comment in
+            # FileNodeHandler.render_GET for the sad details.
+            req.setHeader("content-disposition",
+                          'attachment; filename="%s"' % self.filename)
+
+        filesize = self.filenode.get_size()
+        assert isinstance(filesize, (int,long)), filesize
+        offset, size = 0, None
+        contentsize = filesize
+        rangeheader = req.getHeader('range')
+        if rangeheader:
+            # adapted from nevow.static.File
+            bytesrange = rangeheader.split('=')
+            if bytesrange[0] != 'bytes':
+                raise WebError("Syntactically invalid http range header!")
+            start, end = bytesrange[1].split('-')
+            if start:
+                offset = int(start)
+            if end:
+                size = int(end) - offset + 1
+            req.setResponseCode(http.PARTIAL_CONTENT)
+            req.setHeader('content-range',"bytes %s-%s/%s" %
+                          (str(offset), str(offset+size-1), str(filesize)))
+            contentsize = size
+        req.setHeader("content-length", str(contentsize))
+        if req.method == "HEAD":
+            return ""
+        d = self.filenode.read(req, offset, size)
+        def _error(f):
+            if req.startedWriting:
+                # The content-type is already set, and the response code has
+                # already been sent, so we can't provide a clean error
+                # indication. We can emit text (which a browser might
+                # interpret as something else), and if we sent a Size header,
+                # they might notice that we've truncated the data. Keep the
+                # error message small to improve the chances of having our
+                # error response be shorter than the intended results.
+                #
+                # We don't have a lot of options, unfortunately.
+                req.write("problem during download\n")
+            else:
+                # We haven't written anything yet, so we can provide a
+                # sensible error message.
+                msg = str(f.type)
+                msg.replace("\n", "|")
+                req.setResponseCode(http.GONE, msg)
+                req.setHeader("content-type", "text/plain")
+                req.responseHeaders.setRawHeaders("content-encoding", [])
+                req.responseHeaders.setRawHeaders("content-disposition", [])
+                # TODO: HTML-formatted exception?
+                req.write(str(f))
+        d.addErrback(_error)
+        d.addBoth(lambda ign: req.finish())
+        return req.deferred
+
 
 def FileJSONMetadata(ctx, filenode):
     if filenode.is_readonly():

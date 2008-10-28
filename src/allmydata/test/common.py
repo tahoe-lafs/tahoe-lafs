@@ -2,6 +2,7 @@
 import os
 from zope.interface import implements
 from twisted.internet import defer
+from twisted.internet.interfaces import IConsumer
 from twisted.python import failure
 from twisted.application import service
 from twisted.web.error import Error as WebError
@@ -101,8 +102,23 @@ class FakeCHKFileNode:
         data = self.all_contents[self.my_uri]
         return defer.succeed(data)
     def get_size(self):
-        data = self.all_contents[self.my_uri]
+        try:
+            data = self.all_contents[self.my_uri]
+        except KeyError:
+            raise NotEnoughSharesError()
         return len(data)
+    def read(self, consumer, offset=0, size=None):
+        d = self.download_to_data()
+        def _got(data):
+            start = offset
+            if size is not None:
+                end = offset + size
+            else:
+                end = len(data)
+            consumer.write(data[start:end])
+            return consumer
+        d.addCallback(_got)
+        return d
 
 def make_chk_file_uri(size):
     return uri.CHKFileURI(key=os.urandom(16),
@@ -927,3 +943,25 @@ class WebErrorMixin:
         f.trap(WebError)
         print "Web Error:", f.value, ":", f.value.response
         return f
+
+class MemoryConsumer:
+    implements(IConsumer)
+    def __init__(self):
+        self.chunks = []
+        self.done = False
+    def registerProducer(self, p, streaming):
+        if streaming:
+            # call resumeProducing once to start things off
+            p.resumeProducing()
+        else:
+            while not self.done:
+                p.resumeProducing()
+    def write(self, data):
+        self.chunks.append(data)
+    def unregisterProducer(self):
+        self.done = True
+
+def download_to_data(n, offset=0, size=None):
+    d = n.read(MemoryConsumer(), offset, size)
+    d.addCallback(lambda mc: "".join(mc.chunks))
+    return d

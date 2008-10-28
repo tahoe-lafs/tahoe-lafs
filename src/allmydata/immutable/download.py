@@ -1067,7 +1067,7 @@ class ConsumerAdapter:
     def register_canceller(self, cb):
         pass
     def finish(self):
-        return None
+        return self._consumer
 
 
 class Downloader(service.MultiService):

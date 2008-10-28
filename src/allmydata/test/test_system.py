@@ -24,7 +24,8 @@ from twisted.python.failure import Failure
 from twisted.web.client import getPage
 from twisted.web.error import Error
 
-from allmydata.test.common import SystemTestMixin, WebErrorMixin
+from allmydata.test.common import SystemTestMixin, WebErrorMixin, \
+     MemoryConsumer, download_to_data
 
 LARGE_DATA = """
 This is some data to publish to the virtual drive, which needs to be large
@@ -184,6 +185,25 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         def _download_to_consumer_done(ign):
             self.failUnlessEqual(consumer.contents, DATA)
         d.addCallback(_download_to_consumer_done)
+
+        def _test_read(res):
+            n = self.clients[1].create_node_from_uri(self.uri)
+            d = download_to_data(n)
+            def _read_done(data):
+                self.failUnlessEqual(data, DATA)
+            d.addCallback(_read_done)
+            d.addCallback(lambda ign:
+                          n.read(MemoryConsumer(), offset=1, size=4))
+            def _read_portion_done(mc):
+                self.failUnlessEqual("".join(mc.chunks), DATA[1:1+4])
+            d.addCallback(_read_portion_done)
+            d.addCallback(lambda ign:
+                          n.read(MemoryConsumer(), offset=2, size=None))
+            def _read_tail_done(mc):
+                self.failUnlessEqual("".join(mc.chunks), DATA[2:])
+            d.addCallback(_read_tail_done)
+            return d
+        d.addCallback(_test_read)
 
         def _download_nonexistent_uri(res):
             baduri = self.mangle_uri(self.uri)

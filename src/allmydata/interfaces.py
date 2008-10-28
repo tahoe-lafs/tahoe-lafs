@@ -480,6 +480,58 @@ class IFileNode(IFilesystemNode):
     def get_size():
         """Return the length (in bytes) of the data this node represents."""
 
+    def read(consumer, offset=0, size=None):
+        """Download a portion (possibly all) of the file's contents, making
+        them available to the given IConsumer. Return a Deferred that fires
+        (with the consumer) when the consumer is unregistered (either because
+        the last byte has been given to it, or because the consumer threw an
+        exception during write(), possibly because it no longer wants to
+        receive data). The portion downloaded will start at 'offset' and
+        contain 'size' bytes (or the remainder of the file if size==None).
+
+        The consumer will be used in non-streaming mode: an IPullProducer
+        will be attached to it.
+
+        The consumer will not receive data right away: several network trips
+        must occur first. The order of events will be::
+
+         consumer.registerProducer(p, streaming)
+          (if streaming == False)::
+           consumer does p.resumeProducing()
+            consumer.write(data)
+           consumer does p.resumeProducing()
+            consumer.write(data).. (repeat until all data is written)
+         consumer.unregisterProducer()
+         deferred.callback(consumer)
+
+        If a download error occurs, or an exception is raised by
+        consumer.registerProducer() or consumer.write(), I will call
+        consumer.unregisterProducer() and then deliver the exception via
+        deferred.errback(). To cancel the download, the consumer should call
+        p.stopProducing(), which will result in an exception being delivered
+        via deferred.errback().
+
+        A simple download-to-memory consumer example would look like this::
+
+         class MemoryConsumer:
+           implements(IConsumer)
+           def __init__(self):
+             self.chunks = []
+             self.done = False
+           def registerProducer(self, p, streaming):
+             assert streaming == False
+             while not self.done:
+               p.resumeProducing()
+           def write(self, data):
+             self.chunks.append(data)
+           def unregisterProducer(self):
+             self.done = True
+         d = filenode.read(MemoryConsumer())
+         d.addCallback(lambda mc: "".join(mc.chunks))
+         return d
+
+        """
+
 class IMutableFileNode(IFileNode, IMutableFilesystemNode):
     """I provide access to a 'mutable file', which retains its identity
     regardless of what contents are put in it.

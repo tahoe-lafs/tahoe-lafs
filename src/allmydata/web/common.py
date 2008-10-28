@@ -4,7 +4,8 @@ from zope.interface import Interface
 from nevow import loaders, appserver
 from nevow.inevow import IRequest
 from nevow.util import resource_filename
-from allmydata.interfaces import ExistingChildError, FileTooLargeError
+from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
+     FileTooLargeError, NotEnoughSharesError
 
 class IClient(Interface):
     pass
@@ -122,6 +123,13 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
                                "name, and you asked me to not "
                                "replace it.",
                                http.CONFLICT)
+        elif f.check(NoSuchChildError):
+            name = f.value.args[0]
+            return self.simple(ctx,
+                               "No such child: %s" % name.encode("utf-8"),
+                               http.NOT_FOUND)
+        elif f.check(NotEnoughSharesError):
+            return self.simple(ctx, str(f), http.GONE)
         elif f.check(WebError):
             return self.simple(ctx, f.value.text, f.value.code)
         elif f.check(FileTooLargeError):

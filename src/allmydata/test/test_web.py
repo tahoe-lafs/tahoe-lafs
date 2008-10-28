@@ -97,10 +97,11 @@ class FakeClient(service.MultiService):
     def list_all_helper_statuses(self):
         return []
 
+class MyGetter(client.HTTPPageGetter):
+    handleStatus_206 = lambda self: self.handleStatus_200()
+
 class HTTPClientHEADFactory(client.HTTPClientFactory):
-    def __init__(self, *args, **kwargs):
-        client.HTTPClientFactory.__init__(self, *args, **kwargs)
-        self.deferred.addCallback(lambda res: self.response_headers)
+    protocol = MyGetter
 
     def noPage(self, reason):
         # Twisted-2.5.0 and earlier had a bug, in which they would raise an
@@ -114,6 +115,8 @@ class HTTPClientHEADFactory(client.HTTPClientFactory):
             return
         return client.HTTPClientFactory.noPage(self, reason)
 
+class HTTPClientGETFactory(client.HTTPClientFactory):
+    protocol = MyGetter
 
 class WebMixin(object):
     def setUp(self):
@@ -236,21 +239,37 @@ class WebMixin(object):
         self.failUnlessEqual(kids[u"n\u00fc.txt"][1]["ro_uri"],
                              self._bar_txt_uri)
 
-    def GET(self, urlpath, followRedirect=False):
+    def GET(self, urlpath, followRedirect=False, return_response=False,
+            **kwargs):
+        # if return_response=True, this fires with (data, statuscode,
+        # respheaders) instead of just data.
         assert not isinstance(urlpath, unicode)
         url = self.webish_url + urlpath
-        return client.getPage(url, method="GET", followRedirect=followRedirect)
-
-    def HEAD(self, urlpath):
-        # this requires some surgery, because twisted.web.client doesn't want
-        # to give us back the response headers.
-        factory = HTTPClientHEADFactory(urlpath, method="HEAD")
+        factory = HTTPClientGETFactory(url, method="GET",
+                                       followRedirect=followRedirect, **kwargs)
         reactor.connectTCP("localhost", self.webish_port, factory)
+        d = factory.deferred
+        def _got_data(data):
+            return (data, factory.status, factory.response_headers)
+        if return_response:
+            d.addCallback(_got_data)
         return factory.deferred
 
-    def PUT(self, urlpath, data):
+    def HEAD(self, urlpath, return_response=False, **kwargs):
+        # this requires some surgery, because twisted.web.client doesn't want
+        # to give us back the response headers.
+        factory = HTTPClientHEADFactory(urlpath, method="HEAD", **kwargs)
+        reactor.connectTCP("localhost", self.webish_port, factory)
+        d = factory.deferred
+        def _got_data(data):
+            return (data, factory.status, factory.response_headers)
+        if return_response:
+            d.addCallback(_got_data)
+        return factory.deferred
+
+    def PUT(self, urlpath, data, **kwargs):
         url = self.webish_url + urlpath
-        return client.getPage(url, method="PUT", postdata=data)
+        return client.getPage(url, method="PUT", postdata=data, **kwargs)
 
     def DELETE(self, urlpath):
         url = self.webish_url + urlpath
@@ -515,9 +534,45 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
+    def test_GET_FILEURL_range(self):
+        headers = {"range": "bytes=1-10"}
+        d = self.GET(self.public_url + "/foo/bar.txt", headers=headers,
+                     return_response=True)
+        def _got((res, status, headers)):
+            self.failUnlessEqual(int(status), 206)
+            self.failUnless(headers.has_key("content-range"))
+            self.failUnlessEqual(headers["content-range"][0],
+                                 "bytes 1-10/%d" % len(self.BAR_CONTENTS))
+            self.failUnlessEqual(res, self.BAR_CONTENTS[1:11])
+        d.addCallback(_got)
+        return d
+
+    def test_HEAD_FILEURL_range(self):
+        headers = {"range": "bytes=1-10"}
+        d = self.HEAD(self.public_url + "/foo/bar.txt", headers=headers,
+                     return_response=True)
+        def _got((res, status, headers)):
+            self.failUnlessEqual(res, "")
+            self.failUnlessEqual(int(status), 206)
+            self.failUnless(headers.has_key("content-range"))
+            self.failUnlessEqual(headers["content-range"][0],
+                                 "bytes 1-10/%d" % len(self.BAR_CONTENTS))
+        d.addCallback(_got)
+        return d
+
+    def test_GET_FILEURL_range_bad(self):
+        headers = {"range": "BOGUS=fizbop-quarnak"}
+        d = self.shouldFail2(error.Error, "test_GET_FILEURL_range_bad",
+                             "400 Bad Request",
+                             "Syntactically invalid http range header",
+                             self.GET, self.public_url + "/foo/bar.txt",
+                             headers=headers)
+        return d
+
     def test_HEAD_FILEURL(self):
-        d = self.HEAD(self.public_url + "/foo/bar.txt")
-        def _got(headers):
+        d = self.HEAD(self.public_url + "/foo/bar.txt", return_response=True)
+        def _got((res, status, headers)):
+            self.failUnlessEqual(res, "")
             self.failUnlessEqual(headers["content-length"][0],
                                  str(len(self.BAR_CONTENTS)))
             self.failUnlessEqual(headers["content-type"], ["text/plain"])
@@ -632,6 +687,19 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(self._foo_node, u"new.txt",
                                                       self.NEWFILE_CONTENTS))
+        return d
+
+    def test_PUT_NEWFILEURL_range_bad(self):
+        headers = {"content-range": "bytes 1-10/%d" % len(self.NEWFILE_CONTENTS)}
+        target = self.public_url + "/foo/new.txt"
+        d = self.shouldFail2(error.Error, "test_PUT_NEWFILEURL_range_bad",
+                             "501 Not Implemented",
+                             "Content-Range in PUT not yet supported",
+                             # (and certainly not for immutable files)
+                             self.PUT, target, self.NEWFILE_CONTENTS[1:11],
+                             headers=headers)
+        d.addCallback(lambda res:
+                      self.failIfNodeHasChild(self._foo_node, u"new.txt"))
         return d
 
     def test_PUT_NEWFILEURL_mutable(self):
@@ -1344,8 +1412,10 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
 
         # and that HEAD computes the size correctly
         d.addCallback(lambda res:
-                      self.HEAD(self.public_url + "/foo/new.txt"))
-        def _got_headers(headers):
+                      self.HEAD(self.public_url + "/foo/new.txt",
+                                return_response=True))
+        def _got_headers((res, status, headers)):
+            self.failUnlessEqual(res, "")
             self.failUnlessEqual(headers["content-length"][0],
                                  str(len(NEW2_CONTENTS)))
             self.failUnlessEqual(headers["content-type"], ["text/plain"])

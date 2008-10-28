@@ -5,6 +5,7 @@ from allmydata.monitor import Monitor
 from allmydata.immutable import filenode, download
 from allmydata.mutable.node import MutableFileNode
 from allmydata.util import hashutil
+from allmydata.test.common import download_to_data
 
 class NotANode:
     pass
@@ -17,8 +18,8 @@ class Node(unittest.TestCase):
                            total_shares=10,
                            size=1000)
         c = None
-        fn1 = filenode.FileNode(u, c)
-        fn2 = filenode.FileNode(u.to_string(), c)
+        fn1 = filenode.FileNode(u, c, "cachefile")
+        fn2 = filenode.FileNode(u.to_string(), c, "cachefile")
         self.failUnlessEqual(fn1, fn2)
         self.failIfEqual(fn1, "I am not a filenode")
         self.failIfEqual(fn1, NotANode())
@@ -62,6 +63,14 @@ class Node(unittest.TestCase):
 
         d.addCallback(lambda res: fn1.download_to_data())
         d.addCallback(_check)
+
+        d.addCallback(lambda res: download_to_data(fn1))
+        d.addCallback(_check)
+
+        d.addCallback(lambda res: download_to_data(fn1, 1, 5))
+        def _check_segment(res):
+            self.failUnlessEqual(res, DATA[1:1+5])
+        d.addCallback(_check_segment)
 
         return d
 
