@@ -78,7 +78,7 @@ except ImportError:
     increase_rlimits = _increase_rlimits
 
 
-def get_local_addresses_async(target='A.ROOT-SERVERS.NET'):
+def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
     """
     Return a Deferred that fires with a list of IPv4 addresses (as dotted-quad
     strings) that are currently configured on this host, sorted in descending
@@ -120,7 +120,18 @@ def get_local_ip_for(target):
     try:
         target_ipaddr = socket.gethostbyname(target)
     except socket.gaierror:
-        # DNS isn't running
+        # DNS isn't running, or somehow we encountered an error
+
+        # note: if an interface is configured and up, but nothing is
+        # connected to it, gethostbyname("A.ROOT-SERVERS.NET") will take 20
+        # seconds to raise socket.gaierror . This is synchronous and occurs
+        # for each node being started, so users of
+        # test.common.SystemTestMixin (like test_system) will see something
+        # like 120s of delay, which may be enough to hit the default trial
+        # timeouts. For that reason, get_local_addresses_async() was changed
+        # to default to the numerical ip address for A.ROOT-SERVERS.NET, to
+        # avoid this DNS lookup. This also makes node startup fractionally
+        # faster.
         return None
     udpprot = DatagramProtocol()
     port = reactor.listenUDP(0, udpprot)
