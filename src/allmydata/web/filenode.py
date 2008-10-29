@@ -296,6 +296,8 @@ class MutableDownloadable:
         self.node = node
     def get_size(self):
         return self.size
+    def is_mutable(self):
+        return True
     def read(self, consumer, offset=0, size=None):
         d = self.node.download_best_version()
         d.addCallback(self._got_data, consumer, offset, size)
@@ -358,8 +360,11 @@ class FileDownloader(rend.Page):
             # TODO: look more closely at Request.setETag and how it interacts
             # with a conditional "if-etag-equals" request, I think this may
             # need to occur after the setResponseCode below
-            req.setETag(base32.b2a(self.filenode.get_storage_index()))
-            # TODO: for mutable files, use the roothash
+            si = self.filenode.get_storage_index()
+            if si:
+                req.setETag(base32.b2a(si))
+        # TODO: for mutable files, use the roothash. For LIT, hash the data.
+        # or maybe just use the URI for CHK and LIT.
         rangeheader = req.getHeader('range')
         if rangeheader:
             # adapted from nevow.static.File

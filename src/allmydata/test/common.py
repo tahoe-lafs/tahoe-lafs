@@ -46,6 +46,9 @@ class FakeCHKFileNode:
         return self.my_uri
     def get_verifier(self):
         return IURI(self.my_uri).get_verifier()
+    def get_storage_index(self):
+        return self.storage_index
+
     def check(self, monitor, verify=False):
         r = CheckerResults(self.storage_index)
         is_bad = self.bad_shares.get(self.storage_index, None)
