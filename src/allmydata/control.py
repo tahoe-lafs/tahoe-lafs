@@ -5,7 +5,7 @@ from twisted.application import service
 from twisted.internet import defer
 from foolscap import Referenceable
 from allmydata.interfaces import RIControlClient
-from allmydata.util import testutil, fileutil, mathutil
+from allmydata.util import fileutil, mathutil
 from allmydata.immutable import upload, download
 from twisted.python import log
 
@@ -36,7 +36,7 @@ def log_memory_usage(where=""):
                                               where))
 
 
-class ControlServer(Referenceable, service.Service, testutil.PollMixin):
+class ControlServer(Referenceable, service.Service):
     implements(RIControlClient)
 
     def remote_wait_for_client_connections(self, num_clients):
