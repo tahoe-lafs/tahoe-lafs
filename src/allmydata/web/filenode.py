@@ -10,7 +10,7 @@ from allmydata.interfaces import ExistingChildError
 from allmydata.monitor import Monitor
 from allmydata.immutable.upload import FileHandle
 from allmydata.immutable.filenode import LiteralFileNode
-from allmydata.util import log
+from allmydata.util import log, base32
 
 from allmydata.web.common import text_plain, WebError, IClient, RenderMixin, \
      boolean_of_arg, get_arg, should_create_intermediate_directories
@@ -353,6 +353,13 @@ class FileDownloader(rend.Page):
         assert isinstance(filesize, (int,long)), filesize
         offset, size = 0, None
         contentsize = filesize
+        req.setHeader("accept-ranges", "bytes")
+        if not self.filenode.is_mutable():
+            # TODO: look more closely at Request.setETag and how it interacts
+            # with a conditional "if-etag-equals" request, I think this may
+            # need to occur after the setResponseCode below
+            req.setETag(base32.b2a(self.filenode.get_storage_index()))
+            # TODO: for mutable files, use the roothash
         rangeheader = req.getHeader('range')
         if rangeheader:
             # adapted from nevow.static.File
