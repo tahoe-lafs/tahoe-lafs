@@ -217,6 +217,36 @@ class CLI(unittest.TestCase):
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
+    def _catalog_shares(self, *basedirs):
+        o = debug.CatalogSharesOptions()
+        o.stdout,o.stderr = StringIO(), StringIO()
+        args = list(basedirs)
+        o.parseOptions(args)
+        debug.catalog_shares(o)
+        out = o.stdout.getvalue()
+        err = o.stderr.getvalue()
+        return out, err
+
+    def test_catalog_shares_error(self):
+        nodedir1 = "cli/test_catalog_shares/node1"
+        sharedir = os.path.join(nodedir1, "storage", "shares", "mq", "mqfblse6m5a6dh45isu2cg7oji")
+        fileutil.make_dirs(sharedir)
+        f = open(os.path.join(sharedir, "8"), "wb")
+        # write a bogus share that looks a little bit like CHK
+        f.write("\x00\x00\x00\x01" + "\xff" * 200) # this triggers an assert
+        f.close()
+
+        nodedir2 = "cli/test_catalog_shares/node2"
+        fileutil.make_dirs(nodedir2)
+
+        # now make sure that the 'catalog-shares' commands survives the error
+        out, err = self._catalog_shares(nodedir1, nodedir2)
+        self.failUnlessEqual(out, "", out)
+        self.failUnless("Error processing " in err, err)
+        self.failUnless(nodedir1 in err, err)
+        self.flushLoggedErrors(AssertionError)
+
+
 class CLITestMixin:
     def do_cli(self, verb, *args, **kwargs):
         nodeargs = [
