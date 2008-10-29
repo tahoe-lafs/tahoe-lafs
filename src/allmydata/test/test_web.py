@@ -2162,6 +2162,22 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         # shorter than we expected.
         return d
 
+    def test_PUT_DIRURL_uri(self):
+        d = self.s.create_empty_dirnode()
+        def _made_dir(dn):
+            new_uri = dn.get_uri()
+            # replace /foo with a new (empty) directory
+            d = self.PUT(self.public_url + "/foo?t=uri", new_uri)
+            d.addCallback(lambda res:
+                          self.failUnlessEqual(res.strip(), new_uri))
+            d.addCallback(lambda res:
+                          self.failUnlessChildURIIs(self.public_root,
+                                                    u"foo",
+                                                    new_uri))
+            return d
+        d.addCallback(_made_dir)
+        return d
+
     def test_PUT_NEWFILEURL_uri(self):
         contents, n, new_uri = self.makefile(8)
         d = self.PUT(self.public_url + "/foo/new.txt?t=uri", new_uri)

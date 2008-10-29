@@ -159,7 +159,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                 # they're trying to set_uri and that name is already occupied
                 # (by us).
                 raise ExistingChildError()
-            d = self.parentnode.replace_me_with_a_childcap(ctx, replace)
+            d = self.replace_me_with_a_childcap(ctx, replace)
             # TODO: results
             return d
 
