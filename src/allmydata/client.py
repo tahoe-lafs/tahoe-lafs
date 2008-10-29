@@ -18,7 +18,7 @@ from allmydata.immutable.filenode import FileNode, LiteralFileNode
 from allmydata.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
-from allmydata.util import hashutil, base32, testutil, fileutil
+from allmydata.util import hashutil, base32, pollmixin, fileutil
 from allmydata.uri import LiteralFileURI
 from allmydata.dirnode import NewDirectoryNode
 from allmydata.mutable.node import MutableFileNode, MutableWatcher
@@ -38,7 +38,7 @@ class StubClient(Referenceable):
 def _make_secret():
     return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
 
-class Client(node.Node, testutil.PollMixin):
+class Client(node.Node, pollmixin.PollMixin):
     implements(IStatsProducer)
 
     PORTNUMFILE = "client.port"

@@ -6,7 +6,7 @@ from twisted.python import usage, runtime
 from twisted.internet import defer
 import os.path, re
 from allmydata.scripts import runner
-from allmydata.util import fileutil, testutil
+from allmydata.util import fileutil, pollmixin
 
 class CreateNode(unittest.TestCase):
     def workdir(self, name):
@@ -93,7 +93,7 @@ class CreateNode(unittest.TestCase):
                               [],
                               run_by_human=False)
 
-class RunNode(unittest.TestCase, testutil.PollMixin):
+class RunNode(unittest.TestCase, pollmixin.PollMixin):
     def workdir(self, name):
         basedir = os.path.join("test_runner", "RunNode", name)
         fileutil.make_dirs(basedir)

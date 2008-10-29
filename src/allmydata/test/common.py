@@ -16,7 +16,7 @@ from allmydata.checker_results import CheckerResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.mutable.common import CorruptShareError
 from allmydata.storage import storage_index_to_dir
-from allmydata.util import log, testutil, fileutil
+from allmydata.util import log, testutil, fileutil, pollmixin
 from allmydata.stats import PickleStatsGatherer
 from allmydata.key_generator import KeyGeneratorService
 
@@ -291,7 +291,7 @@ class LoggingServiceParent(service.MultiService):
         return log.msg(*args, **kwargs)
 
 
-class SystemTestMixin(testutil.PollMixin, testutil.StallMixin):
+class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
     def setUp(self):
         self.sparent = service.MultiService()

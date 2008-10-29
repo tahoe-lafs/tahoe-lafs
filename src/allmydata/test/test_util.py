@@ -8,7 +8,7 @@ from twisted.python import failure
 
 from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, testutil, deferredutil
-from allmydata.util import limiter, time_format
+from allmydata.util import limiter, time_format, pollmixin
 
 class Base32(unittest.TestCase):
     def test_b2a_matches_Pythons(self):
@@ -330,7 +330,7 @@ class FileUtil(unittest.TestCase):
 
 class PollMixinTests(unittest.TestCase):
     def setUp(self):
-        self.pm = testutil.PollMixin()
+        self.pm = pollmixin.PollMixin()
 
     def test_PollMixin_True(self):
         d = self.pm.poll(check_f=lambda : True,
@@ -350,7 +350,7 @@ class PollMixinTests(unittest.TestCase):
         def _suc(res):
             self.fail("poll should have failed, not returned %s" % (res,))
         def _err(f):
-            f.trap(testutil.TimeoutError)
+            f.trap(pollmixin.TimeoutError)
             return None # success
         d.addCallbacks(_suc, _err)
         return d

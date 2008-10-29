@@ -2,13 +2,13 @@
 from twisted.trial import unittest
 from twisted.application import service
 from allmydata.stats import CPUUsageMonitor
-from allmydata.util import testutil
+from allmydata.util import testutil, pollmixin
 
 class FasterMonitor(CPUUsageMonitor):
     POLL_INTERVAL = 0.1
 
 
-class CPUUsage(unittest.TestCase, testutil.PollMixin, testutil.StallMixin):
+class CPUUsage(unittest.TestCase, pollmixin.PollMixin, testutil.StallMixin):
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()

@@ -14,7 +14,7 @@ from allmydata.introducer.server import IntroducerService
 # test compatibility with old introducer .tac files
 from allmydata.introducer import IntroducerNode
 from allmydata.introducer import old
-from allmydata.util import testutil, idlib
+from allmydata.util import testutil, idlib, pollmixin
 
 class FakeNode(Referenceable):
     pass
@@ -46,7 +46,7 @@ class ServiceMixin:
         d.addCallback(flushEventualQueue)
         return d
 
-class Introducer(ServiceMixin, unittest.TestCase, testutil.PollMixin):
+class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
 
     def test_create(self):
         ic = IntroducerClient(None, "introducer.furl", "my_nickname",
@@ -75,7 +75,7 @@ class Introducer(ServiceMixin, unittest.TestCase, testutil.PollMixin):
         self.failUnlessEqual(len(i.get_announcements()), 2)
         self.failUnlessEqual(len(i.get_subscribers()), 0)
 
-class SystemTestMixin(ServiceMixin, testutil.PollMixin):
+class SystemTestMixin(ServiceMixin, pollmixin.PollMixin):
 
     def setUp(self):
         ServiceMixin.setUp(self)

@@ -6,7 +6,7 @@ from twisted.application import service
 from foolscap import Tub, eventual
 
 from allmydata import key_generator
-from allmydata.util import testutil
+from allmydata.util import pollmixin
 from pycryptopp.publickey import rsa
 
 def flush_but_dont_ignore(res):
@@ -16,7 +16,7 @@ def flush_but_dont_ignore(res):
     d.addCallback(_done)
     return d
 
-class KeyGenService(unittest.TestCase, testutil.PollMixin):
+class KeyGenService(unittest.TestCase, pollmixin.PollMixin):
     def setUp(self):
         self.parent = service.MultiService()
         self.parent.startService()

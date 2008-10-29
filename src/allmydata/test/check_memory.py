@@ -8,7 +8,7 @@ from twisted.web import client as tw_client
 from allmydata import client, introducer
 from allmydata.immutable import upload
 from allmydata.scripts import create_node
-from allmydata.util import testutil, fileutil
+from allmydata.util import fileutil, pollmixin
 import foolscap
 from foolscap import eventual
 from twisted.python import log
@@ -57,7 +57,7 @@ def discardPage(url, stall=False, *args, **kwargs):
     reactor.connectTCP(host, port, factory)
     return factory.deferred
 
-class SystemFramework(testutil.PollMixin):
+class SystemFramework(pollmixin.PollMixin):
     numnodes = 5
 
     def __init__(self, basedir, mode):
