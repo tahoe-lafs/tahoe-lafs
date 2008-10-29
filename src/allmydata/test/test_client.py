@@ -34,6 +34,33 @@ class Basic(unittest.TestCase):
         open(os.path.join(basedir, "introducer.furl"), "w").write("")
         c = client.Client(basedir)
 
+    def test_loadable_old_config_bits(self):
+        basedir = "test_client.Basic.test_loadable_old_config_bits"
+        os.mkdir(basedir)
+        open(os.path.join(basedir, "introducer.furl"), "w").write("")
+        open(os.path.join(basedir, "vdrive.furl"), "w").write("")
+        open(os.path.join(basedir, "no_storage"), "w").write("")
+        open(os.path.join(basedir, "readonly_storage"), "w").write("")
+        open(os.path.join(basedir, "debug_discard_storage"), "w").write("")
+        c = client.Client(basedir)
+        try:
+            c.getServiceNamed("storage")
+            self.fail("that was supposed to fail")
+        except KeyError:
+            pass
+
+    def test_loadable_old_storage_config_bits(self):
+        basedir = "test_client.Basic.test_loadable_old_storage_config_bits"
+        os.mkdir(basedir)
+        open(os.path.join(basedir, "introducer.furl"), "w").write("")
+        open(os.path.join(basedir, "vdrive.furl"), "w").write("")
+        open(os.path.join(basedir, "readonly_storage"), "w").write("")
+        open(os.path.join(basedir, "debug_discard_storage"), "w").write("")
+        c = client.Client(basedir)
+        s = c.getServiceNamed("storage")
+        self.failUnless(s.no_storage)
+        self.failUnless(s.readonly_storage)
+
     def test_secrets(self):
         basedir = "test_client.Basic.test_secrets"
         os.mkdir(basedir)
