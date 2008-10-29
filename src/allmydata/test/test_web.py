@@ -2178,6 +2178,25 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(_made_dir)
         return d
 
+    def test_PUT_DIRURL_uri_noreplace(self):
+        d = self.s.create_empty_dirnode()
+        def _made_dir(dn):
+            new_uri = dn.get_uri()
+            # replace /foo with a new (empty) directory, but ask that
+            # replace=false, so it should fail
+            d = self.shouldFail2(error.Error, "test_PUT_DIRURL_uri_noreplace",
+                                 "409 Conflict", "There was already a child by that name, and you asked me to not replace it",
+                                 self.PUT,
+                                 self.public_url + "/foo?t=uri&replace=false",
+                                 new_uri)
+            d.addCallback(lambda res:
+                          self.failUnlessChildURIIs(self.public_root,
+                                                    u"foo",
+                                                    self._foo_uri))
+            return d
+        d.addCallback(_made_dir)
+        return d
+
     def test_PUT_NEWFILEURL_uri(self):
         contents, n, new_uri = self.makefile(8)
         d = self.PUT(self.public_url + "/foo/new.txt?t=uri", new_uri)
