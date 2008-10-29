@@ -9,7 +9,7 @@ from foolscap import Tub, eventual
 import foolscap.logging.log
 from allmydata import get_package_versions, get_package_versions_string
 from allmydata.util import log
-from allmydata.util import fileutil, iputil, observer, humanreadable
+from allmydata.util import fileutil, iputil, observer
 from allmydata.util.assertutil import precondition
 
 from foolscap.logging import app_versions
@@ -314,20 +314,6 @@ class Node(service.MultiService):
 
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
-
-    def old_log(self, msg, src="", args=(), **kw):
-        if src:
-            logsrc = src
-        else:
-            logsrc = self.logSource
-        if args:
-            try:
-                msg = msg % tuple(map(humanreadable.hr, args))
-            except TypeError, e:
-                msg = "ERROR: output string '%s' contained invalid %% expansion, error: %s, args: %s\n" % (`msg`, e, `args`)
-        msg = self.short_nodeid + ": " + humanreadable.hr(msg)
-        return twlog.callWithContext({"system":logsrc},
-                                     twlog.msg, msg, **kw)
 
     def _setup_tub(self, local_addresses):
         # we can't get a dynamically-assigned portnum until our Tub is
