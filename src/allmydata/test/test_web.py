@@ -2197,6 +2197,16 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(_made_dir)
         return d
 
+    def test_PUT_DIRURL_bad_t(self):
+        d = self.shouldFail2(error.Error, "test_PUT_DIRURL_bad_t",
+                                 "400 Bad Request", "PUT to a directory",
+                                 self.PUT, self.public_url + "/foo?t=BOGUS", "")
+        d.addCallback(lambda res:
+                      self.failUnlessChildURIIs(self.public_root,
+                                                u"foo",
+                                                self._foo_uri))
+        return d
+
     def test_PUT_NEWFILEURL_uri(self):
         contents, n, new_uri = self.makefile(8)
         d = self.PUT(self.public_url + "/foo/new.txt?t=uri", new_uri)
