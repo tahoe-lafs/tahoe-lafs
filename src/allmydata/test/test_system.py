@@ -202,8 +202,21 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             def _read_tail_done(mc):
                 self.failUnlessEqual("".join(mc.chunks), DATA[2:])
             d.addCallback(_read_tail_done)
+
             return d
         d.addCallback(_test_read)
+
+        def _test_bad_read(res):
+            bad_u = uri.from_string_filenode(self.uri)
+            bad_u.key = self.flip_bit(bad_u.key)
+            bad_n = self.clients[1].create_node_from_uri(bad_u.to_string())
+            # this should cause an error during download
+
+            d = self.shouldFail2(NotEnoughSharesError, "'download bad node'",
+                                 None,
+                                 bad_n.read, MemoryConsumer(), offset=2)
+            return d
+        d.addCallback(_test_bad_read)
 
         def _download_nonexistent_uri(res):
             baduri = self.mangle_uri(self.uri)
