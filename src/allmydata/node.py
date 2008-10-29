@@ -133,15 +133,6 @@ class Node(service.MultiService):
             pass
         copy("keepalive_timeout", "node", "timeout.keepalive")
         copy("disconnect_timeout", "node", "timeout.disconnect")
-        AUTHKEYSFILEBASE = "authorized_keys."
-        for f in os.listdir(self.basedir):
-            if f.startswith(AUTHKEYSFILEBASE):
-                keyfile = os.path.join(self.basedir, f)
-                portnum = int(f[len(AUTHKEYSFILEBASE):])
-                self.set_config("node", "ssh.port", str(portnum))
-                self.set_config("node", "ssh.authorized_keys_file", keyfile)
-                # only allow one
-                break
 
     def _copy_config_from_file(self, config_filename, section, keyname):
         s = self.get_config_from_file(config_filename)

@@ -337,8 +337,6 @@ exists, it will take precedence over the corresponding item in tahoe.cfg .
 [node]log_gatherer.furl : BASEDIR/log_gatherer.furl (one per line)
 [node]timeout.keepalive : BASEDIR/keepalive_timeout
 [node]timeout.disconnect : BASEDIR/disconnect_timeout
-[node]ssh.port : BASEDIR/authorized_keys.SSHPORT
-[node]ssh.authorized_keys_file : BASEDIR/authorized_keys.SSHPORT
 [client]introducer.furl : BASEDIR/introducer.furl
 [client]helper.furl : BASEDIR/helper.furl
 [client]key_generator.furl : BASEDIR/key_generator.furl
@@ -352,8 +350,10 @@ exists, it will take precedence over the corresponding item in tahoe.cfg .
 Note: the functionality of [node]ssh.port and [node]ssh.authorized_keys_file
 were previously combined, controlled by the presence of a
 BASEDIR/authorized_keys.SSHPORT file, in which the suffix of the filename
-indicated which port the ssh server should listen on.
-
+indicated which port the ssh server should listen on, and the contents of the
+file provided the ssh public keys to accept. Support for these files has been
+removed completely. To ssh into your Tahoe node, add [node]ssh.port and
+[node].ssh_authorized_keys_file statements to your tahoe.cfg .
 
 == Example ==
 
