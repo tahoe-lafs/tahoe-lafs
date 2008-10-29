@@ -7,7 +7,7 @@ from twisted.internet import defer, reactor
 from twisted.python import failure
 
 from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
-from allmydata.util import assertutil, fileutil, testutil, deferredutil
+from allmydata.util import assertutil, fileutil, deferredutil
 from allmydata.util import limiter, time_format, pollmixin
 
 class Base32(unittest.TestCase):

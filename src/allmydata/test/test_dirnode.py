@@ -9,11 +9,12 @@ from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
      INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode, \
      ExistingChildError, NoSuchChildError, \
      IDeepCheckResults, IDeepCheckAndRepairResults
-from allmydata.util import hashutil, testutil
+from allmydata.util import hashutil
 from allmydata.monitor import Monitor
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
      FakeDirectoryNode, create_chk_filenode
 from allmydata.checker_results import CheckerResults, CheckAndRepairResults
+import common_util as testutil
 
 # to test dirnode.py, we want to construct a tree of real DirectoryNodes that
 # contain pointers to fake files. We start with a fake MutableFileNode that

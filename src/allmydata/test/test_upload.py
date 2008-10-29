@@ -1,18 +1,18 @@
 
 import os
+from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.python.failure import Failure
 from twisted.python import log
 from twisted.internet import defer
-from cStringIO import StringIO
+from foolscap import eventual
 
 from allmydata import uri
 from allmydata.immutable import upload
 from allmydata.interfaces import IFileURI, FileTooLargeError, NotEnoughSharesError
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
-from allmydata.util.testutil import ShouldFailMixin
-from foolscap import eventual
+from common_util import ShouldFailMixin
 
 MiB = 1024*1024
 

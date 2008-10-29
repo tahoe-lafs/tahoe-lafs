@@ -14,7 +14,8 @@ from allmydata.introducer.server import IntroducerService
 # test compatibility with old introducer .tac files
 from allmydata.introducer import IntroducerNode
 from allmydata.introducer import old
-from allmydata.util import testutil, idlib, pollmixin
+from allmydata.util import idlib, pollmixin
+import common_util as testutil
 
 class FakeNode(Referenceable):
     pass

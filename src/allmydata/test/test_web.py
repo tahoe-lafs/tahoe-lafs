@@ -8,12 +8,13 @@ from twisted.python import failure, log
 from allmydata import interfaces, provisioning, uri, webish
 from allmydata.immutable import upload, download
 from allmydata.web import status, common
-from allmydata.util import fileutil, testutil, base32
+from allmydata.util import fileutil, base32
 from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, \
      FakeMutableFileNode, create_chk_filenode
 from allmydata.interfaces import IURI, INewDirectoryURI, \
      IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, IMutableFileNode
 from allmydata.mutable import servermap, publish, retrieve
+import common_util as testutil
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them

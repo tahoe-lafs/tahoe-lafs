@@ -1,8 +1,8 @@
 
-from allmydata.util import iputil, testutil
-
-from twisted.trial import unittest
 import re
+from twisted.trial import unittest
+from allmydata.util import iputil
+import common_util as testutil
 
 DOTTED_QUAD_RE=re.compile("^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$")
 

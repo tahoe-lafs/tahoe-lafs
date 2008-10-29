@@ -6,7 +6,7 @@ from twisted.internet import defer, reactor
 from twisted.python import failure
 from allmydata import uri, storage
 from allmydata.immutable import download
-from allmydata.util import base32, testutil, idlib
+from allmydata.util import base32, idlib
 from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash
 from allmydata.util.fileutil import make_dirs
@@ -28,6 +28,8 @@ from allmydata.mutable.publish import Publish
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
 from allmydata.mutable.layout import unpack_header, unpack_share
 from allmydata.mutable.repair import MustForceRepairError
+
+import common_util as testutil
 
 # this "FastMutableFileNode" exists solely to speed up tests by using smaller
 # public/private keys. Once we switch to fast DSA-based keys, we can get rid

@@ -1,11 +1,11 @@
 from allmydata.immutable import upload
 from allmydata.test.common import SystemTestMixin, ShareManglingMixin
-from allmydata.util import testutil
 from allmydata.monitor import Monitor
 from allmydata.interfaces import IURI, NotEnoughSharesError
 from twisted.internet import defer
 from twisted.trial import unittest
 import random, struct
+import common_util as testutil
 
 TEST_DATA="\x02"*(upload.Uploader.URI_LIT_SIZE_THRESHOLD+1)
 

@@ -16,9 +16,10 @@ from allmydata.checker_results import CheckerResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.mutable.common import CorruptShareError
 from allmydata.storage import storage_index_to_dir
-from allmydata.util import log, testutil, fileutil, pollmixin
+from allmydata.util import log, fileutil, pollmixin
 from allmydata.stats import PickleStatsGatherer
 from allmydata.key_generator import KeyGeneratorService
+import common_util as testutil
 
 
 def flush_but_dont_ignore(res):
