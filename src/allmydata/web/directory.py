@@ -36,9 +36,9 @@ class BlockingFileError(Exception):
 def make_handler_for(node, parentnode=None, name=None):
     if parentnode:
         assert IDirectoryNode.providedBy(parentnode)
-    if IFileNode.providedBy(node):
-        return FileNodeHandler(node, parentnode, name)
     if IMutableFileNode.providedBy(node):
+        return FileNodeHandler(node, parentnode, name)
+    if IFileNode.providedBy(node):
         return FileNodeHandler(node, parentnode, name)
     if IDirectoryNode.providedBy(node):
         return DirectoryNodeHandler(node, parentnode, name)
