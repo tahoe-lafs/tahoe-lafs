@@ -3,7 +3,7 @@ import time
 from twisted.application import service, strports, internet
 from twisted.web import http
 from twisted.internet import defer
-from nevow import appserver, inevow
+from nevow import appserver, inevow, static
 from allmydata.util import log
 
 from allmydata.web import introweb, root
@@ -123,7 +123,7 @@ class WebishServer(service.MultiService):
     name = "webish"
     root_class = root.Root
 
-    def __init__(self, webport, nodeurl_path=None):
+    def __init__(self, webport, nodeurl_path=None, staticdir=None):
         service.MultiService.__init__(self)
         self.webport = webport
         self.root = self.root_class()
@@ -132,6 +132,8 @@ class WebishServer(service.MultiService):
         if self.root.child_operations:
             self.site.remember(self.root.child_operations, IOpHandleTable)
             self.root.child_operations.setServiceParent(self)
+        if staticdir:
+            self.root.putChild("static", static.File(staticdir))
         s = strports.service(webport, site)
         s.setServiceParent(self)
         self.listener = s # stash it so the tests can query for the portnum

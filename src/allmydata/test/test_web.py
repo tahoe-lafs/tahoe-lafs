@@ -1,4 +1,4 @@
-import re, urllib
+import os.path, re, urllib
 import simplejson
 from twisted.application import service
 from twisted.trial import unittest
@@ -123,7 +123,8 @@ class WebMixin(object):
     def setUp(self):
         self.s = FakeClient()
         self.s.startService()
-        self.ws = s = webish.WebishServer("0")
+        self.staticdir = self.mktemp()
+        self.ws = s = webish.WebishServer("0", staticdir=self.staticdir)
         s.setServiceParent(self.s)
         self.webish_port = port = s.listener._port.getHost().port
         self.webish_url = "http://localhost:%d" % port
@@ -2394,6 +2395,19 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         def _done(res):
             self.failUnless("Thank you for your report!" in res, res)
         d.addCallback(_done)
+        return d
+
+    def test_static(self):
+        webdir = os.path.join(self.staticdir, "subdir")
+        fileutil.make_dirs(webdir)
+        f = open(os.path.join(webdir, "hello.txt"), "wb")
+        f.write("hello")
+        f.close()
+
+        d = self.GET("/static/subdir/hello.txt")
+        def _check(res):
+            self.failUnlessEqual(res, "hello")
+        d.addCallback(_check)
         return d
 
 

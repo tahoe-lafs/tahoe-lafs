@@ -6,8 +6,9 @@
 3. URLs, Machine-Oriented Interfaces
 4. Browser Operations: Human-Oriented Interfaces
 5. Welcome / Debug / Status pages
-6. Safety and security issues -- names vs. URIs
-7. Concurrency Issues
+6. Static Files in /public_html
+7. Safety and security issues -- names vs. URIs
+8. Concurrency Issues
 
 
 == Enabling the web-API port ==
@@ -1162,6 +1163,19 @@ GET /   (introducer status)
  By adding "?t=json" to the URL, the node will return a JSON-formatted
  dictionary of stats values, which can be used to produce graphs of connected
  clients over time.
+
+
+== Static Files in /public_html ==
+
+The webapi server will take any request for a URL that starts with /static
+and serve it from a configurable directory which defaults to
+$BASEDIR/public_html . This is configured by setting the "[node]web.static"
+value in $BASEDIR/tahoe.cfg . If this is left at the default value of
+"public_html", then http://localhost:8123/static/subdir/foo.html will be
+served with the contents of the file $BASEDIR/public_html/subdir/foo.html .
+
+This can be useful to serve a javascript application which provides a
+prettier front-end to the rest of the Tahoe webapi.
 
 
 == safety and security issues -- names vs. URIs ==

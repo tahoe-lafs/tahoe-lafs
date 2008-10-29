@@ -58,6 +58,18 @@ web.port = (strports string, optional)
 
  If this is not provided, the node will not run a web server.
 
+web.static = (string, optional)
+
+ This controls where the /static portion of the URL space is served. The
+ value is a directory name (~username is allowed, and non-absolute names are
+ interpreted relative to the node's basedir) which can contain HTML and other
+ files. This can be used to serve a javascript-based frontend to the Tahoe
+ node, or other services.
+
+ The default value is "public_html", which will serve $BASEDIR/public_html .
+ With the default settings, http://127.0.0.1:8123/static/foo.html will serve
+ the contents of $BASEDIR/public_html/foo.html .
+
 tub.port = (integer, optional)
 
  This controls which port the node uses to accept Foolscap connections from

@@ -254,7 +254,9 @@ class Client(node.Node, pollmixin.PollMixin):
 
         from allmydata.webish import WebishServer
         nodeurl_path = os.path.join(self.basedir, "node.url")
-        ws = WebishServer(webport, nodeurl_path)
+        staticdir = self.get_config("node", "web.static", "public_html")
+        staticdir = os.path.expanduser(staticdir)
+        ws = WebishServer(webport, nodeurl_path, staticdir)
         self.add_service(ws)
 
     def init_ftp_server(self):
