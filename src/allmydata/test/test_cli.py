@@ -232,12 +232,14 @@ class CLI(unittest.TestCase):
         sharedir = os.path.join(nodedir1, "storage", "shares", "mq", "mqfblse6m5a6dh45isu2cg7oji")
         fileutil.make_dirs(sharedir)
         f = open(os.path.join(sharedir, "8"), "wb")
+        open("cli/test_catalog_shares/node1/storage/shares/mq/not-a-dir", "wb").close()
         # write a bogus share that looks a little bit like CHK
         f.write("\x00\x00\x00\x01" + "\xff" * 200) # this triggers an assert
         f.close()
 
         nodedir2 = "cli/test_catalog_shares/node2"
         fileutil.make_dirs(nodedir2)
+        open("cli/test_catalog_shares/node1/storage/shares/not-a-dir", "wb").close()
 
         # now make sure that the 'catalog-shares' commands survives the error
         out, err = self._catalog_shares(nodedir1, nodedir2)

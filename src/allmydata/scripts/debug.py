@@ -617,7 +617,6 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
 
     f.close()
 
-
 def catalog_shares(options):
     out = options.stdout
     err = options.stderr
@@ -634,19 +633,35 @@ def catalog_shares(options):
                 if abbrevdir == "incoming":
                     continue
                 abbrevdir = os.path.join(d, abbrevdir)
-                for si_s in os.listdir(abbrevdir):
-                    si_dir = os.path.join(abbrevdir, si_s)
-                    for shnum_s in os.listdir(si_dir):
-                        abs_sharefile = os.path.join(si_dir, shnum_s)
-                        abs_sharefile = os.path.abspath(abs_sharefile)
-                        assert os.path.isfile(abs_sharefile)
-                        try:
-                            describe_share(abs_sharefile, si_s, shnum_s, now,
-                                           out)
-                        except:
-                            print >>err, "Error processing %s" % abs_sharefile
-                            failure.Failure().printTraceback(err)
+                # this tool may get run against bad disks, so we can't assume
+                # that os.listdir will always succeed. Try to catalog as much
+                # as possible.
+                try:
+                    sharedirs = os.listdir(abbrevdir)
+                    for si_s in sharedirs:
+                        si_dir = os.path.join(abbrevdir, si_s)
+                        catalog_shares_one_abbrevdir(si_s, si_dir, now, out,err)
+                except:
+                    print >>err, "Error processing %s" % abbrevdir
+                    failure.Failure().printTraceback(err)
+
     return 0
+
+def catalog_shares_one_abbrevdir(si_s, si_dir, now, out, err):
+    try:
+        for shnum_s in os.listdir(si_dir):
+            abs_sharefile = os.path.join(si_dir, shnum_s)
+            abs_sharefile = os.path.abspath(abs_sharefile)
+            assert os.path.isfile(abs_sharefile)
+            try:
+                describe_share(abs_sharefile, si_s, shnum_s, now,
+                               out)
+            except:
+                print >>err, "Error processing %s" % abs_sharefile
+                failure.Failure().printTraceback(err)
+    except:
+        print >>err, "Error processing %s" % si_dir
+        failure.Failure().printTraceback(err)
 
 class CorruptShareOptions(usage.Options):
     def getSynopsis(self):
