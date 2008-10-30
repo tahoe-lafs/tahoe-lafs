@@ -38,7 +38,8 @@ a directory: recursively traversing the directory and its children, checking
 run with an "output=JSON" argument, to obtain machine-readable check/repair
 status results. These results include a copy of the filesystem statistics
 from the "deep-stats" operation (including total number of files, size
-histogram, etc).
+histogram, etc). If repair is necessary, a "Repair" button will appear on the
+results page.
 
 The client web interface now features some extra buttons to initiate check
 and deep-check operations. When these operations finish, they display a
@@ -50,11 +51,11 @@ connection. docs/webapi.txt has details.
 ** Configuration Changes: single INI-format tahoe.cfg file
 
 The Tahoe node is now configured with a single INI-format file, named
-"tahoe.cfg", in the node's base directory. The previous
-multiple-separate-files are still read for backwards compatibility, but new
-directives will only be added to tahoe.cfg . The "tahoe create-client"
-command will create a tahoe.cfg for you, with sample values commented out.
-(ticket #518)
+"tahoe.cfg", in the node's base directory. Most of the previous
+multiple-separate-files are still read for backwards compatibility (the
+embedded SSH debug server is the exception), but new directives will only be
+added to tahoe.cfg . The "tahoe create-client" command will create a
+tahoe.cfg for you, with sample values commented out. (ticket #518)
 
 tahoe.cfg now has controls for the foolscap "keepalive" and "disconnect"
 timeouts (#521).
@@ -118,6 +119,11 @@ uploads and downloads, which may be useful for frontends that wish to display
 progress information. There is no easy way to correlate the activities
 displayed here with recent webapi requests, however.
 
+Any files in BASEDIR/public_html/ (configurable) will be served in response
+to requests in the /static/ portion of the URL space. This will simplify the
+deployment of javascript-based frontends that can still access webapi calls
+by conforming to the (regretable) "same-origin policy".
+
 The welcome page now has a "Report Incident" button, which is tied into the
 "Incident Gatherer" machinery. If the node is attached to an incident
 gatherer (via log_gatherer.furl), then pushing this button will cause an
@@ -133,6 +139,14 @@ headers as "GET" would, but without any of the actual response body data. For
 mutable files, this now does a brief mapupdate (to figure out the size of the
 file that would be returned), without actually retrieving the file's
 contents.
+
+The "GET" operation on files can now support the HTTP "Range:" header,
+allowing requests for partial content. This allows certain media players to
+correctly stream audio and movies out of a Tahoe grid. The current
+implementation uses a disk-based cache in BASEDIR/private/cache/download ,
+which holds the plaintext of the files being downloaded. Future
+implementations might not use this cache. GET for immutable files now returns
+an ETag header.
 
 Each file and directory now has a "Show More Info" web page, which contains
 much of the information that was crammed into the directory page before. This
@@ -275,6 +289,10 @@ logs/incidents/ each time something weird occurs. These reports are available
 to an "incident gatherer" through the flogtool command. For more details,
 please see the Foolscap logging documentation. An incident-classifying plugin
 function is provided in misc/incident-gatherer/classify_tahoe.py .
+
+If clients detect corruption in shares, they now automatically report it to
+the server holding that share, if it is new enough to accept the report.
+These reports are written to files in BASEDIR/storage/corruption-advisories .
 
 The 'nickname' setting is now defined to be a UTF-8 -encoded string, allowing
 non-ascii nicknames.
