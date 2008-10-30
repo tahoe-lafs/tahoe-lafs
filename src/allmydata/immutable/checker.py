@@ -17,11 +17,12 @@ class SimpleCHKFileChecker:
     """Return a list of (needed, total, found, sharemap), where sharemap maps
     share number to a list of (binary) nodeids of the shareholders."""
 
-    def __init__(self, client, storage_index, needed_shares, total_shares):
+    def __init__(self, client, uri, storage_index, needed_shares, total_shares):
         self.peer_getter = client.get_permuted_peers
         self.needed_shares = needed_shares
         self.total_shares = total_shares
         self.found_shares = set()
+        self.uri = uri
         self.storage_index = storage_index
         self.sharemap = {}
         self.responded = set()
@@ -67,7 +68,7 @@ class SimpleCHKFileChecker:
         pass
 
     def _done(self, res):
-        r = CheckerResults(self.storage_index)
+        r = CheckerResults(self.uri, self.storage_index)
         report = []
         healthy = bool(len(self.found_shares) >= self.total_shares)
         r.set_healthy(healthy)
@@ -151,9 +152,10 @@ class SimpleCHKFileVerifier(download.FileDownloader):
     # remaining shareholders, and it cannot verify the plaintext.
     check_plaintext_hash = False
 
-    def __init__(self, client, storage_index, k, N, size, ueb_hash):
+    def __init__(self, client, uri, storage_index, k, N, size, ueb_hash):
         self._client = client
 
+        self._uri = uri
         self._storage_index = storage_index
         self._uri_extension_hash = ueb_hash
         self._total_shares = N
@@ -163,7 +165,7 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         self._si_s = storage.si_b2a(self._storage_index)
         self.init_logging()
 
-        self._check_results = r = CheckerResults(self._storage_index)
+        self._check_results = r = CheckerResults(self._uri, self._storage_index)
         r.set_data({"count-shares-needed": k,
                     "count-shares-expected": N,
                     })

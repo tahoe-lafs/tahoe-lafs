@@ -1607,6 +1607,8 @@ class ICheckerResults(Interface):
         """Return a string with the (binary) storage index."""
     def get_storage_index_string():
         """Return a string with the (printable) abbreviated storage index."""
+    def get_uri():
+        """Return the (string) URI of the object that was checked."""
 
     def is_healthy():
         """Return a boolean, True if the file/dir is fully healthy, False if

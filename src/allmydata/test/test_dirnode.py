@@ -37,7 +37,7 @@ class Marker:
         return self.verifieruri
 
     def check(self, monitor, verify=False):
-        r = CheckerResults(None)
+        r = CheckerResults("", None)
         r.set_healthy(True)
         return defer.succeed(r)
 

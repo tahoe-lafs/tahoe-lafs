@@ -196,9 +196,12 @@ class FileNode(_ImmutableFileNodeBase):
         ueb_hash = self.u.uri_extension_hash
         if verify:
             v = self.verifier_class(self._client,
-                                    storage_index, k, N, size, ueb_hash)
+                                    self.get_uri(), storage_index,
+                                    k, N, size, ueb_hash)
         else:
-            v = self.checker_class(self._client, storage_index, k, N)
+            v = self.checker_class(self._client,
+                                   self.get_uri(), storage_index,
+                                   k, N)
         return v.start()
 
     def check_and_repair(self, monitor, verify=False):

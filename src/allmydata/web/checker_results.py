@@ -183,6 +183,18 @@ class CheckerResults(CheckerBase, rend.Page, ResultsBase):
             return ctx.tag["Healthy!"]
         return ctx.tag["Not Healthy!: ", self._html(self.r.get_summary())]
 
+    def render_repair(self, ctx, data):
+        if self.r.is_healthy():
+            return ""
+        repair = T.form(action=".", method="post",
+                        enctype="multipart/form-data")[
+            T.fieldset[
+            T.input(type="hidden", name="t", value="check"),
+            T.input(type="hidden", name="repair", value="true"),
+            T.input(type="submit", value="Repair"),
+            ]]
+        return ctx.tag[repair]
+
     def render_rebalance(self, ctx, data):
         if self.r.needs_rebalancing():
             return ctx.tag["(needs rebalancing)"]

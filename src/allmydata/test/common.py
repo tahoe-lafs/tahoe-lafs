@@ -51,7 +51,7 @@ class FakeCHKFileNode:
         return self.storage_index
 
     def check(self, monitor, verify=False):
-        r = CheckerResults(self.storage_index)
+        r = CheckerResults(self.my_uri, self.storage_index)
         is_bad = self.bad_shares.get(self.storage_index, None)
         data = {}
         data["count-shares-needed"] = 3
@@ -183,7 +183,7 @@ class FakeMutableFileNode:
         return self.storage_index
 
     def check(self, monitor, verify=False):
-        r = CheckerResults(self.storage_index)
+        r = CheckerResults(self.my_uri.to_string(), self.storage_index)
         is_bad = self.bad_shares.get(self.storage_index, None)
         data = {}
         data["count-shares-needed"] = 3

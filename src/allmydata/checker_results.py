@@ -7,7 +7,9 @@ from allmydata.util import base32
 class CheckerResults:
     implements(ICheckerResults)
 
-    def __init__(self, storage_index):
+    def __init__(self, uri, storage_index):
+        assert isinstance(uri, str)
+        self.uri = uri
         self.storage_index = storage_index
         self.problems = []
         self.data = {"count-corrupt-shares": 0,
@@ -38,6 +40,8 @@ class CheckerResults:
         return self.storage_index
     def get_storage_index_string(self):
         return base32.b2a(self.storage_index)
+    def get_uri(self):
+        return self.uri
 
     def is_healthy(self):
         return self.healthy
