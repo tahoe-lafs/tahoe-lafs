@@ -64,6 +64,7 @@ def write_node_config(c, config):
     if webport.lower() == "none":
         webport = ""
     c.write("web.port = %s\n" % webport)
+    c.write("web.static = public_html\n")
     c.write("#tub.port =\n")
     c.write("#advertised_ip_addresses =\n")
     c.write("#log_gatherer.furl =\n")
