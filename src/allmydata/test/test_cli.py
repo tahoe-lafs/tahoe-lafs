@@ -242,8 +242,16 @@ class CLI(unittest.TestCase):
         # now make sure that the 'catalog-shares' commands survives the error
         out, err = self._catalog_shares(nodedir1, nodedir2)
         self.failUnlessEqual(out, "", out)
-        self.failUnless("Error processing " in err, err)
-        self.failUnless(nodedir1 in err, err)
+        self.failUnless("Error processing " in err,
+                        "didn't see 'error processing' in '%s'" % err)
+        #self.failUnless(nodedir1 in err,
+        #                "didn't see '%s' in '%s'" % (nodedir1, err))
+        # windows mangles the path, and os.path.join isn't enough to make
+        # up for it, so just look for individual strings
+        self.failUnless("node1" in err,
+                        "didn't see 'node1' in '%s'" % err)
+        self.failUnless("mqfblse6m5a6dh45isu2cg7oji" in err,
+                        "didn't see 'mqfblse6m5a6dh45isu2cg7oji' in '%s'" % err)
 
 
 class CLITestMixin:
