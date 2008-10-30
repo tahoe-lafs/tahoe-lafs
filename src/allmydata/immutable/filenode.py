@@ -62,13 +62,15 @@ class PortionOfFile:
             self.bytes_left -= len(data)
         return data
 
-class CacheFile:
+class DownloadCache:
     implements(IDownloadTarget)
 
-    def __init__(self, node, filename):
-        self.node = node
+    def __init__(self, node, cachefile):
+        self._downloader = node._client.getServiceNamed("downloader")
+        self._uri = node.get_uri()
+        self._storage_index = node.get_storage_index()
         self.milestones = set() # of (offset,size,Deferred)
-        self.cachefilename = filename
+        self.cachefile = cachefile
         self.download_in_progress = False
         # five states:
         #  new FileNode, no downloads ever performed
@@ -88,10 +90,9 @@ class CacheFile:
             self.download_in_progress = True
             log.msg(format=("immutable filenode read [%(si)s]: " +
                             "starting download"),
-                    si=base32.b2a(self.node.u.storage_index),
+                    si=base32.b2a(self._storage_index),
                     umid="h26Heg", level=log.OPERATIONAL)
-            downloader = self.node._client.getServiceNamed("downloader")
-            d2 = downloader.download(self.node.get_uri(), self)
+            d2 = self._downloader.download(self._uri, self)
             d2.addBoth(self._download_done)
             d2.addErrback(self._download_failed)
             d2.addErrback(log.err, umid="cQaM9g")
@@ -99,7 +100,7 @@ class CacheFile:
 
     def read(self, consumer, offset, size):
         assert offset+size <= self.get_filesize()
-        f = PortionOfFile(self.cachefilename, offset, size)
+        f = PortionOfFile(self.cachefile.get_filename(), offset, size)
         d = basic.FileSender().beginFileTransfer(f, consumer)
         d.addCallback(lambda lastSent: consumer)
         return d
@@ -124,7 +125,7 @@ class CacheFile:
                 log.msg(format=("immutable filenode read [%(si)s] " +
                                 "%(offset)d+%(size)d vs %(filesize)d: " +
                                 "done"),
-                        si=base32.b2a(self.node.u.storage_index),
+                        si=base32.b2a(self._storage_index),
                         offset=offset, size=size, filesize=current_size,
                         umid="nuedUg", level=log.NOISY)
                 self.milestones.discard(m)
@@ -133,20 +134,20 @@ class CacheFile:
                 log.msg(format=("immutable filenode read [%(si)s] " +
                                 "%(offset)d+%(size)d vs %(filesize)d: " +
                                 "still waiting"),
-                        si=base32.b2a(self.node.u.storage_index),
+                        si=base32.b2a(self._storage_index),
                         offset=offset, size=size, filesize=current_size,
                         umid="8PKOhg", level=log.NOISY)
 
     def get_filesize(self):
         try:
-            filesize = os.stat(self.cachefilename)[stat.ST_SIZE]
+            filesize = os.stat(self.cachefile.get_filename())[stat.ST_SIZE]
         except OSError:
             filesize = 0
         return filesize
 
 
     def open(self, size):
-        self.f = open(self.cachefilename, "wb")
+        self.f = open(self.cachefile.get_filename(), "wb")
 
     def write(self, data):
         self.f.write(data)
@@ -171,7 +172,7 @@ class FileNode(_ImmutableFileNodeBase):
 
     def __init__(self, uri, client, cachefile):
         _ImmutableFileNodeBase.__init__(self, uri, client)
-        self.cachefile = CacheFile(self, cachefile)
+        self.download_cache = DownloadCache(self, cachefile)
 
     def get_uri(self):
         return self.u.to_string()
@@ -230,8 +231,9 @@ class FileNode(_ImmutableFileNodeBase):
                     umid="VRSBwg", level=log.OPERATIONAL)
             return self.download(download.ConsumerAdapter(consumer))
 
-        d = self.cachefile.when_range_available(offset, size)
-        d.addCallback(lambda res: self.cachefile.read(consumer, offset, size))
+        d = self.download_cache.when_range_available(offset, size)
+        d.addCallback(lambda res:
+                      self.download_cache.read(consumer, offset, size))
         return d
 
     def download(self, target):

@@ -4,11 +4,16 @@ from allmydata import uri
 from allmydata.monitor import Monitor
 from allmydata.immutable import filenode, download
 from allmydata.mutable.node import MutableFileNode
-from allmydata.util import hashutil
+from allmydata.util import hashutil, cachedir
 from allmydata.test.common import download_to_data
 
 class NotANode:
     pass
+
+class FakeClient:
+    # just enough to let the node acquire a downloader (which it won't use)
+    def getServiceNamed(self, name):
+        return None
 
 class Node(unittest.TestCase):
     def test_chk_filenode(self):
@@ -17,9 +22,10 @@ class Node(unittest.TestCase):
                            needed_shares=3,
                            total_shares=10,
                            size=1000)
-        c = None
-        fn1 = filenode.FileNode(u, c, "cachefile")
-        fn2 = filenode.FileNode(u.to_string(), c, "cachefile")
+        c = FakeClient()
+        cf = cachedir.CacheFile("none")
+        fn1 = filenode.FileNode(u, c, cf)
+        fn2 = filenode.FileNode(u.to_string(), c, cf)
         self.failUnlessEqual(fn1, fn2)
         self.failIfEqual(fn1, "I am not a filenode")
         self.failIfEqual(fn1, NotANode())

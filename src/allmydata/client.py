@@ -18,7 +18,7 @@ from allmydata.immutable.filenode import FileNode, LiteralFileNode
 from allmydata.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
-from allmydata.util import hashutil, base32, pollmixin, fileutil
+from allmydata.util import hashutil, base32, pollmixin, cachedir
 from allmydata.uri import LiteralFileURI
 from allmydata.dirnode import NewDirectoryNode
 from allmydata.mutable.node import MutableFileNode, MutableWatcher
@@ -188,9 +188,10 @@ class Client(node.Node, pollmixin.PollMixin):
         self.convergence = base32.a2b(convergence_s)
         self._node_cache = weakref.WeakValueDictionary() # uri -> node
         self.add_service(Uploader(helper_furl, self.stats_provider))
-        self.download_cachedir = os.path.join(self.basedir,
-                                              "private", "cache", "download")
-        fileutil.make_dirs(self.download_cachedir)
+        download_cachedir = os.path.join(self.basedir,
+                                         "private", "cache", "download")
+        self.download_cache = cachedir.CacheDirectoryManager(download_cachedir)
+        self.download_cache.setServiceParent(self)
         self.add_service(Downloader(self.stats_provider))
         self.add_service(MutableWatcher(self.stats_provider))
         def _publish(res):
@@ -339,9 +340,8 @@ class Client(node.Node, pollmixin.PollMixin):
                 if isinstance(u, LiteralFileURI):
                     node = LiteralFileNode(u, self) # LIT
                 else:
-                    cachefile = os.path.join(self.download_cachedir,
-                                             base32.b2a(u.storage_index))
-                    # TODO: cachefile manager, weakref, expire policy
+                    key = base32.b2a(u.storage_index)
+                    cachefile = self.download_cache.get_file(key)
                     node = FileNode(u, self, cachefile) # CHK
             else:
                 assert IMutableFileURI.providedBy(u), u
