@@ -520,8 +520,11 @@ def call(c, *args, **kwargs):
     # take advantage of the fact that ImmediateReadBucketProxy returns
     # Deferreds that are already fired
     results = []
+    failures = []
     d = defer.maybeDeferred(c, *args, **kwargs)
-    d.addCallback(results.append)
+    d.addCallbacks(results.append, failures.append)
+    if failures:
+        failures[0].raiseException()
     return results[0]
 
 def describe_share(abs_sharefile, si_s, shnum_s, now, out):
@@ -580,7 +583,6 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
     elif struct.unpack(">L", prefix[:4]) == (1,):
         # immutable
 
-
         class ImmediateReadBucketProxy(ReadBucketProxy):
             def __init__(self, sf):
                 self.sf = sf
@@ -592,7 +594,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         # use a ReadBucketProxy to parse the bucket and find the uri extension
         sf = storage.ShareFile(abs_sharefile)
         bp = ImmediateReadBucketProxy(sf)
-        bp.start()
+        call(bp.start)
 
         expiration_time = min( [lease.expiration_time
                                 for lease in sf.iter_leases()] )

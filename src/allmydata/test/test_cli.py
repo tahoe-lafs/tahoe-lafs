@@ -244,7 +244,6 @@ class CLI(unittest.TestCase):
         self.failUnlessEqual(out, "", out)
         self.failUnless("Error processing " in err, err)
         self.failUnless(nodedir1 in err, err)
-        self.flushLoggedErrors(AssertionError)
 
 
 class CLITestMixin:
