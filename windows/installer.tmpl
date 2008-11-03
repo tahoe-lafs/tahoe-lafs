@@ -25,8 +25,7 @@ OutputBaseFilename=Allmydata_Tahoe_Setup_v%(major)d_%(minor)d_%(point)d_r%(revis
 
 [Files]
 ; contents of 'binaries' dir. (consolidated build target)
-Source: "AllmydataContextMenu.dll"; DestDir: "{app}\Install"; Flags: regserver restartreplace replacesameversion uninsrestartdelete
-Source: "*.*"; DestDir: "{app}\Install";  Excludes: "AllmydataContextMenu.dll"; Flags: restartreplace replacesameversion uninsrestartdelete
+Source: "*.*"; DestDir: "{app}\Install"; Flags: restartreplace replacesameversion uninsrestartdelete
 Source: ".\pkg_resources\*.*"; DestDir: "{app}\Install\pkg_resources"; Flags: recursesubdirs
 Source: ".\winfuse\*.*"; DestDir: "{app}\Install\winfuse"; Flags: recursesubdirs
 
