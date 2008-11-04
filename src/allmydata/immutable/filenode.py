@@ -221,7 +221,7 @@ class FileNode(_ImmutableFileNodeBase):
     def read(self, consumer, offset=0, size=None):
         if size is None:
             size = self.get_size() - offset
-
+        size = min(size, self.get_size() - offset)
 
         if offset == 0 and size == self.get_size():
             # don't use the cache, just do a normal streaming download

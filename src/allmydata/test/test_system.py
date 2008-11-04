@@ -202,6 +202,11 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             def _read_tail_done(mc):
                 self.failUnlessEqual("".join(mc.chunks), DATA[2:])
             d.addCallback(_read_tail_done)
+            d.addCallback(lambda ign:
+                          n.read(MemoryConsumer(), size=len(DATA)+1000))
+            def _read_too_much(mc):
+                self.failUnlessEqual("".join(mc.chunks), DATA)
+            d.addCallback(_read_too_much)
 
             return d
         d.addCallback(_test_read)
