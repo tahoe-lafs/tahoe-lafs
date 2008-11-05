@@ -68,6 +68,30 @@ def remove(f, tries=4, basedelay=0.1):
             basedelay *= 2
     return os.remove(f) # The last try.
 
+class ReopenableNamedTemporaryFile:
+    """
+    This uses tempfile.mkstemp() to generate a secure temp file.  It then closes
+    the file, leaving a zero-length file as a placeholder.  You can get the
+    filename with ReopenableNamedTemporaryFile.name.  When the
+    ReopenableNamedTemporaryFile instance is garbage collected or its shutdown()
+    method is called, it deletes the file.
+    """
+    def __init__(self, *args, **kwargs):
+        fd, self.name = tempfile.mkstemp(*args, **kwargs)
+        os.close(fd)
+
+    def __repr__(self):
+        return "<%s instance at %x %s>" % (self.__class__.__name__, id(self), self.name)
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __del__(self):
+        self.shutdown()
+
+    def shutdown(self):
+        remove(self.name)
+
 class NamedTemporaryDirectory:
     """
     This calls tempfile.mkdtemp(), stores the name of the dir in
