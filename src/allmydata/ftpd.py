@@ -365,6 +365,7 @@ class Dispatcher:
         rootnode = self.client.create_node_from_uri(avatarID.rootcap)
         convergence = self.client.convergence
         s = Handler(self.client, rootnode, avatarID.username, convergence)
+        def logout(): pass
         return (interface, s, None)
 
 
