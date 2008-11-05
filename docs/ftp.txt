@@ -43,12 +43,11 @@ add the following lines to BASEDIR/tahoe.cfg:
 
 == Dependencies ==
 
-The FTP server requires Twisted's "vfs" component, which is not included in
-the Twisted-8.1.0 release. If there is no newer release available, it may be
-necessary to run Twisted from the SVN trunk to obtain this component.
-
-In addition, the following patch must be applied (as of r24943) to enable
-asynchronous closing of file-upload operations:
+The FTP server requires code in Twisted that enables asynchronous closing of
+file-upload operations. This code was not in the Twisted-8.1.0 release, and
+has not been committed to SVN trunk as of r24943. So it may be necessary to
+apply the following patch. The Tahoe node refuse to start the FTP server if
+it detects that this patch has not been applied.
 
 Index: twisted/protocols/ftp.py
 ===================================================================
