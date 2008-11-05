@@ -79,6 +79,7 @@ class Client(node.Node, pollmixin.PollMixin):
             self.init_key_gen(key_gen_furl)
         # ControlServer and Helper are attached after Tub startup
         self.init_ftp_server()
+        self.init_sftp_server()
 
         hotline_file = os.path.join(self.basedir,
                                     self.SUICIDE_PREVENTION_HOTLINE_FILE)
@@ -268,6 +269,19 @@ class Client(node.Node, pollmixin.PollMixin):
 
             from allmydata import ftpd
             s = ftpd.FTPServer(self, accountfile, accounturl, ftp_portstr)
+            s.setServiceParent(self)
+
+    def init_sftp_server(self):
+        if self.get_config("sftpd", "enabled", False, boolean=True):
+            accountfile = self.get_config("sftpd", "sftp.accounts.file", None)
+            accounturl = self.get_config("sftpd", "sftp.accounts.url", None)
+            sftp_portstr = self.get_config("sftpd", "sftp.port", "8022")
+            pubkey_file = self.get_config("sftpd", "sftp.host_pubkey_file")
+            privkey_file = self.get_config("sftpd", "sftp.host_privkey_file")
+
+            from allmydata import sftpd
+            s = sftpd.SFTPServer(self, accountfile, accounturl,
+                                 sftp_portstr, pubkey_file, privkey_file)
             s.setServiceParent(self)
 
     def _check_hotline(self, hotline_file):
