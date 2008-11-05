@@ -132,13 +132,15 @@ class SFTPHandler:
         return {}
 
     def openFile(self, filename, flags, attrs):
-        f = "|".join([(flags & FXF_READ) and "FXF_READ" or "",
-                      (flags & FXF_WRITE) and "FXF_WRITE" or "",
-                      (flags & FXF_APPEND) and "FXF_APPEND" or "",
-                      (flags & FXF_CREAT) and "FXF_CREAT" or "",
-                      (flags & FXF_TRUNC) and "FXF_TRUNC" or "",
-                      (flags & FXF_EXCL) and "FXF_EXCL" or "",
-                      ])
+        f = "|".join([f for f in
+                      [(flags & FXF_READ) and "FXF_READ" or None,
+                       (flags & FXF_WRITE) and "FXF_WRITE" or None,
+                       (flags & FXF_APPEND) and "FXF_APPEND" or None,
+                       (flags & FXF_CREAT) and "FXF_CREAT" or None,
+                       (flags & FXF_TRUNC) and "FXF_TRUNC" or None,
+                       (flags & FXF_EXCL) and "FXF_EXCL" or None,
+                      ]
+                      if f])
         print "OPENFILE", filename, flags, f, attrs
         # this is used for both reading and writing.
 
