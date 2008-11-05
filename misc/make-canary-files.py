@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python
 
 """
 Given a list of nodeids and a 'convergence' file, create a bunch of files

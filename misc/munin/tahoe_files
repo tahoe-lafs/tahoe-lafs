@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python
 
 # This is a munin plugin to track the number of files that each node's
 # StorageServer is holding on behalf of other nodes. Each file that has been

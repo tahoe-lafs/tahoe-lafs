@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python
 
 # This munin plugin isolates processes by looking for the 'pid' file created
 # by 'allmydata start', then extracts the amount of memory they consume (both

@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python
 
 """This program is a client that sends files to xfer-server.py. You give it
 the server's FURL, and it can put files into the server's targetdir (and

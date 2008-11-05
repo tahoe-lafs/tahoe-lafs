@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python
 
 # feed this the results of 'tahoe catalog-shares' for all servers
 

@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python
 
 """
 This tool estimates how much space would be consumed by a filetree into which

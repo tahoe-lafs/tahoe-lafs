@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python
 
 # This is a munin plugin which pulls total-used data from the server in
 # misc/spacetime/diskwatcher.tac, and a total-deep-size number from custom

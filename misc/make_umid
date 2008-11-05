@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 """Create a short probably-unique string for use as a umid= argument in a
 Foolscap log() call, to make it easier to locate the source code that

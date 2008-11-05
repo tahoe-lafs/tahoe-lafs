@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python
 
 # This is a munin plugin to track the amount of disk space each node's
 # StorageServer is consuming on behalf of other nodes. This is where the

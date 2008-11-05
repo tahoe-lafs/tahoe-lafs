@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python
 
 """
 Test an existing Tahoe grid, both to see if the grid is still running and to

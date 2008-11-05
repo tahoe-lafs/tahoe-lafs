@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python
 
 import sys, math
 from allmydata import upload, uri, encode, storage

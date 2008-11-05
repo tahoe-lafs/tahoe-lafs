@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python
 
 from foolscap import Tub, eventual
 from twisted.internet import reactor

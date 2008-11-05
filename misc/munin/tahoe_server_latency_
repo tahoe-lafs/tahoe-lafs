@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 # retrieve a latency statistic for a given operation and percentile from a
 # set of storage servers.
