@@ -267,7 +267,7 @@ class Client(node.Node, pollmixin.PollMixin):
             accounturl = self.get_config("ftpd", "ftp.accounts.url", None)
             ftp_portstr = self.get_config("ftpd", "ftp.port", "8021")
 
-            from allmydata import ftpd
+            from allmydata.frontends import ftpd
             s = ftpd.FTPServer(self, accountfile, accounturl, ftp_portstr)
             s.setServiceParent(self)
 
@@ -279,7 +279,7 @@ class Client(node.Node, pollmixin.PollMixin):
             pubkey_file = self.get_config("sftpd", "sftp.host_pubkey_file")
             privkey_file = self.get_config("sftpd", "sftp.host_privkey_file")
 
-            from allmydata import sftpd
+            from allmydata.frontends import sftpd
             s = sftpd.SFTPServer(self, accountfile, accounturl,
                                  sftp_portstr, pubkey_file, privkey_file)
             s.setServiceParent(self)
