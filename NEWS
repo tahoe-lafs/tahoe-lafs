@@ -122,7 +122,7 @@ displayed here with recent webapi requests, however.
 Any files in BASEDIR/public_html/ (configurable) will be served in response
 to requests in the /static/ portion of the URL space. This will simplify the
 deployment of javascript-based frontends that can still access webapi calls
-by conforming to the (regretable) "same-origin policy".
+by conforming to the (regrettable) "same-origin policy".
 
 The welcome page now has a "Report Incident" button, which is tied into the
 "Incident Gatherer" machinery. If the node is attached to an incident
