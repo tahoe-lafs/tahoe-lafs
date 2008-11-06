@@ -263,9 +263,9 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_ftp_server(self):
         if self.get_config("ftpd", "enabled", False, boolean=True):
-            accountfile = self.get_config("ftpd", "ftp.accounts.file", None)
-            accounturl = self.get_config("ftpd", "ftp.accounts.url", None)
-            ftp_portstr = self.get_config("ftpd", "ftp.port", "8021")
+            accountfile = self.get_config("ftpd", "accounts.file", None)
+            accounturl = self.get_config("ftpd", "accounts.url", None)
+            ftp_portstr = self.get_config("ftpd", "port", "8021")
 
             from allmydata.frontends import ftpd
             s = ftpd.FTPServer(self, accountfile, accounturl, ftp_portstr)
@@ -273,11 +273,11 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_sftp_server(self):
         if self.get_config("sftpd", "enabled", False, boolean=True):
-            accountfile = self.get_config("sftpd", "sftp.accounts.file", None)
-            accounturl = self.get_config("sftpd", "sftp.accounts.url", None)
-            sftp_portstr = self.get_config("sftpd", "sftp.port", "8022")
-            pubkey_file = self.get_config("sftpd", "sftp.host_pubkey_file")
-            privkey_file = self.get_config("sftpd", "sftp.host_privkey_file")
+            accountfile = self.get_config("sftpd", "accounts.file", None)
+            accounturl = self.get_config("sftpd", "accounts.url", None)
+            sftp_portstr = self.get_config("sftpd", "port", "8022")
+            pubkey_file = self.get_config("sftpd", "host_pubkey_file")
+            privkey_file = self.get_config("sftpd", "host_privkey_file")
 
             from allmydata.frontends import sftpd
             s = sftpd.SFTPServer(self, accountfile, accounturl,
