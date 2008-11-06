@@ -302,14 +302,14 @@ twistd, making it easier to launch non-Tahoe nodes (like the cpu-watcher) and
 have them log to syslogd instead of a local file. This is useful when running
 a Tahoe node out of a USB flash drive.
 
-Tahoe now includes an experimental FTP server. When configured with a
+Tahoe now includes experimental FTP and SFTP servers. When configured with a
 suitable method to translate username+password into a root directory cap, it
 provides simple access to the virtual filesystem. Remember that FTP is
 completely unencrypted: passwords, filenames, and file contents are all sent
 over the wire in cleartext, so FTP should only be used on a local (127.0.0.1)
 connection. This feature is still in development: there are no unit tests
 yet, and behavior with respect to Unicode filenames is uncertain. Please see
-docs/ftp.txt for configuration details. (#512)
+docs/frontends/FTP-and-SFTP.txt for configuration details. (#512, #531)
 
 The Mac GUI in src/allmydata/gui/ has been improved.
 
