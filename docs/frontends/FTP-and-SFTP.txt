@@ -1,0 +1,213 @@
+= Tahoe FTP/SFTP Frontend =
+
+== FTP/SFTP Background ==
+
+FTP is the venerable internet file-transfer protocol, first developed in
+1971. The FTP server usually listens on port 21. A separate connection is
+used for the actual data transfers, either in the same direction as the
+initial client-to-server connection (for PORT mode), or in the reverse
+direction (for PASV) mode. Connections are unencrypted, so passwords, file
+names, and file contents are visible to eavesdroppers.
+
+SFTP is the modern replacement, developed as part of the SSH "secure shell"
+protocol, and runs as a subchannel of the regular SSH connection. The SSH
+server usually listens on port 22. All connections are encrypted.
+
+Both FTP and SFTP were developed assuming a UNIX-like server, with accounts
+and passwords, octal file modes (user/group/other, read/write/execute), and
+ctime/mtime timestamps.
+
+== Tahoe Support ==
+
+All Tahoe client nodes can run a frontend FTP server, allowing regular FTP
+clients (like /usr/bin/ftp, ncftp, and countless others) to access the
+virtual filesystem. They can also run an SFTP server, so SFTP clients (like
+/usr/bin/sftp, the sshfs FUSE plugin, and others) can too. These frontends
+sit at the same level as the webapi interface.
+
+Since Tahoe does not use user accounts or passwords, the FTP/SFTP servers
+must be configured with a way to first authenticate a user (confirm that a
+prospective client has a legitimate claim to whatever authorities we might
+grant a particular user), and second to decide what root directory cap should
+be granted to the authenticated username. FTP uses a username and password
+for this purpose. SFTP can either use a username and password, or a username
+and an RSA or DSA public key (SSH servers are frequently configured to
+require public key logins and reject passwords, to remove the threat of
+password-guessing attacks, at the expense of requiring users to carry their
+private keys around with them).
+
+Tahoe provides two mechanisms to perform this user-to-rootcap mapping. The
+first is a simple flat file with one account per line. The second is an
+HTTP-based login mechanism, backed by simple PHP script and a database. The
+latter form is used by allmydata.com to provide secure access to customer
+rootcaps.
+
+== Creating an Account File ==
+
+To use the first form, create a file (probably in
+BASEDIR/private/ftp.accounts) in which each non-comment/non-blank line is a
+space-separated line of (USERNAME, PASSWORD/PUBKEY, ROOTCAP), like so:
+
+ % cat BASEDIR/private/ftp.accounts
+ # This is a password line, (username, password, rootcap)
+ alice password URI:DIR2:ioej8xmzrwilg772gzj4fhdg7a:wtiizszzz2rgmczv4wl6bqvbv33ag4kvbr6prz3u6w3geixa6m6a
+ bob sekrit URI:DIR2:6bdmeitystckbl9yqlw7g56f4e:serp5ioqxnh34mlbmzwvkp3odehsyrr7eytt5f64we3k9hhcrcja
+
+ # and this is a public key line (username, pubkey, rootcap)
+ carol ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAv2xHRVBoXnwxHLzthRD1wOWtyZ08b8n9cMZfJ58CBdBwAYP2NVNXc0XjRvswm5hnnAO+jyWPVNpXJjm9XllzYhODSNtSN+TXuJlUjhzA/T+ZwdgsgSAeHuuMQBoWt4Qc9HV6rHCdAeMhcnyqm6Q0sRAsfA/wfwiIgbvE7+cWpFa2anB6WeAnvK8+dMN0nvnkPE7GNyf/WFR1Ffuh9ifKdRB6yDNp17bQAqA3OWSFjch6fGPhp94y4g2jmTHlEUTyVsilgGqvGOutOVYnmOMnFijugU1Vu33G39GGzXWla6+fXwTk/oiVPiCYD7A7WFKes3nqMg8iVN6a6sxujrhnHQ== warner@fluxx URI:DIR2:6bdmeitystckbl9yqlw7g56f4e:serp5ioqxnh34mlbmzwvkp3odehsyrr7eytt5f64we3k9hhcrcja
+
+[TODO: the PUBKEY form is not yet supported]
+
+Note that if the second word of the line is "ssh-rsa" or "ssh-dss", the rest
+of the line is parsed differently, so users cannot have a password equal to
+either of these strings.
+
+Then add an 'accounts.file' directive to your tahoe.cfg file, as described
+in the next sections.
+
+== Configuring FTP Access ==
+
+To enable the FTP server with an accounts file, add the following lines to
+the BASEDIR/tahoe.cfg file:
+
+ [ftpd]
+ enabled = true
+ port = 8021
+ accounts.file = private/ftp.accounts
+
+The FTP server will listen on the given port number. The "accounts.file"
+pathname will be interpreted relative to the node's BASEDIR.
+
+To enable the FTP server with an account server instead, provide the URL of
+that server in an "accounts.url" directive:
+
+ [ftpd]
+ enabled = true
+ port = 8021
+ accounts.url = https://example.com/login
+
+You can provide both accounts.file and accounts.url, although it probably
+isn't very useful except for testing.
+
+== Configuring SFTP Access ==
+
+The Tahoe SFTP server requires a host keypair, just like the regular SSH
+server. It is important to give each server a distinct keypair, to prevent
+one server from masquerading as different one. The first time a client
+program talks to a given server, it will store the host key it receives, and
+will complain if a subsequent connection uses a different key. This reduces
+the opportunity for man-in-the-middle attacks to just the first connection.
+
+You will use directives in the tahoe.cfg file to tell the SFTP code where to
+find these keys. To create one, use the ssh-keygen tool (which comes with the
+normal openssl client distribution):
+
+% cd BASEDIR
+% ssh-keygen -f private/ssh_host_rsa_key
+
+Then, to enable the SFTP server with an accounts file, add the following
+lines to the BASEDIR/tahoe.cfg file:
+
+ [sftpd]
+ enabled = true
+ port = 8022
+ host_pubkey_file = private/ssh_host_rsa_key.pub
+ host_privkey_file = private/ssh_host_rsa_key
+ accounts.file = private/ftp.accounts
+
+The SFTP server will listen on the given port number. The "accounts.file"
+pathname will be interpreted relative to the node's BASEDIR.
+
+Or, to use an account server instead, do this:
+
+ [sftpd]
+ enabled = true
+ port = 8022
+ host_pubkey_file = private/ssh_host_rsa_key.pub
+ host_privkey_file = private/ssh_host_rsa_key
+ accounts.url = https://example.com/login
+
+You can provide both accounts.file and accounts.url, although it probably
+isn't very useful except for testing.
+
+
+== Dependencies ==
+
+The Tahoe SFTP server requires the Twisted "Conch" component (a "conch" is a
+twisted shell, get it?). Many Linux distributions package the Conch code
+separately: debian puts it in the "python-twisted-conch" package. Conch
+requires the "pycrypto" package, which is a Python+C implementation of many
+cryptographic functions (the debian package is named "python-crypto").
+
+Note that "pycrypto" is different than the "pycryptopp" package that Tahoe
+uses (which is a Python wrapper around the C++ -based Crypto++ library, a
+library that is frequently installed as /usr/lib/libcryptopp.a, to avoid
+problems with non-alphanumerics in filenames).
+
+The FTP server requires code in Twisted that enables asynchronous closing of
+file-upload operations. This code was not in the Twisted-8.1.0 release, and
+has not been committed to SVN trunk as of r24943. So it may be necessary to
+apply the following patch. The Tahoe node refuse to start the FTP server if
+it detects that this patch has not been applied.
+
+Index: twisted/protocols/ftp.py
+===================================================================
+--- twisted/protocols/ftp.py	(revision 24956)
++++ twisted/protocols/ftp.py	(working copy)
+@@ -1049,7 +1049,6 @@
+                 cons = ASCIIConsumerWrapper(cons)
+ 
+             d = self.dtpInstance.registerConsumer(cons)
+-            d.addCallbacks(cbSent, ebSent)
+ 
+             # Tell them what to doooo
+             if self.dtpInstance.isConnected:
+@@ -1062,6 +1061,8 @@
+         def cbOpened(file):
+             d = file.receive()
+             d.addCallback(cbConsumer)
++            d.addCallback(lambda ignored: file.close())
++            d.addCallbacks(cbSent, ebSent)
+             return d
+ 
+         def ebOpened(err):
+@@ -1434,7 +1435,14 @@
+         @rtype: C{Deferred} of C{IConsumer}
+         """
+ 
++    def close():
++        """
++        Perform any post-write work that needs to be done. This method may
++        only be invoked once on each provider, and will always be invoked
++        after receive().
+ 
++        @rtype: C{Deferred} of anything: the value is ignored
++        """
+ 
+ def _getgroups(uid):
+     """Return the primary and supplementary groups for the given UID.
+@@ -1795,6 +1803,8 @@
+         # FileConsumer will close the file object
+         return defer.succeed(FileConsumer(self.fObj))
+ 
++    def close(self):
++        return defer.succeed(None)
+ 
+ 
+ class FTPRealm:
+Index: twisted/vfs/adapters/ftp.py
+===================================================================
+--- twisted/vfs/adapters/ftp.py	(revision 24956)
++++ twisted/vfs/adapters/ftp.py	(working copy)
+@@ -295,6 +295,11 @@
+         """
+         return defer.succeed(IConsumer(self.node))
+ 
++    def close(self):
++        """
++        Perform post-write actions.
++        """
++        return defer.succeed(None)
+ 
+ 
+ class _FileToConsumerAdapter(object):
