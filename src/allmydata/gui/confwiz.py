@@ -1,6 +1,5 @@
 
-#DEFAULT_SERVER_URL = 'https://www.allmydata.com/'
-DEFAULT_SERVER_URL = 'https://www-tahoe-test.allmydata.com/'
+DEFAULT_SERVER_URL = 'https://www.allmydata.com/'
 
 BACKEND = 'native_client.php'
 ACCOUNT_PAGE = 'account'
