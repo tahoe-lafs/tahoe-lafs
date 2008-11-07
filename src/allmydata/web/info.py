@@ -8,6 +8,7 @@ from nevow.inevow import IRequest
 from allmydata.util import base32
 from allmydata.interfaces import IDirectoryNode
 from allmydata.web.common import getxmlfile
+from allmydata.mutable.common import UnrecoverableFileError # TODO: move
 
 class MoreInfo(rend.Page):
     addSlash = False
@@ -59,6 +60,10 @@ class MoreInfo(rend.Page):
         else:
             # for immutable files and LIT files, we get the size from the URI
             d = defer.succeed(node.get_size())
+        def _handle_unrecoverable(f):
+            f.trap(UnrecoverableFileError)
+            return "?"
+        d.addErrback(_handle_unrecoverable)
         d.addCallback(lambda size: ctx.tag[size])
         return d
 
