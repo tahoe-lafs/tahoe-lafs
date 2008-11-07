@@ -44,7 +44,8 @@ class IMonitor(Interface):
         this."""
 
     def get_status(self):
-        """Return the status object."""
+        """Return the status object. If the operation failed, this will be a
+        Failure instance."""
 
     def finish(self, status):
         """Call this when the operation is done, successful or not. The
