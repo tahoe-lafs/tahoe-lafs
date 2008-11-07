@@ -85,6 +85,7 @@ class ResultsBase:
         data["results"] = self._json_check_counts(r.get_data())
         data["results"]["needs-rebalancing"] = r.needs_rebalancing()
         data["results"]["healthy"] = r.is_healthy()
+        data["results"]["recoverable"] = r.is_recoverable()
         return data
 
     def _json_check_counts(self, d):
@@ -178,10 +179,17 @@ class CheckerResults(CheckerBase, rend.Page, ResultsBase):
         data = self._json_check_results(self.r)
         return simplejson.dumps(data, indent=1) + "\n"
 
-    def render_healthy(self, ctx, data):
+    def render_summary(self, ctx, data):
+        results = []
         if self.r.is_healthy():
-            return ctx.tag["Healthy!"]
-        return ctx.tag["Not Healthy!: ", self._html(self.r.get_summary())]
+            results.append("Healthy")
+        elif self.r.is_recoverable():
+            results.append("Not Healthy!")
+        else:
+            results.append("Not Recoverable!")
+        results.append(" : ")
+        results.append(self._html(self.r.get_summary()))
+        return ctx.tag[results]
 
     def render_repair(self, ctx, data):
         if self.r.is_healthy():
@@ -215,11 +223,18 @@ class CheckAndRepairResults(CheckerBase, rend.Page, ResultsBase):
         data = self._json_check_and_repair_results(self.r)
         return simplejson.dumps(data, indent=1) + "\n"
 
-    def render_healthy(self, ctx, data):
+    def render_summary(self, ctx, data):
         cr = self.r.get_post_repair_results()
+        results = []
         if cr.is_healthy():
-            return ctx.tag["Healthy!"]
-        return ctx.tag["Not Healthy!: ", self._html(cr.get_summary())]
+            results.append("Healthy")
+        elif cr.is_recoverable():
+            results.append("Not Healthy!")
+        else:
+            results.append("Not Recoverable!")
+        results.append(" : ")
+        results.append(self._html(cr.get_summary()))
+        return ctx.tag[results]
 
     def render_repair_results(self, ctx, data):
         if self.r.get_repair_attempted():
@@ -296,6 +311,8 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
         return self.monitor.get_status().get_counters()["count-objects-healthy"]
     def data_objects_unhealthy(self, ctx, data):
         return self.monitor.get_status().get_counters()["count-objects-unhealthy"]
+    def data_objects_unrecoverable(self, ctx, data):
+        return self.monitor.get_status().get_counters()["count-objects-unrecoverable"]
 
     def data_count_corrupt_shares(self, ctx, data):
         return self.monitor.get_status().get_counters()["count-corrupt-shares"]
@@ -382,6 +399,7 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
             pathstring = "<root>"
         ctx.fillSlots("path", pathstring)
         ctx.fillSlots("healthy", str(r.is_healthy()))
+        ctx.fillSlots("recoverable", str(r.is_recoverable()))
         storage_index = r.get_storage_index()
         ctx.fillSlots("storage_index", self._render_si_link(ctx, storage_index))
         ctx.fillSlots("summary", self._html(r.get_summary()))

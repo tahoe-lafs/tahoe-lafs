@@ -1615,6 +1615,11 @@ class ICheckerResults(Interface):
         it is damaged in any way. Non-distributed LIT files always return
         True."""
 
+    def is_recoverable():
+        """Return a boolean, True if the file/dir can be recovered, False if
+        not. Unrecoverable files are obviously unhealthy. Non-distributed LIT
+        files always return True."""
+
     def needs_rebalancing():
         """Return a boolean, True if the file/dir's reliability could be
         improved by moving shares to new servers. Non-distributed LIT files
@@ -1728,6 +1733,7 @@ class IDeepCheckResults(Interface):
              count-objects-healthy: how many of those objects were completely
                                     healthy
              count-objects-unhealthy: how many were damaged in some way
+             count-objects-unrecoverable: how many were unrecoverable
              count-corrupt-shares: how many shares were found to have
                                    corruption, summed over all objects
                                    examined
@@ -1770,11 +1776,14 @@ class IDeepCheckAndRepairResults(Interface):
                                                repair)
              count-objects-unhealthy-pre-repair: how many were damaged in
                                                  some way
+             count-objects-unrecoverable-pre-repair: how many were unrecoverable
              count-objects-healthy-post-repair: how many of those objects were
                                                 completely healthy (after any
                                                 repair)
              count-objects-unhealthy-post-repair: how many were damaged in
                                                   some way
+             count-objects-unrecoverable-post-repair: how many were
+                                                      unrecoverable
              count-repairs-attempted: repairs were attempted on this many
                                       objects. The count-repairs- keys will
                                       always be provided, however unless

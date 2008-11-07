@@ -265,6 +265,7 @@ class MutableChecker:
         data["servers-responding"] = list(smap.reachable_peers)
 
         r.set_healthy(healthy)
+        r.set_recoverable(bool(recoverable))
         r.set_needs_rebalancing(needs_rebalancing)
         r.set_data(data)
         if healthy:

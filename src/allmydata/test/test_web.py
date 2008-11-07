@@ -1545,7 +1545,7 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         bar_url = self.public_url + "/foo/bar.txt"
         d = self.POST(bar_url, t="check")
         def _check(res):
-            self.failUnless("Healthy!" in res)
+            self.failUnless("Healthy :" in res)
         d.addCallback(_check)
         redir_url = "http://allmydata.org/TARGET"
         def _check2(statuscode, target):
@@ -1560,7 +1560,7 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.POST(bar_url, t="check", return_to=redir_url))
         def _check3(res):
-            self.failUnless("Healthy!" in res)
+            self.failUnless("Healthy :" in res)
             self.failUnless("Return to parent directory" in res)
             self.failUnless(redir_url in res)
         d.addCallback(_check3)
@@ -1579,7 +1579,7 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         bar_url = self.public_url + "/foo/bar.txt"
         d = self.POST(bar_url, t="check", repair="true")
         def _check(res):
-            self.failUnless("Healthy!" in res)
+            self.failUnless("Healthy :" in res)
         d.addCallback(_check)
         redir_url = "http://allmydata.org/TARGET"
         def _check2(statuscode, target):
@@ -1594,7 +1594,7 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.POST(bar_url, t="check", return_to=redir_url))
         def _check3(res):
-            self.failUnless("Healthy!" in res)
+            self.failUnless("Healthy :" in res)
             self.failUnless("Return to parent directory" in res)
             self.failUnless(redir_url in res)
         d.addCallback(_check3)
@@ -1604,7 +1604,7 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         foo_url = self.public_url + "/foo/"
         d = self.POST(foo_url, t="check")
         def _check(res):
-            self.failUnless("Healthy!" in res)
+            self.failUnless("Healthy :" in res, res)
         d.addCallback(_check)
         redir_url = "http://allmydata.org/TARGET"
         def _check2(statuscode, target):
@@ -1619,7 +1619,7 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.POST(foo_url, t="check", return_to=redir_url))
         def _check3(res):
-            self.failUnless("Healthy!" in res)
+            self.failUnless("Healthy :" in res, res)
             self.failUnless("Return to parent directory" in res)
             self.failUnless(redir_url in res)
         d.addCallback(_check3)
@@ -1638,7 +1638,7 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         foo_url = self.public_url + "/foo/"
         d = self.POST(foo_url, t="check", repair="true")
         def _check(res):
-            self.failUnless("Healthy!" in res)
+            self.failUnless("Healthy :" in res, res)
         d.addCallback(_check)
         redir_url = "http://allmydata.org/TARGET"
         def _check2(statuscode, target):
@@ -1653,7 +1653,7 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.POST(foo_url, t="check", return_to=redir_url))
         def _check3(res):
-            self.failUnless("Healthy!" in res)
+            self.failUnless("Healthy :" in res)
             self.failUnless("Return to parent directory" in res)
             self.failUnless(redir_url in res)
         d.addCallback(_check3)

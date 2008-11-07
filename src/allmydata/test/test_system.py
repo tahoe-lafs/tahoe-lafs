@@ -24,7 +24,7 @@ from twisted.python.failure import Failure
 from twisted.web.client import getPage
 from twisted.web.error import Error
 
-from allmydata.test.common import SystemTestMixin, WebErrorMixin, \
+from allmydata.test.common import SystemTestMixin, ErrorMixin, \
      MemoryConsumer, download_to_data
 
 LARGE_DATA = """
@@ -1760,7 +1760,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         return d
 
 
-class MutableChecker(SystemTestMixin, unittest.TestCase, WebErrorMixin):
+class MutableChecker(SystemTestMixin, unittest.TestCase, ErrorMixin):
 
     def _run_cli(self, argv):
         stdout, stderr = StringIO(), StringIO()
@@ -1784,7 +1784,7 @@ class MutableChecker(SystemTestMixin, unittest.TestCase, WebErrorMixin):
             return getPage(url, method="POST")
         d.addCallback(_do_check)
         def _got_results(out):
-            self.failUnless("<span>Healthy!</span>" in out, out)
+            self.failUnless("<span>Healthy : Healthy</span>" in out, out)
             self.failUnless("Recoverable Versions: 10*seq1-" in out, out)
             self.failIf("Not Healthy!" in out, out)
             self.failIf("Unhealthy" in out, out)
@@ -1895,13 +1895,85 @@ class MutableChecker(SystemTestMixin, unittest.TestCase, WebErrorMixin):
 
         return d
 
-class DeepCheckWeb(SystemTestMixin, unittest.TestCase, WebErrorMixin):
+
+class DeepCheckBase(SystemTestMixin, ErrorMixin):
+
+    def web_json(self, n, **kwargs):
+        kwargs["output"] = "json"
+        d = self.web(n, "POST", **kwargs)
+        d.addCallback(self.decode_json)
+        return d
+
+    def decode_json(self, (s,url)):
+        try:
+            data = simplejson.loads(s)
+        except ValueError:
+            self.fail("%s: not JSON: '%s'" % (url, s))
+        return data
+
+    def web(self, n, method="GET", **kwargs):
+        # returns (data, url)
+        url = (self.webish_url + "uri/%s" % urllib.quote(n.get_uri())
+               + "?" + "&".join(["%s=%s" % (k,v) for (k,v) in kwargs.items()]))
+        d = getPage(url, method=method)
+        d.addCallback(lambda data: (data,url))
+        return d
+
+    def wait_for_operation(self, ignored, ophandle):
+        url = self.webish_url + "operations/" + ophandle
+        url += "?t=status&output=JSON"
+        d = getPage(url)
+        def _got(res):
+            try:
+                data = simplejson.loads(res)
+            except ValueError:
+                self.fail("%s: not JSON: '%s'" % (url, res))
+            if not data["finished"]:
+                d = self.stall(delay=1.0)
+                d.addCallback(self.wait_for_operation, ophandle)
+                return d
+            return data
+        d.addCallback(_got)
+        return d
+
+    def get_operation_results(self, ignored, ophandle, output=None):
+        url = self.webish_url + "operations/" + ophandle
+        url += "?t=status"
+        if output:
+            url += "&output=" + output
+        d = getPage(url)
+        def _got(res):
+            if output and output.lower() == "json":
+                try:
+                    return simplejson.loads(res)
+                except ValueError:
+                    self.fail("%s: not JSON: '%s'" % (url, res))
+            return res
+        d.addCallback(_got)
+        return d
+
+    def slow_web(self, n, output=None, **kwargs):
+        # use ophandle=
+        handle = base32.b2a(os.urandom(4))
+        d = self.web(n, "POST", ophandle=handle, **kwargs)
+        d.addCallback(self.wait_for_operation, handle)
+        d.addCallback(self.get_operation_results, handle, output=output)
+        return d
+
+
+class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
     # construct a small directory tree (with one dir, one immutable file, one
     # mutable file, one LIT file, and a loop), and then check/examine it in
     # various ways.
 
     def set_up_tree(self, ignored):
         # 2.9s
+
+        # root
+        #   mutable
+        #   large
+        #   small
+        #   loop -> root
         c0 = self.clients[0]
         d = c0.create_empty_dirnode()
         def _created_root(n):
@@ -1994,18 +2066,19 @@ class DeepCheckWeb(SystemTestMixin, unittest.TestCase, WebErrorMixin):
         d = self.set_up_nodes()
         d.addCallback(self.set_up_tree)
         d.addCallback(self.do_stats)
-        d.addCallback(self.do_test_good)
-        d.addCallback(self.do_test_web)
+        d.addCallback(self.do_test_check_good)
+        d.addCallback(self.do_test_web_good)
         d.addErrback(self.explain_web_error)
+        d.addErrback(self.explain_error)
         return d
 
     def do_stats(self, ignored):
         d = defer.succeed(None)
         d.addCallback(lambda ign: self.root.start_deep_stats().when_done())
-        d.addCallback(self.check_stats)
+        d.addCallback(self.check_stats_good)
         return d
 
-    def check_stats(self, s):
+    def check_stats_good(self, s):
         self.failUnlessEqual(s["count-directories"], 1)
         self.failUnlessEqual(s["count-files"], 3)
         self.failUnlessEqual(s["count-immutable-files"], 1)
@@ -2028,7 +2101,7 @@ class DeepCheckWeb(SystemTestMixin, unittest.TestCase, WebErrorMixin):
         self.failUnlessEqual(s["size-immutable-files"], 13000)
         self.failUnlessEqual(s["size-literal-files"], 22)
 
-    def do_test_good(self, ignored):
+    def do_test_check_good(self, ignored):
         d = defer.succeed(None)
         # check the individual items
         d.addCallback(lambda ign: self.root.check(Monitor()))
@@ -2106,68 +2179,6 @@ class DeepCheckWeb(SystemTestMixin, unittest.TestCase, WebErrorMixin):
 
         return d
 
-    def web_json(self, n, **kwargs):
-        kwargs["output"] = "json"
-        d = self.web(n, "POST", **kwargs)
-        d.addCallback(self.decode_json)
-        return d
-
-    def decode_json(self, (s,url)):
-        try:
-            data = simplejson.loads(s)
-        except ValueError:
-            self.fail("%s: not JSON: '%s'" % (url, s))
-        return data
-
-    def web(self, n, method="GET", **kwargs):
-        # returns (data, url)
-        url = (self.webish_url + "uri/%s" % urllib.quote(n.get_uri())
-               + "?" + "&".join(["%s=%s" % (k,v) for (k,v) in kwargs.items()]))
-        d = getPage(url, method=method)
-        d.addCallback(lambda data: (data,url))
-        return d
-
-    def wait_for_operation(self, ignored, ophandle):
-        url = self.webish_url + "operations/" + ophandle
-        url += "?t=status&output=JSON"
-        d = getPage(url)
-        def _got(res):
-            try:
-                data = simplejson.loads(res)
-            except ValueError:
-                self.fail("%s: not JSON: '%s'" % (url, res))
-            if not data["finished"]:
-                d = self.stall(delay=1.0)
-                d.addCallback(self.wait_for_operation, ophandle)
-                return d
-            return data
-        d.addCallback(_got)
-        return d
-
-    def get_operation_results(self, ignored, ophandle, output=None):
-        url = self.webish_url + "operations/" + ophandle
-        url += "?t=status"
-        if output:
-            url += "&output=" + output
-        d = getPage(url)
-        def _got(res):
-            if output and output.lower() == "json":
-                try:
-                    return simplejson.loads(res)
-                except ValueError:
-                    self.fail("%s: not JSON: '%s'" % (url, res))
-            return res
-        d.addCallback(_got)
-        return d
-
-    def slow_web(self, n, output=None, **kwargs):
-        # use ophandle=
-        handle = base32.b2a(os.urandom(4))
-        d = self.web(n, "POST", ophandle=handle, **kwargs)
-        d.addCallback(self.wait_for_operation, handle)
-        d.addCallback(self.get_operation_results, handle, output=output)
-        return d
-
     def json_check_is_healthy(self, data, n, where, incomplete=False):
 
         self.failUnlessEqual(data["storage-index"],
@@ -2217,7 +2228,7 @@ class DeepCheckWeb(SystemTestMixin, unittest.TestCase, WebErrorMixin):
         self.failUnlessEqual(data["count-corrupt-shares"], 0, where)
         self.failUnlessEqual(data["list-corrupt-shares"], [], where)
         self.failUnlessEqual(data["list-unhealthy-files"], [], where)
-        self.json_check_stats(data["stats"], where)
+        self.json_check_stats_good(data["stats"], where)
 
     def json_full_deepcheck_and_repair_is_healthy(self, data, n, where):
         self.failUnlessEqual(data["root-storage-index"],
@@ -2245,17 +2256,17 @@ class DeepCheckWeb(SystemTestMixin, unittest.TestCase, WebErrorMixin):
         self.failUnlessEqual(data["storage-index"], "", where)
         self.failUnlessEqual(data["results"]["healthy"], True, where)
 
-    def json_check_stats(self, data, where):
-        self.check_stats(data)
+    def json_check_stats_good(self, data, where):
+        self.check_stats_good(data)
 
-    def do_test_web(self, ignored):
+    def do_test_web_good(self, ignored):
         d = defer.succeed(None)
 
         # stats
         d.addCallback(lambda ign:
                       self.slow_web(self.root,
                                     t="start-deep-stats", output="json"))
-        d.addCallback(self.json_check_stats, "deep-stats")
+        d.addCallback(self.json_check_stats_good, "deep-stats")
 
         # check, no verify
         d.addCallback(lambda ign: self.web_json(self.root, t="check"))
@@ -2331,5 +2342,316 @@ class DeepCheckWeb(SystemTestMixin, unittest.TestCase, WebErrorMixin):
         d.addCallback(lambda ign: self.web(self.mutable, t="info"))
         d.addCallback(lambda ign: self.web(self.large, t="info"))
         d.addCallback(lambda ign: self.web(self.small, t="info"))
+
+        return d
+
+class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
+
+    def test_bad(self):
+        self.basedir = self.mktemp()
+        d = self.set_up_nodes()
+        d.addCallback(self.set_up_damaged_tree)
+        d.addCallback(self.do_test_check_bad)
+        d.addCallback(self.do_test_deepcheck_bad)
+        d.addCallback(self.do_test_web_bad)
+        d.addErrback(self.explain_web_error)
+        d.addErrback(self.explain_error)
+        return d
+
+
+
+    def set_up_damaged_tree(self, ignored):
+        # 6.4s
+
+        # root
+        #   mutable-good
+        #   mutable-missing-shares
+        #   mutable-corrupt-shares
+        #   mutable-unrecoverable
+        #   large-good
+        #   large-missing-shares
+        #   large-corrupt-shares
+        #   large-unrecoverable
+
+        self.nodes = {}
+
+        c0 = self.clients[0]
+        d = c0.create_empty_dirnode()
+        def _created_root(n):
+            self.root = n
+            self.root_uri = n.get_uri()
+        d.addCallback(_created_root)
+        d.addCallback(self.create_mangled, "mutable-good")
+        d.addCallback(self.create_mangled, "mutable-missing-shares")
+        d.addCallback(self.create_mangled, "mutable-corrupt-shares")
+        d.addCallback(self.create_mangled, "mutable-unrecoverable")
+        d.addCallback(self.create_mangled, "large-good")
+        d.addCallback(self.create_mangled, "large-missing-shares")
+        d.addCallback(self.create_mangled, "large-corrupt-shares")
+        d.addCallback(self.create_mangled, "large-unrecoverable")
+
+        return d
+
+
+    def create_mangled(self, ignored, name):
+        nodetype, mangletype = name.split("-", 1)
+        if nodetype == "mutable":
+            d = self.clients[0].create_mutable_file("mutable file contents")
+            d.addCallback(lambda n: self.root.set_node(unicode(name), n))
+        elif nodetype == "large":
+            large = upload.Data("Lots of data\n" * 1000 + name + "\n", None)
+            d = self.root.add_file(unicode(name), large)
+        elif nodetype == "small":
+            small = upload.Data("Small enough for a LIT", None)
+            d = self.root.add_file(unicode(name), small)
+
+        def _stash_node(node):
+            self.nodes[name] = node
+            return node
+        d.addCallback(_stash_node)
+
+        if mangletype == "good":
+            pass
+        elif mangletype == "missing-shares":
+            d.addCallback(self._delete_some_shares)
+        elif mangletype == "corrupt-shares":
+            d.addCallback(self._corrupt_some_shares)
+        else:
+            assert mangletype == "unrecoverable"
+            d.addCallback(self._delete_most_shares)
+
+        return d
+
+    def _run_cli(self, argv):
+        stdout, stderr = StringIO(), StringIO()
+        runner.runner(argv, run_by_human=False, stdout=stdout, stderr=stderr)
+        return stdout.getvalue()
+
+    def _find_shares(self, node):
+        si = node.get_storage_index()
+        out = self._run_cli(["debug", "find-shares", base32.b2a(si)] +
+                            [c.basedir for c in self.clients])
+        files = out.split("\n")
+        return [f for f in files if f]
+
+    def _delete_some_shares(self, node):
+        shares = self._find_shares(node)
+        os.unlink(shares[0])
+        os.unlink(shares[1])
+
+    def _corrupt_some_shares(self, node):
+        shares = self._find_shares(node)
+        self._run_cli(["debug", "corrupt-share", shares[0]])
+        self._run_cli(["debug", "corrupt-share", shares[1]])
+
+    def _delete_most_shares(self, node):
+        shares = self._find_shares(node)
+        for share in shares[1:]:
+            os.unlink(share)
+
+
+    def check_is_healthy(self, cr, where):
+        self.failUnless(ICheckerResults.providedBy(cr), where)
+        self.failUnless(cr.is_healthy(), where)
+        self.failUnless(cr.is_recoverable(), where)
+        d = cr.get_data()
+        self.failUnlessEqual(d["count-recoverable-versions"], 1, where)
+        self.failUnlessEqual(d["count-unrecoverable-versions"], 0, where)
+        return cr
+
+    def check_is_missing_shares(self, cr, where):
+        self.failUnless(ICheckerResults.providedBy(cr), where)
+        self.failIf(cr.is_healthy(), where)
+        self.failUnless(cr.is_recoverable(), where)
+        d = cr.get_data()
+        self.failUnlessEqual(d["count-recoverable-versions"], 1, where)
+        self.failUnlessEqual(d["count-unrecoverable-versions"], 0, where)
+        return cr
+
+    def check_has_corrupt_shares(self, cr, where):
+        # by "corrupt-shares" we mean the file is still recoverable
+        self.failUnless(ICheckerResults.providedBy(cr), where)
+        d = cr.get_data()
+        self.failIf(cr.is_healthy(), where)
+        self.failUnless(cr.is_recoverable(), where)
+        d = cr.get_data()
+        self.failUnless(d["count-shares-good"] < 10, where)
+        self.failUnless(d["count-corrupt-shares"], where)
+        self.failUnless(d["list-corrupt-shares"], where)
+        return cr
+
+    def check_is_unrecoverable(self, cr, where):
+        self.failUnless(ICheckerResults.providedBy(cr), where)
+        d = cr.get_data()
+        self.failIf(cr.is_healthy(), where)
+        self.failIf(cr.is_recoverable(), where)
+        self.failUnless(d["count-shares-good"] < d["count-shares-needed"],
+                        where)
+        self.failUnlessEqual(d["count-recoverable-versions"], 0, where)
+        self.failUnlessEqual(d["count-unrecoverable-versions"], 1, where)
+        return cr
+
+    def do_test_check_bad(self, ignored):
+        d = defer.succeed(None)
+
+        # check the individual items, without verification. This will not
+        # detect corrupt shares.
+        def _check(which, checker):
+            d = self.nodes[which].check(Monitor())
+            d.addCallback(checker, which + "--check")
+            return d
+
+        d.addCallback(lambda ign: _check("mutable-good", self.check_is_healthy))
+        d.addCallback(lambda ign: _check("mutable-missing-shares",
+                                         self.check_is_missing_shares))
+        d.addCallback(lambda ign: _check("mutable-corrupt-shares",
+                                         self.check_is_healthy))
+        d.addCallback(lambda ign: _check("mutable-unrecoverable",
+                                         self.check_is_unrecoverable))
+        d.addCallback(lambda ign: _check("large-good", self.check_is_healthy))
+        d.addCallback(lambda ign: _check("large-missing-shares",
+                                         self.check_is_missing_shares))
+        d.addCallback(lambda ign: _check("large-corrupt-shares",
+                                         self.check_is_healthy))
+        d.addCallback(lambda ign: _check("large-unrecoverable",
+                                         self.check_is_unrecoverable))
+
+        # and again with verify=True, which *does* detect corrupt shares.
+        def _checkv(which, checker):
+            d = self.nodes[which].check(Monitor(), verify=True)
+            d.addCallback(checker, which + "--check-and-verify")
+            return d
+
+        d.addCallback(lambda ign: _checkv("mutable-good", self.check_is_healthy))
+        d.addCallback(lambda ign: _checkv("mutable-missing-shares",
+                                         self.check_is_missing_shares))
+        d.addCallback(lambda ign: _checkv("mutable-corrupt-shares",
+                                         self.check_has_corrupt_shares))
+        d.addCallback(lambda ign: _checkv("mutable-unrecoverable",
+                                         self.check_is_unrecoverable))
+        d.addCallback(lambda ign: _checkv("large-good", self.check_is_healthy))
+        # disabled pending immutable verifier
+        #d.addCallback(lambda ign: _checkv("large-missing-shares",
+        #                                 self.check_is_missing_shares))
+        #d.addCallback(lambda ign: _checkv("large-corrupt-shares",
+        #                                 self.check_has_corrupt_shares))
+        d.addCallback(lambda ign: _checkv("large-unrecoverable",
+                                         self.check_is_unrecoverable))
+
+        return d
+
+    def do_test_deepcheck_bad(self, ignored):
+        d = defer.succeed(None)
+
+        # now deep-check the root, with various verify= and repair= options
+        d.addCallback(lambda ign:
+                      self.root.start_deep_check().when_done())
+        def _check1(cr):
+            self.failUnless(IDeepCheckResults.providedBy(cr))
+            c = cr.get_counters()
+            self.failUnlessEqual(c["count-objects-checked"], 9)
+            self.failUnlessEqual(c["count-objects-healthy"], 5)
+            self.failUnlessEqual(c["count-objects-unhealthy"], 4)
+            self.failUnlessEqual(c["count-objects-unrecoverable"], 2)
+        d.addCallback(_check1)
+
+        d.addCallback(lambda ign:
+                      self.root.start_deep_check(verify=True).when_done())
+        def _check2(cr):
+            self.failUnless(IDeepCheckResults.providedBy(cr))
+            c = cr.get_counters()
+            self.failUnlessEqual(c["count-objects-checked"], 9)
+            # until we have a real immutable verifier, these counts will be
+            # off
+            #self.failUnlessEqual(c["count-objects-healthy"], 3)
+            #self.failUnlessEqual(c["count-objects-unhealthy"], 6)
+            self.failUnlessEqual(c["count-objects-healthy"], 5) # todo
+            self.failUnlessEqual(c["count-objects-unhealthy"], 4)
+            self.failUnlessEqual(c["count-objects-unrecoverable"], 2)
+        d.addCallback(_check2)
+
+        return d
+
+    def json_is_healthy(self, data, where):
+        r = data["results"]
+        self.failUnless(r["healthy"], where)
+        self.failUnless(r["recoverable"], where)
+        self.failUnlessEqual(r["count-recoverable-versions"], 1, where)
+        self.failUnlessEqual(r["count-unrecoverable-versions"], 0, where)
+
+    def json_is_missing_shares(self, data, where):
+        r = data["results"]
+        self.failIf(r["healthy"], where)
+        self.failUnless(r["recoverable"], where)
+        self.failUnlessEqual(r["count-recoverable-versions"], 1, where)
+        self.failUnlessEqual(r["count-unrecoverable-versions"], 0, where)
+
+    def json_has_corrupt_shares(self, data, where):
+        # by "corrupt-shares" we mean the file is still recoverable
+        r = data["results"]
+        self.failIf(r["healthy"], where)
+        self.failUnless(r["recoverable"], where)
+        self.failUnless(r["count-shares-good"] < 10, where)
+        self.failUnless(r["count-corrupt-shares"], where)
+        self.failUnless(r["list-corrupt-shares"], where)
+
+    def json_is_unrecoverable(self, data, where):
+        r = data["results"]
+        self.failIf(r["healthy"], where)
+        self.failIf(r["recoverable"], where)
+        self.failUnless(r["count-shares-good"] < r["count-shares-needed"],
+                        where)
+        self.failUnlessEqual(r["count-recoverable-versions"], 0, where)
+        self.failUnlessEqual(r["count-unrecoverable-versions"], 1, where)
+
+    def do_test_web_bad(self, ignored):
+        d = defer.succeed(None)
+
+        # check, no verify
+        def _check(which, checker):
+            d = self.web_json(self.nodes[which], t="check")
+            d.addCallback(checker, which + "--webcheck")
+            return d
+
+        d.addCallback(lambda ign: _check("mutable-good",
+                                         self.json_is_healthy))
+        d.addCallback(lambda ign: _check("mutable-missing-shares",
+                                         self.json_is_missing_shares))
+        d.addCallback(lambda ign: _check("mutable-corrupt-shares",
+                                         self.json_is_healthy))
+        d.addCallback(lambda ign: _check("mutable-unrecoverable",
+                                         self.json_is_unrecoverable))
+        d.addCallback(lambda ign: _check("large-good",
+                                         self.json_is_healthy))
+        d.addCallback(lambda ign: _check("large-missing-shares",
+                                         self.json_is_missing_shares))
+        d.addCallback(lambda ign: _check("large-corrupt-shares",
+                                         self.json_is_healthy))
+        d.addCallback(lambda ign: _check("large-unrecoverable",
+                                         self.json_is_unrecoverable))
+
+        # check and verify
+        def _checkv(which, checker):
+            d = self.web_json(self.nodes[which], t="check", verify="true")
+            d.addCallback(checker, which + "--webcheck-and-verify")
+            return d
+
+        d.addCallback(lambda ign: _checkv("mutable-good",
+                                          self.json_is_healthy))
+        d.addCallback(lambda ign: _checkv("mutable-missing-shares",
+                                         self.json_is_missing_shares))
+        d.addCallback(lambda ign: _checkv("mutable-corrupt-shares",
+                                         self.json_has_corrupt_shares))
+        d.addCallback(lambda ign: _checkv("mutable-unrecoverable",
+                                         self.json_is_unrecoverable))
+        d.addCallback(lambda ign: _checkv("large-good",
+                                          self.json_is_healthy))
+        # disabled pending immutable verifier
+        #d.addCallback(lambda ign: _checkv("large-missing-shares",
+        #                                 self.json_is_missing_shares))
+        #d.addCallback(lambda ign: _checkv("large-corrupt-shares",
+        #                                 self.json_has_corrupt_shares))
+        d.addCallback(lambda ign: _checkv("large-unrecoverable",
+                                         self.json_is_unrecoverable))
 
         return d

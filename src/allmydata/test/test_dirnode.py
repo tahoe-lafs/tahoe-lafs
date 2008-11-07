@@ -39,6 +39,7 @@ class Marker:
     def check(self, monitor, verify=False):
         r = CheckerResults("", None)
         r.set_healthy(True)
+        r.set_recoverable(True)
         return defer.succeed(r)
 
     def check_and_repair(self, monitor, verify=False):
@@ -168,6 +169,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                                  {"count-objects-checked": 3,
                                   "count-objects-healthy": 3,
                                   "count-objects-unhealthy": 0,
+                                  "count-objects-unrecoverable": 0,
                                   "count-corrupt-shares": 0,
                                   })
             self.failIf(r.get_corrupt_shares())
@@ -186,9 +188,11 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                                  {"count-objects-checked": 3,
                                   "count-objects-healthy-pre-repair": 3,
                                   "count-objects-unhealthy-pre-repair": 0,
+                                  "count-objects-unrecoverable-pre-repair": 0,
                                   "count-corrupt-shares-pre-repair": 0,
                                   "count-objects-healthy-post-repair": 3,
                                   "count-objects-unhealthy-post-repair": 0,
+                                  "count-objects-unrecoverable-post-repair": 0,
                                   "count-corrupt-shares-post-repair": 0,
                                   "count-repairs-attempted": 0,
                                   "count-repairs-successful": 0,
@@ -215,6 +219,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                                  {"count-objects-checked": 3,
                                   "count-objects-healthy": 2,
                                   "count-objects-unhealthy": 1,
+                                  "count-objects-unrecoverable": 0,
                                   "count-corrupt-shares": 0,
                                   })
             #self.failUnlessEqual(len(r.get_problems()), 1) # TODO

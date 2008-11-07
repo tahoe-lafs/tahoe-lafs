@@ -20,6 +20,8 @@ class CheckerResults:
 
     def set_healthy(self, healthy):
         self.healthy = bool(healthy)
+    def set_recoverable(self, recoverable):
+        self.recoverable = recoverable
     def set_needs_rebalancing(self, needs_rebalancing):
         self.needs_rebalancing_p = bool(needs_rebalancing)
     def set_data(self, data):
@@ -45,6 +47,8 @@ class CheckerResults:
 
     def is_healthy(self):
         return self.healthy
+    def is_recoverable(self):
+        return self.recoverable
 
     def needs_rebalancing(self):
         return self.needs_rebalancing_p
@@ -93,6 +97,7 @@ class DeepResultsBase:
         self.objects_checked = 0
         self.objects_healthy = 0
         self.objects_unhealthy = 0
+        self.objects_unrecoverable = 0
         self.corrupt_shares = []
         self.all_results = {}
         self.all_results_by_storage_index = {}
@@ -130,6 +135,8 @@ class DeepCheckResults(DeepResultsBase):
             self.objects_healthy += 1
         else:
             self.objects_unhealthy += 1
+        if not r.is_recoverable():
+            self.objects_unrecoverable += 1
         self.all_results[tuple(path)] = r
         self.all_results_by_storage_index[r.get_storage_index()] = r
         self.corrupt_shares.extend(r.get_data()["list-corrupt-shares"])
@@ -138,6 +145,7 @@ class DeepCheckResults(DeepResultsBase):
         return {"count-objects-checked": self.objects_checked,
                 "count-objects-healthy": self.objects_healthy,
                 "count-objects-unhealthy": self.objects_unhealthy,
+                "count-objects-unrecoverable": self.objects_unrecoverable,
                 "count-corrupt-shares": len(self.corrupt_shares),
                 }
 
@@ -149,8 +157,7 @@ class DeepCheckAndRepairResults(DeepResultsBase):
         DeepResultsBase.__init__(self, root_storage_index)
         self.objects_healthy_post_repair = 0
         self.objects_unhealthy_post_repair = 0
-        self.objects_healthy_post_repair = 0
-        self.objects_healthy_post_repair = 0
+        self.objects_unrecoverable_post_repair = 0
         self.repairs_attempted = 0
         self.repairs_successful = 0
         self.repairs_unsuccessful = 0
@@ -168,6 +175,8 @@ class DeepCheckAndRepairResults(DeepResultsBase):
             self.objects_healthy += 1
         else:
             self.objects_unhealthy += 1
+        if not pre_repair.is_recoverable():
+            self.objects_unrecoverable += 1
         self.corrupt_shares.extend(pre_repair.get_data()["list-corrupt-shares"])
         if r.get_repair_attempted():
             self.repairs_attempted += 1
@@ -179,6 +188,8 @@ class DeepCheckAndRepairResults(DeepResultsBase):
             self.objects_healthy_post_repair += 1
         else:
             self.objects_unhealthy_post_repair += 1
+        if not post_repair.is_recoverable():
+            self.objects_unrecoverable_post_repair += 1
         self.all_results[tuple(path)] = r
         self.all_results_by_storage_index[r.get_storage_index()] = r
         self.corrupt_shares_post_repair.extend(post_repair.get_data()["list-corrupt-shares"])
@@ -187,8 +198,10 @@ class DeepCheckAndRepairResults(DeepResultsBase):
         return {"count-objects-checked": self.objects_checked,
                 "count-objects-healthy-pre-repair": self.objects_healthy,
                 "count-objects-unhealthy-pre-repair": self.objects_unhealthy,
+                "count-objects-unrecoverable-pre-repair": self.objects_unrecoverable,
                 "count-objects-healthy-post-repair": self.objects_healthy_post_repair,
                 "count-objects-unhealthy-post-repair": self.objects_unhealthy_post_repair,
+                "count-objects-unrecoverable-post-repair": self.objects_unrecoverable_post_repair,
                 "count-repairs-attempted": self.repairs_attempted,
                 "count-repairs-successful": self.repairs_successful,
                 "count-repairs-unsuccessful": self.repairs_unsuccessful,

@@ -72,12 +72,14 @@ class SimpleCHKFileChecker:
         report = []
         healthy = bool(len(self.found_shares) >= self.total_shares)
         r.set_healthy(healthy)
+        recoverable = bool(len(self.found_shares) >= self.needed_shares)
+        r.set_recoverable(recoverable)
         data = {"count-shares-good": len(self.found_shares),
                 "count-shares-needed": self.needed_shares,
                 "count-shares-expected": self.total_shares,
                 "count-wrong-shares": 0,
                 }
-        if healthy:
+        if recoverable:
             data["count-recoverable-versions"] = 1
             data["count-unrecoverable-versions"] = 0
         else:
@@ -120,6 +122,7 @@ class VerifyingOutput:
         self._opened = False
         self._results = results
         results.set_healthy(False)
+        results.set_recoverable(False)
 
     def setup_hashtrees(self, plaintext_hashtree, crypttext_hashtree):
         self._crypttext_hash_tree = crypttext_hashtree
@@ -141,6 +144,7 @@ class VerifyingOutput:
 
     def finish(self):
         self._results.set_healthy(True)
+        self._results.set_recoverable(True)
         # the return value of finish() is passed out of FileDownloader._done,
         # but SimpleCHKFileVerifier overrides this with the CheckerResults
         # instance instead.
@@ -222,7 +226,7 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         # once we know that, we can download blocks from everybody
         d.addCallback(self._download_all_segments)
         d.addCallback(self._done)
-        d.addCallback(self._verify_done)
+        d.addCallbacks(self._verify_done, self._verify_failed)
         return d
 
     def _verify_done(self, ignored):
@@ -241,6 +245,26 @@ class SimpleCHKFileVerifier(download.FileDownloader):
             "count-wrong-shares": 0,
             "count-recoverable-versions": 1,
             "count-unrecoverable-versions": 0,
+            }
+        self._check_results.set_data(data)
+        return self._check_results
+
+    def _verify_failed(self, ignored):
+        # TODO: The following results are just stubs, and need to be replaced
+        # with actual values. These exist to make things like deep-check not
+        # fail.
+        self._check_results.set_needs_rebalancing(False)
+        N = self._total_shares
+        data = {
+            "count-shares-good": 0,
+            "count-good-share-hosts": 0,
+            "count-corrupt-shares": 0,
+            "list-corrupt-shares": [],
+            "servers-responding": [],
+            "sharemap": {},
+            "count-wrong-shares": 0,
+            "count-recoverable-versions": 0,
+            "count-unrecoverable-versions": 1,
             }
         self._check_results.set_data(data)
         return self._check_results
