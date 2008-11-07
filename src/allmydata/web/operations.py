@@ -3,7 +3,8 @@ import time
 from zope.interface import implements
 from nevow import rend, url, tags as T
 from nevow.inevow import IRequest
-from twisted.internet import reactor
+from twisted.python.failure import Failure
+from twisted.internet import reactor, defer
 from twisted.web.http import NOT_FOUND
 from twisted.web.html import escape
 from twisted.application import service
@@ -91,6 +92,10 @@ class OphandleTable(rend.Page, service.Service):
                 if retain_for is None:
                     # this GET is collecting the ophandle, so change its timer
                     self._set_timer(ophandle, self.COLLECTED_HANDLE_LIFETIME)
+
+        status = monitor.get_status()
+        if isinstance(status, Failure):
+            return defer.fail(status)
 
         return renderer
 
