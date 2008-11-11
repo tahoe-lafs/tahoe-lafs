@@ -340,7 +340,7 @@ class TahoeDirectoryTarget:
                 if self.writecap:
                     url = self.nodeurl + "/".join(["uri",
                                                    urllib.quote(self.writecap),
-                                                   urllib.quote(name)])
+                                                   urllib.quote(name.encode('utf-8'))])
                 self.children[name] = TahoeFileTarget(self.nodeurl, mutable,
                                                       writecap, readcap, url)
             else:
