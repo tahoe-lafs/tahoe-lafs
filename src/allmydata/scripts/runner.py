@@ -1,8 +1,12 @@
 
 import sys
 from cStringIO import StringIO
+
+import pkg_resources
+pkg_resources.require('twisted')
 from twisted.python import usage
 
+pkg_resources.require('allmydata-tahoe')
 from allmydata.scripts.common import BaseOptions
 import debug, create_node, startstop_node, cli, keygen
 

@@ -1,8 +1,6 @@
 
 import os, sys
 import pkg_resources
-pkg_resources.require('allmydata-tahoe')
-pkg_resources.require('twisted')
 from twisted.python import usage
 from allmydata.scripts.common import BasedirMixin, NoDefaultBasedirMixin
 
