@@ -1,6 +1,5 @@
 
 import os, sys
-import pkg_resources
 from twisted.python import usage
 from allmydata.scripts.common import BasedirMixin, NoDefaultBasedirMixin
 
