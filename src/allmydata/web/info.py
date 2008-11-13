@@ -194,7 +194,7 @@ class MoreInfo(rend.Page):
         return ""
 
     def render_deep_check_form(self, ctx, data):
-        ophandle = base32.b2a(os.urandom(8))
+        ophandle = base32.b2a(os.urandom(16))
         deep_check = T.form(action=".", method="post",
                             enctype="multipart/form-data")[
             T.fieldset[
@@ -217,7 +217,7 @@ class MoreInfo(rend.Page):
         return ctx.tag[deep_check]
 
     def render_deep_size_form(self, ctx, data):
-        ophandle = base32.b2a(os.urandom(8))
+        ophandle = base32.b2a(os.urandom(16))
         deep_size = T.form(action=".", method="post",
                             enctype="multipart/form-data")[
             T.fieldset[
@@ -229,7 +229,7 @@ class MoreInfo(rend.Page):
         return ctx.tag[deep_size]
 
     def render_deep_stats_form(self, ctx, data):
-        ophandle = base32.b2a(os.urandom(8))
+        ophandle = base32.b2a(os.urandom(16))
         deep_stats = T.form(action=".", method="post",
                             enctype="multipart/form-data")[
             T.fieldset[
@@ -241,7 +241,7 @@ class MoreInfo(rend.Page):
         return ctx.tag[deep_stats]
 
     def render_manifest_form(self, ctx, data):
-        ophandle = base32.b2a(os.urandom(8))
+        ophandle = base32.b2a(os.urandom(16))
         manifest = T.form(action=".", method="post",
                             enctype="multipart/form-data")[
             T.fieldset[
