@@ -1764,6 +1764,8 @@ class MutableChecker(SystemTestMixin, unittest.TestCase, ErrorMixin):
 
     def _run_cli(self, argv):
         stdout, stderr = StringIO(), StringIO()
+        # this can only do synchronous operations
+        assert argv[0] == "debug"
         runner.runner(argv, run_by_human=False, stdout=stdout, stderr=stderr)
         return stdout.getvalue()
 
@@ -2358,7 +2360,10 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def do_test_cli_good(self, ignored):
-        d = self._run_cli(["manifest", "-u", self.webish_url, self.root_uri])
+        basedir = self.getdir("client0")
+        d = self._run_cli(["manifest",
+                           "--node-directory", basedir,
+                           self.root_uri])
         def _check((out,err)):
             lines = [l for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 4)
@@ -2378,7 +2383,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(_check)
 
         d.addCallback(lambda res:
-                      self._run_cli(["manifest", "-u", self.webish_url,
+                      self._run_cli(["manifest",
+                                     "--node-directory", basedir,
                                      "--storage-index", self.root_uri]))
         def _check2((out,err)):
             lines = [l for l in out.split("\n") if l]
@@ -2469,6 +2475,8 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
 
     def _run_cli(self, argv):
         stdout, stderr = StringIO(), StringIO()
+        # this can only do synchronous operations
+        assert argv[0] == "debug"
         runner.runner(argv, run_by_human=False, stdout=stdout, stderr=stderr)
         return stdout.getvalue()
 
