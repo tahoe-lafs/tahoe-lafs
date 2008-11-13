@@ -2068,6 +2068,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(self.do_stats)
         d.addCallback(self.do_test_check_good)
         d.addCallback(self.do_test_web_good)
+        d.addCallback(self.do_test_cli_good)
         d.addErrback(self.explain_web_error)
         d.addErrback(self.explain_error)
         return d
@@ -2344,6 +2345,50 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(lambda ign: self.web(self.small, t="info"))
 
         return d
+
+    def _run_cli(self, argv, stdin=""):
+        #print "CLI:", argv
+        stdout, stderr = StringIO(), StringIO()
+        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
+                                  stdin=StringIO(stdin),
+                                  stdout=stdout, stderr=stderr)
+        def _done(res):
+            return stdout.getvalue(), stderr.getvalue()
+        d.addCallback(_done)
+        return d
+
+    def do_test_cli_good(self, ignored):
+        d = self._run_cli(["manifest", "-u", self.webish_url, self.root_uri])
+        def _check((out,err)):
+            lines = [l for l in out.split("\n") if l]
+            self.failUnlessEqual(len(lines), 4)
+            caps = {}
+            for l in lines:
+                try:
+                    cap, path = l.split(None, 1)
+                except ValueError:
+                    cap = l.strip()
+                    path = ""
+                caps[cap] = path
+            self.failUnless(self.root.get_uri() in caps)
+            self.failUnlessEqual(caps[self.root.get_uri()], "")
+            self.failUnlessEqual(caps[self.mutable.get_uri()], "mutable")
+            self.failUnlessEqual(caps[self.large.get_uri()], "large")
+            self.failUnlessEqual(caps[self.small.get_uri()], "small")
+        d.addCallback(_check)
+
+        d.addCallback(lambda res:
+                      self._run_cli(["manifest", "-u", self.webish_url,
+                                     "--storage-index", self.root_uri]))
+        def _check2((out,err)):
+            lines = [l for l in out.split("\n") if l]
+            self.failUnlessEqual(len(lines), 3)
+            self.failUnless(base32.b2a(self.root.get_storage_index()) in lines)
+            self.failUnless(base32.b2a(self.mutable.get_storage_index()) in lines)
+            self.failUnless(base32.b2a(self.large.get_storage_index()) in lines)
+        d.addCallback(_check2)
+        return d
+
 
 class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
 

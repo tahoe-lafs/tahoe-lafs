@@ -325,6 +325,21 @@ tahoe mv tahoe:uploaded.txt fun:uploaded.txt
  These move a file from your tahoe root directory to the virtual directory
  set up earlier with "tahoe add-alias fun DIRCAP"
 
+== Virtual Drive Maintenance ==
+
+tahoe manifest tahoe:
+tahoe manifest --storage-index tahoe:
+
+ This performs a recursive walk of the given directory, visiting every file
+ and directory that can be reached from that point. It then emits one line to
+ stdout for each object it encounters.
+
+ The default behavior is to print the access cap string (like URI:CHK:.. or
+ URI:DIR2:..), followed by a space, followed by the full path name.
+
+ If --storage-index is added, each line will instead contain the object's
+ storage index. This (string) value is useful to determine which share files
+ (on the server) are associated with this directory tree.
 
 
 == Debugging ==

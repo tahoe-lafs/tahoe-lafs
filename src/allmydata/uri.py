@@ -38,6 +38,9 @@ class _BaseURI:
     def to_human_encoding(self):
         return 'http://127.0.0.1:8123/uri/'+self.to_string()
 
+    def get_storage_index(self):
+        return self.storage_index
+
 class CHKFileURI(_BaseURI):
     implements(IURI, IFileURI)
 
@@ -179,6 +182,8 @@ class LiteralFileURI(_BaseURI):
         return False
     def get_readonly(self):
         return self
+    def get_storage_index(self):
+        return None
 
     def get_verifier(self):
         # LIT files need no verification, all the data is present in the URI
@@ -358,6 +363,9 @@ class _NewDirectoryBaseURI(_BaseURI):
 
     def get_verifier(self):
         return NewDirectoryURIVerifier(self._filenode_uri.get_verifier())
+
+    def get_storage_index(self):
+        return self._filenode_uri.get_storage_index()
 
 class NewDirectoryURI(_NewDirectoryBaseURI):
     implements(INewDirectoryURI)

@@ -197,6 +197,18 @@ class WebopenOptions(VDriveOptions):
 
     longdesc = """Opens a webbrowser to the contents of some portion of the virtual drive."""
 
+class ManifestOptions(VDriveOptions):
+    optFlags = [
+        ("storage-index", "s", "Only print storage index strings, not pathname+cap"),
+        ]
+    def parseArgs(self, where=''):
+        self.where = where
+
+    def getSynopsis(self):
+        return "%s manifest [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
+
+    longdesc = """Print a list of all files/directories reachable from the given starting point."""
+
 subCommands = [
     ["mkdir", None, MakeDirectoryOptions, "Create a new directory"],
     ["add-alias", None, AddAliasOptions, "Add a new alias cap"],
@@ -210,6 +222,7 @@ subCommands = [
     ["mv", None, MvOptions, "Move a file within the virtual drive."],
     ["ln", None, LnOptions, "Make an additional link to an existing file."],
     ["webopen", None, WebopenOptions, "Open a webbrowser to the root_dir"],
+    ["manifest", None, ManifestOptions, "List all files/dirs in a subtree"],
     ]
 
 def mkdir(options):
@@ -281,6 +294,11 @@ def webopen(options, opener=None):
     rc = tahoe_webopen.webopen(options, opener=opener)
     return rc
 
+def manifest(options):
+    from allmydata.scripts import tahoe_manifest
+    rc = tahoe_manifest.manifest(options)
+    return rc
+
 dispatch = {
     "mkdir": mkdir,
     "add-alias": add_alias,
@@ -294,5 +312,6 @@ dispatch = {
     "mv": mv,
     "ln": ln,
     "webopen": webopen,
+    "manifest": manifest,
     }
 
