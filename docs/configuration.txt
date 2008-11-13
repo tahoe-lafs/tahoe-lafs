@@ -77,22 +77,83 @@ tub.port = (integer, optional)
  port. The port will be written to a separate file (named client.port or
  introducer.port), so that subsequent runs will re-use the same port.
 
-advertised_ip_addresses = (comma-separated host[:port] string, optional)
+tub.location = (string, optional)
 
- The node normally uses tools like 'ifconfig' to determine the set of IP
- addresses on which it can be reached from nodes both near and far. The node
- introduces itself to the rest of the grid with a FURL that contains a series
- of (ipaddr, port) pairs which other nodes will use to contact this one. By
- providing this file, you can add to this list. This can be useful if your
- node is running behind a firewall, but you have created a port-forwarding to
- allow the outside world to access it. Each line must have a dotted-quad IP
- address and an optional :portnum specification, like:
+ In addition to running as a client, each Tahoe node also runs as a server,
+ listening for connections from other Tahoe clients. The node announces its
+ location by publishing a "FURL" (a string with some connection hints) to the
+ Introducer. The string it publishes can be found in
+ $BASEDIR/private/storage.furl . The "tub.location" configuration controls
+ what location is published in this announcement.
 
-  123.45.67.89
-  44.55.66.77:8098
+ If you don't provide tub.location, the node will try to figure out a useful
+ one by itself, by using tools like 'ifconfig' to determine the set of IP
+ addresses on which it can be reached from nodes both near and far. It will
+ also include the TCP port number on which it is listening (either the one
+ specified by tub.port, or whichever port was assigned by the kernel when
+ tub.port is left unspecified).
 
- Lines that do not provide a port number will use the same client.port as the
- automatically-discovered addresses.
+ You might want to override this value if your node lives behind a firewall
+ that is doing inbound port forwarding, or if you are using other proxies
+ such that the local IP address or port number is not the same one that
+ remote clients should use to connect. You might also want to control this
+ when using a Tor proxy to avoid revealing your actual IP address through the
+ Introducer announcement.
+
+ The value is a comma-separated string of host:port location hints, like
+ this:
+
+  123.45.67.89:8098,tahoe.example.com:8098,127.0.0.1:8098
+
+ A few examples:
+
+  Emulate default behavior, assuming your host has IP address 123.45.67.89
+  and the kernel-allocated port number was 8098:
+
+   tub.port = 8098
+   tub.location = 123.45.67.89:8098,127.0.0.1:8098
+
+  Use a DNS name so you can change the IP address more easily:
+
+   tub.port = 8098
+   tub.location = tahoe.example.com:8098
+
+  Run a node behind a firewall (which has an external IP address) that has
+  been configured to forward port 7912 to our internal node's port 8098:
+
+   tub.port = 8098
+   tub.location = external-firewall.example.com:7912
+
+  Run a node behind a Tor proxy (perhaps via tsocks), in client-only mode
+  (i.e. we can make outbound connections, but other nodes will not be able to
+  connect to us). The literal 'unreachable.example.org' will not resolve, but
+  will serve as a reminder to human observers that this node cannot be
+  reached. "Don't call us.. we'll call you":
+
+   tub.port = 8098
+   tub.location = unreachable.example.org:0
+
+  Run a node behind a Tor proxy, and make the server available as a Tor
+  "hidden service". (this assumes that other clients are running their node
+  with tsocks, such that they are prepared to connect to a .onion address).
+  The hidden service must first be configured in Tor, by giving it a local
+  port number and then obtaining a .onion name, using something in the torrc
+  file like:
+
+    HiddenServiceDir /var/lib/tor/hidden_services/tahoe
+    HiddenServicePort 29212 127.0.0.1:8098
+
+   once Tor is restarted, the .onion hostname will be in
+   /var/lib/tor/hidden_services/tahoe/hostname . Then set up your tahoe.cfg
+   like:
+
+    tub.port = 8098
+    tub.location = ualhejtq2p7ohfbb.onion:29212
+
+ Most users will not need to set tub.location .
+
+ Note that the old 'advertised_ip_addresses' file from earlier releases is no
+ longer supported. Tahoe 1.3.0 and later will ignore this file.
 
 log_gatherer.furl = (FURL, optional)
 
@@ -345,7 +406,7 @@ exists, it will take precedence over the corresponding item in tahoe.cfg .
 [node]tub.port : BASEDIR/client.port  (for Clients, not Introducers)
 [node]tub.port : BASEDIR/introducer.port  (for Introducers, not Clients)
       (note that, unlike other keys, tahoe.cfg overrides the *.port file)
-[node]advertised_ip_addresses : BASEDIR/advertised_ip_addresses (one per line)
+[node]tub.location : replaces BASEDIR/advertised_ip_addresses
 [node]log_gatherer.furl : BASEDIR/log_gatherer.furl (one per line)
 [node]timeout.keepalive : BASEDIR/keepalive_timeout
 [node]timeout.disconnect : BASEDIR/disconnect_timeout
@@ -367,6 +428,13 @@ file provided the ssh public keys to accept. Support for these files has been
 removed completely. To ssh into your Tahoe node, add [node]ssh.port and
 [node].ssh_authorized_keys_file statements to your tahoe.cfg .
 
+Likewise, the functionality of [node]tub.location is a variant of the
+now-unsupported BASEDIR/advertised_ip_addresses . The old file was additive
+(the addresses specified in advertised_ip_addresses were used in addition to
+any that were automatically discovered), whereas the new tahoe.cfg directive
+is not (tub.location is used verbatim).
+
+
 == Example ==
 
 The following is a sample tahoe.cfg file, containing values for all keys
@@ -374,8 +442,10 @@ described above. Note that this is not a recommended configuration (most of
 these are not the default values), merely a legal one.
 
 [node]
-port = 34912
-advertised_ip_addresses = 123.45.67.89,44.55.66.77:8098
+nickname = Bob's Tahoe Node
+tub.port = 34912
+tub.location = 123.45.67.89:8098,44.55.66.77:8098
+web.port = 8123
 log_gatherer.furl = pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm
 timeout.keepalive = 240
 timeout.disconnect = 1800
@@ -384,8 +454,6 @@ ssh.authorized_keys_file = ~/.ssh/authorized_keys
 
 [client]
 introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tahoe.example:44801/ii3uumo
-nickname = Bob's Tahoe Node
-web.port = 8123
 helper.furl = pb://ggti5ssoklj4y7eok5c3xkmj@helper.tahoe.example:7054/kk8lhr
 
 [storage]

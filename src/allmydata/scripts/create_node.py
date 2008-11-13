@@ -73,7 +73,7 @@ def write_node_config(c, config):
     c.write("web.port = %s\n" % webport)
     c.write("web.static = public_html\n")
     c.write("#tub.port =\n")
-    c.write("#advertised_ip_addresses =\n")
+    c.write("#tub.location = \n")
     c.write("#log_gatherer.furl =\n")
     c.write("#timeout.keepalive =\n")
     c.write("#timeout.disconnect =\n")

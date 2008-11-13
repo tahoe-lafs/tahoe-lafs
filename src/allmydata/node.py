@@ -50,7 +50,6 @@ class Node(service.MultiService):
     NODETYPE = "unknown NODETYPE"
     PORTNUMFILE = None
     CERTFILE = "node.pem"
-    LOCAL_IP_FILE = "advertised_ip_addresses"
 
     def __init__(self, basedir="."):
         service.MultiService.__init__(self)
@@ -116,21 +115,6 @@ class Node(service.MultiService):
             except EnvironmentError:
                 pass
 
-        try:
-            addresses = []
-            ipfile = os.path.join(self.basedir, self.LOCAL_IP_FILE)
-            tubport = int(self.get_config("node", "tub.port", "0"))
-            for addrline in open(ipfile, "rU"):
-                mo = ADDR_RE.search(addrline)
-                if mo:
-                    (addr, dummy, aportnum,) = mo.groups()
-                    if aportnum is None:
-                        aportnum = tubport
-                    addresses.append("%s:%d" % (addr, int(aportnum),))
-            self.set_config("node", "advertised_ip_addresses",
-                            ",".join(addresses))
-        except EnvironmentError:
-            pass
         copy("keepalive_timeout", "node", "timeout.keepalive")
         copy("disconnect_timeout", "node", "timeout.disconnect")
 
@@ -320,18 +304,16 @@ class Node(service.MultiService):
         # running, which means after startService.
         l = self.tub.getListeners()[0]
         portnum = l.getPortnum()
-        # record which port we're listening on, so we can grab the same one next time
+        # record which port we're listening on, so we can grab the same one
+        # next time
         open(self._portnumfile, "w").write("%d\n" % portnum)
 
-        addresses = [ "%s:%d" % (addr, portnum,) for addr in local_addresses ]
-        extra_addresses = self.get_config("node", "advertised_ip_addresses", "")
-        if extra_addresses:
-            extra_addresses = extra_addresses.split(",")
-            addresses.extend(extra_addresses)
-
-        location = ",".join(addresses)
+        base_location = ",".join([ "%s:%d" % (addr, portnum)
+                                   for addr in local_addresses ])
+        location = self.get_config("node", "tub.location", base_location)
         self.log("Tub location set to %s" % location)
         self.tub.setLocation(location)
+
         return self.tub
 
     def when_tub_ready(self):

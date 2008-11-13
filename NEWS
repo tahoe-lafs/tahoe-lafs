@@ -53,9 +53,10 @@ connection. docs/frontends/webapi.txt has details.
 The Tahoe node is now configured with a single INI-format file, named
 "tahoe.cfg", in the node's base directory. Most of the previous
 multiple-separate-files are still read for backwards compatibility (the
-embedded SSH debug server is the exception), but new directives will only be
-added to tahoe.cfg . The "tahoe create-client" command will create a
-tahoe.cfg for you, with sample values commented out. (ticket #518)
+embedded SSH debug server and the advertised_ip_addresses files are the
+exceptions), but new directives will only be added to tahoe.cfg . The "tahoe
+create-client" command will create a tahoe.cfg for you, with sample values
+commented out. (ticket #518)
 
 tahoe.cfg now has controls for the foolscap "keepalive" and "disconnect"
 timeouts (#521).
