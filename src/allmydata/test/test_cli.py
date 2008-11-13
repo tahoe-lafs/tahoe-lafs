@@ -1,3 +1,4 @@
+# coding=utf-8
 
 import os.path
 from twisted.trial import unittest
@@ -543,4 +544,24 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:uploaded.txt"))
         d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA2))
+        return d
+
+class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
+    def test_unicode_filename(self):
+        self.basedir = os.path.dirname(self.mktemp())
+
+        fn1 = os.path.join(self.basedir, u"Ärtonwall")
+        open(fn1, "wb").write("unicode file content")
+
+        fn2 = os.path.join(self.basedir, u"Metallica")
+        open(fn2, "wb").write("non-unicode file content")
+
+        # Bug #534
+        # Assure that uploading a file whose name contains unicode character doesn't
+        # prevent further uploads in the same directory
+        d = self.set_up_nodes()
+        d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
+        d.addCallback(lambda res: self.do_cli("cp", fn1, "tahoe:"))
+        d.addCallback(lambda res: self.do_cli("cp", fn2, "tahoe:"))
+
         return d
