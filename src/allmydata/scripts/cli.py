@@ -209,6 +209,15 @@ class ManifestOptions(VDriveOptions):
 
     longdesc = """Print a list of all files/directories reachable from the given starting point."""
 
+class StatsOptions(VDriveOptions):
+    def parseArgs(self, where=''):
+        self.where = where
+
+    def getSynopsis(self):
+        return "%s stats [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
+
+    longdesc = """Print statistics about of all files/directories reachable from the given starting point."""
+
 subCommands = [
     ["mkdir", None, MakeDirectoryOptions, "Create a new directory"],
     ["add-alias", None, AddAliasOptions, "Add a new alias cap"],
@@ -223,6 +232,7 @@ subCommands = [
     ["ln", None, LnOptions, "Make an additional link to an existing file."],
     ["webopen", None, WebopenOptions, "Open a webbrowser to the root_dir"],
     ["manifest", None, ManifestOptions, "List all files/dirs in a subtree"],
+    ["stats", None, StatsOptions, "Print statistics about all files/dirs in a subtree"],
     ]
 
 def mkdir(options):
@@ -299,6 +309,11 @@ def manifest(options):
     rc = tahoe_manifest.manifest(options)
     return rc
 
+def stats(options):
+    from allmydata.scripts import tahoe_manifest
+    rc = tahoe_manifest.stats(options)
+    return rc
+
 dispatch = {
     "mkdir": mkdir,
     "add-alias": add_alias,
@@ -313,5 +328,6 @@ dispatch = {
     "ln": ln,
     "webopen": webopen,
     "manifest": manifest,
+    "stats": stats,
     }
 

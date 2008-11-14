@@ -341,6 +341,12 @@ tahoe manifest --storage-index tahoe:
  storage index. This (string) value is useful to determine which share files
  (on the server) are associated with this directory tree.
 
+tahoe stats tahoe:
+
+ This performs a recursive walk of the given directory, visiting every file
+ and directory that can be reached from that point. It gathers statistics on
+ the sizes of the objects it encounters, and prints a summary to stdout.
+
 
 == Debugging ==
 

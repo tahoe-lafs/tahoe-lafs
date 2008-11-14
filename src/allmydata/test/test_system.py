@@ -2393,6 +2393,24 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
             self.failUnless(base32.b2a(self.mutable.get_storage_index()) in lines)
             self.failUnless(base32.b2a(self.large.get_storage_index()) in lines)
         d.addCallback(_check2)
+
+        d.addCallback(lambda res:
+                      self._run_cli(["stats",
+                                     "--node-directory", basedir,
+                                     self.root_uri]))
+        def _check3((out,err)):
+            lines = [l.strip() for l in out.split("\n") if l]
+            self.failUnless("count-immutable-files: 1" in lines)
+            self.failUnless("count-mutable-files: 1" in lines)
+            self.failUnless("count-literal-files: 1" in lines)
+            self.failUnless("count-files: 3" in lines)
+            self.failUnless("count-directories: 1" in lines)
+            self.failUnless("size-immutable-files: 13000" in lines)
+            self.failUnless("size-literal-files: 22" in lines)
+            self.failUnless("   11-31    : 1".strip() in lines)
+            self.failUnless("10001-31622 : 1".strip() in lines)
+        d.addCallback(_check3)
+
         return d
 
 

@@ -7,7 +7,8 @@ from allmydata import uri
 import urllib
 import simplejson
 
-class ManifestGrabber:
+class SlowOperationRunner:
+
     def run(self, options):
         stderr = options.stderr
         self.options = options
@@ -24,7 +25,7 @@ class ManifestGrabber:
         if path:
             url += "/" + escape_path(path)
         # todo: should it end with a slash?
-        url += "?t=start-manifest&ophandle=" + ophandle
+        url += "?t=%s&ophandle=%s" % (self.operation, ophandle)
         resp = do_http("POST", url)
         if resp.status not in (200, 302):
             print >>stderr, "ERROR", resp.status, resp.reason, resp.read()
@@ -68,6 +69,9 @@ class ManifestGrabber:
         self.write_results(data)
         return True
 
+class ManifestGrabber(SlowOperationRunner):
+    operation = "start-manifest"
+
     def write_results(self, data):
         stdout = self.options.stdout
         stderr = self.options.stderr
@@ -85,7 +89,46 @@ class ManifestGrabber:
                     print >>stdout, cap, "/".join([p.encode("utf-8")
                                                    for p in path])
 
-
-
 def manifest(options):
     return ManifestGrabber().run(options)
+
+class StatsGrabber(SlowOperationRunner):
+    operation = "start-deep-stats"
+
+    def write_results(self, data):
+        stdout = self.options.stdout
+        stderr = self.options.stderr
+        keys = ("count-immutable-files",
+                "count-mutable-files",
+                "count-literal-files",
+                "count-files",
+                "count-directories",
+                "size-immutable-files",
+                "size-mutable-files",
+                "size-literal-files",
+                "size-directories",
+                "largest-directory",
+                "largest-immutable-files",
+                )
+        width = max([len(k) for k in keys])
+        print >>stdout, "Counts and Total Sizes:"
+        for k in keys:
+            fmt = "%" + str(width) + "s: %d"
+            if k in data:
+                print >>stdout, fmt % (k, data[k])
+        print >>stdout, "Size Histogram:"
+        prevmax = None
+        maxlen = max([len(str(maxsize))
+                      for (minsize, maxsize, count)
+                      in data["size-files-histogram"]])
+        minfmt = "%" + str(maxlen) + "d"
+        maxfmt = "%-" + str(maxlen) + "d"
+        linefmt = minfmt + "-" + maxfmt + " : %d"
+        for (minsize, maxsize, count) in data["size-files-histogram"]:
+            if prevmax is not None and minsize != prevmax+1:
+                print >>stdout, " "*(maxlen-1) + "..."
+            prevmax = maxsize
+            print >>stdout, linefmt % (minsize, maxsize, count)
+
+def stats(options):
+    return StatsGrabber().run(options)
