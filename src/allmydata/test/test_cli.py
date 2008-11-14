@@ -550,11 +550,13 @@ class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
     def test_unicode_filename(self):
         self.basedir = os.path.dirname(self.mktemp())
 
-        fn1 = os.path.join(self.basedir, u"Ärtonwall")
-        open(fn1, "wb").write("unicode file content")
+        fn1 = os.path.join(self.basedir, "Ärtonwall")
+        DATA1 = "unicode file content"
+        open(fn1, "wb").write(DATA1)
 
-        fn2 = os.path.join(self.basedir, u"Metallica")
-        open(fn2, "wb").write("non-unicode file content")
+        fn2 = os.path.join(self.basedir, "Metallica")
+        DATA2 = "non-unicode file content"
+        open(fn2, "wb").write(DATA2)
 
         # Bug #534
         # Assure that uploading a file whose name contains unicode character doesn't
