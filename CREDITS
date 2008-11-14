@@ -50,3 +50,7 @@ D: user testing and docs
 N: Chris Galvan
 D: packaging
 E: cgalvan@enthought.com
+
+N: François Deppierraz
+D: bug fix, testing
+E: francois@ctrlaltdel.ch
