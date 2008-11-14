@@ -566,4 +566,10 @@ class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("cp", fn1, "tahoe:"))
         d.addCallback(lambda res: self.do_cli("cp", fn2, "tahoe:"))
 
+        d.addCallback(lambda res: self.do_cli("get", "tahoe:Ärtonwall"))
+        d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA1))
+
+        d.addCallback(lambda res: self.do_cli("get", "tahoe:Metallica"))
+        d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA2))
+
         return d
