@@ -37,4 +37,4 @@ class ConcurrencyLimiter:
     def _done(self, res, done_d):
         self.active -= 1
         eventually(done_d.callback, res)
-        self.maybe_start_task()
+        eventually(self.maybe_start_task)
