@@ -1975,6 +1975,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         #   mutable
         #   large
         #   small
+        #   small2
         #   loop -> root
         c0 = self.clients[0]
         d = c0.create_empty_dirnode()
@@ -2002,6 +2003,13 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
             self.small = n
             self.small_uri = n.get_uri()
         d.addCallback(_created_small)
+
+        small2 = upload.Data("Small enough for a LIT too", None)
+        d.addCallback(lambda ign: self.root.add_file(u"small2", small2))
+        def _created_small2(n):
+            self.small2 = n
+            self.small2_uri = n.get_uri()
+        d.addCallback(_created_small2)
 
         d.addCallback(lambda ign: self.root.set_node(u"loop", self.root))
         return d
@@ -2083,14 +2091,14 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def check_stats_good(self, s):
         self.failUnlessEqual(s["count-directories"], 1)
-        self.failUnlessEqual(s["count-files"], 3)
+        self.failUnlessEqual(s["count-files"], 4)
         self.failUnlessEqual(s["count-immutable-files"], 1)
-        self.failUnlessEqual(s["count-literal-files"], 1)
+        self.failUnlessEqual(s["count-literal-files"], 2)
         self.failUnlessEqual(s["count-mutable-files"], 1)
         # don't check directories: their size will vary
         # s["largest-directory"]
         # s["size-directories"]
-        self.failUnlessEqual(s["largest-directory-children"], 4)
+        self.failUnlessEqual(s["largest-directory-children"], 5)
         self.failUnlessEqual(s["largest-immutable-file"], 13000)
         # to re-use this function for both the local
         # dirnode.start_deep_stats() and the webapi t=start-deep-stats, we
@@ -2098,11 +2106,11 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         # returns a list of tuples, but JSON only knows about lists., so
         # t=start-deep-stats returns a list of lists.
         histogram = [tuple(stuff) for stuff in s["size-files-histogram"]]
-        self.failUnlessEqual(histogram, [(11, 31, 1),
+        self.failUnlessEqual(histogram, [(11, 31, 2),
                                          (10001, 31622, 1),
                                          ])
         self.failUnlessEqual(s["size-immutable-files"], 13000)
-        self.failUnlessEqual(s["size-literal-files"], 22)
+        self.failUnlessEqual(s["size-literal-files"], 48)
 
     def do_test_check_good(self, ignored):
         d = defer.succeed(None)
@@ -2115,6 +2123,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(self.check_is_healthy, self.large, "large")
         d.addCallback(lambda ign: self.small.check(Monitor()))
         d.addCallback(self.failUnlessEqual, None, "small")
+        d.addCallback(lambda ign: self.small2.check(Monitor()))
+        d.addCallback(self.failUnlessEqual, None, "small2")
 
         # and again with verify=True
         d.addCallback(lambda ign: self.root.check(Monitor(), verify=True))
@@ -2126,6 +2136,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                       incomplete=True)
         d.addCallback(lambda ign: self.small.check(Monitor(), verify=True))
         d.addCallback(self.failUnlessEqual, None, "small")
+        d.addCallback(lambda ign: self.small2.check(Monitor(), verify=True))
+        d.addCallback(self.failUnlessEqual, None, "small2")
 
         # and check_and_repair(), which should be a nop
         d.addCallback(lambda ign: self.root.check_and_repair(Monitor()))
@@ -2136,6 +2148,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(self.check_and_repair_is_healthy, self.large, "large")
         d.addCallback(lambda ign: self.small.check_and_repair(Monitor()))
         d.addCallback(self.failUnlessEqual, None, "small")
+        d.addCallback(lambda ign: self.small2.check_and_repair(Monitor()))
+        d.addCallback(self.failUnlessEqual, None, "small2")
 
         # check_and_repair(verify=True)
         d.addCallback(lambda ign: self.root.check_and_repair(Monitor(), verify=True))
@@ -2147,6 +2161,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                       incomplete=True)
         d.addCallback(lambda ign: self.small.check_and_repair(Monitor(), verify=True))
         d.addCallback(self.failUnlessEqual, None, "small")
+        d.addCallback(lambda ign: self.small2.check_and_repair(Monitor(), verify=True))
+        d.addCallback(self.failUnlessEqual, None, "small2")
 
 
         # now deep-check the root, with various verify= and repair= options
@@ -2280,6 +2296,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(self.json_check_is_healthy, self.large, "large")
         d.addCallback(lambda ign: self.web_json(self.small, t="check"))
         d.addCallback(self.json_check_lit, self.small, "small")
+        d.addCallback(lambda ign: self.web_json(self.small2, t="check"))
+        d.addCallback(self.json_check_lit, self.small2, "small2")
 
         # check and verify
         d.addCallback(lambda ign:
@@ -2294,6 +2312,9 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.web_json(self.small, t="check", verify="true"))
         d.addCallback(self.json_check_lit, self.small, "small")
+        d.addCallback(lambda ign:
+                      self.web_json(self.small2, t="check", verify="true"))
+        d.addCallback(self.json_check_lit, self.small2, "small2")
 
         # check and repair, no verify
         d.addCallback(lambda ign:
@@ -2308,6 +2329,9 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.web_json(self.small, t="check", repair="true"))
         d.addCallback(self.json_check_lit, self.small, "small")
+        d.addCallback(lambda ign:
+                      self.web_json(self.small2, t="check", repair="true"))
+        d.addCallback(self.json_check_lit, self.small2, "small2")
 
         # check+verify+repair
         d.addCallback(lambda ign:
@@ -2322,6 +2346,9 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.web_json(self.small, t="check", repair="true", verify="true"))
         d.addCallback(self.json_check_lit, self.small, "small")
+        d.addCallback(lambda ign:
+                      self.web_json(self.small2, t="check", repair="true", verify="true"))
+        d.addCallback(self.json_check_lit, self.small2, "small2")
 
         # now run a deep-check, with various verify= and repair= flags
         d.addCallback(lambda ign:
@@ -2345,6 +2372,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(lambda ign: self.web(self.mutable, t="info"))
         d.addCallback(lambda ign: self.web(self.large, t="info"))
         d.addCallback(lambda ign: self.web(self.small, t="info"))
+        d.addCallback(lambda ign: self.web(self.small2, t="info"))
 
         return d
 
@@ -2366,7 +2394,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                            self.root_uri])
         def _check((out,err)):
             lines = [l for l in out.split("\n") if l]
-            self.failUnlessEqual(len(lines), 4)
+            self.failUnlessEqual(len(lines), 5)
             caps = {}
             for l in lines:
                 try:
@@ -2380,6 +2408,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
             self.failUnlessEqual(caps[self.mutable.get_uri()], "mutable")
             self.failUnlessEqual(caps[self.large.get_uri()], "large")
             self.failUnlessEqual(caps[self.small.get_uri()], "small")
+            self.failUnlessEqual(caps[self.small2.get_uri()], "small2")
         d.addCallback(_check)
 
         d.addCallback(lambda res:
@@ -2402,12 +2431,12 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
             lines = [l.strip() for l in out.split("\n") if l]
             self.failUnless("count-immutable-files: 1" in lines)
             self.failUnless("count-mutable-files: 1" in lines)
-            self.failUnless("count-literal-files: 1" in lines)
-            self.failUnless("count-files: 3" in lines)
+            self.failUnless("count-literal-files: 2" in lines)
+            self.failUnless("count-files: 4" in lines)
             self.failUnless("count-directories: 1" in lines)
             self.failUnless("size-immutable-files: 13000" in lines)
-            self.failUnless("size-literal-files: 22" in lines)
-            self.failUnless("   11-31    : 1".strip() in lines)
+            self.failUnless("size-literal-files: 48" in lines)
+            self.failUnless("   11-31    : 2".strip() in lines)
             self.failUnless("10001-31622 : 1".strip() in lines)
         d.addCallback(_check3)
 

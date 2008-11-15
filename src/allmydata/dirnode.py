@@ -503,7 +503,8 @@ class NewDirectoryNode:
         dl = [limiter.add(walker.enter_directory, parent, children)]
         for name, (child, metadata) in children.iteritems():
             verifier = child.get_verifier()
-            if verifier in found:
+            # allow LIT files (for which verifier==None) to be processed
+            if (verifier is not None) and (verifier in found):
                 continue
             found.add(verifier)
             childpath = path + [name]
