@@ -2,8 +2,9 @@
 
 # This is a munin plugin which pulls data from the server in
 # misc/spacetime/diskwatcher.tac . It produces a graph of how much space is
-# present on all disks across the grid. The plugin should be configured with
-# env_url= pointing at the diskwatcher.tac webport.
+# present on all disks across the grid, and how much space is actually being
+# used. The plugin should be configured with env_url= pointing at the
+# diskwatcher.tac webport.
 
 import os, sys, urllib, simplejson
 
@@ -12,11 +13,14 @@ if len(sys.argv) > 1 and sys.argv[1] == "config":
 graph_title Tahoe Total Disk Space
 graph_vlabel bytes
 graph_category tahoe
-graph_info This graph shows the total amount of disk space present in the grid
+graph_info This graph shows the total amount of disk space present in the grid, and how much of it is currently being used.
 disk_total.label disk total
-disk_total.draw LINE1"""
+disk_total.draw LINE2
+disk_used.label disk used
+disk_used.draw LINE1"""
     sys.exit(0)
 
 url = os.environ["url"]
-data = simplejson.load(urllib.urlopen(url))["total"]
-print "disk_total.value", data
+data = simplejson.load(urllib.urlopen(url))
+print "disk_total.value", data["total"]
+print "disk_used.value", data["used"]
