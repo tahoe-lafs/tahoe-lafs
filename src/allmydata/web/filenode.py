@@ -374,7 +374,14 @@ class FileDownloader(rend.Page):
             start, end = bytesrange[1].split('-')
             if start:
                 offset = int(start)
-            if end:
+                if not end:
+                    # RFC 2616 says:
+                    #
+                    # "If the last-byte-pos value is absent, or if the value is
+                    # greater than or equal to the current length of the
+                    # entity-body, last-byte-pos is taken to be equal to one less
+                    # than the current length of the entity- body in bytes."
+                    end = filesize - 1
                 size = int(end) - offset + 1
             req.setResponseCode(http.PARTIAL_CONTENT)
             req.setHeader('content-range',"bytes %s-%s/%s" %

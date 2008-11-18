@@ -552,6 +552,20 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(_got)
         return d
 
+    def test_GET_FILEURL_partial_range(self):
+        headers = {"range": "bytes=5-"}
+        length  = len(self.BAR_CONTENTS)
+        d = self.GET(self.public_url + "/foo/bar.txt", headers=headers,
+                     return_response=True)
+        def _got((res, status, headers)):
+            self.failUnlessEqual(int(status), 206)
+            self.failUnless(headers.has_key("content-range"))
+            self.failUnlessEqual(headers["content-range"][0],
+                                 "bytes 5-%d/%d" % (length-1, length))
+            self.failUnlessEqual(res, self.BAR_CONTENTS[5:])
+        d.addCallback(_got)
+        return d
+
     def test_HEAD_FILEURL_range(self):
         headers = {"range": "bytes=1-10"}
         d = self.HEAD(self.public_url + "/foo/bar.txt", headers=headers,
@@ -562,6 +576,19 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
             self.failUnless(headers.has_key("content-range"))
             self.failUnlessEqual(headers["content-range"][0],
                                  "bytes 1-10/%d" % len(self.BAR_CONTENTS))
+        d.addCallback(_got)
+        return d
+
+    def test_HEAD_FILEURL_partial_range(self):
+        headers = {"range": "bytes=5-"}
+        length  = len(self.BAR_CONTENTS)
+        d = self.HEAD(self.public_url + "/foo/bar.txt", headers=headers,
+                     return_response=True)
+        def _got((res, status, headers)):
+            self.failUnlessEqual(int(status), 206)
+            self.failUnless(headers.has_key("content-range"))
+            self.failUnlessEqual(headers["content-range"][0],
+                                 "bytes 5-%d/%d" % (length-1, length))
         d.addCallback(_got)
         return d
 
