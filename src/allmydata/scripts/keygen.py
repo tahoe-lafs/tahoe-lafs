@@ -5,7 +5,7 @@ from twisted.python import usage
 
 class CreateKeyGeneratorOptions(usage.Options):
     optParameters = [
-        ["basedir", "C", None, "which directory to create the client in"],
+        ["basedir", "C", None, "which directory to create the key-generator in"],
         ]
 
 keygen_tac = """
