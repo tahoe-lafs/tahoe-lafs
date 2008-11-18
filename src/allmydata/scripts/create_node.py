@@ -104,6 +104,9 @@ def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
     c.write("helper.furl =\n")
     c.write("#key_generator.furl =\n")
     c.write("#stats_gatherer.furl =\n")
+    c.write("#shares.needed = 3\n")
+    c.write("#shares.happy = 7\n")
+    c.write("#shares.total = 10\n")
     c.write("\n")
 
     boolstr = {True:"true", False:"false"}

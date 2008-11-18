@@ -65,6 +65,7 @@ class Client(node.Node, pollmixin.PollMixin):
         node.Node.__init__(self, basedir)
         self.started_timestamp = time.time()
         self.logSource="Client"
+        self.DEFAULT_ENCODING_PARAMETERS = self.DEFAULT_ENCODING_PARAMETERS.copy()
         self.init_introducer_client()
         self.init_stats_provider()
         self.init_lease_secret()
@@ -185,6 +186,10 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_client(self):
         helper_furl = self.get_config("client", "helper.furl", None)
+        DEP = self.DEFAULT_ENCODING_PARAMETERS
+        DEP["k"] = int(self.get_config("client", "shares.needed", DEP["k"]))
+        DEP["n"] = int(self.get_config("client", "shares.total", DEP["n"]))
+        DEP["happy"] = int(self.get_config("client", "shares.happy", DEP["happy"]))
         convergence_s = self.get_or_create_private_config('convergence', _make_secret)
         self.convergence = base32.a2b(convergence_s)
         self._node_cache = weakref.WeakValueDictionary() # uri -> node

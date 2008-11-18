@@ -232,6 +232,40 @@ stats_gatherer.furl = (FURL string, optional)
  If provided, the node will connect to the given stats gatherer and provide
  it with operational statistics.
 
+shares.needed = (int, optional) aka "k"
+shares.total = (int, optional) aka "N", N >= k
+shares.happy = (int, optional) k <= happy <= N
+
+ These three values set the default encoding parameters. Each time a new file
+ is uploaded, erasure-coding is used to break the ciphertext into separate
+ pieces. There will be "N" (i.e. shares.total) pieces created, and the file
+ will be recoverable if any "k" (i.e. shares.needed) pieces are retrieved.
+ The default values are 3-of-10 (i.e. shares.needed = 3, shares.total = 10).
+ Setting k to 1 is equivalent to simple replication (uploading N copies of
+ the file).
+
+ These values control the tradeoff between storage overhead, performance, and
+ reliability. To a first approximation, a 1MB file will use (1MB*N/k) of
+ backend storage space (the actual value will be a bit more, because of other
+ forms of overhead). Up to N-k shares can be lost before the file becomes
+ unrecoverable, so assuming there are at least N servers, up to N-k servers
+ can be offline without losing the file. So large N/k ratios are more
+ reliable, and small N/k ratios use less disk space. Clearly, k must never be
+ smaller than N.
+
+ Large values of N will slow down upload operations slightly, since more
+ servers must be involved, and will slightly increase storage overhead due to
+ the hash trees that are created. Large values of k will cause downloads to
+ be marginally slower, because more servers must be involved. N cannot be
+ larger than 256, because of the 8-bit erasure-coding algorithm that Tahoe
+ uses.
+
+ If servers are lost during an upload, shares.happy determines whether the
+ upload is considered successful or not. If at least "shares.happy" shares
+ were placed, the upload is declared a success, otherwise it is declared a
+ failure. The default value is 7. This value must not be smaller than k nor
+ larger than N.
+
 
 == Storage Server Configuration ==
 

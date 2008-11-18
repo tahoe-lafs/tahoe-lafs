@@ -61,6 +61,9 @@ commented out. (ticket #518)
 tahoe.cfg now has controls for the foolscap "keepalive" and "disconnect"
 timeouts (#521).
 
+tahoe.cfg now has controls for the encoding parameters: "shares.needed" and
+"shares.total" in the "[client]" section. The default parameters are still
+3-of-10.
 
 ** CLI Changes
 
