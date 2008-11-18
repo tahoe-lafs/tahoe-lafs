@@ -8,10 +8,11 @@ from twisted.python import usage
 
 pkg_resources.require('allmydata-tahoe')
 from allmydata.scripts.common import BaseOptions
-import debug, create_node, startstop_node, cli, keygen
+import debug, create_node, startstop_node, cli, keygen, stats_gatherer
 
 _general_commands = ( create_node.subCommands
                     + keygen.subCommands
+                    + stats_gatherer.subCommands
                     + debug.subCommands
                     + cli.subCommands
                     )
@@ -77,6 +78,8 @@ def runner(argv,
         rc = cli.dispatch[command](so)
     elif command in keygen.dispatch:
         rc = keygen.dispatch[command](so, stdout, stderr)
+    elif command in stats_gatherer.dispatch:
+        rc = stats_gatherer.dispatch[command](so)
     elif command in ac_dispatch:
         rc = ac_dispatch[command](so, stdout, stderr)
     else:

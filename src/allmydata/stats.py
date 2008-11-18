@@ -2,17 +2,15 @@
 import os
 import pickle
 import pprint
-import sys
 import time
 from collections import deque
 
-from twisted.internet import reactor, defer
+from twisted.internet import reactor
 from twisted.application import service
 from twisted.application.internet import TimerService
 from zope.interface import implements
 import foolscap
 from foolscap.eventual import eventually
-from foolscap.logging.gatherer import get_local_ip_for
 from twisted.internet.error import ConnectionDone, ConnectionLost
 from foolscap import DeadReferenceError
 
@@ -125,6 +123,7 @@ class CPUUsageMonitor(service.MultiService):
         s["cpu_monitor.total"] = now_cpu - self.initial_cpu
         return s
 
+
 class StatsProvider(foolscap.Referenceable, service.MultiService):
     implements(RIStatsProvider)
 
@@ -180,32 +179,21 @@ class StatsProvider(foolscap.Referenceable, service.MultiService):
     def _connected(self, gatherer, nickname):
         gatherer.callRemoteOnly('provide', self, nickname or '')
 
+
 class StatsGatherer(foolscap.Referenceable, service.MultiService):
     implements(RIStatsGatherer)
 
     poll_interval = 60
 
-    def __init__(self, tub, basedir):
+    def __init__(self, basedir):
         service.MultiService.__init__(self)
-        self.tub = tub
         self.basedir = basedir
 
         self.clients = {}
         self.nicknames = {}
 
-    def startService(self):
-        # the Tub must have a location set on it by now
-        service.MultiService.startService(self)
         self.timer = TimerService(self.poll_interval, self.poll)
         self.timer.setServiceParent(self)
-        self.registerGatherer()
-
-    def get_furl(self):
-        return self.my_furl
-
-    def registerGatherer(self):
-        furl_file = os.path.join(self.basedir, "stats_gatherer.furl")
-        self.my_furl = self.tub.registerReference(self, furlFile=furl_file)
 
     def get_tubid(self, rref):
         return foolscap.SturdyRef(rref.tracker.getURL()).getTubRef().getTubID()
@@ -251,7 +239,7 @@ class StdOutStatsGatherer(StatsGatherer):
         StatsGatherer.remote_provide(self, provider, nickname)
 
     def announce_lost_client(self, tubid):
-        print 'disconnect "%s" [%s]:' % (self.nicknames[tubid], tubid)
+        print 'disconnect "%s" [%s]' % (self.nicknames[tubid], tubid)
 
     def got_stats(self, stats, tubid, nickname):
         print '"%s" [%s]:' % (nickname, tubid)
@@ -260,9 +248,9 @@ class StdOutStatsGatherer(StatsGatherer):
 class PickleStatsGatherer(StdOutStatsGatherer):
     # inherit from StdOutStatsGatherer for connect/disconnect notifications
 
-    def __init__(self, tub, basedir=".", verbose=True):
+    def __init__(self, basedir=".", verbose=True):
         self.verbose = verbose
-        StatsGatherer.__init__(self, tub, basedir)
+        StatsGatherer.__init__(self, basedir)
         self.picklefile = os.path.join(basedir, "stats.pickle")
 
         if os.path.exists(self.picklefile):
@@ -288,51 +276,39 @@ class PickleStatsGatherer(StdOutStatsGatherer):
             os.unlink(self.picklefile)
         os.rename(tmp, self.picklefile)
 
-class GathererApp(object):
-    def __init__(self):
-        d = self.setup_tub()
-        d.addCallback(self._tub_ready)
+class StatsGathererService(service.MultiService):
+    furl_file = "stats_gatherer.furl"
 
-    def setup_tub(self):
-        self._tub = foolscap.Tub(certFile="stats_gatherer.pem")
-        self._tub.setOption("logLocalFailures", True)
-        self._tub.setOption("logRemoteFailures", True)
-        self._tub.startService()
-        portnumfile = "portnum"
+    def __init__(self, basedir=".", verbose=False):
+        service.MultiService.__init__(self)
+        self.basedir = basedir
+        self.tub = foolscap.Tub(certFile=os.path.join(self.basedir,
+                                                      "stats_gatherer.pem"))
+        self.tub.setServiceParent(self)
+        self.tub.setOption("logLocalFailures", True)
+        self.tub.setOption("logRemoteFailures", True)
+
+        self.stats_gatherer = PickleStatsGatherer(self.basedir, verbose)
+        self.stats_gatherer.setServiceParent(self)
+
+        portnumfile = os.path.join(self.basedir, "portnum")
         try:
-            portnum = int(open(portnumfile, "r").read())
-        except (EnvironmentError, ValueError):
-            portnum = 0
-        self._tub.listenOn("tcp:%d" % portnum)
-        d = defer.maybeDeferred(get_local_ip_for)
-        d.addCallback(self._set_location)
-        d.addCallback(lambda res: self._tub)
-        return d
+            portnum = open(portnumfile, "r").read()
+        except EnvironmentError:
+            portnum = None
+        self.listener = self.tub.listenOn(portnum or "tcp:0")
+        d = self.tub.setLocationAutomatically()
+        if portnum is None:
+            d.addCallback(self.save_portnum)
+        d.addCallback(self.tub_ready)
+        d.addErrback(log.err)
 
-    def _set_location(self, local_address):
-        if local_address is None:
-            local_addresses = ["127.0.0.1"]
-        else:
-            local_addresses = [local_address, "127.0.0.1"]
-        l = self._tub.getListeners()[0]
-        portnum = l.getPortnum()
-        portnumfile = "portnum"
-        open(portnumfile, "w").write("%d\n" % portnum)
-        local_addresses = [ "%s:%d" % (addr, portnum,)
-                            for addr in local_addresses ]
-        assert len(local_addresses) >= 1
-        location = ",".join(local_addresses)
-        self._tub.setLocation(location)
+    def save_portnum(self, junk):
+        portnum = self.listener.getPortnum()
+        portnumfile = os.path.join(self.basedir, 'portnum')
+        open(portnumfile, 'wb').write('%d\n' % (portnum,))
 
-    def _tub_ready(self, tub):
-        sg = PickleStatsGatherer(tub, ".")
-        sg.setServiceParent(tub)
-        sg.verbose = True
-        print '\nStatsGatherer: %s\n' % (sg.get_furl(),)
-
-def main(argv):
-    ga = GathererApp()
-    reactor.run()
-
-if __name__ == '__main__':
-    main(sys.argv)
+    def tub_ready(self, ignored):
+        ff = os.path.join(self.basedir, self.furl_file)
+        self.gatherer_furl = self.tub.registerReference(self.stats_gatherer,
+                                                        furlFile=ff)

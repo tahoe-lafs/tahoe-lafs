@@ -6,7 +6,6 @@ from twisted.internet.interfaces import IConsumer
 from twisted.python import failure
 from twisted.application import service
 from twisted.web.error import Error as WebError
-from foolscap import Tub
 from foolscap.eventual import flushEventualQueue, fireEventually
 from allmydata import uri, dirnode, client
 from allmydata.introducer.server import IntroducerNode
@@ -17,7 +16,7 @@ from allmydata.checker_results import CheckerResults, CheckAndRepairResults, \
 from allmydata.mutable.common import CorruptShareError
 from allmydata.storage import storage_index_to_dir
 from allmydata.util import log, fileutil, pollmixin
-from allmydata.stats import PickleStatsGatherer
+from allmydata.stats import StatsGathererService
 from allmydata.key_generator import KeyGeneratorService
 import common_util as testutil
 
@@ -355,15 +354,19 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
     def _set_up_stats_gatherer(self, res):
         statsdir = self.getdir("stats_gatherer")
         fileutil.make_dirs(statsdir)
-        t = Tub()
-        self.add_service(t)
-        l = t.listenOn("tcp:0")
-        p = l.getPortnum()
-        t.setLocation("localhost:%d" % p)
+        self.stats_gatherer_svc = StatsGathererService(statsdir)
+        self.stats_gatherer = self.stats_gatherer_svc.stats_gatherer
+        self.add_service(self.stats_gatherer_svc)
 
-        self.stats_gatherer = PickleStatsGatherer(t, statsdir, False)
-        self.add_service(self.stats_gatherer)
-        self.stats_gatherer_furl = self.stats_gatherer.get_furl()
+        d = fireEventually()
+        sgf = os.path.join(statsdir, 'stats_gatherer.furl')
+        def check_for_furl():
+            return os.path.exists(sgf)
+        d.addCallback(lambda junk: self.poll(check_for_furl, timeout=30))
+        def get_furl(junk):
+            self.stats_gatherer_furl = file(sgf, 'rb').read().strip()
+        d.addCallback(get_furl)
+        return d
 
     def _set_up_key_generator(self, res):
         kgsdir = self.getdir("key_generator")
