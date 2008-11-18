@@ -2440,6 +2440,25 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
             self.failUnless("10001-31622 : 1".strip() in lines)
         d.addCallback(_check3)
 
+        d.addCallback(lambda res:
+                      self._run_cli(["stats",
+                                     "--node-directory", basedir,
+                                     "--verbose",
+                                     self.root_uri]))
+        def _check4((out,err)):
+            data = simplejson.loads(out)
+            self.failUnlessEqual(data["count-immutable-files"], 1)
+            self.failUnlessEqual(data["count-immutable-files"], 1)
+            self.failUnlessEqual(data["count-mutable-files"], 1)
+            self.failUnlessEqual(data["count-literal-files"], 2)
+            self.failUnlessEqual(data["count-files"], 4)
+            self.failUnlessEqual(data["count-directories"], 1)
+            self.failUnlessEqual(data["size-immutable-files"], 13000)
+            self.failUnlessEqual(data["size-literal-files"], 48)
+            self.failUnless([11,31,2] in data["size-files-histogram"])
+            self.failUnless([10001,31622,1] in data["size-files-histogram"])
+        d.addCallback(_check4)
+
         return d
 
 

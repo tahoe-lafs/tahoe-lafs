@@ -68,7 +68,7 @@ class SlowOperationRunner:
         if not data["finished"]:
             return False
         if self.options.get("verbose"):
-            print jdata
+            print >>stdout, jdata
             return True
         self.write_results(data)
         return True
