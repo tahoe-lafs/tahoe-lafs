@@ -11,6 +11,8 @@ graph_category tahoe
 graph_info This graph shows the number of hosts announcing and subscribing to various services
 storage_server.label Storage Servers
 storage_server.draw LINE1
+storage_hosts.label Distinct Storage Hosts
+storage_hosts.draw LINE1
 storage_client.label Clients
 storage_client.draw LINE2
 """
@@ -24,5 +26,6 @@ url = os.environ["url"]
 
 data = simplejson.loads(urllib.urlopen(url).read())
 print "storage_server.value %d" % data["announcement_summary"]["storage"]
+print "storage_hosts.value %d" % data["announcement_distinct_hosts"]["storage"]
 print "storage_client.value %d" % data["subscription_summary"]["storage"]
 
