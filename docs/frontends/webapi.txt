@@ -1162,7 +1162,22 @@ GET /   (introducer status)
 
  By adding "?t=json" to the URL, the node will return a JSON-formatted
  dictionary of stats values, which can be used to produce graphs of connected
- clients over time.
+ clients over time. This dictionary has the following keys:
+
+  ["subscription_summary"] : a dictionary mapping service name (like
+                             "storage") to an integer with the number of
+                             clients that have subscribed to hear about that
+                             service
+  ["announcement_summary"] : a dictionary mapping service name to an integer
+                             with the number of servers which are announcing
+                             that service
+  ["announcement_distinct_hosts"] : a dictionary mapping service name to an
+                                    integer which represents the number of
+                                    distinct hosts that are providing that
+                                    service. If two servers have announced
+                                    FURLs which use the same hostnames (but
+                                    different ports and tubids), they are
+                                    considered to be on the same host.
 
 
 == Static Files in /public_html ==
