@@ -210,6 +210,9 @@ class ManifestOptions(VDriveOptions):
     longdesc = """Print a list of all files/directories reachable from the given starting point."""
 
 class StatsOptions(VDriveOptions):
+    optFlags = [
+        ("verbose", "v", "Display raw JSON data instead of parsed"),
+        ]
     def parseArgs(self, where=''):
         self.where = where
 

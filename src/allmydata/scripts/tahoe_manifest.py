@@ -63,9 +63,13 @@ class SlowOperationRunner:
         if resp.status != 200:
             print >>stderr, "ERROR", resp.status, resp.reason, resp.read()
             return True
-        data = simplejson.loads(resp.read())
+        jdata = resp.read()
+        data = simplejson.loads(jdata)
         if not data["finished"]:
             return False
+        if self.options.get("verbose"):
+            print jdata
+            return True
         self.write_results(data)
         return True
 
