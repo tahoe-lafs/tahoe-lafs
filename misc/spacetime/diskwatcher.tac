@@ -75,8 +75,13 @@ class DiskWatcher(service.MultiService, resource.Resource):
         service.MultiService.__init__(self)
         resource.Resource.__init__(self)
         self.store = Store("history.axiom")
+        self.store.whenFullyUpgraded().addCallback(self._upgrade_complete)
+        service.IService(self.store).setServiceParent(self) # let upgrader run
         ts = internet.TimerService(self.POLL_INTERVAL, self.poll)
         ts.setServiceParent(self)
+
+    def _upgrade_complete(self, ignored):
+        print "Axiom store upgrade complete"
 
     def startService(self):
         service.MultiService.startService(self)
@@ -152,7 +157,7 @@ class DiskWatcher(service.MultiService, resource.Resource):
         print "%s : total=%s, used=%s, avail=%s" % (url,
                                                     total, used, avail)
         Sample(store=self.store,
-               url=unicode(url), when=when, used=used, avail=avail)
+               url=unicode(url), when=when, total=total, used=used, avail=avail)
 
     def calculate_growth_timeleft(self):
         timespans = []
@@ -169,6 +174,23 @@ class DiskWatcher(service.MultiService, resource.Resource):
                     timeleft = total_avail_space / growth
                 timespans.append( (name, timespan, growth, timeleft) )
         return timespans
+
+    def find_total_space(self):
+        # this returns the sum of disk-avail stats for all servers that 1)
+        # are listed in urls.txt and 2) have responded recently.
+        now = extime.Time()
+        recent = now - timedelta(seconds=2*self.POLL_INTERVAL)
+        total_space = 0
+        for url in self.get_urls():
+            url = unicode(url)
+            latest = list(self.store.query(Sample,
+                                           AND(Sample.url == url,
+                                               Sample.when > recent),
+                                           sort=Sample.when.descending,
+                                           limit=1))
+            if latest:
+                total_space += latest[0].total
+        return total_space
 
     def find_total_available_space(self):
         # this returns the sum of disk-avail stats for all servers that 1)
@@ -283,6 +305,37 @@ class DiskWatcher(service.MultiService, resource.Resource):
             return _plural(s/MONTH, "month")
         return _plural(s/YEAR, "year")
 
+    def abbreviate_space2(self, s, SI=True):
+        def _plural(count, unit):
+            count = int(count)
+            return "%d %s" % (count, unit)
+        if s is None:
+            return "unknown"
+        if SI:
+            U = 1000.0
+            isuffix = "B"
+        else:
+            U = 1024.0
+            isuffix = "iB"
+        def r(count, suffix):
+            return "%.2f %s%s" % (count, suffix, isuffix)
+
+        if s < 1024: # 1000-1023 get emitted as bytes, even in SI mode
+            return r(s, "")
+        if s < U*U:
+            return r(s/U, "k")
+        if s < U*U*U:
+            return r(s/(U*U), "M")
+        if s < U*U*U*U:
+            return r(s/(U*U*U), "G")
+        if s < U*U*U*U*U:
+            return r(s/(U*U*U*U), "T")
+        return r(s/(U*U*U*U*U), "P")
+
+    def abbreviate_space(self, s):
+        return "(%s, %s)" % (self.abbreviate_space2(s, True),
+                             self.abbreviate_space2(s, False))
+
     def render(self, req):
         t = req.args.get("t", ["html"])[0]
         ctype = "text/plain"
@@ -290,12 +343,18 @@ class DiskWatcher(service.MultiService, resource.Resource):
         if t == "html":
             data = ""
             for (name, timespan, growth, timeleft) in self.calculate_growth_timeleft():
-                data += "%f bytes per second, %s remaining (over %s)\n" % \
-                        (growth, self.abbreviate_time(timeleft), name)
+                data += "%f bytes per second (%sps), %s remaining (over %s)\n" % \
+                        (growth, self.abbreviate_space2(growth, True),
+                         self.abbreviate_time(timeleft), name)
             used = self.find_total_used_space()
-            data += "total used: %d bytes\n" % used
+            data += "total used: %d bytes %s\n" % (used,
+                                                   self.abbreviate_space(used))
+            total = self.find_total_space()
+            data += "total space: %d bytes %s\n" % (total,
+                                                    self.abbreviate_space(total))
         elif t == "json":
             current = {"rates": self.calculate_growth_timeleft(),
+                       "total": self.find_total_space(),
                        "used": self.find_total_used_space(),
                        "available": self.find_total_available_space(),
                        }
