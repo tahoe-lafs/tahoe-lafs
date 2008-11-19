@@ -7,7 +7,7 @@ from twisted.internet import defer, reactor
 from twisted.python import failure
 
 from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
-from allmydata.util import assertutil, fileutil, deferredutil
+from allmydata.util import assertutil, fileutil, deferredutil, abbreviate
 from allmydata.util import limiter, time_format, pollmixin, cachedir
 
 class Base32(unittest.TestCase):
@@ -444,6 +444,71 @@ class HashUtilTests(unittest.TestCase):
         h2 = hashutil.plaintext_segment_hasher()
         h2.update("foo")
         self.failUnlessEqual(h1, h2.digest())
+
+class Abbreviate(unittest.TestCase):
+    def test_time(self):
+        a = abbreviate.abbreviate_time
+        self.failUnlessEqual(a(None), "unknown")
+        self.failUnlessEqual(a(0), "0 seconds")
+        self.failUnlessEqual(a(1), "1 second")
+        self.failUnlessEqual(a(2), "2 seconds")
+        self.failUnlessEqual(a(119), "119 seconds")
+        MIN = 60
+        self.failUnlessEqual(a(2*MIN), "2 minutes")
+        self.failUnlessEqual(a(60*MIN), "60 minutes")
+        self.failUnlessEqual(a(179*MIN), "179 minutes")
+        HOUR = 60*MIN
+        self.failUnlessEqual(a(180*MIN), "3 hours")
+        self.failUnlessEqual(a(4*HOUR), "4 hours")
+        DAY = 24*HOUR
+        MONTH = 30*DAY
+        self.failUnlessEqual(a(2*DAY), "2 days")
+        self.failUnlessEqual(a(2*MONTH), "2 months")
+        YEAR = 365*DAY
+        self.failUnlessEqual(a(5*YEAR), "5 years")
+
+    def test_space(self):
+        tests_si = [(None, "unknown"),
+                    (0, "0 B"),
+                    (1, "1 B"),
+                    (999, "999 B"),
+                    (1000, "1000 B"),
+                    (1023, "1023 B"),
+                    (1024, "1.02 kB"),
+                    (20*1000, "20.00 kB"),
+                    (1024*1024, "1.05 MB"),
+                    (1000*1000, "1.00 MB"),
+                    (1000*1000*1000, "1.00 GB"),
+                    (1000*1000*1000*1000, "1.00 TB"),
+                    (1000*1000*1000*1000*1000, "1.00 PB"),
+                    (1234567890123456, "1.23 PB"),
+                    ]
+        for (x, expected) in tests_si:
+            got = abbreviate.abbreviate_space(x, SI=True)
+            self.failUnlessEqual(got, expected)
+
+        tests_base1024 = [(None, "unknown"),
+                          (0, "0 B"),
+                          (1, "1 B"),
+                          (999, "999 B"),
+                          (1000, "1000 B"),
+                          (1023, "1023 B"),
+                          (1024, "1.00 kiB"),
+                          (20*1024, "20.00 kiB"),
+                          (1000*1000, "976.56 kiB"),
+                          (1024*1024, "1.00 MiB"),
+                          (1024*1024*1024, "1.00 GiB"),
+                          (1024*1024*1024*1024, "1.00 TiB"),
+                          (1000*1000*1000*1000*1000, "909.49 TiB"),
+                          (1024*1024*1024*1024*1024, "1.00 PiB"),
+                          (1234567890123456, "1.10 PiB"),
+                    ]
+        for (x, expected) in tests_base1024:
+            got = abbreviate.abbreviate_space(x, SI=False)
+            self.failUnlessEqual(got, expected)
+
+        self.failUnlessEqual(abbreviate.abbreviate_space_both(1234567),
+                             "(1.23 MB, 1.18 MiB)")
 
 class Limiter(unittest.TestCase):
     def job(self, i, foo):
