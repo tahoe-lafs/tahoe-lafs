@@ -306,9 +306,6 @@ class DiskWatcher(service.MultiService, resource.Resource):
         return _plural(s/YEAR, "year")
 
     def abbreviate_space2(self, s, SI=True):
-        def _plural(count, unit):
-            count = int(count)
-            return "%d %s" % (count, unit)
         if s is None:
             return "unknown"
         if SI:
