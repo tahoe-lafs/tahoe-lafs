@@ -221,6 +221,34 @@ class StatsOptions(VDriveOptions):
 
     longdesc = """Print statistics about of all files/directories reachable from the given starting point."""
 
+class CheckOptions(VDriveOptions):
+    optFlags = [
+        ("raw", "r", "Display raw JSON data instead of parsed"),
+        ("verify", "v", "Verify all hashes, instead of merely querying share presence"),
+        ("repair", "r", "Automatically repair any problems found"),
+        ]
+    def parseArgs(self, where=''):
+        self.where = where
+
+    def getSynopsis(self):
+        return "%s check [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
+
+    longdesc = """Check a single file or directory: count how many shares are available, verify their hashes. Optionally repair the file if any problems were found."""
+
+class DeepCheckOptions(VDriveOptions):
+    optFlags = [
+        ("raw", "r", "Display raw JSON data instead of parsed"),
+        ("verify", "v", "Verify all hashes, instead of merely querying share presence"),
+        ("repair", "r", "Automatically repair any problems found"),
+        ]
+    def parseArgs(self, where=''):
+        self.where = where
+
+    def getSynopsis(self):
+        return "%s deep-check [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
+
+    longdesc = """Check all files/directories reachable from the given starting point (which must be a directory), like 'tahoe check' but for multiple files. Optionally repair any problems found."""
+
 subCommands = [
     ["mkdir", None, MakeDirectoryOptions, "Create a new directory"],
     ["add-alias", None, AddAliasOptions, "Add a new alias cap"],
@@ -236,6 +264,8 @@ subCommands = [
     ["webopen", None, WebopenOptions, "Open a webbrowser to the root_dir"],
     ["manifest", None, ManifestOptions, "List all files/dirs in a subtree"],
     ["stats", None, StatsOptions, "Print statistics about all files/dirs in a subtree"],
+    ["check", None, CheckOptions, "Check a single file or directory"],
+    ["deep-check", None, DeepCheckOptions, "Check all files/directories reachable from a starting point"],
     ]
 
 def mkdir(options):
@@ -317,6 +347,16 @@ def stats(options):
     rc = tahoe_manifest.stats(options)
     return rc
 
+def check(options):
+    from allmydata.scripts import tahoe_check
+    rc = tahoe_check.check(options)
+    return rc
+
+def deepcheck(options):
+    from allmydata.scripts import tahoe_check
+    rc = tahoe_check.deepcheck(options)
+    return rc
+
 dispatch = {
     "mkdir": mkdir,
     "add-alias": add_alias,
@@ -332,5 +372,7 @@ dispatch = {
     "webopen": webopen,
     "manifest": manifest,
     "stats": stats,
+    "check": check,
+    "deep-check": deepcheck,
     }
 

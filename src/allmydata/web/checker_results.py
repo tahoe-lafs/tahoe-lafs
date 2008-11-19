@@ -450,16 +450,20 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase, ReloadMixin):
                                          shnum)
                                         for (serverid, storage_index, shnum)
                                         in res.get_corrupt_shares() ]
-        data["list-remaining-corrupt-shares"] = [ (idlib.nodeid_b2a(serverid),
-                                                   base32.b2a(storage_index),
-                                                   shnum)
-                                                  for (serverid, storage_index, shnum)
-                                                  in res.get_remaining_corrupt_shares() ]
 
-        data["list-unhealthy-files"] = [ (path_t, self._json_check_results(r))
-                                         for (path_t, r)
-                                         in res.get_all_results().items()
-                                         if not r.get_pre_repair_results().is_healthy() ]
+        remaining_corrupt = [ (idlib.nodeid_b2a(serverid),
+                               base32.b2a(storage_index),
+                               shnum)
+                              for (serverid, storage_index, shnum)
+                              in res.get_remaining_corrupt_shares() ]
+        data["list-remaining-corrupt-shares"] = remaining_corrupt
+
+        unhealthy = [ (path_t,
+                       self._json_check_results(crr.get_pre_repair_results()))
+                      for (path_t, crr)
+                      in res.get_all_results().items()
+                      if not crr.get_pre_repair_results().is_healthy() ]
+        data["list-unhealthy-files"] = unhealthy
         data["stats"] = res.get_stats()
         return simplejson.dumps(data, indent=1) + "\n"
 
