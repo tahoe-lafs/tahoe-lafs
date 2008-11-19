@@ -964,11 +964,13 @@ POST $DIRURL?t=start-manifest    (must add &ophandle=XYZ)
   by a space.
 
   If output=JSON is added to the queryargs, then the results will be a
-  JSON-formatted dictionary with three keys:
+  JSON-formatted dictionary with four keys:
 
    finished (bool): if False then you must reload the page until True
    origin_si (str): the storage index of the starting point
    manifest: list of (path, cap) tuples, where path is a list of strings.
+   stats: a dictionary with the same keys as the t=deep-stats command
+          (described below)
 
 POST $DIRURL?t=start-deep-size    (must add &ophandle=XYZ)
 

@@ -536,21 +536,6 @@ class NewDirectoryNode:
         return self.deep_traverse(DeepChecker(self, verify, repair=True))
 
 
-class ManifestWalker:
-    def __init__(self, origin):
-        self.manifest = []
-        self.origin = origin
-    def set_monitor(self, monitor):
-        self.monitor = monitor
-        monitor.origin_si = self.origin.get_storage_index()
-        monitor.set_status(self.manifest)
-    def add_node(self, node, path):
-        self.manifest.append( (tuple(path), node.get_uri()) )
-    def enter_directory(self, parent, children):
-        pass
-    def finish(self):
-        return self.manifest
-
 
 class DeepStats:
     def __init__(self, origin):
@@ -650,6 +635,20 @@ class DeepStats:
 
     def finish(self):
         return self.get_results()
+
+class ManifestWalker(DeepStats):
+    def __init__(self, origin):
+        DeepStats.__init__(self, origin)
+        self.manifest = []
+
+    def add_node(self, node, path):
+        self.manifest.append( (tuple(path), node.get_uri()) )
+        return DeepStats.add_node(self, node, path)
+
+    def finish(self):
+        return {"manifest": self.manifest,
+                "stats": self.get_results(),
+                }
 
 
 class DeepChecker:

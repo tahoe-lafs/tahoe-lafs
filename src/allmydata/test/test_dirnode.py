@@ -335,12 +335,6 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                           self.failUnlessEqual(sorted(children.keys()),
                                                sorted([u"child", u"subdir"])))
 
-            d.addCallback(lambda res: n.build_manifest().when_done())
-            def _check_manifest(manifest):
-                self.failUnlessEqual(sorted(manifest),
-                                     sorted(self.expected_manifest))
-            d.addCallback(_check_manifest)
-
             d.addCallback(lambda res: n.start_deep_stats().when_done())
             def _check_deepstats(stats):
                 self.failUnless(isinstance(stats, dict))
@@ -366,6 +360,15 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
                                 stats["largest-directory"])
                 self.failUnlessEqual(stats["size-files-histogram"], [])
             d.addCallback(_check_deepstats)
+
+            d.addCallback(lambda res: n.build_manifest().when_done())
+            def _check_manifest(res):
+                manifest = res["manifest"]
+                self.failUnlessEqual(sorted(manifest),
+                                     sorted(self.expected_manifest))
+                stats = res["stats"]
+                _check_deepstats(stats)
+            d.addCallback(_check_manifest)
 
             def _add_subsubdir(res):
                 return self.subdir.create_empty_directory(u"subsubdir")

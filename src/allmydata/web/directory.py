@@ -724,14 +724,15 @@ class ManifestResults(rend.Page, ReloadMixin):
         lines = []
         is_finished = self.monitor.is_finished()
         lines.append("finished: " + {True: "yes", False: "no"}[is_finished])
-        for (path, cap) in self.monitor.get_status():
+        for (path, cap) in self.monitor.get_status()["manifest"]:
             lines.append(self.slashify_path(path) + " " + cap)
         return "\n".join(lines) + "\n"
 
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         m = self.monitor
-        status = {"manifest": m.get_status(),
+        status = {"manifest": m.get_status()["manifest"],
+                  "stats": m.get_status()["stats"],
                   "finished": m.is_finished(),
                   "origin": base32.b2a(m.origin_si),
                   }
@@ -747,7 +748,7 @@ class ManifestResults(rend.Page, ReloadMixin):
         return T.p["Manifest of SI=%s" % self._si_abbrev()]
 
     def data_items(self, ctx, data):
-        return self.monitor.get_status()
+        return self.monitor.get_status()["manifest"]
 
     def render_row(self, ctx, (path, cap)):
         ctx.fillSlots("path", self.slashify_path(path))

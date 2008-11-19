@@ -684,8 +684,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             d1.addCallback(lambda res: dnode.has_child(u"see recursive"))
             d1.addCallback(lambda answer: self.failUnlessEqual(answer, True))
             d1.addCallback(lambda res: dnode.build_manifest().when_done())
-            d1.addCallback(lambda manifest:
-                           self.failUnlessEqual(len(manifest), 1))
+            d1.addCallback(lambda res:
+                           self.failUnlessEqual(len(res["manifest"]), 1))
             return d1
         d.addCallback(_created_dirnode)
 
@@ -975,8 +975,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             # P/personal/sekrit data
             # P/s2-rw  (same as P/s2-ro)
             # P/s2-rw/mydata992 (same as P/s2-rw/mydata992)
-            d1.addCallback(lambda manifest:
-                           self.failUnlessEqual(len(manifest), 5))
+            d1.addCallback(lambda res:
+                           self.failUnlessEqual(len(res["manifest"]), 5))
             d1.addCallback(lambda res: home.start_deep_stats().when_done())
             def _check_stats(stats):
                 expected = {"count-immutable-files": 1,
