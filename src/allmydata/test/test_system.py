@@ -2440,10 +2440,10 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
             self.failUnless("count-literal-files: 2" in lines)
             self.failUnless("count-files: 4" in lines)
             self.failUnless("count-directories: 1" in lines)
-            self.failUnless("size-immutable-files: 13000" in lines)
+            self.failUnless("size-immutable-files: 13000    (13.00 kB, 12.70 kiB)" in lines, lines)
             self.failUnless("size-literal-files: 48" in lines)
-            self.failUnless("   11-31    : 2".strip() in lines)
-            self.failUnless("10001-31622 : 1".strip() in lines)
+            self.failUnless("   11-31    : 2    (31 B, 31 B)".strip() in lines)
+            self.failUnless("10001-31622 : 1    (31.62 kB, 30.88 kiB)".strip() in lines)
         d.addCallback(_check3)
 
         d.addCallback(lambda res:
