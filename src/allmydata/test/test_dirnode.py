@@ -12,7 +12,7 @@ from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
 from allmydata.util import hashutil
 from allmydata.monitor import Monitor
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
-     FakeDirectoryNode, create_chk_filenode
+     FakeDirectoryNode, create_chk_filenode, ErrorMixin
 from allmydata.checker_results import CheckerResults, CheckAndRepairResults
 import common_util as testutil
 
@@ -87,7 +87,8 @@ class FakeClient:
         return d
 
 
-class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
+class Dirnode(unittest.TestCase,
+              testutil.ShouldFailMixin, testutil.StallMixin, ErrorMixin):
     def setUp(self):
         self.client = FakeClient()
 
@@ -700,6 +701,7 @@ class Dirnode(unittest.TestCase, testutil.ShouldFailMixin, testutil.StallMixin):
 
         d.addCallback(_then)
 
+        d.addErrback(self.explain_error)
         return d
 
 class DeepStats(unittest.TestCase):
