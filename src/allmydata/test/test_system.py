@@ -2399,6 +2399,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                            "--node-directory", basedir,
                            self.root_uri])
         def _check((out,err)):
+            self.failUnlessEqual(err, "")
             lines = [l for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 5)
             caps = {}

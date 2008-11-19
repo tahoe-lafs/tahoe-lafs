@@ -940,13 +940,17 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
             self.failUnless("\nsub/baz.txt URI:CHK:" in manifest)
         d.addCallback(_got_text)
         d.addCallback(getman, "JSON")
-        def _got_json(manifest):
-            data = manifest["manifest"]
+        def _got_json(res):
+            data = res["manifest"]
             got = {}
             for (path_list, cap) in data:
                 got[tuple(path_list)] = cap
             self.failUnlessEqual(got[(u"sub",)], self._sub_uri)
             self.failUnless((u"sub",u"baz.txt") in got)
+            self.failUnless("finished" in res)
+            self.failUnless("origin" in res)
+            self.failUnless("storage-index" in res)
+            self.failUnless("stats" in res)
         d.addCallback(_got_json)
         return d
 

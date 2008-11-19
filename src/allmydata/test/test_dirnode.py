@@ -27,6 +27,7 @@ class Marker:
             nodeuri = nodeuri.to_string()
         self.nodeuri = nodeuri
         si = hashutil.tagged_hash("tag1", nodeuri)[:16]
+        self.storage_index = si
         fp = hashutil.tagged_hash("tag2", nodeuri)
         self.verifieruri = uri.SSKVerifierURI(storage_index=si, fingerprint=fp)
     def get_uri(self):
@@ -35,6 +36,8 @@ class Marker:
         return self.nodeuri
     def get_verifier(self):
         return self.verifieruri
+    def get_storage_index(self):
+        return self.storage_index
 
     def check(self, monitor, verify=False):
         r = CheckerResults("", None)

@@ -200,6 +200,7 @@ class WebopenOptions(VDriveOptions):
 class ManifestOptions(VDriveOptions):
     optFlags = [
         ("storage-index", "s", "Only print storage index strings, not pathname+cap"),
+        ("raw", "r", "Display raw JSON data instead of parsed"),
         ]
     def parseArgs(self, where=''):
         self.where = where

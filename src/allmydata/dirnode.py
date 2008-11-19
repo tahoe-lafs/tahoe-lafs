@@ -565,7 +565,7 @@ class DeepStats:
     def set_monitor(self, monitor):
         self.monitor = monitor
         monitor.origin_si = self.origin.get_storage_index()
-        monitor.set_status(self.stats)
+        monitor.set_status(self.get_results())
 
     def add_node(self, node, childpath):
         if IDirectoryNode.providedBy(node):
@@ -640,14 +640,20 @@ class ManifestWalker(DeepStats):
     def __init__(self, origin):
         DeepStats.__init__(self, origin)
         self.manifest = []
+        self.storage_index_strings = set()
 
     def add_node(self, node, path):
         self.manifest.append( (tuple(path), node.get_uri()) )
+        si = node.get_storage_index()
+        if si:
+            self.storage_index_strings.add(base32.b2a(si))
         return DeepStats.add_node(self, node, path)
 
-    def finish(self):
+    def get_results(self):
+        stats = DeepStats.get_results(self)
         return {"manifest": self.manifest,
-                "stats": self.get_results(),
+                "storage-index": self.storage_index_strings,
+                "stats": stats,
                 }
 
 
