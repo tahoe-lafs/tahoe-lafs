@@ -1,5 +1,6 @@
 
 from allmydata.util import base32
+from allmydata.util.abbreviate import abbreviate_space_both
 from allmydata import uri
 from allmydata.scripts.slow_operation import SlowOperationRunner
 
@@ -59,14 +60,19 @@ class StatsGrabber(SlowOperationRunner):
         maxlen = max([len(str(maxsize))
                       for (minsize, maxsize, count)
                       in data["size-files-histogram"]])
+        maxcountlen = max([len(str(count))
+                           for (minsize, maxsize, count)
+                           in data["size-files-histogram"]])
         minfmt = "%" + str(maxlen) + "d"
         maxfmt = "%-" + str(maxlen) + "d"
-        linefmt = minfmt + "-" + maxfmt + " : %d"
+        countfmt = "%-" + str(maxcountlen) + "d"
+        linefmt = minfmt + "-" + maxfmt + " : " + countfmt + "    %s"
         for (minsize, maxsize, count) in data["size-files-histogram"]:
             if prevmax is not None and minsize != prevmax+1:
                 print >>stdout, " "*(maxlen-1) + "..."
             prevmax = maxsize
-            print >>stdout, linefmt % (minsize, maxsize, count)
+            print >>stdout, linefmt % (minsize, maxsize, count,
+                                       abbreviate_space_both(maxsize))
 
 def stats(options):
     return StatsGrabber().run(options)
