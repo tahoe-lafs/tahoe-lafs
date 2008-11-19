@@ -177,6 +177,9 @@ class FakeClient:
                                   for peerid in self._peerids])
         self.nodeid = "fakenodeid"
 
+    def get_encoding_parameters(self):
+        return {"k": 3, "n": 10}
+
     def log(self, msg, **kw):
         return log.msg(msg, **kw)
 

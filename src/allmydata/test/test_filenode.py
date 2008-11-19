@@ -11,9 +11,12 @@ class NotANode:
     pass
 
 class FakeClient:
-    # just enough to let the node acquire a downloader (which it won't use)
+    # just enough to let the node acquire a downloader (which it won't use),
+    # and to get default encoding parameters
     def getServiceNamed(self, name):
         return None
+    def get_encoding_parameters(self):
+        return {"k": 3, "n": 10}
 
 class Node(unittest.TestCase):
     def test_chk_filenode(self):
@@ -81,7 +84,7 @@ class Node(unittest.TestCase):
         return d
 
     def test_mutable_filenode(self):
-        client = None
+        client = FakeClient()
         wk = "\x00"*16
         fp = "\x00"*32
         rk = hashutil.ssk_readkey_hash(wk)

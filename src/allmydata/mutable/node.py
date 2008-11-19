@@ -50,7 +50,6 @@ class BackoffAgent:
 class MutableFileNode:
     implements(IMutableFileNode, ICheckable)
     SIGNATURE_KEY_SIZE = 2048
-    DEFAULT_ENCODING = (3, 10)
     checker_class = MutableChecker
     check_and_repairer_class = MutableCheckAndRepairer
 
@@ -61,7 +60,9 @@ class MutableFileNode:
         # we keep track of the last encoding parameters that we use. These
         # are updated upon retrieve, and used by publish. If we publish
         # without ever reading (i.e. overwrite()), then we use these values.
-        (self._required_shares, self._total_shares) = self.DEFAULT_ENCODING
+        defaults = client.get_encoding_parameters()
+        self._required_shares = defaults["k"]
+        self._total_shares = defaults["n"]
         self._sharemap = {} # known shares, shnum-to-[nodeids]
         self._cache = ResponseCache()
 
@@ -121,7 +122,6 @@ class MutableFileNode:
         self._uri = WriteableSSKFileURI(self._writekey, self._fingerprint)
         self._readkey = self._uri.readkey
         self._storage_index = self._uri.storage_index
-        self._required_shares, self._total_shares = self.DEFAULT_ENCODING
 
     def _generate_pubprivkeys(self, keypair_generator):
         if keypair_generator:
