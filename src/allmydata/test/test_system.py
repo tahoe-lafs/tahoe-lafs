@@ -2204,6 +2204,9 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
         self.failUnlessEqual(data["storage-index"],
                              base32.b2a(n.get_storage_index()), where)
+        self.failUnless("summary" in data, (where, data))
+        self.failUnlessEqual(data["summary"].lower(), "healthy",
+                             "%s: '%s'" % (where, data["summary"]))
         r = data["results"]
         self.failUnlessEqual(r["healthy"], True, where)
         needs_rebalancing = bool( len(self.clients) < 10 )

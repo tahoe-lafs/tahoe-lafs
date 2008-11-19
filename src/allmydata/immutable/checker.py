@@ -109,7 +109,11 @@ class SimpleCHKFileChecker:
                           ",".join(["sh%d" % shnum
                                     for shnum in sorted(missing)]))
         r.set_report(report)
-        # TODO: r.set_summary(summary)
+        if healthy:
+            r.set_summary("Healthy")
+        else:
+            r.set_summary("Not Healthy")
+            # TODO: more detail
         return r
 
 class VerifyingOutput:
@@ -123,6 +127,7 @@ class VerifyingOutput:
         self._results = results
         results.set_healthy(False)
         results.set_recoverable(False)
+        results.set_summary("Not Healthy")
 
     def setup_hashtrees(self, plaintext_hashtree, crypttext_hashtree):
         self._crypttext_hash_tree = crypttext_hashtree
@@ -145,6 +150,7 @@ class VerifyingOutput:
     def finish(self):
         self._results.set_healthy(True)
         self._results.set_recoverable(True)
+        self._results.set_summary("Healthy")
         # the return value of finish() is passed out of FileDownloader._done,
         # but SimpleCHKFileVerifier overrides this with the CheckerResults
         # instance instead.

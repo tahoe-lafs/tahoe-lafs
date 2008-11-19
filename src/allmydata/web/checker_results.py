@@ -82,6 +82,7 @@ class ResultsBase:
     def _json_check_results(self, r):
         data = {}
         data["storage-index"] = r.get_storage_index_string()
+        data["summary"] = r.get_summary()
         data["results"] = self._json_check_counts(r.get_data())
         data["results"]["needs-rebalancing"] = r.needs_rebalancing()
         data["results"]["healthy"] = r.is_healthy()

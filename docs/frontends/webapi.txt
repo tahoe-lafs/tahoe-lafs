@@ -750,6 +750,7 @@ POST $URL?t=check
 
    storage-index: a base32-encoded string with the objects's storage index,
                   or an empty string for LIT files
+   summary: a string, with a one-line summary of the stats of the file
    results: a dictionary that describes the state of the file. For LIT files,
             this dictionary has only the 'healthy' key, which will always be
             True. For distributed files, this dictionary has the following
