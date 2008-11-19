@@ -47,14 +47,19 @@ class StatsGrabber(SlowOperationRunner):
                 "size-literal-files",
                 "size-directories",
                 "largest-directory",
-                "largest-immutable-files",
+                "largest-immutable-file",
                 )
         width = max([len(k) for k in keys])
         print >>stdout, "Counts and Total Sizes:"
         for k in keys:
             fmt = "%" + str(width) + "s: %d"
             if k in data:
-                print >>stdout, fmt % (k, data[k])
+                value = data[k]
+                if not k.startswith("count-") and value > 1000:
+                    absize = abbreviate_space_both(value)
+                    print >>stdout, fmt % (k, data[k]), "  ", absize
+                else:
+                    print >>stdout, fmt % (k, data[k])
         print >>stdout, "Size Histogram:"
         prevmax = None
         maxlen = max([len(str(maxsize))
