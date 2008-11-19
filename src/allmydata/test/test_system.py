@@ -2307,69 +2307,70 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         # check and verify
         d.addCallback(lambda ign:
                       self.web_json(self.root, t="check", verify="true"))
-        d.addCallback(self.json_check_is_healthy, self.root, "root")
+        d.addCallback(self.json_check_is_healthy, self.root, "root+v")
         d.addCallback(lambda ign:
                       self.web_json(self.mutable, t="check", verify="true"))
-        d.addCallback(self.json_check_is_healthy, self.mutable, "mutable")
+        d.addCallback(self.json_check_is_healthy, self.mutable, "mutable+v")
         d.addCallback(lambda ign:
                       self.web_json(self.large, t="check", verify="true"))
-        d.addCallback(self.json_check_is_healthy, self.large, "large", incomplete=True)
+        d.addCallback(self.json_check_is_healthy, self.large, "large+v",
+                      incomplete=True)
         d.addCallback(lambda ign:
                       self.web_json(self.small, t="check", verify="true"))
-        d.addCallback(self.json_check_lit, self.small, "small")
+        d.addCallback(self.json_check_lit, self.small, "small+v")
         d.addCallback(lambda ign:
                       self.web_json(self.small2, t="check", verify="true"))
-        d.addCallback(self.json_check_lit, self.small2, "small2")
+        d.addCallback(self.json_check_lit, self.small2, "small2+v")
 
         # check and repair, no verify
         d.addCallback(lambda ign:
                       self.web_json(self.root, t="check", repair="true"))
-        d.addCallback(self.json_check_and_repair_is_healthy, self.root, "root")
+        d.addCallback(self.json_check_and_repair_is_healthy, self.root, "root+r")
         d.addCallback(lambda ign:
                       self.web_json(self.mutable, t="check", repair="true"))
-        d.addCallback(self.json_check_and_repair_is_healthy, self.mutable, "mutable")
+        d.addCallback(self.json_check_and_repair_is_healthy, self.mutable, "mutable+r")
         d.addCallback(lambda ign:
                       self.web_json(self.large, t="check", repair="true"))
-        d.addCallback(self.json_check_and_repair_is_healthy, self.large, "large")
+        d.addCallback(self.json_check_and_repair_is_healthy, self.large, "large+r")
         d.addCallback(lambda ign:
                       self.web_json(self.small, t="check", repair="true"))
-        d.addCallback(self.json_check_lit, self.small, "small")
+        d.addCallback(self.json_check_lit, self.small, "small+r")
         d.addCallback(lambda ign:
                       self.web_json(self.small2, t="check", repair="true"))
-        d.addCallback(self.json_check_lit, self.small2, "small2")
+        d.addCallback(self.json_check_lit, self.small2, "small2+r")
 
         # check+verify+repair
         d.addCallback(lambda ign:
                       self.web_json(self.root, t="check", repair="true", verify="true"))
-        d.addCallback(self.json_check_and_repair_is_healthy, self.root, "root")
+        d.addCallback(self.json_check_and_repair_is_healthy, self.root, "root+vr")
         d.addCallback(lambda ign:
                       self.web_json(self.mutable, t="check", repair="true", verify="true"))
-        d.addCallback(self.json_check_and_repair_is_healthy, self.mutable, "mutable")
+        d.addCallback(self.json_check_and_repair_is_healthy, self.mutable, "mutable+vr")
         d.addCallback(lambda ign:
                       self.web_json(self.large, t="check", repair="true", verify="true"))
-        d.addCallback(self.json_check_and_repair_is_healthy, self.large, "large", incomplete=True)
+        d.addCallback(self.json_check_and_repair_is_healthy, self.large, "large+vr", incomplete=True)
         d.addCallback(lambda ign:
                       self.web_json(self.small, t="check", repair="true", verify="true"))
-        d.addCallback(self.json_check_lit, self.small, "small")
+        d.addCallback(self.json_check_lit, self.small, "small+vr")
         d.addCallback(lambda ign:
                       self.web_json(self.small2, t="check", repair="true", verify="true"))
-        d.addCallback(self.json_check_lit, self.small2, "small2")
+        d.addCallback(self.json_check_lit, self.small2, "small2+vr")
 
         # now run a deep-check, with various verify= and repair= flags
         d.addCallback(lambda ign:
                       self.slow_web(self.root, t="start-deep-check", output="json"))
-        d.addCallback(self.json_full_deepcheck_is_healthy, self.root, "root")
+        d.addCallback(self.json_full_deepcheck_is_healthy, self.root, "root+d")
         d.addCallback(lambda ign:
                       self.slow_web(self.root, t="start-deep-check", verify="true",
                                     output="json"))
-        d.addCallback(self.json_full_deepcheck_is_healthy, self.root, "root")
+        d.addCallback(self.json_full_deepcheck_is_healthy, self.root, "root+dv")
         d.addCallback(lambda ign:
                       self.slow_web(self.root, t="start-deep-check", repair="true",
                                     output="json"))
-        d.addCallback(self.json_full_deepcheck_and_repair_is_healthy, self.root, "root")
+        d.addCallback(self.json_full_deepcheck_and_repair_is_healthy, self.root, "root+dr")
         d.addCallback(lambda ign:
                       self.slow_web(self.root, t="start-deep-check", verify="true", repair="true", output="json"))
-        d.addCallback(self.json_full_deepcheck_and_repair_is_healthy, self.root, "root")
+        d.addCallback(self.json_full_deepcheck_and_repair_is_healthy, self.root, "root+dvr")
 
         # now look at t=info
         d.addCallback(lambda ign: self.web(self.root, t="info"))
