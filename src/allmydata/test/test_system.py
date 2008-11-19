@@ -2449,7 +2449,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(lambda res:
                       self._run_cli(["stats",
                                      "--node-directory", basedir,
-                                     "--verbose",
+                                     "--raw",
                                      self.root_uri]))
         def _check4((out,err)):
             data = simplejson.loads(out)

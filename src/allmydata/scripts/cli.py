@@ -211,7 +211,7 @@ class ManifestOptions(VDriveOptions):
 
 class StatsOptions(VDriveOptions):
     optFlags = [
-        ("verbose", "v", "Display raw JSON data instead of parsed"),
+        ("raw", "r", "Display raw JSON data instead of parsed"),
         ]
     def parseArgs(self, where=''):
         self.where = where

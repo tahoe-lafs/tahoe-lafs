@@ -67,7 +67,7 @@ class SlowOperationRunner:
         data = simplejson.loads(jdata)
         if not data["finished"]:
             return False
-        if self.options.get("verbose"):
+        if self.options.get("raw"):
             print >>stdout, jdata
             return True
         self.write_results(data)
