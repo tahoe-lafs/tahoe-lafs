@@ -1,7 +1,5 @@
 install_requires=[
-                  # we require 0.6c8 to build, but can handle older versions
-                  # to run
-                  "setuptools >= 0.6a9",
+                  "setuptools >= 0.6c8",
 
                   # pycryptopp < 0.5 had a bug which, using a Microsoft
                   # compiler, or using some versions of g++ while linking
