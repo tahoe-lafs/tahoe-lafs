@@ -31,7 +31,7 @@ def add_tahoe_paths():
 
       mkdir -p $(BASEDIR)/support/lib/python2.5/site-packages
        (or cygpath equivalent)
-      setup.py develop --prefix=$(BASEDIR)/support
+      setup.py develop --multi-version --prefix=$(BASEDIR)/support
 
     This installs .eggs for any dependent libraries that aren't already
     available on the system, into support/lib/pythonN.N/site-packages (or
@@ -291,7 +291,7 @@ class BuildTahoe(Command):
                                stat.S_IXOTH | stat.S_IROTH )
         os.chmod(bin_tahoe, new_mode)
 
-        # 'setup.py develop --prefix SUPPORT' will complain if SUPPORTLIB is
+        # 'setup.py develop --multi-version --prefix SUPPORT' will complain if SUPPORTLIB is
         # not on PYTHONPATH, because it thinks you are installing to a place
         # that will not be searched at runtime (which is true, except that we
         # add SUPPORTLIB to PYTHONPATH to run tests, etc). So set up
@@ -300,7 +300,7 @@ class BuildTahoe(Command):
         if not os.path.isdir(supportlib):
             os.makedirs(supportlib)
 
-        command = [sys.executable, "setup.py", "develop", "--prefix", "support"]
+        command = [sys.executable, "setup.py", "develop", "--multi-version", "--prefix", "support"]
         if sys.platform == "linux2":
             # workaround for tahoe #229 / setuptools #17, on debian
             command.extend(["--site-dirs", "/var/lib/python-support/" + pyver])
