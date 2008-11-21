@@ -300,7 +300,8 @@ class BuildTahoe(Command):
         if not os.path.isdir(supportlib):
             os.makedirs(supportlib)
 
-        command = [sys.executable, "setup.py", "develop", "--multi-version", "--prefix", "support"]
+        # command = [sys.executable, "setup.py", "develop", "--multi-version", "--prefix", "support"]
+        command = [sys.executable, "setup.py", "develop", "--prefix", "support"]
         if sys.platform == "linux2":
             # workaround for tahoe #229 / setuptools #17, on debian
             command.extend(["--site-dirs", "/var/lib/python-support/" + pyver])
