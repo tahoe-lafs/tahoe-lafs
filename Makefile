@@ -118,21 +118,21 @@ TEST=allmydata
 # suppress the ansi color sequences
 
 test: build src/allmydata/_version.py
-	$(PYTHON) setup.py trial -a "$(TRIALARGS) $(TEST)"
+	$(PYTHON) setup.py trial $(TRIALARGS) -s $(TEST)
 
 quicktest: .built .checked-deps
-	$(PYTHON) setup.py trial -a "$(TRIALARGS) $(TEST)"
+	$(PYTHON) setup.py trial $(TRIALARGS) -s $(TEST)
 
 fuse-test: .built .checked-deps
 	$(RUNPP) -d contrib/fuse -p -c runtests.py
 
 test-figleaf: build src/allmydata/_version.py
 	rm -f .figleaf
-	$(PYTHON) setup.py trial -a "--reporter=bwverbose-figleaf $(TEST)"
+	$(PYTHON) setup.py trial --reporter=bwverbose-figleaf -s $(TEST)
 
 quicktest-figleaf: src/allmydata/_version.py
 	rm -f .figleaf
-	$(PYTHON) setup.py trial -a "--reporter=bwverbose-figleaf $(TEST)"
+	$(PYTHON) setup.py trial --reporter=bwverbose-figleaf -s $(TEST)
 
 figleaf-output:
 	$(RUNPP) -p -c "misc/figleaf2html -d coverage-html -r src -x misc/figleaf.excludes"

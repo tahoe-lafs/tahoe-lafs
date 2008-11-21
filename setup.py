@@ -121,6 +121,7 @@ else:
 from setuptools import find_packages, setup
 from setuptools.command import sdist
 from distutils.core import Command
+from setuptools_trial.setuptools_trial import TrialTest
 
 # Make the dependency-version-requirement, which is used by the Makefile at
 # build-time, also available to the app at runtime:
@@ -192,7 +193,7 @@ setup_requires = []
 
 # Nevow requires Twisted to setup, but doesn't declare that requirement in a way that enables
 # setuptools to satisfy that requirement before Nevow's setup.py tried to "import twisted".
-setup_requires.append('Twisted >= 2.4.0')
+setup_requires.extend(['Twisted >= 2.4.0', 'setuptools_trial'])
 
 # darcsver is needed only if you want "./setup.py darcsver" to write a new
 # version stamp in src/allmydata/_version.py, with a version number derived from
@@ -318,59 +319,26 @@ class BuildTahoe(Command):
             print >>sys.stderr, "'setup.py develop' exited with rc", rc
             sys.exit(rc)
 
-class Trial(Command):
-    # Unlike 'build' and 'bdist_egg', the 'trial' subcommand cannot be run in
-    # conjunction with other subcommands.
-
-    # The '-a' argument is split on whitespace and passed into trial. (the
-    # distutils parser does not give subcommands access to the rest of
-    # sys.argv, so unfortunately we cannot just do something like:
-    #   setup.py trial --reporter=text allmydata.test.test_util
-
+class Trial(TrialTest):
+    # Custom sub-class of the TrialTest class from the setuptools_trial
+    # plugin so that we can ensure certain options are set by default.
+    #
     # Examples:
     #  setup.py trial    # run all tests
     #  setup.py trial -a allmydata.test.test_util   # run some tests
     #  setup.py trial -a '--reporter=text allmydata.test.test_util' #other args
 
-    description = "Run unit tests via trial"
 
-    user_options = [ ("args=", "a", "Argument string to pass to trial: setup.py trial -a allmydata.test.test_util"),
-                     ]
     def initialize_options(self):
-        self.args = "allmydata"
-    def finalize_options(self):
-        pass
+        TrialTest.initialize_options(self)
 
-    def run(self):
-        # make sure Twisted is available (for trial itself), and both the
-        # Tahoe source code and our dependent libraries are available (so
-        # that trial has some test code to work with)
-
-        from twisted.scripts import trial
-
-        args = self.args.strip().split()
-
-        # one wrinkle: we want to set the reactor here, because of bug #402
-        # (twisted bug #3218). We just jam in a "--reactor poll" at the start
-        # of the arglist. This does not permit the reactor to be overridden,
-        # unfortunately.
+        # We want to set the reactor to 'poll', because of bug #402
+        # (twisted bug #3218).
         if sys.platform in ("linux2", "cygwin"):
             # poll on linux2 to avoid #402 problems with select
             # poll on cygwin since selectreactor runs out of fds
-            args = ["--reactor", "poll"] + args
+            self.reactor = "poll"
 
-        # zooko also had os.environ["PYTHONUNBUFFERED"]="1" and
-        # args.append("--rterrors")
-
-        sys.argv = ["trial"] + args
-        if self.verbose > 1:
-            print "To run this test directly, use:"
-            print "PYTHONPATH=%s %s" % (os.environ["PYTHONPATH"],
-                                        " ".join(sys.argv))
-        else:
-            print "(run setup.py with -vv for trial command-line details)"
-        trial.run() # this does sys.exit
-        # NEVER REACHED
 
 class MySdist(sdist.sdist):
     """ A hook in the sdist command so that we can determine whether this the
