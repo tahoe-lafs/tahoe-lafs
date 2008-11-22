@@ -164,14 +164,30 @@ class Tahoe2PeerSelector:
         if not peers:
             raise NotEnoughSharesError("client gave us zero peers")
 
-        # figure out how much space to ask for
-
         # this needed_hashes computation should mirror
         # Encoder.send_all_share_hash_trees. We use an IncompleteHashTree
         # (instead of a HashTree) because we don't require actual hashing
         # just to count the levels.
         ht = hashtree.IncompleteHashTree(total_shares)
         num_share_hashes = len(ht.needed_hashes(0, include_leaf=True))
+
+        # figure out how much space to ask for
+        allocated_size = layout.allocated_size(share_size,
+                                               num_segments,
+                                               num_share_hashes,
+                                               EXTENSION_SIZE)
+        # filter the list of peers according to which ones can accomodate
+        # this request. This excludes older peers (which used a 4-byte size
+        # field) from getting large shares (for files larger than about
+        # 12GiB). See #439 for details.
+        def _get_maxsize(peer):
+            (peerid, conn) = peer
+            v1 = conn.version["http://allmydata.org/tahoe/protocols/storage/v1"]
+            return v1["maximum-immutable-share-size"]
+        peers = [peer for peer in peers
+                 if _get_maxsize(peer) >= allocated_size]
+        if not peers:
+            raise NotEnoughSharesError("no peers could accept an allocated_size of %d" % allocated_size)
 
         # decide upon the renewal/cancel secrets, to include them in the
         # allocat_buckets query.

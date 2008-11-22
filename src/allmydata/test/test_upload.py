@@ -7,6 +7,7 @@ from twisted.python import log
 from twisted.internet import defer
 from foolscap import eventual
 
+import allmydata
 from allmydata import uri, monitor
 from allmydata.immutable import upload
 from allmydata.interfaces import IFileURI, FileTooLargeError, NotEnoughSharesError
@@ -81,6 +82,11 @@ class FakeStorageServer:
         self.mode = mode
         self.allocated = []
         self.queries = 0
+        self.version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
+                         { "maximum-immutable-share-size": 2**32 },
+                         "application-version": str(allmydata.__version__),
+                         }
+
     def callRemote(self, methname, *args, **kwargs):
         def _call():
             meth = getattr(self, methname)
