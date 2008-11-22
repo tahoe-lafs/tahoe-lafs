@@ -5,6 +5,7 @@ from twisted.application import service
 from twisted.internet import defer
 from foolscap import Referenceable, DeadReferenceError
 from foolscap.eventual import eventually
+import allmydata
 from allmydata import interfaces, storage, uri
 from allmydata.immutable import upload
 from allmydata.immutable.layout import ReadBucketProxy
@@ -131,6 +132,10 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
     remote AssistedUploader.
     """
     implements(interfaces.RICHKUploadHelper)
+    VERSION = { "http://allmydata.org/tahoe/protocols/helper/chk-upload/v1" :
+                 { },
+                "application-version": str(allmydata.__version__),
+                }
 
     def __init__(self, storage_index, helper,
                  incoming_file, encoding_file,
@@ -185,6 +190,9 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         # we don't remember uploading this file
         self.log("no ciphertext yet", level=log.NOISY)
         return (self._results, self)
+
+    def remote_get_version(self):
+        return self.VERSION
 
     def remote_upload(self, reader):
         # reader is an RIEncryptedUploadable. I am specified to return an
@@ -482,6 +490,10 @@ class Helper(Referenceable, service.MultiService):
     # helper at random.
 
     name = "helper"
+    VERSION = { "http://allmydata.org/tahoe/protocols/helper/v1" :
+                 { },
+                "application-version": str(allmydata.__version__),
+                }
     chk_upload_helper_class = CHKUploadHelper
     MAX_UPLOAD_STATUSES = 10
 
@@ -553,6 +565,9 @@ class Helper(Referenceable, service.MultiService):
                   }
         stats.update(self._counters)
         return stats
+
+    def remote_get_version(self):
+        return self.VERSION
 
     def remote_upload_chk(self, storage_index):
         self.count("chk_upload_helper.upload_requests")

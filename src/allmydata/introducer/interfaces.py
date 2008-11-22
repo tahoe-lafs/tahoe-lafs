@@ -1,6 +1,6 @@
 
 from zope.interface import Interface
-from foolscap.schema import StringConstraint, TupleOf, SetOf
+from foolscap.schema import StringConstraint, TupleOf, SetOf, DictOf, Any
 from foolscap import RemoteInterface
 FURL = StringConstraint(1000)
 
@@ -68,6 +68,8 @@ class RIIntroducerSubscriberService(RemoteInterface):
 
 class RIIntroducerPublisherAndSubscriberService(RemoteInterface):
     __remote_name__ = "RIIntroducerPublisherAndSubscriberService.tahoe.allmydata.com"
+    def get_version():
+        return DictOf(str, Any())
     def publish(announcement=Announcement):
         return None
     def subscribe(subscriber=RIIntroducerSubscriberClient, service_name=str):

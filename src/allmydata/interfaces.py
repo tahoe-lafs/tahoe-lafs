@@ -1,7 +1,7 @@
 
 from zope.interface import Interface
 from foolscap.schema import StringConstraint, ListOf, TupleOf, SetOf, DictOf, \
-     ChoiceOf, IntegerConstraint
+     ChoiceOf, IntegerConstraint, Any
 from foolscap import RemoteInterface, Referenceable
 
 HASH_SIZE=32
@@ -86,21 +86,11 @@ ReadData = ListOf(ShareData)
 class RIStorageServer(RemoteInterface):
     __remote_name__ = "RIStorageServer.tahoe.allmydata.com"
 
-    def get_versions():
+    def get_version():
         """
-        Return a tuple of (my_version, oldest_supported) strings.  Each string can be parsed by
-        a pyutil.version_class.Version instance or a distutils.version.LooseVersion instance,
-        and then compared. The first goal is to make sure that nodes are not confused by
-        speaking to an incompatible peer. The second goal is to enable the development of
-        backwards-compatibility code.
-
-        The meaning of the oldest_supported element is that if you treat this storage server as
-        though it were of that version, then you will not be disappointed.
-
-        The precise meaning of this method might change in incompatible ways until we get the
-        whole compatibility scheme nailed down.
+        Return a dictionary of version information.
         """
-        return TupleOf(str, str)
+        return DictOf(str, Any())
 
     def allocate_buckets(storage_index=StorageIndex,
                          renew_secret=LeaseRenewSecret,
@@ -351,8 +341,6 @@ class IStorageBucketReader(Interface):
 
 
 # hm, we need a solution for forward references in schemas
-from foolscap.schema import Any
-
 FileNode_ = Any() # TODO: foolscap needs constraints on copyables
 DirectoryNode_ = Any() # TODO: same
 AnyNode_ = ChoiceOf(FileNode_, DirectoryNode_)
@@ -2077,12 +2065,24 @@ class RIEncryptedUploadable(RemoteInterface):
 class RICHKUploadHelper(RemoteInterface):
     __remote_name__ = "RIUploadHelper.tahoe.allmydata.com"
 
+    def get_version():
+        """
+        Return a dictionary of version information.
+        """
+        return DictOf(str, Any())
+
     def upload(reader=RIEncryptedUploadable):
         return UploadResults
 
 
 class RIHelper(RemoteInterface):
     __remote_name__ = "RIHelper.tahoe.allmydata.com"
+
+    def get_version():
+        """
+        Return a dictionary of version information.
+        """
+        return DictOf(str, Any())
 
     def upload_chk(si=StorageIndex):
         """See if a file with a given storage index needs uploading. The

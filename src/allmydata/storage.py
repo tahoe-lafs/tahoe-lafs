@@ -1,5 +1,4 @@
 import os, re, weakref, stat, struct, time
-from distutils.version import LooseVersion
 
 from foolscap import Referenceable
 from twisted.application import service
@@ -764,10 +763,10 @@ def create_mutable_sharefile(filename, my_nodeid, write_enabler, parent):
 class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer, IStatsProducer)
     name = 'storage'
-
-    # This means that if a client treats me as though I were a 1.0.0 storage server, they will
-    # not be disappointed.
-    OLDEST_SUPPORTED_VERSION = LooseVersion("1.0.0")
+    VERSION = { "http://allmydata.org/tahoe/protocols/storage/v1" :
+                 { "maximum-immutable-share-size": 2**32 },
+                "application-version": str(allmydata.__version__),
+                }
 
     def __init__(self, storedir, sizelimit=None,
                  discard_storage=False, readonly_storage=False,
@@ -899,8 +898,8 @@ class StorageServer(service.MultiService, Referenceable):
             space += bw.allocated_size()
         return space
 
-    def remote_get_versions(self):
-        return (str(allmydata.__version__), str(self.OLDEST_SUPPORTED_VERSION))
+    def remote_get_version(self):
+        return self.VERSION
 
     def remote_allocate_buckets(self, storage_index,
                                 renew_secret, cancel_secret,

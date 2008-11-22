@@ -3,6 +3,7 @@ import time, os.path
 from zope.interface import implements
 from twisted.application import service
 from foolscap import Referenceable
+import allmydata
 from allmydata import node
 from allmydata.util import log
 from allmydata.introducer.interfaces import \
@@ -46,6 +47,10 @@ class IntroducerNode(node.Node):
 class IntroducerService(service.MultiService, Referenceable):
     implements(RIIntroducerPublisherAndSubscriberService)
     name = "introducer"
+    VERSION = { "http://allmydata.org/tahoe/protocols/introducer/v1":
+                 { },
+                "application-version": str(allmydata.__version__),
+                }
 
     def __init__(self, basedir="."):
         service.MultiService.__init__(self)
@@ -63,6 +68,9 @@ class IntroducerService(service.MultiService, Referenceable):
         return self._announcements
     def get_subscribers(self):
         return self._subscribers
+
+    def remote_get_version(self):
+        return self.VERSION
 
     def remote_publish(self, announcement):
         self.log("introducer: announcement published: %s" % (announcement,) )

@@ -81,7 +81,7 @@ class ControlServer(Referenceable, service.Service):
             return results
         peerid, connection = everyone_left.pop(0)
         start = time.time()
-        d = connection.callRemote("get_versions")
+        d = connection.callRemote("get_version")
         def _done(ignored):
             stop = time.time()
             elapsed = stop - start

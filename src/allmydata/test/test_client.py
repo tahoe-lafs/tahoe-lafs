@@ -153,8 +153,9 @@ class Basic(unittest.TestCase):
         open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         c = client.Client(basedir)
         ss = c.getServiceNamed("storage")
-        mine, oldest = ss.remote_get_versions()
-        self.failUnlessEqual(mine, str(allmydata.__version__))
+        verdict = ss.remote_get_version()
+        self.failUnlessEqual(verdict["application-version"],
+                             str(allmydata.__version__))
         self.failIfEqual(str(allmydata.__version__), "unknown")
         self.failUnless("." in str(allmydata.__version__),
                         "non-numeric version in '%s'" % allmydata.__version__)
