@@ -74,6 +74,15 @@ def flush_but_dont_ignore(res):
     d.addCallback(_done)
     return d
 
+def wait_a_few_turns(ignored=None):
+    d = eventual.fireEventually()
+    d.addCallback(eventual.fireEventually)
+    d.addCallback(eventual.fireEventually)
+    d.addCallback(eventual.fireEventually)
+    d.addCallback(eventual.fireEventually)
+    d.addCallback(eventual.fireEventually)
+    return d
+
 def upload_data(uploader, data, convergence):
     u = upload.Data(data, convergence=convergence)
     return uploader.upload(u)
@@ -110,10 +119,7 @@ class AssistedUpload(unittest.TestCase):
         u = upload.Uploader(self.helper_furl)
         u.setServiceParent(self.s)
 
-        # wait a few turns
-        d = eventual.fireEventually()
-        d.addCallback(eventual.fireEventually)
-        d.addCallback(eventual.fireEventually)
+        d = wait_a_few_turns()
 
         def _ready(res):
             assert u._helper
@@ -164,10 +170,7 @@ class AssistedUpload(unittest.TestCase):
         u = upload.Uploader(self.helper_furl)
         u.setServiceParent(self.s)
 
-        # wait a few turns
-        d = eventual.fireEventually()
-        d.addCallback(eventual.fireEventually)
-        d.addCallback(eventual.fireEventually)
+        d = wait_a_few_turns()
 
         def _ready(res):
             assert u._helper
@@ -194,10 +197,7 @@ class AssistedUpload(unittest.TestCase):
         u = upload.Uploader(self.helper_furl)
         u.setServiceParent(self.s)
 
-        # wait a few turns
-        d = eventual.fireEventually()
-        d.addCallback(eventual.fireEventually)
-        d.addCallback(eventual.fireEventually)
+        d = wait_a_few_turns()
 
         def _ready(res):
             assert u._helper

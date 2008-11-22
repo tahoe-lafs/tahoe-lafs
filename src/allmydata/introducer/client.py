@@ -4,9 +4,11 @@ from base64 import b32decode
 from zope.interface import implements
 from twisted.application import service
 from foolscap import Referenceable
+from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import RIIntroducerSubscriberClient, \
      IIntroducerClient
 from allmydata.util import log, idlib
+from allmydata.util.rrefutil import get_versioned_remote_reference
 from allmydata.introducer.common import make_index
 
 
@@ -27,6 +29,14 @@ class RemoteServiceConnector:
     @ivar rref: the RemoteReference, if connected, otherwise None
     @ivar remote_host: the IAddress, if connected, otherwise None
     """
+
+    VERSION_DEFAULTS = {
+        "storage": { "http://allmydata.org/tahoe/protocols/storage/v1" :
+                     { "maximum-immutable-share-size": 2**32 },
+                     "application-version": "unknown: no get_version()",
+                     },
+        "stub_client": { },
+        }
 
     def __init__(self, announcement, tub, ic):
         self._tub = tub
@@ -62,11 +72,19 @@ class RemoteServiceConnector:
         self._reconnector.stopConnecting()
 
     def _got_service(self, rref):
+        self.log("got connection to %s, getting versions" % self._nodeid_s)
+
+        default = self.VERSION_DEFAULTS.get(self.service_name, {})
+        d = get_versioned_remote_reference(rref, default)
+        d.addCallback(self._got_versioned_service)
+
+    def _got_versioned_service(self, rref):
+        self.log("connected to %s, version %s" % (self._nodeid_s, rref.version))
+
         self.last_connect_time = time.time()
-        self.remote_host = rref.tracker.broker.transport.getPeer()
+        self.remote_host = rref.rref.tracker.broker.transport.getPeer()
 
         self.rref = rref
-        self.log("connected to %s" % self._nodeid_s)
 
         self._ic.add_connection(self._nodeid, self.service_name, rref)
 
@@ -78,6 +96,7 @@ class RemoteServiceConnector:
         self.rref = None
         self.remote_host = None
         self._ic.remove_connection(self._nodeid, self.service_name, rref)
+
 
     def reset(self):
         self._reconnector.reset()
@@ -119,6 +138,7 @@ class IntroducerClient(service.Service, Referenceable):
 
     def startService(self):
         service.Service.startService(self)
+        self._introducer_error = None
         rc = self._tub.connectTo(self.introducer_furl, self._got_introducer)
         self._introducer_reconnector = rc
         def connect_failed(failure):
@@ -128,7 +148,25 @@ class IntroducerClient(service.Service, Referenceable):
         d.addErrback(connect_failed)
 
     def _got_introducer(self, publisher):
-        self.log("connected to introducer")
+        self.log("connected to introducer, getting versions")
+        default = { "http://allmydata.org/tahoe/protocols/introducer/v1":
+                    { },
+                    "application-version": "unknown: no get_version()",
+                    }
+        d = get_versioned_remote_reference(publisher, default)
+        d.addCallback(self._got_versioned_introducer)
+        d.addErrback(self._got_error)
+
+    def _got_error(self, f):
+        # TODO: for the introducer, perhaps this should halt the application
+        self._introducer_error = f # polled by tests
+
+    def _got_versioned_introducer(self, publisher):
+        self.log("got introducer version: %s" % (publisher.version,))
+        # we require a V1 introducer
+        needed = "http://allmydata.org/tahoe/protocols/introducer/v1"
+        if needed not in publisher.version:
+            raise InsufficientVersionError(needed, publisher.version)
         self._connected = True
         self._publisher = publisher
         publisher.notifyOnDisconnect(self._disconnected)
@@ -258,7 +296,7 @@ class IntroducerClient(service.Service, Referenceable):
                           if c[1] == service_name])
 
     def get_permuted_peers(self, service_name, key):
-        """Return an ordered list of (peerid, rref) tuples."""
+        """Return an ordered list of (peerid, versioned-rref) tuples."""
 
         results = []
         for (c_peerid, c_service_name, rref) in self._connections:

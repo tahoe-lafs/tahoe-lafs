@@ -9,6 +9,7 @@ from twisted.python import log
 from foolscap import Tub, Referenceable
 from foolscap.eventual import fireEventually, flushEventualQueue
 from twisted.application import service
+from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.client import IntroducerClient
 from allmydata.introducer.server import IntroducerService
 # test compatibility with old introducer .tac files
@@ -230,3 +231,44 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 self.failIf(c.connected_to_introducer())
         d.addCallback(_check4)
         return d
+
+class TooNewServer(IntroducerService):
+    VERSION = { "http://allmydata.org/tahoe/protocols/introducer/v999":
+                 { },
+                "application-version": "greetings from the crazy future",
+                }
+
+class NonV1Server(SystemTestMixin, unittest.TestCase):
+    # if the 1.3.0 client connects to a server that doesn't provide the 'v1'
+    # protocol, it is supposed to provide a useful error instead of a weird
+    # exception.
+
+    def test_failure(self):
+        i = TooNewServer()
+        i.setServiceParent(self.parent)
+        self.introducer_furl = self.central_tub.registerReference(i)
+
+        tub = Tub()
+        tub.setServiceParent(self.parent)
+        l = tub.listenOn("tcp:0")
+        portnum = l.getPortnum()
+        tub.setLocation("localhost:%d" % portnum)
+
+        n = FakeNode()
+        c = IntroducerClient(tub, self.introducer_furl,
+                             "nickname-client", "version", "oldest")
+        c.subscribe_to("storage")
+
+        c.setServiceParent(self.parent)
+
+        # now we wait for it to connect and notice the bad version
+
+        def _got_bad():
+            return bool(c._introducer_error) or bool(c._publisher)
+        d = self.poll(_got_bad)
+        def _done(res):
+            self.failUnless(c._introducer_error)
+            self.failUnless(c._introducer_error.check(InsufficientVersionError))
+        d.addCallback(_done)
+        return d
+

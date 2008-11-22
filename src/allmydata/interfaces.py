@@ -2156,3 +2156,11 @@ class RIKeyGenerator(RemoteInterface):
 class FileTooLargeError(Exception):
     pass
 
+
+class InsufficientVersionError(Exception):
+    def __init__(self, needed, got):
+        self.needed = needed
+        self.got = got
+    def __repr__(self):
+        return "InsufficientVersionError(need '%s', got %s)" % (self.needed,
+                                                                self.got)
