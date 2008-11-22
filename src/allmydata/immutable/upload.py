@@ -18,7 +18,8 @@ from allmydata.util import base32, idlib, mathutil
 from allmydata.util.assertutil import precondition
 from allmydata.util.rrefutil import get_versioned_remote_reference
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
-     IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus, NotEnoughSharesError
+     IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus, \
+     NotEnoughSharesError, InsufficientVersionError
 from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
@@ -1242,6 +1243,9 @@ class Uploader(service.MultiService):
         d.addCallback(self._got_versioned_helper)
 
     def _got_versioned_helper(self, helper):
+        needed = "http://allmydata.org/tahoe/protocols/helper/v1"
+        if needed not in helper.version:
+            raise InsufficientVersionError(needed, helper.version)
         self._helper = helper
         helper.notifyOnDisconnect(self._lost_helper)
 
