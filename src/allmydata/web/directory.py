@@ -731,9 +731,11 @@ class ManifestResults(rend.Page, ReloadMixin):
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         m = self.monitor
-        status = {"manifest": m.get_status()["manifest"],
-                  "storage-index": list(m.get_status()["storage-index"]),
-                  "stats": m.get_status()["stats"],
+        s = m.get_status()
+        status = {"manifest": s["manifest"],
+                  "verifycaps": list(s["verifycaps"]),
+                  "storage-index": list(s["storage-index"]),
+                  "stats": s["stats"],
                   "finished": m.is_finished(),
                   "origin": base32.b2a(m.origin_si),
                   }

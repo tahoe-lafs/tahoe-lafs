@@ -2423,12 +2423,35 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                                      "--node-directory", basedir,
                                      "--storage-index", self.root_uri]))
         def _check2((out,err)):
+            self.failUnlessEqual(err, "")
             lines = [l for l in out.split("\n") if l]
             self.failUnlessEqual(len(lines), 3)
             self.failUnless(base32.b2a(self.root.get_storage_index()) in lines)
             self.failUnless(base32.b2a(self.mutable.get_storage_index()) in lines)
             self.failUnless(base32.b2a(self.large.get_storage_index()) in lines)
         d.addCallback(_check2)
+
+        d.addCallback(lambda res:
+                      self._run_cli(["manifest",
+                                     "--node-directory", basedir,
+                                     "--raw", self.root_uri]))
+        def _check2r((out,err)):
+            self.failUnlessEqual(err, "")
+            data = simplejson.loads(out)
+            sis = data["storage-index"]
+            self.failUnlessEqual(len(sis), 3)
+            self.failUnless(base32.b2a(self.root.get_storage_index()) in sis)
+            self.failUnless(base32.b2a(self.mutable.get_storage_index()) in sis)
+            self.failUnless(base32.b2a(self.large.get_storage_index()) in sis)
+            self.failUnlessEqual(data["stats"]["count-files"], 4)
+            self.failUnlessEqual(data["origin"],
+                                 base32.b2a(self.root.get_storage_index()))
+            verifycaps = data["verifycaps"]
+            self.failUnlessEqual(len(verifycaps), 3)
+            self.failUnless(self.root.get_verifier().to_string() in verifycaps)
+            self.failUnless(self.mutable.get_verifier().to_string() in verifycaps)
+            self.failUnless(self.large.get_verifier().to_string() in verifycaps)
+        d.addCallback(_check2r)
 
         d.addCallback(lambda res:
                       self._run_cli(["stats",

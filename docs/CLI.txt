@@ -329,6 +329,7 @@ tahoe mv tahoe:uploaded.txt fun:uploaded.txt
 
 tahoe manifest tahoe:
 tahoe manifest --storage-index tahoe:
+tahoe manifest --raw tahoe:
 
  This performs a recursive walk of the given directory, visiting every file
  and directory that can be reached from that point. It then emits one line to
@@ -339,7 +340,9 @@ tahoe manifest --storage-index tahoe:
 
  If --storage-index is added, each line will instead contain the object's
  storage index. This (string) value is useful to determine which share files
- (on the server) are associated with this directory tree.
+ (on the server) are associated with this directory tree. If --raw is
+ provided instead, the output will be a JSON-encoded dictionary that includes
+ keys for storage index strings, verifycaps, and deep-stats.
 
 tahoe stats tahoe:
 

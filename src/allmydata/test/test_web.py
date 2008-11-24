@@ -950,6 +950,7 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
             self.failUnless("finished" in res)
             self.failUnless("origin" in res)
             self.failUnless("storage-index" in res)
+            self.failUnless("verifycaps" in res)
             self.failUnless("stats" in res)
         d.addCallback(_got_json)
         return d

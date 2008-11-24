@@ -9,7 +9,7 @@ from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
      INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode, \
      ExistingChildError, NoSuchChildError, \
      IDeepCheckResults, IDeepCheckAndRepairResults
-from allmydata.util import hashutil
+from allmydata.util import hashutil, base32
 from allmydata.monitor import Monitor
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
      FakeDirectoryNode, create_chk_filenode, ErrorMixin
@@ -281,6 +281,8 @@ class Dirnode(unittest.TestCase,
 
     def test_create(self):
         self.expected_manifest = []
+        self.expected_verifycaps = set()
+        self.expected_storage_indexes = set()
 
         d = self.client.create_empty_dirnode()
         def _then(n):
@@ -294,8 +296,11 @@ class Dirnode(unittest.TestCase,
             u_v = n.get_verifier().to_string()
             self.failUnless(u_v.startswith("URI:DIR2-Verifier:"), u_v)
             self.expected_manifest.append( ((), u) )
+            self.expected_verifycaps.add(u_v)
+            si = n.get_storage_index()
+            self.expected_storage_indexes.add(base32.b2a(si))
             expected_si = n._uri._filenode_uri.storage_index
-            self.failUnlessEqual(n.get_storage_index(), expected_si)
+            self.failUnlessEqual(si, expected_si)
 
             d = n.list()
             d.addCallback(lambda res: self.failUnlessEqual(res, {}))
@@ -306,6 +311,8 @@ class Dirnode(unittest.TestCase,
             m = Marker(fake_file_uri)
             ffu_v = m.get_verifier().to_string()
             self.expected_manifest.append( ((u"child",) , m.get_uri()) )
+            self.expected_verifycaps.add(ffu_v)
+            self.expected_storage_indexes.add(base32.b2a(m.get_storage_index()))
             d.addCallback(lambda res: n.set_uri(u"child", fake_file_uri))
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "set_uri-no",
@@ -326,6 +333,9 @@ class Dirnode(unittest.TestCase,
                 new_v = subdir.get_verifier().to_string()
                 assert isinstance(new_v, str)
                 self.expected_manifest.append( ((u"subdir",), subdir.get_uri()) )
+                self.expected_verifycaps.add(new_v)
+                si = subdir.get_storage_index()
+                self.expected_storage_indexes.add(base32.b2a(si))
             d.addCallback(_created)
 
             d.addCallback(lambda res:
@@ -372,6 +382,10 @@ class Dirnode(unittest.TestCase,
                                      sorted(self.expected_manifest))
                 stats = res["stats"]
                 _check_deepstats(stats)
+                self.failUnlessEqual(self.expected_verifycaps,
+                                     res["verifycaps"])
+                self.failUnlessEqual(self.expected_storage_indexes,
+                                     res["storage-index"])
             d.addCallback(_check_manifest)
 
             def _add_subsubdir(res):

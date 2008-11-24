@@ -641,17 +641,22 @@ class ManifestWalker(DeepStats):
         DeepStats.__init__(self, origin)
         self.manifest = []
         self.storage_index_strings = set()
+        self.verifycaps = set()
 
     def add_node(self, node, path):
         self.manifest.append( (tuple(path), node.get_uri()) )
         si = node.get_storage_index()
         if si:
             self.storage_index_strings.add(base32.b2a(si))
+        v = node.get_verifier()
+        if v:
+            self.verifycaps.add(v.to_string())
         return DeepStats.add_node(self, node, path)
 
     def get_results(self):
         stats = DeepStats.get_results(self)
         return {"manifest": self.manifest,
+                "verifycaps": self.verifycaps,
                 "storage-index": self.storage_index_strings,
                 "stats": stats,
                 }
