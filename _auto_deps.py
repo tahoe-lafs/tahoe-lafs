@@ -8,7 +8,9 @@ install_requires=[
                   # incorrect AES results.
                   "pycryptopp >= 0.5",
                   "zfec >= 1.1.0",
-                  "simplejson >= 1.4",
+
+                  # We had a unicode problem with simplejson 1.8.1 on dapper -- see ticket #543.
+                  "simplejson > 1.8.1",
 
                   "zope.interface",
                   "Twisted >= 2.4.0",
