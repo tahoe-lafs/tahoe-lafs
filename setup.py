@@ -208,6 +208,10 @@ if 'darcsver' in sys.argv[1:]:
 if not os.path.exists('PKG-INFO'):
     setup_requires.append('setuptools_darcs >= 1.1.0')
 
+# Previous versions seems to have unicode issues
+# See Bug #543
+setup_requires.append('simplejson >= 2.0.5')
+
 class ShowSupportLib(Command):
     user_options = []
     def initialize_options(self):
