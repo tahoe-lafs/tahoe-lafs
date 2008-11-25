@@ -104,6 +104,9 @@ def get_linux_distro():
     except EnvironmentError:
         pass
 
+    if os.path.exists("/etc/arch-release"):
+        return ("Arch_Linux", "")
+
     return (_distname,_version)
 
 def get_platform():
