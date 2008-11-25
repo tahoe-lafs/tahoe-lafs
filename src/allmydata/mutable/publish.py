@@ -577,7 +577,27 @@ class Publish:
 
             else:
                 # add a testv that requires the share not exist
-                testv = (0, 1, 'eq', "")
+
+                # Unfortunately, foolscap-0.2.5 has a bug in the way inbound
+                # constraints are handled. If the same object is referenced
+                # multiple times inside the arguments, foolscap emits a
+                # 'reference' token instead of a distinct copy of the
+                # argument. The bug is that these 'reference' tokens are not
+                # accepted by the inbound constraint code. To work around
+                # this, we need to prevent python from interning the
+                # (constant) tuple, by creating a new copy of this vector
+                # each time.
+
+                # This bug is fixed in foolscap-0.2.6, and even though this
+                # version of Tahoe requires foolscap-0.3.1 or newer, we are
+                # supposed to be able to interoperate with older versions of
+                # Tahoe which are allowed to use older versions of foolscap,
+                # including foolscap-0.2.5 . In addition, I've seen other
+                # foolscap problems triggered by 'reference' tokens (see #541
+                # for details). So we must keep this workaround in place.
+
+                #testv = (0, 1, 'eq', "")
+                testv = tuple([0, 1, 'eq', ""])
 
             testvs = [testv]
             # the write vector is simply the share
