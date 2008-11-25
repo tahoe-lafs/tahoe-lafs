@@ -21,7 +21,7 @@ del hush_pyflakes
 import _auto_deps
 _auto_deps.require_auto_deps()
 
-import platform, re, subprocess
+import os, platform, re, subprocess
 _distributor_id_cmdline_re = re.compile("(?:Distributor ID:)\s*(.*)", re.I)
 _release_cmdline_re = re.compile("(?:Release:)\s*(.*)", re.I)
 
