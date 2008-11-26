@@ -11,7 +11,7 @@ class CreateClientOptions(BasedirMixin, usage.Options):
         # tahoe.cfg before node startup.
         ("nickname", "n", None, "nickname for this node"),
         ("introducer", "i", None, "introducer FURL to use"),
-        ("webport", "p", "tcp:8123:interface=127.0.0.1",
+        ("webport", "p", "tcp:3456:interface=127.0.0.1",
          "which TCP port to run the HTTP interface on. Use 'none' to disable."),
         ]
     optFlags = [

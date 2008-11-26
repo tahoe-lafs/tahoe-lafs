@@ -15,8 +15,8 @@
 
 Every Tahoe node is capable of running a built-in HTTP server. To enable
 this, just write a port number into a file named "webport" in the node's base
-directory. For example, writing "8123" into $NODEDIR/webport will cause the
-node to run a webserver on port 8123.
+directory. For example, writing "3456" into $NODEDIR/webport will cause the
+node to run a webserver on port 3456.
 
 This string is actually a Twisted "strports" specification, meaning you can
 get more control over the interface to which the server binds by supplying
@@ -24,14 +24,14 @@ additional arguments. For more details, see the documentation on
 twisted.application.strports:
 http://twistedmatrix.com/documents/current/api/twisted.application.strports.html
 
-Writing "tcp:8123:interface=127.0.0.1" into $NODEDIR/webport does the same
+Writing "tcp:3456:interface=127.0.0.1" into $NODEDIR/webport does the same
 but binds to the loopback interface, ensuring that only the programs on the
 local host can connect. Using
-"ssl:8123:privateKey=mykey.pem:certKey=cert.pem" runs an SSL server.
+"ssl:3456:privateKey=mykey.pem:certKey=cert.pem" runs an SSL server.
 
 This webport can be set when the node is created by passing a --webport
 option to the 'tahoe create-client' command. By default, the node listens on
-port 8123, on the loopback (127.0.0.1) interface.
+port 3456, on the loopback (127.0.0.1) interface.
 
 == Basic Concepts ==
 
@@ -100,31 +100,31 @@ URLs).
 To refer to any Tahoe object through the web API, you simply need to combine
 a prefix (which indicates the HTTP server to use) with the cap (which
 indicates which object inside that server to access). Since the default Tahoe
-webport is 8123, the most common prefix is one that will use a local node
+webport is 3456, the most common prefix is one that will use a local node
 listening on this port:
 
- http://127.0.0.1:8123/uri/ + $CAP
+ http://127.0.0.1:3456/uri/ + $CAP
 
 So, to access the directory named above (which happens to be the
 publically-writable sample directory on the Tahoe test grid, described at
 http://allmydata.org/trac/tahoe/wiki/TestGrid), the URL would be:
 
- http://127.0.0.1:8123/uri/URI%3ADIR2%3Adjrdkfawoqihigoett4g6auz6a%3Ajx5mplfpwexnoqff7y5e4zjus4lidm76dcuarpct7cckorh2dpgq/
+ http://127.0.0.1:3456/uri/URI%3ADIR2%3Adjrdkfawoqihigoett4g6auz6a%3Ajx5mplfpwexnoqff7y5e4zjus4lidm76dcuarpct7cckorh2dpgq/
 
 (note that the colons in the directory-cap are url-encoded into "%3A"
 sequences).
 
 Likewise, to access the file named above, use:
 
- http://127.0.0.1:8123/uri/URI%3ACHK%3Aime6pvkaxuetdfah2p2f35pe54%3A4btz54xk3tew6nd4y2ojpxj4m6wxjqqlwnztgre6gnjgtucd5r4a%3A3%3A10%3A202
+ http://127.0.0.1:3456/uri/URI%3ACHK%3Aime6pvkaxuetdfah2p2f35pe54%3A4btz54xk3tew6nd4y2ojpxj4m6wxjqqlwnztgre6gnjgtucd5r4a%3A3%3A10%3A202
 
 In the rest of this document, we'll use "$DIRCAP" as shorthand for a read-cap
 or write-cap that refers to a directory, and "$FILECAP" to abbreviate a cap
 that refers to a file (whether mutable or immutable). So those URLs above can
 be abbreviated as:
 
- http://127.0.0.1:8123/uri/$DIRCAP/
- http://127.0.0.1:8123/uri/$FILECAP
+ http://127.0.0.1:3456/uri/$DIRCAP/
+ http://127.0.0.1:3456/uri/$FILECAP
 
 The operation summaries below will abbreviate these further, by eliding the
 server prefix. They will be displayed like this:
@@ -143,13 +143,13 @@ named child inside it, just append the child name to the URL. For example, if
 our sample directory contains a file named "welcome.txt", we can refer to
 that file with:
 
- http://127.0.0.1:8123/uri/$DIRCAP/welcome.txt
+ http://127.0.0.1:3456/uri/$DIRCAP/welcome.txt
 
-(or http://127.0.0.1:8123/uri/URI%3ADIR2%3Adjrdkfawoqihigoett4g6auz6a%3Ajx5mplfpwexnoqff7y5e4zjus4lidm76dcuarpct7cckorh2dpgq/welcome.txt)
+(or http://127.0.0.1:3456/uri/URI%3ADIR2%3Adjrdkfawoqihigoett4g6auz6a%3Ajx5mplfpwexnoqff7y5e4zjus4lidm76dcuarpct7cckorh2dpgq/welcome.txt)
 
 Multiple levels of subdirectories can be handled this way:
 
- http://127.0.0.1:8123/uri/$DIRCAP/tahoe-source/docs/webapi.txt
+ http://127.0.0.1:3456/uri/$DIRCAP/tahoe-source/docs/webapi.txt
 
 In this document, when we need to refer to a URL that references a file using
 this child-of-some-directory format, we'll use the following string:
@@ -170,7 +170,7 @@ Note that all components of pathnames in URLs are required to be UTF-8
 encoded, so "resume.doc" (with an acute accent on both E's) would be accessed
 with:
 
- http://127.0.0.1:8123/uri/$DIRCAP/r%C3%A9sum%C3%A9.doc
+ http://127.0.0.1:3456/uri/$DIRCAP/r%C3%A9sum%C3%A9.doc
 
 Also note that the filenames inside upload POST forms are interpreted using
 whatever character set was provided in the conventional '_charset' field, and
@@ -300,7 +300,7 @@ PUT /uri/$DIRCAP/[SUBDIRS../]FILENAME
  to 201 CREATED. If an existing file was replaced or modified, the response
  code will be 200 OK.
 
- Note that the 'curl -T localfile http://127.0.0.1:8123/uri/$DIRCAP/foo.txt'
+ Note that the 'curl -T localfile http://127.0.0.1:3456/uri/$DIRCAP/foo.txt'
  command can be used to invoke this operation.
 
 PUT /uri
@@ -1191,7 +1191,7 @@ The webapi server will take any request for a URL that starts with /static
 and serve it from a configurable directory which defaults to
 $BASEDIR/public_html . This is configured by setting the "[node]web.static"
 value in $BASEDIR/tahoe.cfg . If this is left at the default value of
-"public_html", then http://localhost:8123/static/subdir/foo.html will be
+"public_html", then http://localhost:3456/static/subdir/foo.html will be
 served with the contents of the file $BASEDIR/public_html/subdir/foo.html .
 
 This can be useful to serve a javascript application which provides a

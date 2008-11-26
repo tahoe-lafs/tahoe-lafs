@@ -24,7 +24,7 @@ The item descriptions below use the following types:
 
  boolean: one of (True, yes, on, 1, False, off, no, 0), case-insensitive
  strports string: a Twisted listening-port specification string, like "tcp:80"
-                  or "tcp:8123:interface=127.0.0.1". For a full scription of
+                  or "tcp:3456:interface=127.0.0.1". For a full scription of
                   the format, see
                   http://twistedmatrix.com/documents/current/api/twisted.application.strports.html
  FURL string: a Foolscap endpoint identifier, like
@@ -50,11 +50,11 @@ web.port = (strports string, optional)
 
  This controls where the node's webserver should listen, providing filesystem
  access and node status as defined in webapi.txt . This file contains a
- Twisted "strports" specification such as "8123" or
- "tcp:8123:interface=127.0.0.1". The 'tahoe create-client' command sets the
- web.port to "tcp:8123:interface=127.0.0.1" by default, and is overridable by
+ Twisted "strports" specification such as "3456" or
+ "tcp:3456:interface=127.0.0.1". The 'tahoe create-client' command sets the
+ web.port to "tcp:3456:interface=127.0.0.1" by default, and is overridable by
  the "--webport" option. You can make it use SSL by writing
- "ssl:8123:privateKey=mykey.pem:certKey=cert.pem" instead.
+ "ssl:3456:privateKey=mykey.pem:certKey=cert.pem" instead.
 
  If this is not provided, the node will not run a web server.
 
@@ -67,7 +67,7 @@ web.static = (string, optional)
  node, or other services.
 
  The default value is "public_html", which will serve $BASEDIR/public_html .
- With the default settings, http://127.0.0.1:8123/static/foo.html will serve
+ With the default settings, http://127.0.0.1:3456/static/foo.html will serve
  the contents of $BASEDIR/public_html/foo.html .
 
 tub.port = (integer, optional)
@@ -479,7 +479,7 @@ these are not the default values), merely a legal one.
 nickname = Bob's Tahoe Node
 tub.port = 34912
 tub.location = 123.45.67.89:8098,44.55.66.77:8098
-web.port = 8123
+web.port = 3456
 log_gatherer.furl = pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm
 timeout.keepalive = 240
 timeout.disconnect = 1800

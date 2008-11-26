@@ -95,7 +95,7 @@ class CHKFile(unittest.TestCase):
         u1a = IFileURI(u.to_string())
         self.failUnlessEqual(u1a, u)
         he = u.to_human_encoding()
-        self.failUnlessEqual(he, "http://127.0.0.1:8123/uri/" + u.to_string())
+        self.failUnlessEqual(he, "http://127.0.0.1:3456/uri/" + u.to_string())
         self.failUnlessEqual(uri.CHKFileURI.init_from_human_encoding(he), u)
 
         u2 = uri.from_string(u.to_string())
@@ -182,7 +182,7 @@ class Invalid(unittest.TestCase):
 
 class Constraint(unittest.TestCase):
     def test_constraint(self):
-       good="http://127.0.0.1:8123/uri/URI%3ADIR2%3Agh3l5rbvnv2333mrfvalmjfr4i%3Alz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma/"
+       good="http://127.0.0.1:3456/uri/URI%3ADIR2%3Agh3l5rbvnv2333mrfvalmjfr4i%3Alz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma/"
        uri.NewDirectoryURI.init_from_human_encoding(good)
        self.failUnlessRaises(AssertionError, uri.NewDirectoryURI.init_from_string, good)
        bad = good + '==='

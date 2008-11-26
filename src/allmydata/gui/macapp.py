@@ -88,7 +88,7 @@ class AppContainer(object):
         # handle initial config
         if not os.path.exists(os.path.join(self.nodedir, 'webport')):
             f = file(os.path.join(self.nodedir, 'webport'), 'wb')
-            f.write('8123')
+            f.write('3456')
             f.close()
 
         if self.is_config_incomplete():

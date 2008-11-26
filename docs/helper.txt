@@ -82,10 +82,10 @@ helper.
  cat $BASEDIR/private/helper.furl |mail -s "helper furl" friend@example.com
 
 You can tell if your node is running a helper by looking at its web status
-page. Assuming that you've set up the 'webport' to use port 8123, point your
-browser at http://localhost:8123/ . The welcome page will say "Helper: 0
+page. Assuming that you've set up the 'webport' to use port 3456, point your
+browser at http://localhost:3456/ . The welcome page will say "Helper: 0
 active uploads" or "Not running helper" as appropriate. The
-http://localhost:8123/helper_status page will also provide details on what
+http://localhost:3456/helper_status page will also provide details on what
 the helper is currently doing.
 
 The helper will store the ciphertext that is is fetching from clients in
@@ -129,7 +129,7 @@ uploads will use the helper rather than using direct connections to the
 storage server.
 
 If the node has been configured to use a helper, that node's HTTP welcome
-page (http://localhost:8123/) will say "Helper: $HELPERFURL" instead of
+page (http://localhost:3456/) will say "Helper: $HELPERFURL" instead of
 "Helper: None". If the helper is actually running and reachable, the next
 line will say "Connected to helper?: yes" instead of "no".
 
@@ -140,7 +140,7 @@ client will automatically attempt to reconnect to the helper if the
 connection is lost, using the same exponential-backoff algorithm as all other
 tahoe/foolscap connections.
 
-The upload/download status page (http://localhost:8123/status) will announce
+The upload/download status page (http://localhost:3456/status) will announce
 the using-helper-or-not state of each upload, in the "Helper?" column.
 
 == Other Helper Modes ==

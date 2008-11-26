@@ -18,8 +18,8 @@ SEP='(?::|%3A)'
 NUMBER='([0-9]+)'
 
 # URIs (soon to be renamed "caps") are always allowed to come with a leading
-# 'http://127.0.0.1:8123/uri/' that will be ignored.
-OPTIONALHTTPLEAD=r'(?:https?://(?:127.0.0.1|localhost):8123/uri/)?'
+# 'http://127.0.0.1:(8123|3456)/uri/' that will be ignored.
+OPTIONALHTTPLEAD=r'(?:https?://(?:127.0.0.1|localhost):(?:8123|3456)/uri/)?'
 
 
 class _BaseURI:
@@ -36,7 +36,7 @@ class _BaseURI:
         else:
             return True
     def to_human_encoding(self):
-        return 'http://127.0.0.1:8123/uri/'+self.to_string()
+        return 'http://127.0.0.1:3456/uri/'+self.to_string()
 
     def get_storage_index(self):
         return self.storage_index

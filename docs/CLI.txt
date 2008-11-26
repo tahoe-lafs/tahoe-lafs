@@ -41,7 +41,7 @@ have client functionality (upload/download files), web API services
 "no_storage" and the like).
 
 NODEDIR defaults to ~/.tahoe/ , and newly-created clients default to
-publishing a web server on port 8123 (limited to the loopback interface, at
+publishing a web server on port 3456 (limited to the loopback interface, at
 127.0.0.1, to restrict access to other programs on the same host). All of the
 other "tahoe" subcommands use corresponding defaults.
 
