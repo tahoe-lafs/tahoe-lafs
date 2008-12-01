@@ -121,6 +121,9 @@ else:
 from setuptools import find_packages, setup
 from setuptools.command import sdist
 from distutils.core import Command
+
+import pkg_resources
+pkg_resources.require('setuptools_trial')
 from setuptools_trial.setuptools_trial import TrialTest
 
 # Make the dependency-version-requirement, which is used by the Makefile at
@@ -201,6 +204,11 @@ setup_requires.extend(['Twisted >= 2.4.0', 'setuptools_trial'])
 # http://pypi.python.org/pypi/darcsver
 if 'darcsver' in sys.argv[1:]:
     setup_requires.append('darcsver >= 1.1.5')
+
+# setuptools_trial is needed only if you want "./setup.py trial" to execute the tests.
+# http://pypi.python.org/pypi/setuptools_trial
+if 'trial' in sys.argv[1:]:
+    setup_requires.append('setuptools_trial >= 0.2')
 
 # setuptools_darcs is required to produce complete distributions (such as with
 # "sdist" or "bdist_egg"), unless there is a PKG-INFO file present which shows
