@@ -908,9 +908,9 @@ class StorageServer(service.MultiService, Referenceable):
         # returns None if it cannot be measured (windows)
         try:
             disk_avail = self.stat_disk(self.storedir)
+            disk_avail -= self.reserved_space
         except AttributeError:
-            return None
-        disk_avail -= self.reserved_space
+            disk_avail = None
         if self.readonly_storage:
             disk_avail = 0
         return disk_avail
