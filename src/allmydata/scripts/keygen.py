@@ -14,7 +14,7 @@ keygen_tac = """
 from allmydata import key_generator
 from twisted.application import service
 
-k = key_generator.KeyGeneratorService(2048)
+k = key_generator.KeyGeneratorService(default_key_size=2048)
 #k.key_generator.verbose = False
 #k.key_generator.pool_size = 16
 #k.key_generator.pool_refresh_delay = 6
@@ -40,6 +40,7 @@ def create_key_generator(config, out=sys.stdout, err=sys.stderr):
     f = open(os.path.join(basedir, "tahoe-key-generator.tac"), "wb")
     f.write(keygen_tac)
     f.close()
+    return 0
 
 subCommands = [
     ["create-key-generator", None, CreateKeyGeneratorOptions, "Create a key generator service."],
