@@ -24,7 +24,7 @@ The item descriptions below use the following types:
 
  boolean: one of (True, yes, on, 1, False, off, no, 0), case-insensitive
  strports string: a Twisted listening-port specification string, like "tcp:80"
-                  or "tcp:3456:interface=127.0.0.1". For a full scription of
+                  or "tcp:3456:interface=127.0.0.1". For a full description of
                   the format, see
                   http://twistedmatrix.com/documents/current/api/twisted.application.strports.html
  FURL string: a Foolscap endpoint identifier, like
