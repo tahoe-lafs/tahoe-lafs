@@ -768,7 +768,7 @@ class StorageServer(service.MultiService, Referenceable):
                 "application-version": str(allmydata.__version__),
                 }
 
-    def __init__(self, storedir, sizelimit=None,
+    def __init__(self, storedir, reserved_space=0,
                  discard_storage=False, readonly_storage=False,
                  stats_provider=None):
         service.MultiService.__init__(self)
@@ -779,7 +779,7 @@ class StorageServer(service.MultiService, Referenceable):
         # we don't actually create the corruption-advisory dir until necessary
         self.corruption_advisory_dir = os.path.join(storedir,
                                                     "corruption-advisories")
-        self.sizelimit = sizelimit
+        self.reserved_space = int(reserved_space)
         self.no_storage = discard_storage
         self.readonly_storage = readonly_storage
         self.stats_provider = stats_provider
@@ -789,14 +789,13 @@ class StorageServer(service.MultiService, Referenceable):
         self._clean_incomplete()
         fileutil.make_dirs(self.incomingdir)
         self._active_writers = weakref.WeakKeyDictionary()
-        lp = log.msg("StorageServer created, now measuring space..",
-                     facility="tahoe.storage")
-        self.consumed = None
-        if self.sizelimit:
-            self.consumed = fileutil.du(self.sharedir)
-            log.msg(format="space measurement done, consumed=%(consumed)d bytes",
-                    consumed=self.consumed,
-                    parent=lp, facility="tahoe.storage")
+        lp = log.msg("StorageServer created", facility="tahoe.storage")
+
+        if reserved_space:
+            if self.get_available_space() is None:
+                log.msg("warning: [storage]reserved_space= is set, but this platform does not support statvfs(2), so this reservation cannot be honored",
+                        umin="0wZ27w", level=log.UNUSUAL)
+
         self.latencies = {"allocate": [], # immutable
                           "write": [],
                           "close": [],
@@ -868,21 +867,26 @@ class StorageServer(service.MultiService, Referenceable):
 
     def get_stats(self):
         stats = { 'storage_server.allocated': self.allocated_size(), }
-        if self.consumed is not None:
-            stats['storage_server.consumed'] = self.consumed
         for category,ld in self.get_latencies().items():
             for name,v in ld.items():
                 stats['storage_server.latencies.%s.%s' % (category, name)] = v
+        writeable = True
         try:
             s = os.statvfs(self.storedir)
             disk_total = s.f_bsize * s.f_blocks
             disk_used = s.f_bsize * (s.f_blocks - s.f_bfree)
             # spacetime predictors should look at the slope of disk_used.
             disk_avail = s.f_bsize * s.f_bavail # available to non-root users
-            # TODO: include our local policy here: if we stop accepting
-            # shares when the available space drops below 1GB, then include
-            # that fact in disk_avail.
-            #
+            # include our local policy here: if we stop accepting shares when
+            # the available space drops below 1GB, then include that fact in
+            # disk_avail.
+            disk_avail -= self.reserved_space
+            disk_avail = max(disk_avail, 0)
+            if self.readonly_storage:
+                disk_avail = 0
+            if disk_avail == 0:
+                writeable = False
+
             # spacetime predictors should use disk_avail / (d(disk_used)/dt)
             stats["storage_server.disk_total"] = disk_total
             stats["storage_server.disk_used"] = disk_used
@@ -890,10 +894,29 @@ class StorageServer(service.MultiService, Referenceable):
         except AttributeError:
             # os.statvfs is only available on unix
             pass
+        stats["storage_server.accepting_immutable_shares"] = writeable
         return stats
 
+
+    def stat_disk(self, d):
+        s = os.statvfs(d)
+        # s.f_bavail: available to non-root users
+        disk_avail = s.f_bsize * s.f_bavail
+        return disk_avail
+
+    def get_available_space(self):
+        # returns None if it cannot be measured (windows)
+        try:
+            disk_avail = self.stat_disk(self.storedir)
+        except AttributeError:
+            return None
+        disk_avail -= self.reserved_space
+        if self.readonly_storage:
+            disk_avail = 0
+        return disk_avail
+
     def allocated_size(self):
-        space = self.consumed or 0
+        space = 0
         for bw in self._active_writers:
             space += bw.allocated_size()
         return space
@@ -927,10 +950,14 @@ class StorageServer(service.MultiService, Referenceable):
                                expire_time, self.my_nodeid)
 
         space_per_bucket = allocated_size
-        no_limits = self.sizelimit is None
-        yes_limits = not no_limits
-        if yes_limits:
-            remaining_space = self.sizelimit - self.allocated_size()
+
+        remaining_space = self.get_available_space()
+        limited = remaining_space is not None
+        if limited:
+            # this is a bit conservative, since some of this allocated_size()
+            # has already been written to disk, where it will show up in
+            # get_available_space.
+            remaining_space -= self.allocated_size()
 
         # fill alreadygot with all shares that we have, not just the ones
         # they asked about: this will save them a lot of work. Add or update
@@ -941,10 +968,7 @@ class StorageServer(service.MultiService, Referenceable):
             sf = ShareFile(fn)
             sf.add_or_renew_lease(lease_info)
 
-        if self.readonly_storage:
-            # we won't accept new shares
-            self.add_latency("allocate", time.time() - start)
-            return alreadygot, bucketwriters
+        # self.readonly_storage causes remaining_space=0
 
         for shnum in sharenums:
             incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)
@@ -958,7 +982,7 @@ class StorageServer(service.MultiService, Referenceable):
                 # occurs while the first is still in progress, the second
                 # uploader will use different storage servers.
                 pass
-            elif no_limits or remaining_space >= space_per_bucket:
+            elif (not limited) or (remaining_space >= space_per_bucket):
                 # ok! we need to create the new share file.
                 bw = BucketWriter(self, incominghome, finalhome,
                                   space_per_bucket, lease_info, canary)
@@ -966,7 +990,7 @@ class StorageServer(service.MultiService, Referenceable):
                     bw.throw_out_all_data = True
                 bucketwriters[shnum] = bw
                 self._active_writers[bw] = 1
-                if yes_limits:
+                if limited:
                     remaining_space -= space_per_bucket
             else:
                 # bummer! not enough space to accept this bucket
@@ -1047,8 +1071,6 @@ class StorageServer(service.MultiService, Referenceable):
             if not os.listdir(storagedir):
                 os.rmdir(storagedir)
 
-        if self.consumed is not None:
-            self.consumed -= total_space_freed
         if self.stats_provider:
             self.stats_provider.count('storage_server.bytes_freed',
                                       total_space_freed)
@@ -1057,8 +1079,6 @@ class StorageServer(service.MultiService, Referenceable):
             raise IndexError("no such storage index")
 
     def bucket_writer_closed(self, bw, consumed_size):
-        if self.consumed is not None:
-            self.consumed += consumed_size
         if self.stats_provider:
             self.stats_provider.count('storage_server.bytes_added', consumed_size)
         del self._active_writers[bw]

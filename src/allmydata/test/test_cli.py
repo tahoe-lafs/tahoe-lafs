@@ -338,7 +338,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         def _uploaded(res):
             (stdout, stderr) = res
             self.failUnless("waiting for file data on stdin.." in stderr)
-            self.failUnless("200 OK" in stderr)
+            self.failUnless("200 OK" in stderr, stderr)
             self.readcap = stdout
             self.failUnless(self.readcap.startswith("URI:CHK:"))
         d.addCallback(_uploaded)

@@ -225,6 +225,10 @@ class BucketProxy(unittest.TestCase):
         return self._do_test_readwrite("test_readwrite_v2",
                                        0x44, WriteBucketProxy_v2, ReadBucketProxy)
 
+class FakeDiskStorageServer(StorageServer):
+    def stat_disk(self, d):
+        return self.DISKAVAIL
+
 class Server(unittest.TestCase):
 
     def setUp(self):
@@ -237,10 +241,10 @@ class Server(unittest.TestCase):
         basedir = os.path.join("storage", "Server", name)
         return basedir
 
-    def create(self, name, sizelimit=None):
+    def create(self, name, reserved_space=0, klass=StorageServer):
         workdir = self.workdir(name)
-        ss = StorageServer(workdir, sizelimit,
-                           stats_provider=FakeStatsProvider())
+        ss = klass(workdir, reserved_space=reserved_space,
+                   stats_provider=FakeStatsProvider())
         ss.setNodeID("\x00" * 20)
         ss.setServiceParent(self.sparent)
         return ss
@@ -365,8 +369,13 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
 
-    def test_sizelimits(self):
-        ss = self.create("test_sizelimits", 5000)
+    def test_reserved_space(self):
+        ss = self.create("test_reserved_space", reserved_space=10000,
+                         klass=FakeDiskStorageServer)
+        # the FakeDiskStorageServer doesn't do real statvfs() calls
+        ss.DISKAVAIL = 15000
+        # 15k available, 10k reserved, leaves 5k for shares
+
         # a newly created and filled share incurs this much overhead, beyond
         # the size we request.
         OVERHEAD = 3*4
@@ -402,6 +411,11 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(ss._active_writers), 0)
 
         allocated = 1001 + OVERHEAD + LEASE_SIZE
+
+        # we have to manually increase DISKAVAIL, since we're not doing real
+        # disk measurements
+        ss.DISKAVAIL -= allocated
+
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
         already3,writers3 = self.allocate(ss,"vid3", range(100), 100, canary)
@@ -413,19 +427,6 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(ss._active_writers), 0)
         ss.disownServiceParent()
         del ss
-
-        # creating a new StorageServer in the same directory should see the
-        # same usage.
-
-        # metadata that goes into the share file is counted upon share close,
-        # as well as at startup. metadata that goes into other files will not
-        # be counted until the next startup, so if we were creating any
-        # extra-file metadata, the allocation would be more than 'allocated'
-        # and this test would need to be changed.
-        ss = self.create("test_sizelimits", 5000)
-        already4,writers4 = self.allocate(ss, "vid4", range(100), 100, canary)
-        self.failUnlessEqual(len(writers4), 39)
-        self.failUnlessEqual(len(ss._active_writers), 39)
 
     def test_seek(self):
         basedir = self.workdir("test_seek_behavior")
@@ -571,6 +572,11 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(writers, {})
 
+        stats = ss.get_stats()
+        self.failUnlessEqual(stats["storage_server.accepting_immutable_shares"],
+                             False)
+        self.failUnlessEqual(stats["storage_server.disk_avail"], 0)
+
     def test_discard(self):
         # discard is really only used for other tests, but we test it anyways
         workdir = self.workdir("test_discard")
@@ -651,9 +657,9 @@ class MutableServer(unittest.TestCase):
         basedir = os.path.join("storage", "MutableServer", name)
         return basedir
 
-    def create(self, name, sizelimit=None):
+    def create(self, name):
         workdir = self.workdir(name)
-        ss = StorageServer(workdir, sizelimit)
+        ss = StorageServer(workdir)
         ss.setServiceParent(self.sparent)
         ss.setNodeID("\x00" * 20)
         return ss
@@ -1010,7 +1016,7 @@ class MutableServer(unittest.TestCase):
             self.failUnlessEqual(a.expiration_time, b.expiration_time)
 
     def test_leases(self):
-        ss = self.create("test_leases", sizelimit=1000*1000)
+        ss = self.create("test_leases")
         def secrets(n):
             return ( self.write_enabler("we1"),
                      self.renew_secret("we1-%d" % n),
@@ -1146,9 +1152,9 @@ class Stats(unittest.TestCase):
         basedir = os.path.join("storage", "Server", name)
         return basedir
 
-    def create(self, name, sizelimit=None):
+    def create(self, name):
         workdir = self.workdir(name)
-        ss = StorageServer(workdir, sizelimit)
+        ss = StorageServer(workdir)
         ss.setNodeID("\x00" * 20)
         ss.setServiceParent(self.sparent)
         return ss

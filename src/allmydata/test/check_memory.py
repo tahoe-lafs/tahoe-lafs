@@ -198,8 +198,8 @@ class SystemFramework(pollmixin.PollMixin):
             if self.mode in ("receive",):
                 # for this mode, the client-under-test gets all the shares,
                 # so our internal nodes can refuse requests
-                f = open(os.path.join(nodedir, "sizelimit"), "w")
-                f.write("0\n")
+                f = open(os.path.join(nodedir, "readonly_storage"), "w")
+                f.write("\n")
                 f.close()
             c = self.add_service(client.Client(basedir=nodedir))
             self.nodes.append(c)

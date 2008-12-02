@@ -153,10 +153,8 @@ class Root(rend.Page):
             ss = client.getServiceNamed("storage")
             allocated_s = abbreviate_size(ss.allocated_size())
             allocated = "about %s allocated" % allocated_s
-            sizelimit = "no size limit"
-            if ss.sizelimit is not None:
-                sizelimit = "size limit is %s" % abbreviate_size(ss.sizelimit)
-            ul[T.li["Storage Server: %s, %s" % (allocated, sizelimit)]]
+            reserved = "%s reserved" % abbreviate_size(ss.reserved_space)
+            ul[T.li["Storage Server: %s, %s" % (allocated, reserved)]]
         except KeyError:
             ul[T.li["Not running storage server"]]
 

@@ -1,5 +1,5 @@
 
-import os, stat, time, re, weakref
+import os, stat, time, weakref
 from allmydata.interfaces import RIStorageServer
 from allmydata import node
 
@@ -19,6 +19,7 @@ from allmydata.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import hashutil, base32, pollmixin, cachedir
+from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.uri import LiteralFileURI
 from allmydata.dirnode import NewDirectoryNode
 from allmydata.mutable.node import MutableFileNode, MutableWatcher
@@ -105,7 +106,6 @@ class Client(node.Node, pollmixin.PollMixin):
             self.set_config("storage", "enabled", "false")
         if os.path.exists(os.path.join(self.basedir, "readonly_storage")):
             self.set_config("storage", "readonly", "true")
-        copy("sizelimit", "storage", "sizelimit")
         if os.path.exists(os.path.join(self.basedir, "debug_discard_storage")):
             self.set_config("storage", "debug_discard", "true")
         if os.path.exists(os.path.join(self.basedir, "run_helper")):
@@ -151,27 +151,22 @@ class Client(node.Node, pollmixin.PollMixin):
 
         storedir = os.path.join(self.basedir, self.STOREDIR)
 
-        sizelimit = None
-        data = self.get_config("storage", "sizelimit", None)
-        if data:
-            m = re.match(r"^(\d+)([kKmMgG]?[bB]?)$", data)
-            if not m:
-                log.msg("SIZELIMIT_FILE contains unparseable value %s" % data)
-            else:
-                number, suffix = m.groups()
-                suffix = suffix.upper()
-                if suffix.endswith("B"):
-                    suffix = suffix[:-1]
-                multiplier = {"": 1,
-                              "K": 1000,
-                              "M": 1000 * 1000,
-                              "G": 1000 * 1000 * 1000,
-                              }[suffix]
-                sizelimit = int(number) * multiplier
+        data = self.get_config("storage", "reserved_space", None)
+        reserved = None
+        try:
+            reserved = parse_abbreviated_size(data)
+        except ValueError:
+            log.msg("[storage]reserved_space= contains unparseable value %s"
+                    % data)
+        if reserved is None:
+            reserved = 0
         discard = self.get_config("storage", "debug_discard", False,
                                   boolean=True)
-        ss = StorageServer(storedir, sizelimit, discard, readonly,
-                           self.stats_provider)
+        ss = StorageServer(storedir,
+                           reserved_space=reserved,
+                           discard_storage=discard,
+                           readonly_storage=readonly,
+                           stats_provider=self.stats_provider)
         self.add_service(ss)
         d = self.when_tub_ready()
         # we can't do registerReference until the Tub is ready

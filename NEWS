@@ -65,6 +65,17 @@ tahoe.cfg now has controls for the encoding parameters: "shares.needed" and
 "shares.total" in the "[client]" section. The default parameters are still
 3-of-10.
 
+The inefficient storage 'sizelimit' control (which established an upper bound
+on the amount of space that a storage server is allowed to consume) has been
+replaced by a lightweight 'reserved_space' control (which establishes a lower
+bound on the amount of remaining space). The storage server will reject all
+writes that would cause the remaining disk space (as measured by a '/bin/df'
+equivalent) to drop below this value. The "[storage]reserved_space="
+tahoe.cfg parameter controls this setting. (note that this only affects
+immutable shares: it is an outstanding bug that reserved_space does not
+prevent the allocation of new mutable shares, nor does it prevent the growth
+of existing mutable shares).
+
 ** CLI Changes
 
 This release adds the 'tahoe create-alias' command, which is a combination of
@@ -316,6 +327,7 @@ yet, and behavior with respect to Unicode filenames is uncertain. Please see
 docs/frontends/FTP-and-SFTP.txt for configuration details. (#512, #531)
 
 The Mac GUI in src/allmydata/gui/ has been improved.
+
 
 * Release 1.2.0 (2008-07-21)
 

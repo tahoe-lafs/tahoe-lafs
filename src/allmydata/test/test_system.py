@@ -249,7 +249,6 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                                                       add_to_sparent=True))
         def _added(extra_node):
             self.extra_node = extra_node
-            extra_node.getServiceNamed("storage").sizelimit = 0
         d.addCallback(_added)
 
         HELPER_DATA = "Data that needs help to upload" * 1000

@@ -407,7 +407,6 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                 # client[0] runs a webserver and a helper, no key_generator
                 write("webport", "tcp:0:interface=127.0.0.1")
                 write("run_helper", "yes")
-                write("sizelimit", "10GB")
                 write("keepalive_timeout", "600")
             if i == 3:
                 # client[3] runs a webserver and uses a helper, uses

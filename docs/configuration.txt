@@ -287,23 +287,16 @@ readonly = (boolean, optional)
  written and modified anyway. See ticket #390 for the current status of this
  bug. The default value is False.
 
-sizelimit = (str, optional)
+reserved_space = (str, optional)
 
- If provided, this value establishes an upper bound (in bytes) on the amount
- of storage consumed by share data (data that your node holds on behalf of
- clients that are uploading files to the grid). To avoid providing more than
- 100MB of data to other clients, set this key to "100MB". Note that this is a
- fairly loose bound, and the node may occasionally use slightly more storage
- than this. To enforce a stronger (and possibly more reliable) limit, use a
- symlink to place the 'storage/' directory on a separate size-limited
- filesystem, and/or use per-user OS/filesystem quotas. If a size limit is
- specified then Tahoe will do a "du" at startup (traversing all the storage
- and summing the sizes of the files), which can take a long time if there are
- a lot of shares stored.
+ If provided, this value defines how much disk space is reserved: the storage
+ server will not accept any share which causes the amount of free space (as
+ measured by 'df', or more specifically statvfs(2)) to drop below this value.
 
  This string contains a number, with an optional case-insensitive scale
- suffix like "K" or "M" or "G", and an optional "B" suffix. So "100MB",
- "100M", "100000000B", "100000000", and "100000kb" all mean the same thing.
+ suffix like "K" or "M" or "G", and an optional "B" or "iB" suffix. So
+ "100MB", "100M", "100000000B", "100000000", and "100000kb" all mean the same
+ thing. Likewise, "1MiB", "1024KiB", and "1048576B" all mean the same thing.
 
 
 == Running A Helper ==

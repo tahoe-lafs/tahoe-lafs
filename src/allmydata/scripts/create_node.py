@@ -114,7 +114,7 @@ def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
     storage_enabled = not config.get("no-storage", None)
     c.write("enabled = %s\n" % boolstr[storage_enabled])
     c.write("#readonly =\n")
-    c.write("#sizelimit =\n")
+    c.write("#reserved_space =\n")
     c.write("\n")
 
     c.write("[helper]\n")
