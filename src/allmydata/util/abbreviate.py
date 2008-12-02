@@ -1,4 +1,6 @@
 
+import re
+
 HOUR = 3600
 DAY = 24*3600
 WEEK = 7*DAY
@@ -53,3 +55,23 @@ def abbreviate_space_both(s):
     return "(%s, %s)" % (abbreviate_space(s, True),
                          abbreviate_space(s, False))
 
+def parse_abbreviated_size(s):
+    if s is None or s == "":
+        return None
+    m = re.match(r"^(\d+)([kKmMgG]?[iB]?[bB]?)$", s)
+    if not m:
+        raise ValueError("unparseable value %s" % s)
+    number, suffix = m.groups()
+    suffix = suffix.upper()
+    if suffix.endswith("B"):
+        suffix = suffix[:-1]
+    multiplier = {"": 1,
+                  "I": 1,
+                  "K": 1000,
+                  "M": 1000 * 1000,
+                  "G": 1000 * 1000 * 1000,
+                  "KI": 1024,
+                  "MI": 1024*1024,
+                  "GI": 1024*1024*1024,
+                  }[suffix]
+    return int(number) * multiplier

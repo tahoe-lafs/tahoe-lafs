@@ -510,6 +510,22 @@ class Abbreviate(unittest.TestCase):
         self.failUnlessEqual(abbreviate.abbreviate_space_both(1234567),
                              "(1.23 MB, 1.18 MiB)")
 
+    def test_parse_space(self):
+        p = abbreviate.parse_abbreviated_size
+        self.failUnlessEqual(p(""), None)
+        self.failUnlessEqual(p(None), None)
+        self.failUnlessEqual(p("123"), 123)
+        self.failUnlessEqual(p("123B"), 123)
+        self.failUnlessEqual(p("2K"), 2000)
+        self.failUnlessEqual(p("2kb"), 2000)
+        self.failUnlessEqual(p("2KiB"), 2048)
+        self.failUnlessEqual(p("10MB"), 10*1000*1000)
+        self.failUnlessEqual(p("10MiB"), 10*1024*1024)
+        self.failUnlessEqual(p("5G"), 5*1000*1000*1000)
+        self.failUnlessEqual(p("4GiB"), 4*1024*1024*1024)
+        e = self.failUnlessRaises(ValueError, p, "12 cubits")
+        self.failUnless("12 cubits" in str(e))
+
 class Limiter(unittest.TestCase):
     def job(self, i, foo):
         self.calls.append( (i, foo) )
