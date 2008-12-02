@@ -943,7 +943,7 @@ class StorageServer(service.MultiService, Referenceable):
         # in this implementation, the lease information (including secrets)
         # goes into the share files themselves. It could also be put into a
         # separate database. Note that the lease should not be added until
-        # the BucketWrite has been closed.
+        # the BucketWriter has been closed.
         expire_time = time.time() + 31*24*60*60
         lease_info = LeaseInfo(owner_num,
                                renew_secret, cancel_secret,
