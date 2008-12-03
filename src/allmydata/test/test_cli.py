@@ -269,8 +269,8 @@ class CLITestMixin:
         d = threads.deferToThread(runner.runner, argv, run_by_human=False,
                                   stdin=StringIO(stdin),
                                   stdout=stdout, stderr=stderr)
-        def _done(res):
-            return stdout.getvalue(), stderr.getvalue()
+        def _done(rc):
+            return rc, stdout.getvalue(), stderr.getvalue()
         d.addCallback(_done)
         return d
 
@@ -290,7 +290,7 @@ class CreateAlias(SystemTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = os.path.dirname(self.mktemp())
         d = self.set_up_nodes()
         d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
-        def _done((stdout,stderr)):
+        def _done((rc,stdout,stderr)):
             self.failUnless("Alias 'tahoe' created" in stdout)
             self.failIf(stderr)
             aliases = get_aliases(self.getdir("client0"))
@@ -298,6 +298,7 @@ class CreateAlias(SystemTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless(aliases["tahoe"].startswith("URI:DIR2:"))
         d.addCallback(_done)
         d.addCallback(lambda res: self.do_cli("create-alias", "two"))
+
         def _stash_urls(res):
             aliases = get_aliases(self.getdir("client0"))
             node_url_file = os.path.join(self.getdir("client0"), "node.url")
@@ -316,9 +317,10 @@ class CreateAlias(SystemTestMixin, CLITestMixin, unittest.TestCase):
             self._test_webopen(["tahoe:subdir"], self.tahoe_subdir_url)
             self._test_webopen(["tahoe:subdir/"], self.tahoe_subdir_url + '/')
             self._test_webopen(["tahoe:subdir/file"], self.tahoe_subdir_url + '/file')
-            # if "file" is indeed a file, then the url produced by webopen in this
-            # case is disallowed by the webui. but by design, webopen passes through
-            # the mistake from the user to the resultant webopened url
+            # if "file" is indeed a file, then the url produced by webopen in
+            # this case is disallowed by the webui. but by design, webopen
+            # passes through the mistake from the user to the resultant
+            # webopened url
             self._test_webopen(["tahoe:subdir/file/"], self.tahoe_subdir_url + '/file/')
             self._test_webopen(["two:"], self.two_url)
         d.addCallback(_test_urls)
@@ -336,7 +338,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d = self.set_up_nodes()
         d.addCallback(lambda res: self.do_cli("put", stdin=DATA))
         def _uploaded(res):
-            (stdout, stderr) = res
+            (rc, stdout, stderr) = res
             self.failUnless("waiting for file data on stdin.." in stderr)
             self.failUnless("200 OK" in stderr, stderr)
             self.readcap = stdout
@@ -344,12 +346,12 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_uploaded)
         d.addCallback(lambda res: self.do_cli("get", self.readcap))
         def _downloaded(res):
-            (stdout, stderr) = res
+            (rc, stdout, stderr) = res
             self.failUnlessEqual(stderr, "")
             self.failUnlessEqual(stdout, DATA)
         d.addCallback(_downloaded)
         d.addCallback(lambda res: self.do_cli("put", "-", stdin=DATA))
-        d.addCallback(lambda (stdout,stderr):
+        d.addCallback(lambda (rc,stdout,stderr):
                       self.failUnlessEqual(stdout, self.readcap))
         return d
 
@@ -370,16 +372,16 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         f.close()
         d = self.set_up_nodes()
         d.addCallback(lambda res: self.do_cli("put", rel_fn))
-        def _uploaded((stdout,stderr)):
+        def _uploaded((rc,stdout,stderr)):
             readcap = stdout
             self.failUnless(readcap.startswith("URI:LIT:"))
             self.readcap = readcap
         d.addCallback(_uploaded)
         d.addCallback(lambda res: self.do_cli("put", "./" + rel_fn))
-        d.addCallback(lambda (stdout,stderr):
+        d.addCallback(lambda (rc,stdout,stderr):
                       self.failUnlessEqual(stdout, self.readcap))
         d.addCallback(lambda res: self.do_cli("put", abs_fn))
-        d.addCallback(lambda (stdout,stderr):
+        d.addCallback(lambda (rc,stdout,stderr):
                       self.failUnlessEqual(stdout, self.readcap))
         # we just have to assume that ~ is handled properly
         return d
@@ -408,7 +410,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn, "uploaded.txt"))
-        def _uploaded((stdout,stderr)):
+        def _uploaded((rc,stdout,stderr)):
             readcap = stdout.strip()
             self.failUnless(readcap.startswith("URI:LIT:"))
             self.failUnless("201 Created" in stderr, stderr)
@@ -416,12 +418,12 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_uploaded)
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:uploaded.txt"))
-        d.addCallback(lambda (stdout,stderr):
+        d.addCallback(lambda (rc,stdout,stderr):
                       self.failUnlessEqual(stdout, DATA))
 
         d.addCallback(lambda res:
                       self.do_cli("put", "-", "uploaded.txt", stdin=DATA2))
-        def _replaced((stdout,stderr)):
+        def _replaced((rc,stdout,stderr)):
             readcap = stdout.strip()
             self.failUnless(readcap.startswith("URI:LIT:"))
             self.failUnless("200 OK" in stderr, stderr)
@@ -430,20 +432,20 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn, "subdir/uploaded2.txt"))
         d.addCallback(lambda res: self.do_cli("get", "subdir/uploaded2.txt"))
-        d.addCallback(lambda (stdout,stderr):
+        d.addCallback(lambda (rc,stdout,stderr):
                       self.failUnlessEqual(stdout, DATA))
 
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn, "tahoe:uploaded3.txt"))
         d.addCallback(lambda res: self.do_cli("get", "tahoe:uploaded3.txt"))
-        d.addCallback(lambda (stdout,stderr):
+        d.addCallback(lambda (rc,stdout,stderr):
                       self.failUnlessEqual(stdout, DATA))
 
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn, "tahoe:subdir/uploaded4.txt"))
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:subdir/uploaded4.txt"))
-        d.addCallback(lambda (stdout,stderr):
+        d.addCallback(lambda (rc,stdout,stderr):
                       self.failUnlessEqual(stdout, DATA))
 
         def _get_dircap(res):
@@ -455,7 +457,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
                                   self.dircap+":./uploaded5.txt"))
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:uploaded5.txt"))
-        d.addCallback(lambda (stdout,stderr):
+        d.addCallback(lambda (rc,stdout,stderr):
                       self.failUnlessEqual(stdout, DATA))
 
         d.addCallback(lambda res:
@@ -463,7 +465,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
                                   self.dircap+":./subdir/uploaded6.txt"))
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:subdir/uploaded6.txt"))
-        d.addCallback(lambda (stdout,stderr):
+        d.addCallback(lambda (rc,stdout,stderr):
                       self.failUnlessEqual(stdout, DATA))
 
         return d
@@ -488,33 +490,33 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda res: self.do_cli("put", "--mutable", stdin=DATA))
         def _created(res):
-            (stdout, stderr) = res
+            (rc, stdout, stderr) = res
             self.failUnless("waiting for file data on stdin.." in stderr)
             self.failUnless("200 OK" in stderr)
             self.filecap = stdout
             self.failUnless(self.filecap.startswith("URI:SSK:"))
         d.addCallback(_created)
         d.addCallback(lambda res: self.do_cli("get", self.filecap))
-        d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA))
+        d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA))
 
         d.addCallback(lambda res: self.do_cli("put", "-", self.filecap, stdin=DATA2))
         def _replaced(res):
-            (stdout, stderr) = res
+            (rc, stdout, stderr) = res
             self.failUnless("waiting for file data on stdin.." in stderr)
             self.failUnless("200 OK" in stderr)
             self.failUnlessEqual(self.filecap, stdout)
         d.addCallback(_replaced)
         d.addCallback(lambda res: self.do_cli("get", self.filecap))
-        d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA2))
+        d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA2))
 
         d.addCallback(lambda res: self.do_cli("put", rel_fn, self.filecap))
         def _replaced2(res):
-            (stdout, stderr) = res
+            (rc, stdout, stderr) = res
             self.failUnless("200 OK" in stderr)
             self.failUnlessEqual(self.filecap, stdout)
         d.addCallback(_replaced2)
         d.addCallback(lambda res: self.do_cli("get", self.filecap))
-        d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA3))
+        d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA3))
 
         return d
 
@@ -543,7 +545,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
                       self.do_cli("put", fn2, "tahoe:uploaded.txt"))
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:uploaded.txt"))
-        d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA2))
+        d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA2))
         return d
 
 class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
@@ -567,9 +569,9 @@ class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("cp", fn2, "tahoe:"))
 
         d.addCallback(lambda res: self.do_cli("get", "tahoe:Ärtonwall"))
-        d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA1))
+        d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA1))
 
         d.addCallback(lambda res: self.do_cli("get", "tahoe:Metallica"))
-        d.addCallback(lambda (out,err): self.failUnlessEqual(out, DATA2))
+        d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA2))
 
         return d
