@@ -575,7 +575,11 @@ class Server(unittest.TestCase):
         stats = ss.get_stats()
         self.failUnlessEqual(stats["storage_server.accepting_immutable_shares"],
                              False)
-        self.failUnlessEqual(stats["storage_server.disk_avail"], 0)
+        if "storage_server.disk_avail" in stats:
+            # windows does not have os.statvfs, so it doesn't give us disk
+            # stats. But if there are stats, readonly_storage means
+            # disk_avail=0
+            self.failUnlessEqual(stats["storage_server.disk_avail"], 0)
 
     def test_discard(self):
         # discard is really only used for other tests, but we test it anyways
