@@ -14,9 +14,10 @@
 == Enabling the web-API port ==
 
 Every Tahoe node is capable of running a built-in HTTP server. To enable
-this, just write a port number into a file named "webport" in the node's base
-directory. For example, writing "3456" into $NODEDIR/webport will cause the
-node to run a webserver on port 3456.
+this, just write a port number into the "[node]web.port" line of your node's
+tahoe.cfg file. For example, writing "web.port = 3456" into the "[node]"
+section of $NODEDIR/tahoe.cfg will cause the node to run a webserver on port
+3456.
 
 This string is actually a Twisted "strports" specification, meaning you can
 get more control over the interface to which the server binds by supplying
@@ -24,7 +25,7 @@ additional arguments. For more details, see the documentation on
 twisted.application.strports:
 http://twistedmatrix.com/documents/current/api/twisted.application.strports.html
 
-Writing "tcp:3456:interface=127.0.0.1" into $NODEDIR/webport does the same
+Writing "tcp:3456:interface=127.0.0.1" into the web.port line does the same
 but binds to the loopback interface, ensuring that only the programs on the
 local host can connect. Using
 "ssl:3456:privateKey=mykey.pem:certKey=cert.pem" runs an SSL server.
