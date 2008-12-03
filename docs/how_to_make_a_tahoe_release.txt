@@ -8,7 +8,7 @@
 * make sure debs got built and uploaded properly
 * make sure a sumo sdist tarball got built and uploaded properly
 * send out relnotes.txt
- x  + tahoe-announce@lists.allmydata.org, tahoe-dev@lists.allmydata.org, p2p-hackers@lists.zooko.com, lwn@lwn.net, cap-talk@mail.eros-os.org, cryptography@metzdown.com, twisted-python@twistedmatrix.com, fuse-devel@lists.sourceforge.net
+ x  + tahoe-announce@lists.allmydata.org, tahoe-dev@lists.allmydata.org, p2p-hackers@lists.zooko.com, lwn@lwn.net, cap-talk@mail.eros-os.org, cryptography@metzdown.com, twisted-python@twistedmatrix.com, fuse-devel@lists.sourceforge.net, duplicity-talk@nongnu.org
 * update Wiki: front page news, news, old news, parade of release notes
 * update "current version" information and make an "announcement of new release" on freshmeat
 * upload to pypi with "make make-version && python ./setup.py sdist upload register"
