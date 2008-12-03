@@ -227,7 +227,7 @@ class ConfWizApp(wx.App):
 class WizardFrame(wx.Frame):
     def __init__(self, app, panel_class):
         #title = 'Allmydata Config Wizard'
-        title = 'Setup - Allmydata 3.1.2'
+        title = 'Setup - Allmydata'
         wx.Frame.__init__(self, None, -1, title)
         self.app = app
         self.SetIcon(amdlogo.getIcon())
