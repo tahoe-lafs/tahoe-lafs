@@ -10,11 +10,15 @@ def add_alias(options):
     cap = options.cap
     stdout = options.stdout
     stderr = options.stderr
-    aliasfile = os.path.join(nodedir, "private", "aliases")
-    cap = uri.from_string_dirnode(cap).to_string()
     assert ":" not in alias
     assert " " not in alias
-    # probably check for others..
+
+    old_aliases = get_aliases(nodedir)
+    if alias in old_aliases:
+        print >>stderr, "Alias '%s' already exists!" % alias
+        return 1
+    aliasfile = os.path.join(nodedir, "private", "aliases")
+    cap = uri.from_string_dirnode(cap).to_string()
     f = open(aliasfile, "a")
     f.write("%s: %s\n" % (alias, cap))
     f.close()
@@ -27,9 +31,15 @@ def create_alias(options):
     alias = options.alias
     stdout = options.stdout
     stderr = options.stderr
-    aliasfile = os.path.join(nodedir, "private", "aliases")
     assert ":" not in alias
     assert " " not in alias
+
+    old_aliases = get_aliases(nodedir)
+    if alias in old_aliases:
+        print >>stderr, "Alias '%s' already exists!" % alias
+        return 1
+
+    aliasfile = os.path.join(nodedir, "private", "aliases")
 
     nodeurl = options['node-url']
     if not nodeurl.endswith("/"):

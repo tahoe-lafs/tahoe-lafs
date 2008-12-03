@@ -307,7 +307,31 @@ class CreateAlias(SystemTestMixin, CLITestMixin, unittest.TestCase):
             self.tahoe_url = uribase + urllib.quote(aliases["tahoe"])
             self.tahoe_subdir_url = self.tahoe_url + "/subdir"
             self.two_url = uribase + urllib.quote(aliases["two"])
+            self.two_uri = aliases["two"]
         d.addCallback(_stash_urls)
+
+        d.addCallback(lambda res: self.do_cli("create-alias", "two")) # dup
+        def _check_create_duplicate((rc,stdout,stderr)):
+            self.failIfEqual(rc, 0)
+            self.failUnless("Alias 'two' already exists!" in stderr)
+            aliases = get_aliases(self.getdir("client0"))
+            self.failUnlessEqual(aliases["two"], self.two_uri)
+        d.addCallback(_check_create_duplicate)
+
+        d.addCallback(lambda res: self.do_cli("add-alias", "added", self.two_uri))
+        def _check_add((rc,stdout,stderr)):
+            self.failUnlessEqual(rc, 0)
+            self.failUnless("Alias 'added' added" in stdout)
+        d.addCallback(_check_add)
+
+        # check add-alias with a duplicate
+        d.addCallback(lambda res: self.do_cli("add-alias", "two", self.two_uri))
+        def _check_add_duplicate((rc,stdout,stderr)):
+            self.failIfEqual(rc, 0)
+            self.failUnless("Alias 'two' already exists!" in stderr)
+            aliases = get_aliases(self.getdir("client0"))
+            self.failUnlessEqual(aliases["two"], self.two_uri)
+        d.addCallback(_check_add_duplicate)
 
         def _test_urls(junk):
             self._test_webopen([], self.tahoe_url)
