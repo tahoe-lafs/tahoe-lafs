@@ -1108,8 +1108,8 @@ GET /provisioning/
 
 GET /helper_status/
 
- If the node is running a helper (i.e. if "$BASEDIR/run_helper" is
- non-empty), then this page will provide a list of all the helper operations
+ If the node is running a helper (i.e. if [helper]enabled is set to True in
+ tahoe.cfg), then this page will provide a list of all the helper operations
  currently in progress. If "?t=json" is added to the URL, it will return a
  JSON-formatted list of helper statistics, which can then be used to produce
  graphs to indicate how busy the helper is.
