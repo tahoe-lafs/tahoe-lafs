@@ -17,7 +17,6 @@ mutable_plaintext = "This is a moderate-sized mutable file.\n" * 10
 # into this file. These shares were created by 1.2.0-r3247, a version that's
 # probably fairly close to 1.3.0 .
 #--------- BEGIN stored_shares.py --------------
-from allmydata.util import base32
 immutable_uri = "URI:CHK:g4i6qkk7mlj4vkl5ncg6dwo73i:qcas2ebousfk3q5rkl2ncayeku52kpyse76v5yeel2t2eaa4f6ha:3:10:310"
 immutable_shares = {
  0: { # client[0]
@@ -88,7 +87,6 @@ class DownloadTest(SystemTestMixin, unittest.TestCase):
         def _created_immutable(ur):
             # write the generated shares and URI to a file, which can then be
             # incorporated into this one next time.
-            f.write('from allmydata.util import base32\n')
             f.write('immutable_uri = "%s"\n' % ur.uri)
             f.write('immutable_shares = {\n')
             si = uri.from_string(ur.uri).get_storage_index()
