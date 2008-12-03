@@ -871,6 +871,8 @@ class StorageServer(service.MultiService, Referenceable):
             for name,v in ld.items():
                 stats['storage_server.latencies.%s.%s' % (category, name)] = v
         writeable = True
+        if self.readonly_storage:
+            writeable = False
         try:
             s = os.statvfs(self.storedir)
             disk_total = s.f_bsize * s.f_blocks
