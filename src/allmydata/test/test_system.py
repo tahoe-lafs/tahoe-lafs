@@ -773,7 +773,6 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         # P/s2-rw/
         # P/test_put/  (empty)
         d.addCallback(self._test_checker)
-        d.addCallback(self._grab_stats)
         return d
     test_vdrive.timeout = 1100
 
