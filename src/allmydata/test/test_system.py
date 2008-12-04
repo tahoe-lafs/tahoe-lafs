@@ -403,6 +403,28 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             return d
         d.addCallback(_upload_resumable)
 
+        def _grab_stats(ignored):
+            # the StatsProvider doesn't normally publish a FURL:
+            # instead it passes a live reference to the StatsGatherer
+            # (if and when it connects). To exercise the remote stats
+            # interface, we manually publish client0's StatsProvider
+            # and use client1 to query it.
+            sp = self.clients[0].stats_provider
+            sp_furl = self.clients[0].tub.registerReference(sp)
+            d = self.clients[1].tub.getReference(sp_furl)
+            d.addCallback(lambda sp_rref: sp_rref.callRemote("get_stats"))
+            def _got_stats(stats):
+                #print "STATS"
+                #from pprint import pprint
+                #pprint(stats)
+                s = stats["stats"]
+                self.failUnlessEqual(s["storage_server.accepting_immutable_shares"], 1)
+                c = stats["counters"]
+                self.failUnlessEqual(c["storage_server.allocate"], 2)
+            d.addCallback(_got_stats)
+            return d
+        d.addCallback(_grab_stats)
+
         return d
 
     def _find_shares(self, basedir):

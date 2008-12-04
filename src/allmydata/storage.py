@@ -866,6 +866,8 @@ class StorageServer(service.MultiService, Referenceable):
         fileutil.rm_dir(self.incomingdir)
 
     def get_stats(self):
+        # remember: RIStatsProvider requires that our return dict
+        # contains numeric values.
         stats = { 'storage_server.allocated': self.allocated_size(), }
         for category,ld in self.get_latencies().items():
             for name,v in ld.items():
@@ -896,7 +898,7 @@ class StorageServer(service.MultiService, Referenceable):
         except AttributeError:
             # os.statvfs is only available on unix
             pass
-        stats["storage_server.accepting_immutable_shares"] = writeable
+        stats["storage_server.accepting_immutable_shares"] = int(writeable)
         return stats
 
 
