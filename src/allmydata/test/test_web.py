@@ -52,6 +52,9 @@ class FakeClient(service.MultiService):
     def get_nickname_for_peerid(self, peerid):
         return u"John Doe"
 
+    def get_permuted_peers(self, service_name, key):
+        return []
+
     def create_node_from_uri(self, auri):
         u = uri.from_string(auri)
         if (INewDirectoryURI.providedBy(u)
