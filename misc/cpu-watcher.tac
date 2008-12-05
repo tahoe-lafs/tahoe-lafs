@@ -104,7 +104,7 @@ class CPUWatcher(service.MultiService, resource.Resource, Referenceable):
         resource.Resource.__init__(self)
         try:
             self.history = pickle.load(open("history.pickle", "rb"))
-        except EnvironmentError:
+        except:
             self.history = {}
         self.current = []
         self.observers = set()
@@ -199,8 +199,11 @@ class CPUWatcher(service.MultiService, resource.Resource, Referenceable):
             except:
                 log.msg("error reading process %s (%s), ignoring" % (pid, name))
                 log.err()
-        pickle.dump(self.history, open("history.pickle.tmp", "wb"))
-        os.rename("history.pickle.tmp", "history.pickle")
+        try:
+            pickle.dump(self.history, open("history.pickle.tmp", "wb"))
+            os.rename("history.pickle.tmp", "history.pickle")
+        except:
+            pass
         for (pid, name) in processes:
             row = [name]
             for avg in self.AVERAGES:
