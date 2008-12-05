@@ -41,10 +41,13 @@ class ResultsBase:
 
         sharemap = []
         servers = {}
+
         for shareid in sorted(data["sharemap"].keys()):
             serverids = data["sharemap"][shareid]
             for i,serverid in enumerate(serverids):
-                servers[serverid] = servers.get(serverid,0) + 1
+                if serverid not in servers:
+                    servers[serverid] = []
+                servers[serverid].append(shareid)
                 shareid_s = ""
                 if i == 0:
                     shareid_s = shareid
@@ -53,18 +56,34 @@ class ResultsBase:
                                      T.td[T.tt[base32.b2a(serverid)],
                                           " (", nickname, ")"],
                                      ])
-        add("Good Shares", T.table(border="1")[sharemap])
+        add("Good Shares (sorted in share order)",
+            T.table(border="1")[sharemap])
+
 
         add("Recoverable Versions", data["count-recoverable-versions"])
         add("Unrecoverable Versions", data["count-unrecoverable-versions"])
 
+        # this table is sorted by permuted order
+        permuted_peer_ids = [peerid
+                             for (peerid, rref)
+                             in c.get_permuted_peers("storage",
+                                                     cr.get_storage_index())]
+
+        num_shares_left = sum([len(shares) for shares in servers.values()])
         servermap = []
-        for serverid in sorted(servers.keys()):
+        for serverid in permuted_peer_ids:
             nickname = c.get_nickname_for_peerid(serverid)
+            shareids = servers.get(serverid, [])
+            shareids.reverse()
+            shareids_s = [ T.tt[shareid, " "] for shareid in shareids ]
             servermap.append(T.tr[T.td[T.tt[base32.b2a(serverid)],
                                        " (", nickname, ")"],
-                                  T.td["*" * servers[serverid]] ])
-        add("Share Balancing", T.table(border="1")[servermap])
+                                  T.td[shareids_s] ])
+            num_shares_left -= len(shareids)
+            if not num_shares_left:
+                break
+        add("Share Balancing (servers in permuted order)",
+            T.table(border="1")[servermap])
 
         return T.ul[r]
 
