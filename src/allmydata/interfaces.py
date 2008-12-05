@@ -959,29 +959,15 @@ class ICodecEncoder(Interface):
         may be invoked.
         """
 
+    def get_params():
+        """Return the 3-tuple of data_size, required_shares, max_shares"""
+
     def get_encoder_type():
         """Return a short string that describes the type of this encoder.
 
         There is required to be a global table of encoder classes. This method
         returns an index into this table; the value at this index is an
         encoder class, and this encoder is an instance of that class.
-        """
-
-    def get_serialized_params(): # TODO: maybe, maybe not
-        """Return a string that describes the parameters of this encoder.
-
-        This string can be passed to the decoder to prepare it for handling
-        the encoded shares we create. It might contain more information than
-        was presented to set_params(), if there is some flexibility of
-        parameter choice.
-
-        This string is intended to be embedded in the URI, so there are
-        several restrictions on its contents. At the moment I'm thinking that
-        this means it may contain hex digits and hyphens, and nothing else.
-        The idea is that the URI contains something like '%s:%s:%s' %
-        (encoder.get_encoder_name(), encoder.get_serialized_params(),
-        b2a(crypttext_hash)), and this is enough information to construct a
-        compatible decoder.
         """
 
     def get_block_size():
@@ -1093,13 +1079,12 @@ class ICodecEncoder(Interface):
 
 
 class ICodecDecoder(Interface):
-    def set_serialized_params(params):
-        """Set up the parameters of this encoder, from a string returned by
-        encoder.get_serialized_params()."""
+    def set_params(data_size, required_shares, max_shares):
+        """Set the params. They have to be exactly the same ones that were used for encoding. """
 
     def get_needed_shares():
         """Return the number of shares needed to reconstruct the data.
-        set_serialized_params() is required to be called before this."""
+        set_params() is required to be called before this."""
 
     def decode(some_shares, their_shareids):
         """Decode a partial list of shares into data.
@@ -2159,6 +2144,10 @@ class RIKeyGenerator(RemoteInterface):
 class FileTooLargeError(Exception):
     pass
 
+class IValidatedThingProxy(Interface):
+    def start():
+        """ Acquire a thing and validate it.  Return a deferred which is eventually fired with
+        self if the thing is valid or errbacked if it can't be acquired or validated. """
 
 class InsufficientVersionError(Exception):
     def __init__(self, needed, got):

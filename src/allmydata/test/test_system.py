@@ -130,9 +130,10 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             return d1
         d.addCallback(_do_upload)
         def _upload_done(results):
-            uri = results.uri
-            log.msg("upload finished: uri is %s" % (uri,))
-            self.uri = uri
+            theuri = results.uri
+            log.msg("upload finished: uri is %s" % (theuri,))
+            self.uri = theuri
+            assert isinstance(self.uri, str), self.uri
             dl = self.clients[1].getServiceNamed("downloader")
             self.downloader = dl
         d.addCallback(_upload_done)
@@ -847,6 +848,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             d1.addCallback(self.log, "publish finished")
             def _stash_uri(filenode):
                 self.uri = filenode.get_uri()
+                assert isinstance(self.uri, str), (self.uri, filenode)
             d1.addCallback(_stash_uri)
             return d1
         d.addCallback(_made_subdir1)
@@ -2518,8 +2520,8 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         self.basedir = self.mktemp()
         d = self.set_up_nodes()
         d.addCallback(self.set_up_damaged_tree)
-        d.addCallback(self.do_test_check_bad)
-        d.addCallback(self.do_test_deepcheck_bad)
+        d.addCallback(self.do_check)
+        d.addCallback(self.do_deepcheck)
         d.addCallback(self.do_test_web_bad)
         d.addErrback(self.explain_web_error)
         d.addErrback(self.explain_error)
@@ -2620,8 +2622,8 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
 
 
     def check_is_healthy(self, cr, where):
-        self.failUnless(ICheckerResults.providedBy(cr), where)
-        self.failUnless(cr.is_healthy(), where)
+        self.failUnless(ICheckerResults.providedBy(cr), (cr, type(cr), where))
+        self.failUnless(cr.is_healthy(), (cr.get_report(), cr.is_healthy(), cr.get_summary(), where))
         self.failUnless(cr.is_recoverable(), where)
         d = cr.get_data()
         self.failUnlessEqual(d["count-recoverable-versions"], 1, where)
@@ -2660,7 +2662,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         self.failUnlessEqual(d["count-unrecoverable-versions"], 1, where)
         return cr
 
-    def do_test_check_bad(self, ignored):
+    def do_check(self, ignored):
         d = defer.succeed(None)
 
         # check the individual items, without verification. This will not
@@ -2709,7 +2711,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
 
         return d
 
-    def do_test_deepcheck_bad(self, ignored):
+    def do_deepcheck(self, ignored):
         d = defer.succeed(None)
 
         # now deep-check the root, with various verify= and repair= options

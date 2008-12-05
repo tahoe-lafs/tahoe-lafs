@@ -16,7 +16,7 @@ from allmydata.util import hashutil, mathutil, base32, log
 from allmydata.util.hashutil import netstring
 from allmydata.util.limiter import ConcurrencyLimiter
 from allmydata.util.netstring import split_netstring
-from allmydata.uri import NewDirectoryURI
+from allmydata.uri import NewDirectoryURI, LiteralFileURI, from_string
 from pycryptopp.cipher.aes import AES
 
 class Deleter:
@@ -202,6 +202,8 @@ class NewDirectoryNode:
             assert isinstance(metadata, dict)
             rwcap = child.get_uri() # might be RO if the child is not writeable
             rocap = child.get_readonly_uri()
+            assert isinstance(rocap, str), rocap
+            assert isinstance(rwcap, str), rwcap
             entry = "".join([netstring(name.encode("utf-8")),
                              netstring(rocap),
                              netstring(self._encrypt_rwcap(rwcap)),
@@ -579,7 +581,8 @@ class DeepStats:
             self.add("count-files")
             size = node.get_size()
             self.histogram("size-files-histogram", size)
-            if node.get_uri().startswith("URI:LIT:"):
+            theuri = from_string(node.get_uri())
+            if isinstance(theuri, LiteralFileURI):
                 self.add("count-literal-files")
                 self.add("size-literal-files", size)
             else:

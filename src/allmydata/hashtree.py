@@ -384,7 +384,7 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
             for i in new_hashes:
                 if self[i]:
                     if self[i] != new_hashes[i]:
-                        msg = "new hash does not match existing hash at "
+                        msg = "new hash %s does not match existing hash %s at " % (base32.b2a(new_hashes[i]), base32.b2a(self[i]))
                         msg += self._name_hash(i)
                         raise BadHashError(msg)
                 else:

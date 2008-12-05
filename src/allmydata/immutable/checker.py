@@ -11,7 +11,9 @@ from twisted.python import log
 from allmydata import storage
 from allmydata.checker_results import CheckerResults
 from allmydata.immutable import download
+from allmydata.uri import CHKFileURI
 from allmydata.util import hashutil
+from allmydata.util.assertutil import _assert, precondition
 
 class SimpleCHKFileChecker:
     """Return a list of (needed, total, found, sharemap), where sharemap maps
@@ -68,7 +70,7 @@ class SimpleCHKFileChecker:
         pass
 
     def _done(self, res):
-        r = CheckerResults(self.uri, self.storage_index)
+        r = CheckerResults(self.uri.to_string(), self.storage_index)
         report = []
         healthy = bool(len(self.found_shares) >= self.total_shares)
         r.set_healthy(healthy)
@@ -129,7 +131,7 @@ class VerifyingOutput:
         results.set_recoverable(False)
         results.set_summary("Not Healthy")
 
-    def setup_hashtrees(self, plaintext_hashtree, crypttext_hashtree):
+    def got_crypttext_hash_tree(self, crypttext_hashtree):
         self._crypttext_hash_tree = crypttext_hashtree
 
     def write_segment(self, crypttext):
@@ -162,10 +164,11 @@ class SimpleCHKFileVerifier(download.FileDownloader):
     # remaining shareholders, and it cannot verify the plaintext.
     check_plaintext_hash = False
 
-    def __init__(self, client, uri, storage_index, k, N, size, ueb_hash):
+    def __init__(self, client, u, storage_index, k, N, size, ueb_hash):
+        precondition(isinstance(u, CHKFileURI), u)
         self._client = client
 
-        self._uri = uri
+        self._uri = u
         self._storage_index = storage_index
         self._uri_extension_hash = ueb_hash
         self._total_shares = N
@@ -175,7 +178,7 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         self._si_s = storage.si_b2a(self._storage_index)
         self.init_logging()
 
-        self._check_results = r = CheckerResults(self._uri, self._storage_index)
+        self._check_results = r = CheckerResults(self._uri.to_string(), self._storage_index)
         r.set_data({"count-shares-needed": k,
                     "count-shares-expected": N,
                     })
@@ -226,9 +229,7 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         d.addCallback(self._got_all_shareholders)
         # now get the uri_extension block from somebody and validate it
         d.addCallback(self._obtain_uri_extension)
-        d.addCallback(self._got_uri_extension)
-        d.addCallback(self._get_hashtrees)
-        d.addCallback(self._create_validated_buckets)
+        d.addCallback(self._get_crypttext_hash_tree)
         # once we know that, we can download blocks from everybody
         d.addCallback(self._download_all_segments)
         d.addCallback(self._done)

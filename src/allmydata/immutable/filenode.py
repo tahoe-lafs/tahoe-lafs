@@ -9,6 +9,7 @@ from foolscap.eventual import eventually
 from allmydata.interfaces import IFileNode, IFileURI, ICheckable, \
      IDownloadTarget
 from allmydata.util import log, base32
+from allmydata.uri import from_string as uri_from_string
 from allmydata.immutable.checker import SimpleCHKFileChecker, \
      SimpleCHKFileVerifier
 from allmydata.immutable import download
@@ -191,17 +192,18 @@ class FileNode(_ImmutableFileNodeBase):
         # SimpleCHKFileVerifier, have it call monitor.raise_if_cancelled()
         # before sending each request.
         storage_index = self.u.storage_index
+        assert IFileURI.providedBy(self.u), self.u
         k = self.u.needed_shares
         N = self.u.total_shares
         size = self.u.size
         ueb_hash = self.u.uri_extension_hash
         if verify:
             v = self.verifier_class(self._client,
-                                    self.get_uri(), storage_index,
+                                    uri_from_string(self.get_uri()), storage_index,
                                     k, N, size, ueb_hash)
         else:
             v = self.checker_class(self._client,
-                                   self.get_uri(), storage_index,
+                                   uri_from_string(self.get_uri()), storage_index,
                                    k, N)
         return v.start()
 

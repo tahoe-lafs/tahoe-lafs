@@ -1,4 +1,3 @@
-
 from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
@@ -7,7 +6,7 @@ from twisted.python.failure import Failure
 from foolscap import eventual
 from allmydata import hashtree, uri
 from allmydata.immutable import encode, upload, download
-from allmydata.util import hashutil
+from allmydata.util import base32, hashutil
 from allmydata.util.assertutil import _assert
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, NotEnoughSharesError
 import common_util as testutil
@@ -22,7 +21,7 @@ class FakeClient:
     def log(self, *args, **kwargs):
         pass
 
-class FakeBucketWriterProxy:
+class FakeBucketReaderWriterProxy:
     implements(IStorageBucketWriter, IStorageBucketReader)
     # these are used for both reading and writing
     def __init__(self, mode="good"):
@@ -111,10 +110,6 @@ class FakeBucketWriterProxy:
     def get_plaintext_hashes(self):
         def _try():
             hashes = self.plaintext_hashes[:]
-            if self.mode == "bad plaintext hashroot":
-                hashes[0] = flip_bit(hashes[0])
-            if self.mode == "bad plaintext hash":
-                hashes[1] = flip_bit(hashes[1])
             return hashes
         return defer.maybeDeferred(_try)
 
@@ -164,6 +159,102 @@ def make_data(length):
     assert length <= len(data)
     return data[:length]
 
+class ValidatedExtendedURIProxy(unittest.TestCase):
+    K = 4
+    M = 10
+    SIZE = 200
+    SEGSIZE = 72
+    _TMP = SIZE%SEGSIZE
+    if _TMP == 0:
+        _TMP = SEGSIZE
+    if _TMP % K != 0:
+        _TMP += (K - (_TMP % K))
+    TAIL_SEGSIZE = _TMP
+    _TMP = SIZE / SEGSIZE
+    if SIZE % SEGSIZE != 0:
+        _TMP += 1
+    NUM_SEGMENTS = _TMP
+    mindict = { 'segment_size': SEGSIZE,
+                'crypttext_root_hash': '0'*hashutil.CRYPTO_VAL_SIZE,
+                'share_root_hash': '1'*hashutil.CRYPTO_VAL_SIZE }
+    optional_consistent = { 'crypttext_hash': '2'*hashutil.CRYPTO_VAL_SIZE,
+                            'codec_name': "crs",
+                            'codec_params': "%d-%d-%d" % (SEGSIZE, K, M),
+                            'tail_codec_params': "%d-%d-%d" % (TAIL_SEGSIZE, K, M),
+                            'num_segments': NUM_SEGMENTS,
+                            'size': SIZE,
+                            'needed_shares': K,
+                            'total_shares': M,
+                            'plaintext_hash': "anything",
+                            'plaintext_root_hash': "anything", }
+    # optional_inconsistent = { 'crypttext_hash': ('2'*(hashutil.CRYPTO_VAL_SIZE-1), "", 77),
+    optional_inconsistent = { 'crypttext_hash': (77,),
+                              'codec_name': ("digital fountain", ""),
+                              'codec_params': ("%d-%d-%d" % (SEGSIZE, K-1, M),
+                                               "%d-%d-%d" % (SEGSIZE-1, K, M),
+                                               "%d-%d-%d" % (SEGSIZE, K, M-1)),
+                              'tail_codec_params': ("%d-%d-%d" % (TAIL_SEGSIZE, K-1, M),
+                                               "%d-%d-%d" % (TAIL_SEGSIZE-1, K, M),
+                                               "%d-%d-%d" % (TAIL_SEGSIZE, K, M-1)),
+                              'num_segments': (NUM_SEGMENTS-1,),
+                              'size': (SIZE-1,),
+                              'needed_shares': (K-1,),
+                              'total_shares': (M-1,), }
+
+    def _test(self, uebdict):
+        uebstring = uri.pack_extension(uebdict)
+        uebhash = hashutil.uri_extension_hash(uebstring)
+        fb = FakeBucketReaderWriterProxy()
+        fb.put_uri_extension(uebstring)
+        verifycap = uri.CHKFileVerifierURI(storage_index='x'*16, uri_extension_hash=uebhash, needed_shares=self.K, total_shares=self.M, size=self.SIZE)
+        vup = download.ValidatedExtendedURIProxy(fb, verifycap)
+        return vup.start()
+
+    def _test_accept(self, uebdict):
+        return self._test(uebdict)
+
+    def _should_fail(self, res, expected_failures):
+        if isinstance(res, Failure):
+            res.trap(*expected_failures)
+        else:
+            self.fail("was supposed to raise %s, not get '%s'" % (expected_failures, res))
+
+    def _test_reject(self, uebdict):
+        d = self._test(uebdict)
+        d.addBoth(self._should_fail, (KeyError, download.BadURIExtension))
+        return d
+
+    def test_accept_minimal(self):
+        return self._test_accept(self.mindict)
+
+    def test_reject_insufficient(self):
+        dl = []
+        for k in self.mindict.iterkeys():
+            insuffdict = self.mindict.copy()
+            del insuffdict[k]
+            d = self._test_reject(insuffdict)
+        dl.append(d)
+        return defer.DeferredList(dl)
+
+    def test_accept_optional(self):
+        dl = []
+        for k in self.optional_consistent.iterkeys():
+            mydict = self.mindict.copy()
+            mydict[k] = self.optional_consistent[k]
+            d = self._test_accept(mydict)
+        dl.append(d)
+        return defer.DeferredList(dl)
+
+    def test_reject_optional(self):
+        dl = []
+        for k in self.optional_inconsistent.iterkeys():
+            for v in self.optional_inconsistent[k]:
+                mydict = self.mindict.copy()
+                mydict[k] = v
+                d = self._test_reject(mydict)
+                dl.append(d)
+        return defer.DeferredList(dl)
+
 class Encode(unittest.TestCase):
 
     def do_encode(self, max_segment_size, datalen, NUM_SHARES, NUM_SEGMENTS,
@@ -192,7 +283,7 @@ class Encode(unittest.TestCase):
 
             shareholders = {}
             for shnum in range(NUM_SHARES):
-                peer = FakeBucketWriterProxy()
+                peer = FakeBucketReaderWriterProxy()
                 shareholders[shnum] = peer
                 all_shareholders.append(peer)
             e.set_shareholders(shareholders)
@@ -357,7 +448,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
             all_peers = []
             for shnum in range(NUM_SHARES):
                 mode = bucket_modes.get(shnum, "good")
-                peer = FakeBucketWriterProxy(mode)
+                peer = FakeBucketReaderWriterProxy(mode)
                 shareholders[shnum] = peer
             e.set_shareholders(shareholders)
             return e.start()
@@ -385,12 +476,11 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
                            needed_shares=required_shares,
                            total_shares=num_shares,
                            size=file_size)
-        URI = u.to_string()
 
         client = FakeClient()
         if not target:
             target = download.Data()
-        fd = download.FileDownloader(client, URI, target)
+        fd = download.FileDownloader(client, u, target)
 
         # we manually cycle the FileDownloader through a number of steps that
         # would normally be sequenced by a Deferred chain in
@@ -405,9 +495,9 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         # Make it possible to obtain uri_extension from the shareholders.
         # Arrange for shareholders[0] to be the first, so we can selectively
         # corrupt the data it returns.
-        fd._uri_extension_sources = shareholders.values()
-        fd._uri_extension_sources.remove(shareholders[0])
-        fd._uri_extension_sources.insert(0, shareholders[0])
+        uri_extension_sources = shareholders.values()
+        uri_extension_sources.remove(shareholders[0])
+        uri_extension_sources.insert(0, shareholders[0])
 
         d = defer.succeed(None)
 
@@ -418,33 +508,22 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
             # replace everybody's crypttext hash trees with a different one
             # (computed over a different file), then modify our uri_extension
             # to reflect the new crypttext hash tree root
-            def _corrupt_crypttext_hashes(uri_extension):
-                assert isinstance(uri_extension, dict)
-                assert 'crypttext_root_hash' in uri_extension
+            def _corrupt_crypttext_hashes(unused):
+                assert isinstance(fd._vup, download.ValidatedExtendedURIProxy), fd._vup
+                assert fd._vup.crypttext_root_hash, fd._vup
                 badhash = hashutil.tagged_hash("bogus", "data")
-                bad_crypttext_hashes = [badhash] * uri_extension['num_segments']
+                bad_crypttext_hashes = [badhash] * fd._vup.num_segments
                 badtree = hashtree.HashTree(bad_crypttext_hashes)
                 for bucket in shareholders.values():
                     bucket.crypttext_hashes = list(badtree)
-                uri_extension['crypttext_root_hash'] = badtree[0]
-                return uri_extension
+                fd._crypttext_hash_tree = hashtree.IncompleteHashTree(fd._vup.num_segments)
+                fd._crypttext_hash_tree.set_hashes({0: badtree[0]})
+                return fd._vup
             d.addCallback(_corrupt_crypttext_hashes)
-        elif "omit_crypttext_root_hash" in recover_mode:
-            # make it as though the crypttext hash tree root had not
-            # been in the UEB
-            def _remove_crypttext_hashes(uri_extension):
-                assert isinstance(uri_extension, dict)
-                assert 'crypttext_root_hash' in uri_extension
-                del uri_extension['crypttext_root_hash']
-                return uri_extension
-            d.addCallback(_remove_crypttext_hashes)
-
-        d.addCallback(fd._got_uri_extension)
 
         # also have the FileDownloader ask for hash trees
-        d.addCallback(fd._get_hashtrees)
+        d.addCallback(fd._get_crypttext_hash_tree)
 
-        d.addCallback(fd._create_validated_buckets)
         d.addCallback(fd._download_all_segments)
         d.addCallback(fd._done)
         def _done(newdata):
@@ -551,7 +630,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(NotEnoughSharesError))
+            self.failUnless(res.check(NotEnoughSharesError), res)
         d.addBoth(_done)
         return d
 
@@ -566,10 +645,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
 
     def assertFetchFailureIn(self, fd, where):
         expected = {"uri_extension": 0,
-                    "plaintext_hashroot": 0,
-                    "plaintext_hashtree": 0,
-                    "crypttext_hashroot": 0,
-                    "crypttext_hashtree": 0,
+                    "crypttext_hash_tree": 0,
                     }
         if where is not None:
             expected[where] += 1
@@ -592,31 +668,13 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(self.assertFetchFailureIn, "uri_extension")
         return d
 
-    def OFF_test_bad_plaintext_hashroot(self):
-        # the first server has a bad plaintext hashroot, so we will fail over
-        # to a different server.
-        modemap = dict([(i, "bad plaintext hashroot") for i in range(1)] +
-                       [(i, "good") for i in range(1, 10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        d.addCallback(self.assertFetchFailureIn, "plaintext_hashroot")
-        return d
-
     def test_bad_crypttext_hashroot(self):
         # the first server has a bad crypttext hashroot, so we will fail
         # over to a different server.
         modemap = dict([(i, "bad crypttext hashroot") for i in range(1)] +
                        [(i, "good") for i in range(1, 10)])
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        d.addCallback(self.assertFetchFailureIn, "crypttext_hashroot")
-        return d
-
-    def OFF_test_bad_plaintext_hashes(self):
-        # the first server has a bad plaintext hash block, so we will fail
-        # over to a different server.
-        modemap = dict([(i, "bad plaintext hash") for i in range(1)] +
-                       [(i, "good") for i in range(1, 10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        d.addCallback(self.assertFetchFailureIn, "plaintext_hashtree")
+        d.addCallback(self.assertFetchFailureIn, "crypttext_hash_tree")
         return d
 
     def test_bad_crypttext_hashes(self):
@@ -625,7 +683,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         modemap = dict([(i, "bad crypttext hash") for i in range(1)] +
                        [(i, "good") for i in range(1, 10)])
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        d.addCallback(self.assertFetchFailureIn, "crypttext_hashtree")
+        d.addCallback(self.assertFetchFailureIn, "crypttext_hash_tree")
         return d
 
     def test_bad_crypttext_hashes_failure(self):
@@ -643,20 +701,6 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         def _done(res):
             self.failUnless(isinstance(res, Failure))
             self.failUnless(res.check(hashtree.BadHashError), res)
-        d.addBoth(_done)
-        return d
-
-    def test_omitted_crypttext_hashes_failure(self):
-        # Test that the downloader requires a Merkle Tree over the
-        # ciphertext (per http://crisp.cs.du.edu/?q=node/88 -- the
-        # problem that checking the integrity of the shares could let
-        # more than one immutable file match the same read-cap).
-        modemap = dict([(i, "good") for i in range(0, 10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap,
-                                  recover_mode=("omit_crypttext_root_hash"))
-        def _done(res):
-            self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(download.BadURIExtension), res)
         d.addBoth(_done)
         return d
 
@@ -747,4 +791,3 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
             self.failUnless(res.check(NotEnoughSharesError))
         d.addBoth(_done)
         return d
-

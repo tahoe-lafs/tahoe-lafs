@@ -494,10 +494,9 @@ class Retrieve:
         shares = shares[:k]
 
         fec = codec.CRSDecoder()
-        params = "%d-%d-%d" % (segsize, k, N)
-        fec.set_serialized_params(params)
+        fec.set_params(segsize, k, N)
 
-        self.log("params %s, we have %d shares" % (params, len(shares)))
+        self.log("params %s, we have %d shares" % ((segsize, k, N), len(shares)))
         self.log("about to decode, shareids=%s" % (shareids,))
         d = defer.maybeDeferred(fec.decode, shares, shareids)
         def _done(buffers):

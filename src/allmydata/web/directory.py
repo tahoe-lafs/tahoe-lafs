@@ -416,9 +416,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
 def abbreviated_dirnode(dirnode):
     u = from_string_dirnode(dirnode.get_uri())
-    si = u.get_filenode_uri().storage_index
-    si_s = base32.b2a(si)
-    return si_s[:6]
+    return u.abbrev()
 
 class DirectoryAsHTML(rend.Page):
     # The remainder of this class is to render the directory into

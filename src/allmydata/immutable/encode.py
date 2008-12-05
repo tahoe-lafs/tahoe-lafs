@@ -150,12 +150,12 @@ class Encoder(object):
         # it. If the tail is short, we use a different codec instance. In
         # addition, the tail codec must be fed data which has been padded out
         # to the right size.
-        self.tail_size = self.file_size % self.segment_size
-        if not self.tail_size:
-            self.tail_size = self.segment_size
+        tail_size = self.file_size % self.segment_size
+        if not tail_size:
+            tail_size = self.segment_size
 
         # the tail codec is responsible for encoding tail_size bytes
-        padded_tail_size = mathutil.next_multiple(self.tail_size,
+        padded_tail_size = mathutil.next_multiple(tail_size,
                                                   self.required_shares)
         self._tail_codec = CRSEncoder()
         self._tail_codec.set_params(padded_tail_size,

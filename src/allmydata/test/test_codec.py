@@ -2,17 +2,18 @@
 import os
 from twisted.trial import unittest
 from twisted.python import log
-from allmydata.codec import ReplicatingEncoder, ReplicatingDecoder, CRSEncoder, CRSDecoder
+from allmydata.codec import CRSEncoder, CRSDecoder
 import random
 from allmydata.util import mathutil
 
-class Tester:
+class T(unittest.TestCase):
     def do_test(self, size, required_shares, max_shares, fewer_shares=None):
         data0s = [os.urandom(mathutil.div_ceil(size, required_shares)) for i in range(required_shares)]
-        enc = self.enc_class()
+        enc = CRSEncoder()
         enc.set_params(size, required_shares, max_shares)
-        serialized_params = enc.get_serialized_params()
-        log.msg("serialized_params: %s" % serialized_params)
+        params = enc.get_params()
+        assert params == (size, required_shares, max_shares)
+        log.msg("params: %s" % (params,))
         d = enc.encode(data0s)
         def _done_encoding_all((shares, shareids)):
             self.failUnlessEqual(len(shares), max_shares)
@@ -28,8 +29,8 @@ class Tester:
             d.addCallback(_check_fewer_shares)
 
         def _decode((shares, shareids)):
-            dec = self.dec_class()
-            dec.set_serialized_params(serialized_params)
+            dec = CRSDecoder()
+            dec.set_params(*params)
             d1 = dec.decode(shares, shareids)
             return d1
 
@@ -72,8 +73,8 @@ class Tester:
             sharesl2 = random.sample(zip(self.shares, self.shareids), required_shares)
             shares2 = [ x[0] for x in sharesl2 ]
             shareids2 = [ x[1] for x in sharesl2 ]
-            dec = self.dec_class()
-            dec.set_serialized_params(serialized_params)
+            dec = CRSDecoder()
+            dec.set_params(*params)
             d1 = dec.decode(shares1, shareids1)
             d1.addCallback(_check_data)
             d1.addCallback(lambda res: dec.decode(shares2, shareids2))
@@ -91,12 +92,3 @@ class Tester:
 
     def test_encode2(self):
         return self.do_test(125, 25, 100, 90)
-
-class Replicating(unittest.TestCase, Tester):
-    enc_class = ReplicatingEncoder
-    dec_class = ReplicatingDecoder
-
-class CRS(unittest.TestCase, Tester):
-    enc_class = CRSEncoder
-    dec_class = CRSDecoder
-
