@@ -7,7 +7,7 @@ from twisted.application import service
 from foolscap import DeadReferenceError
 from foolscap.eventual import eventually
 
-from allmydata.util import base32, mathutil, hashutil, log, observer
+from allmydata.util import base32, mathutil, hashutil, log
 from allmydata.util.assertutil import _assert, precondition
 from allmydata import codec, hashtree, storage, uri
 from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, IVerifierURI, \

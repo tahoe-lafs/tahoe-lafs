@@ -6,7 +6,7 @@ from twisted.python.failure import Failure
 from foolscap import eventual
 from allmydata import hashtree, uri
 from allmydata.immutable import encode, upload, download
-from allmydata.util import base32, hashutil
+from allmydata.util import hashutil
 from allmydata.util.assertutil import _assert
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, NotEnoughSharesError
 import common_util as testutil

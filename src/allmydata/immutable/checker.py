@@ -13,7 +13,7 @@ from allmydata.checker_results import CheckerResults
 from allmydata.immutable import download
 from allmydata.uri import CHKFileURI
 from allmydata.util import hashutil
-from allmydata.util.assertutil import _assert, precondition
+from allmydata.util.assertutil import precondition
 
 class SimpleCHKFileChecker:
     """Return a list of (needed, total, found, sharemap), where sharemap maps
