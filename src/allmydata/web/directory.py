@@ -532,8 +532,7 @@ class DirectoryAsHTML(rend.Page):
 
             ctx.fillSlots("size", "?")
 
-            text_plain_url = "%s/file/%s/@@named=/foo.txt" % (root, quoted_uri)
-            info_link = "%s?t=info" % nameurl
+            info_link = "%s/uri/%s?t=info" % (root, quoted_uri)
 
         elif IFileNode.providedBy(target):
             dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, nameurl)
@@ -544,8 +543,7 @@ class DirectoryAsHTML(rend.Page):
 
             ctx.fillSlots("size", target.get_size())
 
-            text_plain_url = "%s/file/%s/@@named=/foo.txt" % (root, quoted_uri)
-            info_link = "%s?t=info" % nameurl
+            info_link = "%s/uri/%s?t=info" % (root, quoted_uri)
 
         elif IDirectoryNode.providedBy(target):
             # directory
@@ -558,7 +556,7 @@ class DirectoryAsHTML(rend.Page):
                 dirtype = "DIR"
             ctx.fillSlots("type", dirtype)
             ctx.fillSlots("size", "-")
-            info_link = "%s/?t=info" % nameurl
+            info_link = "%s/uri/%s/?t=info" % (root, quoted_uri)
 
         moreinfourl = "%s/uri/%s?t=info" % (root, quoted_uri)
         ctx.fillSlots("info", T.a(href=moreinfourl)["More Info"])
