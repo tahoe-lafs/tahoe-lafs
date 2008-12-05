@@ -420,7 +420,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 s = stats["stats"]
                 self.failUnlessEqual(s["storage_server.accepting_immutable_shares"], 1)
                 c = stats["counters"]
-                self.failUnlessEqual(c["storage_server.allocate"], 2)
+                self.failUnless("storage_server.allocate" in c)
             d.addCallback(_got_stats)
             return d
         d.addCallback(_grab_stats)
