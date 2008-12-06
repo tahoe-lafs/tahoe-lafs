@@ -86,10 +86,6 @@ from setuptools.command import sdist
 from distutils.core import Command
 from pkg_resources import require
 
-import pkg_resources
-pkg_resources.require('setuptools_trial')
-from setuptools_trial.setuptools_trial import TrialTest
-
 # Make the dependency-version-requirement, which is used by the Makefile at
 # build-time, also available to the app at runtime:
 import shutil
@@ -299,27 +295,6 @@ class BuildTahoe(Command):
             print >>sys.stderr, "'setup.py develop' exited with rc", rc
             sys.exit(rc)
 
-class Trial(TrialTest):
-    # Custom sub-class of the TrialTest class from the setuptools_trial
-    # plugin so that we can ensure certain options are set by default.
-    #
-    # Examples:
-    #  setup.py trial    # run all tests
-    #  setup.py trial -a allmydata.test.test_util   # run some tests
-    #  setup.py trial -a '--reporter=text allmydata.test.test_util' #other args
-
-
-    def initialize_options(self):
-        TrialTest.initialize_options(self)
-
-        # We want to set the reactor to 'poll', because of bug #402
-        # (twisted bug #3218).
-        if sys.platform in ("linux2", "cygwin"):
-            # poll on linux2 to avoid #402 problems with select
-            # poll on cygwin since selectreactor runs out of fds
-            self.reactor = "poll"
-
-
 class MySdist(sdist.sdist):
     """ A hook in the sdist command so that we can determine whether this the
     tarball should be 'SUMO' or not, i.e. whether or not to include the
@@ -383,7 +358,6 @@ setup(name='allmydata-tahoe',
                 "run_with_pythonpath": RunWithPythonPath,
                 "check_auto_deps": CheckAutoDeps,
                 "build_tahoe": BuildTahoe,
-                "trial": Trial,
                 "sdist": MySdist,
                 },
       package_dir = {'':'src'},
