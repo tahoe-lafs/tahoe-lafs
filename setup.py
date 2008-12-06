@@ -12,97 +12,60 @@ import os, re, sys, stat, subprocess
 
 ##### sys.path management
 
+def pylibdir(prefixdir):
+    pyver = "python%d.%d" % (sys.version_info[:2])
+    if sys.platform == "win32":
+        return os.path.join(prefixdir, "Lib", "site-packages")
+    else:
+        return os.path.join(prefixdir, "lib", pyver, "site-packages")
+
 basedir = os.path.dirname(os.path.abspath(__file__))
-pyver = "python%d.%d" % (sys.version_info[:2])
-if sys.platform == "win32":
-    supportlib = os.path.join("support", "Lib", "site-packages")
-else:
-    supportlib = os.path.join("support", "lib", pyver, "site-packages")
-supportlib = os.path.join(basedir, supportlib)
+supportlib = pylibdir(os.path.join(basedir, "support"))
 
-def add_tahoe_paths():
-    """Modify sys.path and PYTHONPATH to include Tahoe and supporting libraries
+for i in range(len(sys.argv)):
+    arg = sys.argv[i]
+    if arg == "build_tahoe":
+        del sys.argv[i]
+        sys.argv.extend(["develop", "--prefix=support", "--script-dir=support/bin"])
 
-    The first step towards building Tahoe is to run::
+for i in range(len(sys.argv)):
+    arg = sys.argv[i]
+    prefixdir = None
+    if arg.startswith("--prefix="):
+        prefixdir = arg[len("--prefix="):]
+    if arg == "--prefix":
+        if len(sys.argv) > i+1:
+            prefixdir = sys.argv[i+1]
 
-      python setup.py build_tahoe
+    if prefixdir:
+        libdir = pylibdir(prefixdir)
+        try:
+            os.makedirs(libdir)
+        except EnvironmentError, le:
+            # Okay, maybe the dir was already there.
+            pass
+        sys.path.append(libdir)
+        pp = os.environ.get('PYTHONPATH','').split(os.pathsep)
+        pp.append(libdir)
+        os.environ['PYTHONPATH'] = os.pathsep.join(pp)
 
-    which is the equivalent of::
+    if arg.startswith("build"):
+        # chmod +x bin/tahoe
+        bin_tahoe = os.path.join("bin", "tahoe")
+        old_mode = stat.S_IMODE(os.stat(bin_tahoe)[stat.ST_MODE])
+        new_mode = old_mode | (stat.S_IXUSR | stat.S_IRUSR |
+                               stat.S_IXGRP | stat.S_IRGRP |
+                               stat.S_IXOTH | stat.S_IROTH )
+        os.chmod(bin_tahoe, new_mode)
 
-      mkdir -p $(BASEDIR)/support/lib/python2.5/site-packages
-       (or cygpath equivalent)
-      setup.py develop --multi-version --prefix=$(BASEDIR)/support
-
-    This installs .eggs for any dependent libraries that aren't already
-    available on the system, into support/lib/pythonN.N/site-packages (or
-    support/Lib/site-packages on windows). It also adds an .egg-link for
-    Tahoe itself into the same directory.
-
-    We add this directory to os.environ['PYTHONPATH'], so that any child
-    processes we spawn will be able to use these packages.
-
-    When the setuptools site.py sees that supportlib in PYTHONPATH, it scans
-    through it for .egg and .egg-link entries, and adds them to sys.path .
-    Since python has already processed all the site.py files by the time we
-    get here, we perform this same sort of processing ourselves: this makes
-    tahoe (and dependency libraries) available to code within setup.py
-    itself. This is used by the 'setup.py trial' subcommand, which invokes
-    trial directly rather than spawning a subprocess (this is easier than
-    locating the 'trial' executable, especially when Twisted was installed as
-    a dependent library).
-
-    We'll need to add these .eggs to sys.path before importing anything that
-    isn't a part of stdlib. All the directories that we add this way are put
-    at the start of sys.path, so they will override anything that was present
-    on the system (and perhaps found lacking by the setuptools requirements
-    expressed in _auto_deps.py).
-    """
-
-    extra_syspath_items = []
-    extra_pythonpath_items = []
-
-    extra_syspath_items.append(supportlib)
-    extra_pythonpath_items.append(supportlib)
-
-    # Since we use setuptools to populate that directory, there will be a
-    # number of .egg and .egg-link entries there. Add all of them to
-    # sys.path, since that what the setuptools site.py would do if it
-    # encountered them at process start time. Without this step, the rest of
-    # this process would be unable to use the packages installed there. We
-    # don't need to add them to PYTHONPATH, since the site.py present there
-    # will add them when the child process starts up.
-
-    if os.path.isdir(supportlib):
-        for fn in os.listdir(supportlib):
-            if fn.endswith(".egg"):
-                extra_syspath_items.append(os.path.join(supportlib, fn))
-
-    # We also add our src/ directory, since that's where all the Tahoe code
-    # lives. This matches what site.py does when it sees the .egg-link file
-    # that is written to the support dir by an invocation of our 'setup.py
-    # develop' command.
-    extra_syspath_items.append(os.path.join(basedir, "src"))
-
-    # and we put an extra copy of everything from PYTHONPATH in front, so
-    # that it is possible to override the packages that setuptools downloads
-    # with alternate versions, by doing e.g. "PYTHONPATH=foo python setup.py
-    # trial"
-    oldpp = os.environ.get("PYTHONPATH", "").split(os.pathsep)
-    if oldpp == [""]:
-        # grr silly split() behavior
-        oldpp = []
-    extra_syspath_items = oldpp + extra_syspath_items
-
-    sys.path = extra_syspath_items + sys.path
-
-    # We also provide it to any child processes we spawn, via
-    # os.environ["PYTHONPATH"]
-    os.environ["PYTHONPATH"] = os.pathsep.join(oldpp + extra_pythonpath_items)
-
-# add_tahoe_paths() must be called before use_setuptools() is called. I don't
-# know why. If it isn't, then a later pkg_resources.requires(pycryptopp) call
-# fails because an old version (in /usr/lib) was already loaded.
-add_tahoe_paths()
+    if arg.startswith("install") or arg.startswith("develop"):
+        if sys.platform == "linux2":
+            # workaround for tahoe #229 / setuptools #17, on debian
+            sys.argv.extend(["--site-dirs", "/var/lib/python-support/python%d.%d" % (sys.version_info[:2])])
+        elif sys.platform == "darwin":
+            # this probably only applies to leopard 10.5, possibly only 10.5.5
+            sd = "/System/Library/Frameworks/Python.framework/Versions/%d.%d/Extras/lib/python" % (sys.version_info[:2])
+            sys.argv.extend(["--site-dirs", sd])
 
 try:
     from ez_setup import use_setuptools
@@ -116,7 +79,7 @@ else:
     # as a result of being transitively depended on in a setup_requires, but
     # then are needed for the installed code to run, i.e. in an
     # install_requires.
-    use_setuptools(download_delay=0, min_version="0.6c8")
+    use_setuptools(download_delay=0, min_version="0.6c10dev")
 
 from setuptools import find_packages, setup
 from setuptools.command import sdist
@@ -292,32 +255,7 @@ class BuildTahoe(Command):
     def finalize_options(self):
         pass
     def run(self):
-        # chmod +x bin/tahoe
-        bin_tahoe = os.path.join("bin", "tahoe")
-        old_mode = stat.S_IMODE(os.stat(bin_tahoe)[stat.ST_MODE])
-        new_mode = old_mode | (stat.S_IXUSR | stat.S_IRUSR |
-                               stat.S_IXGRP | stat.S_IRGRP |
-                               stat.S_IXOTH | stat.S_IROTH )
-        os.chmod(bin_tahoe, new_mode)
-
-        # 'setup.py develop --multi-version --prefix SUPPORT' will complain if SUPPORTLIB is
-        # not on PYTHONPATH, because it thinks you are installing to a place
-        # that will not be searched at runtime (which is true, except that we
-        # add SUPPORTLIB to PYTHONPATH to run tests, etc). So set up
-        # PYTHONPATH now, then spawn a 'setup.py develop' command. Also, we
-        # have to create the directory ourselves.
-        if not os.path.isdir(supportlib):
-            os.makedirs(supportlib)
-
-        # command = [sys.executable, "setup.py", "develop", "--multi-version", "--prefix", "support"]
         command = [sys.executable, "setup.py", "develop", "--prefix", "support"]
-        if sys.platform == "linux2":
-            # workaround for tahoe #229 / setuptools #17, on debian
-            command.extend(["--site-dirs", "/var/lib/python-support/" + pyver])
-        elif sys.platform == "darwin":
-            # this probably only applies to leopard 10.5, possibly only 10.5.5
-            sd = "/System/Library/Frameworks/Python.framework/Versions/2.5/Extras/lib/python"
-            command.extend(["--site-dirs", sd])
         print "Command:", " ".join(command)
         rc = subprocess.call(command)
         if rc < 0:
