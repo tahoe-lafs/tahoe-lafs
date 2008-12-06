@@ -374,11 +374,11 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_created)
         return d
 
-    def failUnlessCurrentSeqnumIs(self, n, expected_seqnum):
+    def failUnlessCurrentSeqnumIs(self, n, expected_seqnum, which):
         d = n.get_servermap(MODE_READ)
         d.addCallback(lambda servermap: servermap.best_recoverable_version())
         d.addCallback(lambda verinfo:
-                      self.failUnlessEqual(verinfo[0], expected_seqnum))
+                      self.failUnlessEqual(verinfo[0], expected_seqnum, which))
         return d
 
     def test_modify(self):
@@ -399,30 +399,37 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             if len(calls) <= 1:
                 raise UncoordinatedWriteError("simulated")
             return old_contents + "line3"
+        def _ucw_error_non_modifier(old_contents, servermap, first_time):
+            # simulate an UncoordinatedWriteError once, and don't actually
+            # modify the contents on subsequent invocations
+            calls.append(1)
+            if len(calls) <= 1:
+                raise UncoordinatedWriteError("simulated")
+            return old_contents
 
         d = self.client.create_mutable_file("line1")
         def _created(n):
             d = n.modify(_modifier)
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
-            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "m"))
 
             d.addCallback(lambda res: n.modify(_non_modifier))
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
-            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "non"))
 
             d.addCallback(lambda res: n.modify(_none_modifier))
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
-            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "none"))
 
             d.addCallback(lambda res:
                           self.shouldFail(ValueError, "error_modifier", None,
                                           n.modify, _error_modifier))
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
-            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "err"))
 
             d.addCallback(lambda res:
                           self.shouldFail(FileTooLargeError, "toobig_modifier",
@@ -430,14 +437,32 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
                                           n.modify, _toobig_modifier))
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
-            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "big"))
 
             d.addCallback(lambda res: n.modify(_ucw_error_modifier))
             d.addCallback(lambda res: self.failUnlessEqual(len(calls), 2))
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res,
                                                            "line1line2line3"))
-            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 3))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 3, "ucw"))
+
+            def _reset_ucw_error_modifier(res):
+                calls[:] = []
+                return res
+            d.addCallback(_reset_ucw_error_modifier)
+
+            # in practice, this n.modify call should publish twice: the first
+            # one gets a UCWE, the second does not. But our test jig (in
+            # which the modifier raises the UCWE) skips over the first one,
+            # so in this test there will be only one publish, and the seqnum
+            # will only be one larger than the previous test, not two (i.e. 4
+            # instead of 5).
+            d.addCallback(lambda res: n.modify(_ucw_error_non_modifier))
+            d.addCallback(lambda res: self.failUnlessEqual(len(calls), 2))
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res: self.failUnlessEqual(res,
+                                                           "line1line2line3"))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 4, "ucw"))
 
             return d
         d.addCallback(_created)
@@ -472,7 +497,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d = n.modify(_modifier)
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
-            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "m"))
 
             d.addCallback(lambda res:
                           self.shouldFail(UncoordinatedWriteError,
@@ -481,7 +506,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
                                           _backoff_stopper))
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
-            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "stop"))
 
             def _reset_ucw_error_modifier(res):
                 calls[:] = []
@@ -492,7 +517,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res,
                                                            "line1line2line3"))
-            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 3))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 3, "pause"))
 
             d.addCallback(lambda res:
                           self.shouldFail(UncoordinatedWriteError,
@@ -502,7 +527,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res,
                                                            "line1line2line3"))
-            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 3))
+            d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 3, "giveup"))
 
             return d
         d.addCallback(_created)

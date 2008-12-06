@@ -387,7 +387,13 @@ class MutableFileNode:
             new_contents = modifier(old_contents, servermap, first_time)
             if new_contents is None or new_contents == old_contents:
                 # no changes need to be made
-                return
+                if first_time:
+                    return
+                # However, since Publish is not automatically doing a
+                # recovery when it observes UCWE, we need to do a second
+                # publish. See #551 for details. We'll basically loop until
+                # we managed an uncontested publish.
+                new_contents = old_contents
             precondition(isinstance(new_contents, str),
                          "Modifier function must return a string or None")
             return self._upload(new_contents, servermap)

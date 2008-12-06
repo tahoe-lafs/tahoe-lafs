@@ -769,7 +769,10 @@ class UCWEingMutableFileNode(MutableFileNode):
     def _upload(self, new_contents, servermap):
         d = MutableFileNode._upload(self, new_contents, servermap)
         def _ucwe(res):
-            raise UncoordinatedWriteError()
+            if self.please_ucwe_after_next_upload:
+                self.please_ucwe_after_next_upload = False
+                raise UncoordinatedWriteError()
+            return res
         d.addCallback(_ucwe)
         return d
 class UCWEingNewDirectoryNode(dirnode.NewDirectoryNode):
@@ -799,6 +802,8 @@ class Deleter(SystemTestMixin, unittest.TestCase):
         d.addCallback(_created_dir)
         def _do_delete(ignored):
             n = UCWEingNewDirectoryNode(self.clients[0]).init_from_uri(self.root_uri)
+            assert n._node.please_ucwe_after_next_upload == False
+            n._node.please_ucwe_after_next_upload = True
             # This should succeed, not raise an exception
             return n.delete(u"file")
         d.addCallback(_do_delete)
