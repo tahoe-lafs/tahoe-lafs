@@ -558,8 +558,7 @@ class DirectoryAsHTML(rend.Page):
             ctx.fillSlots("size", "-")
             info_link = "%s/uri/%s/?t=info" % (root, quoted_uri)
 
-        moreinfourl = "%s/uri/%s?t=info" % (root, quoted_uri)
-        ctx.fillSlots("info", T.a(href=moreinfourl)["More Info"])
+        ctx.fillSlots("info", T.a(href=info_link)["More Info"])
 
         return ctx.tag
 
