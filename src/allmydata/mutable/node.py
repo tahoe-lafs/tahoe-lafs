@@ -328,10 +328,12 @@ class MutableFileNode:
         I implement the following pseudocode::
 
          obtain_mutable_filenode_lock()
+         first_time = True
          while True:
            update_servermap(MODE_WRITE)
            old = retrieve_best_version()
-           new = modifier(old, *args, **kwargs)
+           new = modifier(old, servermap, first_time)
+           first_time = False
            if new == old: break
            try:
              publish(new)
@@ -366,23 +368,23 @@ class MutableFileNode:
         servermap = ServerMap()
         if backoffer is None:
             backoffer = BackoffAgent().delay
-        return self._modify_and_retry(servermap, modifier, backoffer)
-    def _modify_and_retry(self, servermap, modifier, backoffer):
-        d = self._modify_once(servermap, modifier)
+        return self._modify_and_retry(servermap, modifier, backoffer, True)
+    def _modify_and_retry(self, servermap, modifier, backoffer, first_time):
+        d = self._modify_once(servermap, modifier, first_time)
         def _retry(f):
             f.trap(UncoordinatedWriteError)
             d2 = defer.maybeDeferred(backoffer, self, f)
             d2.addCallback(lambda ignored:
                            self._modify_and_retry(servermap, modifier,
-                                                  backoffer))
+                                                  backoffer, False))
             return d2
         d.addErrback(_retry)
         return d
-    def _modify_once(self, servermap, modifier):
+    def _modify_once(self, servermap, modifier, first_time):
         d = self._update_servermap(servermap, MODE_WRITE)
         d.addCallback(self._once_updated_download_best_version, servermap)
         def _apply(old_contents):
-            new_contents = modifier(old_contents)
+            new_contents = modifier(old_contents, servermap, first_time)
             if new_contents is None or new_contents == old_contents:
                 # no changes need to be made
                 return

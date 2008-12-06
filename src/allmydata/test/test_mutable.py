@@ -382,18 +382,18 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
     def test_modify(self):
-        def _modifier(old_contents):
+        def _modifier(old_contents, servermap, first_time):
             return old_contents + "line2"
-        def _non_modifier(old_contents):
+        def _non_modifier(old_contents, servermap, first_time):
             return old_contents
-        def _none_modifier(old_contents):
+        def _none_modifier(old_contents, servermap, first_time):
             return None
-        def _error_modifier(old_contents):
+        def _error_modifier(old_contents, servermap, first_time):
             raise ValueError("oops")
-        def _toobig_modifier(old_contents):
+        def _toobig_modifier(old_contents, servermap, first_time):
             return "b" * (Publish.MAX_SEGMENT_SIZE+1)
         calls = []
-        def _ucw_error_modifier(old_contents):
+        def _ucw_error_modifier(old_contents, servermap, first_time):
             # simulate an UncoordinatedWriteError once
             calls.append(1)
             if len(calls) <= 1:
@@ -444,16 +444,16 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
     def test_modify_backoffer(self):
-        def _modifier(old_contents):
+        def _modifier(old_contents, servermap, first_time):
             return old_contents + "line2"
         calls = []
-        def _ucw_error_modifier(old_contents):
+        def _ucw_error_modifier(old_contents, servermap, first_time):
             # simulate an UncoordinatedWriteError once
             calls.append(1)
             if len(calls) <= 1:
                 raise UncoordinatedWriteError("simulated")
             return old_contents + "line3"
-        def _always_ucw_error_modifier(old_contents):
+        def _always_ucw_error_modifier(old_contents, servermap, first_time):
             raise UncoordinatedWriteError("simulated")
         def _backoff_stopper(node, f):
             return f
@@ -1658,7 +1658,7 @@ class MultipleVersions(unittest.TestCase, PublishMixin, CheckerMixin):
         target[0] = 3 # seqnum4
         self._set_versions(target)
 
-        def _modify(oldversion):
+        def _modify(oldversion, servermap, first_time):
             return oldversion + " modified"
         d = self._fn.modify(_modify)
         d.addCallback(lambda res: self._fn.download_best_version())

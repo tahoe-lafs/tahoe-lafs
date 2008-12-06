@@ -24,7 +24,7 @@ class Deleter:
         self.node = node
         self.name = name
         self.must_exist = True
-    def modify(self, old_contents):
+    def modify(self, old_contents, servermap, first_time):
         children = self.node._unpack_contents(old_contents)
         if self.name not in children:
             if self.must_exist:
@@ -42,7 +42,7 @@ class MetadataSetter:
         self.name = name
         self.metadata = metadata
 
-    def modify(self, old_contents):
+    def modify(self, old_contents, servermap, first_time):
         children = self.node._unpack_contents(old_contents)
         if self.name not in children:
             raise NoSuchChildError(self.name)
@@ -62,7 +62,7 @@ class Adder:
     def set_node(self, name, node, metadata):
         self.entries.append( [name, node, metadata] )
 
-    def modify(self, old_contents):
+    def modify(self, old_contents, servermap, first_time):
         children = self.node._unpack_contents(old_contents)
         now = time.time()
         for e in self.entries:

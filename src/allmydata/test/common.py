@@ -256,7 +256,7 @@ class FakeMutableFileNode:
     def _modify(self, modifier):
         assert not self.is_readonly()
         old_contents = self.all_contents[self.storage_index]
-        self.all_contents[self.storage_index] = modifier(old_contents)
+        self.all_contents[self.storage_index] = modifier(old_contents, None, True)
         return None
 
     def download(self, target):

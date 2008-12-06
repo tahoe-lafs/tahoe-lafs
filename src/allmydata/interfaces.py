@@ -618,12 +618,14 @@ class IMutableFileNode(IFileNode, IMutableFilesystemNode):
         uploading the new version. I return a Deferred that fires (with a
         PublishStatus object) when the update is complete.
 
-        The modifier callable will be given two arguments: a string (with the
-        old contents) and a servermap. As with download_best_version(), the
-        old contents will be from the best recoverable version, but the
-        modifier can use the servermap to make other decisions (such as
-        refusing to apply the delta if there are multiple parallel versions,
-        or if there is evidence of a newer unrecoverable version).
+        The modifier callable will be given three arguments: a string (with
+        the old contents), a 'first_time' boolean, and a servermap. As with
+        download_best_version(), the old contents will be from the best
+        recoverable version, but the modifier can use the servermap to make
+        other decisions (such as refusing to apply the delta if there are
+        multiple parallel versions, or if there is evidence of a newer
+        unrecoverable version). 'first_time' will be True the first time the
+        modifier is called, and False on any subsequent calls.
 
         The callable should return a string with the new contents. The
         callable must be prepared to be called multiple times, and must
