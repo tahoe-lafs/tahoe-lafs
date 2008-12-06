@@ -9,10 +9,12 @@ from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
      INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode, \
      ExistingChildError, NoSuchChildError, \
      IDeepCheckResults, IDeepCheckAndRepairResults
+from allmydata.mutable.node import MutableFileNode
+from allmydata.mutable.common import UncoordinatedWriteError
 from allmydata.util import hashutil, base32
 from allmydata.monitor import Monitor
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
-     FakeDirectoryNode, create_chk_filenode, ErrorMixin
+     FakeDirectoryNode, create_chk_filenode, ErrorMixin, SystemTestMixin
 from allmydata.checker_results import CheckerResults, CheckAndRepairResults
 import common_util as testutil
 
@@ -760,4 +762,46 @@ class DeepStats(unittest.TestCase):
                                (1001, 3162, 99),
                                (3162277660169L, 10000000000000L, 1),
                                ])
+
+class UCWEingMutableFileNode(MutableFileNode):
+    please_ucwe_after_next_upload = False
+
+    def _upload(self, new_contents, servermap):
+        d = MutableFileNode._upload(self, new_contents, servermap)
+        def _ucwe(res):
+            raise UncoordinatedWriteError()
+        d.addCallback(_ucwe)
+        return d
+class UCWEingNewDirectoryNode(dirnode.NewDirectoryNode):
+    filenode_class = UCWEingMutableFileNode
+
+
+class Deleter(SystemTestMixin, unittest.TestCase):
+    def test_retry(self):
+        # ticket #550, a dirnode.delete which experiences an
+        # UncoordinatedWriteError will fail with an incorrect "you're
+        # deleting something which isn't there" NoSuchChildError exception.
+
+        # to trigger this, we start by creating a directory with a single
+        # file in it. Then we create a special dirnode that uses a modified
+        # MutableFileNode which will raise UncoordinatedWriteError once on
+        # demand. We then call dirnode.delete, which ought to retry and
+        # succeed.
+
+        self.basedir = self.mktemp()
+        d = self.set_up_nodes()
+        d.addCallback(lambda ignored: self.clients[0].create_empty_dirnode())
+        small = upload.Data("Small enough for a LIT", None)
+        def _created_dir(dn):
+            self.root = dn
+            self.root_uri = dn.get_uri()
+            return dn.add_file(u"file", small)
+        d.addCallback(_created_dir)
+        def _do_delete(ignored):
+            n = UCWEingNewDirectoryNode(self.clients[0]).init_from_uri(self.root_uri)
+            # This should succeed, not raise an exception
+            return n.delete(u"file")
+        d.addCallback(_do_delete)
+
+        return d
 

@@ -27,7 +27,7 @@ class Deleter:
     def modify(self, old_contents, servermap, first_time):
         children = self.node._unpack_contents(old_contents)
         if self.name not in children:
-            if self.must_exist:
+            if first_time and self.must_exist:
                 raise NoSuchChildError(self.name)
             self.old_child = None
             return None
