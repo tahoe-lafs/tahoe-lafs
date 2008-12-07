@@ -22,7 +22,7 @@ from allmydata.util import hashutil, base32, pollmixin, cachedir
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.uri import LiteralFileURI
 from allmydata.dirnode import NewDirectoryNode
-from allmydata.mutable.node import MutableFileNode, MutableWatcher
+from allmydata.mutable.filenode import MutableFileNode, MutableWatcher
 from allmydata.stats import StatsProvider
 from allmydata.interfaces import IURI, INewDirectoryURI, IStatsProducer, \
      IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, RIStubClient

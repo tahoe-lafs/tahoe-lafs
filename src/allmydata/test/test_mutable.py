@@ -18,7 +18,7 @@ from foolscap.eventual import eventually, fireEventually
 from foolscap.logging import log
 import sha
 
-from allmydata.mutable.node import MutableFileNode, BackoffAgent
+from allmydata.mutable.filenode import MutableFileNode, BackoffAgent
 from allmydata.mutable.common import DictOfSets, ResponseCache, \
      MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, \
      NeedMoreDataError, UnrecoverableFileError, UncoordinatedWriteError, \
@@ -27,7 +27,7 @@ from allmydata.mutable.retrieve import Retrieve
 from allmydata.mutable.publish import Publish
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
 from allmydata.mutable.layout import unpack_header, unpack_share
-from allmydata.mutable.repair import MustForceRepairError
+from allmydata.mutable.repairer import MustForceRepairError
 
 import common_util as testutil
 

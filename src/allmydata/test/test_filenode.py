@@ -3,7 +3,7 @@ from twisted.trial import unittest
 from allmydata import uri
 from allmydata.monitor import Monitor
 from allmydata.immutable import filenode, download
-from allmydata.mutable.node import MutableFileNode
+from allmydata.mutable.filenode import MutableFileNode
 from allmydata.util import hashutil, cachedir
 from allmydata.test.common import download_to_data
 

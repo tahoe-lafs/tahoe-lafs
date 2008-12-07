@@ -5,7 +5,7 @@ from zope.interface import implements
 from twisted.internet import defer
 import simplejson
 from allmydata.mutable.common import NotMutableError
-from allmydata.mutable.node import MutableFileNode
+from allmydata.mutable.filenode import MutableFileNode
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
      IURI, IFileNode, IMutableFileURI, IFilesystemNode, \
      ExistingChildError, NoSuchChildError, ICheckable, IDeepCheckable

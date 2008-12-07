@@ -20,7 +20,7 @@ from common import MODE_READ, MODE_WRITE, UnrecoverableFileError, \
 from servermap import ServerMap, ServermapUpdater
 from retrieve import Retrieve
 from checker import MutableChecker, MutableCheckAndRepairer
-from repair import Repairer
+from repairer import Repairer
 
 
 class BackoffAgent:
