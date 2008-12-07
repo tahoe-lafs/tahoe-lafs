@@ -9,7 +9,7 @@ from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
      INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode, \
      ExistingChildError, NoSuchChildError, \
      IDeepCheckResults, IDeepCheckAndRepairResults
-from allmydata.mutable.node import MutableFileNode
+from allmydata.mutable.filenode import MutableFileNode
 from allmydata.mutable.common import UncoordinatedWriteError
 from allmydata.util import hashutil, base32
 from allmydata.monitor import Monitor
