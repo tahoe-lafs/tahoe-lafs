@@ -295,21 +295,16 @@ class IntroducerClient(service.Service, Referenceable):
                           for c in self._connections
                           if c[1] == service_name])
 
+    def get_peers(self, service_name):
+        """Return a set of (peerid, versioned-rref) tuples."""
+        return frozenset([(pid, r) for (pid, servname, r) in self._connections if servname == servname])
+
     def get_permuted_peers(self, service_name, key):
         """Return an ordered list of (peerid, versioned-rref) tuples."""
 
-        results = []
-        for (c_peerid, c_service_name, rref) in self._connections:
-            assert isinstance(c_peerid, str)
-            if c_service_name != service_name:
-                continue
-            permuted = sha.new(key + c_peerid).digest()
-            results.append((permuted, c_peerid, rref))
+        servers = self.get_peers(service_name)
 
-        results.sort(lambda a,b: cmp(a[0], b[0]))
-        return [ (r[1], r[2]) for r in results ]
-
-
+        return sorted(servers, key=lambda x: sha.new(key+x[0]).digest())
 
     def remote_set_encoding_parameters(self, parameters):
         self.encoding_parameters = parameters
