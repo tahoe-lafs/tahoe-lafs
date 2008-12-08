@@ -218,8 +218,8 @@ class MutableFileNode:
             return cmp(self.__class__, them.__class__)
         return cmp(self._uri, them._uri)
 
-    def get_verifier(self):
-        return IMutableFileURI(self._uri).get_verifier()
+    def get_verify_cap(self):
+        return IMutableFileURI(self._uri).get_verify_cap()
 
     def _do_serialized(self, cb, *args, **kwargs):
         # note: to avoid deadlock, this callable is *not* allowed to invoke

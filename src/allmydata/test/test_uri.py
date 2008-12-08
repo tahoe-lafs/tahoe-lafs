@@ -27,7 +27,7 @@ class Literal(unittest.TestCase):
 
         u3 = u.get_readonly()
         self.failUnlessIdentical(u, u3)
-        self.failUnlessEqual(u.get_verifier(), None)
+        self.failUnlessEqual(u.get_verify_cap(), None)
 
         he = u.to_human_encoding()
         u_h = uri.LiteralFileURI.init_from_human_encoding(he)
@@ -114,7 +114,7 @@ class CHKFile(unittest.TestCase):
         self.failUnless(u2.is_readonly())
         self.failIf(u2.is_mutable())
 
-        v = u.get_verifier()
+        v = u.get_verify_cap()
         self.failUnless(isinstance(v.to_string(), str))
         v2 = uri.from_string(v.to_string())
         self.failUnlessEqual(v, v2)
@@ -249,13 +249,13 @@ class Mutable(unittest.TestCase):
         self.failUnless("ReadonlySSKFileURI" in str(u4a))
         self.failUnlessIdentical(u4a.get_readonly(), u4a)
 
-        u5 = u4.get_verifier()
+        u5 = u4.get_verify_cap()
         self.failUnless(IVerifierURI.providedBy(u5))
         self.failUnlessEqual(u5.storage_index, u.storage_index)
         u6 = IVerifierURI(u5.to_string())
         self.failUnless(IVerifierURI.providedBy(u6))
         self.failUnlessEqual(u6.storage_index, u.storage_index)
-        u7 = u.get_verifier()
+        u7 = u.get_verify_cap()
         self.failUnless(IVerifierURI.providedBy(u7))
         self.failUnlessEqual(u7.storage_index, u.storage_index)
 
@@ -315,17 +315,17 @@ class NewDirnode(unittest.TestCase):
         self.failIf(IFileURI.providedBy(u4))
         self.failUnless(IDirnodeURI.providedBy(u4))
 
-        u4_verifier = u4.get_verifier()
+        u4_verifier = u4.get_verify_cap()
         u4_verifier_filenode = u4_verifier.get_filenode_uri()
         self.failUnless(isinstance(u4_verifier_filenode, uri.SSKVerifierURI))
 
-        verifiers = [u1.get_verifier(), u2.get_verifier(),
-                     u3.get_verifier(), u4.get_verifier(),
-                     IVerifierURI(u1.get_verifier().to_string()),
-                     uri.NewDirectoryURIVerifier(n.get_verifier()),
-                     uri.NewDirectoryURIVerifier(n.get_verifier().to_string()),
+        verifiers = [u1.get_verify_cap(), u2.get_verify_cap(),
+                     u3.get_verify_cap(), u4.get_verify_cap(),
+                     IVerifierURI(u1.get_verify_cap().to_string()),
+                     uri.NewDirectoryURIVerifier(n.get_verify_cap()),
+                     uri.NewDirectoryURIVerifier(n.get_verify_cap().to_string()),
                      ]
         for v in verifiers:
             self.failUnless(IVerifierURI.providedBy(v))
             self.failUnlessEqual(v._filenode_uri,
-                                 u1.get_verifier()._filenode_uri)
+                                 u1.get_verify_cap()._filenode_uri)

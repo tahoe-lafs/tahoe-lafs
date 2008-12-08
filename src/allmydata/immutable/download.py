@@ -830,7 +830,7 @@ class FileDownloader:
 
         vups = []
         for sharenum, bucket in self._share_buckets:
-            vups.append(ValidatedExtendedURIProxy(bucket, self._uri.get_verifier(), self._fetch_failures))
+            vups.append(ValidatedExtendedURIProxy(bucket, self._uri.get_verify_cap(), self._fetch_failures))
         vto = ValidatedThingObtainer(vups, debugname="vups", log_id=self._log_number)
         d = vto.start()
 

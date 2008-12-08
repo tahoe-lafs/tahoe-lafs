@@ -657,7 +657,7 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
 
     def test_GET_unhandled_URI_named(self):
         contents, n, newuri = self.makefile(12)
-        verifier_cap = n.get_verifier().to_string()
+        verifier_cap = n.get_verify_cap().to_string()
         base = "/file/%s" % urllib.quote(verifier_cap)
         # client.create_node_from_uri() can't handle verify-caps
         d = self.shouldFail2(error.Error, "GET_unhandled_URI_named",
@@ -668,7 +668,7 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
 
     def test_GET_unhandled_URI(self):
         contents, n, newuri = self.makefile(12)
-        verifier_cap = n.get_verifier().to_string()
+        verifier_cap = n.get_verify_cap().to_string()
         base = "/uri/%s" % urllib.quote(verifier_cap)
         # client.create_node_from_uri() can't handle verify-caps
         d = self.shouldFail2(error.Error, "test_GET_unhandled_URI",

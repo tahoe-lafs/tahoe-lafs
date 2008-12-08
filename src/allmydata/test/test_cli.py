@@ -100,7 +100,7 @@ class CLI(unittest.TestCase):
                                 u.to_string())
         self.failUnless("client renewal secret: znxmki5zdibb5qlt46xbdvk2t55j7hibejq3i5ijyurkr6m6jkhq" in output, output)
 
-        output = self._dump_cap(u.get_verifier().to_string())
+        output = self._dump_cap(u.get_verify_cap().to_string())
         self.failIf("key: " in output, output)
         self.failUnless("UEB hash: nf3nimquen7aeqm36ekgxomalstenpkvsdmf6fplj7swdatbv5oa" in output, output)
         self.failUnless("size: 1234" in output, output)
@@ -169,7 +169,7 @@ class CLI(unittest.TestCase):
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
-        u = u.get_verifier()
+        u = u.get_verify_cap()
         output = self._dump_cap(u.to_string())
         self.failUnless("SSK Verifier URI:" in output, output)
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
@@ -213,7 +213,7 @@ class CLI(unittest.TestCase):
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
-        u = u.get_verifier()
+        u = u.get_verify_cap()
         output = self._dump_cap(u.to_string())
         self.failUnless("Directory Verifier URI:" in output, output)
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)

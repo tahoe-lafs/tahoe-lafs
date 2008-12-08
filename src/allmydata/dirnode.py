@@ -222,8 +222,8 @@ class NewDirectoryNode:
     def get_readonly_uri(self):
         return self._uri.get_readonly().to_string()
 
-    def get_verifier(self):
-        return self._uri.get_verifier()
+    def get_verify_cap(self):
+        return self._uri.get_verify_cap()
 
     def get_storage_index(self):
         return self._uri._filenode_uri.storage_index
@@ -479,7 +479,7 @@ class NewDirectoryNode:
         monitor = Monitor()
         walker.set_monitor(monitor)
 
-        found = set([self.get_verifier()])
+        found = set([self.get_verify_cap()])
         limiter = ConcurrencyLimiter(10)
         d = self._deep_traverse_dirnode(self, [],
                                         walker, monitor, found, limiter)
@@ -504,7 +504,7 @@ class NewDirectoryNode:
         monitor.raise_if_cancelled()
         dl = [limiter.add(walker.enter_directory, parent, children)]
         for name, (child, metadata) in children.iteritems():
-            verifier = child.get_verifier()
+            verifier = child.get_verify_cap()
             # allow LIT files (for which verifier==None) to be processed
             if (verifier is not None) and (verifier in found):
                 continue
@@ -651,7 +651,7 @@ class ManifestWalker(DeepStats):
         si = node.get_storage_index()
         if si:
             self.storage_index_strings.add(base32.b2a(si))
-        v = node.get_verifier()
+        v = node.get_verify_cap()
         if v:
             self.verifycaps.add(v.to_string())
         return DeepStats.add_node(self, node, path)

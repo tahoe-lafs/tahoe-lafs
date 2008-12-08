@@ -2470,9 +2470,9 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                                  base32.b2a(self.root.get_storage_index()))
             verifycaps = data["verifycaps"]
             self.failUnlessEqual(len(verifycaps), 3)
-            self.failUnless(self.root.get_verifier().to_string() in verifycaps)
-            self.failUnless(self.mutable.get_verifier().to_string() in verifycaps)
-            self.failUnless(self.large.get_verifier().to_string() in verifycaps)
+            self.failUnless(self.root.get_verify_cap().to_string() in verifycaps)
+            self.failUnless(self.mutable.get_verify_cap().to_string() in verifycaps)
+            self.failUnless(self.large.get_verify_cap().to_string() in verifycaps)
         d.addCallback(_check2r)
 
         d.addCallback(lambda res:

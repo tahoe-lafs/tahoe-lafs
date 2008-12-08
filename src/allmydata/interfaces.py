@@ -365,7 +365,7 @@ class IURI(Interface):
         """Return another IURI instance, which represents a read-only form of
         this one. If is_readonly() is True, this returns self."""
 
-    def get_verifier():
+    def get_verify_cap():
         """Return an instance that provides IVerifierURI, which can be used
         to check on the availability of the file or directory, without
         providing enough capabilities to actually read or modify the
@@ -426,7 +426,7 @@ class IFilesystemNode(Interface):
         get_readonly_uri() will return the same thing as get_uri().
         """
 
-    def get_verifier():
+    def get_verify_cap():
         """Return an IVerifierURI instance that represents the
         'verifiy/refresh capability' for this node. The holder of this
         capability will be able to renew the lease for this node, protecting

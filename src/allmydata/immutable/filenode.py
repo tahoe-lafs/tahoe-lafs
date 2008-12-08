@@ -181,8 +181,8 @@ class FileNode(_ImmutableFileNodeBase):
     def get_size(self):
         return self.u.get_size()
 
-    def get_verifier(self):
-        return self.u.get_verifier()
+    def get_verify_cap(self):
+        return self.u.get_verify_cap()
 
     def get_storage_index(self):
         return self.u.storage_index
@@ -265,7 +265,7 @@ class LiteralFileNode(_ImmutableFileNodeBase):
     def get_size(self):
         return len(self.u.data)
 
-    def get_verifier(self):
+    def get_verify_cap(self):
         return None
 
     def get_storage_index(self):

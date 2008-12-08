@@ -40,7 +40,7 @@ class Node(unittest.TestCase):
         self.failUnlessEqual(fn1.get_storage_index(), u.storage_index)
         d = {}
         d[fn1] = 1 # exercise __hash__
-        v = fn1.get_verifier()
+        v = fn1.get_verify_cap()
         self.failUnless(isinstance(v, uri.CHKFileVerifierURI))
 
 
@@ -62,7 +62,7 @@ class Node(unittest.TestCase):
         d = {}
         d[fn1] = 1 # exercise __hash__
 
-        v = fn1.get_verifier()
+        v = fn1.get_verify_cap()
         self.failUnlessEqual(v, None)
 
         d = fn1.download(download.Data())
@@ -125,7 +125,7 @@ class Node(unittest.TestCase):
         self.failUnlessEqual(nro.is_mutable(), True)
         self.failUnlessEqual(nro.is_readonly(), True)
 
-        v = n.get_verifier()
+        v = n.get_verify_cap()
         self.failUnless(isinstance(v, uri.SSKVerifierURI))
 
 class LiteralChecker(unittest.TestCase):

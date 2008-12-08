@@ -36,7 +36,7 @@ class Marker:
         return self.nodeuri
     def get_readonly_uri(self):
         return self.nodeuri
-    def get_verifier(self):
+    def get_verify_cap(self):
         return self.verifieruri
     def get_storage_index(self):
         return self.storage_index
@@ -295,7 +295,7 @@ class Dirnode(unittest.TestCase,
             self.failUnless(u.startswith("URI:DIR2:"), u)
             u_ro = n.get_readonly_uri()
             self.failUnless(u_ro.startswith("URI:DIR2-RO:"), u_ro)
-            u_v = n.get_verifier().to_string()
+            u_v = n.get_verify_cap().to_string()
             self.failUnless(u_v.startswith("URI:DIR2-Verifier:"), u_v)
             self.expected_manifest.append( ((), u) )
             self.expected_verifycaps.add(u_v)
@@ -311,7 +311,7 @@ class Dirnode(unittest.TestCase,
             fake_file_uri = make_mutable_file_uri()
             other_file_uri = make_mutable_file_uri()
             m = Marker(fake_file_uri)
-            ffu_v = m.get_verifier().to_string()
+            ffu_v = m.get_verify_cap().to_string()
             self.expected_manifest.append( ((u"child",) , m.get_uri()) )
             self.expected_verifycaps.add(ffu_v)
             self.expected_storage_indexes.add(base32.b2a(m.get_storage_index()))
@@ -332,7 +332,7 @@ class Dirnode(unittest.TestCase,
             def _created(subdir):
                 self.failUnless(isinstance(subdir, FakeDirectoryNode))
                 self.subdir = subdir
-                new_v = subdir.get_verifier().to_string()
+                new_v = subdir.get_verify_cap().to_string()
                 assert isinstance(new_v, str)
                 self.expected_manifest.append( ((u"subdir",), subdir.get_uri()) )
                 self.expected_verifycaps.add(new_v)

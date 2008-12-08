@@ -85,7 +85,7 @@ class MoreInfo(rend.Page):
         node = self.original
         if not IDirectoryNode.providedBy(node):
             return ""
-        return ctx.tag[node.get_verifier().to_string()]
+        return ctx.tag[node.get_verify_cap().to_string()]
 
 
     def render_file_writecap(self, ctx, data):
@@ -106,9 +106,9 @@ class MoreInfo(rend.Page):
         node = self.original
         if IDirectoryNode.providedBy(node):
             node = node._node
-        verifier = node.get_verifier()
+        verifier = node.get_verify_cap()
         if verifier:
-            return ctx.tag[node.get_verifier().to_string()]
+            return ctx.tag[node.get_verify_cap().to_string()]
         return ""
 
     def get_root(self, ctx):

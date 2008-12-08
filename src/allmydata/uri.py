@@ -99,7 +99,7 @@ class CHKFileURI(_BaseURI):
     def get_size(self):
         return self.size
 
-    def get_verifier(self):
+    def get_verify_cap(self):
         return CHKFileVerifierURI(storage_index=self.storage_index,
                                   uri_extension_hash=self.uri_extension_hash,
                                   needed_shares=self.needed_shares,
@@ -185,7 +185,7 @@ class LiteralFileURI(_BaseURI):
     def get_storage_index(self):
         return None
 
-    def get_verifier(self):
+    def get_verify_cap(self):
         # LIT files need no verification, all the data is present in the URI
         return None
 
@@ -238,7 +238,7 @@ class WriteableSSKFileURI(_BaseURI):
         return True
     def get_readonly(self):
         return ReadonlySSKFileURI(self.readkey, self.fingerprint)
-    def get_verifier(self):
+    def get_verify_cap(self):
         return SSKVerifierURI(self.storage_index, self.fingerprint)
 
 class ReadonlySSKFileURI(_BaseURI):
@@ -284,7 +284,7 @@ class ReadonlySSKFileURI(_BaseURI):
         return True
     def get_readonly(self):
         return self
-    def get_verifier(self):
+    def get_verify_cap(self):
         return SSKVerifierURI(self.storage_index, self.fingerprint)
 
 class SSKVerifierURI(_BaseURI):
@@ -361,8 +361,8 @@ class _NewDirectoryBaseURI(_BaseURI):
     def is_mutable(self):
         return True
 
-    def get_verifier(self):
-        return NewDirectoryURIVerifier(self._filenode_uri.get_verifier())
+    def get_verify_cap(self):
+        return NewDirectoryURIVerifier(self._filenode_uri.get_verify_cap())
 
     def get_storage_index(self):
         return self._filenode_uri.get_storage_index()
