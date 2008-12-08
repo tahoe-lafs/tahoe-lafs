@@ -11,8 +11,8 @@ install_requires=[
 
                   # We had a unicode problem with simplejson 1.8.1 on dapper -- see ticket #543,
                   # but we want to install using Gutsy or Hardy simplejson .deb's if possible --
-                  # see ticket #555.
-                  "simplejson >= 1.7.1",
+                  # see ticket #555.  Feisty has simplejson 1.4
+                  "simplejson >= 1.4",
 
                   "zope.interface",
                   "Twisted >= 2.4.0",
