@@ -67,7 +67,8 @@ PUT, or DELETE. POST operations can be thought of as a method call: sending
 some message to the object referenced by the URL. In Tahoe, POST is also used
 for operations that must be triggered by an HTML form (including upload and
 delete), because otherwise a regular web browser has no way to accomplish
-these tasks.
+these tasks. In general, everything that can be done with a PUT or DELETE can
+also be done with a POST.
 
 Tahoe's web API is designed for two different consumers. The first is a
 program that needs to manipulate the virtual file system. Such programs are
@@ -860,7 +861,7 @@ POST $URL?t=start-deep-check    (must add &ophandle=XYZ)
                          invoked. The 'check-results' field is the same as
                          that returned by t=check&output=JSON, described
                          above.
-   stats: a dictionary with the same keys as the t=deep-stats command
+   stats: a dictionary with the same keys as the t=start-deep-stats command
           (described below)
 
 POST $URL?t=check&repair=true
@@ -942,7 +943,7 @@ POST $URL?t=start-deep-check&repair=true    (must add &ophandle=XYZ)
                          invoked. The 'check-results' field is the same as
                          that returned by t=check&repair=true&output=JSON,
                          described above.
-   stats: a dictionary with the same keys as the t=deep-stats command
+   stats: a dictionary with the same keys as the t=start-deep-stats command
           (described below)
 
 POST $DIRURL?t=start-manifest    (must add &ophandle=XYZ)
@@ -972,7 +973,7 @@ POST $DIRURL?t=start-manifest    (must add &ophandle=XYZ)
    manifest: list of (path, cap) tuples, where path is a list of strings.
    verifycaps: list of (printable) verify cap strings
    storage-index: list of (base32) storage index strings
-   stats: a dictionary with the same keys as the t=deep-stats command
+   stats: a dictionary with the same keys as the t=start-deep-stats command
           (described below)
 
 POST $DIRURL?t=start-deep-size    (must add &ophandle=XYZ)
