@@ -9,8 +9,10 @@ install_requires=[
                   "pycryptopp >= 0.5",
                   "zfec >= 1.1.0",
 
-                  # We had a unicode problem with simplejson 1.8.1 on dapper -- see ticket #543.
-                  "simplejson > 1.8.1",
+                  # We had a unicode problem with simplejson 1.8.1 on dapper -- see ticket #543,
+                  # but we want to install using Gutsy or Hardy simplejson .deb's if possible --
+                  # see ticket #555.
+                  "simplejson >= 1.7.1",
 
                   "zope.interface",
                   "Twisted >= 2.4.0",
