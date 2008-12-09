@@ -251,6 +251,11 @@ class Client(node.Node, pollmixin.PollMixin):
     def _lost_key_generator(self):
         self._key_generator = None
 
+    def get_servers(self, service_name):
+        """ Return set of (peerid, versioned-rref) """
+        assert isinstance(service_name, str)
+        return self.introducer_client.get_peers(service_name)
+
     def init_web(self, webport):
         self.log("init_web(webport=%s)", args=(webport,))
 
