@@ -436,7 +436,7 @@
          sodipodi:role="line"
          id="tspan3344"
          x="68.653069"
-         y="466.45987">subshare hash tree</tspan></text>
+         y="466.45987">block hash tree</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
@@ -447,7 +447,7 @@
          sodipodi:role="line"
          id="tspan3352"
          x="321.63498"
-         y="405.33044">&quot;subshare root hash&quot;</tspan></text>
+         y="405.33044">&quot;block root hash&quot;</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:20px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:black;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Charter"
@@ -458,7 +458,7 @@
          sodipodi:role="line"
          id="tspan3634"
          x="88.648125"
-         y="598.72913">subshare</tspan><tspan
+         y="598.72913">block</tspan><tspan
          sodipodi:role="line"
          x="88.648125"
          y="618.72913"

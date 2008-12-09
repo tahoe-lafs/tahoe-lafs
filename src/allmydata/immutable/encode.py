@@ -204,8 +204,8 @@ class Encoder(object):
         self._crypttext_hasher = hashutil.crypttext_hasher()
         self._crypttext_hashes = []
         self.segment_num = 0
-        self.subshare_hashes = [[] for x in range(self.num_shares)]
-        # subshare_hashes[i] is a list that will be accumulated and then send
+        self.block_hashes = [[] for x in range(self.num_shares)]
+        # block_hashes[i] is a list that will be accumulated and then send
         # to landlord[i]. This list contains a hash of each segment_share
         # that we sent to that landlord.
         self.share_root_hashes = [None] * self.num_shares
@@ -242,7 +242,7 @@ class Encoder(object):
                           self.send_plaintext_hash_tree_to_all_shareholders())
         d.addCallback(lambda res:
                       self.send_crypttext_hash_tree_to_all_shareholders())
-        d.addCallback(lambda res: self.send_all_subshare_hash_trees())
+        d.addCallback(lambda res: self.send_all_block_hash_trees())
         d.addCallback(lambda res: self.send_all_share_hash_trees())
         d.addCallback(lambda res: self.send_uri_extension_to_all_shareholders())
 
@@ -431,17 +431,17 @@ class Encoder(object):
         self.set_encode_and_push_progress(segnum)
         lognum = self.log("send_segment(%d)" % segnum, level=log.NOISY)
         for i in range(len(shares)):
-            subshare = shares[i]
+            block = shares[i]
             shareid = shareids[i]
-            d = self.send_subshare(shareid, segnum, subshare, lognum)
+            d = self.send_block(shareid, segnum, block, lognum)
             dl.append(d)
-            subshare_hash = hashutil.block_hash(subshare)
+            block_hash = hashutil.block_hash(block)
             #from allmydata.util import base32
             #log.msg("creating block (shareid=%d, blocknum=%d) "
             #        "len=%d %r .. %r: %s" %
-            #        (shareid, segnum, len(subshare),
-            #         subshare[:50], subshare[-50:], base32.b2a(subshare_hash)))
-            self.subshare_hashes[shareid].append(subshare_hash)
+            #        (shareid, segnum, len(block),
+            #         block[:50], block[-50:], base32.b2a(block_hash)))
+            self.block_hashes[shareid].append(block_hash)
 
         dl = self._gather_responses(dl)
         def _logit(res):
@@ -458,13 +458,13 @@ class Encoder(object):
         dl.addCallback(_logit)
         return dl
 
-    def send_subshare(self, shareid, segment_num, subshare, lognum):
+    def send_block(self, shareid, segment_num, block, lognum):
         if shareid not in self.landlords:
             return defer.succeed(None)
         sh = self.landlords[shareid]
         lognum2 = self.log("put_block to %s" % self.landlords[shareid],
                            parent=lognum, level=log.NOISY)
-        d = sh.put_block(segment_num, subshare)
+        d = sh.put_block(segment_num, block)
         def _done(res):
             self.log("put_block done", parent=lognum2, level=log.NOISY)
             return res
@@ -577,19 +577,19 @@ class Encoder(object):
         d.addErrback(self._remove_shareholder, shareid, "put_crypttext_hashes")
         return d
 
-    def send_all_subshare_hash_trees(self):
-        self.log("sending subshare hash trees", level=log.NOISY)
+    def send_all_block_hash_trees(self):
+        self.log("sending block hash trees", level=log.NOISY)
         self.set_status("Sending Subshare Hash Trees")
         self.set_encode_and_push_progress(extra=0.4)
         dl = []
-        for shareid,hashes in enumerate(self.subshare_hashes):
-            # hashes is a list of the hashes of all subshares that were sent
+        for shareid,hashes in enumerate(self.block_hashes):
+            # hashes is a list of the hashes of all blocks that were sent
             # to shareholder[shareid].
-            dl.append(self.send_one_subshare_hash_tree(shareid, hashes))
+            dl.append(self.send_one_block_hash_tree(shareid, hashes))
         return self._gather_responses(dl)
 
-    def send_one_subshare_hash_tree(self, shareid, subshare_hashes):
-        t = HashTree(subshare_hashes)
+    def send_one_block_hash_tree(self, shareid, block_hashes):
+        t = HashTree(block_hashes)
         all_hashes = list(t)
         # all_hashes[0] is the root hash, == hash(ah[1]+ah[2])
         # all_hashes[1] is the left child, == hash(ah[3]+ah[4])

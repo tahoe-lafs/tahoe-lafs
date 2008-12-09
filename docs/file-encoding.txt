@@ -48,33 +48,33 @@ ciphertexts are not secret.
 
 The ciphertext file is then broken up into segments. The last segment is
 likely to be shorter than the rest. Each segment is erasure-coded into a
-number of "subshares". This takes place one segment at a time. (In fact,
+number of "blocks". This takes place one segment at a time. (In fact,
 encryption and erasure-coding take place at the same time, once per plaintext
 segment). Larger segment sizes result in less overhead overall, but increase
 both the memory footprint and the "alacrity" (the number of bytes we have to
 receive before we can deliver validated plaintext to the user). The current
 default segment size is 128KiB.
 
-One subshare from each segment is sent to each shareholder (aka leaseholder,
+One block from each segment is sent to each shareholder (aka leaseholder,
 aka landlord, aka storage node, aka peer). The "share" held by each remote
-shareholder is nominally just a collection of these subshares. The file will
+shareholder is nominally just a collection of these blocks. The file will
 be recoverable when a certain number of shares have been retrieved.
 
 [[Image(file-encoding2.png)]]
 
-The subshares are hashed as they are generated and transmitted. These
-subshare hashes are put into a Merkle hash tree. When the last share has been
+The blocks are hashed as they are generated and transmitted. These
+block hashes are put into a Merkle hash tree. When the last share has been
 created, the merkle tree is completed and delivered to the peer. Later, when
-we retrieve these subshares, the peer will send many of the merkle hash tree
-nodes ahead of time, so we can validate each subshare independently.
+we retrieve these blocks, the peer will send many of the merkle hash tree
+nodes ahead of time, so we can validate each block independently.
 
-The root of this subshare hash tree is called the "subshare root hash" and
+The root of this block hash tree is called the "block root hash" and
 used in the next step.
 
 [[Image(file-encoding3.png)]]
 
 There is a higher-level Merkle tree called the "share hash tree". Its leaves
-are the subshare root hashes from each share. The root of this tree is called
+are the block root hashes from each share. The root of this tree is called
 the "share root hash" and is included in the "URI Extension Block", aka UEB.
 The ciphertext hash and Merkle tree are also put here, along with the
 original file size, and the encoding parameters. The UEB contains all the
@@ -97,10 +97,10 @@ represented as a (relatively) short printable string like so:
 
 During download, when a peer begins to transmit a share, it first transmits
 all of the parts of the share hash tree that are necessary to validate its
-subshare root hash. Then it transmits the portions of the subshare hash tree
-that are necessary to validate the first subshare. Then it transmits the
-first subshare. It then continues this loop: transmitting any portions of the
-subshare hash tree to validate subshare#N, then sending subshare#N.
+block root hash. Then it transmits the portions of the block hash tree
+that are necessary to validate the first block. Then it transmits the
+first block. It then continues this loop: transmitting any portions of the
+block hash tree to validate block#N, then sending block#N.
 
 [[Image(file-encoding5.png)]]
 
@@ -108,19 +108,19 @@ So the "share" that is sent to the remote peer actually consists of three
 pieces, sent in a specific order as they become available, and retrieved
 during download in a different order according to when they are needed.
 
-The first piece is the subshares themselves, one per segment. The last
-subshare will likely be shorter than the rest, because the last segment is
-probably shorter than the rest. The second piece is the subshare hash tree,
-consisting of a total of two SHA-1 hashes per subshare. The third piece is a
+The first piece is the blocks themselves, one per segment. The last
+block will likely be shorter than the rest, because the last segment is
+probably shorter than the rest. The second piece is the block hash tree,
+consisting of a total of two SHA-1 hashes per block. The third piece is a
 hash chain from the share hash tree, consisting of log2(numshares) hashes.
 
-During upload, all subshares are sent first, followed by the subshare hash
+During upload, all blocks are sent first, followed by the block hash
 tree, followed by the share hash chain. During download, the share hash chain
-is delivered first, followed by the subshare root hash. The client then uses
-the hash chain to validate the subshare root hash. Then the peer delivers
-enough of the subshare hash tree to validate the first subshare, followed by
-the first subshare itself. The subshare hash chain is used to validate the
-subshare, then it is passed (along with the first subshare from several other
+is delivered first, followed by the block root hash. The client then uses
+the hash chain to validate the block root hash. Then the peer delivers
+enough of the block hash tree to validate the first block, followed by
+the first block itself. The block hash chain is used to validate the
+block, then it is passed (along with the first block from several other
 peers) into decoding, to produce the first segment of crypttext, which is
 then decrypted to produce the first segment of plaintext, which is finally
 delivered to the user.
