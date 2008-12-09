@@ -297,7 +297,7 @@ class IntroducerClient(service.Service, Referenceable):
 
     def get_peers(self, service_name):
         """Return a set of (peerid, versioned-rref) tuples."""
-        return frozenset([(pid, r) for (pid, servname, r) in self._connections if servname == servname])
+        return frozenset([(peerid, r) for (peerid, servname, r) in self._connections if servname == service_name])
 
     def get_permuted_peers(self, service_name, key):
         """Return an ordered list of (peerid, versioned-rref) tuples."""
