@@ -71,7 +71,6 @@ PiB=1024*TiB
 
 class Encoder(object):
     implements(IEncoder)
-    USE_PLAINTEXT_HASHES = False
 
     def __init__(self, log_parent=None, upload_status=None):
         object.__init__(self)
@@ -237,9 +236,6 @@ class Encoder(object):
 
         d.addCallback(lambda res: self.finish_hashing())
 
-        if self.USE_PLAINTEXT_HASHES:
-            d.addCallback(lambda res:
-                          self.send_plaintext_hash_tree_to_all_shareholders())
         d.addCallback(lambda res:
                       self.send_crypttext_hash_tree_to_all_shareholders())
         d.addCallback(lambda res: self.send_all_block_hash_trees())
@@ -513,49 +509,7 @@ class Encoder(object):
         self.set_encode_and_push_progress(extra=0.0)
         crypttext_hash = self._crypttext_hasher.digest()
         self.uri_extension_data["crypttext_hash"] = crypttext_hash
-        d = self._uploadable.get_plaintext_hash()
-        def _got(plaintext_hash):
-            self.log(format="plaintext_hash=%(plaintext_hash)s, SI=%(SI)s, size=%(size)d",
-                     plaintext_hash=base32.b2a(plaintext_hash),
-                     SI=storage.si_b2a(self._storage_index),
-                     size=self.file_size)
-            return plaintext_hash
-        d.addCallback(_got)
-        if self.USE_PLAINTEXT_HASHES:
-            def _use_plaintext_hash(plaintext_hash):
-                self.uri_extension_data["plaintext_hash"] = plaintext_hash
-                return self._uploadable.get_plaintext_hashtree_leaves(0, self.num_segments, self.num_segments)
-            d.addCallback(_use_plaintext_hash)
-            def _got_hashtree_leaves(leaves):
-                self.log("Encoder: got plaintext_hashtree_leaves: %s" %
-                         (",".join([base32.b2a(h) for h in leaves]),),
-                         level=log.NOISY)
-                ht = list(HashTree(list(leaves)))
-                self.uri_extension_data["plaintext_root_hash"] = ht[0]
-                self._plaintext_hashtree_nodes = ht
-            d.addCallback(_got_hashtree_leaves)
-
-        d.addCallback(lambda res: self._uploadable.close())
-        return d
-
-    def send_plaintext_hash_tree_to_all_shareholders(self):
-        self.log("sending plaintext hash tree", level=log.NOISY)
-        self.set_status("Sending Plaintext Hash Tree")
-        self.set_encode_and_push_progress(extra=0.2)
-        dl = []
-        for shareid in self.landlords.keys():
-            d = self.send_plaintext_hash_tree(shareid,
-                                              self._plaintext_hashtree_nodes)
-            dl.append(d)
-        return self._gather_responses(dl)
-
-    def send_plaintext_hash_tree(self, shareid, all_hashes):
-        if shareid not in self.landlords:
-            return defer.succeed(None)
-        sh = self.landlords[shareid]
-        d = sh.put_plaintext_hashes(all_hashes)
-        d.addErrback(self._remove_shareholder, shareid, "put_plaintext_hashes")
-        return d
+        self._uploadable.close()
 
     def send_crypttext_hash_tree_to_all_shareholders(self):
         self.log("sending crypttext hash tree", level=log.NOISY)
@@ -641,10 +595,6 @@ class Encoder(object):
         for k in ('crypttext_root_hash', 'crypttext_hash',
                   ):
             assert k in self.uri_extension_data
-        if self.USE_PLAINTEXT_HASHES:
-            for k in ('plaintext_root_hash', 'plaintext_hash',
-                      ):
-                assert k in self.uri_extension_data
         uri_extension = uri.pack_extension(self.uri_extension_data)
         ed = {}
         for k,v in self.uri_extension_data.items():
