@@ -1959,6 +1959,38 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
         return d
 
+    def test_bad_server_overlap(self):
+        # like test_bad_server, but with no extra unused servers to fall back
+        # upon. This means that we must re-use a server which we've already
+        # used. If we don't remember the fact that we sent them one share
+        # already, we'll mistakenly think we're experiencing an
+        # UncoordinatedWriteError.
+
+        # Break one server, then create the file: the initial publish should
+        # complete with an alternate server. Breaking a second server should
+        # not prevent an update from succeeding either.
+        basedir = os.path.join("mutable/CollidingWrites/test_bad_server")
+        self.client = LessFakeClient(basedir, 10)
+
+        peerids = sorted(self.client._connections.keys())
+        self.client._connections[peerids[0]].broken = True
+
+        d = self.client.create_mutable_file("contents 1")
+        def _created(n):
+            d = n.download_best_version()
+            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
+            # now break one of the remaining servers
+            def _break_second_server(res):
+                self.client._connections[peerids[1]].broken = True
+            d.addCallback(_break_second_server)
+            d.addCallback(lambda res: n.overwrite("contents 2"))
+            # that ought to work too
+            d.addCallback(lambda res: n.download_best_version())
+            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
+            return d
+        d.addCallback(_created)
+        return d
+
     def test_publish_all_servers_bad(self):
         # Break all servers: the publish should fail
         basedir = os.path.join("mutable/CollidingWrites/publish_all_servers_bad")
