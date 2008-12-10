@@ -113,6 +113,18 @@ code, and obviously should not be used on user data.
 
 ** Web changes
 
+The "default webapi port", used when creating a new client node (and in the
+getting-started documentation), was changed from 8123 to 3456, to reduce
+confusion when Tahoe accessed through a Firefox browser on which the
+"Torbutton" extension has been installed. Port 8123 is occasionally used as a
+Tor control port, so Torbutton adds 8123 to Firefox's list of "banned ports"
+to avoid CSRF attacks against Tor. Once 8123 is banned, it is difficult to
+diagnose why you can no longer reach a Tahoe node, so the Tahoe default was
+changed. Note that 3456 is reserved by IANA for the "vat" protocol, but there
+are argueably more Torbutton+Tahoe users than vat users these days. Note that
+this will only affect newly-created client nodes. Pre-existing client nodes,
+created by earlier versions of tahoe, may still be listening on 8123.
+
 All deep-traversal operations (start-manifest, start-deep-size,
 start-deep-stats, start-deep-check) now use a start-and-poll approach,
 instead of using a single (fragile) long-running synchronous HTTP connection.
@@ -123,7 +135,8 @@ removed.
 The new "POST start-manifest" operation, when it finally completes, results
 in a table of (path,cap), instead of the list of verifycaps produced by the
 old "GET manifest". The table is available in several formats: use
-output=html, output=text, or output=json to choose one.
+output=html, output=text, or output=json to choose one. The JSON output also
+includes stats, and a list of verifycaps and storage-index strings.
 
 The "return_to=" and "when_done=" arguments have been removed from the
 t=check and deep-check operations.
