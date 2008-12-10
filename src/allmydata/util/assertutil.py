@@ -1,4 +1,4 @@
-# Copyright (c) 2003-2006 Bryce "Zooko" Wilcox-O'Hearn
+# Copyright (c) 2003-2008 Zooko Wilcox-O'Hearn
 # mailto:zooko@zooko.com
 # http://zooko.com/
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -10,8 +10,6 @@ Tests useful in assertion checking, prints out nicely formated messages too.
 """
 
 from humanreadable import hr
-
-from allmydata.util import log
 
 def _assert(___cond=False, *___args, **___kwargs):
     if ___cond:
@@ -47,13 +45,9 @@ def precondition(___cond=False, *___args, **___kwargs):
             if ___kwargs:
                 msgbuf.append("%s: %s %s" % ((___kwargs.items()[0][0],) + tuple(map(hr, (___kwargs.items()[0][1], type(___kwargs.items()[0][1]),)))))
         msgbuf.extend([", %s: %s %s" % tuple(map(hr, (k, v, type(v),))) for k, v in ___kwargs.items()[1:]])
-    except Exception, le:
-        log.msg("assertutil.precondition(): INTERNAL ERROR IN allmydata.util.assertutil. %s %s %s" % (type(le), repr(le), le.args,))
-        log.err()
-        raise le
     except:
-        log.msg("assertutil.precondition(): INTERNAL ERROR IN allmydata.util.assertutil.")
-        log.err()
+        import logging
+        logging.exception("assertutil.precondition(): INTERNAL ERROR in allmydata.util.assertutil.")
         raise
 
     raise AssertionError, "".join(msgbuf)
