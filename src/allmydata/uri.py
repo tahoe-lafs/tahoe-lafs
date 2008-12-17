@@ -16,10 +16,11 @@ BASE32STR_256bits = '(%s{51}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_1bits)
 
 SEP='(?::|%3A)'
 NUMBER='([0-9]+)'
+NUMBER_IGNORE='(?:[0-9]+)'
 
 # URIs (soon to be renamed "caps") are always allowed to come with a leading
 # 'http://127.0.0.1:(8123|3456)/uri/' that will be ignored.
-OPTIONALHTTPLEAD=r'(?:https?://(?:127.0.0.1|localhost):(?:8123|3456)/uri/)?'
+OPTIONALHTTPLEAD=r'(?:https?://(?:[^:/]+)(?::%s)?/uri/)?' % NUMBER_IGNORE
 
 
 class _BaseURI:
