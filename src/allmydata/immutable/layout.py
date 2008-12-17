@@ -6,6 +6,7 @@ from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
      FileTooLargeError, HASH_SIZE
 from allmydata.util import mathutil, idlib
 from allmydata.util.assertutil import _assert, precondition
+from allmydata import storage
 
 
 """
@@ -248,19 +249,19 @@ class WriteBucketProxy_v2(WriteBucketProxy):
 
 class ReadBucketProxy:
     implements(IStorageBucketReader)
-    def __init__(self, rref, peerid=None, storage_index_s=None):
+    def __init__(self, rref, peerid, storage_index):
         self._rref = rref
         self._peerid = peerid
-        self._si_s = storage_index_s
+        peer_id_s = idlib.shortnodeid_b2a(peerid)
+        storage_index_s = storage.si_b2a(storage_index)
+        self._reprstr = "<ReadBucketProxy to peer [%s] SI %s>" % (peer_id_s, storage_index_s)
         self._started = False
 
     def get_peerid(self):
         return self._peerid
 
     def __repr__(self):
-        peerid_s = idlib.shortnodeid_b2a(self._peerid)
-        return "<ReadBucketProxy to peer [%s] SI %s>" % (peerid_s,
-                                                         self._si_s)
+        return self._reprstr
 
     def startIfNecessary(self):
         if self._started:

@@ -772,7 +772,7 @@ class FileDownloader:
                                     (self._responses_received,
                                      self._queries_sent))
         for sharenum, bucket in buckets.iteritems():
-            b = layout.ReadBucketProxy(bucket, peerid, self._si_s)
+            b = layout.ReadBucketProxy(bucket, peerid, self._storage_index)
             self.add_share_bucket(sharenum, b)
 
             if self._results:
