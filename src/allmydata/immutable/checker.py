@@ -166,6 +166,7 @@ class SimpleCHKFileVerifier(download.FileDownloader):
 
     def __init__(self, client, u, storage_index, k, N, size, ueb_hash):
         precondition(isinstance(u, CHKFileURI), u)
+        download.FileDownloader.__init__(self, client, u, None);
         self._client = client
 
         self._uri = u
