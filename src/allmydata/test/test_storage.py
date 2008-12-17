@@ -182,7 +182,7 @@ class BucketProxy(unittest.TestCase):
             br = BucketReader(self, sharefname)
             rb = RemoteBucket()
             rb.target = br
-            rbp = rbp_class(rb, peerid="abc")
+            rbp = rbp_class(rb, peerid="abc", storage_index="")
             self.failUnless("to peer" in repr(rbp))
             self.failUnless(interfaces.IStorageBucketReader.providedBy(rbp))
 

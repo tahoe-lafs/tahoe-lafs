@@ -53,7 +53,7 @@ def dump_immutable_share(options):
     out = options.stdout
     f = storage.ShareFile(options['filename'])
     # use a ReadBucketProxy to parse the bucket and find the uri extension
-    bp = ReadBucketProxy(None)
+    bp = ReadBucketProxy(None, '', '')
     offsets = bp._parse_offsets(f.read_share_data(0, 0x44))
     print >>out, "%20s: %d" % ("version", bp._version)
     seek = offsets['uri_extension']
@@ -734,7 +734,7 @@ def corrupt_share(options):
     else:
         # otherwise assume it's immutable
         f = storage.ShareFile(fn)
-        bp = ReadBucketProxy(None)
+        bp = ReadBucketProxy(None, '', '')
         offsets = bp._parse_offsets(f.read_share_data(0, 0x24))
         start = f._data_offset + offsets["data"]
         end = f._data_offset + offsets["plaintext_hash_tree"]
