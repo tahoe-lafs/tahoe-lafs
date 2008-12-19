@@ -313,11 +313,6 @@ class IStorageBucketReader(Interface):
         @return: ShareData
         """
 
-    def get_plaintext_hashes():
-        """
-        @return: ListOf(Hash)
-        """
-
     def get_crypttext_hashes():
         """
         @return: ListOf(Hash)

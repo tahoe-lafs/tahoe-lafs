@@ -18,13 +18,13 @@ the beginning of the share data.
 0x04: segment size
 0x08: data size
 0x0c: offset of data (=00 00 00 24)
-0x10: offset of plaintext_hash_tree
+0x10: offset of plaintext_hash_tree UNUSED
 0x14: offset of crypttext_hash_tree
 0x18: offset of block_hashes
 0x1c: offset of share_hashes
 0x20: offset of uri_extension_length + uri_extension
 0x24: start of data
-?   : start of plaintext_hash_tree
+?   : start of plaintext_hash_tree UNUSED
 ?   : start of crypttext_hash_tree
 ?   : start of block_hashes
 ?   : start of share_hashes
@@ -43,7 +43,7 @@ limitations described in #346.
 0x04: segment size
 0x0c: data size
 0x14: offset of data (=00 00 00 00 00 00 00 44)
-0x1c: offset of plaintext_hash_tree
+0x1c: offset of plaintext_hash_tree UNUSED
 0x24: offset of crypttext_hash_tree
 0x2c: offset of block_hashes
 0x34: offset of share_hashes
@@ -92,7 +92,7 @@ class WriteBucketProxy:
         x = 0x24
         offsets['data'] = x
         x += data_size
-        offsets['plaintext_hash_tree'] = x
+        offsets['plaintext_hash_tree'] = x # UNUSED
         x += self._segment_hash_size
         offsets['crypttext_hash_tree'] = x
         x += self._segment_hash_size
@@ -110,7 +110,7 @@ class WriteBucketProxy:
                                   segment_size,
                                   data_size,
                                   offsets['data'],
-                                  offsets['plaintext_hash_tree'],
+                                  offsets['plaintext_hash_tree'], # UNUSED
                                   offsets['crypttext_hash_tree'],
                                   offsets['block_hashes'],
                                   offsets['share_hashes'],
@@ -141,17 +141,6 @@ class WriteBucketProxy:
                                        (self._segment_size *
                                         (self._num_segments - 1))),
                          len(data), self._segment_size)
-        return self._write(offset, data)
-
-    def put_plaintext_hashes(self, hashes):
-        offset = self._offsets['plaintext_hash_tree']
-        assert isinstance(hashes, list)
-        data = "".join(hashes)
-        precondition(len(data) == self._segment_hash_size,
-                     len(data), self._segment_hash_size)
-        precondition(offset+len(data) <= self._offsets['crypttext_hash_tree'],
-                     offset, len(data), offset+len(data),
-                     self._offsets['crypttext_hash_tree'])
         return self._write(offset, data)
 
     def put_crypttext_hashes(self, hashes):
@@ -220,7 +209,7 @@ class WriteBucketProxy_v2(WriteBucketProxy):
         x = 0x44
         offsets['data'] = x
         x += data_size
-        offsets['plaintext_hash_tree'] = x
+        offsets['plaintext_hash_tree'] = x # UNUSED
         x += self._segment_hash_size
         offsets['crypttext_hash_tree'] = x
         x += self._segment_hash_size
@@ -238,7 +227,7 @@ class WriteBucketProxy_v2(WriteBucketProxy):
                                   segment_size,
                                   data_size,
                                   offsets['data'],
-                                  offsets['plaintext_hash_tree'],
+                                  offsets['plaintext_hash_tree'], # UNUSED
                                   offsets['crypttext_hash_tree'],
                                   offsets['block_hashes'],
                                   offsets['share_hashes'],
@@ -306,7 +295,7 @@ class ReadBucketProxy:
         self._fieldstruct = fieldstruct
 
         for field in ( 'data',
-                       'plaintext_hash_tree',
+                       'plaintext_hash_tree', # UNUSED
                        'crypttext_hash_tree',
                        'block_hashes',
                        'share_hashes',
@@ -332,13 +321,6 @@ class ReadBucketProxy:
         """ split string (pulled from storage) into a list of blockids """
         return [ s[i:i+HASH_SIZE]
                  for i in range(0, len(s), HASH_SIZE) ]
-
-    def get_plaintext_hashes(self):
-        offset = self._offsets['plaintext_hash_tree']
-        size = self._offsets['crypttext_hash_tree'] - offset
-        d = self._read(offset, size)
-        d.addCallback(self._str2l)
-        return d
 
     def get_crypttext_hashes(self):
         offset = self._offsets['crypttext_hash_tree']

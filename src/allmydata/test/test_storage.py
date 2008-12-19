@@ -134,8 +134,8 @@ class BucketProxy(unittest.TestCase):
 
     def _do_test_readwrite(self, name, header_size, wbp_class, rbp_class):
         # Let's pretend each share has 100 bytes of data, and that there are
-        # 4 segments (25 bytes each), and 8 shares total. So the three
-        # per-segment merkle trees (plaintext_hash_tree, crypttext_hash_tree,
+        # 4 segments (25 bytes each), and 8 shares total. So the two
+        # per-segment merkle trees (crypttext_hash_tree,
         # block_hashes) will have 4 leaves and 7 nodes each. The per-share
         # merkle tree (share_hashes) has 8 leaves and 15 nodes, and we need 3
         # nodes. Furthermore, let's assume the uri_extension is 500 bytes
@@ -146,8 +146,6 @@ class BucketProxy(unittest.TestCase):
 
         sharesize = header_size + 100 + 7*32 + 7*32 + 7*32 + 3*(2+32) + 4+500
 
-        plaintext_hashes = [hashutil.tagged_hash("plain", "bar%d" % i)
-                            for i in range(7)]
         crypttext_hashes = [hashutil.tagged_hash("crypt", "bar%d" % i)
                             for i in range(7)]
         block_hashes = [hashutil.tagged_hash("block", "bar%d" % i)
@@ -170,7 +168,6 @@ class BucketProxy(unittest.TestCase):
         d.addCallback(lambda res: bp.put_block(1, "b"*25))
         d.addCallback(lambda res: bp.put_block(2, "c"*25))
         d.addCallback(lambda res: bp.put_block(3, "d"*20))
-        d.addCallback(lambda res: bp.put_plaintext_hashes(plaintext_hashes))
         d.addCallback(lambda res: bp.put_crypttext_hashes(crypttext_hashes))
         d.addCallback(lambda res: bp.put_block_hashes(block_hashes))
         d.addCallback(lambda res: bp.put_share_hashes(share_hashes))
@@ -197,9 +194,6 @@ class BucketProxy(unittest.TestCase):
             d1.addCallback(lambda res: rbp.get_block(3))
             d1.addCallback(lambda res: self.failUnlessEqual(res, "d"*20))
 
-            d1.addCallback(lambda res: rbp.get_plaintext_hashes())
-            d1.addCallback(lambda res:
-                           self.failUnlessEqual(res, plaintext_hashes))
             d1.addCallback(lambda res: rbp.get_crypttext_hashes())
             d1.addCallback(lambda res:
                            self.failUnlessEqual(res, crypttext_hashes))
