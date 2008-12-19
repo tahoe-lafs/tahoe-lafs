@@ -13,6 +13,7 @@ from allmydata.checker_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
 from allmydata.util import hashutil, mathutil, base32, log
+from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.hashutil import netstring
 from allmydata.util.limiter import ConcurrencyLimiter
 from allmydata.util.netstring import split_netstring
@@ -60,6 +61,8 @@ class Adder:
         self.overwrite = overwrite
 
     def set_node(self, name, node, metadata):
+        precondition(isinstance(name, unicode), name)
+        precondition(IFilesystemNode.providedBy(node), node)
         self.entries.append( [name, node, metadata] )
 
     def modify(self, old_contents, servermap, first_time):
@@ -72,6 +75,7 @@ class Adder:
             else:
                 assert len(e) == 3
                 name, child, new_metadata = e
+                assert _assert(IFilesystemNode.providedBy(child), child)
             assert isinstance(name, unicode)
             if name in children:
                 if not self.overwrite:
@@ -201,9 +205,9 @@ class NewDirectoryNode:
                     or IDirectoryNode.providedBy(child)), (name,child)
             assert isinstance(metadata, dict)
             rwcap = child.get_uri() # might be RO if the child is not writeable
+            assert isinstance(rwcap, str), rwcap
             rocap = child.get_readonly_uri()
             assert isinstance(rocap, str), rocap
-            assert isinstance(rwcap, str), rwcap
             entry = "".join([netstring(name.encode("utf-8")),
                              netstring(rocap),
                              netstring(self._encrypt_rwcap(rwcap)),
@@ -339,7 +343,8 @@ class NewDirectoryNode:
 
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
-        assert isinstance(name, unicode)
+        precondition(isinstance(name, unicode), name)
+        precondition(isinstance(child_uri, str), child_uri)
         child_node = self._create_node(child_uri)
         d = self.set_node(name, child_node, metadata, overwrite)
         d.addCallback(lambda res: child_node)
@@ -368,6 +373,8 @@ class NewDirectoryNode:
 
         If this directory node is read-only, the Deferred will errback with a
         NotMutableError."""
+
+        precondition(IFilesystemNode.providedBy(child), child)
 
         if self.is_readonly():
             return defer.fail(NotMutableError())

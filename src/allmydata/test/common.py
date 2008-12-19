@@ -16,6 +16,7 @@ from allmydata.checker_results import CheckerResults, CheckAndRepairResults, \
 from allmydata.mutable.common import CorruptShareError
 from allmydata.storage import storage_index_to_dir
 from allmydata.util import log, fileutil, pollmixin
+from allmydata.util.assertutil import precondition
 from allmydata.stats import StatsGathererService
 from allmydata.key_generator import KeyGeneratorService
 import common_util as testutil
@@ -36,16 +37,17 @@ class FakeCHKFileNode:
     bad_shares = {}
 
     def __init__(self, u, client):
+        precondition(IURI.providedBy(u), u)
         self.client = client
-        self.my_uri = u.to_string()
+        self.my_uri = u
         self.storage_index = u.storage_index
 
     def get_uri(self):
-        return self.my_uri
+        return self.my_uri.to_string()
     def get_readonly_uri(self):
-        return self.my_uri
+        return self.my_uri.to_string()
     def get_verify_cap(self):
-        return IURI(self.my_uri).get_verify_cap()
+        return self.my_uri.get_verify_cap()
     def get_storage_index(self):
         return self.storage_index
 
@@ -92,25 +94,25 @@ class FakeCHKFileNode:
         return True
 
     def download(self, target):
-        if self.my_uri not in self.all_contents:
+        if self.my_uri.to_string() not in self.all_contents:
             f = failure.Failure(NotEnoughSharesError())
             target.fail(f)
             return defer.fail(f)
-        data = self.all_contents[self.my_uri]
+        data = self.all_contents[self.my_uri.to_string()]
         target.open(len(data))
         target.write(data)
         target.close()
         return defer.maybeDeferred(target.finish)
     def download_to_data(self):
-        if self.my_uri not in self.all_contents:
+        if self.my_uri.to_string() not in self.all_contents:
             return defer.fail(NotEnoughSharesError())
-        data = self.all_contents[self.my_uri]
+        data = self.all_contents[self.my_uri.to_string()]
         return defer.succeed(data)
     def get_size(self):
         try:
-            data = self.all_contents[self.my_uri]
-        except KeyError:
-            raise NotEnoughSharesError()
+            data = self.all_contents[self.my_uri.to_string()]
+        except KeyError, le:
+            raise NotEnoughSharesError(le)
         return len(data)
     def read(self, consumer, offset=0, size=None):
         d = self.download_to_data()
@@ -184,7 +186,7 @@ class FakeMutableFileNode:
         return self.storage_index
 
     def check(self, monitor, verify=False):
-        r = CheckerResults(self.my_uri.to_string(), self.storage_index)
+        r = CheckerResults(self.my_uri, self.storage_index)
         is_bad = self.bad_shares.get(self.storage_index, None)
         data = {}
         data["count-shares-needed"] = 3

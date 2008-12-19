@@ -1,14 +1,14 @@
 
 from zope.interface import implements
 from allmydata.interfaces import ICheckerResults, ICheckAndRepairResults, \
-     IDeepCheckResults, IDeepCheckAndRepairResults
+     IDeepCheckResults, IDeepCheckAndRepairResults, IURI
 from allmydata.util import base32
 
 class CheckerResults:
     implements(ICheckerResults)
 
     def __init__(self, uri, storage_index):
-        assert isinstance(uri, str)
+        assert IURI.providedBy(uri), uri
         self.uri = uri
         self.storage_index = storage_index
         self.problems = []

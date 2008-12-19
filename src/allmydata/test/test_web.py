@@ -9,6 +9,7 @@ from allmydata import interfaces, provisioning, uri, webish
 from allmydata.immutable import upload, download
 from allmydata.web import status, common
 from allmydata.util import fileutil, base32
+from allmydata.util.assertutil import precondition
 from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, \
      FakeMutableFileNode, create_chk_filenode
 from allmydata.interfaces import IURI, INewDirectoryURI, \
@@ -56,6 +57,7 @@ class FakeClient(service.MultiService):
         return []
 
     def create_node_from_uri(self, auri):
+        precondition(isinstance(auri, str), auri)
         u = uri.from_string(auri)
         if (INewDirectoryURI.providedBy(u)
             or IReadonlyNewDirectoryURI.providedBy(u)):
@@ -2274,6 +2276,7 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         file_contents = "New file contents here\n"
         d = self.PUT("/uri", file_contents)
         def _check(uri):
+            assert isinstance(uri, str), uri
             self.failUnless(uri in FakeCHKFileNode.all_contents)
             self.failUnlessEqual(FakeCHKFileNode.all_contents[uri],
                                  file_contents)
@@ -2309,8 +2312,8 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
         def _check(uri):
-            self.failUnless(uri in FakeCHKFileNode.all_contents)
-            self.failUnlessEqual(FakeCHKFileNode.all_contents[uri],
+            self.failUnless(uri.to_string() in FakeCHKFileNode.all_contents)
+            self.failUnlessEqual(FakeCHKFileNode.all_contents[uri.to_string()],
                                  file_contents)
             return self.GET("/uri/%s" % uri)
         d.addCallback(_check)

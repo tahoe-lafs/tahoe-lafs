@@ -70,7 +70,7 @@ class SimpleCHKFileChecker:
         pass
 
     def _done(self, res):
-        r = CheckerResults(self.uri.to_string(), self.storage_index)
+        r = CheckerResults(self.uri, self.storage_index)
         report = []
         healthy = bool(len(self.found_shares) >= self.total_shares)
         r.set_healthy(healthy)
@@ -179,7 +179,7 @@ class SimpleCHKFileVerifier(download.FileDownloader):
         self._si_s = storage.si_b2a(self._storage_index)
         self.init_logging()
 
-        self._check_results = r = CheckerResults(self._uri.to_string(), self._storage_index)
+        self._check_results = r = CheckerResults(self._uri, self._storage_index)
         r.set_data({"count-shares-needed": k,
                     "count-shares-expected": N,
                     })

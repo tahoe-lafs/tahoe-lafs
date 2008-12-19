@@ -42,7 +42,7 @@ class Marker:
         return self.storage_index
 
     def check(self, monitor, verify=False):
-        r = CheckerResults("", None)
+        r = CheckerResults(uri.from_string(self.nodeuri), None)
         r.set_healthy(True)
         r.set_recoverable(True)
         return defer.succeed(r)
@@ -107,7 +107,7 @@ class Dirnode(unittest.TestCase,
         d = self.client.create_empty_dirnode()
         def _created(dn):
             u = make_mutable_file_uri()
-            d = dn.set_uri(u"child", u, {})
+            d = dn.set_uri(u"child", u.to_string(), {})
             d.addCallback(lambda res: dn.list())
             def _check1(children):
                 self.failUnless(u"child" in children)
@@ -239,7 +239,7 @@ class Dirnode(unittest.TestCase,
 
         d = self.client.create_empty_dirnode()
         def _created(rw_dn):
-            d2 = rw_dn.set_uri(u"child", fileuri)
+            d2 = rw_dn.set_uri(u"child", fileuri.to_string())
             d2.addCallback(lambda res: rw_dn)
             return d2
         d.addCallback(_created)
@@ -251,7 +251,7 @@ class Dirnode(unittest.TestCase,
             self.failUnless(ro_dn.is_mutable())
 
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
-                            ro_dn.set_uri, u"newchild", fileuri)
+                            ro_dn.set_uri, u"newchild", fileuri.to_string())
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
                             ro_dn.set_node, u"newchild", filenode)
             self.shouldFail(dirnode.NotMutableError, "set_nodes ro", None,
@@ -315,11 +315,11 @@ class Dirnode(unittest.TestCase,
             self.expected_manifest.append( ((u"child",) , m.get_uri()) )
             self.expected_verifycaps.add(ffu_v)
             self.expected_storage_indexes.add(base32.b2a(m.get_storage_index()))
-            d.addCallback(lambda res: n.set_uri(u"child", fake_file_uri))
+            d.addCallback(lambda res: n.set_uri(u"child", fake_file_uri.to_string()))
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "set_uri-no",
                                           "child 'child' already exists",
-                                          n.set_uri, u"child", other_file_uri,
+                                          n.set_uri, u"child", other_file_uri.to_string(),
                                           overwrite=False))
             # /
             # /child = mutable
@@ -445,12 +445,12 @@ class Dirnode(unittest.TestCase,
 
             # set_uri + metadata
             # it should be possible to add a child without any metadata
-            d.addCallback(lambda res: n.set_uri(u"c2", fake_file_uri, {}))
+            d.addCallback(lambda res: n.set_uri(u"c2", fake_file_uri.to_string(), {}))
             d.addCallback(lambda res: n.get_metadata_for(u"c2"))
             d.addCallback(lambda metadata: self.failUnlessEqual(metadata, {}))
 
             # if we don't set any defaults, the child should get timestamps
-            d.addCallback(lambda res: n.set_uri(u"c3", fake_file_uri))
+            d.addCallback(lambda res: n.set_uri(u"c3", fake_file_uri.to_string()))
             d.addCallback(lambda res: n.get_metadata_for(u"c3"))
             d.addCallback(lambda metadata:
                           self.failUnlessEqual(sorted(metadata.keys()),
@@ -458,7 +458,7 @@ class Dirnode(unittest.TestCase,
 
             # or we can add specific metadata at set_uri() time, which
             # overrides the timestamps
-            d.addCallback(lambda res: n.set_uri(u"c4", fake_file_uri,
+            d.addCallback(lambda res: n.set_uri(u"c4", fake_file_uri.to_string(),
                                                 {"key": "value"}))
             d.addCallback(lambda res: n.get_metadata_for(u"c4"))
             d.addCallback(lambda metadata:
@@ -500,9 +500,9 @@ class Dirnode(unittest.TestCase,
             d.addCallback(lambda res: n.delete(u"d4"))
 
             # metadata through set_children()
-            d.addCallback(lambda res: n.set_children([ (u"e1", fake_file_uri),
-                                                   (u"e2", fake_file_uri, {}),
-                                                   (u"e3", fake_file_uri,
+            d.addCallback(lambda res: n.set_children([ (u"e1", fake_file_uri.to_string()),
+                                                   (u"e2", fake_file_uri.to_string(), {}),
+                                                   (u"e3", fake_file_uri.to_string(),
                                                     {"key": "value"}),
                                                    ]))
             d.addCallback(lambda res:
@@ -700,7 +700,7 @@ class Dirnode(unittest.TestCase,
 
             # now make sure that we honor overwrite=False
             d.addCallback(lambda res:
-                          self.subdir2.set_uri(u"newchild", other_file_uri))
+                          self.subdir2.set_uri(u"newchild", other_file_uri.to_string()))
 
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "move_child_to-no",

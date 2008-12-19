@@ -2,6 +2,7 @@
 from twisted.internet import defer
 from twisted.python import failure
 from allmydata import hashtree
+from allmydata.uri import from_string
 from allmydata.util import hashutil, base32, idlib, log
 from allmydata.checker_results import CheckAndRepairResults, CheckerResults
 
@@ -16,7 +17,7 @@ class MutableChecker:
         self._monitor = monitor
         self.bad_shares = [] # list of (nodeid,shnum,failure)
         self._storage_index = self._node.get_storage_index()
-        self.results = CheckerResults(node.get_uri(), self._storage_index)
+        self.results = CheckerResults(from_string(node.get_uri()), self._storage_index)
         self.need_repair = False
         self.responded = set() # set of (binary) nodeids
 
@@ -297,7 +298,7 @@ class MutableCheckAndRepairer(MutableChecker):
         d = self._node.repair(self.results)
         def _repair_finished(repair_results):
             self.cr_results.repair_successful = True
-            r = CheckerResults(self._node.get_uri(), self._storage_index)
+            r = CheckerResults(from_string(self._node.get_uri()), self._storage_index)
             self.cr_results.post_repair_results = r
             self._fill_checker_results(repair_results.servermap, r)
             self.cr_results.repair_results = repair_results # TODO?
