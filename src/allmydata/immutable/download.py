@@ -875,8 +875,13 @@ class FileDownloader(log.PrefixingLogMixin):
             potential_shnums = list(available_shnums - handled_shnums)
             if not potential_shnums:
                 raise NotEnoughSharesError
-            # choose a random share
-            shnum = random.choice(potential_shnums)
+            # For the next share, choose a primary share if available, else a randomly chosen
+            # secondary share.
+            potential_shnums.sort()
+            if potential_shnums[0] < self._uri.needed_shares:
+                shnum = potential_shnums[0]
+            else:
+                shnum = random.choice(potential_shnums)
             # and a random bucket that will provide it
             validated_bucket = random.choice(list(self._share_vbuckets[shnum]))
             self.active_buckets[shnum] = validated_bucket
