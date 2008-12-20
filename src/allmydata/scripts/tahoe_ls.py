@@ -30,13 +30,22 @@ def list(options):
         print >>stderr, "Error during GET: %s %s %s" % (resp.status,
                                                         resp.reason,
                                                         resp.read())
+        if resp.status == 0:
+            return 3
+        else:
+            return resp.status
+
     data = resp.read()
 
     if options['json']:
         print >>stdout, data
         return
 
-    parsed = simplejson.loads(data)
+    try:
+        parsed = simplejson.loads(data)
+    except Exception, le:
+        le.args = tuple(le.args + (data,))
+        raise
     nodetype, d = parsed
     children = {}
     if nodetype == "dirnode":
