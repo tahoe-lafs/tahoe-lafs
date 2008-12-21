@@ -557,10 +557,9 @@ class Encoder(object):
         return d
 
     def send_all_share_hash_trees(self):
-        # each bucket gets a set of share hash tree nodes that are needed to
-        # validate their share. This includes the share hash itself, but does
-        # not include the top-level hash root (which is stored securely in
-        # the URI instead).
+        # Each bucket gets a set of share hash tree nodes that are needed to validate their
+        # share. This includes the share hash itself, but does not include the top-level hash
+        # root (which is stored securely in the URI instead).
         self.log("sending all share hash trees", level=log.NOISY)
         self.set_status("Sending Share Hash Trees")
         self.set_encode_and_push_progress(extra=0.6)

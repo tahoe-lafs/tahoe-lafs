@@ -606,8 +606,8 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
                           for i in range(7, 10)])
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
-            self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(NotEnoughSharesError))
+            self.failUnless(isinstance(res, Failure), res)
+            self.failUnless(res.check(NotEnoughSharesError), res)
         d.addBoth(_done)
         return d
 
@@ -747,8 +747,8 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
                           for i in range(7, 10)])
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
-            self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(NotEnoughSharesError))
+            self.failUnless(isinstance(res, Failure), res)
+            self.failUnless(res.check(NotEnoughSharesError), res)
         d.addBoth(_done)
         return d
 

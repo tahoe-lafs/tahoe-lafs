@@ -15,10 +15,6 @@ from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, IVerifi
 from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
-class HaveAllPeersError(Exception):
-    # we use this to jump out of the loop
-    pass
-
 class IntegrityCheckError(Exception):
     pass
 
@@ -464,6 +460,7 @@ class BlockDownloader(log.PrefixingLogMixin):
     """
 
     def __init__(self, vbucket, blocknum, parent, results):
+        precondition(isinstance(vbucket, ValidatedReadBucketProxy), vbucket)
         prefix = "%s-%d" % (vbucket, blocknum)
         log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.download", prefix=prefix)
         self.vbucket = vbucket
@@ -551,6 +548,7 @@ class SegmentDownloader:
         # through it.
         downloaders = []
         for blocknum, vbucket in active_buckets.iteritems():
+            assert isinstance(vbucket, ValidatedReadBucketProxy), vbucket
             bd = BlockDownloader(vbucket, blocknum, self, self.results)
             downloaders.append(bd)
             if self.results:

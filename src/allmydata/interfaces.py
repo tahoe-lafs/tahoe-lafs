@@ -1609,16 +1609,15 @@ class ICheckerResults(Interface):
     def needs_rebalancing():
         """Return a boolean, True if the file/dir's reliability could be
         improved by moving shares to new servers. Non-distributed LIT files
-        always returne False."""
+        always return False."""
 
 
     def get_data():
-        """Return a dictionary that describes the state of the file/dir.
-        Non-distributed LIT files always return an empty dictionary. Normal
-        files and directories return a dictionary with the following keys
-        (note that these use base32-encoded strings rather than binary ones)
-        (also note that for mutable files, these counts are for the 'best'
-        version)::
+        """Return a dictionary that describes the state of the file/dir.  Non-distributed LIT
+        files always return an empty dictionary. Normal files and directories return a
+        dictionary with the following keys (note that these use binary strings rather than
+        base32-encoded ones) (also note that for mutable files, these counts are for the 'best'
+        version):
 
          count-shares-good: the number of distinct good shares that were found
          count-shares-needed: 'k', the number of shares required for recovery
@@ -1637,7 +1636,11 @@ class ICheckerResults(Interface):
                               sharenum).
          servers-responding: list of (binary) storage server identifiers,
                              one for each server which responded to the share
-                             query.
+                             query (even if they said they didn't have shares,
+                             and even if they said they did have shares but then
+                             refused to send them when asked, and even if they
+                             said they did have shares and sent incorrect ones
+                             when asked)
          sharemap: dict mapping share identifier to list of serverids
                    (binary strings). This indicates which servers are holding
                    which shares. For immutable files, the shareid is an

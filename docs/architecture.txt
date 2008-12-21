@@ -83,10 +83,9 @@ A tagged hash of the encryption key is used to form the "storage
 index", which is used for both server selection (described below) and
 to index shares within the Storage Servers on the selected peers.
 
-A variety of hashes are computed while the shares are being produced,
-to validate the plaintext, the ciphertext, and the shares
-themselves. Merkle hash trees are also produced to enable validation
-of individual segments of plaintext or ciphertext without requiring
+Hashes are computed while the shares are being produced, to validate
+the ciphertext and the shares themselves. Merkle hash trees are used to
+enable validation of individual segments of ciphertext without requiring
 the download/decoding of the whole file. These hashes go into the
 "Capability Extension Block", which will be stored with each share.
 

@@ -2047,7 +2047,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                              base32.b2a(n.get_storage_index()), where)
         needs_rebalancing = bool( len(self.clients) < 10 )
         if not incomplete:
-            self.failUnlessEqual(cr.needs_rebalancing(), needs_rebalancing, where)
+            self.failUnlessEqual(cr.needs_rebalancing(), needs_rebalancing, str((where, cr, cr.get_data())))
         d = cr.get_data()
         self.failUnlessEqual(d["count-shares-good"], 10, where)
         self.failUnlessEqual(d["count-shares-needed"], 3, where)
@@ -2060,7 +2060,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
             self.failUnlessEqual(sorted(d["servers-responding"]),
                                  sorted([c.nodeid for c in self.clients]),
                                  where)
-            self.failUnless("sharemap" in d, where)
+            self.failUnless("sharemap" in d, str((where, d)))
             all_serverids = set()
             for (shareid, serverids) in d["sharemap"].items():
                 all_serverids.update(serverids)
@@ -2622,13 +2622,17 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
 
 
     def check_is_healthy(self, cr, where):
-        self.failUnless(ICheckerResults.providedBy(cr), (cr, type(cr), where))
-        self.failUnless(cr.is_healthy(), (cr.get_report(), cr.is_healthy(), cr.get_summary(), where))
-        self.failUnless(cr.is_recoverable(), where)
-        d = cr.get_data()
-        self.failUnlessEqual(d["count-recoverable-versions"], 1, where)
-        self.failUnlessEqual(d["count-unrecoverable-versions"], 0, where)
-        return cr
+        try:
+            self.failUnless(ICheckerResults.providedBy(cr), (cr, type(cr), where))
+            self.failUnless(cr.is_healthy(), (cr.get_report(), cr.is_healthy(), cr.get_summary(), where))
+            self.failUnless(cr.is_recoverable(), where)
+            d = cr.get_data()
+            self.failUnlessEqual(d["count-recoverable-versions"], 1, where)
+            self.failUnlessEqual(d["count-unrecoverable-versions"], 0, where)
+            return cr
+        except Exception, le:
+            le.args = tuple(le.args + (where,))
+            raise
 
     def check_is_missing_shares(self, cr, where):
         self.failUnless(ICheckerResults.providedBy(cr), where)
@@ -2643,7 +2647,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         # by "corrupt-shares" we mean the file is still recoverable
         self.failUnless(ICheckerResults.providedBy(cr), where)
         d = cr.get_data()
-        self.failIf(cr.is_healthy(), where)
+        self.failIf(cr.is_healthy(), (where, cr))
         self.failUnless(cr.is_recoverable(), where)
         d = cr.get_data()
         self.failUnless(d["count-shares-good"] < 10, where)

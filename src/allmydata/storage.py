@@ -99,7 +99,7 @@ class ShareFile:
         self.home = filename
         f = open(self.home, 'rb')
         (version, size, num_leases) = struct.unpack(">LLL", f.read(0xc))
-        assert version == 1
+        assert version == 1, version
         self._size = size
         self._num_leases = num_leases
         self._data_offset = 0xc

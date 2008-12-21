@@ -266,7 +266,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
         # 'tahoe stop' command takes a while.
         def _stop(res):
             open(HOTLINE_FILE, "w").write("")
-            self.failUnless(os.path.exists(TWISTD_PID_FILE))
+            self.failUnless(os.path.exists(TWISTD_PID_FILE), (TWISTD_PID_FILE, os.listdir(os.path.dirname(TWISTD_PID_FILE))))
             argv = ["--quiet", "stop", c1]
             out,err = StringIO(), StringIO()
             rc = runner.runner(argv, stdout=out, stderr=err)

@@ -128,7 +128,7 @@ class CompleteBinaryTreeMixin:
         Return a list of node indices that are necessary for the hash chain.
         """
         if i < 0 or i >= len(self):
-            raise IndexError('index out of range: ' + repr(i))
+            raise IndexError('index out of range: 0 >= %s < %s' % (i, len(self)))
         needed = []
         here = i
         while here != 0:
