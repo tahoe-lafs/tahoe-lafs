@@ -179,12 +179,13 @@ def init_s5():
 s5 = init_s5()
 
 def could_be_base32_encoded(s, s8=s8, tr=string.translate, identitytranstable=identitytranstable, chars=chars):
+    precondition(isinstance(s, (str, unicode)), s)
     if s == '':
         return True
-    precondition(not isinstance(s, unicode), s)
     return s8[len(s)%8][ord(s[-1])] and not tr(s, identitytranstable, chars)
 
 def could_be_base32_encoded_l(s, lengthinbits, s5=s5, tr=string.translate, identitytranstable=identitytranstable, chars=chars):
+    precondition(isinstance(s, (str, unicode)), s)
     if s == '':
         return True
     assert lengthinbits%5 < len(s5), lengthinbits
