@@ -489,11 +489,8 @@ class BlockDownloader(log.PrefixingLogMixin):
         self.parent.hold_block(self.blocknum, data)
 
     def _got_block_error(self, f):
-        level = log.WEIRD
-        if f.check(DeadReferenceError):
-            level = log.UNUSUAL
-        self.log("BlockDownloader[%d] got error" % self.blocknum,
-                 failure=f, level=level, umid="5Z4uHQ")
+        failtype = f.trap(DeadReferenceError, IntegrityCheckReject)
+        self.log("failure to get block", level=log.UNUSUAL, umid="5Z4uHQ")
         if self.results:
             peerid = self.vbucket.bucket.get_peerid()
             self.results.server_problems[peerid] = str(f)
