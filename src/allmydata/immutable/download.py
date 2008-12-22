@@ -15,16 +15,18 @@ from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, IVerifi
 from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
-class IntegrityCheckError(Exception):
+class IntegrityCheckReject(Exception):
     pass
 
-class BadURIExtensionHashValue(IntegrityCheckError):
+class BadURIExtensionHashValue(IntegrityCheckReject):
     pass
-class BadURIExtension(IntegrityCheckError):
+class BadURIExtension(IntegrityCheckReject):
     pass
 class UnsupportedErasureCodec(BadURIExtension):
     pass
-class BadCrypttextHashValue(IntegrityCheckError):
+class BadCrypttextHashValue(IntegrityCheckReject):
+    pass
+class BadOrMissingShareHash(IntegrityCheckReject):
     pass
 
 class DownloadStopped(Exception):
@@ -157,7 +159,7 @@ class ValidatedCrypttextHashTreeProxy:
         ct_hashes = dict(list(enumerate(proposal)))
         try:
             self._crypttext_hash_tree.set_hashes(ct_hashes)
-        except hashtree.BadHashError:
+        except (hashtree.BadHashError, hashtree.NotEnoughHashesError), le:
             if self._fetch_failures is not None:
                 self._fetch_failures["crypttext_hash_tree"] += 1
             raise
@@ -410,7 +412,7 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
             bh[0] = self._share_hash
             self.block_hash_tree.set_hashes(bh, {blocknum: blockhash})
 
-        except (hashtree.BadHashError, hashtree.NotEnoughHashesError):
+        except (hashtree.BadHashError, hashtree.NotEnoughHashesError), le:
             # log.WEIRD: indicates undetected disk/network error, or more
             # likely a programming error
             self.log("hash failure in block=%d, shnum=%d on %s" %
@@ -442,7 +444,7 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
             for i,h in enumerate(blockhashes):
                 lines.append("%3d: %s" % (i, base32.b2a_or_none(h)))
             log.msg(" blockhashes:\n" + "\n".join(lines) + "\n")
-            raise
+            raise BadOrMissingShareHash(le)
 
         # If we made it here, the block is good. If the hash trees didn't
         # like what they saw, they would have raised a BadHashError, causing
