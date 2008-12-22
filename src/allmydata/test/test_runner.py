@@ -203,9 +203,9 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
         out,err = StringIO(), StringIO()
         rc = runner.runner(argv, stdout=out, stderr=err)
         self.failUnlessEqual(rc, 0)
-        # by writing this file, we get ten seconds before the client will
-        # exit. This insures that even if the test fails (and the 'stop'
-        # command doesn't work), the client should still terminate.
+        # By writing this file, we get forty seconds before the client will exit. This insures
+        # that even if the 'stop' command doesn't work (and the test fails), the client should
+        # still terminate.
         HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
         open(HOTLINE_FILE, "w").write("")
         open(os.path.join(c1, "introducer.furl"), "w").write("pb://xrndsskn2zuuian5ltnxrte7lnuqdrkz@127.0.0.1:55617/introducer\n")
