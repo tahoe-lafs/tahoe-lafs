@@ -119,17 +119,17 @@ class Dirnode(unittest.TestCase,
                 filenode = dn._node
                 si = IURI(filenode.get_uri()).storage_index
                 old_contents = filenode.all_contents[si]
-                # we happen to know that the writecap is encrypted near the
-                # end of the string. Flip one of its bits and make sure we
-                # detect the corruption.
+                # We happen to know that the writecap MAC is near the end of the string. Flip
+                # one of its bits and make sure we ignore the corruption.
                 new_contents = testutil.flip_bit(old_contents, -10)
                 # TODO: also test flipping bits in the other portions
                 filenode.all_contents[si] = new_contents
             d.addCallback(_corrupt)
             def _check2(res):
-                self.shouldFail(hashutil.IntegrityCheckError, "corrupt",
-                                "HMAC does not match, crypttext is corrupted",
-                                dn.list)
+                d = dn.list()
+                def _c3(res):
+                    self.failUnless(res.has_key('child'))
+                d.addCallback(_c3)
             d.addCallback(_check2)
             return d
         d.addCallback(_created)

@@ -152,14 +152,12 @@ class NewDirectoryNode:
         mac = hashutil.hmac(key, IV + crypttext)
         assert len(mac) == 32
         return IV + crypttext + mac
+        # The MAC is not checked by readers in Tahoe >= 1.3.0, but we still produce it for the sake of older readers.
 
     def _decrypt_rwcapdata(self, encwrcap):
         IV = encwrcap[:16]
         crypttext = encwrcap[16:-32]
-        mac = encwrcap[-32:]
         key = hashutil.mutable_rwcap_key_hash(IV, self._node.get_writekey())
-        if mac != hashutil.hmac(key, IV+crypttext):
-            raise hashutil.IntegrityCheckError("HMAC does not match, crypttext is corrupted")
         cryptor = AES(key)
         plaintext = cryptor.process(crypttext)
         return plaintext

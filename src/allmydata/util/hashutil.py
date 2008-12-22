@@ -13,9 +13,6 @@ from allmydata.util.netstring import netstring
 # kinds.
 CRYPTO_VAL_SIZE=32
 
-class IntegrityCheckError(Exception):
-    pass
-
 class _SHA256d_Hasher:
     # use SHA-256d, as defined by Ferguson and Schneier: hash the output
     # again to prevent length-extension attacks
