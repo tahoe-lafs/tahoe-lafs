@@ -10,7 +10,7 @@ chars = rfc3548_alphabet
 vals = ''.join(map(chr, range(32)))
 c2vtranstable = string.maketrans(chars, vals)
 v2ctranstable = string.maketrans(vals, chars)
-identitytranstable = string.maketrans(chars, chars)
+identitytranstable = string.maketrans('', '')
 
 def _get_trailing_chars_without_lsbs(N, d):
     """
