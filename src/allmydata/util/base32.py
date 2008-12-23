@@ -180,12 +180,16 @@ s5 = init_s5()
 
 def could_be_base32_encoded(s, s8=s8, tr=string.translate, identitytranstable=identitytranstable, chars=chars):
     precondition(isinstance(s, (str, unicode)), s)
+    if isinstance(s, unicode):
+        s = s.encode('utf-8')
     if s == '':
         return True
     return s8[len(s)%8][ord(s[-1])] and not tr(s, identitytranstable, chars)
 
 def could_be_base32_encoded_l(s, lengthinbits, s5=s5, tr=string.translate, identitytranstable=identitytranstable, chars=chars):
     precondition(isinstance(s, (str, unicode)), s)
+    if isinstance(s, unicode):
+        s = s.encode('utf-8')
     if s == '':
         return True
     assert lengthinbits%5 < len(s5), lengthinbits
@@ -201,6 +205,9 @@ def a2b(cs):
     @param cs the base-32 encoded data (a string)
     """
     precondition(could_be_base32_encoded(cs), "cs is required to be possibly base32 encoded data.", cs=cs)
+    precondition(isinstance(cs, (str, unicode)), cs)
+    if isinstance(cs, unicode):
+        cs = cs.encode('utf-8')
 
     return a2b_l(cs, num_octets_that_encode_to_this_many_quintets(len(cs))*8)
 
@@ -225,6 +232,9 @@ def a2b_l(cs, lengthinbits):
     @return the data encoded in cs
     """
     precondition(could_be_base32_encoded_l(cs, lengthinbits), "cs is required to be possibly base32 encoded data.", cs=cs, lengthinbits=lengthinbits)
+    precondition(isinstance(cs, (str, unicode)), cs)
+    if isinstance(cs, unicode):
+        cs = cs.encode('utf-8')
     if cs == '':
         return ''
 
