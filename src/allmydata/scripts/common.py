@@ -129,4 +129,4 @@ def get_alias(aliases, path, default):
 
 def escape_path(path):
     segments = path.split("/")
-    return "/".join([urllib.quote(s) for s in segments])
+    return "/".join([urllib.quote(s.encode('utf-8')) for s in segments])

@@ -33,6 +33,12 @@ def runner(argv,
            stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr,
            install_node_control=True, additional_commands=None):
 
+    # Convert arguments to unicode
+    new_argv = []
+    for arg in argv:
+      new_argv.append(arg.decode('utf-8'))
+    argv = new_argv
+
     config = Options()
     if install_node_control:
         config.subCommands.extend(startstop_node.subCommands)
