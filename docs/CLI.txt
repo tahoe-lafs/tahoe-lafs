@@ -159,7 +159,7 @@ and both will refer to the directory that you've just created.
 ==== SECURITY NOTE: For users of shared systems ====
 
 Remember that command-line arguments are visible to other users (through the
-'ps' command, or the windows Process Explorer tool), so if you are using a
+'ps' command, or the Windows Process Explorer tool), so if you are using a
 tahoe node on a shared host, your login neighbors will be able to see (and
 capture) any directory caps that you set up with the "tahoe add-alias"
 command. To avoid this, bypass add-alias and edit the NODEDIR/private/aliases
