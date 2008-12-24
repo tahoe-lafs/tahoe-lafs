@@ -599,3 +599,4 @@ class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA2))
 
         return d
+    test_unicode_filename.todo = "This behavior is not yet supported, although it does happen to work (for reasons that are ill-understood) on many platforms.  See issue ticket #534."
