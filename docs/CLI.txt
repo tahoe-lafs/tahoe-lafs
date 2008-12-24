@@ -91,6 +91,10 @@ local one.
 These commands also use a table of "aliases" to figure out which directory
 they ought to use a starting point. This is explained in more detail below.
 
+In Tahoe v1.3.0, passing non-ascii characters to the cli is not guaranteed to
+work, although it might work on your platform, especially if your platform
+uses utf-8 encoding.
+
 === Starting Directories ===
 
 As described in architecture.txt, the Tahoe distributed filesystem consists
