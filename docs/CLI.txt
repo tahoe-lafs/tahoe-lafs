@@ -1,7 +1,7 @@
 = The Tahoe CLI commands =
 
 Tahoe provides a single executable named "tahoe", which can be used to create
-and manage client/server nodes, manipulate the virtual drive, and perform
+and manage client/server nodes, manipulate the filesystem, and perform
 several debugging/maintenance tasks.
 
 This executable lives in the source tree at "bin/tahoe". Once you've done a
@@ -20,7 +20,7 @@ PYTHONPATH search paths to find the tahoe code and other libraries.
 The "tahoe" tool provides access to three categories of commands.
 
  * node management: create a client/server node, start/stop/restart it
- * vdrive manipulation: list files, upload, download, delete, rename
+ * filesystem manipulation: list files, upload, download, delete, rename
  * debugging: unpack cap-strings, examine share files
 
 To get a list of all commands, just run "tahoe" with no additional arguments.
@@ -75,14 +75,14 @@ start using their changes.
 
 == Virtual Drive Manipulation ==
 
-These commands let you exmaine a Tahoe virtual drive, providing basic
+These commands let you exmaine a Tahoe filesystem, providing basic
 list/upload/download/delete/rename/mkdir functionality. They can be used as
 primitives by other scripts. Most of these commands are fairly thin wrappers
 around webapi calls.
 
-By default, all vdrive-manipulation commands look in ~/.tahoe/ to figure out
-which Tahoe node they should use. When the CLI command uses webapi calls, it
-will use ~/.tahoe/node.url for this purpose: a running Tahoe node that
+By default, all filesystem-manipulation commands look in ~/.tahoe/ to figure
+out which Tahoe node they should use. When the CLI command uses webapi calls,
+it will use ~/.tahoe/node.url for this purpose: a running Tahoe node that
 provides a webapi port will write its URL into this file. If you want to use
 a node on some other host, just create ~/.tahoe/ and copy that node's webapi
 URL into this file, and the CLI commands will contact that node instead of a
