@@ -1613,7 +1613,7 @@ class ICheckerResults(Interface):
 
 
     def get_data():
-        """Return a dictionary that describes the state of the file/dir.  Non-distributed LIT
+        """Return a dictionary that describes the state of the file/dir.  LIT
         files always return an empty dictionary. Normal files and directories return a
         dictionary with the following keys (note that these use binary strings rather than
         base32-encoded ones) (also note that for mutable files, these counts are for the 'best'

@@ -364,8 +364,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
             d2 = filenode.check(Monitor(), verify=True)
             def _after_check(checkresults):
                 after_check_reads = self._count_reads()
-                # print "delta was ", after_check_reads - before_check_reads
-                self.failIf(after_check_reads - before_check_reads > DELTA_READS)
+                self.failIf(after_check_reads - before_check_reads > DELTA_READS, (after_check_reads, before_check_reads, DELTA_READS))
                 self.failUnless(checkresults.is_healthy())
 
             d2.addCallback(_after_check)
@@ -385,7 +384,6 @@ class Test(ShareManglingMixin, unittest.TestCase):
 
             def _after_check(checkresults):
                 after_check_reads = self._count_reads()
-                # print "delta was ", after_check_reads - before_check_reads
                 self.failIf(after_check_reads - before_check_reads > DELTA_READS)
                 self.failIf(checkresults.is_healthy())
 

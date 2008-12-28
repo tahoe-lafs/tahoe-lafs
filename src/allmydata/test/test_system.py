@@ -2074,7 +2074,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
 
     def check_and_repair_is_healthy(self, cr, n, where, incomplete=False):
-        self.failUnless(ICheckAndRepairResults.providedBy(cr), where)
+        self.failUnless(ICheckAndRepairResults.providedBy(cr), (where, cr))
         self.failUnless(cr.get_pre_repair_results().is_healthy(), where)
         self.check_is_healthy(cr.get_pre_repair_results(), n, where, incomplete)
         self.failUnless(cr.get_post_repair_results().is_healthy(), where)
@@ -2156,8 +2156,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(lambda ign: self.mutable.check(Monitor(), verify=True))
         d.addCallback(self.check_is_healthy, self.mutable, "mutable")
         d.addCallback(lambda ign: self.large.check(Monitor(), verify=True))
-        d.addCallback(self.check_is_healthy, self.large, "large",
-                      incomplete=True)
+        d.addCallback(self.check_is_healthy, self.large, "large", incomplete=True)
         d.addCallback(lambda ign: self.small.check(Monitor(), verify=True))
         d.addCallback(self.failUnlessEqual, None, "small")
         d.addCallback(lambda ign: self.small2.check(Monitor(), verify=True))
@@ -2660,8 +2659,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         d = cr.get_data()
         self.failIf(cr.is_healthy(), where)
         self.failIf(cr.is_recoverable(), where)
-        self.failUnless(d["count-shares-good"] < d["count-shares-needed"],
-                        where)
+        self.failUnless(d["count-shares-good"] < d["count-shares-needed"], (d["count-shares-good"], d["count-shares-needed"], where))
         self.failUnlessEqual(d["count-recoverable-versions"], 0, where)
         self.failUnlessEqual(d["count-unrecoverable-versions"], 1, where)
         return cr
@@ -2742,7 +2740,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
             #self.failUnlessEqual(c["count-objects-unhealthy"], 6)
             self.failUnlessEqual(c["count-objects-healthy"], 5) # todo
             self.failUnlessEqual(c["count-objects-unhealthy"], 4)
-            self.failUnlessEqual(c["count-objects-unrecoverable"], 2)
+            self.failUnlessEqual(c["count-objects-unrecoverable"], 2, str(c))
         d.addCallback(_check2)
 
         return d

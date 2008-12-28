@@ -81,7 +81,8 @@ of existing mutable shares).
 This release adds the 'tahoe create-alias' command, which is a combination of
 'tahoe mkdir' and 'tahoe add-alias'. This also allows you to start using a
 new tahoe directory without exposing its URI in the argv list, which is
-publicly visible (through the process table) on most unix systems.
+publicly visible (through the process table) on most unix systems. Thanks to
+Kevin Reid for bringing this issue to our attention.
 
 The single-argument form of "tahoe put" was changed to create an unlinked
 file. I.e. "tahoe put bar.txt" will take the contents of a local "bar.txt"
