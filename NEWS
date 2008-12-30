@@ -112,6 +112,12 @@ The last command ("tahoe debug corrupt-share") flips a random bit of the
 given local sharefile. This is used to test the file verifying/repairing
 code, and obviously should not be used on user data.
 
+The cli might not correctly handle arguments which contain non-ascii
+characters in Tahoe v1.3 (although depending on your platform it
+might, especially if your platform can be configured to pass such
+characters on the command-line in utf-8 encoding).  See
+http://allmydata.org/trac/tahoe/ticket/565 for details.
+
 ** Web changes
 
 The "default webapi port", used when creating a new client node (and in the
