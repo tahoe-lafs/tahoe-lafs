@@ -105,7 +105,7 @@ def do_stop(basedir, out=sys.stdout, err=sys.stderr):
     pid = int(pid)
 
     # kill it hard (SIGKILL), delete the twistd.pid file, then wait for the
-    # process itself to go away. If it hasn't gone away after 5 seconds, warn
+    # process itself to go away. If it hasn't gone away after 20 seconds, warn
     # the user but keep waiting until they give up.
     try:
         os.kill(pid, signal.SIGKILL)
@@ -123,7 +123,7 @@ def do_stop(basedir, out=sys.stdout, err=sys.stderr):
         pass
     start = time.time()
     time.sleep(0.1)
-    wait = 5
+    wait = 20
     first_time = True
     while True:
         # poll once per second until we see the process is no longer running
