@@ -1,11 +1,14 @@
 = Known Issues =
 
-Below is a list of known issues in recent releases of allmydata.org
-Tahoe, the Least-Authority Filesystem, and how to manage them.  The
-current version of this file can be found at
+Below is a list of known issues in recent releases of Tahoe-LAFS, and how to
+manage them.  The current version of this file can be found at
 
 http://allmydata.org/source/tahoe/trunk/docs/known_issues.txt
 
+Older versions of this document describing issues in older versions of
+Tahoe-LAFS can be found at
+
+http://allmydata.org/source/tahoe/trunk/docs/historical/historical_known_issues.txt
 
 == issues in Tahoe v1.2.0, released 2008-06-21 ==
 
@@ -29,7 +32,8 @@ bypassed, and other users will not be able to see them. Once you've added the
 alias, no other secrets are passed through the command line, so this
 vulnerability becomes less significant: they can still see your filenames and
 other arguments you type there, but not the caps that Tahoe uses to permit
-access to your files and directories.
+access to your files and directories.  In Tahoe v1.3.0, there is a new
+"tahoe create-aliase" command that does this for you.
 
 
 == issues in Tahoe v1.1.0, released 2008-06-11 ==
@@ -129,104 +133,9 @@ being tested is correct.
 
 If you are using Twisted v8 and pyOpenSSL v0.7, then please ignore
 ERROR "Reactor was unclean" in test_system and test_introducer.
-Downgrading to an older version of Twisted or pyOpenSSL will cause
-those false alarms to stop happening.
-
-
-== issues in Tahoe v1.0.0, released 2008-03-25 ==
-
-(Tahoe v1.0 was superceded by v1.1 which was released 2008-06-11.)
-
-=== issue 6: server out of space when writing mutable file ===
-
-In addition to the problems caused by insufficient disk space
-described above, v1.0 clients which are writing mutable files when the
-servers fail to write to their filesystem are likely to think the
-write succeeded, when it in fact failed. This can cause data loss.
-
-==== how to manage it ====
-
-Upgrade client to v1.1, or make sure that servers are always able to
-write to their local filesystem (including that there is space
-available) as described in "issue 1" above.
-
-
-=== issue 5: server out of space when writing immutable file ===
-
-Tahoe v1.0 clients are using v1.0 servers which are unable to write to
-their filesystem during an immutable upload will correctly detect the
-first failure, but if they retry the upload without restarting the
-client, or if another client attempts to upload the same file, the
-second upload may appear to succeed when it hasn't, which can lead to
-data loss.
-
-==== how to manage it ====
-
-Upgrading either or both of the client and the server to v1.1 will fix
-this issue.  Also it can be avoided by ensuring that the servers are
-always able to write to their local filesystem (including that there
-is space available) as described in "issue 1" above.
-
-
-=== issue 4: large directories or mutable files of certain sizes ===
-
-If a client attempts to upload a large mutable file with a size
-greater than about 3,139,000 and less than or equal to 3,500,000 bytes
-then it will fail but appear to succeed, which can lead to data loss.
-
-(Mutable files larger than 3,500,000 are refused outright).  The
-symptom of the failure is very high memory usage (3 GB of memory) and
-100% CPU for about 5 minutes, before it appears to succeed, although
-it hasn't.
-
-Directories are stored in mutable files, and a directory of
-approximately 9000 entries may fall into this range of mutable file
-sizes (depending on the size of the filenames or other metadata
-associated with the entries).
-
-==== how to manage it ====
-
-This was fixed in v1.1, under ticket #379.  If the client is upgraded
-to v1.1, then it will fail cleanly instead of falsely appearing to
-succeed when it tries to write a file whose size is in this range.  If
-the server is also upgraded to v1.1, then writes of mutable files
-whose size is in this range will succeed.  (If the server is upgraded
-to v1.1 but the client is still v1.0 then the client will still suffer
-this failure.)
-
-
-=== issue 3: uploading files greater than 12 GiB ===
-
-If a Tahoe v1.0 client uploads a file greater than 12 GiB in size, the file will
-be silently corrupted so that it is not retrievable, but the client will think
-that it succeeded.  This is a "data loss" failure.
-
-==== how to manage it ====
-
-Don't upload files larger than 12 GiB.  If you have previously uploaded files of
-that size, assume that they have been corrupted and are not retrievable from the
-Tahoe storage grid.  Tahoe v1.1 clients will refuse to upload files larger than
-12 GiB with a clean failure.  A future release of Tahoe will remove this
-limitation so that larger files can be uploaded.
-
-
-=== issue 2: pycryptopp defect resulting in data corruption ===
-
-Versions of pycryptopp earlier than pycryptopp-0.5.0 had a defect
-which, when compiled with some compilers, would cause AES-256
-encryption and decryption to be computed incorrectly.  This could
-cause data corruption.  Tahoe v1.0 required, and came with a bundled
-copy of, pycryptopp v0.3.
-
-==== how to manage it ====
-
-You can detect whether pycryptopp-0.3 has this failure when it is
-compiled by your compiler.  Run the unit tests that come with
-pycryptopp-0.3: unpack the "pycryptopp-0.3.tar" file that comes in the
-Tahoe v1.0 {{{misc/dependencies}}} directory, cd into the resulting
-{{{pycryptopp-0.3.0}}} directory, and execute {{{python ./setup.py
-test}}}.  If the tests pass, then your compiler does not trigger this
-failure.
+Upgrading to a newer version of Twisted or pyOpenSSL will cause those
+false alarms to stop happening (as will downgrading to an older
+version of either of those packages).
 
 
 === issue 1: potential disclosure of a file through embedded
