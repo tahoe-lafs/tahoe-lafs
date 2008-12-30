@@ -12,6 +12,36 @@ http://allmydata.org/source/tahoe/trunk/docs/historical/historical_known_issues.
 
 == issues in Tahoe v1.2.0, released 2008-06-21 ==
 
+=== issue 1: potential disclosure of a file through embedded
+hyperlinks or JavaScript in that file ===
+
+If there is a file stored on a Tahoe storage grid, and that file gets
+downloaded and displayed in a web browser, then JavaScript or
+hyperlinks within that file can leak the capability to that file to a
+third party, which means that third party gets access to the file.
+
+If there is JavaScript in the file, then it could deliberately leak
+the capability to the file out to some remote listener.
+
+If there are hyperlinks in the file, and they get followed, then
+whichever server they point to receives the capability to the
+file. Note that IMG tags are typically followed automatically by web
+browsers, so being careful which hyperlinks you click on is not
+sufficient to prevent this from happening.
+
+==== how to manage it ====
+
+For future versions of Tahoe, we are considering ways to close off
+this leakage of authority while preserving ease of use -- the
+discussion of this issue is ticket #127.
+
+For the present, a good work-around is that if you want to store and
+view a file on Tahoe and you want that file to remain private, then
+remove from that file any hyperlinks pointing to other people's
+servers and remove any JavaScript unless you are sure that the
+JavaScript is not written to maliciously leak access.
+
+
 === issue 10: command-line arguments are leaked to other processes ===
 
 Remember that command-line arguments are visible to other users
@@ -40,7 +70,7 @@ access to your files and directories.  In Tahoe v1.3.0, there is a new
 
 === issue 9: more than one file can match an immutable file cap ===
 
-In Tahoe v1.0 and v1.1.0, a flaw in the cryptographic integrity check
+In Tahoe v1.0 and v1.1, a flaw in the cryptographic integrity check
 makes it possible for the original uploader of an immutable file to
 produce more than one immutable file matching the same capability, so
 that different downloads using the same capability could result in
@@ -57,7 +87,7 @@ get the same file.
 This was fixed in Tahoe v1.2.0, released 2008-07-21, under ticket
 #491.  Upgrade to that release of Tahoe and then you can rely on the
 property that there is only one file that you can download using a
-given capability.  If you are still using Tahoe v1.0.0 or v1.1.0, then
+given capability.  If you are still using Tahoe v1.0 or v1.1, then
 remember that the original uploader could produce multiple files that
 match the same capability, so for example if someone gives you a
 capability, and you use it to download a file, and you give that
@@ -67,7 +97,7 @@ your friend could get different files.
 
 === issue 8: server out of space when writing mutable file ===
 
-If a v1.0 or v1.1.0 storage server runs out of disk space or is
+If a v1.0 or v1.1 storage server runs out of disk space or is
 otherwise unable to write to its local filesystem, then problems can
 ensue.  For immutable files, this will not lead to any problem (the
 attempt to upload that share to that server will fail, the partially
@@ -125,44 +155,14 @@ mailing list discussion] about how that future version will work.
 
 === issue 7: pyOpenSSL/Twisted defect causes false alarms in tests ===
 
-The combination of Twisted v8 and pyOpenSSL v0.7 causes the Tahoe v1.1
-unit tests to fail, even though the behavior of Tahoe itself which is
-being tested is correct.
+The combination of Twisted v8.0 or Twisted v8.1 with pyOpenSSL v0.7
+causes the Tahoe v1.1 unit tests to fail, even though the behavior of
+Tahoe itself which is being tested is correct.
 
 ==== how to manage it ====
 
-If you are using Twisted v8 and pyOpenSSL v0.7, then please ignore
-ERROR "Reactor was unclean" in test_system and test_introducer.
-Upgrading to a newer version of Twisted or pyOpenSSL will cause those
-false alarms to stop happening (as will downgrading to an older
-version of either of those packages).
-
-
-=== issue 1: potential disclosure of a file through embedded
-hyperlinks or JavaScript in that file ===
-
-If there is a file stored on a Tahoe storage grid, and that file gets
-downloaded and displayed in a web browser, then JavaScript or
-hyperlinks within that file can leak the capability to that file to a
-third party, which means that third party gets access to the file.
-
-If there is JavaScript in the file, then it could deliberately leak
-the capability to the file out to some remote listener.
-
-If there are hyperlinks in the file, and they get followed, then
-whichever server they point to receives the capability to the
-file. Note that IMG tags are typically followed automatically by web
-browsers, so being careful which hyperlinks you click on is not
-sufficient to prevent this from happening.
-
-==== how to manage it ====
-
-For future versions of Tahoe, we are considering ways to close off
-this leakage of authority while preserving ease of use -- the
-discussion of this issue is ticket #127.
-
-For the present, a good work-around is that if you want to store and
-view a file on Tahoe and you want that file to remain private, then
-remove from that file any hyperlinks pointing to other people's
-servers and remove any JavaScript unless you are sure that the
-JavaScript is not written to maliciously leak access.
+If you are using Twisted v8.0 or Twisted v8.1 and pyOpenSSL v0.7, then
+please ignore ERROR "Reactor was unclean" in test_system and
+test_introducer. Upgrading to a newer version of Twisted or pyOpenSSL
+will cause those false alarms to stop happening (as will downgrading
+to an older version of either of those packages).
