@@ -1,4 +1,3 @@
-
 import struct
 from zope.interface import implements
 from twisted.internet import defer
@@ -363,4 +362,3 @@ class ReadBucketProxy:
 
     def _read(self, offset, length):
         return self._rref.callRemote("read", offset, length)
-
