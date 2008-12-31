@@ -2,8 +2,6 @@ import exceptions
 
 from foolscap.tokens import Violation
 
-from twisted.python import failure
-
 class ServerFailure(exceptions.Exception):
     # If the server returns a Failure instead of the normal response to a protocol, then this
     # exception will be raised, with the Failure that the server returned as its .remote_failure
