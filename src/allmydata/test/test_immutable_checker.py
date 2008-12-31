@@ -1,7 +1,9 @@
-from allmydata.immutable import upload
+
 from allmydata.test.common import SystemTestMixin, ShareManglingMixin
 from allmydata.monitor import Monitor
 from allmydata.interfaces import IURI, NotEnoughSharesError
+from allmydata.immutable import upload
+from allmydata.util import log
 from twisted.internet import defer
 from twisted.trial import unittest
 import random, struct
@@ -9,11 +11,17 @@ import common_util as testutil
 
 TEST_DATA="\x02"*(upload.Uploader.URI_LIT_SIZE_THRESHOLD+1)
 
-def corrupt_field(data, offset, size):
+def corrupt_field(data, offset, size, debug=False):
     if random.random() < 0.5:
-        return testutil.flip_one_bit(data, offset, size)
+        newdata = testutil.flip_one_bit(data, offset, size)
+        if debug:
+            log.msg("testing: corrupting offset %d, size %d flipping one bit orig: %r, newdata: %r" % (offset, size, data[offset:offset+size], newdata[offset:offset+size]))
+        return newdata
     else:
-        return data[:offset]+testutil.insecurerandstr(size)+data[offset+size:]
+        newval = testutil.insecurerandstr(size)
+        if debug:
+            log.msg("testing: corrupting offset %d, size %d randomizing field, orig: %r, newval: %r" % (offset, size, data[offset:offset+size], newval))
+        return data[:offset]+newval+data[offset+size:]
 
 def _corrupt_file_version_number(data):
     """ Scramble the file data -- the share file version number have one bit flipped or else
@@ -21,14 +29,33 @@ def _corrupt_file_version_number(data):
     return corrupt_field(data, 0x00, 4)
 
 def _corrupt_size_of_file_data(data):
-    """ Scramble the file data -- the field showing the size of the share data within the
-    file will have one bit flipped or else will be changed to a random value. """
+    """ Scramble the file data -- the field showing the size of the share data within the file
+    will be set to one smaller. """
     return corrupt_field(data, 0x04, 4)
 
 def _corrupt_sharedata_version_number(data):
     """ Scramble the file data -- the share data version number will have one bit flipped or
-    else will be changed to a random value."""
+    else will be changed to a random value, but not 1 or 2."""
     return corrupt_field(data, 0x0c, 4)
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    newsharevernum = sharevernum
+    while newsharevernum in (1, 2):
+        newsharevernum = random.randrange(0, 2**32)
+    newsharevernumbytes = struct.pack(">l", newsharevernum)
+    return data[:0x0c] + newsharevernumbytes + data[0x0c+4:]
+
+def _corrupt_sharedata_version_number_to_known_version(data):
+    """ Scramble the file data -- the share data version number will
+    be changed to 2 if it is 1 or else to 1 if it is 2."""
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        newsharevernum = 2
+    else:
+        newsharevernum = 1
+    newsharevernumbytes = struct.pack(">l", newsharevernum)
+    return data[:0x0c] + newsharevernumbytes + data[0x0c+4:]
 
 def _corrupt_segment_size(data):
     """ Scramble the file data -- the field showing the size of the segment will have one
@@ -36,9 +63,9 @@ def _corrupt_segment_size(data):
     sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
     assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
     if sharevernum == 1:
-        return corrupt_field(data, 0x0c+0x04, 4)
+        return corrupt_field(data, 0x0c+0x04, 4, debug=True)
     else:
-        return corrupt_field(data, 0x0c+0x04, 8)
+        return corrupt_field(data, 0x0c+0x04, 8, debug=True)
 
 def _corrupt_size_of_sharedata(data):
     """ Scramble the file data -- the field showing the size of the data within the share
@@ -67,9 +94,9 @@ def _corrupt_offset_of_ciphertext_hash_tree(data):
     sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
     assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
     if sharevernum == 1:
-        return corrupt_field(data, 0x0c+0x14, 4)
+        return corrupt_field(data, 0x0c+0x14, 4, debug=True)
     else:
-        return corrupt_field(data, 0x0c+0x24, 8)
+        return corrupt_field(data, 0x0c+0x24, 8, debug=True)
 
 def _corrupt_offset_of_block_hashes(data):
     """ Scramble the file data -- the field showing the offset of the block hash tree within
@@ -354,11 +381,10 @@ class Test(ShareManglingMixin, unittest.TestCase):
         """ Check says the file is healthy when none of the shares have been touched.  It says
         that the file is unhealthy if any field of any share has been corrupted.  It doesn't use
         more than twice as many reads as it needs. """
-        # N == 10.  2 is the "efficiency leeway" -- we'll allow you to pass this test even if
-        # you trigger twice as many disk reads and blocks sends as would be optimal.
-        DELTA_READS = 10 * 2
+        LEEWAY = 7 # We'll allow you to pass this test even if you trigger seven times as many disk reads and blocks sends as would be optimal.
+        DELTA_READS = 10 * LEEWAY # N = 10
         d = defer.succeed(self.filenode)
-        def _check1(filenode):
+        def _check_pristine(filenode):
             before_check_reads = self._count_reads()
 
             d2 = filenode.check(Monitor(), verify=True)
@@ -369,7 +395,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
 
             d2.addCallback(_after_check)
             return d2
-        d.addCallback(_check1)
+        d.addCallback(_check_pristine)
 
         d.addCallback(self.find_shares)
         stash = [None]
@@ -378,14 +404,23 @@ class Test(ShareManglingMixin, unittest.TestCase):
             return res
         d.addCallback(_stash_it)
 
-        def _check2(ignored):
+        def _check_after_feckless_corruption(ignored, corruptor_func):
+            # Corruption which has no effect -- bits of the share file that are unused.
             before_check_reads = self._count_reads()
             d2 = self.filenode.check(Monitor(), verify=True)
 
             def _after_check(checkresults):
                 after_check_reads = self._count_reads()
                 self.failIf(after_check_reads - before_check_reads > DELTA_READS)
-                self.failIf(checkresults.is_healthy())
+                self.failUnless(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data(), corruptor_func))
+                data = checkresults.get_data()
+                self.failUnless(data['count-shares-good'] == 10, data)
+                self.failUnless(len(data['sharemap']) == 10, data)
+                self.failUnless(data['count-shares-needed'] == 3, data)
+                self.failUnless(data['count-shares-expected'] == 10, data)
+                self.failUnless(data['count-good-share-hosts'] == 5, data)
+                self.failUnless(len(data['servers-responding']) == 5, data)
+                self.failUnless(len(data['list-corrupt-shares']) == 0, data)
 
             d2.addCallback(_after_check)
             return d2
@@ -395,11 +430,111 @@ class Test(ShareManglingMixin, unittest.TestCase):
             return ignored
 
         for corruptor_func in (
-            _corrupt_file_version_number,
             _corrupt_size_of_file_data,
-            _corrupt_sharedata_version_number,
-            _corrupt_segment_size,
             _corrupt_size_of_sharedata,
+            _corrupt_segment_size,
+            ):
+            d.addCallback(self._corrupt_a_random_share, corruptor_func)
+            d.addCallback(_check_after_feckless_corruption, corruptor_func=corruptor_func)
+            d.addCallback(_put_it_all_back)
+
+        def _check_after_server_visible_corruption(ignored, corruptor_func):
+            # Corruption which is detected by the server means that the server will send you
+            # back a Failure in response to get_bucket instead of giving you the share data.
+            before_check_reads = self._count_reads()
+            d2 = self.filenode.check(Monitor(), verify=True)
+
+            def _after_check(checkresults):
+                after_check_reads = self._count_reads()
+                self.failIf(after_check_reads - before_check_reads > DELTA_READS)
+                self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data(), corruptor_func))
+                data = checkresults.get_data()
+                # The server might fail to serve up its other share as well as the corrupted
+                # one, so count-shares-good could be 8 or 9.
+                self.failUnless(data['count-shares-good'] in (8, 9), data)
+                self.failUnless(len(data['sharemap']) in (8, 9,), data)
+                self.failUnless(data['count-shares-needed'] == 3, data)
+                self.failUnless(data['count-shares-expected'] == 10, data)
+                # The server may have served up the non-corrupted share, or it may not have, so
+                # the checker could have detected either 4 or 5 good servers.
+                self.failUnless(data['count-good-share-hosts'] in (4, 5), data)
+                self.failUnless(len(data['servers-responding']) in (4, 5), data)
+                # If the server served up the other share, then the checker should consider it good, else it should 
+                # not.
+                self.failUnless((data['count-shares-good'] == 9) == (data['count-good-share-hosts'] == 5), data)
+                self.failUnless(len(data['list-corrupt-shares']) == 0, data)
+
+            d2.addCallback(_after_check)
+            return d2
+
+        for corruptor_func in (
+            _corrupt_file_version_number,
+            ):
+            d.addCallback(self._corrupt_a_random_share, corruptor_func)
+            d.addCallback(_check_after_server_visible_corruption, corruptor_func=corruptor_func)
+            d.addCallback(_put_it_all_back)
+
+        def _check_after_share_incompatibility(ignored, corruptor_func):
+            # Corruption which means the share is indistinguishable from a share of an
+            # incompatible version.
+            before_check_reads = self._count_reads()
+            d2 = self.filenode.check(Monitor(), verify=True)
+
+            def _after_check(checkresults):
+                after_check_reads = self._count_reads()
+                self.failIf(after_check_reads - before_check_reads > DELTA_READS)
+                self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data(), corruptor_func))
+                data = checkresults.get_data()
+                self.failUnless(data['count-shares-good'] == 9, data)
+                self.failUnless(len(data['sharemap']) == 9, data)
+                self.failUnless(data['count-shares-needed'] == 3, data)
+                self.failUnless(data['count-shares-expected'] == 10, data)
+                self.failUnless(data['count-good-share-hosts'] == 5, data)
+                self.failUnless(len(data['servers-responding']) == 5, data)
+                self.failUnless(len(data['list-corrupt-shares']) == 0, data)
+                self.failUnless(len(data['list-corrupt-shares']) == data['count-corrupt-shares'], data)
+                self.failUnless(len(data['list-incompatible-shares']) == data['count-incompatible-shares'], data)
+                self.failUnless(len(data['list-incompatible-shares']) == 1, data)
+
+            d2.addCallback(_after_check)
+            return d2
+
+        for corruptor_func in (
+            _corrupt_sharedata_version_number,
+            ):
+            d.addCallback(self._corrupt_a_random_share, corruptor_func)
+            d.addCallback(_check_after_share_incompatibility, corruptor_func=corruptor_func)
+            d.addCallback(_put_it_all_back)
+
+        def _check_after_server_invisible_corruption(ignored, corruptor_func):
+            # Corruption which is not detected by the server means that the server will send you
+            # back the share data, but you will detect that it is wrong.
+            before_check_reads = self._count_reads()
+            d2 = self.filenode.check(Monitor(), verify=True)
+
+            def _after_check(checkresults):
+                after_check_reads = self._count_reads()
+                # print "delta was ", after_check_reads - before_check_reads
+                self.failIf(after_check_reads - before_check_reads > DELTA_READS)
+                self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data(), corruptor_func))
+                data = checkresults.get_data()
+                self.failUnless(data['count-shares-good'] == 9, data)
+                self.failUnless(data['count-shares-needed'] == 3, data)
+                self.failUnless(data['count-shares-expected'] == 10, data)
+                self.failUnless(data['count-good-share-hosts'] == 5, data)
+                self.failUnless(data['count-corrupt-shares'] == 1, (data, corruptor_func))
+                self.failUnless(len(data['list-corrupt-shares']) == 1, data)
+                self.failUnless(len(data['list-corrupt-shares']) == data['count-corrupt-shares'], data)
+                self.failUnless(len(data['list-incompatible-shares']) == data['count-incompatible-shares'], data)
+                self.failUnless(len(data['list-incompatible-shares']) == 0, data)
+                self.failUnless(len(data['servers-responding']) == 5, data)
+                self.failUnless(len(data['sharemap']) == 9, data)
+
+            d2.addCallback(_after_check)
+            return d2
+
+        for corruptor_func in (
+            _corrupt_sharedata_version_number_to_known_version,
             _corrupt_offset_of_sharedata,
             _corrupt_offset_of_ciphertext_hash_tree,
             _corrupt_offset_of_block_hashes,
@@ -413,16 +548,16 @@ class Test(ShareManglingMixin, unittest.TestCase):
             _corrupt_uri_extension,
             ):
             d.addCallback(self._corrupt_a_random_share, corruptor_func)
-            d.addCallback(_check2)
+            d.addCallback(_check_after_server_invisible_corruption, corruptor_func=corruptor_func)
             d.addCallback(_put_it_all_back)
         return d
     test_check_with_verify.todo = "We haven't implemented a verifier this thorough yet."
 
     def test_repair(self):
         """ Repair replaces a share that got deleted. """
-        # N == 10.  2 is the "efficiency leeway" -- we'll allow you to pass this test even if
-        # you trigger twice as many disk reads and blocks sends as would be optimal.
-        DELTA_READS = 10 * 2
+        # N == 10.  7 is the "efficiency leeway" -- we'll allow you to pass this test even if
+        # you trigger seven times as many disk reads and blocks sends as would be optimal.
+        DELTA_READS = 10 * 7
         # We'll allow you to pass this test only if you repair the missing share using only a
         # single allocate.
         DELTA_ALLOCATES = 1
@@ -515,10 +650,8 @@ class Test(ShareManglingMixin, unittest.TestCase):
 
         for corruptor_func in (
             _corrupt_file_version_number,
-            _corrupt_size_of_file_data,
             _corrupt_sharedata_version_number,
-            _corrupt_segment_size,
-            _corrupt_size_of_sharedata,
+            _corrupt_sharedata_version_number_to_known_version,
             _corrupt_offset_of_sharedata,
             _corrupt_offset_of_ciphertext_hash_tree,
             _corrupt_offset_of_block_hashes,
@@ -538,3 +671,10 @@ class Test(ShareManglingMixin, unittest.TestCase):
 
         return d
     test_repair.todo = "We haven't implemented a repairer yet."
+
+
+# XXX extend these tests to show that the checker detects which specific share on which specific server is broken -- this is necessary so that the checker results can be passed to the repairer and the repairer can go ahead and upload fixes without first doing what is effectively a check (/verify) run
+
+# XXX extend these tests to show bad behavior of various kinds from servers: raising exception from each remove_foo() method, for example
+
+# XXX test disconnect DeadReferenceError from get_buckets and get_block_whatsit

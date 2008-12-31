@@ -1634,11 +1634,17 @@ class ICheckerResults(Interface):
                               that was found to be corrupt. Each share
                               locator is a list of (serverid, storage_index,
                               sharenum).
+         count-incompatible-shares: the number of shares which are of a share format unknown to
+                              this checker
+         list-incompatible-shares: a list of 'share locators', one for each share that was found
+                              to be of an unknown format. Each share locator is a list of
+                              (serverid, storage_index, sharenum).
          servers-responding: list of (binary) storage server identifiers,
                              one for each server which responded to the share
                              query (even if they said they didn't have shares,
                              and even if they said they did have shares but then
-                             refused to send them when asked, and even if they
+                             didn't send them when asked, or dropped the
+                             connection, or returned a Failure, and even if they
                              said they did have shares and sent incorrect ones
                              when asked)
          sharemap: dict mapping share identifier to list of serverids
