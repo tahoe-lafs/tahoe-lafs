@@ -257,9 +257,9 @@ class Server(unittest.TestCase):
     def test_large_share(self):
         ss = self.create("test_large_share")
 
-        already,writers = self.allocate(ss, "allocate", [0,1,2], 2**32+2)
+        already,writers = self.allocate(ss, "allocate", [0], 2**32+2)
         self.failUnlessEqual(already, set())
-        self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
+        self.failUnlessEqual(set(writers.keys()), set([0]))
 
         shnum, bucket = writers.items()[0]
         # This test is going to hammer your filesystem if it doesn't make a sparse file for this.  :-(
