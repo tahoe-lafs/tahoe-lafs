@@ -33,15 +33,21 @@ NUM_RE=re.compile("^[0-9]+$")
 
 # The share file has the following layout:
 #  0x00: share file version number, four bytes, current version is 1
-#  0x04: share data length, four bytes big-endian = A
-#  0x08: number of leases, four bytes big-endian
+#  0x04: share data length, four bytes big-endian = A # See Footnote 1 below.
+#  0x08: number of leases, four bytes big-endian (unused)
 #  0x0c: beginning of share data (see immutable.layout.WriteBucketProxy)
-#  A+0x0c = B: first lease. Lease format is:
-#   B+0x00: owner number, 4 bytes big-endian, 0 is reserved for no-owner
-#   B+0x04: renew secret, 32 bytes (SHA256)
-#   B+0x24: cancel secret, 32 bytes (SHA256)
-#   B+0x44: expiration time, 4 bytes big-endian seconds-since-epoch
-#   B+0x48: next lease, or end of record
+#  A+0x0c = B: first lease. Lease format is: (unused) XXX
+#   B+0x00: owner number, 4 bytes big-endian, 0 is reserved for no-owner (unused) XXX
+#   B+0x04: renew secret, 32 bytes (SHA256) (unused) XXX
+#   B+0x24: cancel secret, 32 bytes (SHA256) (unused) XXX
+#   B+0x44: expiration time, 4 bytes big-endian seconds-since-epoch (unused) XXX
+#   B+0x48: next lease, or end of record (unused) XXX
+
+# Footnote 1: as of Tahoe v1.3.0 this field is not used by storage servers, but it is still
+# filled in by storage servers in case the storage server software gets downgraded from >= Tahoe
+# v1.3.0 to < Tahoe v1.3.0, or the share file is moved from one storage server to another.  The
+# value stored in this field is truncated, so If the actual share data length is >= 2**32, then
+# the value stored in this field will be the actual share data length modulo 2**32.
 
 def si_b2a(storageindex):
     return base32.b2a(storageindex)
@@ -95,22 +101,40 @@ class LeaseInfo:
 class ShareFile:
     LEASE_SIZE = struct.calcsize(">L32s32sL")
 
-    def __init__(self, filename):
+    def __init__(self, filename, max_size=None, create=False):
+        """ If max_size is not None then I won't allow more than max_size to be written to me. If create=True and max_size must not be None. """
+        precondition((max_size is not None) or (not create), max_size, create)
         self.home = filename
-        f = open(self.home, 'rb')
-        (version, size, num_leases) = struct.unpack(">LLL", f.read(0xc))
-        assert version == 1, version
-        self._size = size
-        self._num_leases = num_leases
+        self._max_size = max_size
+        if create:
+            # touch the file, so later callers will see that we're working on it.
+            # Also construct the metadata.
+            assert not os.path.exists(self.home)
+            fileutil.make_dirs(os.path.dirname(self.home))
+            f = open(self.home, 'wb')
+            # The second field -- share data length -- is no longer used as of Tahoe v1.3.0, but
+            # we continue to write it in there in case someone downgrades a storage server from
+            # >= Tahoe-1.3.0 to < Tahoe-1.3.0, or moves a share file from one server to another,
+            # etc.
+            f.write(struct.pack(">LLL", 1, max_size % 4294967295, 0))
+            f.close()
+            self._lease_offset = max_size + 0x0c
+            self._num_leases = 0
+        else:
+            f = open(self.home, 'rb')
+            filesize = os.path.getsize(self.home)
+            (version, unused, num_leases) = struct.unpack(">LLL", f.read(0xc))
+            f.close()
+            assert version == 1, version
+            self._num_leases = num_leases
+            self._lease_offset = filesize - (num_leases * self.LEASE_SIZE)
         self._data_offset = 0xc
-        self._lease_offset = 0xc + self._size
 
     def unlink(self):
         os.unlink(self.home)
 
     def read_share_data(self, offset, length):
         precondition(offset >= 0)
-        precondition(offset+length <= self._size)
         f = open(self.home, 'rb')
         f.seek(self._data_offset+offset)
         return f.read(length)
@@ -118,7 +142,8 @@ class ShareFile:
     def write_share_data(self, offset, data):
         length = len(data)
         precondition(offset >= 0, offset)
-        precondition(offset+length <= self._size, offset+length, self._size)
+        if self._max_size is not None and offset+length > self._max_size:
+            raise DataTooLargeError(self._max_size, offset, length)
         f = open(self.home, 'rb+')
         real_offset = self._data_offset+offset
         f.seek(real_offset)
@@ -148,7 +173,7 @@ class ShareFile:
         """Yields (ownernum, renew_secret, cancel_secret, expiration_time)
         for all leases."""
         f = open(self.home, 'rb')
-        (version, size, num_leases) = struct.unpack(">LLL", f.read(0xc))
+        (version, unused, num_leases) = struct.unpack(">LLL", f.read(0xc))
         f.seek(self._lease_offset)
         for i in range(num_leases):
             data = f.read(self.LEASE_SIZE)
@@ -221,30 +246,22 @@ class ShareFile:
 class BucketWriter(Referenceable):
     implements(RIBucketWriter)
 
-    def __init__(self, ss, incominghome, finalhome, size, lease_info, canary):
+    def __init__(self, ss, incominghome, finalhome, max_size, lease_info, canary):
         self.ss = ss
         self.incominghome = incominghome
         self.finalhome = finalhome
-        self._size = size
+        self._max_size = max_size # don't allow the client to write more than this
         self._canary = canary
         self._disconnect_marker = canary.notifyOnDisconnect(self._disconnected)
         self.closed = False
         self.throw_out_all_data = False
-        # touch the file, so later callers will see that we're working on it.
-        assert not os.path.exists(incominghome)
-        fileutil.make_dirs(os.path.dirname(incominghome))
-        # Also construct the metadata.
-        f = open(incominghome, 'wb')
-        precondition(size < 2**32) # v1 container format: 4-byte size field
-        f.write(struct.pack(">LLL", 1, size, 0))
-        f.close()
-        self._sharefile = ShareFile(incominghome)
+        self._sharefile = ShareFile(incominghome, create=True, max_size=max_size)
         # also, add our lease to the file now, so that other ones can be
         # added by simultaneous uploaders
         self._sharefile.add_lease(lease_info)
 
     def allocated_size(self):
-        return self._size
+        return self._max_size
 
     def remote_write(self, offset, data):
         start = time.time()
@@ -896,7 +913,7 @@ class StorageServer(service.MultiService, Referenceable):
             stats["storage_server.disk_used"] = disk_used
             stats["storage_server.disk_avail"] = disk_avail
         except AttributeError:
-            # os.statvfs is only available on unix
+            # os.statvfs is available only on unix
             pass
         stats["storage_server.accepting_immutable_shares"] = int(writeable)
         return stats
@@ -953,7 +970,7 @@ class StorageServer(service.MultiService, Referenceable):
                                renew_secret, cancel_secret,
                                expire_time, self.my_nodeid)
 
-        space_per_bucket = allocated_size
+        max_space_per_bucket = allocated_size
 
         remaining_space = self.get_available_space()
         limited = remaining_space is not None
@@ -986,16 +1003,16 @@ class StorageServer(service.MultiService, Referenceable):
                 # occurs while the first is still in progress, the second
                 # uploader will use different storage servers.
                 pass
-            elif (not limited) or (remaining_space >= space_per_bucket):
+            elif (not limited) or (remaining_space >= max_space_per_bucket):
                 # ok! we need to create the new share file.
                 bw = BucketWriter(self, incominghome, finalhome,
-                                  space_per_bucket, lease_info, canary)
+                                  max_space_per_bucket, lease_info, canary)
                 if self.no_storage:
                     bw.throw_out_all_data = True
                 bucketwriters[shnum] = bw
                 self._active_writers[bw] = 1
                 if limited:
-                    remaining_space -= space_per_bucket
+                    remaining_space -= max_space_per_bucket
             else:
                 # bummer! not enough space to accept this bucket
                 pass

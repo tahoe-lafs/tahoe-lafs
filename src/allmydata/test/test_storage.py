@@ -255,6 +255,22 @@ class Server(unittest.TestCase):
                                           renew_secret, cancel_secret,
                                           sharenums, size, canary)
 
+    def test_large_share(self):
+        ss = self.create("test_large_share")
+
+        already,writers = self.allocate(ss, "allocate", [0,1,2], 2**32+2)
+        self.failUnlessEqual(already, set())
+        self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
+
+        shnum, bucket = writers.items()[0]
+        # This test is going to hammer your filesystem if it doesn't make a sparse file for this.  :-(
+        bucket.remote_write(2**32, "ab")
+        bucket.remote_close()
+
+        readers = ss.remote_get_buckets("allocate")
+        reader = readers[shnum]
+        self.failUnlessEqual(reader.remote_read(2**32, 2), "ab")
+
     def test_dont_overfill_dirs(self):
         """
         This test asserts that if you add a second share whose storage index
