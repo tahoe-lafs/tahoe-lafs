@@ -1,4 +1,3 @@
-
 from twisted.trial import unittest
 
 from twisted.internet import defer
@@ -577,7 +576,6 @@ class Server(unittest.TestCase):
         ss.setNodeID("\x00" * 20)
         ss.setServiceParent(self.sparent)
 
-        canary = FakeCanary()
         already,writers = self.allocate(ss, "vid", [0,1,2], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(writers, {})
