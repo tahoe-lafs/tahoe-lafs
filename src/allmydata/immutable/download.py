@@ -27,7 +27,7 @@ class UnsupportedErasureCodec(BadURIExtension):
     pass
 class BadCrypttextHashValue(IntegrityCheckReject):
     pass
-class BadOrMissingShareHash(IntegrityCheckReject):
+class BadOrMissingHash(IntegrityCheckReject):
     pass
 
 class DownloadStopped(Exception):
@@ -450,7 +450,7 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
             for i,h in enumerate(blockhashes):
                 lines.append("%3d: %s" % (i, base32.b2a_or_none(h)))
             log.msg(" blockhashes:\n" + "\n".join(lines) + "\n")
-            raise BadOrMissingShareHash(le)
+            raise BadOrMissingHash(le)
 
         # If we made it here, the block is good. If the hash trees didn't
         # like what they saw, they would have raised a BadHashError, causing
