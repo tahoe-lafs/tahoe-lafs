@@ -333,15 +333,121 @@ class Test(ShareManglingMixin, unittest.TestCase):
             sum_of_allocate_counts += counters.get('storage_server.allocate', 0)
         return sum_of_allocate_counts
 
+    def _corrupt_a_share(self, unused, corruptor_func, sharenum):
+        shares = self.find_shares()
+        ks = [ key for key in shares.keys() if key[1] == sharenum ]
+        assert ks, (shares.keys(), sharenum)
+        k = ks[0]
+        shares[k] = corruptor_func(shares[k])
+        self.replace_shares(shares, storage_index=self.uri.storage_index)
+
     def _corrupt_a_random_share(self, unused, corruptor_func):
         """ Exactly one share on disk will be corrupted by corruptor_func. """
         shares = self.find_shares()
         ks = shares.keys()
         k = random.choice(ks)
+        return self._corrupt_a_share(unused, corruptor_func, k)
 
-        shares[k] = corruptor_func(shares[k])
+    def test_download(self):
+        """ Basic download.  (This functionality is more or less already tested by test code in
+        other modules, but this module is also going to test some more specific things about
+        immutable download.)
+        """
+        d = defer.succeed(None)
+        before_download_reads = self._count_reads()
+        def _after_download(unused=None):
+            after_download_reads = self._count_reads()
+            # To pass this test, you have to download the file using only 10 reads to get the
+            # UEB (in parallel from all shares), plus one read for each of the 3 shares.
+            self.failIf(after_download_reads-before_download_reads > 13, (after_download_reads, before_download_reads))
+        d.addCallback(self._download_and_check_plaintext)
+        d.addCallback(_after_download)
+        return d
 
-        self.replace_shares(shares, storage_index=self.uri.storage_index)
+    def test_download_from_only_3_remaining_shares(self):
+        """ Test download after 7 random shares (of the 10) have been removed. """
+        d = defer.succeed(None)
+        def _then_delete_7(unused=None):
+            for i in range(7):
+                self._delete_a_share()
+        before_download_reads = self._count_reads()
+        d.addCallback(_then_delete_7)
+        def _after_download(unused=None):
+            after_download_reads = self._count_reads()
+            # To pass this test, you have to download the file using only 10 reads to get the
+            # UEB (in parallel from all shares), plus one read for each of the 3 shares.
+            self.failIf(after_download_reads-before_download_reads > 13, (after_download_reads, before_download_reads))
+        d.addCallback(self._download_and_check_plaintext)
+        d.addCallback(_after_download)
+        return d
+
+    def test_download_abort_if_too_many_missing_shares(self):
+        """ Test that download gives up quickly when it realizes there aren't enough shares out
+        there."""
+        d = defer.succeed(None)
+        def _then_delete_8(unused=None):
+            for i in range(8):
+                self._delete_a_share()
+        d.addCallback(_then_delete_8)
+
+        before_download_reads = self._count_reads()
+        def _attempt_to_download(unused=None):
+            downloader = self.clients[1].getServiceNamed("downloader")
+            d = downloader.download_to_data(self.uri)
+
+            def _callb(res):
+                self.fail("Should have gotten an error from attempt to download, not %r" % (res,))
+            def _errb(f):
+                self.failUnless(f.check(NotEnoughSharesError))
+            d.addCallbacks(_callb, _errb)
+            return d
+
+        d.addCallback(_attempt_to_download)
+
+        def _after_attempt(unused=None):
+            after_download_reads = self._count_reads()
+            # To pass this test, you are required to give up before actually trying to read any
+            # share data.
+            self.failIf(after_download_reads-before_download_reads > 0, (after_download_reads, before_download_reads))
+        d.addCallback(_after_attempt)
+        return d
+
+    def test_download_abort_if_too_many_corrupted_shares(self):
+        """ Test that download gives up quickly when it realizes there aren't enough uncorrupted
+        shares out there. It should be able to tell because the corruption occurs in the
+        sharedata version number, which it checks first."""
+        d = defer.succeed(None)
+        def _then_corrupt_8(unused=None):
+            shnums = range(10)
+            random.shuffle(shnums)
+            for shnum in shnums[:8]:
+                self._corrupt_a_share(None, _corrupt_sharedata_version_number, shnum)
+        d.addCallback(_then_corrupt_8)
+
+        before_download_reads = self._count_reads()
+        def _attempt_to_download(unused=None):
+            downloader = self.clients[1].getServiceNamed("downloader")
+            d = downloader.download_to_data(self.uri)
+
+            def _callb(res):
+                self.fail("Should have gotten an error from attempt to download, not %r" % (res,))
+            def _errb(f):
+                self.failUnless(f.check(NotEnoughSharesError))
+            d.addCallbacks(_callb, _errb)
+            return d
+
+        d.addCallback(_attempt_to_download)
+
+        def _after_attempt(unused=None):
+            after_download_reads = self._count_reads()
+            # To pass this test, you are required to give up before reading all of the share
+            # data.  Actually, we could give up sooner than 37 reads, but currently our download
+            # code does 37 reads.  This test then serves as a "performance regression detector"
+            # -- if you change download code so that it takes *more* reads, then this test will
+            # fail.
+            self.failIf(after_download_reads-before_download_reads > 37, (after_download_reads, before_download_reads))
+        d.addCallback(_after_attempt)
+        return d
 
     def test_check_without_verify(self):
         """ Check says the file is healthy when none of the shares have been touched.  It says

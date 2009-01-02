@@ -880,7 +880,7 @@ class FileDownloader(log.PrefixingLogMixin):
             handled_shnums = set(self.active_buckets.keys())
             available_shnums = set(self._share_vbuckets.keys())
             potential_shnums = list(available_shnums - handled_shnums)
-            if not potential_shnums:
+            if len(potential_shnums) < (self._uri.needed_shares - len(self.active_buckets)):
                 raise NotEnoughSharesError
             # For the next share, choose a primary share if available, else a randomly chosen
             # secondary share.
