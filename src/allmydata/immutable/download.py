@@ -9,6 +9,7 @@ from foolscap.eventual import eventually
 
 from allmydata.util import base32, mathutil, hashutil, log
 from allmydata.util.assertutil import _assert, precondition
+from allmydata.util.rrefutil import ServerFailure
 from allmydata import codec, hashtree, uri
 from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, IVerifierURI, \
      IDownloadStatus, IDownloadResults, IValidatedThingProxy, NotEnoughSharesError
@@ -162,7 +163,7 @@ class ValidatedCrypttextHashTreeProxy:
         except (hashtree.BadHashError, hashtree.NotEnoughHashesError), le:
             if self._fetch_failures is not None:
                 self._fetch_failures["crypttext_hash_tree"] += 1
-            raise
+            raise BadOrMissingHash(le)
         return self
 
     def start(self):
@@ -494,8 +495,12 @@ class BlockDownloader(log.PrefixingLogMixin):
         self.parent.hold_block(self.blocknum, data)
 
     def _got_block_error(self, f):
-        failtype = f.trap(DeadReferenceError, IntegrityCheckReject)
-        self.log("failure to get block", level=log.UNUSUAL, umid="5Z4uHQ")
+        failtype = f.trap(ServerFailure, IntegrityCheckReject, layout.LayoutInvalid)
+        if f.check(ServerFailure):
+            level = log.UNUSUAL
+        else:
+            level = log.WEIRD
+        self.log("failure to get block", level=level, umid="5Z4uHQ")
         if self.results:
             peerid = self.vbucket.bucket.get_peerid()
             self.results.server_problems[peerid] = str(f)
