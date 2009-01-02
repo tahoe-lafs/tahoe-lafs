@@ -4,7 +4,7 @@ from twisted.internet import defer
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
      FileTooLargeError, HASH_SIZE
 from allmydata.util import mathutil, idlib
-from allmydata.util.assertutil import _assert, precondition
+from allmydata.util.assertutil import precondition
 from allmydata import storage
 
 class LayoutInvalid(Exception):
