@@ -36,12 +36,12 @@ NUM_RE=re.compile("^[0-9]+$")
 #  0x04: share data length, four bytes big-endian = A # See Footnote 1 below.
 #  0x08: number of leases, four bytes big-endian (unused)
 #  0x0c: beginning of share data (see immutable.layout.WriteBucketProxy)
-#  A+0x0c = B: first lease. Lease format is: (unused) XXX
-#   B+0x00: owner number, 4 bytes big-endian, 0 is reserved for no-owner (unused) XXX
-#   B+0x04: renew secret, 32 bytes (SHA256) (unused) XXX
-#   B+0x24: cancel secret, 32 bytes (SHA256) (unused) XXX
-#   B+0x44: expiration time, 4 bytes big-endian seconds-since-epoch (unused) XXX
-#   B+0x48: next lease, or end of record (unused) XXX
+#  A+0x0c = B: first lease. Lease format is:
+#   B+0x00: owner number, 4 bytes big-endian, 0 is reserved for no-owner
+#   B+0x04: renew secret, 32 bytes (SHA256)
+#   B+0x24: cancel secret, 32 bytes (SHA256)
+#   B+0x44: expiration time, 4 bytes big-endian seconds-since-epoch
+#   B+0x48: next lease, or end of record
 
 # Footnote 1: as of Tahoe v1.3.0 this field is not used by storage servers, but it is still
 # filled in by storage servers in case the storage server software gets downgraded from >= Tahoe
