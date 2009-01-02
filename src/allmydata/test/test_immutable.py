@@ -288,7 +288,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
         # download it is more to test this test code than to test the Tahoe code...
         def _then_delete_8(unused=None):
             self.replace_shares(stash[0], storage_index=self.uri.storage_index)
-            for sharenum in range(2, 10):
+            for i in range(8):
                 self._delete_a_share()
         d.addCallback(_then_delete_8)
 

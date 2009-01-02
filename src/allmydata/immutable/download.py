@@ -802,7 +802,7 @@ class FileDownloader(log.PrefixingLogMixin):
             self._results.timings["peer_selection"] = now - self._started
 
         if len(self._share_buckets) < self._uri.needed_shares:
-            raise NotEnoughSharesError
+            raise NotEnoughSharesError(len(self._share_buckets), self._uri.needed_shares)
 
         #for s in self._share_vbuckets.values():
         #    for vb in s:
