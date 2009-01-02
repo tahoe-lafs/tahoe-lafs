@@ -7,6 +7,21 @@ from allmydata.util import mathutil, idlib
 from allmydata.util.assertutil import _assert, precondition
 from allmydata import storage
 
+class LayoutInvalid(Exception):
+    """ There is something wrong with these bytes so they can't be interpreted as the kind of
+    immutable file that I know how to download. """
+    pass
+
+class RidiculouslyLargeURIExtensionBlock(LayoutInvalid):
+    """ When downloading a file, the length of the URI Extension Block was given as >= 2**32.
+    This means the share data must have been corrupted, or else the original uploader of the
+    file wrote a ridiculous value into the URI Extension Block length. """
+    pass
+
+class ShareVersionIncompatible(LayoutInvalid):
+    """ When downloading a share, its format was not one of the formats we know how to
+    parse. """
+    pass
 
 """
 Share data is written in a file. At the start of the file, there is a series of four-byte
@@ -272,7 +287,8 @@ class ReadBucketProxy:
         precondition(len(data) >= 0x4)
         self._offsets = {}
         (version,) = struct.unpack(">L", data[0:4])
-        _assert(version in (1,2))
+        if version != 1 and version != 2:
+            raise ShareVersionIncompatible(version)
 
         if version == 1:
             precondition(len(data) >= 0x24)
@@ -356,6 +372,12 @@ class ReadBucketProxy:
         d = self._read(offset, self._fieldsize)
         def _got_length(data):
             length = struct.unpack(self._fieldstruct, data)[0]
+            if length >= 2**31:
+                # URI extension blocks are around 419 bytes long, so this must be corrupted.
+                # Anyway, the foolscap interface schema for "read" will not allow >= 2**31 bytes
+                # length.
+                raise RidiculouslyLargeURIExtensionBlock(length)
+
             return self._read(offset+self._fieldsize, length)
         d.addCallback(_got_length)
         return d
