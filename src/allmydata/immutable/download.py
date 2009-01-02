@@ -189,6 +189,8 @@ class ValidatedExtendedURIProxy:
         self.share_root_hash = None
 
         # computed
+        self.block_size = None
+        self.share_size = None
         self.num_segments = None
         self.tail_segment_size = None
 
@@ -210,6 +212,8 @@ class ValidatedExtendedURIProxy:
             return data
 
     def _parse_and_validate(self, data):
+        self.share_size = mathutil.div_ceil(self._verifycap.size, self._verifycap.needed_shares)
+
         d = uri.unpack_extension(data)
 
         # There are several kinds of things that can be found in a UEB.  First, things that we
@@ -227,6 +231,7 @@ class ValidatedExtendedURIProxy:
         # crypttext_root_hash, and share_root_hash.
         self.segment_size = d['segment_size']
 
+        self.block_size = mathutil.div_ceil(self.segment_size, self._verifycap.needed_shares)
         self.num_segments = mathutil.div_ceil(self._verifycap.size, self.segment_size)
 
         tail_data_size = self._verifycap.size % self.segment_size
