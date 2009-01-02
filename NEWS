@@ -246,12 +246,7 @@ step. This should allow unit tests to be run even when trial (which is part
 of Twisted) wasn't already installed (in this case, trial gets installed to
 support/bin because Twisted is a dependency of Tahoe).
 
-Tahoe itself is now compatible with the recently-released Python 2.6 . Most
-of its dependencies are too, however the most recent release of Nevow
-(0.9.31) has an unused function that uses 'with' as a variable name, which
-runs afoul of the new 'with' reserved word in 2.6, so to run Tahoe against
-python2.6 you will need to install Nevow from its SVN trunk, or comment out
-the offending function.
+Tahoe is now compatible with the recently-released Python 2.6 .
 
 Tahoe is now compatible with simplejson-2.0.x . The previous release assumed
 that simplejson.loads always returned unicode strings, which is no longer the
