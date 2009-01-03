@@ -441,11 +441,11 @@ class Test(ShareManglingMixin, unittest.TestCase):
         def _after_attempt(unused=None):
             after_download_reads = self._count_reads()
             # To pass this test, you are required to give up before reading all of the share
-            # data.  Actually, we could give up sooner than 39 reads, but currently our download
-            # code does 39 reads.  This test then serves as a "performance regression detector"
+            # data.  Actually, we could give up sooner than 45 reads, but currently our download
+            # code does 45 reads.  This test then serves as a "performance regression detector"
             # -- if you change download code so that it takes *more* reads, then this test will
             # fail.
-            self.failIf(after_download_reads-before_download_reads > 39, (after_download_reads, before_download_reads))
+            self.failIf(after_download_reads-before_download_reads > 45, (after_download_reads, before_download_reads))
         d.addCallback(_after_attempt)
         return d
 
