@@ -135,9 +135,17 @@ class ShareFile:
 
     def read_share_data(self, offset, length):
         precondition(offset >= 0)
+        # reads beyond the end of the data are truncated. Reads that start beyond the end of the
+        # data return an empty string.
+        # I wonder why Python doesn't do the following computation for me?
         f = open(self.home, 'rb')
-        f.seek(self._data_offset+offset)
-        return f.read(length)
+        seekpos = self._data_offset+offset
+        fsize = os.path.getsize(self.home)
+        actuallength = min(0, length, fsize-seekpos)
+        if actuallength == 0:
+            return ""
+        f.seek(seekpos)
+        return f.read(actuallength)
 
     def write_share_data(self, offset, data):
         length = len(data)
