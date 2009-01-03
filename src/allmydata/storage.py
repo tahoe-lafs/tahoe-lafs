@@ -138,12 +138,12 @@ class ShareFile:
         # reads beyond the end of the data are truncated. Reads that start beyond the end of the
         # data return an empty string.
         # I wonder why Python doesn't do the following computation for me?
-        f = open(self.home, 'rb')
         seekpos = self._data_offset+offset
         fsize = os.path.getsize(self.home)
-        actuallength = min(0, length, fsize-seekpos)
+        actuallength = max(0, min(length, fsize-seekpos))
         if actuallength == 0:
             return ""
+        f = open(self.home, 'rb')
         f.seek(seekpos)
         return f.read(actuallength)
 
