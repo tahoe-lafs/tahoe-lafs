@@ -3,7 +3,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
      FileTooLargeError, HASH_SIZE
-from allmydata.util import log, mathutil, idlib
+from allmydata.util import mathutil, idlib
 from allmydata.util.assertutil import precondition
 from allmydata import storage
 
