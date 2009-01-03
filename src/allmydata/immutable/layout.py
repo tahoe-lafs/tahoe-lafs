@@ -371,6 +371,8 @@ class ReadBucketProxy:
         offset = self._offsets['uri_extension']
         d = self._read(offset, self._fieldsize)
         def _got_length(data):
+            if len(data) != 4:
+                raise LayoutInvalid("not enough bytes to encode URI length -- %d" % (len(data),))
             length = struct.unpack(self._fieldstruct, data)[0]
             if length >= 2**31:
                 # URI extension blocks are around 419 bytes long, so this must be corrupted.
