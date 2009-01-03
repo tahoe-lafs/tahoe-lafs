@@ -34,7 +34,7 @@ NUM_RE=re.compile("^[0-9]+$")
 # The share file has the following layout:
 #  0x00: share file version number, four bytes, current version is 1
 #  0x04: share data length, four bytes big-endian = A # See Footnote 1 below.
-#  0x08: number of leases, four bytes big-endian (unused)
+#  0x08: number of leases, four bytes big-endian
 #  0x0c: beginning of share data (see immutable.layout.WriteBucketProxy)
 #  A+0x0c = B: first lease. Lease format is:
 #   B+0x00: owner number, 4 bytes big-endian, 0 is reserved for no-owner
