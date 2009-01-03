@@ -63,9 +63,9 @@ def _corrupt_segment_size(data):
     sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
     assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
     if sharevernum == 1:
-        return corrupt_field(data, 0x0c+0x04, 4, debug=True)
+        return corrupt_field(data, 0x0c+0x04, 4, debug=False)
     else:
-        return corrupt_field(data, 0x0c+0x04, 8, debug=True)
+        return corrupt_field(data, 0x0c+0x04, 8, debug=False)
 
 def _corrupt_size_of_sharedata(data):
     """ Scramble the file data -- the field showing the size of the data within the share
@@ -94,9 +94,9 @@ def _corrupt_offset_of_ciphertext_hash_tree(data):
     sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
     assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
     if sharevernum == 1:
-        return corrupt_field(data, 0x0c+0x14, 4, debug=True)
+        return corrupt_field(data, 0x0c+0x14, 4, debug=False)
     else:
-        return corrupt_field(data, 0x0c+0x24, 8, debug=True)
+        return corrupt_field(data, 0x0c+0x24, 8, debug=False)
 
 def _corrupt_offset_of_block_hashes(data):
     """ Scramble the file data -- the field showing the offset of the block hash tree within
@@ -127,6 +127,23 @@ def _corrupt_offset_of_uri_extension(data):
         return corrupt_field(data, 0x0c+0x20, 4)
     else:
         return corrupt_field(data, 0x0c+0x3c, 8)
+
+def _corrupt_offset_of_uri_extension_to_force_short_read(data, debug=False):
+    """ Scramble the file data -- the field showing the offset of the uri extension will be set
+    to the size of the file minus 3.  This means when the client tries to read the length field
+    from that location it will get a short read -- the result string will be only 3 bytes long,
+    not the 4 or 8 bytes necessary to do a successful struct.unpack."""
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    # The "-0x0c" in here is to skip the server-side header in the share file, which the client doesn't see when seeking and reading.
+    if sharevernum == 1:
+        if debug:
+            log.msg("testing: corrupting offset %d, size %d, changing %d to %d (len(data) == %d)" % (0x2c, 4, struct.unpack(">L", data[0x2c:0x2c+4])[0], len(data)-0x0c-3, len(data)))
+        return data[:0x2c] + struct.pack(">L", len(data)-0x0c-3) + data[0x2c+4:]
+    else:
+        if debug:
+            log.msg("testing: corrupting offset %d, size %d, changing %d to %d (len(data) == %d)" % (0x48, 8, struct.unpack(">Q", data[0x48:0x48+8])[0], len(data)-0x0c-3, len(data)))
+        return data[:0x48] + struct.pack(">Q", len(data)-0x0c-3) + data[0x48+8:]
 
 def _corrupt_share_data(data):
     """ Scramble the file data -- the field containing the share data itself will have one
@@ -341,12 +358,18 @@ class Test(ShareManglingMixin, unittest.TestCase):
         shares[k] = corruptor_func(shares[k])
         self.replace_shares(shares, storage_index=self.uri.storage_index)
 
+    def _corrupt_all_shares(self, unused, corruptor_func):
+        """ All shares on disk will be corrupted by corruptor_func. """
+        shares = self.find_shares()
+        for k in shares.keys():
+            self._corrupt_a_share(unused, corruptor_func, k[1])
+
     def _corrupt_a_random_share(self, unused, corruptor_func):
         """ Exactly one share on disk will be corrupted by corruptor_func. """
         shares = self.find_shares()
         ks = shares.keys()
         k = random.choice(ks)
-        return self._corrupt_a_share(unused, corruptor_func, k)
+        return self._corrupt_a_share(unused, corruptor_func, k[1])
 
     def test_download(self):
         """ Basic download.  (This functionality is more or less already tested by test code in
@@ -646,6 +669,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
             _corrupt_offset_of_block_hashes,
             _corrupt_offset_of_share_hashes,
             _corrupt_offset_of_uri_extension,
+            _corrupt_offset_of_uri_extension_to_force_short_read,
             _corrupt_share_data,
             _corrupt_crypttext_hash_tree,
             _corrupt_block_hashes,
