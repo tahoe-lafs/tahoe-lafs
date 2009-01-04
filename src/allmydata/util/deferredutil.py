@@ -15,3 +15,22 @@ def DeferredListShouldSucceed(dl):
     d.addCallback(_check_deferred_list)
     return d
 
+def _parseDListResult(l):
+    return [x[1] for x in l]
+
+def _unwrapFirstError(f):
+    f.trap(defer.FirstError)
+    raise f.value.subFailure
+
+def gatherResults(deferredList):
+    """Returns list with result of given Deferreds.
+
+    This builds on C{DeferredList} but is useful since you don't
+    need to parse the result for success/failure.
+
+    @type deferredList:  C{list} of L{Deferred}s
+    """
+    d = defer.DeferredList(deferredList, fireOnOneErrback=True, consumeErrors=True)
+    d.addCallbacks(_parseDListResult, _unwrapFirstError)
+    return d
+
