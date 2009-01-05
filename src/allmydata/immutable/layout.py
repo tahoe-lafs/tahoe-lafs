@@ -289,7 +289,9 @@ class ReadBucketProxy:
         d.addCallback(self._parse_sharehashtree_and_ueb)
         def _fail_waiters(f):
             self._ready.fire(f)
-        d.addErrback(_fail_waiters)
+        def _notify_waiters(result):
+            self._ready.fire(result)
+        d.addCallbacks(_notify_waiters, _fail_waiters)
         return d
 
     def _fetch_header(self):
@@ -350,8 +352,6 @@ class ReadBucketProxy:
             raise LayoutInvalid("not enough bytes to encode URI length -- should be at least %d bytes long, not %d " % (i+self._fieldsize, len(data),))
         length = struct.unpack(self._fieldstruct, data[i:i+self._fieldsize])[0]
         self._ueb_data = data[i+self._fieldsize:i+self._fieldsize+length]
-
-        self._ready.fire(self)
 
     def _get_block_data(self, unused, blocknum, blocksize, thisblocksize):
         offset = self._offsets['data'] + blocknum * blocksize
