@@ -125,10 +125,10 @@ class BucketProxy(unittest.TestCase):
         bw, rb, sharefname = self.make_bucket("test_create", 500)
         bp = WriteBucketProxy(rb,
                               data_size=300,
-                              segment_size=10,
+                              block_size=10,
                               num_segments=5,
                               num_share_hashes=3,
-                              uri_extension_size=500, nodeid=None)
+                              uri_extension_size_max=500, nodeid=None)
         self.failUnless(interfaces.IStorageBucketWriter.providedBy(bp))
 
     def _do_test_readwrite(self, name, header_size, wbp_class, rbp_class):
@@ -156,13 +156,13 @@ class BucketProxy(unittest.TestCase):
         bw, rb, sharefname = self.make_bucket(name, sharesize)
         bp = wbp_class(rb,
                        data_size=95,
-                       segment_size=25,
+                       block_size=25,
                        num_segments=4,
                        num_share_hashes=3,
-                       uri_extension_size=len(uri_extension),
+                       uri_extension_size_max=len(uri_extension),
                        nodeid=None)
 
-        d = bp.start()
+        d = bp.put_header()
         d.addCallback(lambda res: bp.put_block(0, "a"*25))
         d.addCallback(lambda res: bp.put_block(1, "b"*25))
         d.addCallback(lambda res: bp.put_block(2, "c"*25))
@@ -182,21 +182,19 @@ class BucketProxy(unittest.TestCase):
             self.failUnless("to peer" in repr(rbp))
             self.failUnless(interfaces.IStorageBucketReader.providedBy(rbp))
 
-            d1 = rbp.startIfNecessary()
-            d1.addCallback(lambda res: rbp.startIfNecessary()) # idempotent
-            d1.addCallback(lambda res: rbp.get_block(0))
+            d1 = rbp.get_block_data(0, 25, 25)
             d1.addCallback(lambda res: self.failUnlessEqual(res, "a"*25))
-            d1.addCallback(lambda res: rbp.get_block(1))
+            d1.addCallback(lambda res: rbp.get_block_data(1, 25, 25))
             d1.addCallback(lambda res: self.failUnlessEqual(res, "b"*25))
-            d1.addCallback(lambda res: rbp.get_block(2))
+            d1.addCallback(lambda res: rbp.get_block_data(2, 25, 25))
             d1.addCallback(lambda res: self.failUnlessEqual(res, "c"*25))
-            d1.addCallback(lambda res: rbp.get_block(3))
+            d1.addCallback(lambda res: rbp.get_block_data(3, 25, 20))
             d1.addCallback(lambda res: self.failUnlessEqual(res, "d"*20))
 
             d1.addCallback(lambda res: rbp.get_crypttext_hashes())
             d1.addCallback(lambda res:
                            self.failUnlessEqual(res, crypttext_hashes))
-            d1.addCallback(lambda res: rbp.get_block_hashes())
+            d1.addCallback(lambda res: rbp.get_block_hashes(set(range(4))))
             d1.addCallback(lambda res: self.failUnlessEqual(res, block_hashes))
             d1.addCallback(lambda res: rbp.get_share_hashes())
             d1.addCallback(lambda res: self.failUnlessEqual(res, share_hashes))

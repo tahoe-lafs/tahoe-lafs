@@ -7,7 +7,7 @@ from twisted.application import service
 from foolscap import DeadReferenceError
 from foolscap.eventual import eventually
 
-from allmydata.util import base32, mathutil, hashutil, log
+from allmydata.util import base32, deferredutil, mathutil, hashutil, log
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.rrefutil import ServerFailure
 from allmydata import codec, hashtree, uri
@@ -134,7 +134,8 @@ class ValidatedThingObtainer:
         if not self._validatedthingproxies:
             raise NotEnoughSharesError("ran out of peers, last error was %s" % (f,))
         # try again with a different one
-        return self._try_the_next_one()
+        d = self._try_the_next_one()
+        return d
 
     def _try_the_next_one(self):
         vtp = self._validatedthingproxies.pop(0)
@@ -167,8 +168,7 @@ class ValidatedCrypttextHashTreeProxy:
         return self
 
     def start(self):
-        d = self._readbucketproxy.startIfNecessary()
-        d.addCallback(lambda ignored: self._readbucketproxy.get_crypttext_hashes())
+        d = self._readbucketproxy.get_crypttext_hashes()
         d.addCallback(self._validate)
         return d
 
@@ -333,97 +333,104 @@ class ValidatedExtendedURIProxy:
         """ Fetch the UEB from bucket, compare its hash to the hash from verifycap, then parse
         it.  Returns a deferred which is called back with self once the fetch is successful, or
         is erred back if it fails. """
-        d = self._readbucketproxy.startIfNecessary()
-        d.addCallback(lambda ignored: self._readbucketproxy.get_uri_extension())
+        d = self._readbucketproxy.get_uri_extension()
         d.addCallback(self._check_integrity)
         d.addCallback(self._parse_and_validate)
         return d
 
 class ValidatedReadBucketProxy(log.PrefixingLogMixin):
-    """I am a front-end for a remote storage bucket, responsible for
-    retrieving and validating data from that bucket.
+    """I am a front-end for a remote storage bucket, responsible for retrieving and validating
+    data from that bucket.
 
     My get_block() method is used by BlockDownloaders.
     """
 
-    def __init__(self, sharenum, bucket,
-                 share_hash_tree, share_root_hash,
-                 num_blocks):
-        """ share_root_hash is the root of the share hash tree; share_root_hash is stored in the UEB """
+    def __init__(self, sharenum, bucket, share_hash_tree, num_blocks, block_size, share_size):
+        """ share_hash_tree is required to have already been initialized with the root hash
+        (the number-0 hash), using the share_root_hash from the UEB """
+        precondition(share_hash_tree[0] is not None, share_hash_tree)
         prefix = "%d-%s-%s" % (sharenum, bucket, base32.b2a_l(share_hash_tree[0][:8], 60))
         log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.download", prefix=prefix)
         self.sharenum = sharenum
         self.bucket = bucket
-        self._share_hash = None # None means not validated yet
         self.share_hash_tree = share_hash_tree
-        self._share_root_hash = share_root_hash
-        self.block_hash_tree = hashtree.IncompleteHashTree(num_blocks)
-        self.started = False
+        self.num_blocks = num_blocks
+        self.block_size = block_size
+        self.share_size = share_size
+        self.block_hash_tree = hashtree.IncompleteHashTree(self.num_blocks)
 
     def get_block(self, blocknum):
-        if not self.started:
-            d = self.bucket.start()
-            def _started(res):
-                self.started = True
-                return self.get_block(blocknum)
-            d.addCallback(_started)
-            return d
-
         # the first time we use this bucket, we need to fetch enough elements
         # of the share hash tree to validate it from our share hash up to the
         # hashroot.
-        if not self._share_hash:
+        if self.share_hash_tree.needed_hashes(self.sharenum):
             d1 = self.bucket.get_share_hashes()
         else:
             d1 = defer.succeed([])
 
-        # we might need to grab some elements of our block hash tree, to
-        # validate the requested block up to the share hash
-        needed = self.block_hash_tree.needed_hashes(blocknum)
-        if needed:
-            # TODO: get fewer hashes, use get_block_hashes(needed)
-            d2 = self.bucket.get_block_hashes()
+        # We might need to grab some elements of our block hash tree, to
+        # validate the requested block up to the share hash.
+        blockhashesneeded = self.block_hash_tree.needed_hashes(blocknum, include_leaf=True)
+        # We don't need the root of the block hash tree, as that comes in the share tree.
+        blockhashesneeded.discard(0)
+        d2 = self.bucket.get_block_hashes(blockhashesneeded)
+
+        if blocknum < self.num_blocks-1:
+            thisblocksize = self.block_size
         else:
-            d2 = defer.succeed([])
+            thisblocksize = self.share_size % self.block_size
+            if thisblocksize == 0:
+                thisblocksize = self.block_size
+        d3 = self.bucket.get_block_data(blocknum, self.block_size, thisblocksize)
 
-        d3 = self.bucket.get_block(blocknum)
+        dl = deferredutil.gatherResults([d1, d2, d3])
+        dl.addCallback(self._got_data, blocknum)
+        return dl
 
-        d = defer.gatherResults([d1, d2, d3])
-        d.addCallback(self._got_data, blocknum)
-        return d
+    def _got_data(self, results, blocknum):
+        precondition(blocknum < self.num_blocks, self, blocknum, self.num_blocks)
+        sharehashes, blockhashes, blockdata = results
+        try:
+            sharehashes = dict(sharehashes)
+        except ValueError, le:
+            le.args = tuple(le.args + (sharehashes,))
+            raise
+        blockhashes = dict(enumerate(blockhashes))
 
-    def _got_data(self, res, blocknum):
-        sharehashes, blockhashes, blockdata = res
-        blockhash = None # to make logging it safe
+        candidate_share_hash = None # in case we log it in the except block below
+        blockhash = None # in case we log it in the except block below
 
         try:
-            if not self._share_hash:
-                sh = dict(sharehashes)
-                sh[0] = self._share_root_hash # always use our own root, from the URI
-                sht = self.share_hash_tree
-                if sht.get_leaf_index(self.sharenum) not in sh:
-                    raise hashtree.NotEnoughHashesError
-                sht.set_hashes(sh)
-                self._share_hash = sht.get_leaf(self.sharenum)
+            if self.share_hash_tree.needed_hashes(self.sharenum):
+                # This will raise exception if the values being passed do not match the root
+                # node of self.share_hash_tree.
+                self.share_hash_tree.set_hashes(sharehashes)
+
+            # To validate a block we need the root of the block hash tree, which is also one of
+            # the leafs of the share hash tree, and is called "the share hash".
+            if not self.block_hash_tree[0]: # empty -- no root node yet
+                # Get the share hash from the share hash tree.
+                share_hash = self.share_hash_tree.get_leaf(self.sharenum)
+                if not share_hash:
+                    raise hashtree.NotEnoughHashesError # No root node in block_hash_tree and also the share hash wasn't sent by the server.
+                self.block_hash_tree.set_hashes({0: share_hash})
+
+            if self.block_hash_tree.needed_hashes(blocknum):
+                self.block_hash_tree.set_hashes(blockhashes)
 
             blockhash = hashutil.block_hash(blockdata)
+            self.block_hash_tree.set_hashes(leaves={blocknum: blockhash})
             #self.log("checking block_hash(shareid=%d, blocknum=%d) len=%d "
             #        "%r .. %r: %s" %
             #        (self.sharenum, blocknum, len(blockdata),
             #         blockdata[:50], blockdata[-50:], base32.b2a(blockhash)))
-
-            # we always validate the blockhash
-            bh = dict(enumerate(blockhashes))
-            # replace blockhash root with validated value
-            bh[0] = self._share_hash
-            self.block_hash_tree.set_hashes(bh, {blocknum: blockhash})
 
         except (hashtree.BadHashError, hashtree.NotEnoughHashesError), le:
             # log.WEIRD: indicates undetected disk/network error, or more
             # likely a programming error
             self.log("hash failure in block=%d, shnum=%d on %s" %
                     (blocknum, self.sharenum, self.bucket))
-            if self._share_hash:
+            if self.block_hash_tree.needed_hashes(blocknum):
                 self.log(""" failure occurred when checking the block_hash_tree.
                 This suggests that either the block data was bad, or that the
                 block hashes we received along with it were bad.""")
@@ -431,7 +438,7 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
                 self.log(""" the failure probably occurred when checking the
                 share_hash_tree, which suggests that the share hashes we
                 received from the remote peer were bad.""")
-            self.log(" have self._share_hash: %s" % bool(self._share_hash))
+            self.log(" have candidate_share_hash: %s" % bool(candidate_share_hash))
             self.log(" block length: %d" % len(blockdata))
             self.log(" block hash: %s" % base32.b2a_or_none(blockhash))
             if len(blockdata) < 100:
@@ -439,15 +446,14 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
             else:
                 self.log(" block data start/end: %r .. %r" %
                         (blockdata[:50], blockdata[-50:]))
-            self.log(" root hash: %s" % base32.b2a(self._share_root_hash))
             self.log(" share hash tree:\n" + self.share_hash_tree.dump())
             self.log(" block hash tree:\n" + self.block_hash_tree.dump())
             lines = []
-            for i,h in sorted(sharehashes):
+            for i,h in sorted(sharehashes.items()):
                 lines.append("%3d: %s" % (i, base32.b2a_or_none(h)))
             self.log(" sharehashes:\n" + "\n".join(lines) + "\n")
             lines = []
-            for i,h in enumerate(blockhashes):
+            for i,h in blockhashes.items():
                 lines.append("%3d: %s" % (i, base32.b2a_or_none(h)))
             log.msg(" blockhashes:\n" + "\n".join(lines) + "\n")
             raise BadOrMissingHash(le)
@@ -495,7 +501,7 @@ class BlockDownloader(log.PrefixingLogMixin):
         self.parent.hold_block(self.blocknum, data)
 
     def _got_block_error(self, f):
-        failtype = f.trap(ServerFailure, IntegrityCheckReject, layout.LayoutInvalid)
+        failtype = f.trap(ServerFailure, IntegrityCheckReject, layout.LayoutInvalid, layout.ShareVersionIncompatible)
         if f.check(ServerFailure):
             level = log.UNUSUAL
         else:
@@ -679,6 +685,7 @@ class FileDownloader(log.PrefixingLogMixin):
 
         self._fetch_failures = {"uri_extension": 0, "crypttext_hash_tree": 0, }
 
+        self._share_hash_tree = None
         self._crypttext_hash_tree = None
 
     def pauseProducing(self):
@@ -840,8 +847,8 @@ class FileDownloader(log.PrefixingLogMixin):
 
             self._current_segnum = 0
 
-            self._share_hashtree = hashtree.IncompleteHashTree(self._uri.total_shares)
-            self._share_hashtree.set_hashes({0: vup.share_root_hash})
+            self._share_hash_tree = hashtree.IncompleteHashTree(self._uri.total_shares)
+            self._share_hash_tree.set_hashes({0: vup.share_root_hash})
 
             self._crypttext_hash_tree = hashtree.IncompleteHashTree(self._vup.num_segments)
             self._crypttext_hash_tree.set_hashes({0: self._vup.crypttext_root_hash})
@@ -897,12 +904,8 @@ class FileDownloader(log.PrefixingLogMixin):
 
     def _download_all_segments(self, res):
         for sharenum, bucket in self._share_buckets:
-            vbucket = ValidatedReadBucketProxy(sharenum, bucket,
-                                      self._share_hashtree,
-                                      self._vup.share_root_hash,
-                                      self._vup.num_segments)
-            s = self._share_vbuckets.setdefault(sharenum, set())
-            s.add(vbucket)
+            vbucket = ValidatedReadBucketProxy(sharenum, bucket, self._share_hash_tree, self._vup.num_segments, self._vup.block_size, self._vup.share_size)
+            self._share_vbuckets.setdefault(sharenum, set()).add(vbucket)
 
         # after the above code, self._share_vbuckets contains enough
         # buckets to complete the download, and some extra ones to

@@ -105,7 +105,8 @@ def dump_immutable_share(options):
         print >>out, "%20s: %s" % ("verify-cap", verify_cap)
 
     sizes = {}
-    sizes['data'] = bp._data_size
+    sizes['data'] = (offsets['plaintext_hash_tree'] -
+                           offsets['data'])
     sizes['validation'] = (offsets['uri_extension'] -
                            offsets['plaintext_hash_tree'])
     sizes['uri-extension'] = len(UEB_data)
@@ -586,6 +587,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         class ImmediateReadBucketProxy(ReadBucketProxy):
             def __init__(self, sf):
                 self.sf = sf
+                ReadBucketProxy.__init__(self, "", "", "")
             def __repr__(self):
                 return "<ImmediateReadBucketProxy>"
             def _read(self, offset, size):
@@ -594,7 +596,6 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         # use a ReadBucketProxy to parse the bucket and find the uri extension
         sf = storage.ShareFile(abs_sharefile)
         bp = ImmediateReadBucketProxy(sf)
-        call(bp.start)
 
         expiration_time = min( [lease.expiration_time
                                 for lease in sf.iter_leases()] )

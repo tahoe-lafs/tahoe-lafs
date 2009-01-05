@@ -306,7 +306,7 @@ class IStorageBucketWriter(Interface):
 
 class IStorageBucketReader(Interface):
 
-    def get_block(blocknum=int):
+    def get_block_data(blocknum=int, blocksize=int, size=int):
         """Most blocks will be the same size. The last block might be shorter
         than the others.
 
@@ -318,12 +318,12 @@ class IStorageBucketReader(Interface):
         @return: ListOf(Hash)
         """
 
-    def get_block_hashes():
+    def get_block_hashes(at_least_these=SetOf(int)):
         """
         @return: ListOf(Hash)
         """
 
-    def get_share_hashes():
+    def get_share_hashes(at_least_these=SetOf(int)):
         """
         @return: ListOf(TupleOf(int, Hash))
         """

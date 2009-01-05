@@ -283,7 +283,7 @@ class Encoder(object):
         self.set_status("Starting shareholders")
         dl = []
         for shareid in self.landlords:
-            d = self.landlords[shareid].start()
+            d = self.landlords[shareid].put_header()
             d.addErrback(self._remove_shareholder, shareid, "start")
             dl.append(d)
         return self._gather_responses(dl)

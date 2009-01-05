@@ -62,6 +62,24 @@ class Incomplete(unittest.TestCase):
         self.failUnlessRaises(IndexError, ht.get_leaf, 8)
         self.failUnlessEqual(ht.get_leaf_index(0), 7)
 
+    def test_needed_hashes(self):
+        ht = hashtree.IncompleteHashTree(8)
+        self.failUnlessEqual(ht.needed_hashes(0), set([8, 4, 2]))
+        self.failUnlessEqual(ht.needed_hashes(0, True), set([7, 8, 4, 2]))
+        self.failUnlessEqual(ht.needed_hashes(1), set([7, 4, 2]))
+        self.failUnlessEqual(ht.needed_hashes(7), set([13, 5, 1]))
+        self.failUnlessEqual(ht.needed_hashes(7, False), set([13, 5, 1]))
+        self.failUnlessEqual(ht.needed_hashes(7, True), set([14, 13, 5, 1]))
+        ht = hashtree.IncompleteHashTree(1)
+        self.failUnlessEqual(ht.needed_hashes(0), set([]))
+        ht = hashtree.IncompleteHashTree(6)
+        self.failUnlessEqual(ht.needed_hashes(0), set([8, 4, 2]))
+        self.failUnlessEqual(ht.needed_hashes(0, True), set([7, 8, 4, 2]))
+        self.failUnlessEqual(ht.needed_hashes(1), set([7, 4, 2]))
+        self.failUnlessEqual(ht.needed_hashes(5), set([11, 6, 1]))
+        self.failUnlessEqual(ht.needed_hashes(5, False), set([11, 6, 1]))
+        self.failUnlessEqual(ht.needed_hashes(5, True), set([12, 11, 6, 1]))
+
     def test_check(self):
         # first create a complete hash tree
         ht = make_tree(6)
@@ -160,4 +178,3 @@ class Incomplete(unittest.TestCase):
             iht.set_hashes(chain, leaves={4: tagged_hash("tag", "4")})
         except hashtree.BadHashError, e:
             self.fail("bad hash: %s" % e)
-

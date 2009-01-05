@@ -380,9 +380,10 @@ class Test(ShareManglingMixin, unittest.TestCase):
         before_download_reads = self._count_reads()
         def _after_download(unused=None):
             after_download_reads = self._count_reads()
-            # To pass this test, you have to download the file using only 10 reads to get the
-            # UEB (in parallel from all shares), plus one read for each of the 3 shares.
-            self.failIf(after_download_reads-before_download_reads > 13, (after_download_reads, before_download_reads))
+            # To pass this test, you have to download the file using only 10 reads total: 3 to
+            # get the headers from each share, 3 to get the share hash trees and uebs from each
+            # share, 1 to get the crypttext hashes, and 3 to get the block data from each share.
+            self.failIf(after_download_reads-before_download_reads > 10, (after_download_reads, before_download_reads))
         d.addCallback(self._download_and_check_plaintext)
         d.addCallback(_after_download)
         return d
@@ -403,7 +404,6 @@ class Test(ShareManglingMixin, unittest.TestCase):
         d.addCallback(self._download_and_check_plaintext)
         d.addCallback(_after_download)
         return d
-    test_download_from_only_3_remaining_shares.todo = "I think this test is failing due to the downloader code not knowing how to handle URI corruption and keeping going.  I'm going to commit new downloader code soon, and then see if this test starts passing."
 
     def test_download_abort_if_too_many_missing_shares(self):
         """ Test that download gives up quickly when it realizes there aren't enough shares out

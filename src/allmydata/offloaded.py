@@ -88,8 +88,7 @@ class CHKCheckerAndUEBFetcher:
             return
         b,peerid = self._readers.pop()
         rbp = ReadBucketProxy(b, peerid, storage.si_b2a(self._storage_index))
-        d = rbp.startIfNecessary()
-        d.addCallback(lambda res: rbp.get_uri_extension())
+        d = rbp.get_uri_extension()
         d.addCallback(self._got_uri_extension)
         d.addErrback(self._ueb_error)
         return d

@@ -36,13 +36,14 @@ class FakeBucketReaderWriterProxy:
     def get_peerid(self):
         return "peerid"
 
-    def startIfNecessary(self):
-        return defer.succeed(self)
-    def start(self):
+    def _start(self):
         if self.mode == "lost-early":
             f = Failure(LostPeerError("I went away early"))
             return eventual.fireEventually(f)
         return defer.succeed(self)
+
+    def put_header(self):
+        return self._start()
 
     def put_block(self, segmentnum, data):
         if self.mode == "lost-early":
@@ -99,41 +100,50 @@ class FakeBucketReaderWriterProxy:
     def abort(self):
         return defer.succeed(None)
 
-    def get_block(self, blocknum):
-        def _try():
+    def get_block_data(self, blocknum, blocksize, size):
+        d = self._start()
+        def _try(unused=None):
             assert isinstance(blocknum, (int, long))
             if self.mode == "bad block":
                 return flip_bit(self.blocks[blocknum])
             return self.blocks[blocknum]
-        return defer.maybeDeferred(_try)
+        d.addCallback(_try)
+        return d
 
     def get_plaintext_hashes(self):
-        def _try():
+        d = self._start()
+        def _try(unused=None):
             hashes = self.plaintext_hashes[:]
             return hashes
-        return defer.maybeDeferred(_try)
+        d.addCallback(_try)
+        return d
 
     def get_crypttext_hashes(self):
-        def _try():
+        d = self._start()
+        def _try(unused=None):
             hashes = self.crypttext_hashes[:]
             if self.mode == "bad crypttext hashroot":
                 hashes[0] = flip_bit(hashes[0])
             if self.mode == "bad crypttext hash":
                 hashes[1] = flip_bit(hashes[1])
             return hashes
-        return defer.maybeDeferred(_try)
+        d.addCallback(_try)
+        return d
 
-    def get_block_hashes(self):
-        def _try():
+    def get_block_hashes(self, at_least_these=()):
+        d = self._start()
+        def _try(unused=None):
             if self.mode == "bad blockhash":
                 hashes = self.block_hashes[:]
                 hashes[1] = flip_bit(hashes[1])
                 return hashes
             return self.block_hashes
-        return defer.maybeDeferred(_try)
+        d.addCallback(_try)
+        return d
 
-    def get_share_hashes(self):
-        def _try():
+    def get_share_hashes(self, at_least_these=()):
+        d = self._start()
+        def _try(unused=None):
             if self.mode == "bad sharehash":
                 hashes = self.share_hashes[:]
                 hashes[1] = (hashes[1][0], flip_bit(hashes[1][1]))
@@ -144,14 +154,17 @@ class FakeBucketReaderWriterProxy:
                 # download.py is supposed to guard against this case.
                 return []
             return self.share_hashes
-        return defer.maybeDeferred(_try)
+        d.addCallback(_try)
+        return d
 
     def get_uri_extension(self):
-        def _try():
+        d = self._start()
+        def _try(unused=None):
             if self.mode == "bad uri_extension":
                 return flip_bit(self.uri_extension)
             return self.uri_extension
-        return defer.maybeDeferred(_try)
+        d.addCallback(_try)
+        return d
 
 
 def make_data(length):
@@ -719,9 +732,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         # the first 7 servers have bad block hashes, so the sharehash tree
         # will not validate, and the download will fail
         modemap = dict([(i, "bad sharehash")
-                        for i in range(7)]
-                       + [(i, "good")
-                          for i in range(7, 10)])
+                        for i in range(10)])
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
@@ -739,12 +750,10 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         return self.send_and_recover((4,8,10), bucket_modes=modemap)
 
     def test_missing_sharehashes_failure(self):
-        # the first 7 servers are missing their sharehashes, so the
-        # sharehash tree will not validate, and the download will fail
+        # all servers are missing their sharehashes, so the sharehash tree will not validate,
+        # and the download will fail
         modemap = dict([(i, "missing sharehash")
-                        for i in range(7)]
-                       + [(i, "good")
-                          for i in range(7, 10)])
+                        for i in range(10)])
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure), res)
