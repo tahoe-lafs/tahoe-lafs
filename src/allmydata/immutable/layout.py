@@ -285,8 +285,10 @@ class ReadBucketProxy:
         # TODO: for small shares, read the whole bucket in _start()
         d = self._fetch_header()
         d.addCallback(self._parse_offsets)
-        d.addCallback(self._fetch_sharehashtree_and_ueb)
-        d.addCallback(self._parse_sharehashtree_and_ueb)
+        # XXX The following two callbacks implement a slightly faster/nicer way to get the ueb
+        # and sharehashtree, but it requires that the storage server be >= v1.3.0.
+        # d.addCallback(self._fetch_sharehashtree_and_ueb)
+        # d.addCallback(self._parse_sharehashtree_and_ueb)
         def _fail_waiters(f):
             self._ready.fire(f)
         def _notify_waiters(result):
@@ -396,6 +398,10 @@ class ReadBucketProxy:
             return defer.succeed([])
 
     def _get_share_hashes(self, unused=None):
+        if hasattr(self, '_share_hashes'):
+            return self._share_hashes
+        else:
+            return self._get_share_hashes_the_old_way()
         return self._share_hashes
 
     def get_share_hashes(self):
@@ -403,8 +409,48 @@ class ReadBucketProxy:
         d.addCallback(self._get_share_hashes)
         return d
 
+    def _get_share_hashes_the_old_way(self):
+        """ Tahoe storage servers < v1.3.0 would return an error if you tried to read past the
+        end of the share, so we need to use the offset and read just that much."""
+        offset = self._offsets['share_hashes']
+        size = self._offsets['uri_extension'] - offset
+        assert size % (2+HASH_SIZE) == 0
+        d = self._read(offset, size)
+        def _unpack_share_hashes(data):
+            assert len(data) == size
+            hashes = []
+            for i in range(0, size, 2+HASH_SIZE):
+                hashnum = struct.unpack(">H", data[i:i+2])[0]
+                hashvalue = data[i+2:i+2+HASH_SIZE]
+                hashes.append( (hashnum, hashvalue) )
+            return hashes
+        d.addCallback(_unpack_share_hashes)
+        return d
+
+    def _get_uri_extension_the_old_way(self, unused=None):
+        """ Tahoe storage servers < v1.3.0 would return an error if you tried to read past the
+        end of the share, so we need to fetch the UEB size and then read just that much."""
+        offset = self._offsets['uri_extension']
+        d = self._read(offset, self._fieldsize)
+        def _got_length(data):
+            if len(data) != self._fieldsize:
+                raise LayoutInvalid("not enough bytes to encode URI length -- should be %d bytes long, not %d " % (self._fieldsize, len(data),))
+            length = struct.unpack(self._fieldstruct, data)[0]
+            if length >= 2**31:
+                # URI extension blocks are around 419 bytes long, so this must be corrupted.
+                # Anyway, the foolscap interface schema for "read" will not allow >= 2**31 bytes
+                # length.
+                raise RidiculouslyLargeURIExtensionBlock(length)
+
+            return self._read(offset+self._fieldsize, length)
+        d.addCallback(_got_length)
+        return d
+
     def _get_uri_extension(self, unused=None):
-        return self._ueb_data
+        if hasattr(self, '_ueb_data'):
+            return self._ueb_data
+        else:
+            return self._get_uri_extension_the_old_way()
 
     def get_uri_extension(self):
         d = self._start_if_needed()

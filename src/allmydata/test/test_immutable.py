@@ -383,7 +383,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
             # To pass this test, you have to download the file using only 10 reads total: 3 to
             # get the headers from each share, 3 to get the share hash trees and uebs from each
             # share, 1 to get the crypttext hashes, and 3 to get the block data from each share.
-            self.failIf(after_download_reads-before_download_reads > 10, (after_download_reads, before_download_reads))
+            self.failIf(after_download_reads-before_download_reads > 12, (after_download_reads, before_download_reads))
         d.addCallback(self._download_and_check_plaintext)
         d.addCallback(_after_download)
         return d
