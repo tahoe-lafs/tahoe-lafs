@@ -414,7 +414,8 @@ class ReadBucketProxy:
         end of the share, so we need to use the offset and read just that much."""
         offset = self._offsets['share_hashes']
         size = self._offsets['uri_extension'] - offset
-        assert size % (2+HASH_SIZE) == 0
+        if size % (2+HASH_SIZE) != 0:
+            raise LayoutInvalid("share hash tree corrupted -- should occupy a multiple of %d bytes, not %d bytes" % ((2+HASH_SIZE), size))
         d = self._read(offset, size)
         def _unpack_share_hashes(data):
             assert len(data) == size
