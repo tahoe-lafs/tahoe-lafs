@@ -1,17 +1,12 @@
-from twisted.internet import defer
-from twisted.python import failure
 from foolscap import DeadReferenceError
-from allmydata import hashtree, storage
+from allmydata import hashtree
 from allmydata.checker_results import CheckerResults
 from allmydata.immutable import download
 from allmydata.uri import CHKFileVerifierURI
 from allmydata.util.assertutil import precondition
-from allmydata.util import base32, deferredutil, hashutil, log, nummedobj, rrefutil
+from allmydata.util import base32, deferredutil, log, rrefutil
 
 from allmydata.immutable import layout
-
-def _permute_servers(servers, key):
-    return sorted(servers, key=lambda x: sha.new(key+x[0]).digest())
 
 class Checker(log.PrefixingLogMixin):
     """ I query all servers to see if M uniquely-numbered shares are available.

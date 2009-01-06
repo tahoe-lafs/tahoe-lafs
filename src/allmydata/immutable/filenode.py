@@ -9,7 +9,6 @@ from foolscap.eventual import eventually
 from allmydata.interfaces import IFileNode, IFileURI, ICheckable, \
      IDownloadTarget
 from allmydata.util import log, base32
-from allmydata.uri import from_string as uri_from_string
 from allmydata.immutable.checker import Checker
 from allmydata.checker_results import CheckAndRepairResults
 from allmydata.immutable.repairer import Repairer

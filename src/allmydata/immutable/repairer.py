@@ -1,15 +1,14 @@
 from twisted.internet import defer
-from twisted.python import failure
 from allmydata import storage
 from allmydata.checker_results import CheckerResults, CheckAndRepairResults
 from allmydata.immutable import download
-from allmydata.util import base32, hashutil, log, nummedobj
+from allmydata.util import nummedobj
 from allmydata.util.assertutil import precondition
 from allmydata.uri import CHKFileVerifierURI
 
 from allmydata.immutable import layout
 
-import sha
+import sha, time
 
 def _permute_servers(servers, key):
     return sorted(servers, key=lambda x: sha.new(key+x[0]).digest())
@@ -144,7 +143,7 @@ class Repairer(LogMixin):
             self._results.timings["peer_selection"] = now - self._started
 
         if len(self._share_buckets) < self._num_needed_shares:
-            raise NotEnoughSharesError
+            raise download.NotEnoughSharesError
 
     def _verify_done(self, ignored):
         # TODO: The following results are just stubs, and need to be replaced
