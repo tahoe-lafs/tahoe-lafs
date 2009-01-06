@@ -729,7 +729,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
     def test_bad_sharehashes_failure(self):
-        # the first 7 servers have bad block hashes, so the sharehash tree
+        # all ten servers have bad share hashes, so the sharehash tree
         # will not validate, and the download will fail
         modemap = dict([(i, "bad sharehash")
                         for i in range(10)])
