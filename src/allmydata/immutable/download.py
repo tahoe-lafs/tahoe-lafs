@@ -404,7 +404,12 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
             if self.share_hash_tree.needed_hashes(self.sharenum):
                 # This will raise exception if the values being passed do not match the root
                 # node of self.share_hash_tree.
-                self.share_hash_tree.set_hashes(sharehashes)
+                try:
+                    self.share_hash_tree.set_hashes(sharehashes)
+                except IndexError, le:
+                    # Weird -- sharehashes contained index numbers outside of the range that fit
+                    # into this hash tree.
+                    raise BadOrMissingHash(le)
 
             # To validate a block we need the root of the block hash tree, which is also one of
             # the leafs of the share hash tree, and is called "the share hash".
