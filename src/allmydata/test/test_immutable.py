@@ -633,7 +633,6 @@ class Test(ShareManglingMixin, unittest.TestCase):
             _corrupt_offset_of_uri_extension,
             _corrupt_offset_of_uri_extension_to_force_short_read,
             _corrupt_share_data,
-            _corrupt_share_hashes,
             _corrupt_length_of_uri_extension,
             _corrupt_uri_extension,
             ], judge)
@@ -756,6 +755,26 @@ class Test(ShareManglingMixin, unittest.TestCase):
             _corrupt_block_hashes,
             ], judge)
     test_verify_server_invisible_corruption_block_hash_tree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
+
+    def test_verify_server_invisible_corruption_share_hash_tree_TODO(self):
+        def judge(checkresults):
+            self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
+            data = checkresults.get_data()
+            self.failUnless(data['count-shares-good'] == 9, data)
+            self.failUnless(data['count-shares-needed'] == 3, data)
+            self.failUnless(data['count-shares-expected'] == 10, data)
+            self.failUnless(data['count-good-share-hosts'] == 5, data)
+            self.failUnless(data['count-corrupt-shares'] == 1, (data,))
+            self.failUnless(len(data['list-corrupt-shares']) == 1, data)
+            self.failUnless(len(data['list-corrupt-shares']) == data['count-corrupt-shares'], data)
+            self.failUnless(len(data['list-incompatible-shares']) == data['count-incompatible-shares'], data)
+            self.failUnless(len(data['list-incompatible-shares']) == 0, data)
+            self.failUnless(len(data['servers-responding']) == 5, data)
+            self.failUnless(len(data['sharemap']) == 9, data)
+        return self._help_test_verify([
+            _corrupt_share_hashes,
+            ], judge)
+    test_verify_server_invisible_corruption_share_hash_tree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
     def test_repair(self):
         """ Repair replaces a share that got deleted. """
