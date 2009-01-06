@@ -115,8 +115,11 @@ class ShareFile:
             # The second field -- share data length -- is no longer used as of Tahoe v1.3.0, but
             # we continue to write it in there in case someone downgrades a storage server from
             # >= Tahoe-1.3.0 to < Tahoe-1.3.0, or moves a share file from one server to another,
-            # etc.
-            f.write(struct.pack(">LLL", 1, max_size % 4294967295, 0))
+            # etc.  We do saturation -- a share data length larger than what can fit into the
+            # field is marked as the largest length that can fit into the field.  That way, even
+            # if this does happen, the old < v1.3.0 server will still allow clients to read the
+            # first part of the share.
+            f.write(struct.pack(">LLL", 1, min(4294967295, max_size), 0))
             f.close()
             self._lease_offset = max_size + 0x0c
             self._num_leases = 0
