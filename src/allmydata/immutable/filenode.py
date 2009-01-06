@@ -10,8 +10,9 @@ from allmydata.interfaces import IFileNode, IFileURI, ICheckable, \
      IDownloadTarget
 from allmydata.util import log, base32
 from allmydata.uri import from_string as uri_from_string
-from allmydata.immutable.checker import SimpleCHKFileChecker, \
-     SimpleCHKFileVerifier
+from allmydata.immutable.checker import Checker
+from allmydata.checker_results import CheckAndRepairResults
+from allmydata.immutable.repairer import Repairer
 from allmydata.immutable import download
 
 class _ImmutableFileNodeBase(object):
@@ -168,9 +169,6 @@ class DownloadCache:
 
 
 class FileNode(_ImmutableFileNodeBase):
-    checker_class = SimpleCHKFileChecker
-    verifier_class = SimpleCHKFileVerifier
-
     def __init__(self, uri, client, cachefile):
         _ImmutableFileNodeBase.__init__(self, uri, client)
         self.download_cache = DownloadCache(self, cachefile)
@@ -187,38 +185,33 @@ class FileNode(_ImmutableFileNodeBase):
     def get_storage_index(self):
         return self.u.storage_index
 
-    def check(self, monitor, verify=False):
-        # TODO: pass the Monitor to SimpleCHKFileChecker or
-        # SimpleCHKFileVerifier, have it call monitor.raise_if_cancelled()
-        # before sending each request.
-        storage_index = self.u.storage_index
-        assert IFileURI.providedBy(self.u), self.u
-        k = self.u.needed_shares
-        N = self.u.total_shares
-        size = self.u.size
-        ueb_hash = self.u.uri_extension_hash
-        if verify:
-            v = self.verifier_class(self._client,
-                                    uri_from_string(self.get_uri()), storage_index,
-                                    k, N, size, ueb_hash)
-        else:
-            v = self.checker_class(self._client,
-                                   uri_from_string(self.get_uri()), storage_index,
-                                   k, N)
-        return v.start()
-
     def check_and_repair(self, monitor, verify=False):
-        # this is a stub, to allow the deep-check tests to pass.
-        #raise NotImplementedError("not implemented yet")
-        from allmydata.checker_results import CheckAndRepairResults
-        cr = CheckAndRepairResults(self.u.storage_index)
-        d = self.check(verify)
-        def _done(r):
-            cr.pre_repair_results = cr.post_repair_results = r
-            cr.repair_attempted = False
-            return cr
-        d.addCallback(_done)
+        verifycap = self.get_verify_cap()
+        servers = self._client.get_servers("storage")
+
+        c = Checker(client=self._client, verifycap=verifycap, servers=servers, verify=verify, monitor=monitor)
+        d = c.start()
+        def _maybe_repair(cr):
+            crr = CheckAndRepairResults(self.u.storage_index)
+            crr.pre_repair_results = cr
+            if cr.is_healthy():
+                crr.post_repair_results = cr
+                return defer.succeed(crr)
+            else:
+                def _gather_repair_results(rr):
+                    crr.post_repair_results = rr
+                    return crr
+                r = Repairer(client=self._client, verifycap=verifycap, servers=servers, monitor=monitor)
+                d = r.start()
+                d.addCallback(_gather_repair_results)
+                return d
+
+        d.addCallback(_maybe_repair)
         return d
+
+    def check(self, monitor, verify=False):
+        v = Checker(client=self._client, verifycap=self.get_verify_cap(), servers=self._client.get_servers("storage"), verify=verify, monitor=monitor)
+        return v.start()
 
     def read(self, consumer, offset=0, size=None):
         if size is None:

@@ -418,7 +418,8 @@ class ReadBucketProxy:
             raise LayoutInvalid("share hash tree corrupted -- should occupy a multiple of %d bytes, not %d bytes" % ((2+HASH_SIZE), size))
         d = self._read(offset, size)
         def _unpack_share_hashes(data):
-            assert len(data) == size
+            if len(data) != size:
+                raise LayoutInvalid("share hash tree corrupted -- got a short read of the share data -- should have gotten %d, not %d bytes" % (size, len(data)))
             hashes = []
             for i in range(0, size, 2+HASH_SIZE):
                 hashnum = struct.unpack(">H", data[i:i+2])[0]

@@ -2167,25 +2167,25 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(self.check_and_repair_is_healthy, self.root, "root")
         d.addCallback(lambda ign: self.mutable.check_and_repair(Monitor()))
         d.addCallback(self.check_and_repair_is_healthy, self.mutable, "mutable")
-        d.addCallback(lambda ign: self.large.check_and_repair(Monitor()))
-        d.addCallback(self.check_and_repair_is_healthy, self.large, "large")
-        d.addCallback(lambda ign: self.small.check_and_repair(Monitor()))
-        d.addCallback(self.failUnlessEqual, None, "small")
-        d.addCallback(lambda ign: self.small2.check_and_repair(Monitor()))
-        d.addCallback(self.failUnlessEqual, None, "small2")
+        #TODO d.addCallback(lambda ign: self.large.check_and_repair(Monitor()))
+        #TODO d.addCallback(self.check_and_repair_is_healthy, self.large, "large")
+        #TODO d.addCallback(lambda ign: self.small.check_and_repair(Monitor()))
+        #TODO d.addCallback(self.failUnlessEqual, None, "small")
+        #TODO d.addCallback(lambda ign: self.small2.check_and_repair(Monitor()))
+        #TODO d.addCallback(self.failUnlessEqual, None, "small2")
 
         # check_and_repair(verify=True)
         d.addCallback(lambda ign: self.root.check_and_repair(Monitor(), verify=True))
         d.addCallback(self.check_and_repair_is_healthy, self.root, "root")
         d.addCallback(lambda ign: self.mutable.check_and_repair(Monitor(), verify=True))
         d.addCallback(self.check_and_repair_is_healthy, self.mutable, "mutable")
-        d.addCallback(lambda ign: self.large.check_and_repair(Monitor(), verify=True))
-        d.addCallback(self.check_and_repair_is_healthy, self.large, "large",
-                      incomplete=True)
-        d.addCallback(lambda ign: self.small.check_and_repair(Monitor(), verify=True))
-        d.addCallback(self.failUnlessEqual, None, "small")
-        d.addCallback(lambda ign: self.small2.check_and_repair(Monitor(), verify=True))
-        d.addCallback(self.failUnlessEqual, None, "small2")
+        #TODO d.addCallback(lambda ign: self.large.check_and_repair(Monitor(), verify=True))
+        #TODO d.addCallback(self.check_and_repair_is_healthy, self.large, "large",
+        #TODO               incomplete=True)
+        #TODO d.addCallback(lambda ign: self.small.check_and_repair(Monitor(), verify=True))
+        #TODO d.addCallback(self.failUnlessEqual, None, "small")
+        #TODO d.addCallback(lambda ign: self.small2.check_and_repair(Monitor(), verify=True))
+        #TODO d.addCallback(self.failUnlessEqual, None, "small2")
 
 
         # now deep-check the root, with various verify= and repair= options
@@ -2703,11 +2703,8 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         d.addCallback(lambda ign: _checkv("mutable-unrecoverable",
                                          self.check_is_unrecoverable))
         d.addCallback(lambda ign: _checkv("large-good", self.check_is_healthy))
-        # disabled pending immutable verifier
-        #d.addCallback(lambda ign: _checkv("large-missing-shares",
-        #                                 self.check_is_missing_shares))
-        #d.addCallback(lambda ign: _checkv("large-corrupt-shares",
-        #                                 self.check_has_corrupt_shares))
+        d.addCallback(lambda ign: _checkv("large-missing-shares", self.check_is_missing_shares))
+        d.addCallback(lambda ign: _checkv("large-corrupt-shares", self.check_has_corrupt_shares))
         d.addCallback(lambda ign: _checkv("large-unrecoverable",
                                          self.check_is_unrecoverable))
 
@@ -2734,13 +2731,10 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
             self.failUnless(IDeepCheckResults.providedBy(cr))
             c = cr.get_counters()
             self.failUnlessEqual(c["count-objects-checked"], 9)
-            # until we have a real immutable verifier, these counts will be
-            # off
-            #self.failUnlessEqual(c["count-objects-healthy"], 3)
-            #self.failUnlessEqual(c["count-objects-unhealthy"], 6)
-            self.failUnlessEqual(c["count-objects-healthy"], 5) # todo
-            self.failUnlessEqual(c["count-objects-unhealthy"], 4)
-            self.failUnlessEqual(c["count-objects-unrecoverable"], 2, str(c))
+            self.failUnlessEqual(c["count-objects-healthy"], 3)
+            self.failUnlessEqual(c["count-objects-unhealthy"], 6)
+            self.failUnlessEqual(c["count-objects-healthy"], 3) # root, mutable good, large good
+            self.failUnlessEqual(c["count-objects-unrecoverable"], 2) # mutable unrecoverable, large unrecoverable
         d.addCallback(_check2)
 
         return d
@@ -2819,11 +2813,8 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
                                          self.json_is_unrecoverable))
         d.addCallback(lambda ign: _checkv("large-good",
                                           self.json_is_healthy))
-        # disabled pending immutable verifier
-        #d.addCallback(lambda ign: _checkv("large-missing-shares",
-        #                                 self.json_is_missing_shares))
-        #d.addCallback(lambda ign: _checkv("large-corrupt-shares",
-        #                                 self.json_has_corrupt_shares))
+        d.addCallback(lambda ign: _checkv("large-missing-shares", self.json_is_missing_shares))
+        d.addCallback(lambda ign: _checkv("large-corrupt-shares", self.json_has_corrupt_shares))
         d.addCallback(lambda ign: _checkv("large-unrecoverable",
                                          self.json_is_unrecoverable))
 

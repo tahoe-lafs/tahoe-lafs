@@ -1,278 +1,273 @@
-
-"""
-Given a StorageIndex, count how many shares we can find.
-
-This does no verification of the shares whatsoever. If the peer claims to
-have the share, we believe them.
-"""
-
 from twisted.internet import defer
-from twisted.python import log
-from allmydata import storage
+from twisted.python import failure
+from foolscap import DeadReferenceError
+from allmydata import hashtree, storage
 from allmydata.checker_results import CheckerResults
 from allmydata.immutable import download
-from allmydata.uri import CHKFileURI
-from allmydata.util import hashutil
+from allmydata.uri import CHKFileVerifierURI
 from allmydata.util.assertutil import precondition
+from allmydata.util import base32, deferredutil, hashutil, log, nummedobj, rrefutil
 
-class SimpleCHKFileChecker:
-    """Return a list of (needed, total, found, sharemap), where sharemap maps
-    share number to a list of (binary) nodeids of the shareholders."""
+from allmydata.immutable import layout
 
-    def __init__(self, client, uri, storage_index, needed_shares, total_shares):
-        self.peer_getter = client.get_permuted_peers
-        self.needed_shares = needed_shares
-        self.total_shares = total_shares
-        self.found_shares = set()
-        self.uri = uri
-        self.storage_index = storage_index
-        self.sharemap = {}
-        self.responded = set()
+def _permute_servers(servers, key):
+    return sorted(servers, key=lambda x: sha.new(key+x[0]).digest())
 
-    '''
-    def check_synchronously(self, si):
-        # this is how we would write this class if we were using synchronous
-        # messages (or if we used promises).
-        found = set()
-        for (pmpeerid, peerid, connection) in self.peer_getter(storage_index):
-            buckets = connection.get_buckets(si)
-            found.update(buckets.keys())
-        return len(found)
-    '''
+class Checker(log.PrefixingLogMixin):
+    """ I query all servers to see if M uniquely-numbered shares are available.
 
-    def start(self):
-        d = self._get_all_shareholders(self.storage_index)
-        d.addCallback(self._done)
-        return d
+    If the verify flag was passed to my constructor, then for each share I download every data
+    block and all metadata from each server and perform a cryptographic integrity check on all
+    of it.  If not, I just ask each server "Which shares do you have?" and believe its answer.
 
-    def _get_all_shareholders(self, storage_index):
-        dl = []
-        for (peerid, ss) in self.peer_getter("storage", storage_index):
-            d = ss.callRemote("get_buckets", storage_index)
-            d.addCallbacks(self._got_response, self._got_error,
-                           callbackArgs=(peerid,))
-            dl.append(d)
-        return defer.DeferredList(dl)
+    In either case, I wait until I have gotten responses from all servers.  This fact -- that I
+    wait -- means that an ill-behaved server which fails to answer my questions will make me
+    wait indefinitely.  If it is ill-behaved in a way that triggers the underlying foolscap
+    timeouts, then I will wait only as long as those foolscap timeouts, but if it is ill-behaved
+    in a way which placates the foolscap timeouts but still doesn't answer my question then I
+    will wait indefinitely.
 
-    def _got_response(self, buckets, peerid):
-        # buckets is a dict: maps shum to an rref of the server who holds it
-        self.found_shares.update(buckets.keys())
-        for k in buckets:
-            if k not in self.sharemap:
-                self.sharemap[k] = []
-            self.sharemap[k].append(peerid)
-        self.responded.add(peerid)
+    Before I send any new request to a server, I always ask the "monitor" object that was passed
+    into my constructor whether this task has been cancelled (by invoking its
+    raise_if_cancelled() method).
+    """
+    def __init__(self, client, verifycap, servers, verify, monitor):
+        assert precondition(isinstance(verifycap, CHKFileVerifierURI), verifycap, type(verifycap))
+        assert precondition(isinstance(servers, (set, frozenset)), servers)
+        for (serverid, serverrref) in servers:
+            assert precondition(isinstance(serverid, str))
+            assert precondition(isinstance(serverrref, rrefutil.WrappedRemoteReference), serverrref)
 
-    def _got_error(self, f):
-        if f.check(KeyError):
-            pass
-        log.err(f)
-        pass
+        prefix = "%s" % base32.b2a_l(verifycap.storage_index[:8], 60)
+        log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.checker", prefix=prefix)
 
-    def _done(self, res):
-        r = CheckerResults(self.uri, self.storage_index)
-        report = []
-        healthy = bool(len(self.found_shares) >= self.total_shares)
-        r.set_healthy(healthy)
-        recoverable = bool(len(self.found_shares) >= self.needed_shares)
-        r.set_recoverable(recoverable)
-        data = {"count-shares-good": len(self.found_shares),
-                "count-shares-needed": self.needed_shares,
-                "count-shares-expected": self.total_shares,
-                "count-wrong-shares": 0,
-                }
-        if recoverable:
-            data["count-recoverable-versions"] = 1
-            data["count-unrecoverable-versions"] = 0
-        else:
-            data["count-recoverable-versions"] = 0
-            data["count-unrecoverable-versions"] = 1
-
-        data["count-corrupt-shares"] = 0 # non-verifier doesn't see corruption
-        data["list-corrupt-shares"] = []
-        hosts = set()
-        sharemap = {}
-        for (shnum,nodeids) in self.sharemap.items():
-            hosts.update(nodeids)
-            sharemap[shnum] = nodeids
-        data["count-good-share-hosts"] = len(hosts)
-        data["servers-responding"] = list(self.responded)
-        data["sharemap"] = sharemap
-
-        r.set_data(data)
-        r.set_needs_rebalancing(bool( len(self.found_shares) > len(hosts) ))
-
-        #r.stuff = (self.needed_shares, self.total_shares,
-        #            len(self.found_shares), self.sharemap)
-        if len(self.found_shares) < self.total_shares:
-            wanted = set(range(self.total_shares))
-            missing = wanted - self.found_shares
-            report.append("Missing shares: %s" %
-                          ",".join(["sh%d" % shnum
-                                    for shnum in sorted(missing)]))
-        r.set_report(report)
-        if healthy:
-            r.set_summary("Healthy")
-        else:
-            r.set_summary("Not Healthy")
-            # TODO: more detail
-        return r
-
-class VerifyingOutput:
-    def __init__(self, total_length, results):
-        self._crypttext_hasher = hashutil.crypttext_hasher()
-        self.length = 0
-        self.total_length = total_length
-        self._segment_number = 0
-        self._crypttext_hash_tree = None
-        self._opened = False
-        self._results = results
-        results.set_healthy(False)
-        results.set_recoverable(False)
-        results.set_summary("Not Healthy")
-
-    def got_crypttext_hash_tree(self, crypttext_hashtree):
-        self._crypttext_hash_tree = crypttext_hashtree
-
-    def write_segment(self, crypttext):
-        self.length += len(crypttext)
-
-        self._crypttext_hasher.update(crypttext)
-        if self._crypttext_hash_tree:
-            ch = hashutil.crypttext_segment_hasher()
-            ch.update(crypttext)
-            crypttext_leaves = {self._segment_number: ch.digest()}
-            self._crypttext_hash_tree.set_hashes(leaves=crypttext_leaves)
-
-        self._segment_number += 1
-
-    def close(self):
-        self.crypttext_hash = self._crypttext_hasher.digest()
-
-    def finish(self):
-        self._results.set_healthy(True)
-        self._results.set_recoverable(True)
-        self._results.set_summary("Healthy")
-        # the return value of finish() is passed out of FileDownloader._done,
-        # but SimpleCHKFileVerifier overrides this with the CheckerResults
-        # instance instead.
-
-
-class SimpleCHKFileVerifier(download.FileDownloader):
-    # this reconstructs the crypttext, which verifies that at least 'k' of
-    # the shareholders are around and have valid data. It does not check the
-    # remaining shareholders, and it cannot verify the plaintext.
-    check_plaintext_hash = False
-
-    def __init__(self, client, u, storage_index, k, N, size, ueb_hash):
-        precondition(isinstance(u, CHKFileURI), u)
-        download.FileDownloader.__init__(self, client, u, None);
         self._client = client
+        self._verifycap = verifycap
 
-        self._uri = u
-        self._storage_index = storage_index
-        self._uri_extension_hash = ueb_hash
-        self._total_shares = N
-        self._size = size
-        self._num_needed_shares = k
+        self._monitor = monitor
+        self._servers = servers
+        self._verify = verify # bool: verify what the servers claim, or not?
 
-        self._si_s = storage.si_b2a(self._storage_index)
-        self.init_logging()
+        self._share_hash_tree = None
+        self._crypttext_hash_tree = None
 
-        self._check_results = r = CheckerResults(self._uri, self._storage_index)
-        r.set_data({"count-shares-needed": k,
-                    "count-shares-expected": N,
-                    })
-        self._output = VerifyingOutput(self._size, r)
-        self._paused = False
-        self._stopped = False
+    def _get_buckets(self, server, storageindex, serverid):
+        """ Return a deferred that eventually fires with ({sharenum: bucket}, serverid,
+        success).  In case the server is disconnected or returns a Failure then it fires with
+        ({}, serverid, False) (A server disconnecting or returning a Failure when we ask it for
+        buckets is the same, for our purposes, as a server that says it has none, except that we
+        want to track and report whether or not each server responded.)"""
 
-        self._results = None
-        self.active_buckets = {} # k: shnum, v: bucket
-        self._share_buckets = [] # list of (sharenum, bucket) tuples
-        self._share_vbuckets = {} # k: shnum, v: set of ValidatedBuckets
-        self._uri_extension_sources = []
+        d = server.callRemote("get_buckets", storageindex)
 
-        self._uri_extension_data = None
+        def _wrap_results(res):
+            for k in res:
+                res[k] = rrefutil.WrappedRemoteReference(res[k])
+            return (res, serverid, True)
 
-        self._fetch_failures = {"uri_extension": 0,
-                                "plaintext_hashroot": 0,
-                                "plaintext_hashtree": 0,
-                                "crypttext_hashroot": 0,
-                                "crypttext_hashtree": 0,
-                                }
+        def _trap_errs(f):
+            level = log.WEIRD
+            if f.check(DeadReferenceError):
+                level = log.UNUSUAL
+            self.log("failure from server on 'get_buckets' the REMOTE failure was:", facility="tahoe.immutable.checker", failure=f, level=level, umid="3uuBUQ")
+            return ({}, serverid, False)
 
-    def init_logging(self):
-        self._log_prefix = prefix = storage.si_b2a(self._storage_index)[:5]
-        num = self._client.log("SimpleCHKFileVerifier(%s): starting" % prefix)
-        self._log_number = num
-
-    def log(self, *args, **kwargs):
-        if not "parent" in kwargs:
-            kwargs['parent'] = self._log_number
-        # add a prefix to the message, regardless of how it is expressed
-        prefix = "SimpleCHKFileVerifier(%s): " % self._log_prefix
-        if "format" in kwargs:
-            kwargs["format"] = prefix + kwargs["format"]
-        elif "message" in kwargs:
-            kwargs["message"] = prefix + kwargs["message"]
-        elif args:
-            m = prefix + args[0]
-            args = (m,) + args[1:]
-        return self._client.log(*args, **kwargs)
-
-
-    def start(self):
-        log.msg("starting download [%s]" % storage.si_b2a(self._storage_index)[:5])
-
-        # first step: who should we download from?
-        d = defer.maybeDeferred(self._get_all_shareholders)
-        d.addCallback(self._got_all_shareholders)
-        # now get the uri_extension block from somebody and validate it
-        d.addCallback(self._obtain_uri_extension)
-        d.addCallback(self._get_crypttext_hash_tree)
-        # once we know that, we can download blocks from everybody
-        d.addCallback(self._download_all_segments)
-        d.addCallback(self._done)
-        d.addCallbacks(self._verify_done, self._verify_failed)
+        d.addCallbacks(_wrap_results, _trap_errs)
         return d
 
-    def _verify_done(self, ignored):
-        # TODO: The following results are just stubs, and need to be replaced
-        # with actual values. These exist to make things like deep-check not
-        # fail.
-        self._check_results.set_needs_rebalancing(False)
-        N = self._total_shares
-        data = {
-            "count-shares-good": N,
-            "count-good-share-hosts": N,
-            "count-corrupt-shares": 0,
-            "list-corrupt-shares": [],
-            "servers-responding": [],
-            "sharemap": {},
-            "count-wrong-shares": 0,
-            "count-recoverable-versions": 1,
-            "count-unrecoverable-versions": 0,
-            }
-        self._check_results.set_data(data)
-        return self._check_results
+    def _download_and_verify(self, serverid, sharenum, bucket):
+        """ Start an attempt to download and verify every block in this bucket and return a
+        deferred that will eventually fire once the attempt completes.
 
-    def _verify_failed(self, ignored):
-        # TODO: The following results are just stubs, and need to be replaced
-        # with actual values. These exist to make things like deep-check not
-        # fail.
-        self._check_results.set_needs_rebalancing(False)
-        N = self._total_shares
-        data = {
-            "count-shares-good": 0,
-            "count-good-share-hosts": 0,
-            "count-corrupt-shares": 0,
-            "list-corrupt-shares": [],
-            "servers-responding": [],
-            "sharemap": {},
-            "count-wrong-shares": 0,
-            "count-recoverable-versions": 0,
-            "count-unrecoverable-versions": 1,
-            }
-        self._check_results.set_data(data)
-        return self._check_results
+        If you download and verify every block then fire with (True, sharenum, None), else if
+        the share data couldn't be parsed because it was of an unknown version number fire with
+        (False, sharenum, 'incompatible'), else if any of the blocks were invalid, fire with
+        (False, sharenum, 'corrupt'), else if the server disconnected (False, sharenum,
+        'disconnect'), else if the server returned a Failure during the process fire with
+        (False, sharenum, 'failure').
+
+        If there is an internal error such as an uncaught exception in this code, then the
+        deferred will errback, but if there is a remote error such as the server failing or the
+        returned data being incorrect then it will not errback -- it will fire normally with the
+        indicated results. """
+
+        b = layout.ReadBucketProxy(bucket, serverid, self._verifycap.storage_index)
+        veup = download.ValidatedExtendedURIProxy(b, self._verifycap)
+        d = veup.start()
+
+        def _errb(f):
+            # Okay, we didn't succeed at fetching and verifying all the blocks of this
+            # share.  Now we need to handle different reasons for failure differently.  If
+            # the failure isn't one of the following four classes then it will get
+            # re-raised.
+            failtype = f.trap(DeadReferenceError, rrefutil.ServerFailure, layout.LayoutInvalid, layout.RidiculouslyLargeURIExtensionBlock, download.BadOrMissingHash, download.BadURIExtensionHashValue)
+
+            if failtype is DeadReferenceError:
+                return (False, sharenum, 'disconnect')
+            elif failtype is rrefutil.ServerFailure:
+                return (False, sharenum, 'failure')
+            elif failtype is layout.ShareVersionIncompatible:
+                return (False, sharenum, 'incompatible')
+            else:
+                return (False, sharenum, 'corrupt')
+
+        def _got_ueb(vup):
+            self._share_hash_tree = hashtree.IncompleteHashTree(self._verifycap.total_shares)
+            self._share_hash_tree.set_hashes({0: vup.share_root_hash})
+
+            vrbp = download.ValidatedReadBucketProxy(sharenum, b, self._share_hash_tree, vup.num_segments, vup.block_size, vup.share_size)
+
+            ds = []
+            for blocknum in range(vup.num_segments):
+                def _discard_result(r):
+                    assert isinstance(r, str), r
+                    # to free up the RAM
+                    return None
+                d2 = vrbp.get_block(blocknum)
+                d2.addCallback(_discard_result)
+                ds.append(d2)
+
+            dl = deferredutil.gatherResults(ds)
+            # dl will fire once every block of this share has been downloaded and verified, or else it will errback.
+
+            def _cb(result):
+                return (True, sharenum, None)
+
+            dl.addCallback(_cb)
+            return dl
+
+        d.addCallback(_got_ueb)
+        d.addErrback(_errb)
+
+        return d
+
+    def _verify_server_shares(self, serverid, ss):
+        """ Return a deferred which eventually fires with a tuple of (set(sharenum), serverid,
+        set(corruptsharenum), set(incompatiblesharenum), success) showing all the shares
+        verified to be served by this server, and all the corrupt shares served by the server,
+        and all the incompatible shares served by the server.  In case the server is
+        disconnected or returns a Failure then it fires with the last element False.  A server
+        disconnecting or returning a failure when we ask it for shares is the same, for our
+        purposes, as a server that says it has none or offers invalid ones, except that we want
+        to track and report the server's behavior.  Similarly, the presence of corrupt shares is
+        mainly of use for diagnostics -- you can typically treat it as just like being no share
+        at all by just observing its absence from the verified shares dict and ignoring its
+        presence in the corrupt shares dict.  The 'success' argument means whether the server
+        responded to *any* queries during this process, so if it responded to some queries and
+        then disconnected and ceased responding, or returned a failure, it is still marked with
+        the True flag for 'success'.
+        """
+        d = self._get_buckets(ss, self._verifycap.storage_index, serverid)
+
+        def _got_buckets(result):
+            bucketdict, serverid, success = result
+
+            shareverds = []
+            for (sharenum, bucket) in bucketdict.items():
+                d = self._download_and_verify(serverid, sharenum, bucket)
+                shareverds.append(d)
+
+            dl = deferredutil.gatherResults(shareverds)
+
+            def collect(results):
+                verified = set()
+                corrupt = set()
+                incompatible = set()
+                for succ, sharenum, whynot in results:
+                    if succ:
+                        verified.add(sharenum)
+                    else:
+                        if whynot == 'corrupt':
+                            corrupt.add(sharenum)
+                        elif whynot == 'incompatible':
+                            incompatible.add(sharenum)
+                return (verified, serverid, corrupt, incompatible, success)
+
+            dl.addCallback(collect)
+            return dl
+
+        def _err(f):
+            f.trap(rrefutil.ServerFailure)
+            return (set(), serverid, set(), set(), False)
+
+        d.addCallbacks(_got_buckets, _err)
+        return d
+
+    def _check_server_shares(self, serverid, ss):
+        """ Return a deferred which eventually fires with a tuple of (set(sharenum), serverid,
+        set(), set(), responded) showing all the shares claimed to be served by this server.  In
+        case the server is disconnected then it fires with (set() serverid, set(), set(), False)
+        (a server disconnecting when we ask it for buckets is the same, for our purposes, as a
+        server that says it has none, except that we want to track and report whether or not
+        each server responded.)"""
+        def _curry_empty_corrupted(res):
+            buckets, serverid, responded = res
+            return (set(buckets), serverid, set(), set(), responded)
+        d = self._get_buckets(ss, self._verifycap.storage_index, serverid)
+        d.addCallback(_curry_empty_corrupted)
+        return d
+
+    def _format_results(self, results):
+        cr = CheckerResults(self._verifycap, self._verifycap.storage_index)
+        d = {}
+        d['count-shares-needed'] = self._verifycap.needed_shares
+        d['count-shares-expected'] = self._verifycap.total_shares
+
+        verifiedshares = {} # {sharenum: set(serverid)}
+        servers = {} # {serverid: set(sharenums)}
+        corruptsharelocators = [] # (serverid, storageindex, sharenum)
+        incompatiblesharelocators = [] # (serverid, storageindex, sharenum)
+
+        for theseverifiedshares, thisserverid, thesecorruptshares, theseincompatibleshares, thisresponded in results:
+            servers.setdefault(thisserverid, set()).update(theseverifiedshares)
+            for sharenum in theseverifiedshares:
+                verifiedshares.setdefault(sharenum, set()).add(thisserverid)
+            for sharenum in thesecorruptshares:
+                corruptsharelocators.append((thisserverid, self._verifycap.storage_index, sharenum))
+            for sharenum in theseincompatibleshares:
+                incompatiblesharelocators.append((thisserverid, self._verifycap.storage_index, sharenum))
+
+        d['count-shares-good'] = len(verifiedshares)
+        d['count-good-share-hosts'] = len([s for s in servers.keys() if servers[s]])
+
+        assert len(verifiedshares) <= self._verifycap.total_shares, (verifiedshares.keys(), self._verifycap.total_shares)
+        if len(verifiedshares) == self._verifycap.total_shares:
+            cr.set_healthy(True)
+        else:
+            cr.set_healthy(False)
+        if len(verifiedshares) >= self._verifycap.needed_shares:
+            cr.set_recoverable(True)
+            d['count-recoverable-versions'] = 1
+            d['count-unrecoverable-versions'] = 0
+        else:
+            cr.set_recoverable(False)
+            d['count-recoverable-versions'] = 0
+            d['count-unrecoverable-versions'] = 1
+
+        d['servers-responding'] = list(servers)
+        d['sharemap'] = verifiedshares
+        d['count-wrong-shares'] = 0 # no such thing as wrong shares of an immutable file
+        d['list-corrupt-shares'] = corruptsharelocators
+        d['count-corrupt-shares'] = len(corruptsharelocators)
+        d['list-incompatible-shares'] = incompatiblesharelocators
+        d['count-incompatible-shares'] = len(incompatiblesharelocators)
+
+
+        # The file needs rebalancing if the set of servers that have at least one share is less
+        # than the number of uniquely-numbered shares available.
+        cr.set_needs_rebalancing(d['count-good-share-hosts'] < d['count-shares-good'])
+
+        cr.set_data(d)
+
+        return cr
+
+    def start(self):
+        ds = []
+        if self._verify:
+            for (serverid, ss) in self._servers:
+                ds.append(self._verify_server_shares(serverid, ss))
+        else:
+            for (serverid, ss) in self._servers:
+                ds.append(self._check_server_shares(serverid, ss))
+
+        return deferredutil.gatherResults(ds).addCallback(self._format_results)

@@ -20,8 +20,17 @@ class CheckerResults:
 
     def set_healthy(self, healthy):
         self.healthy = bool(healthy)
+        if self.healthy:
+            assert (not hasattr(self, 'recoverable')) or self.recoverable, hasattr(self, 'recoverable') and self.recoverable
+            self.recoverable = True
+            self.summary = "healthy"
+        else:
+            self.summary = "not healthy"
     def set_recoverable(self, recoverable):
         self.recoverable = recoverable
+        if not self.recoverable:
+            assert (not hasattr(self, 'healthy')) or not self.healthy
+            self.healthy = False
     def set_needs_rebalancing(self, needs_rebalancing):
         self.needs_rebalancing_p = bool(needs_rebalancing)
     def set_data(self, data):
