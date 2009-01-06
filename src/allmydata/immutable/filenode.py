@@ -10,7 +10,7 @@ from allmydata.interfaces import IFileNode, IFileURI, ICheckable, \
      IDownloadTarget
 from allmydata.util import log, base32
 from allmydata.immutable.checker import Checker
-from allmydata.checker_results import CheckAndRepairResults
+from allmydata.check_results import CheckAndRepairResults
 from allmydata.immutable.repairer import Repairer
 from allmydata.immutable import download
 

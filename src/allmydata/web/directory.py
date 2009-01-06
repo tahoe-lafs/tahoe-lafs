@@ -23,7 +23,7 @@ from allmydata.web.common import text_plain, WebError, \
      getxmlfile, RenderMixin
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
-from allmydata.web.checker_results import CheckerResults, \
+from allmydata.web.check_results import CheckerResults, \
      CheckAndRepairResults, DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.web.info import MoreInfo
 from allmydata.web.operations import ReloadMixin

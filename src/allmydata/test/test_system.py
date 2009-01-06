@@ -14,7 +14,7 @@ from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI, \
-     ICheckerResults, ICheckAndRepairResults, IDeepCheckResults, \
+     ICheckResults, ICheckAndRepairResults, IDeepCheckResults, \
      IDeepCheckAndRepairResults, NoSuchChildError, NotEnoughSharesError
 from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata.mutable.common import NotMutableError
@@ -2039,7 +2039,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def check_is_healthy(self, cr, n, where, incomplete=False):
-        self.failUnless(ICheckerResults.providedBy(cr), where)
+        self.failUnless(ICheckResults.providedBy(cr), where)
         self.failUnless(cr.is_healthy(), where)
         self.failUnlessEqual(cr.get_storage_index(), n.get_storage_index(),
                              where)
@@ -2622,7 +2622,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
 
     def check_is_healthy(self, cr, where):
         try:
-            self.failUnless(ICheckerResults.providedBy(cr), (cr, type(cr), where))
+            self.failUnless(ICheckResults.providedBy(cr), (cr, type(cr), where))
             self.failUnless(cr.is_healthy(), (cr.get_report(), cr.is_healthy(), cr.get_summary(), where))
             self.failUnless(cr.is_recoverable(), where)
             d = cr.get_data()
@@ -2634,7 +2634,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
             raise
 
     def check_is_missing_shares(self, cr, where):
-        self.failUnless(ICheckerResults.providedBy(cr), where)
+        self.failUnless(ICheckResults.providedBy(cr), where)
         self.failIf(cr.is_healthy(), where)
         self.failUnless(cr.is_recoverable(), where)
         d = cr.get_data()
@@ -2644,7 +2644,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
 
     def check_has_corrupt_shares(self, cr, where):
         # by "corrupt-shares" we mean the file is still recoverable
-        self.failUnless(ICheckerResults.providedBy(cr), where)
+        self.failUnless(ICheckResults.providedBy(cr), where)
         d = cr.get_data()
         self.failIf(cr.is_healthy(), (where, cr))
         self.failUnless(cr.is_recoverable(), where)
@@ -2655,7 +2655,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         return cr
 
     def check_is_unrecoverable(self, cr, where):
-        self.failUnless(ICheckerResults.providedBy(cr), where)
+        self.failUnless(ICheckResults.providedBy(cr), where)
         d = cr.get_data()
         self.failIf(cr.is_healthy(), where)
         self.failIf(cr.is_recoverable(), where)

@@ -14,7 +14,7 @@ from allmydata.util import log, base32
 
 from allmydata.web.common import text_plain, WebError, IClient, RenderMixin, \
      boolean_of_arg, get_arg, should_create_intermediate_directories
-from allmydata.web.checker_results import CheckerResults, \
+from allmydata.web.check_results import CheckerResults, \
      CheckAndRepairResults, LiteralCheckerResults
 from allmydata.web.info import MoreInfo
 

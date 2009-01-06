@@ -9,7 +9,7 @@ from allmydata.mutable.filenode import MutableFileNode
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
      IURI, IFileNode, IMutableFileURI, IFilesystemNode, \
      ExistingChildError, NoSuchChildError, ICheckable, IDeepCheckable
-from allmydata.checker_results import DeepCheckResults, \
+from allmydata.check_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
 from allmydata.util import hashutil, mathutil, base32, log

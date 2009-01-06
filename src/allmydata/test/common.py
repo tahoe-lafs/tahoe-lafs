@@ -11,7 +11,7 @@ from allmydata import uri, dirnode, client
 from allmydata.introducer.server import IntroducerNode
 from allmydata.interfaces import IURI, IMutableFileNode, IFileNode, \
      FileTooLargeError, NotEnoughSharesError, ICheckable
-from allmydata.checker_results import CheckerResults, CheckAndRepairResults, \
+from allmydata.check_results import CheckerResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.mutable.common import CorruptShareError
 from allmydata.storage import storage_index_to_dir

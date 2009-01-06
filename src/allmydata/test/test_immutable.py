@@ -1,5 +1,6 @@
 from allmydata.test.common import SystemTestMixin, ShareManglingMixin
 from allmydata.monitor import Monitor
+from allmydata import check_results
 from allmydata.interfaces import IURI, NotEnoughSharesError
 from allmydata.immutable import upload
 from allmydata.util import log
@@ -794,8 +795,11 @@ class Test(ShareManglingMixin, unittest.TestCase):
 
             d2 = filenode.check_and_repair(Monitor(), verify=False)
             def _after_repair(checkandrepairresults):
+                assert isinstance(checkandrepairresults, check_results.CheckAndRepairResults), checkandrepairresults
                 prerepairres = checkandrepairresults.get_pre_repair_results()
+                assert isinstance(prerepairres, check_results.CheckResults), prerepairres
                 postrepairres = checkandrepairresults.get_post_repair_results()
+                assert isinstance(postrepairres, check_results.CheckResults), postrepairres
                 after_repair_reads = self._count_reads()
                 after_repair_allocates = self._count_allocates()
 

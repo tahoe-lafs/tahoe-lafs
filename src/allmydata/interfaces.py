@@ -1515,7 +1515,7 @@ class ICheckable(Interface):
         """Check upon my health, optionally repairing any problems.
 
         This returns a Deferred that fires with an instance that provides
-        ICheckerResults, or None if the object is non-distributed (i.e. LIT
+        ICheckResults, or None if the object is non-distributed (i.e. LIT
         files).
 
         The monitor will be checked periodically to see if the operation has
@@ -1585,7 +1585,7 @@ class IDeepCheckable(Interface):
         IDeepCheckAndRepairResults object.
         """
 
-class ICheckerResults(Interface):
+class ICheckResults(Interface):
     """I contain the detailed results of a check/verify operation.
     """
 
@@ -1704,10 +1704,10 @@ class ICheckAndRepairResults(Interface):
         was fully healthy afterwards. False if no repair was attempted or if
         a repair attempt failed."""
     def get_pre_repair_results():
-        """Return an ICheckerResults instance that describes the state of the
+        """Return an ICheckResults instance that describes the state of the
         file/dir before any repair was attempted."""
     def get_post_repair_results():
-        """Return an ICheckerResults instance that describes the state of the
+        """Return an ICheckResults instance that describes the state of the
         file/dir after any repair was attempted. If no repair was attempted,
         the pre-repair and post-repair results will be identical."""
 
@@ -1741,11 +1741,11 @@ class IDeepCheckResults(Interface):
         """
     def get_all_results():
         """Return a dictionary mapping pathname (a tuple of strings, ready to
-        be slash-joined) to an ICheckerResults instance, one for each object
+        be slash-joined) to an ICheckResults instance, one for each object
         that was checked."""
 
     def get_results_for_storage_index(storage_index):
-        """Retrive the ICheckerResults instance for the given (binary)
+        """Retrive the ICheckResults instance for the given (binary)
         storage index. Raises KeyError if there are no results for that
         storage index."""
 
@@ -1820,15 +1820,15 @@ class IDeepCheckAndRepairResults(Interface):
 
 
 class IRepairable(Interface):
-    def repair(checker_results):
+    def repair(check_results):
         """Attempt to repair the given object. Returns a Deferred that fires
         with a IRepairResults object.
 
-        I must be called with an object that implements ICheckerResults, as
+        I must be called with an object that implements ICheckResults, as
         proof that you have actually discovered a problem with this file. I
         will use the data in the checker results to guide the repair process,
         such as which servers provided bad data and should therefore be
-        avoided. The ICheckerResults object is inside the
+        avoided. The ICheckResults object is inside the
         ICheckAndRepairResults object, which is returned by the
         ICheckable.check() method::
 

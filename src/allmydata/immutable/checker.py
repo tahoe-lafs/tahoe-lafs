@@ -1,6 +1,6 @@
 from foolscap import DeadReferenceError
 from allmydata import hashtree
-from allmydata.checker_results import CheckerResults
+from allmydata.check_results import CheckerResults
 from allmydata.immutable import download
 from allmydata.uri import CHKFileVerifierURI
 from allmydata.util.assertutil import precondition

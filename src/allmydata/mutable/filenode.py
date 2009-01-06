@@ -6,7 +6,7 @@ from zope.interface import implements
 from twisted.internet import defer, reactor
 from foolscap.eventual import eventually
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI, \
-     ICheckable, ICheckerResults, NotEnoughSharesError
+     ICheckable, ICheckResults, NotEnoughSharesError
 from allmydata.util import hashutil, log
 from allmydata.util.assertutil import precondition
 from allmydata.uri import WriteableSSKFileURI
@@ -253,9 +253,9 @@ class MutableFileNode:
     #################################
     # IRepairable
 
-    def repair(self, checker_results, force=False):
-        assert ICheckerResults(checker_results)
-        r = Repairer(self, checker_results)
+    def repair(self, check_results, force=False):
+        assert ICheckResults(check_results)
+        r = Repairer(self, check_results)
         d = r.start(force)
         return d
 

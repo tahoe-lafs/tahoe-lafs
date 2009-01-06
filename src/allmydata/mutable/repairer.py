@@ -1,6 +1,6 @@
 
 from zope.interface import implements
-from allmydata.interfaces import IRepairResults, ICheckerResults
+from allmydata.interfaces import IRepairResults, ICheckResults
 
 class RepairResults:
     implements(IRepairResults)
@@ -15,10 +15,10 @@ class MustForceRepairError(Exception):
     pass
 
 class Repairer:
-    def __init__(self, node, checker_results):
+    def __init__(self, node, check_results):
         self.node = node
-        self.checker_results = ICheckerResults(checker_results)
-        assert checker_results.storage_index == self.node.get_storage_index()
+        self.check_results = ICheckResults(check_results)
+        assert check_results.storage_index == self.node.get_storage_index()
 
     def start(self, force=False):
         # download, then re-publish. If a server had a bad share, try to
@@ -47,7 +47,7 @@ class Repairer:
         #  old shares: replace old shares with the latest version
         #  bogus shares (bad sigs): replace the bad one with a good one
 
-        smap = self.checker_results.get_servermap()
+        smap = self.check_results.get_servermap()
 
         if smap.unrecoverable_newer_versions():
             if not force:

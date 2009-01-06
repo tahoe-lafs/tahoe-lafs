@@ -826,7 +826,7 @@ POST $URL?t=start-deep-check    (must add &ophandle=XYZ)
   will continue to run in the background, and the /operations page should be
   used to find out when the operation is done.
 
-  Detailed checker results for non-healthy files and directories will be
+  Detailed check results for non-healthy files and directories will be
   available under /operations/$HANDLE/$STORAGEINDEX, and the HTML status will
   contain links to these detailed results.
 

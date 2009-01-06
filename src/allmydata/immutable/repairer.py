@@ -1,6 +1,6 @@
 from twisted.internet import defer
 from allmydata import storage
-from allmydata.checker_results import CheckerResults, CheckAndRepairResults
+from allmydata.check_results import CheckerResults, CheckAndRepairResults
 from allmydata.immutable import download
 from allmydata.util import nummedobj
 from allmydata.util.assertutil import precondition

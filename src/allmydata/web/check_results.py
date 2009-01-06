@@ -6,12 +6,12 @@ from twisted.web import http, html
 from allmydata.web.common import getxmlfile, get_arg, get_root, \
      IClient, WebError
 from allmydata.web.operations import ReloadMixin
-from allmydata.interfaces import ICheckAndRepairResults, ICheckerResults
+from allmydata.interfaces import ICheckAndRepairResults, ICheckResults
 from allmydata.util import base32, idlib
 
 class ResultsBase:
     def _render_results(self, ctx, cr):
-        assert ICheckerResults(cr)
+        assert ICheckResults(cr)
         c = IClient(ctx)
         data = cr.get_data()
         r = []
@@ -157,7 +157,7 @@ class ResultsBase:
         return T.a(href=target)[si_s]
 
 class LiteralCheckerResults(rend.Page, ResultsBase):
-    docFactory = getxmlfile("literal-checker-results.xhtml")
+    docFactory = getxmlfile("literal-check-results.xhtml")
 
     def renderHTTP(self, ctx):
         if self.want_json(ctx):
@@ -189,10 +189,10 @@ class CheckerBase:
         return ""
 
 class CheckerResults(CheckerBase, rend.Page, ResultsBase):
-    docFactory = getxmlfile("checker-results.xhtml")
+    docFactory = getxmlfile("check-results.xhtml")
 
     def __init__(self, results):
-        self.r = ICheckerResults(results)
+        self.r = ICheckResults(results)
 
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
@@ -347,7 +347,7 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
         all_objects = self.monitor.get_status().get_all_results()
         for path in sorted(all_objects.keys()):
             cr = all_objects[path]
-            assert ICheckerResults.providedBy(cr)
+            assert ICheckResults.providedBy(cr)
             if not cr.is_healthy():
                 yield path, cr
 

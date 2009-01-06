@@ -1,11 +1,11 @@
 
 from zope.interface import implements
-from allmydata.interfaces import ICheckerResults, ICheckAndRepairResults, \
+from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
      IDeepCheckResults, IDeepCheckAndRepairResults, IURI
 from allmydata.util import base32
 
 class CheckerResults:
-    implements(ICheckerResults)
+    implements(ICheckResults)
 
     def __init__(self, uri, storage_index):
         assert IURI.providedBy(uri), uri
@@ -137,7 +137,7 @@ class DeepCheckResults(DeepResultsBase):
     def add_check(self, r, path):
         if not r:
             return # non-distributed object, i.e. LIT file
-        r = ICheckerResults(r)
+        r = ICheckResults(r)
         assert isinstance(path, (list, tuple))
         self.objects_checked += 1
         if r.is_healthy():

@@ -4,7 +4,7 @@ from twisted.python import failure
 from allmydata import hashtree
 from allmydata.uri import from_string
 from allmydata.util import hashutil, base32, idlib, log
-from allmydata.checker_results import CheckAndRepairResults, CheckerResults
+from allmydata.check_results import CheckAndRepairResults, CheckerResults
 
 from common import MODE_CHECK, CorruptShareError
 from servermap import ServerMap, ServermapUpdater
