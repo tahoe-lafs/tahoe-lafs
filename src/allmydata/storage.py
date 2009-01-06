@@ -118,7 +118,8 @@ class ShareFile:
             # etc.  We do saturation -- a share data length larger than what can fit into the
             # field is marked as the largest length that can fit into the field.  That way, even
             # if this does happen, the old < v1.3.0 server will still allow clients to read the
-            # first part of the share.
+            # first part of the share. The largest size that will fit in this 4-byte field is
+            # 2**32-1, or 4294967295.
             f.write(struct.pack(">LLL", 1, min(4294967295, max_size), 0))
             f.close()
             self._lease_offset = max_size + 0x0c
