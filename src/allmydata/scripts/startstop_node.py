@@ -123,7 +123,7 @@ def do_stop(basedir, out=sys.stdout, err=sys.stderr):
         pass
     start = time.time()
     time.sleep(0.1)
-    wait = 20
+    wait = 40
     first_time = True
     while True:
         # poll once per second until we see the process is no longer running
