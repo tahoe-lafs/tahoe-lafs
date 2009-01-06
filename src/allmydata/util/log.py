@@ -1,4 +1,3 @@
-
 import nummedobj
 
 from foolscap.logging import log
