@@ -5,7 +5,6 @@ from twisted.internet import defer
 from twisted.application import service
 from foolscap import Referenceable, Copyable, RemoteCopy
 from foolscap import eventual
-from foolscap.logging import log
 
 from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
