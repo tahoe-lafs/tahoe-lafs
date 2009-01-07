@@ -1453,7 +1453,7 @@ class IUploadResults(Interface):
     """I am returned by upload() methods. I contain a number of public
     attributes which can be read to determine the results of the upload. Some
     of these are functional, some are timing information. All of these may be
-    None.::
+    None.
 
      .file_size : the size of the file, in bytes
      .uri : the CHK read-cap for the file
