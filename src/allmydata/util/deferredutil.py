@@ -1,4 +1,3 @@
-
 from twisted.internet import defer
 
 # utility wrapper for DeferredList
