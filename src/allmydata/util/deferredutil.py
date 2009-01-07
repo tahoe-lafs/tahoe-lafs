@@ -21,25 +21,15 @@ def _unwrapFirstError(f):
     f.trap(defer.FirstError)
     raise f.value.subFailure
 
-class ResultsGatherer:
-    def __init__(self, deferredlist):
-        self.deferredlist = deferredlist
-        self.fired = 0
-        self.results = []
-        self.d = defer.Deferred()
-        for d in deferredlist:
-            d.addCallbacks(self._cb, self._eb)
-    def start(self):
-        return self.d
-    def _cb(self, res):
-        self.results.append(res)
-        self.fired += 1
-        if self.fired >= len(self.deferredlist):
-            self.d.callback(self.results)
-    def _eb(self, f):
-        self.d.errback(f)
+def gatherResults(deferredList):
+    """Returns list with result of given Deferreds.
 
-def gatherResults(deferredlist):
-    """ Return a deferred that fires with a list of the results of the deferreds, or else errbacks with any error. """
-    r = ResultsGatherer(deferredlist)
-    return r.start()
+    This builds on C{DeferredList} but is useful since you don't
+    need to parse the result for success/failure.
+
+    @type deferredList:  C{list} of L{Deferred}s
+    """
+    d = defer.DeferredList(deferredList, fireOnOneErrback=True, consumeErrors=True)
+    d.addCallbacks(_parseDListResult, _unwrapFirstError)
+    return d
+
