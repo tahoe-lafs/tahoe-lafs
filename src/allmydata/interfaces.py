@@ -392,6 +392,9 @@ class IFileURI(Interface):
     def get_size():
         """Return the length (in bytes) of the file that I represent."""
 
+class IImmutableFileURI(IFileURI):
+    pass
+
 class IMutableFileURI(Interface):
     """I am a URI which represents a mutable filenode."""
 class INewDirectoryURI(Interface):

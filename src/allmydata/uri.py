@@ -4,8 +4,8 @@ from zope.interface import implements
 from twisted.python.components import registerAdapter
 from allmydata import storage
 from allmydata.util import base32, hashutil
-from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IVerifierURI, \
-     IMutableFileURI, INewDirectoryURI, IReadonlyNewDirectoryURI
+from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IImmutableFileURI, \
+    IVerifierURI, IMutableFileURI, INewDirectoryURI, IReadonlyNewDirectoryURI
 
 # the URI shall be an ascii representation of the file. It shall contain
 # enough information to retrieve and validate the contents. It shall be
@@ -43,7 +43,7 @@ class _BaseURI:
         return self.storage_index
 
 class CHKFileURI(_BaseURI):
-    implements(IURI, IFileURI)
+    implements(IURI, IImmutableFileURI)
 
     STRING_RE=re.compile('^URI:CHK:'+BASE32STR_128bits+':'+
                          BASE32STR_256bits+':'+NUMBER+':'+NUMBER+':'+NUMBER+
@@ -153,7 +153,7 @@ class CHKFileVerifierURI(_BaseURI):
 
 
 class LiteralFileURI(_BaseURI):
-    implements(IURI, IFileURI)
+    implements(IURI, IImmutableFileURI)
 
     STRING_RE=re.compile('^URI:LIT:'+base32.BASE32STR_anybytes+'$')
     HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'LIT'+SEP+base32.BASE32STR_anybytes+'$')
