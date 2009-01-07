@@ -57,5 +57,5 @@ class PrefixingLogMixin(nummedobj.NummedObj, LogMixin):
         else:
             self._prefix = "%s: " % (self.__repr__(),)
 
-    def log(self, msg, facility=None, parent=None, *args, **kwargs):
+    def log(self, msg="", facility=None, parent=None, *args, **kwargs):
         return LogMixin.log(self, self._prefix + msg, facility, parent, *args, **kwargs)
