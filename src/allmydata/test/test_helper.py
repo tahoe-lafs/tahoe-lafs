@@ -5,8 +5,9 @@ from twisted.application import service
 from foolscap import Tub, eventual
 from foolscap.logging import log
 
-from allmydata import offloaded, storage
-from allmydata.immutable import upload
+from allmydata import storage
+from allmydata.immutable import offloaded, upload
+from allmydata import uri
 from allmydata.util import hashutil, fileutil, mathutil
 from pycryptopp.cipher.aes import AES
 
@@ -27,8 +28,10 @@ class CHKUploadHelper_fake(offloaded.CHKUploadHelper):
                             "size": size,
                             }
                 self._results.uri_extension_data = ueb_data
-                return (hashutil.uri_extension_hash(""),
-                        needed_shares, total_shares, size)
+                self._results.verifycapstr = uri.CHKFileVerifierURI(self._storage_index, "x"*32,
+                                                                 needed_shares, total_shares,
+                                                                 size).to_string()
+                return self._results
             d2.addCallback(_got_parms)
             return d2
         d.addCallback(_got_size)

@@ -9,6 +9,7 @@ import allmydata
 from allmydata import interfaces, storage, uri
 from allmydata.immutable import upload
 from allmydata.immutable.layout import ReadBucketProxy
+from allmydata.util.assertutil import precondition
 from allmydata.util import idlib, log, observer, fileutil, hashutil
 
 
@@ -205,10 +206,12 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         # and inform the client when the upload has finished
         return self._finished_observers.when_fired()
 
-    def _finished(self, res):
-        (uri_extension_hash, needed_shares, total_shares, size) = res
-        r = self._results
-        r.uri_extension_hash = uri_extension_hash
+    def _finished(self, uploadresults):
+        precondition(isinstance(uploadresults.verifycapstr, str), uploadresults.verifycapstr)
+        assert interfaces.IUploadResults.providedBy(uploadresults), uploadresults
+        r = uploadresults
+        v = uri.from_string(r.verifycapstr)
+        r.uri_extension_hash = v.uri_extension_hash
         f_times = self._fetcher.get_times()
         r.timings["cumulative_fetch"] = f_times["cumulative_fetch"]
         r.ciphertext_fetched = self._fetcher.get_ciphertext_fetched()
@@ -216,7 +219,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         self._reader.close()
         os.unlink(self._encoding_file)
         self._finished_observers.fire(r)
-        self._helper.upload_finished(self._storage_index, size)
+        self._helper.upload_finished(self._storage_index, v.size)
         del self._reader
 
     def _failed(self, f):

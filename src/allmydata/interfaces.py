@@ -1212,10 +1212,9 @@ class IEncoder(Interface):
         set_encrypted_uploadable() and set_shareholders() must be called
         before this can be invoked.
 
-        This returns a Deferred that fires with a tuple of
-        (uri_extension_hash, needed_shares, total_shares, size) when the
-        upload process is complete. This information, plus the encryption
-        key, is sufficient to construct the URI.
+        This returns a Deferred that fires with a verify cap when the upload process is
+        complete. The verifycap, plus the encryption key, is sufficient to construct the read
+        cap.
         """
 
 class IDecoder(Interface):

@@ -304,9 +304,9 @@ class Encode(unittest.TestCase):
         d.addCallback(_ready)
 
         def _check(res):
-            (uri_extension_hash, required_shares, num_shares, file_size) = res
-            self.failUnless(isinstance(uri_extension_hash, str))
-            self.failUnlessEqual(len(uri_extension_hash), 32)
+            verifycap = res
+            self.failUnless(isinstance(verifycap.uri_extension_hash, str))
+            self.failUnlessEqual(len(verifycap.uri_extension_hash), 32)
             for i,peer in enumerate(all_shareholders):
                 self.failUnless(peer.closed)
                 self.failUnlessEqual(len(peer.blocks), NUM_SEGMENTS)
@@ -475,7 +475,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
 
     def recover(self, (res, key, shareholders), AVAILABLE_SHARES,
                 recover_mode, target=None):
-        (uri_extension_hash, required_shares, num_shares, file_size) = res
+        verifycap = res
 
         if "corrupt_key" in recover_mode:
             # we corrupt the key, so that the decrypted data is corrupted and
@@ -485,10 +485,10 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
             key = flip_bit(key)
 
         u = uri.CHKFileURI(key=key,
-                           uri_extension_hash=uri_extension_hash,
-                           needed_shares=required_shares,
-                           total_shares=num_shares,
-                           size=file_size)
+                           uri_extension_hash=verifycap.uri_extension_hash,
+                           needed_shares=verifycap.needed_shares,
+                           total_shares=verifycap.total_shares,
+                           size=verifycap.size)
 
         client = FakeClient()
         if not target:

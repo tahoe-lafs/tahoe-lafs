@@ -8,8 +8,8 @@ from twisted.internet import threads # CLI tests use deferToThread
 from twisted.internet.error import ConnectionDone, ConnectionLost
 from twisted.internet.interfaces import IConsumer, IPushProducer
 import allmydata
-from allmydata import uri, storage, offloaded
-from allmydata.immutable import download, upload, filenode
+from allmydata import uri, storage
+from allmydata.immutable import download, filenode, offloaded, upload
 from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
 from allmydata.scripts import runner

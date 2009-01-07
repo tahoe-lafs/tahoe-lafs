@@ -197,6 +197,8 @@ class Encoder(object):
         self.landlords = landlords.copy()
 
     def start(self):
+        """ Returns a Deferred that will fire with the verify cap (an instance of
+        uri.CHKFileVerifierURI)."""
         self.log("%s starting" % (self,))
         #paddedsize = self._size + mathutil.pad_size(self._size, self.needed_shares)
         assert self._codec
@@ -637,8 +639,8 @@ class Encoder(object):
 
         # update our sharemap
         self._shares_placed = set(self.landlords.keys())
-        return (self.uri_extension_hash, self.required_shares,
-                self.num_shares, self.file_size)
+        return uri.CHKFileVerifierURI(self._storage_index, self.uri_extension_hash,
+                                      self.required_shares, self.num_shares, self.file_size)
 
     def err(self, f):
         self.log("upload failed", failure=f, level=log.UNUSUAL)
