@@ -356,6 +356,18 @@ class PollMixinTests(unittest.TestCase):
         return d
 
 class DeferredUtilTests(unittest.TestCase):
+    def test_gather_results(self):
+        d1 = defer.Deferred()
+        d2 = defer.Deferred()
+        res = deferredutil.gatherResults([d1, d2])
+        d1.errback(ValueError("BAD"))
+        def _callb(res):
+            self.fail("Should have errbacked, not resulted in %s" % (res,))
+        def _errb(thef):
+            thef.trap(ValueError)
+        res.addCallbacks(_callb, _errb)
+        return res
+
     def test_success(self):
         d1, d2 = defer.Deferred(), defer.Deferred()
         good = []
