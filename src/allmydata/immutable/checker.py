@@ -44,7 +44,6 @@ class Checker(log.PrefixingLogMixin):
         self._verify = verify # bool: verify what the servers claim, or not?
 
         self._share_hash_tree = None
-        self._crypttext_hash_tree = None
 
     def _get_buckets(self, server, storageindex, serverid):
         """ Return a deferred that eventually fires with ({sharenum: bucket}, serverid,

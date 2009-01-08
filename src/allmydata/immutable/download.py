@@ -151,9 +151,10 @@ class ValidatedCrypttextHashTreeProxy:
     """ I am a front-end for a remote crypttext hash tree using a local ReadBucketProxy -- I use
     its get_crypttext_hashes() method and offer the Validated Thing protocol (i.e., I have a
     start() method that fires with self once I get a valid one). """
-    def __init__(self, readbucketproxy, crypttext_hash_tree, fetch_failures=None):
+    def __init__(self, readbucketproxy, crypttext_hash_tree, num_segments, fetch_failures=None):
         # fetch_failures is for debugging -- see test_encode.py
         self._readbucketproxy = readbucketproxy
+        self._num_segments = num_segments
         self._fetch_failures = fetch_failures
         self._crypttext_hash_tree = crypttext_hash_tree
 
@@ -165,6 +166,11 @@ class ValidatedCrypttextHashTreeProxy:
             if self._fetch_failures is not None:
                 self._fetch_failures["crypttext_hash_tree"] += 1
             raise BadOrMissingHash(le)
+        # If we now have enough of the crypttext hash tree to integrity-check *any* segment of ciphertext, then we are done.
+        # TODO: It would have better alacrity if we downloaded only part of the crypttext hash tree at a time.
+        for segnum in range(self._num_segments):
+            if self._crypttext_hash_tree.needed_hashes(segnum):
+                raise NotEnoughHashesError("not enough hashes to validate segment number %d" % (segnum,))
         return self
 
     def start(self):
@@ -863,7 +869,7 @@ class FileDownloader(log.PrefixingLogMixin):
     def _get_crypttext_hash_tree(self, res):
         vchtps = []
         for sharenum, bucket in self._share_buckets:
-            vchtp = ValidatedCrypttextHashTreeProxy(bucket, self._crypttext_hash_tree, self._fetch_failures)
+            vchtp = ValidatedCrypttextHashTreeProxy(bucket, self._crypttext_hash_tree, self._vup.num_segments, self._fetch_failures)
             vchtps.append(vchtp)
 
         _get_crypttext_hash_tree_started = time.time()
@@ -874,7 +880,8 @@ class FileDownloader(log.PrefixingLogMixin):
         d = vto.start()
 
         def _got_crypttext_hash_tree(res):
-            self._crypttext_hash_tree = res._crypttext_hash_tree
+            # Good -- the self._crypttext_hash_tree that we passed to vchtp is now populated
+            # with hashes.
             self._output.got_crypttext_hash_tree(self._crypttext_hash_tree)
             if self._results:
                 elapsed = time.time() - _get_crypttext_hash_tree_started
