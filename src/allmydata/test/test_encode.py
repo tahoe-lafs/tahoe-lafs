@@ -9,6 +9,7 @@ from allmydata.immutable import encode, upload, download
 from allmydata.util import hashutil
 from allmydata.util.assertutil import _assert
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, NotEnoughSharesError
+from allmydata.monitor import Monitor
 import common_util as testutil
 
 class LostPeerError(Exception):
@@ -494,7 +495,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         if not target:
             target = download.Data()
         target = download.DecryptingTarget(target, u.key)
-        fd = download.CiphertextDownloader(client, u.get_verify_cap(), target)
+        fd = download.CiphertextDownloader(client, u.get_verify_cap(), target, monitor=Monitor())
 
         # we manually cycle the CiphertextDownloader through a number of steps that
         # would normally be sequenced by a Deferred chain in
