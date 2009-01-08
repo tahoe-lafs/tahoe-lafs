@@ -204,6 +204,7 @@ class ValidatedExtendedURIProxy:
         self.block_size = None
         self.share_size = None
         self.num_segments = None
+        self.tail_data_size = None
         self.tail_segment_size = None
 
         # optional
@@ -246,11 +247,11 @@ class ValidatedExtendedURIProxy:
         self.block_size = mathutil.div_ceil(self.segment_size, self._verifycap.needed_shares)
         self.num_segments = mathutil.div_ceil(self._verifycap.size, self.segment_size)
 
-        tail_data_size = self._verifycap.size % self.segment_size
-        if not tail_data_size:
-            tail_data_size = self.segment_size
+        self.tail_data_size = self._verifycap.size % self.segment_size
+        if not self.tail_data_size:
+            self.tail_data_size = self.segment_size
         # padding for erasure code
-        self.tail_segment_size = mathutil.next_multiple(tail_data_size, self._verifycap.needed_shares)
+        self.tail_segment_size = mathutil.next_multiple(self.tail_data_size, self._verifycap.needed_shares)
 
         # Ciphertext hash tree root is mandatory, so that there is at most one ciphertext that
         # matches this read-cap or verify-cap.  The integrity check on the shares is not
