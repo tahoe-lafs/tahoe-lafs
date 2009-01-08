@@ -117,9 +117,11 @@ class LocalDirectorySource:
                 self.children[n] = child
                 if recurse:
                     child.populate(True)
-            else:
-                assert os.path.isfile(pn)
+            elif os.path.isfile(pn):
                 self.children[n] = LocalFileSource(pn)
+            else:
+                # Could be dangling symlink; probably not copy-able.
+                pass
 
 class LocalDirectoryTarget:
     def __init__(self, progressfunc, pathname):

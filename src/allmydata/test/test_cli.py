@@ -600,3 +600,18 @@ class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
 
         return d
     test_unicode_filename.todo = "This behavior is not yet supported, although it does happen to work (for reasons that are ill-understood) on many platforms.  See issue ticket #534."
+
+    def test_dangling_symlink_vs_recursion(self):
+        # cp -r on a directory containing a dangling symlink shouldn't assert
+        self.basedir = os.path.dirname(self.mktemp())
+        dn = os.path.join(self.basedir, "dir")
+        os.mkdir(dn)
+        fn = os.path.join(dn, "Fakebandica")
+        ln = os.path.join(dn, "link")
+        os.symlink(fn, ln)
+
+        d = self.set_up_nodes()
+        d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
+        d.addCallback(lambda res: self.do_cli("cp", "--recursive",
+                                              dn, "tahoe:"))
+        return d
