@@ -494,11 +494,11 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         if not target:
             target = download.Data()
         target = download.DecryptingTarget(target, u.key)
-        fd = download.FileDownloader(client, u.get_verify_cap(), target)
+        fd = download.CiphertextDownloader(client, u.get_verify_cap(), target)
 
-        # we manually cycle the FileDownloader through a number of steps that
+        # we manually cycle the CiphertextDownloader through a number of steps that
         # would normally be sequenced by a Deferred chain in
-        # FileDownloader.start(), to give us more control over the process.
+        # CiphertextDownloader.start(), to give us more control over the process.
         # In particular, by bypassing _get_all_shareholders, we skip
         # permuted-peerlist selection.
         for shnum, bucket in shareholders.items():
@@ -515,7 +515,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
 
         d = defer.succeed(None)
 
-        # have the FileDownloader retrieve a copy of uri_extension itself
+        # have the CiphertextDownloader retrieve a copy of uri_extension itself
         d.addCallback(fd._obtain_uri_extension)
 
         if "corrupt_crypttext_hashes" in recover_mode:
@@ -535,7 +535,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
                 return fd._vup
             d.addCallback(_corrupt_crypttext_hashes)
 
-        # also have the FileDownloader ask for hash trees
+        # also have the CiphertextDownloader ask for hash trees
         d.addCallback(fd._get_crypttext_hash_tree)
 
         d.addCallback(fd._download_all_segments)

@@ -1274,11 +1274,11 @@ class IDownloadTarget(Interface):
         is a Failure object indicating what went wrong. No further methods
         will be invoked on the IDownloadTarget after fail()."""
     def register_canceller(cb):
-        """The FileDownloader uses this to register a no-argument function
+        """The CiphertextDownloader uses this to register a no-argument function
         that the target can call to cancel the download. Once this canceller
         is invoked, no further calls to write() or close() will be made."""
     def finish():
-        """When the FileDownloader is done, this finish() function will be
+        """When the CiphertextDownloader is done, this finish() function will be
         called. Whatever it returns will be returned to the invoker of
         Downloader.download.
         """
