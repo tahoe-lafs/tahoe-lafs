@@ -175,7 +175,7 @@ class ValidatedCrypttextHashTreeProxy:
         # TODO: It would have better alacrity if we downloaded only part of the crypttext hash tree at a time.
         for segnum in range(self._num_segments):
             if self._crypttext_hash_tree.needed_hashes(segnum):
-                raise NotEnoughHashesError("not enough hashes to validate segment number %d" % (segnum,))
+                raise BadOrMissingHash("not enough hashes to validate segment number %d" % (segnum,))
         return self
 
     def start(self):

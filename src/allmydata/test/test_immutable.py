@@ -3,7 +3,7 @@ from allmydata.monitor import Monitor
 from allmydata import check_results
 from allmydata.interfaces import IURI, NotEnoughSharesError
 from allmydata.immutable import upload
-from allmydata.util import log
+from allmydata.util import hashutil, log
 from twisted.internet import defer
 from twisted.trial import unittest
 import random, struct
@@ -111,6 +111,23 @@ def _corrupt_offset_of_block_hashes(data):
         return corrupt_field(data, 0x0c+0x18, 4)
     else:
         return corrupt_field(data, 0x0c+0x2c, 8)
+
+def _corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes(data):
+    """ Scramble the file data -- the field showing the offset of the block hash tree within the
+    share data will have a multiple of hash size subtracted from it, thus causing the downloader
+    to download an incomplete crypttext hash tree."""
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        curval = struct.unpack(">L", data[0x0c+0x18:0x0c+0x18+4])[0]
+        newval = random.randrange(0, max(1, (curval/hashutil.CRYPTO_VAL_SIZE)/2))*hashutil.CRYPTO_VAL_SIZE
+        newvalstr = struct.pack(">L", newval)
+        return data[:0x0c+0x18]+newvalstr+data[0x0c+0x18+4:]
+    else:
+        curval = struct.unpack(">Q", data[0x0c+0x2c:0x0c+0x2c+8])[0]
+        newval = random.randrange(0, max(1, (curval/hashutil.CRYPTO_VAL_SIZE)/2))*hashutil.CRYPTO_VAL_SIZE
+        newvalstr = struct.pack(">Q", newval)
+        return data[:0x0c+0x2c]+newvalstr+data[0x0c+0x2c+8:]
 
 def _corrupt_offset_of_share_hashes(data):
     """ Scramble the file data -- the field showing the offset of the share hash tree within
@@ -244,7 +261,11 @@ class Test(ShareManglingMixin, unittest.TestCase):
         d.addCallback(lambda x: self.set_up_nodes())
 
         def _upload_a_file(ignored):
-            d2 = self.clients[0].upload(upload.Data(TEST_DATA, convergence=""))
+            client = self.clients[0]
+            # We need multiple segments to test crypttext hash tree's that are non-trivial
+            # (i.e. they have more than just one hash in them).
+            client.DEFAULT_ENCODING_PARAMETERS['max_segment_size'] = 12
+            d2 = client.upload(upload.Data(TEST_DATA, convergence=""))
             def _after_upload(u):
                 self.uri = IURI(u.uri)
                 return self.clients[0].create_node_from_uri(self.uri)
@@ -387,10 +408,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
         before_download_reads = self._count_reads()
         def _after_download(unused=None):
             after_download_reads = self._count_reads()
-            # To pass this test, you have to download the file using only 10 reads total: 3 to
-            # get the headers from each share, 3 to get the share hash trees and uebs from each
-            # share, 1 to get the crypttext hashes, and 3 to get the block data from each share.
-            self.failIf(after_download_reads-before_download_reads > 12, (after_download_reads, before_download_reads))
+            self.failIf(after_download_reads-before_download_reads > 27, (after_download_reads, before_download_reads))
         d.addCallback(self._download_and_check_plaintext)
         d.addCallback(_after_download)
         return d
@@ -405,11 +423,22 @@ class Test(ShareManglingMixin, unittest.TestCase):
         d.addCallback(_then_delete_7)
         def _after_download(unused=None):
             after_download_reads = self._count_reads()
-            # To pass this test, you have to download the file using only 10 reads to get the
-            # UEB (in parallel from all shares), plus one read for each of the 3 shares.
-            self.failIf(after_download_reads-before_download_reads > 13, (after_download_reads, before_download_reads))
+            self.failIf(after_download_reads-before_download_reads > 27, (after_download_reads, before_download_reads))
         d.addCallback(self._download_and_check_plaintext)
         d.addCallback(_after_download)
+        return d
+
+    def test_download_from_only_3_shares_with_good_crypttext_hash(self):
+        """ Test download after 7 random shares (of the 10) have had their crypttext hash tree corrupted. """
+        d = defer.succeed(None)
+        def _then_corrupt_7(unused=None):
+            shnums = range(10)
+            random.shuffle(shnums)
+            for i in shnums[:7]:
+                self._corrupt_a_share(None, _corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes, i)
+        before_download_reads = self._count_reads()
+        d.addCallback(_then_corrupt_7)
+        d.addCallback(self._download_and_check_plaintext)
         return d
 
     def test_download_abort_if_too_many_missing_shares(self):
@@ -515,7 +544,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
         return d
 
     def _help_test_verify(self, corruptor_funcs, judgement_func):
-        LEEWAY = 7 # We'll allow you to pass this test even if you trigger seven times as many disk reads and blocks sends as would be optimal.
+        LEEWAY = 18 # We'll allow you to pass this test even if you trigger eighteen times as many disk reads and blocks sends as would be optimal.
         DELTA_READS = 10 * LEEWAY # N = 10
         d = defer.succeed(None)
 
@@ -534,7 +563,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
             d2 = self.filenode.check(Monitor(), verify=True)
             def _after_check(checkresults):
                 after_check_reads = self._count_reads()
-                self.failIf(after_check_reads - before_check_reads > DELTA_READS)
+                self.failIf(after_check_reads - before_check_reads > DELTA_READS, (after_check_reads, before_check_reads))
                 try:
                     return judgement_func(checkresults)
                 except Exception, le:
@@ -637,6 +666,26 @@ class Test(ShareManglingMixin, unittest.TestCase):
             _corrupt_length_of_uri_extension,
             _corrupt_uri_extension,
             ], judge)
+
+    def test_verify_server_invisible_corruption_offset_of_block_hashtree_to_truncate_crypttext_hashtree_TODO(self):
+        def judge(checkresults):
+            self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
+            data = checkresults.get_data()
+            self.failUnless(data['count-shares-good'] == 9, data)
+            self.failUnless(data['count-shares-needed'] == 3, data)
+            self.failUnless(data['count-shares-expected'] == 10, data)
+            self.failUnless(data['count-good-share-hosts'] == 5, data)
+            self.failUnless(data['count-corrupt-shares'] == 1, (data,))
+            self.failUnless(len(data['list-corrupt-shares']) == 1, data)
+            self.failUnless(len(data['list-corrupt-shares']) == data['count-corrupt-shares'], data)
+            self.failUnless(len(data['list-incompatible-shares']) == data['count-incompatible-shares'], data)
+            self.failUnless(len(data['list-incompatible-shares']) == 0, data)
+            self.failUnless(len(data['servers-responding']) == 5, data)
+            self.failUnless(len(data['sharemap']) == 9, data)
+        return self._help_test_verify([
+            _corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes,
+            ], judge)
+    test_verify_server_invisible_corruption_offset_of_block_hashtree_to_truncate_crypttext_hashtree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
     def test_verify_server_invisible_corruption_offset_of_block_hashtree_TODO(self):
         def judge(checkresults):
@@ -905,3 +954,5 @@ class Test(ShareManglingMixin, unittest.TestCase):
 # XXX extend these tests to show bad behavior of various kinds from servers: raising exception from each remove_foo() method, for example
 
 # XXX test disconnect DeadReferenceError from get_buckets and get_block_whatsit
+
+# XXX test corruption that truncates other hash trees than just the crypttext hash tree
