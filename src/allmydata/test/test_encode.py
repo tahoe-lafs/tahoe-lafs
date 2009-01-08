@@ -433,7 +433,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
                       target=target)
         # that fires with newdata
         def _downloaded((newdata, fd)):
-            self.failUnless(newdata == data)
+            self.failUnless(newdata == data, str((len(newdata), len(data))))
             return fd
         d.addCallback(_downloaded)
         return d

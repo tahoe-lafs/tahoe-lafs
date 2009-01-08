@@ -262,7 +262,7 @@ class Test(ShareManglingMixin, unittest.TestCase):
 
         def _upload_a_file(ignored):
             client = self.clients[0]
-            # We need multiple segments to test crypttext hash tree's that are non-trivial
+            # We need multiple segments to test crypttext hash trees that are non-trivial
             # (i.e. they have more than just one hash in them).
             client.DEFAULT_ENCODING_PARAMETERS['max_segment_size'] = 12
             d2 = client.upload(upload.Data(TEST_DATA, convergence=""))
