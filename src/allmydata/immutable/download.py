@@ -124,9 +124,14 @@ class ValidatedThingObtainer:
         self._log_id = log_id
 
     def _bad(self, f, validatedthingproxy):
+        failtype = f.trap(ServerFailure, IntegrityCheckReject, layout.LayoutInvalid, layout.ShareVersionIncompatible, DeadReferenceError)
         level = log.WEIRD
         if f.check(DeadReferenceError):
             level = log.UNUSUAL
+        elif f.check(ServerFailure):
+            level = log.WEIRD
+        else:
+            level = log.SCARY
         log.msg(parent=self._log_id, facility="tahoe.immutable.download",
                 format="operation %(op)s from validatedthingproxy %(validatedthingproxy)s failed",
                 op=self._debugname, validatedthingproxy=str(validatedthingproxy),
