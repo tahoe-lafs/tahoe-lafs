@@ -1,4 +1,3 @@
-
 import os, random, weakref, itertools, time
 from zope.interface import implements
 from twisted.internet import defer
@@ -113,7 +112,6 @@ class Output:
         self.crypttext_hash = self._crypttext_hasher.digest()
         self.log("download finished, closing IDownloadable", level=log.NOISY)
         self.downloadable.close()
-
     def finish(self):
         return self.downloadable.finish()
 
