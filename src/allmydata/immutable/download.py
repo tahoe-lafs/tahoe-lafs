@@ -1186,7 +1186,7 @@ class Downloader(service.MultiService):
         self._all_download_statuses = weakref.WeakKeyDictionary()
         self._recent_download_statuses = []
 
-    def download(self, u, t):
+    def download(self, u, t, _log_msg_id=None):
         assert self.parent
         assert self.running
         u = IFileURI(u)
@@ -1206,12 +1206,12 @@ class Downloader(service.MultiService):
         return d
 
     # utility functions
-    def download_to_data(self, uri):
-        return self.download(uri, Data())
-    def download_to_filename(self, uri, filename):
-        return self.download(uri, FileName(filename))
-    def download_to_filehandle(self, uri, filehandle):
-        return self.download(uri, FileHandle(filehandle))
+    def download_to_data(self, uri, _log_msg_id=None):
+        return self.download(uri, Data(), _log_msg_id=_log_msg_id)
+    def download_to_filename(self, uri, filename, _log_msg_id=None):
+        return self.download(uri, FileName(filename), _log_msg_id=_log_msg_id)
+    def download_to_filehandle(self, uri, filehandle, _log_msg_id=None):
+        return self.download(uri, FileHandle(filehandle), _log_msg_id=_log_msg_id)
 
     def _add_download(self, downloader):
         self._all_downloads[downloader] = None

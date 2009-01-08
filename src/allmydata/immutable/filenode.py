@@ -9,6 +9,7 @@ from foolscap.eventual import eventually
 from allmydata.interfaces import IFileNode, IFileURI, ICheckable, \
      IDownloadTarget
 from allmydata.util import log, base32
+from allmydata import uri as urimodule
 from allmydata.immutable.checker import Checker
 from allmydata.check_results import CheckAndRepairResults
 from allmydata.immutable.repairer import Repairer
@@ -167,10 +168,13 @@ class DownloadCache:
 
 
 
-class FileNode(_ImmutableFileNodeBase):
+class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
     def __init__(self, uri, client, cachefile):
         _ImmutableFileNodeBase.__init__(self, uri, client)
         self.download_cache = DownloadCache(self, cachefile)
+        prefix = urimodule.from_string(uri).get_verify_cap().to_string()
+        log.PrefixingLogMixin.__init__(self, "allmydata.immutable.filenode", prefix=prefix)
+        self.log("starting", level=log.OPERATIONAL)
 
     def get_uri(self):
         return self.u.to_string()
@@ -219,10 +223,7 @@ class FileNode(_ImmutableFileNodeBase):
 
         if offset == 0 and size == self.get_size():
             # don't use the cache, just do a normal streaming download
-            log.msg(format=("immutable filenode read [%(si)s]: " +
-                            "doing normal full download"),
-                    si=base32.b2a(self.u.storage_index),
-                    umid="VRSBwg", level=log.OPERATIONAL)
+            self.log("doing normal full download", umid="VRSBwg", level=log.OPERATIONAL)
             return self.download(download.ConsumerAdapter(consumer))
 
         d = self.download_cache.when_range_available(offset, size)
@@ -232,7 +233,7 @@ class FileNode(_ImmutableFileNodeBase):
 
     def download(self, target):
         downloader = self._client.getServiceNamed("downloader")
-        return downloader.download(self.get_uri(), target)
+        return downloader.download(self.get_uri(), target, self._parentmsgid)
 
     def download_to_data(self):
         downloader = self._client.getServiceNamed("downloader")

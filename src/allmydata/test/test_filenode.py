@@ -27,7 +27,7 @@ class Node(unittest.TestCase):
                            size=1000)
         c = FakeClient()
         cf = cachedir.CacheFile("none")
-        fn1 = filenode.FileNode(u, c, cf)
+        fn1 = filenode.FileNode(u.to_string(), c, cf)
         fn2 = filenode.FileNode(u.to_string(), c, cf)
         self.failUnlessEqual(fn1, fn2)
         self.failIfEqual(fn1, "I am not a filenode")
