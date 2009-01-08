@@ -9,6 +9,7 @@ from foolscap.eventual import eventually
 from allmydata.interfaces import IFileNode, IFileURI, ICheckable, \
      IDownloadTarget
 from allmydata.util import log, base32
+from allmydata.util.assertutil import precondition
 from allmydata import uri as urimodule
 from allmydata.immutable.checker import Checker
 from allmydata.check_results import CheckAndRepairResults
@@ -19,6 +20,7 @@ class _ImmutableFileNodeBase(object):
     implements(IFileNode, ICheckable)
 
     def __init__(self, uri, client):
+        precondition(urimodule.IImmutableFileURI.providedBy(uri), uri)
         self.u = IFileURI(uri)
         self._client = client
 
@@ -172,7 +174,7 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
     def __init__(self, uri, client, cachefile):
         _ImmutableFileNodeBase.__init__(self, uri, client)
         self.download_cache = DownloadCache(self, cachefile)
-        prefix = urimodule.from_string(uri).get_verify_cap().to_string()
+        prefix = uri.get_verify_cap().to_string()
         log.PrefixingLogMixin.__init__(self, "allmydata.immutable.filenode", prefix=prefix)
         self.log("starting", level=log.OPERATIONAL)
 
@@ -250,6 +252,7 @@ class LiteralProducer:
 class LiteralFileNode(_ImmutableFileNodeBase):
 
     def __init__(self, uri, client):
+        precondition(urimodule.IImmutableFileURI.providedBy(uri), uri)
         _ImmutableFileNodeBase.__init__(self, uri, client)
 
     def get_uri(self):

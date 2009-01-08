@@ -361,7 +361,7 @@ class Client(node.Node, pollmixin.PollMixin):
                 else:
                     key = base32.b2a(u.storage_index)
                     cachefile = self.download_cache.get_file(key)
-                    node = FileNode(u.to_string(), self, cachefile) # CHK
+                    node = FileNode(u, self, cachefile) # CHK
             else:
                 assert IMutableFileURI.providedBy(u), u
                 node = MutableFileNode(self).init_from_uri(u)

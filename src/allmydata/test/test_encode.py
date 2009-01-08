@@ -493,7 +493,8 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         client = FakeClient()
         if not target:
             target = download.Data()
-        fd = download.FileDownloader(client, u, target)
+        target = download.DecryptingTarget(target, u.key)
+        fd = download.FileDownloader(client, u.get_verify_cap(), target)
 
         # we manually cycle the FileDownloader through a number of steps that
         # would normally be sequenced by a Deferred chain in
