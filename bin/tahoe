@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import errno, sys, os
+import errno, sys, os, subprocess
 
 where = os.path.realpath(sys.argv[0])
 base = os.path.dirname(os.path.dirname(where))
@@ -44,7 +44,7 @@ os.environ["PYTHONPATH"] = pp
 executable = os.path.join(base, "support", "bin", "tahoe")
 
 try:
-    os.execve(executable, [executable] + sys.argv[1:], os.environ)
+    subprocess.call([executable] + sys.argv[1:], env=os.environ)
 except (OSError, IOError), le:
     if le.args[0] == errno.ENOENT:
         print whoami
