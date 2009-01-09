@@ -41,7 +41,11 @@ else:
     pp = supportdir
 os.environ["PYTHONPATH"] = pp
 
-executable = os.path.join(base, "support", "bin", "tahoe")
+# find the location of the tahoe executable.
+bin_dir = "bin"
+if sys.platform == "win32":
+    bin_dir = "Scripts"
+executable = os.path.join(base, "support", bin_dir, "tahoe")
 
 try:
     subprocess.call([executable] + sys.argv[1:], env=os.environ)

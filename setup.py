@@ -8,7 +8,7 @@
 #
 # See the docs/about.html file for licensing information.
 
-import os, re, sys, stat, subprocess
+import os, re, shutil, stat, subprocess, sys, zipfile
 
 ##### sys.path management
 
@@ -84,6 +84,7 @@ else:
 from setuptools import find_packages, setup
 from setuptools.command import sdist
 from distutils.core import Command
+from pkg_resources import require
 
 import pkg_resources
 pkg_resources.require('setuptools_trial')
@@ -255,6 +256,39 @@ class BuildTahoe(Command):
     def finalize_options(self):
         pass
     def run(self):
+        # On Windows, create the 'tahoe-script.py' file based on the 'tahoe'
+        # executable script under the 'bin' directory so that the tahoe.exe
+        # will work correctly.  The 'tahoe-script.py' file is exactly the same
+        # as the 'tahoe' script except that we need to update the she-bang
+        # line.  The tahoe.exe will be copied from the setuptools egg's cli.exe
+        # and this will work from a zip-safe and non-zip-safe setuptools egg.
+        if sys.platform == "win32":
+            setuptools_egg = require("setuptools")[0].location
+            if os.path.isfile(setuptools_egg):
+                z = zipfile.ZipFile(setuptools_egg, 'r')
+                for filename in z.namelist():
+                    if 'cli.exe' in filename:
+                        cli_exe = z.read(filename)
+            else:
+                cli_exe = os.path.join(setuptools_egg, 'setuptools', 'cli.exe')
+            tahoe_exe = os.path.join("bin", "tahoe.exe")
+            if os.path.isfile(setuptools_egg):
+                f = open(tahoe_exe, 'wb')
+                f.write(cli_exe)
+                f.close()
+            else:
+                shutil.copy(cli_exe, tahoe_exe)
+            bin_tahoe = os.path.join("bin", "tahoe")
+            f = open(bin_tahoe, "r")
+            script_lines = f.readlines()
+            f.close()
+            script_lines[0] = "#!%s\n" % sys.executable
+            tahoe_script = os.path.join("bin", "tahoe-script.py")
+            f = open(tahoe_script, "w")
+            for line in script_lines:
+                f.write(line)
+            f.close()
+
         command = [sys.executable, "setup.py", "develop", "--prefix", "support"]
         print "Command:", " ".join(command)
         rc = subprocess.call(command)
