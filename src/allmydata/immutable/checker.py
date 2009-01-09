@@ -227,8 +227,13 @@ class Checker(log.PrefixingLogMixin):
         assert len(verifiedshares) <= self._verifycap.total_shares, (verifiedshares.keys(), self._verifycap.total_shares)
         if len(verifiedshares) == self._verifycap.total_shares:
             cr.set_healthy(True)
+            cr.set_summary("Healthy")
         else:
             cr.set_healthy(False)
+            cr.set_summary("Not Healthy: %d shares (enc %d-of-%d)" %
+                           (len(verifiedshares),
+                            self._verifycap.needed_shares,
+                            self._verifycap.total_shares))
         if len(verifiedshares) >= self._verifycap.needed_shares:
             cr.set_recoverable(True)
             d['count-recoverable-versions'] = 1
