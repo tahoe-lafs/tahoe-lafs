@@ -129,8 +129,8 @@ class AssistedUpload(unittest.TestCase):
             return upload_data(u, DATA, convergence="some convergence string")
         d.addCallback(_ready)
         def _uploaded(results):
-            uri = results.uri
-            assert "CHK" in uri
+            the_uri = results.uri
+            assert "CHK" in the_uri
         d.addCallback(_uploaded)
 
         def _check_empty(res):
@@ -179,8 +179,8 @@ class AssistedUpload(unittest.TestCase):
             return upload_data(u, DATA, convergence="test convergence string")
         d.addCallback(_ready)
         def _uploaded(results):
-            uri = results.uri
-            assert "CHK" in uri
+            the_uri = results.uri
+            assert "CHK" in the_uri
         d.addCallback(_uploaded)
 
         def _check_empty(res):
@@ -207,8 +207,8 @@ class AssistedUpload(unittest.TestCase):
             return upload_data(u, DATA, convergence="some convergence string")
         d.addCallback(_ready)
         def _uploaded(results):
-            uri = results.uri
-            assert "CHK" in uri
+            the_uri = results.uri
+            assert "CHK" in the_uri
         d.addCallback(_uploaded)
 
         def _check_empty(res):
