@@ -728,13 +728,27 @@ class ManifestResults(rend.Page, ReloadMixin):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
         m = self.monitor
         s = m.get_status()
-        status = {"manifest": s["manifest"],
-                  "verifycaps": list(s["verifycaps"]),
-                  "storage-index": list(s["storage-index"]),
-                  "stats": s["stats"],
-                  "finished": m.is_finished(),
-                  "origin": base32.b2a(m.origin_si),
-                  }
+
+        status = { "stats": s["stats"],
+                   "finished": m.is_finished(),
+                   "origin": base32.b2a(m.origin_si),
+                   }
+        if m.is_finished():
+            # don't return manifest/verifycaps/SIs unless the operation is
+            # done, to save on CPU/memory (both here and in the HTTP client
+            # who has to unpack the JSON). Tests show that the ManifestWalker
+            # needs about 1092 bytes per item, the JSON we generate here
+            # requires about 503 bytes per item, and some internal overhead
+            # (perhaps transport-layer buffers in twisted.web?) requires an
+            # additional 1047 bytes per item.
+            status.update({ "manifest": s["manifest"],
+                            "verifycaps": [i for i in s["verifycaps"]],
+                            "storage-index": [i for i in s["storage-index"]],
+                            })
+            # simplejson doesn't know how to serialize a set. We use a
+            # generator that walks the set rather than list(setofthing) to
+            # save a small amount of memory (4B*len) and a moderate amount of
+            # CPU.
         return simplejson.dumps(status, indent=1)
 
     def _si_abbrev(self):

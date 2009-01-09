@@ -213,6 +213,11 @@ GET /operations/$HANDLE?output=JSON   (same)
   * whether the operation is complete, or if it is still running
   * how much of the operation is complete, and how much is left, if possible
 
+ Note that the final status output can be quite large: a deep-manifest of a
+ directory structure with 300k directories and 200k unique files is about
+ 275MB of JSON, and might take two minutes to generate. For this reason, the
+ full status is not provided until the operation has completed.
+
  The HTML form will include a meta-refresh tag, which will cause a regular
  web browser to reload the status page about 60 seconds later. This tag will
  be removed once the operation has completed.
@@ -966,7 +971,10 @@ POST $DIRURL?t=start-manifest    (must add &ophandle=XYZ)
   by a space.
 
   If output=JSON is added to the queryargs, then the results will be a
-  JSON-formatted dictionary with six keys:
+  JSON-formatted dictionary with six keys. Note that because large directory
+  structures can result in very large JSON results, the full results will not
+  be available until the operation is complete (i.e. until output["finished"]
+  is True):
 
    finished (bool): if False then you must reload the page until True
    origin_si (base32 str): the storage index of the starting point
