@@ -22,11 +22,6 @@ def pylibdir(prefixdir):
 basedir = os.path.dirname(os.path.abspath(__file__))
 supportlib = pylibdir(os.path.join(basedir, "support"))
 
-for i in range(len(sys.argv)):
-    arg = sys.argv[i]
-    if arg == "build_tahoe":
-        del sys.argv[i]
-        sys.argv.extend(["develop", "--prefix=support", "--script-dir=support/bin"])
 
 for i in range(len(sys.argv)):
     arg = sys.argv[i]
@@ -48,15 +43,6 @@ for i in range(len(sys.argv)):
         pp = os.environ.get('PYTHONPATH','').split(os.pathsep)
         pp.append(libdir)
         os.environ['PYTHONPATH'] = os.pathsep.join(pp)
-
-    if arg.startswith("build"):
-        # chmod +x bin/tahoe
-        bin_tahoe = os.path.join("bin", "tahoe")
-        old_mode = stat.S_IMODE(os.stat(bin_tahoe)[stat.ST_MODE])
-        new_mode = old_mode | (stat.S_IXUSR | stat.S_IRUSR |
-                               stat.S_IXGRP | stat.S_IRGRP |
-                               stat.S_IXOTH | stat.S_IROTH )
-        os.chmod(bin_tahoe, new_mode)
 
     if arg.startswith("install") or arg.startswith("develop"):
         if sys.platform == "linux2":
@@ -252,6 +238,14 @@ class BuildTahoe(Command):
     def finalize_options(self):
         pass
     def run(self):
+        # chmod +x bin/tahoe
+        bin_tahoe = os.path.join("bin", "tahoe")
+        old_mode = stat.S_IMODE(os.stat(bin_tahoe)[stat.ST_MODE])
+        new_mode = old_mode | (stat.S_IXUSR | stat.S_IRUSR |
+                               stat.S_IXGRP | stat.S_IRGRP |
+                               stat.S_IXOTH | stat.S_IROTH )
+        os.chmod(bin_tahoe, new_mode)
+
         # On Windows, create the 'tahoe-script.py' file based on the 'tahoe'
         # executable script under the 'bin' directory so that the tahoe.exe
         # will work correctly.  The 'tahoe-script.py' file is exactly the same
@@ -274,7 +268,6 @@ class BuildTahoe(Command):
                 f.close()
             else:
                 shutil.copy(cli_exe, tahoe_exe)
-            bin_tahoe = os.path.join("bin", "tahoe")
             f = open(bin_tahoe, "r")
             script_lines = f.readlines()
             f.close()
@@ -285,7 +278,7 @@ class BuildTahoe(Command):
                 f.write(line)
             f.close()
 
-        command = [sys.executable, "setup.py", "develop", "--prefix", "support"]
+        command = [sys.executable, "setup.py", "develop", "--prefix=support"]
         print "Command:", " ".join(command)
         rc = subprocess.call(command)
         if rc < 0:
