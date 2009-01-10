@@ -1460,7 +1460,7 @@ class IUploadResults(Interface):
      .file_size : the size of the file, in bytes
      .uri : the CHK read-cap for the file
      .ciphertext_fetched : how many bytes were fetched by the helper
-     .renamed_sharemap: dict mapping share identifier to set of serverids
+     .sharemap: dict mapping share identifier to set of serverids
                    (binary strings). This indicates which servers were given
                    which shares. For immutable files, the shareid is an
                    integer (the share number, from 0 to N-1). For mutable
