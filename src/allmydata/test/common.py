@@ -1,5 +1,5 @@
 
-import os
+import os, random, struct
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.internet.interfaces import IConsumer
@@ -15,11 +15,12 @@ from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.mutable.common import CorruptShareError
 from allmydata.storage import storage_index_to_dir
-from allmydata.util import log, fileutil, pollmixin
+from allmydata.util import hashutil, log, fileutil, pollmixin
 from allmydata.util.assertutil import precondition
 from allmydata.stats import StatsGathererService
 from allmydata.key_generator import KeyGeneratorService
 import common_util as testutil
+from allmydata import immutable
 
 
 def flush_but_dont_ignore(res):
@@ -36,9 +37,9 @@ class FakeCHKFileNode:
     all_contents = {}
     bad_shares = {}
 
-    def __init__(self, u, client):
+    def __init__(self, u, thisclient):
         precondition(IURI.providedBy(u), u)
-        self.client = client
+        self.client = thisclient
         self.my_uri = u
         self.storage_index = u.storage_index
 
@@ -134,9 +135,9 @@ def make_chk_file_uri(size):
                           total_shares=10,
                           size=size)
 
-def create_chk_filenode(client, contents):
+def create_chk_filenode(thisclient, contents):
     u = make_chk_file_uri(len(contents))
-    n = FakeCHKFileNode(u, client)
+    n = FakeCHKFileNode(u, thisclient)
     FakeCHKFileNode.all_contents[u.to_string()] = contents
     return n
 
@@ -150,8 +151,8 @@ class FakeMutableFileNode:
     all_contents = {}
     bad_shares = {}
 
-    def __init__(self, client):
-        self.client = client
+    def __init__(self, thisclient):
+        self.client = thisclient
         self.my_uri = make_mutable_file_uri()
         self.storage_index = self.my_uri.storage_index
     def create(self, initial_contents, key_generator=None):
@@ -406,12 +407,12 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             def write(name, value):
                 open(os.path.join(basedir, name), "w").write(value+"\n")
             if i == 0:
-                # client[0] runs a webserver and a helper, no key_generator
+                # clients[0] runs a webserver and a helper, no key_generator
                 write("webport", "tcp:0:interface=127.0.0.1")
                 write("run_helper", "yes")
                 write("keepalive_timeout", "600")
             if i == 3:
-                # client[3] runs a webserver and uses a helper, uses
+                # clients[3] runs a webserver and uses a helper, uses
                 # key_generator
                 write("webport", "tcp:0:interface=127.0.0.1")
                 write("disconnect_timeout", "1800")
@@ -426,7 +427,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         # files before they are launched.
         self._set_up_nodes_extra_config()
 
-        # start client[0], wait for it's tub to be ready (at which point it
+        # start clients[0], wait for it's tub to be ready (at which point it
         # will have registered the helper furl).
         c = self.add_service(client.Client(basedir=basedirs[0]))
         self.clients.append(c)
@@ -865,7 +866,35 @@ N8L+bvLd4BU9g6hRS8b59lQ6GNjryx2bUnCVtLcey4Jd
 # To disable the pre-computed tub certs, uncomment this line.
 #SYSTEM_TEST_CERTS = []
 
+TEST_DATA="\x02"*(immutable.upload.Uploader.URI_LIT_SIZE_THRESHOLD+1)
+
 class ShareManglingMixin(SystemTestMixin):
+
+    def setUp(self):
+        # Set self.basedir to a temp dir which has the name of the current test method in its
+        # name.
+        self.basedir = self.mktemp()
+
+        d = defer.maybeDeferred(SystemTestMixin.setUp, self)
+        d.addCallback(lambda x: self.set_up_nodes())
+
+        def _upload_a_file(ignored):
+            cl0 = self.clients[0]
+            # We need multiple segments to test crypttext hash trees that are non-trivial
+            # (i.e. they have more than just one hash in them).
+            cl0.DEFAULT_ENCODING_PARAMETERS['max_segment_size'] = 12
+            d2 = cl0.upload(immutable.upload.Data(TEST_DATA, convergence=""))
+            def _after_upload(u):
+                self.uri = IURI(u.uri)
+                return cl0.create_node_from_uri(self.uri)
+            d2.addCallback(_after_upload)
+            return d2
+        d.addCallback(_upload_a_file)
+
+        def _stash_it(filenode):
+            self.filenode = filenode
+        d.addCallback(_stash_it)
+        return d
 
     def find_shares(self, unused=None):
         """Locate shares on disk. Returns a dict that maps
@@ -912,6 +941,67 @@ class ShareManglingMixin(SystemTestMixin):
                     fileutil.make_dirs(fullsharedirp)
                     wf = open(os.path.join(fullsharedirp, str(sharenum)), "w")
                     wf.write(newdata)
+
+    def _delete_a_share(self, unused=None, sharenum=None):
+        """ Delete one share. """
+
+        shares = self.find_shares()
+        ks = shares.keys()
+        if sharenum is not None:
+            k = [ key for key in shares.keys() if key[1] == sharenum ][0]
+        else:
+            k = random.choice(ks)
+        del shares[k]
+        self.replace_shares(shares, storage_index=self.uri.storage_index)
+
+        return unused
+
+    def _corrupt_a_share(self, unused, corruptor_func, sharenum):
+        shares = self.find_shares()
+        ks = [ key for key in shares.keys() if key[1] == sharenum ]
+        assert ks, (shares.keys(), sharenum)
+        k = ks[0]
+        shares[k] = corruptor_func(shares[k])
+        self.replace_shares(shares, storage_index=self.uri.storage_index)
+        return corruptor_func
+
+    def _corrupt_all_shares(self, unused, corruptor_func):
+        """ All shares on disk will be corrupted by corruptor_func. """
+        shares = self.find_shares()
+        for k in shares.keys():
+            self._corrupt_a_share(unused, corruptor_func, k[1])
+        return corruptor_func
+
+    def _corrupt_a_random_share(self, unused, corruptor_func):
+        """ Exactly one share on disk will be corrupted by corruptor_func. """
+        shares = self.find_shares()
+        ks = shares.keys()
+        k = random.choice(ks)
+        self._corrupt_a_share(unused, corruptor_func, k[1])
+        return corruptor_func
+
+    def _count_reads(self):
+        sum_of_read_counts = 0
+        for thisclient in self.clients:
+            counters = thisclient.stats_provider.get_stats()['counters']
+            sum_of_read_counts += counters.get('storage_server.read', 0)
+        return sum_of_read_counts
+
+    def _count_allocates(self):
+        sum_of_allocate_counts = 0
+        for thisclient in self.clients:
+            counters = thisclient.stats_provider.get_stats()['counters']
+            sum_of_allocate_counts += counters.get('storage_server.allocate', 0)
+        return sum_of_allocate_counts
+
+    def _download_and_check_plaintext(self, unused=None):
+        self.downloader = self.clients[1].getServiceNamed("downloader")
+        d = self.downloader.download_to_data(self.uri)
+
+        def _after_download(result):
+            self.failUnlessEqual(result, TEST_DATA)
+        d.addCallback(_after_download)
+        return d
 
 class ShouldFailMixin:
     def shouldFail(self, expected_failure, which, substring,
@@ -990,3 +1080,244 @@ def download_to_data(n, offset=0, size=None):
     d = n.read(MemoryConsumer(), offset, size)
     d.addCallback(lambda mc: "".join(mc.chunks))
     return d
+
+def corrupt_field(data, offset, size, debug=False):
+    if random.random() < 0.5:
+        newdata = testutil.flip_one_bit(data, offset, size)
+        if debug:
+            log.msg("testing: corrupting offset %d, size %d flipping one bit orig: %r, newdata: %r" % (offset, size, data[offset:offset+size], newdata[offset:offset+size]))
+        return newdata
+    else:
+        newval = testutil.insecurerandstr(size)
+        if debug:
+            log.msg("testing: corrupting offset %d, size %d randomizing field, orig: %r, newval: %r" % (offset, size, data[offset:offset+size], newval))
+        return data[:offset]+newval+data[offset+size:]
+
+def _corrupt_nothing(data):
+    """ Leave the data pristine. """
+    return data
+
+def _corrupt_file_version_number(data):
+    """ Scramble the file data -- the share file version number have one bit flipped or else
+    will be changed to a random value."""
+    return corrupt_field(data, 0x00, 4)
+
+def _corrupt_size_of_file_data(data):
+    """ Scramble the file data -- the field showing the size of the share data within the file
+    will be set to one smaller. """
+    return corrupt_field(data, 0x04, 4)
+
+def _corrupt_sharedata_version_number(data):
+    """ Scramble the file data -- the share data version number will have one bit flipped or
+    else will be changed to a random value, but not 1 or 2."""
+    return corrupt_field(data, 0x0c, 4)
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    newsharevernum = sharevernum
+    while newsharevernum in (1, 2):
+        newsharevernum = random.randrange(0, 2**32)
+    newsharevernumbytes = struct.pack(">l", newsharevernum)
+    return data[:0x0c] + newsharevernumbytes + data[0x0c+4:]
+
+def _corrupt_sharedata_version_number_to_plausible_version(data):
+    """ Scramble the file data -- the share data version number will
+    be changed to 2 if it is 1 or else to 1 if it is 2."""
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        newsharevernum = 2
+    else:
+        newsharevernum = 1
+    newsharevernumbytes = struct.pack(">l", newsharevernum)
+    return data[:0x0c] + newsharevernumbytes + data[0x0c+4:]
+
+def _corrupt_segment_size(data):
+    """ Scramble the file data -- the field showing the size of the segment will have one
+    bit flipped or else be changed to a random value. """
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        return corrupt_field(data, 0x0c+0x04, 4, debug=False)
+    else:
+        return corrupt_field(data, 0x0c+0x04, 8, debug=False)
+
+def _corrupt_size_of_sharedata(data):
+    """ Scramble the file data -- the field showing the size of the data within the share
+    data will have one bit flipped or else will be changed to a random value. """
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        return corrupt_field(data, 0x0c+0x08, 4)
+    else:
+        return corrupt_field(data, 0x0c+0x0c, 8)
+
+def _corrupt_offset_of_sharedata(data):
+    """ Scramble the file data -- the field showing the offset of the data within the share
+    data will have one bit flipped or else be changed to a random value. """
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        return corrupt_field(data, 0x0c+0x0c, 4)
+    else:
+        return corrupt_field(data, 0x0c+0x14, 8)
+
+def _corrupt_offset_of_ciphertext_hash_tree(data):
+    """ Scramble the file data -- the field showing the offset of the ciphertext hash tree
+    within the share data will have one bit flipped or else be changed to a random value.
+    """
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        return corrupt_field(data, 0x0c+0x14, 4, debug=False)
+    else:
+        return corrupt_field(data, 0x0c+0x24, 8, debug=False)
+
+def _corrupt_offset_of_block_hashes(data):
+    """ Scramble the file data -- the field showing the offset of the block hash tree within
+    the share data will have one bit flipped or else will be changed to a random value. """
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        return corrupt_field(data, 0x0c+0x18, 4)
+    else:
+        return corrupt_field(data, 0x0c+0x2c, 8)
+
+def _corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes(data):
+    """ Scramble the file data -- the field showing the offset of the block hash tree within the
+    share data will have a multiple of hash size subtracted from it, thus causing the downloader
+    to download an incomplete crypttext hash tree."""
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        curval = struct.unpack(">L", data[0x0c+0x18:0x0c+0x18+4])[0]
+        newval = random.randrange(0, max(1, (curval/hashutil.CRYPTO_VAL_SIZE)/2))*hashutil.CRYPTO_VAL_SIZE
+        newvalstr = struct.pack(">L", newval)
+        return data[:0x0c+0x18]+newvalstr+data[0x0c+0x18+4:]
+    else:
+        curval = struct.unpack(">Q", data[0x0c+0x2c:0x0c+0x2c+8])[0]
+        newval = random.randrange(0, max(1, (curval/hashutil.CRYPTO_VAL_SIZE)/2))*hashutil.CRYPTO_VAL_SIZE
+        newvalstr = struct.pack(">Q", newval)
+        return data[:0x0c+0x2c]+newvalstr+data[0x0c+0x2c+8:]
+
+def _corrupt_offset_of_share_hashes(data):
+    """ Scramble the file data -- the field showing the offset of the share hash tree within
+    the share data will have one bit flipped or else will be changed to a random value. """
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        return corrupt_field(data, 0x0c+0x1c, 4)
+    else:
+        return corrupt_field(data, 0x0c+0x34, 8)
+
+def _corrupt_offset_of_uri_extension(data):
+    """ Scramble the file data -- the field showing the offset of the uri extension will
+    have one bit flipped or else will be changed to a random value. """
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        return corrupt_field(data, 0x0c+0x20, 4)
+    else:
+        return corrupt_field(data, 0x0c+0x3c, 8)
+
+def _corrupt_offset_of_uri_extension_to_force_short_read(data, debug=False):
+    """ Scramble the file data -- the field showing the offset of the uri extension will be set
+    to the size of the file minus 3.  This means when the client tries to read the length field
+    from that location it will get a short read -- the result string will be only 3 bytes long,
+    not the 4 or 8 bytes necessary to do a successful struct.unpack."""
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    # The "-0x0c" in here is to skip the server-side header in the share file, which the client doesn't see when seeking and reading.
+    if sharevernum == 1:
+        if debug:
+            log.msg("testing: corrupting offset %d, size %d, changing %d to %d (len(data) == %d)" % (0x2c, 4, struct.unpack(">L", data[0x2c:0x2c+4])[0], len(data)-0x0c-3, len(data)))
+        return data[:0x2c] + struct.pack(">L", len(data)-0x0c-3) + data[0x2c+4:]
+    else:
+        if debug:
+            log.msg("testing: corrupting offset %d, size %d, changing %d to %d (len(data) == %d)" % (0x48, 8, struct.unpack(">Q", data[0x48:0x48+8])[0], len(data)-0x0c-3, len(data)))
+        return data[:0x48] + struct.pack(">Q", len(data)-0x0c-3) + data[0x48+8:]
+
+def _corrupt_share_data(data):
+    """ Scramble the file data -- the field containing the share data itself will have one
+    bit flipped or else will be changed to a random value. """
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        sharedatasize = struct.unpack(">L", data[0x0c+0x08:0x0c+0x08+4])[0]
+
+        return corrupt_field(data, 0x0c+0x24, sharedatasize)
+    else:
+        sharedatasize = struct.unpack(">Q", data[0x0c+0x08:0x0c+0x0c+8])[0]
+
+        return corrupt_field(data, 0x0c+0x44, sharedatasize)
+
+def _corrupt_crypttext_hash_tree(data):
+    """ Scramble the file data -- the field containing the crypttext hash tree will have one
+    bit flipped or else will be changed to a random value.
+    """
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        crypttexthashtreeoffset = struct.unpack(">L", data[0x0c+0x14:0x0c+0x14+4])[0]
+        blockhashesoffset = struct.unpack(">L", data[0x0c+0x18:0x0c+0x18+4])[0]
+    else:
+        crypttexthashtreeoffset = struct.unpack(">Q", data[0x0c+0x24:0x0c+0x24+8])[0]
+        blockhashesoffset = struct.unpack(">Q", data[0x0c+0x2c:0x0c+0x2c+8])[0]
+
+    return corrupt_field(data, crypttexthashtreeoffset, blockhashesoffset-crypttexthashtreeoffset)
+
+def _corrupt_block_hashes(data):
+    """ Scramble the file data -- the field containing the block hash tree will have one bit
+    flipped or else will be changed to a random value.
+    """
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        blockhashesoffset = struct.unpack(">L", data[0x0c+0x18:0x0c+0x18+4])[0]
+        sharehashesoffset = struct.unpack(">L", data[0x0c+0x1c:0x0c+0x1c+4])[0]
+    else:
+        blockhashesoffset = struct.unpack(">Q", data[0x0c+0x2c:0x0c+0x2c+8])[0]
+        sharehashesoffset = struct.unpack(">Q", data[0x0c+0x34:0x0c+0x34+8])[0]
+
+    return corrupt_field(data, blockhashesoffset, sharehashesoffset-blockhashesoffset)
+
+def _corrupt_share_hashes(data):
+    """ Scramble the file data -- the field containing the share hash chain will have one
+    bit flipped or else will be changed to a random value.
+    """
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        sharehashesoffset = struct.unpack(">L", data[0x0c+0x1c:0x0c+0x1c+4])[0]
+        uriextoffset = struct.unpack(">L", data[0x0c+0x20:0x0c+0x20+4])[0]
+    else:
+        sharehashesoffset = struct.unpack(">Q", data[0x0c+0x34:0x0c+0x34+8])[0]
+        uriextoffset = struct.unpack(">Q", data[0x0c+0x3c:0x0c+0x3c+8])[0]
+
+    return corrupt_field(data, sharehashesoffset, uriextoffset-sharehashesoffset)
+
+def _corrupt_length_of_uri_extension(data):
+    """ Scramble the file data -- the field showing the length of the uri extension will
+    have one bit flipped or else will be changed to a random value. """
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        uriextoffset = struct.unpack(">L", data[0x0c+0x20:0x0c+0x20+4])[0]
+        return corrupt_field(data, uriextoffset, 4)
+    else:
+        uriextoffset = struct.unpack(">Q", data[0x0c+0x3c:0x0c+0x3c+8])[0]
+        return corrupt_field(data, uriextoffset, 8)
+
+def _corrupt_uri_extension(data):
+    """ Scramble the file data -- the field containing the uri extension will have one bit
+    flipped or else will be changed to a random value. """
+    sharevernum = struct.unpack(">l", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        uriextoffset = struct.unpack(">L", data[0x0c+0x20:0x0c+0x20+4])[0]
+        uriextlen = struct.unpack(">L", data[0x0c+uriextoffset:0x0c+uriextoffset+4])[0]
+    else:
+        uriextoffset = struct.unpack(">Q", data[0x0c+0x3c:0x0c+0x3c+8])[0]
+        uriextlen = struct.unpack(">Q", data[0x0c+uriextoffset:0x0c+uriextoffset+8])[0]
+
+    return corrupt_field(data, uriextoffset, uriextlen)
+
