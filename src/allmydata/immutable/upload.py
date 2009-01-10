@@ -683,7 +683,7 @@ class CHKUploader:
         return d
 
     def abort(self):
-        """Call this is the upload must be abandoned before it completes.
+        """Call this if the upload must be abandoned before it completes.
         This will tell the shareholders to delete their partial shares. I
         return a Deferred that fires when these messages have been acked."""
         if not self._encoder:
