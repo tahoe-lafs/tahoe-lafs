@@ -795,10 +795,6 @@ def create_mutable_sharefile(filename, my_nodeid, write_enabler, parent):
 class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer, IStatsProducer)
     name = 'storage'
-    VERSION = { "http://allmydata.org/tahoe/protocols/storage/v1" :
-                 { "maximum-immutable-share-size": 2**32 },
-                "application-version": str(allmydata.__version__),
-                }
 
     def __init__(self, storedir, reserved_space=0,
                  discard_storage=False, readonly_storage=False,
@@ -958,7 +954,16 @@ class StorageServer(service.MultiService, Referenceable):
         return space
 
     def remote_get_version(self):
-        return self.VERSION
+        remaining_space = self.get_available_space()
+        if remaining_space is None:
+            # we're on a platform that doesn't have 'df', so make a vague
+            # guess.
+            remaining_space = 2**64
+        version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
+                    { "maximum-immutable-share-size": remaining_space },
+                    "application-version": str(allmydata.__version__),
+                    }
+        return version
 
     def remote_allocate_buckets(self, storage_index,
                                 renew_secret, cancel_secret,
