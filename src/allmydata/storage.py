@@ -112,15 +112,16 @@ class ShareFile:
             assert not os.path.exists(self.home)
             fileutil.make_dirs(os.path.dirname(self.home))
             f = open(self.home, 'wb')
-            # The second field -- share data length -- is no longer used as of Tahoe v1.3.0, but
-            # we continue to write it in there in case someone downgrades a storage server from
-            # >= Tahoe-1.3.0 to < Tahoe-1.3.0, or moves a share file from one server to another,
-            # etc.  We do saturation -- a share data length larger than what can fit into the
-            # field is marked as the largest length that can fit into the field.  That way, even
-            # if this does happen, the old < v1.3.0 server will still allow clients to read the
-            # first part of the share. The largest size that will fit in this 4-byte field is
-            # 2**32-1, or 4294967295.
-            f.write(struct.pack(">LLL", 1, min(4294967295, max_size), 0))
+            # The second field -- the four-byte share data length -- is no
+            # longer used as of Tahoe v1.3.0, but we continue to write it in
+            # there in case someone downgrades a storage server from >=
+            # Tahoe-1.3.0 to < Tahoe-1.3.0, or moves a share file from one
+            # server to another, etc. We do saturation -- a share data length
+            # larger than 2**32-1 (what can fit into the field) is marked as
+            # the largest length that can fit into the field. That way, even
+            # if this does happen, the old < v1.3.0 server will still allow
+            # clients to read the first part of the share.
+            f.write(struct.pack(">LLL", 1, min(2**32-1, max_size), 0))
             f.close()
             self._lease_offset = max_size + 0x0c
             self._num_leases = 0
