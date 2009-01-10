@@ -47,9 +47,8 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
                 return "None"
             l = T.ul()
             for shnum, peerids in sorted(sharemap.items()):
-                for peerid in peerids:
-                    peerid_s = idlib.shortnodeid_b2a(peerid)
-                    l[T.li["%d -> %s" % (shnum, peerid_s)]]
+                peerids = ', '.join([idlib.shortnodeid_b2a(i) for i in peerids])
+                l[T.li["%d -> placed on [%s]" % (shnum, peerids)]]
             return l
         d.addCallback(_render)
         return d
