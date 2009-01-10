@@ -46,8 +46,10 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
             if sharemap is None:
                 return "None"
             l = T.ul()
-            for shnum in sorted(sharemap.keys()):
-                l[T.li["%d -> %s" % (shnum, sharemap[shnum])]]
+            for shnum, peerids in sorted(sharemap.items()):
+                for peerid in peerids:
+                    peerid_s = idlib.shortnodeid_b2a(peerid)
+                    l[T.li["%d -> %s" % (shnum, peerid_s)]]
             return l
         d.addCallback(_render)
         return d

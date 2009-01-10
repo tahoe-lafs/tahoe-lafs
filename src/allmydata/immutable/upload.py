@@ -48,8 +48,8 @@ class UploadResults(Copyable, RemoteCopy):
 
     def __init__(self):
         self.timings = {} # dict of name to number of seconds
-        self.sharemap = {} # dict of shnum to placement string
-        self.servermap = {} # dict of peerid to set(shnums)
+        self.sharemap = {} # k: shnum, v: set(serverid)
+        self.servermap = {} # k: serverid, v: set(shnum)
         self.file_size = None
         self.ciphertext_fetched = None # how much the helper fetched
         self.uri = None
@@ -654,6 +654,9 @@ class CHKUploader:
         self._upload_status.set_active(True)
         self._upload_status.set_results(self._results)
 
+        # locate_all_shareholders() will create the following attribute:
+        # self._peer_trackers = {} # k: shnum, v: instance of PeerTracker
+
     def log(self, *args, **kwargs):
         if "parent" not in kwargs:
             kwargs["parent"] = self._log_number
@@ -735,22 +738,16 @@ class CHKUploader:
         """
         self.log("_send_shares, used_peers is %s" % (used_peers,))
         # record already-present shares in self._results
-        for (shnum, peerid) in already_peers.items():
-            peerid_s = idlib.shortnodeid_b2a(peerid)
-            self._results.sharemap[shnum] = "Found on [%s]" % peerid_s
-            if peerid not in self._results.servermap:
-                self._results.servermap[peerid] = set()
-            self._results.servermap[peerid].add(shnum)
         self._results.preexisting_shares = len(already_peers)
 
-        self._sharemap = {}
+        self._peer_trackers = {} # k: shnum, v: instance of PeerTracker
         for peer in used_peers:
             assert isinstance(peer, PeerTracker)
         buckets = {}
         for peer in used_peers:
             buckets.update(peer.buckets)
             for shnum in peer.buckets:
-                self._sharemap[shnum] = peer
+                self._peer_trackers[shnum] = peer
         assert len(buckets) == sum([len(peer.buckets) for peer in used_peers])
         encoder.set_shareholders(buckets)
 
@@ -758,13 +755,11 @@ class CHKUploader:
         """ Returns a Deferred that will fire with the UploadResults instance. """
         r = self._results
         for shnum in self._encoder.get_shares_placed():
-            peer_tracker = self._sharemap[shnum]
+            peer_tracker = self._peer_trackers[shnum]
             peerid = peer_tracker.peerid
             peerid_s = idlib.shortnodeid_b2a(peerid)
-            r.sharemap[shnum] = "Placed on [%s]" % peerid_s
-            if peerid not in r.servermap:
-                r.servermap[peerid] = set()
-            r.servermap[peerid].add(shnum)
+            r.sharemap.setdefault(shnum, set()).add(peerid)
+            r.servermap.setdefault(peerid, set()).add(shnum)
         r.pushed_shares = len(self._encoder.get_shares_placed())
         now = time.time()
         r.file_size = self._encoder.file_size
