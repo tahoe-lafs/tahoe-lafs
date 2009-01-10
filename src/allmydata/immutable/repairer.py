@@ -1,6 +1,6 @@
 from twisted.internet import defer
 from allmydata import storage
-from allmydata.check_results import CheckerResults, CheckAndRepairResults
+from allmydata.check_results import CheckResults, CheckAndRepairResults
 from allmydata.immutable import download
 from allmydata.util import nummedobj
 from allmydata.util.assertutil import precondition
@@ -81,10 +81,10 @@ class Repairer(LogMixin):
 
     def _repair_phase(self, unused=None):
         bogusresults = CheckAndRepairResults(self._storageindex) # XXX THIS REPAIRER NOT HERE YET
-        bogusresults.pre_repair_results = CheckerResults(self._verifycap, self._storageindex)
+        bogusresults.pre_repair_results = CheckResults(self._verifycap, self._storageindex)
         bogusresults.pre_repair_results.set_healthy(True)
         bogusresults.pre_repair_results.set_needs_rebalancing(False)
-        bogusresults.post_repair_results = CheckerResults(self._verifycap, self._storageindex)
+        bogusresults.post_repair_results = CheckResults(self._verifycap, self._storageindex)
         bogusresults.post_repair_results.set_healthy(True)
         bogusresults.post_repair_results.set_needs_rebalancing(False)
         bogusdata = {}

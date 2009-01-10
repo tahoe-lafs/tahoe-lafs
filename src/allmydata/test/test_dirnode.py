@@ -15,7 +15,7 @@ from allmydata.util import hashutil, base32
 from allmydata.monitor import Monitor
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
      FakeDirectoryNode, create_chk_filenode, ErrorMixin, SystemTestMixin
-from allmydata.check_results import CheckerResults, CheckAndRepairResults
+from allmydata.check_results import CheckResults, CheckAndRepairResults
 import common_util as testutil
 
 # to test dirnode.py, we want to construct a tree of real DirectoryNodes that
@@ -42,7 +42,7 @@ class Marker:
         return self.storage_index
 
     def check(self, monitor, verify=False):
-        r = CheckerResults(uri.from_string(self.nodeuri), None)
+        r = CheckResults(uri.from_string(self.nodeuri), None)
         r.set_healthy(True)
         r.set_recoverable(True)
         return defer.succeed(r)

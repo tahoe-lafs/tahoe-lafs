@@ -156,7 +156,7 @@ class ResultsBase:
             target = target + "?output=%s" % output
         return T.a(href=target)[si_s]
 
-class LiteralCheckerResults(rend.Page, ResultsBase):
+class LiteralCheckResults(rend.Page, ResultsBase):
     docFactory = getxmlfile("literal-check-results.xhtml")
 
     def renderHTTP(self, ctx):
@@ -188,7 +188,7 @@ class CheckerBase:
             return T.div[T.a(href=return_to)["Return to parent directory"]]
         return ""
 
-class CheckerResults(CheckerBase, rend.Page, ResultsBase):
+class CheckResults(CheckerBase, rend.Page, ResultsBase):
     docFactory = getxmlfile("check-results.xhtml")
 
     def __init__(self, results):
@@ -289,7 +289,7 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
         si = base32.a2b(name)
         r = self.monitor.get_status()
         try:
-            return CheckerResults(r.get_results_for_storage_index(si))
+            return CheckResults(r.get_results_for_storage_index(si))
         except KeyError:
             raise WebError("No detailed results for SI %s" % html.escape(name),
                            http.NOT_FOUND)

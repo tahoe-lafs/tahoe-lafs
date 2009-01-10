@@ -4,7 +4,7 @@ from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
      IDeepCheckResults, IDeepCheckAndRepairResults, IURI
 from allmydata.util import base32
 
-class CheckerResults:
+class CheckResults:
     implements(ICheckResults)
 
     def __init__(self, uri, storage_index):

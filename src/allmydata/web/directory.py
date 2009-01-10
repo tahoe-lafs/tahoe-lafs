@@ -23,7 +23,7 @@ from allmydata.web.common import text_plain, WebError, \
      getxmlfile, RenderMixin
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
-from allmydata.web.check_results import CheckerResults, \
+from allmydata.web.check_results import CheckResults, \
      CheckAndRepairResults, DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.web.info import MoreInfo
 from allmydata.web.operations import ReloadMixin
@@ -351,7 +351,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d.addCallback(lambda res: CheckAndRepairResults(res))
         else:
             d = self.node.check(Monitor(), verify)
-            d.addCallback(lambda res: CheckerResults(res))
+            d.addCallback(lambda res: CheckResults(res))
         return d
 
     def _start_operation(self, monitor, renderer, ctx):

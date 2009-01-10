@@ -11,7 +11,7 @@ from allmydata import uri, dirnode, client
 from allmydata.introducer.server import IntroducerNode
 from allmydata.interfaces import IURI, IMutableFileNode, IFileNode, \
      FileTooLargeError, NotEnoughSharesError, ICheckable
-from allmydata.check_results import CheckerResults, CheckAndRepairResults, \
+from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.mutable.common import CorruptShareError
 from allmydata.storage import storage_index_to_dir
@@ -52,7 +52,7 @@ class FakeCHKFileNode:
         return self.storage_index
 
     def check(self, monitor, verify=False):
-        r = CheckerResults(self.my_uri, self.storage_index)
+        r = CheckResults(self.my_uri, self.storage_index)
         is_bad = self.bad_shares.get(self.storage_index, None)
         data = {}
         data["count-shares-needed"] = 3
@@ -186,7 +186,7 @@ class FakeMutableFileNode:
         return self.storage_index
 
     def check(self, monitor, verify=False):
-        r = CheckerResults(self.my_uri, self.storage_index)
+        r = CheckResults(self.my_uri, self.storage_index)
         is_bad = self.bad_shares.get(self.storage_index, None)
         data = {}
         data["count-shares-needed"] = 3
