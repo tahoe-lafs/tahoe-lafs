@@ -40,6 +40,16 @@ class DictOfSets(dict):
         else:
             self[key] = set([value])
 
+    def union(self, key, values):
+        if key in self:
+            self[key].update(values)
+        else:
+            self[key] = set(values)
+
+    def update(self, otherdictofsets):
+        for key, value in otherdictofsets.iteritems():
+            self.union(key, value)
+
     def discard(self, key, value):
         if not key in self:
             return
