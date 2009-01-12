@@ -1,14 +1,13 @@
 from zope.interface import implements
 from twisted.internet import defer
 from allmydata import storage
-from allmydata.check_results import CheckResults, CheckAndRepairResults
 from allmydata.util import log, observer
 from allmydata.util.assertutil import precondition
 from allmydata.uri import CHKFileVerifierURI
 from allmydata.interfaces import IEncryptedUploadable, IDownloadTarget
 from twisted.internet.interfaces import IConsumer
 
-from allmydata.immutable import download, layout, upload
+from allmydata.immutable import download, upload
 
 import collections
 

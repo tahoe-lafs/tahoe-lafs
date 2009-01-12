@@ -6,7 +6,7 @@ from twisted.application import service
 from foolscap import DeadReferenceError
 from foolscap.eventual import eventually
 
-from allmydata.util import base32, deferredutil, hashutil, log, mathutil, observer
+from allmydata.util import base32, deferredutil, hashutil, log, mathutil
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.rrefutil import ServerFailure
 from allmydata import codec, hashtree, uri

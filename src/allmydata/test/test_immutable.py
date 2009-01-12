@@ -1,13 +1,8 @@
 from allmydata.test import common
-from allmydata.monitor import Monitor
-from allmydata import check_results
-from allmydata.interfaces import IURI, NotEnoughSharesError
-from allmydata.immutable import upload
-from allmydata.util import hashutil, log
+from allmydata.interfaces import NotEnoughSharesError
 from twisted.internet import defer
 from twisted.trial import unittest
-import random, struct
-import common_util as testutil
+import random
 
 class Test(common.ShareManglingMixin, unittest.TestCase):
     def test_test_code(self):
