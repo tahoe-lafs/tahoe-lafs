@@ -1,43 +1,23 @@
+from zope.interface import implements
 from twisted.internet import defer
 from allmydata import storage
 from allmydata.check_results import CheckResults, CheckAndRepairResults
-from allmydata.immutable import download
-from allmydata.util import nummedobj
+from allmydata.util import log, observer
 from allmydata.util.assertutil import precondition
 from allmydata.uri import CHKFileVerifierURI
+from allmydata.interfaces import IEncryptedUploadable, IDownloadTarget
+from twisted.internet.interfaces import IConsumer
 
-from allmydata.immutable import layout
+from allmydata.immutable import download, layout, upload
 
-import sha, time
+import collections
 
-def _permute_servers(servers, key):
-    return sorted(servers, key=lambda x: sha.new(key+x[0]).digest())
-
-class LogMixin(nummedobj.NummedObj):
-    def __init__(self, client, verifycap):
-        nummedobj.NummedObj.__init__(self)
-        self._client = client
-        self._verifycap = verifycap
-        self._storageindex = self._verifycap.storage_index
-        self._log_prefix = prefix = storage.si_b2a(self._storageindex)[:5]
-        self._parentmsgid = self._client.log("%s(%s): starting" % (self.__repr__(), self._log_prefix))
-
-    def log(self, msg, parent=None, *args, **kwargs):
-        if parent is None:
-            parent = self._parentmsgid
-        return self._client.log("%s(%s): %s" % (self.__repr__(), self._log_prefix, msg), parent=parent, *args, **kwargs)
-
-class Repairer(LogMixin):
+class Repairer(log.PrefixingLogMixin):
     """ I generate any shares which were not available and upload them to servers.
 
-    Which servers?  Well, I take the list of servers and if I used the Checker in verify mode
-    then I exclude any servers which claimed to have a share but then either failed to serve it
-    up or served up a corrupted one when I asked for it.  (If I didn't use verify mode, then I
-    won't exclude any servers, not even servers which, when I subsequently attempt to download
-    the file during repair, claim to have a share but then fail to produce it or then produce a
-    corrupted share.)  Then I perform the normal server-selection process of permuting the order
-    of the servers with the storage index, and choosing the next server which doesn't already
-    have more shares than others.
+    Which servers?  Well, I just use the normal upload process, so any servers that will take
+    shares.  In fact, I even believe servers if they say that they already have shares even if
+    attempts to download those shares would fail because the shares are corrupted.
 
     My process of uploading replacement shares proceeds in a segment-wise fashion -- first I ask
     servers if they can hold the new shares, and wait until enough have agreed then I download
@@ -47,120 +27,179 @@ class Repairer(LogMixin):
     way in order to minimize the amount of downloading I have to do and the amount of memory I
     have to use at any one time.)
 
-    If any of the servers to which I am uploading replacement shares fails to accept the blocks 
-    during this process, then I just stop using that server, abandon any share-uploads that were 
-    going to that server, and proceed to finish uploading the remaining shares to their 
-    respective servers.  At the end of my work, I produce an object which satisfies the 
-    ICheckAndRepairResults interface (by firing the deferred that I returned from start() and 
+    If any of the servers to which I am uploading replacement shares fails to accept the blocks
+    during this process, then I just stop using that server, abandon any share-uploads that were
+    going to that server, and proceed to finish uploading the remaining shares to their
+    respective servers.  At the end of my work, I produce an object which satisfies the
+    ICheckAndRepairResults interface (by firing the deferred that I returned from start() and
     passing that check-and-repair-results object).
 
     Before I send any new request to a server, I always ask the "monitor" object that was passed
     into my constructor whether this task has been cancelled (by invoking its
     raise_if_cancelled() method).
     """
-    def __init__(self, client, verifycap, servers, monitor):
+    def __init__(self, client, verifycap, monitor):
         assert precondition(isinstance(verifycap, CHKFileVerifierURI))
-        assert precondition(isinstance(servers, (set, frozenset)))
-        for (serverid, serverrref) in servers:
-            assert precondition(isinstance(serverid, str))
 
-        LogMixin.__init__(self, client, verifycap)
+        logprefix = storage.si_b2a(verifycap.storage_index)[:5]
+        log.PrefixingLogMixin.__init__(self, "allmydata.immutable.repairer", prefix=logprefix)
 
+        self._client = client
+        self._verifycap = verifycap
         self._monitor = monitor
-        self._servers = servers
 
     def start(self):
-        self.log("starting download")
-        d = defer.succeed(_permute_servers(self._servers, self._storageindex))
-        d.addCallback(self._check_phase)
-        d.addCallback(self._repair_phase)
+        self.log("starting repair")
+        duc = DownUpConnector()
+        dl = download.CiphertextDownloader(self._client, self._verifycap, target=duc, monitor=self._monitor)
+        ul = upload.CHKUploader(self._client)
+
+        d = defer.Deferred()
+
+        # If the upload or the download fails or is stopped, then the repair failed.
+        def _errb(f):
+            d.errback(f)
+            return None
+
+        # If the upload succeeds, then the repair has succeeded.
+        def _cb(res):
+            d.callback(res)
+        ul.start(duc).addCallbacks(_cb, _errb)
+
+        # If the download fails or is stopped, then the repair failed.
+        d2 = dl.start()
+        d2.addErrback(_errb)
+
+        # We ignore the callback from d2.  Is this right?  Ugh.
+
         return d
 
-    def _check_phase(self, unused=None):
-        return unused
+class DownUpConnector(log.PrefixingLogMixin):
+    implements(IEncryptedUploadable, IDownloadTarget, IConsumer)
+    """ I act like an "encrypted uploadable" -- something that a local uploader can read
+    ciphertext from in order to upload the ciphertext.  However, unbeknownst to the uploader,
+    I actually download the ciphertext from a CiphertextDownloader instance as it is needed.
 
-    def _repair_phase(self, unused=None):
-        bogusresults = CheckAndRepairResults(self._storageindex) # XXX THIS REPAIRER NOT HERE YET
-        bogusresults.pre_repair_results = CheckResults(self._verifycap, self._storageindex)
-        bogusresults.pre_repair_results.set_healthy(True)
-        bogusresults.pre_repair_results.set_needs_rebalancing(False)
-        bogusresults.post_repair_results = CheckResults(self._verifycap, self._storageindex)
-        bogusresults.post_repair_results.set_healthy(True)
-        bogusresults.post_repair_results.set_needs_rebalancing(False)
-        bogusdata = {}
-        bogusdata['count-shares-good'] = "this repairer not here yet"
-        bogusdata['count-shares-needed'] = "this repairer not here yet"
-        bogusdata['count-shares-expected'] = "this repairer not here yet"
-        bogusdata['count-good-share-hosts'] = "this repairer not here yet"
-        bogusdata['count-corrupt-shares'] = "this repairer not here yet"
-        bogusdata['count-list-corrupt-shares'] = [] # XXX THIS REPAIRER NOT HERE YET
-        bogusdata['servers-responding'] = [] # XXX THIS REPAIRER NOT HERE YET
-        bogusdata['sharemap'] = {} # XXX THIS REPAIRER NOT HERE YET
-        bogusdata['count-wrong-shares'] = "this repairer not here yet"
-        bogusdata['count-recoverable-versions'] = "this repairer not here yet"
-        bogusdata['count-unrecoverable-versions'] = "this repairer not here yet"
-        bogusresults.pre_repair_results.data.update(bogusdata)
-        bogusresults.post_repair_results.data.update(bogusdata)
-        return bogusresults
+    On the other hand, I act like a "download target" -- something that a local downloader can
+    write ciphertext to as it downloads the ciphertext.  That downloader doesn't realize, of
+    course, that I'm just turning around and giving the ciphertext to the uploader. """
 
-    def _get_all_shareholders(self, ignored=None):
-        dl = []
-        for (peerid,ss) in self._client.get_permuted_peers("storage",
-                                                           self._storageindex):
-            d = ss.callRemote("get_buckets", self._storageindex)
-            d.addCallbacks(self._got_response, self._got_error,
-                           callbackArgs=(peerid,))
-            dl.append(d)
-        self._responses_received = 0
-        self._queries_sent = len(dl)
-        if self._status:
-            self._status.set_status("Locating Shares (%d/%d)" %
-                                    (self._responses_received,
-                                     self._queries_sent))
-        return defer.DeferredList(dl)
+    # The theory behind this class is nice: just satisfy two separate interfaces.  The
+    # implementation is slightly horrible, because of "impedance mismatch" -- the downloader
+    # expects to be able to synchronously push data in, and the uploader expects to be able to
+    # read data out with a "read(THIS_SPECIFIC_LENGTH)" which returns a deferred.  The two
+    # interfaces have different APIs for pausing/unpausing.  The uploader requests metadata like
+    # size and encodingparams which the downloader provides either eventually or not at all
+    # (okay I just now extended the downloader to provide encodingparams).  Most of this
+    # slightly horrible code would disappear if CiphertextDownloader just used this object as an
+    # IConsumer (plus maybe a couple of other methods) and if the Uploader simply expected to be
+    # treated as an IConsumer (plus maybe a couple of other things).
 
-    def _got_response(self, buckets, peerid):
-        self._responses_received += 1
-        if self._results:
-            elapsed = time.time() - self._started
-            self._results.timings["servers_peer_selection"][peerid] = elapsed
-        if self._status:
-            self._status.set_status("Locating Shares (%d/%d)" %
-                                    (self._responses_received,
-                                     self._queries_sent))
-        for sharenum, bucket in buckets.iteritems():
-            b = layout.ReadBucketProxy(bucket, peerid, self._si_s)
-            self.add_share_bucket(sharenum, b)
-            self._uri_extension_sources.append(b)
-            if self._results:
-                if peerid not in self._results.servermap:
-                    self._results.servermap[peerid] = set()
-                self._results.servermap[peerid].add(sharenum)
+    def __init__(self, buflim=2**19):
+        """ If we're already holding at least buflim bytes, then tell the downloader to pause
+        until we have less than buflim bytes."""
+        log.PrefixingLogMixin.__init__(self, "allmydata.immutable.repairer")
+        self.buflim = buflim
+        self.bufs = collections.deque() # list of strings
+        self.bufsiz = 0 # how many bytes total in bufs
 
-    def _got_all_shareholders(self, res):
-        if self._results:
-            now = time.time()
-            self._results.timings["peer_selection"] = now - self._started
+        self.next_read_ds = collections.deque() # list of deferreds which will fire with the requested ciphertext
+        self.next_read_lens = collections.deque() # how many bytes of ciphertext were requested by each deferred
 
-        if len(self._share_buckets) < self._num_needed_shares:
-            raise download.NotEnoughSharesError
+        self._size_osol = observer.OneShotObserverList()
+        self._encodingparams_osol = observer.OneShotObserverList()
+        self._storageindex_osol = observer.OneShotObserverList()
+        self._closed_to_pusher = False
 
-    def _verify_done(self, ignored):
-        # TODO: The following results are just stubs, and need to be replaced
-        # with actual values. These exist to make things like deep-check not
-        # fail. XXX
-        self._check_results.set_needs_rebalancing(False)
-        N = self._total_shares
-        data = {
-            "count-shares-good": N,
-            "count-good-share-hosts": N,
-            "count-corrupt-shares": 0,
-            "list-corrupt-shares": [],
-            "servers-responding": [],
-            "sharemap": {},
-            "count-wrong-shares": 0,
-            "count-recoverable-versions": 1,
-            "count-unrecoverable-versions": 0,
-            }
-        self._check_results.set_data(data)
-        return self._check_results
+        # once seg size is available, the following attribute will be created to hold it:
+
+        # self.encodingparams # (provided by the object which is pushing data into me, required
+        # by the object which is pulling data out of me)
+
+        # open() will create the following attribute:
+        # self.size # size of the whole file (provided by the object which is pushing data into
+        # me, required by the object which is pulling data out of me)
+
+        # set_upload_status() will create the following attribute:
+
+        # self.upload_status # XXX do we need to actually update this?  Is anybody watching the
+        # results during a repair?
+
+    def _satisfy_reads_if_possible(self):
+        assert bool(self.next_read_ds) == bool(self.next_read_lens)
+        while self.next_read_ds and ((self.bufsiz >= self.next_read_lens[0]) or self._closed_to_pusher):
+            nrd = self.next_read_ds.popleft()
+            nrl = self.next_read_lens.popleft()
+
+            # Pick out the requested number of bytes from self.bufs, turn it into a string, and
+            # callback the deferred with that.
+            res = []
+            ressize = 0
+            while ressize < nrl and self.bufs:
+                nextbuf = self.bufs.popleft()
+                res.append(nextbuf)
+                ressize += len(nextbuf)
+                if ressize > nrl:
+                    leftover = ressize - nrl
+                    self.bufs.appendleft(nextbuf[leftover:])
+                    res[-1] = nextbuf[:leftover]
+            self.bufsiz -= nrl
+            if self.bufsiz < self.buflim and self.producer:
+                self.producer.resumeProducing()
+            nrd.callback(res)
+
+    # methods to satisfy the IConsumer and IDownloadTarget interfaces
+    # (From the perspective of a downloader I am an IDownloadTarget and an IConsumer.)
+    def registerProducer(self, producer, streaming):
+        assert streaming # We know how to handle only streaming producers.
+        self.producer = producer # the downloader
+    def unregisterProducer(self):
+        self.producer = None
+    def open(self, size):
+        self.size = size
+        self._size_osol.fire(self.size)
+    def set_encodingparams(self, encodingparams):
+        self.encodingparams = encodingparams
+        self._encodingparams_osol.fire(self.encodingparams)
+    def set_storageindex(self, storageindex):
+        self.storageindex = storageindex
+        self._storageindex_osol.fire(self.storageindex)
+    def write(self, data):
+        self.bufs.append(data)
+        self.bufsiz += len(data)
+        self._satisfy_reads_if_possible()
+        if self.bufsiz >= self.buflim and self.producer:
+            self.producer.pauseProducing()
+    def finish(self):
+        pass
+    def close(self):
+        self._closed_to_pusher = True
+
+    # methods to satisfy the IEncryptedUploader interface
+    # (From the perspective of an uploader I am an IEncryptedUploadable.)
+    def set_upload_status(self, upload_status):
+        self.upload_status = upload_status
+    def get_size(self):
+        if hasattr(self, 'size'): # attribute created by self.open()
+            return defer.succeed(self.size)
+        else:
+            return self._size_osol.when_fired()
+    def get_all_encoding_parameters(self):
+        # We have to learn the encoding params from pusher.
+        if hasattr(self, 'encodingparams'): # attribute created by self.set_encodingparams()
+            return defer.succeed(self.encodingparams)
+        else:
+            return self._encodingparams_osol.when_fired()
+    def read_encrypted(self, length, hash_only):
+        """ Returns a deferred which eventually fired with the requested ciphertext. """
+        d = defer.Deferred()
+        self.next_read_ds.append(d)
+        self.next_read_lens.append(length)
+        self._satisfy_reads_if_possible()
+        return d
+    def get_storage_index(self):
+        # We have to learn the storage index from pusher.
+        if hasattr(self, 'storageindex'): # attribute created by self.set_storageindex()
+            return defer.succeed(self.storageindex)
+        else:
+            return self._storageindex.when_fired()

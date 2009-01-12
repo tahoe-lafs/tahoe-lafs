@@ -12,7 +12,7 @@ from allmydata.util.hashutil import file_renewal_secret_hash, \
      storage_index_hash, plaintext_segment_hasher, convergence_hasher
 from allmydata import storage, hashtree, uri
 from allmydata.immutable import encode
-from allmydata.util import base32, idlib, log, mathutil
+from allmydata.util import base32, dictutil, idlib, log, mathutil
 from allmydata.util.assertutil import precondition
 from allmydata.util.rrefutil import get_versioned_remote_reference
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
@@ -48,8 +48,8 @@ class UploadResults(Copyable, RemoteCopy):
 
     def __init__(self):
         self.timings = {} # dict of name to number of seconds
-        self.sharemap = {} # k: shnum, v: set(serverid)
-        self.servermap = {} # k: serverid, v: set(shnum)
+        self.sharemap = dictutil.DictOfSets() # {shnum: set(serverid)}
+        self.servermap = dictutil.DictOfSets() # {serverid: set(shnum)}
         self.file_size = None
         self.ciphertext_fetched = None # how much the helper fetched
         self.uri = None
@@ -758,8 +758,8 @@ class CHKUploader:
             peer_tracker = self._peer_trackers[shnum]
             peerid = peer_tracker.peerid
             peerid_s = idlib.shortnodeid_b2a(peerid)
-            r.sharemap.setdefault(shnum, set()).add(peerid)
-            r.servermap.setdefault(peerid, set()).add(shnum)
+            r.sharemap.add(shnum, peerid)
+            r.servermap.add(peerid, shnum)
         r.pushed_shares = len(self._encoder.get_shares_placed())
         now = time.time()
         r.file_size = self._encoder.file_size

@@ -994,6 +994,13 @@ class ShareManglingMixin(SystemTestMixin):
             sum_of_allocate_counts += counters.get('storage_server.allocate', 0)
         return sum_of_allocate_counts
 
+    def _count_writes(self):
+        sum_of_write_counts = 0
+        for thisclient in self.clients:
+            counters = thisclient.stats_provider.get_stats()['counters']
+            sum_of_write_counts += counters.get('storage_server.write', 0)
+        return sum_of_write_counts
+
     def _download_and_check_plaintext(self, unused=None):
         self.downloader = self.clients[1].getServiceNamed("downloader")
         d = self.downloader.download_to_data(self.uri)

@@ -32,7 +32,7 @@ class Test(common.ShareManglingMixin, unittest.TestCase):
 
         def _then_download(unused=None):
             self.downloader = self.clients[1].getServiceNamed("downloader")
-            d = self.downloader.download_to_data(self.uri)
+            d2 = self.downloader.download_to_data(self.uri)
 
             def _after_download_callb(result):
                 self.fail() # should have gotten an errback instead
@@ -40,7 +40,8 @@ class Test(common.ShareManglingMixin, unittest.TestCase):
             def _after_download_errb(failure):
                 failure.trap(NotEnoughSharesError)
                 return None # success!
-            d.addCallbacks(_after_download_callb, _after_download_errb)
+            d2.addCallbacks(_after_download_callb, _after_download_errb)
+            return d2
         d.addCallback(_then_download)
 
         return d
@@ -99,14 +100,14 @@ class Test(common.ShareManglingMixin, unittest.TestCase):
         before_download_reads = self._count_reads()
         def _attempt_to_download(unused=None):
             downloader = self.clients[1].getServiceNamed("downloader")
-            d = downloader.download_to_data(self.uri)
+            d2 = downloader.download_to_data(self.uri)
 
             def _callb(res):
                 self.fail("Should have gotten an error from attempt to download, not %r" % (res,))
             def _errb(f):
                 self.failUnless(f.check(NotEnoughSharesError))
-            d.addCallbacks(_callb, _errb)
-            return d
+            d2.addCallbacks(_callb, _errb)
+            return d2
 
         d.addCallback(_attempt_to_download)
 
@@ -133,14 +134,14 @@ class Test(common.ShareManglingMixin, unittest.TestCase):
         before_download_reads = self._count_reads()
         def _attempt_to_download(unused=None):
             downloader = self.clients[1].getServiceNamed("downloader")
-            d = downloader.download_to_data(self.uri)
+            d2 = downloader.download_to_data(self.uri)
 
             def _callb(res):
                 self.fail("Should have gotten an error from attempt to download, not %r" % (res,))
             def _errb(f):
                 self.failUnless(f.check(NotEnoughSharesError))
-            d.addCallbacks(_callb, _errb)
-            return d
+            d2.addCallbacks(_callb, _errb)
+            return d2
 
         d.addCallback(_attempt_to_download)
 

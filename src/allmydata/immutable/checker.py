@@ -4,7 +4,7 @@ from allmydata.check_results import CheckResults
 from allmydata.immutable import download
 from allmydata.uri import CHKFileVerifierURI
 from allmydata.util.assertutil import precondition
-from allmydata.util import base32, deferredutil, log, rrefutil
+from allmydata.util import base32, deferredutil, dictutil, log, rrefutil
 
 from allmydata.immutable import layout
 
@@ -207,7 +207,7 @@ class Checker(log.PrefixingLogMixin):
         d['count-shares-needed'] = self._verifycap.needed_shares
         d['count-shares-expected'] = self._verifycap.total_shares
 
-        verifiedshares = {} # {sharenum: set(serverid)}
+        verifiedshares = dictutil.DictOfSets() # {sharenum: set(serverid)}
         servers = {} # {serverid: set(sharenums)}
         corruptsharelocators = [] # (serverid, storageindex, sharenum)
         incompatiblesharelocators = [] # (serverid, storageindex, sharenum)

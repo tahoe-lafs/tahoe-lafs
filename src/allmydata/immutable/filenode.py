@@ -1,5 +1,4 @@
-
-import os.path, stat
+import copy, os.path, stat
 from cStringIO import StringIO
 from zope.interface import implements
 from twisted.internet import defer
@@ -7,12 +6,12 @@ from twisted.internet.interfaces import IPushProducer, IConsumer
 from twisted.protocols import basic
 from foolscap.eventual import eventually
 from allmydata.interfaces import IFileNode, IFileURI, ICheckable, \
-     IDownloadTarget
-from allmydata.util import log, base32
+     IDownloadTarget, IUploadResults
+from allmydata.util import dictutil, log, base32
 from allmydata.util.assertutil import precondition
 from allmydata import uri as urimodule
 from allmydata.immutable.checker import Checker
-from allmydata.check_results import CheckAndRepairResults
+from allmydata.check_results import CheckResults, CheckAndRepairResults
 from allmydata.immutable.repairer import Repairer
 from allmydata.immutable import download
 
@@ -167,7 +166,13 @@ class DownloadCache:
         pass
     def finish(self):
         return None
-
+    # The following methods are just because the target might be a repairer.DownUpConnector,
+    # and just because the current CHKUpload object expects to find the storage index and
+    # encoding parameters in its Uploadable.
+    def set_storageindex(self, storageindex):
+        pass
+    def set_encodingparams(self, encodingparams):
+        pass
 
 
 class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
@@ -203,10 +208,26 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
                 crr.post_repair_results = cr
                 return defer.succeed(crr)
             else:
-                def _gather_repair_results(rr):
-                    crr.post_repair_results = rr
+                def _gather_repair_results(ur):
+                    assert IUploadResults.providedBy(ur), ur
+                    # clone the cr -- check results to form the basic of the prr -- post-repair results
+                    prr = CheckResults(cr.uri, cr.storage_index)
+                    prr.data = copy.deepcopy(cr.data)
+
+                    sm = prr.data['sharemap']
+                    assert isinstance(sm, dictutil.DictOfSets), sm
+                    sm.update(ur.sharemap)
+                    servers_responding = set(prr.data['servers-responding'])
+                    servers_responding.union(ur.sharemap.iterkeys())
+                    prr.data['servers-responding'] = list(servers_responding)
+                    prr.data['count-shares-good'] = len(sm)
+                    prr.data['count-good-share-hosts'] = len(sm)
+                    prr.set_healthy(len(sm) >= self.u.total_shares)
+                    prr.set_needs_rebalancing(len(sm) >= self.u.total_shares)
+
+                    crr.post_repair_results = prr
                     return crr
-                r = Repairer(client=self._client, verifycap=verifycap, servers=servers, monitor=monitor)
+                r = Repairer(client=self._client, verifycap=verifycap, monitor=monitor)
                 d = r.start()
                 d.addCallback(_gather_repair_results)
                 return d

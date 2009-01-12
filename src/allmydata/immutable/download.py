@@ -6,7 +6,7 @@ from twisted.application import service
 from foolscap import DeadReferenceError
 from foolscap.eventual import eventually
 
-from allmydata.util import base32, deferredutil, mathutil, hashutil, log
+from allmydata.util import base32, deferredutil, hashutil, log, mathutil, observer
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.rrefutil import ServerFailure
 from allmydata import codec, hashtree, uri
@@ -51,6 +51,7 @@ class DecryptingTarget(log.PrefixingLogMixin):
         self._decryptor = AES(key)
         prefix = str(target)
         log.PrefixingLogMixin.__init__(self, "allmydata.immutable.download", _log_msg_id, prefix=prefix)
+    # methods to satisfy the IConsumer interface
     def registerProducer(self, producer, streaming):
         if IConsumer.providedBy(self.target):
             self.target.registerProducer(producer, streaming)
@@ -66,6 +67,13 @@ class DecryptingTarget(log.PrefixingLogMixin):
         self.target.close()
     def finish(self):
         return self.target.finish()
+    # The following methods is just to pass through to the next target, and just because that
+    # target might be a repairer.DownUpConnector, and just because the current CHKUpload object
+    # expects to find the storage index in its Uploadable.
+    def set_storageindex(self, storageindex):
+        self.target.set_storageindex(storageindex)
+    def set_encodingparams(self, encodingparams):
+        self.target.set_encodingparams(encodingparams)
 
 class ValidatedThingObtainer:
     def __init__(self, validatedthingproxies, debugname, log_id):
@@ -617,14 +625,13 @@ class CiphertextDownloader(log.PrefixingLogMixin):
         precondition(IVerifierURI.providedBy(v), v)
         precondition(IDownloadTarget.providedBy(target), target)
 
-        prefix=base32.b2a_l(v.get_storage_index()[:8], 60)
+        prefix=base32.b2a_l(v.storage_index[:8], 60)
         log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.download", prefix=prefix)
         self._client = client
 
         self._verifycap = v
-        self._storage_index = v.get_storage_index()
+        self._storage_index = v.storage_index
         self._uri_extension_hash = v.uri_extension_hash
-        self._vup = None # ValidatedExtendedURIProxy
 
         self._started = time.time()
         self._status = s = DownloadStatus()
@@ -649,6 +656,7 @@ class CiphertextDownloader(log.PrefixingLogMixin):
         if IConsumer.providedBy(target):
             target.registerProducer(self, True)
         self._target = target
+        self._target.set_storageindex(self._storage_index) # Repairer (uploader) needs the storageindex.
         self._monitor = monitor
         self._opened = False
 
@@ -667,6 +675,7 @@ class CiphertextDownloader(log.PrefixingLogMixin):
         # self._crypttext_hash_tree
         # self._share_hash_tree
         # self._current_segnum = 0
+        # self._vup # ValidatedExtendedURIProxy
 
     def pauseProducing(self):
         if self._paused:
@@ -834,6 +843,14 @@ class CiphertextDownloader(log.PrefixingLogMixin):
 
             self._crypttext_hash_tree = hashtree.IncompleteHashTree(self._vup.num_segments)
             self._crypttext_hash_tree.set_hashes({0: self._vup.crypttext_root_hash})
+
+            # Repairer (uploader) needs the encodingparams.
+            self._target.set_encodingparams((
+                self._verifycap.needed_shares,
+                self._verifycap.total_shares, # I don't think the target actually cares about "happy".
+                self._verifycap.total_shares,
+                self._vup.segment_size
+                ))
         d.addCallback(_got_uri_extension)
         return d
 
@@ -1045,6 +1062,13 @@ class FileName:
         pass # we won't use it
     def finish(self):
         pass
+    # The following methods are just because the target might be a repairer.DownUpConnector,
+    # and just because the current CHKUpload object expects to find the storage index and
+    # encoding parameters in its Uploadable.
+    def set_storageindex(self, storageindex):
+        pass
+    def set_encodingparams(self, encodingparams):
+        pass
 
 class Data:
     implements(IDownloadTarget)
@@ -1063,6 +1087,13 @@ class Data:
         pass # we won't use it
     def finish(self):
         return self.data
+    # The following methods are just because the target might be a repairer.DownUpConnector,
+    # and just because the current CHKUpload object expects to find the storage index and
+    # encoding parameters in its Uploadable.
+    def set_storageindex(self, storageindex):
+        pass
+    def set_encodingparams(self, encodingparams):
+        pass
 
 class FileHandle:
     """Use me to download data to a pre-defined filehandle-like object. I
@@ -1086,6 +1117,13 @@ class FileHandle:
         pass
     def finish(self):
         return self._filehandle
+    # The following methods are just because the target might be a repairer.DownUpConnector,
+    # and just because the current CHKUpload object expects to find the storage index and
+    # encoding parameters in its Uploadable.
+    def set_storageindex(self, storageindex):
+        pass
+    def set_encodingparams(self, encodingparams):
+        pass
 
 class ConsumerAdapter:
     implements(IDownloadTarget, IConsumer)
@@ -1110,6 +1148,13 @@ class ConsumerAdapter:
         pass
     def finish(self):
         return self._consumer
+    # The following methods are just because the target might be a repairer.DownUpConnector,
+    # and just because the current CHKUpload object expects to find the storage index and
+    # encoding parameters in its Uploadable.
+    def set_storageindex(self, storageindex):
+        pass
+    def set_encodingparams(self, encodingparams):
+        pass
 
 
 class Downloader(service.MultiService):
