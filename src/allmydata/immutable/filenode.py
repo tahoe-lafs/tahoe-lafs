@@ -208,6 +208,8 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
                 crr.post_repair_results = cr
                 return defer.succeed(crr)
             else:
+                crr.repair_attempted = True
+                crr.repair_successful = False # until proven successful
                 def _gather_repair_results(ur):
                     assert IUploadResults.providedBy(ur), ur
                     # clone the cr -- check results to form the basic of the prr -- post-repair results
@@ -222,14 +224,22 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
                     prr.data['servers-responding'] = list(servers_responding)
                     prr.data['count-shares-good'] = len(sm)
                     prr.data['count-good-share-hosts'] = len(sm)
-                    prr.set_healthy(len(sm) >= self.u.total_shares)
+                    is_healthy = len(sm) >= self.u.total_shares
+                    prr.set_healthy(is_healthy)
+                    crr.repair_successful = is_healthy
                     prr.set_needs_rebalancing(len(sm) >= self.u.total_shares)
 
                     crr.post_repair_results = prr
                     return crr
+                def _repair_error(f):
+                    # as with mutable repair, I'm not sure if I want to pass
+                    # through a failure or not. TODO
+                    crr.repair_successful = False
+                    crr.repair_failure = f
+                    return f
                 r = Repairer(client=self._client, verifycap=verifycap, monitor=monitor)
                 d = r.start()
-                d.addCallback(_gather_repair_results)
+                d.addCallbacks(_gather_repair_results, _repair_error)
                 return d
 
         d.addCallback(_maybe_repair)

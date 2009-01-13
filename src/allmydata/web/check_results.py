@@ -10,6 +10,13 @@ from allmydata.interfaces import ICheckAndRepairResults, ICheckResults
 from allmydata.util import base32, idlib
 
 class ResultsBase:
+    def _join_pathstring(self, path):
+        if path:
+            pathstring = "/".join(self._html(path))
+        else:
+            pathstring = "<root>"
+        return pathstring
+
     def _render_results(self, ctx, cr):
         assert ICheckResults(cr)
         c = IClient(ctx)
@@ -266,7 +273,7 @@ class CheckAndRepairResults(CheckerBase, rend.Page, ResultsBase):
 
     def render_post_repair_results(self, ctx, data):
         cr = self._render_results(ctx, self.r.get_post_repair_results())
-        return ctx.tag[cr]
+        return ctx.tag[T.div["Post-Repair Checker Results:"], cr]
 
     def render_maybe_pre_repair_results(self, ctx, data):
         if self.r.get_repair_attempted():
@@ -358,7 +365,7 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
         if summary:
             summary_text = ": " + summary
         summary_text += " [SI: %s]" % cr.get_storage_index_string()
-        return ctx.tag["/".join(self._html(path)), self._html(summary_text)]
+        return ctx.tag[self._join_pathstring(path), self._html(summary_text)]
 
 
     def render_servers_with_corrupt_shares_p(self, ctx, data):
@@ -413,11 +420,7 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
 
     def render_object(self, ctx, data):
         path, r = data
-        if path:
-            pathstring = "/".join(self._html(path))
-        else:
-            pathstring = "<root>"
-        ctx.fillSlots("path", pathstring)
+        ctx.fillSlots("path", self._join_pathstring(path))
         ctx.fillSlots("healthy", str(r.is_healthy()))
         ctx.fillSlots("recoverable", str(r.is_recoverable()))
         storage_index = r.get_storage_index()
@@ -437,6 +440,19 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase, ReloadMixin):
         #assert IDeepCheckAndRepairResults(results)
         #self.r = results
         self.monitor = monitor
+
+    def childFactory(self, ctx, name):
+        if not name:
+            return self
+        # /operation/$OPHANDLE/$STORAGEINDEX provides detailed information
+        # about a specific file or directory that was checked
+        si = base32.a2b(name)
+        r = self.monitor.get_status()
+        try:
+            return CheckAndRepairResults(r.get_results_for_storage_index(si))
+        except KeyError:
+            raise WebError("No detailed results for SI %s" % html.escape(name),
+                           http.NOT_FOUND)
 
     def renderHTTP(self, ctx):
         if self.want_json(ctx):
@@ -530,7 +546,8 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase, ReloadMixin):
 
     def render_problem(self, ctx, data):
         path, cr = data
-        return ["/".join(self._html(path)), ": ", self._html(cr.get_summary())]
+        return ctx.tag[self._join_pathstring(path), ": ",
+                       self._html(cr.get_summary())]
 
     def render_post_repair_problems_p(self, ctx, data):
         c = self.monitor.get_status().get_counters()
@@ -583,11 +600,16 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase, ReloadMixin):
 
     def render_object(self, ctx, data):
         path, r = data
-        ctx.fillSlots("path", "/".join(self._html(path)))
+        ctx.fillSlots("path", self._join_pathstring(path))
         ctx.fillSlots("healthy_pre_repair",
                       str(r.get_pre_repair_results().is_healthy()))
+        ctx.fillSlots("recoverable_pre_repair",
+                      str(r.get_pre_repair_results().is_recoverable()))
         ctx.fillSlots("healthy_post_repair",
                       str(r.get_post_repair_results().is_healthy()))
+        storage_index = r.get_storage_index()
+        ctx.fillSlots("storage_index",
+                      self._render_si_link(ctx, storage_index))
         ctx.fillSlots("summary",
                       self._html(r.get_pre_repair_results().get_summary()))
         return ctx.tag

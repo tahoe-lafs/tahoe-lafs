@@ -1833,6 +1833,11 @@ class IDeepCheckAndRepairResults(Interface):
         be slash-joined) to an ICheckAndRepairResults instance, one for each
         object that was checked."""
 
+    def get_results_for_storage_index(storage_index):
+        """Retrive the ICheckAndRepairResults instance for the given (binary)
+        storage index. Raises KeyError if there are no results for that
+        storage index."""
+
 
 class IRepairable(Interface):
     def repair(check_results):
