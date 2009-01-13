@@ -66,17 +66,25 @@ limitations described in #346.
     : rest of share is the same as v1, above
 ...   ...
 ?   : start of uri_extension_length (eight-byte big-endian value)
+?   : start of uri_extension
 """
 
-# Footnote 1: as of Tahoe v1.3.0 these fields are not used when reading, but they are still
-# provided when writing so that older versions of Tahoe can read them.
+# Footnote 1: as of Tahoe v1.3.0 these fields are not used when reading, but
+# they are still provided when writing so that older versions of Tahoe can
+# read them.
 
-def allocated_size(data_size, num_segments, num_share_hashes,
-                   uri_extension_size_max):
-    wbp = WriteBucketProxy(None, data_size, 0, num_segments, num_share_hashes,
-                           uri_extension_size_max, None)
-    uri_extension_starts_at = wbp._offsets['uri_extension']
-    return uri_extension_starts_at + wbp.fieldsize + uri_extension_size_max
+def make_write_bucket_proxy(rref, data_size, block_size, num_segments,
+                            num_share_hashes, uri_extension_size_max, nodeid):
+    # Use layout v1 for small files, so they'll be readable by older versions
+    # (<tahoe-1.3.0). Use layout v2 for large files; they'll only be readable
+    # by tahoe-1.3.0 or later.
+    try:
+        wbp = WriteBucketProxy(rref, data_size, block_size, num_segments,
+                               num_share_hashes, uri_extension_size_max, nodeid)
+    except FileTooLargeError:
+        wbp = WriteBucketProxy_v2(rref, data_size, block_size, num_segments,
+                                  num_share_hashes, uri_extension_size_max, nodeid)
+    return wbp
 
 class WriteBucketProxy:
     implements(IStorageBucketWriter)
@@ -100,6 +108,10 @@ class WriteBucketProxy:
         self._uri_extension_size_max = uri_extension_size_max
 
         self._create_offsets(block_size, data_size)
+
+    def get_allocated_size(self):
+        return (self._offsets['uri_extension'] + self.fieldsize +
+                self._uri_extension_size_max)
 
     def _create_offsets(self, block_size, data_size):
         if block_size >= 2**32 or data_size >= 2**32:

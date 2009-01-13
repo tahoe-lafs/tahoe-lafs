@@ -241,17 +241,17 @@ class GoodServer(unittest.TestCase, ShouldFailMixin):
         return DATA[:size]
 
     def test_too_large(self):
-        # we currently impose a sizelimit on uploaded files, because of
-        # limitations in the share format (see ticket #346 for details). The
-        # limit is set to ensure that no share is larger than 4GiB. Make sure
-        # that we reject files larger than that.
+        # we've removed the 4GiB share size limit (see ticket #346 for
+        # details), but still have an 8-byte field, so the limit is now
+        # 2**64, so make sure we reject files larger than that.
         k = 3; happy = 7; n = 10
         self.set_encoding_parameters(k, happy, n)
-        data1 = GiganticUploadable(k*4*1024*1024*1024)
+        big = k*(2**64)
+        data1 = GiganticUploadable(big)
         d = self.shouldFail(FileTooLargeError, "test_too_large-data1",
                             "This file is too large to be uploaded (data_size)",
                             self.u.upload, data1)
-        data2 = GiganticUploadable(k*4*1024*1024*1024-3)
+        data2 = GiganticUploadable(big-3)
         d.addCallback(lambda res:
                       self.shouldFail(FileTooLargeError,
                                       "test_too_large-data2",
