@@ -411,12 +411,11 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def upload(self, uploadable):
         uploader = self.getServiceNamed("uploader")
-        return uploader.upload(uploadable)
+        return uploader.upload(uploadable, history=self.get_history())
 
 
     def list_all_upload_statuses(self):
-        uploader = self.getServiceNamed("uploader")
-        return uploader.list_all_upload_statuses()
+        return self.get_history().list_all_upload_statuses()
 
     def list_all_download_statuses(self):
         return self.get_history().list_all_download_statuses()

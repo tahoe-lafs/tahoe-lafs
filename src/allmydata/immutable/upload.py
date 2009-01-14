@@ -1182,15 +1182,12 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
     implements(IUploader)
     name = "uploader"
     URI_LIT_SIZE_THRESHOLD = 55
-    MAX_UPLOAD_STATUSES = 10
 
     def __init__(self, helper_furl=None, stats_provider=None):
         self._helper_furl = helper_furl
         self.stats_provider = stats_provider
         self._helper = None
         self._all_uploads = weakref.WeakKeyDictionary() # for debugging
-        self._all_upload_statuses = weakref.WeakKeyDictionary()
-        self._recent_upload_statuses = []
         log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.upload")
         service.MultiService.__init__(self)
 
@@ -1224,7 +1221,7 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
         return (self._helper_furl, bool(self._helper))
 
 
-    def upload(self, uploadable):
+    def upload(self, uploadable, history=None):
         """
         Returns a Deferred that will fire with the UploadResults instance.
         """
@@ -1257,7 +1254,9 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
                     uploader = CHKUploader(self.parent)
                     d2.addCallback(lambda x: uploader.start(eu))
 
-                self._add_upload(uploader)
+                self._all_uploads[uploader] = None
+                if history:
+                    history.add_upload(uploader.get_upload_status())
                 def turn_verifycap_into_read_cap(uploadresults):
                     # Generate the uri from the verifycap plus the key.
                     d3 = uploadable.get_encryption_key()
@@ -1276,15 +1275,3 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
             return res
         d.addBoth(_done)
         return d
-
-    def _add_upload(self, uploader):
-        s = uploader.get_upload_status()
-        self._all_uploads[uploader] = None
-        self._all_upload_statuses[s] = None
-        self._recent_upload_statuses.append(s)
-        while len(self._recent_upload_statuses) > self.MAX_UPLOAD_STATUSES:
-            self._recent_upload_statuses.pop(0)
-
-    def list_all_upload_statuses(self):
-        for us in self._all_upload_statuses:
-            yield us
