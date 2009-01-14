@@ -154,6 +154,15 @@ if 'darcsver' in sys.argv[1:]:
 # setuptools_trial is needed only if you want "./setup.py trial" to execute the tests.
 # http://pypi.python.org/pypi/setuptools_trial
 if 'trial' in sys.argv[1:]:
+    # Cygwin requires the poll reactor to work at all.  Linux requires the poll reactor to avoid
+    # bug #402 (twisted bug #3218).  In general, the poll reactor is better than the select
+    # reactor, but it is not available on all platforms.  According to exarkun on IRC, it is
+    # available but buggy on some versions of Mac OS X, so just because you can install it
+    # doesn't mean we want to use it on every platform.
+    if sys.platform in ("linux2", "cygwin"):
+        for arg in sys.argv:
+            if arg.startswith("--reactor")
+        sys.argv.append("--reactor=poll")
     setup_requires.append('setuptools_trial >= 0.2')
 
 # setuptools_darcs is required to produce complete distributions (such as with
