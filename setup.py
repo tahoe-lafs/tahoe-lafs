@@ -160,9 +160,8 @@ if 'trial' in sys.argv[1:]:
     # available but buggy on some versions of Mac OS X, so just because you can install it
     # doesn't mean we want to use it on every platform.
     if sys.platform in ("linux2", "cygwin"):
-        for arg in sys.argv:
-            if arg.startswith("--reactor")
-        sys.argv.append("--reactor=poll")
+        if not [a for a in sys.argv if a.startswith("--reactor")]:
+            sys.argv.append("--reactor=poll")
     setup_requires.append('setuptools_trial >= 0.2')
 
 # setuptools_darcs is required to produce complete distributions (such as with
