@@ -151,7 +151,7 @@ that file with:
 
 Multiple levels of subdirectories can be handled this way:
 
- http://127.0.0.1:3456/uri/$DIRCAP/tahoe-source/docs/webapi.txt
+ http://127.0.0.1:3456/uri/$DIRCAP/tahoe-source/docs/wapi.txt
 
 In this document, when we need to refer to a URL that references a file using
 this child-of-some-directory format, we'll use the following string:
@@ -182,9 +182,9 @@ contain unicode filenames, and cannot contain binary strings that are not
 representable as such.
 
 All Tahoe operations that refer to existing files or directories must include
-a suitable read- or write- cap in the URL: the webapi server won't add one
+a suitable read- or write- cap in the URL: the wapi server won't add one
 for you. If you don't know the cap, you can't access the file. This allows
-the security properties of Tahoe caps to be extended across the webapi
+the security properties of Tahoe caps to be extended across the wapi
 interface.
 
 == Slow Operations, Progress, and Cancelling ==
@@ -1197,7 +1197,7 @@ GET /   (introducer status)
 
 == Static Files in /public_html ==
 
-The webapi server will take any request for a URL that starts with /static
+The wapi server will take any request for a URL that starts with /static
 and serve it from a configurable directory which defaults to
 $BASEDIR/public_html . This is configured by setting the "[node]web.static"
 value in $BASEDIR/tahoe.cfg . If this is left at the default value of
@@ -1205,7 +1205,7 @@ value in $BASEDIR/tahoe.cfg . If this is left at the default value of
 served with the contents of the file $BASEDIR/public_html/subdir/foo.html .
 
 This can be useful to serve a javascript application which provides a
-prettier front-end to the rest of the Tahoe webapi.
+prettier front-end to the rest of the Tahoe wapi.
 
 
 == safety and security issues -- names vs. URIs ==
@@ -1284,7 +1284,7 @@ Coordination Directive.
 
 Tahoe nodes implement internal serialization to make sure that a single Tahoe
 node cannot conflict with itself. For example, it is safe to issue two
-directory modification requests to a single tahoe node's webapi server at the
+directory modification requests to a single tahoe node's wapi server at the
 same time, because the Tahoe node will internally delay one of them until
 after the other has finished being applied. (This feature was introduced in
 Tahoe-1.1; back with Tahoe-1.0 the web client was responsible for serializing

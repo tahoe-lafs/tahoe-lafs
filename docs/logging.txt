@@ -152,7 +152,7 @@ which should be sending it log events.
 The "flogtool filter" command, described above, is useful to cut down the
 potentially-large flogfiles into more a narrowly-focussed form.
 
-Busy nodes, particularly webapi nodes which are performing recursive
+Busy nodes, particularly wapi nodes which are performing recursive
 deep-size/deep-stats/deep-check operations, can produce a lot of log events.
 To avoid overwhelming the node (and using an unbounded amount of memory for
 the outbound TCP queue), publishing nodes will start dropping log events when
@@ -192,7 +192,7 @@ but a few notes are worth stating here:
    clustered with its parent. For example, a download process that involves
    three sequential hash fetches could announce the send and receipt of those
    hash-fetch messages with a parent= argument that ties them to the overall
-   download process. However, each new webapi download request should be
+   download process. However, each new wapi download request should be
    unparented.
 
  * use the format= argument in preference to the message= argument. E.g.

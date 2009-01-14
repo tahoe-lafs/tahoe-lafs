@@ -54,7 +54,7 @@ clients.
 "key-generation" service, which allows a client to offload their RSA key
 generation to a separate process. Since RSA key generation takes several
 seconds, and must be done each time a directory is created, moving it to a
-separate process allows the first process (perhaps a busy webapi server) to
+separate process allows the first process (perhaps a busy wapi server) to
 continue servicing other requests. The key generator exports a FURL that can
 be copied into a client node to enable this functionality.
 
@@ -78,13 +78,13 @@ start using their changes.
 These commands let you exmaine a Tahoe filesystem, providing basic
 list/upload/download/delete/rename/mkdir functionality. They can be used as
 primitives by other scripts. Most of these commands are fairly thin wrappers
-around webapi calls.
+around wapi calls.
 
 By default, all filesystem-manipulation commands look in ~/.tahoe/ to figure
-out which Tahoe node they should use. When the CLI command uses webapi calls,
+out which Tahoe node they should use. When the CLI command uses wapi calls,
 it will use ~/.tahoe/node.url for this purpose: a running Tahoe node that
-provides a webapi port will write its URL into this file. If you want to use
-a node on some other host, just create ~/.tahoe/ and copy that node's webapi
+provides a wapi port will write its URL into this file. If you want to use
+a node on some other host, just create ~/.tahoe/ and copy that node's wapi
 URL into this file, and the CLI commands will contact that node instead of a
 local one.
 

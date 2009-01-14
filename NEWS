@@ -30,7 +30,7 @@ By periodically checking/repairing all files and directories, objects in the
 Tahoe filesystem remain resistant to recoverability failures due to missing
 and/or broken servers.
 
-This release includes a webapi mechanism to initiate checks on individual
+This release includes a wapi mechanism to initiate checks on individual
 files and directories (with or without verification, and with or without
 automatic repair). A related mechanism is used to initiate a "deep-check" on
 a directory: recursively traversing the directory and its children, checking
@@ -46,7 +46,7 @@ and deep-check operations. When these operations finish, they display a
 results page that summarizes any problems that were encountered. All
 long-running deep-traversal operations, including deep-check, use a
 start-and-poll mechanism, to avoid depending upon a single long-lived HTTP
-connection. docs/frontends/webapi.txt has details.
+connection. docs/frontends/wapi.txt has details.
 
 ** Configuration Changes: single INI-format tahoe.cfg file
 
@@ -152,11 +152,11 @@ The top-level status page (/status) now has a machine-readable form, via
 "/status/?t=json". This includes information about the currently-active
 uploads and downloads, which may be useful for frontends that wish to display
 progress information. There is no easy way to correlate the activities
-displayed here with recent webapi requests, however.
+displayed here with recent wapi requests, however.
 
 Any files in BASEDIR/public_html/ (configurable) will be served in response
 to requests in the /static/ portion of the URL space. This will simplify the
-deployment of javascript-based frontends that can still access webapi calls
+deployment of javascript-based frontends that can still access wapi calls
 by conforming to the (regrettable) "same-origin policy".
 
 The welcome page now has a "Report Incident" button, which is tied into the
@@ -192,7 +192,7 @@ moved here too. As a result, the directory page is now much simpler and
 cleaner, and several potentially-misleading links (like t=uri) are now gone.
 
 Slashes are discouraged in Tahoe file/directory names, since they cause
-problems when accessing the filesystem through the webapi. However, there are
+problems when accessing the filesystem through the wapi. However, there are
 a couple of accidental ways to generate such names. This release tries to
 make it easier to correct such mistakes by escaping slashes in several
 places, allowing slashes in the t=info and t=delete commands, and in the
@@ -262,7 +262,7 @@ plugins that can be used to monitor a storage grid.
 
 The misc/spacetime/ directory contains a "disk watcher" daemon (startable
 with 'tahoe start'), which can be configured with a set of HTTP URLs
-(pointing at the webapi '/statistics' page of a bunch of storage servers),
+(pointing at the wapi '/statistics' page of a bunch of storage servers),
 and will periodically fetch disk-used/disk-available information from all the
 servers. It keeps this information in an Axiom database (a sqlite-based
 library available from divmod.org). The daemon computes time-averaged rates
@@ -274,7 +274,7 @@ The misc/munin/ directory contains a new set of munin plugins
 disk-watcher and provide graphs of its calculations.
 
 To support the disk-watcher, the Tahoe statistics component (visible through
-the webapi at the /statistics/ URL) now includes disk-used and disk-available
+the wapi at the /statistics/ URL) now includes disk-used and disk-available
 information. Both are derived through an equivalent of the unix 'df' command
 (i.e. they ask the kernel for the number of free blocks on the partition that
 encloses the BASEDIR/storage directory). In the future, the disk-available
@@ -301,7 +301,7 @@ logs) now includes a platform identifer (frequently including a linux
 distribution name, processor architecture, etc).
 
 Several bugs have been fixed, including one that would cause an exception (in
-the logs) if a webapi download operation was cancelled (by closing the TCP
+the logs) if a wapi download operation was cancelled (by closing the TCP
 connection, or pushing the "stop" button in a web browser).
 
 The 12GiB (approximate) immutable-file-size limitation is slowly being
@@ -402,7 +402,7 @@ Tahoe is slowly acquiring convenient tools to check up on file health,
 examine existing shares for errors, and repair files that are not fully
 healthy. This release adds a mutable checker/verifier/repairer, although
 testing is very limited, and there are no web interfaces to trigger repair
-yet. The "Check" button next to each file or directory on the webapi page
+yet. The "Check" button next to each file or directory on the wapi page
 will perform a file check, and the "deep check" button on each directory will
 recursively check all files and directories reachable from there (which may
 take a very long time).
@@ -442,7 +442,7 @@ the incidents/ directory for a second time.
 
 If no servers are available when retrieving a mutable file (like a
 directory), the node now reports an error instead of hanging forever. Earlier
-releases would not only hang (causing the webapi directory listing to get
+releases would not only hang (causing the wapi directory listing to get
 stuck half-way through), but the internal dirnode serialization would cause
 all subsequent attempts to retrieve or modify the same directory to hang as
 well. #463
@@ -467,7 +467,7 @@ directories, recursive copy in or out of the storage grid, hardlinks, and
 retrieving the raw read- or write- caps through the 'ls' command. Please read
 docs/CLI.txt for complete details.
 
-** webapi: new pages, new commands
+** wapi: new pages, new commands
 
 Several new pages were added to the web API:
 
@@ -488,7 +488,7 @@ Several new options to the GET command were added:
 
 POST is now preferred over PUT for most operations which cause side-effects.
 
-Most webapi calls now accept overwrite=, and default to overwrite=true .
+Most wapi calls now accept overwrite=, and default to overwrite=true .
 
 "POST /uri/DIRCAP/parent/child?t=mkdir" is now the preferred API to create
 multiple directories at once, rather than ...?t=mkdir-p .
@@ -520,7 +520,7 @@ method) and is less likely to lose data when several uncoordinated writers
 change a file at the same time.
 
 In addition, a single Tahoe process will coordinate its own writes. If you
-make two concurrent directory-modifying webapi calls to a single tahoe node,
+make two concurrent directory-modifying wapi calls to a single tahoe node,
 it will internally make one of them wait for the other to complete. This
 prevents auto-collision (#391).
 
@@ -541,8 +541,8 @@ first attempt, but once any attempt succeeds, the other server connections
 will be retried immediately.
 
 A new "offloaded KeyGenerator" facility can be configured, to move RSA key
-generation out from, say, a webapi node, into a separate process. RSA keys
-can take several seconds to create, and so a webapi node which is being used
+generation out from, say, a wapi node, into a separate process. RSA keys
+can take several seconds to create, and so a wapi node which is being used
 for directory creation will be unavailable for anything else during this
 time. The Key Generator process will pre-compute a small pool of keys, to
 speed things up further. This also takes better advantage of multi-core CPUs,
