@@ -46,7 +46,7 @@ and deep-check operations. When these operations finish, they display a
 results page that summarizes any problems that were encountered. All
 long-running deep-traversal operations, including deep-check, use a
 start-and-poll mechanism, to avoid depending upon a single long-lived HTTP
-connection. docs/frontends/wapi.txt has details.
+connection. docs/frontends/webapi.txt has details.
 
 ** Configuration Changes: single INI-format tahoe.cfg file
 

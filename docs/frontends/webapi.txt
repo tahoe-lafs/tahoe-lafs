@@ -151,7 +151,7 @@ that file with:
 
 Multiple levels of subdirectories can be handled this way:
 
- http://127.0.0.1:3456/uri/$DIRCAP/tahoe-source/docs/wapi.txt
+ http://127.0.0.1:3456/uri/$DIRCAP/tahoe-source/docs/webapi.txt
 
 In this document, when we need to refer to a URL that references a file using
 this child-of-some-directory format, we'll use the following string:

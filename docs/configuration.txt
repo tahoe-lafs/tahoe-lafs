@@ -49,7 +49,7 @@ nickname = (UTF-8 string, optional)
 web.port = (strports string, optional)
 
  This controls where the node's webserver should listen, providing filesystem
- access and node status as defined in wapi.txt . This file contains a
+ access and node status as defined in webapi.txt . This file contains a
  Twisted "strports" specification such as "3456" or
  "tcp:3456:interface=127.0.0.1". The 'tahoe create-client' command sets the
  web.port to "tcp:3456:interface=127.0.0.1" by default, and is overridable by
