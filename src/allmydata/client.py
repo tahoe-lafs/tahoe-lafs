@@ -24,6 +24,7 @@ from allmydata.uri import LiteralFileURI
 from allmydata.dirnode import NewDirectoryNode
 from allmydata.mutable.filenode import MutableFileNode, MutableWatcher
 from allmydata.stats import StatsProvider
+from allmydata.history import History
 from allmydata.interfaces import IURI, INewDirectoryURI, IStatsProducer, \
      IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, RIStubClient
 
@@ -188,6 +189,7 @@ class Client(node.Node, pollmixin.PollMixin):
         convergence_s = self.get_or_create_private_config('convergence', _make_secret)
         self.convergence = base32.a2b(convergence_s)
         self._node_cache = weakref.WeakValueDictionary() # uri -> node
+        self.add_service(History())
         self.add_service(Uploader(helper_furl, self.stats_provider))
         download_cachedir = os.path.join(self.basedir,
                                          "private", "cache", "download")
@@ -207,6 +209,9 @@ class Client(node.Node, pollmixin.PollMixin):
         d.addCallback(_publish)
         d.addErrback(log.err, facility="tahoe.init",
                      level=log.BAD, umid="OEHq3g")
+
+    def get_history(self):
+        return self.getServiceNamed("history")
 
     def init_control(self):
         d = self.when_tub_ready()
@@ -414,8 +419,7 @@ class Client(node.Node, pollmixin.PollMixin):
         return uploader.list_all_upload_statuses()
 
     def list_all_download_statuses(self):
-        downloader = self.getServiceNamed("downloader")
-        return downloader.list_all_download_statuses()
+        return self.get_history().list_all_download_statuses()
 
     def list_all_mapupdate_statuses(self):
         watcher = self.getServiceNamed("mutable-watcher")

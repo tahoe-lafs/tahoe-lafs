@@ -1164,16 +1164,13 @@ class Downloader(service.MultiService):
     # It is scheduled to go away, to be replaced by filenode.download()
     implements(IDownloader)
     name = "downloader"
-    MAX_DOWNLOAD_STATUSES = 10
 
     def __init__(self, stats_provider=None):
         service.MultiService.__init__(self)
         self.stats_provider = stats_provider
         self._all_downloads = weakref.WeakKeyDictionary() # for debugging
-        self._all_download_statuses = weakref.WeakKeyDictionary()
-        self._recent_download_statuses = []
 
-    def download(self, u, t, _log_msg_id=None, monitor=None):
+    def download(self, u, t, _log_msg_id=None, monitor=None, history=None):
         assert self.parent
         assert self.running
         u = IFileURI(u)
@@ -1192,26 +1189,17 @@ class Downloader(service.MultiService):
         if not monitor:
             monitor=Monitor()
         dl = CiphertextDownloader(self.parent, u.get_verify_cap(), target, monitor=monitor)
-        self._add_download(dl)
+        self._all_downloads[dl] = None
+        s = dl.get_download_status()
+        if history:
+            history.add_download(s)
         d = dl.start()
         return d
 
     # utility functions
-    def download_to_data(self, uri, _log_msg_id=None):
-        return self.download(uri, Data(), _log_msg_id=_log_msg_id)
+    def download_to_data(self, uri, _log_msg_id=None, history=None):
+        return self.download(uri, Data(), _log_msg_id=_log_msg_id, history=history)
     def download_to_filename(self, uri, filename, _log_msg_id=None):
         return self.download(uri, FileName(filename), _log_msg_id=_log_msg_id)
     def download_to_filehandle(self, uri, filehandle, _log_msg_id=None):
         return self.download(uri, FileHandle(filehandle), _log_msg_id=_log_msg_id)
-
-    def _add_download(self, downloader):
-        self._all_downloads[downloader] = None
-        s = downloader.get_download_status()
-        self._all_download_statuses[s] = None
-        self._recent_download_statuses.append(s)
-        while len(self._recent_download_statuses) > self.MAX_DOWNLOAD_STATUSES:
-            self._recent_download_statuses.pop(0)
-
-    def list_all_download_statuses(self):
-        for ds in self._all_download_statuses:
-            yield ds

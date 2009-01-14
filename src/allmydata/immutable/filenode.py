@@ -266,11 +266,14 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
 
     def download(self, target):
         downloader = self._client.getServiceNamed("downloader")
-        return downloader.download(self.get_uri(), target, self._parentmsgid)
+        history = self._client.get_history()
+        return downloader.download(self.get_uri(), target, self._parentmsgid,
+                                   history=history)
 
     def download_to_data(self):
         downloader = self._client.getServiceNamed("downloader")
-        return downloader.download_to_data(self.get_uri())
+        history = self._client.get_history()
+        return downloader.download_to_data(self.get_uri(), history=history)
 
 class LiteralProducer:
     implements(IPushProducer)
