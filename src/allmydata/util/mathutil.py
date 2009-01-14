@@ -73,3 +73,7 @@ def log_floor(n, b):
         p *= b
         k += 1
     return k - 1
+
+def round_sigfigs(f, n):
+    fmt = "%." + str(n-1) + "e"
+    return float(fmt % f)
