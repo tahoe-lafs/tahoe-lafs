@@ -1190,9 +1190,8 @@ class Downloader(service.MultiService):
             monitor=Monitor()
         dl = CiphertextDownloader(self.parent, u.get_verify_cap(), target, monitor=monitor)
         self._all_downloads[dl] = None
-        s = dl.get_download_status()
         if history:
-            history.add_download(s)
+            history.add_download(dl.get_download_status())
         d = dl.start()
         return d
 
