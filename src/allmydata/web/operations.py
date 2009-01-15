@@ -109,7 +109,7 @@ class OphandleTable(rend.Page, service.Service):
         if ophandle in self.timers and self.timers[ophandle].active():
             self.timers[ophandle].cancel()
         self.timers.pop(ophandle, None)
-        # self.handles.pop(ophandle, None)
+        self.handles.pop(ophandle, None)
 
 class ReloadMixin:
     REFRESH_TIME = 1*MINUTE
