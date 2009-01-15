@@ -602,6 +602,8 @@ class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
     test_unicode_filename.todo = "This behavior is not yet supported, although it does happen to work (for reasons that are ill-understood) on many platforms.  See issue ticket #534."
 
     def test_dangling_symlink_vs_recursion(self):
+        if not hasattr(os, 'symlink'):
+            raise unittest.SkipTest("There is no symlink on this platform.")
         # cp -r on a directory containing a dangling symlink shouldn't assert
         self.basedir = os.path.dirname(self.mktemp())
         dn = os.path.join(self.basedir, "dir")
