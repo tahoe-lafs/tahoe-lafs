@@ -191,7 +191,7 @@ class ShowPythonPath(Command):
     def run(self):
         # TODO: --quiet suppresses the 'running show_supportlib' message.
         # Find a way to do this all the time.
-        print "PYTHONPATH=%s" % os.environ["PYTHONPATH"]
+        print "PYTHONPATH=%s" % os.environ.get("PYTHONPATH", '')
 
 class RunWithPythonPath(Command):
     description = "Run a subcommand with PYTHONPATH set appropriately"
@@ -210,10 +210,16 @@ class RunWithPythonPath(Command):
     def finalize_options(self):
         pass
     def run(self):
-        # os.environ['PYTHONPATH'] is already set by add_tahoe_paths, so we
-        # just need to exec() their command. We must require the command to
-        # be safe to split on whitespace, and have --python and --directory
-        # to make it easier to achieve this.
+        oldpp = os.environ.get("PYTHONPATH", "").split(os.pathsep)
+        if oldpp == [""]:
+            # grr silly split() behavior
+            oldpp = []
+        os.environ['PYTHONPATH'] = os.pathsep.join(oldpp + [supportlib,])
+
+        # We must require the command to be safe to split on
+        # whitespace, and have --python and --directory to make it
+        # easier to achieve this.
+
         command = []
         if self.python:
             command.append(sys.executable)
