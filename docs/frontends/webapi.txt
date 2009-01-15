@@ -670,6 +670,11 @@ POST /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=upload
 
 POST /uri/$FILECAP?t=upload
 
+ This modifies the contents of an existing mutable file in-place. An error is
+ signalled if $FILECAP does not refer to a mutable file. It behaves just like
+ the "PUT /uri/$FILECAP" form, but uses a POST for the benefit of HTML forms
+ in a web browser.
+
 === Attaching An Existing File Or Directory (by URI) ===
 
 POST /uri/$DIRCAP/[SUBDIRS../]?t=uri&name=CHILDNAME&uri=CHILDCAP
