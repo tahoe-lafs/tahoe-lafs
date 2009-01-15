@@ -20,6 +20,7 @@ theorems-ams-extended
 \font_tt_scale 100
 
 \graphics default
+\float_placement h
 \paperfontsize default
 \spacing single
 \use_hyperref false
@@ -52,6 +53,14 @@ Tahoe Distributed Filesharing System Loss Model
 
 \begin_layout Author
 Shawn Willden
+\end_layout
+
+\begin_layout Date
+01/14/2009
+\end_layout
+
+\begin_layout Address
+South Weber, Utah
 \end_layout
 
 \begin_layout Email
@@ -91,11 +100,11 @@ Over time shares are lost for a variety of reasons.
 
  and determines how many of the shares remain.
  If less than 
-\begin_inset Formula $R$
+\begin_inset Formula $L$
 \end_inset
 
  (
-\begin_inset Formula $k\leq R\leq N$
+\begin_inset Formula $k\leq L\leq N$
 \end_inset
 
 ) shares remain, then the repairer reconstructs the file shares and redistribute
@@ -123,7 +132,7 @@ The question we're trying to answer is "What's the probability that we'll
 \end_inset
 
 , and 
-\begin_inset Formula $R$
+\begin_inset Formula $L$
 \end_inset
 
  in order to ensure 
@@ -153,7 +162,7 @@ The question we're trying to answer is "What's the probability that we'll
 \end_inset
 
 , and setting 
-\begin_inset Formula $R=N$
+\begin_inset Formula $L=N$
 \end_inset
 
 , these choices have costs.
@@ -173,7 +182,12 @@ The question we're trying to answer is "What's the probability that we'll
 \begin_inset Formula $N,$
 \end_inset
 
- but at a cost in bandwidth.
+ but at a cost in bandwidth as the repair agent downloads 
+\begin_inset Formula $k$
+\end_inset
+
+ shares to reconstruct the file and uploads new shares to replace those
+ that are lost.
 \end_layout
 
 \begin_layout Section
@@ -283,6 +297,13 @@ decay
 
 \begin_layout Subsection
 Fixed Reliability
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Fixed-Reliability"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -319,18 +340,143 @@ In the simplest case, the peers holding the file shares all have the same
 \begin_inset Formula $p$
 \end_inset
 
- (
+.
+ That is, 
 \begin_inset Formula $K\sim B(N,p)$
 \end_inset
 
-).
- The probability mass function (PMF) of the binomial distribution is:
+.
+\end_layout
+
+\begin_layout Theorem
+Binomial Distribution Theorem
+\end_layout
+
+\begin_layout Theorem
+Consider 
+\begin_inset Formula $n$
+\end_inset
+
+ independent Bernoulli trials
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+A Bernoulli trial is simply a test of some sort that results in one of two
+ outcomes, one of which is designated success and the other failure.
+ The classic example of a Bernoulli trial is a coin toss.
+\end_layout
+
+\end_inset
+
+ that succeed with probability 
+\begin_inset Formula $p$
+\end_inset
+
+, and let 
+\begin_inset Formula $K$
+\end_inset
+
+ be a random variable that represents the number of successes.
+ We say that 
+\begin_inset Formula $K$
+\end_inset
+
+ follows the Binomial Distribution with parameters n and p, denoted 
+\begin_inset Formula $K\sim B(n,p)$
+\end_inset
+
+.
+ The probability that 
+\begin_inset Formula $K$
+\end_inset
+
+ takes a particular value 
+\begin_inset Formula $m$
+\end_inset
+
+ (the probability that there are exactly 
+\begin_inset Formula $m$
+\end_inset
+
+ successful trials, and therefore 
+\begin_inset Formula $n-m$
+\end_inset
+
+ failures) is called the probability mass function and is given by:
 \begin_inset Formula \begin{equation}
-Pr(K=i)=f(i;N,p)=\binom{n}{i}p^{i}(1-p)^{n-i}\label{eq:binomial-pdf}\end{equation}
+Pr[K=m]=f(m;n,p)=\binom{n}{p}p^{m}(1-p)^{n-m}\label{eq:binomial-pmf}\end{equation}
 
 \end_inset
 
 
+\end_layout
+
+\begin_layout Proof
+Consider the specific case of exactly 
+\begin_inset Formula $m$
+\end_inset
+
+ successes followed by 
+\begin_inset Formula $n-m$
+\end_inset
+
+ failures, because each success has probability 
+\begin_inset Formula $p$
+\end_inset
+
+, each failure has probability 
+\begin_inset Formula $1-p$
+\end_inset
+
+, and the trials are independent, the probability of this exact case occurring
+ is 
+\begin_inset Formula $p^{m}\left(1-p\right)^{\left(n-m\right)}$
+\end_inset
+
+, the product of the probabilities of the outcome of each trial.
+\end_layout
+
+\begin_layout Proof
+Now consider any reordering of these 
+\begin_inset Formula $m$
+\end_inset
+
+ successes and 
+\begin_inset Formula $n$
+\end_inset
+
+ failures.
+ Any such reordering occurs with the same probability 
+\begin_inset Formula $p^{m}\left(1-p\right)^{\left(n-m\right)}$
+\end_inset
+
+, but with the terms of the product reordered.
+ Since multiplication is commutative, each such reordering has the same
+ probability.
+ There are n-choose-m such orderings, and each ordering is an independent
+ event, so the probability that any ordering of 
+\begin_inset Formula $m$
+\end_inset
+
+ successes and 
+\begin_inset Formula $n-m$
+\end_inset
+
+ failures occurs is given by
+\begin_inset Formula \[
+\binom{n}{m}p^{m}\left(1-p\right)^{\left(n-m\right)}\]
+
+\end_inset
+
+which is the right-hand-side of equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:binomial-pmf"
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard
@@ -346,7 +492,7 @@ A file survives if at least
  Equation 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "eq:binomial-pdf"
+reference "eq:binomial-pmf"
 
 \end_inset
 
@@ -354,7 +500,11 @@ reference "eq:binomial-pdf"
 \begin_inset Formula $i$
 \end_inset
 
- shares survive, so the probability that fewer than 
+ shares survive, for any 
+\begin_inset Formula $1\leq i\leq n$
+\end_inset
+
+, so the probability that fewer than 
 \begin_inset Formula $k$
 \end_inset
 
@@ -368,7 +518,7 @@ reference "eq:binomial-pdf"
 
 \begin_layout Standard
 \begin_inset Formula \begin{equation}
-Pr[failure]=\sum_{i=0}^{k-1}\binom{n}{i}p^{i}(1-p)^{n-i}\label{eq:simple-failure}\end{equation}
+Pr[file\, lost]=\sum_{i=0}^{k-1}\binom{n}{i}p^{i}(1-p)^{n-i}\label{eq:simple-failure}\end{equation}
 
 \end_inset
 
@@ -377,6 +527,13 @@ Pr[failure]=\sum_{i=0}^{k-1}\binom{n}{i}p^{i}(1-p)^{n-i}\label{eq:simple-failure
 
 \begin_layout Subsection
 Independent Reliability
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Independent-Reliability"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -388,7 +545,7 @@ reference "eq:simple-failure"
 \end_inset
 
  assumes that each share has the same probability of survival, but as explained
- above, this is not typically true.
+ above, this is not necessarily true.
  A more accurate model allows each share 
 \begin_inset Formula $s_{i}$
 \end_inset
@@ -408,12 +565,16 @@ reference "eq:simple-failure"
 \begin_inset Formula $K$
 \end_inset
 
- follows a generalized distribution with parameters 
+ follows a generalized binomial distribution with parameters 
 \begin_inset Formula $N$
 \end_inset
 
  and 
-\begin_inset Formula $p_{i},1\leq i\leq N$
+\begin_inset Formula $p_{i}$
+\end_inset
+
+ where 
+\begin_inset Formula $1\leq i\leq N$
 \end_inset
 
 .
@@ -447,27 +608,38 @@ S_{i}=\begin{cases}
 
 \begin_layout Standard
 The PMF for 
-\begin_inset Formula $Si$
+\begin_inset Formula $S_{i}$
 \end_inset
 
- is very simple, 
-\begin_inset Formula $Pr(S_{i}=1)=p_{i}$
+ is very simple: 
+\begin_inset Formula \[
+Pr[S_{i}=j]=\begin{cases}
+1-p_{i} & j=0\\
+p_{i} & j=1\end{cases}\]
+
 \end_inset
 
- and 
-\begin_inset Formula $Pr(S_{i}=0)=p_{i}$
-\end_inset
 
-.
 \end_layout
 
 \begin_layout Standard
-Observe that 
-\begin_inset Formula $\sum_{i=1}^{N}S_{i}=K$
+Note that since each 
+\begin_inset Formula $S_{i}$
 \end_inset
 
-.
- Effectively, 
+ represents the count of shares 
+\begin_inset Formula $s_{i}$
+\end_inset
+
+ that survives (either 0 or 1), if we add up all of the individual survivor
+ counts, we get the group survivor count.
+ That is:
+\begin_inset Formula \[
+\sum_{i=1}^{N}S_{i}=K\]
+
+\end_inset
+
+Effectively, 
 \begin_inset Formula $K$
 \end_inset
 
@@ -475,8 +647,12 @@ Observe that
  up.
 \end_layout
 
-\begin_layout Standard
-The discrete convolution theorem states that given random variables 
+\begin_layout Theorem
+Discrete Convolution Theorem
+\end_layout
+
+\begin_layout Theorem
+Let 
 \begin_inset Formula $X$
 \end_inset
 
@@ -484,39 +660,47 @@ The discrete convolution theorem states that given random variables
 \begin_inset Formula $Y$
 \end_inset
 
- and their sum 
-\begin_inset Formula $Z=X+Y$
-\end_inset
-
-, if 
-\begin_inset Formula $Pr[X=x]=f(x)$
+ be discrete random variables with probability mass functions given by 
+\begin_inset Formula $Pr\left[X=x\right]=f(x)$
 \end_inset
 
  and 
-\begin_inset Formula $Pr[Y=y]=f(y)$
+\begin_inset Formula $Pr\left[Y=y\right]=g(y).$
 \end_inset
 
- then 
-\begin_inset Formula $Pr[Z=z]=(f\star g)(z)$
+ Let 
+\begin_inset Formula $Z$
 \end_inset
 
- where 
+ be the discrete random random variable obtained by summing 
+\begin_inset Formula $X$
+\end_inset
+
+ and 
+\begin_inset Formula $Y$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Theorem
+The probability mass function of 
+\begin_inset Formula $Z$
+\end_inset
+
+ is given by
+\begin_inset Formula \[
+Pr[Z=z]=h(z)=\left(f\star g\right)(z)\]
+
+\end_inset
+
+where 
 \begin_inset Formula $\star$
 \end_inset
 
- denotes the convolution operation.
- Stated in English, the probability mass function of the sum of two random
- variables is the convolution of the probability mass functions of the two
- random variables.
-\end_layout
-
-\begin_layout Standard
-Discrete convolution is defined as
-\end_layout
-
-\begin_layout Standard
+ denotes the discrete convolution operation:
 \begin_inset Formula \[
-(f\star g)(n)=\sum_{m=-\infty}^{\infty}f(m)\cdot g(n-m)\]
+\left(f\star g\right)\left(n\right)=\sum_{m=-\infty}^{\infty}f\left(m\right)g\left(m-n\right)\]
 
 \end_inset
 
@@ -524,12 +708,7 @@ Discrete convolution is defined as
 \end_layout
 
 \begin_layout Standard
-The infinite summation is no problem because the probability mass functions
- we need to convolve are zero outside of a small range.
-\end_layout
-
-\begin_layout Standard
-According to the discrete convolution theorem, then, if 
+Applying to the discrete convolution theorem, if 
 \begin_inset Formula $Pr[K=i]=f(i)$
 \end_inset
 
@@ -538,10 +717,6 @@ According to the discrete convolution theorem, then, if
 \end_inset
 
 , then 
-\begin_inset Formula $ $
-\end_inset
-
-
 \begin_inset Formula $f=g_{1}\star g_{2}\star g_{3}\star\ldots\star g_{N}$
 \end_inset
 
@@ -556,21 +731,21 @@ f=(g_{1}\star g_{2})\star g_{3})\star\ldots)\star g_{N})\label{eq:convolution}\e
 
 \end_inset
 
-which enables 
+Therefore, 
 \begin_inset Formula $f$
 \end_inset
 
- to be implemented as a sequence of convolution operations on the simple
- PMFs of the random variables 
+ can be computed as a sequence of convolution operations on the simple PMFs
+ of the random variables 
 \begin_inset Formula $S_{i}$
 \end_inset
 
 .
- In fact, as values of 
+ In fact, for large 
 \begin_inset Formula $N$
 \end_inset
 
- get large, equation 
+ equation 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "eq:convolution"
@@ -585,7 +760,7 @@ reference "eq:convolution"
  the binomial calculation in equation 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "eq:binomial-pdf"
+reference "eq:binomial-pmf"
 
 \end_inset
 
@@ -627,6 +802,13 @@ th element in the list corresponds to
 
 \begin_layout Subsection
 Multiple Failure Modes
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Multiple-Failure-Modes"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -636,13 +818,12 @@ In modeling share survival probabilities, it's useful to be able to analyze
  mass function for that form of failure can be generated.
  Similarly, statistics on other hardware failures, administrative errors,
  network losses, etc., can all be estimated independently.
- If those estimates can then be combined into a single PMF for that server,
- then we can use it to predict failures for that server.
+ If those estimates can then be combined into a single PMF for a share,
+ then we can use it to predict failures for that share.
 \end_layout
 
 \begin_layout Standard
-In the case of independent failure modes for a single server, this is very
- simple to do.
+Combining independent failure modes for a single share is straightforward.
  If 
 \begin_inset Formula $p_{i,j}$
 \end_inset
@@ -651,37 +832,1069 @@ In the case of independent failure modes for a single server, this is very
 \begin_inset Formula $j$
 \end_inset
 
-th failure mode of server 
+th failure mode of share 
 \begin_inset Formula $i$
 \end_inset
 
-, and there are 
-\begin_inset Formula $m$
+, 
+\begin_inset Formula $1\leq j\leq m$
 \end_inset
 
- failure modes then
+, then 
 \begin_inset Formula \[
-p_{i}=\prod_{j=1}^{m}p_{i,j}\]
+Pr[S_{i}=k]=f_{i}(k)=\begin{cases}
+\prod_{j=1}^{m}p_{i,j} & k=1\\
+1-\prod_{j=1}^{m}p_{i,j} & k=0\end{cases}\]
 
 \end_inset
 
- is the probability of server 
-\begin_inset Formula $i$
+is the survival PMF.
+\end_layout
+
+\begin_layout Subsection
+Multi-share failures
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Multi-share-failures"
+
 \end_inset
 
-'s survival and
-\begin_inset Formula \[
-Pr[S_{i}=k]=f(k)=\begin{cases}
-1-p_{i} & k=0\\
-p_{i} & k=1\end{cases}\]
 
-\end_inset
-
- is the full survival PMF.
 \end_layout
 
 \begin_layout Standard
+If there are failure modes that affect multiple computers, we can also construct
+ the PMF that predicts their survival.
+ The key observation is that the PMF has non-zero probabilities only for
+ 
+\begin_inset Formula $0$
+\end_inset
 
+ survivors and 
+\begin_inset Formula $n$
+\end_inset
+
+ survivors, where 
+\begin_inset Formula $n$
+\end_inset
+
+ is the number of shares in the set.
+ If 
+\begin_inset Formula $p$
+\end_inset
+
+ is the probability of survival, the PMF of 
+\begin_inset Formula $K$
+\end_inset
+
+, a random variable representing the number of surviors is
+\begin_inset Formula \[
+Pr[K=i]=f(i)=\begin{cases}
+p & i=n\\
+0 & 0<i<n\\
+1-p & i=0\end{cases}\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Group failures due to multiple independent causes can be combined as in
+ section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Multiple-Failure-Modes"
+
+\end_inset
+
+, as long as they apply to the whole group.
+\end_layout
+
+\begin_layout Example
+Putting the Pieces Together
+\end_layout
+
+\begin_layout Standard
+Sections 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Fixed-Reliability"
+
+\end_inset
+
+ through 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Multi-share-failures"
+
+\end_inset
+
+ provide ways of calculating the survival probability mass functions for
+ a variety of share failure structures and modes.
+ As an example of how these pieces can be used, consider a network with
+ the following peers:
+\end_layout
+
+\begin_layout Itemize
+Four servers located in a data center in Nebraska.
+ The machines have multiply-redundant Internet connections, with a failure
+ probability of 0.0001.
+ They store their shares on RAID arrays with failure probability of 0.0002.
+ The administrative staff makes data-destroying errors with probability
+ 0.003.
+\end_layout
+
+\begin_layout Itemize
+Four servers located in a data center on the island of Hawaii.
+ These servers have identical failure probabilities as the servers in Nebraska,
+ except that the data center is near the edge of the crater on Mount Kilauea
+ (nobody said examples had to be realistic).
+ There is a 0.04 chance that the volcano will erupt and bury the data center
+ in molten lava, destroying it entirely.
+\end_layout
+
+\begin_layout Itemize
+Four PCs located in random homes, connected to the Internet via assorted
+ cable modems and DSL.
+ Their network connections fail with probability 0.009.
+ Their disks fail with probability 0.001.
+ Their users destroy data with probability 0.05.
+\end_layout
+
+\begin_layout Standard
+If one share is placed on each of these 20 computers, what's the probability
+ mass function of share survival? To more compactly describe PMFs, we'll
+ denote them as probability vectors of the form 
+\begin_inset Formula $\left[\alpha_{o},\alpha_{1},\alpha_{2},\ldots\alpha_{n}\right]$
+\end_inset
+
+ where 
+\begin_inset Formula $\alpha_{i}$
+\end_inset
+
+ is the probability that exactly 
+\begin_inset Formula $i$
+\end_inset
+
+ shares survive.
+\end_layout
+
+\begin_layout Standard
+The servers in the two data centers have individual survival probabilities
+ of RAID failure (.0002) and administrative error (.003) giving 
+\begin_inset Formula \[
+(1-.0002)\cdot(1-.003)=.9998\cdot.997=.9968\]
+
+\end_inset
+
+Using 
+\begin_inset Formula $p=.9968,n=4$
+\end_inset
+
+ in equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:binomial-pmf"
+
+\end_inset
+
+ gives the survival PMF 
+\begin_inset Formula \[
+\left[1.049\times10^{-10},1.307\times10^{-7},6.105\times10^{-5},0.01271,0.9872\right]\]
+
+\end_inset
+
+which applies to each group of four servers.
+ However, each data center also has a .0001 chance of data connection loss,
+ which affects all four servers at once, and Hawaii has the additional .04
+ probability of severe lava burn.
+ If the network fails at a location, all the machines go offline together.
+ The probability that 0 machines survive is the probability that they all
+ fail for individual reasons (
+\begin_inset Formula $1.049\cdot10^{-10}$
+\end_inset
+
+) times the probability they all fail because of a network outage (
+\begin_inset Formula $.0001$
+\end_inset
+
+) less the probability they fail for both reasons:
+\begin_inset Formula \[
+\left(1.049\times10^{-10}\right)+\left(0.0001\right)-\left[\left(1.049\times10^{-10}\right)\cdot\left(0.0001\right)\right]=0.0001\]
+
+\end_inset
+
+That's the 
+\begin_inset Formula $0$
+\end_inset
+
+th element of the combined PMF.
+ The combined probability of survival of 
+\begin_inset Formula $0<i\leq4$
+\end_inset
+
+ servers is simpler: it's the probility they survive individual failure,
+ from the individual failure PMF above, times the probability they survive
+ network failure (.9999).
+ So the combined survival PMF, which we'll denote as 
+\begin_inset Formula $n(i)$
+\end_inset
+
+ of the Nebraska servers is
+\begin_inset Formula \[
+n(i)=\left[0.0001,1.306\times10^{-7},6.104\times10^{-5},0.01268,0.9872\right]\]
+
+\end_inset
+
+which has the interesting property that complete failure is 1000 times more
+ likely than survival of one server.
+ This is because the probability of a network outage is so much greater
+ than simultaneous
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+Of course, the failures need not be truly simultaneous, they just have happen
+ in the same interval between repair runs.
+\end_layout
+
+\end_inset
+
+ independent failure of three servers.
+\end_layout
+
+\begin_layout Standard
+The same process for the Hawaii servers, but with group survival probability
+ of 
+\begin_inset Formula $(1-.0001)(1-.02)=.9799$
+\end_inset
+
+ gives the survival PMF 
+\begin_inset Formula \[
+h(i)=\left[0.0201,1.280\times10^{-7},5.982\times10^{-5},0.01242,0.9674\right]\]
+
+\end_inset
+
+which has the unusual property that it's more likely that all of the servers
+ will be lost than that only one will survive.
+ This is because in order for exactly one to survive, it's necessary for
+ three to have the 
+\end_layout
+
+\begin_layout Standard
+Applying the convolution operator to 
+\begin_inset Formula $n(i)$
+\end_inset
+
+ and 
+\begin_inset Formula $h(i)$
+\end_inset
+
+, the survival PMF of all eight servers is:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula \[
+\left(n\star h\right)\left(i\right)=\begin{cases}
+2.010\times10^{-6} & i=0\\
+2.639\times10^{-9} & i=1\\
+1.233\times10^{-6} & i=2\\
+2.560\times10^{-4} & i=3\\
+0.01994 & i=4\\
+1.769\times10^{-6} & i=5\\
+2.756\times10^{-4} & i=6\\
+0.02452 & i=7\\
+0.9559 & i=8\end{cases}\]
+
+\end_inset
+
+Note the interesting fact that losing four shares is 10,000 times more likely
+ than losing three.
+ This is because both data centers have a whole-center failure modes, and
+ the Hawaii center's lava burn probability is so high.
+\end_layout
+
+\begin_layout Standard
+For the home PCs, their individual probability of survival is
+\begin_inset Formula \[
+(1-.009)\cdot(1-.001)\cdot(1-.05)=.991\cdot.999\cdot.95=.9405\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We can then apply equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:binomial-pmf"
+
+\end_inset
+
+ with 
+\begin_inset Formula $N=4$
+\end_inset
+
+ and 
+\begin_inset Formula $p=.9405$
+\end_inset
+
+ to computer the PMF 
+\begin_inset Formula $f(i),0\leq i\leq4$
+\end_inset
+
+ for the PCs and finally compute 
+\begin_inset Formula $s(i)=\left(f\star\left(n\star h\right)\right)\left(i\right)$
+\end_inset
+
+, the PMF of the whole share set.
+ Summing the values of 
+\begin_inset Formula $s(i)$
+\end_inset
+
+ for 
+\begin_inset Formula $0\leq i\leq k-1$
+\end_inset
+
+ gives the probability that less than 
+\begin_inset Formula $k$
+\end_inset
+
+ shares survive and the file is unrecoverable.
+ For this example, those sums are shown in table 
+\begin_inset CommandInset ref
+LatexCommand vref
+reference "tab:Example-PMF"
+
+\end_inset
+
+.
+\begin_inset Float table
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="13" columns="4">
+<features>
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $k$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $Pr[K=k]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $Pr[file\, loss]=Pr[K<k]$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $N/k$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1.60\times10^{-9}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2.53\times10^{-11}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+12
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3.80\times10^{-8}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $1.63\times10^{-9}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+6
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4.04\times10^{-7}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $3.70\times10^{-8}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+4
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+4
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2.06\times10^{-6}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $4.44\times10^{-7}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+5
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2.10\times10^{-5}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2.50\times10^{-6}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2.4
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+6
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.000428$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $2.35\times10^{-5}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+7
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.00417$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.000452$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1.7
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+8
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.0157$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.00462$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1.5
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+9
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.00127$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.0203$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1.3
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+10
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.0230$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.0216$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1.2
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+11
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.208$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.0446$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1.1
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+12
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.747$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $0.253$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+\align left
+\begin_inset CommandInset label
+LatexCommand label
+name "tab:Example-PMF"
+
+\end_inset
+
+Example PMF
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The table demonstrates the importance of the selection of 
+\begin_inset Formula $k$
+\end_inset
+
+, and the tradeoff against file size expansion.
+ Note that the survival of exactly 9 servers is significantly less likely
+ than the survival of 8 or 10 servers.
+ This is, again, an artifact of the group failure modes.
+ Because of this, there is no reason to choose 
+\begin_inset Formula $k=9$
+\end_inset
+
+ over 
+\begin_inset Formula $k=10$
+\end_inset
+
+.
+ Normally, reducing the number of shares needed for reassembly improve the
+ file's chances of survival, but in this case it provides a miniscule gain
+ in reliability at the cost of a 10% increase in bandwidth and storage consumed.
+\end_layout
+
+\begin_layout Section
+Long-Term Reliability
+\end_layout
+
+\begin_layout Standard
+Thus far, we've focused entirely on the probability that a file survives
+ the interval 
+\begin_inset Formula $A$
+\end_inset
+
+ between repair times.
+ The probability that a file survives long-term, though, is also important.
+ As long as the probability of failure during a repair period is non-zero,
+ a given file will eventually be lost.
+ We want to know what the probability of surviving for time 
+\begin_inset Formula $T$
+\end_inset
+
+ is, and how the parameters 
+\begin_inset Formula $A$
+\end_inset
+
+ (time between repairs) and 
+\begin_inset Formula $L$
+\end_inset
+
+ (share low watermark) affect survival time.
+\end_layout
+
+\begin_layout Standard
+To model file survival time, let 
+\begin_inset Formula $T$
+\end_inset
+
+ be a random variable denoting the time at which a given file becomes unrecovera
+ble, and 
+\begin_inset Formula $R(t)=Pr[T>t]$
+\end_inset
+
+ be a function that gives the probability that the file survives to time
+ 
+\begin_inset Formula $t$
+\end_inset
+
+.
+ 
+\begin_inset Formula $R(t)$
+\end_inset
+
+ is the cumulative distribution function of 
+\begin_inset Formula $T$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Most survival functions are continuous, but 
+\begin_inset Formula $R(t)$
+\end_inset
+
+ is inherently discrete, and stochastic.
+ The time steps are the repair intervals 
+\end_layout
+
+\begin_layout Section
+Time-Sensitive Retrieval
+\end_layout
+
+\begin_layout Standard
+The above work has almost entirely ignored the distinction between availability
+ and reliability.
+ In reality, temporary and permanent failures need to be modeled separately,
+ and 
 \end_layout
 
 \end_body
