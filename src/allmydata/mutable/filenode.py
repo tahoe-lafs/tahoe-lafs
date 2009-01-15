@@ -1,6 +1,5 @@
 
-import weakref, random
-from twisted.application import service
+import random
 
 from zope.interface import implements
 from twisted.internet import defer, reactor
@@ -407,7 +406,9 @@ class MutableFileNode:
         return self._update_servermap(servermap, mode)
     def _update_servermap(self, servermap, mode):
         u = ServermapUpdater(self, Monitor(), servermap, mode)
-        self._client.notify_mapupdate(u.get_status())
+        history = self._client.get_history()
+        if history:
+            history.notify_mapupdate(u.get_status())
         return u.update()
 
     def download_version(self, servermap, version, fetch_privkey=False):
@@ -416,7 +417,9 @@ class MutableFileNode:
     def _try_once_to_download_version(self, servermap, version,
                                       fetch_privkey=False):
         r = Retrieve(self, servermap, version, fetch_privkey)
-        self._client.notify_retrieve(r.get_status())
+        history = self._client.get_history()
+        if history:
+            history.notify_retrieve(r.get_status())
         return r.download()
 
     def upload(self, new_contents, servermap):
@@ -424,61 +427,7 @@ class MutableFileNode:
     def _upload(self, new_contents, servermap):
         assert self._pubkey, "update_servermap must be called before publish"
         p = Publish(self, servermap)
-        self._client.notify_publish(p.get_status(), len(new_contents))
+        history = self._client.get_history()
+        if history:
+            history.notify_publish(p.get_status(), len(new_contents))
         return p.publish(new_contents)
-
-
-
-
-class MutableWatcher(service.MultiService):
-    MAX_MAPUPDATE_STATUSES = 20
-    MAX_PUBLISH_STATUSES = 20
-    MAX_RETRIEVE_STATUSES = 20
-    name = "mutable-watcher"
-
-    def __init__(self, stats_provider=None):
-        service.MultiService.__init__(self)
-        self.stats_provider = stats_provider
-        self._all_mapupdate_status = weakref.WeakKeyDictionary()
-        self._recent_mapupdate_status = []
-        self._all_publish_status = weakref.WeakKeyDictionary()
-        self._recent_publish_status = []
-        self._all_retrieve_status = weakref.WeakKeyDictionary()
-        self._recent_retrieve_status = []
-
-
-    def notify_mapupdate(self, p):
-        self._all_mapupdate_status[p] = None
-        self._recent_mapupdate_status.append(p)
-        while len(self._recent_mapupdate_status) > self.MAX_MAPUPDATE_STATUSES:
-            self._recent_mapupdate_status.pop(0)
-
-    def notify_publish(self, p, size):
-        self._all_publish_status[p] = None
-        self._recent_publish_status.append(p)
-        if self.stats_provider:
-            self.stats_provider.count('mutable.files_published', 1)
-            # We must be told bytes_published as an argument, since the
-            # publish_status does not yet know how much data it will be asked
-            # to send. When we move to MDMF we'll need to find a better way
-            # to handle this.
-            self.stats_provider.count('mutable.bytes_published', size)
-        while len(self._recent_publish_status) > self.MAX_PUBLISH_STATUSES:
-            self._recent_publish_status.pop(0)
-
-    def notify_retrieve(self, r):
-        self._all_retrieve_status[r] = None
-        self._recent_retrieve_status.append(r)
-        if self.stats_provider:
-            self.stats_provider.count('mutable.files_retrieved', 1)
-            self.stats_provider.count('mutable.bytes_retrieved', r.get_size())
-        while len(self._recent_retrieve_status) > self.MAX_RETRIEVE_STATUSES:
-            self._recent_retrieve_status.pop(0)
-
-
-    def list_all_mapupdate_statuses(self):
-        return self._all_mapupdate_status.keys()
-    def list_all_publish_statuses(self):
-        return self._all_publish_status.keys()
-    def list_all_retrieve_statuses(self):
-        return self._all_retrieve_status.keys()

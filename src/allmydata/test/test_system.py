@@ -1199,11 +1199,11 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             for us in self.clients[0].list_all_upload_statuses():
                 if us.get_size() > 200:
                     self._up_status = us.get_counter()
-            rs = self.clients[0].list_all_retrieve_statuses()[0]
+            rs = list(self.clients[0].list_all_retrieve_statuses())[0]
             self._retrieve_status = rs.get_counter()
-            ps = self.clients[0].list_all_publish_statuses()[0]
+            ps = list(self.clients[0].list_all_publish_statuses())[0]
             self._publish_status = ps.get_counter()
-            us = self.clients[0].list_all_mapupdate_statuses()[0]
+            us = list(self.clients[0].list_all_mapupdate_statuses())[0]
             self._update_status = us.get_counter()
 
             # and that there are some upload- and download- status pages

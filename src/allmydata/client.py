@@ -22,7 +22,7 @@ from allmydata.util import hashutil, base32, pollmixin, cachedir
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.uri import LiteralFileURI
 from allmydata.dirnode import NewDirectoryNode
-from allmydata.mutable.filenode import MutableFileNode, MutableWatcher
+from allmydata.mutable.filenode import MutableFileNode
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import IURI, INewDirectoryURI, IStatsProducer, \
@@ -189,14 +189,13 @@ class Client(node.Node, pollmixin.PollMixin):
         convergence_s = self.get_or_create_private_config('convergence', _make_secret)
         self.convergence = base32.a2b(convergence_s)
         self._node_cache = weakref.WeakValueDictionary() # uri -> node
-        self.add_service(History())
+        self.add_service(History(self.stats_provider))
         self.add_service(Uploader(helper_furl, self.stats_provider))
         download_cachedir = os.path.join(self.basedir,
                                          "private", "cache", "download")
         self.download_cache = cachedir.CacheDirectoryManager(download_cachedir)
         self.download_cache.setServiceParent(self)
         self.add_service(Downloader(self.stats_provider))
-        self.add_service(MutableWatcher(self.stats_provider))
         def _publish(res):
             # we publish an empty object so that the introducer can count how
             # many clients are connected and see what versions they're
@@ -373,14 +372,6 @@ class Client(node.Node, pollmixin.PollMixin):
             self._node_cache[u_s] = node
         return self._node_cache[u_s]
 
-    def notify_publish(self, publish_status, size):
-        self.getServiceNamed("mutable-watcher").notify_publish(publish_status,
-                                                               size)
-    def notify_retrieve(self, retrieve_status):
-        self.getServiceNamed("mutable-watcher").notify_retrieve(retrieve_status)
-    def notify_mapupdate(self, update_status):
-        self.getServiceNamed("mutable-watcher").notify_mapupdate(update_status)
-
     def create_empty_dirnode(self):
         n = NewDirectoryNode(self)
         d = n.create(self._generate_pubprivkeys)
@@ -421,14 +412,11 @@ class Client(node.Node, pollmixin.PollMixin):
         return self.get_history().list_all_download_statuses()
 
     def list_all_mapupdate_statuses(self):
-        watcher = self.getServiceNamed("mutable-watcher")
-        return watcher.list_all_mapupdate_statuses()
+        return self.get_history().list_all_mapupdate_statuses()
     def list_all_publish_statuses(self):
-        watcher = self.getServiceNamed("mutable-watcher")
-        return watcher.list_all_publish_statuses()
+        return self.get_history().list_all_publish_statuses()
     def list_all_retrieve_statuses(self):
-        watcher = self.getServiceNamed("mutable-watcher")
-        return watcher.list_all_retrieve_statuses()
+        return self.get_history().list_all_retrieve_statuses()
 
     def list_all_helper_statuses(self):
         try:

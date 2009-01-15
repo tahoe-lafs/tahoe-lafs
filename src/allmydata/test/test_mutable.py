@@ -194,12 +194,8 @@ class FakeClient:
         d.addCallback(lambda res: n)
         return d
 
-    def notify_retrieve(self, r):
-        pass
-    def notify_publish(self, p, size):
-        pass
-    def notify_mapupdate(self, u):
-        pass
+    def get_history(self):
+        return None
 
     def create_node_from_uri(self, u):
         u = IURI(u)

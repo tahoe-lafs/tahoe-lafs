@@ -24,7 +24,9 @@ class MutableChecker:
     def check(self, verify=False):
         servermap = ServerMap()
         u = ServermapUpdater(self._node, self._monitor, servermap, MODE_CHECK)
-        self._node._client.notify_mapupdate(u.get_status())
+        history = self._node._client.get_history()
+        if history:
+            history.notify_mapupdate(u.get_status())
         d = u.update()
         d.addCallback(self._got_mapupdate_results)
         if verify:
