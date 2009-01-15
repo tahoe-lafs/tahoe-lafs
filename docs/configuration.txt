@@ -205,6 +205,18 @@ ssh.authorized_keys_file = (filename, optional)
    ssh.port = 8022
    ssh.authorized_keys_file = ~/.ssh/authorized_keys
 
+tempdir = (string, optional)
+
+ This specifies a temporary directory for the webapi server to use, for
+ holding large files while they are being uploaded. If a webapi client
+ attempts to upload a 10GB file, this tempdir will need to have at least 10GB
+ available for the upload to complete.
+
+ The default value is the "tmp" directory in the node's base directory (i.e.
+ $NODEDIR/tmp), but it can be placed elsewhere. This directory is used for
+ files that usually (on a unix system) go into /tmp . The string will be
+ interpreted relative to the node's base directory.
+
 == Client Configuration ==
 
 [client]

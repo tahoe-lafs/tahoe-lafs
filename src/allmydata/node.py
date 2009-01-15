@@ -1,5 +1,5 @@
 
-import datetime, os.path, re, types, ConfigParser
+import datetime, os.path, re, types, ConfigParser, tempfile
 from base64 import b32decode, b32encode
 
 from twisted.python import log as twlog
@@ -10,7 +10,7 @@ import foolscap.logging.log
 from allmydata import get_package_versions, get_package_versions_string
 from allmydata.util import log
 from allmydata.util import fileutil, iputil, observer
-from allmydata.util.assertutil import precondition
+from allmydata.util.assertutil import precondition, _assert
 
 from foolscap.logging import app_versions
 
@@ -65,6 +65,7 @@ class Node(service.MultiService):
         nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
         self.nickname = nickname_utf8.decode("utf-8")
 
+        self.init_tempdir()
         self.create_tub()
         self.logSource="Node"
 
@@ -72,6 +73,20 @@ class Node(service.MultiService):
         self.setup_logging()
         self.log("Node constructed. " + get_package_versions_string())
         iputil.increase_rlimits()
+
+    def init_tempdir(self):
+        local_tempdir = "tmp" # default is NODEDIR/tmp/
+        tempdir = self.get_config("node", "tempdir", local_tempdir)
+        tempdir = os.path.join(self.basedir, tempdir)
+        if not os.path.exists(tempdir):
+            fileutil.make_dirs(tempdir)
+        tempfile.tempdir = os.path.abspath(tempdir)
+        # this should cause twisted.web.http (which uses
+        # tempfile.TemporaryFile) to put large request bodies in the given
+        # directory. Without this, the default temp dir is usually /tmp/,
+        # which is frequently too small.
+        test_name = tempfile.mktemp()
+        _assert(os.path.dirname(test_name) == tempdir, test_name, tempdir)
 
     def get_config(self, section, option, default=_None, boolean=False):
         try:
