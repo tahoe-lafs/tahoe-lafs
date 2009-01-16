@@ -76,6 +76,7 @@ allmydata_tahoe.egg-info$
 ^\.built$
 
 # if setup.py needs to install plugins from eggs to satisfy setup_requires:
+^setuptools_trial.*.egg$
 ^setuptools_darcs.*.egg$
 ^darcsver.*.egg$
 ^pyutil.*.egg$
