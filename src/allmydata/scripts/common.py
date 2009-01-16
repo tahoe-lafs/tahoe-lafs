@@ -12,11 +12,17 @@ class BaseOptions:
     optFlags = [
         ["quiet", "q", "Operate silently."],
         ["version", "V", "Display version numbers and exit."],
+        ["version-and-path", "v", "Display version numbers and paths to their locations and exit."],
         ]
 
     def opt_version(self):
         import allmydata
         print allmydata.get_package_versions_string()
+        sys.exit(0)
+
+    def opt_version_and_path(self):
+        import allmydata
+        print allmydata.get_package_versions_string(show_paths=True)
         sys.exit(0)
 
 

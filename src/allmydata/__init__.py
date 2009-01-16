@@ -137,15 +137,40 @@ def get_package_versions():
         'platform': get_platform()
         }
 
-def get_package_versions_string():
+def get_package_locations():
+    import OpenSSL, allmydata, foolscap, nevow, platform, pycryptopp, setuptools, simplejson, twisted, zfec
+
+    return {
+        'pyopenssl': os.path.dirname(OpenSSL.__file__),
+        'allmydata': os.path.dirname(allmydata.__file__),
+        'foolscap': os.path.dirname(foolscap.__file__),
+        'nevow': os.path.dirname(nevow.__file__),
+        'pycryptopp': os.path.dirname(pycryptopp.__file__),
+        'setuptools': os.path.dirname(setuptools.__file__),
+        'simplejson': os.path.dirname(simplejson.__file__),
+        'twisted': os.path.dirname(twisted.__file__),
+        'zfec': os.path.dirname(zfec.__file__),
+        'python': platform.python_version(),
+        'platform': get_platform()
+        }
+
+def get_package_versions_string(show_paths=False):
     versions = get_package_versions()
+    paths = None
+    if show_paths:
+        paths = get_package_locations()
+
     res = []
     for p in ["allmydata", "foolscap", "pycryptopp", "zfec", "twisted", "nevow", "python", "platform"]:
         if versions.has_key(p):
-            res.append(str(p) + ": " + str(versions[p]))
+            info = str(p) + ": " + str(versions[p])
             del versions[p]
         else:
-            res.append(str(p) + ": UNKNOWN")
+            info = str(p) + ": UNKNOWN"
+        if show_paths:
+            info = info + " (%s)" % str(paths[p])
+        res.append(info)
+
     for p, v in versions.iteritems():
         res.append(str(p) + ": " + str(v))
     return ', '.join(res)
