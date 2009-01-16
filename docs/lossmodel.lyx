@@ -707,8 +707,48 @@ where
 
 \end_layout
 
+\begin_layout Proof
+The proof is beyond the scope of this paper.
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Quotes eld
+\end_inset
+
+Beyond the scope of this paper
+\begin_inset Quotes erd
+\end_inset
+
+ usually means 
+\begin_inset Quotes eld
+\end_inset
+
+Too long and nasty to bore you with
+\begin_inset Quotes erd
+\end_inset
+
+.
+ In this case it means 
+\begin_inset Quotes eld
+\end_inset
+
+The author hasn't the foggiest idea why this is true, or how to prove it,
+ but reliable authorities say it's real, and in practice it works a treat.
+\begin_inset Quotes erd
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+ If you don't believe it's true, look it up on Wikipedia, which is never
+ wrong.
+\end_layout
+
 \begin_layout Standard
-Applying to the discrete convolution theorem, if 
+Applying the discrete convolution theorem, if 
 \begin_inset Formula $Pr[K=i]=f(i)$
 \end_inset
 
@@ -727,7 +767,7 @@ Applying to the discrete convolution theorem, if
 
 
 \begin_inset Formula \begin{equation}
-f=(g_{1}\star g_{2})\star g_{3})\star\ldots)\star g_{N})\label{eq:convolution}\end{equation}
+f=(\ldots((g_{1}\star g_{2})\star g_{3})\star\ldots)\star g_{N})\label{eq:convolution}\end{equation}
 
 \end_inset
 
@@ -745,7 +785,7 @@ Therefore,
 \begin_inset Formula $N$
 \end_inset
 
- equation 
+, equation 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "eq:convolution"
@@ -756,7 +796,7 @@ reference "eq:convolution"
 \begin_inset Formula $K$
 \end_inset
 
- even in the case of the standard bernoulli distribution, primarily because
+ even in the case of the standard binomial distribution, primarily because
  the binomial calculation in equation 
 \begin_inset CommandInset ref
 LatexCommand ref
@@ -765,16 +805,7 @@ reference "eq:binomial-pmf"
 \end_inset
 
  produces very large values that overflow unless arbitrary precision numeric
- representations are used, or unless the binomial calculation is very cleverly
- interleaved with the powers of 
-\begin_inset Formula $p$
-\end_inset
-
- and 
-\begin_inset Formula $1-p$
-\end_inset
-
- to keep the values manageable.
+ representations are used.
 \end_layout
 
 \begin_layout Standard
@@ -1141,7 +1172,7 @@ reference "eq:binomial-pmf"
 \begin_inset Formula $p=.9405$
 \end_inset
 
- to computer the PMF 
+ to compute the PMF 
 \begin_inset Formula $f(i),0\leq i\leq4$
 \end_inset
 
@@ -1821,6 +1852,206 @@ The table demonstrates the importance of the selection of
  in reliability at the cost of a 10% increase in bandwidth and storage consumed.
 \end_layout
 
+\begin_layout Subsection
+Share Duplication
+\end_layout
+
+\begin_layout Standard
+Before moving on to consider issues other than single-interval file loss,
+ let's analyze one more possibility, that of 
+\begin_inset Quotes eld
+\end_inset
+
+cheap
+\begin_inset Quotes erd
+\end_inset
+
+ file repair via share duplication.
+\end_layout
+
+\begin_layout Standard
+Initially, files are split using erasure coding, which creates 
+\begin_inset Formula $N$
+\end_inset
+
+ unique shares, any 
+\begin_inset Formula $k$
+\end_inset
+
+ of which can be used to to reconstruct the file.
+ When shares are lost, proper repair downloads some 
+\begin_inset Formula $k$
+\end_inset
+
+ shares, reconstructs the original file and then uses the erasure coding
+ algorithm to reconstruct the lost shares, then redeploys them to peers
+ in the network.
+ This is a somewhat expensive process.
+\end_layout
+
+\begin_layout Standard
+A cheaper repair option is simply to direct some peer that has share 
+\begin_inset Formula $s_{i}$
+\end_inset
+
+ to send a copy to another peer, thus increasing by one the number of shares
+ in the network.
+ This is not as good as actually replacing the lost share, though.
+ Suppose that more shares were lost, leaving only 
+\begin_inset Formula $ $
+\end_inset
+
+
+\begin_inset Formula $k$
+\end_inset
+
+ shares remaining.
+ If two of those shares are identical, because one was duplicated in this
+ fashion, then only 
+\begin_inset Formula $k-1$
+\end_inset
+
+ shares truly remain, and the file can no longer be reconstructed.
+\end_layout
+
+\begin_layout Standard
+However, such cheap repair is not completely pointless; it does increase
+ file survivability.
+ The question is: By how much?
+\end_layout
+
+\begin_layout Standard
+Effectively, share duplication simply increases the probability that 
+\begin_inset Formula $s_{i}$
+\end_inset
+
+ will survive, by providing two locations from which to retrieve it.
+ We can view the two copies of the single share as one, but with a higher
+ probability of survival than would be provided by either of the two peers.
+ In particular, if 
+\begin_inset Formula $p_{1}$
+\end_inset
+
+ and 
+\begin_inset Formula $p_{2}$
+\end_inset
+
+ are the probabilities that the two peers will survive, respectively, then
+\begin_inset Formula \[
+Pr[s_{i}\, survives]=p_{1}+p_{2}-p_{1}p_{2}\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+More generally, if a single share is deployed on 
+\begin_inset Formula $n$
+\end_inset
+
+ peers, each with a PMF 
+\begin_inset Formula $f_{i}(j),0\leq j\leq1,1\leq i\leq n$
+\end_inset
+
+, the share survival count is a random variable 
+\begin_inset Formula $S$
+\end_inset
+
+ and the probability of share loss is 
+\begin_inset Formula \[
+Pr[S=0]=(f_{1}\star f_{2}\star\ldots\star f_{n})(0)\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+From that, we can construct a share PMF in the obvious way, which can then
+ be convolved with the other share PMFs to produce the share set PMF.
+\end_layout
+
+\begin_layout Example
+Suppose a file has 
+\begin_inset Formula $N=10,k=3$
+\end_inset
+
+ and that all servers have survival probability 
+\begin_inset Formula $p=.9$
+\end_inset
+
+.
+ Given a full complement of shares, 
+\begin_inset Formula $Pr[\textrm{file\, loss}]=3.74\times10^{-7}$
+\end_inset
+
+.
+ Suppose that four shares are lost, which increases 
+\begin_inset Formula $Pr[\textrm{file\, loss}]$
+\end_inset
+
+ to 
+\begin_inset Formula $.00127$
+\end_inset
+
+, a value 
+\begin_inset Formula $3400$
+\end_inset
+
+ times greater.
+ Rather than doing a proper reconstruction, we could direct four peers still
+ holding shares to send a copy of their share to new peer, which changes
+ the composition of the shares from one of six, unique 
+\begin_inset Quotes eld
+\end_inset
+
+standard
+\begin_inset Quotes erd
+\end_inset
+
+ shares, to one of two standard shares, each with survival probability 
+\begin_inset Formula $.9$
+\end_inset
+
+ and four 
+\begin_inset Quotes eld
+\end_inset
+
+doubled
+\begin_inset Quotes erd
+\end_inset
+
+ shares, each with survival probability 
+\begin_inset Formula $2p-p^{2}\approx.99$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Example
+Combining the two single-peer share PMFs with the four double-share PMFs
+ gives a new file survival probability of 
+\begin_inset Formula $6.64\times10^{-6}$
+\end_inset
+
+.
+ Not as good as a full repair, but still quite respectable.
+ Also, if storage were not a concern, all six shares could be duplicated,
+ for a 
+\begin_inset Formula $Pr[file\, loss]=1.48\times10^{-7}$
+\end_inset
+
+, which is actually three time better than the nominal case.
+\end_layout
+
+\begin_layout Example
+The reason such cheap repairs may be attractive in many cases is that distribute
+d bandwidth is cheaper than bandwidth through a single peer.
+ This is particularly true if that single peer has a very slow connection,
+ which is common for home computers -- especially in the outbound direction.
+\end_layout
+
 \begin_layout Section
 Long-Term Reliability
 \end_layout
@@ -1883,7 +2114,319 @@ Most survival functions are continuous, but
 \end_inset
 
  is inherently discrete, and stochastic.
- The time steps are the repair intervals 
+ The time steps are the repair intervals, each of length 
+\begin_inset Formula $A$
+\end_inset
+
+, so 
+\begin_inset Formula $T$
+\end_inset
+
+-values are multiples of 
+\begin_inset Formula $A$
+\end_inset
+
+.
+ During each interval, the file's shares degrade according to the probability
+ mass function of 
+\begin_inset Formula $K$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Aggressive Repairs
+\end_layout
+
+\begin_layout Standard
+Let's first consider the case of an aggressive repairer.
+ Every interval, this repairer checks the file for share losses and restores
+ them.
+ Thus, at the beginning of each interval, the file always has 
+\begin_inset Formula $N$
+\end_inset
+
+ shares, distributed on servers with various individual and group failure
+ probalities, which will survive or fail per the output of random variable
+ 
+\begin_inset Formula $K$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+For any interval, then, the probability that the file will survive is 
+\begin_inset Formula $f\left(k\right)=Pr[K\geq k]$
+\end_inset
+
+.
+ Since each interval success or failure is independent, and assuming the
+ share reliabilities remain constant over time, 
+\begin_inset Formula \begin{equation}
+R\left(t\right)=f(k)^{t}\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This simple survival function makes it simple to select parameters 
+\begin_inset Formula $N$
+\end_inset
+
+ and 
+\begin_inset Formula $K$
+\end_inset
+
+ such that 
+\begin_inset Formula $R(t)\geq r$
+\end_inset
+
+, where 
+\begin_inset Formula $r$
+\end_inset
+
+ is a user-specified parameter indicating the desired probability of survival
+ to time 
+\begin_inset Formula $t$
+\end_inset
+
+.
+ Specifically, we can solve for 
+\begin_inset Formula $f\left(k\right)$
+\end_inset
+
+ in 
+\begin_inset Formula $r\leq f\left(k\right)^{t}$
+\end_inset
+
+, giving:
+\begin_inset Formula \begin{equation}
+f\left(k\right)\geq\sqrt[t]{r}\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+So, given a PMF 
+\begin_inset Formula $f\left(k\right)$
+\end_inset
+
+, to assure the survival of a file to time 
+\begin_inset Formula $t$
+\end_inset
+
+ with probability at least 
+\begin_inset Formula $r$
+\end_inset
+
+, choose 
+\begin_inset Formula $k:f\left(k\right)\geq\sqrt[t]{r}$
+\end_inset
+
+.
+ For example, if 
+\begin_inset Formula $A$
+\end_inset
+
+ is one month, and 
+\begin_inset Formula $r=1-\nicefrac{1}{1000000}$
+\end_inset
+
+ and 
+\begin_inset Formula $t=120$
+\end_inset
+
+, or 10 years, we calculate 
+\begin_inset Formula $f\left(k\right)\geq\sqrt[120]{.999999}\cong0.999999992$
+\end_inset
+
+.
+ Per the PMF of table 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "tab:Example-PMF"
+
+\end_inset
+
+, this means 
+\begin_inset Formula $k=2$
+\end_inset
+
+, achieves the goal, at the cose of a six-fold expansion in stored file
+ size.
+ If the lesser goal of no more than 
+\begin_inset Formula $\nicefrac{1}{1000}$
+\end_inset
+
+ probability of loss is taken, then since 
+\begin_inset Formula $\sqrt[120]{.9999}=.999992$
+\end_inset
+
+, 
+\begin_inset Formula $k=5$
+\end_inset
+
+ achieves the goal with an expansion factor of 
+\begin_inset Formula $2.4$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Repair Cost
+\end_layout
+
+\begin_layout Standard
+The simplicity and predictability of aggressive repair is attractive, but
+ there is a downside: Repairs cost processing power and bandwidth.
+ The processing power is proportional to the size of the file, since the
+ whole file must be reconstructed and then re-processed using the Reed-Solomon
+ algorithm, while the bandwidth cost is proportional to the number of missing
+ shares that must be replaced, 
+\begin_inset Formula $N-K$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Let 
+\begin_inset Formula $c\left(s,d,k\right)$
+\end_inset
+
+ be a cost function that combines the processing cost of regenerating a
+ file of size 
+\begin_inset Formula $s$
+\end_inset
+
+ and the bandwidth cost of downloading a file of size 
+\begin_inset Formula $s$
+\end_inset
+
+ and uploading 
+\begin_inset Formula $d$
+\end_inset
+
+ shares each of size 
+\begin_inset Formula $\nicefrac{s}{k}$
+\end_inset
+
+.
+ Also, let 
+\begin_inset Formula $D$
+\end_inset
+
+ denote the random variable 
+\begin_inset Formula $N-K$
+\end_inset
+
+, which is the number of shares that must be redistributed to bring the
+ file share set back up to 
+\begin_inset Formula $N$
+\end_inset
+
+ after degrading during an interval.
+ The probability mass function of 
+\begin_inset Formula $D$
+\end_inset
+
+ is
+\begin_inset Formula \[
+Pr[D=d]=f(d)=\begin{cases}
+Pr\left[K=N\right]+Pr[K<k] & d=0\\
+Pr\left[K=N-d\right] & 0<d\leq N-k\\
+0 & N-k<d\leq N\end{cases}\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The expected cost of repairs in a given interval, then, is simply 
+\begin_inset Formula $c\left(s,E\left[D\right],k\right)$
+\end_inset
+
+ where E is the expected value function -- in this case:
+\begin_inset Formula \begin{align*}
+E[D] & =\sum_{d=0}^{N}d\cdot Pr\left[D=d\right]\\
+ & =0\cdot Pr\left[D=0\right]+\sum_{d=1}^{N-k}\left\{ d\cdot Pr\left[K=N-d\right]\right\} +\sum_{d=N-k+1}^{N}\left\{ d\cdot0\right\} \\
+ & =\sum_{d=1}^{N-k}d\cdot Pr\left[K=N-d\right]\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Since each interval starts with a full complement of shares, the expected
+ repair cost for each interval is the same, and the cost for file that survives
+ for 
+\begin_inset Formula $t$
+\end_inset
+
+ intervals is 
+\begin_inset Formula $t\cdot c\left(s,E\left[D\right]\right)$
+\end_inset
+
+.
+ To calculate the lifetime repair cost, we just take the limit over all
+ intervals as 
+\begin_inset Formula $t\rightarrow\infty$
+\end_inset
+
+, discounting each cost by the probability that the file has already failed.
+ So, the lifetime expected repair cost is
+\begin_inset Formula \begin{align*}
+\sum_{t=1}^{\infty}R\left(t-1\right)c\left(s,E\left[D\right],k\right) & =c\left(s,E\left[D\right],k\right)\sum_{t=1}^{\infty}R\left(t-1\right)\\
+ & =c\left(s,E\left[D\right],k\right)\sum_{t=1}^{\infty}f\left(k\right)^{t-1}\\
+ & =c\left(s,E\left[D\right],k\right)\cdot\frac{1}{1-f\left(k\right)}\\
+ & =\frac{c\left(s,E\left[D\right],k\right)}{1-f\left(k\right)}\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+It may also be useful to discount future cost, since CPU and bandwidth are
+ both going to get cheaper over time.
+ To accomodate this, we throw in an addition per-period discount rate 
+\begin_inset Formula $r$
+\end_inset
+
+.
+ In accordance with common discount rate usage, the discount multiplier
+ at time 
+\begin_inset Formula $t$
+\end_inset
+
+ is 
+\begin_inset Formula $\left(1-r\right)^{t}$
+\end_inset
+
+.
+ This gives:
+\begin_inset Formula \begin{align*}
+\sum_{t=1}^{\infty}\left(1-r\right){}^{t}R\left(t-1\right)c\left(s,E\left[D\right],k\right) & =c\left(s,E\left[D\right],k\right)\sum_{t=1}^{\infty}\left(1-r\right)^{t}f\left(k\right)^{t-1}\\
+ & =c\left(s,E\left[D\right],k\right)\sum_{t=1}^{\infty}\left(1-r\right)^{t}f\left(k\right)^{t-1}\\
+ & =c\left(s,E\left[D\right],k\right)\left(1-r\right)\sum_{t=1}^{\infty}\left(1-r\right)^{t-1}f\left(k\right)^{t-1}\\
+ & =\frac{c\left(s,E\left[D\right],k\right)\left(1-r\right)}{1-\left(1-r\right)f\left(k\right)}\end{align*}
+
+\end_inset
+
+If 
+\begin_inset Formula $r=0$
+\end_inset
+
+ this collapses to the previous result, as one would expect.
 \end_layout
 
 \begin_layout Section

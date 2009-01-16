@@ -87,7 +87,7 @@ def survival_pmf_via_conv(p_list):
     pmf_list = [ [1 - p, p] for p in p_list ];
     return reduce(convolve, pmf_list)
 
-def print_pmf(pmf, n):
+def print_pmf(pmf, n=4):
     """
     Print a PMF in a readable form, with values rounded to n
     significant digits. 
@@ -138,6 +138,53 @@ def find_k_from_pmf(pmf, target_loss_prob):
 
     k = len(pmf) - 1
     return k
+
+def repair_count_pmf(survival_pmf, k):
+    """
+    Return Pr[D=d], where D represents the number of shares that have
+    to be repaired at the end of an interval, starting with a full
+    set and subject to losses described in survival_pmf.
+    """
+    n = len(survival_pmf) - 1
+
+    # Probability of 0 to repair is the probability of all shares
+    # surviving plus the probability of less than k surviving.
+    pmf = [ survival_pmf[n] + sum(survival_pmf[0:k]) ]
+    
+    # Probability of more than 0, up to N-k to repair
+    for i in range(1, n-k+1):
+        pmf.append(survival_pmf[n-i])
+                   
+    # Probability of more than N-k to repair is 0, because that means
+    # there are less than k available and the file is irreparable.
+    for i in range(n-k+1, n+1):
+        pmf.append(0.0)
+
+    assert(valid_pmf(pmf))
+    return pmf
+
+def bandwidth_cost_function(file_size, shares, k, ul_dl_ratio):
+    return file_size + float(file_size) / k * shares * ul_dl_ratio
+
+def mean_repair_cost(cost_function, file_size, survival_pmf, k):
+    """
+    Return the expected cost for a repair run on a file with the given
+    survival_pmf and requiring k shares.
+    """
+    repair_pmf = repair_count_pmf(survival_pmf, k)
+    exp_cnt = sum([d * repair_pmf[d] for d in range(1, len(repair_pmf))])
+    return cost_function(file_size, exp_cnt, k)
+
+def eternal_repair_cost(cost_function, file_size, survival_pmf, k, discount_rate=0):
+    """
+    Calculate the eternal repair cost for a file that is aggressively
+    repaired.
+    """
+    c = mean_repair_cost(cost_function, file_size, survival_pmf, k)
+    f = 1 - sum(survival_pmf[0:k])
+    r = discount_rate
+
+    return (c * (1-r)) / (1 - (1-r) * f)
 
 def valid_pmf(pmf):
     """
