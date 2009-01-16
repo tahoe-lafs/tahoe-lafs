@@ -44,7 +44,7 @@ for i in range(len(sys.argv)):
         pp.append(libdir)
         os.environ['PYTHONPATH'] = os.pathsep.join(pp)
 
-    if arg.startswith("install") or arg.startswith("develop"):
+    if arg.startswith("develop"):
         if sys.platform == "linux2":
             # workaround for tahoe #229 / setuptools #17, on debian
             sys.argv.extend(["--site-dirs", "/var/lib/python-support/python%d.%d" % (sys.version_info[:2])])
