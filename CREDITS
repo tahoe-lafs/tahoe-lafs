@@ -54,3 +54,7 @@ E: cgalvan@enthought.com
 N: François Deppierraz
 D: bug fix, testing
 E: francois@ctrlaltdel.ch
+
+N: Larry Hosken
+E: tahoe@lahosken.san-francisco.ca.us
+D: make cp -r ignore dangling symlinks
