@@ -292,7 +292,8 @@ class BuildTahoe(Command):
                 f.write(line)
             f.close()
 
-        command = [sys.executable, "setup.py", "develop", "--prefix=support"]
+        command = [sys.executable, "setup.py", "develop", "--multi-version",
+            "--prefix=support"]
         print "Command:", " ".join(command)
         rc = subprocess.call(command)
         if rc < 0:
