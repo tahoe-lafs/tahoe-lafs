@@ -164,6 +164,11 @@ if 'trial' in sys.argv[1:]:
             sys.argv.append("--reactor=poll")
     setup_requires.append('setuptools_trial >= 0.2')
 
+    # Whenever we run the 'trial' command, make sure that the build_tahoe step
+    # is run as well to pass through the --multi-version flag.
+    trial_index = sys.argv.index('trial')
+    sys.argv.insert(trial_index, 'build_tahoe')
+
 # setuptools_darcs is required to produce complete distributions (such as with
 # "sdist" or "bdist_egg"), unless there is a PKG-INFO file present which shows
 # that this is itself a source distribution.
