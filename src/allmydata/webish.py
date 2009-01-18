@@ -123,10 +123,13 @@ class WebishServer(service.MultiService):
     name = "webish"
     root_class = root.Root
 
-    def __init__(self, webport, nodeurl_path=None, staticdir=None):
+    def __init__(self, webport, nodeurl_path=None, staticdir=None, 
+                 ambientUploadAuthority=False):
         service.MultiService.__init__(self)
         self.webport = webport
         self.root = self.root_class()
+        if self.root_class == root.Root:
+            self.root.setAmbientUploadAuthority(ambientUploadAuthority)
         self.site = site = appserver.NevowSite(self.root)
         self.site.requestFactory = MyRequest
         if self.root.child_operations:

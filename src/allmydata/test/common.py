@@ -437,9 +437,10 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             helper_furl = f.read()
             f.close()
             self.helper_furl = helper_furl
-            f = open(os.path.join(basedirs[3],"helper.furl"), "w")
-            f.write(helper_furl)
-            f.close()
+            if self.numclients >= 4:
+                f = open(os.path.join(basedirs[3],"helper.furl"), "w")
+                f.write(helper_furl)
+                f.close()
 
             # this starts the rest of the clients
             for i in range(1, self.numclients):
@@ -454,10 +455,11 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             l = self.clients[0].getServiceNamed("webish").listener
             port = l._port.getHost().port
             self.webish_url = "http://localhost:%d/" % port
-            # and the helper-using webport
-            l = self.clients[3].getServiceNamed("webish").listener
-            port = l._port.getHost().port
-            self.helper_webish_url = "http://localhost:%d/" % port
+            if self.numclients >=4:
+                # and the helper-using webport
+                l = self.clients[3].getServiceNamed("webish").listener
+                port = l._port.getHost().port
+                self.helper_webish_url = "http://localhost:%d/" % port
         d.addCallback(_connected)
         return d
 

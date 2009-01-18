@@ -22,6 +22,9 @@ from allmydata.web.common import abbreviate_size, IClient, \
 class URIHandler(RenderMixin, rend.Page):
     # I live at /uri . There are several operations defined on /uri itself,
     # mostly involved with creation of unlinked files and directories.
+    
+    def setAmbientUploadAuthority(self, ambientUploadAuthority):
+        self.ambientUploadAuthority = ambientUploadAuthority
 
     def render_GET(self, ctx):
         req = IRequest(ctx)
@@ -36,6 +39,9 @@ class URIHandler(RenderMixin, rend.Page):
         return there
 
     def render_PUT(self, ctx):
+        if not self.ambientUploadAuthority:
+            raise WebError("/uri handling of PUT not enabled on this node")
+
         req = IRequest(ctx)
         # either "PUT /uri" to create an unlinked file, or
         # "PUT /uri?t=mkdir" to create an unlinked directory
@@ -53,6 +59,9 @@ class URIHandler(RenderMixin, rend.Page):
         raise WebError(errmsg, http.BAD_REQUEST)
 
     def render_POST(self, ctx):
+        if not self.ambientUploadAuthority:
+            raise WebError("/uri handling of POST not enabled on this node")
+
         # "POST /uri?t=upload&file=newfile" to upload an
         # unlinked file or "POST /uri?t=mkdir" to create a
         # new directory
@@ -121,6 +130,9 @@ class Root(rend.Page):
     def __init__(self, original=None):
         rend.Page.__init__(self, original)
         self.child_operations = operations.OphandleTable()
+
+    def setAmbientUploadAuthority(self, ambientUploadAuthority):
+        self.child_uri.setAmbientUploadAuthority(ambientUploadAuthority)
 
     child_uri = URIHandler()
     child_cap = URIHandler()
