@@ -1,4 +1,3 @@
-
 import os, stat, time, weakref
 from allmydata.interfaces import RIStorageServer
 from allmydata import node
@@ -426,4 +425,3 @@ class Client(node.Node, pollmixin.PollMixin):
         except KeyError:
             return []
         return helper.get_all_upload_statuses()
-

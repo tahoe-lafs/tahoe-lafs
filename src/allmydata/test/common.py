@@ -1,4 +1,3 @@
-
 import os, random, struct
 from zope.interface import implements
 from twisted.internet import defer
@@ -1329,4 +1328,3 @@ def _corrupt_uri_extension(data):
         uriextlen = struct.unpack(">Q", data[0x0c+uriextoffset:0x0c+uriextoffset+8])[0]
 
     return corrupt_field(data, uriextoffset, uriextlen)
-
