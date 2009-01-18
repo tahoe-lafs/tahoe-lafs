@@ -1,4 +1,3 @@
-
 import time
 from twisted.application import service, strports, internet
 from twisted.web import http
@@ -123,7 +122,7 @@ class WebishServer(service.MultiService):
     name = "webish"
     root_class = root.Root
 
-    def __init__(self, webport, nodeurl_path=None, staticdir=None, 
+    def __init__(self, webport, nodeurl_path=None, staticdir=None,
                  ambientUploadAuthority=False):
         service.MultiService.__init__(self)
         self.webport = webport

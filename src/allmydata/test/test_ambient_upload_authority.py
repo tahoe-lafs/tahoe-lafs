@@ -14,19 +14,19 @@ class TestCase(SystemTestMixin, unittest.TestCase):
         self.ambientUploadAuthority = ambientUploadAuthority
 
     def _test_ambient_upload_authority(self):
-        self.webip = "127.0.0.1" 
+        self.webip = "127.0.0.1"
         self.webport = 3456
         self.basedir = self.mktemp()
 
         # set up an introducer and a node
         d = self.set_up_nodes(1)
-        d.addCallback(self._test_ambient_upload_authority2)                
+        d.addCallback(self._test_ambient_upload_authority2)
         d.addErrback(self.fail)
         return d
 
     def _set_up_nodes_extra_config(self):
         # we need to remove the 'webport' old-style config file
-        # or else the node won't start 
+        # or else the node won't start
         os.remove(os.path.join(self.getdir("client0"), "webport"))
         f = open(os.path.join(self.getdir("client0"), "tahoe.cfg"), "wt")
         f.write("\n")
@@ -41,8 +41,8 @@ class TestCase(SystemTestMixin, unittest.TestCase):
         f.write("enabled = true\n")
         f.write("\n")
         f.close()
-        
-        
+
+
     def _test_ambient_upload_authority2(self, ignored=None):
         content_type = 'multipart/form-data; boundary=----------ThIs_Is_tHe_bouNdaRY_$'
         body = '------------ThIs_Is_tHe_bouNdaRY_$\r\nContent-Disposition: form-data; name="t"\r\n\r\nupload\r\n------------ThIs_Is_tHe_bouNdaRY_$\r\nContent-Disposition: form-data; name="file"; filename="file1.txt"\r\nContent-Type: application/octet-stream\r\n\r\nsome test text\r\n------------ThIs_Is_tHe_bouNdaRY_$--\r\n'
@@ -60,7 +60,7 @@ class TestCase(SystemTestMixin, unittest.TestCase):
             f.deferred.addErrback(self._cbCheckResponse,[f,expected])
             deferreds.append(f.deferred)
             reactor.connectTCP(self.webip, self.webport, f)
-        
+
         tryRequest("uri","PUT","non contents\r\n")
         tryRequest("uri?t=mkdir","PUT")
         tryRequest("uri?t=mkdir","POST")
@@ -77,8 +77,8 @@ class TestCase(SystemTestMixin, unittest.TestCase):
         r = cmp[0]
         expected = cmp[1]
         self.failUnless(int(r.status) == expected)
-        
-        
+
+
 class TestAmbientUploadAuthorityEnabled(TestCase):
     def setUp(self):
         TestCase.setUp(self)
@@ -94,4 +94,3 @@ class TestAmbientUploadAuthorityDisabled(TestCase):
 
     def test_ambient_upload_authority_disabled(self):
         return self._test_ambient_upload_authority()
-

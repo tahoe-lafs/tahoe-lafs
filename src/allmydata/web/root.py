@@ -1,4 +1,3 @@
-
 import time
 
 from twisted.internet import address
@@ -22,7 +21,7 @@ from allmydata.web.common import abbreviate_size, IClient, \
 class URIHandler(RenderMixin, rend.Page):
     # I live at /uri . There are several operations defined on /uri itself,
     # mostly involved with creation of unlinked files and directories.
-    
+
     def setAmbientUploadAuthority(self, ambientUploadAuthority):
         self.ambientUploadAuthority = ambientUploadAuthority
 
