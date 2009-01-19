@@ -2,7 +2,6 @@ import os
 
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
-from twisted.python import log
 from twisted.web import client, http
 
 from allmydata.test.common import SystemTestMixin
