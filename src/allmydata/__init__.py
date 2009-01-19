@@ -21,7 +21,7 @@ del hush_pyflakes
 import _auto_deps
 _auto_deps.require_auto_deps()
 
-import os, platform, re, subprocess
+import os, platform, re, subprocess, sys
 _distributor_id_cmdline_re = re.compile("(?:Distributor ID:)\s*(.*)", re.I)
 _release_cmdline_re = re.compile("(?:Release:)\s*(.*)", re.I)
 
@@ -120,57 +120,60 @@ def get_platform():
     else:
         return platform.platform()
 
-def get_package_versions():
-    import OpenSSL, allmydata, foolscap, nevow, platform, pycryptopp, setuptools, simplejson, twisted, zfec
+def get_package_versions_and_locations():
+    # because there are a few dependencies that are outside setuptools's ken (Python and
+    # platform), and because setuptools might fail to find something even though import finds
+    # it:
+    import OpenSSL, allmydata, foolscap, nevow, platform, pycryptopp, setuptools, simplejson, twisted, zfec, zope.interface
 
-    return {
-        'pyopenssl': OpenSSL.__version__,
-        'allmydata': allmydata.__version__,
-        'foolscap': foolscap.__version__,
-        'nevow': nevow.__version__,
-        'pycryptopp': pycryptopp.__version__,
-        'setuptools': setuptools.__version__,
-        'simplejson': simplejson.__version__,
-        'twisted': twisted.__version__,
-        'zfec': zfec.__version__,
-        'python': platform.python_version(),
-        'platform': get_platform()
+    d1 = {
+        'pyOpenSSL': (OpenSSL.__version__, os.path.dirname(OpenSSL.__file__)),
+        'allmydata-tahoe': (allmydata.__version__, os.path.dirname(allmydata.__file__)),
+        'foolscap': (foolscap.__version__, os.path.dirname(foolscap.__file__)),
+        'Nevow': (nevow.__version__, os.path.dirname(nevow.__file__)),
+        'pycryptopp': (pycryptopp.__version__, os.path.dirname(pycryptopp.__file__)),
+        'setuptools': (setuptools.__version__, os.path.dirname(setuptools.__file__)),
+        'simplejson': (simplejson.__version__, os.path.dirname(simplejson.__file__)),
+        'zope.interface': ('unknown', os.path.dirname(zope.interface.__file__)),
+        'Twisted': (twisted.__version__, os.path.dirname(twisted.__file__)),
+        'zfec': (zfec.__version__, os.path.dirname(zfec.__file__)),
+        'python': (platform.python_version(), sys.executable),
+        'platform': (get_platform(), None),
         }
+
+    # But we prefer to get all the dependencies as known by setuptools:
+    import pkg_resources
+    try:
+        d2 = _auto_deps.get_package_versions_from_setuptools()
+    except pkg_resources.DistributionNotFound:
+        # See docstring in _auto_deps.require_auto_deps() to explain why it makes sense to ignore this exception.
+        pass
+    else:
+        d1.update(d2)
+
+    return d1
+
+def get_package_versions():
+    return dict([(k, v) for k, (v, l) in get_package_versions_and_locations().iteritems()])
 
 def get_package_locations():
-    import OpenSSL, allmydata, foolscap, nevow, platform, pycryptopp, setuptools, simplejson, twisted, zfec
-
-    return {
-        'pyopenssl': os.path.dirname(OpenSSL.__file__),
-        'allmydata': os.path.dirname(allmydata.__file__),
-        'foolscap': os.path.dirname(foolscap.__file__),
-        'nevow': os.path.dirname(nevow.__file__),
-        'pycryptopp': os.path.dirname(pycryptopp.__file__),
-        'setuptools': os.path.dirname(setuptools.__file__),
-        'simplejson': os.path.dirname(simplejson.__file__),
-        'twisted': os.path.dirname(twisted.__file__),
-        'zfec': os.path.dirname(zfec.__file__),
-        'python': platform.python_version(),
-        'platform': get_platform()
-        }
+    return dict([(k, l) for k, (v, l) in get_package_versions_and_locations().iteritems()])
 
 def get_package_versions_string(show_paths=False):
-    versions = get_package_versions()
-    paths = None
-    if show_paths:
-        paths = get_package_locations()
-
+    vers_and_locs = get_package_versions_and_locations()
     res = []
-    for p in ["allmydata", "foolscap", "pycryptopp", "zfec", "twisted", "nevow", "python", "platform"]:
-        if versions.has_key(p):
-            info = str(p) + ": " + str(versions[p])
-            del versions[p]
-        else:
-            info = str(p) + ": UNKNOWN"
+    for p in ["allmydata-tahoe", "foolscap", "pycryptopp", "zfec", "Twisted", "Nevow", "zope.interface", "python", "platform"]:
+        (ver, loc) = vers_and_locs.get(p, ('UNKNOWN', 'UNKNOWN'))
+        info = str(p) + ": " + str(ver)
         if show_paths:
-            info = info + " (%s)" % str(paths[p])
+            info = info + " (%s)" % str(loc)
         res.append(info)
+        if vers_and_locs.has_key(p):
+            del vers_and_locs[p]
 
-    for p, v in versions.iteritems():
-        res.append(str(p) + ": " + str(v))
+    for p, (v, loc) in vers_and_locs.iteritems():
+        info = str(p) + ": " + str(v)
+        if show_paths:
+            info = info + " (%s)" % str(loc)
+        res.append(info)
     return ', '.join(res)
