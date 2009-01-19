@@ -165,7 +165,7 @@ if 'trial' in sys.argv[1:]:
     setup_requires.append('setuptools_trial >= 0.2')
 
     # Whenever we run the 'trial' command, make sure that the build_tahoe step
-    # is run as well to pass through the --multi-version flag.
+    # is run as well.
     trial_index = sys.argv.index('trial')
     sys.argv.insert(trial_index, 'build_tahoe')
 
@@ -297,7 +297,7 @@ class BuildTahoe(Command):
                 f.write(line)
             f.close()
 
-        command = [sys.executable, "setup.py", "develop", "--multi-version",
+        command = [sys.executable, "setup.py", "develop",
             "--prefix=support"]
         print "Command:", " ".join(command)
         rc = subprocess.call(command)
