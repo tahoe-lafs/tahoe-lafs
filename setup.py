@@ -144,12 +144,10 @@ setup_requires = []
 # setuptools to satisfy that requirement before Nevow's setup.py tried to "import twisted".
 setup_requires.extend(['Twisted >= 2.4.0', 'setuptools_trial'])
 
-# darcsver is needed only if you want "./setup.py darcsver" to write a new
-# version stamp in src/allmydata/_version.py, with a version number derived from
-# darcs history.
+# darcsver is needed if you want "./setup.py darcsver" to write a new version stamp in
+# src/allmydata/_version.py, with a version number derived from darcs history.
 # http://pypi.python.org/pypi/darcsver
-if 'darcsver' in sys.argv[1:]:
-    setup_requires.append('darcsver >= 1.1.5')
+setup_requires.append('darcsver >= 1.1.5')
 
 # setuptools_trial is needed only if you want "./setup.py trial" to execute the tests.
 # http://pypi.python.org/pypi/setuptools_trial
