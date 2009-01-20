@@ -58,3 +58,7 @@ E: francois@ctrlaltdel.ch
 N: Larry Hosken
 E: tahoe@lahosken.san-francisco.ca.us
 D: make cp -r ignore dangling symlinks
+
+N: Toby Murray
+E: toby.murray@comlab.ox.ac.uk
+D: add web.ambient_upload_authority option
