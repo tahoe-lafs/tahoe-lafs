@@ -36,37 +36,48 @@ class BasedirMixin:
             raise usage.UsageError("<basedir> parameter is required")
         if self['basedir']:
             del self['basedir']
-        self['basedirs'] = [os.path.abspath(os.path.expanduser(b))
-                            for b in self.basedirs]
+        self['basedirs'] = [os.path.abspath(os.path.expanduser(b)) for b in self.basedirs]
 
     def parseArgs(self, *args):
+        from allmydata.util.assertutil import precondition
         self.basedirs = []
         if self['basedir']:
+            precondition(isinstance(self['basedir'], (str, unicode)), self['basedir'])
             self.basedirs.append(self['basedir'])
         if self['multiple']:
+            precondition(not [x for x in args if not isinstance(x, (str, unicode))], args)
             self.basedirs.extend(args)
         else:
             if len(args) == 0 and not self.basedirs:
                 if sys.platform == 'win32':
                     from allmydata.windows import registry
-                    self.basedirs.append(registry.get_base_dir_path())
+                    rbdp = registry.get_base_dir_path()
+                    if rbdp:
+                        precondition(isinstance(registry.get_base_dir_path(), (str, unicode)), registry.get_base_dir_path())
+                        self.basedirs.append(rbdp)
                 else:
+                    precondition(isinstance(os.path.expanduser("~/.tahoe"), (str, unicode)), os.path.expanduser("~/.tahoe"))
                     self.basedirs.append(os.path.expanduser("~/.tahoe"))
             if len(args) > 0:
+                precondition(isinstance(args[0], (str, unicode)), args[0])
                 self.basedirs.append(args[0])
             if len(args) > 1:
                 raise usage.UsageError("I wasn't expecting so many arguments")
 
 class NoDefaultBasedirMixin(BasedirMixin):
     def parseArgs(self, *args):
+        from allmydata.util.assertutil import precondition
         # create-client won't default to --basedir=~/.tahoe
         self.basedirs = []
         if self['basedir']:
+            precondition(isinstance(self['basedir'], (str, unicode)), self['basedir'])
             self.basedirs.append(self['basedir'])
         if self['multiple']:
+            precondition(not [x for x in args if not isinstance(x, (str, unicode))], args)
             self.basedirs.extend(args)
         else:
             if len(args) > 0:
+                precondition(isinstance(args[0], (str, unicode)), args[0])
                 self.basedirs.append(args[0])
             if len(args) > 1:
                 raise usage.UsageError("I wasn't expecting so many arguments")
