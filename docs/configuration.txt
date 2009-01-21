@@ -70,20 +70,6 @@ web.static = (string, optional)
  With the default settings, http://127.0.0.1:3456/static/foo.html will serve
  the contents of $BASEDIR/public_html/foo.html .
 
-web.ambient_upload_authority = (boolean, optional)
-
- This controls whether a node's web server should provide "ambient"
- upload/create authority by controlling whether it responds to PUT and
- POST requests that do not contain a cap -- i.e. those for uploading
- new unlinked files and creating new unlinked directories. If set to
- True, a node will respond to these requests as usual.  If set to
- False, a node will instead refuse these requests, returning an HTTP
- status of 'Bad Request'.  The default value is True.
-
- Note that setting this to False does not prevent performing operations
- on files and directories that already exist, since all of these operations
- require the presentation of a cap.
-
 tub.port = (integer, optional)
 
  This controls which port the node uses to accept Foolscap connections from

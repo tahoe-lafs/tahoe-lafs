@@ -266,9 +266,7 @@ class Client(node.Node, pollmixin.PollMixin):
         nodeurl_path = os.path.join(self.basedir, "node.url")
         staticdir = self.get_config("node", "web.static", "public_html")
         staticdir = os.path.expanduser(staticdir)
-        # should we provide ambient upload authority?
-        ambientUploadAuthority = self.get_config("node", "web.ambient_upload_authority", True, boolean=True)
-        ws = WebishServer(webport, nodeurl_path, staticdir, ambientUploadAuthority)
+        ws = WebishServer(webport, nodeurl_path, staticdir)
         self.add_service(ws)
 
     def init_ftp_server(self):

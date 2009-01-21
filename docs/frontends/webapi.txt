@@ -320,9 +320,6 @@ PUT /uri
  mutable file, and return its write-cap in the HTTP respose. The default is
  to create an immutable file, returning the read-cap as a response.
 
- Note that this operation is available only when the configuration setting
- 'web.ambient_upload_authority' is not False (see configuration.txt).
-
 === Creating A New Directory ===
 
 POST /uri?t=mkdir
@@ -332,9 +329,6 @@ PUT /uri?t=mkdir
  body. This does not make the newly created directory visible from the
  virtual drive. The "PUT" operation is provided for backwards compatibility:
  new code should use POST.
-
- Note that these operations are available only when the configuration setting
- 'web.ambient_upload_authority' is not False (see configuration.txt).
 
 POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
 PUT /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
@@ -578,9 +572,6 @@ POST /uri?t=mkdir
  "false"), then the HTTP response body will simply be the write-cap of the
  new directory.
 
- Note that this operation is available only when the configuration setting
- 'web.ambient_upload_authority' is not False (see configuration.txt).
-
 POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=CHILDNAME
 
  This creates a new directory as a child of the designated SUBDIR. This will
@@ -625,8 +616,6 @@ POST /uri?t=upload
  the upload results page. The default is to create an immutable file,
  returning the upload results page as a response.
 
- Note that this operation is available only when the configuration setting
- 'web.ambient_upload_authority' is not False (see configuration.txt).
 
 POST /uri/$DIRCAP/[SUBDIRS../]?t=upload
 
