@@ -48,7 +48,8 @@ if sys.platform == "win32":
 executable = os.path.join(base, "support", bin_dir, "tahoe")
 
 try:
-    subprocess.call([executable] + sys.argv[1:], env=os.environ)
+    res = subprocess.call([executable] + sys.argv[1:], env=os.environ)
+    sys.exit(res)
 except (OSError, IOError), le:
     if le.args[0] == errno.ENOENT:
         print whoami
