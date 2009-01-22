@@ -2,8 +2,8 @@
 from twisted.trial import unittest
 
 from cStringIO import StringIO
-from twisted.python import usage, runtime
-from twisted.internet import defer, utils
+from twisted.python import runtime
+from twisted.internet import utils
 import os.path, re
 from allmydata.scripts import runner
 from allmydata.util import fileutil, pollmixin
