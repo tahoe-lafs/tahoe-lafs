@@ -3,12 +3,14 @@ from twisted.trial import unittest
 
 from cStringIO import StringIO
 from twisted.python import usage, runtime
-from twisted.internet import defer
+from twisted.internet import defer, utils
 import os.path, re
 from allmydata.scripts import runner
 from allmydata.util import fileutil, pollmixin
 
-class CreateNode(unittest.TestCase):
+from allmydata.test import common_util
+
+class CreateNode(unittest.TestCase, common_util.SignalMixin):
     def workdir(self, name):
         basedir = os.path.join("test_runner", "CreateNode", name)
         fileutil.make_dirs(basedir)
@@ -17,83 +19,116 @@ class CreateNode(unittest.TestCase):
     def test_client(self):
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
-        argv = ["--quiet", "create-client", "--basedir", c1]
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        self.failUnlessEqual(err.getvalue(), "")
-        self.failUnlessEqual(out.getvalue(), "")
-        self.failUnlessEqual(rc, 0)
-        self.failUnless(os.path.exists(c1))
-        self.failUnless(os.path.exists(os.path.join(c1, "tahoe-client.tac")))
+        d = utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-client", "--basedir", c1], env=os.environ)
+        def _cb(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(out, "")
+            self.failUnlessEqual(rc_or_sig, 0)
+            self.failUnless(os.path.exists(c1))
+            self.failUnless(os.path.exists(os.path.join(c1, "tahoe-client.tac")))
+        d.addCallback(_cb)
 
-        # creating the client a second time should throw an exception
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        self.failIfEqual(rc, 0)
-        self.failUnlessEqual(out.getvalue(), "")
-        self.failUnless("is not empty." in err.getvalue())
+        def _then_try_again(unused=None):
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-client", "--basedir", c1], env=os.environ)
+        d.addCallback(_then_try_again)
 
-        # Fail if there is a line that doesn't end with a PUNCTUATION MARK.
-        self.failIf(re.search("[^\.!?]\n", err.getvalue()), err.getvalue())
+        def _cb2(res):
+            out, err, rc_or_sig = res
+            # creating the client a second time should throw an exception
+            self.failIfEqual(rc_or_sig, 0, str((out, err, rc_or_sig)))
+            self.failUnlessEqual(out, "")
+            self.failUnless("is not empty." in err)
+
+            # Fail if there is a line that doesn't end with a PUNCTUATION MARK.
+            self.failIf(re.search("[^\.!?]\n", err), err)
+        d.addCallback(_cb2)
 
         c2 = os.path.join(basedir, "c2")
-        argv = ["--quiet", "create-client", c2]
-        runner.runner(argv)
-        self.failUnless(os.path.exists(c2))
-        self.failUnless(os.path.exists(os.path.join(c2, "tahoe-client.tac")))
+        def _then_try_new_dir(unused=None):
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-client", c2], env=os.environ)
+        d.addCallback(_then_try_new_dir)
 
-        self.failUnlessRaises(usage.UsageError,
-                              runner.runner,
-                              ["create-client", "basedir", "extraarg"],
-                              run_by_human=False)
+        def _cb3(res):
+            out, err, rc_or_sig = res
+            self.failUnless(os.path.exists(c2))
+            self.failUnless(os.path.exists(os.path.join(c2, "tahoe-client.tac")))
+        d.addCallback(_cb3)
+
+        def _then_try_badarg(unused=None):
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["create-client", "basedir", "extraarg"], env=os.environ)
+        d.addCallback(_then_try_badarg)
+
+        def _cb4(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 1)
+            self.failUnless(out.startswith("Usage"), out)
+        d.addCallback(_cb4)
+        return d
 
     def test_introducer(self):
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")
-        argv = ["--quiet", "create-introducer", "--basedir", c1]
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        self.failUnlessEqual(err.getvalue(), "")
-        self.failUnlessEqual(out.getvalue(), "")
-        self.failUnlessEqual(rc, 0)
-        self.failUnless(os.path.exists(c1))
-        self.failUnless(os.path.exists(os.path.join(c1,
-                                                    "tahoe-introducer.tac")))
+        d = utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-introducer", "--basedir", c1], env=os.environ)
+        def _cb(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(out, "")
+            self.failUnlessEqual(rc_or_sig, 0)
+            self.failUnless(os.path.exists(c1))
+            self.failUnless(os.path.exists(os.path.join(c1,
+                                                        "tahoe-introducer.tac")))
+        d.addCallback(_cb)
 
-        # creating the introducer a second time should throw an exception
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        self.failIfEqual(rc, 0)
-        self.failUnlessEqual(out.getvalue(), "")
-        self.failUnless("is not empty" in err.getvalue())
+        def _then_try_again(unused=None):
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-introducer", "--basedir", c1], env=os.environ)
+        d.addCallback(_then_try_again)
 
-        # Fail if there is a line that doesn't end with a PUNCTUATION MARK.
-        self.failIf(re.search("[^\.!?]\n", err.getvalue()), err.getvalue())
+        def _cb2(res):
+            out, err, rc_or_sig = res
+            # creating the introducer a second time should throw an exception
+            self.failIfEqual(rc_or_sig, 0)
+            self.failUnlessEqual(out, "")
+            self.failUnless("is not empty" in err)
+
+            # Fail if there is a line that doesn't end with a PUNCTUATION MARK.
+            self.failIf(re.search("[^\.!?]\n", err), err)
+        d.addCallback(_cb2)
 
         c2 = os.path.join(basedir, "c2")
-        argv = ["--quiet", "create-introducer", c2]
-        runner.runner(argv)
-        self.failUnless(os.path.exists(c2))
-        self.failUnless(os.path.exists(os.path.join(c2,
-                                                    "tahoe-introducer.tac")))
+        def _then_try_new_dir(unused=None):
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-introducer", c2], env=os.environ)
+        d.addCallback(_then_try_new_dir)
 
-        self.failUnlessRaises(usage.UsageError,
-                              runner.runner,
-                              ["create-introducer", "basedir", "extraarg"],
-                              run_by_human=False)
+        def _cb3(res):
+            out, err, rc_or_sig = res
+            self.failUnless(os.path.exists(c2))
+            self.failUnless(os.path.exists(os.path.join(c2,
+                                                        "tahoe-introducer.tac")))
+        d.addCallback(_cb3)
 
-        self.failUnlessRaises(usage.UsageError,
-                              runner.runner,
-                              ["create-introducer"],
-                              run_by_human=False)
+        def _then_try_badarg(unused=None):
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["create-introducer", "basedir", "extraarg"], env=os.environ)
+        d.addCallback(_then_try_badarg)
 
-    def test_subcommands(self):
-        self.failUnlessRaises(usage.UsageError,
-                              runner.runner,
-                              [],
-                              run_by_human=False)
+        def _cb4(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 1)
+            self.failUnless(out.startswith("Usage"), out)
+        d.addCallback(_cb4)
 
-class RunNode(unittest.TestCase, pollmixin.PollMixin):
+        def _then_try_badarg_again(unused=None):
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["create-introducer"], env=os.environ)
+        d.addCallback(_then_try_badarg_again)
+
+        def _cb5(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 1)
+            self.failUnless(out.startswith("Usage"), out)
+        d.addCallback(_cb5)
+        return d
+
+class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
     def workdir(self, name):
         basedir = os.path.join("test_runner", "RunNode", name)
         fileutil.make_dirs(basedir)
@@ -105,30 +140,33 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
             raise unittest.SkipTest("twistd does not fork under windows")
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")
-        argv = ["--quiet", "create-introducer", "--basedir", c1]
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        self.failUnlessEqual(rc, 0)
-        # by writing this file, we get ten seconds before the node will
-        # exit. This insures that even if the test fails (and the 'stop'
-        # command doesn't work), the client should still terminate.
         HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
-        open(HOTLINE_FILE, "w").write("")
-        # now it's safe to start the node
-
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
+        INTRODUCER_FURL_FILE = os.path.join(c1, "introducer.furl")
 
-        d = defer.succeed(None)
-        def _start(res):
-            argv = ["--quiet", "start", c1]
-            out,err = StringIO(), StringIO()
-            rc = runner.runner(argv, stdout=out, stderr=err)
+        d = utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-introducer", "--basedir", c1], env=os.environ)
+        def _cb(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 0)
+            # by writing this file, we get ten seconds before the node will
+            # exit. This insures that even if the test fails (and the 'stop'
+            # command doesn't work), the client should still terminate.
             open(HOTLINE_FILE, "w").write("")
-            outs = out.getvalue() ; errs = err.getvalue()
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc, outs, errs)
-            self.failUnlessEqual(rc, 0, errstr)
-            self.failUnlessEqual(outs, "", errstr)
-            self.failUnlessEqual(errs, "", errstr)
+            # now it's safe to start the node
+        d.addCallback(_cb)
+
+        def _then_start_the_node(res):
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "start", c1], env=os.environ)
+        d.addCallback(_then_start_the_node)
+
+        def _cb2(res):
+            out, err, rc_or_sig = res
+
+            open(HOTLINE_FILE, "w").write("")
+            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
+            self.failUnlessEqual(rc_or_sig, 0, errstr)
+            self.failUnlessEqual(out, "", errstr)
+            self.failUnlessEqual(err, "", errstr)
 
             # the parent (twistd) has exited. However, twistd writes the pid
             # from the child, not the parent, so we can't expect twistd.pid
@@ -138,10 +176,8 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
             # first reactor turn yet, and if we kill it too early, it won't
             # remove the twistd.pid file. So wait until it does something
             # that we know it won't do until after the first turn.
+        d.addCallback(_cb2)
 
-        d.addCallback(_start)
-
-        INTRODUCER_FURL_FILE = os.path.join(c1, "introducer.furl")
         def _node_has_started():
             return os.path.exists(INTRODUCER_FURL_FILE)
         d.addCallback(lambda res: self.poll(_node_has_started))
@@ -151,16 +187,17 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
             # rm this so we can detect when the second incarnation is ready
             os.unlink(INTRODUCER_FURL_FILE)
-            argv = ["--quiet", "restart", c1]
-            out,err = StringIO(), StringIO()
-            rc = runner.runner(argv, stdout=out, stderr=err)
-            open(HOTLINE_FILE, "w").write("")
-            outs = out.getvalue() ; errs = err.getvalue()
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc, outs, errs)
-            self.failUnlessEqual(rc, 0, errstr)
-            self.failUnlessEqual(outs, "", errstr)
-            self.failUnlessEqual(errs, "", errstr)
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "restart", c1], env=os.environ)
         d.addCallback(_started)
+
+        def _then(res):
+            out, err, rc_or_sig = res
+            open(HOTLINE_FILE, "w").write("")
+            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
+            self.failUnlessEqual(rc_or_sig, 0, errstr)
+            self.failUnlessEqual(out, "", errstr)
+            self.failUnlessEqual(err, "", errstr)
+        d.addCallback(_then)
 
         # again, the second incarnation of the node might not be ready yet,
         # so poll until it is
@@ -172,21 +209,24 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
         def _stop(res):
             open(HOTLINE_FILE, "w").write("")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
-            argv = ["--quiet", "stop", c1]
-            out,err = StringIO(), StringIO()
-            rc = runner.runner(argv, stdout=out, stderr=err)
+
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "stop", c1], env=os.environ)
+        d.addCallback(_stop)
+
+        def _after_stopping(res):
+            out, err, rc_or_sig = res
             open(HOTLINE_FILE, "w").write("")
             # the parent has exited by now
-            outs = out.getvalue() ; errs = err.getvalue()
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc, outs, errs)
-            self.failUnlessEqual(rc, 0, errstr)
-            self.failUnlessEqual(outs, "", errstr)
-            self.failUnlessEqual(errs, "", errstr)
+            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
+            self.failUnlessEqual(rc_or_sig, 0, errstr)
+            self.failUnlessEqual(out, "", errstr)
+            self.failUnlessEqual(err, "", errstr)
             # the parent was supposed to poll and wait until it sees
             # twistd.pid go away before it exits, so twistd.pid should be
             # gone by now.
             self.failIf(os.path.exists(TWISTD_PID_FILE))
-        d.addCallback(_stop)
+        d.addCallback(_after_stopping)
+
         def _remove_hotline(res):
             os.unlink(HOTLINE_FILE)
             return res
@@ -199,31 +239,33 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
             raise unittest.SkipTest("twistd does not fork under windows")
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
-        argv = ["--quiet", "create-client", "--basedir", c1, "--webport", "0"]
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        self.failUnlessEqual(rc, 0)
-        # By writing this file, we get forty seconds before the client will exit. This insures
-        # that even if the 'stop' command doesn't work (and the test fails), the client should
-        # still terminate.
         HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
-        open(HOTLINE_FILE, "w").write("")
-        open(os.path.join(c1, "introducer.furl"), "w").write("pb://xrndsskn2zuuian5ltnxrte7lnuqdrkz@127.0.0.1:55617/introducer\n")
-        # now it's safe to start the node
-
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
+        PORTNUMFILE = os.path.join(c1, "client.port")
 
-        d = defer.succeed(None)
-        def _start(res):
-            argv = ["--quiet", "start", c1]
-            out,err = StringIO(), StringIO()
-            rc = runner.runner(argv, stdout=out, stderr=err)
+        d = utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-client", "--basedir", c1, "--webport", "0"], env=os.environ)
+        def _cb(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 0)
+            # By writing this file, we get forty seconds before the client will exit. This insures
+            # that even if the 'stop' command doesn't work (and the test fails), the client should
+            # still terminate.
             open(HOTLINE_FILE, "w").write("")
-            outs = out.getvalue() ; errs = err.getvalue()
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc, outs, errs)
-            self.failUnlessEqual(rc, 0, errstr)
-            self.failUnlessEqual(outs, "", errstr)
-            self.failUnlessEqual(errs, "", errstr)
+            open(os.path.join(c1, "introducer.furl"), "w").write("pb://xrndsskn2zuuian5ltnxrte7lnuqdrkz@127.0.0.1:55617/introducer\n")
+            # now it's safe to start the node
+        d.addCallback(_cb)
+
+        def _start(res):
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "start", c1], env=os.environ)
+        d.addCallback(_start)
+
+        def _cb2(res):
+            out, err, rc_or_sig = res
+            open(HOTLINE_FILE, "w").write("")
+            errstr = "cc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
+            self.failUnlessEqual(rc_or_sig, 0, errstr)
+            self.failUnlessEqual(out, "", errstr)
+            self.failUnlessEqual(err, "", errstr)
 
             # the parent (twistd) has exited. However, twistd writes the pid
             # from the child, not the parent, so we can't expect twistd.pid
@@ -233,10 +275,8 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
             # first reactor turn yet, and if we kill it too early, it won't
             # remove the twistd.pid file. So wait until it does something
             # that we know it won't do until after the first turn.
+        d.addCallback(_cb2)
 
-        d.addCallback(_start)
-
-        PORTNUMFILE = os.path.join(c1, "client.port")
         def _node_has_started():
             return os.path.exists(PORTNUMFILE)
         d.addCallback(lambda res: self.poll(_node_has_started))
@@ -246,16 +286,19 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
             # rm this so we can detect when the second incarnation is ready
             os.unlink(PORTNUMFILE)
-            argv = ["--quiet", "restart", c1]
-            out,err = StringIO(), StringIO()
-            rc = runner.runner(argv, stdout=out, stderr=err)
-            open(HOTLINE_FILE, "w").write("")
-            outs = out.getvalue() ; errs = err.getvalue()
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc, outs, errs)
-            self.failUnlessEqual(rc, 0, errstr)
-            self.failUnlessEqual(outs, "", errstr)
-            self.failUnlessEqual(errs, "", errstr)
+
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "restart", c1], env=os.environ)
         d.addCallback(_started)
+
+        def _cb3(res):
+            out, err, rc_or_sig = res
+
+            open(HOTLINE_FILE, "w").write("")
+            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
+            self.failUnlessEqual(rc_or_sig, 0, errstr)
+            self.failUnlessEqual(out, "", errstr)
+            self.failUnlessEqual(err, "", errstr)
+        d.addCallback(_cb3)
 
         # again, the second incarnation of the node might not be ready yet,
         # so poll until it is
@@ -267,21 +310,23 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
         def _stop(res):
             open(HOTLINE_FILE, "w").write("")
             self.failUnless(os.path.exists(TWISTD_PID_FILE), (TWISTD_PID_FILE, os.listdir(os.path.dirname(TWISTD_PID_FILE))))
-            argv = ["--quiet", "stop", c1]
-            out,err = StringIO(), StringIO()
-            rc = runner.runner(argv, stdout=out, stderr=err)
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "stop", c1], env=os.environ)
+        d.addCallback(_stop)
+
+        def _cb4(res):
+            out, err, rc_or_sig = res
+
             open(HOTLINE_FILE, "w").write("")
             # the parent has exited by now
-            outs = out.getvalue() ; errs = err.getvalue()
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc, outs, errs)
-            self.failUnlessEqual(rc, 0, errstr)
-            self.failUnlessEqual(outs, "", errstr)
-            self.failUnlessEqual(errs, "", errstr)
+            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
+            self.failUnlessEqual(rc_or_sig, 0, errstr)
+            self.failUnlessEqual(out, "", errstr)
+            self.failUnlessEqual(err, "", errstr)
             # the parent was supposed to poll and wait until it sees
             # twistd.pid go away before it exits, so twistd.pid should be
             # gone by now.
             self.failIf(os.path.exists(TWISTD_PID_FILE))
-        d.addCallback(_stop)
+        d.addCallback(_cb4)
         def _remove_hotline(res):
             os.unlink(HOTLINE_FILE)
             return res
@@ -291,11 +336,15 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
     def test_baddir(self):
         basedir = self.workdir("test_baddir")
         fileutil.make_dirs(basedir)
-        argv = ["--quiet", "start", "--basedir", basedir]
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        self.failUnlessEqual(rc, 1)
-        self.failUnless("does not look like a node directory" in err.getvalue())
+
+        d = utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "start", "--basedir", basedir], env=os.environ)
+        def _cb(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 1)
+            self.failUnless("does not look like a node directory" in err)
+        d.addCallback(_cb)
+
+        d.addCallback
 
         argv = ["--quiet", "stop", "--basedir", basedir]
         out,err = StringIO(), StringIO()
@@ -318,23 +367,25 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
             raise unittest.SkipTest("twistd does not fork under windows")
         basedir = self.workdir("test_keygen")
         c1 = os.path.join(basedir, "c1")
-        argv = ["--quiet", "create-key-generator", "--basedir", c1]
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        self.failUnlessEqual(rc, 0)
-
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
+        KEYGEN_FURL_FILE = os.path.join(c1, "key_generator.furl")
 
-        d = defer.succeed(None)
+        d = utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-key-generator", "--basedir", c1], env=os.environ)
+        def _cb(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 0)
+        d.addCallback(_cb)
+
         def _start(res):
-            argv = ["--quiet", "start", c1]
-            out,err = StringIO(), StringIO()
-            rc = runner.runner(argv, stdout=out, stderr=err)
-            outs = out.getvalue() ; errs = err.getvalue()
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc, outs, errs)
-            self.failUnlessEqual(rc, 0, errstr)
-            self.failUnlessEqual(outs, "", errstr)
-            self.failUnlessEqual(errs, "", errstr)
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "start", c1], env=os.environ)
+        d.addCallback(_start)
+
+        def _cb2(res):
+            out, err, rc_or_sig = res
+            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
+            self.failUnlessEqual(rc_or_sig, 0, errstr)
+            self.failUnlessEqual(out, "", errstr)
+            self.failUnlessEqual(err, "", errstr)
 
             # the parent (twistd) has exited. However, twistd writes the pid
             # from the child, not the parent, so we can't expect twistd.pid
@@ -344,10 +395,8 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
             # first reactor turn yet, and if we kill it too early, it won't
             # remove the twistd.pid file. So wait until it does something
             # that we know it won't do until after the first turn.
+        d.addCallback(_cb2)
 
-        d.addCallback(_start)
-
-        KEYGEN_FURL_FILE = os.path.join(c1, "key_generator.furl")
         def _node_has_started():
             return os.path.exists(KEYGEN_FURL_FILE)
         d.addCallback(lambda res: self.poll(_node_has_started))
@@ -356,15 +405,16 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
             # rm this so we can detect when the second incarnation is ready
             os.unlink(KEYGEN_FURL_FILE)
-            argv = ["--quiet", "restart", c1]
-            out,err = StringIO(), StringIO()
-            rc = runner.runner(argv, stdout=out, stderr=err)
-            outs = out.getvalue() ; errs = err.getvalue()
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc, outs, errs)
-            self.failUnlessEqual(rc, 0, errstr)
-            self.failUnlessEqual(outs, "", errstr)
-            self.failUnlessEqual(errs, "", errstr)
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "restart", c1], env=os.environ)
         d.addCallback(_started)
+
+        def _cb3(res):
+            out, err, rc_or_sig = res
+            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
+            self.failUnlessEqual(rc_or_sig, 0, errstr)
+            self.failUnlessEqual(out, "", errstr)
+            self.failUnlessEqual(err, "", errstr)
+        d.addCallback(_cb3)
 
         # again, the second incarnation of the node might not be ready yet,
         # so poll until it is
@@ -375,18 +425,19 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin):
         # 'tahoe stop' command takes a while.
         def _stop(res):
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
-            argv = ["--quiet", "stop", c1]
-            out,err = StringIO(), StringIO()
-            rc = runner.runner(argv, stdout=out, stderr=err)
+            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "stop", c1], env=os.environ)
+        d.addCallback(_stop)
+
+        def _cb4(res):
+            out, err, rc_or_sig = res
             # the parent has exited by now
-            outs = out.getvalue() ; errs = err.getvalue()
-            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc, outs, errs)
-            self.failUnlessEqual(rc, 0, errstr)
-            self.failUnlessEqual(outs, "", errstr)
-            self.failUnlessEqual(errs, "", errstr)
+            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
+            self.failUnlessEqual(rc_or_sig, 0, errstr)
+            self.failUnlessEqual(out, "", errstr)
+            self.failUnlessEqual(err, "", errstr)
             # the parent was supposed to poll and wait until it sees
             # twistd.pid go away before it exits, so twistd.pid should be
             # gone by now.
             self.failIf(os.path.exists(TWISTD_PID_FILE))
-        d.addCallback(_stop)
+        d.addCallback(_cb4)
         return d
