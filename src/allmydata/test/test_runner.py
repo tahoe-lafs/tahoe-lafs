@@ -9,6 +9,20 @@ from allmydata.scripts import runner
 from allmydata.util import fileutil, pollmixin
 
 from allmydata.test import common_util
+import allmydata
+
+class TheRightCode(unittest.TestCase, common_util.SignalMixin):
+    def test_path(self):
+        d = utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--version-and-path"], env=os.environ)
+        def _cb(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 0)
+
+            # Fail unless the allmydata-tahoe package is *this* version *and* was loaded from *this* source directory.
+            required_ver_and_path = "allmydata-tahoe: %s (%s)" % (allmydata.__version__, os.path.dirname(os.path.dirname(allmydata.__file__)))
+            self.failUnless(out.startswith(required_ver_and_path), (out, err, rc_or_sig))
+        d.addCallback(_cb)
+        return d
 
 class CreateNode(unittest.TestCase, common_util.SignalMixin):
     def workdir(self, name):
