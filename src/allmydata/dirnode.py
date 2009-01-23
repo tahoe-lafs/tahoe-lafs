@@ -226,6 +226,11 @@ class NewDirectoryNode:
     def get_verify_cap(self):
         return self._uri.get_verify_cap()
 
+    def get_repair_cap(self):
+        if self._node.is_readonly():
+            return None
+        return self._uri
+
     def get_storage_index(self):
         return self._uri._filenode_uri.storage_index
 

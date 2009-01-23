@@ -297,6 +297,8 @@ class Dirnode(unittest.TestCase,
             self.failUnless(u_ro.startswith("URI:DIR2-RO:"), u_ro)
             u_v = n.get_verify_cap().to_string()
             self.failUnless(u_v.startswith("URI:DIR2-Verifier:"), u_v)
+            u_r = n.get_repair_cap().to_string()
+            self.failUnlessEqual(u_r, u)
             self.expected_manifest.append( ((), u) )
             self.expected_verifycaps.add(u_v)
             si = n.get_storage_index()
