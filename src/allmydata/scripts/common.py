@@ -12,7 +12,7 @@ class BaseOptions:
     optFlags = [
         ["quiet", "q", "Operate silently."],
         ["version", "V", "Display version numbers and exit."],
-        ["version-and-path", "v", "Display version numbers and paths to their locations and exit."],
+        ["version-and-path", None, "Display version numbers and paths to their locations and exit."],
         ]
 
     def opt_version(self):
