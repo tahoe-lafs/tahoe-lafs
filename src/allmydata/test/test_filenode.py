@@ -42,6 +42,7 @@ class Node(unittest.TestCase):
         d[fn1] = 1 # exercise __hash__
         v = fn1.get_verify_cap()
         self.failUnless(isinstance(v, uri.CHKFileVerifierURI))
+        self.failUnlessEqual(fn1.get_repair_cap(), v)
 
 
     def test_literal_filenode(self):
@@ -64,6 +65,7 @@ class Node(unittest.TestCase):
 
         v = fn1.get_verify_cap()
         self.failUnlessEqual(v, None)
+        self.failUnlessEqual(fn1.get_repair_cap(), None)
 
         d = fn1.download(download.Data())
         def _check(res):
@@ -124,9 +126,11 @@ class Node(unittest.TestCase):
         self.failUnlessEqual(nro_u, u.get_readonly().to_string())
         self.failUnlessEqual(nro.is_mutable(), True)
         self.failUnlessEqual(nro.is_readonly(), True)
+        self.failUnlessEqual(nro.get_repair_cap(), None) # RSAmut needs writecap
 
         v = n.get_verify_cap()
         self.failUnless(isinstance(v, uri.SSKVerifierURI))
+        self.failUnlessEqual(n.get_repair_cap(), n._uri) # TODO: n.get_uri()
 
 class LiteralChecker(unittest.TestCase):
     def test_literal_filenode(self):

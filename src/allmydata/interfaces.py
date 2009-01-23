@@ -424,6 +424,14 @@ class IFilesystemNode(Interface):
         get_readonly_uri() will return the same thing as get_uri().
         """
 
+    def get_repair_cap():
+        """Return an IURI instance that can be used to repair the file, or
+        None if this node cannot be repaired (either because it is not
+        distributed, like a LIT file, or because the node does not represent
+        sufficient authority to create a repair-cap, like a read-only RSA
+        mutable file node [which cannot create the correct write-enablers]).
+        """
+
     def get_verify_cap():
         """Return an IVerifierURI instance that represents the
         'verifiy/refresh capability' for this node. The holder of this

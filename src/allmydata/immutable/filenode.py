@@ -192,6 +192,10 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
     def get_verify_cap(self):
         return self.u.get_verify_cap()
 
+    def get_repair_cap(self):
+        # CHK files can be repaired with just the verifycap
+        return self.u.get_verify_cap()
+
     def get_storage_index(self):
         return self.u.storage_index
 
@@ -296,6 +300,9 @@ class LiteralFileNode(_ImmutableFileNodeBase):
         return len(self.u.data)
 
     def get_verify_cap(self):
+        return None
+
+    def get_repair_cap(self):
         return None
 
     def get_storage_index(self):

@@ -220,6 +220,11 @@ class MutableFileNode:
     def get_verify_cap(self):
         return IMutableFileURI(self._uri).get_verify_cap()
 
+    def get_repair_cap(self):
+        if self._uri.is_readonly():
+            return None
+        return self._uri
+
     def _do_serialized(self, cb, *args, **kwargs):
         # note: to avoid deadlock, this callable is *not* allowed to invoke
         # other serialized methods within this (or any other)
