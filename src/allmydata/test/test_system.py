@@ -2481,6 +2481,11 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli_manifest1())
         d.addCallback(lambda ign: self.do_cli_manifest2())
         d.addCallback(lambda ign: self.do_cli_manifest3())
+        d.addCallback(lambda ign: self.do_cli_manifest_stream1())
+        d.addCallback(lambda ign: self.do_cli_manifest_stream2())
+        d.addCallback(lambda ign: self.do_cli_manifest_stream3())
+        d.addCallback(lambda ign: self.do_cli_manifest_stream4())
+        d.addCallback(lambda ign: self.do_cli_manifest_stream5())
         d.addCallback(lambda ign: self.do_cli_stats1())
         d.addCallback(lambda ign: self.do_cli_stats2())
         return d
@@ -2516,15 +2521,18 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d = self._run_cli(["manifest",
                            "--node-directory", basedir,
                            "--storage-index", self.root_uri])
-        def _check2((out,err)):
+        def _check((out,err)):
             self.failUnlessEqual(err, "")
-            lines = [l for l in out.split("\n") if l]
-            self.failUnlessEqual(len(lines), 3)
-            self.failUnless(base32.b2a(self.root.get_storage_index()) in lines)
-            self.failUnless(base32.b2a(self.mutable.get_storage_index()) in lines)
-            self.failUnless(base32.b2a(self.large.get_storage_index()) in lines)
-        d.addCallback(_check2)
+            self._check_manifest_storage_index(out)
+        d.addCallback(_check)
         return d
+
+    def _check_manifest_storage_index(self, out):
+        lines = [l for l in out.split("\n") if l]
+        self.failUnlessEqual(len(lines), 3)
+        self.failUnless(base32.b2a(self.root.get_storage_index()) in lines)
+        self.failUnless(base32.b2a(self.mutable.get_storage_index()) in lines)
+        self.failUnless(base32.b2a(self.large.get_storage_index()) in lines)
 
     def do_cli_manifest3(self):
         basedir = self.getdir("client0")
@@ -2548,6 +2556,90 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
             self.failUnless(self.mutable.get_verify_cap().to_string() in verifycaps)
             self.failUnless(self.large.get_verify_cap().to_string() in verifycaps)
         d.addCallback(_check2r)
+        return d
+
+    def do_cli_manifest_stream1(self):
+        basedir = self.getdir("client0")
+        d = self._run_cli(["manifest",
+                           "--node-directory", basedir,
+                           "--stream",
+                           self.root_uri])
+        def _check((out,err)):
+            self.failUnlessEqual(err, "")
+            lines = [l for l in out.split("\n") if l]
+            self.failUnlessEqual(len(lines), 5)
+            caps = {}
+            for l in lines:
+                try:
+                    cap, path = l.split(None, 1)
+                except ValueError:
+                    cap = l.strip()
+                    path = ""
+                caps[cap] = path
+            self.failUnless(self.root.get_uri() in caps)
+            self.failUnlessEqual(caps[self.root.get_uri()], "")
+            self.failUnlessEqual(caps[self.mutable.get_uri()], "mutable")
+            self.failUnlessEqual(caps[self.large.get_uri()], "large")
+            self.failUnlessEqual(caps[self.small.get_uri()], "small")
+            self.failUnlessEqual(caps[self.small2.get_uri()], "small2")
+        d.addCallback(_check)
+        return d
+
+    def do_cli_manifest_stream2(self):
+        basedir = self.getdir("client0")
+        d = self._run_cli(["manifest",
+                           "--node-directory", basedir,
+                           "--stream", "--raw",
+                           self.root_uri])
+        def _check((out,err)):
+            self.failUnlessEqual(err, "")
+            # this should be the same as the POST t=stream-manifest output
+            self._check_streamed_manifest(out)
+        d.addCallback(_check)
+        return d
+
+    def do_cli_manifest_stream3(self):
+        basedir = self.getdir("client0")
+        d = self._run_cli(["manifest",
+                           "--node-directory", basedir,
+                           "--stream", "--storage-index",
+                           self.root_uri])
+        def _check((out,err)):
+            self.failUnlessEqual(err, "")
+            self._check_manifest_storage_index(out)
+        d.addCallback(_check)
+        return d
+
+    def do_cli_manifest_stream4(self):
+        basedir = self.getdir("client0")
+        d = self._run_cli(["manifest",
+                           "--node-directory", basedir,
+                           "--stream", "--verify-cap",
+                           self.root_uri])
+        def _check((out,err)):
+            self.failUnlessEqual(err, "")
+            lines = [l for l in out.split("\n") if l]
+            self.failUnlessEqual(len(lines), 3)
+            self.failUnless(self.root.get_verify_cap().to_string() in lines)
+            self.failUnless(self.mutable.get_verify_cap().to_string() in lines)
+            self.failUnless(self.large.get_verify_cap().to_string() in lines)
+        d.addCallback(_check)
+        return d
+
+    def do_cli_manifest_stream5(self):
+        basedir = self.getdir("client0")
+        d = self._run_cli(["manifest",
+                           "--node-directory", basedir,
+                           "--stream", "--repair-cap",
+                           self.root_uri])
+        def _check((out,err)):
+            self.failUnlessEqual(err, "")
+            lines = [l for l in out.split("\n") if l]
+            self.failUnlessEqual(len(lines), 3)
+            self.failUnless(self.root.get_repair_cap().to_string() in lines)
+            self.failUnless(self.mutable.get_repair_cap().to_string() in lines)
+            self.failUnless(self.large.get_repair_cap().to_string() in lines)
+        d.addCallback(_check)
         return d
 
     def do_cli_stats1(self):

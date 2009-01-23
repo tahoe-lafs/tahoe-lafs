@@ -1,8 +1,77 @@
 
+import urllib, simplejson
+from twisted.protocols.basic import LineOnlyReceiver
 from allmydata.util import base32
 from allmydata.util.abbreviate import abbreviate_space_both
 from allmydata import uri
 from allmydata.scripts.slow_operation import SlowOperationRunner
+from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
+from allmydata.scripts.common_http import do_http
+
+class FakeTransport:
+    disconnecting = False
+class ManifestStreamer(LineOnlyReceiver):
+    delimiter = "\n"
+    def __init__(self):
+        self.transport = FakeTransport()
+
+    def run(self, options):
+        stdout = options.stdout
+        stderr = options.stderr
+        self.options = options
+        nodeurl = options['node-url']
+        if not nodeurl.endswith("/"):
+            nodeurl += "/"
+        self.nodeurl = nodeurl
+        where = options.where
+        rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
+        if path == '/':
+            path = ''
+        url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+        if path:
+            url += "/" + escape_path(path)
+        # todo: should it end with a slash?
+        url += "?t=stream-manifest"
+        resp = do_http("POST", url)
+        if resp.status not in (200, 302):
+            print >>stderr, "ERROR", resp.status, resp.reason, resp.read()
+            return 1
+        #print "RESP", dir(resp)
+        # use Twisted to split this into lines
+        while True:
+            chunk = resp.read(100)
+            if not chunk:
+                break
+            if self.options["raw"]:
+                stdout.write(chunk)
+            else:
+                self.dataReceived(chunk)
+        return 0
+
+    def lineReceived(self, line):
+        d = simplejson.loads(line)
+        stdout = self.options.stdout
+        if d["type"] in ("file", "directory"):
+            if self.options["storage-index"]:
+                si = d["storage-index"]
+                if si:
+                    print >>stdout, si
+            elif self.options["verify-cap"]:
+                vc = d["verifycap"]
+                if vc:
+                    print >>stdout, vc
+            elif self.options["repair-cap"]:
+                vc = d["repaircap"]
+                if vc:
+                    print >>stdout, vc
+            else:
+                try:
+                    print >>stdout, d["cap"], "/".join(d["path"])
+                except UnicodeEncodeError:
+                    print >>stdout, d["cap"], "/".join([p.encode("utf-8")
+                                                        for p in d["path"]])
+
+
 
 class ManifestGrabber(SlowOperationRunner):
 
@@ -27,7 +96,10 @@ class ManifestGrabber(SlowOperationRunner):
                                                    for p in path])
 
 def manifest(options):
-    return ManifestGrabber().run(options)
+    if options["stream"]:
+        return ManifestStreamer().run(options)
+    else:
+        return ManifestGrabber().run(options)
 
 class StatsGrabber(SlowOperationRunner):
 

@@ -200,7 +200,10 @@ class WebopenOptions(VDriveOptions):
 class ManifestOptions(VDriveOptions):
     optFlags = [
         ("storage-index", "s", "Only print storage index strings, not pathname+cap"),
+        ("verify-cap", None, "Only print verifycap, not pathname+cap"),
+        ("repair-cap", None, "Only print repaircap, not pathname+cap"),
         ("raw", "r", "Display raw JSON data instead of parsed"),
+        ("stream", None, "Stream lines of JSON to stdout. With --storage-index or --verify-cap, stream those strings to stdout."),
         ]
     def parseArgs(self, where=''):
         self.where = where
