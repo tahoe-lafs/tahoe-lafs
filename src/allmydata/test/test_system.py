@@ -2462,6 +2462,15 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def do_test_cli_good(self, ignored):
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self.do_cli_manifest1())
+        d.addCallback(lambda ign: self.do_cli_manifest2())
+        d.addCallback(lambda ign: self.do_cli_manifest3())
+        d.addCallback(lambda ign: self.do_cli_stats1())
+        d.addCallback(lambda ign: self.do_cli_stats2())
+        return d
+
+    def do_cli_manifest1(self):
         basedir = self.getdir("client0")
         d = self._run_cli(["manifest",
                            "--node-directory", basedir,
@@ -2485,11 +2494,13 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
             self.failUnlessEqual(caps[self.small.get_uri()], "small")
             self.failUnlessEqual(caps[self.small2.get_uri()], "small2")
         d.addCallback(_check)
+        return d
 
-        d.addCallback(lambda res:
-                      self._run_cli(["manifest",
-                                     "--node-directory", basedir,
-                                     "--storage-index", self.root_uri]))
+    def do_cli_manifest2(self):
+        basedir = self.getdir("client0")
+        d = self._run_cli(["manifest",
+                           "--node-directory", basedir,
+                           "--storage-index", self.root_uri])
         def _check2((out,err)):
             self.failUnlessEqual(err, "")
             lines = [l for l in out.split("\n") if l]
@@ -2498,11 +2509,13 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
             self.failUnless(base32.b2a(self.mutable.get_storage_index()) in lines)
             self.failUnless(base32.b2a(self.large.get_storage_index()) in lines)
         d.addCallback(_check2)
+        return d
 
-        d.addCallback(lambda res:
-                      self._run_cli(["manifest",
-                                     "--node-directory", basedir,
-                                     "--raw", self.root_uri]))
+    def do_cli_manifest3(self):
+        basedir = self.getdir("client0")
+        d = self._run_cli(["manifest",
+                           "--node-directory", basedir,
+                           "--raw", self.root_uri])
         def _check2r((out,err)):
             self.failUnlessEqual(err, "")
             data = simplejson.loads(out)
@@ -2520,11 +2533,13 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
             self.failUnless(self.mutable.get_verify_cap().to_string() in verifycaps)
             self.failUnless(self.large.get_verify_cap().to_string() in verifycaps)
         d.addCallback(_check2r)
+        return d
 
-        d.addCallback(lambda res:
-                      self._run_cli(["stats",
-                                     "--node-directory", basedir,
-                                     self.root_uri]))
+    def do_cli_stats1(self):
+        basedir = self.getdir("client0")
+        d = self._run_cli(["stats",
+                           "--node-directory", basedir,
+                           self.root_uri])
         def _check3((out,err)):
             lines = [l.strip() for l in out.split("\n") if l]
             self.failUnless("count-immutable-files: 1" in lines)
@@ -2537,12 +2552,14 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
             self.failUnless("   11-31    : 2    (31 B, 31 B)".strip() in lines)
             self.failUnless("10001-31622 : 1    (31.62 kB, 30.88 kiB)".strip() in lines)
         d.addCallback(_check3)
+        return d
 
-        d.addCallback(lambda res:
-                      self._run_cli(["stats",
-                                     "--node-directory", basedir,
-                                     "--raw",
-                                     self.root_uri]))
+    def do_cli_stats2(self):
+        basedir = self.getdir("client0")
+        d = self._run_cli(["stats",
+                           "--node-directory", basedir,
+                           "--raw",
+                           self.root_uri])
         def _check4((out,err)):
             data = simplejson.loads(out)
             self.failUnlessEqual(data["count-immutable-files"], 1)
@@ -2556,7 +2573,6 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
             self.failUnless([11,31,2] in data["size-files-histogram"])
             self.failUnless([10001,31622,1] in data["size-files-histogram"])
         d.addCallback(_check4)
-
         return d
 
 
