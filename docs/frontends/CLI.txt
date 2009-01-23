@@ -336,6 +336,8 @@ tahoe mv tahoe:uploaded.txt fun:uploaded.txt
 
 tahoe manifest tahoe:
 tahoe manifest --storage-index tahoe:
+tahoe manifest --verify-cap tahoe:
+tahoe manifest --repair-cap tahoe:
 tahoe manifest --raw tahoe:
 
  This performs a recursive walk of the given directory, visiting every file
@@ -347,9 +349,12 @@ tahoe manifest --raw tahoe:
 
  If --storage-index is added, each line will instead contain the object's
  storage index. This (string) value is useful to determine which share files
- (on the server) are associated with this directory tree. If --raw is
- provided instead, the output will be a JSON-encoded dictionary that includes
- keys for storage index strings, verifycaps, and deep-stats.
+ (on the server) are associated with this directory tree. The --verify-cap
+ and --repair-cap options are similar, but emit a verify-cap and repair-cap,
+ respectively. If --raw is provided instead, the output will be a
+ JSON-encoded dictionary that includes keys for pathnames, storage index
+ strings, and cap strings. The last line of the --raw output will be a JSON
+ encoded deep-stats dictionary.
 
 tahoe stats tahoe:
 
