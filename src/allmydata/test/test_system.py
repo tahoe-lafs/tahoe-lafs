@@ -2108,6 +2108,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d.addCallback(self.set_up_tree)
         d.addCallback(self.do_stats)
         d.addCallback(self.do_web_stream_manifest)
+        d.addCallback(self.do_web_stream_check)
         d.addCallback(self.do_test_check_good)
         d.addCallback(self.do_test_web_good)
         d.addCallback(self.do_test_cli_good)
@@ -2146,40 +2147,54 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_web_stream_manifest(self, ignored):
         d = self.web(self.root, method="POST", t="stream-manifest")
-        def _check((res,url)):
+        d.addCallback(lambda (output,url):
+                      self._check_streamed_manifest(output))
+        return d
+
+    def _check_streamed_manifest(self, output):
+        units = list(self.parse_streamed_json(output))
+        files = [u for u in units if u["type"] in ("file", "directory")]
+        assert units[-1]["type"] == "stats"
+        stats = units[-1]["stats"]
+        self.failUnlessEqual(len(files), 5)
+        # [root,mutable,large] are distributed, [small,small2] are not
+        self.failUnlessEqual(len([f for f in files
+                                  if f["verifycap"] is not None]), 3)
+        self.failUnlessEqual(len([f for f in files
+                                  if f["verifycap"] is None]), 2)
+        self.failUnlessEqual(len([f for f in files
+                                  if f["repaircap"] is not None]), 3)
+        self.failUnlessEqual(len([f for f in files
+                                  if f["repaircap"] is None]), 2)
+        self.failUnlessEqual(len([f for f in files
+                                  if f["storage-index"] is not None]), 3)
+        self.failUnlessEqual(len([f for f in files
+                                  if f["storage-index"] is None]), 2)
+        # make sure that a mutable file has filecap==repaircap!=verifycap
+        mutable = [f for f in files
+                   if f["cap"] is not None
+                   and f["cap"].startswith("URI:SSK:")][0]
+        self.failUnlessEqual(mutable["cap"], self.mutable_uri)
+        self.failIfEqual(mutable["cap"], mutable["verifycap"])
+        self.failUnlessEqual(mutable["cap"], mutable["repaircap"])
+        # for immutable file, verifycap==repaircap!=filecap
+        large = [f for f in files
+                   if f["cap"] is not None
+                   and f["cap"].startswith("URI:CHK:")][0]
+        self.failUnlessEqual(large["cap"], self.large_uri)
+        self.failIfEqual(large["cap"], large["verifycap"])
+        self.failUnlessEqual(large["verifycap"], large["repaircap"])
+        self.check_stats_good(stats)
+
+    def do_web_stream_check(self, ignored):
+        return
+        d = self.web(self.root, t="stream-deep-check")
+        def _check(res):
             units = list(self.parse_streamed_json(res))
             files = [u for u in units if u["type"] in ("file", "directory")]
             assert units[-1]["type"] == "stats"
             stats = units[-1]["stats"]
-            self.failUnlessEqual(len(files), 5)
-            # [root,mutable,large] are distributed, [small,small2] are not
-            self.failUnlessEqual(len([f for f in files
-                                      if f["verifycap"] is not None]), 3)
-            self.failUnlessEqual(len([f for f in files
-                                      if f["verifycap"] is None]), 2)
-            self.failUnlessEqual(len([f for f in files
-                                      if f["repaircap"] is not None]), 3)
-            self.failUnlessEqual(len([f for f in files
-                                      if f["repaircap"] is None]), 2)
-            self.failUnlessEqual(len([f for f in files
-                                      if f["storage-index"] is not None]), 3)
-            self.failUnlessEqual(len([f for f in files
-                                      if f["storage-index"] is None]), 2)
-            # make sure that a mutable file has filecap==repaircap!=verifycap
-            mutable = [f for f in files
-                       if f["cap"] is not None
-                       and f["cap"].startswith("URI:SSK:")][0]
-            self.failUnlessEqual(mutable["cap"], self.mutable_uri)
-            self.failIfEqual(mutable["cap"], mutable["verifycap"])
-            self.failUnlessEqual(mutable["cap"], mutable["repaircap"])
-            # for immutable file, verifycap==repaircap!=filecap
-            large = [f for f in files
-                       if f["cap"] is not None
-                       and f["cap"].startswith("URI:CHK:")][0]
-            self.failUnlessEqual(large["cap"], self.large_uri)
-            self.failIfEqual(large["cap"], large["verifycap"])
-            self.failUnlessEqual(large["verifycap"], large["repaircap"])
-            self.check_stats_good(stats)
+            # ...
         d.addCallback(_check)
         return d
 
