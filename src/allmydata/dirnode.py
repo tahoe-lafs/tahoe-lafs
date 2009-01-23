@@ -477,7 +477,8 @@ class NewDirectoryNode:
         directory structure, this may appear to under-count or miss some of
         them.
 
-        I return a Deferred that will fire with the value of walker.finish().
+        I return a Monitor which can be used to wait for the operation to
+        finish, learn about its progress, or cancel the operation.
         """
 
         # this is just a tree-walker, except that following each edge
