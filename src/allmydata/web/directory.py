@@ -16,6 +16,7 @@ from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IMutableFileNode, \
      ExistingChildError, NoSuchChildError
 from allmydata.monitor import Monitor
+from allmydata import dirnode
 from allmydata.web.common import text_plain, WebError, \
      IClient, IOpHandleTable, NeedOperationHandleError, \
      boolean_of_arg, get_arg, get_root, \
@@ -192,6 +193,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d = self._POST_start_deep_size(ctx)
         elif t == "start-deep-stats":
             d = self._POST_start_deep_stats(ctx)
+        elif t == "stream-manifest":
+            d = self._POST_stream_manifest(ctx)
         elif t == "set_children":
             # TODO: docs
             d = self._POST_set_children(req)
@@ -393,6 +396,11 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         monitor = self.node.start_deep_stats()
         renderer = DeepStatsResults(monitor)
         return self._start_operation(monitor, renderer, ctx)
+
+    def _POST_stream_manifest(self, ctx):
+        walker = ManifestStreamer(ctx, self.node)
+        monitor = self.node.deep_traverse(walker)
+        return monitor.when_done()
 
     def _POST_set_children(self, req):
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
@@ -812,3 +820,48 @@ class DeepStatsResults(rend.Page):
         s = self.monitor.get_status().copy()
         s["finished"] = self.monitor.is_finished()
         return simplejson.dumps(s, indent=1)
+
+class ManifestStreamer(dirnode.DeepStats):
+
+    def __init__(self, ctx, origin):
+        dirnode.DeepStats.__init__(self, origin)
+        self.req = IRequest(ctx)
+
+    def add_node(self, node, path):
+        dirnode.DeepStats.add_node(self, node, path)
+        d = {"path": path,
+             "cap": node.get_uri()}
+
+        if IDirectoryNode.providedBy(node):
+            d["type"] = "directory"
+        else:
+            d["type"] = "file"
+
+        v = node.get_verify_cap()
+        if v:
+            v = v.to_string()
+        d["verifycap"] = v
+
+        r = node.get_repair_cap()
+        if r:
+            r = r.to_string()
+        d["repaircap"] = r
+
+        si = node.get_storage_index()
+        if si:
+            si = base32.b2a(si)
+        d["storage-index"] = si
+
+        j = simplejson.dumps(d, ensure_ascii=True)
+        assert "\n" not in j
+        self.req.write(j+"\n")
+
+    def finish(self):
+        stats = dirnode.DeepStats.get_results(self)
+        d = {"type": "stats",
+             "stats": stats,
+             }
+        j = simplejson.dumps(d, ensure_ascii=True)
+        assert "\n" not in j
+        self.req.write(j+"\n")
+        return ""

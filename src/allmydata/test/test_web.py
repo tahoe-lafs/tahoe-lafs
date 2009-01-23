@@ -168,6 +168,7 @@ class WebMixin(object):
             foo.set_uri(unicode_filename, self._bar_txt_uri)
 
             _ign, n, baz_file = self.makefile(2)
+            self._baz_file_uri = baz_file
             sub.set_uri(u"baz.txt", baz_file)
 
             _ign, n, self._bad_file_uri = self.makefile(3)
@@ -1048,6 +1049,26 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
             self.failUnlessEqual(stats["size-files-histogram"],
                                  [ [11, 31, 3] ])
         d.addCallback(_got_json)
+        return d
+
+    def test_POST_DIRURL_stream_manifest(self):
+        d = self.POST(self.public_url + "/foo/?t=stream-manifest")
+        def _check(res):
+            self.failUnless(res.endswith("\n"))
+            units = [simplejson.loads(t) for t in res[:-1].split("\n")]
+            self.failUnlessEqual(len(units), 7)
+            self.failUnlessEqual(units[-1]["type"], "stats")
+            first = units[0]
+            self.failUnlessEqual(first["path"], [])
+            self.failUnlessEqual(first["cap"], self._foo_uri)
+            self.failUnlessEqual(first["type"], "directory")
+            baz = [u for u in units[:-1] if u["cap"] == self._baz_file_uri][0]
+            self.failUnlessEqual(baz["path"], ["sub", "baz.txt"])
+            self.failIfEqual(baz["storage-index"], None)
+            self.failIfEqual(baz["verifycap"], None)
+            self.failIfEqual(baz["repaircap"], None)
+            return
+        d.addCallback(_check)
         return d
 
     def test_GET_DIRURL_uri(self):

@@ -48,6 +48,8 @@ class FakeCHKFileNode:
         return self.my_uri.to_string()
     def get_verify_cap(self):
         return self.my_uri.get_verify_cap()
+    def get_repair_cap(self):
+        return self.my_uri.get_verify_cap()
     def get_storage_index(self):
         return self.storage_index
 

@@ -1937,6 +1937,13 @@ class DeepCheckBase(SystemTestMixin, ErrorMixin):
             self.fail("%s: not JSON: '%s'" % (url, s))
         return data
 
+    def parse_streamed_json(self, s):
+        for unit in s.split("\n"):
+            if not unit:
+                # stream should end with a newline, so split returns ""
+                continue
+            yield simplejson.loads(unit)
+
     def web(self, n, method="GET", **kwargs):
         # returns (data, url)
         url = (self.webish_url + "uri/%s" % urllib.quote(n.get_uri())
@@ -2100,6 +2107,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         d = self.set_up_nodes()
         d.addCallback(self.set_up_tree)
         d.addCallback(self.do_stats)
+        d.addCallback(self.do_web_stream_manifest)
         d.addCallback(self.do_test_check_good)
         d.addCallback(self.do_test_web_good)
         d.addCallback(self.do_test_cli_good)
@@ -2135,6 +2143,45 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                                          ])
         self.failUnlessEqual(s["size-immutable-files"], 13000)
         self.failUnlessEqual(s["size-literal-files"], 48)
+
+    def do_web_stream_manifest(self, ignored):
+        d = self.web(self.root, method="POST", t="stream-manifest")
+        def _check((res,url)):
+            units = list(self.parse_streamed_json(res))
+            files = [u for u in units if u["type"] in ("file", "directory")]
+            assert units[-1]["type"] == "stats"
+            stats = units[-1]["stats"]
+            self.failUnlessEqual(len(files), 5)
+            # [root,mutable,large] are distributed, [small,small2] are not
+            self.failUnlessEqual(len([f for f in files
+                                      if f["verifycap"] is not None]), 3)
+            self.failUnlessEqual(len([f for f in files
+                                      if f["verifycap"] is None]), 2)
+            self.failUnlessEqual(len([f for f in files
+                                      if f["repaircap"] is not None]), 3)
+            self.failUnlessEqual(len([f for f in files
+                                      if f["repaircap"] is None]), 2)
+            self.failUnlessEqual(len([f for f in files
+                                      if f["storage-index"] is not None]), 3)
+            self.failUnlessEqual(len([f for f in files
+                                      if f["storage-index"] is None]), 2)
+            # make sure that a mutable file has filecap==repaircap!=verifycap
+            mutable = [f for f in files
+                       if f["cap"] is not None
+                       and f["cap"].startswith("URI:SSK:")][0]
+            self.failUnlessEqual(mutable["cap"], self.mutable_uri)
+            self.failIfEqual(mutable["cap"], mutable["verifycap"])
+            self.failUnlessEqual(mutable["cap"], mutable["repaircap"])
+            # for immutable file, verifycap==repaircap!=filecap
+            large = [f for f in files
+                       if f["cap"] is not None
+                       and f["cap"].startswith("URI:CHK:")][0]
+            self.failUnlessEqual(large["cap"], self.large_uri)
+            self.failIfEqual(large["cap"], large["verifycap"])
+            self.failUnlessEqual(large["verifycap"], large["repaircap"])
+            self.check_stats_good(stats)
+        d.addCallback(_check)
+        return d
 
     def do_test_check_good(self, ignored):
         d = defer.succeed(None)

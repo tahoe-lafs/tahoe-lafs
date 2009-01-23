@@ -257,6 +257,13 @@ If a retain-for= argument is not used, the default handle lifetimes are:
  * collected handles (i.e. the GET page has been retrieved at least once
    since the operation completed) will remain valid for ten minutes.
 
+Many "slow" operations can begin to use unacceptable amounts of memory when
+operation on large directory structures. The memory usage increases when the
+ophandle is polled, as the results must be copied into a JSON string, sent
+over the wire, then parsed by a client. So, as an alternative, many "slow"
+operations have streaming equivalents. These equivalents do not use operation
+handles. Instead, they emit line-oriented status results immediately. Client
+code can cancel the operation by simply closing the HTTP connection.
 
 == Programmatic Operations ==
 
@@ -1042,6 +1049,37 @@ POST $DIRURL?t=start-deep-stats    (must add &ophandle=XYZ)
    expansion due to erasure coding
    share management data (leases)
    backend (ext3) minimum block size
+
+POST $URL?t=stream-manifest
+
+ This operation performs a recursive walk of all files and directories
+ reachable from the given starting point. For each such unique object
+ (duplicates are skipped), a single line of JSON is emitted to the HTTP
+ response channel. When the walk is complete, a final line of JSON is emitted
+ which contains the accumulated file-size/count "deep-stats" data.
+
+ A CLI tool can split the response stream on newlines into "response units",
+ and parse each response unit as JSON. Each such parsed unit will be a
+ dictionary, and will contain at least the "type" key: a string, one of
+ "file", "directory", or "stats".
+
+ For all units that have a type of "file" or "directory", the dictionary will
+ contain the following keys:
+
+  "path": a list of strings, with the path that is traversed to reach the
+          object
+  "cap": a writecap for the file or directory, if available, else a readcap
+  "verifycap": a verifycap for the file or directory
+  "repaircap": the weakest cap which can still be used to repair the object
+  "storage-index": a base32 storage index for the object
+
+ Note that non-distributed files (i.e. LIT files) will have values of None
+ for verifycap, repaircap, and storage-index, since these files can neither
+ be verified nor repaired, and are not stored on the storage servers.
+
+ The last unit in the stream will have a type of "stats", and will contain
+ the keys described in the "start-deep-stats" operation, below.
+
 
 == Other Useful Pages ==
 
