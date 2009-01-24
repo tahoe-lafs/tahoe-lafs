@@ -49,7 +49,6 @@ executable = os.path.join(base, "support", bin_dir, "tahoe")
 
 try:
     res = subprocess.call([executable] + sys.argv[1:], env=os.environ)
-    sys.exit(res)
 except (OSError, IOError), le:
     if le.args[0] == errno.ENOENT:
         print whoami
@@ -67,3 +66,5 @@ I just tried to invoke my brother, named "../support/bin/tahoe" and got an
 exception.
 '''
     raise
+else:
+    sys.exit(res)
