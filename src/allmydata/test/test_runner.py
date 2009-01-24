@@ -11,9 +11,13 @@ from allmydata.util import fileutil, pollmixin
 from allmydata.test import common_util
 import allmydata
 
+bintahoe = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(allmydata.__file__))), 'bin', 'tahoe')
+
 class TheRightCode(unittest.TestCase, common_util.SignalMixin):
     def test_path(self):
-        d = utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--version-and-path"], env=os.environ)
+        if not os.path.exists(bintahoe):
+            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
+        d = utils.getProcessOutputAndValue(bintahoe, args=["--version-and-path"], env=os.environ)
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
@@ -31,9 +35,11 @@ class CreateNode(unittest.TestCase, common_util.SignalMixin):
         return basedir
 
     def test_client(self):
+        if not os.path.exists(bintahoe):
+            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
-        d = utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-client", "--basedir", c1], env=os.environ)
+        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-client", "--basedir", c1], env=os.environ)
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(err, "")
@@ -44,7 +50,7 @@ class CreateNode(unittest.TestCase, common_util.SignalMixin):
         d.addCallback(_cb)
 
         def _then_try_again(unused=None):
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-client", "--basedir", c1], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-client", "--basedir", c1], env=os.environ)
         d.addCallback(_then_try_again)
 
         def _cb2(res):
@@ -60,7 +66,7 @@ class CreateNode(unittest.TestCase, common_util.SignalMixin):
 
         c2 = os.path.join(basedir, "c2")
         def _then_try_new_dir(unused=None):
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-client", c2], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-client", c2], env=os.environ)
         d.addCallback(_then_try_new_dir)
 
         def _cb3(res):
@@ -70,7 +76,7 @@ class CreateNode(unittest.TestCase, common_util.SignalMixin):
         d.addCallback(_cb3)
 
         def _then_try_badarg(unused=None):
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["create-client", "basedir", "extraarg"], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["create-client", "basedir", "extraarg"], env=os.environ)
         d.addCallback(_then_try_badarg)
 
         def _cb4(res):
@@ -81,9 +87,11 @@ class CreateNode(unittest.TestCase, common_util.SignalMixin):
         return d
 
     def test_introducer(self):
+        if not os.path.exists(bintahoe):
+            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")
-        d = utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-introducer", "--basedir", c1], env=os.environ)
+        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-introducer", "--basedir", c1], env=os.environ)
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(err, "")
@@ -95,7 +103,7 @@ class CreateNode(unittest.TestCase, common_util.SignalMixin):
         d.addCallback(_cb)
 
         def _then_try_again(unused=None):
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-introducer", "--basedir", c1], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-introducer", "--basedir", c1], env=os.environ)
         d.addCallback(_then_try_again)
 
         def _cb2(res):
@@ -111,7 +119,7 @@ class CreateNode(unittest.TestCase, common_util.SignalMixin):
 
         c2 = os.path.join(basedir, "c2")
         def _then_try_new_dir(unused=None):
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-introducer", c2], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-introducer", c2], env=os.environ)
         d.addCallback(_then_try_new_dir)
 
         def _cb3(res):
@@ -122,7 +130,7 @@ class CreateNode(unittest.TestCase, common_util.SignalMixin):
         d.addCallback(_cb3)
 
         def _then_try_badarg(unused=None):
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["create-introducer", "basedir", "extraarg"], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["create-introducer", "basedir", "extraarg"], env=os.environ)
         d.addCallback(_then_try_badarg)
 
         def _cb4(res):
@@ -132,7 +140,7 @@ class CreateNode(unittest.TestCase, common_util.SignalMixin):
         d.addCallback(_cb4)
 
         def _then_try_badarg_again(unused=None):
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["create-introducer"], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["create-introducer"], env=os.environ)
         d.addCallback(_then_try_badarg_again)
 
         def _cb5(res):
@@ -149,6 +157,8 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
         return basedir
 
     def test_introducer(self):
+        if not os.path.exists(bintahoe):
+            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
         if runtime.platformType == "win32":
             # twistd on windows doesn't daemonize. cygwin works normally.
             raise unittest.SkipTest("twistd does not fork under windows")
@@ -158,7 +168,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
         INTRODUCER_FURL_FILE = os.path.join(c1, "introducer.furl")
 
-        d = utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-introducer", "--basedir", c1], env=os.environ)
+        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-introducer", "--basedir", c1], env=os.environ)
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
@@ -170,7 +180,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
         d.addCallback(_cb)
 
         def _then_start_the_node(res):
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "start", c1], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "start", c1], env=os.environ)
         d.addCallback(_then_start_the_node)
 
         def _cb2(res):
@@ -201,7 +211,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
             # rm this so we can detect when the second incarnation is ready
             os.unlink(INTRODUCER_FURL_FILE)
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "restart", c1], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "restart", c1], env=os.environ)
         d.addCallback(_started)
 
         def _then(res):
@@ -224,7 +234,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
             open(HOTLINE_FILE, "w").write("")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
 
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "stop", c1], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "stop", c1], env=os.environ)
         d.addCallback(_stop)
 
         def _after_stopping(res):
@@ -248,6 +258,8 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
         return d
 
     def test_client(self):
+        if not os.path.exists(bintahoe):
+            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
         if runtime.platformType == "win32":
             # twistd on windows doesn't daemonize. cygwin works normally.
             raise unittest.SkipTest("twistd does not fork under windows")
@@ -257,7 +269,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
         PORTNUMFILE = os.path.join(c1, "client.port")
 
-        d = utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-client", "--basedir", c1, "--webport", "0"], env=os.environ)
+        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-client", "--basedir", c1, "--webport", "0"], env=os.environ)
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
@@ -270,7 +282,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
         d.addCallback(_cb)
 
         def _start(res):
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "start", c1], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "start", c1], env=os.environ)
         d.addCallback(_start)
 
         def _cb2(res):
@@ -301,7 +313,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
             # rm this so we can detect when the second incarnation is ready
             os.unlink(PORTNUMFILE)
 
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "restart", c1], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "restart", c1], env=os.environ)
         d.addCallback(_started)
 
         def _cb3(res):
@@ -324,7 +336,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
         def _stop(res):
             open(HOTLINE_FILE, "w").write("")
             self.failUnless(os.path.exists(TWISTD_PID_FILE), (TWISTD_PID_FILE, os.listdir(os.path.dirname(TWISTD_PID_FILE))))
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "stop", c1], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "stop", c1], env=os.environ)
         d.addCallback(_stop)
 
         def _cb4(res):
@@ -348,10 +360,12 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
         return d
 
     def test_baddir(self):
+        if not os.path.exists(bintahoe):
+            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
         basedir = self.workdir("test_baddir")
         fileutil.make_dirs(basedir)
 
-        d = utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "start", "--basedir", basedir], env=os.environ)
+        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "start", "--basedir", basedir], env=os.environ)
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 1)
@@ -376,6 +390,8 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
                         in err.getvalue(), err.getvalue())
 
     def test_keygen(self):
+        if not os.path.exists(bintahoe):
+            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
         if runtime.platformType == "win32":
             # twistd on windows doesn't daemonize. cygwin works normally.
             raise unittest.SkipTest("twistd does not fork under windows")
@@ -384,14 +400,14 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
         KEYGEN_FURL_FILE = os.path.join(c1, "key_generator.furl")
 
-        d = utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "create-key-generator", "--basedir", c1], env=os.environ)
+        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-key-generator", "--basedir", c1], env=os.environ)
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
         d.addCallback(_cb)
 
         def _start(res):
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "start", c1], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "start", c1], env=os.environ)
         d.addCallback(_start)
 
         def _cb2(res):
@@ -419,7 +435,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
             # rm this so we can detect when the second incarnation is ready
             os.unlink(KEYGEN_FURL_FILE)
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "restart", c1], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "restart", c1], env=os.environ)
         d.addCallback(_started)
 
         def _cb3(res):
@@ -439,7 +455,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
         # 'tahoe stop' command takes a while.
         def _stop(res):
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
-            return utils.getProcessOutputAndValue(os.path.join("..", "bin", "tahoe"), args=["--quiet", "stop", c1], env=os.environ)
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "stop", c1], env=os.environ)
         d.addCallback(_stop)
 
         def _cb4(res):
