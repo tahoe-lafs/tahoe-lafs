@@ -1,17 +1,17 @@
 
 import urllib, simplejson
 from twisted.protocols.basic import LineOnlyReceiver
-from allmydata.util import base32
 from allmydata.util.abbreviate import abbreviate_space_both
-from allmydata import uri
 from allmydata.scripts.slow_operation import SlowOperationRunner
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
 from allmydata.scripts.common_http import do_http
 
 class FakeTransport:
     disconnecting = False
+
 class ManifestStreamer(LineOnlyReceiver):
     delimiter = "\n"
+
     def __init__(self):
         self.transport = FakeTransport()
 
@@ -71,35 +71,8 @@ class ManifestStreamer(LineOnlyReceiver):
                     print >>stdout, d["cap"], "/".join([p.encode("utf-8")
                                                         for p in d["path"]])
 
-
-
-class ManifestGrabber(SlowOperationRunner):
-
-    def make_url(self, base, ophandle):
-        return base + "?t=start-manifest&ophandle=" + ophandle
-
-    def write_results(self, data):
-        stdout = self.options.stdout
-        stderr = self.options.stderr
-        if self.options["storage-index"]:
-            for (path, cap) in data["manifest"]:
-                u = uri.from_string(str(cap))
-                si = u.get_storage_index()
-                if si is not None:
-                    print >>stdout, base32.b2a(si)
-        else:
-            for (path, cap) in data["manifest"]:
-                try:
-                    print >>stdout, cap, "/".join(path)
-                except UnicodeEncodeError:
-                    print >>stdout, cap, "/".join([p.encode("utf-8")
-                                                   for p in path])
-
 def manifest(options):
-    if options["stream"]:
-        return ManifestStreamer().run(options)
-    else:
-        return ManifestGrabber().run(options)
+    return ManifestStreamer().run(options)
 
 class StatsGrabber(SlowOperationRunner):
 
