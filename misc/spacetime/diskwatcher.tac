@@ -25,7 +25,7 @@ results). Each line should be in the form:
 #  built-in graphs on web interface
 
 
-import os.path, urllib
+import os.path, urllib, time
 from datetime import timedelta
 from twisted.application import internet, service, strports
 from twisted.web import server, resource, http, client
@@ -72,6 +72,7 @@ class DiskWatcher(service.MultiService, resource.Resource):
 
     def __init__(self):
         assert os.path.exists("diskwatcher.tac") # run from the right directory
+        self.growth_cache = {}
         service.MultiService.__init__(self)
         resource.Resource.__init__(self)
         self.store = Store("history.axiom")
@@ -238,6 +239,23 @@ class DiskWatcher(service.MultiService, resource.Resource):
         until the gatherer has been running and collecting data for that
         long."""
 
+        # a note about workload: for our oldest storage servers, as of
+        # 25-Jan-2009, the first DB query here takes about 40ms per server
+        # URL (some take as little as 10ms). There are about 110 servers, and
+        # two queries each, so the growth() function takes about 7s to run
+        # for each timespan. We track 4 timespans, and find_total_*_space()
+        # takes about 2.3s to run, so calculate_growth_timeleft() takes about
+        # 27s. Each HTTP query thus takes 27s, and we have six munin plugins
+        # which perform HTTP queries every 5 minutes. By adding growth_cache(),
+        # I hope to reduce this: the first HTTP query will still take 27s,
+        # but the subsequent five should be about 2.3s each.
+
+        # we're allowed to cache this value for 3 minutes
+        if timespan in self.growth_cache:
+            (when, value) = self.growth_cache[timespan]
+            if time.time() - when < 3*60:
+                return value
+
         td = timedelta(seconds=timespan)
         now = extime.Time()
         then = now - td
@@ -278,6 +296,7 @@ class DiskWatcher(service.MultiService, resource.Resource):
 
         if not num_nodes:
             return None
+        self.growth_cache[timespan] = (time.time(), total_growth)
         return total_growth
 
     def getChild(self, path, req):
