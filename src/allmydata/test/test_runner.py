@@ -431,22 +431,27 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
             self.failUnless("does not look like a node directory" in err)
         d.addCallback(_cb)
 
-        d.addCallback
+        def _then_stop_it(res):
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "stop", "--basedir", basedir], env=os.environ)
+        d.addCallback(_then_stop_it)
 
-        argv = ["--quiet", "stop", "--basedir", basedir]
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        self.failUnlessEqual(rc, 2)
-        self.failUnless("does not look like a running node directory"
-                        in err.getvalue())
+        def _cb2(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 2)
+            self.failUnless("does not look like a running node directory" in err)
+        d.addCallback(_cb2)
 
-        not_a_dir = os.path.join(basedir, "bogus")
-        argv = ["--quiet", "start", "--basedir", not_a_dir]
-        out,err = StringIO(), StringIO()
-        rc = runner.runner(argv, stdout=out, stderr=err)
-        self.failUnlessEqual(rc, 1)
-        self.failUnless("does not look like a directory at all"
-                        in err.getvalue(), err.getvalue())
+        def _then_start_in_bogus_basedir(res):
+            not_a_dir = os.path.join(basedir, "bogus")
+            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "start", "--basedir", not_a_dir], env=os.environ)
+        d.addCallback(_then_start_in_bogus_basedir)
+
+        def _cb3(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 1)
+            self.failUnless("does not look like a directory at all" in err, err)
+        d.addCallback(_cb3)
+        return d
 
     def test_keygen(self):
         if not os.path.exists(bintahoe):
