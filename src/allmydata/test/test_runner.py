@@ -1,11 +1,9 @@
 
 from twisted.trial import unittest
 
-from cStringIO import StringIO
 from twisted.python import runtime
 from twisted.internet import utils
 import os.path, re, sys
-from allmydata.scripts import runner
 from allmydata.util import fileutil, pollmixin
 
 from allmydata.test import common_util
