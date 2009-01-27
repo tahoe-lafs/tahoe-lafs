@@ -112,10 +112,10 @@ class PutOptions(VDriveOptions):
         ]
 
     def parseArgs(self, arg1=None, arg2=None):
-        # cat FILE > tahoe put           # create unlinked file from stdin
-        # cat FILE > tahoe put -         # same
+        # cat FILE | tahoe put           # create unlinked file from stdin
+        # cat FILE | tahoe put -         # same
         # tahoe put bar                  # create unlinked file from local 'bar'
-        # cat FILE > tahoe put - FOO     # create tahoe:FOO from stdin
+        # cat FILE | tahoe put - FOO     # create tahoe:FOO from stdin
         # tahoe put bar FOO              # copy local 'bar' to tahoe:FOO
         # tahoe put bar tahoe:FOO        # same
 
@@ -144,10 +144,10 @@ class PutOptions(VDriveOptions):
         t = VDriveOptions.getUsage(self, width)
         t += """
 Examples:
- % cat FILE > tahoe put                # create unlinked file from stdin
- % cat FILE > tahoe -                  # same
+ % cat FILE | tahoe put                # create unlinked file from stdin
+ % cat FILE | tahoe -                  # same
  % tahoe put bar                       # create unlinked file from local 'bar'
- % cat FILE > tahoe put - FOO          # create tahoe:FOO from stdin
+ % cat FILE | tahoe put - FOO          # create tahoe:FOO from stdin
  % tahoe put bar FOO                   # copy local 'bar' to tahoe:FOO
  % tahoe put bar tahoe:FOO             # same
  % tahoe put bar MUTABLE-FILE-WRITECAP # modify the mutable file in-place
