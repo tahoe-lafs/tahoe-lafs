@@ -60,8 +60,9 @@ class CreateNode(unittest.TestCase, common_util.SignalMixin):
             self.failUnlessEqual(out, "")
             self.failUnless("is not empty." in err)
 
-            # Fail if there is a line that doesn't end with a PUNCTUATION MARK.
-            self.failIf(re.search("[^\.!?]\n", err), err)
+            # Fail if there is a non-empty line that doesn't end with a PUNCTUATION MARK.
+            for line in err.splitlines():
+                self.failIf(re.search("[\S][^\.!?]$", line), (line,))
         d.addCallback(_cb2)
 
         c2 = os.path.join(basedir, "c2")
@@ -113,8 +114,9 @@ class CreateNode(unittest.TestCase, common_util.SignalMixin):
             self.failUnlessEqual(out, "")
             self.failUnless("is not empty" in err)
 
-            # Fail if there is a line that doesn't end with a PUNCTUATION MARK.
-            self.failIf(re.search("[^\.!?]\n", err), err)
+            # Fail if there is a non-empty line that doesn't end with a PUNCTUATION MARK.
+            for line in err.splitlines():
+                self.failIf(re.search("[\S][^\.!?]$", line), (line,))
         d.addCallback(_cb2)
 
         c2 = os.path.join(basedir, "c2")
