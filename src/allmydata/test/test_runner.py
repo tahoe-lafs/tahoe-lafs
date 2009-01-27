@@ -4,7 +4,7 @@ from twisted.trial import unittest
 from cStringIO import StringIO
 from twisted.python import runtime
 from twisted.internet import utils
-import os.path, re
+import os.path, re, sys
 from allmydata.scripts import runner
 from allmydata.util import fileutil, pollmixin
 
@@ -12,6 +12,8 @@ from allmydata.test import common_util
 import allmydata
 
 bintahoe = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(allmydata.__file__))), 'bin', 'tahoe')
+if sys.platform == "win32":
+    bintahoe += ".exe"
 
 class TheRightCode(unittest.TestCase, common_util.SignalMixin):
     def test_path(self):
