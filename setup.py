@@ -142,16 +142,21 @@ setup_requires = []
 
 # Nevow requires Twisted to setup, but doesn't declare that requirement in a way that enables
 # setuptools to satisfy that requirement before Nevow's setup.py tried to "import twisted".
-setup_requires.extend(['Twisted >= 2.4.0', 'setuptools_trial'])
+# Fortunately we require setuptools_trial to setup and setuptools_trial requires Twisted to
+# install, so hopefully everything will work out until the Nevow issue is fixed:
+# http://divmod.org/trac/ticket/2629
+# setuptools_trial is needed if you want "./setup.py trial" or "./setup.py test" to execute the
+# tests (and in order to make sure Twisted is installed early enough -- see the paragraph
+# above).
+# http://pypi.python.org/pypi/setuptools_trial
+setup_requires.extend(['setuptools_trial'])
 
 # darcsver is needed if you want "./setup.py darcsver" to write a new version stamp in
 # src/allmydata/_version.py, with a version number derived from darcs history.
 # http://pypi.python.org/pypi/darcsver
 setup_requires.append('darcsver >= 1.1.5')
 
-# setuptools_trial is needed only if you want "./setup.py trial" to execute the tests.
-# http://pypi.python.org/pypi/setuptools_trial
-if 'trial' in sys.argv[1:]:
+if 'trial' in sys.argv[1:] or 'test' in sys.argv[1:]:
     # Cygwin requires the poll reactor to work at all.  Linux requires the poll reactor to avoid
     # bug #402 (twisted bug #3218).  In general, the poll reactor is better than the select
     # reactor, but it is not available on all platforms.  According to exarkun on IRC, it is
@@ -160,12 +165,6 @@ if 'trial' in sys.argv[1:]:
     if sys.platform in ("linux2", "cygwin"):
         if not [a for a in sys.argv if a.startswith("--reactor")]:
             sys.argv.append("--reactor=poll")
-    setup_requires.append('setuptools_trial >= 0.2')
-
-    # Whenever we run the 'trial' command, make sure that the build_tahoe step
-    # is run as well.
-    trial_index = sys.argv.index('trial')
-    sys.argv.insert(trial_index, 'build_tahoe')
 
 # setuptools_darcs is required to produce complete distributions (such as with
 # "sdist" or "bdist_egg"), unless there is a PKG-INFO file present which shows
