@@ -290,7 +290,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
             open(HOTLINE_FILE, "w").write("")
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr) # If you emit noise, you fail this test.
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
+            self.failUnlessEqual(err, "", errstr)
 
             # the parent (twistd) has exited. However, twistd writes the pid
             # from the child, not the parent, so we can't expect twistd.pid
