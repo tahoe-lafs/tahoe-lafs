@@ -267,7 +267,6 @@ class Server(unittest.TestCase):
         readers = ss.remote_get_buckets("allocate")
         reader = readers[shnum]
         self.failUnlessEqual(reader.remote_read(2**32, 2), "ab")
-    test_large_share.skip = "This test is too expensive on systems without efficient sparse files."
 
     def test_dont_overfill_dirs(self):
         """
