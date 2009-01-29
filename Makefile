@@ -62,16 +62,7 @@ src/allmydata/_version.py:
 # three invocations.
 
 build: src/allmydata/_version.py
-	$(MAKE) build-once || $(MAKE) build-once || $(MAKE) build-once
-
-# setuptools has a bug (Issue17, see tahoe #229 for details) that causes it
-# to mishandle dependencies that are installed in non-site-directories,
-# including the /var/lib/ place that debian's python-support system uses. We
-# add this debian/ubuntu-specific directory (via $SITEDIRARG) to the setup.py
-# command line to work around this. Some day this will probably be fixed in
-# setuptools.
-build-once:
-	$(PYTHON) setup.py build_tahoe
+	$(PYTHON) setup.py build
 	touch .built
 
 # 'make install' will do the following:
