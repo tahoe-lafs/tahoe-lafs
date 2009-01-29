@@ -22,27 +22,14 @@ def pylibdir(prefixdir):
 basedir = os.path.dirname(os.path.abspath(__file__))
 supportlib = pylibdir(os.path.join(basedir, "support"))
 
-
+prefixdirs = [] # argh!  horrible kludge to work-around setuptools #54
 for i in range(len(sys.argv)):
     arg = sys.argv[i]
-    prefixdir = None
     if arg.startswith("--prefix="):
-        prefixdir = arg[len("--prefix="):]
+        prefixdirs.append(arg[len("--prefix="):])
     if arg == "--prefix":
         if len(sys.argv) > i+1:
-            prefixdir = sys.argv[i+1]
-
-    if prefixdir:
-        libdir = pylibdir(prefixdir)
-        try:
-            os.makedirs(libdir)
-        except EnvironmentError, le:
-            # Okay, maybe the dir was already there.
-            pass
-        sys.path.append(libdir)
-        pp = os.environ.get('PYTHONPATH','').split(os.pathsep)
-        pp.append(libdir)
-        os.environ['PYTHONPATH'] = os.pathsep.join(pp)
+            prefixdirs.append(sys.argv[i+1])
 
     if arg.startswith("develop") or arg.startswith("build") or arg.startswith("test"): # argh! horrible kludge to workaround setuptools #17
         if sys.platform == "linux2":
@@ -52,6 +39,21 @@ for i in range(len(sys.argv)):
             # this probably only applies to leopard 10.5, possibly only 10.5.5
             sd = "/System/Library/Frameworks/Python.framework/Versions/%d.%d/Extras/lib/python" % (sys.version_info[:2])
             sys.argv.extend(["--site-dirs", sd])
+
+if not prefixdirs:
+    prefixdirs.append("support")
+
+for prefixdir in prefixdirs:
+    libdir = pylibdir(prefixdir)
+    try:
+        os.makedirs(libdir)
+    except EnvironmentError, le:
+        # Okay, maybe the dir was already there.
+        pass
+    sys.path.append(libdir)
+    pp = os.environ.get('PYTHONPATH','').split(os.pathsep)
+    pp.append(libdir)
+    os.environ['PYTHONPATH'] = os.pathsep.join(pp)
 
 try:
     from ez_setup import use_setuptools
