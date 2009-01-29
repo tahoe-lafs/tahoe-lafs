@@ -31,14 +31,15 @@ for i in range(len(sys.argv)):
         if len(sys.argv) > i+1:
             prefixdirs.append(sys.argv[i+1])
 
-    if arg.startswith("develop") or arg.startswith("build") or arg.startswith("test"): # argh! horrible kludge to workaround setuptools #17
-        if sys.platform == "linux2":
-            # workaround for tahoe #229 / setuptools #17, on debian
-            sys.argv.extend(["--site-dirs", "/var/lib/python-support/python%d.%d" % (sys.version_info[:2])])
-        elif sys.platform == "darwin":
-            # this probably only applies to leopard 10.5, possibly only 10.5.5
-            sd = "/System/Library/Frameworks/Python.framework/Versions/%d.%d/Extras/lib/python" % (sys.version_info[:2])
-            sys.argv.extend(["--site-dirs", sd])
+# The following horrible kludge to workaround setuptools #17 is commented-out, because I can't at this moment figure out how to make sure the horrible kludge gets executed only when it is needed (i.e., only when a "setup.py develop" step is about to happen), and the bad effect of setuptools #17 is "only" that setuptools re-installs extant packages.
+#     if arg.startswith("develop") or arg.startswith("build") or arg.startswith("test"): # argh! horrible kludge to workaround setuptools #17
+#         if sys.platform == "linux2":
+#             # workaround for tahoe #229 / setuptools #17, on debian
+#             sys.argv.extend(["--site-dirs", "/var/lib/python-support/python%d.%d" % (sys.version_info[:2])])
+#         elif sys.platform == "darwin":
+#             # this probably only applies to leopard 10.5, possibly only 10.5.5
+#             sd = "/System/Library/Frameworks/Python.framework/Versions/%d.%d/Extras/lib/python" % (sys.version_info[:2])
+#             sys.argv.extend(["--site-dirs", sd])
 
 if not prefixdirs:
     prefixdirs.append("support")
