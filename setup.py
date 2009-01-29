@@ -72,7 +72,7 @@ else:
 
 from setuptools import find_packages, setup
 from setuptools.command import sdist
-from distutils.core import Command
+from setuptools import Command
 from pkg_resources import require
 
 # Make the dependency-version-requirement, which is used by the Makefile at
