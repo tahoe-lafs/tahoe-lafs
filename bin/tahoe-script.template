@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/bin/false # You must specify a python interpreter.
 
 import errno, sys, os, subprocess
 

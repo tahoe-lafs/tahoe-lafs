@@ -247,27 +247,30 @@ class CheckAutoDeps(Command):
         _auto_deps.require_auto_deps()
 
 
-class BuildTahoe(Command):
+class MakeExecutable(Command):
     user_options = []
     def initialize_options(self):
         pass
     def finalize_options(self):
         pass
     def run(self):
-        # chmod +x bin/tahoe
-        bin_tahoe = os.path.join("bin", "tahoe")
-        old_mode = stat.S_IMODE(os.stat(bin_tahoe)[stat.ST_MODE])
-        new_mode = old_mode | (stat.S_IXUSR | stat.S_IRUSR |
-                               stat.S_IXGRP | stat.S_IRGRP |
-                               stat.S_IXOTH | stat.S_IROTH )
-        os.chmod(bin_tahoe, new_mode)
+        bin_tahoe_template = os.path.join("bin", "tahoe-script.template")
 
-        # On Windows, create the 'tahoe-script.py' file based on the 'tahoe'
-        # executable script under the 'bin' directory so that the tahoe.exe
-        # will work correctly.  The 'tahoe-script.py' file is exactly the same
-        # as the 'tahoe' script except that we need to update the she-bang
-        # line.  The tahoe.exe will be copied from the setuptools egg's cli.exe
-        # and this will work from a zip-safe and non-zip-safe setuptools egg.
+        # Create the 'tahoe-script.py' file under the 'bin' directory. The 'tahoe-script.py'
+        # file is exactly the same as the 'tahoe-script.template' script except that the shebang
+        # line is rewritten to use our sys.executable for the interpreter. On Windows, create a
+        # tahoe.exe will execute it.  On non-Windows, make a symlink to it from 'tahoe'.  The
+        # tahoe.exe will be copied from the setuptools egg's cli.exe and this will work from a
+        # zip-safe and non-zip-safe setuptools egg.
+        f = open(bin_tahoe_template, "rU")
+        script_lines = f.readlines()
+        f.close()
+        script_lines[0] = "#!%s\n" % sys.executable
+        tahoe_script = os.path.join("bin", "tahoe-script.py")
+        f = open(tahoe_script, "w")
+        for line in script_lines:
+            f.write(line)
+        f.close()
         if sys.platform == "win32":
             setuptools_egg = require("setuptools")[0].location
             if os.path.isfile(setuptools_egg):
@@ -284,26 +287,20 @@ class BuildTahoe(Command):
                 f.close()
             else:
                 shutil.copy(cli_exe, tahoe_exe)
-            f = open(bin_tahoe, "r")
-            script_lines = f.readlines()
-            f.close()
-            script_lines[0] = "#!%s\n" % sys.executable
-            tahoe_script = os.path.join("bin", "tahoe-script.py")
-            f = open(tahoe_script, "w")
-            for line in script_lines:
-                f.write(line)
-            f.close()
+        else:
+            try:
+                os.remove(os.path.join('bin', 'tahoe'))
+            except:
+                # okay, probably it was already gone
+                pass
+            os.symlink('tahoe-script.py', os.path.join('bin', 'tahoe'))
 
-        command = [sys.executable, "setup.py", "develop",
-            "--prefix=support"]
-        print "Command:", " ".join(command)
-        rc = subprocess.call(command)
-        if rc < 0:
-            print >>sys.stderr, "'setup.py develop' terminated by signal", -rc
-            sys.exit(1)
-        elif rc > 0:
-            print >>sys.stderr, "'setup.py develop' exited with rc", rc
-            sys.exit(rc)
+        # chmod +x bin/tahoe-script.py
+        old_mode = stat.S_IMODE(os.stat(tahoe_script)[stat.ST_MODE])
+        new_mode = old_mode | (stat.S_IXUSR | stat.S_IRUSR |
+                               stat.S_IXGRP | stat.S_IRGRP |
+                               stat.S_IXOTH | stat.S_IROTH )
+        os.chmod(tahoe_script, new_mode)
 
 class MySdist(sdist.sdist):
     """ A hook in the sdist command so that we can determine whether this the
@@ -367,7 +364,7 @@ setup(name='allmydata-tahoe',
                 "show_pythonpath": ShowPythonPath,
                 "run_with_pythonpath": RunWithPythonPath,
                 "check_auto_deps": CheckAutoDeps,
-                "build_tahoe": BuildTahoe,
+                "make_executable": MakeExecutable,
                 "sdist": MySdist,
                 },
       package_dir = {'':'src'},
