@@ -24,7 +24,7 @@ class TheRightCode(unittest.TestCase, common_util.SignalMixin):
 
             # Fail unless the allmydata-tahoe package is *this* version *and* was loaded from *this* source directory.
             required_ver_and_path = "allmydata-tahoe: %s (%s)" % (allmydata.__version__, os.path.dirname(os.path.dirname(allmydata.__file__)))
-            self.failUnless(out.startswith(required_ver_and_path), (out, err, rc_or_sig))
+            self.failUnless(out.startswith(required_ver_and_path), (out, err, rc_or_sig, required_ver_and_path))
         d.addCallback(_cb)
         return d
 
