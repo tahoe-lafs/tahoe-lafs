@@ -117,20 +117,9 @@ trove_classifiers=[
     ]
 
 
-VERSIONFILE = "src/allmydata/_version.py"
-verstr = "unknown"
-try:
-    verstrline = open(VERSIONFILE, "rt").read()
-except EnvironmentError:
-    pass # Okay, there is no version file.
-else:
-    VSRE = r"^verstr = ['\"]([^'\"]*)['\"]"
-    mo = re.search(VSRE, verstrline, re.M)
-    if mo:
-        verstr = mo.group(1)
-    else:
-        print "unable to find version in %s" % (VERSIONFILE,)
-        raise RuntimeError("if %s.py exists, it is required to be well-formed" % (VERSIONFILE,))
+# Note that the darcsver command from the darcsver plugin is needed to initialize the
+# distribution's .version attribute correctly.  (It does this either by examining darcs history,
+# or if that fails by reading the src/allmydata/_version.py file).
 
 LONG_DESCRIPTION=\
 """Welcome to the Tahoe project, a secure, decentralized, fault-tolerant
@@ -158,7 +147,7 @@ setup_requires.extend(['setuptools_trial'])
 # darcsver is needed if you want "./setup.py darcsver" to write a new version stamp in
 # src/allmydata/_version.py, with a version number derived from darcs history.
 # http://pypi.python.org/pypi/darcsver
-setup_requires.append('darcsver >= 1.1.5')
+setup_requires.append('darcsver >= 1.2.0')
 
 if 'trial' in sys.argv[1:] or 'test' in sys.argv[1:]:
     # Cygwin requires the poll reactor to work at all.  Linux requires the poll reactor to avoid
@@ -357,7 +346,6 @@ class MySdist(sdist.sdist):
 from _auto_deps import install_requires
 
 setup(name='allmydata-tahoe',
-      version=verstr,
       description='secure, decentralized, fault-tolerant filesystem',
       long_description=LONG_DESCRIPTION,
       author='the allmydata.org Tahoe project',
