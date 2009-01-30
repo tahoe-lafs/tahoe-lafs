@@ -398,7 +398,3 @@ mac-cleanup:
 mac-dbg:
 	cd mac && $(PP) $(PYTHON)w allmydata_tahoe.py
 
-# This target runs a stats gatherer server
-.PHONY: stats-gatherer-run
-stats-gatherer-run:
-	$(RUNPP) -d stats_gatherer -p ../src/allmydata/stats.py
