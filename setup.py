@@ -142,22 +142,12 @@ setup_requires = []
 # tests (and in order to make sure Twisted is installed early enough -- see the paragraph
 # above).
 # http://pypi.python.org/pypi/setuptools_trial
-setup_requires.extend(['setuptools_trial'])
+setup_requires.extend(['setuptools_trial >= 0.5'])
 
 # darcsver is needed if you want "./setup.py darcsver" to write a new version stamp in
 # src/allmydata/_version.py, with a version number derived from darcs history.
 # http://pypi.python.org/pypi/darcsver
 setup_requires.append('darcsver >= 1.2.0')
-
-if 'trial' in sys.argv[1:] or 'test' in sys.argv[1:]:
-    # Cygwin requires the poll reactor to work at all.  Linux requires the poll reactor to avoid
-    # bug #402 (twisted bug #3218).  In general, the poll reactor is better than the select
-    # reactor, but it is not available on all platforms.  According to exarkun on IRC, it is
-    # available but buggy on some versions of Mac OS X, so just because you can install it
-    # doesn't mean we want to use it on every platform.
-    if sys.platform in ("linux2", "cygwin"):
-        if not [a for a in sys.argv if a.startswith("--reactor")]:
-            sys.argv.append("--reactor=poll")
 
 # setuptools_darcs is required to produce complete distributions (such as with
 # "sdist" or "bdist_egg"), unless there is a PKG-INFO file present which shows
