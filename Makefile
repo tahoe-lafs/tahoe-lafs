@@ -109,10 +109,10 @@ TEST=allmydata
 # suppress the ansi color sequences
 
 test: build src/allmydata/_version.py
-	$(PYTHON) setup.py trial $(TRIALARGS) -s $(TEST)
+	$(PYTHON) setup.py test $(TRIALARGS) -s $(TEST)
 
 quicktest: .built .checked-deps
-	$(PYTHON) setup.py trial $(TRIALARGS) -s $(TEST)
+	$(PYTHON) setup.py test $(TRIALARGS) -s $(TEST)
 
 fuse-test: .built .checked-deps
 	$(RUNPP) -d contrib/fuse -p -c runtests.py
