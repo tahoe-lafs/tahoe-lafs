@@ -232,6 +232,8 @@ class WriteableSSKFileURI(_BaseURI):
 
     def abbrev(self):
         return base32.b2a(self.writekey[:5])
+    def abbrev_si(self):
+        return base32.b2a(self.storage_index)[:5]
 
     def is_readonly(self):
         return False
@@ -278,6 +280,8 @@ class ReadonlySSKFileURI(_BaseURI):
 
     def abbrev(self):
         return base32.b2a(self.readkey[:5])
+    def abbrev_si(self):
+        return base32.b2a(self.storage_index)[:5]
 
     def is_readonly(self):
         return True
@@ -355,6 +359,8 @@ class _NewDirectoryBaseURI(_BaseURI):
 
     def abbrev(self):
         return self._filenode_uri.to_string().split(':')[2][:5]
+    def abbrev_si(self):
+        return base32.b2a(self._filenode_uri.storage_index)[:5]
 
     def get_filenode_uri(self):
         return self._filenode_uri
