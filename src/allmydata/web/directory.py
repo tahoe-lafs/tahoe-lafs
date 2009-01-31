@@ -438,7 +438,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
 def abbreviated_dirnode(dirnode):
     u = from_string_dirnode(dirnode.get_uri())
-    return u.abbrev()
+    return u.abbrev_si()
 
 class DirectoryAsHTML(rend.Page):
     # The remainder of this class is to render the directory into
@@ -465,6 +465,14 @@ class DirectoryAsHTML(rend.Page):
     def render_welcome(self, ctx, data):
         link = get_root(ctx)
         return T.div[T.a(href=link)["Return to Welcome page"]]
+
+    def render_show_readonly(self, ctx, data):
+        if self.node.is_readonly():
+            return ""
+        rocap = self.node.get_readonly_uri()
+        root = get_root(ctx)
+        uri_link = "%s/uri/%s/" % (root, urllib.quote(rocap))
+        return ctx.tag[T.a(href=uri_link)["Read-Only Version"]]
 
     def data_children(self, ctx, data):
         d = self.node.list()
