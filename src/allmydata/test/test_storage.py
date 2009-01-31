@@ -267,6 +267,7 @@ class Server(unittest.TestCase):
         readers = ss.remote_get_buckets("allocate")
         reader = readers[shnum]
         self.failUnlessEqual(reader.remote_read(2**32, 2), "ab")
+    test_large_share.skip = "This test can spuriously fail if you have less than 4 GiB free on your filesystem, and if your filesystem doesn't support efficient sparse files then it is very expensive (Mac OS X is the only system I know of in the desktop/server area that doesn't support efficient sparse files)."
 
     def test_dont_overfill_dirs(self):
         """
