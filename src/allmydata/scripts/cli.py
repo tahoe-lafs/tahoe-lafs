@@ -39,6 +39,8 @@ class VDriveOptions(BaseOptions, usage.Options):
         else:
             node_url_file = os.path.join(self['node-directory'], "node.url")
             self['node-url'] = open(node_url_file, "r").read().strip()
+        if self['node-url'][-1] != "/":
+            self['node-url'] += "/"
 
         aliases = get_aliases(self['node-directory'])
         if self['dir-cap']:
