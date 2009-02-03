@@ -35,7 +35,8 @@ def check(options):
         return 1
     jdata = resp.read()
     if options.get("raw"):
-        pprint(jdata, stream=stdout)
+        stdout.write(jdata)
+        stdout.write("\n")
         return 0
     data = simplejson.loads(jdata)
 
