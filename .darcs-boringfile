@@ -61,6 +61,10 @@
 # src/allmydata/_auto_deps.py is copied into place at build time, and never checked in
 ^src/allmydata/_auto_deps\.py$
 
+# bin/tahoe and bin/tahoe-script.py are now generated files
+^bin/tahoe$
+^bin/tahoe-script\.py$
+
 # this file is maintained by the buildbot
 ^\.buildbot-sourcedata$
 
