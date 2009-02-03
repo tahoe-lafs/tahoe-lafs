@@ -14,12 +14,12 @@ the appropriate options to ``use_setuptools()``.
 This file can also be run as a script to install or upgrade setuptools.
 """
 import os, sys
-DEFAULT_VERSION = "0.6c10dev"
+DEFAULT_VERSION = "0.6c11dev"
 DEFAULT_DIR     = "misc/dependencies/"
 DEFAULT_URL     = "file:"+DEFAULT_DIR
 
 md5_data = {
-    'setuptools-0.6c10dev.egg': 'caa2735c28de4361dbfbdbf1a1bbc87a',
+    'setuptools-0.6c11dev.egg': '9734e821d3388af78fceecb264b3e854',
 }
 
 import sys, os
@@ -39,7 +39,7 @@ def _validate_md5(egg_name, data):
 
 def use_setuptools(
     version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=os.curdir,
-    min_version="0.6c10dev", download_delay=15
+    min_version="0.6c11dev", download_delay=15
 ):
     """Automatically find/download setuptools and make it available on sys.path
 
