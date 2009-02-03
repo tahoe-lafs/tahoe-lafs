@@ -234,6 +234,7 @@ clean:
 	rm -rf setuptools*.egg *.pyc darcsver*.egg pyutil*.egg
 	rm -rf misc/dependencies/build misc/dependencies/temp
 	rm -rf misc/dependencies/tahoe_deps.egg-info
+	rm -f bin/tahoe bin/tahoe-script.py
 
 find-trailing-spaces:
 	$(PYTHON) misc/find-trailing-spaces.py -r src
