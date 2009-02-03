@@ -144,3 +144,5 @@ def list(options):
     fmt = " ".join(fmt_pieces)
     for row in rows:
         print >>stdout, (fmt % tuple(row)).rstrip()
+
+    return 0
