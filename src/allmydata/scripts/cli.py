@@ -190,6 +190,20 @@ class LnOptions(VDriveOptions):
     def getSynopsis(self):
         return "%s ln FROM TO" % (os.path.basename(sys.argv[0]),)
 
+class BackupOptions(VDriveOptions):
+    optFlags = [
+        ("verbose", "v", "Be noisy about what is happening."),
+        ]
+
+    def parseArgs(self, localdir, topath):
+        self.from_dir = localdir
+        self.to_dir = topath
+
+    def getSynopsis(Self):
+        return "%s backup FROM ALIAS:TO" % os.path.basename(sys.argv[0])
+
+    longdesc = """Add a versioned backup of the local FROM directory to a timestamped subdir of the (tahoe) TO/Archives directory, sharing as many files and directories as possible with the previous backup. Creates TO/Latest as a reference to the latest backup. Behaves somewhat like 'rsync -a --link-dest=TO/Archives/(previous) FROM TO/Archives/(new); ln -sf TO/Archives/(new) TO/Latest'."""
+
 class WebopenOptions(VDriveOptions):
     def parseArgs(self, where=''):
         self.where = where
@@ -266,6 +280,7 @@ subCommands = [
     ["rm", None, RmOptions, "Unlink a file or directory in the virtual drive."],
     ["mv", None, MvOptions, "Move a file within the virtual drive."],
     ["ln", None, LnOptions, "Make an additional link to an existing file."],
+    ["backup", None, BackupOptions, "Make target dir look like local dir."],
     ["webopen", None, WebopenOptions, "Open a webbrowser to the root_dir"],
     ["manifest", None, ManifestOptions, "List all files/dirs in a subtree"],
     ["stats", None, StatsOptions, "Print statistics about all files/dirs in a subtree"],
@@ -337,6 +352,11 @@ def ln(options):
     rc = tahoe_mv.mv(options, mode="link")
     return rc
 
+def backup(options):
+    from allmydata.scripts import tahoe_backup
+    rc = tahoe_backup.backup(options)
+    return rc
+
 def webopen(options, opener=None):
     from allmydata.scripts import tahoe_webopen
     rc = tahoe_webopen.webopen(options, opener=opener)
@@ -374,6 +394,7 @@ dispatch = {
     "rm": rm,
     "mv": mv,
     "ln": ln,
+    "backup": backup,
     "webopen": webopen,
     "manifest": manifest,
     "stats": stats,

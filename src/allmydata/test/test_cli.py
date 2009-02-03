@@ -4,6 +4,7 @@ import os.path
 from twisted.trial import unittest
 from cStringIO import StringIO
 import urllib
+import time
 
 from allmydata.util import fileutil, hashutil
 from allmydata import uri
@@ -617,3 +618,111 @@ class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("cp", "--recursive",
                                               dn, "tahoe:"))
         return d
+
+class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
+    def writeto(self, path, data):
+        d = os.path.dirname(os.path.join(self.basedir, "home", path))
+        fileutil.make_dirs(d)
+        f = open(os.path.join(self.basedir, "home", path), "w")
+        f.write(data)
+        f.close()
+
+    def test_backup(self):
+        self.basedir = os.path.dirname(self.mktemp())
+
+        # create a small local directory with a couple of files
+        source = os.path.join(self.basedir, "home")
+        fileutil.make_dirs(os.path.join(source, "empty"))
+        self.writeto("parent/subdir/foo.txt", "foo")
+        self.writeto("parent/subdir/bar.txt", "bar\n" * 1000)
+        self.writeto("parent/blah.txt", "blah")
+
+        d = self.set_up_nodes()
+        d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
+        d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:backups"))
+        def _check0((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+        d.addCallback(_check0)
+        d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups"))
+        def _check1((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(sorted(out.split()), ["Archives", "Latest"])
+        d.addCallback(_check1)
+        d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Latest"))
+        def _check2((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(sorted(out.split()), ["empty", "parent"])
+        d.addCallback(_check2)
+        d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Latest/empty"))
+        def _check2a((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(out.strip(), "")
+        d.addCallback(_check2a)
+        d.addCallback(lambda res: self.do_cli("get", "tahoe:backups/Latest/parent/subdir/foo.txt"))
+        def _check3((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(out, "foo")
+        d.addCallback(_check3)
+        d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
+        def _check4((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            self.old_archives = out.split()
+            self.failUnlessEqual(len(self.old_archives), 1)
+        d.addCallback(_check4)
+
+
+        d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:backups"))
+        d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
+        def _check5((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            self.new_archives = out.split()
+            self.failUnlessEqual(len(self.new_archives), 2)
+            self.failUnlessEqual(sorted(self.new_archives)[0],
+                                 self.old_archives[0])
+        d.addCallback(_check5)
+
+        def _modify(res):
+            time.sleep(1) # get us to a new second
+            self.writeto("parent/subdir/foo.txt", "FOOF!")
+            # and turn a file into a directory
+            os.unlink(os.path.join(source, "parent/blah.txt"))
+            os.mkdir(os.path.join(source, "parent/blah.txt"))
+            self.writeto("parent/blah.txt/surprise file", "surprise")
+            self.writeto("parent/blah.txt/surprisedir/subfile", "surprise")
+            # turn a directory into a file
+            os.rmdir(os.path.join(source, "empty"))
+            self.writeto("empty", "imagine nothing being here")
+            return self.do_cli("backup", source, "tahoe:backups")
+        d.addCallback(_modify)
+        d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
+        def _check6((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            self.new_archives = out.split()
+            self.failUnlessEqual(len(self.new_archives), 3)
+            self.failUnlessEqual(sorted(self.new_archives)[0],
+                                 self.old_archives[0])
+        d.addCallback(_check6)
+        d.addCallback(lambda res: self.do_cli("get", "tahoe:backups/Latest/parent/subdir/foo.txt"))
+        def _check7((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(out, "FOOF!")
+            # the old snapshot should not be modified
+            return self.do_cli("get", "tahoe:backups/Archives/%s/parent/subdir/foo.txt" % self.old_archives[0])
+        d.addCallback(_check7)
+        def _check8((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(out, "foo")
+        d.addCallback(_check8)
+
+        return d
+
