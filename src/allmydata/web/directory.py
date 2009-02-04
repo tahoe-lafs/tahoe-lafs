@@ -671,6 +671,9 @@ def DirectoryJSONMetadata(ctx, dirnode):
                 kiddata[1]["ro_uri"] = ro_uri
             if rw_uri:
                 kiddata[1]["rw_uri"] = rw_uri
+            verifycap = childnode.get_verify_cap()
+            if verifycap:
+                kiddata[1]['verify_uri'] = verifycap.to_string()
             kiddata[1]['mutable'] = childnode.is_mutable()
             kids[name] = kiddata
         if dirnode.is_readonly():
@@ -684,6 +687,9 @@ def DirectoryJSONMetadata(ctx, dirnode):
             contents['ro_uri'] = dro_uri
         if drw_uri:
             contents['rw_uri'] = drw_uri
+        verifycap = dirnode.get_verify_cap()
+        if verifycap:
+            contents['verify_uri'] = verifycap.to_string()
         contents['mutable'] = dirnode.is_mutable()
         data = ("dirnode", contents)
         return simplejson.dumps(data, indent=1) + "\n"

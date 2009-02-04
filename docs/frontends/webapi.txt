@@ -377,6 +377,7 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
    GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json :
 
     [ "filenode", { "ro_uri": file_uri,
+                    "verify_uri": verify_uri,
                     "size": bytes,
                     "mutable": false,
                     "metadata": {"ctime": 1202777696.7564139,
@@ -396,6 +397,7 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
 
     [ "dirnode", { "rw_uri": read_write_uri,
                    "ro_uri": read_only_uri,
+                   "verify_uri": verify_uri,
                    "mutable": true,
                    "children": {
                      "foo.txt": [ "filenode", { "ro_uri": uri,
@@ -422,7 +424,9 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
   that is stored on the directory edge).
 
   Then the rw_uri field will be present in the information about a directory
-  if and only if you have read-write access to that directory,
+  if and only if you have read-write access to that directory. The verify_uri
+  field will be presend if and only if the object has a verify-cap
+  (non-distributed LIT files do not have verify-caps).
 
 
 === Attaching an existing File or Directory by its read- or write- cap ===

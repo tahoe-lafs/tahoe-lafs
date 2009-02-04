@@ -146,12 +146,14 @@ class WebMixin(object):
             self._foo_node = foo
             self._foo_uri = foo.get_uri()
             self._foo_readonly_uri = foo.get_readonly_uri()
+            self._foo_verifycap = foo.get_verify_cap().to_string()
             # NOTE: we ignore the deferred on all set_uri() calls, because we
             # know the fake nodes do these synchronously
             self.public_root.set_uri(u"foo", foo.get_uri())
 
             self.BAR_CONTENTS, n, self._bar_txt_uri = self.makefile(0)
             foo.set_uri(u"bar.txt", self._bar_txt_uri)
+            self._bar_txt_verifycap = n.get_verify_cap().to_string()
 
             foo.set_uri(u"empty", res[3][1].get_uri())
             sub_uri = res[4][1].get_uri()
@@ -216,6 +218,7 @@ class WebMixin(object):
         self.failIf(data[1]["mutable"])
         self.failIf("rw_uri" in data[1]) # immutable
         self.failUnlessEqual(data[1]["ro_uri"], self._bar_txt_uri)
+        self.failUnlessEqual(data[1]["verify_uri"], self._bar_txt_verifycap)
         self.failUnlessEqual(data[1]["size"], len(self.BAR_CONTENTS))
 
     def failUnlessIsFooJSON(self, res):
@@ -227,6 +230,7 @@ class WebMixin(object):
         self.failUnless("rw_uri" in data[1]) # mutable
         self.failUnlessEqual(data[1]["rw_uri"], self._foo_uri)
         self.failUnlessEqual(data[1]["ro_uri"], self._foo_readonly_uri)
+        self.failUnlessEqual(data[1]["verify_uri"], self._foo_verifycap)
 
         kidnames = sorted([unicode(n) for n in data[1]["children"]])
         self.failUnlessEqual(kidnames,
@@ -242,6 +246,8 @@ class WebMixin(object):
         self.failUnlessEqual(kids[u"bar.txt"][0], "filenode")
         self.failUnlessEqual(kids[u"bar.txt"][1]["size"], len(self.BAR_CONTENTS))
         self.failUnlessEqual(kids[u"bar.txt"][1]["ro_uri"], self._bar_txt_uri)
+        self.failUnlessEqual(kids[u"bar.txt"][1]["verify_uri"],
+                             self._bar_txt_verifycap)
         self.failUnlessEqual(kids[u"bar.txt"][1]["metadata"]["ctime"],
                              self._bar_txt_metadata["ctime"])
         self.failUnlessEqual(kids[u"n\u00fc.txt"][1]["ro_uri"],

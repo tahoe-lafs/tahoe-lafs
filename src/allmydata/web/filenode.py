@@ -432,6 +432,9 @@ def FileJSONMetadata(ctx, filenode):
         data[1]['ro_uri'] = ro_uri
     if rw_uri:
         data[1]['rw_uri'] = rw_uri
+    verifycap = filenode.get_verify_cap()
+    if verifycap:
+        data[1]['verify_uri'] = verifycap.to_string()
     data[1]['mutable'] = filenode.is_mutable()
     return text_plain(simplejson.dumps(data, indent=1) + "\n", ctx)
 
