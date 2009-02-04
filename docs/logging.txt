@@ -13,6 +13,12 @@ The foolscap distribution includes a utility named "flogtool" (usually at
 /usr/bin/flogtool) which is used to get access to many foolscap logging
 features.
 
+Note that there are currently (in foolscap-0.3.2) a couple of problems in using
+flogtool on Windows:
+
+http://foolscap.lothar.com/trac/ticket/108 # set base to "." if not running from source
+http://foolscap.lothar.com/trac/ticket/109 # make a "flogtool" executable that works on Windows
+
 == Realtime Logging ==
 
 When you are working on Tahoe code, and want to see what the node is doing,
