@@ -22,53 +22,17 @@ def pylibdir(prefixdir):
 basedir = os.path.dirname(os.path.abspath(__file__))
 supportlib = pylibdir(os.path.join(basedir, "support"))
 
-prefixdirs = [] # argh!  horrible kludge to work-around setuptools #54
-for i in range(len(sys.argv)):
-    arg = sys.argv[i]
-    if arg.startswith("--prefix="):
-        prefixdirs.append(arg[len("--prefix="):])
-    if arg == "--prefix":
-        if len(sys.argv) > i+1:
-            prefixdirs.append(sys.argv[i+1])
-
-# The following horrible kludge to workaround setuptools #17 is commented-out, because I can't at this moment figure out how to make sure the horrible kludge gets executed only when it is needed (i.e., only when a "setup.py develop" step is about to happen), and the bad effect of setuptools #17 is "only" that setuptools re-installs extant packages.
-#     if arg.startswith("develop") or arg.startswith("build") or arg.startswith("test"): # argh! horrible kludge to workaround setuptools #17
-#         if sys.platform == "linux2":
-#             # workaround for tahoe #229 / setuptools #17, on debian
-#             sys.argv.extend(["--site-dirs", "/var/lib/python-support/python%d.%d" % (sys.version_info[:2])])
-#         elif sys.platform == "darwin":
-#             # this probably only applies to leopard 10.5, possibly only 10.5.5
-#             sd = "/System/Library/Frameworks/Python.framework/Versions/%d.%d/Extras/lib/python" % (sys.version_info[:2])
-#             sys.argv.extend(["--site-dirs", sd])
-
-if not prefixdirs:
-    prefixdirs.append("support")
-
-for prefixdir in prefixdirs:
-    libdir = pylibdir(prefixdir)
-    try:
-        os.makedirs(libdir)
-    except EnvironmentError, le:
-        # Okay, maybe the dir was already there.
-        pass
-    sys.path.append(libdir)
-    pp = os.environ.get('PYTHONPATH','').split(os.pathsep)
-    pp.append(libdir)
-    os.environ['PYTHONPATH'] = os.pathsep.join(pp)
-
 try:
     from ez_setup import use_setuptools
 except ImportError:
     pass
 else:
-    # This invokes our own customized version of ez_setup.py to make sure that
-    # setuptools >= v0.6c8 (a.k.a. v0.6-final) is installed.
-
-    # setuptools < v0.6c8 doesn't handle eggs which get installed into the CWD
-    # as a result of being transitively depended on in a setup_requires, but
-    # then are needed for the installed code to run, i.e. in an
-    # install_requires.
-    use_setuptools(download_delay=0, min_version="0.6c10dev")
+    # This invokes our own customized version of ez_setup.py to make sure that setuptools
+    # v0.6c11dev (which is our own toothpick of setuptools) is used to build.  Note that we can
+    # use any version of setuptools >= 0.6c6 to *run* -- see _auto_deps.py for run-time
+    # dependencies (a.k.a. "install_requires") -- this is only for build-time dependencies
+    # (a.k.a. "setup_requires").
+    use_setuptools(download_delay=0, min_version="0.6c11dev")
 
 from setuptools import find_packages, setup
 from setuptools.command import sdist
@@ -117,10 +81,6 @@ trove_classifiers=[
     ]
 
 
-# Note that the darcsver command from the darcsver plugin is needed to initialize the
-# distribution's .version attribute correctly.  (It does this either by examining darcs history,
-# or if that fails by reading the src/allmydata/_version.py file).
-
 LONG_DESCRIPTION=\
 """Welcome to the Tahoe project, a secure, decentralized, fault-tolerant
 filesystem.  All of the source code is available under a Free Software, Open
@@ -133,6 +93,18 @@ malfunctioning, or malicious."""
 
 setup_requires = []
 
+# The darcsver command from the darcsver plugin is needed to initialize the distribution's
+# .version attribute correctly.  (It does this either by examining darcs history, or if that
+# fails by reading the setuptools_trial/_version.py file).  darcsver will also write a new
+# version stamp in setuptools_trial/_version.py, with a version number derived from darcs
+# history.  Note that the setup.cfg file has an "[aliases]" section which enumerates commands
+# that you might run and specifies that it will run darcsver before each one.  If you add
+# different commands (or if I forgot some that are already in use), you may need to add it to
+# setup.cfg and configure it to run darcsver before your command, if you want the version number
+# to be correct when that command runs.
+# http://pypi.python.org/pypi/darcsver
+setup_requires.append('darcsver >= 1.2.0')
+
 # Nevow requires Twisted to setup, but doesn't declare that requirement in a way that enables
 # setuptools to satisfy that requirement before Nevow's setup.py tried to "import twisted".
 # Fortunately we require setuptools_trial to setup and setuptools_trial requires Twisted to
@@ -144,17 +116,13 @@ setup_requires = []
 # http://pypi.python.org/pypi/setuptools_trial
 setup_requires.extend(['setuptools_trial >= 0.5'])
 
-# darcsver is needed if you want "./setup.py darcsver" to write a new version stamp in
-# src/allmydata/_version.py, with a version number derived from darcs history.
-# http://pypi.python.org/pypi/darcsver
-setup_requires.append('darcsver >= 1.2.0')
-
-# setuptools_darcs is required to produce complete distributions (such as with
-# "sdist" or "bdist_egg"), unless there is a PKG-INFO file present which shows
-# that this is itself a source distribution.
+# setuptools_darcs is required to produce complete distributions (such as with "sdist" or
+# "bdist_egg") (unless there is a PKG-INFO file present which shows that this is itself a source
+# distribution).  For simplicity, and because there is some unknown error with setuptools_darcs
+# when building and testing tahoe all in one python command on some platforms, we always add it
+# to setup_requires.
 # http://pypi.python.org/pypi/setuptools_darcs
-if not os.path.exists('PKG-INFO'):
-    setup_requires.append('setuptools_darcs >= 1.1.0')
+setup_requires.append('setuptools_darcs >= 1.1.0')
 
 class ShowSupportLib(Command):
     user_options = []
@@ -330,9 +298,8 @@ class MySdist(sdist.sdist):
 
         return sdist.sdist.make_distribution(self)
 
-# Tahoe's dependencies are managed by the find_links= entry in setup.cfg and
-# the _auto_deps.install_requires list, which is used in the call to setup()
-# at the end of this file
+# Tahoe's dependencies are managed by the find_links= entry in setup.cfg and the
+# _auto_deps.install_requires list, which is used in the call to setup() below.
 from _auto_deps import install_requires
 
 setup(name='allmydata-tahoe',
