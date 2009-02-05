@@ -59,10 +59,15 @@ def do_start(basedir, opts, out=sys.stdout, err=sys.stderr):
         # If 'twistd' wasn't on $PATH, maybe we're running from source and
         # Twisted was built as one of our dependencies. If so, we're at
         # BASEDIR/src/allmydata/scripts/startstop_node.py, and it's at
-        # BASEDIR/support/bin/twistd
+        # BASEDIR/support/$BINDIR/twistd
         up = os.path.dirname
         TAHOEDIR = up(up(up(up(os.path.abspath(__file__)))))
-        bindir = os.path.join(TAHOEDIR, "support/bin")
+        if sys.platform == "win32":
+            bin_dir = "Scripts"
+        else:
+            bin_dir = "bin"
+        bindir = os.path.join(TAHOEDIR, "support", bin_dir)
+
         maybe = os.path.join(bindir, "twistd")
         if os.path.exists(maybe):
             cmd = [maybe]
@@ -70,6 +75,15 @@ def do_start(basedir, opts, out=sys.stdout, err=sys.stderr):
             os.environ["PATH"] = os.pathsep.join(oldpath + [bindir])
             # sys.path and $PYTHONPATH are taken care of by the extra code in
             # 'setup.py trial'
+        else:
+            maybe = maybe+'.py'
+            if os.path.exists(maybe):
+                cmd = [sys.executable, maybe]
+                oldpath = os.environ.get("PATH", "").split(os.pathsep)
+                os.environ["PATH"] = os.pathsep.join(oldpath + [bindir])
+                # sys.path and $PYTHONPATH are taken care of by the extra code in
+                # 'setup.py trial'
+
     if not cmd:
         print "Can't find twistd (it comes with Twisted).  Aborting."
         sys.exit(1)
