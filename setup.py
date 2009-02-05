@@ -28,11 +28,11 @@ except ImportError:
     pass
 else:
     # This invokes our own customized version of ez_setup.py to make sure that setuptools
-    # v0.6c11dev (which is our own toothpick of setuptools) is used to build.  Note that we can
+    # v0.6c12dev (which is our own toothpick of setuptools) is used to build.  Note that we can
     # use any version of setuptools >= 0.6c6 to *run* -- see _auto_deps.py for run-time
     # dependencies (a.k.a. "install_requires") -- this is only for build-time dependencies
     # (a.k.a. "setup_requires").
-    use_setuptools(download_delay=0, min_version="0.6c11dev")
+    use_setuptools(download_delay=0, min_version="0.6c12dev")
 
 from setuptools import find_packages, setup
 from setuptools.command import sdist
