@@ -129,15 +129,16 @@ class BackupDB_v1:
         it, call r.did_upload(filecap), so I can update my database.
 
         If was_uploaded() returns a filecap, you might be able to avoid an
-        upload. Call r.must_check(), and if it says False, you can skip the
+        upload. Call r.should_check(), and if it says False, you can skip the
         upload and use the filecap returned by was_uploaded().
 
         If should_check() returns True, you should perform a filecheck on the
         filecap returned by was_uploaded(). If the check indicates the file
         is healthy, please call r.did_check_healthy(checker_results) so I can
-        update the database. If the check indicates the file is not healthy,
-        please upload the file and call r.did_upload(filecap) when you're
-        done.
+        update the database, using the de-JSONized response from the webapi
+        t=check call for 'checker_results'. If the check indicates the file
+        is not healthy, please upload the file and call r.did_upload(filecap)
+        when you're done.
 
         I use_timestamps=True (the default), I will compare ctime and mtime
         of the local file against an entry in my database, and consider the

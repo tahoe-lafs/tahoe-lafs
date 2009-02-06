@@ -7,6 +7,7 @@ from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS
 from allmydata.scripts.common_http import do_http
 from allmydata import uri
 from allmydata.util import time_format
+from allmydata.scripts import backupdb
 
 def raiseHTTPError(msg, resp):
     msg = msg + ": %s %s %s" % (resp.status, resp.reason, resp.read())
@@ -27,17 +28,27 @@ def parse_old_timestamp(s, options):
         return when
     except ValueError:
         pass
+
     try:
         # "2008-11-16 10.34 PM" (localtime)
         if s[-3:] in (" AM", " PM"):
             # this might raise ValueError
-            when = time.strptime(s[:-3], "%Y-%m-%d %H.%M")
+            when = time.strptime(s[:-3], "%Y-%m-%d %I.%M")
             if s[-3:] == "PM":
                 when += 12*60*60
             return when
     except ValueError:
         pass
+
+    try:
+        # "2008-12-31 18.21.43"
+        when = time.strptime(s, "%Y-%m-%d %H.%M.%S")
+        return when
+    except ValueError:
+        pass
+
     print >>options.stderr, "unable to parse old timestamp '%s', ignoring" % s
+    return None
 
 def readdir(dircap, options):
     # returns a dict of (childname: (type, readcap, metadata)), or None if the
@@ -131,6 +142,14 @@ def backup(options):
     stdin = options.stdin
     stdout = options.stdout
     stderr = options.stderr
+
+    use_backupdb = not options["no-backupdb"]
+    options.backupdb = None
+    if use_backupdb:
+        bdbfile = os.path.join(options["node-directory"],
+                               "private", "backupdb.sqlite")
+        bdbfile = os.path.abspath(bdbfile)
+        options.backupdb = backupdb.get_backupdb(bdbfile)
 
     rootcap, path = get_alias(options.aliases, options.to_dir, DEFAULT_ALIAS)
     to_url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
@@ -241,24 +260,65 @@ class Node:
         n = self.__class__()
         return n.process(localpath, olddircap, self.options)
 
-    def upload(self, childpath):
-        self.verboseprint("uploading %s.." % childpath)
-        # we can use the backupdb here
-        #s = os.stat(childpath)
-        # ...
-        # if we go with the old file, we're obligated to use the old
-        # metadata, to make sure it matches the metadata for this child in
-        # the old parent directory
-        #  return oldcap, old_metadata
 
+    def check_backupdb(self, childpath):
+        if not self.options.backupdb:
+            return True, None
+        use_timestamps = not self.options["ignore-timestamps"]
+        bdb = self.options.backupdb
+        r = bdb.check_file(childpath, use_timestamps)
+
+        if not r.was_uploaded():
+            return True, r
+
+        if not r.should_check():
+            # the file was uploaded or checked recently, so we can just use
+            # it
+            return False, r
+
+        # we must check the file before using the results
+        filecap = r.was_uploaded()
+        self.verboseprint("checking %s" % filecap)
+        nodeurl = self.options['node-url']
+        checkurl = nodeurl + "uri/%s?t=check&output=JSON" % urllib.quote(filecap)
+        resp = do_http("POST", checkurl)
+        if resp.status != 200:
+            # can't check, so we must assume it's bad
+            return True, r
+
+        cr = simplejson.loads(resp.read())
+        healthy = cr["results"]["healthy"]
+        if not healthy:
+            # must upload
+            return True, r
+        # file is healthy, no need to upload
+        r.did_check_healthy(cr)
+        return False, r
+
+    def upload(self, childpath):
+        #self.verboseprint("uploading %s.." % childpath)
         metadata = get_local_metadata(childpath)
-        infileobj = open(os.path.expanduser(childpath), "rb")
-        url = self.options['node-url'] + "uri"
-        resp = do_http("PUT", url, infileobj)
-        if resp.status not in (200, 201):
-            raiseHTTPError("Error during file PUT", resp)
-        filecap = resp.read().strip()
-        self.verboseprint(" %s -> %s" % (childpath, filecap))
-        self.verboseprint(" metadata: %s" % (metadata,))
-        return filecap, metadata
+
+        # we can use the backupdb here
+        must_upload, bdb_results = self.check_backupdb(childpath)
+
+        if must_upload:
+            self.verboseprint("uploading %s.." % childpath)
+            infileobj = open(os.path.expanduser(childpath), "rb")
+            url = self.options['node-url'] + "uri"
+            resp = do_http("PUT", url, infileobj)
+            if resp.status not in (200, 201):
+                raiseHTTPError("Error during file PUT", resp)
+            filecap = resp.read().strip()
+            self.verboseprint(" %s -> %s" % (childpath, filecap))
+            #self.verboseprint(" metadata: %s" % (metadata,))
+
+            if bdb_results:
+                bdb_results.did_upload(filecap)
+
+            return filecap, metadata
+
+        else:
+            self.verboseprint("skipping %s.." % childpath)
+            return bdb_results.was_uploaded(), metadata
 
