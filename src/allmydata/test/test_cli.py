@@ -5,6 +5,7 @@ from twisted.trial import unittest
 from cStringIO import StringIO
 import urllib
 import time
+import re
 
 from allmydata.util import fileutil, hashutil
 from allmydata import uri
@@ -16,7 +17,7 @@ _hush_pyflakes = [tahoe_ls, tahoe_get, tahoe_put, tahoe_rm, tahoe_cp]
 
 from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases
 
-from allmydata.scripts import cli, debug, runner
+from allmydata.scripts import cli, debug, runner, backupdb
 from allmydata.test.common import SystemTestMixin
 from twisted.internet import threads # CLI tests use deferToThread
 
@@ -627,8 +628,22 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
         f.write(data)
         f.close()
 
+    def count_output(self, out):
+        mo = re.search(r"(\d)+ files uploaded \((\d+) reused\), (\d+) directories created \((\d+) reused\)", out)
+        return [int(s) for s in mo.groups()]
+
+    def count_output2(self, out):
+        mo = re.search(r"(\d)+ files checked, (\d+) directories checked, (\d+) directories read", out)
+        return [int(s) for s in mo.groups()]
+
     def test_backup(self):
         self.basedir = os.path.dirname(self.mktemp())
+
+        # is the backupdb available? If so, we test that a second backup does
+        # not create new directories.
+        hush = StringIO()
+        have_bdb = backupdb.get_backupdb(os.path.join(self.basedir, "dbtest"),
+                                         hush)
 
         # create a small local directory with a couple of files
         source = os.path.join(self.basedir, "home")
@@ -643,7 +658,15 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
         def _check0((rc, out, err)):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
+            fu, fr, dc, dr = self.count_output(out)
+            # foo.txt, bar.txt, blah.txt
+            self.failUnlessEqual(fu, 3)
+            self.failUnlessEqual(fr, 0)
+            # empty, home, home/parent, home/parent/subdir
+            self.failUnlessEqual(dc, 4)
+            self.failUnlessEqual(dr, 0)
         d.addCallback(_check0)
+
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups"))
         def _check1((rc, out, err)):
             self.failUnlessEqual(err, "")
@@ -678,12 +701,62 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
 
 
         d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:backups"))
+        def _check4a((rc, out, err)):
+            # second backup should reuse everything, if the backupdb is
+            # available
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            if have_bdb:
+                fu, fr, dc, dr = self.count_output(out)
+                # foo.txt, bar.txt, blah.txt
+                self.failUnlessEqual(fu, 0)
+                self.failUnlessEqual(fr, 3)
+                # empty, home, home/parent, home/parent/subdir
+                self.failUnlessEqual(dc, 0)
+                self.failUnlessEqual(dr, 4)
+        d.addCallback(_check4a)
+
+        if have_bdb:
+            # sneak into the backupdb, crank back the "last checked"
+            # timestamp to force a check on all files
+            def _reset_last_checked(res):
+                dbfile = os.path.join(self.basedir,
+                                      "client0", "private", "backupdb.sqlite")
+                self.failUnless(os.path.exists(dbfile), dbfile)
+                bdb = backupdb.get_backupdb(dbfile)
+                bdb.cursor.execute("UPDATE last_upload SET last_checked=0")
+                bdb.connection.commit()
+
+            d.addCallback(_reset_last_checked)
+
+            d.addCallback(lambda res:
+                          self.do_cli("backup", "--verbose", source, "tahoe:backups"))
+            def _check4b((rc, out, err)):
+                # we should check all files, and re-use all of them. None of
+                # the directories should have been changed.
+                self.failUnlessEqual(err, "")
+                self.failUnlessEqual(rc, 0)
+                fu, fr, dc, dr = self.count_output(out)
+                fchecked, dchecked, dread = self.count_output2(out)
+                self.failUnlessEqual(fchecked, 3)
+                self.failUnlessEqual(fu, 0)
+                self.failUnlessEqual(fr, 3)
+                # TODO: backupdb doesn't do dirs yet; when it does, this will
+                # change to dchecked=4, and maybe dread=0
+                self.failUnlessEqual(dchecked, 0)
+                self.failUnlessEqual(dread, 4)
+                self.failUnlessEqual(dc, 0)
+                self.failUnlessEqual(dr, 4)
+            d.addCallback(_check4b)
+
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
         def _check5((rc, out, err)):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
             self.new_archives = out.split()
-            self.failUnlessEqual(len(self.new_archives), 2)
+            self.failUnlessEqual(len(self.new_archives), 3)
+            # the original backup should still be the oldest (i.e. sorts
+            # alphabetically towards the beginning)
             self.failUnlessEqual(sorted(self.new_archives)[0],
                                  self.old_archives[0])
         d.addCallback(_check5)
@@ -701,12 +774,27 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
             self.writeto("empty", "imagine nothing being here")
             return self.do_cli("backup", source, "tahoe:backups")
         d.addCallback(_modify)
+        def _check5a((rc, out, err)):
+            # second backup should reuse bar.txt (if backupdb is available),
+            # and upload the rest. None of the directories can be reused.
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            if have_bdb:
+                fu, fr, dc, dr = self.count_output(out)
+                # new foo.txt, surprise file, subfile, empty
+                self.failUnlessEqual(fu, 4)
+                # old bar.txt
+                self.failUnlessEqual(fr, 1)
+                # home, parent, subdir, blah.txt, surprisedir
+                self.failUnlessEqual(dc, 5)
+                self.failUnlessEqual(dr, 0)
+        d.addCallback(_check5a)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
         def _check6((rc, out, err)):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
             self.new_archives = out.split()
-            self.failUnlessEqual(len(self.new_archives), 3)
+            self.failUnlessEqual(len(self.new_archives), 4)
             self.failUnlessEqual(sorted(self.new_archives)[0],
                                  self.old_archives[0])
         d.addCallback(_check6)
@@ -723,6 +811,20 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(rc, 0)
             self.failUnlessEqual(out, "foo")
         d.addCallback(_check8)
+
+        d.addCallback(lambda res:
+                      self.do_cli("backup", "--no-backupdb", source, "tahoe:backups"))
+        def _check9((rc, out, err)):
+            # --no-backupdb means re-upload everything. We still get to
+            # re-use the directories, since nothing changed.
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            fu, fr, dc, dr = self.count_output(out)
+            self.failUnlessEqual(fu, 5)
+            self.failUnlessEqual(fr, 0)
+            self.failUnlessEqual(dc, 0)
+            self.failUnlessEqual(dr, 5)
+        d.addCallback(_check9)
 
         return d
 

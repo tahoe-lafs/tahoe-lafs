@@ -50,24 +50,6 @@ def parse_old_timestamp(s, options):
     print >>options.stderr, "unable to parse old timestamp '%s', ignoring" % s
     return None
 
-def readdir(dircap, options):
-    # returns a dict of (childname: (type, readcap, metadata)), or None if the
-    # dircap didn't point to a directory
-    url = options['node-url'] + "uri/%s?t=json" % urllib.quote(dircap)
-    resp = do_http("GET", url)
-    if resp.status != 200:
-        raiseHTTPError("Error during directory GET", resp)
-    jd = simplejson.load(resp)
-    ntype, ndata = jd
-    if ntype != "dirnode":
-        return None
-    contents = {}
-    for (childname, (childtype, childdata)) in ndata["children"].items():
-        contents[childname] = (childtype,
-                               str(childdata["ro_uri"]),
-                               childdata["metadata"])
-    return contents
-
 def get_local_metadata(path):
     metadata = {}
 
@@ -131,100 +113,120 @@ def directory_is_changed(a, b):
                 return True
     return False
 
-def backup(options):
-    nodeurl = options['node-url']
-    from_dir = options.from_dir
-    to_dir = options.to_dir
-    if options['quiet']:
-        verbosity = 0
-    else:
-        verbosity = 2
-    stdin = options.stdin
-    stdout = options.stdout
-    stderr = options.stderr
+class BackerUpper:
+    def __init__(self, options):
+        self.options = options
+        self.files_uploaded = 0
+        self.files_reused = 0
+        self.files_checked = 0
+        self.directories_read = 0
+        self.directories_created = 0
+        self.directories_reused = 0
+        self.directories_checked = 0
 
-    use_backupdb = not options["no-backupdb"]
-    options.backupdb = None
-    if use_backupdb:
-        bdbfile = os.path.join(options["node-directory"],
-                               "private", "backupdb.sqlite")
-        bdbfile = os.path.abspath(bdbfile)
-        options.backupdb = backupdb.get_backupdb(bdbfile)
+    def run(self):
+        options = self.options
+        nodeurl = options['node-url']
+        from_dir = options.from_dir
+        to_dir = options.to_dir
+        self.verbosity = 1
+        if options['quiet']:
+            self.verbosity = 0
+        if options['verbose']:
+            self.verbosity = 2
+        stdin = options.stdin
+        stdout = options.stdout
+        stderr = options.stderr
 
-    rootcap, path = get_alias(options.aliases, options.to_dir, DEFAULT_ALIAS)
-    to_url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
-    if path:
-        to_url += escape_path(path)
-    if not to_url.endswith("/"):
-        to_url += "/"
+        self.backupdb = None
+        use_backupdb = not options["no-backupdb"]
+        if use_backupdb:
+            bdbfile = os.path.join(options["node-directory"],
+                                   "private", "backupdb.sqlite")
+            bdbfile = os.path.abspath(bdbfile)
+            self.backupdb = backupdb.get_backupdb(bdbfile)
 
-    archives_url = to_url + "Archives/"
-    latest_url = to_url + "Latest"
+        rootcap, path = get_alias(options.aliases, options.to_dir, DEFAULT_ALIAS)
+        to_url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
+        if path:
+            to_url += escape_path(path)
+        if not to_url.endswith("/"):
+            to_url += "/"
 
-    # first step: make sure the target directory exists, as well as the
-    # Archives/ subdirectory.
-    resp = do_http("GET", archives_url + "?t=json")
-    if resp.status == 404:
-        resp = do_http("POST", archives_url + "?t=mkdir")
-        if resp.status != 200:
-            print >>stderr, "Unable to create target directory: %s %s %s" % \
-                  (resp.status, resp.reason, resp.read())
-            return 1
-        archives_dir = {}
-    else:
-        jdata = simplejson.load(resp)
-        (otype, attrs) = jdata
-        archives_dir = attrs["children"]
+        archives_url = to_url + "Archives/"
+        latest_url = to_url + "Latest"
 
-    # second step: locate the most recent backup in TODIR/Archives/*
-    latest_backup_time = 0
-    latest_backup_name = None
-    latest_backup_dircap = None
+        # first step: make sure the target directory exists, as well as the
+        # Archives/ subdirectory.
+        resp = do_http("GET", archives_url + "?t=json")
+        if resp.status == 404:
+            resp = do_http("POST", archives_url + "?t=mkdir")
+            if resp.status != 200:
+                print >>stderr, "Unable to create target directory: %s %s %s" % \
+                      (resp.status, resp.reason, resp.read())
+                return 1
+            archives_dir = {}
+        else:
+            jdata = simplejson.load(resp)
+            (otype, attrs) = jdata
+            archives_dir = attrs["children"]
 
-    # we have various time formats. The allmydata.com windows backup tool
-    # appears to create things like "2008-11-16 10.34 PM". This script
-    # creates things like "2009-11-16--17.34Z".
-    for archive_name in archives_dir.keys():
-        if archives_dir[archive_name][0] != "dirnode":
-            continue
-        when = parse_old_timestamp(archive_name, options)
-        if when is not None:
-            if when > latest_backup_time:
-                latest_backup_time = when
-                latest_backup_name = archive_name
-                latest_backup_dircap = str(archives_dir[archive_name][1]["ro_uri"])
+        # second step: locate the most recent backup in TODIR/Archives/*
+        latest_backup_time = 0
+        latest_backup_name = None
+        latest_backup_dircap = None
 
-    # third step: process the tree
-    new_backup_dircap = Node().process(options.from_dir,
-                                       latest_backup_dircap,
-                                       options)
-    print >>stdout, "new backup done"
+        # we have various time formats. The allmydata.com windows backup tool
+        # appears to create things like "2008-11-16 10.34 PM". This script
+        # creates things like "2009-11-16--17.34Z".
+        for archive_name in archives_dir.keys():
+            if archives_dir[archive_name][0] != "dirnode":
+                continue
+            when = parse_old_timestamp(archive_name, options)
+            if when is not None:
+                if when > latest_backup_time:
+                    latest_backup_time = when
+                    latest_backup_name = archive_name
+                    latest_backup_dircap = str(archives_dir[archive_name][1]["ro_uri"])
 
-    # fourth: attach the new backup to the list
-    new_readonly_backup_dircap = readonly(new_backup_dircap)
-    now = time_format.iso_utc(int(time.time()), sep="_") + "Z"
+        # third step: process the tree
+        new_backup_dircap = self.process(options.from_dir, latest_backup_dircap)
 
-    put_child(archives_url, now, new_readonly_backup_dircap)
-    put_child(to_url, "Latest", new_readonly_backup_dircap)
+        # fourth: attach the new backup to the list
+        new_readonly_backup_dircap = readonly(new_backup_dircap)
+        now = time_format.iso_utc(int(time.time()), sep="_") + "Z"
 
-    print >>stdout, "backup done"
-    # done!
-    return 0
+        put_child(archives_url, now, new_readonly_backup_dircap)
+        put_child(to_url, "Latest", new_readonly_backup_dircap)
 
+        if self.verbosity >= 1:
+            print >>stdout, (" %d files uploaded (%d reused), "
+                             "%d directories created (%d reused)"
+                             % (self.files_uploaded,
+                                self.files_reused,
+                                self.directories_created,
+                                self.directories_reused))
+            if self.verbosity >= 2:
+                print >>stdout, (" %d files checked, %d directories checked, "
+                                 "%d directories read"
+                                 % (self.files_checked,
+                                    self.directories_checked,
+                                    self.directories_read))
+            print >>stdout, " backup done"
+        # done!
+        return 0
 
-class Node:
     def verboseprint(self, msg):
-        if self.options["verbose"]:
+        if self.verbosity >= 2:
             print >>self.options.stdout, msg
 
-    def process(self, localpath, olddircap, options):
+    def process(self, localpath, olddircap):
         # returns newdircap
-        self.options = options
 
         self.verboseprint("processing %s, olddircap %s" % (localpath, olddircap))
         olddircontents = {}
         if olddircap:
-            olddircontents = readdir(olddircap, options)
+            olddircontents = self.readdir(olddircap)
 
         newdircontents = {} # childname -> (type, rocap, metadata)
         for child in os.listdir(localpath):
@@ -234,7 +236,8 @@ class Node:
                 oldchildcap = None
                 if olddircontents is not None and child in olddircontents:
                     oldchildcap = olddircontents[child][1]
-                newchilddircap = self.recurse(childpath, oldchildcap)
+                # recurse on the child directory
+                newchilddircap = self.process(childpath, oldchildcap)
                 newdircontents[child] = ("dirnode", newchilddircap, metadata)
             elif os.path.isfile(childpath):
                 newfilecap, metadata = self.upload(childpath)
@@ -248,25 +251,21 @@ class Node:
             ):
             self.verboseprint(" %s not changed, re-using old directory" % localpath)
             # yay! they're identical!
+            self.directories_reused += 1
             return olddircap
         else:
             self.verboseprint(" %s changed, making new directory" % localpath)
             # something changed, or there was no previous directory, so we
             # must make a new directory
-            newdircap = mkdir(newdircontents, options)
+            newdircap = mkdir(newdircontents, self.options)
+            self.directories_created += 1
             return readonly(newdircap)
 
-    def recurse(self, localpath, olddircap):
-        n = self.__class__()
-        return n.process(localpath, olddircap, self.options)
-
-
     def check_backupdb(self, childpath):
-        if not self.options.backupdb:
+        if not self.backupdb:
             return True, None
         use_timestamps = not self.options["ignore-timestamps"]
-        bdb = self.options.backupdb
-        r = bdb.check_file(childpath, use_timestamps)
+        r = self.backupdb.check_file(childpath, use_timestamps)
 
         if not r.was_uploaded():
             return True, r
@@ -281,6 +280,7 @@ class Node:
         self.verboseprint("checking %s" % filecap)
         nodeurl = self.options['node-url']
         checkurl = nodeurl + "uri/%s?t=check&output=JSON" % urllib.quote(filecap)
+        self.files_checked += 1
         resp = do_http("POST", checkurl)
         if resp.status != 200:
             # can't check, so we must assume it's bad
@@ -294,6 +294,25 @@ class Node:
         # file is healthy, no need to upload
         r.did_check_healthy(cr)
         return False, r
+
+    def readdir(self, dircap):
+        # returns a dict of (childname: (type, readcap, metadata)), or None
+        # if the dircap didn't point to a directory
+        self.directories_read += 1
+        url = self.options['node-url'] + "uri/%s?t=json" % urllib.quote(dircap)
+        resp = do_http("GET", url)
+        if resp.status != 200:
+            raiseHTTPError("Error during directory GET", resp)
+        jd = simplejson.load(resp)
+        ntype, ndata = jd
+        if ntype != "dirnode":
+            return None
+        contents = {}
+        for (childname, (childtype, childdata)) in ndata["children"].items():
+            contents[childname] = (childtype,
+                                   str(childdata["ro_uri"]),
+                                   childdata["metadata"])
+        return contents
 
     def upload(self, childpath):
         #self.verboseprint("uploading %s.." % childpath)
@@ -316,9 +335,14 @@ class Node:
             if bdb_results:
                 bdb_results.did_upload(filecap)
 
+            self.files_uploaded += 1
             return filecap, metadata
 
         else:
             self.verboseprint("skipping %s.." % childpath)
+            self.files_reused += 1
             return bdb_results.was_uploaded(), metadata
 
+def backup(options):
+    bu = BackerUpper(options)
+    return bu.run()
