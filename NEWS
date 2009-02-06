@@ -78,11 +78,24 @@ of existing mutable shares).
 
 ** CLI Changes
 
-This release adds the 'tahoe create-alias' command, which is a combination of
-'tahoe mkdir' and 'tahoe add-alias'. This also allows you to start using a
-new tahoe directory without exposing its URI in the argv list, which is
-publicly visible (through the process table) on most unix systems. Thanks to
-Kevin Reid for bringing this issue to our attention.
+The "tahoe backup" command is new in this release, which creates efficient
+versioned backups of a local directory. Given a local pathname and a target
+Tahoe directory, this will create a read-only snapshot of the local directory
+in $target/Archives/$timestamp. It will also create $target/Latest, which is
+a reference to the latest such snapshot. Each time you run "tahoe backup"
+with the same source and target, a new $timestamp snapshot will be added.
+These snapshots will share directories that have not changed since the last
+backup, to speed up the process and minimize storage requirements. In
+addition, a small database is used to keep track of which local files have
+been uploaded already, to avoid uploading them a second time. This
+drastically reduces the work needed to do a "null backup" (when nothing has
+changed locally), making "tahoe backup' suitable to run from a daily cronjob.
+
+This release also adds the 'tahoe create-alias' command, which is a
+combination of 'tahoe mkdir' and 'tahoe add-alias'. This also allows you to
+start using a new tahoe directory without exposing its URI in the argv list,
+which is publicly visible (through the process table) on most unix systems.
+Thanks to Kevin Reid for bringing this issue to our attention.
 
 The single-argument form of "tahoe put" was changed to create an unlinked
 file. I.e. "tahoe put bar.txt" will take the contents of a local "bar.txt"
