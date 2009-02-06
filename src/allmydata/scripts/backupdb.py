@@ -208,7 +208,9 @@ class BackupDB_v1:
         c = self.cursor
         try:
             c.execute("INSERT INTO caps (filecap) VALUES (?)", (filecap,))
-        except self.sqlite_module.IntegrityError:
+        except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
+            # sqlite3 on sid gives IntegrityError
+            # pysqlite2 on dapper gives OperationalError
             pass
         c.execute("SELECT fileid FROM caps WHERE filecap=?", (filecap,))
         foundrow = c.fetchone()
@@ -222,7 +224,7 @@ class BackupDB_v1:
         try:
             self.cursor.execute("INSERT INTO last_upload VALUES (?,?,?)",
                                 (fileid, now, now))
-        except self.sqlite_module.IntegrityError:
+        except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
             self.cursor.execute("UPDATE last_upload"
                                 " SET last_uploaded=?, last_checked=?"
                                 " WHERE fileid=?",
@@ -230,7 +232,7 @@ class BackupDB_v1:
         try:
             self.cursor.execute("INSERT INTO local_files VALUES (?,?,?,?,?)",
                                 (path, size, mtime, ctime, fileid))
-        except self.sqlite_module.IntegrityError:
+        except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
             self.cursor.execute("UPDATE local_files"
                                 " SET size=?, mtime=?, ctime=?, fileid=?"
                                 " WHERE path=?",
