@@ -834,3 +834,9 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
 
         return d
 
+    # on our old dapper buildslave, this test takes a long time (usually
+    # 130s), so we have to bump up the default 120s timeout. The create-alias
+    # and initial backup alone take 60s, probably because of the handful of
+    # dirnodes being created (RSA key generation). The backup between check4
+    # and check4a takes 6s, as does the backup before check4b.
+    test_backup.timeout = 300
