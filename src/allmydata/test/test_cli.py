@@ -754,7 +754,10 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
             self.new_archives = out.split()
-            self.failUnlessEqual(len(self.new_archives), 3)
+            expected_new = 2
+            if have_bdb:
+                expected_new += 1
+            self.failUnlessEqual(len(self.new_archives), expected_new)
             # the original backup should still be the oldest (i.e. sorts
             # alphabetically towards the beginning)
             self.failUnlessEqual(sorted(self.new_archives)[0],
@@ -794,7 +797,10 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
             self.new_archives = out.split()
-            self.failUnlessEqual(len(self.new_archives), 4)
+            expected_new = 3
+            if have_bdb:
+                expected_new += 1
+            self.failUnlessEqual(len(self.new_archives), expected_new)
             self.failUnlessEqual(sorted(self.new_archives)[0],
                                  self.old_archives[0])
         d.addCallback(_check6)
