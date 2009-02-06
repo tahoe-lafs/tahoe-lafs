@@ -116,6 +116,9 @@ class BackupDB(unittest.TestCase):
         self.failUnlessEqual(r.should_check(), True)
         r.did_check_healthy("results") # we know they're ignored for now
 
+        bdb.NO_CHECK_BEFORE = 200
+        bdb.ALWAYS_CHECK_AFTER = 400
+
         r = bdb.check_file(blah_fn)
         self.failUnlessEqual(r.was_uploaded(), "blah-cap")
         self.failUnlessEqual(r.should_check(), False)
