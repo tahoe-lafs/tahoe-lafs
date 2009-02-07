@@ -876,8 +876,8 @@ TEST_DATA="\x02"*(immutable.upload.Uploader.URI_LIT_SIZE_THRESHOLD+1)
 class ShareManglingMixin(SystemTestMixin):
 
     def setUp(self):
-        # Set self.basedir to a temp dir which has the name of the current test method in its
-        # name.
+        # Set self.basedir to a temp dir which has the name of the current
+        # test method in its name.
         self.basedir = self.mktemp()
 
         d = defer.maybeDeferred(SystemTestMixin.setUp, self)
@@ -885,8 +885,8 @@ class ShareManglingMixin(SystemTestMixin):
 
         def _upload_a_file(ignored):
             cl0 = self.clients[0]
-            # We need multiple segments to test crypttext hash trees that are non-trivial
-            # (i.e. they have more than just one hash in them).
+            # We need multiple segments to test crypttext hash trees that are
+            # non-trivial (i.e. they have more than just one hash in them).
             cl0.DEFAULT_ENCODING_PARAMETERS['max_segment_size'] = 12
             d2 = cl0.upload(immutable.upload.Data(TEST_DATA, convergence=""))
             def _after_upload(u):

@@ -6,13 +6,16 @@ from twisted.internet import defer
 from twisted.trial import unittest
 import random
 
-READ_LEEWAY = 18 # We'll allow you to pass this test even if you trigger eighteen times as many disk reads and block fetches as would be optimal.
+# We'll allow you to pass this test even if you trigger eighteen times as
+# many disk reads and block fetches as would be optimal.
+READ_LEEWAY = 18
 DELTA_READS = 10 * READ_LEEWAY # N = 10
 
 class Verifier(common.ShareManglingMixin, unittest.TestCase):
     def test_check_without_verify(self):
-        """ Check says the file is healthy when none of the shares have been touched.  It says
-        that the file is unhealthy when all of them have been removed. It doesn't use any reads.
+        """Check says the file is healthy when none of the shares have been
+        touched. It says that the file is unhealthy when all of them have
+        been removed. It doesn't use any reads.
         """
         d = defer.succeed(self.filenode)
         def _check1(filenode):
@@ -80,8 +83,9 @@ class Verifier(common.ShareManglingMixin, unittest.TestCase):
         return d
 
     def test_verify_no_problem(self):
-        """ Verify says the file is healthy when none of the shares have been touched in a way
-        that matters. It doesn't use more than seven times as many reads as it needs."""
+        """ Verify says the file is healthy when none of the shares have been
+        touched in a way that matters. It doesn't use more than seven times
+        as many reads as it needs."""
         def judge(checkresults):
             self.failUnless(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
             data = checkresults.get_data()
@@ -99,25 +103,27 @@ class Verifier(common.ShareManglingMixin, unittest.TestCase):
             common._corrupt_segment_size, ], judge)
 
     def test_verify_server_visible_corruption(self):
-        """ Corruption which is detected by the server means that the server will send you back
-        a Failure in response to get_bucket instead of giving you the share data.  Test that
-        verifier handles these answers correctly. It doesn't use more than seven times as many
-        reads as it needs."""
+        """Corruption which is detected by the server means that the server
+        will send you back a Failure in response to get_bucket instead of
+        giving you the share data. Test that verifier handles these answers
+        correctly. It doesn't use more than seven times as many reads as it
+        needs."""
         def judge(checkresults):
             self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
             data = checkresults.get_data()
-            # The server might fail to serve up its other share as well as the corrupted
-            # one, so count-shares-good could be 8 or 9.
+            # The server might fail to serve up its other share as well as
+            # the corrupted one, so count-shares-good could be 8 or 9.
             self.failUnless(data['count-shares-good'] in (8, 9), data)
             self.failUnless(len(data['sharemap']) in (8, 9,), data)
             self.failUnless(data['count-shares-needed'] == 3, data)
             self.failUnless(data['count-shares-expected'] == 10, data)
-            # The server may have served up the non-corrupted share, or it may not have, so
-            # the checker could have detected either 4 or 5 good servers.
+            # The server may have served up the non-corrupted share, or it
+            # may not have, so the checker could have detected either 4 or 5
+            # good servers.
             self.failUnless(data['count-good-share-hosts'] in (4, 5), data)
             self.failUnless(len(data['servers-responding']) in (4, 5), data)
-            # If the server served up the other share, then the checker should consider it good, else it should
-            # not.
+            # If the server served up the other share, then the checker
+            # should consider it good, else it should not.
             self.failUnless((data['count-shares-good'] == 9) == (data['count-good-share-hosts'] == 5), data)
             self.failUnless(len(data['list-corrupt-shares']) == 0, data)
         return self._help_test_verify([
@@ -325,8 +331,11 @@ class Verifier(common.ShareManglingMixin, unittest.TestCase):
             ], judge)
     test_verify_server_invisible_corruption_share_hash_tree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
-WRITE_LEEWAY = 10 # We'll allow you to pass this test even if you trigger ten times as many block sends and disk writes as would be optimal.
-DELTA_WRITES_PER_SHARE = 1 * WRITE_LEEWAY # Optimally, you could repair one of these (small) files in a single write.
+# We'll allow you to pass this test even if you trigger ten times as many
+# block sends and disk writes as would be optimal.
+WRITE_LEEWAY = 10
+# Optimally, you could repair one of these (small) files in a single write.
+DELTA_WRITES_PER_SHARE = 1 * WRITE_LEEWAY
 
 class Repairer(common.ShareManglingMixin, unittest.TestCase):
     def test_test_code(self):
@@ -420,13 +429,16 @@ class Repairer(common.ShareManglingMixin, unittest.TestCase):
                 self.failIf(prerepairres.is_healthy())
                 self.failUnless(postrepairres.is_healthy())
 
-                # Now we inspect the filesystem to make sure that it has 10 shares.
+                # Now we inspect the filesystem to make sure that it has 10
+                # shares.
                 shares = self.find_shares()
                 self.failIf(len(shares) < 10)
 
-                # Now we delete seven of the other shares, then try to download the file and
-                # assert that it succeeds at downloading and has the right contents.  This can't
-                # work unless it has already repaired the previously-deleted share #2.
+                # Now we delete seven of the other shares, then try to
+                # download the file and assert that it succeeds at
+                # downloading and has the right contents. This can't work
+                # unless it has already repaired the previously-deleted share
+                # #2.
                 for sharenum in range(3, 10):
                     self._delete_a_share(sharenum=sharenum)
 
@@ -470,12 +482,14 @@ class Repairer(common.ShareManglingMixin, unittest.TestCase):
                 self.failIf(prerepairres.is_healthy())
                 self.failUnless(postrepairres.is_healthy(), postrepairres.data)
 
-                # Now we inspect the filesystem to make sure that it has 10 shares.
+                # Now we inspect the filesystem to make sure that it has 10
+                # shares.
                 shares = self.find_shares()
                 self.failIf(len(shares) < 10)
 
-                # Now we delete seven random shares, then try to download the file and
-                # assert that it succeeds at downloading and has the right contents.
+                # Now we delete seven random shares, then try to download the
+                # file and assert that it succeeds at downloading and has the
+                # right contents.
                 for i in range(7):
                     self._delete_a_share()
 
@@ -500,9 +514,14 @@ class Repairer(common.ShareManglingMixin, unittest.TestCase):
                 after_repair_reads = self._count_reads()
                 after_repair_allocates = self._count_writes()
 
-                # The "* 2" in reads is because you might read a whole share before figuring out that it is corrupted.  It might be possible to make this delta reads number a little tighter.
+                # The "* 2" in reads is because you might read a whole share
+                # before figuring out that it is corrupted. It might be
+                # possible to make this delta reads number a little tighter.
                 self.failIf(after_repair_reads - before_repair_reads > (DELTA_READS * 2), (after_repair_reads, before_repair_reads))
-                # The "* 2" in writes is because each server has two shares, and it is reasonable for repairer to conclude that there are two shares that it should upload, if the server fails to serve the first share.
+                # The "* 2" in writes is because each server has two shares,
+                # and it is reasonable for repairer to conclude that there
+                # are two shares that it should upload, if the server fails
+                # to serve the first share.
                 self.failIf(after_repair_allocates - before_repair_allocates > (DELTA_WRITES_PER_SHARE * 2), (after_repair_allocates, before_repair_allocates))
                 self.failIf(prerepairres.is_healthy(), (prerepairres.data, corruptor_func))
                 self.failUnless(postrepairres.is_healthy(), (postrepairres.data, corruptor_func))
@@ -531,14 +550,24 @@ class Repairer(common.ShareManglingMixin, unittest.TestCase):
     test_repair_from_corruption_of_1.todo = "Repairer doesn't properly replace corrupted shares yet."
 
 
-# XXX extend these tests to show that the checker detects which specific share on which specific server is broken -- this is necessary so that the checker results can be passed to the repairer and the repairer can go ahead and upload fixes without first doing what is effectively a check (/verify) run
+# XXX extend these tests to show that the checker detects which specific
+# share on which specific server is broken -- this is necessary so that the
+# checker results can be passed to the repairer and the repairer can go ahead
+# and upload fixes without first doing what is effectively a check (/verify)
+# run
 
-# XXX extend these tests to show bad behavior of various kinds from servers: raising exception from each remove_foo() method, for example
+# XXX extend these tests to show bad behavior of various kinds from servers:
+# raising exception from each remove_foo() method, for example
 
 # XXX test disconnect DeadReferenceError from get_buckets and get_block_whatsit
 
-# XXX test corruption that truncates other hash trees than just the crypttext hash tree
+# XXX test corruption that truncates other hash trees than just the crypttext
+# hash tree
 
-# XXX test the notify-someone-about-corruption feature (also implement that feature)
+# XXX test the notify-someone-about-corruption feature (also implement that
+# feature)
 
-# XXX test whether repairer (downloader) correctly downloads a file even if to do so it has to acquire shares from a server that has already tried to serve it a corrupted share.  (I don't think the current downloader would pass this test, depending on the kind of corruption.)
+# XXX test whether repairer (downloader) correctly downloads a file even if
+# to do so it has to acquire shares from a server that has already tried to
+# serve it a corrupted share. (I don't think the current downloader would
+# pass this test, depending on the kind of corruption.)
