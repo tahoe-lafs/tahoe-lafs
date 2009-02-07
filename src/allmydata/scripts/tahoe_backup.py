@@ -144,7 +144,7 @@ class BackerUpper:
             bdbfile = os.path.join(options["node-directory"],
                                    "private", "backupdb.sqlite")
             bdbfile = os.path.abspath(bdbfile)
-            self.backupdb = backupdb.get_backupdb(bdbfile)
+            self.backupdb = backupdb.get_backupdb(bdbfile, stderr)
 
         rootcap, path = get_alias(options.aliases, options.to_dir, DEFAULT_ALIAS)
         to_url = nodeurl + "uri/%s/" % urllib.quote(rootcap)

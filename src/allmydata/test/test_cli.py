@@ -636,6 +636,13 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
         mo = re.search(r"(\d)+ files checked, (\d+) directories checked, (\d+) directories read", out)
         return [int(s) for s in mo.groups()]
 
+    def nosqlite_is_ok(self, err, have_bdb):
+        if have_bdb:
+            self.failUnlessEqual(err, "")
+        else:
+            self.failUnlessEqual(err.strip(),
+                                 "sqlite unavailable, not using backupdb")
+
     def test_backup(self):
         self.basedir = os.path.dirname(self.mktemp())
 
@@ -656,7 +663,7 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
         d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:backups"))
         def _check0((rc, out, err)):
-            self.failUnlessEqual(err, "")
+            self.nosqlite_is_ok(err, have_bdb)
             self.failUnlessEqual(rc, 0)
             fu, fr, dc, dr = self.count_output(out)
             # foo.txt, bar.txt, blah.txt
@@ -704,7 +711,7 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
         def _check4a((rc, out, err)):
             # second backup should reuse everything, if the backupdb is
             # available
-            self.failUnlessEqual(err, "")
+            self.nosqlite_is_ok(err, have_bdb)
             self.failUnlessEqual(rc, 0)
             if have_bdb:
                 fu, fr, dc, dr = self.count_output(out)
@@ -734,7 +741,7 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
             def _check4b((rc, out, err)):
                 # we should check all files, and re-use all of them. None of
                 # the directories should have been changed.
-                self.failUnlessEqual(err, "")
+                self.nosqlite_is_ok(err, have_bdb)
                 self.failUnlessEqual(rc, 0)
                 fu, fr, dc, dr = self.count_output(out)
                 fchecked, dchecked, dread = self.count_output2(out)
@@ -780,7 +787,7 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
         def _check5a((rc, out, err)):
             # second backup should reuse bar.txt (if backupdb is available),
             # and upload the rest. None of the directories can be reused.
-            self.failUnlessEqual(err, "")
+            self.nosqlite_is_ok(err, have_bdb)
             self.failUnlessEqual(rc, 0)
             if have_bdb:
                 fu, fr, dc, dr = self.count_output(out)
