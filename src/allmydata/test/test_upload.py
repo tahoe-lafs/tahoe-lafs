@@ -86,6 +86,12 @@ class FakeStorageServer:
                          { "maximum-immutable-share-size": 2**32 },
                          "application-version": str(allmydata.__version__),
                          }
+        if mode == "small":
+            self.version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
+                             { "maximum-immutable-share-size": 10 },
+                             "application-version": str(allmydata.__version__),
+                             }
+
 
     def callRemote(self, methname, *args, **kwargs):
         def _call():
@@ -151,13 +157,23 @@ class FakeClient:
     def __init__(self, mode="good", num_servers=50):
         self.mode = mode
         self.num_servers = num_servers
+        if mode == "some_big_some_small":
+            self.peers = []
+            for fakeid in range(num_servers):
+                if fakeid % 2:
+                    self.peers.append( ("%20d" % fakeid,
+                                        FakeStorageServer("good")) )
+                else:
+                    self.peers.append( ("%20d" % fakeid,
+                                        FakeStorageServer("small")) )
+        else:
+            self.peers = [ ("%20d"%fakeid, FakeStorageServer(self.mode),)
+                           for fakeid in range(self.num_servers) ]
     def log(self, *args, **kwargs):
         pass
     def get_permuted_peers(self, storage_index, include_myself):
-        peers = [ ("%20d"%fakeid, FakeStorageServer(self.mode),)
-                  for fakeid in range(self.num_servers) ]
-        self.last_peers = [p[1] for p in peers]
-        return peers
+        self.last_peers = [p[1] for p in self.peers]
+        return self.peers
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS
 
@@ -491,6 +507,34 @@ class PeerSelection(unittest.TestCase):
             self.failUnlessEqual(histogram, [0,0,0,2,1])
         d.addCallback(_check)
         return d
+
+    def test_some_big_some_small(self):
+        # 10 shares, 20 servers, but half the servers don't support a
+        # share-size large enough for our file
+        self.node = FakeClient(mode="some_big_some_small", num_servers=20)
+        self.u = upload.Uploader()
+        self.u.running = True
+        self.u.parent = self.node
+
+        data = self.get_data(SIZE_LARGE)
+        self.set_encoding_parameters(3, 5, 10)
+        d = upload_data(self.u, data)
+        d.addCallback(extract_uri)
+        d.addCallback(self._check_large, SIZE_LARGE)
+        def _check(res):
+            # we should have put one share each on the big peers, and zero
+            # shares on the small peers
+            total_allocated = 0
+            for p in self.node.last_peers:
+                if p.mode == "good":
+                    self.failUnlessEqual(len(p.allocated), 1)
+                elif p.mode == "small":
+                    self.failUnlessEqual(len(p.allocated), 0)
+                total_allocated += len(p.allocated)
+            self.failUnlessEqual(total_allocated, 10)
+        d.addCallback(_check)
+        return d
+
 
 class StorageIndex(unittest.TestCase):
     def test_params_must_matter(self):
