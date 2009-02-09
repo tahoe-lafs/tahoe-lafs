@@ -46,6 +46,11 @@ class UploadResults(Copyable, RemoteCopy):
     typeToCopy = "allmydata.upload.UploadResults.tahoe.allmydata.com"
     copytype = typeToCopy
 
+    # also, think twice about changing the shape of any existing attribute,
+    # because instances of this class are sent from the helper to its client,
+    # so changing this may break compatibility. Consider adding new fields
+    # instead of modifying existing ones.
+
     def __init__(self):
         self.timings = {} # dict of name to number of seconds
         self.sharemap = dictutil.DictOfSets() # {shnum: set(serverid)}
