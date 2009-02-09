@@ -15,8 +15,15 @@ bintahoe = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(allmydat
 if sys.platform == "win32":
     bintahoe += ".exe"
 
-class TheRightCode(unittest.TestCase, common_util.SignalMixin):
+class SkipOnCygwinMixin:
+    def skip_on_cygwin(self):
+        if "cygwin" in sys.platform.lower():
+            raise unittest.SkipTest("We don't know how to make this test work on cygwin: spawnProcess seems to hang forever. We don't know if 'bin/tahoe start' can be run on cygwin.")
+
+class TheRightCode(unittest.TestCase, common_util.SignalMixin,
+                   SkipOnCygwinMixin):
     def test_path(self):
+        self.skip_on_cygwin()
         if not os.path.exists(bintahoe):
             raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
         d = utils.getProcessOutputAndValue(bintahoe, args=["--version-and-path"], env=os.environ)
@@ -201,13 +208,27 @@ class CreateNode(unittest.TestCase):
                               run_by_human=False)
 
 
-class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
+class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin,
+              SkipOnCygwinMixin):
+    # exercise "tahoe start", for both introducer, client node, and
+    # key-generator, by spawning "tahoe start" as a subprocess. This doesn't
+    # get us figleaf-based line-level coverage, but it does a better job of
+    # confirming that the user can actually run "./bin/tahoe start" and
+    # expect it to work. This verifies that bin/tahoe sets up PYTHONPATH and
+    # the like correctly.
+
+    # This doesn't work on cygwin (it hangs forever), so we skip this test
+    # when we're on cygwin. It is likely that "tahoe start" itself doesn't
+    # work on cygwin: twisted seems unable to provide a version of
+    # spawnProcess which really works there.
+
     def workdir(self, name):
         basedir = os.path.join("test_runner", "RunNode", name)
         fileutil.make_dirs(basedir)
         return basedir
 
     def test_introducer(self):
+        self.skip_on_cygwin()
         if not os.path.exists(bintahoe):
             raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
         if runtime.platformType == "win32":
@@ -309,6 +330,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
         return d
 
     def test_client_no_noise(self):
+        self.skip_on_cygwin()
         if not os.path.exists(bintahoe):
             raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
         basedir = self.workdir("test_client_no_noise")
@@ -368,6 +390,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
     test_client_no_noise.todo = "We submitted a patch to Nevow to silence this warning: http://divmod.org/trac/ticket/2830"
 
     def test_client(self):
+        self.skip_on_cygwin()
         if not os.path.exists(bintahoe):
             raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
         if runtime.platformType == "win32":
@@ -470,6 +493,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
         return d
 
     def test_baddir(self):
+        self.skip_on_cygwin()
         if not os.path.exists(bintahoe):
             raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
         basedir = self.workdir("test_baddir")
@@ -505,6 +529,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
         return d
 
     def test_keygen(self):
+        self.skip_on_cygwin()
         if not os.path.exists(bintahoe):
             raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
         if runtime.platformType == "win32":
