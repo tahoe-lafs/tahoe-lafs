@@ -1,10 +1,12 @@
 
 from twisted.trial import unittest
 
-from twisted.python import runtime
+from twisted.python import usage, runtime
 from twisted.internet import utils
 import os.path, re, sys
+from cStringIO import StringIO
 from allmydata.util import fileutil, pollmixin
+from allmydata.scripts import runner
 
 from allmydata.test import common_util
 import allmydata
@@ -28,129 +30,176 @@ class TheRightCode(unittest.TestCase, common_util.SignalMixin):
         d.addCallback(_cb)
         return d
 
-class CreateNode(unittest.TestCase, common_util.SignalMixin):
+class CreateNode(unittest.TestCase):
+    # exercise "tahoe create-client", create-introducer,
+    # create-key-generator, and create-stats-gatherer, by calling the
+    # corresponding code as a subroutine.
+
     def workdir(self, name):
         basedir = os.path.join("test_runner", "CreateNode", name)
         fileutil.make_dirs(basedir)
         return basedir
 
+    def run_tahoe(self, argv):
+        out,err = StringIO(), StringIO()
+        rc = runner.runner(argv, stdout=out, stderr=err)
+        return rc, out.getvalue(), err.getvalue()
+
     def test_client(self):
-        if not os.path.exists(bintahoe):
-            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
-        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-client", "--basedir", c1], env=os.environ)
-        def _cb(res):
-            out, err, rc_or_sig = res
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
-            self.failUnlessEqual(out, "")
-            self.failUnlessEqual(rc_or_sig, 0)
-            self.failUnless(os.path.exists(c1))
-            self.failUnless(os.path.exists(os.path.join(c1, "tahoe-client.tac")))
-        d.addCallback(_cb)
+        argv = ["--quiet", "create-client", "--basedir", c1]
+        rc, out, err = self.run_tahoe(argv)
+        self.failUnlessEqual(err, "")
+        self.failUnlessEqual(out, "")
+        self.failUnlessEqual(rc, 0)
+        self.failUnless(os.path.exists(c1))
+        self.failUnless(os.path.exists(os.path.join(c1, "tahoe-client.tac")))
 
-        def _then_try_again(unused=None):
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-client", "--basedir", c1], env=os.environ)
-        d.addCallback(_then_try_again)
+        # creating the client a second time should be rejected
+        rc, out, err = self.run_tahoe(argv)
+        self.failIfEqual(rc, 0, str((out, err, rc)))
+        self.failUnlessEqual(out, "")
+        self.failUnless("is not empty." in err)
 
-        def _cb2(res):
-            out, err, rc_or_sig = res
-            # creating the client a second time should throw an exception
-            self.failIfEqual(rc_or_sig, 0, str((out, err, rc_or_sig)))
-            self.failUnlessEqual(out, "")
-            self.failUnless("is not empty." in err)
+        # Fail if there is a non-empty line that doesn't end with a
+        # punctuation mark.
+        for line in err.splitlines():
+            self.failIf(re.search("[\S][^\.!?]$", line), (line,))
 
-            # Fail if there is a non-empty line that doesn't end with a PUNCTUATION MARK.
-            for line in err.splitlines():
-                self.failIf(re.search("[\S][^\.!?]$", line), (line,))
-        d.addCallback(_cb2)
-
+        # test that the non --basedir form works too
         c2 = os.path.join(basedir, "c2")
-        def _then_try_new_dir(unused=None):
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-client", c2], env=os.environ)
-        d.addCallback(_then_try_new_dir)
+        argv = ["--quiet", "create-client", c2]
+        rc, out, err = self.run_tahoe(argv)
+        self.failUnless(os.path.exists(c2))
+        self.failUnless(os.path.exists(os.path.join(c2, "tahoe-client.tac")))
 
-        def _cb3(res):
-            out, err, rc_or_sig = res
-            self.failUnless(os.path.exists(c2))
-            self.failUnless(os.path.exists(os.path.join(c2, "tahoe-client.tac")))
-        d.addCallback(_cb3)
-
-        def _then_try_badarg(unused=None):
-            return utils.getProcessOutputAndValue(bintahoe, args=["create-client", "basedir", "extraarg"], env=os.environ)
-        d.addCallback(_then_try_badarg)
-
-        def _cb4(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 1)
-            self.failUnless(out.startswith("Usage"), out)
-        d.addCallback(_cb4)
-        return d
+        # make sure it rejects too many arguments
+        argv = ["create-client", "basedir", "extraarg"]
+        self.failUnlessRaises(usage.UsageError,
+                              runner.runner, argv,
+                              run_by_human=False)
 
     def test_introducer(self):
-        if not os.path.exists(bintahoe):
-            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")
-        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-introducer", "--basedir", c1], env=os.environ)
-        def _cb(res):
-            out, err, rc_or_sig = res
-            # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
-            self.failUnlessEqual(out, "")
-            self.failUnlessEqual(rc_or_sig, 0)
-            self.failUnless(os.path.exists(c1))
-            self.failUnless(os.path.exists(os.path.join(c1,
-                                                        "tahoe-introducer.tac")))
-        d.addCallback(_cb)
+        argv = ["--quiet", "create-introducer", "--basedir", c1]
+        rc, out, err = self.run_tahoe(argv)
+        self.failUnlessEqual(err, "", err)
+        self.failUnlessEqual(out, "")
+        self.failUnlessEqual(rc, 0)
+        self.failUnless(os.path.exists(c1))
+        self.failUnless(os.path.exists(os.path.join(c1,"tahoe-introducer.tac")))
 
-        def _then_try_again(unused=None):
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-introducer", "--basedir", c1], env=os.environ)
-        d.addCallback(_then_try_again)
+        # creating the introducer a second time should be rejected
+        rc, out, err = self.run_tahoe(argv)
+        self.failIfEqual(rc, 0)
+        self.failUnlessEqual(out, "")
+        self.failUnless("is not empty" in err)
 
-        def _cb2(res):
-            out, err, rc_or_sig = res
-            # creating the introducer a second time should throw an exception
-            self.failIfEqual(rc_or_sig, 0)
-            self.failUnlessEqual(out, "")
-            self.failUnless("is not empty" in err)
+        # Fail if there is a non-empty line that doesn't end with a
+        # punctuation mark.
+        for line in err.splitlines():
+            self.failIf(re.search("[\S][^\.!?]$", line), (line,))
 
-            # Fail if there is a non-empty line that doesn't end with a PUNCTUATION MARK.
-            for line in err.splitlines():
-                self.failIf(re.search("[\S][^\.!?]$", line), (line,))
-        d.addCallback(_cb2)
-
+        # test the non --basedir form
         c2 = os.path.join(basedir, "c2")
-        def _then_try_new_dir(unused=None):
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-introducer", c2], env=os.environ)
-        d.addCallback(_then_try_new_dir)
+        argv = ["--quiet", "create-introducer", c2]
+        rc, out, err = self.run_tahoe(argv)
+        self.failUnlessEqual(err, "", err)
+        self.failUnlessEqual(out, "")
+        self.failUnlessEqual(rc, 0)
+        self.failUnless(os.path.exists(c2))
+        self.failUnless(os.path.exists(os.path.join(c2,"tahoe-introducer.tac")))
 
-        def _cb3(res):
-            out, err, rc_or_sig = res
-            self.failUnless(os.path.exists(c2))
-            self.failUnless(os.path.exists(os.path.join(c2,
-                                                        "tahoe-introducer.tac")))
-        d.addCallback(_cb3)
+        # reject extra arguments
+        argv = ["create-introducer", "basedir", "extraarg"]
+        self.failUnlessRaises(usage.UsageError,
+                              runner.runner, argv,
+                              run_by_human=False)
+        # and require basedir to be provided in some form
+        argv = ["create-introducer"]
+        self.failUnlessRaises(usage.UsageError,
+                              runner.runner, argv,
+                              run_by_human=False)
 
-        def _then_try_badarg(unused=None):
-            return utils.getProcessOutputAndValue(bintahoe, args=["create-introducer", "basedir", "extraarg"], env=os.environ)
-        d.addCallback(_then_try_badarg)
+    def test_key_generator(self):
+        basedir = self.workdir("test_key_generator")
+        kg1 = os.path.join(basedir, "kg1")
+        argv = ["--quiet", "create-key-generator", "--basedir", kg1]
+        rc, out, err = self.run_tahoe(argv)
+        self.failUnlessEqual(err, "")
+        self.failUnlessEqual(out, "")
+        self.failUnlessEqual(rc, 0)
+        self.failUnless(os.path.exists(kg1))
+        self.failUnless(os.path.exists(os.path.join(kg1, "tahoe-key-generator.tac")))
 
-        def _cb4(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 1)
-            self.failUnless(out.startswith("Usage"), out)
-        d.addCallback(_cb4)
+        # creating it a second time should be rejected
+        rc, out, err = self.run_tahoe(argv)
+        self.failIfEqual(rc, 0, str((out, err, rc)))
+        self.failUnlessEqual(out, "")
+        self.failUnless("is not empty." in err)
 
-        def _then_try_badarg_again(unused=None):
-            return utils.getProcessOutputAndValue(bintahoe, args=["create-introducer"], env=os.environ)
-        d.addCallback(_then_try_badarg_again)
+        # make sure it rejects too many arguments
+        argv = ["create-key-generator", "basedir", "extraarg"]
+        self.failUnlessRaises(usage.UsageError,
+                              runner.runner, argv,
+                              run_by_human=False)
 
-        def _cb5(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 1)
-            self.failUnless(out.startswith("Usage"), out)
-        d.addCallback(_cb5)
-        return d
+        # make sure it rejects a missing basedir specification
+        argv = ["create-key-generator"]
+        rc, out, err = self.run_tahoe(argv)
+        self.failIfEqual(rc, 0, str((out, err, rc)))
+        self.failUnlessEqual(out, "")
+        self.failUnless("a basedir was not provided" in err)
+
+    def test_stats_gatherer(self):
+        basedir = self.workdir("test_stats_gatherer")
+        sg1 = os.path.join(basedir, "sg1")
+        argv = ["--quiet", "create-stats-gatherer", "--basedir", sg1]
+        rc, out, err = self.run_tahoe(argv)
+        self.failUnlessEqual(err, "")
+        self.failUnlessEqual(out, "")
+        self.failUnlessEqual(rc, 0)
+        self.failUnless(os.path.exists(sg1))
+        self.failUnless(os.path.exists(os.path.join(sg1, "tahoe-stats-gatherer.tac")))
+
+        # creating it a second time should be rejected
+        rc, out, err = self.run_tahoe(argv)
+        self.failIfEqual(rc, 0, str((out, err, rc)))
+        self.failUnlessEqual(out, "")
+        self.failUnless("is not empty." in err)
+
+        # test the non --basedir form
+        kg2 = os.path.join(basedir, "kg2")
+        argv = ["--quiet", "create-stats-gatherer", kg2]
+        rc, out, err = self.run_tahoe(argv)
+        self.failUnlessEqual(err, "", err)
+        self.failUnlessEqual(out, "")
+        self.failUnlessEqual(rc, 0)
+        self.failUnless(os.path.exists(kg2))
+        self.failUnless(os.path.exists(os.path.join(kg2,"tahoe-stats-gatherer.tac")))
+
+        # make sure it rejects too many arguments
+        argv = ["create-stats-gatherer", "basedir", "extraarg"]
+        self.failUnlessRaises(usage.UsageError,
+                              runner.runner, argv,
+                              run_by_human=False)
+
+        # make sure it rejects a missing basedir specification
+        argv = ["create-stats-gatherer"]
+        rc, out, err = self.run_tahoe(argv)
+        self.failIfEqual(rc, 0, str((out, err, rc)))
+        self.failUnlessEqual(out, "")
+        self.failUnless("a basedir was not provided" in err)
+
+    def test_subcommands(self):
+        # no arguments should trigger a command listing, via UsageError
+        self.failUnlessRaises(usage.UsageError,
+                              runner.runner,
+                              [],
+                              run_by_human=False)
+
 
 class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin):
     def workdir(self, name):

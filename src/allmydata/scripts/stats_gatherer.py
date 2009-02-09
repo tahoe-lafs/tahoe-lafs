@@ -45,6 +45,7 @@ def create_stats_gatherer(config):
     f = open(os.path.join(basedir, "tahoe-stats-gatherer.tac"), "wb")
     f.write(stats_gatherer_tac)
     f.close()
+    return 0
 
 subCommands = [
     ["create-stats-gatherer", None, CreateStatsGathererOptions, "Create a stats-gatherer service."],
