@@ -10,7 +10,7 @@ from allmydata import interfaces, storage, uri
 from allmydata.immutable import upload
 from allmydata.immutable.layout import ReadBucketProxy
 from allmydata.util.assertutil import precondition
-from allmydata.util import idlib, log, observer, fileutil, hashutil
+from allmydata.util import idlib, log, observer, fileutil, hashutil, dictutil
 
 
 class NotEnoughWritersError(Exception):
@@ -33,7 +33,7 @@ class CHKCheckerAndUEBFetcher:
         self._peer_getter = peer_getter
         self._found_shares = set()
         self._storage_index = storage_index
-        self._sharemap = {}
+        self._sharemap = dictutil.DictOfSets()
         self._readers = set()
         self._ueb_hash = None
         self._ueb_data = None
@@ -69,9 +69,7 @@ class CHKCheckerAndUEBFetcher:
                  level=log.NOISY)
         self._found_shares.update(buckets.keys())
         for k in buckets:
-            if k not in self._sharemap:
-                self._sharemap[k] = []
-            self._sharemap[k].append(peerid)
+            self._sharemap.add(k, peerid)
         self._readers.update( [ (bucket, peerid)
                                 for bucket in buckets.values() ] )
 
@@ -632,11 +630,7 @@ class Helper(Referenceable, service.MultiService):
                 (sharemap, ueb_data, ueb_hash) = res
                 self.log("found file in grid", level=log.NOISY, parent=lp)
                 results.uri_extension_hash = ueb_hash
-                results.sharemap = {}
-                for shnum, peerids in sharemap.items():
-                    peers_s = ",".join(["[%s]" % idlib.shortnodeid_b2a(peerid)
-                                        for peerid in peerids])
-                    results.sharemap[shnum] = "Found on " + peers_s
+                results.sharemap = sharemap
                 results.uri_extension_data = ueb_data
                 results.preexisting_shares = len(sharemap)
                 results.pushed_shares = 0

@@ -993,8 +993,26 @@ class AssistedUploader:
         self._upload_status.set_results(upload_results)
         return upload_results
 
+    def _convert_old_upload_results(self, upload_results):
+        # pre-1.3.0 helpers return upload results which contain a mapping
+        # from shnum to a single human-readable string, containing things
+        # like "Found on [x],[y],[z]" (for healthy files that were already in
+        # the grid), "Found on [x]" (for files that needed upload but which
+        # discovered pre-existing shares), and "Placed on [x]" (for newly
+        # uploaded shares). The 1.3.0 helper returns a mapping from shnum to
+        # set of binary serverid strings.
+
+        # the old results are too hard to deal with (they don't even contain
+        # as much information as the new results, since the nodeids are
+        # abbreviated), so if we detect old results, just clobber them.
+
+        sharemap = upload_results.sharemap
+        if str in [type(v) for v in sharemap.values()]:
+            upload_results.sharemap = None
+
     def _build_verifycap(self, upload_results):
         self.log("upload finished, building readcap")
+        self._convert_old_upload_results(upload_results)
         self._upload_status.set_status("Building Readcap")
         r = upload_results
         assert r.uri_extension_data["needed_shares"] == self._needed_shares
