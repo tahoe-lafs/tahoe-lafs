@@ -32,7 +32,9 @@ class RemoteServiceConnector:
 
     VERSION_DEFAULTS = {
         "storage": { "http://allmydata.org/tahoe/protocols/storage/v1" :
-                     { "maximum-immutable-share-size": 2**32 },
+                     { "maximum-immutable-share-size": 2**32,
+                       "tolerates-immutable-read-overrun": False,
+                       },
                      "application-version": "unknown: no get_version()",
                      },
         "stub_client": { },

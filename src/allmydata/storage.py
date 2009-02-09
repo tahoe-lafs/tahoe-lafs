@@ -961,7 +961,9 @@ class StorageServer(service.MultiService, Referenceable):
             # guess.
             remaining_space = 2**64
         version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
-                    { "maximum-immutable-share-size": remaining_space },
+                    { "maximum-immutable-share-size": remaining_space,
+                      "tolerates-immutable-read-overrun": True,
+                      },
                     "application-version": str(allmydata.__version__),
                     }
         return version
