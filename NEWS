@@ -63,6 +63,11 @@ been uploaded already, to avoid uploading them a second time. This
 drastically reduces the work needed to do a "null backup" (when nothing has
 changed locally), making "tahoe backup' suitable to run from a daily cronjob.
 
+Note that the "tahoe backup" CLI command must be used in conjunction with a
+1.3.0-or-newer Tahoe client node; there was a bug in the 1.2.0 webapi
+implementation that would prevent the last step (create $target/Latest) from
+working.
+
 ** Large Files
 
 The 12GiB (approximate) immutable-file-size limitation is lifted. This
