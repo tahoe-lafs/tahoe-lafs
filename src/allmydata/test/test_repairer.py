@@ -331,9 +331,9 @@ class Verifier(common.ShareManglingMixin, unittest.TestCase):
             ], judge)
     test_verify_server_invisible_corruption_share_hash_tree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
-# We'll allow you to pass this test even if you trigger ten times as many
+# We'll allow you to pass this test even if you trigger twenty times as many
 # block sends and disk writes as would be optimal.
-WRITE_LEEWAY = 10
+WRITE_LEEWAY = 20
 # Optimally, you could repair one of these (small) files in a single write.
 DELTA_WRITES_PER_SHARE = 1 * WRITE_LEEWAY
 
