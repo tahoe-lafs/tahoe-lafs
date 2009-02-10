@@ -434,15 +434,24 @@ class Repairer(common.ShareManglingMixin, unittest.TestCase):
                 shares = self.find_shares()
                 self.failIf(len(shares) < 10)
 
+                # Now we assert that the verifier reports the file as healthy.
+                d3 = self.filenode.check(Monitor(), verify=True)
+                def _after_verify(verifyresults):
+                    self.failUnless(verifyresults.is_healthy())
+                d3.addCallback(_after_verify)
+
                 # Now we delete seven of the other shares, then try to
                 # download the file and assert that it succeeds at
                 # downloading and has the right contents. This can't work
                 # unless it has already repaired the previously-deleted share
                 # #2.
-                for sharenum in range(3, 10):
-                    self._delete_a_share(sharenum=sharenum)
+                def _then_delete_7_and_try_a_download(unused=None):
+                    for sharenum in range(3, 10):
+                        self._delete_a_share(sharenum=sharenum)
 
-                return self._download_and_check_plaintext()
+                    return self._download_and_check_plaintext()
+                d3.addCallback(_then_delete_7_and_try_a_download)
+                return d3
 
             d2.addCallback(_after_repair)
             return d2
