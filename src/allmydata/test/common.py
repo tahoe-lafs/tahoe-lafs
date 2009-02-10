@@ -303,6 +303,12 @@ class LoggingServiceParent(service.MultiService):
 
 class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
+    # SystemTestMixin tests tend to be a lot of work, and we have a few
+    # buildslaves that are pretty slow, and every once in a while these tests
+    # run up against the default 120 second timeout. So increase the default
+    # timeout. Individual test cases can override this, of course.
+    timeout = 300
+
     def setUp(self):
         self.sparent = service.MultiService()
         self.sparent.startService()
