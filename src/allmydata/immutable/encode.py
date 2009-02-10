@@ -389,6 +389,9 @@ class Encoder(object):
                 self._crypttext_hasher.update(encrypted_piece)
                 encrypted_pieces.append(encrypted_piece)
 
+            precondition(length <= input_chunk_size,
+                         "length=%d > input_chunk_size=%d" %
+                         (length, input_chunk_size))
             if allow_short:
                 if length < input_chunk_size:
                     # padding
