@@ -60,7 +60,7 @@ class Verifier(common.ShareManglingMixin, unittest.TestCase):
             self.replace_shares(stash[0], storage_index=self.uri.storage_index)
             return ignored
 
-        def _verify_after_corruption(corruptor_func):
+        def _verify_after_corruption(shnum, corruptor_func):
             before_check_reads = self._count_reads()
             d2 = self.filenode.check(Monitor(), verify=True)
             def _after_check(checkresults):
@@ -77,7 +77,7 @@ class Verifier(common.ShareManglingMixin, unittest.TestCase):
 
         for corruptor_func in corruptor_funcs:
             d.addCallback(self._corrupt_a_random_share, corruptor_func)
-            d.addCallback(_verify_after_corruption)
+            d.addCallback(_verify_after_corruption, corruptor_func)
             d.addCallback(_put_it_all_back)
 
         return d
@@ -496,13 +496,21 @@ class Repairer(common.ShareManglingMixin, unittest.TestCase):
                 shares = self.find_shares()
                 self.failIf(len(shares) < 10)
 
+                # Now we assert that the verifier reports the file as healthy.
+                d3 = self.filenode.check(Monitor(), verify=True)
+                def _after_verify(verifyresults):
+                    self.failUnless(verifyresults.is_healthy())
+                d3.addCallback(_after_verify)
+
                 # Now we delete seven random shares, then try to download the
                 # file and assert that it succeeds at downloading and has the
                 # right contents.
-                for i in range(7):
-                    self._delete_a_share()
-
-                return self._download_and_check_plaintext()
+                def _then_delete_7_and_try_a_download(unused=None):
+                    for i in range(7):
+                        self._delete_a_share()
+                    return self._download_and_check_plaintext()
+                d3.addCallback(_then_delete_7_and_try_a_download)
+                return d3
 
             d2.addCallback(_after_repair)
             return d2
@@ -522,7 +530,7 @@ class Repairer(common.ShareManglingMixin, unittest.TestCase):
             self.replace_shares(stash[0], storage_index=self.uri.storage_index)
             return ignored
 
-        def _repair_from_corruption(unused, corruptor_func):
+        def _repair_from_corruption(shnum, corruptor_func):
             before_repair_reads = self._count_reads()
             before_repair_allocates = self._count_writes()
 
@@ -545,7 +553,31 @@ class Repairer(common.ShareManglingMixin, unittest.TestCase):
                 self.failIf(prerepairres.is_healthy(), (prerepairres.data, corruptor_func))
                 self.failUnless(postrepairres.is_healthy(), (postrepairres.data, corruptor_func))
 
-                return self._download_and_check_plaintext()
+                # Now we inspect the filesystem to make sure that it has 10
+                # shares.
+                shares = self.find_shares()
+                self.failIf(len(shares) < 10)
+
+                # Now we assert that the verifier reports the file as healthy.
+                d3 = self.filenode.check(Monitor(), verify=True)
+                def _after_verify(verifyresults):
+                    self.failUnless(verifyresults.is_healthy())
+                d3.addCallback(_after_verify)
+
+                # Now we delete seven of the other shares, then try to
+                # download the file and assert that it succeeds at
+                # downloading and has the right contents. This can't work
+                # unless it has already repaired the previously-corrupted share.
+                def _then_delete_7_and_try_a_download(unused=None):
+                    shnums = range(10)
+                    shnums.remove(shnum)
+                    random.shuffle(shnums)
+                    for sharenum in shnums[:7]:
+                        self._delete_a_share(sharenum=sharenum)
+
+                    return self._download_and_check_plaintext()
+                d3.addCallback(_then_delete_7_and_try_a_download)
+                return d3
 
             d2.addCallback(_after_repair)
             return d2

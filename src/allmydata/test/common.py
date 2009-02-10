@@ -984,7 +984,7 @@ class ShareManglingMixin(SystemTestMixin):
         ks = shares.keys()
         k = random.choice(ks)
         self._corrupt_a_share(unused, corruptor_func, k[1])
-        return corruptor_func
+        return k[1]
 
     def _count_reads(self):
         sum_of_read_counts = 0
