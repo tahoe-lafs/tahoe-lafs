@@ -2,6 +2,7 @@ from allmydata.test import common
 from allmydata.monitor import Monitor
 from allmydata import check_results
 from allmydata.interfaces import NotEnoughSharesError
+from allmydata.immutable import repairer
 from twisted.internet import defer
 from twisted.trial import unittest
 import random
@@ -336,6 +337,21 @@ class Verifier(common.ShareManglingMixin, unittest.TestCase):
 WRITE_LEEWAY = 35
 # Optimally, you could repair one of these (small) files in a single write.
 DELTA_WRITES_PER_SHARE = 1 * WRITE_LEEWAY
+
+class DownUpConnector(unittest.TestCase):
+    def test_deferred_satisfaction(self):
+        duc = repairer.DownUpConnector()
+        duc.registerProducer(None, True) # just because you have to call registerProducer first
+        # case 1: total data in buf is < requested data at time of request
+        duc.write('\x01')
+        d = duc.read_encrypted(2, False)
+        def _then(data):
+            self.failUnlessEqual(len(data), 2)
+            self.failUnlessEqual(data[0], '\x01')
+            self.failUnlessEqual(data[1], '\x02')
+        d.addCallback(_then)
+        duc.write('\x02')
+        return d
 
 class Repairer(common.ShareManglingMixin, unittest.TestCase):
     def test_test_code(self):

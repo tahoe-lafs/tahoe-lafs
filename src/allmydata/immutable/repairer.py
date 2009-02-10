@@ -164,6 +164,7 @@ class DownUpConnector(log.PrefixingLogMixin):
         self.storageindex = storageindex
         self._storageindex_osol.fire(self.storageindex)
     def write(self, data):
+        precondition(data) # please don't write empty strings
         self.bufs.append(data)
         self.bufsiz += len(data)
         self._satisfy_reads_if_possible()
@@ -191,6 +192,7 @@ class DownUpConnector(log.PrefixingLogMixin):
             return self._encodingparams_osol.when_fired()
     def read_encrypted(self, length, hash_only):
         """ Returns a deferred which eventually fired with the requested ciphertext. """
+        precondition(length) # please don't ask to read 0 bytes
         d = defer.Deferred()
         self.next_read_ds.append(d)
         self.next_read_lens.append(length)
