@@ -503,6 +503,16 @@ class Repairer(common.ShareManglingMixin, unittest.TestCase):
     def test_repair_from_corruption_of_1(self):
         d = defer.succeed(None)
 
+        d.addCallback(self.find_shares)
+        stash = [None]
+        def _stash_it(res):
+            stash[0] = res
+            return res
+        d.addCallback(_stash_it)
+        def _put_it_all_back(ignored):
+            self.replace_shares(stash[0], storage_index=self.uri.storage_index)
+            return ignored
+
         def _repair_from_corruption(unused, corruptor_func):
             before_repair_reads = self._count_reads()
             before_repair_allocates = self._count_writes()
