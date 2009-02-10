@@ -353,6 +353,20 @@ class DownUpConnector(unittest.TestCase):
         duc.write('\x02')
         return d
 
+    def test_leftovers(self):
+        duc = repairer.DownUpConnector()
+        duc.registerProducer(None, True) # just because you have to call registerProducer first
+        # case 1: total data in buf is < requested data at time of request
+        duc.write('\x01')
+        d = duc.read_encrypted(2, False)
+        def _then(data):
+            self.failUnlessEqual(len(data), 2)
+            self.failUnlessEqual(data[0], '\x01')
+            self.failUnlessEqual(data[1], '\x02')
+        d.addCallback(_then)
+        duc.write('\x02\0x03')
+        return d
+
 class Repairer(common.ShareManglingMixin, unittest.TestCase):
     def test_test_code(self):
         # The following process of stashing the shares, running

@@ -139,9 +139,9 @@ class DownUpConnector(log.PrefixingLogMixin):
                 res.append(nextbuf)
                 ressize += len(nextbuf)
                 if ressize > nrl:
-                    leftover = ressize - nrl
-                    self.bufs.appendleft(nextbuf[leftover:])
-                    res[-1] = nextbuf[:leftover]
+                    extra = ressize - nrl
+                    self.bufs.appendleft(nextbuf[:-extra])
+                    res[-1] = nextbuf[:-extra]
             self.bufsiz -= nrl
             if self.bufsiz < self.buflim and self.producer:
                 self.producer.resumeProducing()
