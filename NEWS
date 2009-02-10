@@ -4,15 +4,15 @@ User visible changes in Tahoe.  -*- outline -*-
 
 ** Checker/Verifier/Repairer
 
-The focus of this release has been improving the functionality and the
-usability of code which checks/verifies/repairs files and directories.
-"Checking" is the act of asking storage servers whether they have a share for
-the given file or directory: if there are not enough shares available, the
-file/directory will be unrecoverable. "Verifying" is the act of downloading
-and/or cryptographically asserting that the server's share is undamaged: it
-requires more work (bandwidth and CPU) than checking, but can catch problems
-that simple checking cannot. "Repair" is the act of replacing missing/damaged
-shares with new ones.
+The primary focus of this release has been writing a checker / verifier /
+repairer for files and directories.  "Checking" is the act of asking storage
+servers whether they have a share for the given file or directory: if there
+are not enough shares available, the file or directory will be
+unrecoverable. "Verifying" is the act of downloading and cryptographically
+asserting that the server's share is undamaged: it requires more work
+(bandwidth and CPU) than checking, but can catch problems that simple
+checking cannot. "Repair" is the act of replacing missing or damaged shares
+with new ones.
 
 For mutable files (and therefore directories), missing shares can be
 regenerated, and corrupted shares can be repaired in place. For immutable
@@ -38,7 +38,7 @@ a directory: recursively traversing the directory and its children, checking
 run with an "output=JSON" argument, to obtain machine-readable check/repair
 status results. These results include a copy of the filesystem statistics
 from the "deep-stats" operation (including total number of files, size
-histogram, etc). If repair is necessary, a "Repair" button will appear on the
+histogram, etc). If repair is possible, a "Repair" button will appear on the
 results page.
 
 The client web interface now features some extra buttons to initiate check
@@ -48,35 +48,7 @@ long-running deep-traversal operations, including deep-check, use a
 start-and-poll mechanism, to avoid depending upon a single long-lived HTTP
 connection. docs/frontends/webapi.txt has details.
 
-** Configuration Changes: single INI-format tahoe.cfg file
-
-The Tahoe node is now configured with a single INI-format file, named
-"tahoe.cfg", in the node's base directory. Most of the previous
-multiple-separate-files are still read for backwards compatibility (the
-embedded SSH debug server and the advertised_ip_addresses files are the
-exceptions), but new directives will only be added to tahoe.cfg . The "tahoe
-create-client" command will create a tahoe.cfg for you, with sample values
-commented out. (ticket #518)
-
-tahoe.cfg now has controls for the foolscap "keepalive" and "disconnect"
-timeouts (#521).
-
-tahoe.cfg now has controls for the encoding parameters: "shares.needed" and
-"shares.total" in the "[client]" section. The default parameters are still
-3-of-10.
-
-The inefficient storage 'sizelimit' control (which established an upper bound
-on the amount of space that a storage server is allowed to consume) has been
-replaced by a lightweight 'reserved_space' control (which establishes a lower
-bound on the amount of remaining space). The storage server will reject all
-writes that would cause the remaining disk space (as measured by a '/bin/df'
-equivalent) to drop below this value. The "[storage]reserved_space="
-tahoe.cfg parameter controls this setting. (note that this only affects
-immutable shares: it is an outstanding bug that reserved_space does not
-prevent the allocation of new mutable shares, nor does it prevent the growth
-of existing mutable shares).
-
-** CLI Changes
+** Efficient Backup
 
 The "tahoe backup" command is new in this release, which creates efficient
 versioned backups of a local directory. Given a local pathname and a target
@@ -91,11 +63,38 @@ been uploaded already, to avoid uploading them a second time. This
 drastically reduces the work needed to do a "null backup" (when nothing has
 changed locally), making "tahoe backup' suitable to run from a daily cronjob.
 
-This release also adds the 'tahoe create-alias' command, which is a
-combination of 'tahoe mkdir' and 'tahoe add-alias'. This also allows you to
-start using a new tahoe directory without exposing its URI in the argv list,
-which is publicly visible (through the process table) on most unix systems.
-Thanks to Kevin Reid for bringing this issue to our attention.
+** Large Files
+
+The 12GiB (approximate) immutable-file-size limitation is lifted. This
+release knows how to handle so-called "v2 immutable shares", which permit
+immutable files of up to about 18 EiB (about 3*10^14). These v2 shares are
+created if the file to be uploaded is too large to fit into v1 shares. v1
+shares are created if the file is small enough to fit into them, so that
+files created with tahoe-1.3.0 can still be read by earlier versions if they
+are not too large. Note that storage servers also had to be changed to
+support larger files, and this release is the first release in which they are
+able to do that. Clients will detect which servers are capable of supporting
+large files on upload and will not attempt to upload shares of a large file
+to a server which doesn't support it.
+
+** FTP/SFTP Server
+
+Tahoe now includes experimental FTP and SFTP servers. When configured with a
+suitable method to translate username+password into a root directory cap, it
+provides simple access to the virtual filesystem. Remember that FTP is
+completely unencrypted: passwords, filenames, and file contents are all sent
+over the wire in cleartext, so FTP should only be used on a local (127.0.0.1)
+connection. This feature is still in development: there are no unit tests
+yet, and behavior with respect to Unicode filenames is uncertain. Please see
+docs/frontends/FTP-and-SFTP.txt for configuration details. (#512, #531)
+
+** CLI Changes
+
+This release adds the 'tahoe create-alias' command, which is a combination of
+'tahoe mkdir' and 'tahoe add-alias'. This also allows you to start using a
+new tahoe directory without exposing its URI in the argv list, which is
+publicly visible (through the process table) on most unix systems.  Thanks to
+Kevin Reid for bringing this issue to our attention.
 
 The single-argument form of "tahoe put" was changed to create an unlinked
 file. I.e. "tahoe put bar.txt" will take the contents of a local "bar.txt"
@@ -246,27 +245,26 @@ checkout (without history) to about 7.6MB. A full darcs checkout will still
 be fairly large (because of the historical patches which included the
 dependent libraries), but a 'lazy' one should now be small.
 
-The default "make" target is now an alias for "setup.py build_tahoe", which
-itself is a wrapper around "setup.py develop --prefix support/lib", with some
-extra work before and after. Most of the complicated platform-dependent code
-in the Makefile was rewritten in Python and moved into setup.py, simplifying
-things considerably.
+The default "make" target is now an alias for "setup.py build", which itself
+is an alias for "setup.py develop --prefix support", with some extra work
+before and after (see setup.cfg). Most of the complicated platform-dependent
+code in the Makefile was rewritten in Python and moved into setup.py,
+simplifying things considerably.
 
 Likewise, the "make test" target now delegates most of its work to "setup.py
-trial", which takes care of getting PYTHONPATH configured to access the tahoe
+test", which takes care of getting PYTHONPATH configured to access the tahoe
 code (and dependencies) that gets put in support/lib/ by the build_tahoe
 step. This should allow unit tests to be run even when trial (which is part
 of Twisted) wasn't already installed (in this case, trial gets installed to
 support/bin because Twisted is a dependency of Tahoe).
 
-Tahoe is now compatible with the recently-released Python 2.6 .
+Tahoe is now compatible with the recently-released Python 2.6 , although it
+is recommended to use Tahoe on Python 2.5, on which it has received more
+thorough testing and deployment.
 
 Tahoe is now compatible with simplejson-2.0.x . The previous release assumed
 that simplejson.loads always returned unicode strings, which is no longer the
 case in 2.0.x .
-
-setup.py now includes /System/Library in site-dirs when building on a Mac,
-which should help it find previously-installed libraries like Twisted (#229)
 
 ** Grid Management Tools
 
@@ -302,30 +300,47 @@ accounts, compares this with the disk-watcher data, to report on overhead
 percentages. This provides information on how much space could be recovered
 once Tahoe implements some form of garbage collection.
 
+** Configuration Changes: single INI-format tahoe.cfg file
+
+The Tahoe node is now configured with a single INI-format file, named
+"tahoe.cfg", in the node's base directory. Most of the previous
+multiple-separate-files are still read for backwards compatibility (the
+embedded SSH debug server and the advertised_ip_addresses files are the
+exceptions), but new directives will only be added to tahoe.cfg . The "tahoe
+create-client" command will create a tahoe.cfg for you, with sample values
+commented out. (ticket #518)
+
+tahoe.cfg now has controls for the foolscap "keepalive" and "disconnect"
+timeouts (#521).
+
+tahoe.cfg now has controls for the encoding parameters: "shares.needed" and
+"shares.total" in the "[client]" section. The default parameters are still
+3-of-10.
+
+The inefficient storage 'sizelimit' control (which established an upper bound
+on the amount of space that a storage server is allowed to consume) has been
+replaced by a lightweight 'reserved_space' control (which establishes a lower
+bound on the amount of remaining space). The storage server will reject all
+writes that would cause the remaining disk space (as measured by a '/bin/df'
+equivalent) to drop below this value. The "[storage]reserved_space="
+tahoe.cfg parameter controls this setting. (note that this only affects
+immutable shares: it is an outstanding bug that reserved_space does not
+prevent the allocation of new mutable shares, nor does it prevent the growth
+of existing mutable shares).
+
 ** Other Changes
 
-Clients now declare their "oldest-supported version" to be 1.0.0 . This is
-part of a backwards-compatibility system that has not yet been fully
-specified. Previous releases declared their oldest-supported-version to be
-the same as their current version number.
+Clients now declare which versions of the protocols they support. This is
+part of a new backwards-compatibility system:
+http://allmydata.org/trac/tahoe/wiki/Versioning .
 
-The version strings (as displayed on the Welcome web page, and included in
-logs) now includes a platform identifer (frequently including a linux
-distribution name, processor architecture, etc).
+The version strings for human inspection (as displayed on the Welcome web
+page, and included in logs) now includes a platform identifer (frequently
+including a linux distribution name, processor architecture, etc).
 
 Several bugs have been fixed, including one that would cause an exception (in
 the logs) if a wapi download operation was cancelled (by closing the TCP
 connection, or pushing the "stop" button in a web browser).
-
-The 12GiB (approximate) immutable-file-size limitation is slowly being
-lifted. This release knows how to handle so-called "v2 immutable shares",
-which permit immutable files of up to about 18 EiB (about 3*10^14). These v2
-shares are not yet created by default, so that files created with tahoe-1.3.0
-can still be read by earlier versions. In the next release we will switch to
-generating v2 shares, so that files created with tahoe-1.4.0 can be read by
-tahoe-1.3.0 and later. Note that the storage server must also be changed to
-support files larger than 12GiB, and that these changes have not yet been
-implemented. (ticket #346)
 
 Tahoe now uses Foolscap "Incidents", writing an "incident report" file to
 logs/incidents/ each time something weird occurs. These reports are available
@@ -344,15 +359,6 @@ The 'tahoe start' command will now accept a --syslog argument and pass it
 through to twistd, making it easier to launch non-Tahoe nodes (like the
 cpu-watcher) and have them log to syslogd instead of a local file. This is
 useful when running a Tahoe node out of a USB flash drive.
-
-Tahoe now includes experimental FTP and SFTP servers. When configured with a
-suitable method to translate username+password into a root directory cap, it
-provides simple access to the virtual filesystem. Remember that FTP is
-completely unencrypted: passwords, filenames, and file contents are all sent
-over the wire in cleartext, so FTP should only be used on a local (127.0.0.1)
-connection. This feature is still in development: there are no unit tests
-yet, and behavior with respect to Unicode filenames is uncertain. Please see
-docs/frontends/FTP-and-SFTP.txt for configuration details. (#512, #531)
 
 The Mac GUI in src/allmydata/gui/ has been improved.
 
