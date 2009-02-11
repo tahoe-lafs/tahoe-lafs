@@ -14,17 +14,38 @@ asserting that the server's share is undamaged: it requires more work
 checking cannot. "Repair" is the act of replacing missing or damaged shares
 with new ones.
 
-For mutable files (and therefore directories), missing shares can be
-regenerated, and corrupted shares can be repaired in place. For immutable
-files, missing shares are regenerated, and corrupted shares are handled by
-uploading new shares to other servers. The storage server protocol does not
-allow clients to change or remove immutable shares, so if persistent
-corruption is detected, the user and the storage server operator must work
-together to remove the damaged share. Note that corrupted shares indicate
-hardware failures, serious software bugs, or malice on the part of the
-storage server operator, so a corrupted share should be considered highly
-unusual. The "incident gatherer" mechanism will automatically report share
-corruption to an incident gatherer service, if one is configured.
+This release includes a full checker, a partial verifier, and a partial
+repairer. The repairer is able to handle missing shares: new shares are
+generated and uploaded to make up for the missing ones. This is currently the
+best application of the repairer: to replace shares that were lost because of
+server departure or permanent drive failure.
+
+The repairer in this release is somewhat able to handle corrupted shares. The
+limitations are:
+
+ * Immutable verifier is incomplete: not all shares are used, and not all
+   fields of those shares are verified. Therefore the immutable verifier has
+   only a moderate chance of detecting corrupted shares.
+ * The mutable verifier is mostly complete: all shares are examined, and most
+   fields of the shares are validated.
+ * The storage server protocol offers no way for the repairer to replace or
+   delete immutable shares. If corruption is detected, the repairer will
+   upload replacement shares to other servers, but the corrupted shares will
+   be left in place.
+ * Some forms of corruption can cause both download and repair operations to
+   fail. A future release will fix this, since download should be tolerant of
+   any corruption as long as there are at least 'k' valid shares, and repair
+   should be able to fix any file that is downloadable.
+
+If the downloader, verifier, or repairer detects share corruption, the
+servers which provided the bad shares will be notified (via a file placed in
+the BASEDIR/storage/corruption-advisories directory) so their operators can
+manually delete the corrupted shares and investigate the problem. In
+addition, the "incident gatherer" mechanism will automatically report share
+corruption to an incident gatherer service, if one is configured. Note that
+corrupted shares indicate hardware failures, serious software bugs, or malice
+on the part of the storage server operator, so a corrupted share should be
+considered highly unusual.
 
 By periodically checking/repairing all files and directories, objects in the
 Tahoe filesystem remain resistant to recoverability failures due to missing
