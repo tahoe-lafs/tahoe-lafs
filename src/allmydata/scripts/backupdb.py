@@ -61,7 +61,7 @@ I was unable to import a python sqlite library. You have two options:
     http://pypi.python.org . Make sure you get the version with support for
     SQLite 3.
 
- 2: run me with the --no-backupdb option to disable use of the database. This
+ 2: Run me with the --no-backupdb option to disable use of the database. This
     will be somewhat slower, since I will be unable to avoid re-uploading
     files that were uploaded in the past, but the basic functionality will be
     unimpaired.
