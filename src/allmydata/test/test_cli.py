@@ -4,7 +4,6 @@ import os.path
 from twisted.trial import unittest
 from cStringIO import StringIO
 import urllib
-import time
 import re
 
 from allmydata.util import fileutil, hashutil
@@ -19,6 +18,7 @@ from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases
 
 from allmydata.scripts import cli, debug, runner, backupdb
 from allmydata.test.common import SystemTestMixin
+from allmydata.test.common_util import StallMixin
 from twisted.internet import threads # CLI tests use deferToThread
 
 class CLI(unittest.TestCase):
@@ -620,7 +620,7 @@ class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
                                               dn, "tahoe:"))
         return d
 
-class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
+class Backup(SystemTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
     def writeto(self, path, data):
         d = os.path.dirname(os.path.join(self.basedir, "home", path))
         fileutil.make_dirs(d)
@@ -670,6 +670,7 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
             def _should_complain((rc, out, err)):
                 self.failUnless("I was unable to import a python sqlite library" in err, err)
             d.addCallback(_should_complain)
+            d.addCallback(self.stall, 1.1) # make sure the backups get distinct timestamps
 
         d.addCallback(lambda res: do_backup())
         def _check0((rc, out, err)):
@@ -717,6 +718,7 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check4)
 
 
+        d.addCallback(self.stall, 1.1)
         d.addCallback(lambda res: do_backup())
         def _check4a((rc, out, err)):
             # second backup should reuse everything, if the backupdb is
@@ -746,6 +748,7 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
 
             d.addCallback(_reset_last_checked)
 
+            d.addCallback(self.stall, 1.1)
             d.addCallback(lambda res: do_backup(verbose=True))
             def _check4b((rc, out, err)):
                 # we should check all files, and re-use all of them. None of
@@ -773,15 +776,15 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
             expected_new = 2
             if have_bdb:
                 expected_new += 1
-            self.failUnlessEqual(len(self.new_archives), expected_new)
+            self.failUnlessEqual(len(self.new_archives), expected_new, out)
             # the original backup should still be the oldest (i.e. sorts
             # alphabetically towards the beginning)
             self.failUnlessEqual(sorted(self.new_archives)[0],
                                  self.old_archives[0])
         d.addCallback(_check5)
 
+        d.addCallback(self.stall, 1.1)
         def _modify(res):
-            time.sleep(1) # get us to a new second
             self.writeto("parent/subdir/foo.txt", "FOOF!")
             # and turn a file into a directory
             os.unlink(os.path.join(source, "parent/blah.txt"))
@@ -834,6 +837,7 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(out, "foo")
         d.addCallback(_check8)
 
+        d.addCallback(self.stall, 1.1)
         d.addCallback(lambda res: do_backup(use_backupdb=False))
         def _check9((rc, out, err)):
             # --no-backupdb means re-upload everything. We still get to
