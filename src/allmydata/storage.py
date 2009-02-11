@@ -963,6 +963,7 @@ class StorageServer(service.MultiService, Referenceable):
         version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
                     { "maximum-immutable-share-size": remaining_space,
                       "tolerates-immutable-read-overrun": True,
+                      "delete-mutable-shares-with-zero-length-writev": True,
                       },
                     "application-version": str(allmydata.__version__),
                     }
@@ -1218,27 +1219,37 @@ class StorageServer(service.MultiService, Referenceable):
         for sharenum, share in shares.items():
             read_data[sharenum] = share.readv(read_vector)
 
+        ownerid = 1 # TODO
+        expire_time = time.time() + 31*24*60*60   # one month
+        lease_info = LeaseInfo(ownerid,
+                               renew_secret, cancel_secret,
+                               expire_time, self.my_nodeid)
+
         if testv_is_good:
             # now apply the write vectors
             for sharenum in test_and_write_vectors:
                 (testv, datav, new_length) = test_and_write_vectors[sharenum]
-                if sharenum not in shares:
-                    # allocate a new share
-                    allocated_size = 2000 # arbitrary, really
-                    share = self._allocate_slot_share(bucketdir, secrets,
-                                                      sharenum,
-                                                      allocated_size,
-                                                      owner_num=0)
-                    shares[sharenum] = share
-                shares[sharenum].writev(datav, new_length)
-            # and update the leases on all shares
-            ownerid = 1 # TODO
-            expire_time = time.time() + 31*24*60*60   # one month
-            lease_info = LeaseInfo(ownerid,
-                                   renew_secret, cancel_secret,
-                                   expire_time, self.my_nodeid)
-            for share in shares.values():
-                share.add_or_renew_lease(lease_info)
+                if new_length == 0:
+                    if sharenum in shares:
+                        shares[sharenum].unlink()
+                else:
+                    if sharenum not in shares:
+                        # allocate a new share
+                        allocated_size = 2000 # arbitrary, really
+                        share = self._allocate_slot_share(bucketdir, secrets,
+                                                          sharenum,
+                                                          allocated_size,
+                                                          owner_num=0)
+                        shares[sharenum] = share
+                    shares[sharenum].writev(datav, new_length)
+                    # and update the lease
+                    shares[sharenum].add_or_renew_lease(lease_info)
+
+            if new_length == 0:
+                # delete empty bucket directories
+                if not os.listdir(bucketdir):
+                    os.rmdir(bucketdir)
+
 
         # all done
         self.add_latency("writev", time.time() - start)

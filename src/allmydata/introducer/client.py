@@ -34,6 +34,7 @@ class RemoteServiceConnector:
         "storage": { "http://allmydata.org/tahoe/protocols/storage/v1" :
                      { "maximum-immutable-share-size": 2**32,
                        "tolerates-immutable-read-overrun": False,
+                       "delete-mutable-shares-with-zero-length-writev": False,
                        },
                      "application-version": "unknown: no get_version()",
                      },

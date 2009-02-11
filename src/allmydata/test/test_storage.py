@@ -1150,6 +1150,50 @@ class MutableServer(unittest.TestCase):
         self.failUnlessRaises(IndexError,
                               ss.remote_cancel_lease, "si2", "nonsecret")
 
+    def test_remove(self):
+        ss = self.create("test_remove")
+        self.allocate(ss, "si1", "we1", self._lease_secret.next(),
+                      set([0,1,2]), 100)
+        readv = ss.remote_slot_readv
+        writev = ss.remote_slot_testv_and_readv_and_writev
+        secrets = ( self.write_enabler("we1"),
+                    self.renew_secret("we1"),
+                    self.cancel_secret("we1") )
+        # delete sh0 by setting its size to zero
+        answer = writev("si1", secrets,
+                        {0: ([], [], 0)},
+                        [])
+        # the answer should mention all the shares that existed before the
+        # write
+        self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
+        # but a new read should show only sh1 and sh2
+        self.failUnlessEqual(readv("si1", [], [(0,10)]),
+                             {1: [""], 2: [""]})
+
+        # delete sh1 by setting its size to zero
+        answer = writev("si1", secrets,
+                        {1: ([], [], 0)},
+                        [])
+        self.failUnlessEqual(answer, (True, {1:[],2:[]}) )
+        self.failUnlessEqual(readv("si1", [], [(0,10)]),
+                             {2: [""]})
+
+        # delete sh2 by setting its size to zero
+        answer = writev("si1", secrets,
+                        {2: ([], [], 0)},
+                        [])
+        self.failUnlessEqual(answer, (True, {2:[]}) )
+        self.failUnlessEqual(readv("si1", [], [(0,10)]),
+                             {})
+        # and the bucket directory should now be gone
+        si = base32.b2a("si1")
+        # note: this is a detail of the storage server implementation, and
+        # may change in the future
+        prefix = si[:2]
+        prefixdir = os.path.join(self.workdir("test_remove"), "shares", prefix)
+        bucketdir = os.path.join(prefixdir, si)
+        self.failUnless(os.path.exists(prefixdir))
+        self.failIf(os.path.exists(bucketdir))
 
 class Stats(unittest.TestCase):
 

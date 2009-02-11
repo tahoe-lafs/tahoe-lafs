@@ -207,7 +207,7 @@ class RIStorageServer(RemoteInterface):
         can be used to pre-allocate space for a series of upcoming writes, or
         truncate existing data. If the container is growing, new_length will
         be applied before datav. If the container is shrinking, it will be
-        applied afterwards.
+        applied afterwards. If new_length==0, the share will be deleted.
 
         The read vector is used to extract data from all known shares,
         *before* any writes have been applied. The same vector is used for
