@@ -615,6 +615,7 @@ class MutableShareFile:
         return leases
 
     def add_lease(self, lease_info):
+        precondition(lease_info.owner_num != 0) # 0 means "no lease here"
         f = open(self.home, 'rb+')
         num_lease_slots = self._get_num_lease_slots(f)
         empty_slot = self._get_first_empty_lease_slot(f)
@@ -649,6 +650,7 @@ class MutableShareFile:
         raise IndexError(msg)
 
     def add_or_renew_lease(self, lease_info):
+        precondition(lease_info.owner_num != 0) # 0 means "no lease here"
         try:
             self.renew_lease(lease_info.renew_secret,
                              lease_info.expiration_time)
@@ -829,11 +831,12 @@ class StorageServer(service.MultiService, Referenceable):
                           "write": [],
                           "close": [],
                           "read": [],
-                          "renew": [],
-                          "cancel": [],
                           "get": [],
                           "writev": [], # mutable
                           "readv": [],
+                          "add-lease": [], # both
+                          "renew": [],
+                          "cancel": [],
                           }
 
     def count(self, name, delta=1):
@@ -1064,7 +1067,7 @@ class StorageServer(service.MultiService, Referenceable):
             yield sf
 
     def remote_add_lease(self, storage_index, renew_secret, cancel_secret,
-                         owner_num=0):
+                         owner_num=1):
         start = time.time()
         self.count("add-lease")
         new_expire_time = time.time() + 31*24*60*60

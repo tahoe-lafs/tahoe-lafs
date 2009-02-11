@@ -494,6 +494,17 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(leases), 2)
         self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2]))
 
+        # and a third lease, using add-lease
+        rs2a,cs2a = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
+                     hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
+        ss.remote_add_lease("si1", rs2a, cs2a)
+        leases = list(ss.get_leases("si1"))
+        self.failUnlessEqual(len(leases), 3)
+        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2, rs2a]))
+
+        # add-lease on a missing storage index is an error
+        self.failUnlessRaises(IndexError, ss.remote_add_lease, "si18", "", "")
+
         # check that si0 is readable
         readers = ss.remote_get_buckets("si0")
         self.failUnlessEqual(len(readers), 5)
@@ -519,7 +530,7 @@ class Server(unittest.TestCase):
         self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si0", rs0)
 
 
-        # cancel the first lease on si1, leaving the second in place
+        # cancel the first lease on si1, leaving the second and third in place
         ss.remote_cancel_lease("si1", cs1)
         readers = ss.remote_get_buckets("si1")
         self.failUnlessEqual(len(readers), 5)
@@ -527,16 +538,18 @@ class Server(unittest.TestCase):
         self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si1", rs1)
 
         leases = list(ss.get_leases("si1"))
-        self.failUnlessEqual(len(leases), 1)
-        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs2]))
+        self.failUnlessEqual(len(leases), 2)
+        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs2, rs2a]))
 
         ss.remote_renew_lease("si1", rs2)
-        # cancelling the second should make it go away
+        # cancelling the second and third should make it go away
         ss.remote_cancel_lease("si1", cs2)
+        ss.remote_cancel_lease("si1", cs2a)
         readers = ss.remote_get_buckets("si1")
         self.failUnlessEqual(len(readers), 0)
         self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si1", rs1)
         self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si1", rs2)
+        self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si1", rs2a)
 
         leases = list(ss.get_leases("si1"))
         self.failUnlessEqual(len(leases), 0)
@@ -1046,28 +1059,39 @@ class MutableServer(unittest.TestCase):
         f.write("you ought to be ignoring me\n")
         f.close()
 
+        s0 = MutableShareFile(os.path.join(bucket_dir, "0"))
+        self.failUnlessEqual(len(s0.debug_get_leases()), 1)
+
+        # add-lease on a missing storage index is an error
+        self.failUnlessRaises(IndexError, ss.remote_add_lease, "si18", "", "")
+
         # re-allocate the slots and use the same secrets, that should update
         # the lease
         write("si1", secrets(0), {0: ([], [(0,data)], None)}, [])
+        self.failUnlessEqual(len(s0.debug_get_leases()), 1)
 
         # renew it directly
         ss.remote_renew_lease("si1", secrets(0)[1])
+        self.failUnlessEqual(len(s0.debug_get_leases()), 1)
 
         # now allocate them with a bunch of different secrets, to trigger the
-        # extended lease code
+        # extended lease code. Use add_lease for one of them.
         write("si1", secrets(1), {0: ([], [(0,data)], None)}, [])
-        write("si1", secrets(2), {0: ([], [(0,data)], None)}, [])
+        self.failUnlessEqual(len(s0.debug_get_leases()), 2)
+        secrets2 = secrets(2)
+        ss.remote_add_lease("si1", secrets2[1], secrets2[2])
+        self.failUnlessEqual(len(s0.debug_get_leases()), 3)
         write("si1", secrets(3), {0: ([], [(0,data)], None)}, [])
         write("si1", secrets(4), {0: ([], [(0,data)], None)}, [])
         write("si1", secrets(5), {0: ([], [(0,data)], None)}, [])
 
+        self.failUnlessEqual(len(s0.debug_get_leases()), 6)
+
         # cancel one of them
         ss.remote_cancel_lease("si1", secrets(5)[2])
+        self.failUnlessEqual(len(s0.debug_get_leases()), 5)
 
-        s0 = MutableShareFile(os.path.join(bucket_dir, "0"))
         all_leases = s0.debug_get_leases()
-        self.failUnlessEqual(len(all_leases), 5)
-
         # and write enough data to expand the container, forcing the server
         # to move the leases
         write("si1", secrets(0),
