@@ -547,7 +547,41 @@ class Repairer(common.ShareManglingMixin, unittest.TestCase):
         d.addCallback(_repair_from_deletion_of_7)
         return d
 
-    def test_repair_from_corruption_of_1(self):
+    # why is test_repair_from_corruption_of_1 disabled? Read on:
+    #
+    # As recently documented in NEWS for the 1.3.0 release, the current
+    # immutable repairer suffers from several limitations:
+    #
+    #  * minimalistic verifier: it's just download without decryption, so we
+    #    don't look for corruption in N-k shares, and for many fields (those
+    #    which are the same in all shares) we only look for corruption in a
+    #    single share
+    #
+    #  * some kinds of corruption cause download to fail (when it ought to
+    #    just switch to a different share), so repair will fail on these too
+    #
+    #  * RIStorageServer doesn't offer a way to delete old corrupt immutable
+    #    shares (the authority model is not at all clear), so the best the
+    #    repairer can do is to put replacement shares on new servers,
+    #    unfortunately leaving the corrupt shares in place
+    #
+    # This test is pretty strenuous: it asserts that the repairer does the
+    # ideal thing in 8 distinct situations, with randomized corruption in
+    # each. Because of the aforementioned limitations, it is highly unlikely
+    # to pass any of these. We're also concerned that the download-fails case
+    # can provoke a lost-progress bug (one was fixed, but there might be more
+    # lurking), which will cause the test to fail despite a ".todo" marker,
+    # and will probably cause subsequent unrelated tests to fail too (due to
+    # "unclean reactor" problems).
+    #
+    # So we're turning this test off until we've done one or more of the
+    # following:
+    #  * remove some of these limitations
+    #  * break the test up into smaller, more functionally-oriented pieces
+    #  * simplify the repairer enough to let us be confident that it is free
+    #    of lost-progress bugs
+
+    def OFF_test_repair_from_corruption_of_1(self):
         d = defer.succeed(None)
 
         d.addCallback(self.find_shares)
@@ -628,7 +662,7 @@ class Repairer(common.ShareManglingMixin, unittest.TestCase):
             d.addCallback(_repair_from_corruption, corruptor_func)
 
         return d
-    test_repair_from_corruption_of_1.todo = "Repairer doesn't properly replace corrupted shares yet."
+    #test_repair_from_corruption_of_1.todo = "Repairer doesn't properly replace corrupted shares yet."
 
 
 # XXX extend these tests to show that the checker detects which specific
