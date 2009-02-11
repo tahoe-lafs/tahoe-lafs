@@ -10,6 +10,26 @@ Tahoe-LAFS can be found at
 
 http://allmydata.org/source/tahoe/trunk/docs/historical/historical_known_issues.txt
 
+== issues in Tahoe v1.3.0, not yet released ==
+
+=== unauthorized access by JavaScript in other tabs/frames ===
+
+If you use a web browser to view a javascript-bearing HTML document that is
+served from a Tahoe node, then that javascript program can learn the access
+caps for any other file or directory, served by the same Tahoe node, that you
+are currently viewing in other tabs or frames. This is a consequence of the
+common "Same Origin Policy" as applied to javascript and inter-frame access,
+in which the browser mistakenly believes that two documents retrieved from
+the same server should have access to each others DOM state. Note that some
+browsers are quite enthusiastic about interpreting <script> tags inside
+viewed files, even ones not marked as HTML.
+
+The current recommended workaround is to close all Tahoe-served tabs and
+frames before opening a Tahoe-served javascript-bearing HTML file.
+
+Please see ticket #615 for more details:
+http://allmydata.org/trac/tahoe/ticket/615
+
 == issues in Tahoe v1.2.0, released 2008-06-21 ==
 
 === issue 1: potential disclosure of a file through embedded
