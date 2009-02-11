@@ -50,7 +50,22 @@ def get_backupdb(dbfile, stderr=sys.stderr):
             from pysqlite2 import dbapi2
             sqlite = dbapi2 # .. when this clause does it too
         except ImportError:
-            print >>stderr, "sqlite unavailable, not using backupdb"
+            print >>stderr, """\
+The backup command uses a SQLite database to avoid duplicate uploads, but
+I was unable to import a python sqlite library. You have two options:
+
+ 1: Install a python sqlite library. python2.5 and beyond have one built-in.
+    If you are using python2.4, you can install the 'pysqlite' package,
+    perhaps with 'apt-get install python-pysqlite2', or 'easy_install
+    pysqlite', or by installing the 'pysqlite' package from
+    http://pypi.python.org . Make sure you get the version with support for
+    SQLite 3.
+
+ 2: run me with the --no-backupdb option to disable use of the database. This
+    will be somewhat slower, since I will be unable to avoid re-uploading
+    files that were uploaded in the past, but the basic functionality will be
+    unimpaired.
+"""
             return None
 
     must_create = not os.path.exists(dbfile)

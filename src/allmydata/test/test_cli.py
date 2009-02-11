@@ -636,13 +636,6 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
         mo = re.search(r"(\d)+ files checked, (\d+) directories checked, (\d+) directories read", out)
         return [int(s) for s in mo.groups()]
 
-    def nosqlite_is_ok(self, err, have_bdb):
-        if have_bdb:
-            self.failUnlessEqual(err, "")
-        else:
-            self.failUnlessEqual(err.strip(),
-                                 "sqlite unavailable, not using backupdb")
-
     def test_backup(self):
         self.basedir = os.path.dirname(self.mktemp())
 
@@ -659,11 +652,28 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
         self.writeto("parent/subdir/bar.txt", "bar\n" * 1000)
         self.writeto("parent/blah.txt", "blah")
 
+        def do_backup(use_backupdb=True, verbose=False):
+            cmd = ["backup"]
+            if not have_bdb or not use_backupdb:
+                cmd.append("--no-backupdb")
+            if verbose:
+                cmd.append("--verbose")
+            cmd.append(source)
+            cmd.append("tahoe:backups")
+            return self.do_cli(*cmd)
+
         d = self.set_up_nodes()
         d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
-        d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:backups"))
+
+        if not have_bdb:
+            d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:backups"))
+            def _should_complain((rc, out, err)):
+                self.failUnless("I was unable to import a python sqlite library" in err, err)
+            d.addCallback(_should_complain)
+
+        d.addCallback(lambda res: do_backup())
         def _check0((rc, out, err)):
-            self.nosqlite_is_ok(err, have_bdb)
+            self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
             fu, fr, dc, dr = self.count_output(out)
             # foo.txt, bar.txt, blah.txt
@@ -707,11 +717,11 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check4)
 
 
-        d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:backups"))
+        d.addCallback(lambda res: do_backup())
         def _check4a((rc, out, err)):
             # second backup should reuse everything, if the backupdb is
             # available
-            self.nosqlite_is_ok(err, have_bdb)
+            self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
             if have_bdb:
                 fu, fr, dc, dr = self.count_output(out)
@@ -736,12 +746,11 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
 
             d.addCallback(_reset_last_checked)
 
-            d.addCallback(lambda res:
-                          self.do_cli("backup", "--verbose", source, "tahoe:backups"))
+            d.addCallback(lambda res: do_backup(verbose=True))
             def _check4b((rc, out, err)):
                 # we should check all files, and re-use all of them. None of
                 # the directories should have been changed.
-                self.nosqlite_is_ok(err, have_bdb)
+                self.failUnlessEqual(err, "")
                 self.failUnlessEqual(rc, 0)
                 fu, fr, dc, dr = self.count_output(out)
                 fchecked, dchecked, dread = self.count_output2(out)
@@ -782,12 +791,12 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
             # turn a directory into a file
             os.rmdir(os.path.join(source, "empty"))
             self.writeto("empty", "imagine nothing being here")
-            return self.do_cli("backup", source, "tahoe:backups")
+            return do_backup()
         d.addCallback(_modify)
         def _check5a((rc, out, err)):
             # second backup should reuse bar.txt (if backupdb is available),
             # and upload the rest. None of the directories can be reused.
-            self.nosqlite_is_ok(err, have_bdb)
+            self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
             if have_bdb:
                 fu, fr, dc, dr = self.count_output(out)
@@ -825,8 +834,7 @@ class Backup(SystemTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(out, "foo")
         d.addCallback(_check8)
 
-        d.addCallback(lambda res:
-                      self.do_cli("backup", "--no-backupdb", source, "tahoe:backups"))
+        d.addCallback(lambda res: do_backup(use_backupdb=False))
         def _check9((rc, out, err)):
             # --no-backupdb means re-upload everything. We still get to
             # re-use the directories, since nothing changed.

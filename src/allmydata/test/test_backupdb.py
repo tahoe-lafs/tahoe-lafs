@@ -11,7 +11,7 @@ class BackupDB(unittest.TestCase):
         stderr = StringIO()
         bdb = backupdb.get_backupdb(dbfile, stderr=stderr)
         if not bdb:
-            if "sqlite unavailable" in stderr.getvalue():
+            if "I was unable to import a python sqlite library" in stderr.getvalue():
                 raise unittest.SkipTest("sqlite unavailable, skipping test")
         return bdb
 
@@ -34,7 +34,7 @@ class BackupDB(unittest.TestCase):
                                     stderr_f)
         self.failUnlessEqual(bdb, None)
         stderr = stderr_f.getvalue()
-        if "sqlite unavailable" in stderr:
+        if "I was unable to import a python sqlite library" in stderr:
             pass
         else:
             self.failUnless("backupdb file is unusable" in stderr)
@@ -47,7 +47,7 @@ class BackupDB(unittest.TestCase):
         bdb = backupdb.get_backupdb(where, stderr_f)
         self.failUnlessEqual(bdb, None)
         stderr = stderr_f.getvalue()
-        if "sqlite unavailable" in stderr:
+        if "I was unable to import a python sqlite library" in stderr:
             pass
         else:
             self.failUnless(("Unable to create/open backupdb file %s" % where)
